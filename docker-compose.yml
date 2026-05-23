@@ -1,0 +1,21 @@
+services:
+  app:
+    image: tuti:dev
+    container_name: tuti
+    build:
+      context: .
+    ports:
+      - "5050:3000"
+    volumes:
+      - .:/app
+      - tuti_node_modules:/app/node_modules
+      - tuti_pnpm_store:/pnpm/store
+    environment:
+      NEXT_TELEMETRY_DISABLED: "1"
+    command: sh -lc "pnpm install --store-dir /pnpm/store && (chown -R node:node /app/node_modules /pnpm/store /app/pnpm-lock.yaml /app/.next 2>/dev/null || true) && su node -c 'pnpm dev --hostname 0.0.0.0'"
+    stdin_open: true
+    tty: true
+
+volumes:
+  tuti_node_modules:
+  tuti_pnpm_store:

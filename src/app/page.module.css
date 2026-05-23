@@ -1,0 +1,494 @@
+.shell {
+  min-height: 100svh;
+  display: grid;
+  place-items: center;
+  padding: 28px;
+  background:
+    radial-gradient(circle at top left, rgba(139, 168, 149, 0.22), transparent 34%),
+    linear-gradient(135deg, #f6f4ef 0%, #e8ece4 52%, #dce5e0 100%);
+}
+
+.phone {
+  position: relative;
+  width: min(100%, 390px);
+  height: min(860px, calc(100svh - 56px));
+  min-height: 680px;
+  overflow: hidden;
+  border: 1px solid rgba(31, 33, 29, 0.18);
+  border-radius: 34px;
+  background: #fbfaf6;
+  box-shadow: 0 24px 80px rgba(31, 33, 29, 0.16);
+}
+
+.screen {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 44px 24px 28px;
+  animation: enter 420ms ease both;
+}
+
+.onboarding {
+  align-items: center;
+  justify-content: center;
+  gap: 24px;
+}
+
+.brandMark {
+  width: 72px;
+  height: 72px;
+  display: grid;
+  place-items: center;
+  border: 1px solid rgba(31, 33, 29, 0.24);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.72);
+  font-size: 42px;
+  font-weight: 800;
+  box-shadow: 0 18px 48px rgba(31, 33, 29, 0.08);
+}
+
+.brandText {
+  display: grid;
+  gap: 8px;
+  text-align: center;
+}
+
+.brandText h1,
+.homeCopy h2,
+.swipeCopy h2,
+.questionBlock h2,
+.detailCopy h2,
+.journalHeader h2 {
+  letter-spacing: 0;
+}
+
+.brandText h1 {
+  font-size: 38px;
+  line-height: 1.05;
+}
+
+.brandText p,
+.homeCopy p,
+.swipeCopy p,
+.questionBlock p,
+.detailCopy p,
+.journalHeader p {
+  color: #777469;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.bottomActions {
+  position: absolute;
+  inset: auto 24px 56px;
+  display: grid;
+  gap: 16px;
+}
+
+.primaryButton,
+.textButton,
+.skipButton,
+.backButton,
+.gestureHints button,
+.optionCard,
+.swipeCard,
+.dots button {
+  border: 0;
+  cursor: pointer;
+}
+
+.primaryButton {
+  min-height: 54px;
+  border-radius: 999px;
+  background: #24271f;
+  color: #fffdf8;
+  font-weight: 700;
+  transition: transform 180ms ease, background 180ms ease;
+}
+
+.primaryButton:active,
+.optionCard:active,
+.swipeCard:active {
+  transform: scale(0.98);
+}
+
+.textButton,
+.skipButton,
+.backButton {
+  width: fit-content;
+  background: transparent;
+  color: #68665d;
+  font-size: 14px;
+}
+
+.textButton {
+  justify-self: center;
+  padding: 8px 16px;
+}
+
+.intake {
+  gap: 36px;
+}
+
+.softHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.softHeader span {
+  font-size: 22px;
+  font-weight: 800;
+}
+
+.questionBlock {
+  display: grid;
+  gap: 12px;
+  padding-top: 36px;
+}
+
+.questionBlock h2 {
+  max-width: 290px;
+  font-size: 28px;
+  line-height: 1.24;
+}
+
+.optionList {
+  display: grid;
+  gap: 14px;
+}
+
+.optionCard {
+  min-height: 82px;
+  display: grid;
+  gap: 7px;
+  justify-items: start;
+  padding: 20px;
+  border: 1px solid rgba(31, 33, 29, 0.12);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.58);
+  color: #23251f;
+  text-align: left;
+  transition: transform 180ms ease, border-color 180ms ease, background 180ms ease;
+}
+
+.optionCard:hover {
+  border-color: rgba(31, 33, 29, 0.28);
+  background: rgba(255, 255, 255, 0.9);
+}
+
+.optionCard span {
+  font-size: 18px;
+  font-weight: 750;
+}
+
+.optionCard small {
+  color: #777469;
+  font-size: 13px;
+}
+
+.home {
+  justify-content: flex-end;
+  gap: 22px;
+}
+
+.ambientCard {
+  position: relative;
+  min-height: 360px;
+  overflow: hidden;
+  border-radius: 8px;
+  background:
+    linear-gradient(180deg, rgba(31, 33, 29, 0.06), rgba(31, 33, 29, 0.28)),
+    #d7ddd4;
+  background-position: center;
+  background-size: cover;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.18);
+}
+
+.ambientCard::before {
+  content: "";
+  position: absolute;
+  inset: -20%;
+  background: linear-gradient(110deg, transparent 15%, rgba(255, 255, 255, 0.2) 45%, transparent 70%);
+  animation: lightPass 5.8s ease-in-out infinite;
+}
+
+.quietAmbient {
+  min-height: 430px;
+}
+
+.playMark {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  color: rgba(255, 255, 255, 0.84);
+  font-size: 34px;
+  text-shadow: 0 6px 22px rgba(0, 0, 0, 0.28);
+}
+
+.homeCopy {
+  display: grid;
+  gap: 8px;
+}
+
+.homeCopy h2 {
+  max-width: 280px;
+  font-size: 29px;
+  line-height: 1.24;
+}
+
+.swipe {
+  justify-content: space-between;
+  touch-action: none;
+}
+
+.swipeCopy {
+  display: grid;
+  gap: 8px;
+}
+
+.swipeCopy h2 {
+  max-width: 300px;
+  min-height: 72px;
+  font-size: 27px;
+  line-height: 1.28;
+}
+
+.carousel {
+  position: relative;
+  height: 390px;
+  display: grid;
+  place-items: center;
+  perspective: 900px;
+}
+
+.swipeCard {
+  position: absolute;
+  width: 210px;
+  height: 330px;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  gap: 10px;
+  padding: 18px;
+  overflow: hidden;
+  border-radius: 8px;
+  background-color: #cad4cb;
+  background-position: center;
+  background-size: cover;
+  color: #fffdf8;
+  text-align: left;
+  box-shadow: 0 20px 54px rgba(31, 33, 29, 0.22);
+  transition: transform 360ms ease, opacity 260ms ease;
+}
+
+.swipeCard::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, transparent 28%, rgba(0, 0, 0, 0.62));
+}
+
+.swipeCard span,
+.swipeCard small {
+  position: relative;
+  z-index: 1;
+}
+
+.swipeCard span {
+  font-size: 19px;
+  font-weight: 800;
+  line-height: 1.35;
+}
+
+.swipeCard small {
+  color: rgba(255, 253, 248, 0.8);
+}
+
+.currentCard {
+  box-shadow: 0 28px 70px rgba(31, 33, 29, 0.28);
+}
+
+.dots {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+}
+
+.dots button {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: rgba(31, 33, 29, 0.22);
+}
+
+.dots .activeDot {
+  background: #24271f;
+}
+
+.gestureHints {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+}
+
+.gestureHints button {
+  min-height: 42px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.5);
+  color: #68665d;
+}
+
+.detail {
+  gap: 20px;
+}
+
+.detail .ambientCard {
+  min-height: 340px;
+}
+
+.detailCopy {
+  display: grid;
+  gap: 8px;
+}
+
+.detailCopy h2 {
+  font-size: 28px;
+  line-height: 1.25;
+}
+
+.detailCopy span {
+  color: #68665d;
+  font-size: 15px;
+  line-height: 1.7;
+}
+
+.infoRows {
+  display: grid;
+  gap: 1px;
+  overflow: hidden;
+  border-radius: 8px;
+  background: rgba(31, 33, 29, 0.08);
+}
+
+.infoRow {
+  min-height: 56px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 16px;
+  background: rgba(255, 255, 255, 0.64);
+}
+
+.infoRow span {
+  color: #777469;
+  font-size: 14px;
+}
+
+.infoRow strong {
+  font-size: 15px;
+}
+
+.journal {
+  gap: 22px;
+}
+
+.journalHeader {
+  display: grid;
+  gap: 8px;
+}
+
+.journalHeader h2 {
+  font-size: 30px;
+}
+
+.memoryList {
+  display: grid;
+  gap: 14px;
+  overflow-y: auto;
+  padding-right: 2px;
+}
+
+.memoryCard {
+  display: grid;
+  grid-template-columns: 96px 1fr;
+  gap: 14px;
+  align-items: center;
+  min-height: 116px;
+  padding: 10px;
+  border: 1px solid rgba(31, 33, 29, 0.1);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.56);
+}
+
+.memoryCard div {
+  width: 96px;
+  height: 96px;
+  border-radius: 7px;
+  background-position: center;
+  background-size: cover;
+}
+
+.memoryCard p {
+  font-weight: 800;
+  line-height: 1.45;
+}
+
+.memoryCard span {
+  grid-column: 2;
+  color: #777469;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+@keyframes enter {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes lightPass {
+  0%,
+  42% {
+    transform: translateX(-48%);
+  }
+  76%,
+  100% {
+    transform: translateX(48%);
+  }
+}
+
+@media (max-width: 520px) {
+  .shell {
+    padding: 0;
+    background: #fbfaf6;
+  }
+
+  .phone {
+    width: 100%;
+    height: 100svh;
+    min-height: 620px;
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+  }
+
+  .screen {
+    padding-inline: 20px;
+  }
+
+  .quietAmbient {
+    min-height: 390px;
+  }
+
+  .carousel {
+    height: 360px;
+  }
+}
