@@ -8,14 +8,13 @@ services:
       context: .
       target: runner
       args:
-        NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-}
+        NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:?Run with --env-file .env.production}
+    env_file:
+      - .env
+      - .env.production
     restart: unless-stopped
     ports:
       - "5050:3000"
-    environment:
-      DATABASE_URL: postgresql://tuti_user:tuti_password@db:5432/tuti?schema=public
-      NODE_ENV: production
-      NEXT_TELEMETRY_DISABLED: "1"
     depends_on:
       - db
 
@@ -23,10 +22,8 @@ services:
     image: postgis/postgis:17-3.5
     container_name: tuti-prod-db
     restart: unless-stopped
-    environment:
-      POSTGRES_USER: tuti_user
-      POSTGRES_PASSWORD: tuti_password
-      POSTGRES_DB: tuti
+    env_file:
+      - .env.production
     volumes:
       - tuti_prod_postgres:/var/lib/postgresql/data
 
