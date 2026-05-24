@@ -14,8 +14,12 @@ function SwipeFlow() {
   const router = useRouter();
   const { places } = useTutiRecommendations();
   const activeIndex = useTutiStore((state) => state.activeIndex);
+  const hasSeenSwipeHelp = useTutiStore((state) => state.hasSeenSwipeHelp);
+  const hasSeenJournalHelp = useTutiStore((state) => state.hasSeenJournalHelp);
   const setActiveIndex = useTutiStore((state) => state.setActiveIndex);
   const moveActiveIndex = useTutiStore((state) => state.moveActiveIndex);
+  const markSwipeHelpSeen = useTutiStore((state) => state.markSwipeHelpSeen);
+  const markJournalHelpSeen = useTutiStore((state) => state.markJournalHelpSeen);
 
   const activePlace = places[activeIndex] ?? places[0];
 
@@ -37,6 +41,17 @@ function SwipeFlow() {
       onMove={moveCard}
       onDetail={() => router.push("/detail")}
       onJournal={() => router.push("/journal")}
+      initialHelp={
+        !hasSeenSwipeHelp ? "detail" : !hasSeenJournalHelp ? "journal" : null
+      }
+      onInitialHelpShown={(kind) => {
+        if (kind === "detail") {
+          markSwipeHelpSeen();
+          return;
+        }
+
+        markJournalHelpSeen();
+      }}
     />
   );
 }

@@ -17,7 +17,7 @@ export function SwipeCard({
   offset: number;
   active: boolean;
   drag?: { x: number; y: number };
-  nudging?: boolean;
+  nudging?: "up" | "down" | null;
 }) {
   const hidden = Math.abs(offset) > 2;
   const dragX = active ? drag?.x ?? 0 : 0;
@@ -31,7 +31,7 @@ export function SwipeCard({
       $image={place.image}
       $active={active}
       $dragging={active && Boolean(drag)}
-      $nudging={active && Boolean(nudging)}
+      $nudging={active ? nudging ?? null : null}
       data-swipe-card-index={cardIndex}
       style={{
         transform: `translate(${baseX + dragX}px, ${dragY}px) scale(${scale}) rotate(${rotation}deg)`,
@@ -49,7 +49,7 @@ const CardButton = styled(BaseButton)<{
   $image: string;
   $active: boolean;
   $dragging: boolean;
-  $nudging: boolean;
+  $nudging: "up" | "down" | null;
 }>`
   position: absolute;
   width: 210px;
@@ -72,7 +72,12 @@ const CardButton = styled(BaseButton)<{
   transition: ${({ $dragging }) =>
     $dragging ? "opacity 160ms ease" : "transform 360ms ease, opacity 260ms ease"};
   will-change: transform;
-  animation: ${({ $nudging }) => ($nudging ? "nudgeUp 520ms ease" : "none")};
+  animation: ${({ $nudging }) =>
+    $nudging === "up"
+      ? "nudgeUp 520ms ease"
+      : $nudging === "down"
+        ? "nudgeDown 520ms ease"
+        : "none"};
 
   @keyframes nudgeUp {
     0% {
@@ -85,6 +90,24 @@ const CardButton = styled(BaseButton)<{
 
     62% {
       translate: 0 5px;
+    }
+
+    100% {
+      translate: 0 0;
+    }
+  }
+
+  @keyframes nudgeDown {
+    0% {
+      translate: 0 0;
+    }
+
+    34% {
+      translate: 0 18px;
+    }
+
+    62% {
+      translate: 0 -5px;
     }
 
     100% {

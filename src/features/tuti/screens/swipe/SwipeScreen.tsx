@@ -1,7 +1,7 @@
 "use client";
 
 import styled from "@emotion/styled";
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { BaseButton } from "@/features/tuti/components/buttons";
 import { ScreenFrame } from "@/features/tuti/components/ScreenFrame";
 import { SwipeCard } from "@/features/tuti/components/SwipeCard";
@@ -11,6 +11,7 @@ import type { TutiPlace } from "@/lib/recommendations";
 
 type Point = { x: number; y: number };
 type DragAxis = "horizontal" | "vertical" | null;
+type HelpKind = "detail" | "journal";
 
 export function SwipeScreen({
   places,
@@ -20,6 +21,8 @@ export function SwipeScreen({
   onMove,
   onDetail,
   onJournal,
+  initialHelp,
+  onInitialHelpShown,
 }: {
   places: TutiPlace[];
   activeIndex: number;
@@ -28,31 +31,77 @@ export function SwipeScreen({
   onMove: (direction: number) => void;
   onDetail: () => void;
   onJournal: () => void;
+  initialHelp: HelpKind | null;
+  onInitialHelpShown: (kind: HelpKind) => void;
 }) {
   const [dragStart, setDragStart] = useState<Point | null>(null);
   const [dragOffset, setDragOffset] = useState<Point>({ x: 0, y: 0 });
   const [dragAxis, setDragAxis] = useState<DragAxis>(null);
   const [committing, setCommitting] = useState(false);
-  const [nudgingCard, setNudgingCard] = useState(false);
+  const [nudgingCard, setNudgingCard] = useState<"up" | "down" | null>(null);
   const [pressedCardIndex, setPressedCardIndex] = useState<number | null>(null);
+  const [currentHelp, setCurrentHelp] = useState<HelpKind | null>(null);
+  const [displayedHelp, setDisplayedHelp] = useState<HelpKind | null>(null);
   const verticalProgress =
     dragAxis === "vertical" ? Math.min(Math.abs(dragOffset.y) / 140, 1) : 0;
   const transitionTarget = dragOffset.y < 0 ? "detail" : "journal";
+  const helpVisible = Boolean(currentHelp) && verticalProgress === 0 && !committing;
+
+  const nudgeActiveCard = useCallback((direction: "up" | "down" = "up") => {
+    if (committing) return;
+
+    setNudgingCard(null);
+    window.setTimeout(() => {
+      setNudgingCard(direction);
+      window.setTimeout(() => setNudgingCard(null), 560);
+    }, 0);
+  }, [committing]);
+
+  const dismissHelp = useCallback(() => {
+    if (!currentHelp) return;
+
+    onInitialHelpShown(currentHelp);
+    setCurrentHelp(null);
+  }, [currentHelp, onInitialHelpShown]);
+
+  useEffect(() => {
+    if (!initialHelp || currentHelp || dragStart || committing || verticalProgress > 0) {
+      return undefined;
+    }
+
+    const showTimeout = window.setTimeout(() => {
+      setCurrentHelp(initialHelp);
+      setDisplayedHelp(initialHelp);
+      nudgeActiveCard(initialHelp === "journal" ? "down" : "up");
+    }, 260);
+
+    return () => window.clearTimeout(showTimeout);
+  }, [initialHelp, currentHelp, dragStart, committing, verticalProgress, nudgeActiveCard]);
+
+  useEffect(() => {
+    if (!currentHelp) {
+      return undefined;
+    }
+
+    const timeout = window.setTimeout(dismissHelp, 4200);
+
+    return () => window.clearTimeout(timeout);
+  }, [currentHelp, dismissHelp]);
 
   const startDrag = (event: React.PointerEvent<HTMLElement>) => {
-    const point = { x: event.clientX, y: event.clientY };
     const cardElement = (event.target as HTMLElement).closest<HTMLElement>(
       "[data-swipe-card-index]",
     );
+    if (!cardElement) return;
 
+    const point = { x: event.clientX, y: event.clientY };
     event.currentTarget.setPointerCapture(event.pointerId);
     setDragStart(point);
     setDragOffset({ x: 0, y: 0 });
     setDragAxis(null);
     setCommitting(false);
-    setPressedCardIndex(
-      cardElement ? Number(cardElement.dataset.swipeCardIndex) : null,
-    );
+    dismissHelp();
+    setPressedCardIndex(Number(cardElement.dataset.swipeCardIndex));
   };
 
   const updateDrag = (event: React.PointerEvent<HTMLElement>) => {
@@ -70,6 +119,10 @@ export function SwipeScreen({
 
     if (nextAxis !== dragAxis) {
       setDragAxis(nextAxis);
+    }
+
+    if (nextAxis === "vertical") {
+      dismissHelp();
     }
 
     setDragOffset({
@@ -126,16 +179,6 @@ export function SwipeScreen({
     resetDrag();
   };
 
-  const nudgeActiveCard = () => {
-    if (committing) return;
-
-    setNudgingCard(false);
-    window.setTimeout(() => {
-      setNudgingCard(true);
-      window.setTimeout(() => setNudgingCard(false), 560);
-    }, 0);
-  };
-
   const resetDrag = () => {
     setDragStart(null);
     setDragOffset({ x: 0, y: 0 });
@@ -165,7 +208,7 @@ export function SwipeScreen({
               offset={getOffset(index, activeIndex, places.length)}
               active={index === activeIndex}
               drag={dragStart || committing ? dragOffset : undefined}
-              nudging={index === activeIndex && nudgingCard}
+              nudging={index === activeIndex ? nudgingCard : null}
             />
           ))}
         </Carousel>
@@ -196,6 +239,21 @@ export function SwipeScreen({
           )}
         </TransitionLayer>
       )}
+
+      <HelpOverlay $visible={helpVisible} aria-hidden={!helpVisible}>
+        {displayedHelp &&
+          (displayedHelp === "journal" ? (
+            <>
+              <p>방금의 공기는</p>
+              <strong>아래로 살짝 남겨둘까요?</strong>
+            </>
+          ) : (
+            <>
+              <p>괜찮아 보인다면</p>
+              <strong>위로 올려볼까요?</strong>
+            </>
+          ))}
+      </HelpOverlay>
     </Frame>
   );
 }
@@ -237,6 +295,43 @@ const TransitionLayer = styled.div<{ $progress: number; $from: number }>`
   transform: translateY(${({ $progress, $from }) => $from * (1 - $progress)}px);
   transition: ${({ $progress }) =>
     $progress > 0 ? "none" : "opacity 220ms ease, transform 240ms ease"};
+`;
+
+const HelpOverlay = styled.div<{ $visible: boolean }>`
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 30;
+  height: 25%;
+  display: grid;
+  align-content: end;
+  justify-items: center;
+  padding: 0 32px 38px;
+  background: linear-gradient(
+    to top,
+    rgba(251, 250, 246, 1) 0%,
+    rgba(251, 250, 246, 0.82) 46%,
+    rgba(251, 250, 246, 0) 100%
+  );
+  color: #24271f;
+  text-align: center;
+  pointer-events: none;
+  opacity: ${({ $visible }) => ($visible ? 1 : 0)};
+  transition: opacity 360ms ease;
+
+  p {
+    margin: 0 0 4px;
+    color: #777469;
+    font-size: 15px;
+    line-height: 1.45;
+  }
+
+  strong {
+    font-size: 24px;
+    font-weight: 800;
+    line-height: 1.2;
+  }
 `;
 
 const Copy = styled.div`
