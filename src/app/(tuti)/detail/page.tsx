@@ -19,5 +19,11 @@ function DetailFlow() {
     return null;
   }
 
-  return <DetailScreen place={activePlace} onBack={() => router.push("/swipe")} />;
+  return (
+    <DetailScreen
+      place={activePlace}
+      onBack={() => router.push("/swipe")}
+      swipeBackdrop={{ places, activeIndex, activePlace }}
+    />
+  );
 }

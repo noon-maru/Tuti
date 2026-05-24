@@ -4,24 +4,50 @@ import styled from "@emotion/styled";
 import { AmbientCard } from "@/features/tuti/components/AmbientCard";
 import { BackButton } from "@/features/tuti/components/buttons";
 import { ScreenFrame } from "@/features/tuti/components/ScreenFrame";
+import { useVerticalSwipeBack } from "@/features/tuti/hooks/useVerticalSwipeBack";
+import {
+  SwipeReturnBackdrop,
+  type SwipeReturnBackdropProps,
+} from "@/features/tuti/screens/swipe/SwipeReturnBackdrop";
 import type { TutiPlace } from "@/lib/recommendations";
 
-export function DetailScreen({ place, onBack }: { place: TutiPlace; onBack: () => void }) {
+export function DetailScreen({
+  place,
+  onBack,
+  swipeBackdrop,
+}: {
+  place: TutiPlace;
+  onBack: () => void;
+  swipeBackdrop?: SwipeReturnBackdropProps;
+}) {
+  const swipeBack = useVerticalSwipeBack({ direction: "down", onBack });
+
   return (
-    <Frame>
-      <BackButton onClick={onBack}>돌아가기</BackButton>
-      <AmbientCard place={place} />
-      <Copy>
-        <p>{place.name}</p>
-        <h2>{place.phrase}</h2>
-        <span>{place.note}</span>
-      </Copy>
-      <InfoRows>
-        <InfoRow label="이동시간" value={place.travelTime} />
-        <InfoRow label="혼잡도" value={place.crowd} />
-        <InfoRow label="오늘" value={place.today} />
-      </InfoRows>
-    </Frame>
+    <>
+      {swipeBackdrop && (
+        <SwipeReturnBackdrop {...swipeBackdrop} progress={swipeBack.dragProgress} />
+      )}
+      <Frame
+        {...swipeBack.gestureProps}
+        $dragY={swipeBack.dragY}
+        $progress={swipeBack.dragProgress}
+        $isDragging={swipeBack.isDragging}
+        $isCommitting={swipeBack.isCommitting}
+      >
+        <BackButton onClick={onBack}>돌아가기</BackButton>
+        <AmbientCard place={place} />
+        <Copy>
+          <p>{place.name}</p>
+          <h2>{place.phrase}</h2>
+          <span>{place.note}</span>
+        </Copy>
+        <InfoRows>
+          <InfoRow label="이동시간" value={place.travelTime} />
+          <InfoRow label="혼잡도" value={place.crowd} />
+          <InfoRow label="오늘" value={place.today} />
+        </InfoRows>
+      </Frame>
+    </>
   );
 }
 
@@ -34,8 +60,21 @@ function InfoRow({ label, value }: { label: string; value: string }) {
   );
 }
 
-const Frame = styled(ScreenFrame)`
+const Frame = styled(ScreenFrame)<{
+  $dragY: number;
+  $progress: number;
+  $isDragging: boolean;
+  $isCommitting: boolean;
+}>`
+  z-index: 1;
   gap: 20px;
+  background: #fbfaf6;
+  opacity: ${({ $progress }) => 1 - $progress * 0.32};
+  transform: translateY(${({ $dragY }) => $dragY}px)
+    scale(${({ $progress }) => 1 - $progress * 0.025});
+  transition: ${({ $isDragging }) =>
+    $isDragging ? "none" : "opacity 160ms ease, transform 180ms ease"};
+  touch-action: ${({ $isCommitting }) => ($isCommitting ? "none" : "pan-y")};
 `;
 
 const Copy = styled.div`
