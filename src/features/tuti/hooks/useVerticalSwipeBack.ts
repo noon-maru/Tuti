@@ -21,6 +21,8 @@ export function useVerticalSwipeBack({
   const [isDragging, setIsDragging] = useState(false);
   const [isCommitting, setIsCommitting] = useState(false);
   const pointerStart = useRef<Point | null>(null);
+  const activePointerId = useRef<number | null>(null);
+  const isPointerGesture = useRef(false);
   const touchStart = useRef<Point | null>(null);
   const touchCurrent = useRef<Point | null>(null);
   const scrollTarget = useRef<HTMLElement | null>(null);
@@ -107,6 +109,8 @@ export function useVerticalSwipeBack({
 
   const clearGestureRefs = () => {
     pointerStart.current = null;
+    activePointerId.current = null;
+    isPointerGesture.current = false;
     touchStart.current = null;
     touchCurrent.current = null;
     scrollTarget.current = null;
@@ -115,23 +119,25 @@ export function useVerticalSwipeBack({
   return {
     gestureProps: {
       onPointerDown: (event: PointerEvent<HTMLElement>) => {
-        if (event.pointerType === "touch" || !event.isPrimary || event.button !== 0) {
+        if (!event.isPrimary || event.button !== 0) {
           return;
         }
 
         if (start({ x: event.clientX, y: event.clientY }, event.target)) {
+          activePointerId.current = event.pointerId;
+          isPointerGesture.current = true;
           event.currentTarget.setPointerCapture(event.pointerId);
         }
       },
       onPointerMove: (event: PointerEvent<HTMLElement>) => {
-        if (event.pointerType === "touch") {
+        if (activePointerId.current !== event.pointerId) {
           return;
         }
 
         update(pointerStart.current, { x: event.clientX, y: event.clientY });
       },
       onPointerUp: (event: PointerEvent<HTMLElement>) => {
-        if (event.pointerType === "touch") {
+        if (activePointerId.current !== event.pointerId) {
           return;
         }
 
@@ -139,6 +145,10 @@ export function useVerticalSwipeBack({
       },
       onPointerCancel: reset,
       onTouchStart: (event: TouchEvent<HTMLElement>) => {
+        if (isPointerGesture.current) {
+          return;
+        }
+
         if (event.touches.length !== 1) {
           reset();
           return;
@@ -148,6 +158,10 @@ export function useVerticalSwipeBack({
         start({ x: touch.clientX, y: touch.clientY }, event.target);
       },
       onTouchMove: (event: TouchEvent<HTMLElement>) => {
+        if (isPointerGesture.current) {
+          return;
+        }
+
         if (!touchStart.current || event.touches.length !== 1) {
           return;
         }
@@ -160,6 +174,10 @@ export function useVerticalSwipeBack({
         }
       },
       onTouchEnd: (event: TouchEvent<HTMLElement>) => {
+        if (isPointerGesture.current) {
+          return;
+        }
+
         const touch = event.changedTouches[0];
         const endPoint = touch ? { x: touch.clientX, y: touch.clientY } : touchCurrent.current;
         finish(touchStart.current, endPoint);

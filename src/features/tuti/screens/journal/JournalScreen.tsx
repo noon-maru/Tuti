@@ -66,7 +66,7 @@ const Frame = styled(ScreenFrame)<{
     scale(${({ $progress }) => 1 - $progress * 0.025});
   transition: ${({ $isDragging }) =>
     $isDragging ? "none" : "opacity 160ms ease, transform 180ms ease"};
-  touch-action: ${({ $isCommitting }) => ($isCommitting ? "none" : "pan-y")};
+  touch-action: none;
 `;
 
 const Header = styled.div`
@@ -90,6 +90,7 @@ const MemoryList = styled.div`
   gap: 14px;
   overflow-y: auto;
   padding-right: 2px;
+  touch-action: pan-y;
 `;
 
 const MemoryCard = styled.article`
