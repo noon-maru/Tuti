@@ -5,6 +5,7 @@ export type StateFeature = {
   movement: "near" | "short" | "half";
   crowdTolerance: "low" | "medium";
   goal: "clear_air" | "quiet_reset" | "light_walk";
+  burdenNote: string;
 };
 
 export type TutiPlace = {
@@ -40,5 +41,9 @@ export function interpretState(answers: IntakeAnswers): StateFeature {
         : answers.air === "walk"
           ? "light_walk"
           : "quiet_reset",
+    burdenNote:
+      answers.movement === "near"
+        ? "오늘은 가까운 쪽으로만 골랐어요."
+        : "오늘 가능한 정도에 맞춰 가볍게 골랐어요.",
   };
 }

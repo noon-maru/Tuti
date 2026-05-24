@@ -6,11 +6,16 @@ export const runtime = "nodejs";
 type RecommendationRequest = {
   answers?: IntakeAnswers;
   location?: UserLocation;
+  stateText?: string;
 };
 
 export async function POST(request: Request) {
   const body = (await request.json()) as RecommendationRequest;
-  const places = await createRecommendations(body.answers ?? {}, normalizeLocation(body.location));
+  const places = await createRecommendations(
+    body.answers ?? {},
+    normalizeLocation(body.location),
+    normalizeStateText(body.stateText),
+  );
 
   return Response.json({ places });
 }
@@ -27,4 +32,12 @@ function normalizeLocation(location?: UserLocation) {
   }
 
   return { latitude, longitude };
+}
+
+function normalizeStateText(stateText?: string) {
+  if (typeof stateText !== "string") return undefined;
+
+  const trimmed = stateText.trim();
+
+  return trimmed ? trimmed.slice(0, 400) : undefined;
 }

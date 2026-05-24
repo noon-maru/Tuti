@@ -1,5 +1,6 @@
 import type { TutiPlace } from "@/lib/recommendations";
 import { prisma } from "@/server/db/prisma";
+import { interpretStateWithLlm } from "@/server/llm/stateInterpreter";
 import { rankByMovementFatigue } from "@/server/recommendations/fatigue";
 import type { IntakeAnswers, UserLocation } from "@/store/tuti";
 
@@ -21,12 +22,14 @@ type PlaceRow = {
 export async function createRecommendations(
   answers: IntakeAnswers,
   location?: UserLocation,
+  stateText?: string,
 ): Promise<TutiPlace[]> {
+  const feature = await interpretStateWithLlm({ answers, stateText });
   const places = location
     ? await findPlacesNearLocation(location)
     : await findPlacesByBaseFatigue();
 
-  return rankByMovementFatigue(places.map(toTutiPlace), answers);
+  return rankByMovementFatigue(places.map(toTutiPlace), answers, feature);
 }
 
 async function findPlacesByBaseFatigue(): Promise<PlaceRow[]> {

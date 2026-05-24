@@ -1,4 +1,4 @@
-import { interpretState, type TutiPlace } from "@/lib/recommendations";
+import { interpretState, type StateFeature, type TutiPlace } from "@/lib/recommendations";
 import type { IntakeAnswers, AirAnswer, MovementAnswer } from "@/store/tuti";
 
 type MovementFatigueInput = Pick<
@@ -30,16 +30,17 @@ const moodTagByAir: Record<AirAnswer, string> = {
 export function rankByMovementFatigue(
   places: TutiPlace[],
   answers: IntakeAnswers,
+  feature: StateFeature = interpretState(answers),
 ): TutiPlace[] {
   return places
     .map((place) => {
-      const breakdown = calculateMovementFatigue(place, answers);
+      const breakdown = calculateMovementFatigue(place, answers, feature);
       const fatigueScore = scoreBreakdown(breakdown);
 
       return {
         ...place,
         fatigueScore,
-        reason: getRecommendationReason(place, answers, breakdown),
+        reason: getRecommendationReason(place, answers, breakdown, feature),
       };
     })
     .sort((a, b) => a.fatigueScore - b.fatigueScore || a.fatigue - b.fatigue)
@@ -49,8 +50,8 @@ export function rankByMovementFatigue(
 export function calculateMovementFatigue(
   place: MovementFatigueInput,
   answers: IntakeAnswers,
+  feature: StateFeature = interpretState(answers),
 ): FatigueBreakdown {
-  const feature = interpretState(answers);
   const requestedMovement = feature.movement;
   const requestedWeight = movementWeight[requestedMovement];
   const placeWeight = movementWeight[place.movementLevel];
@@ -155,8 +156,8 @@ function getRecommendationReason(
   place: MovementFatigueInput,
   answers: IntakeAnswers,
   breakdown: FatigueBreakdown,
+  feature: StateFeature,
 ) {
-  const feature = interpretState(answers);
   const moodTag = answers.air ? moodTagByAir[answers.air] : undefined;
 
   if (feature.energy === "low" && place.movementLevel === "near") {
@@ -181,5 +182,5 @@ function getRecommendationReason(
     return "조금 멀 수 있어서 천천히 봐도 괜찮아요.";
   }
 
-  return "오늘 가능한 정도에 맞춰 가볍게 골랐어요.";
+  return feature.burdenNote;
 }
