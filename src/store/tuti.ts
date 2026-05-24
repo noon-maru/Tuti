@@ -11,8 +11,14 @@ export type IntakeAnswers = {
   alone?: AloneAnswer;
 };
 
+export type UserLocation = {
+  latitude: number;
+  longitude: number;
+};
+
 type TutiState = {
   answers: IntakeAnswers;
+  userLocation?: UserLocation;
   activeIndex: number;
   hasSeenSwipeHelp: boolean;
   hasSeenJournalHelp: boolean;
@@ -20,6 +26,8 @@ type TutiState = {
     key: Key,
     value: IntakeAnswers[Key],
   ) => void;
+  setUserLocation: (location: UserLocation) => void;
+  clearUserLocation: () => void;
   setActiveIndex: (index: number) => void;
   moveActiveIndex: (direction: number, itemCount: number) => void;
   markSwipeHelpSeen: () => void;
@@ -31,6 +39,7 @@ export const useTutiStore = create<TutiState>()(
   persist(
     (set) => ({
       answers: {},
+      userLocation: undefined,
       activeIndex: 0,
       hasSeenSwipeHelp: false,
       hasSeenJournalHelp: false,
@@ -41,6 +50,8 @@ export const useTutiStore = create<TutiState>()(
             [key]: value,
           },
         })),
+      setUserLocation: (userLocation) => set({ userLocation }),
+      clearUserLocation: () => set({ userLocation: undefined }),
       setActiveIndex: (index) => set({ activeIndex: index }),
       moveActiveIndex: (direction, itemCount) =>
         set((state) => ({

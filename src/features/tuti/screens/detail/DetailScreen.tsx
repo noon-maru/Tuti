@@ -39,6 +39,7 @@ export function DetailScreen({
         <Copy>
           <p>{place.name}</p>
           <h2>{place.phrase}</h2>
+          {place.reason && <small>{place.reason}</small>}
           <span>{place.note}</span>
         </Copy>
         <InfoRows>
@@ -97,6 +98,12 @@ const Copy = styled.div`
     color: #68665d;
     font-size: 15px;
     line-height: 1.7;
+  }
+
+  small {
+    color: #777469;
+    font-size: 14px;
+    line-height: 1.6;
   }
 `;
 

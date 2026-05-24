@@ -196,7 +196,7 @@ export function SwipeScreen({
     >
       <CurrentLayer $progress={verticalProgress} $dragY={dragOffset.y}>
         <Copy>
-          <p>오늘 가능한 정도</p>
+          <p>{activePlace?.reason ?? "오늘 가능한 정도"}</p>
           <h2>{activePlace?.phrase}</h2>
         </Copy>
         <Carousel>

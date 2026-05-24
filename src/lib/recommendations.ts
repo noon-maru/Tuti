@@ -17,6 +17,11 @@ export type TutiPlace = {
   crowd: string;
   today: string;
   fatigue: number;
+  movementLevel: "near" | "short" | "half";
+  moodTags: string[];
+  distanceMeters?: number;
+  fatigueScore?: number;
+  reason?: string;
 };
 
 export function interpretState(answers: IntakeAnswers): StateFeature {
@@ -36,18 +41,4 @@ export function interpretState(answers: IntakeAnswers): StateFeature {
           ? "light_walk"
           : "quiet_reset",
   };
-}
-
-export function getFatigueLimit(answers: IntakeAnswers) {
-  const feature = interpretState(answers);
-
-  return feature.movement === "near" ? 40 : feature.movement === "short" ? 52 : 80;
-}
-
-export function rankRecommendations(places: TutiPlace[], answers: IntakeAnswers): TutiPlace[] {
-  const limit = getFatigueLimit(answers);
-  const preferred = places.filter((place) => place.fatigue <= limit);
-  const fallback = places.filter((place) => place.fatigue > limit);
-
-  return [...preferred, ...fallback].slice(0, 6);
 }

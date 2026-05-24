@@ -8,10 +8,11 @@ import { useTutiStore } from "@/store/tuti";
 
 export function useTutiRecommendations() {
   const answers = useTutiStore((state) => state.answers);
+  const userLocation = useTutiStore((state) => state.userLocation);
   const feature = useMemo(() => interpretState(answers), [answers]);
   const { data: places = [], ...query } = useQuery({
-    queryKey: ["recommendations", answers],
-    queryFn: () => fetchRecommendations(answers),
+    queryKey: ["recommendations", answers, userLocation],
+    queryFn: () => fetchRecommendations(answers, userLocation),
     staleTime: Infinity,
   });
 
@@ -19,6 +20,7 @@ export function useTutiRecommendations() {
     answers,
     feature,
     places,
+    userLocation,
     ...query,
   };
 }

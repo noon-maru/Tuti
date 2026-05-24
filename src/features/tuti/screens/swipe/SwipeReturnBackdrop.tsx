@@ -23,7 +23,7 @@ export function SwipeReturnBackdrop({
     <Frame $progress={progress} aria-hidden>
       <Layer>
         <Copy>
-          <p>오늘 가능한 정도</p>
+          <p>{place?.reason ?? "오늘 가능한 정도"}</p>
           <h2>{place?.phrase}</h2>
         </Copy>
         <Carousel>

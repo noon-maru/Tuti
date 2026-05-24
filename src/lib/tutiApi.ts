@@ -1,5 +1,5 @@
 import type { TutiPlace } from "@/lib/recommendations";
-import type { IntakeAnswers } from "@/store/tuti";
+import type { IntakeAnswers, UserLocation } from "@/store/tuti";
 
 type RecommendationResponse = {
   places: TutiPlace[];
@@ -11,13 +11,16 @@ function apiUrl(path: string) {
   return `${apiBaseUrl.replace(/\/+$/, "")}/${path.replace(/^\/+/, "")}`;
 }
 
-export async function fetchRecommendations(answers: IntakeAnswers): Promise<TutiPlace[]> {
+export async function fetchRecommendations(
+  answers: IntakeAnswers,
+  location?: UserLocation,
+): Promise<TutiPlace[]> {
   const response = await fetch(apiUrl("recommendations"), {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({ answers }),
+    body: JSON.stringify({ answers, location }),
   });
 
   if (!response.ok) {

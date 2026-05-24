@@ -10,19 +10,28 @@ export function HomeScreen({
   place,
   feature,
   onEnterSwipe,
+  requestingLocation = false,
 }: {
   place?: TutiPlace;
   feature: StateFeature;
   onEnterSwipe: () => void;
+  requestingLocation?: boolean;
 }) {
   return (
     <Frame>
       <AmbientCard place={place} quiet />
       <Copy>
-        <p>{feature.energy === "low" ? "멀리 안 가도 괜찮아요." : "반나절 정도면 충분할지도 몰라요."}</p>
+        <p>
+          {place?.reason ??
+            (feature.energy === "low"
+              ? "멀리 안 가도 괜찮아요."
+              : "반나절 정도면 충분할지도 몰라요.")}
+        </p>
         <h2>생각 안 해도 되게 준비했어요.</h2>
       </Copy>
-      <PrimaryButton onClick={onEnterSwipe}>오늘 가능한 곳 보기</PrimaryButton>
+      <PrimaryButton onClick={onEnterSwipe} disabled={requestingLocation}>
+        {requestingLocation ? "가까운 공기를 보고 있어요" : "오늘 가능한 곳 보기"}
+      </PrimaryButton>
     </Frame>
   );
 }

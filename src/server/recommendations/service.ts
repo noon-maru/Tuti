@@ -1,6 +1,7 @@
-import { rankRecommendations, type TutiPlace } from "@/lib/recommendations";
+import type { TutiPlace } from "@/lib/recommendations";
 import { prisma } from "@/server/db/prisma";
-import type { IntakeAnswers } from "@/store/tuti";
+import { rankByMovementFatigue } from "@/server/recommendations/fatigue";
+import type { IntakeAnswers, UserLocation } from "@/store/tuti";
 
 type PlaceRow = {
   id: string;
@@ -12,10 +13,24 @@ type PlaceRow = {
   crowd: string;
   today: string;
   fatigue: number;
+  movementLevel: "near" | "short" | "half";
+  moodTags: string[];
+  distanceMeters?: number | null;
 };
 
-export async function createRecommendations(answers: IntakeAnswers): Promise<TutiPlace[]> {
-  const places = await prisma.place.findMany({
+export async function createRecommendations(
+  answers: IntakeAnswers,
+  location?: UserLocation,
+): Promise<TutiPlace[]> {
+  const places = location
+    ? await findPlacesNearLocation(location)
+    : await findPlacesByBaseFatigue();
+
+  return rankByMovementFatigue(places.map(toTutiPlace), answers);
+}
+
+async function findPlacesByBaseFatigue(): Promise<PlaceRow[]> {
+  return prisma.place.findMany({
     orderBy: [{ fatigue: "asc" }, { id: "asc" }],
     select: {
       id: true,
@@ -27,10 +42,39 @@ export async function createRecommendations(answers: IntakeAnswers): Promise<Tut
       crowd: true,
       today: true,
       fatigue: true,
+      movementLevel: true,
+      moodTags: true,
     },
   });
+}
 
-  return rankRecommendations(places.map(toTutiPlace), answers);
+async function findPlacesNearLocation(location: UserLocation): Promise<PlaceRow[]> {
+  const { latitude, longitude } = location;
+
+  return prisma.$queryRaw<PlaceRow[]>`
+    SELECT
+      "id",
+      "name",
+      "phrase",
+      "note",
+      "image",
+      "travel_time" AS "travelTime",
+      "crowd",
+      "today",
+      "fatigue",
+      "movement_level" AS "movementLevel",
+      "mood_tags" AS "moodTags",
+      ST_Distance(
+        "location"::geography,
+        ST_SetSRID(ST_MakePoint(${longitude}, ${latitude}), 4326)::geography
+      ) AS "distanceMeters"
+    FROM "places"
+    ORDER BY
+      "location" <-> ST_SetSRID(ST_MakePoint(${longitude}, ${latitude}), 4326),
+      "fatigue" ASC,
+      "id" ASC
+    LIMIT 30
+  `;
 }
 
 function toTutiPlace(place: PlaceRow): TutiPlace {
@@ -44,5 +88,9 @@ function toTutiPlace(place: PlaceRow): TutiPlace {
     crowd: place.crowd,
     today: place.today,
     fatigue: place.fatigue,
+    movementLevel: place.movementLevel,
+    moodTags: place.moodTags,
+    distanceMeters:
+      typeof place.distanceMeters === "number" ? place.distanceMeters : undefined,
   };
 }
