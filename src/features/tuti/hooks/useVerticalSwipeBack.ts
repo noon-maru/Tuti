@@ -27,6 +27,7 @@ export function useVerticalSwipeBack({
   const touchCurrent = useRef<Point | null>(null);
   const scrollTarget = useRef<HTMLElement | null>(null);
   const backTimeout = useRef<number | null>(null);
+  const committed = useRef(false);
 
   useEffect(() => {
     return () => {
@@ -37,6 +38,10 @@ export function useVerticalSwipeBack({
   }, []);
 
   const start = (point: Point, target: EventTarget | null) => {
+    if (committed.current) {
+      return false;
+    }
+
     if (isInteractiveTarget(target)) {
       return false;
     }
@@ -53,6 +58,10 @@ export function useVerticalSwipeBack({
   };
 
   const update = (startPoint: Point | null, currentPoint: Point | null) => {
+    if (committed.current) {
+      return false;
+    }
+
     if (!startPoint || !currentPoint) {
       return false;
     }
@@ -73,6 +82,10 @@ export function useVerticalSwipeBack({
   };
 
   const finish = (startPoint: Point | null, endPoint: Point | null) => {
+    if (committed.current) {
+      return;
+    }
+
     if (!startPoint || !endPoint) {
       reset();
       return;
@@ -90,16 +103,21 @@ export function useVerticalSwipeBack({
   };
 
   const commitBack = () => {
+    committed.current = true;
     setIsDragging(false);
     setIsCommitting(true);
-    setDragY(direction === "up" ? -220 : 220);
+    setDragY(getExitY(direction));
     setDragProgress(1);
     clearGestureRefs();
 
-    backTimeout.current = window.setTimeout(onBack, 140);
+    backTimeout.current = window.setTimeout(onBack, 180);
   };
 
   const reset = () => {
+    if (committed.current) {
+      return;
+    }
+
     setIsDragging(false);
     setIsCommitting(false);
     setDragY(0);
@@ -119,7 +137,7 @@ export function useVerticalSwipeBack({
   return {
     gestureProps: {
       onPointerDown: (event: PointerEvent<HTMLElement>) => {
-        if (!event.isPrimary || event.button !== 0) {
+        if (!event.isPrimary || event.button !== 0 || event.pointerType === "touch") {
           return;
         }
 
@@ -143,7 +161,13 @@ export function useVerticalSwipeBack({
 
         finish(pointerStart.current, { x: event.clientX, y: event.clientY });
       },
-      onPointerCancel: reset,
+      onPointerCancel: (event: PointerEvent<HTMLElement>) => {
+        if (activePointerId.current !== event.pointerId) {
+          return;
+        }
+
+        reset();
+      },
       onTouchStart: (event: TouchEvent<HTMLElement>) => {
         if (isPointerGesture.current) {
           return;
@@ -169,7 +193,7 @@ export function useVerticalSwipeBack({
         const touch = event.touches[0];
         touchCurrent.current = { x: touch.clientX, y: touch.clientY };
 
-        if (update(touchStart.current, touchCurrent.current)) {
+        if (update(touchStart.current, touchCurrent.current) && event.cancelable) {
           event.preventDefault();
         }
       },
@@ -189,6 +213,13 @@ export function useVerticalSwipeBack({
     isDragging,
     isCommitting,
   };
+}
+
+function getExitY(direction: Direction) {
+  const viewportHeight = typeof window === "undefined" ? 720 : window.innerHeight;
+  const distance = Math.max(viewportHeight, 520);
+
+  return direction === "up" ? -distance : distance;
 }
 
 function getActionDragY({

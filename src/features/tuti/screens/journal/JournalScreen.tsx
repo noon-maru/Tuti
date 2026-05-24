@@ -90,6 +90,7 @@ const MemoryList = styled.div`
   gap: 14px;
   overflow-y: auto;
   padding-right: 2px;
+  overscroll-behavior-y: contain;
   touch-action: pan-y;
 `;
 
