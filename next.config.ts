@@ -1,9 +1,15 @@
 import type { NextConfig } from "next";
 
+const target = process.env.TUTI_TARGET;
+
 const nextConfig: NextConfig = {
-  output: "export",
+  ...(target === "app"
+    ? { output: "export" as const }
+    : target === "web"
+      ? { output: "standalone" as const }
+      : {}),
   images: {
-    unoptimized: true,
+    unoptimized: target === "app",
   },
 };
 

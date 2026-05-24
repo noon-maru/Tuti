@@ -6,10 +6,12 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
+    "build:web": "TUTI_TARGET=web next build",
+    "build:app": "TUTI_TARGET=app next build",
     "start": "next start",
     "lint": "eslint",
     "icons:generate": "node scripts/generate-pwa-icons.mjs",
-    "cap:sync": "next build && cap sync",
+    "cap:sync": "pnpm build:app && cap sync",
     "cap:open:ios": "cap open ios",
     "cap:open:android": "cap open android"
   },

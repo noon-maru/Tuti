@@ -1,0 +1,23 @@
+name: tuti-dev
+
+services:
+  app:
+    image: tuti:dev
+    container_name: tuti-dev
+    build:
+      context: .
+      target: dev
+    ports:
+      - "5080:3000"
+    volumes:
+      - .:/app
+      - tuti_dev_node_modules:/app/node_modules
+      - tuti_dev_pnpm_store:/pnpm/store
+    environment:
+      NEXT_TELEMETRY_DISABLED: "1"
+    stdin_open: true
+    tty: true
+
+volumes:
+  tuti_dev_node_modules:
+  tuti_dev_pnpm_store:

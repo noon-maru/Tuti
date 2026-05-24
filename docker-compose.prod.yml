@@ -1,0 +1,17 @@
+name: tuti-prod
+
+services:
+  app:
+    image: tuti:prod
+    container_name: tuti-prod
+    build:
+      context: .
+      target: runner
+      args:
+        NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-}
+    restart: unless-stopped
+    ports:
+      - "5050:3000"
+    environment:
+      NODE_ENV: production
+      NEXT_TELEMETRY_DISABLED: "1"
