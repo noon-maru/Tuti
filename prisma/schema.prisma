@@ -1,0 +1,37 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum MovementLevel {
+  near
+  short
+  half
+}
+
+model Place {
+  id            String                         @id
+  name          String
+  phrase        String
+  note          String
+  image         String
+  travelTime    String                         @map("travel_time")
+  crowd         String
+  today         String
+  fatigue       Int
+  movementLevel MovementLevel                  @map("movement_level")
+  moodTags      String[]                       @map("mood_tags")
+  latitude      Decimal                        @db.Decimal(9, 6)
+  longitude     Decimal                        @db.Decimal(9, 6)
+  location      Unsupported("geometry(Point, 4326)")?
+  createdAt     DateTime                       @default(now()) @map("created_at")
+  updatedAt     DateTime                       @updatedAt @map("updated_at")
+
+  @@index([fatigue])
+  @@index([movementLevel])
+  @@map("places")
+}

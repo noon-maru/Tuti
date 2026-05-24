@@ -13,5 +13,22 @@ services:
     ports:
       - "5050:3000"
     environment:
+      DATABASE_URL: postgresql://tuti_user:tuti_password@db:5432/tuti?schema=public
       NODE_ENV: production
       NEXT_TELEMETRY_DISABLED: "1"
+    depends_on:
+      - db
+
+  db:
+    image: postgis/postgis:17-3.5
+    container_name: tuti-prod-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: tuti_user
+      POSTGRES_PASSWORD: tuti_password
+      POSTGRES_DB: tuti
+    volumes:
+      - tuti_prod_postgres:/var/lib/postgresql/data
+
+volumes:
+  tuti_prod_postgres:

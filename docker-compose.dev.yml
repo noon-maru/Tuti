@@ -14,10 +14,27 @@ services:
       - tuti_dev_node_modules:/app/node_modules
       - tuti_dev_pnpm_store:/pnpm/store
     environment:
+      DATABASE_URL: postgresql://tuti_user:tuti_password@db:5432/tuti?schema=public
       NEXT_TELEMETRY_DISABLED: "1"
+    depends_on:
+      - db
     stdin_open: true
     tty: true
+
+  db:
+    image: postgis/postgis:17-3.5
+    container_name: tuti-dev-db
+    restart: unless-stopped
+    ports:
+      - "55432:5432"
+    environment:
+      POSTGRES_USER: tuti_user
+      POSTGRES_PASSWORD: tuti_password
+      POSTGRES_DB: tuti
+    volumes:
+      - tuti_dev_postgres:/var/lib/postgresql/data
 
 volumes:
   tuti_dev_node_modules:
   tuti_dev_pnpm_store:
+  tuti_dev_postgres:

@@ -148,6 +148,20 @@ docker compose -f docker-compose.dev.yml run --rm app sh -lc "pnpm build:web"
 docker compose -f docker-compose.dev.yml run --rm app sh -lc "pnpm cap:sync"
 ```
 
+## DB 설정
+
+개발용 Docker Compose는 PostGIS가 포함된 PostgreSQL을 함께 실행합니다. 호스트에서는 아래 주소로 접근할 수 있습니다.
+
+```text
+postgresql://tuti_user:tuti_password@localhost:55432/tuti?schema=public
+```
+
+마이그레이션과 seed 데이터는 app 컨테이너 안에서 실행합니다.
+
+```bash
+docker compose -f docker-compose.dev.yml run --rm app sh -lc "pnpm db:deploy && pnpm db:seed"
+```
+
 ## 앞으로의 확장 방향
 
 향후에는 실제 위치 데이터와 LLM 기반 상태 해석을 연결해 추천 품질을 높일 수 있습니다.

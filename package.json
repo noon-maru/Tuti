@@ -8,6 +8,10 @@
     "build": "next build",
     "build:web": "TUTI_TARGET=web next build",
     "build:app": "TUTI_TARGET=app next build",
+    "db:deploy": "prisma migrate deploy",
+    "db:generate": "prisma generate",
+    "db:seed": "prisma db seed",
+    "db:studio": "prisma studio",
     "start": "next start",
     "lint": "eslint",
     "icons:generate": "node scripts/generate-pwa-icons.mjs",
@@ -20,6 +24,7 @@
     "@emotion/cache": "^11.14.0",
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.1",
+    "@prisma/client": "^6.19.3",
     "@tanstack/react-query": "^5.100.11",
     "next": "16.2.6",
     "react": "19.2.4",
@@ -34,6 +39,7 @@
     "babel-plugin-react-compiler": "1.0.0",
     "eslint": "^9",
     "eslint-config-next": "16.2.6",
+    "prisma": "^6.19.3",
     "typescript": "^5"
   }
 }

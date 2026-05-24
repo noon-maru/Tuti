@@ -6,6 +6,10 @@ ENV PNPM_HOME=/pnpm
 ENV PNPM_STORE_DIR=/pnpm/store
 ENV PATH=$PNPM_HOME:$PATH
 
+RUN apt-get update -y \
+  && apt-get install -y --no-install-recommends ca-certificates openssl \
+  && rm -rf /var/lib/apt/lists/*
+
 RUN npm install -g pnpm@11.2.2
 
 FROM base AS dev
@@ -21,18 +25,24 @@ RUN pnpm install --frozen-lockfile --store-dir /pnpm/store
 
 FROM base AS builder
 
+ARG DATABASE_URL=postgresql://tuti_user:tuti_password@localhost:5432/tuti?schema=public
 ARG NEXT_PUBLIC_API_BASE_URL
+ENV DATABASE_URL=$DATABASE_URL
 ENV NEXT_PUBLIC_API_BASE_URL=$NEXT_PUBLIC_API_BASE_URL
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV TUTI_TARGET=web
 
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
-RUN pnpm build:web
+RUN pnpm db:generate && pnpm build:web
 
 FROM node:24-bookworm-slim AS runner
 
 WORKDIR /app
+
+RUN apt-get update -y \
+  && apt-get install -y --no-install-recommends ca-certificates openssl \
+  && rm -rf /var/lib/apt/lists/*
 
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
