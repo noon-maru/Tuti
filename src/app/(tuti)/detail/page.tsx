@@ -1,17 +1,12 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { TutiRoute } from "@/features/tuti/components/TutiRoute";
 import { useTutiRecommendations } from "@/features/tuti/hooks/useTutiRecommendations";
 import { DetailScreen } from "@/features/tuti/screens/detail/DetailScreen";
 import { useTutiStore } from "@/store/tuti";
 
 export default function DetailRoute() {
-  return (
-    <TutiRoute>
-      <DetailFlow />
-    </TutiRoute>
-  );
+  return <DetailFlow />;
 }
 
 function DetailFlow() {

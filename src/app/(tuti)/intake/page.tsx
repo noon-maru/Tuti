@@ -2,17 +2,12 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { TutiRoute } from "@/features/tuti/components/TutiRoute";
 import { intakeSteps } from "@/features/tuti/data/intakeSteps";
 import { IntakeScreen } from "@/features/tuti/screens/intake/IntakeScreen";
 import { useTutiStore } from "@/store/tuti";
 
 export default function IntakeRoute() {
-  return (
-    <TutiRoute>
-      <IntakeFlow />
-    </TutiRoute>
-  );
+  return <IntakeFlow />;
 }
 
 function IntakeFlow() {

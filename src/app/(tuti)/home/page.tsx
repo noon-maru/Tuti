@@ -1,16 +1,11 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { TutiRoute } from "@/features/tuti/components/TutiRoute";
 import { useTutiRecommendations } from "@/features/tuti/hooks/useTutiRecommendations";
 import { HomeScreen } from "@/features/tuti/screens/home/HomeScreen";
 
 export default function HomeRoute() {
-  return (
-    <TutiRoute>
-      <HomeFlow />
-    </TutiRoute>
-  );
+  return <HomeFlow />;
 }
 
 function HomeFlow() {
