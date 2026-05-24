@@ -1,8 +1,32 @@
-import { PrismaClient } from "@prisma/client";
+import { PrismaPg } from "@prisma/adapter-pg";
+import { PrismaClient, type MovementLevel } from "../src/generated/prisma/client";
 
-const prisma = new PrismaClient();
+const connectionString = process.env.DATABASE_URL;
 
-const places = [
+if (!connectionString) {
+  throw new Error("DATABASE_URL is required to seed the database.");
+}
+
+const adapter = new PrismaPg({ connectionString });
+const prisma = new PrismaClient({ adapter });
+
+type SeedPlace = {
+  id: string;
+  name: string;
+  phrase: string;
+  note: string;
+  image: string;
+  travelTime: string;
+  crowd: string;
+  today: string;
+  fatigue: number;
+  movementLevel: MovementLevel;
+  moodTags: string[];
+  latitude: string;
+  longitude: string;
+};
+
+const places: SeedPlace[] = [
   {
     id: "river-bench",
     name: "물가 옆 벤치",

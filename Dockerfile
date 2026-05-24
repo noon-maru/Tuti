@@ -16,7 +16,7 @@ FROM base AS dev
 
 EXPOSE 3000
 
-CMD ["sh", "-lc", "pnpm install --store-dir /pnpm/store && (chown -R node:node /app/node_modules /pnpm/store /app/pnpm-lock.yaml /app/.next 2>/dev/null || true) && su node -c 'pnpm dev --hostname 0.0.0.0'"]
+CMD ["sh", "-lc", "pnpm install --store-dir /pnpm/store && (chown -R node:node /app/node_modules /pnpm/store /app/pnpm-lock.yaml /app/.next /app/src/generated 2>/dev/null || true) && su node -c 'pnpm dev --hostname 0.0.0.0'"]
 
 FROM base AS deps
 
@@ -34,7 +34,7 @@ ENV TUTI_TARGET=web
 
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
-RUN pnpm db:generate && pnpm build:web
+RUN pnpm build:web
 
 FROM node:24-bookworm-slim AS runner
 
