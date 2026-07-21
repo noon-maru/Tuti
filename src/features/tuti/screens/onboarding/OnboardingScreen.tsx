@@ -23,7 +23,7 @@ export function OnboardingScreen({ onStart }: { onStart: () => void }) {
 const Frame = styled(ScreenFrame)`
   align-items: center;
   justify-content: center;
-  gap: 24px;
+  gap: var(--space-6);
 `;
 
 const BrandMark = styled.div`
@@ -31,35 +31,32 @@ const BrandMark = styled.div`
   height: 72px;
   display: grid;
   place-items: center;
-  border: 1px solid rgba(31, 33, 29, 0.24);
+  border: 1px solid var(--color-border);
   border-radius: 18px;
-  background: rgba(255, 255, 255, 0.72);
-  font-size: 42px;
-  font-weight: 800;
-  box-shadow: 0 18px 48px rgba(31, 33, 29, 0.08);
+  background: var(--color-accent-soft);
+  font-size: var(--font-size-600);
+  font-weight: 700;
+  box-shadow: 0 18px 48px rgb(var(--color-black-rgb) / 0.08);
 `;
 
 const BrandText = styled.div`
   display: grid;
-  gap: 8px;
+  gap: var(--space-2);
   text-align: center;
 
   h1 {
-    font-size: 38px;
-    line-height: 1.05;
-    letter-spacing: 0;
+    font-size: var(--font-size-600);
   }
 
   p {
-    color: #777469;
-    font-size: 14px;
-    line-height: 1.6;
+    color: var(--color-text-muted);
+    font-size: var(--font-size-200);
   }
 `;
 
 const BottomActions = styled.div`
   position: absolute;
-  inset: auto 24px 56px;
+  inset: auto var(--space-6) var(--space-14);
   display: grid;
-  gap: 16px;
+  gap: var(--space-4);
 `;

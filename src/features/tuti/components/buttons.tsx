@@ -8,25 +8,30 @@ export const BaseButton = styled.button`
 `;
 
 export const PrimaryButton = styled(BaseButton)`
-  min-height: 54px;
+  min-height: var(--space-14);
   border-radius: 999px;
-  background: #24271f;
-  color: #fffdf8;
+  background: var(--color-accent-primary);
+  color: var(--color-white);
   font-weight: 700;
   transition: transform 180ms ease, background 180ms ease;
 
   &:active {
     transform: scale(0.98);
   }
+
+  &:disabled {
+    background: var(--color-border);
+    color: var(--color-text-muted);
+  }
 `;
 
 export const TextButton = styled(BaseButton)`
   width: fit-content;
   justify-self: center;
-  padding: 8px 16px;
+  padding: var(--space-2) var(--space-4);
   background: transparent;
-  color: #68665d;
-  font-size: 14px;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-200);
 `;
 
 export const SkipButton = styled(TextButton)`

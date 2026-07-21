@@ -59,8 +59,8 @@ const Frame = styled(ScreenFrame)<{
   $isCommitting: boolean;
 }>`
   z-index: 1;
-  gap: 22px;
-  background: #fbfaf6;
+  gap: var(--space-6);
+  background: var(--color-surface);
   opacity: ${({ $progress }) => 1 - $progress * 0.32};
   transform: translateY(${({ $dragY }) => $dragY}px)
     scale(${({ $progress }) => 1 - $progress * 0.025});
@@ -71,23 +71,21 @@ const Frame = styled(ScreenFrame)<{
 
 const Header = styled.div`
   display: grid;
-  gap: 8px;
+  gap: var(--space-2);
 
   p {
-    color: #777469;
-    font-size: 14px;
-    line-height: 1.6;
+    color: var(--color-text-muted);
+    font-size: var(--font-size-200);
   }
 
   h2 {
-    font-size: 30px;
-    letter-spacing: 0;
+    font-size: var(--font-size-600);
   }
 `;
 
 const MemoryList = styled.div`
   display: grid;
-  gap: 14px;
+  gap: var(--space-4);
   overflow-y: auto;
   padding-right: 2px;
   overscroll-behavior-y: contain;
@@ -97,24 +95,24 @@ const MemoryList = styled.div`
 const MemoryCard = styled.article`
   display: grid;
   grid-template-columns: 96px 1fr;
-  gap: 14px;
+  gap: var(--space-4);
   align-items: center;
   min-height: 116px;
-  padding: 10px;
-  border: 1px solid rgba(31, 33, 29, 0.1);
+  padding: var(--space-3);
+  border: 1px solid var(--color-border);
   border-radius: 8px;
-  background: rgba(255, 255, 255, 0.56);
+  background: var(--color-surface);
 
   p {
-    font-weight: 800;
-    line-height: 1.45;
+    font-weight: 700;
+    line-height: var(--line-height-subtitle);
+    letter-spacing: var(--letter-spacing-subtitle);
   }
 
   span {
     grid-column: 2;
-    color: #777469;
-    font-size: 13px;
-    line-height: 1.5;
+    color: var(--color-text-muted);
+    font-size: var(--font-size-100);
   }
 `;
 

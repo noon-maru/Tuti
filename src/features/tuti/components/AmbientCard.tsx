@@ -2,6 +2,7 @@
 
 import styled from "@emotion/styled";
 import type { TutiPlace } from "@/lib/recommendations";
+import { breakpoints } from "@/styles/tokens";
 
 export function AmbientCard({ place, quiet = false }: { place?: TutiPlace; quiet?: boolean }) {
   return (
@@ -17,11 +18,15 @@ const Frame = styled.div<{ $image?: string; $quiet: boolean }>`
   overflow: hidden;
   border-radius: 8px;
   background:
-    linear-gradient(180deg, rgba(31, 33, 29, 0.06), rgba(31, 33, 29, 0.28)),
-    ${({ $image }) => ($image ? `url(${$image})` : "#d7ddd4")};
+    linear-gradient(
+      180deg,
+      rgb(var(--color-black-rgb) / 0.06),
+      rgb(var(--color-black-rgb) / 0.28)
+    ),
+    ${({ $image }) => ($image ? `url(${$image})` : "var(--color-accent-soft)")};
   background-position: center;
   background-size: cover;
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.18);
+  box-shadow: inset 0 0 0 1px rgb(var(--color-white-rgb) / 0.18);
 
   &::before {
     content: "";
@@ -30,7 +35,7 @@ const Frame = styled.div<{ $image?: string; $quiet: boolean }>`
     background: linear-gradient(
       110deg,
       transparent 15%,
-      rgba(255, 255, 255, 0.2) 45%,
+      rgb(var(--color-white-rgb) / 0.2) 45%,
       transparent 70%
     );
     animation: lightPass 5.8s ease-in-out infinite;
@@ -48,7 +53,7 @@ const Frame = styled.div<{ $image?: string; $quiet: boolean }>`
     }
   }
 
-  @media (max-width: 520px) {
+  @media (max-width: ${breakpoints.mobile}px) {
     min-height: ${({ $quiet }) => ($quiet ? "390px" : "360px")};
   }
 `;
@@ -58,7 +63,7 @@ const PlayMark = styled.span`
   inset: 0;
   display: grid;
   place-items: center;
-  color: rgba(255, 255, 255, 0.84);
-  font-size: 34px;
-  text-shadow: 0 6px 22px rgba(0, 0, 0, 0.28);
+  color: rgb(var(--color-white-rgb) / 0.84);
+  font-size: var(--font-size-600);
+  text-shadow: 0 6px 22px rgb(var(--color-black-rgb) / 0.28);
 `;

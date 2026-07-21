@@ -38,23 +38,20 @@ export function HomeScreen({
 
 const Frame = styled(ScreenFrame)`
   justify-content: flex-end;
-  gap: 22px;
+  gap: var(--space-6);
 `;
 
 const Copy = styled.div`
   display: grid;
-  gap: 8px;
+  gap: var(--space-2);
 
   p {
-    color: #777469;
-    font-size: 14px;
-    line-height: 1.6;
+    color: var(--color-text-muted);
+    font-size: var(--font-size-200);
   }
 
   h2 {
     max-width: 280px;
-    font-size: 29px;
-    line-height: 1.24;
-    letter-spacing: 0;
+    font-size: var(--font-size-600);
   }
 `;

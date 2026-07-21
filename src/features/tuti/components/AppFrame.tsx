@@ -1,6 +1,7 @@
 "use client";
 
 import styled from "@emotion/styled";
+import { breakpoints } from "@/styles/tokens";
 
 export function AppFrame({ children }: { children: React.ReactNode }) {
   return (
@@ -14,14 +15,12 @@ const Shell = styled.main`
   min-height: 100svh;
   display: grid;
   place-items: center;
-  padding: 28px;
-  background:
-    radial-gradient(circle at top left, rgba(139, 168, 149, 0.22), transparent 34%),
-    linear-gradient(135deg, #f6f4ef 0%, #e8ece4 52%, #dce5e0 100%);
+  padding: var(--space-7);
+  background: var(--color-app-background);
 
-  @media (max-width: 520px) {
+  @media (max-width: ${breakpoints.mobile}px) {
     padding: 0;
-    background: #fbfaf6;
+    background: var(--color-surface);
   }
 `;
 
@@ -31,12 +30,12 @@ const Phone = styled.section`
   height: min(860px, calc(100svh - 56px));
   min-height: 680px;
   overflow: hidden;
-  border: 1px solid rgba(31, 33, 29, 0.18);
+  border: 1px solid rgb(var(--color-black-rgb) / 0.14);
   border-radius: 34px;
-  background: #fbfaf6;
-  box-shadow: 0 24px 80px rgba(31, 33, 29, 0.16);
+  background: var(--color-surface);
+  box-shadow: 0 24px 80px rgb(var(--color-black-rgb) / 0.14);
 
-  @media (max-width: 520px) {
+  @media (max-width: ${breakpoints.mobile}px) {
     width: 100%;
     height: 100svh;
     min-height: 620px;

@@ -4,6 +4,7 @@ import styled from "@emotion/styled";
 import { ScreenFrame } from "@/features/tuti/components/ScreenFrame";
 import { SwipeCard } from "@/features/tuti/components/SwipeCard";
 import type { TutiPlace } from "@/lib/recommendations";
+import { breakpoints } from "@/styles/tokens";
 
 export type SwipeReturnBackdropProps = {
   places: TutiPlace[];
@@ -67,32 +68,29 @@ const Frame = styled(ScreenFrame)<{ $progress: number }>`
 
 const Layer = styled.div`
   position: absolute;
-  inset: 44px 24px 28px;
+  inset: var(--space-11) var(--space-6) var(--space-7);
   display: flex;
   flex-direction: column;
   justify-content: space-between;
 
-  @media (max-width: 520px) {
-    inset-inline: 20px;
+  @media (max-width: ${breakpoints.mobile}px) {
+    inset-inline: var(--space-5);
   }
 `;
 
 const Copy = styled.div`
   display: grid;
-  gap: 8px;
+  gap: var(--space-2);
 
   p {
-    color: #777469;
-    font-size: 14px;
-    line-height: 1.6;
+    color: var(--color-text-muted);
+    font-size: var(--font-size-200);
   }
 
   h2 {
     max-width: 300px;
     min-height: 72px;
-    font-size: 27px;
-    line-height: 1.28;
-    letter-spacing: 0;
+    font-size: var(--font-size-600);
   }
 `;
 
@@ -103,7 +101,7 @@ const Carousel = styled.div`
   place-items: center;
   perspective: 900px;
 
-  @media (max-width: 520px) {
+  @media (max-width: ${breakpoints.mobile}px) {
     height: 360px;
   }
 `;
@@ -116,9 +114,9 @@ const Dots = styled.div`
   justify-content: center;
   gap: 0;
   align-self: center;
-  padding: 0 6px;
+  padding: 0 var(--space-2);
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.34);
+  background: rgb(var(--color-white-rgb) / 0.34);
 `;
 
 const Dot = styled.span<{ $active: boolean }>`
@@ -133,6 +131,7 @@ const Dot = styled.span<{ $active: boolean }>`
     width: ${({ $active }) => ($active ? "18px" : "6px")};
     height: 6px;
     border-radius: 999px;
-    background: ${({ $active }) => ($active ? "#24271f" : "rgba(31, 33, 29, 0.28)")};
+    background: ${({ $active }) =>
+      $active ? "var(--color-text)" : "var(--color-border)"};
   }
 `;

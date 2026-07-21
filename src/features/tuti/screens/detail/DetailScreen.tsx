@@ -68,8 +68,8 @@ const Frame = styled(ScreenFrame)<{
   $isCommitting: boolean;
 }>`
   z-index: 1;
-  gap: 20px;
-  background: #fbfaf6;
+  gap: var(--space-5);
+  background: var(--color-surface);
   opacity: ${({ $progress }) => 1 - $progress * 0.32};
   transform: translateY(${({ $dragY }) => $dragY}px)
     scale(${({ $progress }) => 1 - $progress * 0.025});
@@ -80,30 +80,25 @@ const Frame = styled(ScreenFrame)<{
 
 const Copy = styled.div`
   display: grid;
-  gap: 8px;
+  gap: var(--space-2);
 
   p {
-    color: #777469;
-    font-size: 14px;
-    line-height: 1.6;
+    color: var(--color-text-muted);
+    font-size: var(--font-size-200);
   }
 
   h2 {
-    font-size: 28px;
-    line-height: 1.25;
-    letter-spacing: 0;
+    font-size: var(--font-size-600);
   }
 
   span {
-    color: #68665d;
-    font-size: 15px;
-    line-height: 1.7;
+    color: var(--color-text-muted);
+    font-size: var(--font-size-200);
   }
 
   small {
-    color: #777469;
-    font-size: 14px;
-    line-height: 1.6;
+    color: var(--color-text-muted);
+    font-size: var(--font-size-100);
   }
 `;
 
@@ -112,7 +107,7 @@ const InfoRows = styled.div`
   gap: 1px;
   overflow: hidden;
   border-radius: 8px;
-  background: rgba(31, 33, 29, 0.08);
+  background: var(--color-border);
 `;
 
 const InfoRowFrame = styled.div`
@@ -120,15 +115,15 @@ const InfoRowFrame = styled.div`
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 16px;
-  background: rgba(255, 255, 255, 0.64);
+  padding: 0 var(--space-4);
+  background: var(--color-surface);
 
   span {
-    color: #777469;
-    font-size: 14px;
+    color: var(--color-text-muted);
+    font-size: var(--font-size-200);
   }
 
   strong {
-    font-size: 15px;
+    font-size: var(--font-size-200);
   }
 `;

@@ -43,7 +43,7 @@ export function IntakeScreen({
 }
 
 const Frame = styled(ScreenFrame)`
-  gap: 36px;
+  gap: var(--space-9);
 `;
 
 const SoftHeader = styled.div`
@@ -52,51 +52,48 @@ const SoftHeader = styled.div`
   justify-content: space-between;
 
   span {
-    font-size: 22px;
-    font-weight: 800;
+    font-size: var(--font-size-600);
+    font-weight: 700;
   }
 `;
 
 const QuestionBlock = styled.div`
   display: grid;
-  gap: 12px;
-  padding-top: 36px;
+  gap: var(--space-3);
+  padding-top: var(--space-9);
 
   p {
-    color: #777469;
-    font-size: 14px;
-    line-height: 1.6;
+    color: var(--color-text-muted);
+    font-size: var(--font-size-200);
   }
 
   h2 {
     max-width: 290px;
-    font-size: 28px;
-    line-height: 1.24;
-    letter-spacing: 0;
+    font-size: var(--font-size-600);
   }
 `;
 
 const OptionList = styled.div`
   display: grid;
-  gap: 14px;
+  gap: var(--space-4);
 `;
 
 const OptionCard = styled(BaseButton)`
   min-height: 82px;
   display: grid;
-  gap: 7px;
+  gap: var(--space-2);
   justify-items: start;
-  padding: 20px;
-  border: 1px solid rgba(31, 33, 29, 0.12);
+  padding: var(--space-5);
+  border: 1px solid var(--color-border);
   border-radius: 8px;
-  background: rgba(255, 255, 255, 0.58);
-  color: #23251f;
+  background: var(--color-surface);
+  color: var(--color-text);
   text-align: left;
   transition: transform 180ms ease, border-color 180ms ease, background 180ms ease;
 
   &:hover {
-    border-color: rgba(31, 33, 29, 0.28);
-    background: rgba(255, 255, 255, 0.9);
+    border-color: var(--color-accent-secondary);
+    background: var(--color-accent-soft);
   }
 
   &:active {
@@ -104,12 +101,14 @@ const OptionCard = styled(BaseButton)`
   }
 
   span {
-    font-size: 18px;
-    font-weight: 750;
+    font-size: var(--font-size-400);
+    font-weight: 700;
+    line-height: var(--line-height-subtitle);
+    letter-spacing: var(--letter-spacing-subtitle);
   }
 
   small {
-    color: #777469;
-    font-size: 13px;
+    color: var(--color-text-muted);
+    font-size: var(--font-size-100);
   }
 `;

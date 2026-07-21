@@ -57,18 +57,20 @@ const CardButton = styled(BaseButton)<{
   display: flex;
   flex-direction: column;
   justify-content: flex-end;
-  gap: 10px;
-  padding: 18px;
+  gap: var(--space-3);
+  padding: var(--space-5);
   overflow: hidden;
   border-radius: 8px;
-  background-color: #cad4cb;
+  background-color: var(--color-accent-secondary);
   background-image: ${({ $image }) => `url(${$image})`};
   background-position: center;
   background-size: cover;
-  color: #fffdf8;
+  color: var(--color-white);
   text-align: left;
   box-shadow: ${({ $active }) =>
-    $active ? "0 28px 70px rgba(31, 33, 29, 0.28)" : "0 20px 54px rgba(31, 33, 29, 0.22)"};
+    $active
+      ? "0 28px 70px rgb(var(--color-black-rgb) / 0.28)"
+      : "0 20px 54px rgb(var(--color-black-rgb) / 0.22)"};
   transition: ${({ $dragging }) =>
     $dragging ? "opacity 160ms ease" : "transform 360ms ease, opacity 260ms ease"};
   will-change: transform;
@@ -119,7 +121,11 @@ const CardButton = styled(BaseButton)<{
     content: "";
     position: absolute;
     inset: 0;
-    background: linear-gradient(180deg, transparent 28%, rgba(0, 0, 0, 0.62));
+    background: linear-gradient(
+      180deg,
+      transparent 28%,
+      rgb(var(--color-black-rgb) / 0.62)
+    );
   }
 
   span,
@@ -129,12 +135,13 @@ const CardButton = styled(BaseButton)<{
   }
 
   span {
-    font-size: 19px;
-    font-weight: 800;
-    line-height: 1.35;
+    font-size: var(--font-size-400);
+    font-weight: 700;
+    line-height: var(--line-height-subtitle);
+    letter-spacing: var(--letter-spacing-subtitle);
   }
 
   small {
-    color: rgba(255, 253, 248, 0.8);
+    color: rgb(var(--color-white-rgb) / 0.8);
   }
 `;

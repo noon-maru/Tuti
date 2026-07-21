@@ -1,15 +1,16 @@
 "use client";
 
 import styled from "@emotion/styled";
+import { breakpoints } from "@/styles/tokens";
 
 export const ScreenFrame = styled.section`
   position: absolute;
   inset: 0;
   display: flex;
   flex-direction: column;
-  padding: 44px 24px 28px;
+  padding: var(--space-11) var(--space-6) var(--space-7);
 
-  @media (max-width: 520px) {
-    padding-inline: 20px;
+  @media (max-width: ${breakpoints.mobile}px) {
+    padding-inline: var(--space-5);
   }
 `;

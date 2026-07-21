@@ -8,6 +8,7 @@ import { SwipeCard } from "@/features/tuti/components/SwipeCard";
 import { DetailScreen } from "@/features/tuti/screens/detail/DetailScreen";
 import { JournalScreen } from "@/features/tuti/screens/journal/JournalScreen";
 import type { TutiPlace } from "@/lib/recommendations";
+import { breakpoints } from "@/styles/tokens";
 
 type Point = { x: number; y: number };
 type DragAxis = "horizontal" | "vertical" | null;
@@ -272,7 +273,7 @@ const Frame = styled(ScreenFrame)`
 
 const CurrentLayer = styled.div<{ $progress: number; $dragY: number }>`
   position: absolute;
-  inset: 44px 24px 28px;
+  inset: var(--space-11) var(--space-6) var(--space-7);
   display: flex;
   flex-direction: column;
   justify-content: space-between;
@@ -281,8 +282,8 @@ const CurrentLayer = styled.div<{ $progress: number; $dragY: number }>`
   transition: ${({ $progress }) =>
     $progress > 0 ? "none" : "opacity 240ms ease, transform 260ms ease"};
 
-  @media (max-width: 520px) {
-    inset-inline: 20px;
+  @media (max-width: ${breakpoints.mobile}px) {
+    inset-inline: var(--space-5);
   }
 `;
 
@@ -307,49 +308,44 @@ const HelpOverlay = styled.div<{ $visible: boolean }>`
   display: grid;
   align-content: end;
   justify-items: center;
-  padding: 0 32px 38px;
+  padding: 0 var(--space-8) var(--space-10);
   background: linear-gradient(
     to top,
-    rgba(251, 250, 246, 1) 0%,
-    rgba(251, 250, 246, 0.82) 46%,
-    rgba(251, 250, 246, 0) 100%
+    rgb(var(--color-white-rgb) / 1) 0%,
+    rgb(var(--color-white-rgb) / 0.82) 46%,
+    rgb(var(--color-white-rgb) / 0) 100%
   );
-  color: #24271f;
+  color: var(--color-text);
   text-align: center;
   pointer-events: none;
   opacity: ${({ $visible }) => ($visible ? 1 : 0)};
   transition: opacity 360ms ease;
 
   p {
-    margin: 0 0 4px;
-    color: #777469;
-    font-size: 15px;
-    line-height: 1.45;
+    margin: 0 0 var(--space-1);
+    color: var(--color-text-muted);
+    font-size: var(--font-size-200);
   }
 
   strong {
-    font-size: 24px;
-    font-weight: 800;
-    line-height: 1.2;
+    font-size: var(--font-size-600);
+    font-weight: 700;
   }
 `;
 
 const Copy = styled.div`
   display: grid;
-  gap: 8px;
+  gap: var(--space-2);
 
   p {
-    color: #777469;
-    font-size: 14px;
-    line-height: 1.6;
+    color: var(--color-text-muted);
+    font-size: var(--font-size-200);
   }
 
   h2 {
     max-width: 300px;
     min-height: 72px;
-    font-size: 27px;
-    line-height: 1.28;
-    letter-spacing: 0;
+    font-size: var(--font-size-600);
   }
 `;
 
@@ -360,7 +356,7 @@ const Carousel = styled.div`
   place-items: center;
   perspective: 900px;
 
-  @media (max-width: 520px) {
+  @media (max-width: ${breakpoints.mobile}px) {
     height: 360px;
   }
 `;
@@ -373,9 +369,9 @@ const Dots = styled.div`
   justify-content: center;
   gap: 0;
   align-self: center;
-  padding: 0 6px;
+  padding: 0 var(--space-2);
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.34);
+  background: rgb(var(--color-white-rgb) / 0.34);
 `;
 
 const Dot = styled(BaseButton)<{ $active: boolean }>`
@@ -392,7 +388,8 @@ const Dot = styled(BaseButton)<{ $active: boolean }>`
     width: ${({ $active }) => ($active ? "18px" : "6px")};
     height: 6px;
     border-radius: 999px;
-    background: ${({ $active }) => ($active ? "#24271f" : "rgba(31, 33, 29, 0.28)")};
+    background: ${({ $active }) =>
+      $active ? "var(--color-text)" : "var(--color-border)"};
     transition: width 160ms ease, height 160ms ease, background 160ms ease;
   }
 `;
