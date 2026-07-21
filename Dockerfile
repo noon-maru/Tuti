@@ -14,9 +14,20 @@ RUN npm install -g pnpm@11.2.2
 
 FROM base AS dev
 
+ARG DEV_UID=1000
+ARG DEV_GID=1000
+
+RUN set -eux; \
+  target_group="$(getent group "${DEV_GID}" | cut -d: -f1 || true)"; \
+  if [ -z "${target_group}" ]; then \
+    groupmod --gid "${DEV_GID}" node; \
+    target_group=node; \
+  fi; \
+  usermod --uid "${DEV_UID}" --gid "${target_group}" node
+
 EXPOSE 3000
 
-CMD ["sh", "-lc", "pnpm install --store-dir /pnpm/store && (chown -R node:node /app/node_modules /pnpm/store /app/pnpm-lock.yaml /app/.next /app/src/generated 2>/dev/null || true) && su node -c 'pnpm dev --hostname 0.0.0.0'"]
+CMD ["sh", "-lc", "pnpm install --store-dir /pnpm/store && (chown -R node:\"$(id -gn node)\" /app/node_modules /pnpm/store /app/pnpm-lock.yaml /app/.next /app/src/generated 2>/dev/null || true) && su node -c 'pnpm dev --hostname 0.0.0.0'"]
 
 FROM base AS deps
 
