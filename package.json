@@ -15,7 +15,7 @@
     "db:studio": "prisma studio",
     "start": "next start",
     "lint": "pnpm db:generate && eslint",
-    "icons:generate": "node scripts/generate-pwa-icons.mjs",
+    "assets:generate": "capacitor-assets generate && node scripts/normalize-capacitor-assets.mjs",
     "cap:sync": "pnpm build:app && cap sync",
     "cap:open:ios": "cap open ios",
     "cap:open:android": "cap open android"
@@ -35,6 +35,7 @@
     "zustand": "^5.0.13"
   },
   "devDependencies": {
+    "@capacitor/assets": "3.0.5",
     "@capacitor/cli": "^8.3.4",
     "@types/node": "^20",
     "@types/pg": "^8.20.0",
