@@ -1,46 +1,204 @@
 "use client";
 
 import styled from "@emotion/styled";
+import Image from "next/image";
 import { breakpoints } from "@/styles/tokens";
 
 export function AppFrame({ children }: { children: React.ReactNode }) {
+  const nativeApp = process.env.NEXT_PUBLIC_TUTI_TARGET === "app";
+
   return (
-    <Shell>
-      <Phone aria-label="Tuti prototype">{children}</Phone>
+    <Shell $nativeApp={nativeApp}>
+      <DesktopBrand data-desktop-brand>
+        <BrandIcon src="/favicon.svg" alt="" width={72} height={72} priority />
+        <BrandCopy>
+          <p>오늘 가능한 만큼만</p>
+          <h1>Tuti</h1>
+          <span>
+            잠깐 다른 공기로 나갈 수 있도록,
+            <br />
+            지금의 상태에 맞는 장소를 준비해요.
+          </span>
+        </BrandCopy>
+        <BrandPalette aria-hidden="true">
+          <i />
+          <i />
+          <i />
+        </BrandPalette>
+      </DesktopBrand>
+      <AppViewport $nativeApp={nativeApp} aria-label="Tuti 앱 화면">
+        {children}
+      </AppViewport>
     </Shell>
   );
 }
 
-const Shell = styled.main`
+const Shell = styled.main<{ $nativeApp: boolean }>`
+  width: 100%;
+  min-height: 100vh;
   min-height: 100svh;
+  min-height: 100dvh;
   display: grid;
   place-items: center;
-  padding: var(--space-7);
+  grid-template-columns: minmax(0, 390px);
+  padding: var(--space-8);
+  overflow: hidden;
   background: var(--color-app-background);
+
+  @media (min-width: ${breakpoints.laptop}px) {
+    grid-template-columns: minmax(280px, 420px) 390px;
+    gap: clamp(var(--space-12), 7vw, 112px);
+    padding-inline: clamp(var(--space-12), 8vw, 144px);
+  }
 
   @media (max-width: ${breakpoints.mobile}px) {
     padding: 0;
     background: var(--color-surface);
   }
+
+  ${({ $nativeApp }) =>
+    $nativeApp &&
+    `
+      grid-template-columns: minmax(0, 1fr);
+      gap: 0;
+      padding: 0;
+      background: var(--color-surface);
+
+      [data-desktop-brand] {
+        display: none;
+      }
+    `}
 `;
 
-const Phone = styled.section`
+const DesktopBrand = styled.aside`
+  display: none;
+
+  @media (min-width: ${breakpoints.laptop}px) {
+    display: grid;
+    align-content: center;
+    justify-items: start;
+    gap: var(--space-7);
+  }
+`;
+
+const BrandIcon = styled(Image)`
+  border-radius: 18px;
+  box-shadow: 0 18px 48px rgb(var(--color-black-rgb) / 0.12);
+`;
+
+const BrandCopy = styled.div`
+  display: grid;
+  gap: var(--space-3);
+
+  p {
+    color: var(--color-text-muted);
+    font-size: var(--font-size-300);
+  }
+
+  h1 {
+    font-size: clamp(44px, 5vw, 64px);
+    font-weight: 700;
+  }
+
+  span {
+    color: var(--color-text-muted);
+    font-size: var(--font-size-300);
+    line-height: var(--line-height-body);
+  }
+`;
+
+const BrandPalette = styled.div`
+  display: flex;
+  gap: var(--space-2);
+
+  i {
+    width: 40px;
+    height: 8px;
+    border-radius: 999px;
+    background: var(--color-accent-primary);
+  }
+
+  i:nth-of-type(2) {
+    background: var(--color-accent-secondary);
+  }
+
+  i:nth-of-type(3) {
+    background: var(--color-accent-soft);
+  }
+`;
+
+const AppViewport = styled.section<{ $nativeApp: boolean }>`
+  --app-safe-area-top: 0px;
+  --app-safe-area-right: 0px;
+  --app-safe-area-bottom: 0px;
+  --app-safe-area-left: 0px;
+
   position: relative;
   width: min(100%, 390px);
-  height: min(860px, calc(100svh - 56px));
-  min-height: 680px;
+  height: min(844px, calc(100vh - var(--space-16)));
+  height: min(844px, calc(100dvh - var(--space-16)));
+  min-width: 0;
+  min-height: 0;
   overflow: hidden;
   border: 1px solid rgb(var(--color-black-rgb) / 0.14);
-  border-radius: 34px;
+  border-radius: 32px;
   background: var(--color-surface);
   box-shadow: 0 24px 80px rgb(var(--color-black-rgb) / 0.14);
+  isolation: isolate;
 
   @media (max-width: ${breakpoints.mobile}px) {
+    --app-safe-area-top: var(
+      --safe-area-inset-top,
+      env(safe-area-inset-top, 0px)
+    );
+    --app-safe-area-right: var(
+      --safe-area-inset-right,
+      env(safe-area-inset-right, 0px)
+    );
+    --app-safe-area-bottom: var(
+      --safe-area-inset-bottom,
+      env(safe-area-inset-bottom, 0px)
+    );
+    --app-safe-area-left: var(
+      --safe-area-inset-left,
+      env(safe-area-inset-left, 0px)
+    );
+
     width: 100%;
-    height: 100svh;
-    min-height: 620px;
+    max-width: none;
+    height: 100vh;
+    height: 100dvh;
     border: 0;
     border-radius: 0;
     box-shadow: none;
   }
+
+  ${({ $nativeApp }) =>
+    $nativeApp &&
+    `
+      --app-safe-area-top: var(
+        --safe-area-inset-top,
+        env(safe-area-inset-top, 0px)
+      );
+      --app-safe-area-right: var(
+        --safe-area-inset-right,
+        env(safe-area-inset-right, 0px)
+      );
+      --app-safe-area-bottom: var(
+        --safe-area-inset-bottom,
+        env(safe-area-inset-bottom, 0px)
+      );
+      --app-safe-area-left: var(
+        --safe-area-inset-left,
+        env(safe-area-inset-left, 0px)
+      );
+
+      width: 100%;
+      max-width: none;
+      height: 100vh;
+      height: 100dvh;
+      border: 0;
+      border-radius: 0;
+      box-shadow: none;
+    `}
 `;

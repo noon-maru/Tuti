@@ -268,12 +268,14 @@ function getOffset(index: number, active: number, length: number) {
 
 const Frame = styled(ScreenFrame)`
   justify-content: space-between;
+  overflow: hidden;
   touch-action: none;
 `;
 
 const CurrentLayer = styled.div<{ $progress: number; $dragY: number }>`
   position: absolute;
-  inset: var(--space-11) var(--space-6) var(--space-7);
+  inset: var(--screen-padding-top) var(--screen-padding-right)
+    var(--screen-padding-bottom) var(--screen-padding-left);
   display: flex;
   flex-direction: column;
   justify-content: space-between;
@@ -282,9 +284,6 @@ const CurrentLayer = styled.div<{ $progress: number; $dragY: number }>`
   transition: ${({ $progress }) =>
     $progress > 0 ? "none" : "opacity 240ms ease, transform 260ms ease"};
 
-  @media (max-width: ${breakpoints.mobile}px) {
-    inset-inline: var(--space-5);
-  }
 `;
 
 const TransitionLayer = styled.div<{ $progress: number; $from: number }>`
@@ -308,7 +307,8 @@ const HelpOverlay = styled.div<{ $visible: boolean }>`
   display: grid;
   align-content: end;
   justify-items: center;
-  padding: 0 var(--space-8) var(--space-10);
+  padding: 0 var(--space-8)
+    calc(var(--space-10) + var(--app-safe-area-bottom, 0px));
   background: linear-gradient(
     to top,
     rgb(var(--color-white-rgb) / 1) 0%,

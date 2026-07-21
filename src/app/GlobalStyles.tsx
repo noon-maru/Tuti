@@ -131,6 +131,9 @@ const globalStyles = css`
 
   html,
   body {
+    width: 100%;
+    min-height: 100vh;
+    min-height: 100dvh;
     max-width: 100vw;
     margin: 0;
     padding: 0;
@@ -138,7 +141,6 @@ const globalStyles = css`
   }
 
   body {
-    min-height: 100%;
     display: flex;
     flex-direction: column;
     color: var(--color-text);

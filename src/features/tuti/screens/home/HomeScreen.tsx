@@ -37,8 +37,13 @@ export function HomeScreen({
 }
 
 const Frame = styled(ScreenFrame)`
-  justify-content: flex-end;
   gap: var(--space-6);
+  overflow-y: auto;
+  overscroll-behavior-y: contain;
+
+  & > :first-of-type {
+    margin-top: auto;
+  }
 `;
 
 const Copy = styled.div`

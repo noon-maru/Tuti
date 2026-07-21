@@ -75,6 +75,8 @@ const Frame = styled(ScreenFrame)<{
     scale(${({ $progress }) => 1 - $progress * 0.025});
   transition: ${({ $isDragging }) =>
     $isDragging ? "none" : "opacity 160ms ease, transform 180ms ease"};
+  overflow-y: auto;
+  overscroll-behavior-y: contain;
   touch-action: none;
 `;
 

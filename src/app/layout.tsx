@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import EmotionRegistry from "./EmotionRegistry";
 import GlobalStyles from "./GlobalStyles";
 import { pretendard } from "./fonts";
@@ -11,6 +11,13 @@ export const metadata: Metadata = {
     icon: "/favicon.svg",
     apple: "/assets/icons/icon-192.png",
   },
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
+  themeColor: "#ffffff",
 };
 
 export default function RootLayout({

@@ -57,6 +57,8 @@ export function IntakeScreen({
 
 const Frame = styled(ScreenFrame)`
   gap: var(--space-5);
+  overflow-y: auto;
+  overscroll-behavior-y: contain;
 `;
 
 const SoftHeader = styled.div`

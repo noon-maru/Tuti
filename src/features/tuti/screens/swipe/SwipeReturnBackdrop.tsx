@@ -68,14 +68,11 @@ const Frame = styled(ScreenFrame)<{ $progress: number }>`
 
 const Layer = styled.div`
   position: absolute;
-  inset: var(--space-11) var(--space-6) var(--space-7);
+  inset: var(--screen-padding-top) var(--screen-padding-right)
+    var(--screen-padding-bottom) var(--screen-padding-left);
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-
-  @media (max-width: ${breakpoints.mobile}px) {
-    inset-inline: var(--space-5);
-  }
 `;
 
 const Copy = styled.div`

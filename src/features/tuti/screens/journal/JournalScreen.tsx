@@ -66,6 +66,7 @@ const Frame = styled(ScreenFrame)<{
     scale(${({ $progress }) => 1 - $progress * 0.025});
   transition: ${({ $isDragging }) =>
     $isDragging ? "none" : "opacity 160ms ease, transform 180ms ease"};
+  overflow: hidden;
   touch-action: none;
 `;
 
@@ -84,6 +85,8 @@ const Header = styled.div`
 `;
 
 const MemoryList = styled.div`
+  min-height: 0;
+  flex: 1;
   display: grid;
   gap: var(--space-4);
   overflow-y: auto;

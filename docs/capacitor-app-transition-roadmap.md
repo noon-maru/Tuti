@@ -74,13 +74,13 @@ TutiAppShell
 
 ### 작업
 
-- [ ] Next.js viewport 설정에 `viewport-fit=cover`를 추가한다.
+- [x] Next.js viewport 설정에 `viewport-fit=cover`를 추가한다.
 - [ ] Capacitor SystemBars 정책과 아이콘 색상을 명시한다.
-- [ ] `ScreenFrame`이 `env(safe-area-inset-*)`와 Capacitor의 `--safe-area-inset-*`를 사용하도록 한다.
-- [ ] `AppFrame` 모바일 레이아웃의 `min-height: 620px`을 제거하고 실제 WebView 높이에 맞춘다.
-- [ ] `100dvh`를 기본으로 사용하고 필요한 경우 `svh` fallback을 둔다.
-- [ ] 상세, 홈, 인테이크 화면에 안전한 내부 스크롤 영역을 둔다.
-- [ ] 저널의 flex scroll 영역에 `min-height: 0` 등 명시적인 축소 규칙을 둔다.
+- [x] `ScreenFrame`이 `env(safe-area-inset-*)`와 Capacitor의 `--safe-area-inset-*`를 사용하도록 한다.
+- [x] `AppFrame` 모바일 레이아웃의 `min-height: 620px`을 제거하고 실제 WebView 높이에 맞춘다.
+- [x] `100dvh`를 기본으로 사용하고 필요한 경우 `svh` fallback을 둔다.
+- [x] 상세, 홈, 인테이크 화면에 안전한 내부 스크롤 영역을 둔다.
+- [x] 저널의 flex scroll 영역에 `min-height: 0` 등 명시적인 축소 규칙을 둔다.
 - [ ] 네이티브 App Icon, Splash Screen, 배경색을 생성하고 흰 화면 없이 React 초기 화면으로 연결한다.
 - [ ] portrait 고정 여부와 landscape 지원 여부를 결정한다.
 
