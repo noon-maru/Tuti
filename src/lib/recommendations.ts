@@ -26,14 +26,16 @@ export type TutiPlace = {
 };
 
 export function interpretState(answers: IntakeAnswers): StateFeature {
+  const movement = answers.movement ?? "short";
+
   return {
     energy:
-      answers.movement === "near"
+      movement === "near"
         ? "low"
-        : answers.movement === "short"
+        : movement === "short"
           ? "soft"
           : "open",
-    movement: answers.movement ?? "short",
+    movement,
     crowdTolerance: answers.alone === "alone" ? "low" : "medium",
     goal:
       answers.air === "water"

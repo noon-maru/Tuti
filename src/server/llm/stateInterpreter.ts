@@ -61,6 +61,12 @@ export async function interpretStateWithLlm({
   stateText,
 }: StateInterpretationInput): Promise<StateFeature> {
   const fallback = interpretState(answers);
+  const hasStructuredAnswer = Object.values(answers).some(Boolean);
+
+  if (!hasStructuredAnswer && !stateText?.trim()) {
+    return fallback;
+  }
+
   const result = await createStructuredOpenAIResponse({
     systemPrompt,
     userPrompt: JSON.stringify({
