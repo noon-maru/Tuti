@@ -4,8 +4,8 @@
   "description": "오늘 가능한 만큼만, 잠깐 다른 공기로.",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#fbfaf6",
-  "theme_color": "#24271f",
+  "background_color": "#F4F4F2",
+  "theme_color": "#000000",
   "orientation": "portrait",
   "icons": [
     {
