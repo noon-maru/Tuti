@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next";
+import { palette } from "@/styles/tokens";
 import EmotionRegistry from "./EmotionRegistry";
 import GlobalStyles from "./GlobalStyles";
 import { pretendard } from "./fonts";
@@ -17,7 +18,7 @@ export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   viewportFit: "cover",
-  themeColor: "#ffffff",
+  themeColor: palette.neutral[100],
 };
 
 export default function RootLayout({

@@ -1,54 +1,55 @@
 "use client";
 
 import { Global, css } from "@emotion/react";
+import { palette } from "@/styles/tokens";
 
 const globalStyles = css`
   :root {
     color-scheme: light;
 
     /* Neutral */
-    --color-neutral-100: #ffffff;
-    --color-neutral-200: #f4f4f2;
-    --color-neutral-300: #eaeae7;
-    --color-neutral-400: #ddddda;
-    --color-neutral-500: #cfcfcf;
-    --color-neutral-600: #b7b7b7;
-    --color-neutral-700: #9f9f9f;
-    --color-neutral-800: #7f7f7f;
-    --color-neutral-900: #606060;
-    --color-neutral-1000: #474747;
-    --color-neutral-1100: #303030;
-    --color-neutral-1200: #181818;
-    --color-neutral-1300: #000000;
+    --color-neutral-100: ${palette.neutral[100]};
+    --color-neutral-200: ${palette.neutral[200]};
+    --color-neutral-300: ${palette.neutral[300]};
+    --color-neutral-400: ${palette.neutral[400]};
+    --color-neutral-500: ${palette.neutral[500]};
+    --color-neutral-600: ${palette.neutral[600]};
+    --color-neutral-700: ${palette.neutral[700]};
+    --color-neutral-800: ${palette.neutral[800]};
+    --color-neutral-900: ${palette.neutral[900]};
+    --color-neutral-1000: ${palette.neutral[1000]};
+    --color-neutral-1100: ${palette.neutral[1100]};
+    --color-neutral-1200: ${palette.neutral[1200]};
+    --color-neutral-1300: ${palette.neutral[1300]};
 
     /* Brand blue */
-    --color-brand-100: #f1f7fd;
-    --color-brand-200: #e1effb;
-    --color-brand-300: #cde3f8;
-    --color-brand-400: #add1f4;
-    --color-brand-500: #8cbdef;
-    --color-brand-600: #68a7e6;
-    --color-brand-700: #438fd7;
-    --color-brand-800: #2d73b8;
-    --color-brand-900: #245a8e;
-    --color-brand-1000: #1c4268;
+    --color-brand-100: ${palette.brand[100]};
+    --color-brand-200: ${palette.brand[200]};
+    --color-brand-300: ${palette.brand[300]};
+    --color-brand-400: ${palette.brand[400]};
+    --color-brand-500: ${palette.brand[500]};
+    --color-brand-600: ${palette.brand[600]};
+    --color-brand-700: ${palette.brand[700]};
+    --color-brand-800: ${palette.brand[800]};
+    --color-brand-900: ${palette.brand[900]};
+    --color-brand-1000: ${palette.brand[1000]};
 
     /* Secondary green */
-    --color-secondary-100: #f6fbea;
-    --color-secondary-200: #ebf5d5;
-    --color-secondary-300: #e0f2bd;
-    --color-secondary-400: #d4eda2;
-    --color-secondary-500: #c7ea86;
-    --color-secondary-600: #aedd62;
-    --color-secondary-700: #91c943;
-    --color-secondary-800: #73a92f;
-    --color-secondary-900: #577f27;
-    --color-secondary-1000: #3c591d;
+    --color-secondary-100: ${palette.secondary[100]};
+    --color-secondary-200: ${palette.secondary[200]};
+    --color-secondary-300: ${palette.secondary[300]};
+    --color-secondary-400: ${palette.secondary[400]};
+    --color-secondary-500: ${palette.secondary[500]};
+    --color-secondary-600: ${palette.secondary[600]};
+    --color-secondary-700: ${palette.secondary[700]};
+    --color-secondary-800: ${palette.secondary[800]};
+    --color-secondary-900: ${palette.secondary[900]};
+    --color-secondary-1000: ${palette.secondary[1000]};
 
     /* Status */
-    --color-warning: #9a5c00;
-    --color-error: #c83d4a;
-    --color-success: #2f7d4a;
+    --color-warning: ${palette.status.warning};
+    --color-error: ${palette.status.error};
+    --color-success: ${palette.status.success};
     --color-info: var(--color-brand-800);
 
     /* Semantic */
