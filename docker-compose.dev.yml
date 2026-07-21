@@ -13,6 +13,8 @@ services:
     env_file:
       - .env
       - .env.development
+    environment:
+      WATCHPACK_POLLING: "true"
     ports:
       - "5080:3000"
     volumes:

@@ -5,7 +5,7 @@
   "type": "module",
   "packageManager": "pnpm@11.2.2",
   "scripts": {
-    "dev": "pnpm db:generate && next dev",
+    "dev": "pnpm db:generate && next dev --webpack",
     "build": "pnpm db:generate && next build",
     "build:web": "pnpm db:generate && TUTI_TARGET=web next build",
     "build:app": "pnpm db:generate && TUTI_TARGET=app next build",
