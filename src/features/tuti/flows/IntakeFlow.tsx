@@ -1,15 +1,14 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { intakeSteps } from "@/features/tuti/data/intakeSteps";
 import { IntakeScreen } from "@/features/tuti/screens/intake/IntakeScreen";
 import { useTutiStore } from "@/store/tuti";
 
 export function IntakeFlow() {
-  const router = useRouter();
   const setAnswer = useTutiStore((state) => state.setAnswer);
   const resetAnswers = useTutiStore((state) => state.resetAnswers);
+  const completeIntake = useTutiStore((state) => state.completeIntake);
   const answers = useTutiStore((state) => state.answers);
   const [step, setStep] = useState(0);
   const [accountNoticeVisible, setAccountNoticeVisible] = useState(false);
@@ -28,12 +27,12 @@ export function IntakeFlow() {
       return;
     }
 
-    router.push("/home");
+    completeIntake();
   };
 
   const skipIntake = () => {
     resetAnswers();
-    router.push("/home");
+    completeIntake();
   };
 
   const goToPreviousQuestion = () => {

@@ -1,5 +1,5 @@
-import { IntakeFlow } from "@/features/tuti/flows/IntakeFlow";
+import { RootFlow } from "@/features/tuti/flows/RootFlow";
 
 export default function IntakeRoute() {
-  return <IntakeFlow />;
+  return <RootFlow />;
 }

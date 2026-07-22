@@ -14,7 +14,7 @@
 
 ## 현재 결정
 
-- `/home`, `/swipe`, `/detail`, `/journal` 같은 화면별 Next.js 라우트는 유지한다.
+- 질문과 첫 추천 화면은 루트 `/` 플로우에 통합하고 `/swipe`, `/detail`, `/journal` 같은 독립 화면 라우트는 유지한다.
 - 공통 `layout.tsx`, `TutiAppShell`, `AppFrame`, Zustand, TanStack Query 구조를 유지한다.
 - 앱은 Next.js static export 결과물인 `out/`을 Capacitor `webDir`로 사용한다.
 - Swift·Kotlin 네이티브 UI는 만들지 않는다. 네이티브 코드는 Capacitor 설정과 플러그인 연동 범위로 제한한다.
@@ -111,11 +111,10 @@ TutiAppShell
 
 | 이동 | 히스토리 | 전환 |
 | --- | --- | --- |
-| `/` → `/intake` | `push` | 짧은 fade/forward |
-| 인테이크 다음 질문 | route 유지 | inline forward |
-| 인테이크 이전 질문 | route 유지 | inline backward |
-| `/intake` → `/home` | `replace` 권장 | 완료 전환 |
-| `/home` → `/swipe` | 제품 정책 확정 후 `push` 또는 `replace` | forward |
+| `/` 인테이크 다음 질문 | route 유지 | inline forward |
+| `/` 인테이크 이전 질문 | route 유지 | inline backward |
+| `/` 질문 → `/` 첫 추천 | 컴포넌트 상태 전환 | 같은 진입 플로우 안의 완료 전환 |
+| `/` 첫 추천 → `/swipe` | 제품 정책 확정 후 `push` 또는 `replace` | forward |
 | `/swipe` → `/detail` | `push` | 위 방향 interactive |
 | `/detail` → `/swipe` | `backOrFallback('/swipe')` | 아래 방향 interactive |
 | `/swipe` → `/journal` | `push` | 아래 방향 interactive |

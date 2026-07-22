@@ -6,6 +6,7 @@ type TutiState = {
   answers: IntakeAnswers;
   userLocation?: UserLocation;
   activeIndex: number;
+  intakeCompleted: boolean;
   hasSeenSwipeHelp: boolean;
   hasSeenJournalHelp: boolean;
   setAnswer: <Key extends keyof IntakeAnswers>(
@@ -18,6 +19,7 @@ type TutiState = {
   moveActiveIndex: (direction: number, itemCount: number) => void;
   markSwipeHelpSeen: () => void;
   markJournalHelpSeen: () => void;
+  completeIntake: () => void;
   resetAnswers: () => void;
 };
 
@@ -27,6 +29,7 @@ export const useTutiStore = create<TutiState>()(
       answers: {},
       userLocation: undefined,
       activeIndex: 0,
+      intakeCompleted: false,
       hasSeenSwipeHelp: false,
       hasSeenJournalHelp: false,
       setAnswer: (key, value) =>
@@ -47,7 +50,9 @@ export const useTutiStore = create<TutiState>()(
         })),
       markSwipeHelpSeen: () => set({ hasSeenSwipeHelp: true }),
       markJournalHelpSeen: () => set({ hasSeenJournalHelp: true }),
-      resetAnswers: () => set({ answers: {}, activeIndex: 0 }),
+      completeIntake: () => set({ intakeCompleted: true }),
+      resetAnswers: () =>
+        set({ answers: {}, activeIndex: 0, intakeCompleted: false }),
     }),
     {
       name: "tuti-ui",

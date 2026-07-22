@@ -6,20 +6,14 @@ import { useTutiRecommendations } from "@/features/tuti/hooks/useTutiRecommendat
 import { HomeScreen } from "@/features/tuti/screens/home/HomeScreen";
 import { useTutiStore } from "@/store/tuti";
 
-export default function HomeRoute() {
-  return <HomeFlow />;
-}
-
-function HomeFlow() {
+export function HomeFlow() {
   const router = useRouter();
   const { feature, places, userLocation } = useTutiRecommendations();
   const setUserLocation = useTutiStore((state) => state.setUserLocation);
   const [requestingLocation, setRequestingLocation] = useState(false);
 
   const enterSwipe = () => {
-    if (requestingLocation) {
-      return;
-    }
+    if (requestingLocation) return;
 
     if (userLocation || !navigator.geolocation) {
       router.push("/swipe");
