@@ -1,23 +1,55 @@
 import { createRecommendations } from "@/server/recommendations/service";
-import type { IntakeAnswers, UserLocation } from "@/store/tuti";
+import {
+  createPreflightResponse,
+  isRequestOriginAllowed,
+  withCors,
+} from "@/server/http/cors";
+import type {
+  RecommendationRequest,
+  RecommendationResponse,
+} from "@/shared/api/recommendations";
+import type { UserLocation } from "@/shared/tuti/types";
 
 export const runtime = "nodejs";
 
-type RecommendationRequest = {
-  answers?: IntakeAnswers;
-  location?: UserLocation;
-  stateText?: string;
-};
-
 export async function POST(request: Request) {
-  const body = (await request.json()) as RecommendationRequest;
-  const places = await createRecommendations(
-    body.answers ?? {},
-    normalizeLocation(body.location),
-    normalizeStateText(body.stateText),
-  );
+  if (!isRequestOriginAllowed(request)) {
+    return Response.json({ error: "허용되지 않은 요청 출처예요." }, { status: 403 });
+  }
 
-  return Response.json({ places });
+  try {
+    const body = (await request.json()) as RecommendationRequest;
+    const places = await createRecommendations(
+      body.answers ?? {},
+      normalizeLocation(body.location),
+      normalizeStateText(body.stateText),
+    );
+    const response: RecommendationResponse = { places };
+
+    return withCors(request, Response.json(response));
+  } catch (error) {
+    const invalidJson = error instanceof SyntaxError;
+
+    if (!invalidJson) {
+      console.error("추천 API 처리 중 오류가 발생했습니다.", error);
+    }
+
+    return withCors(
+      request,
+      Response.json(
+        {
+          error: invalidJson
+            ? "요청 본문을 확인해주세요."
+            : "추천 데이터를 준비하지 못했어요.",
+        },
+        { status: invalidJson ? 400 : 500 },
+      ),
+    );
+  }
+}
+
+export function OPTIONS(request: Request) {
+  return createPreflightResponse(request);
 }
 
 function normalizeLocation(location?: UserLocation) {

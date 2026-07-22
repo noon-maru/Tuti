@@ -1,6 +1,6 @@
 import { interpretState, type StateFeature } from "@/lib/recommendations";
 import { createStructuredOpenAIResponse } from "@/server/llm/openaiClient";
-import type { IntakeAnswers } from "@/store/tuti";
+import type { IntakeAnswers } from "@/shared/tuti/types";
 
 type StateInterpretationInput = {
   answers: IntakeAnswers;

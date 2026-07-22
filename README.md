@@ -154,6 +154,8 @@ docker compose -f docker-compose.dev.yml run --rm app sh -lc "pnpm build:web"
 docker compose -f docker-compose.dev.yml run --rm app sh -lc "pnpm cap:sync"
 ```
 
+`build:app`은 `.app-build/`에 서버 전용 경로를 제외한 임시 Next.js 프로젝트를 만들고 static export한다. 원본 Route Handler는 변경하지 않으며, 앱 산출물은 `.env.production`의 `NEXT_PUBLIC_API_BASE_URL`을 사용한다.
+
 ## DB 설정
 
 개발용 Docker Compose는 `.env.development`를 읽어 PostGIS가 포함된 PostgreSQL을 함께 실행합니다. app 컨테이너에서는 `db:5432`로 접근하고, 호스트에서는 아래 주소로 접근할 수 있습니다.

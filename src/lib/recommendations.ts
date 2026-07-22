@@ -1,4 +1,4 @@
-import type { IntakeAnswers } from "@/store/tuti";
+import type { IntakeAnswers } from "@/shared/tuti/types";
 
 export type StateFeature = {
   energy: "low" | "soft" | "open";

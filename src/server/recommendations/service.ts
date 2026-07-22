@@ -2,7 +2,7 @@ import type { TutiPlace } from "@/lib/recommendations";
 import { prisma } from "@/server/db/prisma";
 import { interpretStateWithLlm } from "@/server/llm/stateInterpreter";
 import { rankByMovementFatigue } from "@/server/recommendations/fatigue";
-import type { IntakeAnswers, UserLocation } from "@/store/tuti";
+import type { IntakeAnswers, UserLocation } from "@/shared/tuti/types";
 
 type PlaceRow = {
   id: string;

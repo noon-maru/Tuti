@@ -21,7 +21,7 @@
 - 모든 화면을 하나의 거대한 React 로컬 상태로 합치지 않는다.
 - Next.js의 실험적 View Transition과 static export에서 지원되지 않는 Intercepting Routes를 핵심 구조로 사용하지 않는다.
 
-API 배포 원칙은 [Capacitor API Architecture](./capacitor-api-architecture.md)를 따르되, 현재 같은 Next.js 앱 트리에 있는 POST Route Handler를 앱 static export에서 분리할 수 있도록 배포 경계를 보완한다.
+API 배포 원칙은 [Capacitor API Architecture](./capacitor-api-architecture.md)를 따른다. 웹은 운영 환경의 Next.js Route Handler를 유지하고, 앱은 서버 전용 경로를 제외한 일회성 소스 투영본을 static export한 뒤 `https://tuti.today/api`의 동일한 Route Handler를 원격 호출한다.
 
 ## 목표 구조
 
@@ -50,12 +50,12 @@ TutiAppShell
 
 ### 작업
 
-- [ ] 앱 static export 소스 트리에서 `src/app/api/**`의 런타임 POST Route Handler를 분리한다.
-- [ ] 권장안대로 API를 별도 deployable app 또는 service로 분리하고 웹과 앱이 동일한 HTTPS API를 호출하도록 한다.
-- [ ] 웹에서 `/api` 상대 경로를 유지해야 한다면 배포 프록시에서 원격 API로 연결한다.
-- [ ] API에 `OPTIONS`와 명시적인 CORS allowlist를 추가한다.
+- [x] 앱 static export 소스 투영본에서 `src/app/api/**`의 런타임 POST Route Handler를 제외한다.
+- [x] 웹 Route Handler를 운영 API로 유지하고 운영 웹과 앱이 동일한 HTTPS API를 호출하도록 한다.
+- [x] 로컬 웹은 `/api`, 운영 웹과 앱은 `https://tuti.today/api`를 사용한다.
+- [x] API에 `OPTIONS`와 명시적인 CORS allowlist를 추가한다.
 - [ ] 최소 허용 origin에 웹 배포 origin, `capacitor://localhost`, `https://localhost`를 포함한다.
-- [ ] 앱 빌드에서 `NEXT_PUBLIC_API_BASE_URL`이 비어 있거나 절대 HTTPS URL이 아니면 빌드를 실패시킨다.
+- [x] 앱 빌드에서 `NEXT_PUBLIC_API_BASE_URL`이 비어 있거나 절대 HTTPS URL이 아니면 빌드를 실패시킨다.
 - [ ] 최종 Bundle ID/Application ID를 확정하고 `app.tuti.prototype`을 교체한다.
 - [ ] 동일한 Capacitor 8 버전으로 `@capacitor/android`, `@capacitor/ios`, `@capacitor/app`을 설치한다.
 - [ ] `android/`, `ios/` 플랫폼 프로젝트를 생성하고 소스 저장소에 포함한다.

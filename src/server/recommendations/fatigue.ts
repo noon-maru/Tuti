@@ -1,5 +1,9 @@
 import { interpretState, type StateFeature, type TutiPlace } from "@/lib/recommendations";
-import type { IntakeAnswers, AirAnswer, MovementAnswer } from "@/store/tuti";
+import type {
+  AirAnswer,
+  IntakeAnswers,
+  MovementAnswer,
+} from "@/shared/tuti/types";
 
 type MovementFatigueInput = Pick<
   TutiPlace,

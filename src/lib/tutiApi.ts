@@ -1,9 +1,9 @@
 import type { TutiPlace } from "@/lib/recommendations";
-import type { IntakeAnswers, UserLocation } from "@/store/tuti";
-
-type RecommendationResponse = {
-  places: TutiPlace[];
-};
+import type {
+  RecommendationRequest,
+  RecommendationResponse,
+} from "@/shared/api/recommendations";
+import type { IntakeAnswers, UserLocation } from "@/shared/tuti/types";
 
 const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL?.trim() || "/api";
 
@@ -15,12 +15,13 @@ export async function fetchRecommendations(
   answers: IntakeAnswers,
   location?: UserLocation,
 ): Promise<TutiPlace[]> {
+  const request: RecommendationRequest = { answers, location };
   const response = await fetch(apiUrl("recommendations"), {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({ answers, location }),
+    body: JSON.stringify(request),
   });
 
   if (!response.ok) {
