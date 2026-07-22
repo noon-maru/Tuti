@@ -40,7 +40,6 @@ export function IntakeScreen({
       <SoftHeader>
         <Brand>
           <strong>Tuti</strong>
-          <span>오늘 가능한 만큼만, 잠깐 다른 공기로.</span>
         </Brand>
         <RestoreButton onClick={onRestoreRecords}>기록 불러오기</RestoreButton>
       </SoftHeader>
@@ -231,20 +230,11 @@ const SoftHeader = styled.div`
 `;
 
 const Brand = styled.div`
-  display: grid;
-  gap: var(--space-1);
-
   strong {
     font-size: var(--font-size-600);
     font-weight: 700;
     line-height: var(--line-height-heading);
     letter-spacing: var(--letter-spacing-heading);
-  }
-
-  span {
-    max-width: 180px;
-    color: var(--color-text-muted);
-    font-size: var(--font-size-100);
   }
 `;
 
