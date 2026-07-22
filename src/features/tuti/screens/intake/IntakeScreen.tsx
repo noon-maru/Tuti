@@ -1,26 +1,37 @@
 "use client";
 
 import styled from "@emotion/styled";
-import { BaseButton, TextButton } from "@/features/tuti/components/buttons";
+import { useRef, useState } from "react";
+import {
+  BaseButton,
+  PrimaryButton,
+  TextButton,
+} from "@/features/tuti/components/buttons";
 import { ScreenFrame } from "@/features/tuti/components/ScreenFrame";
 import type { IntakeStep } from "@/features/tuti/data/intakeSteps";
+
+type MovementStep = Extract<IntakeStep, { key: "movement" }>;
 
 export function IntakeScreen({
   step,
   total,
   activeStep,
+  selectedValue,
   accountNoticeVisible,
   onBack,
   onChoose,
+  onNext,
   onRestoreRecords,
   onSkip,
 }: {
   step: number;
   total: number;
   activeStep: IntakeStep;
+  selectedValue?: string;
   accountNoticeVisible: boolean;
   onBack: () => void;
   onChoose: (value: string) => void;
+  onNext: () => void;
   onRestoreRecords: () => void;
   onSkip: () => void;
 }) {
@@ -58,27 +69,19 @@ export function IntakeScreen({
         )}
       </QuestionBlock>
       {activeStep.key === "movement" ? (
-        <MovementScale>
-          <ScaleTrack aria-hidden="true" />
-          {activeStep.options.map((option, index) => (
-            <ScaleOption
-              key={option.value}
-              type="button"
-              aria-label={`${option.label}, ${option.hint}`}
-              onClick={() => onChoose(option.value)}
-            >
-              <ScalePoint $level={index} data-scale-point aria-hidden="true" />
-              <span>{option.label}</span>
-              <small>{option.hint}</small>
-            </ScaleOption>
-          ))}
-        </MovementScale>
+        <MovementSlider
+          activeStep={activeStep}
+          selectedValue={selectedValue}
+          onChoose={onChoose}
+        />
       ) : (
         <OptionList>
           {activeStep.options.map((option) => (
             <OptionCard
               key={option.value}
+              $active={option.value === selectedValue}
               type="button"
+              aria-pressed={option.value === selectedValue}
               onClick={() => onChoose(option.value)}
             >
               <span>{option.label}</span>
@@ -87,8 +90,130 @@ export function IntakeScreen({
           ))}
         </OptionList>
       )}
-      <BrowseButton onClick={onSkip}>질문 없이 바로 둘러보기</BrowseButton>
+      <QuestionActions>
+        <NextButton disabled={!selectedValue} onClick={onNext}>
+          {step === total - 1 ? "장소 추천받기" : "다음"}
+        </NextButton>
+        <BrowseButton onClick={onSkip}>질문 없이 바로 둘러보기</BrowseButton>
+      </QuestionActions>
     </Frame>
+  );
+}
+
+function MovementSlider({
+  activeStep,
+  selectedValue,
+  onChoose,
+}: {
+  activeStep: MovementStep;
+  selectedValue?: string;
+  onChoose: (value: string) => void;
+}) {
+  const selectedIndex = activeStep.options.findIndex(
+    (option) => option.value === selectedValue,
+  );
+  const [sliderPosition, setSliderPosition] = useState(
+    selectedIndex >= 0 ? selectedIndex : 1,
+  );
+  const [dragging, setDragging] = useState(false);
+  const activeIndex = Math.round(sliderPosition);
+  const activeOption = activeStep.options[activeIndex];
+  const dragOriginRef = useRef(activeIndex);
+
+  const chooseAt = (index: number) => {
+    const option = activeStep.options[index];
+
+    if (!option) return;
+
+    setSliderPosition(index);
+    onChoose(option.value);
+  };
+
+  const snapToClosestOption = (position: number) => {
+    const origin = dragOriginRef.current;
+    const distance = position - origin;
+    const snapThreshold = 0.2;
+    let target = origin;
+
+    if (distance >= snapThreshold) {
+      target = Math.max(origin + 1, Math.round(position));
+    } else if (distance <= -snapThreshold) {
+      target = Math.min(origin - 1, Math.round(position));
+    }
+
+    setDragging(false);
+    chooseAt(
+      Math.max(0, Math.min(activeStep.options.length - 1, target)),
+    );
+  };
+
+  return (
+    <MovementScale>
+      <SliderControl>
+        <ScaleTrack aria-hidden="true" />
+        <ScaleTicks aria-hidden="true">
+          {activeStep.options.map((option, index) => (
+            <ScalePoint key={option.value} $level={index} />
+          ))}
+        </ScaleTicks>
+        <SliderThumb
+          $dragging={dragging}
+          $level={activeIndex}
+          $position={sliderPosition}
+          aria-hidden="true"
+        />
+        <RangeInput
+          type="range"
+          min={0}
+          max={activeStep.options.length - 1}
+          step={0.01}
+          value={sliderPosition}
+          aria-label="오늘 이동할 수 있는 거리"
+          aria-valuetext={`${activeOption.label}, ${activeOption.hint}`}
+          onChange={(event) =>
+            setSliderPosition(Number(event.currentTarget.value))
+          }
+          onPointerDown={() => {
+            dragOriginRef.current = activeIndex;
+            setDragging(true);
+          }}
+          onPointerUp={(event) =>
+            snapToClosestOption(Number(event.currentTarget.value))
+          }
+          onPointerCancel={(event) =>
+            snapToClosestOption(Number(event.currentTarget.value))
+          }
+          onKeyDown={(event) => {
+            if (event.key === "ArrowLeft" || event.key === "ArrowDown") {
+              event.preventDefault();
+              chooseAt(Math.max(0, activeIndex - 1));
+            }
+
+            if (event.key === "ArrowRight" || event.key === "ArrowUp") {
+              event.preventDefault();
+              chooseAt(
+                Math.min(activeStep.options.length - 1, activeIndex + 1),
+              );
+            }
+          }}
+        />
+      </SliderControl>
+      <ScaleLabels>
+        {activeStep.options.map((option, index) => (
+          <ScaleOption
+            key={option.value}
+            $active={index === activeIndex}
+            type="button"
+            aria-pressed={index === activeIndex}
+            aria-label={`${option.label}, ${option.hint}`}
+            onClick={() => chooseAt(index)}
+          >
+            <span>{option.label}</span>
+            <small>{option.hint}</small>
+          </ScaleOption>
+        ))}
+      </ScaleLabels>
+    </MovementScale>
   );
 }
 
@@ -198,17 +323,23 @@ const QuestionSubtitle = styled.p`
 `;
 
 const MovementScale = styled.div`
-  position: relative;
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-1);
+`;
+
+const SliderControl = styled.div`
+  position: relative;
+  width: calc(100% * 2 / 3);
+  height: var(--space-12);
+  margin-inline: auto;
 `;
 
 const ScaleTrack = styled.div`
   position: absolute;
-  top: 23px;
-  right: calc(100% / 6);
-  left: calc(100% / 6);
-  height: 3px;
+  top: 50%;
+  right: 12px;
+  left: 12px;
+  height: 8px;
   border-radius: 999px;
   background: linear-gradient(
     90deg,
@@ -216,31 +347,128 @@ const ScaleTrack = styled.div`
     var(--color-secondary-500),
     var(--color-brand-500)
   );
+  transform: translateY(-50%);
 `;
 
-const ScaleOption = styled(BaseButton)`
-  position: relative;
+const ScaleTicks = styled.div`
+  position: absolute;
+  top: 50%;
+  right: 12px;
+  left: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  transform: translateY(-50%);
+`;
+
+const ScalePoint = styled.i<{ $level: number }>`
+  width: 10px;
+  height: 10px;
+  border: 2px solid var(--color-surface);
+  border-radius: 50%;
+  background: ${({ $level }) =>
+    $level === 0
+      ? "var(--color-secondary-200)"
+      : $level === 1
+        ? "var(--color-secondary-500)"
+        : "var(--color-brand-500)"};
+  box-shadow: 0 0 0 1px var(--color-border);
+`;
+
+const SliderThumb = styled.i<{
+  $dragging: boolean;
+  $level: number;
+  $position: number;
+}>`
+  position: absolute;
   z-index: 1;
-  min-width: 0;
-  min-height: 132px;
+  top: 50%;
+  left: ${({ $position }) =>
+    `calc(12px + (100% - 24px) * ${$position / 2})`};
+  width: 24px;
+  height: 24px;
+  border: 3px solid var(--color-surface);
+  border-radius: 50%;
+  background: ${({ $level }) =>
+    $level === 0
+      ? "var(--color-secondary-200)"
+      : $level === 1
+        ? "var(--color-secondary-500)"
+        : "var(--color-brand-500)"};
+  box-shadow:
+    0 0 0 1px var(--color-border),
+    0 4px 12px rgb(var(--color-black-rgb) / 0.16);
+  pointer-events: none;
+  transform: translate(-50%, -50%)
+    scale(${({ $dragging }) => ($dragging ? 1.12 : 1)});
+  transition: ${({ $dragging }) =>
+    $dragging
+      ? "background 180ms ease, transform 140ms ease"
+      : "left 180ms ease-out, background 180ms ease, transform 140ms ease"};
+`;
+
+const RangeInput = styled.input`
+  position: absolute;
+  z-index: 2;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  appearance: none;
+  background: transparent;
+  cursor: grab;
+  touch-action: pan-y;
+
+  &:active {
+    cursor: grabbing;
+  }
+
+  &::-webkit-slider-runnable-track {
+    height: 8px;
+    background: transparent;
+  }
+
+  &::-webkit-slider-thumb {
+    width: 24px;
+    height: 24px;
+    margin-top: -8px;
+    border: 0;
+    appearance: none;
+    background: transparent;
+  }
+
+  &::-moz-range-track {
+    height: 8px;
+    background: transparent;
+  }
+
+  &::-moz-range-thumb {
+    width: 24px;
+    height: 24px;
+    border: 0;
+    background: transparent;
+  }
+`;
+
+const ScaleLabels = styled.div`
   display: grid;
-  grid-template-rows: 48px auto auto;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+`;
+
+const ScaleOption = styled(BaseButton)<{ $active: boolean }>`
+  min-width: 0;
+  min-height: 76px;
+  display: grid;
   align-content: start;
   justify-items: center;
   gap: var(--space-2);
-  padding: 0 var(--space-2) var(--space-3);
+  padding: var(--space-1) var(--space-2) var(--space-3);
   border-radius: 8px;
   background: transparent;
-  color: var(--color-text);
+  color: ${({ $active }) =>
+    $active ? "var(--color-brand-800)" : "var(--color-text)"};
   text-align: center;
-  transition: transform 180ms ease;
-
-  &:hover [data-scale-point] {
-    transform: scale(1.16);
-    box-shadow:
-      0 0 0 4px var(--color-brand-100),
-      0 0 0 5px var(--color-brand-500);
-  }
+  transition: color 180ms ease, transform 180ms ease;
 
   &:hover span {
     color: var(--color-brand-800);
@@ -263,36 +491,23 @@ const ScaleOption = styled(BaseButton)`
   }
 `;
 
-const ScalePoint = styled.i<{ $level: number }>`
-  width: ${({ $level }) => 16 + $level * 6}px;
-  height: ${({ $level }) => 16 + $level * 6}px;
-  align-self: center;
-  border: 3px solid var(--color-surface);
-  border-radius: 50%;
-  background: ${({ $level }) =>
-    $level === 0
-      ? "var(--color-secondary-200)"
-      : $level === 1
-        ? "var(--color-secondary-500)"
-        : "var(--color-brand-500)"};
-  box-shadow: 0 0 0 1px var(--color-border);
-  transition: box-shadow 180ms ease, transform 180ms ease;
-`;
-
 const OptionList = styled.div`
   display: grid;
   gap: var(--space-3);
 `;
 
-const OptionCard = styled(BaseButton)`
+const OptionCard = styled(BaseButton)<{ $active: boolean }>`
   min-height: 72px;
   display: grid;
   gap: var(--space-2);
   justify-items: start;
   padding: var(--space-4);
-  border: 1px solid var(--color-border);
+  border: 1px solid
+    ${({ $active }) =>
+      $active ? "var(--color-accent-secondary)" : "var(--color-border)"};
   border-radius: 8px;
-  background: var(--color-surface);
+  background: ${({ $active }) =>
+    $active ? "var(--color-accent-soft)" : "var(--color-surface)"};
   color: var(--color-text);
   text-align: left;
   transition: transform 180ms ease, border-color 180ms ease, background 180ms ease;
@@ -319,7 +534,16 @@ const OptionCard = styled(BaseButton)`
   }
 `;
 
-const BrowseButton = styled(TextButton)`
+const QuestionActions = styled.div`
+  display: grid;
+  gap: var(--space-2);
   margin-top: auto;
+`;
+
+const NextButton = styled(PrimaryButton)`
+  width: 100%;
+`;
+
+const BrowseButton = styled(TextButton)`
   align-self: center;
 `;
