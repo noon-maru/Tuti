@@ -1,11 +1,11 @@
 export type MovementAnswer = "near" | "short" | "half";
 export type AirAnswer = "quiet" | "open" | "walk";
-export type AloneAnswer = "alone" | "some";
+export type DensityAnswer = "quiet" | "balanced" | "lively";
 
 export type IntakeAnswers = {
   movement?: MovementAnswer;
   air?: AirAnswer;
-  alone?: AloneAnswer;
+  density?: DensityAnswer;
 };
 
 export type UserLocation = {

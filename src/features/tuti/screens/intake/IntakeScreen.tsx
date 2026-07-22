@@ -35,7 +35,8 @@ export function IntakeScreen({
   onRestoreRecords: () => void;
   onSkip: () => void;
 }) {
-  const airQuestion = activeStep.key === "air";
+  const tintedQuestion =
+    activeStep.key === "air" || activeStep.key === "density";
 
   return (
     <Frame>
@@ -85,7 +86,7 @@ export function IntakeScreen({
           {activeStep.options.map((option) => (
             <OptionCard
               key={option.value}
-              $air={airQuestion}
+              $tinted={tintedQuestion}
               $active={option.value === selectedValue}
               type="button"
               aria-pressed={option.value === selectedValue}
@@ -498,24 +499,25 @@ const OptionList = styled.div`
 
 const OptionCard = styled(BaseButton)<{
   $active: boolean;
-  $air: boolean;
+  $tinted: boolean;
 }>`
-  min-height: ${({ $air }) => ($air ? "60px" : "72px")};
+  min-height: ${({ $tinted }) => ($tinted ? "60px" : "72px")};
   display: grid;
-  gap: ${({ $air }) => ($air ? "var(--space-1)" : "var(--space-2)")};
+  gap: ${({ $tinted }) =>
+    $tinted ? "var(--space-1)" : "var(--space-2)"};
   justify-items: start;
-  padding: ${({ $air }) =>
-    $air ? "var(--space-3) var(--space-5)" : "var(--space-4)"};
+  padding: ${({ $tinted }) =>
+    $tinted ? "var(--space-3) var(--space-5)" : "var(--space-4)"};
   border: 1px solid
-    ${({ $active, $air }) =>
-      $air
+    ${({ $active, $tinted }) =>
+      $tinted
         ? "transparent"
         : $active
           ? "var(--color-accent-secondary)"
           : "var(--color-border)"};
-  border-radius: ${({ $air }) => ($air ? "12px" : "8px")};
-  background: ${({ $active, $air }) =>
-    $air
+  border-radius: ${({ $tinted }) => ($tinted ? "12px" : "8px")};
+  background: ${({ $active, $tinted }) =>
+    $tinted
       ? $active
         ? "var(--color-secondary-500)"
         : "var(--color-secondary-200)"
@@ -527,10 +529,10 @@ const OptionCard = styled(BaseButton)<{
   transition: transform 180ms ease, border-color 180ms ease, background 180ms ease;
 
   &:hover {
-    border-color: ${({ $air }) =>
-      $air ? "transparent" : "var(--color-accent-secondary)"};
-    background: ${({ $active, $air }) =>
-      $air
+    border-color: ${({ $tinted }) =>
+      $tinted ? "transparent" : "var(--color-accent-secondary)"};
+    background: ${({ $active, $tinted }) =>
+      $tinted
         ? $active
           ? "var(--color-secondary-500)"
           : "var(--color-secondary-200)"
@@ -542,8 +544,8 @@ const OptionCard = styled(BaseButton)<{
   }
 
   span {
-    font-size: ${({ $air }) =>
-      $air ? "var(--font-size-300)" : "var(--font-size-400)"};
+    font-size: ${({ $tinted }) =>
+      $tinted ? "var(--font-size-300)" : "var(--font-size-400)"};
     font-weight: 700;
     line-height: var(--line-height-subtitle);
     letter-spacing: var(--letter-spacing-subtitle);

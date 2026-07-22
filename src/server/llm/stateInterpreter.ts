@@ -24,7 +24,7 @@ const stateFeatureSchema = {
     },
     crowdTolerance: {
       type: "string",
-      enum: ["low", "medium"],
+      enum: ["low", "medium", "high"],
       description: "How much crowd pressure the user can tolerate.",
     },
     goal: {
@@ -89,7 +89,7 @@ function parseStateFeature(value: unknown): StateFeature | null {
   if (
     !isOneOf(energy, ["low", "soft", "open"]) ||
     !isOneOf(movement, ["near", "short", "half"]) ||
-    !isOneOf(crowdTolerance, ["low", "medium"]) ||
+    !isOneOf(crowdTolerance, ["low", "medium", "high"]) ||
     !isOneOf(goal, ["clear_air", "quiet_reset", "light_walk"]) ||
     typeof burdenNote !== "string"
   ) {
@@ -125,12 +125,14 @@ function describeAnswers(answers: IntakeAnswers) {
             ? "천천히 걷기 좋은 공기"
             : "조용한 곳",
     },
-    alone: {
-      value: answers.alone ?? null,
+    density: {
+      value: answers.density ?? null,
       meaning:
-        answers.alone === "alone"
-          ? "혼자 있고 싶음"
-          : "사람이 조금 있어도 괜찮음",
+        answers.density === "quiet"
+          ? "조금 한적한 공간"
+          : answers.density === "lively"
+            ? "생동감이 느껴지는 활기찬 공간"
+            : "사람들의 소리가 가볍게 들리는 공간",
     },
   };
 }

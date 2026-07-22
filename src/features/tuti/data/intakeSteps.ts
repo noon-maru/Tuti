@@ -32,11 +32,25 @@ export const intakeSteps = [
     ],
   },
   {
-    key: "alone",
-    question: "혼자 있고 싶은가요?",
+    key: "density",
+    question: "오늘,\n어떤 분위기 속에 있고 싶으세요?",
+    subtitle: "편안함을 느끼는 밀도의 공간을 찾아드릴게요.",
     options: [
-      { value: "alone", label: "혼자가 좋아요", hint: "눈치 보지 않아도 되는 곳" },
-      { value: "some", label: "조금은 괜찮아요", hint: "사람이 있어도 부담 없는 곳" },
+      {
+        value: "quiet",
+        label: "조금 한적하면 좋겠어요",
+        hint: "조용히 혼자만의 시간에 집중하기 좋은 공간",
+      },
+      {
+        value: "balanced",
+        label: "적당히 북적여도 괜찮아요",
+        hint: "사람들의 말소리가 백색소음처럼 가볍게 들려오는 공간",
+      },
+      {
+        value: "lively",
+        label: "활기찬 곳도 좋아요",
+        hint: "생동감과 일상의 활기를 느끼기 좋은 공간",
+      },
     ],
   },
 ] as const;

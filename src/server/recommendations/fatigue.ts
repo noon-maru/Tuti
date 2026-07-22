@@ -1,6 +1,7 @@
 import { interpretState, type StateFeature, type TutiPlace } from "@/lib/recommendations";
 import type {
   AirAnswer,
+  DensityAnswer,
   IntakeAnswers,
   MovementAnswer,
 } from "@/shared/tuti/types";
@@ -62,7 +63,7 @@ export function calculateMovementFatigue(
   const movementGap = placeWeight - requestedWeight;
   const moodTag = answers.air ? moodTagByAir[answers.air] : undefined;
   const hasMoodMatch = moodTag ? place.moodTags.includes(moodTag) : false;
-  const wantsAlone = answers.alone === "alone";
+  const density = answers.density ?? "balanced";
 
   return {
     base: place.fatigue,
@@ -74,7 +75,7 @@ export function calculateMovementFatigue(
           ? -6
           : -2,
     moodAdjustment: hasMoodMatch ? -12 : moodTag ? 6 : 0,
-    crowdPenalty: getCrowdPenalty(place.crowd, wantsAlone, place.moodTags),
+    crowdPenalty: getCrowdPenalty(place.crowd, density, place.moodTags),
     energyPenalty:
       feature.energy === "low" && place.fatigue > 38
         ? 12
@@ -96,22 +97,31 @@ function scoreBreakdown(breakdown: FatigueBreakdown) {
   );
 }
 
-function getCrowdPenalty(crowd: string, wantsAlone: boolean, moodTags: string[]) {
+function getCrowdPenalty(
+  crowd: string,
+  density: DensityAnswer,
+  moodTags: string[],
+) {
   const crowdLevel = normalizeCrowd(crowd);
 
-  if (wantsAlone && moodTags.includes("alone")) {
+  if (density === "quiet" && moodTags.includes("alone")) {
     return crowdLevel === "low" ? -8 : -4;
   }
 
-  if (crowdLevel === "low") {
-    return wantsAlone ? -4 : 0;
+  if (density === "quiet") {
+    if (crowdLevel === "low") return -4;
+    if (crowdLevel === "medium") return 8;
+    return 16;
   }
 
-  if (crowdLevel === "medium") {
-    return wantsAlone ? 8 : 2;
+  if (density === "lively") {
+    if (crowdLevel === "high") return -8;
+    if (crowdLevel === "medium") return -4;
+    return 10;
   }
 
-  return wantsAlone ? 16 : 8;
+  if (crowdLevel === "medium") return -6;
+  return crowdLevel === "low" ? 2 : 4;
 }
 
 function getPhysicalDistanceScore(
@@ -172,8 +182,12 @@ function getRecommendationReason(
     return "지금 위치에서 부담이 낮은 쪽이에요.";
   }
 
-  if (answers.alone === "alone" && breakdown.crowdPenalty < 0) {
+  if (answers.density === "quiet" && breakdown.crowdPenalty < 0) {
     return "혼자 있어도 덜 신경 쓰이는 곳이에요.";
+  }
+
+  if (answers.density === "lively" && breakdown.crowdPenalty < 0) {
+    return "사람들의 온기가 가볍게 느껴지는 곳이에요.";
   }
 
   if (moodTag && place.moodTags.includes(moodTag)) {

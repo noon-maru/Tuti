@@ -3,7 +3,7 @@ import type { IntakeAnswers } from "@/shared/tuti/types";
 export type StateFeature = {
   energy: "low" | "soft" | "open";
   movement: "near" | "short" | "half";
-  crowdTolerance: "low" | "medium";
+  crowdTolerance: "low" | "medium" | "high";
   goal: "clear_air" | "quiet_reset" | "light_walk";
   burdenNote: string;
 };
@@ -36,7 +36,12 @@ export function interpretState(answers: IntakeAnswers): StateFeature {
           ? "soft"
           : "open",
     movement,
-    crowdTolerance: answers.alone === "alone" ? "low" : "medium",
+    crowdTolerance:
+      answers.density === "quiet"
+        ? "low"
+        : answers.density === "lively"
+          ? "high"
+          : "medium",
     goal:
       answers.air === "open"
         ? "clear_air"
