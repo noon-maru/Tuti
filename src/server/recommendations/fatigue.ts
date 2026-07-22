@@ -104,7 +104,7 @@ function getCrowdPenalty(
 ) {
   const crowdLevel = normalizeCrowd(crowd);
 
-  if (density === "quiet" && moodTags.includes("alone")) {
+  if (density === "quiet" && moodTags.includes("solitude")) {
     return crowdLevel === "low" ? -8 : -4;
   }
 

@@ -10,7 +10,7 @@ export function isRequestOriginAllowed(request: Request) {
   if (!origin) return true;
   if (capacitorOrigins.has(origin)) return true;
 
-  return origin === new URL(request.url).origin;
+  return getRequestOrigins(request).has(origin);
 }
 
 export function withCors(request: Request, response: Response) {
@@ -56,4 +56,29 @@ function appendVary(currentValue: string | null, value: string) {
 
   values.add(value);
   return [...values].join(", ");
+}
+
+function getRequestOrigins(request: Request) {
+  const requestUrl = new URL(request.url);
+  const origins = new Set([requestUrl.origin]);
+  const host = firstForwardedValue(
+    request.headers.get("x-forwarded-host") ?? request.headers.get("host"),
+  );
+
+  if (!host) return origins;
+
+  const forwardedProtocol = firstForwardedValue(
+    request.headers.get("x-forwarded-proto"),
+  );
+  const protocol = forwardedProtocol
+    ? `${forwardedProtocol.replace(/:$/, "")}:`
+    : requestUrl.protocol;
+
+  origins.add(`${protocol}//${host}`);
+
+  return origins;
+}
+
+function firstForwardedValue(value: string | null) {
+  return value?.split(",", 1)[0]?.trim();
 }
