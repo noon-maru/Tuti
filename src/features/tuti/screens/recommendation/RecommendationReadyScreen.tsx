@@ -19,7 +19,7 @@ export function RecommendationReadyScreen({
         <BrandMoment data-ready-logo>
           <LogoGlow data-ready-glow aria-hidden="true" />
           <BrandMark
-            src="/favicon.svg"
+            src="/brand/tuti-symbol.svg"
             alt="Tuti"
             width={96}
             height={96}

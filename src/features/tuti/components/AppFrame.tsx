@@ -10,7 +10,13 @@ export function AppFrame({ children }: { children: React.ReactNode }) {
   return (
     <Shell $nativeApp={nativeApp}>
       <DesktopBrand data-desktop-brand>
-        <BrandIcon src="/favicon.svg" alt="" width={72} height={72} priority />
+        <BrandIcon
+          src="/brand/tuti-symbol.svg"
+          alt=""
+          width={72}
+          height={72}
+          priority
+        />
         <BrandCopy>
           <p>오늘 가능한 만큼만</p>
           <h1>Tuti</h1>

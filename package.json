@@ -15,7 +15,7 @@
     "db:studio": "prisma studio",
     "start": "next start",
     "lint": "pnpm db:generate && eslint",
-    "assets:generate": "capacitor-assets generate && tsx scripts/normalize-capacitor-assets.ts",
+    "assets:generate": "capacitor-assets generate --assetPath assets/capacitor && tsx scripts/normalize-capacitor-assets.ts",
     "cap:sync": "pnpm build:app && cap sync",
     "cap:open:ios": "cap open ios",
     "cap:open:android": "cap open android"

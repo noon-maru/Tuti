@@ -9,8 +9,8 @@ export const metadata: Metadata = {
   description: "오늘 가능한 만큼만, 잠깐 다른 공기로.",
   manifest: "/manifest.json",
   icons: {
-    icon: "/favicon.svg",
-    apple: "/assets/icons/icon-192.png",
+    icon: "/brand/tuti-symbol.svg",
+    apple: "/app-icons/icon-192.png",
   },
 };
 

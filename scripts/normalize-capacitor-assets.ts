@@ -1,6 +1,14 @@
 import { constants } from "node:fs";
-import { access, readFile, readdir, rename, rm, writeFile } from "node:fs/promises";
-import { join } from "node:path";
+import {
+  access,
+  mkdir,
+  readFile,
+  readdir,
+  rename,
+  rm,
+  writeFile,
+} from "node:fs/promises";
+import { basename, join } from "node:path";
 
 type ManifestIcon = {
   src: string;
@@ -13,31 +21,50 @@ type WebManifest = {
   [key: string]: unknown;
 };
 
-const iconsDirectory = join(process.cwd(), "public", "assets", "icons");
+const generatedIconsDirectory = join(
+  process.cwd(),
+  "public",
+  "assets",
+  "icons",
+);
+const appIconsDirectory = join(process.cwd(), "public", "app-icons");
 const manifestPath = join(process.cwd(), "public", "manifest.json");
 const pngSignature = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
 
 async function main() {
-  await access(iconsDirectory, constants.R_OK);
+  await access(generatedIconsDirectory, constants.R_OK);
+  await mkdir(appIconsDirectory, { recursive: true });
+  const normalizedIcons = new Map<string, string>();
 
-  for (const filename of await readdir(iconsDirectory)) {
-    if (!filename.endsWith(".webp")) continue;
+  for (const filename of await readdir(generatedIconsDirectory)) {
+    if (!filename.endsWith(".png") && !filename.endsWith(".webp")) continue;
 
-    const source = join(iconsDirectory, filename);
+    const source = join(generatedIconsDirectory, filename);
     const contents = await readFile(source);
-    if (!contents.subarray(0, pngSignature.length).equals(pngSignature)) continue;
+    const isPng = contents.subarray(0, pngSignature.length).equals(pngSignature);
+    const normalizedFilename =
+      filename.endsWith(".webp") && isPng
+        ? filename.replace(/\.webp$/, ".png")
+        : filename;
+    const destination = join(appIconsDirectory, normalizedFilename);
 
-    const destination = join(iconsDirectory, filename.replace(/\.webp$/, ".png"));
     await rm(destination, { force: true });
     await rename(source, destination);
+    normalizedIcons.set(filename, normalizedFilename);
   }
 
   const manifest = JSON.parse(await readFile(manifestPath, "utf8")) as WebManifest;
-  manifest.icons = (manifest.icons ?? []).map((icon) => ({
-    ...icon,
-    src: icon.src.replace(/\.webp$/, ".png"),
-    type: icon.src.endsWith(".webp") ? "image/png" : icon.type,
-  }));
+  manifest.icons = (manifest.icons ?? []).map((icon) => {
+    const generatedFilename = basename(icon.src);
+    const normalizedFilename =
+      normalizedIcons.get(generatedFilename) ?? generatedFilename;
+
+    return {
+      ...icon,
+      src: `app-icons/${normalizedFilename}`,
+      type: normalizedFilename.endsWith(".png") ? "image/png" : icon.type,
+    };
+  });
 
   await writeFile(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`);
 }
