@@ -260,7 +260,7 @@ export function RecommendationsScreen({
           </DetailTransitionLayer>
         ) : (
           <TransitionLayer $progress={verticalProgress} $from={-34}>
-            <JournalScreen places={places.slice(0, 3)} onBack={() => undefined} />
+            <JournalScreen onBack={() => undefined} />
           </TransitionLayer>
         ))}
 

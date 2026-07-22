@@ -38,7 +38,7 @@ export function createPreflightResponse(request: Request) {
     status: 204,
     headers: {
       "Access-Control-Allow-Headers": "Content-Type",
-      "Access-Control-Allow-Methods": "POST, OPTIONS",
+      "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
       "Access-Control-Max-Age": "86400",
     },
   });

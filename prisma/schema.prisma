@@ -35,3 +35,19 @@ model Place {
   @@index([movementLevel])
   @@map("places")
 }
+
+model JournalEntry {
+  id         String   @id
+  title      String
+  content    String
+  image      String?
+  crowd      String
+  placeName  String   @map("place_name")
+  difficulty String
+  visitedAt  DateTime @map("visited_at")
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  @@index([visitedAt])
+  @@map("journal_entries")
+}

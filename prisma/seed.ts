@@ -27,6 +27,17 @@ type SeedPlace = {
   longitude: string;
 };
 
+type SeedJournalEntry = {
+  id: string;
+  title: string;
+  content: string;
+  image: string | null;
+  crowd: "한적함" | "보통" | "활기참";
+  placeName: string;
+  difficulty: "가벼움" | "적당함" | "조금 힘듦";
+  visitedAt: Date;
+};
+
 const places: SeedPlace[] = [
   {
     id: "river-bench",
@@ -174,7 +185,71 @@ const places: SeedPlace[] = [
   },
 ];
 
+const journalEntries: SeedJournalEntry[] = [
+  {
+    id: "journal-2026-06-26",
+    title: "바람이 오래 머물던 오후",
+    content:
+      "푸른 나무들이 우거진 곳에서 벗어난 듯 고요한 여유를 느낄 수 있는 곳으로, 시야를 가득 채우는 짙은 초록빛 덕분에 답답했던 마음을 환기하기에 가벼운 산책이 되었습니다. 나무 사이로 불어오던 바람과 한적한 길을 걷다 보니 온전히 나만의 시간에 집중하게 되는 매력적인 공간입니다.",
+    image:
+      "https://images.unsplash.com/photo-1441974231531-c6227db76b6e?auto=format&fit=crop&w=1200&q=80",
+    crowd: "한적함",
+    placeName: "작은 동네 공원",
+    difficulty: "가벼움",
+    visitedAt: new Date("2026-06-26T16:20:00+09:00"),
+  },
+  {
+    id: "journal-2026-06-18",
+    title: "천천히 걸었던 강변",
+    content:
+      "해가 조금씩 내려앉는 시간에 물가를 따라 천천히 걸었습니다. 서두르지 않아도 되는 길이라 복잡했던 생각이 물결을 따라 조금씩 느려졌고, 돌아오는 길에는 처음보다 가벼운 마음이 남았습니다.",
+    image:
+      "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=1200&q=80",
+    crowd: "보통",
+    placeName: "강변 문화광장",
+    difficulty: "적당함",
+    visitedAt: new Date("2026-06-18T19:10:00+09:00"),
+  },
+  {
+    id: "journal-2026-06-09",
+    title: "조용한 창가 자리",
+    content:
+      "창가에 앉아 지나가는 사람들을 바라보며 따뜻한 차를 천천히 마셨습니다. 특별히 무언가를 하지 않아도 어색하지 않은 곳이어서, 말없이 머무는 것만으로도 충분했던 시간이었습니다.",
+    image:
+      "https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?auto=format&fit=crop&w=1200&q=80",
+    crowd: "한적함",
+    placeName: "조용한 창가 카페",
+    difficulty: "가벼움",
+    visitedAt: new Date("2026-06-09T14:40:00+09:00"),
+  },
+  {
+    id: "journal-2026-05-30",
+    title: "목적지 없이 이어진 길",
+    content:
+      "돌아갈 시간을 정하지 않은 채 오래된 골목과 시장 사이를 걸었습니다. 사람들의 목소리와 가게 앞의 작은 풍경이 계속 이어져서, 목적지가 없어도 발걸음이 자연스럽게 다음 길을 찾아갔습니다.",
+    image:
+      "https://images.unsplash.com/photo-1529156069898-49953e39b3ac?auto=format&fit=crop&w=1200&q=80",
+    crowd: "활기참",
+    placeName: "오래된 시장 산책",
+    difficulty: "조금 힘듦",
+    visitedAt: new Date("2026-05-30T17:30:00+09:00"),
+  },
+  {
+    id: "journal-2026-05-21",
+    title: "나무 사이의 작은 쉼",
+    content:
+      "숲 안쪽의 작은 쉼터에 앉아 한동안 나뭇잎이 흔들리는 소리를 들었습니다. 도시의 소리가 멀어진 자리에서는 다른 생각을 애써 정리하지 않아도 괜찮았고, 잠깐의 고요만으로도 충분히 쉬어갈 수 있었습니다.",
+    image:
+      "https://images.unsplash.com/photo-1501785888041-af3ef285b470?auto=format&fit=crop&w=1200&q=80",
+    crowd: "한적함",
+    placeName: "숲속 작은 쉼터",
+    difficulty: "적당함",
+    visitedAt: new Date("2026-05-21T12:50:00+09:00"),
+  },
+];
+
 validateSeedCoverage(places);
+validateJournalSeed(journalEntries);
 
 for (const place of places) {
   await prisma.place.upsert({
@@ -191,6 +266,14 @@ for (const place of places) {
     )
     WHERE "id" = ${place.id}
   `;
+}
+
+for (const journalEntry of journalEntries) {
+  await prisma.journalEntry.upsert({
+    where: { id: journalEntry.id },
+    update: journalEntry,
+    create: journalEntry,
+  });
 }
 
 await prisma.$disconnect();
@@ -226,5 +309,13 @@ function validateSeedCoverage(seedPlaces: SeedPlace[]) {
     if (!seedPlaces.some((place) => place.crowd === crowdLevel)) {
       throw new Error(`Missing seed crowd level: ${crowdLevel}`);
     }
+  }
+}
+
+function validateJournalSeed(seedEntries: SeedJournalEntry[]) {
+  const ids = new Set(seedEntries.map((entry) => entry.id));
+
+  if (ids.size !== seedEntries.length) {
+    throw new Error("Seed journal entry IDs must be unique.");
   }
 }

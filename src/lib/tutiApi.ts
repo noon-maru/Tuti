@@ -1,5 +1,9 @@
 import type { TutiPlace } from "@/lib/recommendations";
 import type {
+  JournalEntriesResponse,
+  TutiJournalEntry,
+} from "@/shared/api/journal";
+import type {
   RecommendationRequest,
   RecommendationResponse,
 } from "@/shared/api/recommendations";
@@ -30,4 +34,15 @@ export async function fetchRecommendations(
 
   const data = (await response.json()) as RecommendationResponse;
   return data.places;
+}
+
+export async function fetchJournalEntries(): Promise<TutiJournalEntry[]> {
+  const response = await fetch(apiUrl("journal-entries"));
+
+  if (!response.ok) {
+    throw new Error("기록을 불러오지 못했어요.");
+  }
+
+  const data = (await response.json()) as JournalEntriesResponse;
+  return data.entries;
 }
