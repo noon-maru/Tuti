@@ -8,6 +8,7 @@ import {
   TextButton,
 } from "@/features/tuti/components/buttons";
 import { ScreenFrame } from "@/features/tuti/components/ScreenFrame";
+import { TutiWordmark } from "@/features/tuti/components/TutiWordmark";
 import type { IntakeStep } from "@/features/tuti/data/intakeSteps";
 
 type MovementStep = Extract<IntakeStep, { key: "movement" }>;
@@ -42,7 +43,7 @@ export function IntakeScreen({
     <Frame>
       <SoftHeader>
         <Brand>
-          <strong>Tuti</strong>
+          <HeaderWordmark priority />
         </Brand>
         <RestoreButton onClick={onRestoreRecords}>
           기록 불러오기
@@ -267,12 +268,13 @@ const BackChevron = styled.i`
 `;
 
 const Brand = styled.div`
-  strong {
-    font-size: var(--font-size-600);
-    font-weight: 700;
-    line-height: var(--line-height-heading);
-    letter-spacing: var(--letter-spacing-heading);
-  }
+  display: flex;
+  align-items: center;
+`;
+
+const HeaderWordmark = styled(TutiWordmark)`
+  width: 56px;
+  height: auto;
 `;
 
 const RestoreButton = styled(TextButton)`

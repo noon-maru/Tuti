@@ -2,6 +2,7 @@
 
 import styled from "@emotion/styled";
 import Image from "next/image";
+import { TutiWordmark } from "@/features/tuti/components/TutiWordmark";
 import { breakpoints } from "@/styles/tokens";
 
 export function AppFrame({ children }: { children: React.ReactNode }) {
@@ -19,7 +20,9 @@ export function AppFrame({ children }: { children: React.ReactNode }) {
         />
         <BrandCopy>
           <p>오늘 가능한 만큼만</p>
-          <h1>Tuti</h1>
+          <BrandTitle>
+            <DesktopWordmark priority />
+          </BrandTitle>
           <span>
             잠깐 다른 공기로 나갈 수 있도록,
             <br />
@@ -102,16 +105,20 @@ const BrandCopy = styled.div`
     font-size: var(--font-size-300);
   }
 
-  h1 {
-    font-size: clamp(44px, 5vw, 64px);
-    font-weight: 700;
-  }
-
   span {
     color: var(--color-text-muted);
     font-size: var(--font-size-300);
     line-height: var(--line-height-body);
   }
+`;
+
+const BrandTitle = styled.h1`
+  line-height: 0;
+`;
+
+const DesktopWordmark = styled(TutiWordmark)`
+  width: clamp(112px, 10vw, 160px);
+  height: auto;
 `;
 
 const BrandPalette = styled.div`
