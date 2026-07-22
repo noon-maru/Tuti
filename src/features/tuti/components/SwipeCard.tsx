@@ -39,8 +39,8 @@ export function SwipeCard({
         zIndex: 10 - Math.abs(offset),
       }}
     >
-      <span>{place.phrase}</span>
       <small>{place.travelTime}</small>
+      <span>{place.phrase}</span>
     </CardButton>
   );
 }
@@ -52,15 +52,24 @@ const CardButton = styled(BaseButton)<{
   $nudging: "up" | "down" | null;
 }>`
   position: absolute;
-  width: 210px;
-  height: 330px;
+  width: min(
+    calc(100% - var(--space-2)),
+    clamp(280px, calc(36dvh - var(--space-6)), 312px)
+  );
+  aspect-ratio: 3 / 5;
   display: flex;
   flex-direction: column;
   justify-content: flex-end;
-  gap: var(--space-3);
+  gap: var(--space-1);
   padding: var(--space-5);
   overflow: hidden;
-  border-radius: 8px;
+  border-radius: 32px;
+
+  @supports (corner-shape: squircle) {
+    border-radius: 50px;
+    corner-shape: squircle;
+  }
+
   background-color: var(--color-accent-secondary);
   background-image: ${({ $image }) => `url(${$image})`};
   background-position: center;
@@ -135,13 +144,16 @@ const CardButton = styled(BaseButton)<{
   }
 
   span {
-    font-size: var(--font-size-400);
-    font-weight: 700;
+    font-size: var(--font-size-300);
+    font-weight: 600;
     line-height: var(--line-height-subtitle);
     letter-spacing: var(--letter-spacing-subtitle);
   }
 
   small {
-    color: rgb(var(--color-white-rgb) / 0.8);
+    color: rgb(var(--color-white-rgb) / 0.88);
+    font-size: var(--font-size-100);
+    line-height: var(--line-height-body);
+    letter-spacing: var(--letter-spacing-body);
   }
 `;

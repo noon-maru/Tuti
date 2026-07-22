@@ -8,7 +8,6 @@ import { SwipeCard } from "@/features/tuti/components/SwipeCard";
 import { DetailScreen } from "@/features/tuti/screens/detail/DetailScreen";
 import { JournalScreen } from "@/features/tuti/screens/journal/JournalScreen";
 import type { TutiPlace } from "@/lib/recommendations";
-import { breakpoints } from "@/styles/tokens";
 
 type Point = { x: number; y: number };
 type DragAxis = "horizontal" | "vertical" | null;
@@ -197,8 +196,10 @@ export function RecommendationsScreen({
     >
       <CurrentLayer $progress={verticalProgress} $dragY={dragOffset.y}>
         <Copy>
-          <p>{activePlace?.reason ?? "오늘 가능한 정도"}</p>
-          <h2>{activePlace?.phrase}</h2>
+          <h1>오늘 가능한 정도</h1>
+          <p>
+            {activePlace?.reason ?? "지금의 마음에 맞는 장소를 찾고 있어요."}
+          </p>
         </Copy>
         <Carousel>
           {places.map((place, index) => (
@@ -278,7 +279,7 @@ const CurrentLayer = styled.div<{ $progress: number; $dragY: number }>`
     var(--screen-padding-bottom) var(--screen-padding-left);
   display: flex;
   flex-direction: column;
-  justify-content: space-between;
+  justify-content: flex-start;
   opacity: ${({ $progress }) => 1 - $progress};
   transform: translateY(${({ $dragY }) => $dragY * 0.1}px) scale(${({ $progress }) => 1 - $progress * 0.045});
   transition: ${({ $progress }) =>
@@ -336,29 +337,30 @@ const HelpOverlay = styled.div<{ $visible: boolean }>`
 const Copy = styled.div`
   display: grid;
   gap: var(--space-2);
+  justify-items: center;
+  text-align: center;
 
-  p {
-    color: var(--color-text-muted);
-    font-size: var(--font-size-200);
+  h1 {
+    font-size: var(--font-size-500);
+    font-weight: 600;
+    line-height: var(--line-height-subtitle);
+    letter-spacing: var(--letter-spacing-subtitle);
   }
 
-  h2 {
+  p {
     max-width: 300px;
-    min-height: 72px;
-    font-size: var(--font-size-600);
+    color: var(--color-text-muted);
+    font-size: var(--font-size-200);
   }
 `;
 
 const Carousel = styled.div`
   position: relative;
-  height: 390px;
+  height: clamp(480px, calc(60dvh - var(--space-10)), 520px);
+  margin-top: clamp(var(--space-8), 6dvh, var(--space-14));
   display: grid;
   place-items: center;
   perspective: 900px;
-
-  @media (max-width: ${breakpoints.mobile}px) {
-    height: 360px;
-  }
 `;
 
 const Dots = styled.div`
@@ -369,6 +371,7 @@ const Dots = styled.div`
   justify-content: center;
   gap: 0;
   align-self: center;
+  margin-top: auto;
   padding: 0 var(--space-2);
   border-radius: 999px;
   background: rgb(var(--color-white-rgb) / 0.34);

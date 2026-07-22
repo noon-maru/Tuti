@@ -4,7 +4,6 @@ import styled from "@emotion/styled";
 import { ScreenFrame } from "@/features/tuti/components/ScreenFrame";
 import { SwipeCard } from "@/features/tuti/components/SwipeCard";
 import type { TutiPlace } from "@/lib/recommendations";
-import { breakpoints } from "@/styles/tokens";
 
 export type RecommendationsBackdropProps = {
   places: TutiPlace[];
@@ -24,8 +23,8 @@ export function RecommendationsBackdrop({
     <Frame $progress={progress} aria-hidden>
       <Layer>
         <Copy>
-          <p>{place?.reason ?? "오늘 가능한 정도"}</p>
-          <h2>{place?.phrase}</h2>
+          <h1>오늘 가능한 정도</h1>
+          <p>{place?.reason ?? "지금의 마음에 맞는 장소를 찾고 있어요."}</p>
         </Copy>
         <Carousel>
           {places.map((item, index) => (
@@ -72,35 +71,36 @@ const Layer = styled.div`
     var(--screen-padding-bottom) var(--screen-padding-left);
   display: flex;
   flex-direction: column;
-  justify-content: space-between;
+  justify-content: flex-start;
 `;
 
 const Copy = styled.div`
   display: grid;
   gap: var(--space-2);
+  justify-items: center;
+  text-align: center;
 
-  p {
-    color: var(--color-text-muted);
-    font-size: var(--font-size-200);
+  h1 {
+    font-size: var(--font-size-500);
+    font-weight: 600;
+    line-height: var(--line-height-subtitle);
+    letter-spacing: var(--letter-spacing-subtitle);
   }
 
-  h2 {
+  p {
     max-width: 300px;
-    min-height: 72px;
-    font-size: var(--font-size-600);
+    color: var(--color-text-muted);
+    font-size: var(--font-size-200);
   }
 `;
 
 const Carousel = styled.div`
   position: relative;
-  height: 390px;
+  height: clamp(480px, calc(60dvh - var(--space-10)), 520px);
+  margin-top: clamp(var(--space-8), 6dvh, var(--space-14));
   display: grid;
   place-items: center;
   perspective: 900px;
-
-  @media (max-width: ${breakpoints.mobile}px) {
-    height: 360px;
-  }
 `;
 
 const Dots = styled.div`
@@ -111,6 +111,7 @@ const Dots = styled.div`
   justify-content: center;
   gap: 0;
   align-self: center;
+  margin-top: auto;
   padding: 0 var(--space-2);
   border-radius: 999px;
   background: rgb(var(--color-white-rgb) / 0.34);
