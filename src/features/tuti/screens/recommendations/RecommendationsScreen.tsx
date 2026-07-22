@@ -210,7 +210,7 @@ export function RecommendationsScreen({
       onPointerCancel={cancelDrag}
     >
       <CurrentLayer $progress={verticalProgress} $dragY={dragOffset.y}>
-        <Copy>
+        <Copy $progress={verticalProgress}>
           <h1>오늘 가능한 정도</h1>
           <p>
             {activePlace?.reason ?? "지금의 마음에 맞는 장소를 찾고 있어요."}
@@ -226,10 +226,15 @@ export function RecommendationsScreen({
               active={index === activeIndex}
               drag={dragStart || committing ? dragOffset : undefined}
               nudging={index === activeIndex ? nudgingCard : null}
+              detailProgress={
+                index === activeIndex && transitionTarget === "detail"
+                  ? verticalProgress
+                  : 0
+              }
             />
           ))}
         </Carousel>
-        <Dots>
+        <Dots $progress={verticalProgress}>
           {places.map((place, index) => (
             <Dot
               key={place.id}
@@ -244,18 +249,20 @@ export function RecommendationsScreen({
         </Dots>
       </CurrentLayer>
 
-      {interactive && activePlace && verticalProgress > 0 && (
-        <TransitionLayer
-          $progress={verticalProgress}
-          $from={transitionTarget === "detail" ? 34 : -34}
-        >
-          {transitionTarget === "detail" ? (
-            <DetailScreen place={activePlace} onBack={() => undefined} />
-          ) : (
+      {interactive && activePlace && verticalProgress > 0 &&
+        (transitionTarget === "detail" ? (
+          <DetailTransitionLayer>
+            <DetailScreen
+              place={activePlace}
+              onBack={() => undefined}
+              revealProgress={verticalProgress}
+            />
+          </DetailTransitionLayer>
+        ) : (
+          <TransitionLayer $progress={verticalProgress} $from={-34}>
             <JournalScreen places={places.slice(0, 3)} onBack={() => undefined} />
-          )}
-        </TransitionLayer>
-      )}
+          </TransitionLayer>
+        ))}
 
       <HelpOverlay $visible={helpVisible} aria-hidden={!helpVisible}>
         {displayedHelp &&
@@ -298,11 +305,17 @@ const CurrentLayer = styled.div<{ $progress: number; $dragY: number }>`
   display: flex;
   flex-direction: column;
   justify-content: flex-start;
-  opacity: ${({ $progress }) => 1 - $progress};
-  transform: translateY(${({ $dragY }) => $dragY * 0.1}px) scale(${({ $progress }) => 1 - $progress * 0.045});
+  transform: translateY(${({ $dragY }) => $dragY * 0.02}px);
   transition: ${({ $progress }) =>
-    $progress > 0 ? "none" : "opacity 240ms ease, transform 260ms ease"};
+    $progress > 0 ? "none" : "transform 260ms ease"};
 
+`;
+
+const DetailTransitionLayer = styled.div`
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  pointer-events: none;
 `;
 
 const TransitionLayer = styled.div<{ $progress: number; $from: number }>`
@@ -352,11 +365,15 @@ const HelpOverlay = styled.div<{ $visible: boolean }>`
   }
 `;
 
-const Copy = styled.div`
+const Copy = styled.div<{ $progress: number }>`
   display: grid;
   gap: var(--space-2);
   justify-items: center;
   text-align: center;
+  opacity: ${({ $progress }) => Math.max(0, 1 - $progress * 2)};
+  transform: translateY(${({ $progress }) => $progress * -8}px);
+  transition: ${({ $progress }) =>
+    $progress > 0 ? "none" : "opacity 220ms ease, transform 240ms ease"};
 
   h1 {
     font-size: var(--font-size-500);
@@ -381,7 +398,7 @@ const Carousel = styled.div`
   perspective: 900px;
 `;
 
-const Dots = styled.div`
+const Dots = styled.div<{ $progress: number }>`
   width: fit-content;
   min-height: 36px;
   display: flex;
@@ -393,6 +410,10 @@ const Dots = styled.div`
   padding: 0 var(--space-2);
   border-radius: 999px;
   background: rgb(var(--color-white-rgb) / 0.34);
+  opacity: ${({ $progress }) => Math.max(0, 1 - $progress * 2)};
+  transform: translateY(${({ $progress }) => $progress * 8}px);
+  transition: ${({ $progress }) =>
+    $progress > 0 ? "none" : "opacity 220ms ease, transform 240ms ease"};
 `;
 
 const Dot = styled(BaseButton)<{ $active: boolean }>`

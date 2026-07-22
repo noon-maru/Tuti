@@ -11,6 +11,7 @@ export function SwipeCard({
   active,
   drag,
   nudging,
+  detailProgress = 0,
 }: {
   cardIndex: number;
   place: TutiPlace;
@@ -18,12 +19,13 @@ export function SwipeCard({
   active: boolean;
   drag?: { x: number; y: number };
   nudging?: "up" | "down" | null;
+  detailProgress?: number;
 }) {
   const hidden = Math.abs(offset) > 2;
   const dragX = active ? drag?.x ?? 0 : 0;
   const dragY = active ? drag?.y ?? 0 : 0;
   const baseX = offset * 78;
-  const scale = active ? 1 : 0.88;
+  const scale = active ? 1 - detailProgress * 0.44 : 0.88;
   const rotation = offset * -4 + dragX / 22;
 
   return (
@@ -32,6 +34,7 @@ export function SwipeCard({
       $active={active}
       $dragging={active && Boolean(drag)}
       $nudging={active ? nudging ?? null : null}
+      $detailProgress={detailProgress}
       data-swipe-card-index={cardIndex}
       style={{
         transform: `translate(${baseX + dragX}px, ${dragY}px) scale(${scale}) rotate(${rotation}deg)`,
@@ -50,6 +53,7 @@ const CardButton = styled(BaseButton)<{
   $active: boolean;
   $dragging: boolean;
   $nudging: "up" | "down" | null;
+  $detailProgress: number;
 }>`
   position: absolute;
   width: min(
@@ -63,7 +67,7 @@ const CardButton = styled(BaseButton)<{
   gap: var(--space-1);
   padding: var(--space-5);
   overflow: hidden;
-  border-radius: 32px;
+  border-radius: ${({ $detailProgress }) => 32 + $detailProgress * 7}px;
 
   @supports (corner-shape: squircle) {
     border-radius: 50px;
@@ -76,8 +80,10 @@ const CardButton = styled(BaseButton)<{
   background-size: cover;
   color: var(--color-white);
   text-align: left;
-  box-shadow: ${({ $active }) =>
-    $active
+  box-shadow: ${({ $active, $detailProgress }) =>
+    $active && $detailProgress > 0
+      ? `0 ${14 + 14 * (1 - $detailProgress)}px ${30 + 40 * (1 - $detailProgress)}px rgb(var(--color-black-rgb) / ${0.24 + 0.04 * (1 - $detailProgress)})`
+      : $active
       ? "0 28px 70px rgb(var(--color-black-rgb) / 0.28)"
       : "0 20px 54px rgb(var(--color-black-rgb) / 0.22)"};
   transition: ${({ $dragging }) =>
