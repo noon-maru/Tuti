@@ -3,14 +3,10 @@
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 import { useTutiRecommendations } from "@/features/tuti/hooks/useTutiRecommendations";
-import { SwipeScreen } from "@/features/tuti/screens/swipe/SwipeScreen";
+import { RecommendationsScreen } from "@/features/tuti/screens/recommendations/RecommendationsScreen";
 import { useTutiStore } from "@/store/tuti";
 
-export default function SwipeRoute() {
-  return <SwipeFlow />;
-}
-
-function SwipeFlow() {
+export function RecommendationsFlow() {
   const router = useRouter();
   const { places } = useTutiRecommendations();
   const activeIndex = useTutiStore((state) => state.activeIndex);
@@ -33,7 +29,7 @@ function SwipeFlow() {
   };
 
   return (
-    <SwipeScreen
+    <RecommendationsScreen
       places={places}
       activeIndex={activeIndex}
       activePlace={activePlace}

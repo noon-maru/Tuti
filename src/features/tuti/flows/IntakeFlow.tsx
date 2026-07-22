@@ -7,8 +7,7 @@ import { useTutiStore } from "@/store/tuti";
 
 export function IntakeFlow() {
   const setAnswer = useTutiStore((state) => state.setAnswer);
-  const resetAnswers = useTutiStore((state) => state.resetAnswers);
-  const completeIntake = useTutiStore((state) => state.completeIntake);
+  const finishIntake = useTutiStore((state) => state.finishIntake);
   const answers = useTutiStore((state) => state.answers);
   const [step, setStep] = useState(0);
   const [accountNoticeVisible, setAccountNoticeVisible] = useState(false);
@@ -27,12 +26,11 @@ export function IntakeFlow() {
       return;
     }
 
-    completeIntake();
+    finishIntake("answered");
   };
 
   const skipIntake = () => {
-    resetAnswers();
-    completeIntake();
+    finishIntake("skipped");
   };
 
   const goToPreviousQuestion = () => {

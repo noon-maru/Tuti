@@ -6,26 +6,29 @@ import { BackButton } from "@/features/tuti/components/buttons";
 import { ScreenFrame } from "@/features/tuti/components/ScreenFrame";
 import { useVerticalSwipeBack } from "@/features/tuti/hooks/useVerticalSwipeBack";
 import {
-  SwipeReturnBackdrop,
-  type SwipeReturnBackdropProps,
-} from "@/features/tuti/screens/swipe/SwipeReturnBackdrop";
+  RecommendationsBackdrop,
+  type RecommendationsBackdropProps,
+} from "@/features/tuti/screens/recommendations/RecommendationsBackdrop";
 import type { TutiPlace } from "@/lib/recommendations";
 
 export function DetailScreen({
   place,
   onBack,
-  swipeBackdrop,
+  recommendationsBackdrop,
 }: {
   place: TutiPlace;
   onBack: () => void;
-  swipeBackdrop?: SwipeReturnBackdropProps;
+  recommendationsBackdrop?: RecommendationsBackdropProps;
 }) {
   const swipeBack = useVerticalSwipeBack({ direction: "down", onBack });
 
   return (
     <>
-      {swipeBackdrop && (
-        <SwipeReturnBackdrop {...swipeBackdrop} progress={swipeBack.dragProgress} />
+      {recommendationsBackdrop && (
+        <RecommendationsBackdrop
+          {...recommendationsBackdrop}
+          progress={swipeBack.dragProgress}
+        />
       )}
       <Frame
         {...swipeBack.gestureProps}

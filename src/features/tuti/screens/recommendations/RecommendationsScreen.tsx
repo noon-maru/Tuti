@@ -14,7 +14,7 @@ type Point = { x: number; y: number };
 type DragAxis = "horizontal" | "vertical" | null;
 type HelpKind = "detail" | "journal";
 
-export function SwipeScreen({
+export function RecommendationsScreen({
   places,
   activeIndex,
   activePlace,

@@ -5,7 +5,7 @@ import { useTutiRecommendations } from "@/features/tuti/hooks/useTutiRecommendat
 import { JournalScreen } from "@/features/tuti/screens/journal/JournalScreen";
 import { useTutiStore } from "@/store/tuti";
 
-export default function JournalRoute() {
+export default function JournalPage() {
   return <JournalFlow />;
 }
 
@@ -18,8 +18,8 @@ function JournalFlow() {
   return (
     <JournalScreen
       places={places.slice(0, 3)}
-      onBack={() => router.push("/swipe")}
-      swipeBackdrop={{ places, activeIndex, activePlace }}
+      onBack={() => router.replace("/")}
+      recommendationsBackdrop={{ places, activeIndex, activePlace }}
     />
   );
 }

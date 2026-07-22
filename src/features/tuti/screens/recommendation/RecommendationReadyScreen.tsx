@@ -6,18 +6,18 @@ import Image from "next/image";
 import { PrimaryButton } from "@/features/tuti/components/buttons";
 import { ScreenFrame } from "@/features/tuti/components/ScreenFrame";
 
-export function HomeScreen({
-  onEnterSwipe,
-  requestingLocation = false,
+export function RecommendationReadyScreen({
+  onOpenRecommendations,
+  resolvingLocation = false,
 }: {
-  onEnterSwipe: () => void;
-  requestingLocation?: boolean;
+  onOpenRecommendations: () => void;
+  resolvingLocation?: boolean;
 }) {
   return (
     <Frame>
       <Hero>
-        <BrandMoment data-home-logo>
-          <LogoGlow data-home-glow aria-hidden="true" />
+        <BrandMoment data-ready-logo>
+          <LogoGlow data-ready-glow aria-hidden="true" />
           <BrandMark
             src="/favicon.svg"
             alt="Tuti"
@@ -26,20 +26,20 @@ export function HomeScreen({
             priority
           />
         </BrandMoment>
-        <Message data-home-copy>
+        <Message data-ready-copy>
           딱 맞는 공기를 찾았어요.
           <br />
           이제 문 밖으로 나가볼까요?
         </Message>
       </Hero>
-      <ActionArea data-home-action>
-        <LocationButton
-          $loading={requestingLocation}
-          onClick={onEnterSwipe}
-          disabled={requestingLocation}
+      <ActionArea data-ready-action>
+        <PlaceConfirmationButton
+          $resolving={resolvingLocation}
+          onClick={onOpenRecommendations}
+          disabled={resolvingLocation}
         >
-          {requestingLocation ? "장소를 확인하고 있어요" : "장소 확인하기"}
-        </LocationButton>
+          {resolvingLocation ? "장소를 확인하고 있어요" : "장소 확인하기"}
+        </PlaceConfirmationButton>
       </ActionArea>
     </Frame>
   );
@@ -141,10 +141,10 @@ const Frame = styled(ScreenFrame)`
 
   @media (prefers-reduced-motion: reduce) {
     &::before,
-    [data-home-logo],
-    [data-home-glow],
-    [data-home-copy],
-    [data-home-action] {
+    [data-ready-logo],
+    [data-ready-glow],
+    [data-ready-copy],
+    [data-ready-action] {
       animation-delay: 0ms !important;
     }
   }
@@ -201,11 +201,13 @@ const ActionArea = styled.div`
   animation: ${revealContent} 620ms cubic-bezier(0.22, 1, 0.36, 1) 460ms both;
 `;
 
-const LocationButton = styled(PrimaryButton)<{ $loading: boolean }>`
+const PlaceConfirmationButton = styled(PrimaryButton)<{
+  $resolving: boolean;
+}>`
   width: 100%;
   background: var(--color-secondary-500);
   color: var(--color-text);
-  animation: ${({ $loading }) => ($loading ? loadingPulse : "none")} 1.6s
+  animation: ${({ $resolving }) => ($resolving ? loadingPulse : "none")} 1.6s
     ease-in-out infinite;
 
   &:hover:not(:disabled) {

@@ -1,5 +1,5 @@
-import { RootFlow } from "@/features/tuti/flows/RootFlow";
+import { MainFlow } from "@/features/tuti/flows/MainFlow";
 
-export default function EntryRoute() {
-  return <RootFlow />;
+export default function MainPage() {
+  return <MainFlow />;
 }

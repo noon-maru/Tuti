@@ -14,7 +14,8 @@
 
 ## 현재 결정
 
-- 질문과 첫 추천 화면은 루트 `/` 플로우에 통합하고 `/swipe`, `/detail`, `/journal` 같은 독립 화면 라우트는 유지한다.
+- 질문과 추천 준비 화면은 `/entry`의 `EntryFlow`로 묶고, 메인 추천 화면은 루트 `/`에서 제공한다.
+- 비로그인 사용자의 답변과 건너뛰기 기록은 Capacitor Preferences 공통 API로 복원한다.
 - 공통 `layout.tsx`, `TutiAppShell`, `AppFrame`, Zustand, TanStack Query 구조를 유지한다.
 - 앱은 Next.js static export 결과물인 `out/`을 Capacitor `webDir`로 사용한다.
 - Swift·Kotlin 네이티브 UI는 만들지 않는다. 네이티브 코드는 Capacitor 설정과 플러그인 연동 범위로 제한한다.
@@ -100,7 +101,7 @@ TutiAppShell
 - [ ] `AppNavigationProvider`와 `useAppNavigation`을 추가한다.
 - [ ] 모든 직접 `router.push`, `router.replace`, `router.back` 호출을 공통 API로 이동한다.
 - [ ] `push`, `replace`, `backOrFallback`의 의미를 명확히 구분한다.
-- [ ] 상세·저널 닫기에서 `/swipe`를 다시 `push`하는 히스토리 루프를 제거한다.
+- [x] 상세·저널 닫기에서 메인 `/`를 다시 `push`하는 히스토리 루프를 제거한다.
 - [ ] Android `backButton`을 공통 내비게이션 계층으로 전달한다.
 - [ ] 루트 화면에서 Android back을 눌렀을 때 exit 또는 minimize 중 어떤 정책을 쓸지 결정한다.
 - [ ] 인테이크 도중 back은 이전 질문으로 이동하고 첫 질문에서만 이전 라우트로 이동하도록 한다.
@@ -111,18 +112,18 @@ TutiAppShell
 
 | 이동 | 히스토리 | 전환 |
 | --- | --- | --- |
-| `/` 인테이크 다음 질문 | route 유지 | inline forward |
-| `/` 인테이크 이전 질문 | route 유지 | inline backward |
-| `/` 질문 → `/` 첫 추천 | 컴포넌트 상태 전환 | 같은 진입 플로우 안의 완료 전환 |
-| `/` 첫 추천 → `/swipe` | 제품 정책 확정 후 `push` 또는 `replace` | forward |
-| `/swipe` → `/detail` | `push` | 위 방향 interactive |
-| `/detail` → `/swipe` | `backOrFallback('/swipe')` | 아래 방향 interactive |
-| `/swipe` → `/journal` | `push` | 아래 방향 interactive |
-| `/journal` → `/swipe` | `backOrFallback('/swipe')` | 위 방향 interactive |
+| `/entry` 인테이크 다음 질문 | route 유지 | inline forward |
+| `/entry` 인테이크 이전 질문 | route 유지 | inline backward |
+| `/entry` 질문 → 추천 준비 | 컴포넌트 상태 전환 | 같은 진입 플로우 안의 완료 전환 |
+| `/entry` 추천 준비 → `/` | `replace` | forward |
+| `/` → `/detail` | `push` | 위 방향 interactive |
+| `/detail` → `/` | `replace` | 아래 방향 interactive |
+| `/` → `/journal` | `push` | 아래 방향 interactive |
+| `/journal` → `/` | `replace` | 위 방향 interactive |
 
 ### 완료 기준
 
-- [ ] 상세를 여러 번 열고 닫아도 history에 `/swipe`와 `/detail`이 반복 누적되지 않는다.
+- [ ] 상세를 여러 번 열고 닫아도 history에 `/`와 `/detail`이 반복 누적되지 않는다.
 - [ ] 화면 버튼, 제스처, Android back이 같은 방향과 같은 전환을 사용한다.
 - [ ] 직접 진입한 `/detail`에서도 back fallback이 앱 밖의 예기치 않은 페이지로 이동하지 않는다.
 - [ ] 빠르게 연속 입력해도 한 번의 동작에서 한 번만 내비게이션한다.
@@ -153,7 +154,7 @@ idle
 - [ ] 전환 중 추가 pointer, 버튼, hardware back 입력을 잠근다.
 - [ ] 언마운트 또는 다른 내비게이션 발생 시 animation과 callback을 취소한다.
 - [ ] 전체 `DetailScreen`/`JournalScreen` 복제 대신 가벼운 presentation-only preview를 사용한다.
-- [ ] `SwipeScreen`과 `SwipeReturnBackdrop`의 중복 마크업을 공통 `SwipeScene`으로 추출한다.
+- [ ] `RecommendationsScreen`과 `RecommendationsBackdrop`의 중복 마크업을 공통 장면 컴포넌트로 추출한다.
 - [ ] 숨은 전환 레이어에 `inert`, `aria-hidden`, focus 차단을 적용한다.
 
 ### 완료 기준
@@ -197,22 +198,23 @@ idle
 ### 작업
 
 - [ ] `isPending`, `isError`, retry 상태를 각 화면에 연결한다.
-- [ ] 추천 데이터가 없는 상태에서 `/swipe` 또는 `/detail`로 이동해도 빈 화면을 반환하지 않는다.
+- [ ] 추천 데이터가 없는 상태에서 `/` 또는 `/detail`로 이동해도 빈 화면을 반환하지 않는다.
 - [ ] 현재 장소 이미지의 preload/decode 완료 여부를 전환 시작 조건과 연결한다.
 - [ ] 이미지 실패 placeholder와 번들 내 최소 fallback 자산을 둔다.
 - [ ] 앱 재시작 시 복원할 상태와 초기화할 상태를 구분한다.
-- [ ] `answers`, `activePlaceId`, onboarding 완료 여부의 영속 정책을 정한다.
+- [x] `answers`와 엔트리 완료 여부를 Capacitor Preferences로 영속한다.
+- [ ] `activePlaceId`의 영속 정책을 정한다.
 - [ ] 위치 정보는 개인정보이므로 별도 결정 없이 영속화하지 않는다.
 - [ ] 상세를 공유 가능한 화면으로 만들지, 세션 전용 화면으로 둘지 결정한다.
 - [ ] 공유 가능하다면 `/detail?place=<id>`처럼 static export가 처리할 수 있는 안정적인 식별자를 사용한다.
-- [ ] 세션 전용이라면 선택 상태가 없는 직접 진입을 `/swipe`로 `replace`한다.
+- [ ] 세션 전용이라면 선택 상태가 없는 직접 진입을 `/`로 `replace`한다.
 - [ ] Capacitor WebView가 nested URL에서 process restore될 때 root HTML로 시작하는 상황을 실기기에서 검증한다.
 
 ### 완료 기준
 
 - [ ] 네트워크가 느리거나 끊겨도 빈 화면 대신 로딩, 재시도 또는 이전 추천을 표시한다.
 - [ ] background 후 OS가 WebView process를 종료해도 앱이 유효한 화면으로 복원된다.
-- [ ] 직접 `/detail`에 진입해도 선택된 장소를 복원하거나 명시적으로 `/swipe`로 이동한다.
+- [ ] 직접 `/detail`에 진입해도 선택된 장소를 복원하거나 명시적으로 `/`로 이동한다.
 
 ## Phase 6 — 네이티브 기능과 출시 검증
 
@@ -258,9 +260,9 @@ src/
         AppFrame.tsx
         ScreenFrame.tsx
       screens/
-        swipe/
-          SwipeScene.tsx
-          SwipeScreen.tsx
+        recommendations/
+          RecommendationsBackdrop.tsx
+          RecommendationsScreen.tsx
 ```
 
 이 구조는 예시이며, 핵심은 route policy, native lifecycle, transition rendering을 개별 Screen에서 분리하는 것이다.
@@ -268,7 +270,7 @@ src/
 ## 착수 전 확정할 제품 결정
 
 - [ ] 질문 완료 후 Android back으로 인테이크에 돌아갈 수 있는가?
-- [ ] 홈 → 스와이프는 되돌아갈 수 있는 이동인가?
+- [x] 추천 준비 → 메인은 이전 엔트리로 돌아가지 않는 `replace` 이동이다.
 - [ ] 상세 화면은 외부 공유·딥링크 대상인가, 세션 전용인가?
 - [ ] 루트에서 Android back은 앱 종료인가, 최소화인가?
 - [ ] 앱은 portrait만 지원하는가?

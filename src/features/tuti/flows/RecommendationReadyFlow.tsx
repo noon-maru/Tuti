@@ -1,38 +1,41 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { useTutiRecommendations } from "@/features/tuti/hooks/useTutiRecommendations";
-import { HomeScreen } from "@/features/tuti/screens/home/HomeScreen";
+import { RecommendationReadyScreen } from "@/features/tuti/screens/recommendation/RecommendationReadyScreen";
 import { useTutiStore } from "@/store/tuti";
 
-export function HomeFlow() {
-  const router = useRouter();
+export function RecommendationReadyFlow() {
   const { userLocation } = useTutiRecommendations();
   const setUserLocation = useTutiStore((state) => state.setUserLocation);
-  const [requestingLocation, setRequestingLocation] = useState(false);
+  const finishEntry = useTutiStore((state) => state.finishEntry);
+  const [resolvingLocation, setResolvingLocation] = useState(false);
 
-  const enterSwipe = () => {
-    if (requestingLocation) return;
+  const openMain = () => {
+    finishEntry();
+  };
+
+  const openRecommendations = () => {
+    if (resolvingLocation) return;
 
     if (userLocation || !navigator.geolocation) {
-      router.push("/swipe");
+      openMain();
       return;
     }
 
-    setRequestingLocation(true);
+    setResolvingLocation(true);
     navigator.geolocation.getCurrentPosition(
       (position) => {
         setUserLocation({
           latitude: position.coords.latitude,
           longitude: position.coords.longitude,
         });
-        setRequestingLocation(false);
-        router.push("/swipe");
+        setResolvingLocation(false);
+        openMain();
       },
       () => {
-        setRequestingLocation(false);
-        router.push("/swipe");
+        setResolvingLocation(false);
+        openMain();
       },
       {
         enableHighAccuracy: false,
@@ -43,9 +46,9 @@ export function HomeFlow() {
   };
 
   return (
-    <HomeScreen
-      onEnterSwipe={enterSwipe}
-      requestingLocation={requestingLocation}
+    <RecommendationReadyScreen
+      onOpenRecommendations={openRecommendations}
+      resolvingLocation={resolvingLocation}
     />
   );
 }

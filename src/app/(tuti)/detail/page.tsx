@@ -5,7 +5,7 @@ import { useTutiRecommendations } from "@/features/tuti/hooks/useTutiRecommendat
 import { DetailScreen } from "@/features/tuti/screens/detail/DetailScreen";
 import { useTutiStore } from "@/store/tuti";
 
-export default function DetailRoute() {
+export default function DetailPage() {
   return <DetailFlow />;
 }
 
@@ -22,8 +22,8 @@ function DetailFlow() {
   return (
     <DetailScreen
       place={activePlace}
-      onBack={() => router.push("/swipe")}
-      swipeBackdrop={{ places, activeIndex, activePlace }}
+      onBack={() => router.replace("/")}
+      recommendationsBackdrop={{ places, activeIndex, activePlace }}
     />
   );
 }

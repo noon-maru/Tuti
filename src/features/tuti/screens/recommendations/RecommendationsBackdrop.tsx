@@ -6,18 +6,18 @@ import { SwipeCard } from "@/features/tuti/components/SwipeCard";
 import type { TutiPlace } from "@/lib/recommendations";
 import { breakpoints } from "@/styles/tokens";
 
-export type SwipeReturnBackdropProps = {
+export type RecommendationsBackdropProps = {
   places: TutiPlace[];
   activeIndex: number;
   activePlace?: TutiPlace;
 };
 
-export function SwipeReturnBackdrop({
+export function RecommendationsBackdrop({
   places,
   activeIndex,
   activePlace,
   progress,
-}: SwipeReturnBackdropProps & { progress: number }) {
+}: RecommendationsBackdropProps & { progress: number }) {
   const place = activePlace ?? places[activeIndex] ?? places[0];
 
   return (
