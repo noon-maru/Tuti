@@ -78,13 +78,19 @@ const globalStyles = css`
     --font-sans:
       var(--font-pretendard), Pretendard, -apple-system, BlinkMacSystemFont,
       "Apple SD Gothic Neo", "Noto Sans KR", "Segoe UI", sans-serif;
-    --font-size-100: 0.75rem; /* 12px */
-    --font-size-200: 0.875rem; /* 14px, base */
-    --font-size-300: 1rem; /* 16px */
-    --font-size-400: 1.125rem; /* 18px */
-    --font-size-500: 1.25rem; /* 20px */
-    --font-size-600: 1.375rem; /* 22px */
-    --font-size-700: 1.5rem; /* 24px */
+    --font-size-fluid-offset: 0rem;
+    --font-size-fluid-offset: clamp(
+      0rem,
+      min(calc(1dvh - 0.45rem), calc(4vw - 0.9375rem)),
+      0.125rem
+    );
+    --font-size-100: calc(0.75rem + var(--font-size-fluid-offset)); /* 12–14px */
+    --font-size-200: calc(0.875rem + var(--font-size-fluid-offset)); /* 14–16px, base */
+    --font-size-300: calc(1rem + var(--font-size-fluid-offset)); /* 16–18px */
+    --font-size-400: calc(1.125rem + var(--font-size-fluid-offset)); /* 18–20px */
+    --font-size-500: calc(1.25rem + var(--font-size-fluid-offset)); /* 20–22px */
+    --font-size-600: calc(1.375rem + var(--font-size-fluid-offset)); /* 22–24px */
+    --font-size-700: calc(1.5rem + var(--font-size-fluid-offset)); /* 24–26px */
     --line-height-heading: 1.2;
     --line-height-subtitle: 1.4;
     --line-height-body: 1.5;
