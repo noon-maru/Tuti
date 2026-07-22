@@ -268,10 +268,12 @@ export function JournalScreen({ onBack }: { onBack: () => void }) {
               <MemoryCard
                 key={entry.id}
                 type="button"
+                $image={entry.image ?? undefined}
                 $relativePosition={relativePosition}
                 $dragY={stackDragY}
                 $active={index === selectedEntryIndex}
                 $tone={[0, 1, 2, 1, 0][index] ?? 0}
+                $rotation={[0.4, -1.2, 1.6, -1.8, 1][index % 5] ?? 0}
                 aria-label={
                   entry.title || `${formatJournalDate(entry.visitedAt)} 기록`
                 }
@@ -420,10 +422,12 @@ const MemoryStack = styled.div`
 `;
 
 const MemoryCard = styled(BaseButton)<{
+  $image?: string;
   $relativePosition: number;
   $dragY: number;
   $active: boolean;
   $tone: number;
+  $rotation: number;
 }>`
   position: absolute;
   top: 50%;
@@ -440,6 +444,12 @@ const MemoryCard = styled(BaseButton)<{
       : $tone === 1
         ? "var(--color-brand-500)"
         : "var(--color-secondary-200)"};
+  background-image: ${({ $image }) =>
+    $image
+      ? `linear-gradient(180deg, rgb(var(--color-black-rgb) / 0.3), transparent 38%), url(${$image})`
+      : "none"};
+  background-position: center;
+  background-size: cover;
   color: var(--color-white);
   text-align: left;
   box-shadow: ${({ $active }) =>
@@ -457,10 +467,7 @@ const MemoryCard = styled(BaseButton)<{
       ${({ $relativePosition }) =>
         1 - Math.min(Math.abs($relativePosition) * 0.025, 0.08)}
     )
-    rotate(
-      ${({ $relativePosition }) =>
-        Math.max(-2.4, Math.min($relativePosition * 1.2, 2.4))}deg
-    );
+    rotate(${({ $rotation }) => $rotation}deg);
   z-index: ${({ $relativePosition }) => 20 - Math.abs($relativePosition)};
   transition: transform 320ms cubic-bezier(0.22, 1, 0.36, 1),
     opacity 240ms ease, box-shadow 240ms ease;
