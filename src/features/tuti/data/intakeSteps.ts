@@ -1,7 +1,8 @@
 export const intakeSteps = [
   {
     key: "movement",
-    question: "오늘은 어느 정도 움직일 수 있을까요?",
+    question: "오늘,\n닿을 수 있는 거리는 어디신가요?",
+    subtitle: "지치지 않을 만큼의 장소를 찾아둘게요.",
     options: [
       { value: "near", label: "집 근처", hint: "아주 가까운 바깥" },
       { value: "short", label: "조금만", hint: "짧게 다녀오기" },

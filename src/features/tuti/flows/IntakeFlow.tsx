@@ -31,12 +31,18 @@ export function IntakeFlow() {
     router.push("/home");
   };
 
+  const goToPreviousQuestion = () => {
+    setAccountNoticeVisible(false);
+    setStep((current) => Math.max(0, current - 1));
+  };
+
   return (
     <IntakeScreen
       step={step}
       total={intakeSteps.length}
       activeStep={activeStep}
       accountNoticeVisible={accountNoticeVisible}
+      onBack={goToPreviousQuestion}
       onChoose={chooseAnswer}
       onRestoreRecords={() => setAccountNoticeVisible(true)}
       onSkip={skipIntake}
