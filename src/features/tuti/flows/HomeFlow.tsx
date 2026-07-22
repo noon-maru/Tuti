@@ -8,7 +8,7 @@ import { useTutiStore } from "@/store/tuti";
 
 export function HomeFlow() {
   const router = useRouter();
-  const { feature, places, userLocation } = useTutiRecommendations();
+  const { userLocation } = useTutiRecommendations();
   const setUserLocation = useTutiStore((state) => state.setUserLocation);
   const [requestingLocation, setRequestingLocation] = useState(false);
 
@@ -44,8 +44,6 @@ export function HomeFlow() {
 
   return (
     <HomeScreen
-      place={places[0]}
-      feature={feature}
       onEnterSwipe={enterSwipe}
       requestingLocation={requestingLocation}
     />

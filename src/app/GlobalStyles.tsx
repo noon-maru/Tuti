@@ -74,7 +74,7 @@ const globalStyles = css`
     --color-black-rgb: 0 0 0;
     --color-white-rgb: 255 255 255;
 
-    /* Typography: base 14px, 2px minor scale, up to +8px */
+    /* Typography: base 14px, 2px minor scale */
     --font-sans:
       var(--font-pretendard), Pretendard, -apple-system, BlinkMacSystemFont,
       "Apple SD Gothic Neo", "Noto Sans KR", "Segoe UI", sans-serif;
@@ -84,6 +84,7 @@ const globalStyles = css`
     --font-size-400: 1.125rem; /* 18px */
     --font-size-500: 1.25rem; /* 20px */
     --font-size-600: 1.375rem; /* 22px */
+    --font-size-700: 1.5rem; /* 24px */
     --line-height-heading: 1.2;
     --line-height-subtitle: 1.4;
     --line-height-body: 1.5;
