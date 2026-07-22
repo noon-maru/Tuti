@@ -38,7 +38,7 @@ export function interpretState(answers: IntakeAnswers): StateFeature {
     movement,
     crowdTolerance: answers.alone === "alone" ? "low" : "medium",
     goal:
-      answers.air === "water"
+      answers.air === "open"
         ? "clear_air"
         : answers.air === "walk"
           ? "light_walk"

@@ -1,5 +1,5 @@
 export type MovementAnswer = "near" | "short" | "half";
-export type AirAnswer = "quiet" | "water" | "walk";
+export type AirAnswer = "quiet" | "open" | "walk";
 export type AloneAnswer = "alone" | "some";
 
 export type IntakeAnswers = {

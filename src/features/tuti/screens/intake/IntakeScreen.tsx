@@ -35,13 +35,17 @@ export function IntakeScreen({
   onRestoreRecords: () => void;
   onSkip: () => void;
 }) {
+  const airQuestion = activeStep.key === "air";
+
   return (
     <Frame>
       <SoftHeader>
         <Brand>
           <strong>Tuti</strong>
         </Brand>
-        <RestoreButton onClick={onRestoreRecords}>기록 불러오기</RestoreButton>
+        <RestoreButton onClick={onRestoreRecords}>
+          기록 불러오기
+        </RestoreButton>
       </SoftHeader>
       {accountNoticeVisible && (
         <AccountNotice role="status">
@@ -51,10 +55,13 @@ export function IntakeScreen({
       <QuestionBlock>
         <QuestionNavigation>
           {step > 0 ? (
-            <QuestionBackButton type="button" onClick={onBack}>
-              <span aria-hidden="true">←</span>
-              이전
-            </QuestionBackButton>
+            <CompactBackButton
+              type="button"
+              aria-label="이전 질문"
+              onClick={onBack}
+            >
+              <BackChevron aria-hidden="true" />
+            </CompactBackButton>
           ) : (
             <BackButtonPlaceholder aria-hidden="true" />
           )}
@@ -78,6 +85,7 @@ export function IntakeScreen({
           {activeStep.options.map((option) => (
             <OptionCard
               key={option.value}
+              $air={airQuestion}
               $active={option.value === selectedValue}
               type="button"
               aria-pressed={option.value === selectedValue}
@@ -229,6 +237,34 @@ const SoftHeader = styled.div`
   gap: var(--space-4);
 `;
 
+const CompactBackButton = styled(BaseButton)`
+  width: var(--space-11);
+  height: var(--space-11);
+  display: grid;
+  place-items: center;
+  margin-left: calc(var(--space-3) * -1);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--color-text-muted);
+  transition: color 180ms ease, transform 180ms ease;
+
+  &:hover {
+    color: var(--color-text);
+  }
+
+  &:active {
+    transform: scale(0.94);
+  }
+`;
+
+const BackChevron = styled.i`
+  width: 11px;
+  height: 11px;
+  border-bottom: 2px solid currentColor;
+  border-left: 2px solid currentColor;
+  transform: translateX(2px) rotate(45deg);
+`;
+
 const Brand = styled.div`
   strong {
     font-size: var(--font-size-600);
@@ -270,33 +306,6 @@ const QuestionNavigation = styled.div`
   justify-content: space-between;
 `;
 
-const QuestionBackButton = styled(BaseButton)`
-  min-width: 72px;
-  min-height: var(--space-11);
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-2);
-  margin-left: calc(var(--space-3) * -1);
-  padding: 0 var(--space-3);
-  border-radius: 999px;
-  background: transparent;
-  color: var(--color-text-muted);
-  transition: background 180ms ease, color 180ms ease, transform 180ms ease;
-
-  &:hover {
-    background: var(--color-neutral-200);
-    color: var(--color-text);
-  }
-
-  &:active {
-    transform: scale(0.96);
-  }
-
-  span {
-    font-size: var(--font-size-300);
-  }
-`;
-
 const BackButtonPlaceholder = styled.span`
   width: 72px;
   height: var(--space-11);
@@ -308,6 +317,7 @@ const StepCount = styled.p`
 `;
 
 const QuestionSubtitle = styled.p`
+  margin-top: var(--space-1);
   color: var(--color-text-muted);
   font-size: var(--font-size-200);
 `;
@@ -486,25 +496,45 @@ const OptionList = styled.div`
   gap: var(--space-3);
 `;
 
-const OptionCard = styled(BaseButton)<{ $active: boolean }>`
-  min-height: 72px;
+const OptionCard = styled(BaseButton)<{
+  $active: boolean;
+  $air: boolean;
+}>`
+  min-height: ${({ $air }) => ($air ? "60px" : "72px")};
   display: grid;
-  gap: var(--space-2);
+  gap: ${({ $air }) => ($air ? "var(--space-1)" : "var(--space-2)")};
   justify-items: start;
-  padding: var(--space-4);
+  padding: ${({ $air }) =>
+    $air ? "var(--space-3) var(--space-5)" : "var(--space-4)"};
   border: 1px solid
-    ${({ $active }) =>
-      $active ? "var(--color-accent-secondary)" : "var(--color-border)"};
-  border-radius: 8px;
-  background: ${({ $active }) =>
-    $active ? "var(--color-accent-soft)" : "var(--color-surface)"};
+    ${({ $active, $air }) =>
+      $air
+        ? "transparent"
+        : $active
+          ? "var(--color-accent-secondary)"
+          : "var(--color-border)"};
+  border-radius: ${({ $air }) => ($air ? "12px" : "8px")};
+  background: ${({ $active, $air }) =>
+    $air
+      ? $active
+        ? "var(--color-secondary-500)"
+        : "var(--color-secondary-200)"
+      : $active
+        ? "var(--color-accent-soft)"
+        : "var(--color-surface)"};
   color: var(--color-text);
   text-align: left;
   transition: transform 180ms ease, border-color 180ms ease, background 180ms ease;
 
   &:hover {
-    border-color: var(--color-accent-secondary);
-    background: var(--color-accent-soft);
+    border-color: ${({ $air }) =>
+      $air ? "transparent" : "var(--color-accent-secondary)"};
+    background: ${({ $active, $air }) =>
+      $air
+        ? $active
+          ? "var(--color-secondary-500)"
+          : "var(--color-secondary-200)"
+        : "var(--color-accent-soft)"};
   }
 
   &:active {
@@ -512,7 +542,8 @@ const OptionCard = styled(BaseButton)<{ $active: boolean }>`
   }
 
   span {
-    font-size: var(--font-size-400);
+    font-size: ${({ $air }) =>
+      $air ? "var(--font-size-300)" : "var(--font-size-400)"};
     font-weight: 700;
     line-height: var(--line-height-subtitle);
     letter-spacing: var(--letter-spacing-subtitle);

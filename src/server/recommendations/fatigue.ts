@@ -27,7 +27,7 @@ const movementWeight: Record<MovementAnswer, number> = {
 
 const moodTagByAir: Record<AirAnswer, string> = {
   quiet: "quiet",
-  water: "water",
+  open: "open",
   walk: "walk",
 };
 
@@ -177,7 +177,7 @@ function getRecommendationReason(
   }
 
   if (moodTag && place.moodTags.includes(moodTag)) {
-    if (answers.air === "water") return "물 근처의 트인 공기부터 놓아둘게요.";
+    if (answers.air === "open") return "시야가 트인 곳부터 놓아둘게요.";
     if (answers.air === "walk") return "천천히 걸어도 되는 쪽이에요.";
     return "말이 적은 공기부터 골랐어요.";
   }

@@ -11,11 +11,24 @@ export const intakeSteps = [
   },
   {
     key: "air",
-    question: "어떤 공기가 필요할까요?",
+    question: "지금,\n어떤 공기가 필요하신가요?",
+    subtitle: "마음을 환기하기에 가장 알맞은 곳을 찾아드릴게요.",
     options: [
-      { value: "quiet", label: "조용한 곳", hint: "말이 적은 자리" },
-      { value: "water", label: "물 근처", hint: "시야가 트이는 곳" },
-      { value: "walk", label: "걷기 좋은 곳", hint: "생각이 천천히 흐르는 길" },
+      {
+        value: "quiet",
+        label: "조용한 곳",
+        hint: "소음이 없고 한적하여 혼자 머물기 좋은 공간",
+      },
+      {
+        value: "open",
+        label: "트인 곳",
+        hint: "시야가 넓게 열려 답답함을 해소할 수 있는 공간",
+      },
+      {
+        value: "walk",
+        label: "걷기 좋은 곳",
+        hint: "목적지 없이 가볍게 산책하기 좋은 길",
+      },
     ],
   },
   {

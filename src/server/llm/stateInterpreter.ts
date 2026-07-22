@@ -119,8 +119,8 @@ function describeAnswers(answers: IntakeAnswers) {
     air: {
       value: answers.air ?? null,
       meaning:
-        answers.air === "water"
-          ? "시야가 트이는 물 근처"
+        answers.air === "open"
+          ? "시야가 넓게 트이는 곳"
           : answers.air === "walk"
             ? "천천히 걷기 좋은 공기"
             : "조용한 곳",
