@@ -314,7 +314,7 @@ const BackButtonPlaceholder = styled.span`
 
 const StepCount = styled.p`
   color: var(--color-text-muted);
-  font-size: var(--font-size-200);
+  font-size: var(--font-size-100);
 `;
 
 const QuestionSubtitle = styled.p`
@@ -565,6 +565,14 @@ const QuestionActions = styled.div`
 
 const NextButton = styled(PrimaryButton)`
   width: 100%;
+
+  &:not(:disabled) {
+    background: var(--color-brand-700);
+  }
+
+  &:not(:disabled):hover {
+    background: var(--color-brand-800);
+  }
 `;
 
 const BrowseButton = styled(TextButton)`
