@@ -10,7 +10,7 @@ export function PersistedStateHydrator() {
     if (hydrationStarted) return;
 
     hydrationStarted = true;
-    void useTutiStore.persist.rehydrate().finally(() => {
+    void Promise.resolve(useTutiStore.persist.rehydrate()).finally(() => {
       useTutiStore.getState().markHydrated();
     });
   }, []);
