@@ -156,6 +156,12 @@ const AppViewport = styled.section<{ $nativeApp: boolean }>`
   overflow: hidden;
   border: 1px solid rgb(var(--color-black-rgb) / 0.14);
   border-radius: 32px;
+
+  @supports (corner-shape: squircle) {
+    border-radius: 50px;
+    corner-shape: squircle;
+  }
+
   background: var(--color-surface);
   box-shadow: 0 24px 80px rgb(var(--color-black-rgb) / 0.14);
   isolation: isolate;

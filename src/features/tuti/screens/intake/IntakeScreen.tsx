@@ -280,6 +280,7 @@ const HeaderWordmark = styled(TutiWordmark)`
 const RestoreButton = styled(TextButton)`
   flex: none;
   padding: var(--space-1) 0;
+  font-size: var(--font-size-100);
 `;
 
 const AccountNotice = styled.p`
@@ -579,4 +580,5 @@ const NextButton = styled(PrimaryButton)`
 
 const BrowseButton = styled(TextButton)`
   align-self: center;
+  font-size: var(--font-size-100);
 `;
