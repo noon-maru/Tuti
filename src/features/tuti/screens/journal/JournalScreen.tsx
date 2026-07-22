@@ -4,54 +4,40 @@ import styled from "@emotion/styled";
 import { BackButton } from "@/features/tuti/components/buttons";
 import { ScreenFrame } from "@/features/tuti/components/ScreenFrame";
 import { useVerticalSwipeBack } from "@/features/tuti/hooks/useVerticalSwipeBack";
-import {
-  RecommendationsBackdrop,
-  type RecommendationsBackdropProps,
-} from "@/features/tuti/screens/recommendations/RecommendationsBackdrop";
 import type { TutiPlace } from "@/lib/recommendations";
 
 export function JournalScreen({
   places,
   onBack,
-  recommendationsBackdrop,
 }: {
   places: TutiPlace[];
   onBack: () => void;
-  recommendationsBackdrop?: RecommendationsBackdropProps;
 }) {
   const swipeBack = useVerticalSwipeBack({ direction: "up", onBack });
 
   return (
-    <>
-      {recommendationsBackdrop && (
-        <RecommendationsBackdrop
-          {...recommendationsBackdrop}
-          progress={swipeBack.dragProgress}
-        />
-      )}
-      <Frame
-        {...swipeBack.gestureProps}
-        $dragY={swipeBack.dragY}
-        $progress={swipeBack.dragProgress}
-        $isDragging={swipeBack.isDragging}
-        $isCommitting={swipeBack.isCommitting}
-      >
-        <BackButton onClick={onBack}>돌아가기</BackButton>
-        <Header>
-          <p>나의 기록</p>
-          <h2>지나간 공기</h2>
-        </Header>
-        <MemoryList data-scroll-region>
-          {places.map((place) => (
-            <MemoryCard key={place.id}>
-              <MemoryImage $image={place.image} />
-              <p>{place.phrase}</p>
-              <span>오늘은 이 정도면 충분했어요.</span>
-            </MemoryCard>
-          ))}
-        </MemoryList>
-      </Frame>
-    </>
+    <Frame
+      {...swipeBack.gestureProps}
+      $dragY={swipeBack.dragY}
+      $progress={swipeBack.dragProgress}
+      $isDragging={swipeBack.isDragging}
+      $isCommitting={swipeBack.isCommitting}
+    >
+      <BackButton onClick={onBack}>돌아가기</BackButton>
+      <Header>
+        <p>나의 기록</p>
+        <h2>지나간 공기</h2>
+      </Header>
+      <MemoryList data-scroll-region>
+        {places.map((place) => (
+          <MemoryCard key={place.id}>
+            <MemoryImage $image={place.image} />
+            <p>{place.phrase}</p>
+            <span>오늘은 이 정도면 충분했어요.</span>
+          </MemoryCard>
+        ))}
+      </MemoryList>
+    </Frame>
   );
 }
 

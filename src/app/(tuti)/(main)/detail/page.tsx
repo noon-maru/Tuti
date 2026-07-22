@@ -6,10 +6,6 @@ import { DetailScreen } from "@/features/tuti/screens/detail/DetailScreen";
 import { useTutiStore } from "@/store/tuti";
 
 export default function DetailPage() {
-  return <DetailFlow />;
-}
-
-function DetailFlow() {
   const router = useRouter();
   const { places } = useTutiRecommendations();
   const activeIndex = useTutiStore((state) => state.activeIndex);
@@ -20,10 +16,6 @@ function DetailFlow() {
   }
 
   return (
-    <DetailScreen
-      place={activePlace}
-      onBack={() => router.replace("/")}
-      recommendationsBackdrop={{ places, activeIndex, activePlace }}
-    />
+    <DetailScreen place={activePlace} onBack={() => router.replace("/")} />
   );
 }

@@ -5,53 +5,39 @@ import { AmbientCard } from "@/features/tuti/components/AmbientCard";
 import { BackButton } from "@/features/tuti/components/buttons";
 import { ScreenFrame } from "@/features/tuti/components/ScreenFrame";
 import { useVerticalSwipeBack } from "@/features/tuti/hooks/useVerticalSwipeBack";
-import {
-  RecommendationsBackdrop,
-  type RecommendationsBackdropProps,
-} from "@/features/tuti/screens/recommendations/RecommendationsBackdrop";
 import type { TutiPlace } from "@/lib/recommendations";
 
 export function DetailScreen({
   place,
   onBack,
-  recommendationsBackdrop,
 }: {
   place: TutiPlace;
   onBack: () => void;
-  recommendationsBackdrop?: RecommendationsBackdropProps;
 }) {
   const swipeBack = useVerticalSwipeBack({ direction: "down", onBack });
 
   return (
-    <>
-      {recommendationsBackdrop && (
-        <RecommendationsBackdrop
-          {...recommendationsBackdrop}
-          progress={swipeBack.dragProgress}
-        />
-      )}
-      <Frame
-        {...swipeBack.gestureProps}
-        $dragY={swipeBack.dragY}
-        $progress={swipeBack.dragProgress}
-        $isDragging={swipeBack.isDragging}
-        $isCommitting={swipeBack.isCommitting}
-      >
-        <BackButton onClick={onBack}>돌아가기</BackButton>
-        <AmbientCard place={place} />
-        <Copy>
-          <p>{place.name}</p>
-          <h2>{place.phrase}</h2>
-          {place.reason && <small>{place.reason}</small>}
-          <span>{place.note}</span>
-        </Copy>
-        <InfoRows>
-          <InfoRow label="이동시간" value={place.travelTime} />
-          <InfoRow label="혼잡도" value={place.crowd} />
-          <InfoRow label="오늘" value={place.today} />
-        </InfoRows>
-      </Frame>
-    </>
+    <Frame
+      {...swipeBack.gestureProps}
+      $dragY={swipeBack.dragY}
+      $progress={swipeBack.dragProgress}
+      $isDragging={swipeBack.isDragging}
+      $isCommitting={swipeBack.isCommitting}
+    >
+      <BackButton onClick={onBack}>돌아가기</BackButton>
+      <AmbientCard place={place} />
+      <Copy>
+        <p>{place.name}</p>
+        <h2>{place.phrase}</h2>
+        {place.reason && <small>{place.reason}</small>}
+        <span>{place.note}</span>
+      </Copy>
+      <InfoRows>
+        <InfoRow label="이동시간" value={place.travelTime} />
+        <InfoRow label="혼잡도" value={place.crowd} />
+        <InfoRow label="오늘" value={place.today} />
+      </InfoRows>
+    </Frame>
   );
 }
 

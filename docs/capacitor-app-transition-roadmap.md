@@ -15,6 +15,7 @@
 ## 현재 결정
 
 - 질문과 추천 준비 화면은 `/entry`의 `EntryFlow`로 묶고, 메인 추천 화면은 루트 `/`에서 제공한다.
+- `/`, `/detail`, `/journal`은 공통 `(main)` layout에서 실제 메인 추천 화면을 유지하고 상세·저널만 오버레이한다.
 - 비로그인 사용자의 답변과 건너뛰기 기록은 Capacitor Preferences 공통 API로 복원한다.
 - 공통 `layout.tsx`, `TutiAppShell`, `AppFrame`, Zustand, TanStack Query 구조를 유지한다.
 - 앱은 Next.js static export 결과물인 `out/`을 Capacitor `webDir`로 사용한다.
@@ -145,6 +146,7 @@ idle
 
 ### 작업
 
+- [x] `/`, `/detail`, `/journal` 공통 layout에 실제 메인 추천 레이어를 유지한다.
 - [ ] `RouteTransitionHost`를 공유 layout 아래에 추가한다.
 - [ ] 일반 route 이동에도 일관된 enter/exit 전환을 적용한다.
 - [ ] 전환 방향은 pathname 비교가 아니라 명시적인 route policy로 결정한다.
@@ -154,8 +156,8 @@ idle
 - [ ] 전환 중 추가 pointer, 버튼, hardware back 입력을 잠근다.
 - [ ] 언마운트 또는 다른 내비게이션 발생 시 animation과 callback을 취소한다.
 - [ ] 전체 `DetailScreen`/`JournalScreen` 복제 대신 가벼운 presentation-only preview를 사용한다.
-- [ ] `RecommendationsScreen`과 `RecommendationsBackdrop`의 중복 마크업을 공통 장면 컴포넌트로 추출한다.
-- [ ] 숨은 전환 레이어에 `inert`, `aria-hidden`, focus 차단을 적용한다.
+- [x] 복제된 `RecommendationsBackdrop`을 제거하고 복귀 제스처에서 실제 메인 추천 레이어를 노출한다.
+- [x] 상세·저널이 열린 동안 메인 추천 레이어에 `inert`, `aria-hidden`, pointer 차단을 적용한다.
 
 ### 완료 기준
 
@@ -259,9 +261,10 @@ src/
       components/
         AppFrame.tsx
         ScreenFrame.tsx
+      flows/
+        MainFlow.tsx
       screens/
         recommendations/
-          RecommendationsBackdrop.tsx
           RecommendationsScreen.tsx
 ```
 

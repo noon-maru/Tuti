@@ -21,6 +21,7 @@ export function RecommendationsScreen({
   onMove,
   onDetail,
   onJournal,
+  interactive,
   initialHelp,
   onInitialHelpShown,
 }: {
@@ -31,6 +32,7 @@ export function RecommendationsScreen({
   onMove: (direction: number) => void;
   onDetail: () => void;
   onJournal: () => void;
+  interactive: boolean;
   initialHelp: HelpKind | null;
   onInitialHelpShown: (kind: HelpKind) => void;
 }) {
@@ -45,7 +47,16 @@ export function RecommendationsScreen({
   const verticalProgress =
     dragAxis === "vertical" ? Math.min(Math.abs(dragOffset.y) / 140, 1) : 0;
   const transitionTarget = dragOffset.y < 0 ? "detail" : "journal";
-  const helpVisible = Boolean(currentHelp) && verticalProgress === 0 && !committing;
+  const helpVisible =
+    interactive && Boolean(currentHelp) && verticalProgress === 0 && !committing;
+
+  const resetDrag = useCallback(() => {
+    setDragStart(null);
+    setDragOffset({ x: 0, y: 0 });
+    setDragAxis(null);
+    setCommitting(false);
+    setPressedCardIndex(null);
+  }, []);
 
   const nudgeActiveCard = useCallback((direction: "up" | "down" = "up") => {
     if (committing) return;
@@ -88,7 +99,17 @@ export function RecommendationsScreen({
     return () => window.clearTimeout(timeout);
   }, [currentHelp, dismissHelp]);
 
+  useEffect(() => {
+    if (interactive) return;
+
+    resetDrag();
+    setCurrentHelp(null);
+    setNudgingCard(null);
+  }, [interactive, resetDrag]);
+
   const startDrag = (event: React.PointerEvent<HTMLElement>) => {
+    if (!interactive) return;
+
     const cardElement = (event.target as HTMLElement).closest<HTMLElement>(
       "[data-swipe-card-index]",
     );
@@ -164,10 +185,9 @@ export function RecommendationsScreen({
       window.setTimeout(() => {
         if (direction < 0) {
           onDetail();
-          return;
+        } else {
+          onJournal();
         }
-
-        onJournal();
       }, 120);
       return;
     }
@@ -179,16 +199,11 @@ export function RecommendationsScreen({
     resetDrag();
   };
 
-  const resetDrag = () => {
-    setDragStart(null);
-    setDragOffset({ x: 0, y: 0 });
-    setDragAxis(null);
-    setCommitting(false);
-    setPressedCardIndex(null);
-  };
-
   return (
     <Frame
+      $interactive={interactive}
+      aria-hidden={!interactive}
+      inert={!interactive}
       onPointerDown={startDrag}
       onPointerMove={updateDrag}
       onPointerUp={finishDrag}
@@ -229,7 +244,7 @@ export function RecommendationsScreen({
         </Dots>
       </CurrentLayer>
 
-      {activePlace && verticalProgress > 0 && (
+      {interactive && activePlace && verticalProgress > 0 && (
         <TransitionLayer
           $progress={verticalProgress}
           $from={transitionTarget === "detail" ? 34 : -34}
@@ -267,10 +282,13 @@ function getOffset(index: number, active: number, length: number) {
   return raw;
 }
 
-const Frame = styled(ScreenFrame)`
+const Frame = styled(ScreenFrame)<{ $interactive: boolean }>`
+  z-index: 0;
   justify-content: space-between;
   overflow: hidden;
   touch-action: none;
+  pointer-events: ${({ $interactive }) => ($interactive ? "auto" : "none")};
+  isolation: isolate;
 `;
 
 const CurrentLayer = styled.div<{ $progress: number; $dragY: number }>`

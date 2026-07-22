@@ -6,7 +6,7 @@ import { useTutiRecommendations } from "@/features/tuti/hooks/useTutiRecommendat
 import { RecommendationsScreen } from "@/features/tuti/screens/recommendations/RecommendationsScreen";
 import { useTutiStore } from "@/store/tuti";
 
-export function RecommendationsFlow() {
+export function RecommendationsFlow({ interactive }: { interactive: boolean }) {
   const router = useRouter();
   const { places } = useTutiRecommendations();
   const activeIndex = useTutiStore((state) => state.activeIndex);
@@ -37,8 +37,15 @@ export function RecommendationsFlow() {
       onMove={moveCard}
       onDetail={() => router.push("/detail")}
       onJournal={() => router.push("/journal")}
+      interactive={interactive}
       initialHelp={
-        !hasSeenSwipeHelp ? "detail" : !hasSeenJournalHelp ? "journal" : null
+        interactive
+          ? !hasSeenSwipeHelp
+            ? "detail"
+            : !hasSeenJournalHelp
+              ? "journal"
+              : null
+          : null
       }
       onInitialHelpShown={(kind) => {
         if (kind === "detail") {
