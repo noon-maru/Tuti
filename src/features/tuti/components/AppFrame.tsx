@@ -40,8 +40,9 @@ const Shell = styled.main<{ $nativeApp: boolean }>`
   min-height: 100dvh;
   display: grid;
   place-items: center;
-  grid-template-columns: minmax(0, 390px);
-  padding: var(--space-8);
+  grid-template-columns: minmax(0, 1fr);
+  padding-block: var(--space-8);
+  padding-inline: 0;
   overflow: hidden;
   background: var(--color-app-background);
 
