@@ -43,6 +43,7 @@ export function AppFrame({ children }: { children: React.ReactNode }) {
 }
 
 const Shell = styled.main<{ $nativeApp: boolean }>`
+  position: relative;
   width: 100%;
   min-height: 100vh;
   min-height: 100svh;
@@ -56,9 +57,8 @@ const Shell = styled.main<{ $nativeApp: boolean }>`
   background: var(--color-app-background);
 
   @media (min-width: ${breakpoints.laptop}px) {
-    grid-template-columns: minmax(280px, 420px) 390px;
-    gap: clamp(var(--space-12), 7vw, 112px);
-    padding-inline: clamp(var(--space-12), 8vw, 144px);
+    grid-template-columns: minmax(0, 1fr);
+    padding-inline: 0;
   }
 
   @media (max-width: ${breakpoints.mobile}px) {
@@ -84,10 +84,20 @@ const DesktopBrand = styled.aside`
   display: none;
 
   @media (min-width: ${breakpoints.laptop}px) {
+    --desktop-brand-gap: clamp(var(--space-12), 8vw, 144px);
+
+    position: absolute;
+    top: 50%;
+    right: calc(50% + 195px + var(--desktop-brand-gap));
+    width: min(
+      280px,
+      calc(50vw - 195px - var(--desktop-brand-gap))
+    );
     display: grid;
     align-content: center;
     justify-items: start;
     gap: var(--space-7);
+    transform: translateY(-50%);
   }
 `;
 
@@ -148,6 +158,7 @@ const AppViewport = styled.section<{ $nativeApp: boolean }>`
   --app-safe-area-left: 0px;
 
   position: relative;
+  z-index: 1;
   width: min(100%, 390px);
   height: min(844px, calc(100vh - var(--space-16)));
   height: min(844px, calc(100dvh - var(--space-16)));
