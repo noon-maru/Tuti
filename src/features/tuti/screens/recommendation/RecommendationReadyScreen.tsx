@@ -5,6 +5,7 @@ import styled from "@emotion/styled";
 import Image from "next/image";
 import { PrimaryButton } from "@/features/tuti/components/buttons";
 import { ScreenFrame } from "@/features/tuti/components/ScreenFrame";
+import { useDeferredAnimationStart } from "@/features/tuti/hooks/useDeferredAnimationStart";
 
 export function RecommendationReadyScreen({
   onOpenRecommendations,
@@ -13,8 +14,10 @@ export function RecommendationReadyScreen({
   onOpenRecommendations: () => void;
   resolvingLocation?: boolean;
 }) {
+  const animationReady = useDeferredAnimationStart();
+
   return (
-    <Frame>
+    <Frame data-animation-ready={animationReady}>
       <Hero>
         <BrandMoment data-ready-logo>
           <LogoGlow data-ready-glow aria-hidden="true" />
@@ -130,8 +133,29 @@ const Frame = styled(ScreenFrame)`
       var(--color-brand-500) 58%
     );
     content: "";
+    opacity: 0;
+    transform: translateY(8%) scaleY(0.82);
     transform-origin: bottom;
+  }
+
+  &[data-animation-ready="true"]::before {
     animation: ${revealBackground} 820ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+
+  &[data-animation-ready="true"] [data-ready-logo] {
+    animation: ${revealLogo} 620ms cubic-bezier(0.22, 1, 0.36, 1) 150ms both;
+  }
+
+  &[data-animation-ready="true"] [data-ready-glow] {
+    animation: ${spreadGlow} 850ms ease-out 200ms both;
+  }
+
+  &[data-animation-ready="true"] [data-ready-copy] {
+    animation: ${revealContent} 620ms cubic-bezier(0.22, 1, 0.36, 1) 320ms both;
+  }
+
+  &[data-animation-ready="true"] [data-ready-action] {
+    animation: ${revealContent} 620ms cubic-bezier(0.22, 1, 0.36, 1) 460ms both;
   }
 
   & > * {
@@ -161,7 +185,8 @@ const Hero = styled.div`
 
 const BrandMoment = styled.div`
   position: relative;
-  animation: ${revealLogo} 620ms cubic-bezier(0.22, 1, 0.36, 1) 150ms both;
+  opacity: 0;
+  transform: translateY(12px) scale(0.9);
 `;
 
 const LogoGlow = styled.i`
@@ -174,8 +199,9 @@ const LogoGlow = styled.i`
     rgb(var(--color-white-rgb) / 0.28) 42%,
     transparent 72%
   );
+  opacity: 0;
   pointer-events: none;
-  animation: ${spreadGlow} 850ms ease-out 200ms both;
+  transform: scale(0.55);
 `;
 
 const BrandMark = styled(Image)`
@@ -189,16 +215,18 @@ const Message = styled.h2`
   font-size: var(--font-size-700);
   font-weight: 600;
   line-height: var(--line-height-body);
+  opacity: 0;
   text-align: center;
-  animation: ${revealContent} 620ms cubic-bezier(0.22, 1, 0.36, 1) 320ms both;
+  transform: translateY(14px);
 `;
 
 const ActionArea = styled.div`
+  opacity: 0;
   padding: var(--space-5)
     calc(var(--space-5) + var(--app-safe-area-right, 0px))
     calc(var(--space-10) + var(--app-safe-area-bottom, 0px))
     calc(var(--space-5) + var(--app-safe-area-left, 0px));
-  animation: ${revealContent} 620ms cubic-bezier(0.22, 1, 0.36, 1) 460ms both;
+  transform: translateY(14px);
 `;
 
 const PlaceConfirmationButton = styled(PrimaryButton)<{

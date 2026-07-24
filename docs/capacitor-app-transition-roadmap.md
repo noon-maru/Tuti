@@ -25,6 +25,8 @@
 
 API 배포 원칙은 [Capacitor API Architecture](./capacitor-api-architecture.md)를 따른다. 웹은 운영 환경의 Next.js Route Handler를 유지하고, 앱은 서버 전용 경로를 제외한 일회성 소스 투영본을 static export한 뒤 `https://tuti.today/api`의 동일한 Route Handler를 원격 호출한다.
 
+플랫폼 간 애니메이션 시작 시점과 제스처 구현 원칙은 [크로스플랫폼 모션 가이드](./cross-platform-motion.md)를 따른다.
+
 ## 목표 구조
 
 ```text
@@ -173,6 +175,7 @@ idle
 
 ### 작업
 
+- [x] 마운트 직후 순차 진입 애니메이션을 첫 렌더링 프레임과 분리하는 공통 훅을 추가한다.
 - [ ] pointer move 값을 `requestAnimationFrame`으로 샘플링한다.
 - [ ] 연속 좌표는 React/Emotion props 대신 CSS 변수, ref 또는 MotionValue 계열로 전달한다.
 - [ ] React state는 `idle`, `dragging`, `settling`, `committed` 같은 단계 변경에만 사용한다.
