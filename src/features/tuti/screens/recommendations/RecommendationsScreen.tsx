@@ -435,7 +435,11 @@ const Copy = styled.div<{ $progress: number }>`
 const Carousel = styled.div`
   position: relative;
   height: clamp(480px, calc(60dvh - var(--space-10)), 520px);
-  margin-top: clamp(var(--space-8), 6dvh, var(--space-14));
+  margin-top: clamp(
+    var(--space-2),
+    calc(18dvh - var(--space-14) - var(--space-14)),
+    var(--space-14)
+  );
   display: grid;
   place-items: center;
   perspective: 900px;

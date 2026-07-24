@@ -58,7 +58,7 @@ const CardButton = styled(BaseButton)<{
   position: absolute;
   width: min(
     calc(100% - var(--space-2)),
-    clamp(280px, calc(36dvh - var(--space-6)), 312px)
+    clamp(256px, calc(36dvh - var(--space-6)), 312px)
   );
   aspect-ratio: 3 / 5;
   display: flex;
