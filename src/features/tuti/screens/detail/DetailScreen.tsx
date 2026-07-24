@@ -5,25 +5,40 @@ import { BaseButton } from "@/features/tuti/components/buttons";
 import { useVerticalSwipeBack } from "@/features/tuti/hooks/useVerticalSwipeBack";
 import type { TutiPlace } from "@/lib/recommendations";
 
+const DETAIL_EXIT_DURATION = 480;
+const DETAIL_EXIT_FRAME_BUFFER = 34;
+
 export function DetailScreen({
   place,
   onBack,
+  onExitStart,
   revealProgress = 1,
 }: {
   place: TutiPlace;
   onBack: () => void;
+  onExitStart?: () => void;
   revealProgress?: number;
 }) {
-  const swipeBack = useVerticalSwipeBack({ direction: "down", onBack });
+  const swipeBack = useVerticalSwipeBack({
+    direction: "down",
+    onBack,
+    onExitStart,
+    exitDelay: DETAIL_EXIT_DURATION + DETAIL_EXIT_FRAME_BUFFER,
+  });
+
+  const closeFromBackdrop = () => {
+    swipeBack.requestBack();
+  };
 
   return (
     <Frame {...swipeBack.gestureProps}>
       <Backdrop
         type="button"
         aria-label="추천 화면으로 돌아가기"
-        onClick={onBack}
+        onClick={closeFromBackdrop}
         $revealProgress={revealProgress}
         $progress={swipeBack.dragProgress}
+        $isDragging={swipeBack.isDragging}
       />
       <Sheet
         $revealProgress={revealProgress}
@@ -76,6 +91,7 @@ const Frame = styled.section`
 const Backdrop = styled(BaseButton)<{
   $revealProgress: number;
   $progress: number;
+  $isDragging: boolean;
 }>`
   position: absolute;
   inset: 0;
@@ -85,7 +101,11 @@ const Backdrop = styled(BaseButton)<{
   backdrop-filter: blur(${({ $revealProgress }) => $revealProgress * 10}px);
   -webkit-backdrop-filter: blur(${({ $revealProgress }) => $revealProgress * 10}px);
   opacity: ${({ $revealProgress, $progress }) =>
-    $revealProgress * (1 - $progress * 0.7)};
+    $revealProgress * (1 - $progress)};
+  transition: ${({ $isDragging, $revealProgress }) =>
+    $isDragging || $revealProgress < 1
+      ? "none"
+      : `opacity ${DETAIL_EXIT_DURATION}ms cubic-bezier(0.22, 1, 0.36, 1)`};
 `;
 
 const Sheet = styled.article<{
@@ -110,7 +130,7 @@ const Sheet = styled.article<{
   transition: ${({ $isDragging, $revealProgress }) =>
     $isDragging || $revealProgress < 1
       ? "none"
-      : "transform 240ms cubic-bezier(0.22, 1, 0.36, 1)"};
+      : `transform ${DETAIL_EXIT_DURATION}ms cubic-bezier(0.22, 1, 0.36, 1)`};
 
   @supports (corner-shape: squircle) {
     border-radius: 44px 44px 0 0;

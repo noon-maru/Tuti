@@ -5,10 +5,16 @@ import type { IntakeAnswers, UserLocation } from "@/shared/tuti/types";
 
 type EntryStage = "intake" | "recommendation-ready" | "complete";
 type EntryStatus = "answered" | "skipped";
+export type DetailOverlayPhase = "closed" | "open" | "closing";
 
 export type EntryRecord = {
   status: EntryStatus;
   completedAt: string;
+};
+
+export type DetailOverlayState = {
+  phase: DetailOverlayPhase;
+  placeId?: string;
 };
 
 type TutiState = {
@@ -16,6 +22,8 @@ type TutiState = {
   entryRecord?: EntryRecord;
   userLocation?: UserLocation;
   activeIndex: number;
+  activePlaceId?: string;
+  detailOverlay: DetailOverlayState;
   entryStage: EntryStage;
   hasHydrated: boolean;
   hasSeenSwipeHelp: boolean;
@@ -26,8 +34,10 @@ type TutiState = {
   ) => void;
   setUserLocation: (location: UserLocation) => void;
   clearUserLocation: () => void;
-  setActiveIndex: (index: number) => void;
-  moveActiveIndex: (direction: number, itemCount: number) => void;
+  setActivePlace: (index: number, placeId: string) => void;
+  openDetail: (placeId: string) => void;
+  beginDetailClose: () => void;
+  finishDetailClose: () => void;
   markSwipeHelpSeen: () => void;
   markJournalHelpSeen: () => void;
   finishIntake: (status: EntryStatus) => void;
@@ -43,6 +53,8 @@ export const useTutiStore = create<TutiState>()(
       entryRecord: undefined,
       userLocation: undefined,
       activeIndex: 0,
+      activePlaceId: undefined,
+      detailOverlay: { phase: "closed" },
       entryStage: "intake",
       hasHydrated: false,
       hasSeenSwipeHelp: false,
@@ -56,13 +68,29 @@ export const useTutiStore = create<TutiState>()(
         })),
       setUserLocation: (userLocation) => set({ userLocation }),
       clearUserLocation: () => set({ userLocation: undefined }),
-      setActiveIndex: (index) => set({ activeIndex: index }),
-      moveActiveIndex: (direction, itemCount) =>
+      setActivePlace: (activeIndex, activePlaceId) =>
+        set({ activeIndex, activePlaceId }),
+      openDetail: (placeId) =>
+        set({
+          detailOverlay: {
+            phase: "open",
+            placeId,
+          },
+        }),
+      beginDetailClose: () =>
         set((state) => ({
-          activeIndex: itemCount
-            ? (state.activeIndex + direction + itemCount) % itemCount
-            : state.activeIndex,
+          detailOverlay:
+            state.detailOverlay.phase === "open"
+              ? {
+                  ...state.detailOverlay,
+                  phase: "closing",
+                }
+              : state.detailOverlay,
         })),
+      finishDetailClose: () =>
+        set({
+          detailOverlay: { phase: "closed" },
+        }),
       markSwipeHelpSeen: () => set({ hasSeenSwipeHelp: true }),
       markJournalHelpSeen: () => set({ hasSeenJournalHelp: true }),
       finishIntake: (status) =>
@@ -81,6 +109,8 @@ export const useTutiStore = create<TutiState>()(
           answers: {},
           entryRecord: undefined,
           activeIndex: 0,
+          activePlaceId: undefined,
+          detailOverlay: { phase: "closed" },
           entryStage: "intake",
         }),
     }),
@@ -91,6 +121,11 @@ export const useTutiStore = create<TutiState>()(
       partialize: (state) => ({
         answers: state.answers,
         entryRecord: state.entryRecord,
+        activePlaceId: state.activePlaceId,
+        detailOverlay:
+          state.detailOverlay.phase === "open"
+            ? state.detailOverlay
+            : { phase: "closed" as const },
         hasSeenSwipeHelp: state.hasSeenSwipeHelp,
         hasSeenJournalHelp: state.hasSeenJournalHelp,
       }),

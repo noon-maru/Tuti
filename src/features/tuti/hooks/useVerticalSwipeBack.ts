@@ -8,13 +8,17 @@ type Point = { x: number; y: number };
 type SwipeBackOptions = {
   direction: Direction;
   onBack: () => void;
+  onExitStart?: () => void;
   threshold?: number;
+  exitDelay?: number;
 };
 
 export function useVerticalSwipeBack({
   direction,
   onBack,
+  onExitStart,
   threshold = 64,
+  exitDelay = 180,
 }: SwipeBackOptions) {
   const [dragY, setDragY] = useState(0);
   const [dragProgress, setDragProgress] = useState(0);
@@ -103,14 +107,19 @@ export function useVerticalSwipeBack({
   };
 
   const commitBack = () => {
+    if (committed.current) {
+      return;
+    }
+
     committed.current = true;
+    onExitStart?.();
     setIsDragging(false);
     setIsCommitting(true);
     setDragY(getExitY(direction));
     setDragProgress(1);
     clearGestureRefs();
 
-    backTimeout.current = window.setTimeout(onBack, 180);
+    backTimeout.current = window.setTimeout(onBack, exitDelay);
   };
 
   const reset = () => {
@@ -212,6 +221,7 @@ export function useVerticalSwipeBack({
     dragProgress,
     isDragging,
     isCommitting,
+    requestBack: commitBack,
   };
 }
 

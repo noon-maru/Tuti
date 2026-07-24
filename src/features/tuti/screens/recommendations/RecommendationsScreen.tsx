@@ -12,6 +12,7 @@ import type { TutiPlace } from "@/lib/recommendations";
 type Point = { x: number; y: number };
 type DragAxis = "horizontal" | "vertical" | null;
 type HelpKind = "detail" | "journal";
+type DetailPhase = "closed" | "open" | "closing";
 
 export function RecommendationsScreen({
   places,
@@ -19,7 +20,11 @@ export function RecommendationsScreen({
   activePlace,
   onSelect,
   onMove,
+  detailPhase,
+  detailPlace,
   onDetail,
+  onDetailExitStart,
+  onDetailClose,
   onJournal,
   interactive,
   initialHelp,
@@ -30,7 +35,11 @@ export function RecommendationsScreen({
   activePlace?: TutiPlace;
   onSelect: (index: number) => void;
   onMove: (direction: number) => void;
+  detailPhase: DetailPhase;
+  detailPlace?: TutiPlace;
   onDetail: () => void;
+  onDetailExitStart: () => void;
+  onDetailClose: () => void;
   onJournal: () => void;
   interactive: boolean;
   initialHelp: HelpKind | null;
@@ -47,8 +56,15 @@ export function RecommendationsScreen({
   const verticalProgress =
     dragAxis === "vertical" ? Math.min(Math.abs(dragOffset.y) / 140, 1) : 0;
   const transitionTarget = dragOffset.y < 0 ? "detail" : "journal";
+  const detailOpen = detailPhase === "open";
+  const detailVisible = detailPhase !== "closed";
+  const presentedDetailPlace = detailVisible ? detailPlace : activePlace;
+  const mainInteractive = interactive && !detailOpen;
   const helpVisible =
-    interactive && Boolean(currentHelp) && verticalProgress === 0 && !committing;
+    mainInteractive &&
+    Boolean(currentHelp) &&
+    verticalProgress === 0 &&
+    !committing;
 
   const resetDrag = useCallback(() => {
     setDragStart(null);
@@ -100,15 +116,15 @@ export function RecommendationsScreen({
   }, [currentHelp, dismissHelp]);
 
   useEffect(() => {
-    if (interactive) return;
+    if (mainInteractive) return;
 
     resetDrag();
     setCurrentHelp(null);
     setNudgingCard(null);
-  }, [interactive, resetDrag]);
+  }, [mainInteractive, resetDrag]);
 
   const startDrag = (event: React.PointerEvent<HTMLElement>) => {
-    if (!interactive) return;
+    if (!mainInteractive) return;
 
     const cardElement = (event.target as HTMLElement).closest<HTMLElement>(
       "[data-swipe-card-index]",
@@ -142,6 +158,11 @@ export function RecommendationsScreen({
       setDragAxis(nextAxis);
     }
 
+    if (detailPhase === "closing" && nextAxis === "vertical") {
+      setDragOffset({ x: 0, y: 0 });
+      return;
+    }
+
     if (nextAxis === "vertical") {
       dismissHelp();
     }
@@ -158,6 +179,11 @@ export function RecommendationsScreen({
     const dx = event.clientX - dragStart.x;
     const dy = event.clientY - dragStart.y;
     const axis = dragAxis ?? (Math.abs(dx) >= Math.abs(dy) ? "horizontal" : "vertical");
+
+    if (detailPhase === "closing" && axis === "vertical") {
+      resetDrag();
+      return;
+    }
 
     if (Math.abs(dx) < 8 && Math.abs(dy) < 8 && pressedCardIndex !== null) {
       if (pressedCardIndex === activeIndex) {
@@ -209,7 +235,12 @@ export function RecommendationsScreen({
       onPointerUp={finishDrag}
       onPointerCancel={cancelDrag}
     >
-      <CurrentLayer $progress={verticalProgress} $dragY={dragOffset.y}>
+      <CurrentLayer
+        $progress={verticalProgress}
+        $dragY={dragOffset.y}
+        aria-hidden={!mainInteractive}
+        inert={!mainInteractive}
+      >
         <Copy $progress={verticalProgress}>
           <h1>오늘 가능한 정도</h1>
           <p>
@@ -249,20 +280,32 @@ export function RecommendationsScreen({
         </Dots>
       </CurrentLayer>
 
-      {interactive && activePlace && verticalProgress > 0 &&
-        (transitionTarget === "detail" ? (
-          <DetailTransitionLayer>
+      {presentedDetailPlace &&
+        (detailVisible ||
+          (mainInteractive &&
+            verticalProgress > 0 &&
+            transitionTarget === "detail")) && (
+          <DetailTransitionLayer
+            $interactive={detailOpen}
+            aria-hidden={!detailOpen}
+          >
             <DetailScreen
-              place={activePlace}
-              onBack={() => undefined}
-              revealProgress={verticalProgress}
+              place={presentedDetailPlace}
+              onBack={onDetailClose}
+              onExitStart={onDetailExitStart}
+              revealProgress={detailVisible ? 1 : verticalProgress}
             />
           </DetailTransitionLayer>
-        ) : (
+        )}
+
+      {mainInteractive &&
+        activePlace &&
+        verticalProgress > 0 &&
+        transitionTarget === "journal" && (
           <TransitionLayer $progress={verticalProgress} $from={-34}>
             <JournalScreen onBack={() => undefined} />
           </TransitionLayer>
-        ))}
+        )}
 
       <HelpOverlay $visible={helpVisible} aria-hidden={!helpVisible}>
         {displayedHelp &&
@@ -311,11 +354,11 @@ const CurrentLayer = styled.div<{ $progress: number; $dragY: number }>`
 
 `;
 
-const DetailTransitionLayer = styled.div`
+const DetailTransitionLayer = styled.div<{ $interactive: boolean }>`
   position: absolute;
   inset: 0;
   z-index: 20;
-  pointer-events: none;
+  pointer-events: ${({ $interactive }) => ($interactive ? "auto" : "none")};
 `;
 
 const TransitionLayer = styled.div<{ $progress: number; $from: number }>`

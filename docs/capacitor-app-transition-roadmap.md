@@ -15,7 +15,10 @@
 ## 현재 결정
 
 - 질문과 추천 준비 화면은 `/entry`의 `EntryFlow`로 묶고, 메인 추천 화면은 루트 `/`에서 제공한다.
-- `/`, `/detail`, `/journal`은 공통 `(main)` layout에서 실제 메인 추천 화면을 유지하고 상세·저널만 오버레이한다.
+- 장소 상세는 `/` 내부의 세션 전용 바텀시트로 관리하고 별도 `/detail` 라우트를 사용하지 않는다.
+- 상세의 열림 상태와 장소 ID는 Zustand와 Capacitor Preferences로 복원하고 `closing`은 일시 상태로만 사용한다.
+- 메인 캐러셀의 현재 장소 ID도 영속하고 추천 목록이 바뀌면 ID를 기준으로 인덱스를 다시 계산한다.
+- `/journal`은 공통 `(main)` layout에서 실제 메인 추천 화면을 유지하는 독립 라우트로 둔다.
 - 비로그인 사용자의 답변과 건너뛰기 기록은 Capacitor Preferences 공통 API로 복원한다.
 - 공통 `layout.tsx`, `TutiAppShell`, `AppFrame`, Zustand, TanStack Query 구조를 유지한다.
 - 앱은 Next.js static export 결과물인 `out/`을 Capacitor `webDir`로 사용한다.
@@ -119,16 +122,15 @@ TutiAppShell
 | `/entry` 인테이크 이전 질문 | route 유지 | inline backward |
 | `/entry` 질문 → 추천 준비 | 컴포넌트 상태 전환 | 같은 진입 플로우 안의 완료 전환 |
 | `/entry` 추천 준비 → `/` | `replace` | forward |
-| `/` → `/detail` | `push` | 위 방향 interactive |
-| `/detail` → `/` | `replace` | 아래 방향 interactive |
+| `/` → 장소 상세 | route 유지 | 로컬 오버레이를 위 방향으로 전개 |
+| 장소 상세 → `/` | route 유지 | 로컬 오버레이를 아래 방향으로 종료 |
 | `/` → `/journal` | `push` | 아래 방향 interactive |
 | `/journal` → `/` | `replace` | 위 방향 interactive |
 
 ### 완료 기준
 
-- [ ] 상세를 여러 번 열고 닫아도 history에 `/`와 `/detail`이 반복 누적되지 않는다.
+- [x] 상세를 여러 번 열고 닫아도 브라우저 history가 누적되지 않는다.
 - [ ] 화면 버튼, 제스처, Android back이 같은 방향과 같은 전환을 사용한다.
-- [ ] 직접 진입한 `/detail`에서도 back fallback이 앱 밖의 예기치 않은 페이지로 이동하지 않는다.
 - [ ] 빠르게 연속 입력해도 한 번의 동작에서 한 번만 내비게이션한다.
 
 ## Phase 3 — 공통 화면 전환 호스트
@@ -148,7 +150,8 @@ idle
 
 ### 작업
 
-- [x] `/`, `/detail`, `/journal` 공통 layout에 실제 메인 추천 레이어를 유지한다.
+- [x] 장소 상세를 `/` 내부의 `open → closing → closed` 로컬 오버레이로 관리한다.
+- [x] `/journal` 공통 layout에 실제 메인 추천 레이어를 유지한다.
 - [ ] `RouteTransitionHost`를 공유 layout 아래에 추가한다.
 - [ ] 일반 route 이동에도 일관된 enter/exit 전환을 적용한다.
 - [ ] 전환 방향은 pathname 비교가 아니라 명시적인 route policy로 결정한다.
@@ -159,7 +162,8 @@ idle
 - [ ] 언마운트 또는 다른 내비게이션 발생 시 animation과 callback을 취소한다.
 - [ ] 전체 `DetailScreen`/`JournalScreen` 복제 대신 가벼운 presentation-only preview를 사용한다.
 - [x] 복제된 `RecommendationsBackdrop`을 제거하고 복귀 제스처에서 실제 메인 추천 레이어를 노출한다.
-- [x] 상세·저널이 열린 동안 메인 추천 레이어에 `inert`, `aria-hidden`, pointer 차단을 적용한다.
+- [x] 상세가 열린 동안 메인에 `inert`와 `aria-hidden`을 적용하고 종료 시작 시 카드 입력을 복원한다.
+- [x] 저널이 열린 동안 메인 추천 레이어에 `inert`, `aria-hidden`, pointer 차단을 적용한다.
 
 ### 완료 기준
 
@@ -203,23 +207,21 @@ idle
 ### 작업
 
 - [ ] `isPending`, `isError`, retry 상태를 각 화면에 연결한다.
-- [ ] 추천 데이터가 없는 상태에서 `/` 또는 `/detail`로 이동해도 빈 화면을 반환하지 않는다.
+- [ ] 추천 데이터가 없는 상태에서 `/`로 이동하거나 상세를 열어도 빈 화면을 반환하지 않는다.
 - [ ] 현재 장소 이미지의 preload/decode 완료 여부를 전환 시작 조건과 연결한다.
 - [ ] 이미지 실패 placeholder와 번들 내 최소 fallback 자산을 둔다.
 - [ ] 앱 재시작 시 복원할 상태와 초기화할 상태를 구분한다.
 - [x] `answers`와 엔트리 완료 여부를 Capacitor Preferences로 영속한다.
-- [ ] `activePlaceId`의 영속 정책을 정한다.
+- [x] 상세 장소 ID와 일반 캐러셀의 현재 장소 ID를 영속하고 인덱스는 추천 목록에서 다시 계산한다.
 - [ ] 위치 정보는 개인정보이므로 별도 결정 없이 영속화하지 않는다.
-- [ ] 상세를 공유 가능한 화면으로 만들지, 세션 전용 화면으로 둘지 결정한다.
-- [ ] 공유 가능하다면 `/detail?place=<id>`처럼 static export가 처리할 수 있는 안정적인 식별자를 사용한다.
-- [ ] 세션 전용이라면 선택 상태가 없는 직접 진입을 `/`로 `replace`한다.
+- [x] 상세는 현재 선택 카드에 종속된 세션 전용 로컬 오버레이로 관리한다.
+- [ ] 상세 공유가 필요해지면 `/?place=<id>` 형태로 루트와 오버레이 상태를 함께 복원한다.
 - [ ] Capacitor WebView가 nested URL에서 process restore될 때 root HTML로 시작하는 상황을 실기기에서 검증한다.
 
 ### 완료 기준
 
 - [ ] 네트워크가 느리거나 끊겨도 빈 화면 대신 로딩, 재시도 또는 이전 추천을 표시한다.
 - [ ] background 후 OS가 WebView process를 종료해도 앱이 유효한 화면으로 복원된다.
-- [ ] 직접 `/detail`에 진입해도 선택된 장소를 복원하거나 명시적으로 `/`로 이동한다.
 
 ## Phase 6 — 네이티브 기능과 출시 검증
 
@@ -277,14 +279,14 @@ src/
 
 - [ ] 질문 완료 후 Android back으로 인테이크에 돌아갈 수 있는가?
 - [x] 추천 준비 → 메인은 이전 엔트리로 돌아가지 않는 `replace` 이동이다.
-- [ ] 상세 화면은 외부 공유·딥링크 대상인가, 세션 전용인가?
+- [x] 상세 화면은 현재 세션 전용이며 외부 공유·딥링크 대상에서 제외한다.
 - [ ] 루트에서 Android back은 앱 종료인가, 최소화인가?
 - [ ] 앱은 portrait만 지원하는가?
 - [ ] 추천 및 선택 상태를 앱 재시작 후 얼마 동안 보존하는가?
 
 ## 전체 완료 정의
 
-- [ ] 페이지 라우트와 URL을 유지하면서 모든 화면 이동이 공통 전환 계층을 통과한다.
+- [ ] 독립 페이지 이동은 공통 전환 계층을 통과하고 로컬 오버레이는 명시적인 상태 수명을 사용한다.
 - [ ] 앱 build, sync, iOS/Android debug build가 CI 또는 재현 가능한 명령으로 성공한다.
 - [ ] API, CORS, 위치 권한, deep link가 실제 배포 origin과 실기기에서 검증된다.
 - [ ] 작은 화면, 오프라인, process restore, 접근성 설정에서도 핵심 사용자 흐름이 중단되지 않는다.
