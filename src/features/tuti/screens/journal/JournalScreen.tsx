@@ -187,13 +187,13 @@ export function JournalScreen({ onBack }: { onBack: () => void }) {
     return (
       <Frame>
         <ComposerHeader>
-          <IconButton
+          <ComposerBackButton
             type="button"
             aria-label="지난 공간으로 돌아가기"
             onClick={finishComposing}
           >
             ‹
-          </IconButton>
+          </ComposerBackButton>
           <h1>남기는 공간</h1>
           <MoreMenu aria-hidden="true">
             <i />
@@ -396,21 +396,21 @@ const ListHeader = styled.header`
   gap: var(--space-4);
 
   h1 {
-    font-size: var(--font-size-400);
+    font-size: var(--font-size-500);
     font-weight: 700;
   }
 `;
 
 const AddButton = styled(BaseButton)`
-  width: var(--space-9);
-  height: var(--space-9);
+  width: var(--space-11);
+  height: var(--space-11);
   display: grid;
   place-items: center;
   padding: 0;
   border-radius: 999px;
   background: transparent;
   color: var(--color-text-muted);
-  font-size: var(--font-size-700);
+  font-size: calc(var(--font-size-700) + var(--space-2));
   font-weight: 500;
   line-height: 1;
   transition: color 160ms ease, transform 160ms ease;
@@ -527,18 +527,24 @@ const CardMenu = styled.span`
 const ComposerHeader = styled.header`
   min-height: var(--space-9);
   display: grid;
-  grid-template-columns: var(--space-9) 1fr var(--space-9);
+  grid-template-columns: var(--space-11) 1fr var(--space-11);
   align-items: center;
   gap: var(--space-2);
 
   h1 {
-    font-size: var(--font-size-400);
+    font-size: var(--font-size-500);
     font-weight: 700;
     text-align: center;
   }
 `;
 
-const DetailHeader = styled(ComposerHeader)``;
+const DetailHeader = styled(ComposerHeader)`
+  grid-template-columns: var(--space-9) 1fr var(--space-9);
+
+  h1 {
+    font-size: var(--font-size-400);
+  }
+`;
 
 const JournalDetail = styled.div`
   min-height: 0;
@@ -603,6 +609,12 @@ const IconButton = styled(BaseButton)`
   &:active {
     transform: translateX(-2px);
   }
+`;
+
+const ComposerBackButton = styled(IconButton)`
+  width: var(--space-11);
+  height: var(--space-11);
+  font-size: calc(var(--font-size-700) + var(--space-2));
 `;
 
 const MoreMenu = styled.span`
