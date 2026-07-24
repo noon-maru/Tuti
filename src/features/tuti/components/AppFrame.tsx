@@ -159,6 +159,8 @@ const AppViewport = styled.section<{ $nativeApp: boolean }>`
 
   position: relative;
   z-index: 1;
+  container-name: app-viewport;
+  container-type: size;
   width: min(100%, 390px);
   height: min(844px, calc(100vh - var(--space-16)));
   height: min(844px, calc(100dvh - var(--space-16)));

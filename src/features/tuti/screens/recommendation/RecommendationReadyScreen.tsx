@@ -6,6 +6,7 @@ import Image from "next/image";
 import { PrimaryButton } from "@/features/tuti/components/buttons";
 import { ScreenFrame } from "@/features/tuti/components/ScreenFrame";
 import { useDeferredAnimationStart } from "@/features/tuti/hooks/useDeferredAnimationStart";
+import { fluidByViewportHeight } from "@/styles/tokens";
 
 export function RecommendationReadyScreen({
   onOpenRecommendations,
@@ -180,7 +181,7 @@ const Hero = styled.div`
   justify-items: center;
   gap: var(--space-11);
   min-height: 0;
-  padding: clamp(148px, 25vh, 208px) var(--space-6) var(--space-8);
+  padding: ${fluidByViewportHeight(148, 208)} var(--space-6) var(--space-8);
 `;
 
 const BrandMoment = styled.div`

@@ -7,11 +7,11 @@ import { ScreenFrame } from "@/features/tuti/components/ScreenFrame";
 import { useTutiJournalEntries } from "@/features/tuti/hooks/useTutiJournalEntries";
 import { useVerticalSwipeBack } from "@/features/tuti/hooks/useVerticalSwipeBack";
 import type { TutiJournalEntry } from "@/shared/api/journal";
+import { fluidByViewportHeight } from "@/styles/tokens";
 
 const MAX_VISIBLE_MEMORY_CARDS = 7;
 const MEMORY_CARD_RADIUS = Math.floor(MAX_VISIBLE_MEMORY_CARDS / 2);
 const MEMORY_CARD_GAP_MIN = 40;
-const MEMORY_CARD_GAP_FLUID = 7;
 const MEMORY_CARD_GAP_MAX = 60;
 
 export function JournalScreen({ onBack }: { onBack: () => void }) {
@@ -359,10 +359,16 @@ function getMemoryCardOffset(relativePosition: number) {
   const distance = Math.abs(relativePosition);
 
   if (relativePosition < 0) {
-    return `clamp(${MEMORY_CARD_GAP_MIN * distance}px, ${MEMORY_CARD_GAP_FLUID * distance}dvh, ${MEMORY_CARD_GAP_MAX * distance}px)`;
+    return fluidByViewportHeight(
+      MEMORY_CARD_GAP_MIN * distance,
+      MEMORY_CARD_GAP_MAX * distance,
+    );
   }
 
-  return `clamp(${-MEMORY_CARD_GAP_MAX * distance}px, ${-MEMORY_CARD_GAP_FLUID * distance}dvh, ${-MEMORY_CARD_GAP_MIN * distance}px)`;
+  return fluidByViewportHeight(
+    -MEMORY_CARD_GAP_MIN * distance,
+    -MEMORY_CARD_GAP_MAX * distance,
+  );
 }
 
 const Frame = styled(ScreenFrame)<{

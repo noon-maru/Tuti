@@ -8,6 +8,7 @@ import { SwipeCard } from "@/features/tuti/components/SwipeCard";
 import { DetailScreen } from "@/features/tuti/screens/detail/DetailScreen";
 import { JournalScreen } from "@/features/tuti/screens/journal/JournalScreen";
 import type { TutiPlace } from "@/lib/recommendations";
+import { fluidByViewportHeight } from "@/styles/tokens";
 
 type Point = { x: number; y: number };
 type DragAxis = "horizontal" | "vertical" | null;
@@ -434,12 +435,8 @@ const Copy = styled.div<{ $progress: number }>`
 
 const Carousel = styled.div`
   position: relative;
-  height: clamp(480px, calc(60dvh - var(--space-10)), 520px);
-  margin-top: clamp(
-    var(--space-2),
-    calc(18dvh - var(--space-14) - var(--space-14)),
-    var(--space-14)
-  );
+  height: ${fluidByViewportHeight(480, 520)};
+  margin-top: ${fluidByViewportHeight(8, 56)};
   display: grid;
   place-items: center;
   perspective: 900px;

@@ -4,6 +4,7 @@ import styled from "@emotion/styled";
 import { BaseButton } from "@/features/tuti/components/buttons";
 import { useVerticalSwipeBack } from "@/features/tuti/hooks/useVerticalSwipeBack";
 import type { TutiPlace } from "@/lib/recommendations";
+import { fluidByViewportHeight } from "@/styles/tokens";
 
 const DETAIL_EXIT_DURATION = 480;
 const DETAIL_EXIT_FRAME_BUFFER = 34;
@@ -113,11 +114,14 @@ const Sheet = styled.article<{
   $dragY: number;
   $isDragging: boolean;
 }>`
+  --detail-hero-width: ${fluidByViewportHeight(128, 160)};
+  --detail-content-start: ${fluidByViewportHeight(132, 172)};
+
   position: absolute;
   inset: 24% 0 0;
   display: flex;
   flex-direction: column;
-  padding: clamp(148px, 20dvh, 172px) var(--space-5)
+  padding: var(--detail-content-start) var(--space-5)
     calc(var(--space-7) + var(--app-safe-area-bottom, 0px));
   border-radius: 32px 32px 0 0;
   background: var(--color-surface);
@@ -142,9 +146,9 @@ const Sheet = styled.article<{
 const HeroImage = styled.div<{ $image: string; $revealProgress: number }>`
   position: absolute;
   z-index: 2;
-  top: clamp(-112px, -13dvh, -92px);
+  top: ${fluidByViewportHeight(-92, -112)};
   left: 50%;
-  width: clamp(144px, 40%, 160px);
+  width: var(--detail-hero-width);
   aspect-ratio: 3 / 5;
   border-radius: 22px;
   background-color: var(--color-accent-soft);

@@ -2,6 +2,7 @@
 
 import styled from "@emotion/styled";
 import type { TutiPlace } from "@/lib/recommendations";
+import { fluidByViewportHeight } from "@/styles/tokens";
 import { BaseButton } from "./buttons";
 
 export function SwipeCard({
@@ -25,7 +26,7 @@ export function SwipeCard({
   const dragX = active ? drag?.x ?? 0 : 0;
   const dragY = active ? drag?.y ?? 0 : 0;
   const baseX = offset * 78;
-  const scale = active ? 1 - detailProgress * 0.44 : 0.88;
+  const scale = active ? 1 - detailProgress * 0.5 : 0.88;
   const rotation = offset * -4 + dragX / 22;
 
   return (
@@ -58,7 +59,7 @@ const CardButton = styled(BaseButton)<{
   position: absolute;
   width: min(
     calc(100% - var(--space-2)),
-    clamp(256px, calc(36dvh - var(--space-6)), 312px)
+    ${fluidByViewportHeight(256, 312)}
   );
   aspect-ratio: 3 / 5;
   display: flex;

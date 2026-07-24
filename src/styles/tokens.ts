@@ -53,4 +53,24 @@ export const breakpoints = {
   wide: 1536,
 } as const;
 
+export const layoutHeightRange = {
+  min: 690,
+  max: 960,
+} as const;
+
+export function fluidByViewportHeight(
+  minViewportValue: number,
+  maxViewportValue: number,
+) {
+  const viewportRange = layoutHeightRange.max - layoutHeightRange.min;
+  const slope = (maxViewportValue - minViewportValue) / viewportRange;
+  const viewportCoefficient = slope * 100;
+  const intercept = minViewportValue - slope * layoutHeightRange.min;
+  const lowerBound = Math.min(minViewportValue, maxViewportValue);
+  const upperBound = Math.max(minViewportValue, maxViewportValue);
+  const operator = intercept < 0 ? "-" : "+";
+
+  return `clamp(${lowerBound}px, calc(${viewportCoefficient.toFixed(6)}cqh ${operator} ${Math.abs(intercept).toFixed(6)}px), ${upperBound}px)`;
+}
+
 export const spacingUnit = 4;
