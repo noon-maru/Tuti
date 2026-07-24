@@ -8,6 +8,12 @@ import { useTutiJournalEntries } from "@/features/tuti/hooks/useTutiJournalEntri
 import { useVerticalSwipeBack } from "@/features/tuti/hooks/useVerticalSwipeBack";
 import type { TutiJournalEntry } from "@/shared/api/journal";
 
+const MAX_VISIBLE_MEMORY_CARDS = 7;
+const MEMORY_CARD_RADIUS = Math.floor(MAX_VISIBLE_MEMORY_CARDS / 2);
+const MEMORY_CARD_GAP_MIN = 40;
+const MEMORY_CARD_GAP_FLUID = 7;
+const MEMORY_CARD_GAP_MAX = 60;
+
 export function JournalScreen({ onBack }: { onBack: () => void }) {
   const [isComposing, setIsComposing] = useState(false);
   const [imageUrl, setImageUrl] = useState<string | null>(null);
@@ -262,7 +268,7 @@ export function JournalScreen({ onBack }: { onBack: () => void }) {
               entries.length,
             );
 
-            if (Math.abs(relativePosition) > 2) return null;
+            if (Math.abs(relativePosition) > MEMORY_CARD_RADIUS) return null;
 
             return (
               <MemoryCard
@@ -345,6 +351,18 @@ function getCircularOffset(index: number, activeIndex: number, length: number) {
   if (offset < -half) offset += length;
 
   return offset;
+}
+
+function getMemoryCardOffset(relativePosition: number) {
+  if (relativePosition === 0) return "0px";
+
+  const distance = Math.abs(relativePosition);
+
+  if (relativePosition < 0) {
+    return `clamp(${MEMORY_CARD_GAP_MIN * distance}px, ${MEMORY_CARD_GAP_FLUID * distance}dvh, ${MEMORY_CARD_GAP_MAX * distance}px)`;
+  }
+
+  return `clamp(${-MEMORY_CARD_GAP_MAX * distance}px, ${-MEMORY_CARD_GAP_FLUID * distance}dvh, ${-MEMORY_CARD_GAP_MIN * distance}px)`;
 }
 
 const Frame = styled(ScreenFrame)<{
@@ -461,7 +479,7 @@ const MemoryCard = styled(BaseButton)<{
   transform: translate(-50%, -50%)
     translateY(
       ${({ $relativePosition, $dragY }) =>
-        $relativePosition * -40 + $dragY * 0.28}px
+        `calc(${getMemoryCardOffset($relativePosition)} + ${$dragY * 0.28}px)`}
     )
     scale(
       ${({ $relativePosition }) =>
