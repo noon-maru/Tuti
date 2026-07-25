@@ -511,8 +511,8 @@ const MemoryCard = styled(BaseButton)<{
         : "var(--color-secondary-200)"};
   background-image: ${({ $image }) =>
     $image
-      ? `linear-gradient(180deg, rgb(var(--color-black-rgb) / 0.3), transparent 38%), url(${$image})`
-      : "none"};
+      ? `linear-gradient(180deg, rgb(var(--color-black-rgb) / 0.42), transparent 38%), url(${$image})`
+      : "linear-gradient(180deg, rgb(var(--color-black-rgb) / 0.42), transparent 38%)"};
   background-position: center;
   background-size: cover;
   color: var(--color-white);

@@ -515,7 +515,7 @@ const TransitionCard = styled.div<{
     z-index: 2;
     background: linear-gradient(
       180deg,
-      rgb(var(--color-black-rgb) / 0.3),
+      rgb(var(--color-black-rgb) / 0.42),
       transparent 38%
     );
     opacity: ${({ $phase, $sourceSurface }) =>
