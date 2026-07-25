@@ -10,13 +10,11 @@ import {
 } from "@/features/tuti/components/BrowserHistoryTransition";
 import { ContextMenu } from "@/features/tuti/components/ContextMenu";
 import { useJournalEntryTransitionTarget } from "@/features/tuti/components/JournalEntryTransition";
-import {
-  BaseButton,
-  PrimaryButton,
-} from "@/features/tuti/components/buttons";
+import { BaseButton } from "@/features/tuti/components/buttons";
 import { ScreenFrame } from "@/features/tuti/components/ScreenFrame";
 import { useTutiJournalEntries } from "@/features/tuti/hooks/useTutiJournalEntries";
 import { useVerticalSwipeBack } from "@/features/tuti/hooks/useVerticalSwipeBack";
+import { JournalEditorScreen } from "@/features/tuti/screens/journal/JournalEditorScreen";
 import { shareContent } from "@/lib/shareContent";
 import { useTutiStore } from "@/store/tuti";
 import {
@@ -32,9 +30,11 @@ const JOURNAL_EXIT_DURATION = 480;
 
 export function JournalScreen({
   onBack,
+  onEditEntry,
   onOpenEntry,
 }: {
   onBack: () => void;
+  onEditEntry?: (entryId: string) => void;
   onOpenEntry?: (
     entryId: string,
     image: string | null,
@@ -42,12 +42,6 @@ export function JournalScreen({
   ) => void;
 }) {
   const [isComposing, setIsComposing] = useState(false);
-  const [imageUrl, setImageUrl] = useState<string | null>(null);
-  const [title, setTitle] = useState("");
-  const [body, setBody] = useState("");
-  const [editingEntryId, setEditingEntryId] = useState<string | null>(
-    null,
-  );
   const [stackDragY, setStackDragY] = useState(0);
   const stackPointerStart = useRef<number | null>(null);
   const selectedCardRef = useRef<HTMLButtonElement>(null);
@@ -58,7 +52,6 @@ export function JournalScreen({
     addEntry,
     isPending,
     removeEntry,
-    updateEntry,
   } = useTutiJournalEntries();
   const activeJournalEntryId = useTutiStore(
     (state) => state.activeJournalEntryId,
@@ -73,9 +66,6 @@ export function JournalScreen({
   const selectedEntryIndex =
     persistedEntryIndex >= 0 ? persistedEntryIndex : 0;
   const selectedEntryId = entries[selectedEntryIndex]?.id ?? "";
-  const canSubmitComposer = Boolean(
-    title.trim() || body.trim() || imageUrl,
-  );
   useJournalEntryTransitionTarget(
     selectedEntryId,
     selectedCardRef,
@@ -95,32 +85,8 @@ export function JournalScreen({
     onExit: swipeBack.requestExit,
   });
 
-  const selectImage = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
+  const openComposer = () => setIsComposing(true);
 
-    if (!file) return;
-
-    const reader = new FileReader();
-    reader.addEventListener("load", () => {
-      setImageUrl(typeof reader.result === "string" ? reader.result : null);
-    });
-    reader.readAsDataURL(file);
-  };
-
-  const openComposer = () => {
-    setEditingEntryId(null);
-    setTitle("");
-    setBody("");
-    setImageUrl(null);
-    setIsComposing(true);
-  };
-  const editEntry = (entry: (typeof entries)[number]) => {
-    setEditingEntryId(entry.id);
-    setTitle(entry.title);
-    setBody(entry.content);
-    setImageUrl(entry.image);
-    setIsComposing(true);
-  };
   const deleteEntry = (entryId: string) => {
     if (!window.confirm("이 기록을 삭제할까요?")) return;
 
@@ -137,50 +103,6 @@ export function JournalScreen({
 
     setActiveJournalEntry(nextEntry?.id);
     removeEntry(entryId);
-  };
-  const clearComposer = () => {
-    setTitle("");
-    setBody("");
-    setImageUrl(null);
-  };
-  const cancelComposer = () => {
-    setEditingEntryId(null);
-    setIsComposing(false);
-  };
-
-  const finishComposing = () => {
-    const nextTitle = title.trim();
-    const nextBody = body.trim();
-
-    if (nextTitle || nextBody || imageUrl) {
-      const editingEntry = editingEntryId
-        ? entries.find((entry) => entry.id === editingEntryId)
-        : undefined;
-
-      if (editingEntry) {
-        updateEntry({
-          ...editingEntry,
-          title: nextTitle,
-          content: nextBody,
-          image: imageUrl,
-        });
-      } else {
-        const now = new Date();
-        addEntry({
-          id: `${now.getTime()}`,
-          title: nextTitle,
-          content: nextBody,
-          image: imageUrl,
-          crowd: "미정",
-          placeName: "남긴 공간",
-          difficulty: "미정",
-          visitedAt: now.toISOString(),
-        });
-      }
-    }
-
-    setEditingEntryId(null);
-    setIsComposing(false);
   };
 
   const moveStack = (direction: number) => {
@@ -257,68 +179,19 @@ export function JournalScreen({
 
   if (isComposing) {
     return (
-      <Frame>
-        <ComposerHeader>
-          <ComposerBackButton
-            type="button"
-            aria-label="지난 공간으로 돌아가기"
-            onClick={cancelComposer}
-          >
-            ‹
-          </ComposerBackButton>
-          <h1>{editingEntryId ? "고치는 공간" : "남기는 공간"}</h1>
-          <ContextMenu
-            label="기록 작성 메뉴"
-            items={[
-              {
-                label: "작성 내용 비우기",
-                onSelect: clearComposer,
-              },
-              {
-                label: "작성 취소",
-                onSelect: cancelComposer,
-              },
-            ]}
-          />
-        </ComposerHeader>
+      <JournalEditorScreen
+        onBack={() => setIsComposing(false)}
+        onSubmit={(draft) => {
+          const now = new Date();
 
-        <Composer data-scroll-region>
-          <ImagePicker $image={imageUrl ?? undefined}>
-            <input type="file" accept="image/*" onChange={selectImage} />
-            {!imageUrl && <span aria-hidden="true">+</span>}
-            <span className="visually-hidden">
-              {imageUrl ? "기록 이미지 변경하기" : "기록 이미지 추가하기"}
-            </span>
-          </ImagePicker>
-
-          <Tags aria-label="기록 정보">
-            <Tag $tone="brand">혼잡도</Tag>
-            <Tag $tone="neutral">장소</Tag>
-            <Tag $tone="secondary">난이도</Tag>
-          </Tags>
-
-          <TitleInput
-            aria-label="기록 제목"
-            placeholder="제목"
-            value={title}
-            onChange={(event) => setTitle(event.target.value)}
-          />
-          <BodyInput
-            aria-label="기록 내용"
-            placeholder="내용"
-            value={body}
-            onChange={(event) => setBody(event.target.value)}
-          />
-        </Composer>
-
-        <ComposerSubmitButton
-          type="button"
-          disabled={!canSubmitComposer}
-          onClick={finishComposing}
-        >
-          {editingEntryId ? "수정하기" : "작성하기"}
-        </ComposerSubmitButton>
-      </Frame>
+          addEntry({
+            ...draft,
+            id: `${now.getTime()}`,
+            visitedAt: now.toISOString(),
+          });
+          setIsComposing(false);
+        }}
+      />
     );
   }
 
@@ -432,7 +305,7 @@ export function JournalScreen({
                         },
                         {
                           label: "수정하기",
-                          onSelect: () => editEntry(entry),
+                          onSelect: () => onEditEntry?.(entry.id),
                         },
                         {
                           label: "기록 공유하기",
@@ -666,6 +539,10 @@ const MemoryCard = styled(BaseButton)<{
 `;
 
 const CardHeader = styled.header`
+  position: absolute;
+  top: var(--space-5);
+  right: var(--space-5);
+  left: var(--space-5);
   display: flex;
   align-items: center;
 
@@ -680,171 +557,4 @@ const CardMenuPosition = styled.div`
   top: var(--space-1);
   right: var(--space-1);
   z-index: 2;
-`;
-
-const ComposerHeader = styled.header`
-  min-height: var(--space-9);
-  display: grid;
-  grid-template-columns: var(--space-11) 1fr var(--space-11);
-  align-items: center;
-  gap: var(--space-2);
-
-  h1 {
-    font-size: var(--font-size-500);
-    font-weight: 700;
-    text-align: center;
-  }
-`;
-
-const IconButton = styled(BaseButton)`
-  width: var(--space-9);
-  height: var(--space-9);
-  display: grid;
-  place-items: center;
-  padding: 0;
-  border-radius: 999px;
-  background: transparent;
-  color: var(--color-text-muted);
-  font-size: var(--font-size-700);
-  font-weight: 400;
-  line-height: 0;
-  transition: color 160ms ease, transform 160ms ease;
-
-  &:hover {
-    color: var(--color-text);
-  }
-
-  &:active {
-    transform: translateX(-2px);
-  }
-`;
-
-const ComposerBackButton = styled(IconButton)`
-  width: var(--space-11);
-  height: var(--space-11);
-  font-size: calc(var(--font-size-700) + var(--space-2));
-`;
-
-const Composer = styled.div`
-  min-height: 0;
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-5);
-  overflow-y: auto;
-  padding: var(--space-2) 0;
-  overscroll-behavior-y: contain;
-  touch-action: pan-y;
-`;
-
-const ImagePicker = styled.label<{ $image?: string }>`
-  position: relative;
-  width: 100%;
-  flex: 0 0 auto;
-  aspect-ratio: 4 / 3;
-  display: grid;
-  place-items: center;
-  overflow: hidden;
-  border-radius: 28px;
-  background-color: var(--color-secondary-500);
-  background-image: ${({ $image }) => ($image ? `url(${$image})` : "none")};
-  background-position: center;
-  background-size: cover;
-  color: var(--color-white);
-  cursor: pointer;
-
-  input {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    overflow: hidden;
-    clip: rect(0, 0, 0, 0);
-    white-space: nowrap;
-    clip-path: inset(50%);
-  }
-
-  > span:not(.visually-hidden) {
-    font-size: var(--font-size-700);
-    font-weight: 700;
-  }
-
-  .visually-hidden {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    overflow: hidden;
-    clip: rect(0, 0, 0, 0);
-    white-space: nowrap;
-    clip-path: inset(50%);
-  }
-`;
-
-const Tags = styled.div`
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: var(--space-2);
-`;
-
-const Tag = styled.span<{ $tone: "brand" | "neutral" | "secondary" }>`
-  min-width: 0;
-  min-height: 24px;
-  display: grid;
-  place-items: center;
-  padding: var(--space-1) var(--space-2);
-  overflow: hidden;
-  border-radius: 999px;
-  background: ${({ $tone }) =>
-    $tone === "brand"
-      ? "var(--color-brand-500)"
-      : $tone === "secondary"
-        ? "var(--color-secondary-500)"
-        : "var(--color-neutral-500)"};
-  font-size: var(--font-size-100);
-  line-height: var(--line-height-body);
-  text-overflow: ellipsis;
-  white-space: nowrap;
-`;
-
-const TitleInput = styled.input`
-  width: 100%;
-  padding: 0;
-  border: 0;
-  outline: 0;
-  background: transparent;
-  color: var(--color-text);
-  font-size: var(--font-size-500);
-  font-weight: 700;
-  line-height: var(--line-height-heading);
-  letter-spacing: var(--letter-spacing-heading);
-
-  &::placeholder {
-    color: var(--color-text);
-    opacity: 1;
-  }
-`;
-
-const BodyInput = styled.textarea`
-  width: 100%;
-  min-height: 160px;
-  flex: 1;
-  resize: none;
-  padding: 0;
-  border: 0;
-  outline: 0;
-  background: transparent;
-  color: var(--color-text);
-  font-size: var(--font-size-200);
-  line-height: var(--line-height-body);
-  letter-spacing: var(--letter-spacing-body);
-
-  &::placeholder {
-    color: var(--color-text-muted);
-    opacity: 1;
-  }
-`;
-
-const ComposerSubmitButton = styled(PrimaryButton)`
-  width: 100%;
-  flex: 0 0 auto;
-  font-size: var(--font-size-200);
 `;

@@ -11,11 +11,17 @@ export default function JournalPage() {
 
   useEffect(() => {
     router.prefetch("/journal/detail");
+    router.prefetch("/journal/edit");
   }, [router]);
 
   return (
     <JournalScreen
       onBack={() => router.replace("/")}
+      onEditEntry={(entryId) =>
+        router.push(
+          `/journal/edit?entryId=${encodeURIComponent(entryId)}`,
+        )
+      }
       onOpenEntry={(entryId, image, sourceElement) => {
         startTransition({
           entryId,

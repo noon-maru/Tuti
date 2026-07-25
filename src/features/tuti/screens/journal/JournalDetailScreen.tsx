@@ -16,9 +16,11 @@ import { journalImageMaxWidth } from "@/styles/tokens";
 export function JournalDetailScreen({
   entry,
   onBack,
+  onEdit,
 }: {
   entry: TutiJournalEntry;
   onBack: () => void;
+  onEdit: () => void;
 }) {
   const imageRef = useRef<HTMLDivElement>(null);
   const { startTransition } = useJournalEntryTransition();
@@ -57,6 +59,10 @@ export function JournalDetailScreen({
           label={`${entry.title} 기록 메뉴`}
           items={[
             {
+              label: "수정하기",
+              onSelect: onEdit,
+            },
+            {
               label: "기록 공유하기",
               onSelect: () =>
                 shareContent({
@@ -66,7 +72,7 @@ export function JournalDetailScreen({
                 }),
             },
             {
-              label: "지난 공간으로 돌아가기",
+              label: "지난 공간으로\n돌아가기",
               onSelect: returnToJournal,
             },
           ]}
@@ -245,8 +251,12 @@ const Tag = styled.span<{ $tone: "brand" | "neutral" | "secondary" }>`
       : $tone === "secondary"
         ? "var(--color-secondary-500)"
         : "var(--color-neutral-500)"};
+  font-family: var(--font-sans);
   font-size: var(--font-size-100);
+  font-stretch: 100%;
+  font-weight: 400;
   line-height: var(--line-height-body);
+  letter-spacing: var(--letter-spacing-body);
   text-overflow: ellipsis;
   white-space: nowrap;
 `;

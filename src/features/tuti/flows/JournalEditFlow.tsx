@@ -3,23 +3,23 @@
 import { useRouter, useSearchParams } from "next/navigation";
 import { useTutiJournalEntries } from "@/features/tuti/hooks/useTutiJournalEntries";
 import {
-  JournalDetailScreen,
-  JournalDetailStatusScreen,
-} from "@/features/tuti/screens/journal/JournalDetailScreen";
+  JournalEditorScreen,
+  JournalEditorStatusScreen,
+} from "@/features/tuti/screens/journal/JournalEditorScreen";
 
-export function JournalDetailFlow() {
+export function JournalEditFlow() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const entryId = searchParams.get("entryId");
-  const { entries, isPending } = useTutiJournalEntries();
+  const { entries, isPending, updateEntry } = useTutiJournalEntries();
   const entry = entries.find((candidate) => candidate.id === entryId);
   const returnToJournal = () => router.back();
   const returnToJournalFallback = () => router.replace("/journal");
 
   if (isPending) {
     return (
-      <JournalDetailStatusScreen
-        message="지난 공간을 불러오고 있어요."
+      <JournalEditorStatusScreen
+        message="기록을 불러오고 있어요."
         onBack={returnToJournalFallback}
       />
     );
@@ -27,22 +27,21 @@ export function JournalDetailFlow() {
 
   if (!entry) {
     return (
-      <JournalDetailStatusScreen
-        message="기록을 찾지 못했어요."
+      <JournalEditorStatusScreen
+        message="수정할 기록을 찾지 못했어요."
         onBack={returnToJournalFallback}
       />
     );
   }
 
   return (
-    <JournalDetailScreen
+    <JournalEditorScreen
       entry={entry}
       onBack={returnToJournal}
-      onEdit={() =>
-        router.push(
-          `/journal/edit?entryId=${encodeURIComponent(entry.id)}`,
-        )
-      }
+      onSubmit={(draft) => {
+        updateEntry({ ...entry, ...draft });
+        returnToJournal();
+      }}
     />
   );
 }
