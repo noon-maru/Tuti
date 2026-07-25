@@ -43,13 +43,23 @@ type RegisterExitHandler = (
   handler: ExitHandler,
 ) => () => void;
 
+type BrowserHistoryTransitionContextValue = {
+  registerExitHandler: RegisterExitHandler;
+  revealDestination: (destinationPath: string) => void;
+};
+
 const BrowserHistoryTransitionContext =
-  createContext<RegisterExitHandler>(() => () => undefined);
+  createContext<BrowserHistoryTransitionContextValue>({
+    registerExitHandler: () => () => undefined,
+    revealDestination: () => undefined,
+  });
 
 export function BrowserHistoryTransitionProvider({
   children,
+  onDestinationReveal,
 }: {
   children: ReactNode;
+  onDestinationReveal?: (destinationPath: string) => void;
 }) {
   const exitHandlers = useRef(new Map<string, ExitHandler>());
 
@@ -64,6 +74,19 @@ export function BrowserHistoryTransitionProvider({
       };
     },
     [],
+  );
+  const revealDestination = useCallback(
+    (destinationPath: string) => {
+      onDestinationReveal?.(destinationPath);
+    },
+    [onDestinationReveal],
+  );
+  const contextValue = useMemo<BrowserHistoryTransitionContextValue>(
+    () => ({
+      registerExitHandler,
+      revealDestination,
+    }),
+    [registerExitHandler, revealDestination],
   );
 
   useEffect(() => {
@@ -121,7 +144,7 @@ export function BrowserHistoryTransitionProvider({
 
   return (
     <BrowserHistoryTransitionContext.Provider
-      value={registerExitHandler}
+      value={contextValue}
     >
       {children}
     </BrowserHistoryTransitionContext.Provider>
@@ -137,7 +160,7 @@ export function useBrowserHistoryExit({
   destinationPath: string;
   onExit: () => Promise<void>;
 }) {
-  const registerExitHandler = useContext(
+  const { registerExitHandler } = useContext(
     BrowserHistoryTransitionContext,
   );
   const latestExit = useRef(onExit);
@@ -157,6 +180,17 @@ export function useBrowserHistoryExit({
   useEffect(
     () => registerExitHandler(sourcePath, handler),
     [handler, registerExitHandler, sourcePath],
+  );
+}
+
+export function useHistoryDestinationReveal(destinationPath: string) {
+  const { revealDestination } = useContext(
+    BrowserHistoryTransitionContext,
+  );
+
+  return useCallback(
+    () => revealDestination(destinationPath),
+    [destinationPath, revealDestination],
   );
 }
 

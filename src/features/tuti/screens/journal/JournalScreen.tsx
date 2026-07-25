@@ -2,7 +2,10 @@
 
 import styled from "@emotion/styled";
 import { useRef, useState } from "react";
-import { useBrowserHistoryExit } from "@/features/tuti/components/BrowserHistoryTransition";
+import {
+  useBrowserHistoryExit,
+  useHistoryDestinationReveal,
+} from "@/features/tuti/components/BrowserHistoryTransition";
 import { BaseButton } from "@/features/tuti/components/buttons";
 import { ScreenFrame } from "@/features/tuti/components/ScreenFrame";
 import { useTutiJournalEntries } from "@/features/tuti/hooks/useTutiJournalEntries";
@@ -35,9 +38,11 @@ export function JournalScreen({
   const selectedEntryIndex = entries.length
     ? activeEntryIndex % entries.length
     : 0;
+  const revealMainScreen = useHistoryDestinationReveal("/");
   const swipeBack = useVerticalSwipeBack({
     direction: "up",
     onBack,
+    onExitStart: revealMainScreen,
     exitDelay: JOURNAL_EXIT_DURATION,
   });
 
