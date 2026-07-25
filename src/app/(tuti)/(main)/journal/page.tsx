@@ -21,7 +21,7 @@ export default function JournalPage() {
       onCreateEntry={() => router.push("/journal/new")}
       onEditEntry={(entryId) =>
         router.push(
-          `/journal/edit?entryId=${encodeURIComponent(entryId)}`,
+          `/journal/edit?entryId=${encodeURIComponent(entryId)}&source=journal`,
         )
       }
       onOpenEntry={(entryId, image, sourceElement) => {

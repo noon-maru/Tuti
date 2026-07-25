@@ -71,7 +71,7 @@ export function JournalDetailFlow() {
       onDelete={deleteEntry}
       onEdit={() =>
         router.push(
-          `/journal/edit?entryId=${encodeURIComponent(entry.id)}`,
+          `/journal/edit?entryId=${encodeURIComponent(entry.id)}&source=detail`,
         )
       }
     />

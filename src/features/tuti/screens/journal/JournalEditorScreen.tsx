@@ -1,7 +1,7 @@
 "use client";
 
 import styled from "@emotion/styled";
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import {
   BaseButton,
   PrimaryButton,
@@ -28,8 +28,12 @@ export function JournalEditorScreen({
 }: {
   entry?: TutiJournalEntry;
   onBack: () => void;
-  onSubmit: (draft: JournalEntryDraft) => void | Promise<void>;
+  onSubmit: (
+    draft: JournalEntryDraft,
+    sourceElement: HTMLElement,
+  ) => void | Promise<void>;
 }) {
+  const imagePickerRef = useRef<HTMLLabelElement>(null);
   const [imageUrl, setImageUrl] = useState<string | null>(
     entry?.image ?? null,
   );
@@ -89,21 +93,24 @@ export function JournalEditorScreen({
   };
 
   const submitEditor = async () => {
-    if (!canSubmit || isSubmitting) return;
+    if (!canSubmit || isSubmitting || !imagePickerRef.current) return;
 
     setIsSubmitting(true);
     setSubmitError(null);
 
     try {
-      await onSubmit({
-        title: title.trim(),
-        content: body.trim(),
-        image: imageUrl,
-        crowd: crowd.trim() || "미정",
-        placeName: placeName.trim() || "남긴 공간",
-        difficulty: difficulty.trim() || "미정",
-        visitedAt: toVisitedAt(visitDate),
-      });
+      await onSubmit(
+        {
+          title: title.trim(),
+          content: body.trim(),
+          image: imageUrl,
+          crowd: crowd.trim() || "미정",
+          placeName: placeName.trim() || "남긴 공간",
+          difficulty: difficulty.trim() || "미정",
+          visitedAt: toVisitedAt(visitDate),
+        },
+        imagePickerRef.current,
+      );
     } catch (error) {
       setSubmitError(
         error instanceof Error
@@ -142,7 +149,10 @@ export function JournalEditorScreen({
 
       <Editor data-scroll-region>
         <ImageArea>
-          <ImagePicker $image={imageUrl ?? undefined}>
+          <ImagePicker
+            ref={imagePickerRef}
+            $image={imageUrl ?? undefined}
+          >
             <input type="file" accept="image/*" onChange={selectImage} />
             {!imageUrl && <span aria-hidden="true">+</span>}
             <span className="visually-hidden">

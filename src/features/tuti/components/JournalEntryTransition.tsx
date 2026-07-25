@@ -20,7 +20,7 @@ const JOURNAL_ENTRY_SETTLE_DURATION = 120;
 const JOURNAL_ENTRY_WAIT_TIMEOUT = 3000;
 
 type TransitionPhase = "waiting" | "ready" | "moving" | "settling";
-type TransitionSurface = "detail" | "journal";
+type TransitionSurface = "detail" | "editor" | "journal";
 
 type TransitionRect = {
   borderRadius: number;
@@ -461,7 +461,7 @@ function showsJournalSurface(
 
   return showingSource
     ? sourceSurface === "journal"
-    : sourceSurface === "detail";
+    : sourceSurface !== "journal";
 }
 
 const TransitionCard = styled.div<{
