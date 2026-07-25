@@ -8,6 +8,7 @@ import {
   useLayoutEffect,
   useMemo,
   useRef,
+  useState,
   type ReactNode,
 } from "react";
 
@@ -44,12 +45,16 @@ type RegisterExitHandler = (
 ) => () => void;
 
 type BrowserHistoryTransitionContextValue = {
+  completeHistoryEntry: (destinationPath: string) => void;
+  historyEntryPath: string | null;
   registerExitHandler: RegisterExitHandler;
   revealDestination: (destinationPath: string) => void;
 };
 
 const BrowserHistoryTransitionContext =
   createContext<BrowserHistoryTransitionContextValue>({
+    completeHistoryEntry: () => undefined,
+    historyEntryPath: null,
     registerExitHandler: () => () => undefined,
     revealDestination: () => undefined,
   });
@@ -62,6 +67,10 @@ export function BrowserHistoryTransitionProvider({
   onDestinationReveal?: (destinationPath: string) => void;
 }) {
   const exitHandlers = useRef(new Map<string, ExitHandler>());
+  const historyEntryResetTimer = useRef<number | null>(null);
+  const [historyEntryPath, setHistoryEntryPath] = useState<string | null>(
+    null,
+  );
 
   const registerExitHandler = useCallback<RegisterExitHandler>(
     (sourcePath, handler) => {
@@ -81,12 +90,44 @@ export function BrowserHistoryTransitionProvider({
     },
     [onDestinationReveal],
   );
+  const beginHistoryEntry = useCallback((destinationPath: string) => {
+    setHistoryEntryPath(destinationPath);
+
+    if (historyEntryResetTimer.current) {
+      window.clearTimeout(historyEntryResetTimer.current);
+    }
+
+    historyEntryResetTimer.current = window.setTimeout(() => {
+      setHistoryEntryPath(null);
+      historyEntryResetTimer.current = null;
+    }, 1200);
+  }, []);
+  const completeHistoryEntry = useCallback(
+    (destinationPath: string) => {
+      setHistoryEntryPath((currentPath) =>
+        currentPath === destinationPath ? null : currentPath,
+      );
+
+      if (historyEntryResetTimer.current) {
+        window.clearTimeout(historyEntryResetTimer.current);
+        historyEntryResetTimer.current = null;
+      }
+    },
+    [],
+  );
   const contextValue = useMemo<BrowserHistoryTransitionContextValue>(
     () => ({
+      completeHistoryEntry,
+      historyEntryPath,
       registerExitHandler,
       revealDestination,
     }),
-    [registerExitHandler, revealDestination],
+    [
+      completeHistoryEntry,
+      historyEntryPath,
+      registerExitHandler,
+      revealDestination,
+    ],
   );
 
   useEffect(() => {
@@ -100,19 +141,37 @@ export function BrowserHistoryTransitionProvider({
 
       if (
         event.navigationType !== "traverse" ||
-        !event.canIntercept ||
-        currentIndex === undefined ||
-        event.destination.index >= currentIndex
+        currentIndex === undefined
       ) {
         return;
       }
 
       const sourceUrl = new URL(window.location.href);
       const destinationUrl = new URL(event.destination.url);
+
+      if (destinationUrl.origin !== sourceUrl.origin) return;
+
+      if (event.destination.index > currentIndex) {
+        if (
+          sourceUrl.pathname === "/" &&
+          destinationUrl.pathname === "/journal"
+        ) {
+          beginHistoryEntry(destinationUrl.pathname);
+        }
+
+        return;
+      }
+
+      if (
+        !event.canIntercept ||
+        event.destination.index === currentIndex
+      ) {
+        return;
+      }
+
       const exitHandler = exitHandlers.current.get(sourceUrl.pathname);
 
       if (
-        destinationUrl.origin !== sourceUrl.origin ||
         !exitHandler ||
         exitHandler.destinationPath !== destinationUrl.pathname
       ) {
@@ -140,7 +199,16 @@ export function BrowserHistoryTransitionProvider({
         interceptHistoryTraversal as EventListener,
       );
     };
-  }, []);
+  }, [beginHistoryEntry]);
+
+  useEffect(
+    () => () => {
+      if (historyEntryResetTimer.current) {
+        window.clearTimeout(historyEntryResetTimer.current);
+      }
+    },
+    [],
+  );
 
   return (
     <BrowserHistoryTransitionContext.Provider
@@ -192,6 +260,20 @@ export function useHistoryDestinationReveal(destinationPath: string) {
     () => revealDestination(destinationPath),
     [destinationPath, revealDestination],
   );
+}
+
+export function useBrowserHistoryEntry(destinationPath: string) {
+  const { completeHistoryEntry, historyEntryPath } = useContext(
+    BrowserHistoryTransitionContext,
+  );
+
+  return {
+    completeEntry: useCallback(
+      () => completeHistoryEntry(destinationPath),
+      [completeHistoryEntry, destinationPath],
+    ),
+    isEntering: historyEntryPath === destinationPath,
+  };
 }
 
 function getBrowserNavigation() {

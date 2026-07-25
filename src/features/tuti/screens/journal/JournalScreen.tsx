@@ -1,8 +1,10 @@
 "use client";
 
+import { css, keyframes } from "@emotion/react";
 import styled from "@emotion/styled";
 import { useRef, useState } from "react";
 import {
+  useBrowserHistoryEntry,
   useBrowserHistoryExit,
   useHistoryDestinationReveal,
 } from "@/features/tuti/components/BrowserHistoryTransition";
@@ -35,6 +37,7 @@ export function JournalScreen({
   const wheelLocked = useRef(false);
   const suppressCardClick = useRef(false);
   const { entries, addEntry, isPending } = useTutiJournalEntries();
+  const historyEntry = useBrowserHistoryEntry("/journal");
   const selectedEntryIndex = entries.length
     ? activeEntryIndex % entries.length
     : 0;
@@ -221,6 +224,12 @@ export function JournalScreen({
       $dragY={swipeBack.dragY}
       $progress={swipeBack.dragProgress}
       $isDragging={swipeBack.isDragging}
+      $isEntering={historyEntry.isEntering}
+      onAnimationEnd={(event) => {
+        if (event.currentTarget === event.target) {
+          historyEntry.completeEntry();
+        }
+      }}
     >
       <ListHeader>
         <h1>지나간 공간</h1>
@@ -340,10 +349,23 @@ function getMemoryCardOffset(relativePosition: number) {
   );
 }
 
+const enterFromHistory = keyframes`
+  from {
+    opacity: 0.68;
+    transform: translateY(-100%) scale(0.975);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+`;
+
 const Frame = styled(ScreenFrame)<{
   $dragY?: number;
   $progress?: number;
   $isDragging?: boolean;
+  $isEntering?: boolean;
 }>`
   z-index: 1;
   gap: var(--space-7);
@@ -356,6 +378,10 @@ const Frame = styled(ScreenFrame)<{
       ? "none"
       : `opacity ${JOURNAL_EXIT_DURATION}ms cubic-bezier(0.22, 1, 0.36, 1),
          transform ${JOURNAL_EXIT_DURATION}ms cubic-bezier(0.22, 1, 0.36, 1)`};
+  animation: ${({ $isEntering = false }) =>
+    $isEntering
+      ? css`${enterFromHistory} ${JOURNAL_EXIT_DURATION}ms cubic-bezier(0.22, 1, 0.36, 1) both`
+      : "none"};
   overflow: hidden;
   touch-action: none;
 `;
