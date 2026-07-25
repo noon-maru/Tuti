@@ -6,15 +6,45 @@ import {
   JournalDetailScreen,
   JournalDetailStatusScreen,
 } from "@/features/tuti/screens/journal/JournalDetailScreen";
+import { useTutiStore } from "@/store/tuti";
 
 export function JournalDetailFlow() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const entryId = searchParams.get("entryId");
-  const { entries, isPending } = useTutiJournalEntries();
+  const { entries, isPending, removeEntry } = useTutiJournalEntries();
+  const setActiveJournalEntry = useTutiStore(
+    (state) => state.setActiveJournalEntry,
+  );
   const entry = entries.find((candidate) => candidate.id === entryId);
   const returnToJournal = () => router.back();
   const returnToJournalFallback = () => router.replace("/journal");
+  const deleteEntry = async () => {
+    if (!entry || !window.confirm("이 기록을 삭제할까요?")) return;
+
+    const deletedIndex = entries.findIndex(
+      (candidate) => candidate.id === entry.id,
+    );
+    const remainingEntries = entries.filter(
+      (candidate) => candidate.id !== entry.id,
+    );
+    const nextEntry =
+      remainingEntries[
+        Math.min(deletedIndex, remainingEntries.length - 1)
+      ];
+
+    try {
+      await removeEntry(entry.id);
+      setActiveJournalEntry(nextEntry?.id);
+      router.replace("/journal");
+    } catch (error) {
+      window.alert(
+        error instanceof Error
+          ? error.message
+          : "기록을 삭제하지 못했어요.",
+      );
+    }
+  };
 
   if (isPending) {
     return (
@@ -38,6 +68,7 @@ export function JournalDetailFlow() {
     <JournalDetailScreen
       entry={entry}
       onBack={returnToJournal}
+      onDelete={deleteEntry}
       onEdit={() =>
         router.push(
           `/journal/edit?entryId=${encodeURIComponent(entry.id)}`,

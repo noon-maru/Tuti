@@ -12,11 +12,13 @@ export default function JournalPage() {
   useEffect(() => {
     router.prefetch("/journal/detail");
     router.prefetch("/journal/edit");
+    router.prefetch("/journal/new");
   }, [router]);
 
   return (
     <JournalScreen
       onBack={() => router.replace("/")}
+      onCreateEntry={() => router.push("/journal/new")}
       onEditEntry={(entryId) =>
         router.push(
           `/journal/edit?entryId=${encodeURIComponent(entryId)}`,

@@ -10,16 +10,16 @@ import { ContextMenu } from "@/features/tuti/components/ContextMenu";
 import { ScreenFrame } from "@/features/tuti/components/ScreenFrame";
 import { useTutiJournalEntries } from "@/features/tuti/hooks/useTutiJournalEntries";
 import { useTutiRecommendations } from "@/features/tuti/hooks/useTutiRecommendations";
-import type { TutiJournalEntry } from "@/shared/api/journal";
+import type {
+  JournalEntryInput,
+  TutiJournalEntry,
+} from "@/shared/api/journal";
 import { journalImageMaxWidth } from "@/styles/tokens";
 
 const CROWD_OPTIONS = ["한적함", "보통", "활기참"];
 const DIFFICULTY_OPTIONS = ["가벼움", "적당함", "조금 힘듦"];
 
-export type JournalEntryDraft = Pick<
-  TutiJournalEntry,
-  "content" | "crowd" | "difficulty" | "image" | "placeName" | "title"
->;
+export type JournalEntryDraft = JournalEntryInput;
 
 export function JournalEditorScreen({
   entry,
@@ -36,8 +36,13 @@ export function JournalEditorScreen({
   const [crowd, setCrowd] = useState(entry?.crowd ?? "");
   const [placeName, setPlaceName] = useState(entry?.placeName ?? "");
   const [difficulty, setDifficulty] = useState(entry?.difficulty ?? "");
+  const [visitDate, setVisitDate] = useState(() =>
+    toDateInputValue(entry?.visitedAt ?? new Date()),
+  );
   const [title, setTitle] = useState(entry?.title ?? "");
   const [body, setBody] = useState(entry?.content ?? "");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
   const { entries } = useTutiJournalEntries();
   const { places } = useTutiRecommendations();
   const placeOptions = useMemo(
@@ -80,19 +85,33 @@ export function JournalEditorScreen({
     setCrowd("");
     setPlaceName("");
     setDifficulty("");
+    setSubmitError(null);
   };
 
-  const submitEditor = () => {
-    if (!canSubmit) return;
+  const submitEditor = async () => {
+    if (!canSubmit || isSubmitting) return;
 
-    void onSubmit({
-      title: title.trim(),
-      content: body.trim(),
-      image: imageUrl,
-      crowd: crowd.trim() || "미정",
-      placeName: placeName.trim() || "남긴 공간",
-      difficulty: difficulty.trim() || "미정",
-    });
+    setIsSubmitting(true);
+    setSubmitError(null);
+
+    try {
+      await onSubmit({
+        title: title.trim(),
+        content: body.trim(),
+        image: imageUrl,
+        crowd: crowd.trim() || "미정",
+        placeName: placeName.trim() || "남긴 공간",
+        difficulty: difficulty.trim() || "미정",
+        visitedAt: toVisitedAt(visitDate),
+      });
+    } catch (error) {
+      setSubmitError(
+        error instanceof Error
+          ? error.message
+          : "기록을 저장하지 못했어요.",
+      );
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -122,13 +141,22 @@ export function JournalEditorScreen({
       </EditorHeader>
 
       <Editor data-scroll-region>
-        <ImagePicker $image={imageUrl ?? undefined}>
-          <input type="file" accept="image/*" onChange={selectImage} />
-          {!imageUrl && <span aria-hidden="true">+</span>}
-          <span className="visually-hidden">
-            {imageUrl ? "기록 이미지 변경하기" : "기록 이미지 추가하기"}
-          </span>
-        </ImagePicker>
+        <ImageArea>
+          <ImagePicker $image={imageUrl ?? undefined}>
+            <input type="file" accept="image/*" onChange={selectImage} />
+            {!imageUrl && <span aria-hidden="true">+</span>}
+            <span className="visually-hidden">
+              {imageUrl ? "기록 이미지 변경하기" : "기록 이미지 추가하기"}
+            </span>
+          </ImagePicker>
+          <VisitDateInput
+            type="date"
+            aria-label="방문한 날짜"
+            max={toDateInputValue(new Date())}
+            value={visitDate}
+            onChange={(event) => setVisitDate(event.target.value)}
+          />
+        </ImageArea>
 
         <Tags aria-label="기록 정보">
           <ContextMenu
@@ -193,13 +221,20 @@ export function JournalEditorScreen({
         </EditorCopy>
       </Editor>
 
-      <SubmitButton
-        type="button"
-        disabled={!canSubmit}
-        onClick={submitEditor}
-      >
-        {entry ? "수정하기" : "작성하기"}
-      </SubmitButton>
+      <EditorFooter>
+        {submitError && <EditorError role="alert">{submitError}</EditorError>}
+        <SubmitButton
+          type="button"
+          disabled={!canSubmit || isSubmitting}
+          onClick={() => void submitEditor()}
+        >
+          {isSubmitting
+            ? "저장 중..."
+            : entry
+              ? "수정하기"
+              : "작성하기"}
+        </SubmitButton>
+      </EditorFooter>
     </Frame>
   );
 }
@@ -233,6 +268,27 @@ function withCurrentOption(options: string[], currentOption: string) {
   return Array.from(
     new Set([currentOption, ...options].filter(Boolean)),
   );
+}
+
+function toDateInputValue(value: string | Date) {
+  const date = value instanceof Date ? value : new Date(value);
+
+  if (Number.isNaN(date.getTime())) return "";
+
+  const year = date.getFullYear();
+  const month = `${date.getMonth() + 1}`.padStart(2, "0");
+  const day = `${date.getDate()}`.padStart(2, "0");
+
+  return `${year}-${month}-${day}`;
+}
+
+function toVisitedAt(value: string) {
+  if (!value) return undefined;
+
+  const [year, month, day] = value.split("-").map(Number);
+  const date = new Date(year, month - 1, day, 12);
+
+  return Number.isNaN(date.getTime()) ? undefined : date.toISOString();
 }
 
 const Frame = styled(ScreenFrame)`
@@ -295,12 +351,17 @@ const Editor = styled.div`
   touch-action: pan-y;
 `;
 
-const ImagePicker = styled.label<{ $image?: string }>`
+const ImageArea = styled.div`
   position: relative;
   width: min(100%, ${journalImageMaxWidth}px);
   flex: 0 0 auto;
   align-self: center;
   aspect-ratio: 4 / 3;
+`;
+
+const ImagePicker = styled.label<{ $image?: string }>`
+  position: absolute;
+  inset: 0;
   display: grid;
   place-items: center;
   overflow: hidden;
@@ -335,6 +396,38 @@ const ImagePicker = styled.label<{ $image?: string }>`
     clip: rect(0, 0, 0, 0);
     white-space: nowrap;
     clip-path: inset(50%);
+  }
+`;
+
+const VisitDateInput = styled.input`
+  position: absolute;
+  bottom: var(--space-3);
+  left: var(--space-3);
+  z-index: 1;
+  width: 132px;
+  min-height: var(--space-8);
+  padding: var(--space-1) var(--space-2);
+  border: 1px solid rgb(var(--color-black-rgb) / 0.08);
+  border-radius: 999px;
+  outline: 0;
+  background: rgb(var(--color-white-rgb) / 0.9);
+  color: var(--color-text);
+  font-family: var(--font-sans);
+  font-size: var(--font-size-100);
+  font-weight: 500;
+  line-height: var(--line-height-body);
+  letter-spacing: var(--letter-spacing-body);
+  box-shadow: 0 4px 12px rgb(var(--color-black-rgb) / 0.12);
+  color-scheme: light;
+
+  &:focus-visible {
+    box-shadow: 0 0 0 2px var(--color-info),
+      0 4px 12px rgb(var(--color-black-rgb) / 0.12);
+  }
+
+  &::-webkit-calendar-picker-indicator {
+    cursor: pointer;
+    opacity: 0.64;
   }
 `;
 
@@ -394,6 +487,17 @@ const SubmitButton = styled(PrimaryButton)`
   width: 100%;
   flex: 0 0 auto;
   font-size: var(--font-size-200);
+`;
+
+const EditorFooter = styled.div`
+  display: grid;
+  gap: var(--space-2);
+`;
+
+const EditorError = styled.p`
+  color: var(--color-error);
+  font-size: var(--font-size-100);
+  text-align: center;
 `;
 
 const Status = styled.div`

@@ -1,9 +1,21 @@
 "use client";
 
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query";
 import { useCallback } from "react";
-import { fetchJournalEntries } from "@/lib/tutiApi";
-import type { TutiJournalEntry } from "@/shared/api/journal";
+import {
+  createJournalEntry,
+  deleteJournalEntry,
+  fetchJournalEntries,
+  updateJournalEntry,
+} from "@/lib/tutiApi";
+import type {
+  JournalEntryInput,
+  TutiJournalEntry,
+} from "@/shared/api/journal";
 
 const journalEntriesQueryKey = ["journal-entries"] as const;
 
@@ -15,17 +27,24 @@ export function useTutiJournalEntries() {
     staleTime: Infinity,
   });
 
-  const addEntry = useCallback(
-    (entry: TutiJournalEntry) => {
+  const createMutation = useMutation({
+    mutationFn: createJournalEntry,
+    onSuccess: (entry) => {
       queryClient.setQueryData<TutiJournalEntry[]>(
         journalEntriesQueryKey,
         (currentEntries = []) => [entry, ...currentEntries],
       );
     },
-    [queryClient],
-  );
-  const updateEntry = useCallback(
-    (entry: TutiJournalEntry) => {
+  });
+  const updateMutation = useMutation({
+    mutationFn: ({
+      entryId,
+      input,
+    }: {
+      entryId: string;
+      input: JournalEntryInput;
+    }) => updateJournalEntry(entryId, input),
+    onSuccess: (entry) => {
       queryClient.setQueryData<TutiJournalEntry[]>(
         journalEntriesQueryKey,
         (currentEntries = []) =>
@@ -34,18 +53,39 @@ export function useTutiJournalEntries() {
           ),
       );
     },
-    [queryClient],
-  );
-  const removeEntry = useCallback(
-    (entryId: string) => {
+  });
+  const deleteMutation = useMutation({
+    mutationFn: deleteJournalEntry,
+    onSuccess: (entryId) => {
       queryClient.setQueryData<TutiJournalEntry[]>(
         journalEntriesQueryKey,
         (currentEntries = []) =>
           currentEntries.filter((entry) => entry.id !== entryId),
       );
     },
-    [queryClient],
+  });
+  const addEntry = useCallback(
+    (input: JournalEntryInput) => createMutation.mutateAsync(input),
+    [createMutation.mutateAsync],
+  );
+  const updateEntry = useCallback(
+    (entryId: string, input: JournalEntryInput) =>
+      updateMutation.mutateAsync({ entryId, input }),
+    [updateMutation.mutateAsync],
+  );
+  const removeEntry = useCallback(
+    (entryId: string) => deleteMutation.mutateAsync(entryId),
+    [deleteMutation.mutateAsync],
   );
 
-  return { entries, addEntry, removeEntry, updateEntry, ...query };
+  return {
+    entries,
+    addEntry,
+    removeEntry,
+    updateEntry,
+    isCreating: createMutation.isPending,
+    isDeleting: deleteMutation.isPending,
+    isUpdating: updateMutation.isPending,
+    ...query,
+  };
 }

@@ -16,10 +16,12 @@ import { journalImageMaxWidth } from "@/styles/tokens";
 export function JournalDetailScreen({
   entry,
   onBack,
+  onDelete,
   onEdit,
 }: {
   entry: TutiJournalEntry;
   onBack: () => void;
+  onDelete: () => void | Promise<void>;
   onEdit: () => void;
 }) {
   const imageRef = useRef<HTMLDivElement>(null);
@@ -70,6 +72,11 @@ export function JournalDetailScreen({
                   text: entry.content,
                   url: window.location.href,
                 }),
+            },
+            {
+              label: "삭제하기",
+              tone: "danger",
+              onSelect: onDelete,
             },
             {
               label: "지난 공간으로\n돌아가기",

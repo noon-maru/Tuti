@@ -14,7 +14,6 @@ import { BaseButton } from "@/features/tuti/components/buttons";
 import { ScreenFrame } from "@/features/tuti/components/ScreenFrame";
 import { useTutiJournalEntries } from "@/features/tuti/hooks/useTutiJournalEntries";
 import { useVerticalSwipeBack } from "@/features/tuti/hooks/useVerticalSwipeBack";
-import { JournalEditorScreen } from "@/features/tuti/screens/journal/JournalEditorScreen";
 import { shareContent } from "@/lib/shareContent";
 import { useTutiStore } from "@/store/tuti";
 import {
@@ -30,10 +29,12 @@ const JOURNAL_EXIT_DURATION = 480;
 
 export function JournalScreen({
   onBack,
+  onCreateEntry,
   onEditEntry,
   onOpenEntry,
 }: {
   onBack: () => void;
+  onCreateEntry?: () => void;
   onEditEntry?: (entryId: string) => void;
   onOpenEntry?: (
     entryId: string,
@@ -41,7 +42,6 @@ export function JournalScreen({
     sourceElement: HTMLElement,
   ) => void;
 }) {
-  const [isComposing, setIsComposing] = useState(false);
   const [stackDragY, setStackDragY] = useState(0);
   const stackPointerStart = useRef<number | null>(null);
   const selectedCardRef = useRef<HTMLButtonElement>(null);
@@ -49,7 +49,6 @@ export function JournalScreen({
   const suppressCardClick = useRef(false);
   const {
     entries,
-    addEntry,
     isPending,
     removeEntry,
   } = useTutiJournalEntries();
@@ -85,9 +84,7 @@ export function JournalScreen({
     onExit: swipeBack.requestExit,
   });
 
-  const openComposer = () => setIsComposing(true);
-
-  const deleteEntry = (entryId: string) => {
+  const deleteEntry = async (entryId: string) => {
     if (!window.confirm("이 기록을 삭제할까요?")) return;
 
     const remainingEntries = entries.filter(
@@ -101,8 +98,16 @@ export function JournalScreen({
         Math.min(deletedIndex, remainingEntries.length - 1)
       ];
 
-    setActiveJournalEntry(nextEntry?.id);
-    removeEntry(entryId);
+    try {
+      await removeEntry(entryId);
+      setActiveJournalEntry(nextEntry?.id);
+    } catch (error) {
+      window.alert(
+        error instanceof Error
+          ? error.message
+          : "기록을 삭제하지 못했어요.",
+      );
+    }
   };
 
   const moveStack = (direction: number) => {
@@ -177,24 +182,6 @@ export function JournalScreen({
     suppressCardClick.current = false;
   };
 
-  if (isComposing) {
-    return (
-      <JournalEditorScreen
-        onBack={() => setIsComposing(false)}
-        onSubmit={(draft) => {
-          const now = new Date();
-
-          addEntry({
-            ...draft,
-            id: `${now.getTime()}`,
-            visitedAt: now.toISOString(),
-          });
-          setIsComposing(false);
-        }}
-      />
-    );
-  }
-
   return (
     <Frame
       {...swipeBack.gestureProps}
@@ -213,7 +200,7 @@ export function JournalScreen({
         <AddButton
           type="button"
           aria-label="새로운 공간 남기기"
-          onClick={openComposer}
+          onClick={onCreateEntry}
         >
           +
         </AddButton>

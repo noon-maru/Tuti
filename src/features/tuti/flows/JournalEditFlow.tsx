@@ -38,8 +38,8 @@ export function JournalEditFlow() {
     <JournalEditorScreen
       entry={entry}
       onBack={returnToJournal}
-      onSubmit={(draft) => {
-        updateEntry({ ...entry, ...draft });
+      onSubmit={async (draft) => {
+        await updateEntry(entry.id, draft);
         returnToJournal();
       }}
     />
