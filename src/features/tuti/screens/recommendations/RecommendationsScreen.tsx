@@ -1,7 +1,7 @@
 "use client";
 
 import styled from "@emotion/styled";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { BaseButton } from "@/features/tuti/components/buttons";
 import { ScreenFrame } from "@/features/tuti/components/ScreenFrame";
 import { SwipeCard } from "@/features/tuti/components/SwipeCard";
@@ -14,6 +14,10 @@ type Point = { x: number; y: number };
 type DragAxis = "horizontal" | "vertical" | null;
 type HelpKind = "detail" | "journal";
 type DetailPhase = "closed" | "open" | "closing";
+
+const WHEEL_DELTA_LIMIT = 28;
+const WHEEL_TRIGGER_THRESHOLD = 24;
+const WHEEL_TRANSITION_DURATION = 260;
 
 export function RecommendationsScreen({
   places,
@@ -54,6 +58,11 @@ export function RecommendationsScreen({
   const [pressedCardIndex, setPressedCardIndex] = useState<number | null>(null);
   const [currentHelp, setCurrentHelp] = useState<HelpKind | null>(null);
   const [displayedHelp, setDisplayedHelp] = useState<HelpKind | null>(null);
+  const wheelDragY = useRef(0);
+  const wheelAnimationFrame = useRef<number | null>(null);
+  const wheelResetTimer = useRef<number | null>(null);
+  const wheelUnlockTimer = useRef<number | null>(null);
+  const wheelLocked = useRef(false);
   const verticalProgress =
     dragAxis === "vertical" ? Math.min(Math.abs(dragOffset.y) / 140, 1) : 0;
   const transitionTarget = dragOffset.y < 0 ? "detail" : "journal";
@@ -68,6 +77,18 @@ export function RecommendationsScreen({
     !committing;
 
   const resetDrag = useCallback(() => {
+    wheelDragY.current = 0;
+
+    if (wheelResetTimer.current) {
+      window.clearTimeout(wheelResetTimer.current);
+      wheelResetTimer.current = null;
+    }
+
+    if (wheelAnimationFrame.current) {
+      window.cancelAnimationFrame(wheelAnimationFrame.current);
+      wheelAnimationFrame.current = null;
+    }
+
     setDragStart(null);
     setDragOffset({ x: 0, y: 0 });
     setDragAxis(null);
@@ -124,6 +145,97 @@ export function RecommendationsScreen({
     setNudgingCard(null);
   }, [mainInteractive, resetDrag]);
 
+  useEffect(
+    () => () => {
+      if (wheelResetTimer.current) {
+        window.clearTimeout(wheelResetTimer.current);
+      }
+
+      if (wheelAnimationFrame.current) {
+        window.cancelAnimationFrame(wheelAnimationFrame.current);
+      }
+
+      if (wheelUnlockTimer.current) {
+        window.clearTimeout(wheelUnlockTimer.current);
+      }
+    },
+    [],
+  );
+
+  const commitVerticalTransition = (direction: -1 | 1) => {
+    wheelDragY.current = 0;
+
+    if (wheelResetTimer.current) {
+      window.clearTimeout(wheelResetTimer.current);
+      wheelResetTimer.current = null;
+    }
+
+    setCommitting(true);
+    setDragAxis("vertical");
+    setDragStart(null);
+    setDragOffset({ x: 0, y: direction * 160 });
+    window.setTimeout(() => {
+      if (direction < 0) {
+        onDetail();
+      } else {
+        onJournal();
+      }
+    }, 120);
+  };
+
+  const animateWheelTransition = (
+    direction: -1 | 1,
+    initialDragY: number,
+  ) => {
+    const targetDragY = direction * 160;
+    const startedAt = window.performance.now();
+
+    wheelDragY.current = 0;
+
+    if (wheelResetTimer.current) {
+      window.clearTimeout(wheelResetTimer.current);
+      wheelResetTimer.current = null;
+    }
+
+    if (wheelAnimationFrame.current) {
+      window.cancelAnimationFrame(wheelAnimationFrame.current);
+    }
+
+    setCommitting(true);
+    setDragAxis("vertical");
+    setDragStart(null);
+    setDragOffset({ x: 0, y: initialDragY });
+
+    const animate = (time: number) => {
+      const progress = Math.min(
+        (time - startedAt) / WHEEL_TRANSITION_DURATION,
+        1,
+      );
+      const easedProgress = 1 - (1 - progress) ** 3;
+      const nextDragY =
+        initialDragY +
+        (targetDragY - initialDragY) * easedProgress;
+
+      setDragOffset({ x: 0, y: nextDragY });
+
+      if (progress < 1) {
+        wheelAnimationFrame.current =
+          window.requestAnimationFrame(animate);
+        return;
+      }
+
+      wheelAnimationFrame.current = null;
+
+      if (direction < 0) {
+        onDetail();
+      } else {
+        onJournal();
+      }
+    };
+
+    wheelAnimationFrame.current = window.requestAnimationFrame(animate);
+  };
+
   const startDrag = (event: React.PointerEvent<HTMLElement>) => {
     if (!mainInteractive) return;
 
@@ -131,6 +243,18 @@ export function RecommendationsScreen({
       "[data-swipe-card-index]",
     );
     if (!cardElement) return;
+
+    wheelDragY.current = 0;
+
+    if (wheelAnimationFrame.current) {
+      window.cancelAnimationFrame(wheelAnimationFrame.current);
+      wheelAnimationFrame.current = null;
+    }
+
+    if (wheelResetTimer.current) {
+      window.clearTimeout(wheelResetTimer.current);
+      wheelResetTimer.current = null;
+    }
 
     const point = { x: event.clientX, y: event.clientY };
     event.currentTarget.setPointerCapture(event.pointerId);
@@ -205,17 +329,7 @@ export function RecommendationsScreen({
 
     if (axis === "vertical" && Math.abs(dy) > 48) {
       const direction = dy < 0 ? -1 : 1;
-      setCommitting(true);
-      setDragAxis("vertical");
-      setDragStart(null);
-      setDragOffset({ x: 0, y: direction * 160 });
-      window.setTimeout(() => {
-        if (direction < 0) {
-          onDetail();
-        } else {
-          onJournal();
-        }
-      }, 120);
+      commitVerticalTransition(direction);
       return;
     }
 
@@ -224,6 +338,63 @@ export function RecommendationsScreen({
 
   const cancelDrag = () => {
     resetDrag();
+  };
+
+  const scrollCard = (event: React.WheelEvent<HTMLDivElement>) => {
+    const cardElement = (event.target as HTMLElement).closest(
+      "[data-swipe-card-index]",
+    );
+    const verticalIntent =
+      Math.abs(event.deltaY) > Math.abs(event.deltaX);
+
+    if (
+      !cardElement ||
+      !mainInteractive ||
+      detailPhase === "closing" ||
+      !verticalIntent
+    ) {
+      return;
+    }
+
+    event.preventDefault();
+
+    if (committing || wheelLocked.current) return;
+
+    const wheelDelta = Math.max(
+      -WHEEL_DELTA_LIMIT,
+      Math.min(normalizeWheelDelta(event), WHEEL_DELTA_LIMIT),
+    );
+    const nextDragY = Math.max(
+      -160,
+      Math.min(
+        wheelDragY.current - wheelDelta,
+        160,
+      ),
+    );
+
+    wheelDragY.current = nextDragY;
+    dismissHelp();
+    setDragStart(null);
+    setDragAxis("vertical");
+    setDragOffset({ x: 0, y: nextDragY });
+
+    if (Math.abs(nextDragY) >= WHEEL_TRIGGER_THRESHOLD) {
+      wheelLocked.current = true;
+      animateWheelTransition(nextDragY < 0 ? -1 : 1, nextDragY);
+      wheelUnlockTimer.current = window.setTimeout(() => {
+        wheelLocked.current = false;
+        wheelUnlockTimer.current = null;
+      }, WHEEL_TRANSITION_DURATION + 320);
+      return;
+    }
+
+    if (wheelResetTimer.current) {
+      window.clearTimeout(wheelResetTimer.current);
+    }
+
+    wheelResetTimer.current = window.setTimeout(() => {
+      resetDrag();
+    }, 140);
   };
 
   return (
@@ -248,7 +419,7 @@ export function RecommendationsScreen({
             {activePlace?.reason ?? "지금의 마음에 맞는 장소를 찾고 있어요."}
           </p>
         </Copy>
-        <Carousel>
+        <Carousel onWheel={scrollCard}>
           {places.map((place, index) => (
             <SwipeCard
               key={place.id}
@@ -325,6 +496,18 @@ export function RecommendationsScreen({
       </HelpOverlay>
     </Frame>
   );
+}
+
+function normalizeWheelDelta(event: React.WheelEvent<HTMLElement>) {
+  if (event.deltaMode === WheelEvent.DOM_DELTA_LINE) {
+    return event.deltaY * 16;
+  }
+
+  if (event.deltaMode === WheelEvent.DOM_DELTA_PAGE) {
+    return event.deltaY * window.innerHeight;
+  }
+
+  return event.deltaY;
 }
 
 function getOffset(index: number, active: number, length: number) {
