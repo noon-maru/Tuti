@@ -1,4 +1,4 @@
-import { authenticateAnonymousUser } from "@/server/auth/anonymousSession";
+import { authenticateUser } from "@/server/auth/session";
 import { parseJournalEntryInput } from "@/server/journal/input";
 import {
   createJournalEntry,
@@ -22,7 +22,7 @@ export async function GET(request: Request) {
   }
 
   try {
-    const user = await authenticateAnonymousUser(request);
+    const user = await authenticateUser(request);
 
     if (!user) return unauthorizedResponse(request);
 
@@ -50,7 +50,7 @@ export async function POST(request: Request) {
   }
 
   try {
-    const user = await authenticateAnonymousUser(request);
+    const user = await authenticateUser(request);
 
     if (!user) return unauthorizedResponse(request);
 
@@ -103,7 +103,7 @@ function unauthorizedResponse(request: Request) {
   return withCors(
     request,
     Response.json(
-      { error: "익명 사용자 인증이 필요해요." },
+      { error: "사용자 인증이 필요해요." },
       { status: 401 },
     ),
   );

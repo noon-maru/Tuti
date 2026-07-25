@@ -3,6 +3,7 @@
 import styled from "@emotion/styled";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { BaseButton } from "@/features/tuti/components/buttons";
+import { ContextMenu } from "@/features/tuti/components/ContextMenu";
 import { ScreenFrame } from "@/features/tuti/components/ScreenFrame";
 import { SwipeCard } from "@/features/tuti/components/SwipeCard";
 import { DetailScreen } from "@/features/tuti/screens/detail/DetailScreen";
@@ -31,6 +32,10 @@ export function RecommendationsScreen({
   onDetailExitStart,
   onDetailClose,
   onJournal,
+  onAccount,
+  onCreateAccount,
+  onLogout,
+  accountEmail,
   interactive,
   initialHelp,
   onInitialHelpShown,
@@ -46,6 +51,10 @@ export function RecommendationsScreen({
   onDetailExitStart: () => void;
   onDetailClose: () => void;
   onJournal: () => void;
+  onAccount: () => void;
+  onCreateAccount: () => void;
+  onLogout: () => void | Promise<void>;
+  accountEmail?: string;
   interactive: boolean;
   initialHelp: HelpKind | null;
   onInitialHelpShown: (kind: HelpKind) => void;
@@ -413,6 +422,34 @@ export function RecommendationsScreen({
         aria-hidden={!mainInteractive}
         inert={!mainInteractive}
       >
+        <AccountMenu>
+          <ContextMenu
+            label="계정 메뉴"
+            items={
+              accountEmail
+                ? [
+                    {
+                      label: "계정 관리",
+                      onSelect: onAccount,
+                    },
+                    {
+                      label: "로그아웃",
+                      onSelect: onLogout,
+                    },
+                  ]
+                : [
+                    {
+                      label: "로그인 및\n기록 불러오기",
+                      onSelect: onAccount,
+                    },
+                    {
+                      label: "계정 만들기",
+                      onSelect: onCreateAccount,
+                    },
+                  ]
+            }
+          />
+        </AccountMenu>
         <Copy $progress={verticalProgress}>
           <h1>오늘 가능한 정도</h1>
           <p>
@@ -544,6 +581,13 @@ const DetailTransitionLayer = styled.div<{ $interactive: boolean }>`
   inset: 0;
   z-index: 20;
   pointer-events: ${({ $interactive }) => ($interactive ? "auto" : "none")};
+`;
+
+const AccountMenu = styled.div`
+  position: absolute;
+  top: calc(var(--space-3) * -1);
+  right: calc(var(--space-3) * -1);
+  z-index: 10;
 `;
 
 const TransitionLayer = styled.div<{ $progress: number; $from: number }>`

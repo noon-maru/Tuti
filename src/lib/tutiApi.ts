@@ -1,6 +1,6 @@
 import type { TutiPlace } from "@/lib/recommendations";
 import { apiUrl } from "@/lib/api/apiUrl";
-import { fetchWithAnonymousSession } from "@/lib/auth/anonymousSession";
+import { fetchWithSession } from "@/lib/auth/session";
 import type {
   DeleteJournalEntryResponse,
   JournalEntriesResponse,
@@ -36,7 +36,7 @@ export async function fetchRecommendations(
 }
 
 export async function fetchJournalEntries(): Promise<TutiJournalEntry[]> {
-  const response = await fetchWithAnonymousSession("journal-entries");
+  const response = await fetchWithSession("journal-entries");
 
   if (!response.ok) {
     throw new Error("기록을 불러오지 못했어요.");
@@ -49,7 +49,7 @@ export async function fetchJournalEntries(): Promise<TutiJournalEntry[]> {
 export async function createJournalEntry(
   input: JournalEntryInput,
 ): Promise<TutiJournalEntry> {
-  const response = await fetchWithAnonymousSession("journal-entries", {
+  const response = await fetchWithSession("journal-entries", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -71,7 +71,7 @@ export async function updateJournalEntry(
   entryId: string,
   input: JournalEntryInput,
 ): Promise<TutiJournalEntry> {
-  const response = await fetchWithAnonymousSession(
+  const response = await fetchWithSession(
     `journal-entries/${encodeURIComponent(entryId)}`,
     {
       method: "PATCH",
@@ -93,7 +93,7 @@ export async function updateJournalEntry(
 }
 
 export async function deleteJournalEntry(entryId: string) {
-  const response = await fetchWithAnonymousSession(
+  const response = await fetchWithSession(
     `journal-entries/${encodeURIComponent(entryId)}`,
     { method: "DELETE" },
   );

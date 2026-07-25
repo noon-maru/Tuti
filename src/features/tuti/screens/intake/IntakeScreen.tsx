@@ -18,7 +18,6 @@ export function IntakeScreen({
   total,
   activeStep,
   selectedValue,
-  accountNoticeVisible,
   onBack,
   onChoose,
   onNext,
@@ -29,7 +28,6 @@ export function IntakeScreen({
   total: number;
   activeStep: IntakeStep;
   selectedValue?: string;
-  accountNoticeVisible: boolean;
   onBack: () => void;
   onChoose: (value: string) => void;
   onNext: () => void;
@@ -49,11 +47,6 @@ export function IntakeScreen({
           기록 불러오기
         </RestoreButton>
       </SoftHeader>
-      {accountNoticeVisible && (
-        <AccountNotice role="status">
-          계정 연결은 준비 중이에요. 지금은 질문 없이도 둘러볼 수 있어요.
-        </AccountNotice>
-      )}
       <QuestionBlock>
         <QuestionNavigation>
           {step > 0 ? (
@@ -280,14 +273,6 @@ const HeaderWordmark = styled(TutiWordmark)`
 const RestoreButton = styled(TextButton)`
   flex: none;
   padding: var(--space-1) 0;
-  font-size: var(--font-size-100);
-`;
-
-const AccountNotice = styled.p`
-  padding: var(--space-3) var(--space-4);
-  border-radius: 8px;
-  background: var(--color-accent-soft);
-  color: var(--color-text-muted);
   font-size: var(--font-size-100);
 `;
 

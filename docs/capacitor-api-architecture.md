@@ -33,8 +33,8 @@ flowchart LR
   subgraph backend[tuti.today 운영 백엔드]
     subgraph next[Next.js standalone 서버]
       webUi[웹 UI]
-      route[POST /api/recommendations<br/>얇은 Route Handler]
-      service[createRecommendations<br/>추천 서비스]
+      route[/api/*<br/>얇은 Route Handler]
+      service[인증 · 저널 · 추천<br/>서버 서비스]
     end
 
     postgres[(PostgreSQL · PostGIS)]
@@ -54,7 +54,7 @@ flowchart LR
 
 웹과 Capacitor 앱은 모두 `tuti.today`의 동일한 Route Handler를 사용한다. 차이는 웹 요청은 same-origin이고 앱 요청은 WebView origin에서 들어오는 cross-origin이라는 점뿐이다.
 
-### 익명 사용자와 저널 소유권
+### 사용자 세션과 저널 소유권
 
 앱 시작 시 클라이언트는 `POST /api/anonymous-session`으로 익명 사용자와 Bearer 토큰을 발급받는다. 토큰 원문은 웹과 Capacitor가 함께 사용하는 Preferences 저장소에 보관하고, 서버 DB에는 SHA-256 해시만 저장한다.
 
@@ -84,6 +84,20 @@ sequenceDiagram
 - CORS preflight는 `Authorization` 헤더와 `GET, POST, PATCH, DELETE, OPTIONS`를 허용한다.
 
 - CORS는 인증 수단이 아니며, 실제 기록 격리는 토큰 해시 조회와 `ownerId` 조건으로 강제한다.
+
+#### 계정 연결
+
+- 회원가입은 현재 익명 사용자를 이메일 계정으로 승격한다. 따라서 가입 전 기록의 `ownerId`가 바뀌지 않는다.
+
+- 다른 기기에서 로그인하면 그 기기의 익명 기록을 기존 계정 소유자에게 합친 뒤, 90일 만료의 로그인 세션을 발급한다.
+
+- 비밀번호는 Node.js 내장 `scrypt`로 salt와 함께 해시하며 원문은 저장하지 않는다.
+
+- 로그인 세션 토큰도 원문 대신 SHA-256 해시만 `user_sessions`에 저장한다.
+
+- 웹과 Capacitor는 모두 `tuti-session` Preferences 키와 같은 클라이언트 API를 사용한다.
+
+- 로그아웃하면 현재 로그인 세션을 폐기하고 새 익명 세션으로 전환한다. 계정에 연결된 기존 기록은 서버에 유지된다.
 
 ### 빌드 파이프라인
 

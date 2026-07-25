@@ -1,13 +1,18 @@
 "use client";
 
+import { useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 import { useTutiRecommendations } from "@/features/tuti/hooks/useTutiRecommendations";
+import { useSession } from "@/features/tuti/hooks/useSession";
 import { RecommendationsScreen } from "@/features/tuti/screens/recommendations/RecommendationsScreen";
+import { logoutAccount } from "@/lib/auth/session";
 import { useTutiStore } from "@/store/tuti";
 
 export function RecommendationsFlow({ interactive }: { interactive: boolean }) {
   const router = useRouter();
+  const queryClient = useQueryClient();
+  const session = useSession();
   const { places, isFetched } = useTutiRecommendations();
   const activeIndex = useTutiStore((state) => state.activeIndex);
   const activePlaceId = useTutiStore((state) => state.activePlaceId);
@@ -131,6 +136,13 @@ export function RecommendationsFlow({ interactive }: { interactive: boolean }) {
       onDetailExitStart={beginDetailClose}
       onDetailClose={finishDetailClose}
       onJournal={() => router.push("/journal")}
+      onAccount={() => router.push("/login")}
+      onCreateAccount={() => router.push("/login?mode=register")}
+      onLogout={async () => {
+        await logoutAccount();
+        queryClient.setQueryData(["journal-entries"], []);
+      }}
+      accountEmail={session?.account?.email}
       interactive={interactive}
       initialHelp={
         interactive && detailOverlay.phase === "closed"
