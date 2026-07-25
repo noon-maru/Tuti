@@ -85,6 +85,11 @@ export function JournalScreen({
   };
 
   const scrollStack = (event: React.WheelEvent<HTMLDivElement>) => {
+    const horizontalIntent =
+      Math.abs(event.deltaX) >= Math.abs(event.deltaY);
+
+    if (horizontalIntent) return;
+
     event.preventDefault();
 
     if (wheelLocked.current || Math.abs(event.deltaY) < 8) return;

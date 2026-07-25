@@ -3,6 +3,9 @@
 import { Global, css } from "@emotion/react";
 import { palette } from "@/styles/tokens";
 
+const horizontalOverscrollBehavior =
+  process.env.NEXT_PUBLIC_TUTI_TARGET === "app" ? "none" : "auto";
+
 const globalStyles = css`
   :root {
     color-scheme: light;
@@ -162,7 +165,8 @@ const globalStyles = css`
     text-rendering: optimizeLegibility;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
-    overscroll-behavior: none;
+    overscroll-behavior-x: ${horizontalOverscrollBehavior};
+    overscroll-behavior-y: none;
   }
 
   h1,
