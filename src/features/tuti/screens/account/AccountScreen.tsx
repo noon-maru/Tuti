@@ -39,6 +39,10 @@ export function AccountScreen({
   const [verificationCode, setVerificationCode] = useState("");
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const hasEmailInput =
+    emailStep === "email"
+      ? formEmail.trim().length > 0
+      : verificationCode.length > 0;
 
   const submitEmail = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -159,11 +163,31 @@ export function AccountScreen({
               <ProviderButton
                 key={provider}
                 type="button"
+                aria-label={`${oauthProviderLabels[provider]}로 계속하기`}
                 disabled={!authEnabled || pending}
                 $provider={provider}
                 onClick={() => void startOAuth(provider)}
               >
-                {oauthProviderLabels[provider]}로 계속하기
+                <ProviderIconSlot aria-hidden="true">
+                  <ProviderIcon
+                    $provider={provider}
+                    src={
+                      provider === "apple"
+                        ? "/brand/oauth/apple-logo.png"
+                        : provider === "kakao"
+                          ? "/brand/oauth/kakao-symbol.png"
+                          : "/brand/oauth/google-g.png"
+                    }
+                    alt=""
+                    draggable="false"
+                  />
+                </ProviderIconSlot>
+                <ProviderLabel>
+                  {provider === "kakao"
+                    ? "카카오 로그인"
+                    : `${oauthProviderLabels[provider]}로 계속하기`}
+                </ProviderLabel>
+                <ProviderBalance aria-hidden="true" />
               </ProviderButton>
             ))}
           </ProviderList>
@@ -224,6 +248,7 @@ export function AccountScreen({
             {error && <ErrorMessage role="alert">{error}</ErrorMessage>}
             <SubmitButton
               type="submit"
+              $hasInput={hasEmailInput}
               disabled={!authEnabled || pending}
             >
               {pending
@@ -320,31 +345,78 @@ const ProviderList = styled.div`
 const ProviderButton = styled(BaseButton)<{
   $provider: OAuthProvider;
 }>`
-  min-height: var(--space-14);
-  border: 1px solid
-    ${({ $provider }) =>
-      $provider === "kakao"
-        ? "var(--color-secondary-500)"
-        : "var(--color-border)"};
-  border-radius: 16px;
+  width: 100%;
+  height: var(--space-14);
+  display: grid;
+  grid-template-columns: var(--space-6) minmax(0, 1fr) var(--space-6);
+  align-items: center;
+  padding: 0 var(--space-4);
+  overflow: hidden;
+  border: ${({ $provider }) =>
+    $provider === "google" ? "1px solid #747775" : "0"};
+  border-radius: 12px;
   background: ${({ $provider }) =>
     $provider === "apple"
-      ? "var(--color-neutral-1300)"
+      ? "#000000"
       : $provider === "kakao"
-        ? "var(--color-secondary-200)"
-        : "var(--color-neutral-100)"};
+        ? "#fee500"
+        : "#ffffff"};
   color: ${({ $provider }) =>
-    $provider === "apple"
-      ? "var(--color-neutral-100)"
-      : "var(--color-text)"};
-  font-size: var(--font-size-200);
-  font-weight: 600;
+    $provider === "apple" ? "#ffffff" : "#1f1f1f"};
+  transition: opacity 180ms ease, transform 180ms ease,
+    box-shadow 180ms ease;
+
+  &:hover:not(:disabled) {
+    box-shadow: 0 4px 12px rgb(0 0 0 / 10%);
+  }
+
+  &:active:not(:disabled) {
+    transform: scale(0.98);
+  }
 
   &:disabled {
-    border-color: var(--color-neutral-400);
-    background: var(--color-neutral-200);
-    color: var(--color-neutral-700);
+    opacity: 0.45;
+    cursor: not-allowed;
   }
+`;
+
+const ProviderIconSlot = styled.span`
+  position: relative;
+  width: var(--space-6);
+  height: var(--space-6);
+  pointer-events: none;
+`;
+
+const ProviderIcon = styled.img<{
+  $provider: OAuthProvider;
+}>`
+  width: ${({ $provider }) =>
+    $provider === "apple" ? "48px" : $provider === "kakao" ? "22px" : "20px"};
+  height: ${({ $provider }) =>
+    $provider === "apple" ? "48px" : $provider === "kakao" ? "22px" : "20px"};
+  max-width: ${({ $provider }) =>
+    $provider === "apple" ? "none" : "100%"};
+  display: block;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  object-fit: contain;
+  pointer-events: none;
+  user-select: none;
+`;
+
+const ProviderLabel = styled.span`
+  font-size: var(--font-size-200);
+  font-weight: 600;
+  line-height: 1.4;
+  text-align: center;
+  white-space: nowrap;
+`;
+
+const ProviderBalance = styled.span`
+  width: var(--space-6);
+  height: var(--space-6);
 `;
 
 const Divider = styled.div`
@@ -429,9 +501,36 @@ const ErrorMessage = styled.p`
   font-size: var(--font-size-100);
 `;
 
-const SubmitButton = styled(PrimaryButton)`
+const SubmitButton = styled(PrimaryButton)<{
+  $hasInput: boolean;
+}>`
   width: 100%;
   margin-top: var(--space-1);
+  background: ${({ $hasInput }) =>
+    $hasInput
+      ? "var(--color-secondary-700)"
+      : "var(--color-secondary-200)"};
+  color: ${({ $hasInput }) =>
+    $hasInput ? "var(--color-neutral-1300)" : "var(--color-neutral-900)"};
+
+  &:hover:not(:disabled) {
+    background: ${({ $hasInput }) =>
+      $hasInput
+        ? "var(--color-secondary-800)"
+        : "var(--color-secondary-300)"};
+  }
+
+  &:disabled {
+    background: ${({ $hasInput }) =>
+      $hasInput
+        ? "var(--color-secondary-700)"
+        : "var(--color-secondary-200)"};
+    color: ${({ $hasInput }) =>
+      $hasInput
+        ? "var(--color-neutral-1300)"
+        : "var(--color-neutral-900)"};
+    opacity: ${({ $hasInput }) => ($hasInput ? 0.65 : 1)};
+  }
 `;
 
 const DisabledNotice = styled.p`
