@@ -115,7 +115,7 @@ export function JournalScreen({
     if (wheelLocked.current || Math.abs(event.deltaY) < 8) return;
 
     wheelLocked.current = true;
-    moveStack(event.deltaY < 0 ? 1 : -1);
+    moveStack(event.deltaY > 0 ? 1 : -1);
     window.setTimeout(() => {
       wheelLocked.current = false;
     }, 180);

@@ -367,7 +367,7 @@ export function RecommendationsScreen({
     const nextDragY = Math.max(
       -160,
       Math.min(
-        wheelDragY.current - wheelDelta,
+        wheelDragY.current + wheelDelta,
         160,
       ),
     );
