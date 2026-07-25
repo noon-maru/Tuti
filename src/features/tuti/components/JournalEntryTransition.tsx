@@ -20,6 +20,7 @@ const JOURNAL_ENTRY_SETTLE_DURATION = 120;
 const JOURNAL_ENTRY_WAIT_TIMEOUT = 3000;
 
 type TransitionPhase = "waiting" | "ready" | "moving" | "settling";
+type TransitionSurface = "detail" | "journal";
 
 type TransitionRect = {
   borderRadius: number;
@@ -34,6 +35,7 @@ type JournalEntryTransitionState = {
   image?: string;
   phase: TransitionPhase;
   source: TransitionRect;
+  sourceSurface: TransitionSurface;
   target?: TransitionRect;
 };
 
@@ -42,7 +44,17 @@ type StartTransitionOptions = {
   image?: string;
   navigate: () => void;
   sourceElement: HTMLElement;
+  sourceSurface: TransitionSurface;
 };
+
+type BrowserNavigateEvent = Event & {
+  destination: {
+    url: string;
+  };
+  navigationType: "push" | "reload" | "replace" | "traverse";
+};
+
+type BrowserNavigation = EventTarget;
 
 type JournalEntryTransitionContextValue = {
   activeEntryId: string | null;
@@ -51,6 +63,7 @@ type JournalEntryTransitionContextValue = {
     entryId: string,
     targetElement: HTMLElement,
   ) => void;
+  sourceSurface: TransitionSurface | null;
   startTransition: (options: StartTransitionOptions) => void;
 };
 
@@ -59,6 +72,7 @@ const JournalEntryTransitionContext =
     activeEntryId: null,
     phase: null,
     registerTarget: () => undefined,
+    sourceSurface: null,
     startTransition: ({ navigate }) => navigate(),
   });
 
@@ -91,13 +105,13 @@ export function JournalEntryTransitionProvider({
     setTransition(null);
   }, [cancelScheduledWork]);
 
-  const startTransition = useCallback(
+  const prepareTransition = useCallback(
     ({
       entryId,
       image,
-      navigate,
       sourceElement,
-    }: StartTransitionOptions) => {
+      sourceSurface,
+    }: Omit<StartTransitionOptions, "navigate">) => {
       cancelScheduledWork();
 
       const nextTransition: JournalEntryTransitionState = {
@@ -105,13 +119,13 @@ export function JournalEntryTransitionProvider({
         image,
         phase: "waiting",
         source: measureElement(sourceElement),
+        sourceSurface,
       };
 
       transitionRef.current = nextTransition;
       flushSync(() => {
         setTransition(nextTransition);
       });
-      navigate();
 
       transitionTimer.current = window.setTimeout(
         clearTransition,
@@ -119,6 +133,13 @@ export function JournalEntryTransitionProvider({
       );
     },
     [cancelScheduledWork, clearTransition],
+  );
+  const startTransition = useCallback(
+    ({ navigate, ...transitionOptions }: StartTransitionOptions) => {
+      prepareTransition(transitionOptions);
+      navigate();
+    },
+    [prepareTransition],
   );
 
   const registerTarget = useCallback(
@@ -187,6 +208,118 @@ export function JournalEntryTransitionProvider({
     [cancelScheduledWork, clearTransition],
   );
 
+  useEffect(() => {
+    const startHistoryTransition = (
+      sourceUrl: URL,
+      destinationUrl: URL,
+    ) => {
+      if (
+        transitionRef.current ||
+        sourceUrl.origin !== destinationUrl.origin
+      ) {
+        return;
+      }
+
+      let entryId: string | null = null;
+      let sourceSurface: TransitionSurface | null = null;
+
+      if (
+        sourceUrl.pathname === "/journal/detail" &&
+        destinationUrl.pathname === "/journal"
+      ) {
+        entryId = sourceUrl.searchParams.get("entryId");
+        sourceSurface = "detail";
+      } else if (
+        sourceUrl.pathname === "/journal" &&
+        destinationUrl.pathname === "/journal/detail"
+      ) {
+        entryId = destinationUrl.searchParams.get("entryId");
+        sourceSurface = "journal";
+      }
+
+      if (!entryId || !sourceSurface) return;
+
+      const sourceElement = findTransitionElement(
+        entryId,
+        sourceSurface,
+      );
+
+      if (!sourceElement) return;
+
+      prepareTransition({
+        entryId,
+        image: sourceElement.dataset.journalTransitionImage || undefined,
+        sourceElement,
+        sourceSurface,
+      });
+    };
+    const navigation = getBrowserNavigation();
+
+    if (navigation) {
+      const handleNavigate = (rawEvent: Event) => {
+        const event = rawEvent as BrowserNavigateEvent;
+
+        if (event.navigationType !== "traverse") return;
+
+        startHistoryTransition(
+          new URL(window.location.href),
+          new URL(event.destination.url),
+        );
+      };
+
+      navigation.addEventListener("navigate", handleNavigate);
+
+      return () => {
+        navigation.removeEventListener("navigate", handleNavigate);
+      };
+    }
+
+    const handlePopState = () => {
+      const destinationUrl = new URL(window.location.href);
+      const detailElement = document.querySelector<HTMLElement>(
+        '[data-journal-transition-surface="detail"]',
+      );
+
+      if (
+        destinationUrl.pathname === "/journal" &&
+        detailElement?.dataset.journalTransitionEntryId
+      ) {
+        const sourceUrl = new URL(destinationUrl);
+        sourceUrl.pathname = "/journal/detail";
+        sourceUrl.searchParams.set(
+          "entryId",
+          detailElement.dataset.journalTransitionEntryId,
+        );
+        startHistoryTransition(sourceUrl, destinationUrl);
+        return;
+      }
+
+      if (destinationUrl.pathname === "/journal/detail") {
+        const entryId = destinationUrl.searchParams.get("entryId");
+
+        if (!entryId) return;
+
+        const journalElement = findTransitionElement(
+          entryId,
+          "journal",
+        );
+
+        if (!journalElement) return;
+
+        const sourceUrl = new URL(destinationUrl);
+        sourceUrl.pathname = "/journal";
+        sourceUrl.search = "";
+        startHistoryTransition(sourceUrl, destinationUrl);
+      }
+    };
+
+    window.addEventListener("popstate", handlePopState);
+
+    return () => {
+      window.removeEventListener("popstate", handlePopState);
+    };
+  }, [prepareTransition]);
+
   useEffect(() => cancelScheduledWork, [cancelScheduledWork]);
 
   const contextValue = useMemo<JournalEntryTransitionContextValue>(
@@ -194,9 +327,16 @@ export function JournalEntryTransitionProvider({
       activeEntryId: transition?.entryId ?? null,
       phase: transition?.phase ?? null,
       registerTarget,
+      sourceSurface: transition?.sourceSurface ?? null,
       startTransition,
     }),
-    [registerTarget, startTransition, transition?.entryId, transition?.phase],
+    [
+      registerTarget,
+      startTransition,
+      transition?.entryId,
+      transition?.phase,
+      transition?.sourceSurface,
+    ],
   );
 
   const displayedRect =
@@ -216,6 +356,7 @@ export function JournalEntryTransitionProvider({
             aria-hidden="true"
             $image={transition.image}
             $phase={transition.phase}
+            $sourceSurface={transition.sourceSurface}
             style={{
               borderRadius: displayedRect.borderRadius,
               height: displayedRect.height,
@@ -237,16 +378,31 @@ export function useJournalEntryTransition() {
 export function useJournalEntryTransitionTarget(
   entryId: string,
   targetRef: RefObject<HTMLElement | null>,
+  targetSurface: TransitionSurface,
 ) {
-  const { activeEntryId, phase, registerTarget } = useContext(
-    JournalEntryTransitionContext,
-  );
+  const {
+    activeEntryId,
+    phase,
+    registerTarget,
+    sourceSurface,
+  } = useContext(JournalEntryTransitionContext);
 
   useLayoutEffect(() => {
-    if (activeEntryId === entryId && targetRef.current) {
+    if (
+      activeEntryId === entryId &&
+      sourceSurface !== targetSurface &&
+      targetRef.current
+    ) {
       registerTarget(entryId, targetRef.current);
     }
-  }, [activeEntryId, entryId, registerTarget, targetRef]);
+  }, [
+    activeEntryId,
+    entryId,
+    registerTarget,
+    sourceSurface,
+    targetRef,
+    targetSurface,
+  ]);
 
   return {
     isActive: activeEntryId === entryId,
@@ -273,9 +429,45 @@ function measureElement(element: HTMLElement): TransitionRect {
   };
 }
 
+function findTransitionElement(
+  entryId: string,
+  surface: TransitionSurface,
+) {
+  return Array.from(
+    document.querySelectorAll<HTMLElement>(
+      `[data-journal-transition-surface="${surface}"]`,
+    ),
+  ).find(
+    (element) =>
+      element.dataset.journalTransitionEntryId === entryId,
+  );
+}
+
+function getBrowserNavigation() {
+  if (typeof window === "undefined") return undefined;
+
+  return (
+    window as typeof window & {
+      navigation?: BrowserNavigation;
+    }
+  ).navigation;
+}
+
+function showsJournalSurface(
+  phase: TransitionPhase,
+  sourceSurface: TransitionSurface,
+) {
+  const showingSource = phase === "waiting" || phase === "ready";
+
+  return showingSource
+    ? sourceSurface === "journal"
+    : sourceSurface === "detail";
+}
+
 const TransitionCard = styled.div<{
   $image?: string;
   $phase: TransitionPhase;
+  $sourceSurface: TransitionSurface;
 }>`
   position: fixed;
   z-index: 2147483000;
@@ -285,8 +477,8 @@ const TransitionCard = styled.div<{
     $image ? `url(${$image})` : "none"};
   background-position: center;
   background-size: cover;
-  box-shadow: ${({ $phase }) =>
-    $phase === "waiting" || $phase === "ready"
+  box-shadow: ${({ $phase, $sourceSurface }) =>
+    showsJournalSurface($phase, $sourceSurface)
       ? "0 18px 42px rgb(var(--color-black-rgb) / 0.24)"
       : "0 0 0 rgb(var(--color-black-rgb) / 0)"};
   opacity: ${({ $phase }) => ($phase === "settling" ? 0 : 1)};
@@ -310,8 +502,8 @@ const TransitionCard = styled.div<{
     z-index: 1;
     border-radius: inherit;
     box-shadow: inset 0 0 0 1px rgb(var(--color-white-rgb) / 0.16);
-    opacity: ${({ $phase }) =>
-      $phase === "moving" || $phase === "settling" ? 1 : 0};
+    opacity: ${({ $phase, $sourceSurface }) =>
+      showsJournalSurface($phase, $sourceSurface) ? 0 : 1};
     transition: opacity ${JOURNAL_ENTRY_MOVE_DURATION}ms ease;
     pointer-events: none;
   }
@@ -326,8 +518,8 @@ const TransitionCard = styled.div<{
       rgb(var(--color-black-rgb) / 0.3),
       transparent 38%
     );
-    opacity: ${({ $phase }) =>
-      $phase === "waiting" || $phase === "ready" ? 1 : 0};
+    opacity: ${({ $phase, $sourceSurface }) =>
+      showsJournalSurface($phase, $sourceSurface) ? 1 : 0};
     transition: opacity ${JOURNAL_ENTRY_MOVE_DURATION}ms ease;
     pointer-events: none;
   }

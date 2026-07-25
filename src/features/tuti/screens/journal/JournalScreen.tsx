@@ -8,6 +8,7 @@ import {
   useBrowserHistoryExit,
   useHistoryDestinationReveal,
 } from "@/features/tuti/components/BrowserHistoryTransition";
+import { useJournalEntryTransitionTarget } from "@/features/tuti/components/JournalEntryTransition";
 import { BaseButton } from "@/features/tuti/components/buttons";
 import { ScreenFrame } from "@/features/tuti/components/ScreenFrame";
 import { useTutiJournalEntries } from "@/features/tuti/hooks/useTutiJournalEntries";
@@ -41,6 +42,7 @@ export function JournalScreen({
   const [body, setBody] = useState("");
   const [stackDragY, setStackDragY] = useState(0);
   const stackPointerStart = useRef<number | null>(null);
+  const selectedCardRef = useRef<HTMLButtonElement>(null);
   const wheelLocked = useRef(false);
   const suppressCardClick = useRef(false);
   const { entries, addEntry, isPending } = useTutiJournalEntries();
@@ -56,6 +58,12 @@ export function JournalScreen({
     : -1;
   const selectedEntryIndex =
     persistedEntryIndex >= 0 ? persistedEntryIndex : 0;
+  const selectedEntryId = entries[selectedEntryIndex]?.id ?? "";
+  useJournalEntryTransitionTarget(
+    selectedEntryId,
+    selectedCardRef,
+    "journal",
+  );
   const revealMainScreen = useHistoryDestinationReveal("/");
   const swipeBack = useVerticalSwipeBack({
     direction: "up",
@@ -278,6 +286,11 @@ export function JournalScreen({
             return (
               <MemoryCard
                 key={entry.id}
+                ref={
+                  index === selectedEntryIndex
+                    ? selectedCardRef
+                    : undefined
+                }
                 type="button"
                 $image={entry.image ?? undefined}
                 $relativePosition={relativePosition}
@@ -289,6 +302,9 @@ export function JournalScreen({
                   entry.title || `${formatJournalDate(entry.visitedAt)} 기록`
                 }
                 aria-pressed={index === selectedEntryIndex}
+                data-journal-transition-entry-id={entry.id}
+                data-journal-transition-image={entry.image ?? undefined}
+                data-journal-transition-surface="journal"
                 onClick={(event) => {
                   if (!suppressCardClick.current) {
                     if (index === selectedEntryIndex) {

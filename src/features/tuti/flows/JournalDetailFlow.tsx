@@ -13,13 +13,14 @@ export function JournalDetailFlow() {
   const entryId = searchParams.get("entryId");
   const { entries, isPending } = useTutiJournalEntries();
   const entry = entries.find((candidate) => candidate.id === entryId);
-  const returnToJournal = () => router.replace("/journal");
+  const returnToJournal = () => router.back();
+  const returnToJournalFallback = () => router.replace("/journal");
 
   if (isPending) {
     return (
       <JournalDetailStatusScreen
         message="지난 공간을 불러오고 있어요."
-        onBack={returnToJournal}
+        onBack={returnToJournalFallback}
       />
     );
   }
@@ -28,7 +29,7 @@ export function JournalDetailFlow() {
     return (
       <JournalDetailStatusScreen
         message="기록을 찾지 못했어요."
-        onBack={returnToJournal}
+        onBack={returnToJournalFallback}
       />
     );
   }

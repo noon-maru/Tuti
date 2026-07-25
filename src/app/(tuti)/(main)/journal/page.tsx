@@ -21,6 +21,7 @@ export default function JournalPage() {
           entryId,
           image: image ?? undefined,
           sourceElement,
+          sourceSurface: "journal",
           navigate: () =>
             router.push(
               `/journal/detail?entryId=${encodeURIComponent(entryId)}`,

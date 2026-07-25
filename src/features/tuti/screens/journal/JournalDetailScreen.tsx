@@ -3,7 +3,10 @@
 import styled from "@emotion/styled";
 import { useRef } from "react";
 import { BaseButton } from "@/features/tuti/components/buttons";
-import { useJournalEntryTransitionTarget } from "@/features/tuti/components/JournalEntryTransition";
+import {
+  useJournalEntryTransition,
+  useJournalEntryTransitionTarget,
+} from "@/features/tuti/components/JournalEntryTransition";
 import { ScreenFrame } from "@/features/tuti/components/ScreenFrame";
 import type { TutiJournalEntry } from "@/shared/api/journal";
 import { journalImageMaxWidth } from "@/styles/tokens";
@@ -16,10 +19,26 @@ export function JournalDetailScreen({
   onBack: () => void;
 }) {
   const imageRef = useRef<HTMLDivElement>(null);
+  const { startTransition } = useJournalEntryTransition();
   const entryTransition = useJournalEntryTransitionTarget(
     entry.id,
     imageRef,
+    "detail",
   );
+  const returnToJournal = () => {
+    if (!imageRef.current) {
+      onBack();
+      return;
+    }
+
+    startTransition({
+      entryId: entry.id,
+      image: entry.image ?? undefined,
+      navigate: onBack,
+      sourceElement: imageRef.current,
+      sourceSurface: "detail",
+    });
+  };
 
   return (
     <Frame>
@@ -27,7 +46,7 @@ export function JournalDetailScreen({
         <BackButton
           type="button"
           aria-label="지난 공간으로 돌아가기"
-          onClick={onBack}
+          onClick={returnToJournal}
         >
           ‹
         </BackButton>
@@ -45,6 +64,9 @@ export function JournalDetailScreen({
           role="img"
           $image={entry.image ?? undefined}
           $hidden={entryTransition.isActive && !entryTransition.isSettling}
+          data-journal-transition-entry-id={entry.id}
+          data-journal-transition-image={entry.image ?? undefined}
+          data-journal-transition-surface="detail"
           aria-label={`${entry.placeName} 기록 이미지`}
         />
 
