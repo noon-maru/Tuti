@@ -23,6 +23,7 @@ type TutiState = {
   userLocation?: UserLocation;
   activeIndex: number;
   activePlaceId?: string;
+  activeJournalEntryId?: string;
   detailOverlay: DetailOverlayState;
   entryStage: EntryStage;
   hasHydrated: boolean;
@@ -35,6 +36,7 @@ type TutiState = {
   setUserLocation: (location: UserLocation) => void;
   clearUserLocation: () => void;
   setActivePlace: (index: number, placeId: string) => void;
+  setActiveJournalEntry: (entryId: string) => void;
   openDetail: (placeId: string) => void;
   beginDetailClose: () => void;
   finishDetailClose: () => void;
@@ -54,6 +56,7 @@ export const useTutiStore = create<TutiState>()(
       userLocation: undefined,
       activeIndex: 0,
       activePlaceId: undefined,
+      activeJournalEntryId: undefined,
       detailOverlay: { phase: "closed" },
       entryStage: "intake",
       hasHydrated: false,
@@ -70,6 +73,8 @@ export const useTutiStore = create<TutiState>()(
       clearUserLocation: () => set({ userLocation: undefined }),
       setActivePlace: (activeIndex, activePlaceId) =>
         set({ activeIndex, activePlaceId }),
+      setActiveJournalEntry: (activeJournalEntryId) =>
+        set({ activeJournalEntryId }),
       openDetail: (placeId) =>
         set({
           detailOverlay: {
@@ -110,6 +115,7 @@ export const useTutiStore = create<TutiState>()(
           entryRecord: undefined,
           activeIndex: 0,
           activePlaceId: undefined,
+          activeJournalEntryId: undefined,
           detailOverlay: { phase: "closed" },
           entryStage: "intake",
         }),
@@ -122,6 +128,7 @@ export const useTutiStore = create<TutiState>()(
         answers: state.answers,
         entryRecord: state.entryRecord,
         activePlaceId: state.activePlaceId,
+        activeJournalEntryId: state.activeJournalEntryId,
         detailOverlay:
           state.detailOverlay.phase === "open"
             ? state.detailOverlay

@@ -1,9 +1,12 @@
 "use client";
 
 import styled from "@emotion/styled";
+import { useRef } from "react";
 import { BaseButton } from "@/features/tuti/components/buttons";
+import { useJournalEntryTransitionTarget } from "@/features/tuti/components/JournalEntryTransition";
 import { ScreenFrame } from "@/features/tuti/components/ScreenFrame";
 import type { TutiJournalEntry } from "@/shared/api/journal";
+import { journalImageMaxWidth } from "@/styles/tokens";
 
 export function JournalDetailScreen({
   entry,
@@ -12,9 +15,15 @@ export function JournalDetailScreen({
   entry: TutiJournalEntry;
   onBack: () => void;
 }) {
+  const imageRef = useRef<HTMLDivElement>(null);
+  const entryTransition = useJournalEntryTransitionTarget(
+    entry.id,
+    imageRef,
+  );
+
   return (
     <Frame>
-      <Header>
+      <Header $hidden={!entryTransition.isContentVisible}>
         <BackButton
           type="button"
           aria-label="지난 공간으로 돌아가기"
@@ -32,21 +41,27 @@ export function JournalDetailScreen({
 
       <Detail data-scroll-region>
         <DetailImage
+          ref={imageRef}
           role="img"
           $image={entry.image ?? undefined}
+          $hidden={entryTransition.isActive && !entryTransition.isSettling}
           aria-label={`${entry.placeName} 기록 이미지`}
         />
 
-        <Tags aria-label="기록 정보">
-          <Tag $tone="brand">{entry.crowd}</Tag>
-          <Tag $tone="neutral">{entry.placeName}</Tag>
-          <Tag $tone="secondary">{entry.difficulty}</Tag>
-        </Tags>
+        <DetailContent
+          $hidden={!entryTransition.isContentVisible}
+        >
+          <Tags aria-label="기록 정보">
+            <Tag $tone="brand">{entry.crowd}</Tag>
+            <Tag $tone="neutral">{entry.placeName}</Tag>
+            <Tag $tone="secondary">{entry.difficulty}</Tag>
+          </Tags>
 
-        <Copy>
-          <h2>{entry.title}</h2>
-          <p>{entry.content}</p>
-        </Copy>
+          <Copy>
+            <h2>{entry.title}</h2>
+            <p>{entry.content}</p>
+          </Copy>
+        </DetailContent>
       </Detail>
     </Frame>
   );
@@ -95,12 +110,14 @@ const Frame = styled(ScreenFrame)`
   background: var(--color-surface);
 `;
 
-const Header = styled.header`
+const Header = styled.header<{ $hidden?: boolean }>`
   min-height: var(--space-9);
   display: grid;
   grid-template-columns: var(--space-11) 1fr var(--space-11);
   align-items: center;
   gap: var(--space-2);
+  opacity: ${({ $hidden = false }) => ($hidden ? 0 : 1)};
+  transition: opacity 200ms ease 40ms;
 
   h1 {
     font-size: var(--font-size-400);
@@ -166,9 +183,10 @@ const Detail = styled.div`
   touch-action: pan-y;
 `;
 
-const DetailImage = styled.div<{ $image?: string }>`
-  width: 100%;
+const DetailImage = styled.div<{ $image?: string; $hidden?: boolean }>`
+  width: min(100%, ${journalImageMaxWidth}px);
   flex: 0 0 auto;
+  align-self: center;
   aspect-ratio: 4 / 3;
   border-radius: 28px;
   background-color: var(--color-secondary-500);
@@ -176,6 +194,15 @@ const DetailImage = styled.div<{ $image?: string }>`
   background-position: center;
   background-size: cover;
   box-shadow: inset 0 0 0 1px rgb(var(--color-white-rgb) / 0.16);
+  opacity: ${({ $hidden = false }) => ($hidden ? 0 : 1)};
+`;
+
+const DetailContent = styled.div<{ $hidden: boolean }>`
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+  opacity: ${({ $hidden }) => ($hidden ? 0 : 1)};
+  transition: opacity 240ms ease 60ms;
 `;
 
 const Tags = styled.div`

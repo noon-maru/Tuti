@@ -4,6 +4,7 @@ import styled from "@emotion/styled";
 import { usePathname, useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { BrowserHistoryTransitionProvider } from "@/features/tuti/components/BrowserHistoryTransition";
+import { JournalEntryTransitionProvider } from "@/features/tuti/components/JournalEntryTransition";
 import { ScreenFrame } from "@/features/tuti/components/ScreenFrame";
 import { RecommendationsFlow } from "@/features/tuti/flows/RecommendationsFlow";
 import { useTutiStore } from "@/store/tuti";
@@ -53,12 +54,14 @@ export function MainFlow({ children }: { children: React.ReactNode }) {
     <BrowserHistoryTransitionProvider
       onDestinationReveal={revealDestination}
     >
-      <RecommendationsFlow
-        interactive={
-          pathname === "/" || revealedDestination === "/"
-        }
-      />
-      {children}
+      <JournalEntryTransitionProvider>
+        <RecommendationsFlow
+          interactive={
+            pathname === "/" || revealedDestination === "/"
+          }
+        />
+        {children}
+      </JournalEntryTransitionProvider>
     </BrowserHistoryTransitionProvider>
   );
 }

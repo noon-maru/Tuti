@@ -58,6 +58,8 @@ export const layoutHeightRange = {
   max: 960,
 } as const;
 
+export const journalImageMaxWidth = 344;
+
 export function fluidByViewportHeight(
   minViewportValue: number,
   maxViewportValue: number,

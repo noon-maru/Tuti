@@ -12,7 +12,11 @@ import { BaseButton } from "@/features/tuti/components/buttons";
 import { ScreenFrame } from "@/features/tuti/components/ScreenFrame";
 import { useTutiJournalEntries } from "@/features/tuti/hooks/useTutiJournalEntries";
 import { useVerticalSwipeBack } from "@/features/tuti/hooks/useVerticalSwipeBack";
-import { fluidByViewportHeight } from "@/styles/tokens";
+import { useTutiStore } from "@/store/tuti";
+import {
+  fluidByViewportHeight,
+  journalImageMaxWidth,
+} from "@/styles/tokens";
 
 const MAX_VISIBLE_MEMORY_CARDS = 7;
 const MEMORY_CARD_RADIUS = Math.floor(MAX_VISIBLE_MEMORY_CARDS / 2);
@@ -25,22 +29,33 @@ export function JournalScreen({
   onOpenEntry,
 }: {
   onBack: () => void;
-  onOpenEntry?: (entryId: string) => void;
+  onOpenEntry?: (
+    entryId: string,
+    image: string | null,
+    sourceElement: HTMLElement,
+  ) => void;
 }) {
   const [isComposing, setIsComposing] = useState(false);
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
-  const [activeEntryIndex, setActiveEntryIndex] = useState(0);
   const [stackDragY, setStackDragY] = useState(0);
   const stackPointerStart = useRef<number | null>(null);
   const wheelLocked = useRef(false);
   const suppressCardClick = useRef(false);
   const { entries, addEntry, isPending } = useTutiJournalEntries();
+  const activeJournalEntryId = useTutiStore(
+    (state) => state.activeJournalEntryId,
+  );
+  const setActiveJournalEntry = useTutiStore(
+    (state) => state.setActiveJournalEntry,
+  );
   const historyEntry = useBrowserHistoryEntry("/journal");
-  const selectedEntryIndex = entries.length
-    ? activeEntryIndex % entries.length
-    : 0;
+  const persistedEntryIndex = activeJournalEntryId
+    ? entries.findIndex((entry) => entry.id === activeJournalEntryId)
+    : -1;
+  const selectedEntryIndex =
+    persistedEntryIndex >= 0 ? persistedEntryIndex : 0;
   const revealMainScreen = useHistoryDestinationReveal("/");
   const swipeBack = useVerticalSwipeBack({
     direction: "up",
@@ -98,10 +113,10 @@ export function JournalScreen({
   const moveStack = (direction: number) => {
     if (!entries.length) return;
 
-    setActiveEntryIndex(
-      (currentIndex) =>
-        (currentIndex + direction + entries.length) % entries.length,
-    );
+    const nextIndex =
+      (selectedEntryIndex + direction + entries.length) % entries.length;
+
+    setActiveJournalEntry(entries[nextIndex].id);
   };
 
   const scrollStack = (event: React.WheelEvent<HTMLDivElement>) => {
@@ -274,12 +289,16 @@ export function JournalScreen({
                   entry.title || `${formatJournalDate(entry.visitedAt)} 기록`
                 }
                 aria-pressed={index === selectedEntryIndex}
-                onClick={() => {
+                onClick={(event) => {
                   if (!suppressCardClick.current) {
                     if (index === selectedEntryIndex) {
-                      onOpenEntry?.(entry.id);
+                      onOpenEntry?.(
+                        entry.id,
+                        entry.image,
+                        event.currentTarget,
+                      );
                     } else {
-                      setActiveEntryIndex(index);
+                      setActiveJournalEntry(entry.id);
                     }
                   }
                 }}
@@ -454,7 +473,7 @@ const MemoryCard = styled(BaseButton)<{
   position: absolute;
   top: 50%;
   left: 50%;
-  width: min(calc(100% - var(--space-2)), 344px);
+  width: min(100%, ${journalImageMaxWidth}px);
   aspect-ratio: 4 / 3;
   overflow: hidden;
   padding: var(--space-5);
@@ -489,7 +508,7 @@ const MemoryCard = styled(BaseButton)<{
       ${({ $relativePosition }) =>
         1 - Math.min(Math.abs($relativePosition) * 0.025, 0.08)}
     )
-    rotate(${({ $rotation }) => $rotation}deg);
+    rotate(${({ $active, $rotation }) => ($active ? 0 : $rotation)}deg);
   z-index: ${({ $relativePosition }) => 20 - Math.abs($relativePosition)};
   transition: transform 320ms cubic-bezier(0.22, 1, 0.36, 1),
     opacity 240ms ease, box-shadow 240ms ease;
