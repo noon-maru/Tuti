@@ -3,7 +3,9 @@
 import styled from "@emotion/styled";
 import { useLayoutEffect, useRef } from "react";
 import { BaseButton } from "@/features/tuti/components/buttons";
+import { ContextMenu } from "@/features/tuti/components/ContextMenu";
 import { useVerticalSwipeBack } from "@/features/tuti/hooks/useVerticalSwipeBack";
+import { shareContent } from "@/lib/shareContent";
 import type { TutiPlace } from "@/lib/recommendations";
 import { fluidByViewportHeight } from "@/styles/tokens";
 
@@ -134,11 +136,24 @@ export function DetailScreen({
 
           <Heading>
             <h1>{place.name}</h1>
-            <MoreMenu aria-hidden="true">
-              <i />
-              <i />
-              <i />
-            </MoreMenu>
+            <ContextMenu
+              label={`${place.name} 메뉴`}
+              items={[
+                {
+                  label: "장소 공유하기",
+                  onSelect: () =>
+                    shareContent({
+                      title: place.name,
+                      text: `${place.phrase}\n${place.note}`,
+                      url: window.location.href,
+                    }),
+                },
+                {
+                  label: "추천 화면으로 돌아가기",
+                  onSelect: closeFromBackdrop,
+                },
+              ]}
+            />
           </Heading>
 
           <Description data-scroll-region>
@@ -298,27 +313,6 @@ const Heading = styled.header`
     font-size: var(--font-size-500);
     font-weight: 700;
   }
-`;
-
-const MoreMenu = styled.span`
-  width: var(--space-7);
-  height: var(--space-7);
-  flex: 0 0 auto;
-  display: grid;
-  align-content: center;
-  justify-content: center;
-  gap: 2px;
-  padding: 0;
-  border-radius: 999px;
-  background: transparent;
-
-  i {
-    width: 3px;
-    height: 3px;
-    border-radius: 50%;
-    background: var(--color-text);
-  }
-
 `;
 
 const Description = styled.div`

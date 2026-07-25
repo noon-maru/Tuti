@@ -35,7 +35,11 @@ export function AppFrame({ children }: { children: React.ReactNode }) {
           <i />
         </BrandPalette>
       </DesktopBrand>
-      <AppViewport $nativeApp={nativeApp} aria-label="Tuti 앱 화면">
+      <AppViewport
+        $nativeApp={nativeApp}
+        aria-label="Tuti 앱 화면"
+        data-app-viewport
+      >
         {children}
       </AppViewport>
     </Shell>

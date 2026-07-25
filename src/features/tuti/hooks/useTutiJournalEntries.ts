@@ -24,6 +24,28 @@ export function useTutiJournalEntries() {
     },
     [queryClient],
   );
+  const updateEntry = useCallback(
+    (entry: TutiJournalEntry) => {
+      queryClient.setQueryData<TutiJournalEntry[]>(
+        journalEntriesQueryKey,
+        (currentEntries = []) =>
+          currentEntries.map((currentEntry) =>
+            currentEntry.id === entry.id ? entry : currentEntry,
+          ),
+      );
+    },
+    [queryClient],
+  );
+  const removeEntry = useCallback(
+    (entryId: string) => {
+      queryClient.setQueryData<TutiJournalEntry[]>(
+        journalEntriesQueryKey,
+        (currentEntries = []) =>
+          currentEntries.filter((entry) => entry.id !== entryId),
+      );
+    },
+    [queryClient],
+  );
 
-  return { entries, addEntry, ...query };
+  return { entries, addEntry, removeEntry, updateEntry, ...query };
 }

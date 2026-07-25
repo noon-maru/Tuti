@@ -8,11 +8,16 @@ import {
   useBrowserHistoryExit,
   useHistoryDestinationReveal,
 } from "@/features/tuti/components/BrowserHistoryTransition";
+import { ContextMenu } from "@/features/tuti/components/ContextMenu";
 import { useJournalEntryTransitionTarget } from "@/features/tuti/components/JournalEntryTransition";
-import { BaseButton } from "@/features/tuti/components/buttons";
+import {
+  BaseButton,
+  PrimaryButton,
+} from "@/features/tuti/components/buttons";
 import { ScreenFrame } from "@/features/tuti/components/ScreenFrame";
 import { useTutiJournalEntries } from "@/features/tuti/hooks/useTutiJournalEntries";
 import { useVerticalSwipeBack } from "@/features/tuti/hooks/useVerticalSwipeBack";
+import { shareContent } from "@/lib/shareContent";
 import { useTutiStore } from "@/store/tuti";
 import {
   fluidByViewportHeight,
@@ -40,12 +45,21 @@ export function JournalScreen({
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
+  const [editingEntryId, setEditingEntryId] = useState<string | null>(
+    null,
+  );
   const [stackDragY, setStackDragY] = useState(0);
   const stackPointerStart = useRef<number | null>(null);
   const selectedCardRef = useRef<HTMLButtonElement>(null);
   const wheelLocked = useRef(false);
   const suppressCardClick = useRef(false);
-  const { entries, addEntry, isPending } = useTutiJournalEntries();
+  const {
+    entries,
+    addEntry,
+    isPending,
+    removeEntry,
+    updateEntry,
+  } = useTutiJournalEntries();
   const activeJournalEntryId = useTutiStore(
     (state) => state.activeJournalEntryId,
   );
@@ -59,6 +73,9 @@ export function JournalScreen({
   const selectedEntryIndex =
     persistedEntryIndex >= 0 ? persistedEntryIndex : 0;
   const selectedEntryId = entries[selectedEntryIndex]?.id ?? "";
+  const canSubmitComposer = Boolean(
+    title.trim() || body.trim() || imageUrl,
+  );
   useJournalEntryTransitionTarget(
     selectedEntryId,
     selectedCardRef,
@@ -91,10 +108,44 @@ export function JournalScreen({
   };
 
   const openComposer = () => {
+    setEditingEntryId(null);
     setTitle("");
     setBody("");
     setImageUrl(null);
     setIsComposing(true);
+  };
+  const editEntry = (entry: (typeof entries)[number]) => {
+    setEditingEntryId(entry.id);
+    setTitle(entry.title);
+    setBody(entry.content);
+    setImageUrl(entry.image);
+    setIsComposing(true);
+  };
+  const deleteEntry = (entryId: string) => {
+    if (!window.confirm("이 기록을 삭제할까요?")) return;
+
+    const remainingEntries = entries.filter(
+      (entry) => entry.id !== entryId,
+    );
+    const deletedIndex = entries.findIndex(
+      (entry) => entry.id === entryId,
+    );
+    const nextEntry =
+      remainingEntries[
+        Math.min(deletedIndex, remainingEntries.length - 1)
+      ];
+
+    setActiveJournalEntry(nextEntry?.id);
+    removeEntry(entryId);
+  };
+  const clearComposer = () => {
+    setTitle("");
+    setBody("");
+    setImageUrl(null);
+  };
+  const cancelComposer = () => {
+    setEditingEntryId(null);
+    setIsComposing(false);
   };
 
   const finishComposing = () => {
@@ -102,19 +153,33 @@ export function JournalScreen({
     const nextBody = body.trim();
 
     if (nextTitle || nextBody || imageUrl) {
-      const now = new Date();
-      addEntry({
-        id: `${now.getTime()}`,
-        title: nextTitle,
-        content: nextBody,
-        image: imageUrl,
-        crowd: "미정",
-        placeName: "남긴 공간",
-        difficulty: "미정",
-        visitedAt: now.toISOString(),
-      });
+      const editingEntry = editingEntryId
+        ? entries.find((entry) => entry.id === editingEntryId)
+        : undefined;
+
+      if (editingEntry) {
+        updateEntry({
+          ...editingEntry,
+          title: nextTitle,
+          content: nextBody,
+          image: imageUrl,
+        });
+      } else {
+        const now = new Date();
+        addEntry({
+          id: `${now.getTime()}`,
+          title: nextTitle,
+          content: nextBody,
+          image: imageUrl,
+          crowd: "미정",
+          placeName: "남긴 공간",
+          difficulty: "미정",
+          visitedAt: now.toISOString(),
+        });
+      }
     }
 
+    setEditingEntryId(null);
     setIsComposing(false);
   };
 
@@ -197,16 +262,24 @@ export function JournalScreen({
           <ComposerBackButton
             type="button"
             aria-label="지난 공간으로 돌아가기"
-            onClick={finishComposing}
+            onClick={cancelComposer}
           >
             ‹
           </ComposerBackButton>
-          <h1>남기는 공간</h1>
-          <MoreMenu aria-hidden="true">
-            <i />
-            <i />
-            <i />
-          </MoreMenu>
+          <h1>{editingEntryId ? "고치는 공간" : "남기는 공간"}</h1>
+          <ContextMenu
+            label="기록 작성 메뉴"
+            items={[
+              {
+                label: "작성 내용 비우기",
+                onSelect: clearComposer,
+              },
+              {
+                label: "작성 취소",
+                onSelect: cancelComposer,
+              },
+            ]}
+          />
         </ComposerHeader>
 
         <Composer data-scroll-region>
@@ -237,6 +310,14 @@ export function JournalScreen({
             onChange={(event) => setBody(event.target.value)}
           />
         </Composer>
+
+        <ComposerSubmitButton
+          type="button"
+          disabled={!canSubmitComposer}
+          onClick={finishComposing}
+        >
+          {editingEntryId ? "수정하기" : "작성하기"}
+        </ComposerSubmitButton>
       </Frame>
     );
   }
@@ -284,52 +365,93 @@ export function JournalScreen({
             if (Math.abs(relativePosition) > MEMORY_CARD_RADIUS) return null;
 
             return (
-              <MemoryCard
+              <MemoryCardLayer
                 key={entry.id}
-                ref={
-                  index === selectedEntryIndex
-                    ? selectedCardRef
-                    : undefined
-                }
-                type="button"
-                $image={entry.image ?? undefined}
                 $relativePosition={relativePosition}
                 $dragY={stackDragY}
                 $active={index === selectedEntryIndex}
-                $tone={[0, 1, 2, 1, 0][index] ?? 0}
                 $rotation={[0.4, -1.2, 1.6, -1.8, 1][index % 5] ?? 0}
-                aria-label={
-                  entry.title || `${formatJournalDate(entry.visitedAt)} 기록`
-                }
-                aria-pressed={index === selectedEntryIndex}
-                data-journal-transition-entry-id={entry.id}
-                data-journal-transition-image={entry.image ?? undefined}
-                data-journal-transition-surface="journal"
-                onClick={(event) => {
-                  if (!suppressCardClick.current) {
-                    if (index === selectedEntryIndex) {
-                      onOpenEntry?.(
-                        entry.id,
-                        entry.image,
-                        event.currentTarget,
-                      );
-                    } else {
-                      setActiveJournalEntry(entry.id);
-                    }
-                  }
-                }}
               >
+                <MemoryCard
+                  ref={
+                    index === selectedEntryIndex
+                      ? selectedCardRef
+                      : undefined
+                  }
+                  type="button"
+                  $image={entry.image ?? undefined}
+                  $active={index === selectedEntryIndex}
+                  $tone={[0, 1, 2, 1, 0][index] ?? 0}
+                  aria-label={
+                    entry.title ||
+                    `${formatJournalDate(entry.visitedAt)} 기록`
+                  }
+                  aria-pressed={index === selectedEntryIndex}
+                  tabIndex={index === selectedEntryIndex ? 0 : -1}
+                  data-journal-transition-entry-id={entry.id}
+                  data-journal-transition-image={entry.image ?? undefined}
+                  data-journal-transition-surface="journal"
+                  onClick={(event) => {
+                    if (!suppressCardClick.current) {
+                      if (index === selectedEntryIndex) {
+                        onOpenEntry?.(
+                          entry.id,
+                          entry.image,
+                          event.currentTarget,
+                        );
+                      } else {
+                        setActiveJournalEntry(entry.id);
+                      }
+                    }
+                  }}
+                >
+                  {index === selectedEntryIndex && (
+                    <CardHeader>
+                      <strong>{formatJournalDate(entry.visitedAt)}</strong>
+                    </CardHeader>
+                  )}
+                </MemoryCard>
+
                 {index === selectedEntryIndex && (
-                  <CardHeader>
-                    <strong>{formatJournalDate(entry.visitedAt)}</strong>
-                    <CardMenu aria-hidden="true">
-                      <i />
-                      <i />
-                      <i />
-                    </CardMenu>
-                  </CardHeader>
+                  <CardMenuPosition>
+                    <ContextMenu
+                      label={`${entry.title} 기록 메뉴`}
+                      tone="inverse"
+                      items={[
+                        {
+                          label: "상세 보기",
+                          onSelect: () => {
+                            if (selectedCardRef.current) {
+                              onOpenEntry?.(
+                                entry.id,
+                                entry.image,
+                                selectedCardRef.current,
+                              );
+                            }
+                          },
+                        },
+                        {
+                          label: "수정하기",
+                          onSelect: () => editEntry(entry),
+                        },
+                        {
+                          label: "기록 공유하기",
+                          onSelect: () =>
+                            shareContent({
+                              title: entry.title,
+                              text: entry.content,
+                            }),
+                        },
+                        {
+                          label: "삭제하기",
+                          tone: "danger",
+                          onSelect: () => deleteEntry(entry.id),
+                        },
+                      ]}
+                    />
+                  </CardMenuPosition>
                 )}
-              </MemoryCard>
+              </MemoryCardLayer>
             );
           })}
         </MemoryStack>
@@ -478,12 +600,10 @@ const MemoryStack = styled.div`
   width: 100%;
 `;
 
-const MemoryCard = styled(BaseButton)<{
-  $image?: string;
+const MemoryCardLayer = styled.div<{
   $relativePosition: number;
   $dragY: number;
   $active: boolean;
-  $tone: number;
   $rotation: number;
 }>`
   position: absolute;
@@ -491,6 +611,34 @@ const MemoryCard = styled(BaseButton)<{
   left: 50%;
   width: min(100%, ${journalImageMaxWidth}px);
   aspect-ratio: 4 / 3;
+  opacity: ${({ $relativePosition }) =>
+    1 - Math.min(Math.abs($relativePosition) * 0.1, 0.32)};
+  transform: translate(-50%, -50%)
+    translateY(
+      ${({ $relativePosition, $dragY }) =>
+        `calc(${getMemoryCardOffset($relativePosition)} + ${$dragY * 0.28}px)`}
+    )
+    scale(
+      ${({ $relativePosition }) =>
+        1 - Math.min(Math.abs($relativePosition) * 0.025, 0.08)}
+    )
+    rotate(${({ $active, $rotation }) => ($active ? 0 : $rotation)}deg);
+  z-index: ${({ $relativePosition }) => 20 - Math.abs($relativePosition)};
+  transition: transform 320ms cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 240ms ease;
+  touch-action: none;
+  will-change: transform;
+`;
+
+const MemoryCard = styled(BaseButton)<{
+  $image?: string;
+  $active: boolean;
+  $tone: number;
+}>`
+  position: relative;
+  width: 100%;
+  height: 100%;
+  display: block;
   overflow: hidden;
   padding: var(--space-5);
   border: 0;
@@ -508,34 +656,18 @@ const MemoryCard = styled(BaseButton)<{
   background-position: center;
   background-size: cover;
   color: var(--color-white);
+  cursor: pointer;
   text-align: left;
   box-shadow: ${({ $active }) =>
     $active
       ? "0 18px 42px rgb(var(--color-black-rgb) / 0.24)"
       : "0 8px 20px rgb(var(--color-black-rgb) / 0.16)"};
-  opacity: ${({ $relativePosition }) =>
-    1 - Math.min(Math.abs($relativePosition) * 0.1, 0.32)};
-  transform: translate(-50%, -50%)
-    translateY(
-      ${({ $relativePosition, $dragY }) =>
-        `calc(${getMemoryCardOffset($relativePosition)} + ${$dragY * 0.28}px)`}
-    )
-    scale(
-      ${({ $relativePosition }) =>
-        1 - Math.min(Math.abs($relativePosition) * 0.025, 0.08)}
-    )
-    rotate(${({ $active, $rotation }) => ($active ? 0 : $rotation)}deg);
-  z-index: ${({ $relativePosition }) => 20 - Math.abs($relativePosition)};
-  transition: transform 320ms cubic-bezier(0.22, 1, 0.36, 1),
-    opacity 240ms ease, box-shadow 240ms ease;
-  touch-action: none;
-  will-change: transform;
+  transition: box-shadow 240ms ease;
 `;
 
 const CardHeader = styled.header`
   display: flex;
   align-items: center;
-  justify-content: space-between;
 
   strong {
     font-size: var(--font-size-300);
@@ -543,18 +675,11 @@ const CardHeader = styled.header`
   }
 `;
 
-const CardMenu = styled.span`
-  width: var(--space-5);
-  display: grid;
-  justify-content: end;
-  gap: 2px;
-
-  i {
-    width: 3px;
-    height: 3px;
-    border-radius: 50%;
-    background: var(--color-white);
-  }
+const CardMenuPosition = styled.div`
+  position: absolute;
+  top: var(--space-1);
+  right: var(--space-1);
+  z-index: 2;
 `;
 
 const ComposerHeader = styled.header`
@@ -598,22 +723,6 @@ const ComposerBackButton = styled(IconButton)`
   width: var(--space-11);
   height: var(--space-11);
   font-size: calc(var(--font-size-700) + var(--space-2));
-`;
-
-const MoreMenu = styled.span`
-  width: var(--space-9);
-  height: var(--space-9);
-  display: grid;
-  align-content: center;
-  justify-content: end;
-  gap: 2px;
-
-  i {
-    width: 3px;
-    height: 3px;
-    border-radius: 50%;
-    background: var(--color-text-muted);
-  }
 `;
 
 const Composer = styled.div`
@@ -732,4 +841,10 @@ const BodyInput = styled.textarea`
     color: var(--color-text-muted);
     opacity: 1;
   }
+`;
+
+const ComposerSubmitButton = styled(PrimaryButton)`
+  width: 100%;
+  flex: 0 0 auto;
+  font-size: var(--font-size-200);
 `;

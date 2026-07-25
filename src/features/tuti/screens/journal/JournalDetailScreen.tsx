@@ -3,11 +3,13 @@
 import styled from "@emotion/styled";
 import { useRef } from "react";
 import { BaseButton } from "@/features/tuti/components/buttons";
+import { ContextMenu } from "@/features/tuti/components/ContextMenu";
 import {
   useJournalEntryTransition,
   useJournalEntryTransitionTarget,
 } from "@/features/tuti/components/JournalEntryTransition";
 import { ScreenFrame } from "@/features/tuti/components/ScreenFrame";
+import { shareContent } from "@/lib/shareContent";
 import type { TutiJournalEntry } from "@/shared/api/journal";
 import { journalImageMaxWidth } from "@/styles/tokens";
 
@@ -51,11 +53,24 @@ export function JournalDetailScreen({
           ‹
         </BackButton>
         <h1>{formatJournalDateLong(entry.visitedAt)}</h1>
-        <MoreMenu aria-hidden="true">
-          <i />
-          <i />
-          <i />
-        </MoreMenu>
+        <ContextMenu
+          label={`${entry.title} 기록 메뉴`}
+          items={[
+            {
+              label: "기록 공유하기",
+              onSelect: () =>
+                shareContent({
+                  title: entry.title,
+                  text: entry.content,
+                  url: window.location.href,
+                }),
+            },
+            {
+              label: "지난 공간으로 돌아가기",
+              onSelect: returnToJournal,
+            },
+          ]}
+        />
       </Header>
 
       <Detail data-scroll-region>
@@ -168,23 +183,6 @@ const BackButton = styled(BaseButton)`
 
   &:active {
     transform: translateX(-2px);
-  }
-`;
-
-const MoreMenu = styled.span`
-  width: var(--space-9);
-  height: var(--space-9);
-  display: grid;
-  align-content: center;
-  justify-content: end;
-  justify-self: end;
-  gap: 2px;
-
-  i {
-    width: 3px;
-    height: 3px;
-    border-radius: 50%;
-    background: var(--color-text-muted);
   }
 `;
 
