@@ -6,7 +6,6 @@ import { BaseButton } from "@/features/tuti/components/buttons";
 import { ScreenFrame } from "@/features/tuti/components/ScreenFrame";
 import { useTutiJournalEntries } from "@/features/tuti/hooks/useTutiJournalEntries";
 import { useVerticalSwipeBack } from "@/features/tuti/hooks/useVerticalSwipeBack";
-import type { TutiJournalEntry } from "@/shared/api/journal";
 import { fluidByViewportHeight } from "@/styles/tokens";
 
 const MAX_VISIBLE_MEMORY_CARDS = 7;
@@ -14,22 +13,23 @@ const MEMORY_CARD_RADIUS = Math.floor(MAX_VISIBLE_MEMORY_CARDS / 2);
 const MEMORY_CARD_GAP_MIN = 40;
 const MEMORY_CARD_GAP_MAX = 60;
 
-export function JournalScreen({ onBack }: { onBack: () => void }) {
+export function JournalScreen({
+  onBack,
+  onOpenEntry,
+}: {
+  onBack: () => void;
+  onOpenEntry?: (entryId: string) => void;
+}) {
   const [isComposing, setIsComposing] = useState(false);
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
-  const [localEntries, setLocalEntries] = useState<TutiJournalEntry[]>([]);
-  const [selectedEntry, setSelectedEntry] = useState<TutiJournalEntry | null>(
-    null,
-  );
   const [activeEntryIndex, setActiveEntryIndex] = useState(0);
   const [stackDragY, setStackDragY] = useState(0);
   const stackPointerStart = useRef<number | null>(null);
   const wheelLocked = useRef(false);
   const suppressCardClick = useRef(false);
-  const { entries: seededEntries, isPending } = useTutiJournalEntries();
-  const entries = [...localEntries, ...seededEntries];
+  const { entries, addEntry, isPending } = useTutiJournalEntries();
   const selectedEntryIndex = entries.length
     ? activeEntryIndex % entries.length
     : 0;
@@ -60,19 +60,16 @@ export function JournalScreen({ onBack }: { onBack: () => void }) {
 
     if (nextTitle || nextBody || imageUrl) {
       const now = new Date();
-      setLocalEntries((currentEntries) => [
-        {
-          id: `${now.getTime()}`,
-          title: nextTitle,
-          content: nextBody,
-          image: imageUrl,
-          crowd: "미정",
-          placeName: "남긴 공간",
-          difficulty: "미정",
-          visitedAt: now.toISOString(),
-        },
-        ...currentEntries,
-      ]);
+      addEntry({
+        id: `${now.getTime()}`,
+        title: nextTitle,
+        content: nextBody,
+        image: imageUrl,
+        crowd: "미정",
+        placeName: "남긴 공간",
+        difficulty: "미정",
+        visitedAt: now.toISOString(),
+      });
     }
 
     setIsComposing(false);
@@ -104,7 +101,6 @@ export function JournalScreen({ onBack }: { onBack: () => void }) {
 
     stackPointerStart.current = event.clientY;
     suppressCardClick.current = false;
-    event.currentTarget.setPointerCapture(event.pointerId);
   };
 
   const updateStackDrag = (event: React.PointerEvent<HTMLDivElement>) => {
@@ -115,6 +111,10 @@ export function JournalScreen({ onBack }: { onBack: () => void }) {
 
     if (Math.abs(distance) > 8) {
       suppressCardClick.current = true;
+
+      if (!event.currentTarget.hasPointerCapture(event.pointerId)) {
+        event.currentTarget.setPointerCapture(event.pointerId);
+      }
     }
   };
 
@@ -141,47 +141,6 @@ export function JournalScreen({ onBack }: { onBack: () => void }) {
     setStackDragY(0);
     suppressCardClick.current = false;
   };
-
-  if (selectedEntry) {
-    return (
-      <Frame>
-        <DetailHeader>
-          <IconButton
-            type="button"
-            aria-label="지난 공간으로 돌아가기"
-            onClick={() => setSelectedEntry(null)}
-          >
-            ‹
-          </IconButton>
-          <h1>{formatJournalDateLong(selectedEntry.visitedAt)}</h1>
-          <MoreMenu aria-hidden="true">
-            <i />
-            <i />
-            <i />
-          </MoreMenu>
-        </DetailHeader>
-
-        <JournalDetail data-scroll-region>
-          <DetailImage
-            role="img"
-            $image={selectedEntry.image ?? undefined}
-            aria-label={`${selectedEntry.placeName} 기록 이미지`}
-          />
-
-          <Tags aria-label="기록 정보">
-            <Tag $tone="brand">{selectedEntry.crowd}</Tag>
-            <Tag $tone="neutral">{selectedEntry.placeName}</Tag>
-            <Tag $tone="secondary">{selectedEntry.difficulty}</Tag>
-          </Tags>
-
-          <DetailCopy>
-            <h2>{selectedEntry.title}</h2>
-            <p>{selectedEntry.content}</p>
-          </DetailCopy>
-        </JournalDetail>
-      </Frame>
-    );
-  }
 
   if (isComposing) {
     return (
@@ -287,7 +246,7 @@ export function JournalScreen({ onBack }: { onBack: () => void }) {
                 onClick={() => {
                   if (!suppressCardClick.current) {
                     if (index === selectedEntryIndex) {
-                      setSelectedEntry(entry);
+                      onOpenEntry?.(entry.id);
                     } else {
                       setActiveEntryIndex(index);
                     }
@@ -327,18 +286,6 @@ function formatJournalDate(value: string) {
   if (Number.isNaN(date.getTime())) return value;
 
   return `${date.getMonth() + 1}/${date.getDate()}`;
-}
-
-function formatJournalDateLong(value: string) {
-  const date = new Date(value);
-
-  if (Number.isNaN(date.getTime())) return value;
-
-  return [
-    date.getFullYear(),
-    `${date.getMonth() + 1}`.padStart(2, "0"),
-    `${date.getDate()}`.padStart(2, "0"),
-  ].join(".");
 }
 
 function getCircularOffset(index: number, activeIndex: number, length: number) {
@@ -535,56 +482,6 @@ const ComposerHeader = styled.header`
     font-size: var(--font-size-500);
     font-weight: 700;
     text-align: center;
-  }
-`;
-
-const DetailHeader = styled(ComposerHeader)`
-  grid-template-columns: var(--space-9) 1fr var(--space-9);
-
-  h1 {
-    font-size: var(--font-size-400);
-  }
-`;
-
-const JournalDetail = styled.div`
-  min-height: 0;
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-5);
-  overflow-y: auto;
-  padding: var(--space-2) 0;
-  overscroll-behavior-y: contain;
-  touch-action: pan-y;
-`;
-
-const DetailImage = styled.div<{ $image?: string }>`
-  width: 100%;
-  flex: 0 0 auto;
-  aspect-ratio: 4 / 3;
-  border-radius: 28px;
-  background-color: var(--color-secondary-500);
-  background-image: ${({ $image }) => ($image ? `url(${$image})` : "none")};
-  background-position: center;
-  background-size: cover;
-  box-shadow: inset 0 0 0 1px rgb(var(--color-white-rgb) / 0.16);
-`;
-
-const DetailCopy = styled.article`
-  display: grid;
-  gap: var(--space-4);
-
-  h2 {
-    font-size: var(--font-size-500);
-    font-weight: 700;
-  }
-
-  p {
-    color: var(--color-text);
-    font-size: var(--font-size-200);
-    line-height: var(--line-height-body);
-    letter-spacing: var(--letter-spacing-body);
-    white-space: pre-line;
   }
 `;
 

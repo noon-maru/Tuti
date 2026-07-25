@@ -1,0 +1,234 @@
+"use client";
+
+import styled from "@emotion/styled";
+import { BaseButton } from "@/features/tuti/components/buttons";
+import { ScreenFrame } from "@/features/tuti/components/ScreenFrame";
+import type { TutiJournalEntry } from "@/shared/api/journal";
+
+export function JournalDetailScreen({
+  entry,
+  onBack,
+}: {
+  entry: TutiJournalEntry;
+  onBack: () => void;
+}) {
+  return (
+    <Frame>
+      <Header>
+        <BackButton
+          type="button"
+          aria-label="지난 공간으로 돌아가기"
+          onClick={onBack}
+        >
+          ‹
+        </BackButton>
+        <h1>{formatJournalDateLong(entry.visitedAt)}</h1>
+        <MoreMenu aria-hidden="true">
+          <i />
+          <i />
+          <i />
+        </MoreMenu>
+      </Header>
+
+      <Detail data-scroll-region>
+        <DetailImage
+          role="img"
+          $image={entry.image ?? undefined}
+          aria-label={`${entry.placeName} 기록 이미지`}
+        />
+
+        <Tags aria-label="기록 정보">
+          <Tag $tone="brand">{entry.crowd}</Tag>
+          <Tag $tone="neutral">{entry.placeName}</Tag>
+          <Tag $tone="secondary">{entry.difficulty}</Tag>
+        </Tags>
+
+        <Copy>
+          <h2>{entry.title}</h2>
+          <p>{entry.content}</p>
+        </Copy>
+      </Detail>
+    </Frame>
+  );
+}
+
+export function JournalDetailStatusScreen({
+  message,
+  onBack,
+}: {
+  message: string;
+  onBack: () => void;
+}) {
+  return (
+    <Frame>
+      <Header>
+        <BackButton
+          type="button"
+          aria-label="지난 공간으로 돌아가기"
+          onClick={onBack}
+        >
+          ‹
+        </BackButton>
+        <h1>지난 공간</h1>
+        <HeaderSpacer />
+      </Header>
+      <Status role="status">{message}</Status>
+    </Frame>
+  );
+}
+
+function formatJournalDateLong(value: string) {
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) return value;
+
+  return [
+    date.getFullYear(),
+    `${date.getMonth() + 1}`.padStart(2, "0"),
+    `${date.getDate()}`.padStart(2, "0"),
+  ].join(".");
+}
+
+const Frame = styled(ScreenFrame)`
+  z-index: 1;
+  gap: var(--space-7);
+  background: var(--color-surface);
+`;
+
+const Header = styled.header`
+  min-height: var(--space-9);
+  display: grid;
+  grid-template-columns: var(--space-11) 1fr var(--space-11);
+  align-items: center;
+  gap: var(--space-2);
+
+  h1 {
+    font-size: var(--font-size-400);
+    font-weight: 700;
+    text-align: center;
+  }
+`;
+
+const BackButton = styled(BaseButton)`
+  width: var(--space-11);
+  height: var(--space-11);
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--color-text-muted);
+  font-size: calc(var(--font-size-700) + var(--space-2));
+  font-weight: 400;
+  line-height: 0;
+  transition: color 160ms ease, transform 160ms ease;
+
+  &:hover {
+    color: var(--color-text);
+  }
+
+  &:active {
+    transform: translateX(-2px);
+  }
+`;
+
+const MoreMenu = styled.span`
+  width: var(--space-9);
+  height: var(--space-9);
+  display: grid;
+  align-content: center;
+  justify-content: end;
+  justify-self: end;
+  gap: 2px;
+
+  i {
+    width: 3px;
+    height: 3px;
+    border-radius: 50%;
+    background: var(--color-text-muted);
+  }
+`;
+
+const HeaderSpacer = styled.span`
+  width: var(--space-11);
+  height: var(--space-11);
+`;
+
+const Detail = styled.div`
+  min-height: 0;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+  overflow-y: auto;
+  padding: var(--space-2) 0;
+  overscroll-behavior-y: contain;
+  touch-action: pan-y;
+`;
+
+const DetailImage = styled.div<{ $image?: string }>`
+  width: 100%;
+  flex: 0 0 auto;
+  aspect-ratio: 4 / 3;
+  border-radius: 28px;
+  background-color: var(--color-secondary-500);
+  background-image: ${({ $image }) => ($image ? `url(${$image})` : "none")};
+  background-position: center;
+  background-size: cover;
+  box-shadow: inset 0 0 0 1px rgb(var(--color-white-rgb) / 0.16);
+`;
+
+const Tags = styled.div`
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-2);
+`;
+
+const Tag = styled.span<{ $tone: "brand" | "neutral" | "secondary" }>`
+  min-width: 0;
+  min-height: 24px;
+  display: grid;
+  place-items: center;
+  padding: var(--space-1) var(--space-2);
+  overflow: hidden;
+  border-radius: 999px;
+  background: ${({ $tone }) =>
+    $tone === "brand"
+      ? "var(--color-brand-500)"
+      : $tone === "secondary"
+        ? "var(--color-secondary-500)"
+        : "var(--color-neutral-500)"};
+  font-size: var(--font-size-100);
+  line-height: var(--line-height-body);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+`;
+
+const Copy = styled.article`
+  display: grid;
+  gap: var(--space-4);
+
+  h2 {
+    font-size: var(--font-size-500);
+    font-weight: 700;
+  }
+
+  p {
+    color: var(--color-text);
+    font-size: var(--font-size-200);
+    line-height: var(--line-height-body);
+    letter-spacing: var(--letter-spacing-body);
+    white-space: pre-line;
+  }
+`;
+
+const Status = styled.p`
+  min-height: 0;
+  flex: 1;
+  display: grid;
+  place-items: center;
+  padding-bottom: 15%;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-200);
+  text-align: center;
+`;
