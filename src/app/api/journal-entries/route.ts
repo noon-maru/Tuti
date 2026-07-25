@@ -1,3 +1,4 @@
+import { authenticateAnonymousUser } from "@/server/auth/anonymousSession";
 import { parseJournalEntryInput } from "@/server/journal/input";
 import {
   createJournalEntry,
@@ -21,8 +22,12 @@ export async function GET(request: Request) {
   }
 
   try {
+    const user = await authenticateAnonymousUser(request);
+
+    if (!user) return unauthorizedResponse(request);
+
     const response: JournalEntriesResponse = {
-      entries: await getJournalEntries(),
+      entries: await getJournalEntries(user.id),
     };
 
     return withCors(request, Response.json(response));
@@ -45,6 +50,10 @@ export async function POST(request: Request) {
   }
 
   try {
+    const user = await authenticateAnonymousUser(request);
+
+    if (!user) return unauthorizedResponse(request);
+
     const input = parseJournalEntryInput(await request.json());
 
     if (!input) {
@@ -58,7 +67,7 @@ export async function POST(request: Request) {
     }
 
     const response: JournalEntryResponse = {
-      entry: await createJournalEntry(input),
+      entry: await createJournalEntry(user.id, input),
     };
 
     return withCors(
@@ -88,4 +97,14 @@ export async function POST(request: Request) {
 
 export function OPTIONS(request: Request) {
   return createPreflightResponse(request);
+}
+
+function unauthorizedResponse(request: Request) {
+  return withCors(
+    request,
+    Response.json(
+      { error: "익명 사용자 인증이 필요해요." },
+      { status: 401 },
+    ),
+  );
 }

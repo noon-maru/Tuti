@@ -10,6 +10,9 @@ if (!connectionString) {
 
 const adapter = new PrismaPg({ connectionString });
 const prisma = new PrismaClient({ adapter });
+const seedAnonymousUserId = "seed-journal-owner";
+const seedAnonymousTokenHash =
+  "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff";
 
 type SeedPlace = {
   id: string;
@@ -311,6 +314,17 @@ const journalEntries: SeedJournalEntry[] = [
 validateSeedCoverage(places);
 validateJournalSeed(journalEntries);
 
+await prisma.anonymousUser.upsert({
+  where: { id: seedAnonymousUserId },
+  update: {
+    tokenHash: seedAnonymousTokenHash,
+  },
+  create: {
+    id: seedAnonymousUserId,
+    tokenHash: seedAnonymousTokenHash,
+  },
+});
+
 for (const place of places) {
   await prisma.place.upsert({
     where: { id: place.id },
@@ -329,10 +343,15 @@ for (const place of places) {
 }
 
 for (const journalEntry of journalEntries) {
+  const ownedJournalEntry = {
+    ...journalEntry,
+    ownerId: seedAnonymousUserId,
+  };
+
   await prisma.journalEntry.upsert({
     where: { id: journalEntry.id },
-    update: journalEntry,
-    create: journalEntry,
+    update: ownedJournalEntry,
+    create: ownedJournalEntry,
   });
 }
 

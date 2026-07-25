@@ -4,8 +4,11 @@ import type {
   TutiJournalEntry,
 } from "@/shared/api/journal";
 
-export async function getJournalEntries(): Promise<TutiJournalEntry[]> {
+export async function getJournalEntries(
+  ownerId: string,
+): Promise<TutiJournalEntry[]> {
   const entries = await prisma.journalEntry.findMany({
+    where: { ownerId },
     orderBy: [{ visitedAt: "desc" }, { id: "asc" }],
     select: {
       id: true,
@@ -23,11 +26,13 @@ export async function getJournalEntries(): Promise<TutiJournalEntry[]> {
 }
 
 export async function createJournalEntry(
+  ownerId: string,
   input: JournalEntryInput,
 ): Promise<TutiJournalEntry> {
   const entry = await prisma.journalEntry.create({
     data: {
       id: crypto.randomUUID(),
+      ownerId,
       title: input.title,
       content: input.content,
       image: input.image,
@@ -43,18 +48,12 @@ export async function createJournalEntry(
 }
 
 export async function updateJournalEntry(
+  ownerId: string,
   entryId: string,
   input: JournalEntryInput,
 ): Promise<TutiJournalEntry | null> {
-  const existingEntry = await prisma.journalEntry.findUnique({
-    where: { id: entryId },
-    select: { id: true },
-  });
-
-  if (!existingEntry) return null;
-
-  const entry = await prisma.journalEntry.update({
-    where: { id: entryId },
+  const result = await prisma.journalEntry.updateMany({
+    where: { id: entryId, ownerId },
     data: {
       title: input.title,
       content: input.content,
@@ -66,15 +65,24 @@ export async function updateJournalEntry(
         ? { visitedAt: new Date(input.visitedAt) }
         : {}),
     },
+  });
+
+  if (result.count === 0) return null;
+
+  const entry = await prisma.journalEntry.findUniqueOrThrow({
+    where: { id: entryId },
     select: journalEntrySelect,
   });
 
   return serializeJournalEntry(entry);
 }
 
-export async function deleteJournalEntry(entryId: string) {
+export async function deleteJournalEntry(
+  ownerId: string,
+  entryId: string,
+) {
   const result = await prisma.journalEntry.deleteMany({
-    where: { id: entryId },
+    where: { id: entryId, ownerId },
   });
 
   return result.count > 0;

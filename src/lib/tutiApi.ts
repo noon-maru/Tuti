@@ -1,4 +1,6 @@
 import type { TutiPlace } from "@/lib/recommendations";
+import { apiUrl } from "@/lib/api/apiUrl";
+import { fetchWithAnonymousSession } from "@/lib/auth/anonymousSession";
 import type {
   DeleteJournalEntryResponse,
   JournalEntriesResponse,
@@ -11,12 +13,6 @@ import type {
   RecommendationResponse,
 } from "@/shared/api/recommendations";
 import type { IntakeAnswers, UserLocation } from "@/shared/tuti/types";
-
-const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL?.trim() || "/api";
-
-function apiUrl(path: string) {
-  return `${apiBaseUrl.replace(/\/+$/, "")}/${path.replace(/^\/+/, "")}`;
-}
 
 export async function fetchRecommendations(
   answers: IntakeAnswers,
@@ -40,7 +36,7 @@ export async function fetchRecommendations(
 }
 
 export async function fetchJournalEntries(): Promise<TutiJournalEntry[]> {
-  const response = await fetch(apiUrl("journal-entries"));
+  const response = await fetchWithAnonymousSession("journal-entries");
 
   if (!response.ok) {
     throw new Error("기록을 불러오지 못했어요.");
@@ -53,7 +49,7 @@ export async function fetchJournalEntries(): Promise<TutiJournalEntry[]> {
 export async function createJournalEntry(
   input: JournalEntryInput,
 ): Promise<TutiJournalEntry> {
-  const response = await fetch(apiUrl("journal-entries"), {
+  const response = await fetchWithAnonymousSession("journal-entries", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -75,8 +71,8 @@ export async function updateJournalEntry(
   entryId: string,
   input: JournalEntryInput,
 ): Promise<TutiJournalEntry> {
-  const response = await fetch(
-    apiUrl(`journal-entries/${encodeURIComponent(entryId)}`),
+  const response = await fetchWithAnonymousSession(
+    `journal-entries/${encodeURIComponent(entryId)}`,
     {
       method: "PATCH",
       headers: {
@@ -97,8 +93,8 @@ export async function updateJournalEntry(
 }
 
 export async function deleteJournalEntry(entryId: string) {
-  const response = await fetch(
-    apiUrl(`journal-entries/${encodeURIComponent(entryId)}`),
+  const response = await fetchWithAnonymousSession(
+    `journal-entries/${encodeURIComponent(entryId)}`,
     { method: "DELETE" },
   );
 

@@ -1,3 +1,4 @@
+import { authenticateAnonymousUser } from "@/server/auth/anonymousSession";
 import { parseJournalEntryInput } from "@/server/journal/input";
 import {
   deleteJournalEntry,
@@ -28,6 +29,10 @@ export async function PATCH(
   }
 
   try {
+    const user = await authenticateAnonymousUser(request);
+
+    if (!user) return unauthorizedResponse(request);
+
     const [{ entryId }, body] = await Promise.all([
       context.params,
       request.json(),
@@ -44,7 +49,7 @@ export async function PATCH(
       );
     }
 
-    const entry = await updateJournalEntry(entryId, input);
+    const entry = await updateJournalEntry(user.id, entryId, input);
 
     if (!entry) {
       return withCors(
@@ -88,8 +93,12 @@ export async function DELETE(
   }
 
   try {
+    const user = await authenticateAnonymousUser(request);
+
+    if (!user) return unauthorizedResponse(request);
+
     const { entryId } = await context.params;
-    const deleted = await deleteJournalEntry(entryId);
+    const deleted = await deleteJournalEntry(user.id, entryId);
 
     if (!deleted) {
       return withCors(
@@ -118,4 +127,14 @@ export async function DELETE(
 
 export function OPTIONS(request: Request) {
   return createPreflightResponse(request);
+}
+
+function unauthorizedResponse(request: Request) {
+  return withCors(
+    request,
+    Response.json(
+      { error: "익명 사용자 인증이 필요해요." },
+      { status: 401 },
+    ),
+  );
 }

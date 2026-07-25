@@ -54,6 +54,37 @@ flowchart LR
 
 웹과 Capacitor 앱은 모두 `tuti.today`의 동일한 Route Handler를 사용한다. 차이는 웹 요청은 same-origin이고 앱 요청은 WebView origin에서 들어오는 cross-origin이라는 점뿐이다.
 
+### 익명 사용자와 저널 소유권
+
+앱 시작 시 클라이언트는 `POST /api/anonymous-session`으로 익명 사용자와 Bearer 토큰을 발급받는다. 토큰 원문은 웹과 Capacitor가 함께 사용하는 Preferences 저장소에 보관하고, 서버 DB에는 SHA-256 해시만 저장한다.
+
+```mermaid
+sequenceDiagram
+  participant client as 웹 · Capacitor
+  participant session as /api/anonymous-session
+  participant journal as /api/journal-entries
+  participant db as PostgreSQL
+
+  client->>session: POST
+  session->>db: 익명 사용자와 토큰 해시 저장
+  session-->>client: userId + accessToken
+  client->>client: Preferences에 세션 저장
+  client->>journal: Authorization: Bearer accessToken
+  journal->>db: 토큰 해시로 owner 조회
+  journal->>db: ownerId 범위에서만 CRUD
+  journal-->>client: 현재 사용자의 기록
+```
+
+- 클라이언트 요청 본문에서 `ownerId`를 받지 않는다.
+
+- 저널 조회·생성·수정·삭제의 소유자는 Bearer 토큰으로 서버가 결정한다.
+
+- 잘못되거나 DB 초기화로 사라진 토큰이 401을 받으면 Preferences 세션을 폐기하고 한 번만 재발급해 요청을 재시도한다.
+
+- CORS preflight는 `Authorization` 헤더와 `GET, POST, PATCH, DELETE, OPTIONS`를 허용한다.
+
+- CORS는 인증 수단이 아니며, 실제 기록 격리는 토큰 해시 조회와 `ownerId` 조건으로 강제한다.
+
 ### 빌드 파이프라인
 
 ```mermaid
