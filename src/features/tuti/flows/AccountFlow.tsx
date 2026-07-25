@@ -1,19 +1,20 @@
 "use client";
 
 import { useQueryClient } from "@tanstack/react-query";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { AccountScreen } from "@/features/tuti/screens/account/AccountScreen";
 import { useSession } from "@/features/tuti/hooks/useSession";
 import {
-  loginAccount,
+  createOAuthLoginUrl,
   logoutAccount,
-  registerAccount,
+  requestEmailLoginCode,
+  verifyEmailLoginCode,
 } from "@/lib/auth/session";
+import { accountAuthEnabled } from "@/shared/auth/config";
 import { useTutiStore } from "@/store/tuti";
 
 export function AccountFlow() {
   const router = useRouter();
-  const searchParams = useSearchParams();
   const queryClient = useQueryClient();
   const session = useSession();
   const entryRecord = useTutiStore((state) => state.entryRecord);
@@ -33,17 +34,19 @@ export function AccountFlow() {
   return (
     <AccountScreen
       email={session?.account?.email}
-      initialMode={
-        searchParams.get("mode") === "register" ? "register" : "login"
-      }
+      providers={session?.account?.providers}
+      authEnabled={accountAuthEnabled}
       onBack={() => router.replace("/")}
-      onLogin={async (credentials) => {
-        await loginAccount(credentials);
+      onEmailCodeRequest={async (email) => {
+        await requestEmailLoginCode(email);
+      }}
+      onEmailCodeVerify={async (email, code) => {
+        await verifyEmailLoginCode({ email, code });
         await finishAccountChange();
       }}
-      onRegister={async (credentials) => {
-        await registerAccount(credentials);
-        await finishAccountChange();
+      onOAuth={async (provider) => {
+        const authorizationUrl = await createOAuthLoginUrl(provider);
+        window.location.assign(authorizationUrl);
       }}
       onLogout={async () => {
         await logoutAccount();

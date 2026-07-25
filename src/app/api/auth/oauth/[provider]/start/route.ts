@@ -1,21 +1,29 @@
+import { assertAccountAuthEnabled } from "@/server/auth/config";
+import {
+  assertOAuthProvider,
+  createOAuthAuthorization,
+} from "@/server/auth/oauth";
 import {
   AccountAuthError,
   authenticateUser,
-  loginAccount,
 } from "@/server/auth/session";
 import {
   createPreflightResponse,
   isRequestOriginAllowed,
   withCors,
 } from "@/server/http/cors";
-import type {
-  AccountCredentials,
-  SessionResponse,
-} from "@/shared/api/session";
+import type { OAuthStartResponse } from "@/shared/api/session";
 
 export const runtime = "nodejs";
 
-export async function POST(request: Request) {
+type OAuthStartContext = {
+  params: Promise<{ provider: string }>;
+};
+
+export async function POST(
+  request: Request,
+  context: OAuthStartContext,
+) {
   if (!isRequestOriginAllowed(request)) {
     return Response.json(
       { error: "허용되지 않은 요청 출처예요." },
@@ -24,6 +32,7 @@ export async function POST(request: Request) {
   }
 
   try {
+    assertAccountAuthEnabled();
     const currentUser = await authenticateUser(request);
 
     if (!currentUser) {
@@ -36,9 +45,17 @@ export async function POST(request: Request) {
       );
     }
 
-    const credentials = (await request.json()) as AccountCredentials;
-    const response: SessionResponse = {
-      session: await loginAccount(currentUser, credentials),
+    const { provider } = await context.params;
+    assertOAuthProvider(provider);
+    const input = (await request.json().catch(() => ({}))) as {
+      returnTo?: unknown;
+    };
+    const response: OAuthStartResponse = {
+      authorizationUrl: await createOAuthAuthorization(
+        currentUser,
+        provider,
+        typeof input.returnTo === "string" ? input.returnTo : "/",
+      ),
     };
 
     return withCors(request, Response.json(response));
@@ -46,22 +63,18 @@ export async function POST(request: Request) {
     const accountError =
       error instanceof AccountAuthError ? error : null;
 
-    if (!accountError && !(error instanceof SyntaxError)) {
-      console.error("로그인 중 오류가 발생했습니다.", error);
+    if (!accountError) {
+      console.error("OAuth 로그인을 시작하지 못했습니다.", error);
     }
 
     return withCors(
       request,
       Response.json(
         {
-          error:
-            accountError?.message ??
-            (error instanceof SyntaxError
-              ? "입력 내용을 확인해주세요."
-              : "로그인하지 못했어요."),
+          error: accountError?.message ?? "OAuth 로그인을 시작하지 못했어요.",
           code: accountError?.code,
         },
-        { status: accountError?.status ?? (error instanceof SyntaxError ? 400 : 500) },
+        { status: accountError?.status ?? 500 },
       ),
     );
   }

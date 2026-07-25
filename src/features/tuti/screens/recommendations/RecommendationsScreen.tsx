@@ -33,9 +33,8 @@ export function RecommendationsScreen({
   onDetailClose,
   onJournal,
   onAccount,
-  onCreateAccount,
   onLogout,
-  accountEmail,
+  accountConnected,
   interactive,
   initialHelp,
   onInitialHelpShown,
@@ -52,9 +51,8 @@ export function RecommendationsScreen({
   onDetailClose: () => void;
   onJournal: () => void;
   onAccount: () => void;
-  onCreateAccount: () => void;
   onLogout: () => void | Promise<void>;
-  accountEmail?: string;
+  accountConnected: boolean;
   interactive: boolean;
   initialHelp: HelpKind | null;
   onInitialHelpShown: (kind: HelpKind) => void;
@@ -426,7 +424,7 @@ export function RecommendationsScreen({
           <ContextMenu
             label="계정 메뉴"
             items={
-              accountEmail
+              accountConnected
                 ? [
                     {
                       label: "계정 관리",
@@ -441,10 +439,6 @@ export function RecommendationsScreen({
                     {
                       label: "로그인 및\n기록 불러오기",
                       onSelect: onAccount,
-                    },
-                    {
-                      label: "계정 만들기",
-                      onSelect: onCreateAccount,
                     },
                   ]
             }

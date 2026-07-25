@@ -1,0 +1,10 @@
+import type { OAuthProvider } from "@/shared/api/session";
+
+export const accountAuthEnabled =
+  process.env.NEXT_PUBLIC_ACCOUNT_AUTH_ENABLED === "true";
+
+export const oauthProviderLabels: Record<OAuthProvider, string> = {
+  apple: "Apple",
+  google: "Google",
+  kakao: "Kakao",
+};

@@ -1,7 +1,7 @@
 import type { CapacitorConfig } from "@capacitor/cli";
 
 const config: CapacitorConfig = {
-  appId: "app.tuti.prototype",
+  appId: "today.tuti.app",
   appName: "Tuti",
   webDir: "out",
   server: {

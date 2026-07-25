@@ -9,6 +9,7 @@ services:
       target: runner
       args:
         NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:?Run with --env-file .env.production}
+        NEXT_PUBLIC_ACCOUNT_AUTH_ENABLED: ${NEXT_PUBLIC_ACCOUNT_AUTH_ENABLED:-false}
     env_file:
       - .env
       - .env.production

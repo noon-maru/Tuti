@@ -1,18 +1,23 @@
 import { createHash, randomBytes, randomUUID } from "node:crypto";
 import { prisma } from "@/server/db/prisma";
 import type {
-  AccountCredentials,
+  AccountProfile,
+  AuthProvider,
   TutiSession,
 } from "@/shared/api/session";
-import { hashPassword, verifyPassword } from "@/server/auth/password";
 
 const BEARER_PREFIX = "Bearer ";
 const MINIMUM_TOKEN_LENGTH = 32;
 const SESSION_LIFETIME_DAYS = 90;
 
+type IdentityProfile = {
+  email: string | null;
+  provider: AuthProvider;
+};
+
 export type AuthenticatedUser = {
   id: string;
-  email: string | null;
+  account?: AccountProfile;
   sessionId?: string;
 };
 
@@ -42,11 +47,21 @@ export async function authenticateUser(
     where: { tokenHash },
     select: {
       id: true,
-      email: true,
+      authIdentities: {
+        select: {
+          email: true,
+          provider: true,
+        },
+      },
     },
   });
 
-  if (anonymousUser) return anonymousUser;
+  if (anonymousUser) {
+    return {
+      id: anonymousUser.id,
+      account: createAccountProfile(anonymousUser.authIdentities),
+    };
+  }
 
   const session = await prisma.userSession.findUnique({
     where: { tokenHash },
@@ -56,7 +71,12 @@ export async function authenticateUser(
       user: {
         select: {
           id: true,
-          email: true,
+          authIdentities: {
+            select: {
+              email: true,
+              provider: true,
+            },
+          },
         },
       },
     },
@@ -70,99 +90,45 @@ export async function authenticateUser(
   }
 
   return {
-    ...session.user,
+    id: session.user.id,
+    account: createAccountProfile(session.user.authIdentities),
     sessionId: session.id,
   };
 }
 
-export async function registerAccount(
-  currentUser: AuthenticatedUser,
-  credentials: AccountCredentials,
-) {
-  if (currentUser.email) {
-    throw new AccountAuthError(
-      "이미 계정에 연결되어 있어요.",
-      "already_registered",
-      409,
-    );
-  }
+export async function createUserSession(userId: string) {
+  const accessToken = createAccessToken();
+  const expiresAt = new Date();
+  expiresAt.setDate(expiresAt.getDate() + SESSION_LIFETIME_DAYS);
 
-  const { email, password } = parseCredentials(credentials);
-
-  const existingUser = await prisma.user.findUnique({
-    where: { email },
-    select: { id: true },
-  });
-
-  if (existingUser) {
-    throw new AccountAuthError(
-      "이미 사용 중인 이메일이에요.",
-      "email_in_use",
-      409,
-    );
-  }
-
-  const passwordHash = await hashPassword(password);
-
-  await prisma.user.update({
-    where: { id: currentUser.id },
-    data: {
-      email,
-      passwordHash,
-      tokenHash: hashAccessToken(createAccessToken()),
-    },
-  });
-
-  return createUserSession(currentUser.id, email);
-}
-
-export async function loginAccount(
-  currentUser: AuthenticatedUser,
-  credentials: AccountCredentials,
-) {
-  const { email, password } = parseCredentials(credentials);
-
-  const account = await prisma.user.findUnique({
-    where: { email },
+  const user = await prisma.user.findUniqueOrThrow({
+    where: { id: userId },
     select: {
-      id: true,
-      email: true,
-      passwordHash: true,
+      authIdentities: {
+        select: {
+          email: true,
+          provider: true,
+        },
+      },
     },
   });
-  const passwordMatches =
-    account?.passwordHash &&
-    (await verifyPassword(password, account.passwordHash));
 
-  if (!account?.email || !passwordMatches) {
-    throw new AccountAuthError(
-      "이메일 또는 비밀번호를 확인해주세요.",
-      "invalid_credentials",
-      401,
-    );
-  }
+  await prisma.userSession.create({
+    data: {
+      id: randomUUID(),
+      userId,
+      tokenHash: hashAccessToken(accessToken),
+      expiresAt,
+    },
+  });
 
-  if (currentUser.email && currentUser.id !== account.id) {
-    throw new AccountAuthError(
-      "현재 계정에서 로그아웃한 뒤 다시 시도해주세요.",
-      "account_switch_requires_logout",
-      409,
-    );
-  }
+  const account = createAccountProfile(user.authIdentities);
 
-  if (currentUser.id !== account.id) {
-    await prisma.$transaction([
-      prisma.journalEntry.updateMany({
-        where: { ownerId: currentUser.id },
-        data: { ownerId: account.id },
-      }),
-      prisma.user.delete({
-        where: { id: currentUser.id },
-      }),
-    ]);
-  }
-
-  return createUserSession(account.id, account.email);
+  return {
+    accessToken,
+    userId,
+    ...(account ? { account } : {}),
+  } satisfies TutiSession;
 }
 
 export async function logoutAccount(currentUser: AuthenticatedUser) {
@@ -175,65 +141,28 @@ export async function logoutAccount(currentUser: AuthenticatedUser) {
   return createAnonymousSession();
 }
 
-async function createUserSession(userId: string, email: string) {
-  const accessToken = createAccessToken();
-  const expiresAt = new Date();
-  expiresAt.setDate(expiresAt.getDate() + SESSION_LIFETIME_DAYS);
+export function createAccessToken() {
+  return randomBytes(32).toString("base64url");
+}
 
-  await prisma.userSession.create({
-    data: {
-      id: randomUUID(),
-      userId,
-      tokenHash: hashAccessToken(accessToken),
-      expiresAt,
-    },
-  });
+export function hashAccessToken(accessToken: string) {
+  return createHash("sha256").update(accessToken).digest("hex");
+}
+
+function createAccountProfile(
+  identities: IdentityProfile[],
+): AccountProfile | undefined {
+  if (identities.length === 0) return undefined;
+
+  const email = identities.find((identity) => identity.email)?.email;
+  const providers = Array.from(
+    new Set(identities.map((identity) => identity.provider)),
+  );
 
   return {
-    accessToken,
-    userId,
-    account: { email },
-  } satisfies TutiSession;
-}
-
-function parseCredentials(credentials: AccountCredentials) {
-  if (
-    !credentials ||
-    typeof credentials.email !== "string" ||
-    typeof credentials.password !== "string"
-  ) {
-    throw new AccountAuthError(
-      "이메일과 비밀번호를 입력해주세요.",
-      "invalid_credentials_input",
-      400,
-    );
-  }
-
-  const email = normalizeEmail(credentials.email);
-  const password = credentials.password;
-  const emailValid = /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email);
-
-  if (!emailValid) {
-    throw new AccountAuthError(
-      "이메일 형식을 확인해주세요.",
-      "invalid_email",
-      400,
-    );
-  }
-
-  if (password.length < 8 || password.length > 128) {
-    throw new AccountAuthError(
-      "비밀번호는 8자 이상 128자 이하로 입력해주세요.",
-      "invalid_password",
-      400,
-    );
-  }
-
-  return { email, password };
-}
-
-function normalizeEmail(email: string) {
-  return email.trim().toLowerCase();
+    ...(email ? { email } : {}),
+    providers,
+  };
 }
 
 function readBearerToken(request: Request) {
@@ -243,14 +172,6 @@ function readBearerToken(request: Request) {
 
   const accessToken = authorization.slice(BEARER_PREFIX.length).trim();
   return accessToken.length >= MINIMUM_TOKEN_LENGTH ? accessToken : null;
-}
-
-function createAccessToken() {
-  return randomBytes(32).toString("base64url");
-}
-
-function hashAccessToken(accessToken: string) {
-  return createHash("sha256").update(accessToken).digest("hex");
 }
 
 export class AccountAuthError extends Error {

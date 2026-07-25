@@ -7,48 +7,78 @@ import {
   PrimaryButton,
 } from "@/features/tuti/components/buttons";
 import { ScreenFrame } from "@/features/tuti/components/ScreenFrame";
-import type { AccountCredentials } from "@/shared/api/session";
+import type {
+  AuthProvider,
+  OAuthProvider,
+} from "@/shared/api/session";
+import { oauthProviderLabels } from "@/shared/auth/config";
 
-type AccountMode = "login" | "register";
+type EmailStep = "email" | "code";
 
 export function AccountScreen({
+  authEnabled,
   email,
-  initialMode = "login",
+  providers = [],
   onBack,
-  onLogin,
+  onEmailCodeRequest,
+  onEmailCodeVerify,
   onLogout,
-  onRegister,
+  onOAuth,
 }: {
+  authEnabled: boolean;
   email?: string;
-  initialMode?: AccountMode;
+  providers?: AuthProvider[];
   onBack: () => void;
-  onLogin: (credentials: AccountCredentials) => Promise<void>;
+  onEmailCodeRequest: (email: string) => Promise<void>;
+  onEmailCodeVerify: (email: string, code: string) => Promise<void>;
   onLogout: () => Promise<void>;
-  onRegister: (credentials: AccountCredentials) => Promise<void>;
+  onOAuth: (provider: OAuthProvider) => Promise<void>;
 }) {
-  const [mode, setMode] = useState<AccountMode>(initialMode);
+  const [emailStep, setEmailStep] = useState<EmailStep>("email");
   const [formEmail, setFormEmail] = useState("");
-  const [password, setPassword] = useState("");
+  const [verificationCode, setVerificationCode] = useState("");
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const submit = async (event: FormEvent<HTMLFormElement>) => {
+  const submitEmail = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (pending) return;
+    if (!authEnabled || pending) return;
 
     setPending(true);
     setError(null);
 
     try {
-      const credentials = { email: formEmail, password };
-      await (mode === "login"
-        ? onLogin(credentials)
-        : onRegister(credentials));
+      if (emailStep === "email") {
+        await onEmailCodeRequest(formEmail);
+        setEmailStep("code");
+        setPending(false);
+        return;
+      }
+
+      await onEmailCodeVerify(formEmail, verificationCode);
     } catch (submitError) {
       setError(
         submitError instanceof Error
           ? submitError.message
           : "계정 요청을 처리하지 못했어요.",
+      );
+      setPending(false);
+    }
+  };
+
+  const startOAuth = async (provider: OAuthProvider) => {
+    if (!authEnabled || pending) return;
+
+    setPending(true);
+    setError(null);
+
+    try {
+      await onOAuth(provider);
+    } catch (oauthError) {
+      setError(
+        oauthError instanceof Error
+          ? oauthError.message
+          : "소셜 로그인을 시작하지 못했어요.",
       );
       setPending(false);
     }
@@ -75,95 +105,141 @@ export function AccountScreen({
   return (
     <Frame>
       <Header>
-        <BackButton type="button" aria-label="메인으로 돌아가기" onClick={onBack}>
+        <BackButton
+          type="button"
+          aria-label="메인으로 돌아가기"
+          onClick={onBack}
+        >
           ‹
         </BackButton>
-        <h1>{email ? "계정" : mode === "login" ? "기록 불러오기" : "계정 만들기"}</h1>
+        <h1>{providers.length > 0 ? "계정" : "기록 불러오기"}</h1>
         <HeaderSpacer aria-hidden="true" />
       </Header>
 
-      {email ? (
+      {providers.length > 0 ? (
         <AccountContent>
           <AccountMark aria-hidden="true">T</AccountMark>
           <AccountCopy>
-            <strong>{email}</strong>
+            <strong>{email ?? "연결된 Tuti 계정"}</strong>
             <p>
               이 계정으로 기록이 연결되어 있어요.
               <br />
               다른 기기에서도 같은 기록을 불러올 수 있어요.
             </p>
           </AccountCopy>
+          <ConnectedProviders aria-label="연결된 로그인 방식">
+            {providers.map((provider) => (
+              <span key={provider}>
+                {provider === "email"
+                  ? "이메일"
+                  : oauthProviderLabels[provider]}
+              </span>
+            ))}
+          </ConnectedProviders>
           {error && <ErrorMessage role="alert">{error}</ErrorMessage>}
-          <LogoutButton type="button" disabled={pending} onClick={() => void logout()}>
+          <LogoutButton
+            type="button"
+            disabled={pending}
+            onClick={() => void logout()}
+          >
             {pending ? "로그아웃 중..." : "로그아웃"}
           </LogoutButton>
         </AccountContent>
       ) : (
-        <AccountForm onSubmit={submit}>
+        <LoginContent>
           <IntroCopy>
-            <h2>
-              {mode === "login"
-                ? "남겨둔 공간을 다시 만나요."
-                : "지금의 기록을 계정에 담아둘게요."}
-            </h2>
+            <h2>남겨둔 공간을 다시 만나요.</h2>
             <p>
-              {mode === "login"
-                ? "현재 기기의 기록도 로그인할 계정에 함께 합쳐져요."
-                : "계정을 만들면 지금까지의 기록이 그대로 연결돼요."}
+              로그인하면 현재 기기의 기록도 계정에 함께 연결돼요.
             </p>
           </IntroCopy>
 
-          <Fields>
-            <Field>
-              <span>이메일</span>
-              <input
-                type="email"
-                inputMode="email"
-                autoComplete="email"
-                placeholder="name@example.com"
-                required
-                value={formEmail}
-                onChange={(event) => setFormEmail(event.target.value)}
-              />
-            </Field>
-            <Field>
-              <span>비밀번호</span>
-              <input
-                type="password"
-                autoComplete={mode === "login" ? "current-password" : "new-password"}
-                placeholder="8자 이상 입력해주세요"
-                minLength={8}
-                maxLength={128}
-                required
-                value={password}
-                onChange={(event) => setPassword(event.target.value)}
-              />
-            </Field>
-          </Fields>
+          <ProviderList aria-label="소셜 로그인">
+            {(["apple", "google", "kakao"] as const).map((provider) => (
+              <ProviderButton
+                key={provider}
+                type="button"
+                disabled={!authEnabled || pending}
+                $provider={provider}
+                onClick={() => void startOAuth(provider)}
+              >
+                {oauthProviderLabels[provider]}로 계속하기
+              </ProviderButton>
+            ))}
+          </ProviderList>
 
-          {error && <ErrorMessage role="alert">{error}</ErrorMessage>}
+          <Divider>
+            <span>또는</span>
+          </Divider>
 
-          <SubmitButton type="submit" disabled={pending}>
-            {pending
-              ? "잠시만요..."
-              : mode === "login"
-                ? "로그인"
-                : "계정 만들기"}
-          </SubmitButton>
-          <ModeButton
-            type="button"
-            onClick={() => {
-              setMode((current) =>
-                current === "login" ? "register" : "login",
-              );
-              setError(null);
-            }}
-          >
-            {mode === "login"
-              ? "처음이신가요? 계정 만들기"
-              : "이미 계정이 있나요? 로그인"}
-          </ModeButton>
-        </AccountForm>
+          <EmailForm onSubmit={submitEmail}>
+            <Field>
+              <span>
+                {emailStep === "email" ? "이메일" : "인증코드"}
+              </span>
+              {emailStep === "email" ? (
+                <input
+                  type="email"
+                  inputMode="email"
+                  autoComplete="email"
+                  placeholder="name@example.com"
+                  required
+                  disabled={!authEnabled}
+                  value={formEmail}
+                  onChange={(event) => setFormEmail(event.target.value)}
+                />
+              ) : (
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  autoComplete="one-time-code"
+                  pattern="[0-9]{6}"
+                  maxLength={6}
+                  placeholder="6자리 코드"
+                  required
+                  value={verificationCode}
+                  onChange={(event) =>
+                    setVerificationCode(
+                      event.target.value.replace(/\D/g, "").slice(0, 6),
+                    )
+                  }
+                />
+              )}
+            </Field>
+            {emailStep === "code" && (
+              <EmailHint>
+                <span>{formEmail}로 보낸 코드를 입력해주세요.</span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setEmailStep("email");
+                    setVerificationCode("");
+                    setError(null);
+                  }}
+                >
+                  이메일 변경
+                </button>
+              </EmailHint>
+            )}
+            {error && <ErrorMessage role="alert">{error}</ErrorMessage>}
+            <SubmitButton
+              type="submit"
+              disabled={!authEnabled || pending}
+            >
+              {pending
+                ? "잠시만요..."
+                : emailStep === "email"
+                  ? "인증코드 받기"
+                  : "인증하고 계속하기"}
+            </SubmitButton>
+          </EmailForm>
+
+          {!authEnabled && (
+            <DisabledNotice role="status">
+              계정 로그인 기능을 준비하고 있어요.
+            </DisabledNotice>
+          )}
+        </LoginContent>
       )}
     </Frame>
   );
@@ -171,7 +247,9 @@ export function AccountScreen({
 
 const Frame = styled(ScreenFrame)`
   z-index: 40;
+  overflow-y: auto;
   background: var(--color-surface);
+  overscroll-behavior-y: contain;
 `;
 
 const Header = styled.header`
@@ -179,6 +257,7 @@ const Header = styled.header`
   display: grid;
   grid-template-columns: var(--space-11) minmax(0, 1fr) var(--space-11);
   align-items: center;
+  flex: none;
 
   h1 {
     font-size: var(--font-size-400);
@@ -210,11 +289,11 @@ const HeaderSpacer = styled.span`
   width: var(--space-11);
 `;
 
-const AccountForm = styled.form`
+const LoginContent = styled.div`
   flex: 1;
   display: flex;
   flex-direction: column;
-  padding-top: clamp(var(--space-12), 11cqh, 92px);
+  padding-top: clamp(var(--space-8), 7cqh, var(--space-14));
 `;
 
 const IntroCopy = styled.div`
@@ -232,10 +311,62 @@ const IntroCopy = styled.div`
   }
 `;
 
-const Fields = styled.div`
+const ProviderList = styled.div`
   display: grid;
-  gap: var(--space-4);
-  margin-top: var(--space-10);
+  gap: var(--space-3);
+  margin-top: var(--space-8);
+`;
+
+const ProviderButton = styled(BaseButton)<{
+  $provider: OAuthProvider;
+}>`
+  min-height: var(--space-14);
+  border: 1px solid
+    ${({ $provider }) =>
+      $provider === "kakao"
+        ? "var(--color-secondary-500)"
+        : "var(--color-border)"};
+  border-radius: 16px;
+  background: ${({ $provider }) =>
+    $provider === "apple"
+      ? "var(--color-neutral-1300)"
+      : $provider === "kakao"
+        ? "var(--color-secondary-200)"
+        : "var(--color-neutral-100)"};
+  color: ${({ $provider }) =>
+    $provider === "apple"
+      ? "var(--color-neutral-100)"
+      : "var(--color-text)"};
+  font-size: var(--font-size-200);
+  font-weight: 600;
+
+  &:disabled {
+    border-color: var(--color-neutral-400);
+    background: var(--color-neutral-200);
+    color: var(--color-neutral-700);
+  }
+`;
+
+const Divider = styled.div`
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: var(--space-3);
+  margin: var(--space-6) 0;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-100);
+
+  &::before,
+  &::after {
+    content: "";
+    height: 1px;
+    background: var(--color-neutral-400);
+  }
+`;
+
+const EmailForm = styled.form`
+  display: grid;
+  gap: var(--space-3);
 `;
 
 const Field = styled.label`
@@ -267,26 +398,50 @@ const Field = styled.label`
       border-color: var(--color-brand-600);
       box-shadow: 0 0 0 3px var(--color-brand-100);
     }
+
+    &:disabled {
+      background: var(--color-neutral-200);
+      color: var(--color-neutral-700);
+    }
+  }
+`;
+
+const EmailHint = styled.div`
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-3);
+  color: var(--color-text-muted);
+  font-size: var(--font-size-100);
+
+  button {
+    flex: none;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: var(--color-brand-800);
+    font: inherit;
+    cursor: pointer;
   }
 `;
 
 const ErrorMessage = styled.p`
-  margin-top: var(--space-4);
   color: var(--color-error);
   font-size: var(--font-size-100);
 `;
 
 const SubmitButton = styled(PrimaryButton)`
   width: 100%;
-  margin-top: auto;
+  margin-top: var(--space-1);
 `;
 
-const ModeButton = styled(BaseButton)`
-  min-height: var(--space-11);
-  margin-top: var(--space-2);
-  background: transparent;
+const DisabledNotice = styled.p`
+  margin-top: var(--space-4);
+  padding: var(--space-3) var(--space-4);
+  border-radius: 12px;
+  background: var(--color-accent-soft);
   color: var(--color-text-muted);
   font-size: var(--font-size-100);
+  text-align: center;
 `;
 
 const AccountContent = styled.div`
@@ -323,6 +478,22 @@ const AccountCopy = styled.div`
   p {
     color: var(--color-text-muted);
     font-size: var(--font-size-200);
+  }
+`;
+
+const ConnectedProviders = styled.div`
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--space-2);
+  margin-top: var(--space-5);
+
+  span {
+    padding: var(--space-1) var(--space-3);
+    border-radius: 999px;
+    background: var(--color-neutral-200);
+    color: var(--color-text-muted);
+    font-size: var(--font-size-100);
   }
 `;
 

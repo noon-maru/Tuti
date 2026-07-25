@@ -164,6 +164,11 @@ function parseEnvValue(contents: string, key: string) {
 }
 
 async function runNextBuild(apiBaseUrl: string) {
+  const accountAuthEnabled =
+    process.env.NEXT_PUBLIC_ACCOUNT_AUTH_ENABLED?.trim() ||
+    (await readPublicEnvValue("NEXT_PUBLIC_ACCOUNT_AUTH_ENABLED")) ||
+    "false";
+
   await new Promise<void>((resolvePromise, reject) => {
     const child = spawn(
       process.platform === "win32" ? "pnpm.cmd" : "pnpm",
@@ -173,6 +178,7 @@ async function runNextBuild(apiBaseUrl: string) {
         env: {
           ...process.env,
           NEXT_PUBLIC_API_BASE_URL: apiBaseUrl,
+          NEXT_PUBLIC_ACCOUNT_AUTH_ENABLED: accountAuthEnabled,
           NEXT_TELEMETRY_DISABLED: "1",
           NODE_ENV: "production",
           TUTI_TARGET: "app",

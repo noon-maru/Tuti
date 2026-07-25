@@ -137,12 +137,11 @@ export function RecommendationsFlow({ interactive }: { interactive: boolean }) {
       onDetailClose={finishDetailClose}
       onJournal={() => router.push("/journal")}
       onAccount={() => router.push("/login")}
-      onCreateAccount={() => router.push("/login?mode=register")}
       onLogout={async () => {
         await logoutAccount();
         queryClient.setQueryData(["journal-entries"], []);
       }}
-      accountEmail={session?.account?.email}
+      accountConnected={Boolean(session?.account)}
       interactive={interactive}
       initialHelp={
         interactive && detailOverlay.phase === "closed"

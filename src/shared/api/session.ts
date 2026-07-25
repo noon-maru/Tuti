@@ -1,5 +1,10 @@
+export const authProviders = ["apple", "google", "kakao"] as const;
+export type OAuthProvider = (typeof authProviders)[number];
+export type AuthProvider = "email" | OAuthProvider;
+
 export type AccountProfile = {
-  email: string;
+  email?: string;
+  providers: AuthProvider[];
 };
 
 export type TutiSession = {
@@ -12,7 +17,19 @@ export type SessionResponse = {
   session: TutiSession;
 };
 
-export type AccountCredentials = {
+export type EmailCodeRequest = {
   email: string;
-  password: string;
+};
+
+export type EmailCodeVerification = EmailCodeRequest & {
+  code: string;
+};
+
+export type EmailCodeRequestResponse = {
+  expiresInSeconds: number;
+  message: string;
+};
+
+export type OAuthStartResponse = {
+  authorizationUrl: string;
 };

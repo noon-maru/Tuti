@@ -1,7 +1,10 @@
 import { apiUrl } from "@/lib/api/apiUrl";
 import { preferencesStorage } from "@/lib/storage/preferencesStorage";
 import type {
-  AccountCredentials,
+  EmailCodeRequestResponse,
+  EmailCodeVerification,
+  OAuthProvider,
+  OAuthStartResponse,
   SessionResponse,
   TutiSession,
 } from "@/shared/api/session";
@@ -45,12 +48,76 @@ export function subscribeToSession(listener: () => void) {
   return () => sessionListeners.delete(listener);
 }
 
-export async function registerAccount(credentials: AccountCredentials) {
-  return submitCredentials("auth/register", credentials);
+export async function requestEmailLoginCode(email: string) {
+  const response = await fetchWithSession("auth/email/request-code", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ email }),
+  });
+
+  if (!response.ok) {
+    throw new Error(
+      await readApiError(response, "인증코드를 보내지 못했어요."),
+    );
+  }
+
+  return (await response.json()) as EmailCodeRequestResponse;
 }
 
-export async function loginAccount(credentials: AccountCredentials) {
-  return submitCredentials("auth/login", credentials);
+export async function verifyEmailLoginCode(
+  input: EmailCodeVerification,
+) {
+  const response = await fetchWithSession("auth/email/verify-code", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(input),
+  });
+
+  if (!response.ok) {
+    throw new Error(
+      await readApiError(response, "인증코드를 확인하지 못했어요."),
+    );
+  }
+
+  const data = (await response.json()) as SessionResponse;
+
+  if (!isTutiSession(data.session) || !data.session.account) {
+    throw new Error("계정 응답을 확인하지 못했어요.");
+  }
+
+  await storeSession(data.session);
+  return data.session;
+}
+
+export async function createOAuthLoginUrl(provider: OAuthProvider) {
+  const response = await fetchWithSession(
+    `auth/oauth/${provider}/start`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ returnTo: "/" }),
+    },
+  );
+
+  if (!response.ok) {
+    throw new Error(
+      await readApiError(response, "소셜 로그인을 시작하지 못했어요."),
+    );
+  }
+
+  const data = (await response.json()) as OAuthStartResponse;
+
+  if (!data.authorizationUrl) {
+    throw new Error("소셜 로그인 주소를 확인하지 못했어요.");
+  }
+
+  return data.authorizationUrl;
 }
 
 export async function logoutAccount() {
@@ -66,33 +133,6 @@ export async function logoutAccount() {
   }
 
   const data = (await response.json()) as SessionResponse;
-  await storeSession(data.session);
-  return data.session;
-}
-
-async function submitCredentials(
-  path: "auth/login" | "auth/register",
-  credentials: AccountCredentials,
-) {
-  const currentSession = await ensureSession();
-  const response = await fetchWithToken(path, currentSession.accessToken, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(credentials),
-  });
-
-  if (!response.ok) {
-    throw new Error(await readApiError(response, "계정 요청을 처리하지 못했어요."));
-  }
-
-  const data = (await response.json()) as SessionResponse;
-
-  if (!isTutiSession(data.session) || !data.session.account) {
-    throw new Error("계정 응답을 확인하지 못했어요.");
-  }
-
   await storeSession(data.session);
   return data.session;
 }
@@ -200,7 +240,12 @@ function isTutiSession(value: unknown): value is TutiSession {
     session.account === undefined ||
     (typeof session.account === "object" &&
       session.account !== null &&
-      typeof session.account.email === "string");
+      (session.account.email === undefined ||
+        typeof session.account.email === "string") &&
+      Array.isArray(session.account.providers) &&
+      session.account.providers.every((provider) =>
+        ["email", "apple", "google", "kakao"].includes(provider),
+      ));
 
   return (
     typeof session.accessToken === "string" &&
