@@ -54,7 +54,7 @@ export async function createOAuthAuthorization(
   expiresAt.setMinutes(expiresAt.getMinutes() + OAUTH_LIFETIME_MINUTES);
   const redirectUri = createOAuthCallbackUrl(provider);
 
-  await prisma.oauthAuthorization.create({
+  await prisma.oAuthAuthorization.create({
     data: {
       id: randomUUID(),
       userId: currentUser.id,
