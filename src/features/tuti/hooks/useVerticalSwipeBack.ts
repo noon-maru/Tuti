@@ -31,6 +31,8 @@ export function useVerticalSwipeBack({
   const touchCurrent = useRef<Point | null>(null);
   const scrollTarget = useRef<HTMLElement | null>(null);
   const backTimeout = useRef<number | null>(null);
+  const exitPromise = useRef<Promise<void> | null>(null);
+  const resolveExit = useRef<(() => void) | null>(null);
   const committed = useRef(false);
 
   useEffect(() => {
@@ -38,6 +40,8 @@ export function useVerticalSwipeBack({
       if (backTimeout.current) {
         window.clearTimeout(backTimeout.current);
       }
+
+      resolveExit.current?.();
     };
   }, []);
 
@@ -99,16 +103,16 @@ export function useVerticalSwipeBack({
     const dy = endPoint.y - startPoint.y;
 
     if (shouldGoBack({ dx, dy, direction, threshold, scrollElement: scrollTarget.current })) {
-      commitBack();
+      void commitBack(true);
       return;
     }
 
     reset();
   };
 
-  const commitBack = () => {
+  const commitBack = (navigateAfterExit: boolean) => {
     if (committed.current) {
-      return;
+      return exitPromise.current ?? Promise.resolve();
     }
 
     committed.current = true;
@@ -119,7 +123,20 @@ export function useVerticalSwipeBack({
     setDragProgress(1);
     clearGestureRefs();
 
-    backTimeout.current = window.setTimeout(onBack, exitDelay);
+    exitPromise.current = new Promise<void>((resolve) => {
+      resolveExit.current = resolve;
+      backTimeout.current = window.setTimeout(() => {
+        resolveExit.current?.();
+        resolveExit.current = null;
+        backTimeout.current = null;
+
+        if (navigateAfterExit) {
+          onBack();
+        }
+      }, exitDelay);
+    });
+
+    return exitPromise.current;
   };
 
   const reset = () => {
@@ -221,7 +238,8 @@ export function useVerticalSwipeBack({
     dragProgress,
     isDragging,
     isCommitting,
-    requestBack: commitBack,
+    requestBack: () => commitBack(true),
+    requestExit: () => commitBack(false),
   };
 }
 

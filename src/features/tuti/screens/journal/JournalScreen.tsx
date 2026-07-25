@@ -2,6 +2,7 @@
 
 import styled from "@emotion/styled";
 import { useRef, useState } from "react";
+import { useBrowserHistoryExit } from "@/features/tuti/components/BrowserHistoryTransition";
 import { BaseButton } from "@/features/tuti/components/buttons";
 import { ScreenFrame } from "@/features/tuti/components/ScreenFrame";
 import { useTutiJournalEntries } from "@/features/tuti/hooks/useTutiJournalEntries";
@@ -12,6 +13,7 @@ const MAX_VISIBLE_MEMORY_CARDS = 7;
 const MEMORY_CARD_RADIUS = Math.floor(MAX_VISIBLE_MEMORY_CARDS / 2);
 const MEMORY_CARD_GAP_MIN = 40;
 const MEMORY_CARD_GAP_MAX = 60;
+const JOURNAL_EXIT_DURATION = 480;
 
 export function JournalScreen({
   onBack,
@@ -33,7 +35,17 @@ export function JournalScreen({
   const selectedEntryIndex = entries.length
     ? activeEntryIndex % entries.length
     : 0;
-  const swipeBack = useVerticalSwipeBack({ direction: "up", onBack });
+  const swipeBack = useVerticalSwipeBack({
+    direction: "up",
+    onBack,
+    exitDelay: JOURNAL_EXIT_DURATION,
+  });
+
+  useBrowserHistoryExit({
+    sourcePath: "/journal",
+    destinationPath: "/",
+    onExit: swipeBack.requestExit,
+  });
 
   const selectImage = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -335,7 +347,10 @@ const Frame = styled(ScreenFrame)<{
   transform: translateY(${({ $dragY = 0 }) => $dragY}px)
     scale(${({ $progress = 0 }) => 1 - $progress * 0.025});
   transition: ${({ $isDragging = false }) =>
-    $isDragging ? "none" : "opacity 160ms ease, transform 180ms ease"};
+    $isDragging
+      ? "none"
+      : `opacity ${JOURNAL_EXIT_DURATION}ms cubic-bezier(0.22, 1, 0.36, 1),
+         transform ${JOURNAL_EXIT_DURATION}ms cubic-bezier(0.22, 1, 0.36, 1)`};
   overflow: hidden;
   touch-action: none;
 `;

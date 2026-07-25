@@ -3,6 +3,7 @@
 import styled from "@emotion/styled";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect } from "react";
+import { BrowserHistoryTransitionProvider } from "@/features/tuti/components/BrowserHistoryTransition";
 import { ScreenFrame } from "@/features/tuti/components/ScreenFrame";
 import { RecommendationsFlow } from "@/features/tuti/flows/RecommendationsFlow";
 import { useTutiStore } from "@/store/tuti";
@@ -24,10 +25,10 @@ export function MainFlow({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <>
+    <BrowserHistoryTransitionProvider>
       <RecommendationsFlow interactive={pathname === "/"} />
       {children}
-    </>
+    </BrowserHistoryTransitionProvider>
   );
 }
 
