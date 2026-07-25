@@ -168,6 +168,7 @@ export function useVerticalSwipeBack({
         }
 
         if (start({ x: event.clientX, y: event.clientY }, event.target)) {
+          event.preventDefault();
           activePointerId.current = event.pointerId;
           isPointerGesture.current = true;
           event.currentTarget.setPointerCapture(event.pointerId);
