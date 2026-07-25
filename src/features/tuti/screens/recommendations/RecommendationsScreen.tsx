@@ -294,6 +294,7 @@ export function RecommendationsScreen({
               place={presentedDetailPlace}
               onBack={onDetailClose}
               onExitStart={onDetailExitStart}
+              historyActive={detailVisible}
               revealProgress={detailVisible ? 1 : verticalProgress}
             />
           </DetailTransitionLayer>

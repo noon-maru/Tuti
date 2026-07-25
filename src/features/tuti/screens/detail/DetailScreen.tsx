@@ -1,6 +1,7 @@
 "use client";
 
 import styled from "@emotion/styled";
+import { useLayoutEffect, useRef } from "react";
 import { BaseButton } from "@/features/tuti/components/buttons";
 import { useVerticalSwipeBack } from "@/features/tuti/hooks/useVerticalSwipeBack";
 import type { TutiPlace } from "@/lib/recommendations";
@@ -8,24 +9,96 @@ import { fluidByViewportHeight } from "@/styles/tokens";
 
 const DETAIL_EXIT_DURATION = 480;
 const DETAIL_EXIT_FRAME_BUFFER = 34;
+const DETAIL_HISTORY_STATE_KEY = "__tutiDetailOverlay";
 
 export function DetailScreen({
   place,
   onBack,
   onExitStart,
+  historyActive = false,
   revealProgress = 1,
 }: {
   place: TutiPlace;
   onBack: () => void;
   onExitStart?: () => void;
+  historyActive?: boolean;
   revealProgress?: number;
 }) {
+  const ownsHistoryEntry = useRef(false);
+  const closingFromHistory = useRef(false);
+  const ignoreNextPopState = useRef(false);
+  const finishCloseRef = useRef<() => void>(() => undefined);
+  const requestExitRef = useRef<() => Promise<void>>(
+    () => Promise.resolve(),
+  );
+  const finishClose = () => {
+    const shouldRemoveHistoryEntry =
+      ownsHistoryEntry.current && !closingFromHistory.current;
+
+    ownsHistoryEntry.current = false;
+    closingFromHistory.current = false;
+    onBack();
+
+    if (shouldRemoveHistoryEntry) {
+      ignoreNextPopState.current = true;
+      window.history.back();
+    }
+  };
   const swipeBack = useVerticalSwipeBack({
     direction: "down",
-    onBack,
+    onBack: finishClose,
     onExitStart,
     exitDelay: DETAIL_EXIT_DURATION + DETAIL_EXIT_FRAME_BUFFER,
   });
+
+  useLayoutEffect(() => {
+    finishCloseRef.current = finishClose;
+    requestExitRef.current = swipeBack.requestExit;
+  });
+
+  useLayoutEffect(() => {
+    if (!historyActive) return;
+
+    const currentState = getHistoryState();
+
+    if (currentState[DETAIL_HISTORY_STATE_KEY] !== true) {
+      window.history.pushState(
+        {
+          ...currentState,
+          [DETAIL_HISTORY_STATE_KEY]: true,
+        },
+        "",
+        window.location.href,
+      );
+    }
+
+    ownsHistoryEntry.current = true;
+
+    const closeFromHistory = (event: PopStateEvent) => {
+      if (ignoreNextPopState.current) {
+        ignoreNextPopState.current = false;
+        return;
+      }
+
+      if (
+        !ownsHistoryEntry.current ||
+        getHistoryState(event.state)[DETAIL_HISTORY_STATE_KEY] === true
+      ) {
+        return;
+      }
+
+      closingFromHistory.current = true;
+      void requestExitRef.current().then(() => {
+        finishCloseRef.current();
+      });
+    };
+
+    window.addEventListener("popstate", closeFromHistory);
+
+    return () => {
+      window.removeEventListener("popstate", closeFromHistory);
+    };
+  }, [historyActive]);
 
   const closeFromBackdrop = () => {
     swipeBack.requestBack();
@@ -77,6 +150,12 @@ export function DetailScreen({
       </Sheet>
     </Frame>
   );
+}
+
+function getHistoryState(state: unknown = window.history.state) {
+  return state && typeof state === "object"
+    ? (state as Record<string, unknown>)
+    : {};
 }
 
 const Frame = styled.section`
