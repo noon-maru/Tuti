@@ -168,6 +168,10 @@ async function runNextBuild(apiBaseUrl: string) {
     process.env.NEXT_PUBLIC_ACCOUNT_AUTH_ENABLED?.trim() ||
     (await readPublicEnvValue("NEXT_PUBLIC_ACCOUNT_AUTH_ENABLED")) ||
     "false";
+  const googleOAuthEnabled =
+    process.env.NEXT_PUBLIC_GOOGLE_OAUTH_ENABLED?.trim() ||
+    (await readPublicEnvValue("NEXT_PUBLIC_GOOGLE_OAUTH_ENABLED")) ||
+    "false";
 
   await new Promise<void>((resolvePromise, reject) => {
     const child = spawn(
@@ -179,6 +183,7 @@ async function runNextBuild(apiBaseUrl: string) {
           ...process.env,
           NEXT_PUBLIC_API_BASE_URL: apiBaseUrl,
           NEXT_PUBLIC_ACCOUNT_AUTH_ENABLED: accountAuthEnabled,
+          NEXT_PUBLIC_GOOGLE_OAUTH_ENABLED: googleOAuthEnabled,
           NEXT_TELEMETRY_DISABLED: "1",
           NODE_ENV: "production",
           TUTI_TARGET: "app",

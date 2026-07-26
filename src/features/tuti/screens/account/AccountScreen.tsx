@@ -13,13 +13,17 @@ import type {
   EmailCodeVerificationResult,
   OAuthProvider,
 } from "@/shared/api/session";
-import { oauthProviderLabels } from "@/shared/auth/config";
+import {
+  oauthProviderEnabled,
+  oauthProviderLabels,
+} from "@/shared/auth/config";
 
 type EmailStep = "email" | "code";
 
 export function AccountScreen({
   authEnabled,
   email,
+  oauthCompletion,
   providers = [],
   onBack,
   onEmailCodeRequest,
@@ -29,6 +33,15 @@ export function AccountScreen({
 }: {
   authEnabled: boolean;
   email?: string;
+  oauthCompletion?: {
+    pending: boolean;
+    error?: string;
+    currentJournalCount?: number;
+    onJournalResolution: (
+      journalResolution: AccountJournalResolution,
+    ) => void | Promise<void>;
+    onCancel: () => void;
+  };
   providers?: AuthProvider[];
   onBack: () => void;
   onEmailCodeRequest: (email: string) => Promise<void>;
@@ -152,6 +165,34 @@ export function AccountScreen({
     }
   };
 
+  const displayedJournalResolution =
+    oauthCompletion?.currentJournalCount !== undefined
+      ? {
+          currentJournalCount: oauthCompletion.currentJournalCount,
+          external: true,
+        }
+      : journalResolutionRequest
+        ? {
+            currentJournalCount:
+              journalResolutionRequest.currentJournalCount,
+            external: false,
+          }
+        : null;
+  const journalResolutionPending =
+    displayedJournalResolution?.external === true
+      ? oauthCompletion?.pending === true
+      : pending;
+  const journalResolutionError =
+    displayedJournalResolution?.external === true
+      ? oauthCompletion?.error
+      : error;
+  const chooseJournalResolution = (
+    journalResolution: AccountJournalResolution,
+  ) =>
+    displayedJournalResolution?.external
+      ? oauthCompletion?.onJournalResolution(journalResolution)
+      : resolveJournals(journalResolution);
+
   return (
     <Frame>
       <Header>
@@ -195,14 +236,21 @@ export function AccountScreen({
             {pending ? "로그아웃 중..." : "로그아웃"}
           </LogoutButton>
         </AccountContent>
-      ) : journalResolutionRequest ? (
+      ) : oauthCompletion?.pending &&
+        oauthCompletion.currentJournalCount === undefined ? (
+        <OAuthCompletionContent role="status">
+          <OAuthCompletionMark aria-hidden="true">T</OAuthCompletionMark>
+          <h2>Google 계정을 연결하고 있어요.</h2>
+          <p>잠시만 기다려주세요.</p>
+        </OAuthCompletionContent>
+      ) : displayedJournalResolution ? (
         <JournalResolutionContent>
           <JournalResolutionCopy>
             <h2>현재 기록도 함께 가져올까요?</h2>
             <p>
               이 기기에 남긴 기록{" "}
               <strong>
-                {journalResolutionRequest.currentJournalCount}개
+                {displayedJournalResolution.currentJournalCount}개
               </strong>
               를 계정 기록과 합칠 수 있어요.
             </p>
@@ -210,33 +258,46 @@ export function AccountScreen({
           <JournalResolutionActions>
             <MergeButton
               type="button"
-              disabled={pending}
-              onClick={() => void resolveJournals("merge")}
+              disabled={journalResolutionPending}
+              onClick={() => void chooseJournalResolution("merge")}
             >
-              {pending ? "처리하는 중..." : "현재 기록도 합치기"}
+              {journalResolutionPending
+                ? "처리하는 중..."
+                : "현재 기록도 합치기"}
             </MergeButton>
             <AccountOnlyButton
               type="button"
-              disabled={pending}
-              onClick={() => void resolveJournals("discard")}
+              disabled={journalResolutionPending}
+              onClick={() => void chooseJournalResolution("discard")}
             >
               계정 기록만 불러오기
             </AccountOnlyButton>
           </JournalResolutionActions>
           <JournalResolutionWarning>
             계정 기록만 불러오면 현재 기기의 연결되지 않은 기록{" "}
-            {journalResolutionRequest.currentJournalCount}개는 삭제돼요.
+            {displayedJournalResolution.currentJournalCount}개는 삭제돼요.
           </JournalResolutionWarning>
-          {error && <ErrorMessage role="alert">{error}</ErrorMessage>}
+          {journalResolutionError && (
+            <ErrorMessage role="alert">
+              {journalResolutionError}
+            </ErrorMessage>
+          )}
           <ReturnToCodeButton
             type="button"
-            disabled={pending}
+            disabled={journalResolutionPending}
             onClick={() => {
+              if (displayedJournalResolution.external) {
+                oauthCompletion?.onCancel();
+                return;
+              }
+
               setJournalResolutionRequest(null);
               setError(null);
             }}
           >
-            인증코드 입력으로 돌아가기
+            {displayedJournalResolution.external
+              ? "로그인 화면으로 돌아가기"
+              : "인증코드 입력으로 돌아가기"}
           </ReturnToCodeButton>
         </JournalResolutionContent>
       ) : (
@@ -248,6 +309,11 @@ export function AccountScreen({
               있어요.
             </p>
           </IntroCopy>
+          {oauthCompletion?.error && (
+            <OAuthErrorMessage role="alert">
+              {oauthCompletion.error}
+            </OAuthErrorMessage>
+          )}
 
           <ProviderList aria-label="소셜 로그인">
             {(["apple", "google", "kakao"] as const).map((provider) => (
@@ -255,7 +321,11 @@ export function AccountScreen({
                 key={provider}
                 type="button"
                 aria-label={`${oauthProviderLabels[provider]}로 계속하기`}
-                disabled={!authEnabled || pending}
+                disabled={
+                  !authEnabled ||
+                  !oauthProviderEnabled[provider] ||
+                  pending
+                }
                 $provider={provider}
                 onClick={() => void startOAuth(provider)}
               >
@@ -405,6 +475,40 @@ const HeaderSpacer = styled.span`
   width: var(--space-11);
 `;
 
+const OAuthCompletionContent = styled.div`
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding-bottom: var(--space-20);
+  text-align: center;
+
+  h2 {
+    margin-top: var(--space-6);
+    font-size: var(--font-size-500);
+    font-weight: 600;
+  }
+
+  p {
+    margin-top: var(--space-2);
+    color: var(--color-text-muted);
+    font-size: var(--font-size-200);
+  }
+`;
+
+const OAuthCompletionMark = styled.div`
+  width: var(--space-16);
+  height: var(--space-16);
+  display: grid;
+  place-items: center;
+  border-radius: 22px;
+  background: var(--color-brand-500);
+  color: var(--color-white);
+  font-size: var(--font-size-600);
+  font-weight: 700;
+`;
+
 const JournalResolutionContent = styled.div`
   flex: 1;
   display: flex;
@@ -485,6 +589,15 @@ const LoginContent = styled.div`
   display: flex;
   flex-direction: column;
   padding-top: clamp(var(--space-8), 7cqh, var(--space-14));
+`;
+
+const OAuthErrorMessage = styled.p`
+  margin-top: var(--space-4);
+  padding: var(--space-3) var(--space-4);
+  border-radius: 12px;
+  background: var(--color-neutral-200);
+  color: var(--color-error);
+  font-size: var(--font-size-100);
 `;
 
 const IntroCopy = styled.div`

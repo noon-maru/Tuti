@@ -43,6 +43,13 @@ export type EmailCodeVerificationResult =
       currentJournalCount: number;
     };
 
+export type OAuthCompletionRequest = {
+  ticket: string;
+  journalResolution?: AccountJournalResolution;
+};
+
+export type OAuthCompletionResult = EmailCodeVerificationResult;
+
 export type OAuthStartResponse = {
   authorizationUrl: string;
 };

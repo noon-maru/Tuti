@@ -31,9 +31,12 @@ async function handleCallback(
   try {
     const { provider } = await context.params;
     assertOAuthProvider(provider);
-    completeOAuthAuthorization();
+    const completionUrl = await completeOAuthAuthorization(
+      request,
+      provider,
+    );
 
-    return Response.json({ ok: true });
+    return Response.redirect(completionUrl, 303);
   } catch (error) {
     const accountError =
       error instanceof AccountAuthError ? error : null;
@@ -42,12 +45,14 @@ async function handleCallback(
       console.error("OAuth 콜백 처리 중 오류가 발생했습니다.", error);
     }
 
-    return Response.json(
-      {
-        error: accountError?.message ?? "OAuth 로그인을 완료하지 못했어요.",
-        code: accountError?.code,
-      },
-      { status: accountError?.status ?? 500 },
+    const failureUrl = new URL(
+      "/login",
+      process.env.AUTH_PUBLIC_BASE_URL ?? request.url,
     );
+    failureUrl.searchParams.set(
+      "oauthError",
+      accountError?.message ?? "OAuth 로그인을 완료하지 못했어요.",
+    );
+    return Response.redirect(failureUrl, 303);
   }
 }

@@ -4,6 +4,8 @@ import type {
   EmailCodeRequestResponse,
   EmailCodeVerification,
   EmailCodeVerificationResult,
+  OAuthCompletionRequest,
+  OAuthCompletionResult,
   OAuthProvider,
   OAuthStartResponse,
   SessionResponse,
@@ -127,6 +129,41 @@ export async function createOAuthLoginUrl(provider: OAuthProvider) {
   }
 
   return data.authorizationUrl;
+}
+
+export async function completeOAuthLogin(
+  input: OAuthCompletionRequest,
+) {
+  const response = await fetch(apiUrl("auth/oauth/complete"), {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(input),
+  });
+
+  if (!response.ok) {
+    throw new Error(
+      await readApiError(response, "소셜 로그인을 완료하지 못했어요."),
+    );
+  }
+
+  const data = (await response.json()) as OAuthCompletionResult;
+
+  if (data.status === "journal-resolution-required") {
+    return data;
+  }
+
+  if (
+    data.status !== "authenticated" ||
+    !isTutiSession(data.session) ||
+    !data.session.account
+  ) {
+    throw new Error("계정 응답을 확인하지 못했어요.");
+  }
+
+  await storeSession(data.session);
+  return data;
 }
 
 export async function logoutAccount() {

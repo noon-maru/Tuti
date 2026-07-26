@@ -91,7 +91,9 @@ sequenceDiagram
 
 - 이메일 로그인은 비밀번호 대신 10분 동안 유효한 6자리 일회용 인증코드를 사용한다. 코드 원문은 저장하지 않고 서버 비밀값을 이용한 HMAC 해시만 저장한다.
 
-- 이메일 인증에 처음 성공하면 현재 익명 사용자를 계정으로 승격한다. 기존 이메일 계정이 있으면 현재 기기의 익명 기록을 그 계정에 합친다.
+- 이메일 인증에 처음 성공하면 현재 익명 사용자를 계정으로 승격한다.
+  기존 이메일 계정이 있고 현재 기기에 익명 기록이 남아 있으면,
+  사용자가 기록을 합칠지 계정 기록만 불러올지 명시적으로 선택한다.
 - 이메일 인증코드는 서버에서 Daum 스마트워크 SMTP
   (`smtp.daum.net:465`, SSL)를 통해 `admin@tuti.today` 발신 주소로
   전송한다. SMTP 인증에는 스마트워크 주소가 아닌 연결된 Daum ID와
@@ -99,6 +101,17 @@ sequenceDiagram
   주입한다.
 
 - OAuth 계정은 이메일이 아니라 각 공급자가 보장하는 고유 사용자 식별자로 연결한다. 같은 이메일이라는 이유만으로 서로 다른 OAuth 계정을 자동 병합하지 않는다.
+
+- Google OAuth는 서버가 authorization code를 PKCE verifier와 client
+  secret으로 교환한 뒤 OpenID Connect UserInfo의 `sub`를 계정 식별자로
+  사용한다. 공급자 콜백에서 세션 토큰을 URL로 전달하지 않고 10분 유효
+  일회용 교환 티켓을 발급하며, 웹 클라이언트가 티켓을 세션으로 교환한다.
+
+- Google Cloud의 웹 애플리케이션 OAuth 클라이언트에는
+  `https://tuti.today/api/auth/oauth/google/callback`을 승인된 리디렉션
+  URI로 정확히 등록한다. 서버의 `GOOGLE_CLIENT_ID`,
+  `GOOGLE_CLIENT_SECRET`, `GOOGLE_OAUTH_ENABLED`와 빌드 시점의
+  `NEXT_PUBLIC_GOOGLE_OAUTH_ENABLED`를 설정해야 Google 버튼이 활성화된다.
 
 - 로그인 세션 토큰도 원문 대신 SHA-256 해시만 `user_sessions`에 저장한다.
 
@@ -108,15 +121,21 @@ sequenceDiagram
 
 ##### 비활성화 정책
 
-- 현재 계정 인증은 기반 코드만 포함하고 실제 동작은 비활성화한다.
+- 계정 인증과 각 OAuth 공급자는 별도 플래그로 활성화한다.
 
 - 클라이언트는 `NEXT_PUBLIC_ACCOUNT_AUTH_ENABLED=false`일 때 모든 로그인 입력과 공급자 버튼을 비활성화한다.
 
 - 서버는 별도의 `ACCOUNT_AUTH_ENABLED=false`를 검사하므로 클라이언트 UI를 우회해도 이메일 코드 발송과 OAuth 시작·콜백이 `503`으로 종료된다.
 
-- 두 플래그는 OAuth 토큰 검증, 공급자 키 등록, 이메일 발신 도메인 검증이 모두 끝난 뒤 함께 활성화한다.
+- Google은 추가로 서버의 `GOOGLE_OAUTH_ENABLED`와 클라이언트의
+  `NEXT_PUBLIC_GOOGLE_OAUTH_ENABLED`가 모두 `true`여야 한다. Apple과
+  Kakao는 연결 작업이 끝날 때까지 공급자 플래그를 비활성 상태로 둔다.
 
 - Capacitor 최종 앱 ID는 `today.tuti.app`을 사용한다.
+
+- 현재 Google 완료 리디렉션은 웹 `/login`으로 연결한다. Capacitor는
+  iOS/Android 네이티브 프로젝트 생성 후 시스템 브라우저와 앱 딥링크를
+  같은 일회용 티켓 교환 API에 연결한다.
 
 ### 빌드 파이프라인
 
