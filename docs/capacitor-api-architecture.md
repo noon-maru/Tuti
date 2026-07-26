@@ -113,6 +113,17 @@ sequenceDiagram
   `GOOGLE_CLIENT_SECRET`, `GOOGLE_OAUTH_ENABLED`와 빌드 시점의
   `NEXT_PUBLIC_GOOGLE_OAUTH_ENABLED`를 설정해야 Google 버튼이 활성화된다.
 
+- Kakao OAuth도 authorization code와 PKCE를 사용한다. 서버가 Kakao
+  토큰 엔드포인트에서 코드를 교환한 뒤 사용자 정보 API의 회원번호를
+  계정 식별자로 사용한다. 카카오계정 이메일은 유효하고 인증된 경우에만
+  표시 정보로 저장하며 계정 연결 기준으로 사용하지 않는다.
+
+- Kakao Developers에는 Kakao Login을 활성화하고
+  `https://tuti.today/api/auth/oauth/kakao/callback`을 리디렉션 URI로
+  등록한다. REST API 키를 `KAKAO_CLIENT_ID`, 활성화된 Client Secret을
+  `KAKAO_CLIENT_SECRET`에 넣고 서버의 `KAKAO_OAUTH_ENABLED`와 빌드
+  시점의 `NEXT_PUBLIC_KAKAO_OAUTH_ENABLED`를 함께 활성화한다.
+
 - 로그인 세션 토큰도 원문 대신 SHA-256 해시만 `user_sessions`에 저장한다.
 
 - 웹과 Capacitor는 모두 `tuti-session` Preferences 키와 같은 클라이언트 API를 사용한다.
@@ -128,12 +139,14 @@ sequenceDiagram
 - 서버는 별도의 `ACCOUNT_AUTH_ENABLED=false`를 검사하므로 클라이언트 UI를 우회해도 이메일 코드 발송과 OAuth 시작·콜백이 `503`으로 종료된다.
 
 - Google은 추가로 서버의 `GOOGLE_OAUTH_ENABLED`와 클라이언트의
-  `NEXT_PUBLIC_GOOGLE_OAUTH_ENABLED`가 모두 `true`여야 한다. Apple과
-  Kakao는 연결 작업이 끝날 때까지 공급자 플래그를 비활성 상태로 둔다.
+  `NEXT_PUBLIC_GOOGLE_OAUTH_ENABLED`가 모두 `true`여야 한다. Kakao도
+  서버의 `KAKAO_OAUTH_ENABLED`와 클라이언트의
+  `NEXT_PUBLIC_KAKAO_OAUTH_ENABLED`를 함께 검사한다. Apple은 연결
+  작업이 끝날 때까지 비활성 상태로 둔다.
 
 - Capacitor 최종 앱 ID는 `today.tuti.app`을 사용한다.
 
-- 현재 Google 완료 리디렉션은 웹 `/login`으로 연결한다. Capacitor는
+- 현재 OAuth 완료 리디렉션은 웹 `/login`으로 연결한다. Capacitor는
   iOS/Android 네이티브 프로젝트 생성 후 시스템 브라우저와 앱 딥링크를
   같은 일회용 티켓 교환 API에 연결한다.
 

@@ -13,5 +13,6 @@ export const oauthProviderEnabled: Record<OAuthProvider, boolean> = {
   apple: false,
   google:
     process.env.NEXT_PUBLIC_GOOGLE_OAUTH_ENABLED === "true",
-  kakao: false,
+  kakao:
+    process.env.NEXT_PUBLIC_KAKAO_OAUTH_ENABLED === "true",
 };

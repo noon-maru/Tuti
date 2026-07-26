@@ -240,7 +240,7 @@ export function AccountScreen({
         oauthCompletion.currentJournalCount === undefined ? (
         <OAuthCompletionContent role="status">
           <OAuthCompletionMark aria-hidden="true">T</OAuthCompletionMark>
-          <h2>Google 계정을 연결하고 있어요.</h2>
+          <h2>계정을 연결하고 있어요.</h2>
           <p>잠시만 기다려주세요.</p>
         </OAuthCompletionContent>
       ) : displayedJournalResolution ? (

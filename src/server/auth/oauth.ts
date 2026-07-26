@@ -20,6 +20,7 @@ const providerConfigurations: Record<
     authorizationEndpoint: string;
     clientIdEnv: string;
     enabledEnv: string;
+    scopeSeparator?: string;
     scopes: string[];
   }
 > = {
@@ -39,7 +40,8 @@ const providerConfigurations: Record<
     authorizationEndpoint: "https://kauth.kakao.com/oauth/authorize",
     clientIdEnv: "KAKAO_CLIENT_ID",
     enabledEnv: "KAKAO_OAUTH_ENABLED",
-    scopes: ["openid", "account_email"],
+    scopeSeparator: ",",
+    scopes: [],
   },
 };
 
@@ -83,7 +85,12 @@ export async function createOAuthAuthorization(
   );
   authorizationUrl.searchParams.set("redirect_uri", redirectUri);
   authorizationUrl.searchParams.set("response_type", "code");
-  authorizationUrl.searchParams.set("scope", configuration.scopes.join(" "));
+  if (configuration.scopes.length > 0) {
+    authorizationUrl.searchParams.set(
+      "scope",
+      configuration.scopes.join(configuration.scopeSeparator ?? " "),
+    );
+  }
   authorizationUrl.searchParams.set("state", state);
   authorizationUrl.searchParams.set("code_challenge", codeChallenge);
   authorizationUrl.searchParams.set("code_challenge_method", "S256");
@@ -114,7 +121,7 @@ export async function completeOAuthAuthorization(
   assertAccountAuthEnabled();
   assertOAuthProviderEnabled(provider);
 
-  if (provider !== "google") {
+  if (provider === "apple") {
     throw new AccountAuthError(
       "선택한 로그인 공급자를 준비하고 있어요.",
       "oauth_provider_disabled",
@@ -126,11 +133,13 @@ export async function completeOAuthAuthorization(
   const providerError = callbackUrl.searchParams.get("error");
 
   if (providerError) {
+    const providerLabel = getOAuthProviderLabel(provider);
+
     throw new AccountAuthError(
       providerError === "access_denied"
-        ? "Google 로그인이 취소됐어요."
-        : "Google 로그인을 완료하지 못했어요.",
-      `google_${providerError}`,
+        ? `${providerLabel} 로그인이 취소됐어요.`
+        : `${providerLabel} 로그인을 완료하지 못했어요.`,
+      `${provider}_${providerError}`,
       400,
     );
   }
@@ -140,7 +149,7 @@ export async function completeOAuthAuthorization(
 
   if (!state || !code) {
     throw new AccountAuthError(
-      "Google 로그인 응답을 확인하지 못했어요.",
+      `${getOAuthProviderLabel(provider)} 로그인 응답을 확인하지 못했어요.`,
       "invalid_oauth_callback",
       400,
     );
@@ -163,10 +172,10 @@ export async function completeOAuthAuthorization(
     );
   }
 
-  const profile = await fetchGoogleProfile(
-    code,
-    authorization.codeVerifier,
-  );
+  const profile =
+    provider === "google"
+      ? await fetchGoogleProfile(code, authorization.codeVerifier)
+      : await fetchKakaoProfile(code, authorization.codeVerifier);
   const completionToken = randomBytes(32).toString("base64url");
 
   await prisma.oAuthAuthorization.update({
@@ -414,6 +423,98 @@ async function fetchGoogleProfile(
         ? profile.email.trim().toLowerCase()
         : null,
   };
+}
+
+async function fetchKakaoProfile(
+  code: string,
+  codeVerifier: string,
+) {
+  const redirectUri = createOAuthCallbackUrl("kakao");
+  const clientId = getRequiredAuthEnv("KAKAO_CLIENT_ID");
+  const tokenResponse = await fetch("https://kauth.kakao.com/oauth/token", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/x-www-form-urlencoded;charset=utf-8",
+    },
+    body: new URLSearchParams({
+      client_id: clientId,
+      client_secret: getRequiredAuthEnv("KAKAO_CLIENT_SECRET"),
+      code,
+      code_verifier: codeVerifier,
+      grant_type: "authorization_code",
+      redirect_uri: redirectUri,
+    }),
+    cache: "no-store",
+  });
+  const tokenData = (await tokenResponse.json().catch(() => null)) as {
+    access_token?: unknown;
+    error?: unknown;
+    error_description?: unknown;
+  } | null;
+  const accessToken =
+    typeof tokenData?.access_token === "string"
+      ? tokenData.access_token
+      : "";
+
+  if (!tokenResponse.ok || !accessToken) {
+    console.error("Kakao OAuth 토큰 교환에 실패했습니다.", {
+      error:
+        typeof tokenData?.error === "string"
+          ? tokenData.error
+          : "unknown",
+      status: tokenResponse.status,
+    });
+    throw new AccountAuthError(
+      "Kakao 로그인을 완료하지 못했어요.",
+      "kakao_token_exchange_failed",
+      502,
+    );
+  }
+
+  const profileResponse = await fetch(
+    "https://kapi.kakao.com/v2/user/me",
+    {
+      headers: { Authorization: `Bearer ${accessToken}` },
+      cache: "no-store",
+    },
+  );
+  const profile = (await profileResponse.json().catch(() => null)) as {
+    id?: unknown;
+    kakao_account?: {
+      email?: unknown;
+      is_email_valid?: unknown;
+      is_email_verified?: unknown;
+    };
+  } | null;
+  const subject =
+    typeof profile?.id === "number" || typeof profile?.id === "string"
+      ? String(profile.id)
+      : "";
+
+  if (!profileResponse.ok || !subject) {
+    throw new AccountAuthError(
+      "Kakao 계정 정보를 확인하지 못했어요.",
+      "kakao_profile_failed",
+      502,
+    );
+  }
+
+  const account = profile?.kakao_account;
+  return {
+    subject,
+    email:
+      account?.is_email_valid === true &&
+      account.is_email_verified === true &&
+      typeof account.email === "string"
+        ? account.email.trim().toLowerCase()
+        : null,
+  };
+}
+
+function getOAuthProviderLabel(provider: OAuthProvider) {
+  if (provider === "google") return "Google";
+  if (provider === "kakao") return "Kakao";
+  return "Apple";
 }
 
 function parseJournalResolution(value: unknown) {
