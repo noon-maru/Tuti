@@ -40,9 +40,18 @@ export function AccountFlow() {
       onEmailCodeRequest={async (email) => {
         await requestEmailLoginCode(email);
       }}
-      onEmailCodeVerify={async (email, code) => {
-        await verifyEmailLoginCode({ email, code });
-        await finishAccountChange();
+      onEmailCodeVerify={async (email, code, journalResolution) => {
+        const result = await verifyEmailLoginCode({
+          email,
+          code,
+          journalResolution,
+        });
+
+        if (result.status === "authenticated") {
+          await finishAccountChange();
+        }
+
+        return result;
       }}
       onOAuth={async (provider) => {
         const authorizationUrl = await createOAuthLoginUrl(provider);

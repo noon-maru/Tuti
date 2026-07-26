@@ -11,7 +11,7 @@ import {
 } from "@/server/http/cors";
 import type {
   EmailCodeVerification,
-  SessionResponse,
+  EmailCodeVerificationResult,
 } from "@/shared/api/session";
 
 export const runtime = "nodejs";
@@ -39,9 +39,8 @@ export async function POST(request: Request) {
     }
 
     const input = (await request.json()) as EmailCodeVerification;
-    const response: SessionResponse = {
-      session: await verifyEmailCode(currentUser, input),
-    };
+    const response: EmailCodeVerificationResult =
+      await verifyEmailCode(currentUser, input);
 
     return withCors(request, Response.json(response));
   } catch (error) {

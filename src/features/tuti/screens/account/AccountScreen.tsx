@@ -8,7 +8,9 @@ import {
 } from "@/features/tuti/components/buttons";
 import { ScreenFrame } from "@/features/tuti/components/ScreenFrame";
 import type {
+  AccountJournalResolution,
   AuthProvider,
+  EmailCodeVerificationResult,
   OAuthProvider,
 } from "@/shared/api/session";
 import { oauthProviderLabels } from "@/shared/auth/config";
@@ -30,13 +32,19 @@ export function AccountScreen({
   providers?: AuthProvider[];
   onBack: () => void;
   onEmailCodeRequest: (email: string) => Promise<void>;
-  onEmailCodeVerify: (email: string, code: string) => Promise<void>;
+  onEmailCodeVerify: (
+    email: string,
+    code: string,
+    journalResolution?: AccountJournalResolution,
+  ) => Promise<EmailCodeVerificationResult>;
   onLogout: () => Promise<void>;
   onOAuth: (provider: OAuthProvider) => Promise<void>;
 }) {
   const [emailStep, setEmailStep] = useState<EmailStep>("email");
   const [formEmail, setFormEmail] = useState("");
   const [verificationCode, setVerificationCode] = useState("");
+  const [journalResolutionRequest, setJournalResolutionRequest] =
+    useState<{ currentJournalCount: number } | null>(null);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const hasEmailInput =
@@ -59,12 +67,50 @@ export function AccountScreen({
         return;
       }
 
-      await onEmailCodeVerify(formEmail, verificationCode);
+      const result = await onEmailCodeVerify(formEmail, verificationCode);
+
+      if (result.status === "journal-resolution-required") {
+        setJournalResolutionRequest({
+          currentJournalCount: result.currentJournalCount,
+        });
+        setPending(false);
+      }
     } catch (submitError) {
       setError(
         submitError instanceof Error
           ? submitError.message
           : "계정 요청을 처리하지 못했어요.",
+      );
+      setPending(false);
+    }
+  };
+
+  const resolveJournals = async (
+    journalResolution: AccountJournalResolution,
+  ) => {
+    if (!authEnabled || pending) return;
+
+    setPending(true);
+    setError(null);
+
+    try {
+      const result = await onEmailCodeVerify(
+        formEmail,
+        verificationCode,
+        journalResolution,
+      );
+
+      if (result.status === "journal-resolution-required") {
+        setJournalResolutionRequest({
+          currentJournalCount: result.currentJournalCount,
+        });
+        setPending(false);
+      }
+    } catch (resolutionError) {
+      setError(
+        resolutionError instanceof Error
+          ? resolutionError.message
+          : "현재 기록을 처리하지 못했어요.",
       );
       setPending(false);
     }
@@ -149,12 +195,57 @@ export function AccountScreen({
             {pending ? "로그아웃 중..." : "로그아웃"}
           </LogoutButton>
         </AccountContent>
+      ) : journalResolutionRequest ? (
+        <JournalResolutionContent>
+          <JournalResolutionCopy>
+            <h2>현재 기록도 함께 가져올까요?</h2>
+            <p>
+              이 기기에 남긴 기록{" "}
+              <strong>
+                {journalResolutionRequest.currentJournalCount}개
+              </strong>
+              를 계정 기록과 합칠 수 있어요.
+            </p>
+          </JournalResolutionCopy>
+          <JournalResolutionActions>
+            <MergeButton
+              type="button"
+              disabled={pending}
+              onClick={() => void resolveJournals("merge")}
+            >
+              {pending ? "처리하는 중..." : "현재 기록도 합치기"}
+            </MergeButton>
+            <AccountOnlyButton
+              type="button"
+              disabled={pending}
+              onClick={() => void resolveJournals("discard")}
+            >
+              계정 기록만 불러오기
+            </AccountOnlyButton>
+          </JournalResolutionActions>
+          <JournalResolutionWarning>
+            계정 기록만 불러오면 현재 기기의 연결되지 않은 기록{" "}
+            {journalResolutionRequest.currentJournalCount}개는 삭제돼요.
+          </JournalResolutionWarning>
+          {error && <ErrorMessage role="alert">{error}</ErrorMessage>}
+          <ReturnToCodeButton
+            type="button"
+            disabled={pending}
+            onClick={() => {
+              setJournalResolutionRequest(null);
+              setError(null);
+            }}
+          >
+            인증코드 입력으로 돌아가기
+          </ReturnToCodeButton>
+        </JournalResolutionContent>
       ) : (
         <LoginContent>
           <IntroCopy>
             <h2>남겨둔 공간을 다시 만나요.</h2>
             <p>
-              로그인하면 현재 기기의 기록도 계정에 함께 연결돼요.
+              로그인한 뒤 현재 기기의 기록을 연결할지 선택할 수
+              있어요.
             </p>
           </IntroCopy>
 
@@ -312,6 +403,81 @@ const BackButton = styled(BaseButton)`
 
 const HeaderSpacer = styled.span`
   width: var(--space-11);
+`;
+
+const JournalResolutionContent = styled.div`
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  padding-top: clamp(var(--space-12), 12cqh, var(--space-20));
+`;
+
+const JournalResolutionCopy = styled.div`
+  display: grid;
+  gap: var(--space-3);
+
+  h2 {
+    font-size: var(--font-size-600);
+    font-weight: 600;
+  }
+
+  p {
+    color: var(--color-text-muted);
+    font-size: var(--font-size-200);
+  }
+
+  strong {
+    color: var(--color-text);
+    font-weight: 600;
+  }
+`;
+
+const JournalResolutionActions = styled.div`
+  display: grid;
+  gap: var(--space-3);
+  margin-top: var(--space-10);
+`;
+
+const MergeButton = styled(PrimaryButton)`
+  width: 100%;
+  background: var(--color-secondary-700);
+  color: var(--color-neutral-1300);
+`;
+
+const AccountOnlyButton = styled(BaseButton)`
+  min-height: var(--space-14);
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  background: var(--color-neutral-100);
+  color: var(--color-text);
+  font-size: var(--font-size-200);
+  font-weight: 600;
+  transition: border-color 180ms ease, transform 180ms ease;
+
+  &:active:not(:disabled) {
+    transform: scale(0.98);
+  }
+
+  &:disabled {
+    color: var(--color-text-muted);
+    cursor: default;
+  }
+`;
+
+const JournalResolutionWarning = styled.p`
+  margin-top: var(--space-4);
+  color: var(--color-error);
+  font-size: var(--font-size-100);
+  text-align: center;
+`;
+
+const ReturnToCodeButton = styled(BaseButton)`
+  align-self: center;
+  margin-top: var(--space-6);
+  padding: var(--space-2) var(--space-4);
+  background: transparent;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-100);
 `;
 
 const LoginContent = styled.div`

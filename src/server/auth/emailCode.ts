@@ -15,8 +15,10 @@ import {
 } from "@/server/auth/session";
 import { prisma } from "@/server/db/prisma";
 import type {
+  AccountJournalResolution,
   EmailCodeRequest,
   EmailCodeVerification,
+  EmailCodeVerificationResult,
 } from "@/shared/api/session";
 
 const CODE_LIFETIME_MINUTES = 10;
@@ -84,10 +86,11 @@ export async function requestEmailCode(input: EmailCodeRequest) {
 export async function verifyEmailCode(
   currentUser: AuthenticatedUser,
   input: EmailCodeVerification,
-) {
+): Promise<EmailCodeVerificationResult> {
   assertAccountAuthEnabled();
   const email = parseEmail(input);
   const code = parseCode(input);
+  const journalResolution = parseJournalResolution(input);
   const challenge = await prisma.emailVerificationCode.findFirst({
     where: {
       email,
@@ -163,19 +166,42 @@ export async function verifyEmailCode(
   const targetUserId = existingIdentity?.userId ?? currentUser.id;
 
   if (existingIdentity && existingIdentity.userId !== currentUser.id) {
-    await prisma.$transaction([
-      prisma.journalEntry.updateMany({
-        where: { ownerId: currentUser.id },
-        data: { ownerId: existingIdentity.userId },
-      }),
-      prisma.emailVerificationCode.update({
-        where: { id: challenge.id },
-        data: { consumedAt: new Date() },
-      }),
-      prisma.user.delete({
-        where: { id: currentUser.id },
-      }),
-    ]);
+    const currentJournalCount = await prisma.journalEntry.count({
+      where: { ownerId: currentUser.id },
+    });
+
+    if (currentJournalCount > 0 && !journalResolution) {
+      return {
+        status: "journal-resolution-required",
+        currentJournalCount,
+      };
+    }
+
+    if (journalResolution === "merge") {
+      await prisma.$transaction([
+        prisma.journalEntry.updateMany({
+          where: { ownerId: currentUser.id },
+          data: { ownerId: existingIdentity.userId },
+        }),
+        prisma.emailVerificationCode.update({
+          where: { id: challenge.id },
+          data: { consumedAt: new Date() },
+        }),
+        prisma.user.delete({
+          where: { id: currentUser.id },
+        }),
+      ]);
+    } else {
+      await prisma.$transaction([
+        prisma.emailVerificationCode.update({
+          where: { id: challenge.id },
+          data: { consumedAt: new Date() },
+        }),
+        prisma.user.delete({
+          where: { id: currentUser.id },
+        }),
+      ]);
+    }
   } else {
     await prisma.$transaction([
       prisma.authIdentity.upsert({
@@ -207,7 +233,10 @@ export async function verifyEmailCode(
     ]);
   }
 
-  return createUserSession(targetUserId);
+  return {
+    status: "authenticated",
+    session: await createUserSession(targetUserId),
+  };
 }
 
 function parseEmail(input: EmailCodeRequest) {
@@ -237,6 +266,26 @@ function parseCode(input: EmailCodeVerification) {
   }
 
   return code;
+}
+
+function parseJournalResolution(
+  input: EmailCodeVerification,
+): AccountJournalResolution | undefined {
+  const resolution = input?.journalResolution;
+
+  if (
+    resolution === undefined ||
+    resolution === "merge" ||
+    resolution === "discard"
+  ) {
+    return resolution;
+  }
+
+  throw new AccountAuthError(
+    "현재 기록을 처리할 방법을 다시 선택해주세요.",
+    "invalid_journal_resolution",
+    400,
+  );
 }
 
 function hashVerificationCode(id: string, email: string, code: string) {

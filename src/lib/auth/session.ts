@@ -3,6 +3,7 @@ import { preferencesStorage } from "@/lib/storage/preferencesStorage";
 import type {
   EmailCodeRequestResponse,
   EmailCodeVerification,
+  EmailCodeVerificationResult,
   OAuthProvider,
   OAuthStartResponse,
   SessionResponse,
@@ -83,14 +84,22 @@ export async function verifyEmailLoginCode(
     );
   }
 
-  const data = (await response.json()) as SessionResponse;
+  const data = (await response.json()) as EmailCodeVerificationResult;
 
-  if (!isTutiSession(data.session) || !data.session.account) {
+  if (data.status === "journal-resolution-required") {
+    return data;
+  }
+
+  if (
+    data.status !== "authenticated" ||
+    !isTutiSession(data.session) ||
+    !data.session.account
+  ) {
     throw new Error("계정 응답을 확인하지 못했어요.");
   }
 
   await storeSession(data.session);
-  return data.session;
+  return data;
 }
 
 export async function createOAuthLoginUrl(provider: OAuthProvider) {

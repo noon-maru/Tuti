@@ -21,14 +21,27 @@ export type EmailCodeRequest = {
   email: string;
 };
 
+export type AccountJournalResolution = "merge" | "discard";
+
 export type EmailCodeVerification = EmailCodeRequest & {
   code: string;
+  journalResolution?: AccountJournalResolution;
 };
 
 export type EmailCodeRequestResponse = {
   expiresInSeconds: number;
   message: string;
 };
+
+export type EmailCodeVerificationResult =
+  | {
+      status: "authenticated";
+      session: TutiSession;
+    }
+  | {
+      status: "journal-resolution-required";
+      currentJournalCount: number;
+    };
 
 export type OAuthStartResponse = {
   authorizationUrl: string;
