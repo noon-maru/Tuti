@@ -33,6 +33,7 @@ export function RecommendationsScreen({
   onDetailClose,
   onJournal,
   onAccount,
+  onRestartIntake,
   onLogout,
   accountConnected,
   interactive,
@@ -51,6 +52,7 @@ export function RecommendationsScreen({
   onDetailClose: () => void;
   onJournal: () => void;
   onAccount: () => void;
+  onRestartIntake: () => void;
   onLogout: () => void | Promise<void>;
   accountConnected: boolean;
   interactive: boolean;
@@ -422,7 +424,7 @@ export function RecommendationsScreen({
       >
         <AccountMenu>
           <ContextMenu
-            label="계정 메뉴"
+            label="메인 메뉴"
             items={
               accountConnected
                 ? [
@@ -431,14 +433,23 @@ export function RecommendationsScreen({
                       onSelect: onAccount,
                     },
                     {
+                      label: "오늘 다시 고르기",
+                      onSelect: onRestartIntake,
+                    },
+                    {
                       label: "로그아웃",
                       onSelect: onLogout,
+                      tone: "danger",
                     },
                   ]
                 : [
                     {
-                      label: "로그인 및\n기록 불러오기",
+                      label: "기록 불러오기",
                       onSelect: onAccount,
+                    },
+                    {
+                      label: "오늘 다시 고르기",
+                      onSelect: onRestartIntake,
                     },
                   ]
             }

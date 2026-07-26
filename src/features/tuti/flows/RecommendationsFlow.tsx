@@ -25,6 +25,7 @@ export function RecommendationsFlow({ interactive }: { interactive: boolean }) {
   const finishDetailClose = useTutiStore((state) => state.finishDetailClose);
   const markSwipeHelpSeen = useTutiStore((state) => state.markSwipeHelpSeen);
   const markJournalHelpSeen = useTutiStore((state) => state.markJournalHelpSeen);
+  const resetIntake = useTutiStore((state) => state.resetIntake);
 
   const detailPlaceIndex =
     detailOverlay.placeId
@@ -137,6 +138,10 @@ export function RecommendationsFlow({ interactive }: { interactive: boolean }) {
       onDetailClose={finishDetailClose}
       onJournal={() => router.push("/journal")}
       onAccount={() => router.push("/login")}
+      onRestartIntake={() => {
+        resetIntake();
+        router.push("/entry");
+      }}
       onLogout={async () => {
         await logoutAccount();
         queryClient.setQueryData(["journal-entries"], []);
