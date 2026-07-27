@@ -34,6 +34,7 @@ export function RecommendationsScreen({
   onJournal,
   onAccount,
   onAdmin,
+  onInquiry,
   onRestartIntake,
   onLogout,
   accountConnected,
@@ -55,6 +56,7 @@ export function RecommendationsScreen({
   onJournal: () => void;
   onAccount: () => void;
   onAdmin: () => void;
+  onInquiry: () => void;
   onRestartIntake: () => void;
   onLogout: () => void | Promise<void>;
   accountConnected: boolean;
@@ -451,6 +453,10 @@ export function RecommendationsScreen({
                       onSelect: onRestartIntake,
                     },
                     {
+                      label: "1:1 문의",
+                      onSelect: onInquiry,
+                    },
+                    {
                       label: "로그아웃",
                       onSelect: onLogout,
                       tone: "danger",
@@ -464,6 +470,10 @@ export function RecommendationsScreen({
                     {
                       label: "오늘 다시 고르기",
                       onSelect: onRestartIntake,
+                    },
+                    {
+                      label: "1:1 문의",
+                      onSelect: onInquiry,
                     },
                   ]
             }

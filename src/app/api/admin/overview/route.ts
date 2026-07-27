@@ -29,6 +29,7 @@ export async function GET(request: Request) {
     activePlaces,
     pendingPlaces,
     pendingReports,
+    pendingInquiries,
     logsToday,
   ] = await Promise.all([
     prisma.user.count(),
@@ -40,6 +41,9 @@ export async function GET(request: Request) {
     prisma.contentReport.count({
       where: { status: { in: ["pending", "reviewing"] } },
     }),
+    prisma.customerInquiry.count({
+      where: { status: { in: ["pending", "reviewing"] } },
+    }),
     prisma.systemLog.count({ where: { createdAt: { gte: startOfToday } } }),
   ]);
   const response: AdminOverviewResponse = {
@@ -49,6 +53,7 @@ export async function GET(request: Request) {
       activePlaces,
       pendingPlaces,
       pendingReports,
+      pendingInquiries,
       logsToday,
     },
   };

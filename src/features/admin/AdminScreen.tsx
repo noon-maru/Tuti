@@ -14,6 +14,8 @@ import {
   fetchAdminJson,
 } from "@/lib/adminApi";
 import type {
+  AdminInquiriesResponse,
+  AdminInquiryItem,
   AdminLogItem,
   AdminLogsResponse,
   AdminOverview,
@@ -33,6 +35,7 @@ type AdminTab =
   | "logs"
   | "places"
   | "reports"
+  | "inquiries"
   | "users"
   | "settings";
 
@@ -41,6 +44,7 @@ const tabs: Array<{ id: AdminTab; label: string }> = [
   { id: "logs", label: "로그" },
   { id: "places", label: "장소" },
   { id: "reports", label: "신고" },
+  { id: "inquiries", label: "1:1 문의" },
   { id: "users", label: "권한" },
   { id: "settings", label: "설정" },
 ];
@@ -56,6 +60,7 @@ export function AdminScreen() {
   const [logs, setLogs] = useState<AdminLogItem[]>([]);
   const [places, setPlaces] = useState<AdminPlaceItem[]>([]);
   const [reports, setReports] = useState<AdminReportItem[]>([]);
+  const [inquiries, setInquiries] = useState<AdminInquiryItem[]>([]);
   const [users, setUsers] = useState<AdminUserItem[]>([]);
   const [settings, setSettings] = useState<AdminSettingItem[]>([]);
   const [query, setQuery] = useState("");
@@ -82,6 +87,7 @@ export function AdminScreen() {
       searchParams.set("reviewStatus", filter);
     }
     if (tab === "reports" && filter) searchParams.set("status", filter);
+    if (tab === "inquiries" && filter) searchParams.set("status", filter);
 
     const suffix = searchParams.size ? `?${searchParams}` : "";
 
@@ -100,6 +106,11 @@ export function AdminScreen() {
         `reports${suffix}`,
       );
       setReports(response.reports);
+    } else if (tab === "inquiries") {
+      const response = await fetchAdminJson<AdminInquiriesResponse>(
+        `inquiries${suffix}`,
+      );
+      setInquiries(response.inquiries);
     } else if (tab === "users") {
       const response = await fetchAdminJson<AdminUsersResponse>(
         `users${suffix}`,
@@ -141,7 +152,7 @@ export function AdminScreen() {
   }, [refresh]);
 
   const mutate = async (
-    resource: "places" | "reports" | "settings" | "users",
+    resource: "inquiries" | "places" | "reports" | "settings" | "users",
     id: string,
     init: RequestInit,
   ) => {
@@ -294,6 +305,22 @@ export function AdminScreen() {
               );
             }}
           />
+        ) : tab === "inquiries" ? (
+          <InquiriesPanel
+            inquiries={inquiries}
+            mutatingId={mutatingId}
+            onSave={(inquiryId, status, adminResponse) =>
+              void mutate(
+                "inquiries",
+                inquiryId,
+                adminJsonRequest("PATCH", {
+                  inquiryId,
+                  status,
+                  adminResponse,
+                }),
+              )
+            }
+          />
         ) : tab === "users" ? (
           <UsersPanel
             users={users}
@@ -305,6 +332,21 @@ export function AdminScreen() {
                 adminJsonRequest("PATCH", { userId, role }),
               )
             }
+            onForceDelete={(user) => {
+              if (
+                !window.confirm(
+                  `"${user.email ?? user.id}" 계정과 모든 기록을 강제로 삭제할까요? 이 작업은 되돌릴 수 없습니다.`,
+                )
+              ) {
+                return;
+              }
+
+              void mutate(
+                "users",
+                user.id,
+                adminJsonRequest("DELETE", { userId: user.id }),
+              );
+            }}
           />
         ) : (
           <SettingsPanel
@@ -331,6 +373,7 @@ function OverviewPanel({ overview }: { overview: AdminOverview | null }) {
     ["노출 중인 장소", overview?.activePlaces ?? 0],
     ["검토 대기 장소", overview?.pendingPlaces ?? 0],
     ["처리할 신고", overview?.pendingReports ?? 0],
+    ["처리할 문의", overview?.pendingInquiries ?? 0],
     ["오늘 로그", overview?.logsToday ?? 0],
   ];
 
@@ -515,14 +558,118 @@ function ReportsPanel({
   );
 }
 
+function InquiriesPanel({
+  inquiries,
+  mutatingId,
+  onSave,
+}: {
+  inquiries: AdminInquiryItem[];
+  mutatingId: string | null;
+  onSave: (
+    inquiryId: string,
+    status: string,
+    adminResponse: string,
+  ) => void;
+}) {
+  if (inquiries.length === 0) {
+    return <StatePanel>접수된 1:1 문의가 없습니다.</StatePanel>;
+  }
+
+  return (
+    <CardList>
+      {inquiries.map((inquiry) => (
+        <InquiryEditor
+          key={`${inquiry.id}:${inquiry.updatedAt}`}
+          inquiry={inquiry}
+          saving={mutatingId === inquiry.id}
+          onSave={onSave}
+        />
+      ))}
+    </CardList>
+  );
+}
+
+function InquiryEditor({
+  inquiry,
+  saving,
+  onSave,
+}: {
+  inquiry: AdminInquiryItem;
+  saving: boolean;
+  onSave: (
+    inquiryId: string,
+    status: string,
+    adminResponse: string,
+  ) => void;
+}) {
+  const [status, setStatus] = useState(inquiry.status);
+  const [adminResponse, setAdminResponse] = useState(
+    inquiry.adminResponse ?? "",
+  );
+  const changed =
+    status !== inquiry.status ||
+    adminResponse.trim() !== (inquiry.adminResponse ?? "");
+
+  return (
+    <DataCard>
+      <CardTop>
+        <StatusBadge $tone={inquiry.status}>
+          {inquiry.status}
+        </StatusBadge>
+        <Time>{formatDate(inquiry.createdAt)}</Time>
+      </CardTop>
+      <h2>{inquiry.subject}</h2>
+      <Meta>
+        유형 {inquiry.category} ·{" "}
+        {inquiry.requesterEmail ??
+          inquiry.requesterUserId ??
+          "삭제된 사용자"}
+      </Meta>
+      <Description>{inquiry.message}</Description>
+      <ResponseArea>
+        <InlineSelect
+          value={status}
+          disabled={saving}
+          onChange={(event) =>
+            setStatus(event.target.value as typeof status)
+          }
+        >
+          <option value="pending">접수</option>
+          <option value="reviewing">확인 중</option>
+          <option value="answered">답변 완료</option>
+          <option value="closed">종결</option>
+        </InlineSelect>
+        <AdminResponseInput
+          value={adminResponse}
+          disabled={saving}
+          maxLength={4000}
+          placeholder="처리 내용이나 답변 메모를 남겨주세요."
+          onChange={(event) => setAdminResponse(event.target.value)}
+        />
+        <SearchButton
+          type="button"
+          disabled={saving || !changed}
+          onClick={() =>
+            onSave(inquiry.id, status, adminResponse.trim())
+          }
+        >
+          {saving ? "저장 중..." : "처리 내용 저장"}
+        </SearchButton>
+      </ResponseArea>
+    </DataCard>
+  );
+}
+
 function UsersPanel({
   users,
   mutatingId,
   onRoleChange,
+  onForceDelete,
 }: {
   users: AdminUserItem[];
   mutatingId: string | null;
   onRoleChange: (userId: string, role: string) => void;
+  onForceDelete: (user: AdminUserItem) => void;
 }) {
   if (users.length === 0) return <StatePanel>조건에 맞는 사용자가 없습니다.</StatePanel>;
 
@@ -536,6 +683,7 @@ function UsersPanel({
             <th>기록</th>
             <th>가입일</th>
             <th>권한</th>
+            <th>관리</th>
           </tr>
         </thead>
         <tbody>
@@ -559,6 +707,15 @@ function UsersPanel({
                   <option value="user">사용자</option>
                   <option value="admin">관리자</option>
                 </InlineSelect>
+              </td>
+              <td>
+                <DangerButton
+                  type="button"
+                  disabled={mutatingId === user.id}
+                  onClick={() => onForceDelete(user)}
+                >
+                  계정 강제 삭제
+                </DangerButton>
               </td>
             </tr>
           ))}
@@ -673,6 +830,16 @@ function getFilterOptions(tab: AdminTab) {
     ];
   }
 
+  if (tab === "inquiries") {
+    return [
+      { value: "", label: "전체 상태" },
+      { value: "pending", label: "접수" },
+      { value: "reviewing", label: "확인 중" },
+      { value: "answered", label: "답변 완료" },
+      { value: "closed", label: "종결" },
+    ];
+  }
+
   return [];
 }
 
@@ -680,6 +847,9 @@ function getSearchPlaceholder(tab: AdminTab) {
   if (tab === "logs") return "메시지, 작업, 사용자 ID 검색";
   if (tab === "places") return "장소명, 장소 ID, 공공데이터 ID 검색";
   if (tab === "reports") return "제목, 신고 내용, 사용자 ID 검색";
+  if (tab === "inquiries") {
+    return "제목, 문의 내용, 이메일 또는 사용자 ID 검색";
+  }
   return "이메일 또는 사용자 ID 검색";
 }
 
@@ -1068,6 +1238,37 @@ const CardActions = styled.div`
   flex-wrap: wrap;
   gap: var(--space-3);
   padding-top: var(--space-2);
+`;
+
+const ResponseArea = styled.div`
+  display: grid;
+  grid-template-columns: 160px minmax(0, 1fr) auto;
+  align-items: start;
+  gap: var(--space-3);
+  padding-top: var(--space-2);
+
+  @media (max-width: 760px) {
+    grid-template-columns: 1fr;
+  }
+`;
+
+const AdminResponseInput = styled.textarea`
+  min-height: 88px;
+  resize: vertical;
+  padding: var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--space-2);
+  outline: 0;
+  background: var(--color-white);
+  color: var(--color-text);
+  font: inherit;
+  font-size: var(--font-size-100);
+  line-height: var(--line-height-body);
+
+  &:focus {
+    border-color: var(--color-brand-600);
+    box-shadow: 0 0 0 3px var(--color-brand-200);
+  }
 `;
 
 const DangerButton = styled.button`

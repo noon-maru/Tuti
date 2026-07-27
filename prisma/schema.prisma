@@ -52,6 +52,21 @@ enum ReportStatus {
   dismissed
 }
 
+enum InquiryCategory {
+  account
+  service
+  place
+  privacy
+  other
+}
+
+enum InquiryStatus {
+  pending
+  reviewing
+  answered
+  closed
+}
+
 model Place {
   id            String                                @id
   name          String
@@ -183,6 +198,26 @@ model AppSetting {
   updatedAt       DateTime @updatedAt @map("updated_at")
 
   @@map("app_settings")
+}
+
+model CustomerInquiry {
+  id              String          @id
+  requesterUserId String?         @map("requester_user_id")
+  requesterEmail  String?         @map("requester_email")
+  category        InquiryCategory
+  subject         String
+  message         String
+  status          InquiryStatus   @default(pending)
+  adminResponse   String?         @map("admin_response")
+  handledByUserId String?         @map("handled_by_user_id")
+  handledAt       DateTime?       @map("handled_at")
+  createdAt       DateTime        @default(now()) @map("created_at")
+  updatedAt       DateTime        @updatedAt @map("updated_at")
+
+  @@index([status, createdAt])
+  @@index([requesterUserId, createdAt])
+  @@index([requesterEmail])
+  @@map("customer_inquiries")
 }
 
 model AuthIdentity {

@@ -187,6 +187,10 @@ export async function verifyEmailCode(
           where: { resolvedUserId: currentUser.id },
           data: { resolvedUserId: existingIdentity.userId },
         }),
+        prisma.customerInquiry.updateMany({
+          where: { requesterUserId: currentUser.id },
+          data: { requesterUserId: existingIdentity.userId },
+        }),
         prisma.emailVerificationCode.update({
           where: { id: challenge.id },
           data: { consumedAt: new Date() },
@@ -197,6 +201,10 @@ export async function verifyEmailCode(
       ]);
     } else {
       await prisma.$transaction([
+        prisma.customerInquiry.updateMany({
+          where: { requesterUserId: currentUser.id },
+          data: { requesterUserId: existingIdentity.userId },
+        }),
         prisma.emailVerificationCode.update({
           where: { id: challenge.id },
           data: { consumedAt: new Date() },

@@ -139,6 +139,7 @@ export function RecommendationsFlow({ interactive }: { interactive: boolean }) {
       onJournal={() => router.push("/journal")}
       onAccount={() => router.push("/login")}
       onAdmin={() => router.push("/admin")}
+      onInquiry={() => router.push("/inquiry")}
       onRestartIntake={() => {
         resetIntake();
         router.push("/entry");

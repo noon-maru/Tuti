@@ -292,14 +292,24 @@ export async function completeOAuthLogin(input: {
           where: { resolvedUserId: authorization.userId },
           data: { resolvedUserId: targetUserId },
         }),
+        prisma.customerInquiry.updateMany({
+          where: { requesterUserId: authorization.userId },
+          data: { requesterUserId: targetUserId },
+        }),
         prisma.user.delete({
           where: { id: authorization.userId },
         }),
       ]);
     } else {
-      await prisma.user.delete({
-        where: { id: authorization.userId },
-      });
+      await prisma.$transaction([
+        prisma.customerInquiry.updateMany({
+          where: { requesterUserId: authorization.userId },
+          data: { requesterUserId: targetUserId },
+        }),
+        prisma.user.delete({
+          where: { id: authorization.userId },
+        }),
+      ]);
     }
   } else {
     await prisma.$transaction([

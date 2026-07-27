@@ -4,6 +4,8 @@ import type {
   ReportReason,
   ReportStatus,
   UserRole,
+  InquiryCategory,
+  InquiryStatus,
 } from "@/generated/prisma/client";
 
 export type AdminOverview = {
@@ -12,6 +14,7 @@ export type AdminOverview = {
   activePlaces: number;
   pendingPlaces: number;
   pendingReports: number;
+  pendingInquiries: number;
   logsToday: number;
 };
 
@@ -65,6 +68,21 @@ export type AdminUserItem = {
   createdAt: string;
 };
 
+export type AdminInquiryItem = {
+  id: string;
+  requesterUserId: string | null;
+  requesterEmail: string | null;
+  category: InquiryCategory;
+  subject: string;
+  message: string;
+  status: InquiryStatus;
+  adminResponse: string | null;
+  handledByUserId: string | null;
+  handledAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
 export type AdminSettingItem = {
   key: string;
   label: string;
@@ -92,6 +110,10 @@ export type AdminReportsResponse = {
 
 export type AdminUsersResponse = {
   users: AdminUserItem[];
+};
+
+export type AdminInquiriesResponse = {
+  inquiries: AdminInquiryItem[];
 };
 
 export type AdminSettingsResponse = {
