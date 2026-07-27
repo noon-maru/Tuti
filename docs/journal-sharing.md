@@ -22,10 +22,10 @@
 ## 플랫폼별 전달
 
 - 웹은 `navigator.canShare({ files })`를 통과하면 Web Share API로 PNG
-  파일을 전달한다.
+  파일 하나만 전달한다. 제목, 설명, URL은 같은 payload에 섞지 않는다.
 - 파일 공유를 지원하지 않는 웹 브라우저에서는 PNG 다운로드로 대체한다.
 - Capacitor 앱은 PNG를 앱 캐시 디렉터리에 잠시 기록하고
-  `@capacitor/share`로 iOS·Android 공유 시트를 연다.
+  `@capacitor/share`로 iOS·Android 공유 시트에 파일 하나만 전달한다.
 - 네이티브 공유가 끝나거나 취소되면 캐시 파일을 정리한다.
 
 네이티브 프로젝트가 생성된 뒤에는 `pnpm cap:sync`로 Filesystem과 Share
@@ -94,5 +94,10 @@ pnpm journal:trace -- 8C44-6B78-7384
 - 웹은 현재 서비스의 origin을 기준으로 공개 주소를 만든다.
 - Capacitor 앱은 `NEXT_PUBLIC_API_BASE_URL`의 origin을 기준으로 웹 공개
   주소를 만든다.
-- 따라서 앱은 네이티브 공유 화면을 사용하면서도
-  `https://tuti.today/shared/...` 형태의 웹 링크를 전달할 수 있다.
+- 따라서 앱에서도 `https://tuti.today/shared/...` 형태의 웹 링크를 만들 수
+  있으며, 링크 복사 기능에서 사용한다.
+
+PNG 공유와 링크 공유는 운영체제와 대상 앱에 따라 복합 payload가 다르게
+처리되는 문제를 피하기 위해 분리한다. PNG 공유는 파일만 전달하고, 공개 링크는
+상세 메뉴의 `공유 링크 복사`를 사용한다. 공개 주소는 출처 확인을 위해 PNG
+메타데이터에는 계속 기록한다.

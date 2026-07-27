@@ -75,7 +75,7 @@ export function JournalDetailScreen({
             ...(entry.publication
               ? [
                   {
-                    label: "이미지와 링크 공유",
+                    label: "PNG로 공유하기",
                     onSelect: () => setShareOpen(true),
                   },
                   {

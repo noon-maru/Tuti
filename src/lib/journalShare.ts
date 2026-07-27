@@ -12,47 +12,22 @@ export function isNativeSharePlatform() {
 export async function shareJournalPng(
   blob: Blob,
   entry: TutiJournalEntry,
-  publicUrl?: string,
 ) {
   const filename = createJournalShareFilename(entry);
 
   if (isNativeSharePlatform()) {
-    await shareNativeFile(blob, entry, filename, publicUrl);
+    await shareNativeFile(blob, filename);
     return "shared" as const;
   }
 
   const file = new File([blob], filename, { type: "image/png" });
-
-  const shareText = createShareText(entry, publicUrl);
   const shareData: ShareData = {
     files: [file],
-    title: entry.title,
-    text: shareText,
-    ...(publicUrl ? { url: publicUrl } : {}),
   };
 
   if (navigator.share && navigator.canShare?.(shareData)) {
     try {
       await navigator.share(shareData);
-      return "shared" as const;
-    } catch (error) {
-      if (isShareCancellation(error)) return "cancelled" as const;
-      throw error;
-    }
-  }
-
-  const fileOnlyShareData: ShareData = {
-    files: [file],
-    title: entry.title,
-    text: shareText,
-  };
-
-  if (
-    navigator.share &&
-    navigator.canShare?.(fileOnlyShareData)
-  ) {
-    try {
-      await navigator.share(fileOnlyShareData);
       return "shared" as const;
     } catch (error) {
       if (isShareCancellation(error)) return "cancelled" as const;
@@ -129,9 +104,7 @@ export function createJournalShareFilename(entry: TutiJournalEntry) {
 
 async function shareNativeFile(
   blob: Blob,
-  entry: TutiJournalEntry,
   filename: string,
-  publicUrl?: string,
 ) {
   const [{ Directory, Filesystem }, { Share }] = await Promise.all([
     import("@capacitor/filesystem"),
@@ -149,10 +122,7 @@ async function shareNativeFile(
   try {
     await Share.share({
       files: [result.uri],
-      title: entry.title,
-      text: createShareText(entry, publicUrl),
-      ...(publicUrl ? { url: publicUrl } : {}),
-      dialogTitle: "기록 공유하기",
+      dialogTitle: "기록 PNG 공유하기",
     });
   } finally {
     try {
@@ -164,18 +134,6 @@ async function shareNativeFile(
       // 운영체제가 임시 파일을 먼저 정리한 경우에는 별도 처리가 필요 없다.
     }
   }
-}
-
-function createShareText(
-  entry: TutiJournalEntry,
-  publicUrl?: string,
-) {
-  return [
-    `${entry.placeName}에서 남긴 Tuti 기록`,
-    publicUrl,
-  ]
-    .filter(Boolean)
-    .join("\n");
 }
 
 function blobToBase64(blob: Blob) {
