@@ -38,6 +38,27 @@ export type JournalPublicationResponse = {
   entry: TutiJournalEntry;
 };
 
+export type JournalShareTraceIssue = {
+  traceId: string;
+  shortCode: string;
+  issuedAt: string;
+};
+
+export type JournalShareTraceIssueResponse = {
+  trace: JournalShareTraceIssue;
+};
+
+export type JournalShareTraceFinalization =
+  JournalShareTraceIssue & {
+    imageSha256: string;
+    signature: string;
+    finalizedAt: string;
+  };
+
+export type JournalShareTraceFinalizationResponse = {
+  trace: JournalShareTraceFinalization;
+};
+
 export type PublicJournalEntry = Omit<
   TutiJournalEntry,
   "id" | "publication"

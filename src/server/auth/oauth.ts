@@ -288,6 +288,10 @@ export async function completeOAuthLogin(input: {
           where: { ownerId: authorization.userId },
           data: { ownerId: targetUserId },
         }),
+        prisma.journalShareTrace.updateMany({
+          where: { resolvedUserId: authorization.userId },
+          data: { resolvedUserId: targetUserId },
+        }),
         prisma.user.delete({
           where: { id: authorization.userId },
         }),

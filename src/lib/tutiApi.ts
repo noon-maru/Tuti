@@ -7,6 +7,10 @@ import type {
   JournalEntryInput,
   JournalEntryResponse,
   JournalPublicationResponse,
+  JournalShareTraceFinalization,
+  JournalShareTraceFinalizationResponse,
+  JournalShareTraceIssue,
+  JournalShareTraceIssueResponse,
   TutiJournalEntry,
 } from "@/shared/api/journal";
 import type {
@@ -135,6 +139,61 @@ export async function setJournalEntryPublication(
 
   const data = (await response.json()) as JournalPublicationResponse;
   return resolveJournalEntryImage(data.entry);
+}
+
+export async function issueJournalShareTrace(
+  entryId: string,
+): Promise<JournalShareTraceIssue> {
+  const response = await fetchWithSession(
+    `journal-entries/${encodeURIComponent(entryId)}/share-traces`,
+    { method: "POST" },
+  );
+
+  if (!response.ok) {
+    throw new Error(
+      await readApiError(
+        response,
+        "공유 이미지 추적 번호를 만들지 못했어요.",
+      ),
+    );
+  }
+
+  const data = (await response.json()) as JournalShareTraceIssueResponse;
+  return data.trace;
+}
+
+export async function finalizeJournalShareTrace(
+  entryId: string,
+  traceId: string,
+  png: Blob,
+): Promise<JournalShareTraceFinalization> {
+  const response = await fetchWithSession(
+    [
+      "journal-entries",
+      encodeURIComponent(entryId),
+      "share-traces",
+      encodeURIComponent(traceId),
+      "finalize",
+    ].join("/"),
+    {
+      method: "POST",
+      headers: { "Content-Type": "image/png" },
+      body: png,
+    },
+  );
+
+  if (!response.ok) {
+    throw new Error(
+      await readApiError(
+        response,
+        "공유 이미지 추적 정보를 등록하지 못했어요.",
+      ),
+    );
+  }
+
+  const data =
+    (await response.json()) as JournalShareTraceFinalizationResponse;
+  return data.trace;
 }
 
 async function readApiError(response: Response, fallbackMessage: string) {

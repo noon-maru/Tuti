@@ -17,7 +17,15 @@ import {
   isNativeSharePlatform,
   shareJournalPng,
 } from "@/lib/journalShare";
-import type { TutiJournalEntry } from "@/shared/api/journal";
+import { embedJournalShareMetadata } from "@/lib/pngMetadata";
+import {
+  finalizeJournalShareTrace,
+  issueJournalShareTrace,
+} from "@/lib/tutiApi";
+import type {
+  JournalShareTraceIssue,
+  TutiJournalEntry,
+} from "@/shared/api/journal";
 import { palette } from "@/styles/tokens";
 
 const SHARE_WIDTH = 1080;
@@ -34,12 +42,25 @@ export function JournalShareDialog({
 }) {
   const cardRef = useRef<HTMLDivElement>(null);
   const previewRef = useRef<HTMLDivElement>(null);
+  const traceRequestRef = useRef<{
+    entryId: string;
+    promise: Promise<JournalShareTraceIssue>;
+  } | null>(null);
+  const pngRequestRef = useRef<{
+    traceId: string;
+    promise: Promise<Blob>;
+  } | null>(null);
   const [previewScale, setPreviewScale] = useState(1);
   const [png, setPng] = useState<Blob | null>(null);
+  const [trace, setTrace] = useState<JournalShareTraceIssue | null>(
+    null,
+  );
   const [status, setStatus] = useState<
     "creating" | "ready" | "sharing" | "error"
   >("creating");
-  const [message, setMessage] = useState("공유 이미지를 준비하고 있어요.");
+  const [message, setMessage] = useState(
+    "공유 이미지 추적 번호를 준비하고 있어요.",
+  );
   const nativePlatform = isNativeSharePlatform();
 
   useLayoutEffect(() => {
@@ -74,37 +95,100 @@ export function JournalShareDialog({
 
   useEffect(() => {
     let cancelled = false;
+    const request =
+      traceRequestRef.current?.entryId === entry.id
+        ? traceRequestRef.current.promise
+        : issueJournalShareTrace(entry.id);
 
-    const createPng = async () => {
+    traceRequestRef.current = {
+      entryId: entry.id,
+      promise: request,
+    };
+
+    void request
+      .then((issuedTrace) => {
+        if (cancelled) return;
+
+        setTrace(issuedTrace);
+        setMessage("공유 이미지를 준비하고 있어요.");
+      })
+      .catch((error: unknown) => {
+        if (cancelled) return;
+
+        setStatus("error");
+        setMessage(
+          error instanceof Error
+            ? error.message
+            : "공유 이미지 추적 번호를 만들지 못했어요.",
+        );
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [entry.id]);
+
+  useEffect(() => {
+    if (!trace) return;
+
+    let cancelled = false;
+
+    const createPng = async (): Promise<Blob> => {
       const card = cardRef.current;
 
-      if (!card) return;
+      if (!card) {
+        throw new Error("공유 이미지 화면을 준비하지 못했어요.");
+      }
 
-      try {
-        await document.fonts.ready;
-        await waitForImages(card);
-        await waitForPaint();
+      await document.fonts.ready;
+      await waitForImages(card);
+      await waitForPaint();
 
-        const { toBlob } = await import("html-to-image");
-        const image = await toBlob(card, {
-          backgroundColor: palette.neutral[200],
-          cacheBust: true,
-          height: SHARE_HEIGHT,
-          includeQueryParams: true,
-          pixelRatio: 1,
-          preferredFontFormat: "woff2",
-          width: SHARE_WIDTH,
-        });
+      const { toBlob } = await import("html-to-image");
+      const image = await toBlob(card, {
+        backgroundColor: palette.neutral[200],
+        cacheBust: true,
+        height: SHARE_HEIGHT,
+        includeQueryParams: true,
+        pixelRatio: 1,
+        preferredFontFormat: "woff2",
+        width: SHARE_WIDTH,
+      });
 
-        if (!image) {
-          throw new Error("공유 이미지를 생성하지 못했어요.");
-        }
+      if (!image) {
+        throw new Error("공유 이미지를 생성하지 못했어요.");
+      }
 
+      const finalizedTrace = await finalizeJournalShareTrace(
+        entry.id,
+        trace.traceId,
+        image,
+      );
+      return embedJournalShareMetadata({
+        entry,
+        png: image,
+        publicUrl,
+        trace: finalizedTrace,
+      });
+    };
+    const request =
+      pngRequestRef.current?.traceId === trace.traceId
+        ? pngRequestRef.current.promise
+        : createPng();
+
+    pngRequestRef.current = {
+      traceId: trace.traceId,
+      promise: request,
+    };
+
+    void request
+      .then((tracedImage) => {
         if (cancelled) return;
-        setPng(image);
+        setPng(tracedImage);
         setStatus("ready");
         setMessage("공유할 PNG 이미지가 준비됐어요.");
-      } catch (error) {
+      })
+      .catch((error: unknown) => {
         if (cancelled) return;
         setStatus("error");
         setMessage(
@@ -112,14 +196,12 @@ export function JournalShareDialog({
             ? error.message
             : "공유 이미지를 생성하지 못했어요.",
         );
-      }
-    };
+      });
 
-    void createPng();
     return () => {
       cancelled = true;
     };
-  }, [entry]);
+  }, [entry, publicUrl, trace]);
 
   const shareImage = async () => {
     if (!png || status === "sharing") return;
@@ -172,7 +254,11 @@ export function JournalShareDialog({
           <PreviewScale
             style={{ transform: `scale(${previewScale})` }}
           >
-            <JournalShareCard cardRef={cardRef} entry={entry} />
+            <JournalShareCard
+              cardRef={cardRef}
+              entry={entry}
+              traceCode={trace?.shortCode}
+            />
           </PreviewScale>
         </Preview>
 
@@ -221,9 +307,11 @@ export function JournalShareDialog({
 function JournalShareCard({
   cardRef,
   entry,
+  traceCode,
 }: {
   cardRef: Ref<HTMLDivElement>;
   entry: TutiJournalEntry;
+  traceCode?: string;
 }) {
   return (
     <ShareCard ref={cardRef}>
@@ -254,7 +342,12 @@ function JournalShareCard({
             {entry.content || "오늘의 공기를 이곳에 남겨두었어요."}
           </ShareDescription>
           <ShareFooter>
-            <span>오늘 가능한 만큼만, 잠깐 다른 공기로.</span>
+            <ShareFooterCopy>
+              <span>오늘 가능한 만큼만, 잠깐 다른 공기로.</span>
+              {traceCode && (
+                <TraceCode>Tuti trace · {traceCode}</TraceCode>
+              )}
+            </ShareFooterCopy>
             <WordmarkImage
               src="/brand/tuti-wordmark.svg"
               alt="Tuti"
@@ -550,6 +643,18 @@ const ShareFooter = styled.footer`
   font-size: 20px;
   letter-spacing: -0.01em;
 
+`;
+
+const ShareFooterCopy = styled.div`
+  display: grid;
+  gap: 10px;
+`;
+
+const TraceCode = styled.span`
+  color: ${palette.neutral[800]};
+  font-size: 14px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
 `;
 
 const WordmarkImage = styled.img`

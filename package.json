@@ -13,6 +13,7 @@
     "db:generate": "prisma generate",
     "db:seed": "pnpm db:generate && prisma db seed",
     "db:studio": "prisma studio",
+    "journal:trace": "tsx scripts/inspect-journal-share-trace.ts",
     "start": "next start",
     "lint": "pnpm db:generate && eslint",
     "assets:generate": "capacitor-assets generate --assetPath assets/capacitor && tsx scripts/normalize-capacitor-assets.ts",

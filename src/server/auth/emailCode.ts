@@ -183,6 +183,10 @@ export async function verifyEmailCode(
           where: { ownerId: currentUser.id },
           data: { ownerId: existingIdentity.userId },
         }),
+        prisma.journalShareTrace.updateMany({
+          where: { resolvedUserId: currentUser.id },
+          data: { resolvedUserId: existingIdentity.userId },
+        }),
         prisma.emailVerificationCode.update({
           where: { id: challenge.id },
           data: { consumedAt: new Date() },
