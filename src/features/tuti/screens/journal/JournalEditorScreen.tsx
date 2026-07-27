@@ -11,6 +11,7 @@ import { ImageCropDialog } from "@/features/tuti/components/ImageCropDialog";
 import { ScreenFrame } from "@/features/tuti/components/ScreenFrame";
 import { useTutiJournalEntries } from "@/features/tuti/hooks/useTutiJournalEntries";
 import { useTutiRecommendations } from "@/features/tuti/hooks/useTutiRecommendations";
+import { readImageCaptureDate } from "@/features/tuti/lib/readImageCaptureDate";
 import type {
   JournalEntryInput,
   TutiJournalEntry,
@@ -35,6 +36,8 @@ export function JournalEditorScreen({
   ) => void | Promise<void>;
 }) {
   const imagePickerRef = useRef<HTMLLabelElement>(null);
+  const hasEditedVisitDateRef = useRef(Boolean(entry));
+  const imageSelectionIdRef = useRef(0);
   const [imageUrl, setImageUrl] = useState<string | null>(
     entry?.image ?? null,
   );
@@ -77,11 +80,25 @@ export function JournalEditorScreen({
 
     if (!file) return;
 
+    const selectionId = ++imageSelectionIdRef.current;
+
     setCropSource((current) => {
       if (current) URL.revokeObjectURL(current);
       return URL.createObjectURL(file);
     });
     event.target.value = "";
+
+    if (!entry && !hasEditedVisitDateRef.current) {
+      void readImageCaptureDate(file).then((captureDate) => {
+        if (
+          captureDate &&
+          selectionId === imageSelectionIdRef.current &&
+          !hasEditedVisitDateRef.current
+        ) {
+          setVisitDate(captureDate);
+        }
+      });
+    }
   };
 
   useEffect(
@@ -180,7 +197,10 @@ export function JournalEditorScreen({
             aria-label="방문한 날짜"
             max={toDateInputValue(new Date())}
             value={visitDate}
-            onChange={(event) => setVisitDate(event.target.value)}
+            onChange={(event) => {
+              hasEditedVisitDateRef.current = true;
+              setVisitDate(event.target.value);
+            }}
           />
         </ImageArea>
 
