@@ -36,6 +36,32 @@ export function RecommendationReadyScreen({
           이제 문 밖으로 나가볼까요?
         </Message>
       </Hero>
+      <DecorativeLeaf
+        $side="left"
+        data-ready-leaf
+        data-ready-leaf-left
+        aria-hidden="true"
+      >
+        <Image
+          src="/brand/decorations/leaf-left.png"
+          alt=""
+          width={533}
+          height={347}
+        />
+      </DecorativeLeaf>
+      <DecorativeLeaf
+        $side="right"
+        data-ready-leaf
+        data-ready-leaf-right
+        aria-hidden="true"
+      >
+        <Image
+          src="/brand/decorations/leaf-right.png"
+          alt=""
+          width={533}
+          height={347}
+        />
+      </DecorativeLeaf>
       <ActionArea data-ready-action>
         <PlaceConfirmationButton
           $resolving={resolvingLocation}
@@ -101,6 +127,30 @@ const revealContent = keyframes`
   }
 `;
 
+const revealLeftLeaf = keyframes`
+  from {
+    opacity: 0;
+    transform: translate(-16px, 10px) rotate(-8deg);
+  }
+
+  to {
+    opacity: 1;
+    transform: translate(0, 0) rotate(0);
+  }
+`;
+
+const revealRightLeaf = keyframes`
+  from {
+    opacity: 0;
+    transform: translate(16px, 10px) rotate(8deg);
+  }
+
+  to {
+    opacity: 1;
+    transform: translate(0, 0) rotate(0);
+  }
+`;
+
 const loadingPulse = keyframes`
   0%,
   100% {
@@ -155,6 +205,16 @@ const Frame = styled(ScreenFrame)`
     animation: ${revealContent} 620ms cubic-bezier(0.22, 1, 0.36, 1) 320ms both;
   }
 
+  &[data-animation-ready="true"] [data-ready-leaf-left] {
+    animation: ${revealLeftLeaf} 760ms cubic-bezier(0.22, 1, 0.36, 1) 360ms
+      both;
+  }
+
+  &[data-animation-ready="true"] [data-ready-leaf-right] {
+    animation: ${revealRightLeaf} 760ms cubic-bezier(0.22, 1, 0.36, 1) 440ms
+      both;
+  }
+
   &[data-animation-ready="true"] [data-ready-action] {
     animation: ${revealContent} 620ms cubic-bezier(0.22, 1, 0.36, 1) 460ms both;
   }
@@ -169,6 +229,7 @@ const Frame = styled(ScreenFrame)`
     [data-ready-logo],
     [data-ready-glow],
     [data-ready-copy],
+    [data-ready-leaf],
     [data-ready-action] {
       animation-delay: 0ms !important;
     }
@@ -219,6 +280,31 @@ const Message = styled.h2`
   opacity: 0;
   text-align: center;
   transform: translateY(14px);
+`;
+
+const DecorativeLeaf = styled.div<{ $side: "left" | "right" }>`
+  position: absolute;
+  z-index: 1;
+  top: ${({ $side }) =>
+    $side === "left"
+      ? fluidByViewportHeight(244, 322)
+      : fluidByViewportHeight(348, 476)};
+  ${({ $side }) =>
+    $side === "left"
+      ? "left: clamp(18px, 7.2%, 30px);"
+      : "right: clamp(18px, 7.2%, 30px);"}
+  width: ${({ $side }) =>
+    $side === "left"
+      ? fluidByViewportHeight(42, 52)
+      : fluidByViewportHeight(46, 58)};
+  opacity: 0;
+  pointer-events: none;
+
+  img {
+    display: block;
+    width: 100%;
+    height: auto;
+  }
 `;
 
 const ActionArea = styled.div`
