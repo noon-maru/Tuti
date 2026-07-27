@@ -1,12 +1,13 @@
 "use client";
 
 import styled from "@emotion/styled";
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   BaseButton,
   PrimaryButton,
 } from "@/features/tuti/components/buttons";
 import { ContextMenu } from "@/features/tuti/components/ContextMenu";
+import { ImageCropDialog } from "@/features/tuti/components/ImageCropDialog";
 import { ScreenFrame } from "@/features/tuti/components/ScreenFrame";
 import { useTutiJournalEntries } from "@/features/tuti/hooks/useTutiJournalEntries";
 import { useTutiRecommendations } from "@/features/tuti/hooks/useTutiRecommendations";
@@ -37,6 +38,7 @@ export function JournalEditorScreen({
   const [imageUrl, setImageUrl] = useState<string | null>(
     entry?.image ?? null,
   );
+  const [cropSource, setCropSource] = useState<string | null>(null);
   const [crowd, setCrowd] = useState(entry?.crowd ?? "");
   const [placeName, setPlaceName] = useState(entry?.placeName ?? "");
   const [difficulty, setDifficulty] = useState(entry?.difficulty ?? "");
@@ -75,11 +77,25 @@ export function JournalEditorScreen({
 
     if (!file) return;
 
-    const reader = new FileReader();
-    reader.addEventListener("load", () => {
-      setImageUrl(typeof reader.result === "string" ? reader.result : null);
+    setCropSource((current) => {
+      if (current) URL.revokeObjectURL(current);
+      return URL.createObjectURL(file);
     });
-    reader.readAsDataURL(file);
+    event.target.value = "";
+  };
+
+  useEffect(
+    () => () => {
+      if (cropSource) URL.revokeObjectURL(cropSource);
+    },
+    [cropSource],
+  );
+
+  const closeCropper = () => {
+    setCropSource((current) => {
+      if (current) URL.revokeObjectURL(current);
+      return null;
+    });
   };
 
   const clearEditor = () => {
@@ -245,6 +261,16 @@ export function JournalEditorScreen({
               : "작성하기"}
         </SubmitButton>
       </EditorFooter>
+      {cropSource && (
+        <ImageCropDialog
+          source={cropSource}
+          onCancel={closeCropper}
+          onConfirm={(croppedImage) => {
+            setImageUrl(croppedImage);
+            closeCropper();
+          }}
+        />
+      )}
     </Frame>
   );
 }
