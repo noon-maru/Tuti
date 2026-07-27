@@ -23,6 +23,9 @@ services:
       - tuti_dev_pnpm_store:/pnpm/store
     depends_on:
       - db
+    networks:
+      - default
+      - storage
     stdin_open: true
     tty: true
 
@@ -41,3 +44,8 @@ volumes:
   tuti_dev_node_modules:
   tuti_dev_pnpm_store:
   tuti_dev_postgres:
+
+networks:
+  storage:
+    external: true
+    name: tuti-storage

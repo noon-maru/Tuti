@@ -1,0 +1,24 @@
+replication_factor = 1
+consistency_mode = "consistent"
+
+metadata_dir = "/var/lib/garage/meta"
+data_dir = "/var/lib/garage/data"
+metadata_snapshots_dir = "/var/lib/garage/snapshots"
+metadata_auto_snapshot_interval = "24h"
+
+db_engine = "sqlite"
+metadata_fsync = true
+data_fsync = true
+compression_level = 1
+
+rpc_bind_addr = "[::]:3901"
+rpc_public_addr = "garage:3901"
+
+[s3_api]
+api_bind_addr = "[::]:3900"
+s3_region = "tuti"
+root_domain = ".s3.garage"
+
+[admin]
+api_bind_addr = "[::]:3903"
+metrics_require_token = true

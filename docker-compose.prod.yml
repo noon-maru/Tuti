@@ -20,6 +20,9 @@ services:
       - "5050:3000"
     depends_on:
       - db
+    networks:
+      - default
+      - storage
 
   db:
     image: postgis/postgis:17-3.5
@@ -32,3 +35,8 @@ services:
 
 volumes:
   tuti_prod_postgres:
+
+networks:
+  storage:
+    external: true
+    name: tuti-storage

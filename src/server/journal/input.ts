@@ -1,5 +1,7 @@
 import type { JournalEntryInput } from "@/shared/api/journal";
 
+const MAX_IMAGE_INPUT_LENGTH = 7 * 1024 * 1024;
+
 export function parseJournalEntryInput(
   value: unknown,
 ): JournalEntryInput | null {
@@ -26,6 +28,8 @@ export function parseJournalEntryInput(
   ) {
     return null;
   }
+
+  if (image && image.length > MAX_IMAGE_INPUT_LENGTH) return null;
 
   if (
     visitedAt !== undefined &&

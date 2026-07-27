@@ -1,5 +1,6 @@
 import { authenticateUser } from "@/server/auth/session";
 import { parseJournalEntryInput } from "@/server/journal/input";
+import { JournalImageError } from "@/server/journal/imageStorage";
 import {
   createJournalEntry,
   getJournalEntries,
@@ -76,8 +77,9 @@ export async function POST(request: Request) {
     );
   } catch (error) {
     const invalidJson = error instanceof SyntaxError;
+    const invalidImage = error instanceof JournalImageError;
 
-    if (!invalidJson) {
+    if (!invalidJson && !invalidImage) {
       console.error("기록 생성 중 오류가 발생했습니다.", error);
     }
 
@@ -87,9 +89,11 @@ export async function POST(request: Request) {
         {
           error: invalidJson
             ? "요청 본문을 확인해주세요."
-            : "기록을 저장하지 못했어요.",
+            : invalidImage
+              ? error.message
+              : "기록을 저장하지 못했어요.",
         },
-        { status: invalidJson ? 400 : 500 },
+        { status: invalidJson || invalidImage ? 400 : 500 },
       ),
     );
   }

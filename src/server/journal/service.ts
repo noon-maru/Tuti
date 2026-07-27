@@ -1,4 +1,9 @@
 import { prisma } from "@/server/db/prisma";
+import {
+  deleteStoredJournalImage,
+  prepareJournalImage,
+  serializeJournalImage,
+} from "@/server/journal/imageStorage";
 import type {
   JournalEntryInput,
   TutiJournalEntry,
@@ -19,6 +24,8 @@ export async function getJournalEntries(
       placeName: true,
       difficulty: true,
       visitedAt: true,
+      ownerId: true,
+      updatedAt: true,
     },
   });
 
@@ -29,22 +36,34 @@ export async function createJournalEntry(
   ownerId: string,
   input: JournalEntryInput,
 ): Promise<TutiJournalEntry> {
-  const entry = await prisma.journalEntry.create({
-    data: {
-      id: crypto.randomUUID(),
-      ownerId,
-      title: input.title,
-      content: input.content,
-      image: input.image,
-      crowd: input.crowd,
-      placeName: input.placeName,
-      difficulty: input.difficulty,
-      visitedAt: input.visitedAt ? new Date(input.visitedAt) : new Date(),
-    },
-    select: journalEntrySelect,
+  const entryId = crypto.randomUUID();
+  const preparedImage = await prepareJournalImage({
+    ownerId,
+    entryId,
+    image: input.image,
   });
 
-  return serializeJournalEntry(entry);
+  try {
+    const entry = await prisma.journalEntry.create({
+      data: {
+        id: entryId,
+        ownerId,
+        title: input.title,
+        content: input.content,
+        image: preparedImage.image,
+        crowd: input.crowd,
+        placeName: input.placeName,
+        difficulty: input.difficulty,
+        visitedAt: input.visitedAt ? new Date(input.visitedAt) : new Date(),
+      },
+      select: journalEntrySelect,
+    });
+
+    return serializeJournalEntry(entry);
+  } catch (error) {
+    await cleanupUploadedImage(preparedImage.uploadedKey);
+    throw error;
+  }
 }
 
 export async function updateJournalEntry(
@@ -52,27 +71,55 @@ export async function updateJournalEntry(
   entryId: string,
   input: JournalEntryInput,
 ): Promise<TutiJournalEntry | null> {
-  const result = await prisma.journalEntry.updateMany({
+  const currentEntry = await prisma.journalEntry.findFirst({
     where: { id: entryId, ownerId },
-    data: {
-      title: input.title,
-      content: input.content,
-      image: input.image,
-      crowd: input.crowd,
-      placeName: input.placeName,
-      difficulty: input.difficulty,
-      ...(input.visitedAt
-        ? { visitedAt: new Date(input.visitedAt) }
-        : {}),
-    },
+    select: { image: true },
   });
 
-  if (result.count === 0) return null;
+  if (!currentEntry) return null;
+
+  const preparedImage = await prepareJournalImage({
+    ownerId,
+    entryId,
+    image: input.image,
+    currentImage: currentEntry.image,
+  });
+
+  let result: { count: number };
+
+  try {
+    result = await prisma.journalEntry.updateMany({
+      where: { id: entryId, ownerId },
+      data: {
+        title: input.title,
+        content: input.content,
+        image: preparedImage.image,
+        crowd: input.crowd,
+        placeName: input.placeName,
+        difficulty: input.difficulty,
+        ...(input.visitedAt
+          ? { visitedAt: new Date(input.visitedAt) }
+          : {}),
+      },
+    });
+  } catch (error) {
+    await cleanupUploadedImage(preparedImage.uploadedKey);
+    throw error;
+  }
+
+  if (result.count === 0) {
+    await cleanupUploadedImage(preparedImage.uploadedKey);
+    return null;
+  }
 
   const entry = await prisma.journalEntry.findUniqueOrThrow({
     where: { id: entryId },
     select: journalEntrySelect,
   });
+
+  if (currentEntry.image !== preparedImage.image) {
+    await cleanupReplacedImage(currentEntry.image);
+  }
 
   return serializeJournalEntry(entry);
 }
@@ -81,9 +128,20 @@ export async function deleteJournalEntry(
   ownerId: string,
   entryId: string,
 ) {
+  const entry = await prisma.journalEntry.findFirst({
+    where: { id: entryId, ownerId },
+    select: { image: true },
+  });
+
+  if (!entry) return false;
+
   const result = await prisma.journalEntry.deleteMany({
     where: { id: entryId, ownerId },
   });
+
+  if (result.count > 0) {
+    await cleanupReplacedImage(entry.image);
+  }
 
   return result.count > 0;
 }
@@ -97,13 +155,43 @@ const journalEntrySelect = {
   placeName: true,
   difficulty: true,
   visitedAt: true,
+  ownerId: true,
+  updatedAt: true,
 } as const;
 
 function serializeJournalEntry(
-  entry: Omit<TutiJournalEntry, "visitedAt"> & { visitedAt: Date },
+  entry: Omit<TutiJournalEntry, "visitedAt"> & {
+    ownerId: string;
+    updatedAt: Date;
+    visitedAt: Date;
+  },
 ): TutiJournalEntry {
   return {
-    ...entry,
+    id: entry.id,
+    title: entry.title,
+    content: entry.content,
+    image: serializeJournalImage(entry),
+    crowd: entry.crowd,
+    placeName: entry.placeName,
+    difficulty: entry.difficulty,
     visitedAt: entry.visitedAt.toISOString(),
   };
+}
+
+async function cleanupUploadedImage(image: string | null) {
+  if (!image) return;
+
+  try {
+    await deleteStoredJournalImage(image);
+  } catch (error) {
+    console.error("저장에 실패한 저널 이미지를 정리하지 못했습니다.", error);
+  }
+}
+
+async function cleanupReplacedImage(image: string | null) {
+  try {
+    await deleteStoredJournalImage(image);
+  } catch (error) {
+    console.error("교체되거나 삭제된 저널 이미지를 정리하지 못했습니다.", error);
+  }
 }

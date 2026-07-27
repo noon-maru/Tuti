@@ -43,7 +43,7 @@ export async function fetchJournalEntries(): Promise<TutiJournalEntry[]> {
   }
 
   const data = (await response.json()) as JournalEntriesResponse;
-  return data.entries;
+  return data.entries.map(resolveJournalEntryImage);
 }
 
 export async function createJournalEntry(
@@ -64,7 +64,7 @@ export async function createJournalEntry(
   }
 
   const data = (await response.json()) as JournalEntryResponse;
-  return data.entry;
+  return resolveJournalEntryImage(data.entry);
 }
 
 export async function updateJournalEntry(
@@ -89,7 +89,7 @@ export async function updateJournalEntry(
   }
 
   const data = (await response.json()) as JournalEntryResponse;
-  return data.entry;
+  return resolveJournalEntryImage(data.entry);
 }
 
 export async function deleteJournalEntry(entryId: string) {
@@ -115,4 +115,13 @@ async function readApiError(response: Response, fallbackMessage: string) {
   } catch {
     return fallbackMessage;
   }
+}
+
+function resolveJournalEntryImage(entry: TutiJournalEntry): TutiJournalEntry {
+  if (!entry.image?.startsWith("/api/")) return entry;
+
+  return {
+    ...entry,
+    image: apiUrl(entry.image.slice("/api/".length)),
+  };
 }

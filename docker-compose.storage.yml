@@ -1,0 +1,35 @@
+name: tuti-storage
+
+services:
+  garage:
+    image: dxflrs/garage:v2.3.0
+    container_name: tuti-storage
+    command: /garage server --single-node --default-bucket
+    restart: unless-stopped
+    environment:
+      GARAGE_CONFIG_FILE: /etc/garage.toml
+      GARAGE_RPC_SECRET: ${GARAGE_RPC_SECRET:?Set GARAGE_RPC_SECRET in .env.storage}
+      GARAGE_ADMIN_TOKEN: ${GARAGE_ADMIN_TOKEN:?Set GARAGE_ADMIN_TOKEN in .env.storage}
+      GARAGE_METRICS_TOKEN: ${GARAGE_METRICS_TOKEN:?Set GARAGE_METRICS_TOKEN in .env.storage}
+      GARAGE_DEFAULT_ACCESS_KEY: ${GARAGE_DEFAULT_ACCESS_KEY:?Set GARAGE_DEFAULT_ACCESS_KEY in .env.storage}
+      GARAGE_DEFAULT_SECRET_KEY: ${GARAGE_DEFAULT_SECRET_KEY:?Set GARAGE_DEFAULT_SECRET_KEY in .env.storage}
+      GARAGE_DEFAULT_BUCKET: ${GARAGE_DEFAULT_BUCKET:-tuti-journal-images}
+    ports:
+      - "127.0.0.1:3900:3900"
+    volumes:
+      - ./infra/garage/garage.toml:/etc/garage.toml:ro
+      - ${GARAGE_STORAGE_ROOT:?Set GARAGE_STORAGE_ROOT in .env.storage}/metadata:/var/lib/garage/meta
+      - ${GARAGE_STORAGE_ROOT:?Set GARAGE_STORAGE_ROOT in .env.storage}/data:/var/lib/garage/data
+      - ${GARAGE_STORAGE_ROOT:?Set GARAGE_STORAGE_ROOT in .env.storage}/snapshots:/var/lib/garage/snapshots
+    networks:
+      - storage
+    healthcheck:
+      test: ["CMD", "/garage", "status"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 20s
+
+networks:
+  storage:
+    name: tuti-storage
