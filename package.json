@@ -13,6 +13,8 @@
     "db:generate": "prisma generate",
     "db:seed": "pnpm db:generate && prisma db seed",
     "db:studio": "prisma studio",
+    "admin:promote": "pnpm db:generate && tsx scripts/set-user-role.ts --role admin",
+    "admin:role": "pnpm db:generate && tsx scripts/set-user-role.ts",
     "journal:trace": "tsx scripts/inspect-journal-share-trace.ts",
     "start": "next start",
     "lint": "pnpm db:generate && eslint",

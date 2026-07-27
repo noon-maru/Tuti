@@ -1,10 +1,12 @@
 export const authProviders = ["apple", "google", "kakao"] as const;
 export type OAuthProvider = (typeof authProviders)[number];
 export type AuthProvider = "email" | OAuthProvider;
+export type UserRole = "user" | "admin";
 
 export type AccountProfile = {
   email?: string;
   providers: AuthProvider[];
+  role?: UserRole;
 };
 
 export type TutiSession = {

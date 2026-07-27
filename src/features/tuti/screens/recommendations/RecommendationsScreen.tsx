@@ -33,9 +33,11 @@ export function RecommendationsScreen({
   onDetailClose,
   onJournal,
   onAccount,
+  onAdmin,
   onRestartIntake,
   onLogout,
   accountConnected,
+  adminAccess,
   interactive,
   initialHelp,
   onInitialHelpShown,
@@ -52,9 +54,11 @@ export function RecommendationsScreen({
   onDetailClose: () => void;
   onJournal: () => void;
   onAccount: () => void;
+  onAdmin: () => void;
   onRestartIntake: () => void;
   onLogout: () => void | Promise<void>;
   accountConnected: boolean;
+  adminAccess: boolean;
   interactive: boolean;
   initialHelp: HelpKind | null;
   onInitialHelpShown: (kind: HelpKind) => void;
@@ -149,6 +153,8 @@ export function RecommendationsScreen({
   useEffect(() => {
     if (mainInteractive) return;
 
+    // The gesture state must be cleared in the same commit that disables interaction.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     resetDrag();
     setCurrentHelp(null);
     setNudgingCard(null);
@@ -432,6 +438,14 @@ export function RecommendationsScreen({
                       label: "계정 관리",
                       onSelect: onAccount,
                     },
+                    ...(adminAccess
+                      ? [
+                          {
+                            label: "관리자 페이지",
+                            onSelect: onAdmin,
+                          },
+                        ]
+                      : []),
                     {
                       label: "오늘 다시 고르기",
                       onSelect: onRestartIntake,

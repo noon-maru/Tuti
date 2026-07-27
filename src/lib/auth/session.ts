@@ -288,6 +288,9 @@ function isTutiSession(value: unknown): value is TutiSession {
       session.account !== null &&
       (session.account.email === undefined ||
         typeof session.account.email === "string") &&
+      (session.account.role === undefined ||
+        session.account.role === "user" ||
+        session.account.role === "admin") &&
       Array.isArray(session.account.providers) &&
       session.account.providers.every((provider) =>
         ["email", "apple", "google", "kakao"].includes(provider),

@@ -1,5 +1,6 @@
 import { randomBytes } from "node:crypto";
 
+import { writeSystemLogSafely } from "@/server/admin/log";
 import { prisma } from "@/server/db/prisma";
 import {
   deleteStoredJournalImage,
@@ -61,6 +62,15 @@ export async function createJournalEntry(
         visitedAt: input.visitedAt ? new Date(input.visitedAt) : new Date(),
       },
       select: journalEntrySelect,
+    });
+
+    await writeSystemLogSafely({
+      category: "journal",
+      action: "journal.created",
+      message: "새 기록이 작성되었습니다.",
+      actorUserId: ownerId,
+      targetType: "journalEntry",
+      targetId: entry.id,
     });
 
     return serializeJournalEntry(entry);
@@ -125,6 +135,15 @@ export async function updateJournalEntry(
     await cleanupReplacedImage(currentEntry.image);
   }
 
+  await writeSystemLogSafely({
+    category: "journal",
+    action: "journal.updated",
+    message: "기록이 수정되었습니다.",
+    actorUserId: ownerId,
+    targetType: "journalEntry",
+    targetId: entryId,
+  });
+
   return serializeJournalEntry(entry);
 }
 
@@ -144,10 +163,39 @@ export async function deleteJournalEntry(
   });
 
   if (result.count > 0) {
+    await prisma.contentReport.updateMany({
+      where: { entryId },
+      data: { entryId: null },
+    });
     await cleanupReplacedImage(entry.image);
+    await writeSystemLogSafely({
+      category: "journal",
+      action: "journal.deleted",
+      message: "사용자가 기록을 삭제했습니다.",
+      actorUserId: ownerId,
+      targetType: "journalEntry",
+      targetId: entryId,
+    });
   }
 
   return result.count > 0;
+}
+
+export async function forceDeleteJournalEntry(entryId: string) {
+  const entry = await prisma.journalEntry.findUnique({
+    where: { id: entryId },
+    select: { image: true },
+  });
+
+  if (!entry) return false;
+
+  await prisma.journalEntry.delete({ where: { id: entryId } });
+  await prisma.contentReport.updateMany({
+    where: { entryId },
+    data: { entryId: null },
+  });
+  await cleanupReplacedImage(entry.image);
+  return true;
 }
 
 export async function setJournalEntryPublication(
@@ -187,6 +235,17 @@ export async function setJournalEntryPublication(
   const entry = await prisma.journalEntry.findUniqueOrThrow({
     where: { id: entryId },
     select: journalEntrySelect,
+  });
+
+  await writeSystemLogSafely({
+    category: "journal",
+    action: published ? "journal.published" : "journal.unpublished",
+    message: published
+      ? "기록이 공개되었습니다."
+      : "기록 공개가 해제되었습니다.",
+    actorUserId: ownerId,
+    targetType: "journalEntry",
+    targetId: entryId,
   });
 
   return serializeJournalEntry(entry);

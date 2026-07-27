@@ -20,44 +20,82 @@ enum AuthProvider {
   kakao
 }
 
+enum UserRole {
+  user
+  admin
+}
+
+enum PlaceReviewStatus {
+  pending
+  approved
+  rejected
+}
+
+enum LogLevel {
+  info
+  warning
+  error
+}
+
+enum ReportReason {
+  inappropriate
+  copyright
+  privacy
+  spam
+  other
+}
+
+enum ReportStatus {
+  pending
+  reviewing
+  resolved
+  dismissed
+}
+
 model Place {
-  id            String                         @id
+  id            String                                @id
   name          String
   phrase        String
   note          String
   image         String
-  travelTime    String                         @map("travel_time")
+  travelTime    String                                @map("travel_time")
   crowd         String
   today         String
   fatigue       Int
-  movementLevel MovementLevel                  @map("movement_level")
-  moodTags      String[]                       @map("mood_tags")
-  latitude      Decimal                        @db.Decimal(9, 6)
-  longitude     Decimal                        @db.Decimal(9, 6)
+  movementLevel MovementLevel                         @map("movement_level")
+  moodTags      String[]                              @map("mood_tags")
+  latitude      Decimal                               @db.Decimal(9, 6)
+  longitude     Decimal                               @db.Decimal(9, 6)
   location      Unsupported("geometry(Point, 4326)")?
-  createdAt     DateTime                       @default(now()) @map("created_at")
-  updatedAt     DateTime                       @updatedAt @map("updated_at")
+  source        String                                @default("manual")
+  sourceId      String?                               @map("source_id")
+  reviewStatus  PlaceReviewStatus                     @default(approved) @map("review_status")
+  isActive      Boolean                               @default(true) @map("is_active")
+  createdAt     DateTime                              @default(now()) @map("created_at")
+  updatedAt     DateTime                              @updatedAt @map("updated_at")
 
+  @@unique([source, sourceId])
   @@index([fatigue])
   @@index([movementLevel])
+  @@index([source, reviewStatus, isActive])
   @@map("places")
 }
 
 model JournalEntry {
-  id         String   @id
-  ownerId    String   @map("owner_id")
-  title      String
-  content    String
-  image      String?
-  crowd      String
-  placeName  String   @map("place_name")
-  difficulty String
-  visitedAt  DateTime @map("visited_at")
-  publicId String? @unique @map("public_id")
+  id          String    @id
+  ownerId     String    @map("owner_id")
+  title       String
+  content     String
+  image       String?
+  crowd       String
+  placeName   String    @map("place_name")
+  difficulty  String
+  visitedAt   DateTime  @map("visited_at")
+  publicId    String?   @unique @map("public_id")
   publishedAt DateTime? @map("published_at")
-  createdAt  DateTime @default(now()) @map("created_at")
-  updatedAt  DateTime @updatedAt @map("updated_at")
-  owner      User     @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+  owner       User      @relation(fields: [ownerId], references: [id], onDelete: Cascade)
 
   @@index([ownerId, visitedAt])
   @@map("journal_entries")
@@ -82,16 +120,69 @@ model JournalShareTrace {
 }
 
 model User {
-  id             String         @id
-  tokenHash      String         @unique @map("token_hash")
-  createdAt      DateTime       @default(now()) @map("created_at")
-  updatedAt      DateTime       @updatedAt @map("updated_at")
-  authIdentities AuthIdentity[]
-  journalEntries JournalEntry[]
+  id                  String               @id
+  tokenHash           String               @unique @map("token_hash")
+  role                UserRole             @default(user)
+  createdAt           DateTime             @default(now()) @map("created_at")
+  updatedAt           DateTime             @updatedAt @map("updated_at")
+  authIdentities      AuthIdentity[]
+  journalEntries      JournalEntry[]
   oauthAuthorizations OAuthAuthorization[]
-  sessions       UserSession[]
+  sessions            UserSession[]
 
   @@map("users")
+}
+
+model SystemLog {
+  id          String   @id
+  level       LogLevel @default(info)
+  category    String
+  action      String
+  message     String
+  actorUserId String?  @map("actor_user_id")
+  targetType  String?  @map("target_type")
+  targetId    String?  @map("target_id")
+  metadata    Json?
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@index([createdAt])
+  @@index([level, createdAt])
+  @@index([category, createdAt])
+  @@index([actorUserId])
+  @@index([targetType, targetId])
+  @@map("system_logs")
+}
+
+model ContentReport {
+  id             String       @id
+  reporterUserId String       @map("reporter_user_id")
+  entryId        String?      @map("entry_id")
+  targetOwnerId  String       @map("target_owner_id")
+  targetTitle    String       @map("target_title")
+  targetPublicId String?      @map("target_public_id")
+  reason         ReportReason
+  detail         String?
+  status         ReportStatus @default(pending)
+  reviewerUserId String?      @map("reviewer_user_id")
+  resolutionNote String?      @map("resolution_note")
+  reviewedAt     DateTime?    @map("reviewed_at")
+  createdAt      DateTime     @default(now()) @map("created_at")
+  updatedAt      DateTime     @updatedAt @map("updated_at")
+
+  @@index([status, createdAt])
+  @@index([entryId])
+  @@index([reporterUserId, createdAt])
+  @@map("content_reports")
+}
+
+model AppSetting {
+  key             String   @id
+  value           String
+  updatedByUserId String?  @map("updated_by_user_id")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  @@map("app_settings")
 }
 
 model AuthIdentity {
@@ -144,12 +235,12 @@ model OAuthAuthorization {
 }
 
 model UserSession {
-  id         String   @id
-  userId     String   @map("user_id")
-  tokenHash  String   @unique @map("token_hash")
-  expiresAt  DateTime @map("expires_at")
-  createdAt  DateTime @default(now()) @map("created_at")
-  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id        String   @id
+  userId    String   @map("user_id")
+  tokenHash String   @unique @map("token_hash")
+  expiresAt DateTime @map("expires_at")
+  createdAt DateTime @default(now()) @map("created_at")
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@index([expiresAt])

@@ -1,4 +1,5 @@
 import { createHash, randomBytes, randomUUID } from "node:crypto";
+import { writeSystemLogSafely } from "@/server/admin/log";
 import { prisma } from "@/server/db/prisma";
 import type {
   AccountProfile,
@@ -17,6 +18,7 @@ type IdentityProfile = {
 
 export type AuthenticatedUser = {
   id: string;
+  role: "user" | "admin";
   account?: AccountProfile;
   sessionId?: string;
 };
@@ -47,6 +49,7 @@ export async function authenticateUser(
     where: { tokenHash },
     select: {
       id: true,
+      role: true,
       authIdentities: {
         select: {
           email: true,
@@ -59,7 +62,11 @@ export async function authenticateUser(
   if (anonymousUser) {
     return {
       id: anonymousUser.id,
-      account: createAccountProfile(anonymousUser.authIdentities),
+      role: anonymousUser.role,
+      account: createAccountProfile(
+        anonymousUser.authIdentities,
+        anonymousUser.role,
+      ),
     };
   }
 
@@ -71,6 +78,7 @@ export async function authenticateUser(
       user: {
         select: {
           id: true,
+          role: true,
           authIdentities: {
             select: {
               email: true,
@@ -91,7 +99,11 @@ export async function authenticateUser(
 
   return {
     id: session.user.id,
-    account: createAccountProfile(session.user.authIdentities),
+    role: session.user.role,
+    account: createAccountProfile(
+      session.user.authIdentities,
+      session.user.role,
+    ),
     sessionId: session.id,
   };
 }
@@ -104,6 +116,7 @@ export async function createUserSession(userId: string) {
   const user = await prisma.user.findUniqueOrThrow({
     where: { id: userId },
     select: {
+      role: true,
       authIdentities: {
         select: {
           email: true,
@@ -122,7 +135,21 @@ export async function createUserSession(userId: string) {
     },
   });
 
-  const account = createAccountProfile(user.authIdentities);
+  const account = createAccountProfile(user.authIdentities, user.role);
+
+  await writeSystemLogSafely({
+    category: "auth",
+    action: "account.session.created",
+    message: "계정 로그인 세션이 생성되었습니다.",
+    actorUserId: userId,
+    targetType: "user",
+    targetId: userId,
+    metadata: {
+      providers: user.authIdentities
+        .map((identity) => identity.provider)
+        .join(","),
+    },
+  });
 
   return {
     accessToken,
@@ -151,6 +178,7 @@ export function hashAccessToken(accessToken: string) {
 
 function createAccountProfile(
   identities: IdentityProfile[],
+  role: "user" | "admin",
 ): AccountProfile | undefined {
   if (identities.length === 0) return undefined;
 
@@ -162,6 +190,7 @@ function createAccountProfile(
   return {
     ...(email ? { email } : {}),
     providers,
+    role,
   };
 }
 

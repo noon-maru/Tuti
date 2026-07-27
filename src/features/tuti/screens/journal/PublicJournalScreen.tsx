@@ -1,7 +1,9 @@
 "use client";
 
 import styled from "@emotion/styled";
+import { useState } from "react";
 
+import { fetchWithSession } from "@/lib/auth/session";
 import type { PublicJournalEntry } from "@/shared/api/journal";
 import { palette } from "@/styles/tokens";
 
@@ -10,6 +12,51 @@ export function PublicJournalScreen({
 }: {
   entry: PublicJournalEntry;
 }) {
+  const [reportOpen, setReportOpen] = useState(false);
+  const [reportReason, setReportReason] = useState("inappropriate");
+  const [reportDetail, setReportDetail] = useState("");
+  const [reportStatus, setReportStatus] = useState<
+    "idle" | "submitting" | "submitted"
+  >("idle");
+  const [reportError, setReportError] = useState<string | null>(null);
+
+  const submitReport = async () => {
+    setReportStatus("submitting");
+    setReportError(null);
+
+    try {
+      const response = await fetchWithSession("reports", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          publicId: entry.publicId,
+          reason: reportReason,
+          detail: reportDetail,
+        }),
+      });
+
+      if (!response.ok) {
+        const body = (await response.json()) as { error?: unknown };
+        throw new Error(
+          typeof body.error === "string"
+            ? body.error
+            : "신고를 접수하지 못했습니다.",
+        );
+      }
+
+      setReportStatus("submitted");
+    } catch (error) {
+      setReportStatus("idle");
+      setReportError(
+        error instanceof Error
+          ? error.message
+          : "신고를 접수하지 못했습니다.",
+      );
+    }
+  };
+
   return (
     <Page>
       <Shell>
@@ -47,9 +94,78 @@ export function PublicJournalScreen({
 
         <Footer>
           <p>오늘 가능한 만큼만, 잠깐 다른 공기로.</p>
-          <HomeLink href="/">Tuti에서 공간 찾아보기</HomeLink>
+          <FooterActions>
+            <ReportButton type="button" onClick={() => setReportOpen(true)}>
+              신고하기
+            </ReportButton>
+            <HomeLink href="/">Tuti에서 공간 찾아보기</HomeLink>
+          </FooterActions>
         </Footer>
       </Shell>
+      {reportOpen && (
+        <ReportBackdrop
+          role="presentation"
+          onClick={() => setReportOpen(false)}
+        >
+          <ReportDialog
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="report-title"
+            onClick={(event) => event.stopPropagation()}
+          >
+            {reportStatus === "submitted" ? (
+              <>
+                <h2 id="report-title">신고를 접수했어요.</h2>
+                <p>관리자가 내용을 확인한 뒤 필요한 조치를 진행할게요.</p>
+                <DialogButton
+                  type="button"
+                  onClick={() => setReportOpen(false)}
+                >
+                  확인
+                </DialogButton>
+              </>
+            ) : (
+              <>
+                <h2 id="report-title">이 기록을 신고할까요?</h2>
+                <ReportSelect
+                  aria-label="신고 사유"
+                  value={reportReason}
+                  onChange={(event) => setReportReason(event.target.value)}
+                >
+                  <option value="inappropriate">부적절한 콘텐츠</option>
+                  <option value="copyright">저작권 침해</option>
+                  <option value="privacy">개인정보 노출</option>
+                  <option value="spam">스팸 또는 홍보</option>
+                  <option value="other">기타</option>
+                </ReportSelect>
+                <ReportTextArea
+                  aria-label="신고 상세 내용"
+                  value={reportDetail}
+                  maxLength={1000}
+                  placeholder="확인에 필요한 내용을 알려주세요. (선택)"
+                  onChange={(event) => setReportDetail(event.target.value)}
+                />
+                {reportError && <ReportError role="alert">{reportError}</ReportError>}
+                <DialogActions>
+                  <CancelButton
+                    type="button"
+                    onClick={() => setReportOpen(false)}
+                  >
+                    취소
+                  </CancelButton>
+                  <DialogButton
+                    type="button"
+                    disabled={reportStatus === "submitting"}
+                    onClick={() => void submitReport()}
+                  >
+                    {reportStatus === "submitting" ? "접수 중..." : "신고 접수"}
+                  </DialogButton>
+                </DialogActions>
+              </>
+            )}
+          </ReportDialog>
+        </ReportBackdrop>
+      )}
     </Page>
   );
 }
@@ -189,6 +305,28 @@ const Footer = styled.footer`
   }
 `;
 
+const FooterActions = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 8px;
+
+  @media (max-width: 520px) {
+    align-items: stretch;
+    flex-direction: column-reverse;
+  }
+`;
+
+const ReportButton = styled.button`
+  min-height: 44px;
+  padding: 0 16px;
+  border: 1px solid ${palette.neutral[500]};
+  border-radius: 999px;
+  background: ${palette.neutral[100]};
+  color: ${palette.neutral[900]};
+  font: inherit;
+  cursor: pointer;
+`;
+
 const HomeLink = styled.a`
   min-height: 44px;
   display: inline-grid;
@@ -198,4 +336,97 @@ const HomeLink = styled.a`
   background: ${palette.brand[700]};
   color: ${palette.neutral[100]};
   font-weight: 600;
+`;
+
+const ReportBackdrop = styled.div`
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: color-mix(
+    in srgb,
+    ${palette.neutral[1300]} 40%,
+    transparent
+  );
+`;
+
+const ReportDialog = styled.section`
+  width: min(100%, 440px);
+  display: grid;
+  gap: 16px;
+  padding: 28px;
+  border-radius: 28px;
+  background: ${palette.neutral[100]};
+  box-shadow: 0 24px 72px
+    color-mix(in srgb, ${palette.neutral[1300]} 22%, transparent);
+
+  h2 {
+    font-size: 22px;
+  }
+
+  p {
+    color: ${palette.neutral[900]};
+    line-height: 1.5;
+  }
+`;
+
+const ReportSelect = styled.select`
+  min-height: 44px;
+  padding: 0 14px;
+  border: 1px solid ${palette.neutral[500]};
+  border-radius: 12px;
+  background: ${palette.neutral[100]};
+  color: ${palette.neutral[1300]};
+  font: inherit;
+`;
+
+const ReportTextArea = styled.textarea`
+  min-height: 120px;
+  resize: vertical;
+  padding: 14px;
+  border: 1px solid ${palette.neutral[500]};
+  border-radius: 12px;
+  outline: 0;
+  color: ${palette.neutral[1300]};
+  font: inherit;
+  line-height: 1.5;
+`;
+
+const ReportError = styled.p`
+  color: ${palette.status.error} !important;
+  font-size: 13px;
+`;
+
+const DialogActions = styled.div`
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+`;
+
+const CancelButton = styled.button`
+  min-height: 44px;
+  border: 1px solid ${palette.neutral[500]};
+  border-radius: 12px;
+  background: ${palette.neutral[100]};
+  color: ${palette.neutral[900]};
+  font: inherit;
+  cursor: pointer;
+`;
+
+const DialogButton = styled.button`
+  min-height: 44px;
+  border: 0;
+  border-radius: 12px;
+  background: ${palette.brand[700]};
+  color: ${palette.neutral[100]};
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+
+  &:disabled {
+    cursor: default;
+    opacity: 0.55;
+  }
 `;

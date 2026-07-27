@@ -138,6 +138,7 @@ export function RecommendationsFlow({ interactive }: { interactive: boolean }) {
       onDetailClose={finishDetailClose}
       onJournal={() => router.push("/journal")}
       onAccount={() => router.push("/login")}
+      onAdmin={() => router.push("/admin")}
       onRestartIntake={() => {
         resetIntake();
         router.push("/entry");
@@ -147,6 +148,7 @@ export function RecommendationsFlow({ interactive }: { interactive: boolean }) {
         queryClient.setQueryData(["journal-entries"], []);
       }}
       accountConnected={Boolean(session?.account)}
+      adminAccess={session?.account?.role === "admin"}
       interactive={interactive}
       initialHelp={
         interactive && detailOverlay.phase === "closed"
