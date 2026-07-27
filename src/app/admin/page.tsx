@@ -1,6 +1,9 @@
 import type { Metadata } from "next";
 import { Providers } from "@/app/providers";
-import { AdminScreen } from "@/features/admin/AdminScreen";
+import {
+  AdminScreen,
+  type AdminTab,
+} from "@/features/admin/AdminScreen";
 
 export const metadata: Metadata = {
   title: "Tuti 관리자",
@@ -10,10 +13,30 @@ export const metadata: Metadata = {
   },
 };
 
-export default function AdminPage() {
+export default async function AdminPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ section?: string | string[] }>;
+}) {
+  const section = (await searchParams).section;
+  const initialTab = normalizeAdminTab(
+    Array.isArray(section) ? section[0] : section,
+  );
+
   return (
     <Providers>
-      <AdminScreen />
+      <AdminScreen initialTab={initialTab} />
     </Providers>
   );
+}
+
+function normalizeAdminTab(value: unknown): AdminTab {
+  return value === "logs" ||
+    value === "places" ||
+    value === "reports" ||
+    value === "inquiries" ||
+    value === "users" ||
+    value === "settings"
+    ? value
+    : "overview";
 }

@@ -3,9 +3,11 @@
 import styled from "@emotion/styled";
 import Link from "next/link";
 import {
+  type PointerEvent as ReactPointerEvent,
   useCallback,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
 import {
@@ -30,7 +32,7 @@ import type {
   AdminUsersResponse,
 } from "@/shared/api/admin";
 
-type AdminTab =
+export type AdminTab =
   | "overview"
   | "logs"
   | "places"
@@ -49,13 +51,80 @@ const tabs: Array<{ id: AdminTab; label: string }> = [
   { id: "settings", label: "설정" },
 ];
 
+const mobilePrimaryTabs: Array<{ id: AdminTab; label: string }> = [
+  { id: "overview", label: "홈" },
+  { id: "inquiries", label: "문의" },
+  { id: "reports", label: "신고" },
+  { id: "places", label: "장소" },
+];
+
+const mobileMoreTabs: Array<{ id: AdminTab; label: string }> = [
+  { id: "users", label: "사용자 및 권한" },
+  { id: "logs", label: "시스템 로그" },
+  { id: "settings", label: "운영 설정" },
+];
+
 const dateFormatter = new Intl.DateTimeFormat("ko-KR", {
   dateStyle: "medium",
   timeStyle: "short",
 });
 
-export function AdminScreen() {
-  const [tab, setTab] = useState<AdminTab>("overview");
+function AdminSectionIcon({
+  section,
+}: {
+  section: AdminTab | "more";
+}) {
+  if (section === "overview") {
+    return (
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M4 10.5 12 4l8 6.5V20H4v-9.5Z" />
+        <path d="M9.5 20v-6h5v6" />
+      </svg>
+    );
+  }
+
+  if (section === "inquiries") {
+    return (
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M4 5.5h16v11H9l-5 3v-14Z" />
+        <path d="M8 9h8M8 12.5h5" />
+      </svg>
+    );
+  }
+
+  if (section === "reports") {
+    return (
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M12 3 21 20H3L12 3Z" />
+        <path d="M12 9v5M12 17.5v.1" />
+      </svg>
+    );
+  }
+
+  if (section === "places") {
+    return (
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M19 10c0 5-7 11-7 11S5 15 5 10a7 7 0 1 1 14 0Z" />
+        <circle cx="12" cy="10" r="2.5" />
+      </svg>
+    );
+  }
+
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <circle cx="5" cy="12" r="1.4" />
+      <circle cx="12" cy="12" r="1.4" />
+      <circle cx="19" cy="12" r="1.4" />
+    </svg>
+  );
+}
+
+export function AdminScreen({
+  initialTab = "overview",
+}: {
+  initialTab?: AdminTab;
+}) {
+  const [tab, setTab] = useState<AdminTab>(initialTab);
   const [overview, setOverview] = useState<AdminOverview | null>(null);
   const [logs, setLogs] = useState<AdminLogItem[]>([]);
   const [places, setPlaces] = useState<AdminPlaceItem[]>([]);
@@ -69,7 +138,97 @@ export function AdminScreen() {
   const [loading, setLoading] = useState(true);
   const [mutatingId, setMutatingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   const [accessStatus, setAccessStatus] = useState<number | null>(null);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [drawerDragOffset, setDrawerDragOffset] = useState(0);
+  const [drawerDragging, setDrawerDragging] = useState(false);
+  const drawerDragStart = useRef({ y: 0, time: 0 });
+  const adminLayoutRef = useRef<HTMLDivElement>(null);
+
+  const closeMobileMenu = useCallback(() => {
+    setMobileMenuOpen(false);
+    setDrawerDragging(false);
+    setDrawerDragOffset(0);
+  }, []);
+
+  const toggleMobileMenu = useCallback(() => {
+    setDrawerDragging(false);
+    setDrawerDragOffset(0);
+    setMobileMenuOpen((open) => !open);
+  }, []);
+
+  const handleDrawerPointerDown = (
+    event: ReactPointerEvent<HTMLButtonElement>,
+  ) => {
+    drawerDragStart.current = {
+      y: event.clientY,
+      time: performance.now(),
+    };
+    setDrawerDragging(true);
+    event.currentTarget.setPointerCapture(event.pointerId);
+  };
+
+  const handleDrawerPointerMove = (
+    event: ReactPointerEvent<HTMLButtonElement>,
+  ) => {
+    if (!drawerDragging) return;
+    setDrawerDragOffset(
+      Math.max(0, event.clientY - drawerDragStart.current.y),
+    );
+  };
+
+  const finishDrawerDrag = (
+    event: ReactPointerEvent<HTMLButtonElement>,
+  ) => {
+    if (!drawerDragging) return;
+
+    const distance = Math.max(
+      0,
+      event.clientY - drawerDragStart.current.y,
+    );
+    const elapsed = Math.max(
+      1,
+      performance.now() - drawerDragStart.current.time,
+    );
+    const velocity = distance / elapsed;
+
+    setDrawerDragging(false);
+
+    if (distance >= 72 || (distance >= 32 && velocity >= 0.5)) {
+      closeMobileMenu();
+    } else {
+      setDrawerDragOffset(0);
+    }
+  };
+
+  const changeTab = useCallback(
+    (nextTab: AdminTab, historyMode: "push" | "none" = "push") => {
+      setTab(nextTab);
+      setQuery("");
+      setAppliedQuery("");
+      setFilter("");
+      setError(null);
+      setNotice(null);
+      closeMobileMenu();
+
+      if (historyMode === "push") {
+        const url = new URL(window.location.href);
+
+        if (nextTab === "overview") {
+          url.searchParams.delete("section");
+        } else {
+          url.searchParams.set("section", nextTab);
+        }
+
+        window.history.pushState({ adminTab: nextTab }, "", url);
+      }
+
+      adminLayoutRef.current?.scrollTo({ top: 0, behavior: "auto" });
+      window.scrollTo({ top: 0, behavior: "auto" });
+    },
+    [closeMobileMenu],
+  );
 
   const loadOverview = useCallback(async () => {
     const response =
@@ -151,6 +310,36 @@ export function AdminScreen() {
     return () => window.clearTimeout(timeout);
   }, [refresh]);
 
+  useEffect(() => {
+    const handlePopState = () => {
+      const nextTab = normalizeAdminTab(
+        new URL(window.location.href).searchParams.get("section"),
+      );
+      changeTab(nextTab, "none");
+    };
+
+    window.addEventListener("popstate", handlePopState);
+    return () => window.removeEventListener("popstate", handlePopState);
+  }, [changeTab]);
+
+  useEffect(() => {
+    if (!notice) return;
+
+    const timeout = window.setTimeout(() => setNotice(null), 2400);
+    return () => window.clearTimeout(timeout);
+  }, [notice]);
+
+  useEffect(() => {
+    if (!mobileMenuOpen) return;
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") closeMobileMenu();
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [closeMobileMenu, mobileMenuOpen]);
+
   const mutate = async (
     resource: "inquiries" | "places" | "reports" | "settings" | "users",
     id: string,
@@ -158,10 +347,12 @@ export function AdminScreen() {
   ) => {
     setMutatingId(id);
     setError(null);
+    setNotice(null);
 
     try {
       await fetchAdminJson(resource, init);
       await Promise.all([loadOverview(), loadTab()]);
+      setNotice("변경사항을 저장했어요.");
     } catch (mutationError) {
       setError(toErrorMessage(mutationError));
     } finally {
@@ -192,7 +383,10 @@ export function AdminScreen() {
   }
 
   return (
-    <AdminLayout>
+    <AdminLayout
+      ref={adminLayoutRef}
+      $drawerOpen={mobileMenuOpen}
+    >
       <Sidebar>
         <Brand>
           <Wordmark>Tuti</Wordmark>
@@ -204,12 +398,7 @@ export function AdminScreen() {
               key={item.id}
               type="button"
               $active={tab === item.id}
-              onClick={() => {
-                setTab(item.id);
-                setQuery("");
-                setAppliedQuery("");
-                setFilter("");
-              }}
+              onClick={() => changeTab(item.id)}
             >
               {item.label}
             </NavButton>
@@ -221,11 +410,15 @@ export function AdminScreen() {
       <Main>
         <Header>
           <div>
-            <Eyebrow>ADMINISTRATION</Eyebrow>
+            <Eyebrow>TUTI ADMIN</Eyebrow>
             <h1>{tabs.find((item) => item.id === tab)?.label}</h1>
           </div>
           <RefreshButton type="button" onClick={() => void refresh()}>
-            새로고침
+            <RefreshIcon viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M20 7v5h-5" />
+              <path d="M18.2 16.8A8 8 0 1 1 19.8 9" />
+            </RefreshIcon>
+            <RefreshLabel>새로고침</RefreshLabel>
           </RefreshButton>
         </Header>
 
@@ -260,10 +453,11 @@ export function AdminScreen() {
         )}
 
         {error && <ErrorNotice role="alert">{error}</ErrorNotice>}
+        {notice && <SuccessNotice role="status">{notice}</SuccessNotice>}
         {loading ? (
           <StatePanel>관리 데이터를 불러오고 있어요.</StatePanel>
         ) : tab === "overview" ? (
-          <OverviewPanel overview={overview} />
+          <OverviewPanel overview={overview} onNavigate={changeTab} />
         ) : tab === "logs" ? (
           <LogsPanel logs={logs} />
         ) : tab === "places" ? (
@@ -362,30 +556,151 @@ export function AdminScreen() {
           />
         )}
       </Main>
+
+      <MobileNavigation aria-label="모바일 관리자 메뉴">
+        {mobilePrimaryTabs.map((item) => (
+          <MobileNavButton
+            key={item.id}
+            type="button"
+            $active={tab === item.id}
+            onClick={() => changeTab(item.id)}
+          >
+            <MobileNavIcon $active={tab === item.id}>
+              <AdminSectionIcon section={item.id} />
+            </MobileNavIcon>
+            <MobileNavLabel>{item.label}</MobileNavLabel>
+            {item.id === "inquiries" &&
+              Boolean(overview?.pendingInquiries) && (
+                <MobileNavBadge>{overview?.pendingInquiries}</MobileNavBadge>
+              )}
+            {item.id === "reports" &&
+              Boolean(overview?.pendingReports) && (
+                <MobileNavBadge>{overview?.pendingReports}</MobileNavBadge>
+              )}
+          </MobileNavButton>
+        ))}
+        <MobileNavButton
+          type="button"
+          $active={mobileMoreTabs.some((item) => item.id === tab)}
+          aria-expanded={mobileMenuOpen}
+          onClick={toggleMobileMenu}
+        >
+          <MobileNavIcon
+            $active={mobileMoreTabs.some((item) => item.id === tab)}
+          >
+            <AdminSectionIcon section="more" />
+          </MobileNavIcon>
+          <MobileNavLabel>더보기</MobileNavLabel>
+        </MobileNavButton>
+      </MobileNavigation>
+
+      <MobileMenuBackdrop
+        $open={mobileMenuOpen}
+        $dragOffset={drawerDragOffset}
+        $dragging={drawerDragging}
+        aria-hidden={!mobileMenuOpen}
+        onClick={closeMobileMenu}
+      >
+        <MobileMenu
+          $open={mobileMenuOpen}
+          $dragOffset={drawerDragOffset}
+          $dragging={drawerDragging}
+          role="dialog"
+          aria-modal="true"
+          aria-label="관리자 추가 메뉴"
+          onClick={(event) => event.stopPropagation()}
+        >
+          <MobileMenuHandle
+            type="button"
+            aria-label="아래로 끌어 더보기 메뉴 닫기"
+            onPointerDown={handleDrawerPointerDown}
+            onPointerMove={handleDrawerPointerMove}
+            onPointerUp={finishDrawerDrag}
+            onPointerCancel={finishDrawerDrag}
+          >
+            <span />
+          </MobileMenuHandle>
+          <MobileMenuHeader>
+            <div>
+              <span>더보기</span>
+              <h2>관리자 메뉴</h2>
+            </div>
+            <DrawerCloseButton
+              type="button"
+              aria-label="더보기 메뉴 닫기"
+              onClick={closeMobileMenu}
+            >
+              ×
+            </DrawerCloseButton>
+          </MobileMenuHeader>
+          <MobileMenuList>
+            {mobileMoreTabs.map((item) => (
+              <MobileMenuButton
+                key={item.id}
+                type="button"
+                $active={tab === item.id}
+                onClick={() => changeTab(item.id)}
+              >
+                <span>{item.label}</span>
+                <span aria-hidden="true">›</span>
+              </MobileMenuButton>
+            ))}
+            <MobileServiceLink href="/">
+              <span>Tuti 서비스로 돌아가기</span>
+              <span aria-hidden="true">›</span>
+            </MobileServiceLink>
+          </MobileMenuList>
+        </MobileMenu>
+      </MobileMenuBackdrop>
     </AdminLayout>
   );
 }
 
-function OverviewPanel({ overview }: { overview: AdminOverview | null }) {
+function OverviewPanel({
+  overview,
+  onNavigate,
+}: {
+  overview: AdminOverview | null;
+  onNavigate: (tab: AdminTab) => void;
+}) {
   const cards = [
     ["전체 사용자", overview?.users ?? 0],
     ["관리자", overview?.admins ?? 0],
     ["노출 중인 장소", overview?.activePlaces ?? 0],
-    ["검토 대기 장소", overview?.pendingPlaces ?? 0],
-    ["처리할 신고", overview?.pendingReports ?? 0],
-    ["처리할 문의", overview?.pendingInquiries ?? 0],
     ["오늘 로그", overview?.logsToday ?? 0],
   ];
 
   return (
-    <MetricGrid>
-      {cards.map(([label, value]) => (
-        <MetricCard key={label}>
-          <span>{label}</span>
-          <strong>{value}</strong>
-        </MetricCard>
-      ))}
-    </MetricGrid>
+    <OverviewContent>
+      <section>
+        <SectionTitle>지금 처리할 일</SectionTitle>
+        <QueueGrid>
+          <QueueCard type="button" onClick={() => onNavigate("inquiries")}>
+            <span>답변을 기다리는 문의</span>
+            <strong>{overview?.pendingInquiries ?? 0}</strong>
+          </QueueCard>
+          <QueueCard type="button" onClick={() => onNavigate("reports")}>
+            <span>확인이 필요한 신고</span>
+            <strong>{overview?.pendingReports ?? 0}</strong>
+          </QueueCard>
+          <QueueCard type="button" onClick={() => onNavigate("places")}>
+            <span>검토 대기 장소</span>
+            <strong>{overview?.pendingPlaces ?? 0}</strong>
+          </QueueCard>
+        </QueueGrid>
+      </section>
+      <section>
+        <SectionTitle>운영 현황</SectionTitle>
+        <MetricGrid>
+          {cards.map(([label, value]) => (
+            <MetricCard key={label}>
+              <span>{label}</span>
+              <strong>{value}</strong>
+            </MetricCard>
+          ))}
+        </MetricGrid>
+      </section>
+    </OverviewContent>
   );
 }
 
@@ -397,7 +712,9 @@ function LogsPanel({ logs }: { logs: AdminLogItem[] }) {
       {logs.map((log) => (
         <DataCard key={log.id}>
           <CardTop>
-            <StatusBadge $tone={log.level}>{log.level}</StatusBadge>
+            <StatusBadge $tone={log.level}>
+              {getLogLevelLabel(log.level)}
+            </StatusBadge>
             <Time>{formatDate(log.createdAt)}</Time>
           </CardTop>
           <h2>{log.message}</h2>
@@ -442,66 +759,117 @@ function PlacesPanel({
   if (places.length === 0) return <StatePanel>조건에 맞는 장소가 없습니다.</StatePanel>;
 
   return (
-    <TableCard>
-      <Table>
-        <thead>
-          <tr>
-            <th>장소</th>
-            <th>출처</th>
-            <th>피로도</th>
-            <th>검수 상태</th>
-            <th>노출</th>
-          </tr>
-        </thead>
-        <tbody>
-          {places.map((place) => (
-            <tr key={place.id}>
-              <td>
-                <strong>{place.name}</strong>
-                <Small>{place.id}</Small>
-              </td>
-              <td>
-                {place.source}
-                {place.sourceId ? <Small>{place.sourceId}</Small> : null}
-              </td>
-              <td>
-                {place.fatigue} · {place.movementLevel}
-              </td>
-              <td>
-                <InlineSelect
-                  value={place.reviewStatus}
+    <>
+      <DesktopOnly>
+        <TableCard>
+          <Table>
+            <thead>
+              <tr>
+                <th>장소</th>
+                <th>출처</th>
+                <th>피로도</th>
+                <th>검수 상태</th>
+                <th>노출</th>
+              </tr>
+            </thead>
+            <tbody>
+              {places.map((place) => (
+                <tr key={place.id}>
+                  <td>
+                    <strong>{place.name}</strong>
+                    <Small>{place.id}</Small>
+                  </td>
+                  <td>
+                    {place.source}
+                    {place.sourceId ? <Small>{place.sourceId}</Small> : null}
+                  </td>
+                  <td>
+                    {place.fatigue} · {place.movementLevel}
+                  </td>
+                  <td>
+                    <InlineSelect
+                      value={place.reviewStatus}
+                      disabled={mutatingId === place.id}
+                      onChange={(event) =>
+                        onChange(place.id, {
+                          reviewStatus: event.target.value,
+                        })
+                      }
+                    >
+                      <option value="pending">검토 대기</option>
+                      <option value="approved">승인</option>
+                      <option value="rejected">거절</option>
+                    </InlineSelect>
+                  </td>
+                  <td>
+                    <ToggleLabel>
+                      <input
+                        type="checkbox"
+                        checked={place.isActive}
+                        disabled={mutatingId === place.id}
+                        onChange={(event) =>
+                          onChange(place.id, {
+                            isActive: event.target.checked,
+                          })
+                        }
+                      />
+                      {place.isActive ? "노출" : "숨김"}
+                    </ToggleLabel>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </Table>
+        </TableCard>
+      </DesktopOnly>
+      <MobileRecordList>
+        {places.map((place) => (
+          <MobileRecordCard key={place.id}>
+            <MobileRecordHeader>
+              <div>
+                <h2>{place.name}</h2>
+                <Meta>
+                  {place.source} · {place.fatigue} · {place.movementLevel}
+                </Meta>
+              </div>
+              <StatusBadge $tone={place.reviewStatus}>
+                {getPlaceReviewStatusLabel(place.reviewStatus)}
+              </StatusBadge>
+            </MobileRecordHeader>
+            <Small>{place.sourceId ?? place.id}</Small>
+            <MobileRecordActions>
+              <InlineSelect
+                value={place.reviewStatus}
+                disabled={mutatingId === place.id}
+                aria-label={`${place.name} 검수 상태`}
+                onChange={(event) =>
+                  onChange(place.id, {
+                    reviewStatus: event.target.value,
+                  })
+                }
+              >
+                <option value="pending">검토 대기</option>
+                <option value="approved">승인</option>
+                <option value="rejected">거절</option>
+              </InlineSelect>
+              <ToggleControl>
+                <input
+                  type="checkbox"
+                  checked={place.isActive}
                   disabled={mutatingId === place.id}
                   onChange={(event) =>
                     onChange(place.id, {
-                      reviewStatus: event.target.value,
+                      isActive: event.target.checked,
                     })
                   }
-                >
-                  <option value="pending">검토 대기</option>
-                  <option value="approved">승인</option>
-                  <option value="rejected">거절</option>
-                </InlineSelect>
-              </td>
-              <td>
-                <ToggleLabel>
-                  <input
-                    type="checkbox"
-                    checked={place.isActive}
-                    disabled={mutatingId === place.id}
-                    onChange={(event) =>
-                      onChange(place.id, {
-                        isActive: event.target.checked,
-                      })
-                    }
-                  />
-                  {place.isActive ? "노출" : "숨김"}
-                </ToggleLabel>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </Table>
-    </TableCard>
+                />
+                {place.isActive ? "노출 중" : "숨김"}
+              </ToggleControl>
+            </MobileRecordActions>
+          </MobileRecordCard>
+        ))}
+      </MobileRecordList>
+    </>
   );
 }
 
@@ -523,7 +891,9 @@ function ReportsPanel({
       {reports.map((report) => (
         <DataCard key={report.id}>
           <CardTop>
-            <StatusBadge $tone={report.status}>{report.status}</StatusBadge>
+            <StatusBadge $tone={report.status}>
+              {getReportStatusLabel(report.status)}
+            </StatusBadge>
             <Time>{formatDate(report.createdAt)}</Time>
           </CardTop>
           <h2>{report.targetTitle}</h2>
@@ -571,6 +941,8 @@ function InquiriesPanel({
     adminResponse: string,
   ) => void;
 }) {
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+
   if (inquiries.length === 0) {
     return <StatePanel>접수된 1:1 문의가 없습니다.</StatePanel>;
   }
@@ -582,6 +954,12 @@ function InquiriesPanel({
           key={`${inquiry.id}:${inquiry.updatedAt}`}
           inquiry={inquiry}
           saving={mutatingId === inquiry.id}
+          expanded={expandedId === inquiry.id}
+          onToggle={() =>
+            setExpandedId((current) =>
+              current === inquiry.id ? null : inquiry.id,
+            )
+          }
           onSave={onSave}
         />
       ))}
@@ -592,10 +970,14 @@ function InquiriesPanel({
 function InquiryEditor({
   inquiry,
   saving,
+  expanded,
+  onToggle,
   onSave,
 }: {
   inquiry: AdminInquiryItem;
   saving: boolean;
+  expanded: boolean;
+  onToggle: () => void;
   onSave: (
     inquiryId: string,
     status: string,
@@ -612,50 +994,63 @@ function InquiryEditor({
 
   return (
     <DataCard>
-      <CardTop>
-        <StatusBadge $tone={inquiry.status}>
-          {inquiry.status}
-        </StatusBadge>
-        <Time>{formatDate(inquiry.createdAt)}</Time>
-      </CardTop>
-      <h2>{inquiry.subject}</h2>
-      <Meta>
-        유형 {inquiry.category} ·{" "}
-        {inquiry.requesterEmail ??
-          inquiry.requesterUserId ??
-          "삭제된 사용자"}
-      </Meta>
-      <Description>{inquiry.message}</Description>
-      <ResponseArea>
-        <InlineSelect
-          value={status}
-          disabled={saving}
-          onChange={(event) =>
-            setStatus(event.target.value as typeof status)
-          }
-        >
-          <option value="pending">접수</option>
-          <option value="reviewing">확인 중</option>
-          <option value="answered">답변 완료</option>
-          <option value="closed">종결</option>
-        </InlineSelect>
-        <AdminResponseInput
-          value={adminResponse}
-          disabled={saving}
-          maxLength={4000}
-          placeholder="처리 내용이나 답변 메모를 남겨주세요."
-          onChange={(event) => setAdminResponse(event.target.value)}
-        />
-        <SearchButton
-          type="button"
-          disabled={saving || !changed}
-          onClick={() =>
-            onSave(inquiry.id, status, adminResponse.trim())
-          }
-        >
-          {saving ? "저장 중..." : "처리 내용 저장"}
-        </SearchButton>
-      </ResponseArea>
+      <InquirySummaryButton
+        type="button"
+        aria-expanded={expanded}
+        onClick={onToggle}
+      >
+        <CardTop>
+          <StatusBadge $tone={inquiry.status}>
+            {getInquiryStatusLabel(inquiry.status)}
+          </StatusBadge>
+          <Time>{formatDate(inquiry.createdAt)}</Time>
+        </CardTop>
+        <h2>{inquiry.subject}</h2>
+        <Meta>
+          {getInquiryCategoryLabel(inquiry.category)} ·{" "}
+          {inquiry.requesterEmail ??
+            inquiry.requesterUserId ??
+            "삭제된 사용자"}
+        </Meta>
+        <InquiryPreview>{inquiry.message}</InquiryPreview>
+        <ExpandLabel>{expanded ? "접기" : "문의 확인 및 답변"}</ExpandLabel>
+      </InquirySummaryButton>
+      {expanded && (
+        <InquiryDetail>
+          <Description>{inquiry.message}</Description>
+          <ResponseArea>
+            <InlineSelect
+              value={status}
+              disabled={saving}
+              aria-label="문의 처리 상태"
+              onChange={(event) =>
+                setStatus(event.target.value as typeof status)
+              }
+            >
+              <option value="pending">접수</option>
+              <option value="reviewing">확인 중</option>
+              <option value="answered">답변 완료</option>
+              <option value="closed">종결</option>
+            </InlineSelect>
+            <AdminResponseInput
+              value={adminResponse}
+              disabled={saving}
+              maxLength={4000}
+              placeholder="사용자에게 보여줄 답변을 작성해주세요."
+              onChange={(event) => setAdminResponse(event.target.value)}
+            />
+            <SearchButton
+              type="button"
+              disabled={saving || !changed}
+              onClick={() =>
+                onSave(inquiry.id, status, adminResponse.trim())
+              }
+            >
+              {saving ? "저장 중..." : "답변 저장"}
+            </SearchButton>
+          </ResponseArea>
+        </InquiryDetail>
+      )}
     </DataCard>
   );
 }
@@ -674,8 +1069,10 @@ function UsersPanel({
   if (users.length === 0) return <StatePanel>조건에 맞는 사용자가 없습니다.</StatePanel>;
 
   return (
-    <TableCard>
-      <Table>
+    <>
+      <DesktopOnly>
+        <TableCard>
+          <Table>
         <thead>
           <tr>
             <th>계정</th>
@@ -720,8 +1117,51 @@ function UsersPanel({
             </tr>
           ))}
         </tbody>
-      </Table>
-    </TableCard>
+          </Table>
+        </TableCard>
+      </DesktopOnly>
+      <MobileRecordList>
+        {users.map((user) => (
+          <MobileRecordCard key={user.id}>
+            <MobileRecordHeader>
+              <div>
+                <h2>{user.email ?? "익명 사용자"}</h2>
+                <Meta>
+                  {user.providers.join(", ") || "연결된 공급자 없음"} · 기록{" "}
+                  {user.journalCount}개
+                </Meta>
+              </div>
+              <StatusBadge $tone={user.role}>
+                {user.role === "admin" ? "관리자" : "사용자"}
+              </StatusBadge>
+            </MobileRecordHeader>
+            <Small>
+              {user.id} · {formatDate(user.createdAt)} 가입
+            </Small>
+            <MobileRecordActions>
+              <InlineSelect
+                value={user.role}
+                disabled={mutatingId === user.id}
+                aria-label={`${user.email ?? user.id} 권한`}
+                onChange={(event) =>
+                  onRoleChange(user.id, event.target.value)
+                }
+              >
+                <option value="user">사용자</option>
+                <option value="admin">관리자</option>
+              </InlineSelect>
+              <DangerButton
+                type="button"
+                disabled={mutatingId === user.id}
+                onClick={() => onForceDelete(user)}
+              >
+                계정 삭제
+              </DangerButton>
+            </MobileRecordActions>
+          </MobileRecordCard>
+        ))}
+      </MobileRecordList>
+    </>
   );
 }
 
@@ -843,6 +1283,12 @@ function getFilterOptions(tab: AdminTab) {
   return [];
 }
 
+export function normalizeAdminTab(value: unknown): AdminTab {
+  return tabs.some((item) => item.id === value)
+    ? (value as AdminTab)
+    : "overview";
+}
+
 function getSearchPlaceholder(tab: AdminTab) {
   if (tab === "logs") return "메시지, 작업, 사용자 ID 검색";
   if (tab === "places") return "장소명, 장소 ID, 공공데이터 ID 검색";
@@ -857,21 +1303,71 @@ function formatDate(value: string) {
   return dateFormatter.format(new Date(value));
 }
 
+function getInquiryStatusLabel(status: string) {
+  if (status === "pending") return "접수";
+  if (status === "reviewing") return "확인 중";
+  if (status === "answered") return "답변 완료";
+  if (status === "closed") return "종결";
+  return status;
+}
+
+function getInquiryCategoryLabel(category: string) {
+  if (category === "account") return "계정";
+  if (category === "service") return "서비스";
+  if (category === "place") return "장소";
+  if (category === "privacy") return "개인정보";
+  if (category === "other") return "기타";
+  return category;
+}
+
+function getPlaceReviewStatusLabel(status: string) {
+  if (status === "pending") return "검토 대기";
+  if (status === "approved") return "승인";
+  if (status === "rejected") return "거절";
+  return status;
+}
+
+function getReportStatusLabel(status: string) {
+  if (status === "pending") return "접수";
+  if (status === "reviewing") return "검토 중";
+  if (status === "resolved") return "처리 완료";
+  if (status === "dismissed") return "기각";
+  return status;
+}
+
+function getLogLevelLabel(level: string) {
+  if (level === "info") return "정보";
+  if (level === "warning") return "경고";
+  if (level === "error") return "오류";
+  return level;
+}
+
 function toErrorMessage(error: unknown) {
   return error instanceof Error
     ? error.message
     : "관리자 요청을 처리하지 못했습니다.";
 }
 
-const AdminLayout = styled.div`
+const AdminLayout = styled.div<{ $drawerOpen: boolean }>`
   min-height: 100dvh;
   display: grid;
   grid-template-columns: 240px minmax(0, 1fr);
-  background: var(--color-app-background);
+  background: var(--color-white);
   color: var(--color-text);
+  touch-action: pan-y;
 
   @media (max-width: 768px) {
+    height: 100dvh;
+    min-height: 0;
     grid-template-columns: 1fr;
+    align-content: start;
+    overflow-x: hidden;
+    overflow-y: ${({ $drawerOpen }) =>
+      $drawerOpen ? "hidden" : "auto"};
+    overscroll-behavior-y: auto;
+    padding-bottom: calc(76px + env(safe-area-inset-bottom));
+    background: var(--color-white);
+    -webkit-overflow-scrolling: touch;
   }
 `;
 
@@ -884,15 +1380,10 @@ const Sidebar = styled.aside`
   gap: var(--space-8);
   padding: var(--space-8) var(--space-5);
   border-right: 1px solid var(--color-border);
-  background: var(--color-surface);
+  background: var(--color-white);
 
   @media (max-width: 768px) {
-    position: static;
-    height: auto;
-    gap: var(--space-4);
-    padding: var(--space-5);
-    border-right: 0;
-    border-bottom: 1px solid var(--color-border);
+    display: none;
   }
 `;
 
@@ -918,7 +1409,17 @@ const Navigation = styled.nav`
   gap: var(--space-2);
 
   @media (max-width: 768px) {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-column: 1 / -1;
+    display: flex;
+    gap: var(--space-2);
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    scrollbar-width: none;
+    scroll-snap-type: x proximity;
+
+    &::-webkit-scrollbar {
+      display: none;
+    }
   }
 `;
 
@@ -928,13 +1429,30 @@ const NavButton = styled.button<{ $active: boolean }>`
   border: 0;
   border-radius: var(--space-3);
   background: ${({ $active }) =>
-    $active ? "var(--color-secondary-200)" : "transparent"};
+    $active ? "var(--color-secondary-300)" : "transparent"};
   color: var(--color-text);
   font: inherit;
   font-size: var(--font-size-200);
   font-weight: ${({ $active }) => ($active ? 700 : 500)};
   text-align: left;
   cursor: pointer;
+
+  &:hover {
+    background: ${({ $active }) =>
+      $active
+        ? "var(--color-secondary-300)"
+        : "var(--color-brand-100)"};
+  }
+
+  @media (max-width: 768px) {
+    min-width: max-content;
+    min-height: 44px;
+    flex: 0 0 auto;
+    padding: 0 var(--space-4);
+    text-align: center;
+    scroll-snap-align: start;
+    white-space: nowrap;
+  }
 `;
 
 const HomeLink = styled(Link)`
@@ -942,9 +1460,17 @@ const HomeLink = styled(Link)`
   color: var(--color-text-muted);
   font-size: var(--font-size-100);
   text-decoration: none;
+
+  @media (max-width: 768px) {
+    align-self: center;
+    margin-top: 0;
+    padding: var(--space-2) 0;
+  }
 `;
 
 const Main = styled.main`
+  min-width: 0;
+  min-height: 100dvh;
   width: min(100%, 1440px);
   display: grid;
   align-content: start;
@@ -953,7 +1479,13 @@ const Main = styled.main`
   margin: 0 auto;
 
   @media (max-width: 768px) {
-    padding: var(--space-5);
+    min-height: calc(100dvh - 76px - env(safe-area-inset-bottom));
+    gap: var(--space-5);
+    padding:
+      var(--space-5)
+      max(var(--space-4), env(safe-area-inset-right))
+      max(var(--space-8), env(safe-area-inset-bottom))
+      max(var(--space-4), env(safe-area-inset-left));
   }
 `;
 
@@ -968,6 +1500,28 @@ const Header = styled.header`
     font-size: var(--font-size-700);
     line-height: var(--line-height-heading);
   }
+
+  @media (max-width: 480px) {
+    position: sticky;
+    z-index: 10;
+    top: 0;
+    align-items: center;
+    padding:
+      max(var(--space-3), env(safe-area-inset-top))
+      max(var(--space-4), env(safe-area-inset-right))
+      var(--space-3);
+    padding-left: max(var(--space-4), env(safe-area-inset-left));
+    margin: calc(var(--space-5) * -1) calc(var(--space-4) * -1) 0;
+    border-bottom: 1px solid var(--color-brand-200);
+    background: rgb(var(--color-white-rgb) / 0.88);
+    box-shadow: 0 8px 28px rgb(var(--color-black-rgb) / 0.05);
+    backdrop-filter: blur(16px);
+
+    h1 {
+      margin-top: 0;
+      font-size: var(--font-size-500);
+    }
+  }
 `;
 
 const Eyebrow = styled.span`
@@ -975,17 +1529,57 @@ const Eyebrow = styled.span`
   font-size: var(--font-size-100);
   font-weight: 700;
   letter-spacing: 0.08em;
+
+  @media (max-width: 480px) {
+    color: var(--color-brand-800);
+    font-size: 10px;
+  }
 `;
 
 const RefreshButton = styled.button`
-  min-height: var(--space-10);
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
   padding: 0 var(--space-4);
   border: 1px solid var(--color-border);
   border-radius: 999px;
-  background: var(--color-surface);
-  color: var(--color-text);
+  background: var(--color-brand-100);
+  color: var(--color-brand-1000);
   font: inherit;
   cursor: pointer;
+
+  @media (max-width: 480px) {
+    width: 44px;
+    padding: 0;
+    border-color: var(--color-brand-200);
+    background: var(--color-brand-100);
+    color: var(--color-brand-900);
+  }
+`;
+
+const RefreshIcon = styled.svg`
+  width: 18px;
+  height: 18px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+
+  &::before {
+    content: "";
+  }
+`;
+
+const RefreshLabel = styled.span`
+  @media (max-width: 480px) {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
 `;
 
 const Toolbar = styled.form`
@@ -994,7 +1588,11 @@ const Toolbar = styled.form`
   gap: var(--space-3);
 
   @media (max-width: 640px) {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr) auto;
+
+    > input:first-of-type {
+      grid-column: 1 / -1;
+    }
   }
 `;
 
@@ -1005,7 +1603,7 @@ const SearchInput = styled.input`
   border: 1px solid var(--color-border);
   border-radius: var(--space-3);
   outline: 0;
-  background: var(--color-surface);
+  background: rgb(var(--color-white-rgb) / 0.88);
   color: var(--color-text);
   font: inherit;
 
@@ -1020,7 +1618,7 @@ const Select = styled.select`
   padding: 0 var(--space-4);
   border: 1px solid var(--color-border);
   border-radius: var(--space-3);
-  background: var(--color-surface);
+  background: rgb(var(--color-white-rgb) / 0.88);
   color: var(--color-text);
   font: inherit;
 `;
@@ -1050,6 +1648,28 @@ const ErrorNotice = styled.div`
   color: var(--color-error);
 `;
 
+const SuccessNotice = styled.div`
+  position: fixed;
+  z-index: 60;
+  right: var(--space-6);
+  bottom: var(--space-6);
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--color-secondary-600);
+  border-radius: var(--space-3);
+  background: var(--color-secondary-200);
+  color: var(--color-text);
+  box-shadow: 0 12px 32px rgb(var(--color-black-rgb) / 0.12);
+  font-size: var(--font-size-100);
+  font-weight: 700;
+
+  @media (max-width: 768px) {
+    right: var(--space-4);
+    bottom: calc(84px + env(safe-area-inset-bottom));
+    left: var(--space-4);
+    text-align: center;
+  }
+`;
+
 const StatePanel = styled.div`
   display: grid;
   min-height: 240px;
@@ -1059,6 +1679,132 @@ const StatePanel = styled.div`
   border-radius: var(--space-5);
   background: var(--color-surface);
   color: var(--color-text-muted);
+  box-shadow: 0 12px 32px rgb(var(--color-black-rgb) / 0.05);
+`;
+
+const OverviewContent = styled.div`
+  display: grid;
+  gap: var(--space-8);
+
+  section {
+    display: grid;
+    gap: var(--space-3);
+  }
+`;
+
+const SectionTitle = styled.h2`
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--font-size-300);
+
+  &::before {
+    width: var(--space-1);
+    height: 1em;
+    border-radius: 999px;
+    background: var(--color-brand-500);
+    content: "";
+  }
+
+  section:nth-of-type(2) &::before {
+    background: var(--color-secondary-600);
+  }
+`;
+
+const QueueGrid = styled.div`
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-4);
+
+  @media (max-width: 640px) {
+    grid-template-columns: 1fr;
+    gap: var(--space-2);
+  }
+`;
+
+const QueueCard = styled.button`
+  min-height: 96px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  padding: var(--space-5);
+  border: 1px solid var(--color-secondary-500);
+  border-radius: var(--space-5);
+  background: var(--color-secondary-200);
+  color: var(--color-text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  box-shadow: 0 12px 30px rgb(var(--color-black-rgb) / 0.07);
+
+  span {
+    font-size: var(--font-size-200);
+    font-weight: 600;
+  }
+
+  strong {
+    font-size: var(--font-size-700);
+    line-height: 1;
+  }
+
+  &:nth-of-type(1) {
+    border-color: var(--color-secondary-400);
+    background: var(--color-secondary-200);
+  }
+
+  &:nth-of-type(2) {
+    border-color: var(--color-brand-300);
+    background: var(--color-brand-200);
+  }
+
+  &:nth-of-type(3) {
+    border-color: var(--color-secondary-300);
+    background: var(--color-secondary-100);
+  }
+
+  @media (max-width: 640px) {
+    min-height: 68px;
+    padding: var(--space-4);
+    border-color: transparent;
+    border-radius: var(--space-4);
+    background: var(--color-surface);
+    box-shadow: 0 8px 24px rgb(var(--color-black-rgb) / 0.05);
+
+    strong {
+      min-width: var(--space-10);
+      height: var(--space-10);
+      display: grid;
+      place-items: center;
+      border-radius: 999px;
+      background: var(--color-secondary-300);
+      font-size: var(--font-size-500);
+    }
+
+    &:nth-of-type(1) {
+      background: var(--color-secondary-200);
+
+      strong {
+        background: var(--color-secondary-500);
+      }
+    }
+
+    &:nth-of-type(2) {
+      background: var(--color-brand-200);
+
+      strong {
+        background: var(--color-brand-500);
+      }
+    }
+
+    &:nth-of-type(3) {
+      background: var(--color-secondary-100);
+
+      strong {
+        background: var(--color-secondary-400);
+      }
+    }
+  }
 `;
 
 const MetricGrid = styled.section`
@@ -1070,8 +1816,13 @@ const MetricGrid = styled.section`
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  @media (max-width: 520px) {
+  @media (max-width: 360px) {
     grid-template-columns: 1fr;
+  }
+
+  @media (min-width: 361px) and (max-width: 520px) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--space-3);
   }
 `;
 
@@ -1093,6 +1844,53 @@ const MetricCard = styled.article`
     font-size: var(--font-size-800);
     line-height: 1;
   }
+
+  &:nth-of-type(4n + 1) {
+    border-color: var(--color-brand-200);
+    background: var(--color-brand-100);
+  }
+
+  &:nth-of-type(4n + 2) {
+    border-color: var(--color-secondary-300);
+    background: var(--color-secondary-100);
+  }
+
+  &:nth-of-type(4n + 3) {
+    background: var(--color-neutral-100);
+  }
+
+  &:nth-of-type(4n) {
+    border-color: var(--color-brand-300);
+    background: var(--color-brand-200);
+  }
+
+  @media (max-width: 520px) {
+    gap: var(--space-3);
+    padding: var(--space-4);
+    border-color: transparent;
+    border-radius: var(--space-4);
+    box-shadow: 0 8px 24px rgb(var(--color-black-rgb) / 0.04);
+
+    strong {
+      font-size: var(--font-size-700);
+    }
+
+    &:nth-of-type(4n + 1) {
+      background: var(--color-brand-100);
+    }
+
+    &:nth-of-type(4n + 2) {
+      background: var(--color-secondary-100);
+    }
+
+    &:nth-of-type(4n + 3) {
+      background: var(--color-neutral-100);
+    }
+
+    &:nth-of-type(4n) {
+      background: var(--color-brand-200);
+    }
+  }
 `;
 
 const CardList = styled.section`
@@ -1107,6 +1905,22 @@ const DataCard = styled.article`
   border: 1px solid var(--color-border);
   border-radius: var(--space-4);
   background: var(--color-surface);
+  box-shadow: 0 12px 30px rgb(var(--color-black-rgb) / 0.06);
+
+  &:nth-of-type(3n + 1) {
+    border-color: var(--color-neutral-400);
+    background: var(--color-neutral-100);
+  }
+
+  &:nth-of-type(3n + 2) {
+    border-color: var(--color-brand-200);
+    background: var(--color-brand-100);
+  }
+
+  &:nth-of-type(3n) {
+    border-color: var(--color-secondary-300);
+    background: var(--color-secondary-100);
+  }
 
   h2 {
     font-size: var(--font-size-300);
@@ -1117,10 +1931,71 @@ const DataCard = styled.article`
     color: var(--color-text-muted);
     cursor: pointer;
   }
+
+  @media (max-width: 480px) {
+    padding: var(--space-4);
+    border-color: transparent;
+    border-radius: var(--space-5);
+    box-shadow: 0 8px 24px rgb(var(--color-black-rgb) / 0.05);
+
+    &:nth-of-type(3n + 1) {
+      background: var(--color-neutral-100);
+    }
+
+    &:nth-of-type(3n + 2) {
+      background: var(--color-brand-100);
+    }
+
+    &:nth-of-type(3n) {
+      background: var(--color-secondary-100);
+    }
+  }
+`;
+
+const InquirySummaryButton = styled.button`
+  min-width: 0;
+  display: grid;
+  gap: var(--space-3);
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--color-text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+
+  h2 {
+    overflow-wrap: anywhere;
+  }
+`;
+
+const InquiryPreview = styled.p`
+  display: -webkit-box;
+  overflow: hidden;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-100);
+  line-height: var(--line-height-body);
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+`;
+
+const ExpandLabel = styled.span`
+  justify-self: end;
+  color: var(--color-brand-800);
+  font-size: var(--font-size-100);
+  font-weight: 700;
+`;
+
+const InquiryDetail = styled.div`
+  display: grid;
+  gap: var(--space-3);
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--color-border);
 `;
 
 const CardTop = styled.div`
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
   gap: var(--space-3);
@@ -1133,11 +2008,20 @@ const StatusBadge = styled.span<{ $tone: string }>`
   padding: 0 var(--space-3);
   border-radius: 999px;
   background: ${({ $tone }) =>
-    $tone === "error" || $tone === "pending"
+    $tone === "error"
+      ? "var(--color-neutral-100)"
+      : $tone === "pending"
       ? "var(--color-secondary-200)"
       : $tone === "warning" || $tone === "reviewing"
         ? "var(--color-brand-200)"
-        : "var(--color-neutral-300)"};
+        : $tone === "approved" ||
+            $tone === "answered" ||
+            $tone === "resolved" ||
+            $tone === "admin"
+          ? "var(--color-secondary-300)"
+          : "var(--color-neutral-300)"};
+  color: ${({ $tone }) =>
+    $tone === "error" ? "var(--color-error)" : "var(--color-text)"};
   font-size: var(--font-size-100);
   font-weight: 700;
 `;
@@ -1145,17 +2029,20 @@ const StatusBadge = styled.span<{ $tone: string }>`
 const Time = styled.time`
   color: var(--color-text-muted);
   font-size: var(--font-size-100);
+  text-align: right;
 `;
 
 const Meta = styled.p`
   color: var(--color-text-muted);
   font-size: var(--font-size-100);
+  overflow-wrap: anywhere;
 `;
 
 const Description = styled.p`
   color: var(--color-text-muted);
   font-size: var(--font-size-200);
   line-height: var(--line-height-body);
+  overflow-wrap: anywhere;
 `;
 
 const Code = styled.pre`
@@ -1172,9 +2059,78 @@ const Code = styled.pre`
 
 const TableCard = styled.section`
   overflow-x: auto;
-  border: 1px solid var(--color-border);
+  border: 1px solid var(--color-brand-200);
   border-radius: var(--space-4);
+  background: rgb(var(--color-white-rgb) / 0.9);
+  box-shadow: 0 16px 36px rgb(var(--color-black-rgb) / 0.05);
+
+  @media (max-width: 640px) {
+    overflow: visible;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+  }
+`;
+
+const DesktopOnly = styled.div`
+  @media (max-width: 768px) {
+    display: none;
+  }
+`;
+
+const MobileRecordList = styled.section`
+  display: none;
+
+  @media (max-width: 768px) {
+    display: grid;
+    gap: var(--space-3);
+  }
+`;
+
+const MobileRecordCard = styled.article`
+  display: grid;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  border: 0;
+  border-radius: var(--space-5);
   background: var(--color-surface);
+  box-shadow: 0 8px 24px rgb(var(--color-black-rgb) / 0.05);
+
+  &:nth-of-type(odd) {
+    background: var(--color-brand-100);
+  }
+
+  &:nth-of-type(even) {
+    background: var(--color-secondary-100);
+  }
+`;
+
+const MobileRecordHeader = styled.div`
+  min-width: 0;
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: var(--space-3);
+
+  > div {
+    min-width: 0;
+  }
+
+  h2 {
+    overflow-wrap: anywhere;
+    font-size: var(--font-size-300);
+    line-height: var(--line-height-subtitle);
+  }
+`;
+
+const MobileRecordActions = styled.div`
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: var(--space-2);
+
+  > * {
+    width: 100%;
+  }
 `;
 
 const Table = styled.table`
@@ -1191,13 +2147,63 @@ const Table = styled.table`
   }
 
   th {
-    background: var(--color-neutral-200);
-    color: var(--color-text-muted);
+    background: var(--color-brand-100);
+    color: var(--color-brand-1000);
     font-weight: 600;
   }
 
   tr:last-of-type td {
     border-bottom: 0;
+  }
+
+  tbody tr {
+    transition: background-color 160ms ease;
+  }
+
+  tbody tr:hover {
+    background: var(--color-secondary-100);
+  }
+
+  @media (max-width: 640px) {
+    display: block;
+
+    thead {
+      display: none;
+    }
+
+    tbody {
+      display: grid;
+      gap: var(--space-3);
+    }
+
+    tr {
+      display: grid;
+      gap: 0;
+      overflow: hidden;
+      border: 1px solid var(--color-border);
+      border-radius: var(--space-4);
+      background: var(--color-surface);
+    }
+
+    td {
+      display: grid;
+      grid-template-columns: minmax(76px, 30%) minmax(0, 1fr);
+      align-items: center;
+      gap: var(--space-3);
+      padding: var(--space-3) var(--space-4);
+      overflow-wrap: anywhere;
+
+      &::before {
+        content: attr(data-label);
+        color: var(--color-text-muted);
+        font-size: var(--font-size-100);
+        font-weight: 600;
+      }
+
+      &:last-of-type {
+        border-bottom: 0;
+      }
+    }
   }
 `;
 
@@ -1206,10 +2212,11 @@ const Small = styled.small`
   margin-top: var(--space-1);
   color: var(--color-text-muted);
   font-size: 11px;
+  overflow-wrap: anywhere;
 `;
 
 const InlineSelect = styled.select`
-  min-height: var(--space-9);
+  min-height: 44px;
   padding: 0 var(--space-3);
   border: 1px solid var(--color-border);
   border-radius: var(--space-2);
@@ -1219,6 +2226,7 @@ const InlineSelect = styled.select`
 `;
 
 const ToggleLabel = styled.label`
+  min-height: 44px;
   display: inline-flex;
   align-items: center;
   gap: var(--space-2);
@@ -1233,11 +2241,28 @@ const ToggleLabel = styled.label`
   }
 `;
 
+const ToggleControl = styled(ToggleLabel)`
+  justify-content: center;
+  padding: 0 var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--space-2);
+  background: var(--color-white);
+`;
+
 const CardActions = styled.div`
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-3);
   padding-top: var(--space-2);
+
+  @media (max-width: 480px) {
+    display: grid;
+    grid-template-columns: 1fr;
+
+    > * {
+      width: 100%;
+    }
+  }
 `;
 
 const ResponseArea = styled.div`
@@ -1249,6 +2274,10 @@ const ResponseArea = styled.div`
 
   @media (max-width: 760px) {
     grid-template-columns: 1fr;
+
+    > * {
+      width: 100%;
+    }
   }
 `;
 
@@ -1272,7 +2301,7 @@ const AdminResponseInput = styled.textarea`
 `;
 
 const DangerButton = styled.button`
-  min-height: var(--space-9);
+  min-height: 44px;
   padding: 0 var(--space-4);
   border: 1px solid var(--color-error);
   border-radius: var(--space-2);
@@ -1300,9 +2329,15 @@ const SettingCard = styled.article`
   align-items: center;
   gap: var(--space-6);
   padding: var(--space-5);
-  border: 1px solid var(--color-border);
+  border: 1px solid var(--color-brand-200);
   border-radius: var(--space-4);
-  background: var(--color-surface);
+  background: var(--color-brand-100);
+  box-shadow: 0 12px 30px rgb(var(--color-black-rgb) / 0.06);
+
+  &:nth-of-type(even) {
+    border-color: var(--color-secondary-300);
+    background: var(--color-secondary-100);
+  }
 
   h2 {
     margin-bottom: var(--space-2);
@@ -1318,13 +2353,21 @@ const SettingInputRow = styled.div`
   display: grid;
   grid-template-columns: 1fr auto;
   gap: var(--space-2);
+
+  @media (max-width: 480px) {
+    grid-template-columns: 1fr;
+  }
 `;
 
 const AccessPage = styled.main`
   min-height: 100dvh;
   display: grid;
   place-items: center;
-  padding: var(--space-6);
+  padding:
+    max(var(--space-6), env(safe-area-inset-top))
+    max(var(--space-4), env(safe-area-inset-right))
+    max(var(--space-6), env(safe-area-inset-bottom))
+    max(var(--space-4), env(safe-area-inset-left));
   background: var(--color-app-background);
 `;
 
@@ -1344,6 +2387,10 @@ const AccessCard = styled.section`
 
   p {
     color: var(--color-text-muted);
+  }
+
+  @media (max-width: 480px) {
+    padding: var(--space-6) var(--space-5);
   }
 `;
 
@@ -1369,4 +2416,236 @@ const SecondaryLink = styled(Link)`
   place-items: center;
   color: var(--color-text-muted);
   text-decoration: none;
+`;
+
+const MobileNavigation = styled.nav`
+  display: none;
+
+  @media (max-width: 768px) {
+    position: fixed;
+    z-index: 40;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    min-height: calc(64px + env(safe-area-inset-bottom));
+    padding:
+      var(--space-2)
+      max(var(--space-2), env(safe-area-inset-right))
+      max(var(--space-2), env(safe-area-inset-bottom))
+      max(var(--space-2), env(safe-area-inset-left));
+    border-top: 1px solid var(--color-border);
+    background: rgb(var(--color-white-rgb) / 0.94);
+    box-shadow: 0 -8px 28px rgb(var(--color-black-rgb) / 0.06);
+    backdrop-filter: blur(18px);
+  }
+`;
+
+const MobileNavButton = styled.button<{ $active: boolean }>`
+  position: relative;
+  min-width: 0;
+  min-height: 48px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  border: 0;
+  background: transparent;
+  color: ${({ $active }) =>
+    $active ? "var(--color-secondary-1000)" : "var(--color-text-muted)"};
+  font: inherit;
+  cursor: pointer;
+`;
+
+const MobileNavIcon = styled.span<{ $active: boolean }>`
+  width: 36px;
+  height: 26px;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  background: ${({ $active }) =>
+    $active ? "var(--color-secondary-400)" : "transparent"};
+  transition:
+    background-color 180ms ease,
+    transform 180ms ease;
+
+  svg {
+    width: 19px;
+    height: 19px;
+    fill: none;
+    stroke: currentColor;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    stroke-width: 1.8;
+  }
+`;
+
+const MobileNavLabel = styled.span`
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+`;
+
+const MobileNavBadge = styled.span`
+  position: absolute;
+  top: 0;
+  right: calc(50% - 28px);
+  min-width: 18px;
+  height: 18px;
+  display: grid;
+  place-items: center;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: var(--color-error);
+  color: var(--color-white);
+  font-size: 10px;
+  font-weight: 800;
+  line-height: 1;
+`;
+
+const MobileMenuBackdrop = styled.div<{
+  $open: boolean;
+  $dragOffset: number;
+  $dragging: boolean;
+}>`
+  display: none;
+
+  @media (max-width: 768px) {
+    position: fixed;
+    z-index: 50;
+    inset: 0;
+    display: grid;
+    align-items: end;
+    background: rgb(var(--color-black-rgb) / 0.28);
+    opacity: ${({ $open, $dragOffset }) =>
+      $open ? Math.max(0.18, 1 - $dragOffset / 320) : 0};
+    visibility: ${({ $open }) => ($open ? "visible" : "hidden")};
+    pointer-events: ${({ $open }) => ($open ? "auto" : "none")};
+    overscroll-behavior: contain;
+    transition: ${({ $open, $dragging }) =>
+      $dragging
+        ? "none"
+        : `opacity 260ms ease, visibility 0s linear ${
+            $open ? "0s" : "260ms"
+          }`};
+  }
+`;
+
+const MobileMenu = styled.section<{
+  $open: boolean;
+  $dragOffset: number;
+  $dragging: boolean;
+}>`
+  display: grid;
+  gap: var(--space-4);
+  padding:
+    var(--space-3)
+    max(var(--space-5), env(safe-area-inset-right))
+    max(var(--space-6), env(safe-area-inset-bottom))
+    max(var(--space-5), env(safe-area-inset-left));
+  border-radius: var(--space-7) var(--space-7) 0 0;
+  background: var(--color-brand-100);
+  box-shadow: 0 -20px 56px rgb(var(--color-black-rgb) / 0.16);
+  transform: translateY(
+    ${({ $open, $dragOffset }) =>
+      $open ? `${$dragOffset}px` : "100%"}
+  );
+  transition: ${({ $dragging }) =>
+    $dragging
+      ? "none"
+      : "transform 360ms cubic-bezier(0.22, 1, 0.36, 1)"};
+  will-change: transform;
+`;
+
+const MobileMenuHandle = styled.button`
+  width: 64px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  justify-self: center;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: grab;
+  touch-action: none;
+
+  &:active {
+    cursor: grabbing;
+  }
+
+  span {
+    width: var(--space-10);
+    height: var(--space-1);
+    border-radius: 999px;
+    background: var(--color-brand-500);
+  }
+`;
+
+const MobileMenuHeader = styled.header`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+
+  span {
+    color: var(--color-brand-800);
+    font-size: var(--font-size-100);
+  }
+
+  h2 {
+    margin-top: var(--space-1);
+    font-size: var(--font-size-400);
+  }
+`;
+
+const DrawerCloseButton = styled.button`
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 999px;
+  background: var(--color-brand-200);
+  color: var(--color-brand-1000);
+  font: inherit;
+  font-size: var(--font-size-500);
+  cursor: pointer;
+`;
+
+const MobileMenuList = styled.div`
+  display: grid;
+  overflow: hidden;
+  border-radius: var(--space-4);
+  background: var(--color-surface);
+`;
+
+const MobileMenuButton = styled.button<{ $active: boolean }>`
+  min-height: 52px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: 0 var(--space-4);
+  border: 0;
+  border-bottom: 1px solid var(--color-border);
+  background: ${({ $active }) =>
+    $active ? "var(--color-secondary-200)" : "transparent"};
+  color: var(--color-text);
+  font: inherit;
+  font-weight: ${({ $active }) => ($active ? 700 : 500)};
+  text-align: left;
+  cursor: pointer;
+`;
+
+const MobileServiceLink = styled(Link)`
+  min-height: 52px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: 0 var(--space-4);
+  color: var(--color-text-muted);
+  font-size: var(--font-size-200);
 `;
