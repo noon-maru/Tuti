@@ -1,15 +1,15 @@
 "use client";
 
 import styled from "@emotion/styled";
-import { useRef } from "react";
+import { useRef, useState } from "react";
 import { BaseButton } from "@/features/tuti/components/buttons";
 import { ContextMenu } from "@/features/tuti/components/ContextMenu";
+import { JournalShareDialog } from "@/features/tuti/components/JournalShareDialog";
 import {
   useJournalEntryTransition,
   useJournalEntryTransitionTarget,
 } from "@/features/tuti/components/JournalEntryTransition";
 import { ScreenFrame } from "@/features/tuti/components/ScreenFrame";
-import { shareContent } from "@/lib/shareContent";
 import type { TutiJournalEntry } from "@/shared/api/journal";
 import { journalImageMaxWidth } from "@/styles/tokens";
 
@@ -25,6 +25,7 @@ export function JournalDetailScreen({
   onEdit: () => void;
 }) {
   const imageRef = useRef<HTMLDivElement>(null);
+  const [shareOpen, setShareOpen] = useState(false);
   const { startTransition } = useJournalEntryTransition();
   const entryTransition = useJournalEntryTransitionTarget(
     entry.id,
@@ -66,12 +67,7 @@ export function JournalDetailScreen({
             },
             {
               label: "기록 공유하기",
-              onSelect: () =>
-                shareContent({
-                  title: entry.title,
-                  text: entry.content,
-                  url: window.location.href,
-                }),
+              onSelect: () => setShareOpen(true),
             },
             {
               label: "삭제하기",
@@ -113,6 +109,12 @@ export function JournalDetailScreen({
           </Copy>
         </DetailContent>
       </Detail>
+      {shareOpen && (
+        <JournalShareDialog
+          entry={entry}
+          onClose={() => setShareOpen(false)}
+        />
+      )}
     </Frame>
   );
 }

@@ -27,7 +27,7 @@ RUN set -eux; \
 
 EXPOSE 3000
 
-CMD ["sh", "-lc", "pnpm install --store-dir /pnpm/store && (chown -R node:\"$(id -gn node)\" /app/node_modules /pnpm/store /app/pnpm-lock.yaml /app/.next /app/src/generated 2>/dev/null || true) && su node -c 'pnpm dev --hostname 0.0.0.0'"]
+CMD ["sh", "-lc", "CI=true pnpm install --frozen-lockfile --store-dir /pnpm/store && (chown -R node:\"$(id -gn node)\" /app/node_modules /pnpm/store /app/pnpm-lock.yaml /app/.next /app/src/generated 2>/dev/null || true) && su node -c 'pnpm dev --hostname 0.0.0.0'"]
 
 FROM base AS deps
 
