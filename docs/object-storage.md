@@ -124,11 +124,11 @@ Garage 호환성을 위해 path-style 요청을 사용한다.
 ## 저널 이미지 흐름
 
 저널 작성 화면에서 잘라낸 JPEG·PNG·WebP 이미지는 기존과 동일하게 API로
-전달되지만, 서버가 이를 디코딩해 Garage에 저장한다. 객체 키는 다음 구조를
-사용한다.
+전달된다. 서버는 이미지를 최대 1200×900 크기, 품질 82의 WebP로 변환한
+뒤 Garage에 저장한다. 객체 키는 다음 구조를 사용한다.
 
 ```text
-journal-images/{사용자 ID}/{기록 ID}/{임의 UUID}.{확장자}
+journal-images/{사용자 ID}/{기록 ID}/{임의 UUID}.webp
 ```
 
 DB의 `journal_entries.image`에는 객체 키만 남는다. 기록 조회 응답에서는
@@ -145,8 +145,8 @@ DB의 `journal_entries.image`에는 객체 키만 남는다. 기록 조회 응�
 - 업로드 뒤 DB 저장에 실패한 새 객체는 즉시 정리한다.
 - 기존 외부 이미지 URL과 DB에 남아 있는 Data URL은 마이그레이션 전까지
   그대로 표시한다.
-- 업로드 입력은 JPEG·PNG·WebP로 제한하고 디코딩 후 최대 5MB까지만
-  허용한다.
+- 업로드 입력은 JPEG·PNG·WebP로 제한하고 디코딩 후 최대 5MB, 최대
+  1,600만 픽셀까지만 허용한다.
 
 ## 운영 원칙
 

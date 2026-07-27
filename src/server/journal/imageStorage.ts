@@ -1,4 +1,5 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
+import sharp from "sharp";
 
 import {
   deleteObject,
@@ -9,6 +10,10 @@ import {
 const JOURNAL_IMAGE_KEY_PREFIX = "journal-images/";
 const JOURNAL_IMAGE_API_PREFIX = "/api/journal-entry-images/";
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
+const MAX_IMAGE_PIXELS = 16_000_000;
+const MAX_OUTPUT_WIDTH = 1200;
+const MAX_OUTPUT_HEIGHT = 900;
+const WEBP_QUALITY = 82;
 
 type JournalImageIdentity = {
   id: string;
@@ -63,18 +68,18 @@ export async function prepareJournalImage({
     );
   }
 
-  const extension = extensionByContentType[parsedImage.contentType];
+  const webpImage = await convertToWebp(parsedImage.bytes);
   const key = [
     JOURNAL_IMAGE_KEY_PREFIX.replace(/\/$/, ""),
     ownerId,
     entryId,
-    `${crypto.randomUUID()}.${extension}`,
+    `${crypto.randomUUID()}.webp`,
   ].join("/");
 
   await putObject({
     key,
-    body: parsedImage.bytes,
-    contentType: parsedImage.contentType,
+    body: webpImage,
+    contentType: "image/webp",
   });
 
   return { image: key, uploadedKey: key };
@@ -158,7 +163,7 @@ function parseImageDataUrl(value: string) {
 
   if (!match) return null;
 
-  const contentType = match[1] as keyof typeof extensionByContentType;
+  const contentType = match[1] as SupportedImageContentType;
   const encoded = match[2].replace(/\s/g, "");
   const bytes = Buffer.from(encoded, "base64");
 
@@ -178,9 +183,37 @@ function parseImageDataUrl(value: string) {
   return { contentType, bytes };
 }
 
+async function convertToWebp(bytes: Buffer) {
+  try {
+    return await sharp(bytes, {
+      failOn: "error",
+      limitInputPixels: MAX_IMAGE_PIXELS,
+    })
+      .rotate()
+      .resize({
+        width: MAX_OUTPUT_WIDTH,
+        height: MAX_OUTPUT_HEIGHT,
+        fit: "inside",
+        withoutEnlargement: true,
+      })
+      .webp({
+        quality: WEBP_QUALITY,
+        alphaQuality: 90,
+        effort: 4,
+        smartSubsample: true,
+      })
+      .toBuffer();
+  } catch {
+    throw new JournalImageError(
+      "이미지를 WebP로 변환하지 못했어요.",
+      "journal_image_conversion_failed",
+    );
+  }
+}
+
 function hasExpectedImageSignature(
   bytes: Buffer,
-  contentType: keyof typeof extensionByContentType,
+  contentType: SupportedImageContentType,
 ) {
   if (contentType === "image/jpeg") {
     return bytes.length >= 3 &&
@@ -202,11 +235,10 @@ function hasExpectedImageSignature(
   );
 }
 
-const extensionByContentType = {
-  "image/jpeg": "jpg",
-  "image/png": "png",
-  "image/webp": "webp",
-} as const;
+type SupportedImageContentType =
+  | "image/jpeg"
+  | "image/png"
+  | "image/webp";
 
 export class JournalImageError extends Error {
   constructor(
