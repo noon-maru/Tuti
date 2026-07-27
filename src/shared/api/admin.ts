@@ -36,6 +36,10 @@ export type AdminPlaceItem = {
   name: string;
   source: string;
   sourceId: string | null;
+  sourceContentType: string | null;
+  sourceAddress: string | null;
+  sourceCopyright: string | null;
+  sourceSyncedAt: string | null;
   reviewStatus: PlaceReviewStatus;
   isActive: boolean;
   movementLevel: string;
@@ -102,6 +106,21 @@ export type AdminLogsResponse = {
 
 export type AdminPlacesResponse = {
   places: AdminPlaceItem[];
+};
+
+export type AdminTourApiSyncResult = {
+  contentTypeId: string | null;
+  pages: number;
+  totalAvailable: number;
+  received: number;
+  created: number;
+  updated: number;
+  skipped: number;
+  failed: number;
+};
+
+export type AdminTourApiSyncResponse = {
+  result: AdminTourApiSyncResult;
 };
 
 export type AdminReportsResponse = {

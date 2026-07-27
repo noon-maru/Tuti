@@ -24,6 +24,7 @@ import type {
   AdminOverviewResponse,
   AdminPlaceItem,
   AdminPlacesResponse,
+  AdminTourApiSyncResponse,
   AdminReportItem,
   AdminReportsResponse,
   AdminSettingItem,
@@ -137,6 +138,7 @@ export function AdminScreen({
   const [filter, setFilter] = useState("");
   const [loading, setLoading] = useState(true);
   const [mutatingId, setMutatingId] = useState<string | null>(null);
+  const [syncingPlaces, setSyncingPlaces] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [accessStatus, setAccessStatus] = useState<number | null>(null);
@@ -360,6 +362,34 @@ export function AdminScreen({
     }
   };
 
+  const syncTourApiPlaces = async (contentTypeId: string) => {
+    setSyncingPlaces(true);
+    setError(null);
+    setNotice(null);
+
+    try {
+      const response =
+        await fetchAdminJson<AdminTourApiSyncResponse>(
+          "places/sync-tour-api",
+          adminJsonRequest("POST", {
+            contentTypeId,
+            maxPages: 3,
+            pageSize: 100,
+          }),
+        );
+      const { result } = response;
+
+      await Promise.all([loadOverview(), loadTab()]);
+      setNotice(
+        `TourAPI ${result.received}건 확인 · ${result.created}건 추가 · ${result.updated}건 갱신 · ${result.skipped}건 제외`,
+      );
+    } catch (syncError) {
+      setError(toErrorMessage(syncError));
+    } finally {
+      setSyncingPlaces(false);
+    }
+  };
+
   const filterOptions = useMemo(() => getFilterOptions(tab), [tab]);
 
   if (accessStatus === 401 || accessStatus === 403) {
@@ -454,6 +484,14 @@ export function AdminScreen({
 
         {error && <ErrorNotice role="alert">{error}</ErrorNotice>}
         {notice && <SuccessNotice role="status">{notice}</SuccessNotice>}
+        {tab === "places" && (
+          <TourApiSyncPanel
+            syncing={syncingPlaces}
+            onSync={(contentTypeId) =>
+              void syncTourApiPlaces(contentTypeId)
+            }
+          />
+        )}
         {loading ? (
           <StatePanel>관리 데이터를 불러오고 있어요.</StatePanel>
         ) : tab === "overview" ? (
@@ -782,6 +820,11 @@ function PlacesPanel({
                   <td>
                     {place.source}
                     {place.sourceId ? <Small>{place.sourceId}</Small> : null}
+                    {place.sourceContentType ? (
+                      <Small>
+                        유형 {getTourApiContentTypeLabel(place.sourceContentType)}
+                      </Small>
+                    ) : null}
                   </td>
                   <td>
                     {place.fatigue} · {place.movementLevel}
@@ -831,12 +874,18 @@ function PlacesPanel({
                 <Meta>
                   {place.source} · {place.fatigue} · {place.movementLevel}
                 </Meta>
+                {place.sourceAddress ? (
+                  <Meta>{place.sourceAddress}</Meta>
+                ) : null}
               </div>
               <StatusBadge $tone={place.reviewStatus}>
                 {getPlaceReviewStatusLabel(place.reviewStatus)}
               </StatusBadge>
             </MobileRecordHeader>
             <Small>{place.sourceId ?? place.id}</Small>
+            {place.sourceCopyright ? (
+              <Small>이미지 이용 구분 {place.sourceCopyright}</Small>
+            ) : null}
             <MobileRecordActions>
               <InlineSelect
                 value={place.reviewStatus}
@@ -870,6 +919,48 @@ function PlacesPanel({
         ))}
       </MobileRecordList>
     </>
+  );
+}
+
+function TourApiSyncPanel({
+  syncing,
+  onSync,
+}: {
+  syncing: boolean;
+  onSync: (contentTypeId: string) => void;
+}) {
+  const [contentTypeId, setContentTypeId] = useState("12");
+
+  return (
+    <TourApiPanel>
+      <div>
+        <h2>관광 공공데이터 가져오기</h2>
+        <Description>
+          한국관광공사 TourAPI에서 최대 300건을 가져와 검토 대기·비노출
+          상태로 저장합니다.
+        </Description>
+      </div>
+      <TourApiControls>
+        <InlineSelect
+          value={contentTypeId}
+          disabled={syncing}
+          aria-label="TourAPI 콘텐츠 유형"
+          onChange={(event) => setContentTypeId(event.target.value)}
+        >
+          <option value="12">관광지</option>
+          <option value="14">문화시설</option>
+          <option value="25">여행코스</option>
+          <option value="28">레포츠</option>
+        </InlineSelect>
+        <SearchButton
+          type="button"
+          disabled={syncing}
+          onClick={() => onSync(contentTypeId)}
+        >
+          {syncing ? "가져오는 중..." : "TourAPI 동기화"}
+        </SearchButton>
+      </TourApiControls>
+    </TourApiPanel>
   );
 }
 
@@ -1311,6 +1402,14 @@ function getInquiryStatusLabel(status: string) {
   return status;
 }
 
+function getTourApiContentTypeLabel(contentTypeId: string) {
+  if (contentTypeId === "12") return "관광지";
+  if (contentTypeId === "14") return "문화시설";
+  if (contentTypeId === "25") return "여행코스";
+  if (contentTypeId === "28") return "레포츠";
+  return contentTypeId;
+}
+
 function getInquiryCategoryLabel(category: string) {
   if (category === "account") return "계정";
   if (category === "service") return "서비스";
@@ -1349,25 +1448,25 @@ function toErrorMessage(error: unknown) {
 }
 
 const AdminLayout = styled.div<{ $drawerOpen: boolean }>`
-  min-height: 100dvh;
+  height: 100dvh;
+  min-height: 0;
   display: grid;
   grid-template-columns: 240px minmax(0, 1fr);
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior-y: auto;
   background: var(--color-white);
   color: var(--color-text);
   touch-action: pan-y;
+  -webkit-overflow-scrolling: touch;
 
   @media (max-width: 768px) {
-    height: 100dvh;
-    min-height: 0;
     grid-template-columns: 1fr;
     align-content: start;
-    overflow-x: hidden;
     overflow-y: ${({ $drawerOpen }) =>
       $drawerOpen ? "hidden" : "auto"};
-    overscroll-behavior-y: auto;
     padding-bottom: calc(76px + env(safe-area-inset-bottom));
     background: var(--color-white);
-    -webkit-overflow-scrolling: touch;
   }
 `;
 
@@ -1680,6 +1779,47 @@ const StatePanel = styled.div`
   background: var(--color-surface);
   color: var(--color-text-muted);
   box-shadow: 0 12px 32px rgb(var(--color-black-rgb) / 0.05);
+`;
+
+const TourApiPanel = styled.section`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-5);
+  padding: var(--space-5);
+  border: 1px solid var(--color-brand-300);
+  border-radius: var(--space-4);
+  background: var(--color-brand-100);
+  box-shadow: 0 12px 30px rgb(var(--color-black-rgb) / 0.05);
+
+  h2 {
+    margin-bottom: var(--space-1);
+    font-size: var(--font-size-300);
+    line-height: var(--line-height-subtitle);
+  }
+
+  @media (max-width: 640px) {
+    align-items: stretch;
+    flex-direction: column;
+    padding: var(--space-4);
+    border: 0;
+    border-radius: var(--space-5);
+  }
+`;
+
+const TourApiControls = styled.div`
+  min-width: min(100%, 340px);
+  display: grid;
+  grid-template-columns: minmax(120px, 1fr) auto;
+  gap: var(--space-2);
+
+  @media (max-width: 420px) {
+    grid-template-columns: 1fr;
+
+    > * {
+      width: 100%;
+    }
+  }
 `;
 
 const OverviewContent = styled.div`

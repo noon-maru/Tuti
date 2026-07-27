@@ -47,6 +47,10 @@ export async function GET(request: Request) {
       name: true,
       source: true,
       sourceId: true,
+      sourceContentType: true,
+      sourceAddress: true,
+      sourceCopyright: true,
+      sourceSyncedAt: true,
       reviewStatus: true,
       isActive: true,
       movementLevel: true,
@@ -59,6 +63,7 @@ export async function GET(request: Request) {
   const response: AdminPlacesResponse = {
     places: places.map((place) => ({
       ...place,
+      sourceSyncedAt: place.sourceSyncedAt?.toISOString() ?? null,
       updatedAt: place.updatedAt.toISOString(),
     })),
   };

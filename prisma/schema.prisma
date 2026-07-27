@@ -68,31 +68,37 @@ enum InquiryStatus {
 }
 
 model Place {
-  id            String                                @id
-  name          String
-  phrase        String
-  note          String
-  image         String
-  travelTime    String                                @map("travel_time")
-  crowd         String
-  today         String
-  fatigue       Int
-  movementLevel MovementLevel                         @map("movement_level")
-  moodTags      String[]                              @map("mood_tags")
-  latitude      Decimal                               @db.Decimal(9, 6)
-  longitude     Decimal                               @db.Decimal(9, 6)
-  location      Unsupported("geometry(Point, 4326)")?
-  source        String                                @default("manual")
-  sourceId      String?                               @map("source_id")
-  reviewStatus  PlaceReviewStatus                     @default(approved) @map("review_status")
-  isActive      Boolean                               @default(true) @map("is_active")
-  createdAt     DateTime                              @default(now()) @map("created_at")
-  updatedAt     DateTime                              @updatedAt @map("updated_at")
+  id                String                                @id
+  name              String
+  phrase            String
+  note              String
+  image             String
+  travelTime        String                                @map("travel_time")
+  crowd             String
+  today             String
+  fatigue           Int
+  movementLevel     MovementLevel                         @map("movement_level")
+  moodTags          String[]                              @map("mood_tags")
+  latitude          Decimal                               @db.Decimal(9, 6)
+  longitude         Decimal                               @db.Decimal(9, 6)
+  location          Unsupported("geometry(Point, 4326)")?
+  source            String                                @default("manual")
+  sourceId          String?                               @map("source_id")
+  sourceContentType String?                               @map("source_content_type")
+  sourceAddress     String?                               @map("source_address")
+  sourceCopyright   String?                               @map("source_copyright")
+  sourceModifiedAt  DateTime?                             @map("source_modified_at")
+  sourceSyncedAt    DateTime?                             @map("source_synced_at")
+  reviewStatus      PlaceReviewStatus                     @default(approved) @map("review_status")
+  isActive          Boolean                               @default(true) @map("is_active")
+  createdAt         DateTime                              @default(now()) @map("created_at")
+  updatedAt         DateTime                              @updatedAt @map("updated_at")
 
   @@unique([source, sourceId])
   @@index([fatigue])
   @@index([movementLevel])
   @@index([source, reviewStatus, isActive])
+  @@index([source, sourceContentType, reviewStatus])
   @@map("places")
 }
 
