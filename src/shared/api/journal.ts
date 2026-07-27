@@ -7,6 +7,12 @@ export type TutiJournalEntry = {
   placeName: string;
   difficulty: string;
   visitedAt: string;
+  publication: JournalPublication | null;
+};
+
+export type JournalPublication = {
+  publicId: string;
+  publishedAt: string;
 };
 
 export type JournalEntryInput = Pick<
@@ -26,4 +32,16 @@ export type JournalEntryResponse = {
 
 export type DeleteJournalEntryResponse = {
   entryId: string;
+};
+
+export type JournalPublicationResponse = {
+  entry: TutiJournalEntry;
+};
+
+export type PublicJournalEntry = Omit<
+  TutiJournalEntry,
+  "id" | "publication"
+> & {
+  publicId: string;
+  publishedAt: string;
 };

@@ -10,6 +10,7 @@ import {
   useJournalEntryTransitionTarget,
 } from "@/features/tuti/components/JournalEntryTransition";
 import { ScreenFrame } from "@/features/tuti/components/ScreenFrame";
+import { getPublicJournalUrl } from "@/lib/journalShare";
 import type { TutiJournalEntry } from "@/shared/api/journal";
 import { journalImageMaxWidth } from "@/styles/tokens";
 
@@ -18,11 +19,17 @@ export function JournalDetailScreen({
   onBack,
   onDelete,
   onEdit,
+  onCopyPublicLink,
+  onPublish,
+  onUnpublish,
 }: {
   entry: TutiJournalEntry;
   onBack: () => void;
+  onCopyPublicLink: () => void | Promise<void>;
   onDelete: () => void | Promise<void>;
   onEdit: () => void;
+  onPublish: () => void | Promise<void>;
+  onUnpublish: () => void | Promise<void>;
 }) {
   const imageRef = useRef<HTMLDivElement>(null);
   const [shareOpen, setShareOpen] = useState(false);
@@ -65,10 +72,32 @@ export function JournalDetailScreen({
               label: "수정하기",
               onSelect: onEdit,
             },
-            {
-              label: "기록 공유하기",
-              onSelect: () => setShareOpen(true),
-            },
+            ...(entry.publication
+              ? [
+                  {
+                    label: "이미지와 링크 공유",
+                    onSelect: () => setShareOpen(true),
+                  },
+                  {
+                    label: "공유 링크 복사",
+                    onSelect: onCopyPublicLink,
+                  },
+                  {
+                    label: "공개 중지",
+                    tone: "danger" as const,
+                    onSelect: onUnpublish,
+                  },
+                ]
+              : [
+                  {
+                    label: "PNG로 공유하기",
+                    onSelect: () => setShareOpen(true),
+                  },
+                  {
+                    label: "인터넷에 공개",
+                    onSelect: onPublish,
+                  },
+                ]),
             {
               label: "삭제하기",
               tone: "danger",
@@ -113,6 +142,11 @@ export function JournalDetailScreen({
         <JournalShareDialog
           entry={entry}
           onClose={() => setShareOpen(false)}
+          publicUrl={
+            entry.publication
+              ? getPublicJournalUrl(entry.publication.publicId)
+              : undefined
+          }
         />
       )}
     </Frame>

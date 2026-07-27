@@ -20,6 +20,7 @@ const copiedDirectories = ["public", "src"] as const;
 const copiedFiles = ["next.config.ts", "package.json", "tsconfig.json"] as const;
 const excludedSourceDirectories = [
   join("src", "app", "api"),
+  join("src", "app", "shared"),
   join("src", "generated"),
   join("src", "server"),
 ] as const;

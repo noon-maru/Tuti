@@ -10,6 +10,7 @@ import {
   createJournalEntry,
   deleteJournalEntry,
   fetchJournalEntries,
+  setJournalEntryPublication,
   updateJournalEntry,
 } from "@/lib/tutiApi";
 import type {
@@ -64,27 +65,56 @@ export function useTutiJournalEntries() {
       );
     },
   });
+  const publicationMutation = useMutation({
+    mutationFn: ({
+      entryId,
+      published,
+    }: {
+      entryId: string;
+      published: boolean;
+    }) => setJournalEntryPublication(entryId, published),
+    onSuccess: (entry) => {
+      queryClient.setQueryData<TutiJournalEntry[]>(
+        journalEntriesQueryKey,
+        (currentEntries = []) =>
+          currentEntries.map((currentEntry) =>
+            currentEntry.id === entry.id ? entry : currentEntry,
+          ),
+      );
+    },
+  });
+  const createEntry = createMutation.mutateAsync;
+  const updateCurrentEntry = updateMutation.mutateAsync;
+  const deleteCurrentEntry = deleteMutation.mutateAsync;
+  const updatePublication = publicationMutation.mutateAsync;
   const addEntry = useCallback(
-    (input: JournalEntryInput) => createMutation.mutateAsync(input),
-    [createMutation.mutateAsync],
+    (input: JournalEntryInput) => createEntry(input),
+    [createEntry],
   );
   const updateEntry = useCallback(
     (entryId: string, input: JournalEntryInput) =>
-      updateMutation.mutateAsync({ entryId, input }),
-    [updateMutation.mutateAsync],
+      updateCurrentEntry({ entryId, input }),
+    [updateCurrentEntry],
   );
   const removeEntry = useCallback(
-    (entryId: string) => deleteMutation.mutateAsync(entryId),
-    [deleteMutation.mutateAsync],
+    (entryId: string) => deleteCurrentEntry(entryId),
+    [deleteCurrentEntry],
+  );
+  const changeEntryPublication = useCallback(
+    (entryId: string, published: boolean) =>
+      updatePublication({ entryId, published }),
+    [updatePublication],
   );
 
   return {
     entries,
     addEntry,
     removeEntry,
+    changeEntryPublication,
     updateEntry,
     isCreating: createMutation.isPending,
     isDeleting: deleteMutation.isPending,
+    isChangingPublication: publicationMutation.isPending,
     isUpdating: updateMutation.isPending,
     ...query,
   };

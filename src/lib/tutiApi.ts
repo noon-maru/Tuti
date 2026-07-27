@@ -6,6 +6,7 @@ import type {
   JournalEntriesResponse,
   JournalEntryInput,
   JournalEntryResponse,
+  JournalPublicationResponse,
   TutiJournalEntry,
 } from "@/shared/api/journal";
 import type {
@@ -106,6 +107,34 @@ export async function deleteJournalEntry(entryId: string) {
 
   const data = (await response.json()) as DeleteJournalEntryResponse;
   return data.entryId;
+}
+
+export async function setJournalEntryPublication(
+  entryId: string,
+  published: boolean,
+) {
+  const response = await fetchWithSession(
+    `journal-entries/${encodeURIComponent(entryId)}/publication`,
+    {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ published }),
+    },
+  );
+
+  if (!response.ok) {
+    throw new Error(
+      await readApiError(
+        response,
+        "기록 공개 설정을 변경하지 못했어요.",
+      ),
+    );
+  }
+
+  const data = (await response.json()) as JournalPublicationResponse;
+  return resolveJournalEntryImage(data.entry);
 }
 
 async function readApiError(response: Response, fallbackMessage: string) {

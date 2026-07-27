@@ -2,6 +2,7 @@
 
 import { Capacitor } from "@capacitor/core";
 
+import { apiUrl } from "@/lib/api/apiUrl";
 import type { TutiJournalEntry } from "@/shared/api/journal";
 
 export function isNativeSharePlatform() {
@@ -11,26 +12,47 @@ export function isNativeSharePlatform() {
 export async function shareJournalPng(
   blob: Blob,
   entry: TutiJournalEntry,
+  publicUrl?: string,
 ) {
   const filename = createJournalShareFilename(entry);
 
   if (isNativeSharePlatform()) {
-    await shareNativeFile(blob, entry, filename);
+    await shareNativeFile(blob, entry, filename, publicUrl);
     return "shared" as const;
   }
 
   const file = new File([blob], filename, { type: "image/png" });
 
+  const shareText = createShareText(entry, publicUrl);
+  const shareData: ShareData = {
+    files: [file],
+    title: entry.title,
+    text: shareText,
+    ...(publicUrl ? { url: publicUrl } : {}),
+  };
+
+  if (navigator.share && navigator.canShare?.(shareData)) {
+    try {
+      await navigator.share(shareData);
+      return "shared" as const;
+    } catch (error) {
+      if (isShareCancellation(error)) return "cancelled" as const;
+      throw error;
+    }
+  }
+
+  const fileOnlyShareData: ShareData = {
+    files: [file],
+    title: entry.title,
+    text: shareText,
+  };
+
   if (
     navigator.share &&
-    navigator.canShare?.({ files: [file] })
+    navigator.canShare?.(fileOnlyShareData)
   ) {
     try {
-      await navigator.share({
-        files: [file],
-        title: entry.title,
-        text: `${entry.placeName}에서 남긴 Tuti 기록`,
-      });
+      await navigator.share(fileOnlyShareData);
       return "shared" as const;
     } catch (error) {
       if (isShareCancellation(error)) return "cancelled" as const;
@@ -40,6 +62,41 @@ export async function shareJournalPng(
 
   downloadJournalPng(blob, filename);
   return "downloaded" as const;
+}
+
+export function getPublicJournalUrl(publicId: string) {
+  const encodedPublicId = encodeURIComponent(publicId);
+  const apiBaseUrl = apiUrl("");
+
+  try {
+    const fallbackOrigin =
+      typeof window === "undefined"
+        ? "https://tuti.today"
+        : window.location.origin;
+    const apiOrigin = new URL(apiBaseUrl, fallbackOrigin).origin;
+    return new URL(`/shared/${encodedPublicId}`, apiOrigin).toString();
+  } catch {
+    return `https://tuti.today/shared/${encodedPublicId}`;
+  }
+}
+
+export async function copyJournalPublicUrl(publicId: string) {
+  const url = getPublicJournalUrl(publicId);
+
+  if (navigator.clipboard?.writeText) {
+    await navigator.clipboard.writeText(url);
+    return url;
+  }
+
+  const textArea = document.createElement("textarea");
+  textArea.value = url;
+  textArea.style.position = "fixed";
+  textArea.style.opacity = "0";
+  document.body.append(textArea);
+  textArea.select();
+  document.execCommand("copy");
+  textArea.remove();
+  return url;
 }
 
 export function downloadJournalPng(
@@ -74,6 +131,7 @@ async function shareNativeFile(
   blob: Blob,
   entry: TutiJournalEntry,
   filename: string,
+  publicUrl?: string,
 ) {
   const [{ Directory, Filesystem }, { Share }] = await Promise.all([
     import("@capacitor/filesystem"),
@@ -92,7 +150,8 @@ async function shareNativeFile(
     await Share.share({
       files: [result.uri],
       title: entry.title,
-      text: `${entry.placeName}에서 남긴 Tuti 기록`,
+      text: createShareText(entry, publicUrl),
+      ...(publicUrl ? { url: publicUrl } : {}),
       dialogTitle: "기록 공유하기",
     });
   } finally {
@@ -105,6 +164,18 @@ async function shareNativeFile(
       // 운영체제가 임시 파일을 먼저 정리한 경우에는 별도 처리가 필요 없다.
     }
   }
+}
+
+function createShareText(
+  entry: TutiJournalEntry,
+  publicUrl?: string,
+) {
+  return [
+    `${entry.placeName}에서 남긴 Tuti 기록`,
+    publicUrl,
+  ]
+    .filter(Boolean)
+    .join("\n");
 }
 
 function blobToBase64(blob: Blob) {

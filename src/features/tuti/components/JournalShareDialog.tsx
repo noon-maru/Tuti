@@ -26,9 +26,11 @@ const SHARE_HEIGHT = 1350;
 export function JournalShareDialog({
   entry,
   onClose,
+  publicUrl,
 }: {
   entry: TutiJournalEntry;
   onClose: () => void;
+  publicUrl?: string;
 }) {
   const cardRef = useRef<HTMLDivElement>(null);
   const previewRef = useRef<HTMLDivElement>(null);
@@ -126,7 +128,7 @@ export function JournalShareDialog({
     setMessage("공유 화면을 열고 있어요.");
 
     try {
-      const result = await shareJournalPng(png, entry);
+      const result = await shareJournalPng(png, entry, publicUrl);
 
       if (result === "downloaded") {
         setMessage("공유를 지원하지 않아 PNG로 저장했어요.");
@@ -187,7 +189,11 @@ export function JournalShareDialog({
             disabled={!png || status === "sharing"}
             onClick={() => void shareImage()}
           >
-            {status === "sharing" ? "공유하는 중" : "공유하기"}
+            {status === "sharing"
+              ? "공유하는 중"
+              : publicUrl
+                ? "이미지와 링크 공유"
+                : "PNG 공유하기"}
           </ShareButton>
           {!nativePlatform && (
             <DownloadButton

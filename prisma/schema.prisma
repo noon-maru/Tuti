@@ -53,6 +53,8 @@ model JournalEntry {
   placeName  String   @map("place_name")
   difficulty String
   visitedAt  DateTime @map("visited_at")
+  publicId String? @unique @map("public_id")
+  publishedAt DateTime? @map("published_at")
   createdAt  DateTime @default(now()) @map("created_at")
   updatedAt  DateTime @updatedAt @map("updated_at")
   owner      User     @relation(fields: [ownerId], references: [id], onDelete: Cascade)
