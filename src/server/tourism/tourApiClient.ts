@@ -69,11 +69,12 @@ export async function fetchAreaBasedTourismPlaces({
   numOfRows,
   contentTypeId,
 }: FetchAreaBasedPlacesInput): Promise<TourApiPage> {
-  const serviceKey = process.env.TOUR_API_SERVICE_KEY?.trim();
+  const serviceKey =
+    process.env.KTO_TOURISM_INFO_SERVICE_KEY?.trim();
 
   if (!serviceKey) {
     throw new TourApiError(
-      "TOUR_API_SERVICE_KEY 환경변수가 설정되지 않았습니다.",
+      "KTO_TOURISM_INFO_SERVICE_KEY 환경변수가 설정되지 않았습니다.",
       "tour_api_not_configured",
     );
   }

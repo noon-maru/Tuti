@@ -68,31 +68,34 @@ enum InquiryStatus {
 }
 
 model Place {
-  id                String                                @id
-  name              String
-  phrase            String
-  note              String
-  image             String
-  travelTime        String                                @map("travel_time")
-  crowd             String
-  today             String
-  fatigue           Int
-  movementLevel     MovementLevel                         @map("movement_level")
-  moodTags          String[]                              @map("mood_tags")
-  latitude          Decimal                               @db.Decimal(9, 6)
-  longitude         Decimal                               @db.Decimal(9, 6)
-  location          Unsupported("geometry(Point, 4326)")?
-  source            String                                @default("manual")
-  sourceId          String?                               @map("source_id")
-  sourceContentType String?                               @map("source_content_type")
-  sourceAddress     String?                               @map("source_address")
-  sourceCopyright   String?                               @map("source_copyright")
-  sourceModifiedAt  DateTime?                             @map("source_modified_at")
-  sourceSyncedAt    DateTime?                             @map("source_synced_at")
-  reviewStatus      PlaceReviewStatus                     @default(approved) @map("review_status")
-  isActive          Boolean                               @default(true) @map("is_active")
-  createdAt         DateTime                              @default(now()) @map("created_at")
-  updatedAt         DateTime                              @updatedAt @map("updated_at")
+  id                  String                                @id
+  name                String
+  phrase              String
+  note                String
+  image               String
+  travelTime          String                                @map("travel_time")
+  crowd               String
+  today               String
+  fatigue             Int
+  movementLevel       MovementLevel                         @map("movement_level")
+  moodTags            String[]                              @map("mood_tags")
+  latitude            Decimal                               @db.Decimal(9, 6)
+  longitude           Decimal                               @db.Decimal(9, 6)
+  location            Unsupported("geometry(Point, 4326)")?
+  source              String                                @default("manual")
+  sourceId            String?                               @map("source_id")
+  sourceContentType   String?                               @map("source_content_type")
+  sourceAddress       String?                               @map("source_address")
+  sourceAreaCode      String?                               @map("source_area_code")
+  sourceSigunguCode   String?                               @map("source_sigungu_code")
+  sourceCopyright     String?                               @map("source_copyright")
+  sourceModifiedAt    DateTime?                             @map("source_modified_at")
+  sourceSyncedAt      DateTime?                             @map("source_synced_at")
+  reviewStatus        PlaceReviewStatus                     @default(approved) @map("review_status")
+  isActive            Boolean                               @default(true) @map("is_active")
+  createdAt           DateTime                              @default(now()) @map("created_at")
+  updatedAt           DateTime                              @updatedAt @map("updated_at")
+  tourismSourceRecord TourismPlaceSourceRecord?
 
   @@unique([source, sourceId])
   @@index([fatigue])
@@ -100,6 +103,89 @@ model Place {
   @@index([source, reviewStatus, isActive])
   @@index([source, sourceContentType, reviewStatus])
   @@map("places")
+}
+
+model TourismPlaceSourceRecord {
+  contentId        String    @id @map("content_id")
+  contentTypeId    String?   @map("content_type_id")
+  title            String
+  areaCode         String?   @map("area_code")
+  sigunguCode      String?   @map("sigungu_code")
+  rawPayload       Json      @map("raw_payload")
+  linkedPlaceId    String?   @unique @map("linked_place_id")
+  sourceModifiedAt DateTime? @map("source_modified_at")
+  syncedAt         DateTime  @map("synced_at")
+  createdAt        DateTime  @default(now()) @map("created_at")
+  updatedAt        DateTime  @updatedAt @map("updated_at")
+  linkedPlace      Place?    @relation(fields: [linkedPlaceId], references: [id], onDelete: SetNull)
+
+  @@index([contentTypeId, syncedAt])
+  @@index([areaCode, sigunguCode])
+  @@map("tourism_place_source_records")
+}
+
+model WellnessTourismSourceRecord {
+  id                String    @id
+  contentId         String    @map("content_id")
+  contentTypeId     String?   @map("content_type_id")
+  langDivCd         String    @map("lang_div_cd")
+  title             String
+  wellnessThemeCode String?   @map("wellness_theme_code")
+  areaCode          String?   @map("area_code")
+  sigunguCode       String?   @map("sigungu_code")
+  rawPayload        Json      @map("raw_payload")
+  sourceModifiedAt  DateTime? @map("source_modified_at")
+  syncedAt          DateTime  @map("synced_at")
+  createdAt         DateTime  @default(now()) @map("created_at")
+  updatedAt         DateTime  @updatedAt @map("updated_at")
+
+  @@unique([contentId, langDivCd])
+  @@index([wellnessThemeCode, syncedAt])
+  @@index([areaCode, sigunguCode])
+  @@map("wellness_tourism_source_records")
+}
+
+model TourismRegionMetric {
+  id          String   @id
+  dataset     String
+  metricType  String   @map("metric_type")
+  metricCode  String   @map("metric_code")
+  metricName  String   @map("metric_name")
+  metricValue Decimal? @map("metric_value") @db.Decimal(20, 4)
+  baseYm      String   @map("base_ym")
+  areaCode    String   @map("area_code")
+  areaName    String   @map("area_name")
+  sigunguCode String   @map("sigungu_code")
+  sigunguName String   @map("sigungu_name")
+  rawPayload  Json     @map("raw_payload")
+  syncedAt    DateTime @map("synced_at")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@unique([metricType, metricCode, baseYm, areaCode, sigunguCode])
+  @@index([dataset, baseYm])
+  @@index([areaCode, sigunguCode, baseYm])
+  @@map("tourism_region_metrics")
+}
+
+model ExternalDataSyncRun {
+  id            String    @id
+  source        String
+  operation     String
+  status        String
+  parameters    Json?
+  receivedCount Int       @default(0) @map("received_count")
+  createdCount  Int       @default(0) @map("created_count")
+  updatedCount  Int       @default(0) @map("updated_count")
+  skippedCount  Int       @default(0) @map("skipped_count")
+  failedCount   Int       @default(0) @map("failed_count")
+  errorMessage  String?   @map("error_message")
+  startedAt     DateTime  @default(now()) @map("started_at")
+  finishedAt    DateTime? @map("finished_at")
+
+  @@index([source, startedAt])
+  @@index([status, startedAt])
+  @@map("external_data_sync_runs")
 }
 
 model JournalEntry {

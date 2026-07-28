@@ -24,7 +24,6 @@ import type {
   AdminOverviewResponse,
   AdminPlaceItem,
   AdminPlacesResponse,
-  AdminTourApiSyncResponse,
   AdminReportItem,
   AdminReportsResponse,
   AdminSettingItem,
@@ -138,7 +137,6 @@ export function AdminScreen({
   const [filter, setFilter] = useState("");
   const [loading, setLoading] = useState(true);
   const [mutatingId, setMutatingId] = useState<string | null>(null);
-  const [syncingPlaces, setSyncingPlaces] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [accessStatus, setAccessStatus] = useState<number | null>(null);
@@ -362,34 +360,6 @@ export function AdminScreen({
     }
   };
 
-  const syncTourApiPlaces = async (contentTypeId: string) => {
-    setSyncingPlaces(true);
-    setError(null);
-    setNotice(null);
-
-    try {
-      const response =
-        await fetchAdminJson<AdminTourApiSyncResponse>(
-          "places/sync-tour-api",
-          adminJsonRequest("POST", {
-            contentTypeId,
-            maxPages: 3,
-            pageSize: 100,
-          }),
-        );
-      const { result } = response;
-
-      await Promise.all([loadOverview(), loadTab()]);
-      setNotice(
-        `TourAPI ${result.received}건 확인 · ${result.created}건 추가 · ${result.updated}건 갱신 · ${result.skipped}건 제외`,
-      );
-    } catch (syncError) {
-      setError(toErrorMessage(syncError));
-    } finally {
-      setSyncingPlaces(false);
-    }
-  };
-
   const filterOptions = useMemo(() => getFilterOptions(tab), [tab]);
 
   if (accessStatus === 401 || accessStatus === 403) {
@@ -434,6 +404,9 @@ export function AdminScreen({
             </NavButton>
           ))}
         </Navigation>
+        <TourismDataLink href="/admin/tourism-data">
+          관광 데이터 관리
+        </TourismDataLink>
         <HomeLink href="/">서비스로 돌아가기</HomeLink>
       </Sidebar>
 
@@ -484,14 +457,6 @@ export function AdminScreen({
 
         {error && <ErrorNotice role="alert">{error}</ErrorNotice>}
         {notice && <SuccessNotice role="status">{notice}</SuccessNotice>}
-        {tab === "places" && (
-          <TourApiSyncPanel
-            syncing={syncingPlaces}
-            onSync={(contentTypeId) =>
-              void syncTourApiPlaces(contentTypeId)
-            }
-          />
-        )}
         {loading ? (
           <StatePanel>관리 데이터를 불러오고 있어요.</StatePanel>
         ) : tab === "overview" ? (
@@ -683,6 +648,10 @@ export function AdminScreen({
                 <span aria-hidden="true">›</span>
               </MobileMenuButton>
             ))}
+            <MobileServiceLink href="/admin/tourism-data">
+              <span>관광 데이터 관리</span>
+              <span aria-hidden="true">›</span>
+            </MobileServiceLink>
             <MobileServiceLink href="/">
               <span>Tuti 서비스로 돌아가기</span>
               <span aria-hidden="true">›</span>
@@ -919,48 +888,6 @@ function PlacesPanel({
         ))}
       </MobileRecordList>
     </>
-  );
-}
-
-function TourApiSyncPanel({
-  syncing,
-  onSync,
-}: {
-  syncing: boolean;
-  onSync: (contentTypeId: string) => void;
-}) {
-  const [contentTypeId, setContentTypeId] = useState("12");
-
-  return (
-    <TourApiPanel>
-      <div>
-        <h2>관광 공공데이터 가져오기</h2>
-        <Description>
-          한국관광공사 TourAPI에서 최대 300건을 가져와 검토 대기·비노출
-          상태로 저장합니다.
-        </Description>
-      </div>
-      <TourApiControls>
-        <InlineSelect
-          value={contentTypeId}
-          disabled={syncing}
-          aria-label="TourAPI 콘텐츠 유형"
-          onChange={(event) => setContentTypeId(event.target.value)}
-        >
-          <option value="12">관광지</option>
-          <option value="14">문화시설</option>
-          <option value="25">여행코스</option>
-          <option value="28">레포츠</option>
-        </InlineSelect>
-        <SearchButton
-          type="button"
-          disabled={syncing}
-          onClick={() => onSync(contentTypeId)}
-        >
-          {syncing ? "가져오는 중..." : "TourAPI 동기화"}
-        </SearchButton>
-      </TourApiControls>
-    </TourApiPanel>
   );
 }
 
@@ -1567,6 +1494,20 @@ const HomeLink = styled(Link)`
   }
 `;
 
+const TourismDataLink = styled(Link)`
+  min-height: var(--space-11);
+  display: flex;
+  align-items: center;
+  padding: 0 var(--space-4);
+  border: 1px solid var(--color-brand-300);
+  border-radius: var(--space-3);
+  background: var(--color-brand-100);
+  color: var(--color-brand-1000);
+  font-size: var(--font-size-100);
+  font-weight: 700;
+  text-decoration: none;
+`;
+
 const Main = styled.main`
   min-width: 0;
   min-height: 100dvh;
@@ -1779,47 +1720,6 @@ const StatePanel = styled.div`
   background: var(--color-surface);
   color: var(--color-text-muted);
   box-shadow: 0 12px 32px rgb(var(--color-black-rgb) / 0.05);
-`;
-
-const TourApiPanel = styled.section`
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-5);
-  padding: var(--space-5);
-  border: 1px solid var(--color-brand-300);
-  border-radius: var(--space-4);
-  background: var(--color-brand-100);
-  box-shadow: 0 12px 30px rgb(var(--color-black-rgb) / 0.05);
-
-  h2 {
-    margin-bottom: var(--space-1);
-    font-size: var(--font-size-300);
-    line-height: var(--line-height-subtitle);
-  }
-
-  @media (max-width: 640px) {
-    align-items: stretch;
-    flex-direction: column;
-    padding: var(--space-4);
-    border: 0;
-    border-radius: var(--space-5);
-  }
-`;
-
-const TourApiControls = styled.div`
-  min-width: min(100%, 340px);
-  display: grid;
-  grid-template-columns: minmax(120px, 1fr) auto;
-  gap: var(--space-2);
-
-  @media (max-width: 420px) {
-    grid-template-columns: 1fr;
-
-    > * {
-      width: 100%;
-    }
-  }
 `;
 
 const OverviewContent = styled.div`

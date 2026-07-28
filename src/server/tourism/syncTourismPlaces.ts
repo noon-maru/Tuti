@@ -1,5 +1,11 @@
+import type { Prisma } from "@/generated/prisma/client";
 import { isSettingEnabled } from "@/server/admin/settings";
 import { prisma } from "@/server/db/prisma";
+import {
+  completeExternalDataSyncRun,
+  failExternalDataSyncRun,
+  startExternalDataSyncRun,
+} from "@/server/tourism/syncRuns";
 import {
   fetchAreaBasedTourismPlaces,
   type TourApiPlaceItem,
@@ -15,6 +21,7 @@ export type SyncTourismPlacesInput = {
 };
 
 export type SyncTourismPlacesResult = {
+  syncRunId: string;
   contentTypeId: string | null;
   pages: number;
   totalAvailable: number;
@@ -28,6 +35,8 @@ export type SyncTourismPlacesResult = {
 type NormalizedTourApiPlace = {
   contentId: string;
   contentTypeId: string | null;
+  areaCode: string | null;
+  sigunguCode: string | null;
   name: string;
   address: string | null;
   image: string;
@@ -52,7 +61,18 @@ export async function syncTourismPlaces(
   const autoApprove = await isSettingEnabled(
     "places.publicDataAutoApprove",
   );
+  const run = await startExternalDataSyncRun({
+    source: "ktoTourismInfo",
+    operation: "areaBasedList2",
+    parameters: {
+      contentTypeId: contentTypeId ?? null,
+      maxPages,
+      pageSize,
+      startPage,
+    },
+  });
   const result: SyncTourismPlacesResult = {
+    syncRunId: run.id,
     contentTypeId: contentTypeId ?? null,
     pages: 0,
     totalAvailable: 0,
@@ -63,52 +83,63 @@ export async function syncTourismPlaces(
     failed: 0,
   };
 
-  for (let offset = 0; offset < maxPages; offset += 1) {
-    const pageNo = startPage + offset;
-    const page = await fetchAreaBasedTourismPlaces({
-      pageNo,
-      numOfRows: pageSize,
-      contentTypeId,
-    });
+  try {
+    for (let offset = 0; offset < maxPages; offset += 1) {
+      const pageNo = startPage + offset;
+      const page = await fetchAreaBasedTourismPlaces({
+        pageNo,
+        numOfRows: pageSize,
+        contentTypeId,
+      });
 
-    result.pages += 1;
-    result.totalAvailable = page.totalCount;
-    result.received += page.items.length;
+      result.pages += 1;
+      result.totalAvailable = page.totalCount;
+      result.received += page.items.length;
 
-    for (const item of page.items) {
-      const place = normalizeTourApiPlace(item);
+      for (const item of page.items) {
+        try {
+          const contentId = await saveTourismPlaceSourceRecord(item);
+          const place = normalizeTourApiPlace(item);
 
-      if (!place) {
-        result.skipped += 1;
-        continue;
+          if (!place || !contentId) {
+            result.skipped += 1;
+            continue;
+          }
+
+          const saved = await saveTourApiPlace(place, autoApprove);
+          await prisma.tourismPlaceSourceRecord.update({
+            where: { contentId },
+            data: { linkedPlaceId: saved.placeId },
+          });
+          result[saved.status] += 1;
+        } catch (error) {
+          result.failed += 1;
+          console.error("TourAPI 장소 원본 처리에 실패했습니다.", error);
+        }
       }
 
-      try {
-        const status = await saveTourApiPlace(place, autoApprove);
-        result[status] += 1;
-      } catch (error) {
-        result.failed += 1;
-        console.error(
-          `TourAPI 장소 ${place.contentId} 저장에 실패했습니다.`,
-          error,
-        );
-      }
+      const reachedLastPage =
+        page.items.length === 0 ||
+        pageNo * pageSize >= page.totalCount;
+
+      if (reachedLastPage) break;
     }
 
-    const reachedLastPage =
-      page.items.length === 0 ||
-      pageNo * pageSize >= page.totalCount;
-
-    if (reachedLastPage) break;
+    await completeExternalDataSyncRun(run.id, result);
+    return result;
+  } catch (error) {
+    await failExternalDataSyncRun(run.id, error, result);
+    throw error;
   }
-
-  return result;
 }
 
 async function saveTourApiPlace(
   place: NormalizedTourApiPlace,
   autoApprove: boolean,
-): Promise<"created" | "updated"> {
+): Promise<{
+  status: "created" | "updated";
+  placeId: string;
+}> {
   const syncedAt = new Date();
   const existing = await prisma.place.findUnique({
     where: {
@@ -145,6 +176,8 @@ async function saveTourApiPlace(
         sourceId: place.contentId,
         sourceContentType: place.contentTypeId,
         sourceAddress: place.address,
+        sourceAreaCode: place.areaCode,
+        sourceSigunguCode: place.sigunguCode,
         sourceCopyright: place.copyright,
         sourceModifiedAt: place.sourceModifiedAt,
         sourceSyncedAt: syncedAt,
@@ -154,7 +187,7 @@ async function saveTourApiPlace(
     });
 
     await updatePlaceLocation(id, place.longitude, place.latitude);
-    return "created";
+    return { status: "created", placeId: id };
   }
 
   const canRefreshDraft = existing.reviewStatus === "pending";
@@ -164,6 +197,8 @@ async function saveTourApiPlace(
     data: {
       sourceContentType: place.contentTypeId,
       sourceAddress: place.address,
+      sourceAreaCode: place.areaCode,
+      sourceSigunguCode: place.sigunguCode,
       sourceCopyright: place.copyright,
       sourceModifiedAt: place.sourceModifiedAt,
       sourceSyncedAt: syncedAt,
@@ -197,7 +232,39 @@ async function saveTourApiPlace(
     );
   }
 
-  return "updated";
+  return { status: "updated", placeId: existing.id };
+}
+
+async function saveTourismPlaceSourceRecord(item: TourApiPlaceItem) {
+  const contentId = item.contentid?.trim();
+  const title = sanitizeText(item.title);
+
+  if (!contentId || !title) return null;
+
+  await prisma.tourismPlaceSourceRecord.upsert({
+    where: { contentId },
+    create: {
+      contentId,
+      contentTypeId: item.contenttypeid?.trim() || null,
+      title,
+      areaCode: item.areacode?.trim() || null,
+      sigunguCode: item.sigungucode?.trim() || null,
+      rawPayload: item as Prisma.InputJsonValue,
+      sourceModifiedAt: parseTourApiDate(item.modifiedtime),
+      syncedAt: new Date(),
+    },
+    update: {
+      contentTypeId: item.contenttypeid?.trim() || null,
+      title,
+      areaCode: item.areacode?.trim() || null,
+      sigunguCode: item.sigungucode?.trim() || null,
+      rawPayload: item as Prisma.InputJsonValue,
+      sourceModifiedAt: parseTourApiDate(item.modifiedtime),
+      syncedAt: new Date(),
+    },
+  });
+
+  return contentId;
 }
 
 async function updatePlaceLocation(
@@ -237,6 +304,8 @@ function normalizeTourApiPlace(
   return {
     contentId,
     contentTypeId,
+    areaCode: item.areacode?.trim() || null,
+    sigunguCode: item.sigungucode?.trim() || null,
     name,
     address: address || null,
     image,

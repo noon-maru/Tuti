@@ -108,21 +108,6 @@ export type AdminPlacesResponse = {
   places: AdminPlaceItem[];
 };
 
-export type AdminTourApiSyncResult = {
-  contentTypeId: string | null;
-  pages: number;
-  totalAvailable: number;
-  received: number;
-  created: number;
-  updated: number;
-  skipped: number;
-  failed: number;
-};
-
-export type AdminTourApiSyncResponse = {
-  result: AdminTourApiSyncResult;
-};
-
 export type AdminReportsResponse = {
   reports: AdminReportItem[];
 };
