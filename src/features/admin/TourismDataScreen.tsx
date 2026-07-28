@@ -22,12 +22,14 @@ import type {
   TourismRegionMetricItem,
   WellnessTourismSourceItem,
   MunicipalCoreTourismSourceItem,
+  TouristSpotConcentrationRateItem,
 } from "@/shared/api/tourismAdmin";
 
 type SyncSource =
   | "places"
   | "wellness"
   | "municipalCore"
+  | "concentration"
   | "serviceDemand"
   | "culturalResourceDemand"
   | "stayIntensity"
@@ -37,6 +39,7 @@ const tabs: Array<{ id: TourismDataTab; label: string }> = [
   { id: "places", label: "장소 원본" },
   { id: "wellness", label: "웰니스 원본" },
   { id: "municipalCore", label: "중심 관광지" },
+  { id: "concentration", label: "집중률" },
   { id: "metrics", label: "지역 지표" },
   { id: "runs", label: "동기화 기록" },
 ];
@@ -45,6 +48,7 @@ const sourceOptions: Array<{ value: SyncSource; label: string }> = [
   { value: "places", label: "국문 관광정보" },
   { value: "wellness", label: "웰니스 관광정보" },
   { value: "municipalCore", label: "기초지자체 중심 관광지" },
+  { value: "concentration", label: "관광지 집중률" },
   { value: "serviceDemand", label: "관광 서비스 수요" },
   { value: "culturalResourceDemand", label: "문화 자원 수요" },
   { value: "stayIntensity", label: "관광 체류 강도" },
@@ -52,7 +56,10 @@ const sourceOptions: Array<{ value: SyncSource; label: string }> = [
 ];
 
 const metricOptions: Record<
-  Exclude<SyncSource, "places" | "wellness" | "municipalCore">,
+  Exclude<
+    SyncSource,
+    "places" | "wellness" | "municipalCore" | "concentration"
+  >,
   Array<{ value: string; label: string }>
 > = {
   serviceDemand: [
@@ -299,6 +306,8 @@ export function TourismDataScreen({
           <WellnessRecords records={data?.wellness ?? []} />
         ) : tab === "municipalCore" ? (
           <MunicipalCoreRecords records={data?.municipalCore ?? []} />
+        ) : tab === "concentration" ? (
+          <ConcentrationRecords records={data?.concentration ?? []} />
         ) : tab === "metrics" ? (
           <MetricRecords metrics={data?.metrics ?? []} />
         ) : (
@@ -318,6 +327,7 @@ function Overview({
     ["장소 원본", overview.placeSourceRecords],
     ["웰니스 원본", overview.wellnessSourceRecords],
     ["중심 관광지", overview.municipalCoreSourceRecords],
+    ["집중률 원본", overview.touristSpotConcentrationRecords],
     ["지역 지표", overview.regionalMetrics],
     ["동기화 실행", overview.syncRuns],
     ["확인 필요", overview.failedRuns],
@@ -368,13 +378,15 @@ function SyncPanel({
   const [areaCode, setAreaCode] = useState("11");
   const [sigunguCode, setSigunguCode] = useState("");
   const [municipalSigunguCode, setMunicipalSigunguCode] = useState("11530");
+  const [concentrationSpotName, setConcentrationSpotName] = useState("");
   const [metricCode, setMetricCode] = useState("11");
   const [wellnessThemeCode, setWellnessThemeCode] = useState("");
   const selectedMetricOptions = useMemo(
     () =>
       source === "places" ||
       source === "wellness" ||
-      source === "municipalCore"
+      source === "municipalCore" ||
+      source === "concentration"
         ? []
         : metricOptions[source],
     [source],
@@ -387,6 +399,8 @@ function SyncPanel({
       setAreaCode("");
       setSigunguCode("");
     } else if (nextSource === "municipalCore") {
+      setAreaCode((current) => current || "11");
+    } else if (nextSource === "concentration") {
       setAreaCode((current) => current || "11");
     } else if (nextSource !== "places") {
       setAreaCode((current) => current || "11");
@@ -424,6 +438,13 @@ function SyncPanel({
                       areaCode,
                       sigunguCode: municipalSigunguCode,
                     }
+                  : source === "concentration"
+                    ? {
+                        kind: "concentration",
+                        areaCode,
+                        sigunguCode: municipalSigunguCode,
+                        touristSpotName: concentrationSpotName,
+                      }
               : {
                   kind: "metrics",
                   metricType: source,
@@ -554,6 +575,49 @@ function SyncPanel({
               />
             </Field>
           </>
+        ) : source === "concentration" ? (
+          <>
+            <Field>
+              <span>지역</span>
+              <Select
+                value={areaCode}
+                disabled={syncing}
+                onChange={(event) => {
+                  setAreaCode(event.target.value);
+                  setMunicipalSigunguCode("");
+                }}
+              >
+                {areaOptions.map(([value, label]) => (
+                  <option key={value} value={value}>
+                    {label}
+                  </option>
+                ))}
+              </Select>
+            </Field>
+            <Field>
+              <span>시군구 코드</span>
+              <Input
+                value={municipalSigunguCode}
+                inputMode="numeric"
+                disabled={syncing}
+                placeholder="예: 11530"
+                onChange={(event) =>
+                  setMunicipalSigunguCode(event.target.value)
+                }
+              />
+            </Field>
+            <Field>
+              <span>관광지명 · 선택</span>
+              <Input
+                value={concentrationSpotName}
+                disabled={syncing}
+                placeholder="비우면 해당 시군구 전체"
+                onChange={(event) =>
+                  setConcentrationSpotName(event.target.value)
+                }
+              />
+            </Field>
+          </>
         ) : (
           <>
             <Field>
@@ -613,7 +677,7 @@ function SyncPanel({
             (source !== "places" &&
               source !== "wellness" &&
               (!baseMonth ||
-                (source === "municipalCore" &&
+                ((source === "municipalCore" || source === "concentration") &&
                   !municipalSigunguCode)))
           }
         >
@@ -654,6 +718,39 @@ function MunicipalCoreRecords({
               : ""}
             {" · "}관광지 코드 {record.touristSpotCode} · 동기화{" "}
             {formatDate(record.syncedAt)}
+          </Metadata>
+          <RawDetails payload={record.rawPayload} />
+        </RecordCard>
+      ))}
+    </RecordList>
+  );
+}
+
+function ConcentrationRecords({
+  records,
+}: {
+  records: TouristSpotConcentrationRateItem[];
+}) {
+  if (records.length === 0) {
+    return <StatePanel>저장된 관광지 집중률 원본이 없습니다.</StatePanel>;
+  }
+
+  return (
+    <RecordList>
+      {records.map((record) => (
+        <RecordCard key={record.id}>
+          <RecordHeader>
+            <div>
+              <h2>{record.touristSpotName}</h2>
+              <p>
+                {record.areaName} {record.sigunguName} ·{" "}
+                {formatBaseYmd(record.baseYmd)}
+              </p>
+            </div>
+            <MetricValue>{record.concentrationRate}%</MetricValue>
+          </RecordHeader>
+          <Metadata>
+            관광지 집중률 · 동기화 {formatDate(record.syncedAt)}
           </Metadata>
           <RawDetails payload={record.rawPayload} />
         </RecordCard>
@@ -821,6 +918,7 @@ function RawDetails({
 function normalizeTab(value: unknown): TourismDataTab {
   return value === "wellness" ||
     value === "municipalCore" ||
+    value === "concentration" ||
     value === "metrics" ||
     value === "runs"
     ? value
@@ -843,6 +941,12 @@ function formatBaseYm(value: string) {
     : value;
 }
 
+function formatBaseYmd(value: string) {
+  return /^\d{8}$/.test(value)
+    ? `${value.slice(0, 4)}.${value.slice(4, 6)}.${value.slice(6, 8)}`
+    : value;
+}
+
 function normalizeSigunguName(value: string) {
   return value === "_" ? "전체" : value;
 }
@@ -860,6 +964,9 @@ function getSourceLabel(value: string) {
   if (value === "ktoWellnessTourism") return "웰니스 관광정보";
   if (value === "ktoMunicipalCoreTourism") {
     return "기초지자체 중심 관광지";
+  }
+  if (value === "ktoTouristSpotConcentrationRate") {
+    return "관광지 집중률";
   }
   if (value === "ktoRegionalResourceDemand") {
     return "지역별 관광 자원 수요";
