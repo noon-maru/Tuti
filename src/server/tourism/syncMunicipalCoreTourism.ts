@@ -151,16 +151,10 @@ async function saveMunicipalCoreTourismRecord(
     syncedAt: new Date(),
   };
 
-  if (existing) {
-    await prisma.municipalCoreTourismSourceRecord.update({
-      where: { id: existing.id },
-      data,
-    });
-    return "updated";
-  }
-
-  await prisma.municipalCoreTourismSourceRecord.create({
-    data: {
+  await prisma.municipalCoreTourismSourceRecord.upsert({
+    where: uniqueKey,
+    update: data,
+    create: {
       id: randomUUID(),
       baseYm,
       areaCode,
@@ -169,7 +163,8 @@ async function saveMunicipalCoreTourismRecord(
       ...data,
     },
   });
-  return "created";
+
+  return existing ? "updated" : "created";
 }
 
 function normalizeInput(input: SyncMunicipalCoreTourismInput) {

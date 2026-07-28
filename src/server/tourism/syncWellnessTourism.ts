@@ -138,23 +138,18 @@ async function saveWellnessSourceRecord(
     syncedAt: new Date(),
   };
 
-  if (existing) {
-    await prisma.wellnessTourismSourceRecord.update({
-      where: { id: existing.id },
-      data,
-    });
-    return "updated";
-  }
-
-  await prisma.wellnessTourismSourceRecord.create({
-    data: {
+  await prisma.wellnessTourismSourceRecord.upsert({
+    where: uniqueKey,
+    update: data,
+    create: {
       id: randomUUID(),
       contentId,
       langDivCd,
       ...data,
     },
   });
-  return "created";
+
+  return existing ? "updated" : "created";
 }
 
 function normalizeInput(input: SyncWellnessTourismInput) {

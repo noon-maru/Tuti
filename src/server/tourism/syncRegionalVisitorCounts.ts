@@ -155,16 +155,10 @@ async function saveRegionalVisitorCount(
     syncedAt: new Date(),
   };
 
-  if (existing) {
-    await prisma.regionalVisitorCountRecord.update({
-      where: { id: existing.id },
-      data,
-    });
-    return "updated";
-  }
-
-  await prisma.regionalVisitorCountRecord.create({
-    data: {
+  await prisma.regionalVisitorCountRecord.upsert({
+    where: uniqueKey,
+    update: data,
+    create: {
       id: randomUUID(),
       aggregationLevel,
       baseYmd,
@@ -174,7 +168,8 @@ async function saveRegionalVisitorCount(
       ...data,
     },
   });
-  return "created";
+
+  return existing ? "updated" : "created";
 }
 
 function normalizeInput(input: SyncRegionalVisitorCountsInput) {

@@ -25,6 +25,7 @@ export type FetchTouristSpotConcentrationInput = {
   touristSpotName?: string;
   pageNo: number;
   numOfRows: number;
+  timeoutMs?: number;
 };
 
 type TouristSpotConcentrationApiEnvelope = {
@@ -62,6 +63,7 @@ export async function fetchTouristSpotConcentrationRates({
   touristSpotName,
   pageNo,
   numOfRows,
+  timeoutMs = 20_000,
 }: FetchTouristSpotConcentrationInput): Promise<TouristSpotConcentrationPage> {
   const serviceKey =
     process.env.KTO_TOURIST_SPOT_CONCENTRATION_RATE_SERVICE_KEY?.trim();
@@ -93,7 +95,7 @@ export async function fetchTouristSpotConcentrationRates({
   try {
     response = await fetch(url, {
       cache: "no-store",
-      signal: AbortSignal.timeout(20_000),
+      signal: AbortSignal.timeout(timeoutMs),
       headers: { Accept: "application/json" },
     });
   } catch (error) {

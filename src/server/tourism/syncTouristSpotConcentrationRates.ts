@@ -70,7 +70,7 @@ export async function syncTouristSpotConcentrationRates(
 
       for (const item of page.items) {
         try {
-          const status = await saveTouristSpotConcentrationRate(item);
+          const status = await upsertTouristSpotConcentrationRate(item);
 
           if (status) {
             result[status] += 1;
@@ -99,7 +99,7 @@ export async function syncTouristSpotConcentrationRates(
   }
 }
 
-async function saveTouristSpotConcentrationRate(
+export async function upsertTouristSpotConcentrationRate(
   item: TouristSpotConcentrationItem,
 ): Promise<"created" | "updated" | null> {
   const baseYmd = item.baseYmd?.trim();
@@ -143,16 +143,10 @@ async function saveTouristSpotConcentrationRate(
     syncedAt: new Date(),
   };
 
-  if (existing) {
-    await prisma.touristSpotConcentrationRateRecord.update({
-      where: { id: existing.id },
-      data,
-    });
-    return "updated";
-  }
-
-  await prisma.touristSpotConcentrationRateRecord.create({
-    data: {
+  await prisma.touristSpotConcentrationRateRecord.upsert({
+    where: uniqueKey,
+    update: data,
+    create: {
       id: randomUUID(),
       baseYmd,
       areaCode,
@@ -161,7 +155,8 @@ async function saveTouristSpotConcentrationRate(
       ...data,
     },
   });
-  return "created";
+
+  return existing ? "updated" : "created";
 }
 
 function normalizeInput(input: SyncTouristSpotConcentrationRatesInput) {

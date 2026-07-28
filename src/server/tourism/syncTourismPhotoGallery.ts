@@ -118,18 +118,13 @@ async function saveTourismPhotoGalleryRecord(
     syncedAt: new Date(),
   };
 
-  if (existing) {
-    await prisma.tourismPhotoGallerySourceRecord.update({
-      where: { contentId },
-      data,
-    });
-    return "updated";
-  }
-
-  await prisma.tourismPhotoGallerySourceRecord.create({
-    data: { contentId, ...data },
+  await prisma.tourismPhotoGallerySourceRecord.upsert({
+    where: { contentId },
+    update: data,
+    create: { contentId, ...data },
   });
-  return "created";
+
+  return existing ? "updated" : "created";
 }
 
 function normalizeInput(input: SyncTourismPhotoGalleryInput) {

@@ -36,6 +36,7 @@ export function rankByMovementFatigue(
   places: TutiPlace[],
   answers: IntakeAnswers,
   feature: StateFeature = interpretState(answers),
+  limit = 6,
 ): TutiPlace[] {
   return places
     .map((place) => {
@@ -49,7 +50,7 @@ export function rankByMovementFatigue(
       };
     })
     .sort((a, b) => a.fatigueScore - b.fatigueScore || a.fatigue - b.fatigue)
-    .slice(0, 6);
+    .slice(0, limit);
 }
 
 export function calculateMovementFatigue(

@@ -172,16 +172,10 @@ async function saveRegionalMetric(
     syncedAt,
   };
 
-  if (existing) {
-    await prisma.tourismRegionMetric.update({
-      where: { id: existing.id },
-      data,
-    });
-    return "updated";
-  }
-
-  await prisma.tourismRegionMetric.create({
-    data: {
+  await prisma.tourismRegionMetric.upsert({
+    where: uniqueKey,
+    update: data,
+    create: {
       id: randomUUID(),
       metricType,
       metricCode,
@@ -191,7 +185,8 @@ async function saveRegionalMetric(
       ...data,
     },
   });
-  return "created";
+
+  return existing ? "updated" : "created";
 }
 
 function normalizeInput(input: SyncRegionalTourismMetricsInput) {

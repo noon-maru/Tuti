@@ -6,7 +6,11 @@ import { BaseButton } from "@/features/tuti/components/buttons";
 import { ContextMenu } from "@/features/tuti/components/ContextMenu";
 import { useVerticalSwipeBack } from "@/features/tuti/hooks/useVerticalSwipeBack";
 import { shareContent } from "@/lib/shareContent";
-import type { TutiPlace } from "@/lib/recommendations";
+import {
+  getCrowdForecastBasisLabel,
+  getCrowdForecastLevelLabel,
+  type TutiPlace,
+} from "@/lib/recommendations";
 import { fluidByViewportHeight } from "@/styles/tokens";
 
 const DETAIL_EXIT_DURATION = 480;
@@ -130,7 +134,11 @@ export function DetailScreen({
         <Content $revealProgress={revealProgress}>
           <Tags aria-label="장소 정보">
             <Tag $tone="brand">{place.travelTime}</Tag>
-            <Tag $tone="neutral">혼잡도 {place.crowd}</Tag>
+            <Tag $tone="neutral">
+              {place.crowdForecast
+                ? `예상 혼잡도 · ${getCrowdForecastLevelLabel(place.crowdForecast.level)}`
+                : `혼잡도 ${place.crowd}`}
+            </Tag>
             <Tag $tone="secondary">{place.today}</Tag>
           </Tags>
 
@@ -159,6 +167,11 @@ export function DetailScreen({
           <Description data-scroll-region>
             <strong>{place.phrase}</strong>
             <p>{place.note}</p>
+            {place.crowdForecast && (
+              <ForecastHint>
+                {getCrowdForecastBasisLabel(place.crowdForecast)} · 관광공사 방문 패턴 기반 예측값이에요.
+              </ForecastHint>
+            )}
             {place.reason && <small>{place.reason}</small>}
           </Description>
         </Content>
@@ -277,7 +290,7 @@ const Content = styled.div<{ $revealProgress: number }>`
 
 const Tags = styled.div`
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.35fr) minmax(0, 0.9fr);
   gap: var(--space-2);
 `;
 
@@ -345,4 +358,8 @@ const Description = styled.div`
   small {
     font-size: var(--font-size-100);
   }
+`;
+
+const ForecastHint = styled.small`
+  color: var(--color-text-muted);
 `;
