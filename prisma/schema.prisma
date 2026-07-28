@@ -212,6 +212,28 @@ model RegionalVisitorCountRecord {
   @@map("regional_visitor_count_records")
 }
 
+model TourismPhotoGallerySourceRecord {
+  contentId           String    @id @map("content_id")
+  contentTypeId       String?   @map("content_type_id")
+  title               String
+  imageUrl            String    @map("image_url")
+  useFlag             String?   @map("use_flag")
+  photographyMonth    String?   @map("photography_month")
+  photographyLocation String?   @map("photography_location")
+  photographer        String?   @map("photographer")
+  searchKeyword       String?   @map("search_keyword")
+  sourceCreatedAt     DateTime? @map("source_created_at")
+  sourceModifiedAt    DateTime? @map("source_modified_at")
+  rawPayload          Json      @map("raw_payload")
+  syncedAt            DateTime  @map("synced_at")
+  createdAt           DateTime  @default(now()) @map("created_at")
+  updatedAt           DateTime  @updatedAt @map("updated_at")
+
+  @@index([photographyLocation, syncedAt])
+  @@index([sourceModifiedAt])
+  @@map("tourism_photo_gallery_source_records")
+}
+
 model TourismRegionMetric {
   id          String   @id
   dataset     String

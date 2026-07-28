@@ -15,12 +15,14 @@ import {
 import { syncMunicipalCoreTourism } from "@/server/tourism/syncMunicipalCoreTourism";
 import { syncRegionalTourismMetrics } from "@/server/tourism/syncRegionalTourismMetrics";
 import { syncRegionalVisitorCounts } from "@/server/tourism/syncRegionalVisitorCounts";
+import { syncTourismPhotoGallery } from "@/server/tourism/syncTourismPhotoGallery";
 import { syncTouristSpotConcentrationRates } from "@/server/tourism/syncTouristSpotConcentrationRates";
 import { syncTourismPlaces } from "@/server/tourism/syncTourismPlaces";
 import { syncWellnessTourism } from "@/server/tourism/syncWellnessTourism";
 import { TourApiError } from "@/server/tourism/tourApiClient";
 import { TouristSpotConcentrationApiError } from "@/server/tourism/touristSpotConcentrationApiClient";
 import { RegionalVisitorCountApiError } from "@/server/tourism/regionalVisitorCountApiClient";
+import { TourismPhotoGalleryApiError } from "@/server/tourism/tourismPhotoGalleryApiClient";
 import { WellnessTourismApiError } from "@/server/tourism/wellnessTourismApiClient";
 import type {
   TourismDataResponse,
@@ -64,6 +66,7 @@ export async function GET(request: Request) {
     municipalCore,
     concentration,
     visitors,
+    photos,
     metrics,
     runs,
   ] =
@@ -176,6 +179,32 @@ export async function GET(request: Request) {
           take,
         })
       : Promise.resolve([]),
+    tab === "photos"
+      ? prisma.tourismPhotoGallerySourceRecord.findMany({
+          where: query
+            ? {
+                OR: [
+                  { contentId: { contains: query } },
+                  { title: { contains: query, mode: "insensitive" } },
+                  {
+                    photographyLocation: {
+                      contains: query,
+                      mode: "insensitive",
+                    },
+                  },
+                  {
+                    searchKeyword: {
+                      contains: query,
+                      mode: "insensitive",
+                    },
+                  },
+                ],
+              }
+            : undefined,
+          orderBy: { syncedAt: "desc" },
+          take,
+        })
+      : Promise.resolve([]),
     tab === "metrics"
       ? prisma.tourismRegionMetric.findMany({
           where: {
@@ -249,6 +278,13 @@ export async function GET(request: Request) {
       createdAt: undefined,
       updatedAt: undefined,
     })),
+    photos: photos.map((item) => ({
+      ...item,
+      sourceModifiedAt: item.sourceModifiedAt?.toISOString() ?? null,
+      syncedAt: item.syncedAt.toISOString(),
+      createdAt: undefined,
+      updatedAt: undefined,
+    })),
     metrics: metrics.map((item) => ({
       ...item,
       metricValue: item.metricValue?.toString() ?? null,
@@ -293,6 +329,7 @@ export async function POST(request: Request) {
       touristSpotName?: unknown;
       aggregationLevel?: unknown;
       baseYmd?: unknown;
+      modifiedDate?: unknown;
     };
     const kind =
       body.kind === "places"
@@ -305,7 +342,9 @@ export async function POST(request: Request) {
               ? "concentration"
               : body.kind === "visitors"
                 ? "visitors"
-              : "metrics";
+                : body.kind === "photos"
+                  ? "photos"
+                  : "metrics";
     const result =
       kind === "places"
         ? await syncTourismPlaces({
@@ -354,7 +393,15 @@ export async function POST(request: Request) {
                     maxPages: 10,
                     pageSize: 100,
                   })
-              : await syncRegionalTourismMetrics({
+                : kind === "photos"
+                  ? await syncTourismPhotoGallery({
+                      modifiedDate:
+                        normalizeOptionalString(body.modifiedDate, 8) ||
+                        undefined,
+                      maxPages: 5,
+                      pageSize: 100,
+                    })
+                  : await syncRegionalTourismMetrics({
             metricType:
               normalizeMetricType(body.metricType) ?? "serviceDemand",
             metricCode: normalizeRequiredString(body.metricCode, 10),
@@ -394,6 +441,7 @@ export async function POST(request: Request) {
       error instanceof MunicipalCoreTourismApiError ||
       error instanceof TouristSpotConcentrationApiError ||
       error instanceof RegionalVisitorCountApiError ||
+      error instanceof TourismPhotoGalleryApiError ||
       error instanceof Error
         ? error.message
         : "관광 공공데이터를 동기화하지 못했습니다.";
@@ -411,12 +459,16 @@ export async function POST(request: Request) {
       ||
       (error instanceof RegionalVisitorCountApiError &&
         error.code === "regional_visitor_count_api_not_configured")
+      ||
+      (error instanceof TourismPhotoGalleryApiError &&
+        error.code === "tourism_photo_gallery_api_not_configured")
         ? 503
         : error instanceof TourApiError ||
             error instanceof WellnessTourismApiError ||
               error instanceof MunicipalCoreTourismApiError ||
                 error instanceof TouristSpotConcentrationApiError
                 || error instanceof RegionalVisitorCountApiError
+                || error instanceof TourismPhotoGalleryApiError
           ? 502
           : 400;
 
@@ -438,6 +490,7 @@ async function getOverview() {
     municipalCoreSourceRecords,
     touristSpotConcentrationRecords,
     regionalVisitorCountRecords,
+    tourismPhotoGalleryRecords,
     regionalMetrics,
     syncRuns,
     failedRuns,
@@ -448,6 +501,7 @@ async function getOverview() {
     prisma.municipalCoreTourismSourceRecord.count(),
     prisma.touristSpotConcentrationRateRecord.count(),
     prisma.regionalVisitorCountRecord.count(),
+    prisma.tourismPhotoGallerySourceRecord.count(),
     prisma.tourismRegionMetric.count(),
     prisma.externalDataSyncRun.count(),
     prisma.externalDataSyncRun.count({
@@ -466,11 +520,19 @@ async function getOverview() {
     municipalCoreSourceRecords,
     touristSpotConcentrationRecords,
     regionalVisitorCountRecords,
+    tourismPhotoGalleryRecords,
     regionalMetrics,
     syncRuns,
     failedRuns,
     lastSyncedAt: lastRun?.finishedAt?.toISOString() ?? null,
     connections: [
+      {
+        source: "ktoTourismPhotoGallery",
+        label: "관광사진 갤러리",
+        configured: Boolean(
+          process.env.KTO_TOURISM_PHOTO_GALLERY_SERVICE_KEY,
+        ),
+      },
       {
         source: "ktoRegionalVisitorCount",
         label: "지역별 방문자 수",
@@ -527,6 +589,7 @@ function normalizeTab(value: unknown): TourismDataTab {
     value === "municipalCore" ||
     value === "concentration" ||
     value === "visitors" ||
+    value === "photos" ||
     value === "metrics" ||
     value === "runs"
     ? value

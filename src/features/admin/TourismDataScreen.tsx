@@ -24,6 +24,7 @@ import type {
   MunicipalCoreTourismSourceItem,
   TouristSpotConcentrationRateItem,
   RegionalVisitorCountItem,
+  TourismPhotoGallerySourceItem,
 } from "@/shared/api/tourismAdmin";
 
 type SyncSource =
@@ -33,6 +34,7 @@ type SyncSource =
   | "concentration"
   | "visitorMetropolitan"
   | "visitorMunicipal"
+  | "photos"
   | "serviceDemand"
   | "culturalResourceDemand"
   | "stayIntensity"
@@ -44,6 +46,7 @@ const tabs: Array<{ id: TourismDataTab; label: string }> = [
   { id: "municipalCore", label: "중심 관광지" },
   { id: "concentration", label: "집중률" },
   { id: "visitors", label: "방문자 수" },
+  { id: "photos", label: "관광사진" },
   { id: "metrics", label: "지역 지표" },
   { id: "runs", label: "동기화 기록" },
 ];
@@ -55,6 +58,7 @@ const sourceOptions: Array<{ value: SyncSource; label: string }> = [
   { value: "concentration", label: "관광지 집중률" },
   { value: "visitorMetropolitan", label: "광역 방문자 수" },
   { value: "visitorMunicipal", label: "기초 방문자 수" },
+  { value: "photos", label: "관광사진 갤러리" },
   { value: "serviceDemand", label: "관광 서비스 수요" },
   { value: "culturalResourceDemand", label: "문화 자원 수요" },
   { value: "stayIntensity", label: "관광 체류 강도" },
@@ -66,6 +70,7 @@ const metricOptions: Record<
     SyncSource,
     "places" | "wellness" | "municipalCore" | "concentration"
       | "visitorMetropolitan" | "visitorMunicipal"
+      | "photos"
   >,
   Array<{ value: string; label: string }>
 > = {
@@ -317,6 +322,8 @@ export function TourismDataScreen({
           <ConcentrationRecords records={data?.concentration ?? []} />
         ) : tab === "visitors" ? (
           <VisitorRecords records={data?.visitors ?? []} />
+        ) : tab === "photos" ? (
+          <PhotoRecords records={data?.photos ?? []} />
         ) : tab === "metrics" ? (
           <MetricRecords metrics={data?.metrics ?? []} />
         ) : (
@@ -338,6 +345,7 @@ function Overview({
     ["중심 관광지", overview.municipalCoreSourceRecords],
     ["집중률 원본", overview.touristSpotConcentrationRecords],
     ["방문자 수", overview.regionalVisitorCountRecords],
+    ["관광사진", overview.tourismPhotoGalleryRecords],
     ["지역 지표", overview.regionalMetrics],
     ["동기화 실행", overview.syncRuns],
     ["확인 필요", overview.failedRuns],
@@ -392,6 +400,7 @@ function SyncPanel({
   const [visitorDate, setVisitorDate] = useState(() =>
     toDateInputValue(new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)),
   );
+  const [photoModifiedDate, setPhotoModifiedDate] = useState("");
   const [metricCode, setMetricCode] = useState("11");
   const [wellnessThemeCode, setWellnessThemeCode] = useState("");
   const selectedMetricOptions = useMemo(
@@ -401,7 +410,8 @@ function SyncPanel({
       source === "municipalCore" ||
       source === "concentration" ||
       source === "visitorMetropolitan" ||
-      source === "visitorMunicipal"
+      source === "visitorMunicipal" ||
+      source === "photos"
         ? []
         : metricOptions[source],
     [source],
@@ -422,6 +432,8 @@ function SyncPanel({
       nextSource === "visitorMunicipal"
     ) {
       // 지역별 방문자 수 API는 날짜 기준 전국 집계만 받습니다.
+    } else if (nextSource === "photos") {
+      // 사진 API는 수정일 조건 없이도 전체 동기화할 수 있습니다.
     } else if (nextSource !== "places") {
       setAreaCode((current) => current || "11");
       setMetricCode(metricOptions[nextSource][0].value);
@@ -475,6 +487,11 @@ function SyncPanel({
                               : "municipal",
                           baseYmd: visitorDate.replaceAll("-", ""),
                         }
+                      : source === "photos"
+                        ? {
+                            kind: "photos",
+                            modifiedDate: photoModifiedDate.replaceAll("-", ""),
+                          }
               : {
                   kind: "metrics",
                   metricType: source,
@@ -666,6 +683,23 @@ function SyncPanel({
                 : "시군구별 방문자 수를 수집합니다."}
             </SyncHint>
           </>
+        ) : source === "photos" ? (
+          <>
+            <Field>
+              <span>수정일 · 선택</span>
+              <Input
+                type="date"
+                value={photoModifiedDate}
+                disabled={syncing}
+                onChange={(event) =>
+                  setPhotoModifiedDate(event.target.value)
+                }
+              />
+            </Field>
+            <SyncHint>
+              비워두면 공개된 사진 전체에서 첫 500건을 동기화합니다.
+            </SyncHint>
+          </>
         ) : (
           <>
             <Field>
@@ -734,6 +768,7 @@ function SyncPanel({
               source !== "concentration" &&
               source !== "visitorMetropolitan" &&
               source !== "visitorMunicipal" &&
+              source !== "photos" &&
               !baseMonth)
           }
         >
@@ -844,6 +879,48 @@ function VisitorRecords({
           <Metadata>
             {record.visitorTypeName} · 코드 {record.regionCode} · 동기화{" "}
             {formatDate(record.syncedAt)}
+          </Metadata>
+          <RawDetails payload={record.rawPayload} />
+        </RecordCard>
+      ))}
+    </RecordList>
+  );
+}
+
+function PhotoRecords({
+  records,
+}: {
+  records: TourismPhotoGallerySourceItem[];
+}) {
+  if (records.length === 0) {
+    return <StatePanel>저장된 관광사진 원본이 없습니다.</StatePanel>;
+  }
+
+  return (
+    <RecordList>
+      {records.map((record) => (
+        <RecordCard key={record.contentId}>
+          <RecordHeader>
+            <div>
+              <h2>{record.title}</h2>
+              <p>
+                {record.photographyLocation ?? "촬영 장소 미상"}
+                {record.photographyMonth
+                  ? ` · ${record.photographyMonth}`
+                  : ""}
+              </p>
+            </div>
+            <PhotoLink
+              href={record.imageUrl}
+              target="_blank"
+              rel="noreferrer"
+            >
+              이미지 열기
+            </PhotoLink>
+          </RecordHeader>
+          <Metadata>
+            {record.photographer ? `${record.photographer} · ` : ""}
+            콘텐츠 {record.contentId} · 동기화 {formatDate(record.syncedAt)}
           </Metadata>
           <RawDetails payload={record.rawPayload} />
         </RecordCard>
@@ -1013,6 +1090,7 @@ function normalizeTab(value: unknown): TourismDataTab {
     value === "municipalCore" ||
     value === "concentration" ||
     value === "visitors" ||
+    value === "photos" ||
     value === "metrics" ||
     value === "runs"
     ? value
@@ -1078,6 +1156,9 @@ function getSourceLabel(value: string) {
   }
   if (value === "ktoRegionalVisitorCount") {
     return "지역별 방문자 수";
+  }
+  if (value === "ktoTourismPhotoGallery") {
+    return "관광사진 갤러리";
   }
   if (value === "ktoRegionalResourceDemand") {
     return "지역별 관광 자원 수요";
@@ -1483,6 +1564,19 @@ const StatusBadge = styled.span<{ $tone: string }>`
 const MetricValue = styled.strong`
   color: var(--color-brand-900);
   font-size: var(--font-size-600);
+`;
+
+const PhotoLink = styled.a`
+  flex: 0 0 auto;
+  min-height: 36px;
+  display: inline-grid;
+  place-items: center;
+  padding: 0 var(--space-3);
+  border-radius: 999px;
+  background: var(--color-brand-100);
+  color: var(--color-brand-1000);
+  font-size: var(--font-size-100);
+  font-weight: 700;
 `;
 
 const Metadata = styled.p`

@@ -4,6 +4,7 @@ export type TourismDataTab =
   | "municipalCore"
   | "concentration"
   | "visitors"
+  | "photos"
   | "metrics"
   | "runs";
 
@@ -13,6 +14,7 @@ export type TourismDataOverview = {
   municipalCoreSourceRecords: number;
   touristSpotConcentrationRecords: number;
   regionalVisitorCountRecords: number;
+  tourismPhotoGalleryRecords: number;
   regionalMetrics: number;
   syncRuns: number;
   failedRuns: number;
@@ -112,6 +114,21 @@ export type RegionalVisitorCountItem = {
   rawPayload: unknown;
 };
 
+export type TourismPhotoGallerySourceItem = {
+  contentId: string;
+  contentTypeId: string | null;
+  title: string;
+  imageUrl: string;
+  useFlag: string | null;
+  photographyMonth: string | null;
+  photographyLocation: string | null;
+  photographer: string | null;
+  searchKeyword: string | null;
+  sourceModifiedAt: string | null;
+  syncedAt: string;
+  rawPayload: unknown;
+};
+
 export type ExternalDataSyncRunItem = {
   id: string;
   source: string;
@@ -135,6 +152,7 @@ export type TourismDataResponse = {
   municipalCore: MunicipalCoreTourismSourceItem[];
   concentration: TouristSpotConcentrationRateItem[];
   visitors: RegionalVisitorCountItem[];
+  photos: TourismPhotoGallerySourceItem[];
   metrics: TourismRegionMetricItem[];
   runs: ExternalDataSyncRunItem[];
 };
