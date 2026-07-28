@@ -325,22 +325,10 @@ await prisma.user.upsert({
   },
 });
 
-for (const place of places) {
-  await prisma.place.upsert({
-    where: { id: place.id },
-    update: place,
-    create: place,
-  });
-
-  await prisma.$executeRaw`
-    UPDATE "places"
-    SET "location" = ST_SetSRID(
-      ST_MakePoint(${Number(place.longitude)}, ${Number(place.latitude)}),
-      4326
-    )
-    WHERE "id" = ${place.id}
-  `;
-}
+// 기존 UI 검증용 목업 장소는 실제 TourAPI 장소만 추천하도록 전환하면서 제거한다.
+await prisma.place.deleteMany({
+  where: { id: { in: places.map((place) => place.id) } },
+});
 
 for (const journalEntry of journalEntries) {
   const ownedJournalEntry = {

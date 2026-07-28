@@ -87,7 +87,9 @@ model Place {
   sourceContentType   String?                               @map("source_content_type")
   sourceAddress       String?                               @map("source_address")
   sourceAreaCode      String?                               @map("source_area_code")
+  sourceSidoName      String?                               @map("source_sido_name")
   sourceSigunguCode   String?                               @map("source_sigungu_code")
+  sourceSigunguName   String?                               @map("source_sigungu_name")
   sourceCopyright     String?                               @map("source_copyright")
   sourceModifiedAt    DateTime?                             @map("source_modified_at")
   sourceSyncedAt      DateTime?                             @map("source_synced_at")
@@ -110,7 +112,9 @@ model TourismPlaceSourceRecord {
   contentTypeId    String?   @map("content_type_id")
   title            String
   areaCode         String?   @map("area_code")
+  sidoName         String?   @map("sido_name")
   sigunguCode      String?   @map("sigungu_code")
+  sigunguName      String?   @map("sigungu_name")
   rawPayload       Json      @map("raw_payload")
   linkedPlaceId    String?   @unique @map("linked_place_id")
   sourceModifiedAt DateTime? @map("source_modified_at")
@@ -121,6 +125,7 @@ model TourismPlaceSourceRecord {
 
   @@index([contentTypeId, syncedAt])
   @@index([areaCode, sigunguCode])
+  @@index([sidoName, sigunguName])
   @@map("tourism_place_source_records")
 }
 

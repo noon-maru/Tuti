@@ -44,6 +44,7 @@ export async function createRecommendations(
 async function findPlacesByBaseFatigue(): Promise<PlaceRow[]> {
   return prisma.place.findMany({
     where: {
+      source: "tourapi",
       isActive: true,
       reviewStatus: "approved",
     },
@@ -87,6 +88,7 @@ async function findPlacesNearLocation(location: UserLocation): Promise<PlaceRow[
     FROM "places"
     WHERE
       "is_active" = true
+      AND "source" = 'tourapi'
       AND "review_status" = 'approved'::"PlaceReviewStatus"
     ORDER BY
       "location" <-> ST_SetSRID(ST_MakePoint(${longitude}, ${latitude}), 4326),

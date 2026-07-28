@@ -35,6 +35,8 @@ type FetchAreaBasedPlacesInput = {
   pageNo: number;
   numOfRows: number;
   contentTypeId?: string;
+  areaCode?: string;
+  sigunguCode?: string;
 };
 
 type TourApiResponse = {
@@ -68,6 +70,8 @@ export async function fetchAreaBasedTourismPlaces({
   pageNo,
   numOfRows,
   contentTypeId,
+  areaCode,
+  sigunguCode,
 }: FetchAreaBasedPlacesInput): Promise<TourApiPage> {
   const serviceKey =
     process.env.KTO_TOURISM_INFO_SERVICE_KEY?.trim();
@@ -89,6 +93,8 @@ export async function fetchAreaBasedTourismPlaces({
     pageNo: String(pageNo),
     numOfRows: String(numOfRows),
     ...(contentTypeId ? { contentTypeId } : {}),
+    ...(areaCode ? { areaCode } : {}),
+    ...(sigunguCode ? { sigunguCode } : {}),
   }).toString();
 
   let response: Response;

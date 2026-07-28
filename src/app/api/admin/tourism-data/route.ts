@@ -80,11 +80,17 @@ export async function GET(request: Request) {
                   { contentId: { contains: query } },
                   { title: { contains: query, mode: "insensitive" } },
                   { areaCode: { contains: query } },
+                  { sidoName: { contains: query, mode: "insensitive" } },
                   { sigunguCode: { contains: query } },
+                  { sigunguName: { contains: query, mode: "insensitive" } },
                 ],
               }
             : undefined,
-          orderBy: { syncedAt: "desc" },
+          orderBy: [
+            { sidoName: "asc" },
+            { sigunguName: "asc" },
+            { title: "asc" },
+          ],
           take,
         })
       : Promise.resolve([]),
@@ -349,6 +355,10 @@ export async function POST(request: Request) {
       kind === "places"
         ? await syncTourismPlaces({
             contentTypeId: normalizeContentTypeId(body.contentTypeId),
+            areaCode:
+              normalizeOptionalString(body.areaCode, 10) || undefined,
+            sigunguCode:
+              normalizeOptionalString(body.sigunguCode, 10) || undefined,
             maxPages: 3,
             pageSize: 100,
           })

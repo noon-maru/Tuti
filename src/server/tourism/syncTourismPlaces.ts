@@ -10,11 +10,14 @@ import {
   fetchAreaBasedTourismPlaces,
   type TourApiPlaceItem,
 } from "@/server/tourism/tourApiClient";
+import { resolveTourApiRegionLabels } from "@/shared/tourism/tourApiRegions";
 
 const TOUR_API_SOURCE = "tourapi";
 
 export type SyncTourismPlacesInput = {
   contentTypeId?: string;
+  areaCode?: string;
+  sigunguCode?: string;
   maxPages?: number;
   pageSize?: number;
   startPage?: number;
@@ -36,7 +39,9 @@ type NormalizedTourApiPlace = {
   contentId: string;
   contentTypeId: string | null;
   areaCode: string | null;
+  sidoName: string | null;
   sigunguCode: string | null;
+  sigunguName: string | null;
   name: string;
   address: string | null;
   image: string;
@@ -55,6 +60,8 @@ export async function syncTourismPlaces(
   input: SyncTourismPlacesInput = {},
 ): Promise<SyncTourismPlacesResult> {
   const contentTypeId = normalizeContentTypeId(input.contentTypeId);
+  const areaCode = normalizeOptionalCode(input.areaCode);
+  const sigunguCode = normalizeOptionalCode(input.sigunguCode);
   const maxPages = clampInteger(input.maxPages, 1, 100, 3);
   const pageSize = clampInteger(input.pageSize, 1, 100, 100);
   const startPage = clampInteger(input.startPage, 1, 100_000, 1);
@@ -66,6 +73,8 @@ export async function syncTourismPlaces(
     operation: "areaBasedList2",
     parameters: {
       contentTypeId: contentTypeId ?? null,
+      areaCode,
+      sigunguCode,
       maxPages,
       pageSize,
       startPage,
@@ -90,6 +99,8 @@ export async function syncTourismPlaces(
         pageNo,
         numOfRows: pageSize,
         contentTypeId,
+        areaCode: areaCode ?? undefined,
+        sigunguCode: sigunguCode ?? undefined,
       });
 
       result.pages += 1;
@@ -177,7 +188,9 @@ async function saveTourApiPlace(
         sourceContentType: place.contentTypeId,
         sourceAddress: place.address,
         sourceAreaCode: place.areaCode,
+        sourceSidoName: place.sidoName,
         sourceSigunguCode: place.sigunguCode,
+        sourceSigunguName: place.sigunguName,
         sourceCopyright: place.copyright,
         sourceModifiedAt: place.sourceModifiedAt,
         sourceSyncedAt: syncedAt,
@@ -198,7 +211,9 @@ async function saveTourApiPlace(
       sourceContentType: place.contentTypeId,
       sourceAddress: place.address,
       sourceAreaCode: place.areaCode,
+      sourceSidoName: place.sidoName,
       sourceSigunguCode: place.sigunguCode,
+      sourceSigunguName: place.sigunguName,
       sourceCopyright: place.copyright,
       sourceModifiedAt: place.sourceModifiedAt,
       sourceSyncedAt: syncedAt,
@@ -238,6 +253,12 @@ async function saveTourApiPlace(
 async function saveTourismPlaceSourceRecord(item: TourApiPlaceItem) {
   const contentId = item.contentid?.trim();
   const title = sanitizeText(item.title);
+  const address =
+    sanitizeText([item.addr1, item.addr2].filter(Boolean).join(" ")) || null;
+  const region = resolveTourApiRegionLabels(
+    item.areacode?.trim() || null,
+    address,
+  );
 
   if (!contentId || !title) return null;
 
@@ -248,7 +269,9 @@ async function saveTourismPlaceSourceRecord(item: TourApiPlaceItem) {
       contentTypeId: item.contenttypeid?.trim() || null,
       title,
       areaCode: item.areacode?.trim() || null,
+      sidoName: region.sidoName,
       sigunguCode: item.sigungucode?.trim() || null,
+      sigunguName: region.sigunguName,
       rawPayload: item as Prisma.InputJsonValue,
       sourceModifiedAt: parseTourApiDate(item.modifiedtime),
       syncedAt: new Date(),
@@ -257,7 +280,9 @@ async function saveTourismPlaceSourceRecord(item: TourApiPlaceItem) {
       contentTypeId: item.contenttypeid?.trim() || null,
       title,
       areaCode: item.areacode?.trim() || null,
+      sidoName: region.sidoName,
       sigunguCode: item.sigungucode?.trim() || null,
+      sigunguName: region.sigunguName,
       rawPayload: item as Prisma.InputJsonValue,
       sourceModifiedAt: parseTourApiDate(item.modifiedtime),
       syncedAt: new Date(),
@@ -299,13 +324,19 @@ function normalizeTourApiPlace(
   const address = sanitizeText(
     [item.addr1, item.addr2].filter(Boolean).join(" "),
   );
+  const region = resolveTourApiRegionLabels(
+    item.areacode?.trim() || null,
+    address || null,
+  );
   const profile = createEditorialDefaults(name, address, contentTypeId);
 
   return {
     contentId,
     contentTypeId,
     areaCode: item.areacode?.trim() || null,
+    sidoName: region.sidoName,
     sigunguCode: item.sigungucode?.trim() || null,
+    sigunguName: region.sigunguName,
     name,
     address: address || null,
     image,
@@ -383,6 +414,11 @@ function normalizeContentTypeId(value: string | undefined) {
   return normalized && /^\d{1,4}$/.test(normalized)
     ? normalized
     : "12";
+}
+
+function normalizeOptionalCode(value: string | undefined) {
+  const normalized = value?.trim();
+  return normalized && /^\d{1,10}$/.test(normalized) ? normalized : null;
 }
 
 function clampInteger(

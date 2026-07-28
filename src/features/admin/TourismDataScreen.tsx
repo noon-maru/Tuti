@@ -26,6 +26,7 @@ import type {
   RegionalVisitorCountItem,
   TourismPhotoGallerySourceItem,
 } from "@/shared/api/tourismAdmin";
+import { tourApiSidoOptions } from "@/shared/tourism/tourApiRegions";
 
 type SyncSource =
   | "places"
@@ -392,6 +393,8 @@ function SyncPanel({
 }) {
   const [source, setSource] = useState<SyncSource>("places");
   const [contentTypeId, setContentTypeId] = useState("12");
+  const [tourismAreaCode, setTourismAreaCode] = useState("");
+  const [tourismSigunguCode, setTourismSigunguCode] = useState("");
   const [baseMonth, setBaseMonth] = useState("2025-09");
   const [areaCode, setAreaCode] = useState("11");
   const [sigunguCode, setSigunguCode] = useState("");
@@ -454,6 +457,8 @@ function SyncPanel({
               ? {
                   kind: "places",
                   contentTypeId,
+                  areaCode: tourismAreaCode,
+                  sigunguCode: tourismSigunguCode,
                 }
               : source === "wellness"
                 ? {
@@ -521,19 +526,49 @@ function SyncPanel({
         </Field>
 
         {source === "places" ? (
-          <Field>
-            <span>콘텐츠 유형</span>
-            <Select
-              value={contentTypeId}
-              disabled={syncing}
-              onChange={(event) => setContentTypeId(event.target.value)}
-            >
-              <option value="12">관광지</option>
-              <option value="14">문화시설</option>
-              <option value="25">여행코스</option>
-              <option value="28">레포츠</option>
-            </Select>
-          </Field>
+          <>
+            <Field>
+              <span>콘텐츠 유형</span>
+              <Select
+                value={contentTypeId}
+                disabled={syncing}
+                onChange={(event) => setContentTypeId(event.target.value)}
+              >
+                <option value="12">관광지</option>
+                <option value="14">문화시설</option>
+                <option value="25">여행코스</option>
+                <option value="28">레포츠</option>
+              </Select>
+            </Field>
+            <Field>
+              <span>시도 · 선택</span>
+              <Select
+                value={tourismAreaCode}
+                disabled={syncing}
+                onChange={(event) => {
+                  setTourismAreaCode(event.target.value);
+                  if (!event.target.value) setTourismSigunguCode("");
+                }}
+              >
+                <option value="">전국</option>
+                {tourApiSidoOptions.map(([value, label]) => (
+                  <option key={value} value={value}>
+                    {label}
+                  </option>
+                ))}
+              </Select>
+            </Field>
+            <Field>
+              <span>시군구 코드 · 선택</span>
+              <Input
+                value={tourismSigunguCode}
+                inputMode="numeric"
+                disabled={syncing || !tourismAreaCode}
+                placeholder="TourAPI 시군구 코드"
+                onChange={(event) => setTourismSigunguCode(event.target.value)}
+              />
+            </Field>
+          </>
         ) : source === "wellness" ? (
           <>
             <Field>
@@ -991,8 +1026,10 @@ function PlaceRecords({
             </StatusBadge>
           </RecordHeader>
           <Metadata>
-            지역 {record.areaCode ?? "-"} / {record.sigunguCode ?? "-"} ·
-            동기화 {formatDate(record.syncedAt)}
+            {record.sidoName ?? "지역 미확인"}
+            {record.sigunguName ? ` ${record.sigunguName}` : ""}
+            {" · "}코드 {record.areaCode ?? "-"} / {record.sigunguCode ?? "-"}
+            {" · "}동기화 {formatDate(record.syncedAt)}
           </Metadata>
           <RawDetails payload={record.rawPayload} />
         </RecordCard>

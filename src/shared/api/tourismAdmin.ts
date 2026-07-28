@@ -31,7 +31,9 @@ export type TourismPlaceSourceItem = {
   contentTypeId: string | null;
   title: string;
   areaCode: string | null;
+  sidoName: string | null;
   sigunguCode: string | null;
+  sigunguName: string | null;
   linkedPlaceId: string | null;
   sourceModifiedAt: string | null;
   syncedAt: string;
