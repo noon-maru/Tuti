@@ -9,6 +9,10 @@ import {
 import {
   type RegionalMetricType,
 } from "@/server/tourism/regionalTourismApiClient";
+import {
+  MunicipalCoreTourismApiError,
+} from "@/server/tourism/municipalCoreTourismApiClient";
+import { syncMunicipalCoreTourism } from "@/server/tourism/syncMunicipalCoreTourism";
 import { syncRegionalTourismMetrics } from "@/server/tourism/syncRegionalTourismMetrics";
 import { syncTourismPlaces } from "@/server/tourism/syncTourismPlaces";
 import { syncWellnessTourism } from "@/server/tourism/syncWellnessTourism";
@@ -49,7 +53,8 @@ export async function GET(request: Request) {
     200,
     100,
   );
-  const [overview, places, wellness, metrics, runs] = await Promise.all([
+  const [overview, places, wellness, municipalCore, metrics, runs] =
+    await Promise.all([
     getOverview(),
     tab === "places"
       ? prisma.tourismPlaceSourceRecord.findMany({
@@ -81,6 +86,33 @@ export async function GET(request: Request) {
               }
             : undefined,
           orderBy: { syncedAt: "desc" },
+          take,
+        })
+      : Promise.resolve([]),
+    tab === "municipalCore"
+      ? prisma.municipalCoreTourismSourceRecord.findMany({
+          where: query
+            ? {
+                OR: [
+                  { touristSpotCode: { contains: query } },
+                  {
+                    touristSpotName: {
+                      contains: query,
+                      mode: "insensitive",
+                    },
+                  },
+                  { areaName: { contains: query, mode: "insensitive" } },
+                  {
+                    sigunguName: {
+                      contains: query,
+                      mode: "insensitive",
+                    },
+                  },
+                  { baseYm: { contains: query } },
+                ],
+              }
+            : undefined,
+          orderBy: [{ baseYm: "desc" }, { rank: "asc" }],
           take,
         })
       : Promise.resolve([]),
@@ -118,7 +150,7 @@ export async function GET(request: Request) {
           take,
         })
       : Promise.resolve([]),
-  ]);
+    ]);
   const response: TourismDataResponse = {
     overview,
     places: places.map((item) => ({
@@ -131,6 +163,14 @@ export async function GET(request: Request) {
     wellness: wellness.map((item) => ({
       ...item,
       sourceModifiedAt: item.sourceModifiedAt?.toISOString() ?? null,
+      syncedAt: item.syncedAt.toISOString(),
+      createdAt: undefined,
+      updatedAt: undefined,
+    })),
+    municipalCore: municipalCore.map((item) => ({
+      ...item,
+      longitude: item.longitude?.toString() ?? null,
+      latitude: item.latitude?.toString() ?? null,
       syncedAt: item.syncedAt.toISOString(),
       createdAt: undefined,
       updatedAt: undefined,
@@ -182,6 +222,8 @@ export async function POST(request: Request) {
         ? "places"
         : body.kind === "wellness"
           ? "wellness"
+          : body.kind === "municipalCore"
+            ? "municipalCore"
           : "metrics";
     const result =
       kind === "places"
@@ -203,6 +245,14 @@ export async function POST(request: Request) {
               maxPages: 5,
               pageSize: 100,
             })
+          : kind === "municipalCore"
+            ? await syncMunicipalCoreTourism({
+                baseYm: normalizeRequiredString(body.baseYm, 6),
+                areaCode: normalizeRequiredString(body.areaCode, 10),
+                sigunguCode: normalizeRequiredString(body.sigunguCode, 10),
+                maxPages: 2,
+                pageSize: 100,
+              })
           : await syncRegionalTourismMetrics({
             metricType:
               normalizeMetricType(body.metricType) ?? "serviceDemand",
@@ -240,6 +290,7 @@ export async function POST(request: Request) {
     const message =
       error instanceof TourApiError ||
       error instanceof WellnessTourismApiError ||
+      error instanceof MunicipalCoreTourismApiError ||
       error instanceof Error
         ? error.message
         : "관광 공공데이터를 동기화하지 못했습니다.";
@@ -248,9 +299,13 @@ export async function POST(request: Request) {
         error.code === "tour_api_not_configured") ||
       (error instanceof WellnessTourismApiError &&
         error.code === "wellness_api_not_configured")
+      ||
+      (error instanceof MunicipalCoreTourismApiError &&
+        error.code === "municipal_core_api_not_configured")
         ? 503
         : error instanceof TourApiError ||
-            error instanceof WellnessTourismApiError
+            error instanceof WellnessTourismApiError ||
+              error instanceof MunicipalCoreTourismApiError
           ? 502
           : 400;
 
@@ -269,6 +324,7 @@ async function getOverview() {
   const [
     placeSourceRecords,
     wellnessSourceRecords,
+    municipalCoreSourceRecords,
     regionalMetrics,
     syncRuns,
     failedRuns,
@@ -276,6 +332,7 @@ async function getOverview() {
   ] = await Promise.all([
     prisma.tourismPlaceSourceRecord.count(),
     prisma.wellnessTourismSourceRecord.count(),
+    prisma.municipalCoreTourismSourceRecord.count(),
     prisma.tourismRegionMetric.count(),
     prisma.externalDataSyncRun.count(),
     prisma.externalDataSyncRun.count({
@@ -291,11 +348,19 @@ async function getOverview() {
   return {
     placeSourceRecords,
     wellnessSourceRecords,
+    municipalCoreSourceRecords,
     regionalMetrics,
     syncRuns,
     failedRuns,
     lastSyncedAt: lastRun?.finishedAt?.toISOString() ?? null,
     connections: [
+      {
+        source: "ktoMunicipalCoreTourism",
+        label: "기초지자체 중심 관광지",
+        configured: Boolean(
+          process.env.KTO_MUNICIPAL_CORE_TOURISM_SERVICE_KEY,
+        ),
+      },
       {
         source: "ktoWellnessTourism",
         label: "웰니스 관광정보",
@@ -328,6 +393,7 @@ async function getOverview() {
 
 function normalizeTab(value: unknown): TourismDataTab {
   return value === "wellness" ||
+    value === "municipalCore" ||
     value === "metrics" ||
     value === "runs"
     ? value

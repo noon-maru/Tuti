@@ -1,12 +1,14 @@
 export type TourismDataTab =
   | "places"
   | "wellness"
+  | "municipalCore"
   | "metrics"
   | "runs";
 
 export type TourismDataOverview = {
   placeSourceRecords: number;
   wellnessSourceRecords: number;
+  municipalCoreSourceRecords: number;
   regionalMetrics: number;
   syncRuns: number;
   failedRuns: number;
@@ -60,6 +62,24 @@ export type WellnessTourismSourceItem = {
   rawPayload: unknown;
 };
 
+export type MunicipalCoreTourismSourceItem = {
+  id: string;
+  baseYm: string;
+  areaCode: string;
+  areaName: string;
+  sigunguCode: string;
+  sigunguName: string;
+  touristSpotCode: string;
+  touristSpotName: string;
+  rank: number;
+  categoryLargeName: string | null;
+  categoryMediumName: string | null;
+  longitude: string | null;
+  latitude: string | null;
+  syncedAt: string;
+  rawPayload: unknown;
+};
+
 export type ExternalDataSyncRunItem = {
   id: string;
   source: string;
@@ -80,6 +100,7 @@ export type TourismDataResponse = {
   overview: TourismDataOverview;
   places: TourismPlaceSourceItem[];
   wellness: WellnessTourismSourceItem[];
+  municipalCore: MunicipalCoreTourismSourceItem[];
   metrics: TourismRegionMetricItem[];
   runs: ExternalDataSyncRunItem[];
 };
