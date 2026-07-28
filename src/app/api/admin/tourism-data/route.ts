@@ -14,11 +14,13 @@ import {
 } from "@/server/tourism/municipalCoreTourismApiClient";
 import { syncMunicipalCoreTourism } from "@/server/tourism/syncMunicipalCoreTourism";
 import { syncRegionalTourismMetrics } from "@/server/tourism/syncRegionalTourismMetrics";
+import { syncRegionalVisitorCounts } from "@/server/tourism/syncRegionalVisitorCounts";
 import { syncTouristSpotConcentrationRates } from "@/server/tourism/syncTouristSpotConcentrationRates";
 import { syncTourismPlaces } from "@/server/tourism/syncTourismPlaces";
 import { syncWellnessTourism } from "@/server/tourism/syncWellnessTourism";
 import { TourApiError } from "@/server/tourism/tourApiClient";
 import { TouristSpotConcentrationApiError } from "@/server/tourism/touristSpotConcentrationApiClient";
+import { RegionalVisitorCountApiError } from "@/server/tourism/regionalVisitorCountApiClient";
 import { WellnessTourismApiError } from "@/server/tourism/wellnessTourismApiClient";
 import type {
   TourismDataResponse,
@@ -61,6 +63,7 @@ export async function GET(request: Request) {
     wellness,
     municipalCore,
     concentration,
+    visitors,
     metrics,
     runs,
   ] =
@@ -152,6 +155,27 @@ export async function GET(request: Request) {
           take,
         })
       : Promise.resolve([]),
+    tab === "visitors"
+      ? prisma.regionalVisitorCountRecord.findMany({
+          where: query
+            ? {
+                OR: [
+                  { regionName: { contains: query, mode: "insensitive" } },
+                  {
+                    visitorTypeName: {
+                      contains: query,
+                      mode: "insensitive",
+                    },
+                  },
+                  { baseYmd: { contains: query } },
+                  { aggregationLevel: { contains: query } },
+                ],
+              }
+            : undefined,
+          orderBy: [{ baseYmd: "desc" }, { visitorCount: "desc" }],
+          take,
+        })
+      : Promise.resolve([]),
     tab === "metrics"
       ? prisma.tourismRegionMetric.findMany({
           where: {
@@ -218,6 +242,13 @@ export async function GET(request: Request) {
       createdAt: undefined,
       updatedAt: undefined,
     })),
+    visitors: visitors.map((item) => ({
+      ...item,
+      visitorCount: item.visitorCount.toString(),
+      syncedAt: item.syncedAt.toISOString(),
+      createdAt: undefined,
+      updatedAt: undefined,
+    })),
     metrics: metrics.map((item) => ({
       ...item,
       metricValue: item.metricValue?.toString() ?? null,
@@ -260,6 +291,8 @@ export async function POST(request: Request) {
       sigunguCode?: unknown;
       wellnessThemeCode?: unknown;
       touristSpotName?: unknown;
+      aggregationLevel?: unknown;
+      baseYmd?: unknown;
     };
     const kind =
       body.kind === "places"
@@ -270,6 +303,8 @@ export async function POST(request: Request) {
             ? "municipalCore"
             : body.kind === "concentration"
               ? "concentration"
+              : body.kind === "visitors"
+                ? "visitors"
               : "metrics";
     const result =
       kind === "places"
@@ -309,6 +344,16 @@ export async function POST(request: Request) {
                   maxPages: 5,
                   pageSize: 100,
                 })
+              : kind === "visitors"
+                ? await syncRegionalVisitorCounts({
+                    aggregationLevel:
+                      body.aggregationLevel === "metropolitan"
+                        ? "metropolitan"
+                        : "municipal",
+                    baseYmd: normalizeRequiredString(body.baseYmd, 8),
+                    maxPages: 10,
+                    pageSize: 100,
+                  })
               : await syncRegionalTourismMetrics({
             metricType:
               normalizeMetricType(body.metricType) ?? "serviceDemand",
@@ -348,6 +393,7 @@ export async function POST(request: Request) {
       error instanceof WellnessTourismApiError ||
       error instanceof MunicipalCoreTourismApiError ||
       error instanceof TouristSpotConcentrationApiError ||
+      error instanceof RegionalVisitorCountApiError ||
       error instanceof Error
         ? error.message
         : "관광 공공데이터를 동기화하지 못했습니다.";
@@ -362,11 +408,15 @@ export async function POST(request: Request) {
       ||
       (error instanceof TouristSpotConcentrationApiError &&
         error.code === "tourist_spot_concentration_api_not_configured")
+      ||
+      (error instanceof RegionalVisitorCountApiError &&
+        error.code === "regional_visitor_count_api_not_configured")
         ? 503
         : error instanceof TourApiError ||
             error instanceof WellnessTourismApiError ||
               error instanceof MunicipalCoreTourismApiError ||
                 error instanceof TouristSpotConcentrationApiError
+                || error instanceof RegionalVisitorCountApiError
           ? 502
           : 400;
 
@@ -387,6 +437,7 @@ async function getOverview() {
     wellnessSourceRecords,
     municipalCoreSourceRecords,
     touristSpotConcentrationRecords,
+    regionalVisitorCountRecords,
     regionalMetrics,
     syncRuns,
     failedRuns,
@@ -396,6 +447,7 @@ async function getOverview() {
     prisma.wellnessTourismSourceRecord.count(),
     prisma.municipalCoreTourismSourceRecord.count(),
     prisma.touristSpotConcentrationRateRecord.count(),
+    prisma.regionalVisitorCountRecord.count(),
     prisma.tourismRegionMetric.count(),
     prisma.externalDataSyncRun.count(),
     prisma.externalDataSyncRun.count({
@@ -413,11 +465,19 @@ async function getOverview() {
     wellnessSourceRecords,
     municipalCoreSourceRecords,
     touristSpotConcentrationRecords,
+    regionalVisitorCountRecords,
     regionalMetrics,
     syncRuns,
     failedRuns,
     lastSyncedAt: lastRun?.finishedAt?.toISOString() ?? null,
     connections: [
+      {
+        source: "ktoRegionalVisitorCount",
+        label: "지역별 방문자 수",
+        configured: Boolean(
+          process.env.KTO_REGIONAL_VISITOR_COUNT_SERVICE_KEY,
+        ),
+      },
       {
         source: "ktoTouristSpotConcentrationRate",
         label: "관광지 집중률",
@@ -466,6 +526,7 @@ function normalizeTab(value: unknown): TourismDataTab {
   return value === "wellness" ||
     value === "municipalCore" ||
     value === "concentration" ||
+    value === "visitors" ||
     value === "metrics" ||
     value === "runs"
     ? value

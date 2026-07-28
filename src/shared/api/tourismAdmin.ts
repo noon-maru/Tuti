@@ -3,6 +3,7 @@ export type TourismDataTab =
   | "wellness"
   | "municipalCore"
   | "concentration"
+  | "visitors"
   | "metrics"
   | "runs";
 
@@ -11,6 +12,7 @@ export type TourismDataOverview = {
   wellnessSourceRecords: number;
   municipalCoreSourceRecords: number;
   touristSpotConcentrationRecords: number;
+  regionalVisitorCountRecords: number;
   regionalMetrics: number;
   syncRuns: number;
   failedRuns: number;
@@ -95,6 +97,21 @@ export type TouristSpotConcentrationRateItem = {
   rawPayload: unknown;
 };
 
+export type RegionalVisitorCountItem = {
+  id: string;
+  aggregationLevel: string;
+  baseYmd: string;
+  regionCode: string;
+  regionName: string;
+  weekdayCode: string;
+  weekdayName: string;
+  visitorTypeCode: string;
+  visitorTypeName: string;
+  visitorCount: string;
+  syncedAt: string;
+  rawPayload: unknown;
+};
+
 export type ExternalDataSyncRunItem = {
   id: string;
   source: string;
@@ -117,6 +134,7 @@ export type TourismDataResponse = {
   wellness: WellnessTourismSourceItem[];
   municipalCore: MunicipalCoreTourismSourceItem[];
   concentration: TouristSpotConcentrationRateItem[];
+  visitors: RegionalVisitorCountItem[];
   metrics: TourismRegionMetricItem[];
   runs: ExternalDataSyncRunItem[];
 };

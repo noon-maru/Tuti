@@ -190,6 +190,28 @@ model TouristSpotConcentrationRateRecord {
   @@map("tourist_spot_concentration_rate_records")
 }
 
+model RegionalVisitorCountRecord {
+  id               String   @id
+  aggregationLevel String   @map("aggregation_level")
+  baseYmd          String   @map("base_ymd")
+  regionCode       String   @map("region_code")
+  regionName       String   @map("region_name")
+  weekdayCode      String   @map("weekday_code")
+  weekdayName      String   @map("weekday_name")
+  visitorTypeCode  String   @map("visitor_type_code")
+  visitorTypeName  String   @map("visitor_type_name")
+  visitorCount     Decimal  @map("visitor_count") @db.Decimal(20, 0)
+  rawPayload       Json     @map("raw_payload")
+  syncedAt         DateTime @map("synced_at")
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+
+  @@unique([aggregationLevel, baseYmd, regionCode, weekdayCode, visitorTypeCode])
+  @@index([aggregationLevel, baseYmd, regionCode])
+  @@index([regionName, baseYmd])
+  @@map("regional_visitor_count_records")
+}
+
 model TourismRegionMetric {
   id          String   @id
   dataset     String
