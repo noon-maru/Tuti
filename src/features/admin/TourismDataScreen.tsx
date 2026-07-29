@@ -3,9 +3,11 @@
 import styled from "@emotion/styled";
 import Link from "next/link";
 import {
+  type PointerEvent as ReactPointerEvent,
   useCallback,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
 import {
@@ -159,11 +161,73 @@ export function TourismDataScreen({
   const [data, setData] = useState<TourismDataResponse | null>(null);
   const [query, setQuery] = useState("");
   const [appliedQuery, setAppliedQuery] = useState("");
+  const [placeSido, setPlaceSido] = useState("");
+  const [placeSigungu, setPlaceSigungu] = useState("");
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [accessStatus, setAccessStatus] = useState<number | null>(null);
+  const [mobileToolsOpen, setMobileToolsOpen] = useState(false);
+  const [mobileToolsDragOffset, setMobileToolsDragOffset] = useState(0);
+  const [mobileToolsDragging, setMobileToolsDragging] = useState(false);
+  const mobileToolsDragStart = useRef({ y: 0, time: 0 });
+
+  const closeMobileTools = useCallback(() => {
+    setMobileToolsOpen(false);
+    setMobileToolsDragging(false);
+    setMobileToolsDragOffset(0);
+  }, []);
+
+  const openMobileTools = () => {
+    setMobileToolsDragging(false);
+    setMobileToolsDragOffset(0);
+    setMobileToolsOpen(true);
+  };
+
+  const handleMobileToolsPointerDown = (
+    event: ReactPointerEvent<HTMLButtonElement>,
+  ) => {
+    mobileToolsDragStart.current = {
+      y: event.clientY,
+      time: performance.now(),
+    };
+    setMobileToolsDragging(true);
+    event.currentTarget.setPointerCapture(event.pointerId);
+  };
+
+  const handleMobileToolsPointerMove = (
+    event: ReactPointerEvent<HTMLButtonElement>,
+  ) => {
+    if (!mobileToolsDragging) return;
+    setMobileToolsDragOffset(
+      Math.max(0, event.clientY - mobileToolsDragStart.current.y),
+    );
+  };
+
+  const finishMobileToolsDrag = (
+    event: ReactPointerEvent<HTMLButtonElement>,
+  ) => {
+    if (!mobileToolsDragging) return;
+
+    const distance = Math.max(
+      0,
+      event.clientY - mobileToolsDragStart.current.y,
+    );
+    const elapsed = Math.max(
+      1,
+      performance.now() - mobileToolsDragStart.current.time,
+    );
+    const velocity = distance / elapsed;
+
+    setMobileToolsDragging(false);
+
+    if (distance >= 72 || (distance >= 32 && velocity >= 0.5)) {
+      closeMobileTools();
+    } else {
+      setMobileToolsDragOffset(0);
+    }
+  };
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -171,6 +235,12 @@ export function TourismDataScreen({
     const searchParams = new URLSearchParams({ tab });
 
     if (appliedQuery) searchParams.set("q", appliedQuery);
+    if (tab === "places" && placeSido) {
+      searchParams.set("sido", placeSido);
+    }
+    if (tab === "places" && placeSigungu) {
+      searchParams.set("sigungu", placeSigungu);
+    }
 
     try {
       const response = await fetchAdminJson<TourismDataResponse>(
@@ -186,7 +256,7 @@ export function TourismDataScreen({
     } finally {
       setLoading(false);
     }
-  }, [appliedQuery, tab]);
+  }, [appliedQuery, placeSido, placeSigungu, tab]);
 
   useEffect(() => {
     const timeout = window.setTimeout(() => {
@@ -215,10 +285,23 @@ export function TourismDataScreen({
     return () => window.clearTimeout(timeout);
   }, [notice]);
 
+  useEffect(() => {
+    if (!mobileToolsOpen) return;
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") closeMobileTools();
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [closeMobileTools, mobileToolsOpen]);
+
   const changeTab = (nextTab: TourismDataTab) => {
     setTab(nextTab);
     setQuery("");
     setAppliedQuery("");
+    setPlaceSido("");
+    setPlaceSigungu("");
     setError(null);
     const url = new URL(window.location.href);
     url.searchParams.set("tab", nextTab);
@@ -278,8 +361,23 @@ export function TourismDataScreen({
       </Header>
 
       <Content>
-        {data && <Overview overview={data.overview} />}
-        <SyncPanel syncing={syncing} onSync={sync} />
+        <DesktopDataTools>
+          {data && <Overview overview={data.overview} />}
+          <SyncPanel syncing={syncing} onSync={sync} />
+        </DesktopDataTools>
+
+        <MobileToolsButton
+          type="button"
+          onClick={openMobileTools}
+        >
+          <span>데이터 도구</span>
+          <small>
+            {data
+              ? `원본 ${data.overview.placeSourceRecords.toLocaleString("ko-KR")}건 · 동기화 및 연결 상태`
+              : "동기화 및 연결 상태"}
+          </small>
+          <b aria-hidden="true">›</b>
+        </MobileToolsButton>
 
         <Tabs aria-label="관광 데이터 구분">
           {tabs.map((item) => (
@@ -314,7 +412,16 @@ export function TourismDataScreen({
         {loading ? (
           <StatePanel>관광 데이터를 불러오고 있어요.</StatePanel>
         ) : tab === "places" ? (
-          <PlaceRecords records={data?.places ?? []} />
+          <PlaceRecords
+            records={data?.places ?? []}
+            selectedSido={placeSido}
+            selectedSigungu={placeSigungu}
+            onSidoChange={(nextSido) => {
+              setPlaceSido(nextSido);
+              setPlaceSigungu("");
+            }}
+            onSigunguChange={setPlaceSigungu}
+          />
         ) : tab === "wellness" ? (
           <WellnessRecords records={data?.wellness ?? []} />
         ) : tab === "municipalCore" ? (
@@ -331,6 +438,50 @@ export function TourismDataScreen({
           <SyncRuns runs={data?.runs ?? []} />
         )}
       </Content>
+
+      {mobileToolsOpen && (
+        <MobileToolsBackdrop
+          $dragOffset={mobileToolsDragOffset}
+          $dragging={mobileToolsDragging}
+          role="presentation"
+          onMouseDown={closeMobileTools}
+        >
+          <MobileToolsDrawer
+            $dragOffset={mobileToolsDragOffset}
+            $dragging={mobileToolsDragging}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="mobile-data-tools-title"
+            onMouseDown={(event) => event.stopPropagation()}
+          >
+            <MobileToolsHandle
+              type="button"
+              aria-label="아래로 끌어 데이터 도구 닫기"
+              onPointerDown={handleMobileToolsPointerDown}
+              onPointerMove={handleMobileToolsPointerMove}
+              onPointerUp={finishMobileToolsDrag}
+              onPointerCancel={finishMobileToolsDrag}
+            >
+              <span />
+            </MobileToolsHandle>
+            <MobileToolsHeader>
+              <div>
+                <span>관리자 도구</span>
+                <h2 id="mobile-data-tools-title">데이터 현황과 동기화</h2>
+              </div>
+              <DrawerCloseButton
+                type="button"
+                onClick={closeMobileTools}
+                aria-label="데이터 도구 닫기"
+              >
+                ×
+              </DrawerCloseButton>
+            </MobileToolsHeader>
+            {data && <Overview overview={data.overview} />}
+            <SyncPanel syncing={syncing} onSync={sync} />
+          </MobileToolsDrawer>
+        </MobileToolsBackdrop>
+      )}
     </Page>
   );
 }
@@ -1002,39 +1153,259 @@ function WellnessRecords({
 
 function PlaceRecords({
   records,
+  selectedSido,
+  selectedSigungu,
+  onSidoChange,
+  onSigunguChange,
 }: {
   records: TourismPlaceSourceItem[];
+  selectedSido: string;
+  selectedSigungu: string;
+  onSidoChange: (value: string) => void;
+  onSigunguChange: (value: string) => void;
 }) {
+  const [selectedRecord, setSelectedRecord] =
+    useState<TourismPlaceSourceItem | null>(null);
+  const sigunguOptions = useMemo(() => {
+    const names = new Set(
+      records
+        .filter((record) => !selectedSido || record.sidoName === selectedSido)
+        .map((record) => record.sigunguName)
+        .filter((name): name is string => Boolean(name)),
+    );
+
+    return [...names].sort((left, right) => left.localeCompare(right, "ko"));
+  }, [records, selectedSido]);
+  const linkedCount = records.filter((record) => record.linkedPlaceId).length;
+  const regionCount = new Set(
+    records.map((record) => record.sidoName).filter(Boolean),
+  ).size;
+
+  useEffect(() => {
+    if (!selectedRecord) return;
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setSelectedRecord(null);
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [selectedRecord]);
+
   if (records.length === 0) {
-    return <StatePanel>저장된 장소 원본이 없습니다.</StatePanel>;
+    return (
+      <>
+        <PlaceExplorerHeader>
+          <div>
+            <span>TOURAPI PLACE DATA</span>
+            <h2>관광지 원천 데이터</h2>
+            <p>시도와 시군구를 기준으로 저장된 원본을 빠르게 확인합니다.</p>
+          </div>
+          <PlaceFilterGroup>
+            <PlaceFilterLabel>
+              <span>시도</span>
+              <Select
+                value={selectedSido}
+                onChange={(event) => onSidoChange(event.target.value)}
+              >
+                <option value="">전국</option>
+                {tourApiSidoOptions.map(([, label]) => (
+                  <option key={label} value={label}>
+                    {label}
+                  </option>
+                ))}
+              </Select>
+            </PlaceFilterLabel>
+            <PlaceFilterLabel>
+              <span>시군구</span>
+              <Select
+                value={selectedSigungu}
+                disabled={!selectedSido}
+                onChange={(event) => onSigunguChange(event.target.value)}
+              >
+                <option value="">전체</option>
+                {selectedSigungu && (
+                  <option value={selectedSigungu}>{selectedSigungu}</option>
+                )}
+              </Select>
+            </PlaceFilterLabel>
+          </PlaceFilterGroup>
+        </PlaceExplorerHeader>
+        <StatePanel>조건에 맞는 장소 원본이 없습니다.</StatePanel>
+      </>
+    );
   }
 
   return (
-    <RecordList>
-      {records.map((record) => (
-        <RecordCard key={record.contentId}>
-          <RecordHeader>
-            <div>
-              <h2>{record.title}</h2>
-              <p>
-                콘텐츠 {record.contentId} · 유형{" "}
-                {record.contentTypeId ?? "미분류"}
-              </p>
-            </div>
-            <StatusBadge $tone={record.linkedPlaceId ? "success" : "pending"}>
-              {record.linkedPlaceId ? "장소 연결됨" : "원본만 저장"}
-            </StatusBadge>
-          </RecordHeader>
-          <Metadata>
-            {record.sidoName ?? "지역 미확인"}
-            {record.sigunguName ? ` ${record.sigunguName}` : ""}
-            {" · "}코드 {record.areaCode ?? "-"} / {record.sigunguCode ?? "-"}
-            {" · "}동기화 {formatDate(record.syncedAt)}
-          </Metadata>
-          <RawDetails payload={record.rawPayload} />
-        </RecordCard>
-      ))}
-    </RecordList>
+    <>
+      <PlaceExplorerHeader>
+        <div>
+          <span>TOURAPI PLACE DATA</span>
+          <h2>관광지 원천 데이터</h2>
+          <p>행을 선택하면 원본 필드와 연결 상태를 상세히 볼 수 있습니다.</p>
+        </div>
+        <PlaceFilterGroup>
+          <PlaceFilterLabel>
+            <span>시도</span>
+            <Select
+              value={selectedSido}
+              onChange={(event) => onSidoChange(event.target.value)}
+            >
+              <option value="">전국</option>
+              {tourApiSidoOptions.map(([, label]) => (
+                <option key={label} value={label}>
+                  {label}
+                </option>
+              ))}
+            </Select>
+          </PlaceFilterLabel>
+          <PlaceFilterLabel>
+            <span>시군구</span>
+            <Select
+              value={selectedSigungu}
+              disabled={!selectedSido || sigunguOptions.length === 0}
+              onChange={(event) => onSigunguChange(event.target.value)}
+            >
+              <option value="">전체</option>
+              {sigunguOptions.map((name) => (
+                <option key={name} value={name}>
+                  {name}
+                </option>
+              ))}
+            </Select>
+          </PlaceFilterLabel>
+        </PlaceFilterGroup>
+      </PlaceExplorerHeader>
+
+      <PlaceDataSummary>
+        <PlaceSummaryItem>
+          <span>현재 목록</span>
+          <strong>{records.length}건</strong>
+        </PlaceSummaryItem>
+        <PlaceSummaryItem>
+          <span>장소 연결</span>
+          <strong>{linkedCount}건</strong>
+        </PlaceSummaryItem>
+        <PlaceSummaryItem>
+          <span>포함 시도</span>
+          <strong>{regionCount}곳</strong>
+        </PlaceSummaryItem>
+        <PlaceSummaryHint>최대 100건까지 표시됩니다.</PlaceSummaryHint>
+      </PlaceDataSummary>
+
+      <PlaceTable aria-label="관광지 원천 데이터 목록">
+        <PlaceTableHead aria-hidden="true">
+          <span>지역</span>
+          <span>관광지</span>
+          <span>유형</span>
+          <span>연결 상태</span>
+          <span>최근 동기화</span>
+        </PlaceTableHead>
+        <PlaceTableBody>
+          {records.map((record) => (
+            <PlaceTableRow
+              key={record.contentId}
+              type="button"
+              onClick={() => setSelectedRecord(record)}
+              aria-label={`${record.title} 상세 보기`}
+            >
+              <PlaceTableCell $column="region">
+                <strong>{record.sidoName ?? "지역 미확인"}</strong>
+                <small>{record.sigunguName ?? "시군구 미확인"}</small>
+              </PlaceTableCell>
+              <PlaceTableCell $column="place">
+                <strong>{record.title}</strong>
+                <small>콘텐츠 {record.contentId}</small>
+              </PlaceTableCell>
+              <PlaceTableCell $column="type">
+                {getPlaceContentTypeLabel(record.contentTypeId)}
+              </PlaceTableCell>
+              <PlaceTableCell $column="status">
+                <StatusBadge $tone={record.linkedPlaceId ? "success" : "pending"}>
+                  {record.linkedPlaceId ? "장소 연결됨" : "원본만 저장"}
+                </StatusBadge>
+              </PlaceTableCell>
+              <PlaceTableCell $column="synced">
+                {formatDate(record.syncedAt)}
+              </PlaceTableCell>
+            </PlaceTableRow>
+          ))}
+        </PlaceTableBody>
+      </PlaceTable>
+
+      {selectedRecord && (
+        <PlaceDrawerBackdrop
+          role="presentation"
+          onMouseDown={() => setSelectedRecord(null)}
+        >
+          <PlaceDrawer
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="place-drawer-title"
+            onMouseDown={(event) => event.stopPropagation()}
+          >
+            <PlaceDrawerHandle />
+            <PlaceDrawerHeader>
+              <div>
+                <span>TOURAPI 원본</span>
+                <h2 id="place-drawer-title">{selectedRecord.title}</h2>
+              </div>
+              <DrawerCloseButton
+                type="button"
+                onClick={() => setSelectedRecord(null)}
+                aria-label="상세 닫기"
+              >
+                ×
+              </DrawerCloseButton>
+            </PlaceDrawerHeader>
+            <PlaceDrawerStatus>
+              <StatusBadge $tone={selectedRecord.linkedPlaceId ? "success" : "pending"}>
+                {selectedRecord.linkedPlaceId ? "장소 연결됨" : "원본만 저장"}
+              </StatusBadge>
+              <span>{getPlaceContentTypeLabel(selectedRecord.contentTypeId)}</span>
+            </PlaceDrawerStatus>
+            <PlaceDetailGrid>
+              <div>
+                <span>지역</span>
+                <strong>
+                  {selectedRecord.sidoName ?? "지역 미확인"}
+                  {selectedRecord.sigunguName
+                    ? ` ${selectedRecord.sigunguName}`
+                    : ""}
+                </strong>
+              </div>
+              <div>
+                <span>지역 코드</span>
+                <strong>
+                  {selectedRecord.areaCode ?? "-"} / {selectedRecord.sigunguCode ?? "-"}
+                </strong>
+              </div>
+              <div>
+                <span>콘텐츠 ID</span>
+                <strong>{selectedRecord.contentId}</strong>
+              </div>
+              <div>
+                <span>원본 수정</span>
+                <strong>
+                  {selectedRecord.sourceModifiedAt
+                    ? formatDate(selectedRecord.sourceModifiedAt)
+                    : "정보 없음"}
+                </strong>
+              </div>
+              <div>
+                <span>동기화</span>
+                <strong>{formatDate(selectedRecord.syncedAt)}</strong>
+              </div>
+              <div>
+                <span>연결된 장소</span>
+                <strong>{selectedRecord.linkedPlaceId ?? "아직 없음"}</strong>
+              </div>
+            </PlaceDetailGrid>
+            <RawDetails payload={selectedRecord.rawPayload} />
+          </PlaceDrawer>
+        </PlaceDrawerBackdrop>
+      )}
+    </>
   );
 }
 
@@ -1172,6 +1543,14 @@ function toDateInputValue(value: Date) {
 
 function normalizeSigunguName(value: string) {
   return value === "_" ? "전체" : value;
+}
+
+function getPlaceContentTypeLabel(value: string | null) {
+  if (value === "12") return "관광지";
+  if (value === "14") return "문화시설";
+  if (value === "25") return "여행코스";
+  if (value === "28") return "레포츠";
+  return value ? `유형 ${value}` : "미분류";
 }
 
 function getMetricTypeLabel(value: string) {
@@ -1321,8 +1700,144 @@ const Content = styled.main`
   margin: 0 auto;
 
   @media (max-width: 640px) {
-    gap: var(--space-5);
+    gap: var(--space-4);
     padding: var(--space-5) var(--space-4) var(--space-10);
+  }
+`;
+
+const DesktopDataTools = styled.div`
+  display: grid;
+  gap: var(--space-6);
+
+  @media (max-width: 640px) {
+    display: none;
+  }
+`;
+
+const MobileToolsButton = styled.button`
+  display: none;
+
+  @media (max-width: 640px) {
+    width: 100%;
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: var(--space-1) var(--space-3);
+    align-items: center;
+    padding: var(--space-4);
+    border: 1px solid var(--color-secondary-300);
+    border-radius: var(--space-4);
+    background: var(--color-secondary-100);
+    color: var(--color-text);
+    text-align: left;
+    font: inherit;
+    box-shadow: 0 8px 22px rgb(var(--color-black-rgb) / 0.04);
+
+    span {
+      font-size: var(--font-size-200);
+      font-weight: 700;
+    }
+
+    small {
+      overflow: hidden;
+      grid-column: 1;
+      color: var(--color-text-muted);
+      font-size: var(--font-size-100);
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    b {
+      grid-column: 2;
+      grid-row: 1 / span 2;
+      color: var(--color-brand-900);
+      font-size: var(--font-size-600);
+      font-weight: 400;
+    }
+  }
+`;
+
+const MobileToolsBackdrop = styled.div<{
+  $dragOffset: number;
+  $dragging: boolean;
+}>`
+  position: fixed;
+  z-index: 100;
+  inset: 0;
+  display: none;
+  background: rgb(var(--color-black-rgb) / 0.32);
+
+  @media (max-width: 640px) {
+    display: flex;
+    align-items: end;
+    opacity: ${({ $dragOffset }) => Math.max(0.18, 1 - $dragOffset / 320)};
+    transition: ${({ $dragging }) => ($dragging ? "none" : "opacity 240ms ease")};
+  }
+`;
+
+const MobileToolsDrawer = styled.aside<{
+  $dragOffset: number;
+  $dragging: boolean;
+}>`
+  width: 100%;
+  max-height: min(88dvh, 860px);
+  overflow-y: auto;
+  padding:
+    var(--space-3)
+    var(--space-5)
+    max(var(--space-6), env(safe-area-inset-bottom));
+  border-radius: var(--space-5) var(--space-5) 0 0;
+  background: var(--color-white);
+  box-shadow: 0 -18px 40px rgb(var(--color-black-rgb) / 0.16);
+  transform: translateY(${({ $dragOffset }) => `${$dragOffset}px`});
+  transition: ${({ $dragging }) =>
+    $dragging ? "none" : "transform 360ms cubic-bezier(0.22, 1, 0.36, 1)"};
+  will-change: transform;
+
+  > section {
+    margin-top: var(--space-5);
+  }
+`;
+
+const MobileToolsHandle = styled.button`
+  width: 64px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  justify-self: center;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: grab;
+  touch-action: none;
+
+  &:active {
+    cursor: grabbing;
+  }
+
+  span {
+    width: var(--space-10);
+    height: var(--space-1);
+    border-radius: 999px;
+    background: var(--color-brand-500);
+  }
+`;
+
+const MobileToolsHeader = styled.div`
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: var(--space-4);
+
+  span {
+    color: var(--color-brand-800);
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+  }
+
+  h2 {
+    margin-top: var(--space-1);
+    font-size: var(--font-size-400);
   }
 `;
 
@@ -1510,6 +2025,17 @@ const Tabs = styled.nav`
   gap: var(--space-2);
   overflow-x: auto;
   padding-bottom: var(--space-1);
+  scroll-snap-type: x proximity;
+  scrollbar-width: none;
+
+  &::-webkit-scrollbar {
+    display: none;
+  }
+
+  @media (max-width: 640px) {
+    margin: 0 calc(var(--space-4) * -1);
+    padding: 0 var(--space-4) var(--space-1);
+  }
 `;
 
 const TabButton = styled.button<{ $active: boolean }>`
@@ -1526,12 +2052,410 @@ const TabButton = styled.button<{ $active: boolean }>`
   font-size: var(--font-size-100);
   font-weight: 700;
   cursor: pointer;
+  scroll-snap-align: start;
+
+  @media (max-width: 640px) {
+    min-height: 40px;
+    padding: 0 var(--space-4);
+  }
 `;
 
 const SearchForm = styled.form`
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   gap: var(--space-2);
+
+  @media (max-width: 400px) {
+    > button {
+      padding: 0 var(--space-4);
+    }
+  }
+`;
+
+const PlaceExplorerHeader = styled.section`
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: var(--space-5);
+  padding: var(--space-6);
+  border: 1px solid var(--color-brand-200);
+  border-radius: var(--space-5);
+  background: var(--color-brand-100);
+  box-shadow: 0 10px 28px rgb(var(--color-black-rgb) / 0.05);
+
+  > div:first-of-type > span,
+  h2,
+  p {
+    display: block;
+  }
+
+  > div:first-of-type > span {
+    color: var(--color-brand-800);
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+  }
+
+  h2 {
+    margin-top: var(--space-1);
+    font-size: var(--font-size-500);
+  }
+
+  p {
+    margin-top: var(--space-2);
+    color: var(--color-text-muted);
+    font-size: var(--font-size-100);
+  }
+
+  @media (max-width: 720px) {
+    align-items: stretch;
+    flex-direction: column;
+    padding: var(--space-5);
+  }
+
+  @media (max-width: 640px) {
+    padding: var(--space-4);
+
+    h2 {
+      font-size: var(--font-size-400);
+    }
+
+    p {
+      display: none;
+    }
+  }
+`;
+
+const PlaceFilterGroup = styled.div`
+  display: flex;
+  align-items: end;
+  gap: var(--space-2);
+
+  @media (max-width: 480px) {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+`;
+
+const PlaceFilterLabel = styled.label`
+  min-width: 150px;
+  display: grid;
+  gap: var(--space-1);
+
+  > span {
+    color: var(--color-text-muted);
+    font-size: var(--font-size-100);
+    font-weight: 700;
+  }
+
+  @media (max-width: 480px) {
+    min-width: 0;
+  }
+`;
+
+const PlaceDataSummary = styled.section`
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 150px)) 1fr;
+  align-items: center;
+  gap: var(--space-3);
+
+  @media (max-width: 720px) {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  @media (max-width: 640px) {
+    gap: var(--space-2);
+  }
+`;
+
+const PlaceSummaryItem = styled.div`
+  display: grid;
+  gap: var(--space-1);
+  padding: var(--space-4);
+  border-radius: var(--space-4);
+  background: var(--color-secondary-100);
+
+  span {
+    color: var(--color-text-muted);
+    font-size: var(--font-size-100);
+  }
+
+  strong {
+    font-size: var(--font-size-400);
+  }
+
+  @media (max-width: 640px) {
+    gap: 0;
+    padding: var(--space-3);
+    border-radius: var(--space-3);
+
+    span {
+      overflow: hidden;
+      font-size: 11px;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    strong {
+      font-size: var(--font-size-300);
+    }
+  }
+`;
+
+const PlaceSummaryHint = styled.p`
+  justify-self: end;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-100);
+
+  @media (max-width: 720px) {
+    grid-column: 1 / -1;
+    justify-self: start;
+  }
+
+  @media (max-width: 640px) {
+    display: none;
+  }
+`;
+
+const PlaceTable = styled.section`
+  overflow: hidden;
+  border: 1px solid var(--color-border);
+  border-radius: var(--space-5);
+  background: var(--color-surface);
+  box-shadow: 0 12px 30px rgb(var(--color-black-rgb) / 0.05);
+
+  @media (max-width: 720px) {
+    overflow: visible;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+  }
+`;
+
+const PlaceTableHead = styled.div`
+  display: grid;
+  grid-template-columns: minmax(130px, 0.9fr) minmax(240px, 2fr) 100px 130px minmax(150px, 0.9fr);
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-5);
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-neutral-100);
+  color: var(--color-text-muted);
+  font-size: var(--font-size-100);
+  font-weight: 700;
+
+  @media (max-width: 720px) {
+    display: none;
+  }
+`;
+
+const PlaceTableBody = styled.div`
+  display: grid;
+
+  @media (max-width: 720px) {
+    gap: var(--space-2);
+  }
+`;
+
+const PlaceTableRow = styled.button`
+  width: 100%;
+  display: grid;
+  grid-template-columns: minmax(130px, 0.9fr) minmax(240px, 2fr) 100px 130px minmax(150px, 0.9fr);
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-4) var(--space-5);
+  border: 0;
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-surface);
+  color: var(--color-text);
+  text-align: left;
+  font: inherit;
+  cursor: pointer;
+  transition: background 160ms ease;
+
+  &:hover,
+  &:focus-visible {
+    outline: 0;
+    background: var(--color-brand-100);
+  }
+
+  &:focus-visible {
+    box-shadow: inset 0 0 0 2px var(--color-brand-600);
+  }
+
+  &:last-child {
+    border-bottom: 0;
+  }
+
+  @media (max-width: 720px) {
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: var(--space-2) var(--space-4);
+    align-items: start;
+    padding: var(--space-4);
+    border: 1px solid var(--color-border);
+    border-radius: var(--space-4);
+    background: var(--color-surface);
+    box-shadow: 0 6px 18px rgb(var(--color-black-rgb) / 0.04);
+  }
+`;
+
+const PlaceTableCell = styled.div<{
+  $column: "region" | "place" | "type" | "status" | "synced";
+}>`
+  min-width: 0;
+  color: ${({ $column }) =>
+    $column === "type" || $column === "synced"
+      ? "var(--color-text-muted)"
+      : "var(--color-text)"};
+  font-size: var(--font-size-100);
+
+  strong,
+  small {
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  strong {
+    font-size: var(--font-size-200);
+  }
+
+  small {
+    margin-top: var(--space-1);
+    color: var(--color-text-muted);
+    font-size: var(--font-size-100);
+  }
+
+  @media (max-width: 720px) {
+    ${({ $column }) =>
+      $column === "region"
+        ? "grid-column: 1; grid-row: 1;"
+        : $column === "place"
+          ? "grid-column: 1; grid-row: 2;"
+          : $column === "status"
+            ? "grid-column: 2; grid-row: 1;"
+            : $column === "type"
+              ? "grid-column: 2; grid-row: 2; align-self: end;"
+              : "grid-column: 1 / -1; grid-row: 3;"}
+  }
+`;
+
+const PlaceDrawerBackdrop = styled.div`
+  position: fixed;
+  z-index: 100;
+  inset: 0;
+  display: flex;
+  justify-content: flex-end;
+  background: rgb(var(--color-black-rgb) / 0.32);
+`;
+
+const PlaceDrawer = styled.aside`
+  width: min(100%, 480px);
+  height: 100%;
+  overflow-y: auto;
+  padding: var(--space-7);
+  background: var(--color-white);
+  box-shadow: -18px 0 40px rgb(var(--color-black-rgb) / 0.16);
+
+  @media (max-width: 640px) {
+    width: 100%;
+    height: min(82dvh, 760px);
+    align-self: end;
+    padding:
+      var(--space-3)
+      var(--space-5)
+      max(var(--space-6), env(safe-area-inset-bottom));
+    border-radius: var(--space-5) var(--space-5) 0 0;
+    box-shadow: 0 -18px 40px rgb(var(--color-black-rgb) / 0.16);
+  }
+`;
+
+const PlaceDrawerHandle = styled.div`
+  width: 40px;
+  height: 4px;
+  display: none;
+  margin: 0 auto var(--space-3);
+  border-radius: 999px;
+  background: var(--color-neutral-400);
+
+  @media (max-width: 640px) {
+    display: block;
+  }
+`;
+
+const PlaceDrawerHeader = styled.div`
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: var(--space-4);
+
+  span {
+    color: var(--color-brand-800);
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+  }
+
+  h2 {
+    margin-top: var(--space-1);
+    font-size: var(--font-size-500);
+  }
+`;
+
+const DrawerCloseButton = styled.button`
+  width: 40px;
+  height: 40px;
+  display: grid;
+  flex: 0 0 auto;
+  place-items: center;
+  border: 0;
+  border-radius: 999px;
+  background: var(--color-neutral-100);
+  color: var(--color-text);
+  font: inherit;
+  font-size: var(--font-size-500);
+  cursor: pointer;
+`;
+
+const PlaceDrawerStatus = styled.div`
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-5) 0;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-100);
+`;
+
+const PlaceDetailGrid = styled.div`
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-3);
+  margin-bottom: var(--space-6);
+
+  > div {
+    min-height: 86px;
+    display: grid;
+    align-content: start;
+    gap: var(--space-2);
+    padding: var(--space-4);
+    border-radius: var(--space-4);
+    background: var(--color-brand-100);
+  }
+
+  span {
+    color: var(--color-text-muted);
+    font-size: var(--font-size-100);
+  }
+
+  strong {
+    overflow-wrap: anywhere;
+    font-size: var(--font-size-200);
+  }
+
+  @media (max-width: 380px) {
+    grid-template-columns: 1fr;
+  }
 `;
 
 const RecordList = styled.section`

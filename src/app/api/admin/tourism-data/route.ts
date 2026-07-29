@@ -50,6 +50,8 @@ export async function GET(request: Request) {
   const url = new URL(request.url);
   const tab = normalizeTab(url.searchParams.get("tab"));
   const query = url.searchParams.get("q")?.trim().slice(0, 120);
+  const sidoName = url.searchParams.get("sido")?.trim().slice(0, 60);
+  const sigunguName = url.searchParams.get("sigungu")?.trim().slice(0, 60);
   const metricType = normalizeMetricType(
     url.searchParams.get("metricType"),
   );
@@ -74,18 +76,27 @@ export async function GET(request: Request) {
     getOverview(),
     tab === "places"
       ? prisma.tourismPlaceSourceRecord.findMany({
-          where: query
-            ? {
-                OR: [
-                  { contentId: { contains: query } },
-                  { title: { contains: query, mode: "insensitive" } },
-                  { areaCode: { contains: query } },
-                  { sidoName: { contains: query, mode: "insensitive" } },
-                  { sigunguCode: { contains: query } },
-                  { sigunguName: { contains: query, mode: "insensitive" } },
-                ],
-              }
-            : undefined,
+          where: {
+            ...(sidoName ? { sidoName } : {}),
+            ...(sigunguName ? { sigunguName } : {}),
+            ...(query
+              ? {
+                  OR: [
+                    { contentId: { contains: query } },
+                    { title: { contains: query, mode: "insensitive" } },
+                    { areaCode: { contains: query } },
+                    { sidoName: { contains: query, mode: "insensitive" } },
+                    { sigunguCode: { contains: query } },
+                    {
+                      sigunguName: {
+                        contains: query,
+                        mode: "insensitive",
+                      },
+                    },
+                  ],
+                }
+              : {}),
+          },
           orderBy: [
             { sidoName: "asc" },
             { sigunguName: "asc" },
