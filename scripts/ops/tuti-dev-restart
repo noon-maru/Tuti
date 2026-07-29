@@ -1,0 +1,11 @@
+#!/bin/sh
+
+set -eu
+
+project_dir="/var/services/homes/Tutiadmin/source/Tuti"
+
+cd "$project_dir"
+
+docker compose -f docker-compose.dev.yml up -d db app
+docker compose -f docker-compose.dev.yml restart app
+docker compose -f docker-compose.dev.yml ps

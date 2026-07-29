@@ -24,6 +24,24 @@ services:
       - default
       - storage
 
+  ops:
+    image: tuti:ops
+    build:
+      context: .
+      target: builder
+      args:
+        NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:?Run with --env-file .env.production}
+        NEXT_PUBLIC_ACCOUNT_AUTH_ENABLED: ${NEXT_PUBLIC_ACCOUNT_AUTH_ENABLED:-false}
+        NEXT_PUBLIC_GOOGLE_OAUTH_ENABLED: ${NEXT_PUBLIC_GOOGLE_OAUTH_ENABLED:-false}
+        NEXT_PUBLIC_KAKAO_OAUTH_ENABLED: ${NEXT_PUBLIC_KAKAO_OAUTH_ENABLED:-false}
+    env_file:
+      - .env
+      - .env.production
+    depends_on:
+      - db
+    profiles:
+      - ops
+
   db:
     image: postgis/postgis:17-3.5
     container_name: tuti-prod-db

@@ -1,0 +1,10 @@
+#!/bin/sh
+
+set -eu
+
+project_dir="/var/services/homes/Tutiadmin/source/Tuti"
+
+cd "$project_dir"
+
+docker compose --env-file .env.production -f docker-compose.prod.yml ps
+docker compose -f docker-compose.dev.yml ps

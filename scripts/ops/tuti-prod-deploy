@@ -1,0 +1,28 @@
+#!/bin/sh
+
+set -eu
+
+project_dir="/var/services/homes/Tutiadmin/source/Tuti"
+
+cd "$project_dir"
+
+docker compose \
+  --env-file .env.production \
+  -f docker-compose.prod.yml \
+  build ops app
+
+docker compose \
+  --env-file .env.production \
+  -f docker-compose.prod.yml \
+  run --rm ops \
+  pnpm db:deploy
+
+docker compose \
+  --env-file .env.production \
+  -f docker-compose.prod.yml \
+  up -d --no-deps app
+
+docker compose \
+  --env-file .env.production \
+  -f docker-compose.prod.yml \
+  ps

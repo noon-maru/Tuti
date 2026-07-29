@@ -1,0 +1,23 @@
+#!/bin/sh
+
+set -eu
+
+project_dir="/var/services/homes/Tutiadmin/source/Tuti"
+
+cd "$project_dir"
+
+docker compose -f docker-compose.dev.yml up -d db app
+
+attempt=0
+until docker compose -f docker-compose.dev.yml exec -T app sh -lc "true"; do
+  attempt=$((attempt + 1))
+  if [ "$attempt" -ge 30 ]; then
+    echo "개발 app 컨테이너가 준비되지 않았습니다." >&2
+    exit 1
+  fi
+  sleep 2
+done
+
+docker compose -f docker-compose.dev.yml exec -T app pnpm db:deploy
+docker compose -f docker-compose.dev.yml restart app
+docker compose -f docker-compose.dev.yml ps
