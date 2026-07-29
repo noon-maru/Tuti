@@ -165,6 +165,7 @@ export function TourismDataScreen({
   const [placeSigungu, setPlaceSigungu] = useState("");
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
+  const [reviewingPlaces, setReviewingPlaces] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [accessStatus, setAccessStatus] = useState<number | null>(null);
@@ -330,6 +331,48 @@ export function TourismDataScreen({
     }
   };
 
+  const updatePlaceReview = async (input: Record<string, unknown>) => {
+    setReviewingPlaces(true);
+    setError(null);
+    setNotice(null);
+
+    try {
+      await fetchAdminJson("places", adminJsonRequest("PATCH", input));
+      setNotice("장소 검수 정보를 저장했습니다.");
+      await load();
+    } catch (updateError) {
+      setError(toErrorMessage(updateError));
+    } finally {
+      setReviewingPlaces(false);
+    }
+  };
+
+  const bulkReviewPlaces = async (
+    placeIds: string[],
+    reviewStatus: "approved" | "rejected",
+  ) => {
+    setReviewingPlaces(true);
+    setError(null);
+    setNotice(null);
+
+    try {
+      const response = await fetchAdminJson<{ count: number }>(
+        "places",
+        adminJsonRequest("POST", {
+          action: "bulkReview",
+          placeIds,
+          reviewStatus,
+        }),
+      );
+      setNotice(`${response.count}개 장소의 검수 상태를 변경했습니다.`);
+      await load();
+    } catch (updateError) {
+      setError(toErrorMessage(updateError));
+    } finally {
+      setReviewingPlaces(false);
+    }
+  };
+
   if (accessStatus === 401 || accessStatus === 403) {
     return (
       <AccessPage>
@@ -421,6 +464,9 @@ export function TourismDataScreen({
               setPlaceSigungu("");
             }}
             onSigunguChange={setPlaceSigungu}
+            reviewing={reviewingPlaces}
+            onPlaceUpdate={updatePlaceReview}
+            onBulkReview={bulkReviewPlaces}
           />
         ) : tab === "wellness" ? (
           <WellnessRecords records={data?.wellness ?? []} />
@@ -1157,15 +1203,25 @@ function PlaceRecords({
   selectedSigungu,
   onSidoChange,
   onSigunguChange,
+  reviewing,
+  onPlaceUpdate,
+  onBulkReview,
 }: {
   records: TourismPlaceSourceItem[];
   selectedSido: string;
   selectedSigungu: string;
   onSidoChange: (value: string) => void;
   onSigunguChange: (value: string) => void;
+  reviewing: boolean;
+  onPlaceUpdate: (input: Record<string, unknown>) => Promise<void>;
+  onBulkReview: (
+    placeIds: string[],
+    reviewStatus: "approved" | "rejected",
+  ) => Promise<void>;
 }) {
   const [selectedRecord, setSelectedRecord] =
     useState<TourismPlaceSourceItem | null>(null);
+  const [selectedPlaceIds, setSelectedPlaceIds] = useState<string[]>([]);
   const sigunguOptions = useMemo(() => {
     const names = new Set(
       records
@@ -1180,6 +1236,15 @@ function PlaceRecords({
   const regionCount = new Set(
     records.map((record) => record.sidoName).filter(Boolean),
   ).size;
+  const selectablePlaceIds = useMemo(
+    () => records.flatMap((record) => (record.linkedPlace ? [record.linkedPlace.id] : [])),
+    [records],
+  );
+  const visibleSelectedPlaceIds = selectedPlaceIds.filter((placeId) =>
+    selectablePlaceIds.includes(placeId),
+  );
+  const selectedSet = new Set(visibleSelectedPlaceIds);
+  const selectedCount = visibleSelectedPlaceIds.length;
 
   useEffect(() => {
     if (!selectedRecord) return;
@@ -1293,8 +1358,40 @@ function PlaceRecords({
         <PlaceSummaryHint>최대 100건까지 표시됩니다.</PlaceSummaryHint>
       </PlaceDataSummary>
 
+      <PlaceReviewToolbar>
+        <span>
+          추천 후보 {selectablePlaceIds.length}건 중 {selectedCount}건 선택
+        </span>
+        <div>
+          <ToolbarButton
+            type="button"
+            disabled={reviewing || selectedCount === 0}
+            onClick={() => {
+              void onBulkReview(visibleSelectedPlaceIds, "approved").then(() => {
+                setSelectedPlaceIds([]);
+              });
+            }}
+          >
+            선택 승인·노출
+          </ToolbarButton>
+          <ToolbarButton
+            type="button"
+            $danger
+            disabled={reviewing || selectedCount === 0}
+            onClick={() => {
+              void onBulkReview(visibleSelectedPlaceIds, "rejected").then(() => {
+                setSelectedPlaceIds([]);
+              });
+            }}
+          >
+            선택 거절
+          </ToolbarButton>
+        </div>
+      </PlaceReviewToolbar>
+
       <PlaceTable aria-label="관광지 원천 데이터 목록">
         <PlaceTableHead aria-hidden="true">
+          <span />
           <span>지역</span>
           <span>관광지</span>
           <span>유형</span>
@@ -1305,29 +1402,48 @@ function PlaceRecords({
           {records.map((record) => (
             <PlaceTableRow
               key={record.contentId}
-              type="button"
-              onClick={() => setSelectedRecord(record)}
-              aria-label={`${record.title} 상세 보기`}
             >
-              <PlaceTableCell $column="region">
-                <strong>{record.sidoName ?? "지역 미확인"}</strong>
-                <small>{record.sigunguName ?? "시군구 미확인"}</small>
-              </PlaceTableCell>
-              <PlaceTableCell $column="place">
-                <strong>{record.title}</strong>
-                <small>콘텐츠 {record.contentId}</small>
-              </PlaceTableCell>
-              <PlaceTableCell $column="type">
-                {getPlaceContentTypeLabel(record.contentTypeId)}
-              </PlaceTableCell>
-              <PlaceTableCell $column="status">
-                <StatusBadge $tone={record.linkedPlaceId ? "success" : "pending"}>
-                  {record.linkedPlaceId ? "장소 연결됨" : "원본만 저장"}
-                </StatusBadge>
-              </PlaceTableCell>
-              <PlaceTableCell $column="synced">
-                {formatDate(record.syncedAt)}
-              </PlaceTableCell>
+              <PlaceSelectionControl>
+                <input
+                  type="checkbox"
+                  checked={record.linkedPlace ? selectedSet.has(record.linkedPlace.id) : false}
+                  disabled={!record.linkedPlace || reviewing}
+                  aria-label={`${record.title} 검수 선택`}
+                  onChange={(event) => {
+                    if (!record.linkedPlace) return;
+                    setSelectedPlaceIds((current) =>
+                      event.target.checked
+                        ? [...new Set([...current, record.linkedPlace!.id])]
+                        : current.filter((placeId) => placeId !== record.linkedPlace!.id),
+                    );
+                  }}
+                />
+              </PlaceSelectionControl>
+              <PlaceRowDetailButton
+                type="button"
+                onClick={() => setSelectedRecord(record)}
+                aria-label={`${record.title} 상세 보기`}
+              >
+                <PlaceTableCell $column="region">
+                  <strong>{record.sidoName ?? "지역 미확인"}</strong>
+                  <small>{record.sigunguName ?? "시군구 미확인"}</small>
+                </PlaceTableCell>
+                <PlaceTableCell $column="place">
+                  <strong>{record.title}</strong>
+                  <small>콘텐츠 {record.contentId}</small>
+                </PlaceTableCell>
+                <PlaceTableCell $column="type">
+                  {getPlaceContentTypeLabel(record.contentTypeId)}
+                </PlaceTableCell>
+                <PlaceTableCell $column="status">
+                  <StatusBadge $tone={getPlaceReviewTone(record)}>
+                    {getPlaceReviewLabel(record)}
+                  </StatusBadge>
+                </PlaceTableCell>
+                <PlaceTableCell $column="synced">
+                  {formatDate(record.syncedAt)}
+                </PlaceTableCell>
+              </PlaceRowDetailButton>
             </PlaceTableRow>
           ))}
         </PlaceTableBody>
@@ -1359,8 +1475,8 @@ function PlaceRecords({
               </DrawerCloseButton>
             </PlaceDrawerHeader>
             <PlaceDrawerStatus>
-              <StatusBadge $tone={selectedRecord.linkedPlaceId ? "success" : "pending"}>
-                {selectedRecord.linkedPlaceId ? "장소 연결됨" : "원본만 저장"}
+              <StatusBadge $tone={getPlaceReviewTone(selectedRecord)}>
+                {getPlaceReviewLabel(selectedRecord)}
               </StatusBadge>
               <span>{getPlaceContentTypeLabel(selectedRecord.contentTypeId)}</span>
             </PlaceDrawerStatus>
@@ -1398,14 +1514,141 @@ function PlaceRecords({
               </div>
               <div>
                 <span>연결된 장소</span>
-                <strong>{selectedRecord.linkedPlaceId ?? "아직 없음"}</strong>
+                <strong>{selectedRecord.linkedPlace?.id ?? "후보 생성 불가"}</strong>
               </div>
             </PlaceDetailGrid>
+            {selectedRecord.linkedPlace ? (
+              <PlaceReviewEditor
+                key={selectedRecord.linkedPlace.id}
+                place={selectedRecord.linkedPlace}
+                saving={reviewing}
+                onSave={onPlaceUpdate}
+              />
+            ) : (
+              <PlaceReviewUnavailable>
+                이 원본에는 추천 후보를 만들기 위한 좌표 또는 대표 이미지가 부족합니다.
+                원본을 보완한 뒤 다시 동기화해주세요.
+              </PlaceReviewUnavailable>
+            )}
             <RawDetails payload={selectedRecord.rawPayload} />
           </PlaceDrawer>
         </PlaceDrawerBackdrop>
       )}
     </>
+  );
+}
+
+function PlaceReviewEditor({
+  place,
+  saving,
+  onSave,
+}: {
+  place: NonNullable<TourismPlaceSourceItem["linkedPlace"]>;
+  saving: boolean;
+  onSave: (input: Record<string, unknown>) => Promise<void>;
+}) {
+  const [name, setName] = useState(place.name);
+  const [phrase, setPhrase] = useState(place.phrase);
+  const [note, setNote] = useState(place.note);
+  const [image, setImage] = useState(place.image);
+  const [travelTime, setTravelTime] = useState(place.travelTime);
+  const [today, setToday] = useState(place.today);
+  const [fatigue, setFatigue] = useState(String(place.fatigue));
+  const [movementLevel, setMovementLevel] = useState(place.movementLevel);
+  const [moodTags, setMoodTags] = useState(place.moodTags.join(", "));
+
+  const saveEditorial = async () => {
+    await onSave({
+      placeId: place.id,
+      name,
+      phrase,
+      note,
+      image,
+      travelTime,
+      today,
+      fatigue: Number(fatigue),
+      movementLevel,
+      moodTags: moodTags
+        .split(",")
+        .map((tag) => tag.trim())
+        .filter(Boolean),
+    });
+  };
+
+  return (
+    <PlaceReviewSection>
+      <PlaceReviewHeader>
+        <div>
+          <span>추천 노출 보정</span>
+          <h3>검수 정보</h3>
+        </div>
+        <StatusBadge $tone={place.reviewStatus}>
+          {getPlaceReviewStatusLabel(place.reviewStatus)}
+        </StatusBadge>
+      </PlaceReviewHeader>
+      <PlaceReviewForm
+        onSubmit={(event) => {
+          event.preventDefault();
+          void saveEditorial();
+        }}
+      >
+        <ReviewField>
+          <span>장소명</span>
+          <Input value={name} disabled={saving} onChange={(event) => setName(event.target.value)} />
+        </ReviewField>
+        <ReviewField>
+          <span>한 줄 설명</span>
+          <Input value={phrase} disabled={saving} onChange={(event) => setPhrase(event.target.value)} />
+        </ReviewField>
+        <ReviewField $wide>
+          <span>장소 설명</span>
+          <TextArea value={note} disabled={saving} rows={4} onChange={(event) => setNote(event.target.value)} />
+        </ReviewField>
+        <ReviewField $wide>
+          <span>대표 이미지 주소</span>
+          <Input value={image} disabled={saving} onChange={(event) => setImage(event.target.value)} />
+        </ReviewField>
+        <ReviewField>
+          <span>이동 시간 안내</span>
+          <Input value={travelTime} disabled={saving} onChange={(event) => setTravelTime(event.target.value)} />
+        </ReviewField>
+        <ReviewField>
+          <span>오늘 안내</span>
+          <Input value={today} disabled={saving} onChange={(event) => setToday(event.target.value)} />
+        </ReviewField>
+        <ReviewField>
+          <span>피로도</span>
+          <Select value={fatigue} disabled={saving} onChange={(event) => setFatigue(event.target.value)}>
+            {[1, 2, 3, 4, 5].map((value) => (
+              <option key={value} value={value}>{value}</option>
+            ))}
+          </Select>
+        </ReviewField>
+        <ReviewField>
+          <span>이동 거리</span>
+          <Select value={movementLevel} disabled={saving} onChange={(event) => setMovementLevel(event.target.value as typeof movementLevel)}>
+            <option value="near">집 근처</option>
+            <option value="short">조금만</option>
+            <option value="half">반나절 정도</option>
+          </Select>
+        </ReviewField>
+        <ReviewField $wide>
+          <span>분위기 태그 · 쉼표로 구분</span>
+          <Input value={moodTags} disabled={saving} onChange={(event) => setMoodTags(event.target.value)} />
+        </ReviewField>
+        <PlaceReviewActions>
+          <ToolbarButton type="button" disabled={saving} onClick={() => void onSave({ placeId: place.id, reviewStatus: "rejected", isActive: false })} $danger>
+            거절
+          </ToolbarButton>
+          <ToolbarButton type="button" disabled={saving} onClick={() => void onSave({ placeId: place.id, reviewStatus: "approved", isActive: true })}>
+            승인·노출
+          </ToolbarButton>
+          <PrimaryButton type="submit" disabled={saving}>
+            {saving ? "저장 중..." : "보정 저장"}
+          </PrimaryButton>
+        </PlaceReviewActions>
+      </PlaceReviewForm>
+    </PlaceReviewSection>
   );
 }
 
@@ -1551,6 +1794,25 @@ function getPlaceContentTypeLabel(value: string | null) {
   if (value === "25") return "여행코스";
   if (value === "28") return "레포츠";
   return value ? `유형 ${value}` : "미분류";
+}
+
+function getPlaceReviewTone(record: TourismPlaceSourceItem) {
+  if (!record.linkedPlace) return "failed";
+  return record.linkedPlace.reviewStatus;
+}
+
+function getPlaceReviewLabel(record: TourismPlaceSourceItem) {
+  if (!record.linkedPlace) return "후보 정보 부족";
+  const status = getPlaceReviewStatusLabel(record.linkedPlace.reviewStatus);
+  return record.linkedPlace.isActive ? `${status} · 노출` : status;
+}
+
+function getPlaceReviewStatusLabel(
+  status: "pending" | "approved" | "rejected",
+) {
+  if (status === "approved") return "승인";
+  if (status === "rejected") return "거절";
+  return "검토 대기";
 }
 
 function getMetricTypeLabel(value: string) {
@@ -2217,6 +2479,60 @@ const PlaceSummaryHint = styled.p`
   }
 `;
 
+const PlaceReviewToolbar = styled.section`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--space-4);
+  background: var(--color-white);
+
+  > span {
+    color: var(--color-text-muted);
+    font-size: var(--font-size-100);
+  }
+
+  > div {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: end;
+    gap: var(--space-2);
+  }
+
+  @media (max-width: 560px) {
+    align-items: stretch;
+    flex-direction: column;
+
+    > div {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+`;
+
+const ToolbarButton = styled.button<{ $danger?: boolean }>`
+  min-height: 40px;
+  padding: 0 var(--space-3);
+  border: 1px solid ${({ $danger }) =>
+    $danger ? "var(--color-error)" : "var(--color-brand-300)"};
+  border-radius: var(--space-3);
+  background: ${({ $danger }) =>
+    $danger ? "var(--color-white)" : "var(--color-brand-100)"};
+  color: ${({ $danger }) =>
+    $danger ? "var(--color-error)" : "var(--color-brand-1000)"};
+  font: inherit;
+  font-size: var(--font-size-100);
+  font-weight: 700;
+  cursor: pointer;
+
+  &:disabled {
+    cursor: default;
+    opacity: 0.45;
+  }
+`;
+
 const PlaceTable = styled.section`
   overflow: hidden;
   border: 1px solid var(--color-border);
@@ -2235,7 +2551,7 @@ const PlaceTable = styled.section`
 
 const PlaceTableHead = styled.div`
   display: grid;
-  grid-template-columns: minmax(130px, 0.9fr) minmax(240px, 2fr) 100px 130px minmax(150px, 0.9fr);
+  grid-template-columns: 40px minmax(130px, 0.9fr) minmax(240px, 2fr) 100px 130px minmax(150px, 0.9fr);
   gap: var(--space-3);
   padding: var(--space-3) var(--space-5);
   border-bottom: 1px solid var(--color-border);
@@ -2257,16 +2573,57 @@ const PlaceTableBody = styled.div`
   }
 `;
 
-const PlaceTableRow = styled.button`
+const PlaceTableRow = styled.div`
+  width: 100%;
+  display: grid;
+  grid-template-columns: 40px minmax(0, 1fr);
+  align-items: center;
+  border: 0;
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-surface);
+
+  &:last-child {
+    border-bottom: 0;
+  }
+
+  @media (max-width: 720px) {
+    grid-template-columns: 32px minmax(0, 1fr);
+    align-items: start;
+    border: 1px solid var(--color-border);
+    border-radius: var(--space-4);
+    background: var(--color-surface);
+    box-shadow: 0 6px 18px rgb(var(--color-black-rgb) / 0.04);
+  }
+`;
+
+const PlaceSelectionControl = styled.label`
+  height: 100%;
+  display: grid;
+  place-items: center;
+
+  input {
+    width: 18px;
+    height: 18px;
+    margin: 0;
+    accent-color: var(--color-brand-700);
+    cursor: pointer;
+  }
+
+  input:disabled {
+    cursor: not-allowed;
+    opacity: 0.35;
+  }
+`;
+
+const PlaceRowDetailButton = styled.button`
   width: 100%;
   display: grid;
   grid-template-columns: minmax(130px, 0.9fr) minmax(240px, 2fr) 100px 130px minmax(150px, 0.9fr);
   align-items: center;
   gap: var(--space-3);
-  padding: var(--space-4) var(--space-5);
+  padding: var(--space-4) var(--space-5) var(--space-4) 0;
   border: 0;
-  border-bottom: 1px solid var(--color-border);
-  background: var(--color-surface);
+  background: transparent;
   color: var(--color-text);
   text-align: left;
   font: inherit;
@@ -2283,19 +2640,10 @@ const PlaceTableRow = styled.button`
     box-shadow: inset 0 0 0 2px var(--color-brand-600);
   }
 
-  &:last-child {
-    border-bottom: 0;
-  }
-
   @media (max-width: 720px) {
     grid-template-columns: minmax(0, 1fr) auto;
     gap: var(--space-2) var(--space-4);
-    align-items: start;
-    padding: var(--space-4);
-    border: 1px solid var(--color-border);
-    border-radius: var(--space-4);
-    background: var(--color-surface);
-    box-shadow: 0 6px 18px rgb(var(--color-black-rgb) / 0.04);
+    padding: var(--space-4) var(--space-4) var(--space-4) 0;
   }
 `;
 
@@ -2339,6 +2687,104 @@ const PlaceTableCell = styled.div<{
               ? "grid-column: 2; grid-row: 2; align-self: end;"
               : "grid-column: 1 / -1; grid-row: 3;"}
   }
+`;
+
+const PlaceReviewSection = styled.section`
+  display: grid;
+  gap: var(--space-4);
+  padding: var(--space-5);
+  margin-bottom: var(--space-5);
+  border: 1px solid var(--color-secondary-300);
+  border-radius: var(--space-5);
+  background: var(--color-secondary-100);
+`;
+
+const PlaceReviewHeader = styled.div`
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: var(--space-3);
+
+  span {
+    color: var(--color-brand-800);
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+  }
+
+  h3 {
+    margin-top: var(--space-1);
+    font-size: var(--font-size-300);
+  }
+`;
+
+const PlaceReviewForm = styled.form`
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-3);
+
+  @media (max-width: 380px) {
+    grid-template-columns: 1fr;
+  }
+`;
+
+const ReviewField = styled.label<{ $wide?: boolean }>`
+  min-width: 0;
+  display: grid;
+  grid-column: ${({ $wide }) => ($wide ? "1 / -1" : "auto")};
+  gap: var(--space-1);
+
+  > span {
+    color: var(--color-text-muted);
+    font-size: var(--font-size-100);
+    font-weight: 700;
+  }
+`;
+
+const TextArea = styled.textarea`
+  width: 100%;
+  min-height: 112px;
+  resize: vertical;
+  padding: var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--space-3);
+  outline: 0;
+  background: var(--color-white);
+  color: var(--color-text);
+  font: inherit;
+  line-height: var(--line-height-body);
+
+  &:focus {
+    border-color: var(--color-brand-600);
+    box-shadow: 0 0 0 3px var(--color-brand-200);
+  }
+`;
+
+const PlaceReviewActions = styled.div`
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: end;
+  gap: var(--space-2);
+
+  @media (max-width: 420px) {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+
+    > :last-child {
+      grid-column: 1 / -1;
+    }
+  }
+`;
+
+const PlaceReviewUnavailable = styled.p`
+  padding: var(--space-4);
+  margin-bottom: var(--space-5);
+  border-radius: var(--space-4);
+  background: var(--color-neutral-100);
+  color: var(--color-text-muted);
+  font-size: var(--font-size-100);
+  line-height: var(--line-height-body);
 `;
 
 const PlaceDrawerBackdrop = styled.div`
@@ -2511,13 +2957,15 @@ const StatusBadge = styled.span<{ $tone: string }>`
   padding: var(--space-2) var(--space-3);
   border-radius: 999px;
   background: ${({ $tone }) =>
-    $tone === "success" || $tone === "succeeded"
+    $tone === "success" || $tone === "succeeded" || $tone === "approved"
       ? "var(--color-secondary-300)"
-      : $tone === "failed"
+      : $tone === "failed" || $tone === "rejected"
         ? "var(--color-neutral-200)"
         : "var(--color-brand-200)"};
   color: ${({ $tone }) =>
-    $tone === "failed" ? "var(--color-error)" : "var(--color-text)"};
+    $tone === "failed" || $tone === "rejected"
+      ? "var(--color-error)"
+      : "var(--color-text)"};
   font-size: var(--font-size-100);
   font-weight: 700;
 `;

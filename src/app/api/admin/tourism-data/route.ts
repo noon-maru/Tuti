@@ -102,6 +102,24 @@ export async function GET(request: Request) {
             { sigunguName: "asc" },
             { title: "asc" },
           ],
+          include: {
+            linkedPlace: {
+              select: {
+                id: true,
+                name: true,
+                phrase: true,
+                note: true,
+                image: true,
+                travelTime: true,
+                today: true,
+                fatigue: true,
+                movementLevel: true,
+                moodTags: true,
+                reviewStatus: true,
+                isActive: true,
+              },
+            },
+          },
           take,
         })
       : Promise.resolve([]),

@@ -35,6 +35,20 @@ export type TourismPlaceSourceItem = {
   sigunguCode: string | null;
   sigunguName: string | null;
   linkedPlaceId: string | null;
+  linkedPlace: {
+    id: string;
+    name: string;
+    phrase: string;
+    note: string;
+    image: string;
+    travelTime: string;
+    today: string;
+    fatigue: number;
+    movementLevel: "near" | "short" | "half";
+    moodTags: string[];
+    reviewStatus: "pending" | "approved" | "rejected";
+    isActive: boolean;
+  } | null;
   sourceModifiedAt: string | null;
   syncedAt: string;
   rawPayload: unknown;
