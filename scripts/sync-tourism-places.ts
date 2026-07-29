@@ -7,6 +7,9 @@ const pageSize = readIntegerArgument(args, "--rows", 100);
 const startPage = readIntegerArgument(args, "--start-page", 1);
 const contentTypeId =
   readArgument(args, "--content-type")?.trim() || "12";
+const areaCode = readArgument(args, "--area-code")?.trim() || undefined;
+const sigunguCode =
+  readArgument(args, "--sigungu-code")?.trim() || undefined;
 
 try {
   const result = await syncTourismPlaces({
@@ -14,6 +17,8 @@ try {
     maxPages,
     pageSize,
     startPage,
+    areaCode,
+    sigunguCode,
   });
 
   console.log("TourAPI 장소 동기화를 완료했습니다.");

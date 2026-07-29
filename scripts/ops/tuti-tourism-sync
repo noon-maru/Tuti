@@ -1,0 +1,30 @@
+#!/bin/sh
+
+set -eu
+
+project_dir="/var/services/homes/Tutiadmin/source/Tuti"
+area_codes="1 2 3 4 5 6 7 8 31 32 33 34 35 36 37 38 39"
+content_types="12 14 25 28"
+pages_per_type="10"
+
+cd "$project_dir"
+
+day_of_year="$(date +%j | awk '{ print $1 + 0 }')"
+area_index=$(( (day_of_year - 1) % 17 + 1 ))
+cycle=$(( (day_of_year - 1) / 17 ))
+start_page=$(( (cycle % 10) * pages_per_type + 1 ))
+area_code="$(printf '%s\n' "$area_codes" | awk -v index="$area_index" '{ print $index }')"
+
+echo "TourAPI 정기 동기화: 지역 코드 ${area_code}, 시작 페이지 ${start_page}"
+
+for content_type in $content_types; do
+  docker compose \
+    --env-file .env.production \
+    -f docker-compose.prod.yml \
+    run --rm --no-deps ops \
+    pnpm places:sync:tourapi -- \
+    --content-type "$content_type" \
+    --area-code "$area_code" \
+    --pages "$pages_per_type" \
+    --start-page "$start_page"
+done
