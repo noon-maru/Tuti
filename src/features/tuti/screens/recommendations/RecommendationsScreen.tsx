@@ -1,5 +1,6 @@
 "use client";
 
+import { css, keyframes } from "@emotion/react";
 import styled from "@emotion/styled";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { BaseButton } from "@/features/tuti/components/buttons";
@@ -13,7 +14,7 @@ import { fluidByViewportHeight } from "@/styles/tokens";
 
 type Point = { x: number; y: number };
 type DragAxis = "horizontal" | "vertical" | null;
-type HelpKind = "detail" | "journal";
+type HelpKind = "cards" | "detail" | "journal";
 type DetailPhase = "closed" | "open" | "closing";
 
 const WHEEL_DELTA_LIMIT = 28;
@@ -89,6 +90,7 @@ export function RecommendationsScreen({
     mainInteractive &&
     Boolean(currentHelp) &&
     verticalProgress === 0 &&
+    dragAxis === null &&
     !committing;
 
   const resetDrag = useCallback(() => {
@@ -121,10 +123,10 @@ export function RecommendationsScreen({
     }, 0);
   }, [committing]);
 
-  const dismissHelp = useCallback(() => {
-    if (!currentHelp) return;
+  const completeHelp = useCallback((kind: HelpKind) => {
+    if (currentHelp !== kind) return;
 
-    onInitialHelpShown(currentHelp);
+    onInitialHelpShown(kind);
     setCurrentHelp(null);
   }, [currentHelp, onInitialHelpShown]);
 
@@ -136,21 +138,10 @@ export function RecommendationsScreen({
     const showTimeout = window.setTimeout(() => {
       setCurrentHelp(initialHelp);
       setDisplayedHelp(initialHelp);
-      nudgeActiveCard(initialHelp === "journal" ? "down" : "up");
     }, 260);
 
     return () => window.clearTimeout(showTimeout);
-  }, [initialHelp, currentHelp, dragStart, committing, verticalProgress, nudgeActiveCard]);
-
-  useEffect(() => {
-    if (!currentHelp) {
-      return undefined;
-    }
-
-    const timeout = window.setTimeout(dismissHelp, 4200);
-
-    return () => window.clearTimeout(timeout);
-  }, [currentHelp, dismissHelp]);
+  }, [initialHelp, currentHelp, dragStart, committing, verticalProgress]);
 
   useEffect(() => {
     if (mainInteractive) return;
@@ -279,7 +270,6 @@ export function RecommendationsScreen({
     setDragOffset({ x: 0, y: 0 });
     setDragAxis(null);
     setCommitting(false);
-    dismissHelp();
     setPressedCardIndex(Number(cardElement.dataset.swipeCardIndex));
   };
 
@@ -303,10 +293,6 @@ export function RecommendationsScreen({
     if (detailPhase === "closing" && nextAxis === "vertical") {
       setDragOffset({ x: 0, y: 0 });
       return;
-    }
-
-    if (nextAxis === "vertical") {
-      dismissHelp();
     }
 
     setDragOffset({
@@ -339,6 +325,12 @@ export function RecommendationsScreen({
     }
 
     if (axis === "horizontal" && Math.abs(dx) > 36) {
+      if (currentHelp && currentHelp !== "cards") {
+        resetDrag();
+        return;
+      }
+
+      completeHelp("cards");
       onMove(dx < 0 ? 1 : -1);
       resetDrag();
       return;
@@ -346,6 +338,22 @@ export function RecommendationsScreen({
 
     if (axis === "vertical" && Math.abs(dy) > 48) {
       const direction = dy < 0 ? -1 : 1;
+
+      if (
+        (currentHelp === "cards") ||
+        (currentHelp === "detail" && direction !== -1) ||
+        (currentHelp === "journal" && direction !== 1)
+      ) {
+        resetDrag();
+        return;
+      }
+
+      if (direction < 0) {
+        completeHelp("detail");
+      } else {
+        completeHelp("journal");
+      }
+
       commitVerticalTransition(direction);
       return;
     }
@@ -390,14 +398,30 @@ export function RecommendationsScreen({
     );
 
     wheelDragY.current = nextDragY;
-    dismissHelp();
     setDragStart(null);
     setDragAxis("vertical");
     setDragOffset({ x: 0, y: nextDragY });
 
     if (Math.abs(nextDragY) >= WHEEL_TRIGGER_THRESHOLD) {
+      const direction = nextDragY < 0 ? -1 : 1;
+
+      if (
+        currentHelp === "cards" ||
+        (currentHelp === "detail" && direction !== -1) ||
+        (currentHelp === "journal" && direction !== 1)
+      ) {
+        resetDrag();
+        return;
+      }
+
+      if (direction < 0) {
+        completeHelp("detail");
+      } else {
+        completeHelp("journal");
+      }
+
       wheelLocked.current = true;
-      animateWheelTransition(nextDragY < 0 ? -1 : 1, nextDragY);
+      animateWheelTransition(direction, nextDragY);
       wheelUnlockTimer.current = window.setTimeout(() => {
         wheelLocked.current = false;
         wheelUnlockTimer.current = null;
@@ -546,19 +570,49 @@ export function RecommendationsScreen({
           </TransitionLayer>
         )}
 
-      <HelpOverlay $visible={helpVisible} aria-hidden={!helpVisible}>
-        {displayedHelp &&
-          (displayedHelp === "journal" ? (
-            <>
-              <p>방금의 공기는</p>
-              <strong>아래로 살짝 남겨둘까요?</strong>
-            </>
-          ) : (
-            <>
-              <p>괜찮아 보인다면</p>
-              <strong>위로 올려볼까요?</strong>
-            </>
-          ))}
+      <HelpOverlay
+        $visible={helpVisible}
+        $kind={displayedHelp ?? "cards"}
+        aria-hidden={!helpVisible}
+        aria-live="polite"
+      >
+        {displayedHelp && (
+          <HelpContent key={displayedHelp} $kind={displayedHelp}>
+            <GestureCue $kind={displayedHelp} aria-hidden="true">
+              <GestureArrows $kind={displayedHelp}>
+                {displayedHelp === "cards" ? (
+                  <>
+                    <GestureArrowPair $direction="left">
+                      <i />
+                      <i />
+                    </GestureArrowPair>
+                    <GestureArrowPair $direction="right">
+                      <i />
+                      <i />
+                    </GestureArrowPair>
+                  </>
+                ) : (
+                  <GestureArrowPair
+                    $direction={
+                      displayedHelp === "detail" ? "up" : "down"
+                    }
+                  >
+                    <i />
+                    <i />
+                  </GestureArrowPair>
+                )}
+              </GestureArrows>
+              <GestureThumb $kind={displayedHelp} />
+            </GestureCue>
+            <HelpMessage $kind={displayedHelp}>
+              {displayedHelp === "cards"
+                ? "준비된 장소들의 공기를 살펴보세요"
+                : displayedHelp === "detail"
+                  ? "위로 올려 상세한 정보를 확인해보세요"
+                  : "아래로 내려 지나간 공간을 기록해보세요"}
+            </HelpMessage>
+          </HelpContent>
+        )}
       </HelpOverlay>
     </Frame>
   );
@@ -630,39 +684,271 @@ const TransitionLayer = styled.div<{ $progress: number; $from: number }>`
     $progress > 0 ? "none" : "opacity 220ms ease, transform 240ms ease"};
 `;
 
-const HelpOverlay = styled.div<{ $visible: boolean }>`
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  z-index: 30;
-  height: 25%;
-  display: grid;
-  align-content: end;
-  justify-items: center;
-  padding: 0 var(--space-8)
-    calc(var(--space-10) + var(--app-safe-area-bottom, 0px));
-  background: linear-gradient(
-    to top,
-    rgb(var(--color-white-rgb) / 1) 0%,
-    rgb(var(--color-white-rgb) / 0.82) 46%,
-    rgb(var(--color-white-rgb) / 0) 100%
-  );
-  color: var(--color-text);
-  text-align: center;
-  pointer-events: none;
-  opacity: ${({ $visible }) => ($visible ? 1 : 0)};
-  transition: opacity 360ms ease;
-
-  p {
-    margin: 0 0 var(--space-1);
-    color: var(--color-text-muted);
-    font-size: var(--font-size-200);
+const helpContentIn = keyframes`
+  from {
+    opacity: 0;
+    transform: translateY(6px);
   }
 
-  strong {
-    font-size: var(--font-size-600);
-    font-weight: 700;
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+`;
+
+const moveHorizontally = keyframes`
+  0%,
+  100% {
+    transform: translate(calc(-50% - 54px), -50%);
+  }
+
+  50% {
+    transform: translate(calc(-50% + 54px), -50%);
+  }
+`;
+
+const moveUp = keyframes`
+  0%,
+  12% {
+    transform: translate(-50%, calc(-50% + 28px));
+    opacity: 0;
+  }
+
+  18% {
+    transform: translate(-50%, calc(-50% + 28px));
+    opacity: 1;
+  }
+
+  76% {
+    transform: translate(-50%, calc(-50% - 28px));
+    opacity: 1;
+  }
+
+  82% {
+    transform: translate(-50%, calc(-50% - 28px));
+    opacity: 0;
+  }
+
+  82.01%,
+  100% {
+    transform: translate(-50%, calc(-50% + 28px));
+    opacity: 0;
+  }
+`;
+
+const moveDown = keyframes`
+  0%,
+  12% {
+    transform: translate(-50%, calc(-50% - 28px));
+    opacity: 0;
+  }
+
+  18% {
+    transform: translate(-50%, calc(-50% - 28px));
+    opacity: 1;
+  }
+
+  76% {
+    transform: translate(-50%, calc(-50% + 28px));
+    opacity: 1;
+  }
+
+  82% {
+    transform: translate(-50%, calc(-50% + 28px));
+    opacity: 0;
+  }
+
+  82.01%,
+  100% {
+    transform: translate(-50%, calc(-50% - 28px));
+    opacity: 0;
+  }
+`;
+
+const HelpOverlay = styled.div<{
+  $visible: boolean;
+  $kind: HelpKind;
+}>`
+  position: absolute;
+  inset: 0;
+  z-index: 30;
+  overflow: hidden;
+  background:
+    ${({ $kind }) =>
+      $kind === "detail"
+        ? `linear-gradient(
+            to top,
+            color-mix(in srgb, var(--color-secondary-500) 68%, transparent) 0%,
+            color-mix(in srgb, var(--color-secondary-300) 34%, transparent) 26%,
+            transparent 58%
+          )`
+        : $kind === "journal"
+          ? `linear-gradient(
+              to bottom,
+              color-mix(in srgb, var(--color-secondary-500) 58%, transparent) 0%,
+              color-mix(in srgb, var(--color-secondary-300) 28%, transparent) 24%,
+              transparent 55%
+            )`
+          : "linear-gradient(transparent, transparent)"},
+    color-mix(in srgb, var(--color-neutral-1300) 58%, transparent);
+  color: var(--color-neutral-100);
+  pointer-events: none;
+  opacity: ${({ $visible }) => ($visible ? 1 : 0)};
+  transition: opacity 300ms ease, background 360ms ease;
+`;
+
+const HelpContent = styled.div<{ $kind: HelpKind }>`
+  position: absolute;
+  inset: 0;
+  animation: ${css`${helpContentIn} 300ms ease both`};
+
+  @media (prefers-reduced-motion: reduce) {
+    animation: none;
+  }
+`;
+
+const HelpMessage = styled.p<{ $kind: HelpKind }>`
+  position: absolute;
+  left: var(--space-6);
+  right: var(--space-6);
+  ${({ $kind }) =>
+    $kind === "cards"
+      ? "top: 52%;"
+      : $kind === "detail"
+        ? "bottom: calc(10% + var(--app-safe-area-bottom, 0px));"
+        : "top: calc(16% + var(--app-safe-area-top, 0px));"}
+  margin: 0;
+  color: var(--color-neutral-100);
+  font-size: var(--font-size-300);
+  font-weight: 600;
+  line-height: var(--line-height-subtitle);
+  letter-spacing: var(--letter-spacing-subtitle);
+  text-align: center;
+  text-shadow: 0 1px 8px
+    color-mix(in srgb, var(--color-neutral-1300) 42%, transparent);
+`;
+
+const GestureCue = styled.div<{ $kind: HelpKind }>`
+  position: absolute;
+  left: 50%;
+  ${({ $kind }) =>
+    $kind === "cards"
+      ? `
+        top: 43%;
+        width: min(52%, 200px);
+        height: 32px;
+        transform: translate(-50%, -50%);
+      `
+      : $kind === "detail"
+        ? `
+          bottom: calc(17% + var(--app-safe-area-bottom, 0px));
+          width: 32px;
+          height: 96px;
+          transform: translateX(-50%);
+        `
+        : `
+          top: calc(23% + var(--app-safe-area-top, 0px));
+          width: 32px;
+          height: 96px;
+          transform: translateX(-50%);
+        `}
+  border-radius: 999px;
+  background: ${({ $kind }) =>
+    $kind === "cards"
+      ? `linear-gradient(
+          90deg,
+          transparent,
+          color-mix(in srgb, var(--color-secondary-500) 92%, transparent) 22%,
+          var(--color-secondary-500) 50%,
+          color-mix(in srgb, var(--color-secondary-500) 92%, transparent) 78%,
+          transparent
+        )`
+      : $kind === "detail"
+        ? `linear-gradient(
+            to top,
+            var(--color-secondary-500),
+            color-mix(in srgb, var(--color-secondary-500) 72%, transparent) 58%,
+            transparent
+          )`
+        : `linear-gradient(
+            to bottom,
+            var(--color-secondary-500),
+            color-mix(in srgb, var(--color-secondary-500) 72%, transparent) 58%,
+            transparent
+          )`};
+`;
+
+const GestureArrows = styled.div<{ $kind: HelpKind }>`
+  position: absolute;
+  inset: 0;
+  display: flex;
+  ${({ $kind }) =>
+    $kind === "cards"
+      ? `
+        align-items: center;
+        justify-content: center;
+        gap: 34px;
+      `
+      : `
+        align-items: center;
+        justify-content: center;
+      `}
+  color: color-mix(in srgb, var(--color-neutral-100) 72%, transparent);
+`;
+
+const GestureArrowPair = styled.span<{
+  $direction: "left" | "right" | "up" | "down";
+}>`
+  display: flex;
+  flex-direction: ${({ $direction }) =>
+    $direction === "up" || $direction === "down" ? "column" : "row"};
+  gap: ${({ $direction }) =>
+    $direction === "up" || $direction === "down" ? "0" : "1px"};
+
+  i {
+    width: 8px;
+    height: 8px;
+    display: block;
+    border: solid currentColor;
+    border-width: 0 2px 2px 0;
+    transform: rotate(
+      ${({ $direction }) =>
+        $direction === "left"
+          ? "135deg"
+          : $direction === "right"
+            ? "-45deg"
+            : $direction === "up"
+              ? "-135deg"
+              : "45deg"}
+    );
+  }
+`;
+
+const GestureThumb = styled.div<{ $kind: HelpKind }>`
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 22px;
+  height: 22px;
+  border: 3px solid
+    color-mix(in srgb, var(--color-secondary-900) 28%, transparent);
+  border-radius: 50%;
+  background: var(--color-secondary-500);
+  box-shadow:
+    0 0 0 4px
+      color-mix(in srgb, var(--color-secondary-200) 34%, transparent),
+    0 4px 12px
+      color-mix(in srgb, var(--color-neutral-1300) 28%, transparent);
+  animation: ${({ $kind }) =>
+    $kind === "cards"
+      ? css`${moveHorizontally} 1800ms ease-in-out infinite`
+      : $kind === "detail"
+        ? css`${moveUp} 1500ms ease-out infinite`
+        : css`${moveDown} 1500ms ease-out infinite`};
+
+  @media (prefers-reduced-motion: reduce) {
+    animation: none;
+    transform: translate(-50%, -50%);
   }
 `;
 

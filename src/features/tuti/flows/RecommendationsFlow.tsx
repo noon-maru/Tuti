@@ -17,12 +17,14 @@ export function RecommendationsFlow({ interactive }: { interactive: boolean }) {
   const activeIndex = useTutiStore((state) => state.activeIndex);
   const activePlaceId = useTutiStore((state) => state.activePlaceId);
   const detailOverlay = useTutiStore((state) => state.detailOverlay);
+  const hasSeenCardHelp = useTutiStore((state) => state.hasSeenCardHelp);
   const hasSeenSwipeHelp = useTutiStore((state) => state.hasSeenSwipeHelp);
   const hasSeenJournalHelp = useTutiStore((state) => state.hasSeenJournalHelp);
   const setActivePlace = useTutiStore((state) => state.setActivePlace);
   const openDetailOverlay = useTutiStore((state) => state.openDetail);
   const beginDetailClose = useTutiStore((state) => state.beginDetailClose);
   const finishDetailClose = useTutiStore((state) => state.finishDetailClose);
+  const markCardHelpSeen = useTutiStore((state) => state.markCardHelpSeen);
   const markSwipeHelpSeen = useTutiStore((state) => state.markSwipeHelpSeen);
   const markJournalHelpSeen = useTutiStore((state) => state.markJournalHelpSeen);
   const resetIntake = useTutiStore((state) => state.resetIntake);
@@ -153,14 +155,21 @@ export function RecommendationsFlow({ interactive }: { interactive: boolean }) {
       interactive={interactive}
       initialHelp={
         interactive && detailOverlay.phase === "closed"
-          ? !hasSeenSwipeHelp
-            ? "detail"
-            : !hasSeenJournalHelp
-              ? "journal"
-              : null
+          ? !hasSeenCardHelp
+            ? "cards"
+            : !hasSeenSwipeHelp
+              ? "detail"
+              : !hasSeenJournalHelp
+                ? "journal"
+                : null
           : null
       }
       onInitialHelpShown={(kind) => {
+        if (kind === "cards") {
+          markCardHelpSeen();
+          return;
+        }
+
         if (kind === "detail") {
           markSwipeHelpSeen();
           return;

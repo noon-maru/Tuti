@@ -27,6 +27,7 @@ type TutiState = {
   detailOverlay: DetailOverlayState;
   entryStage: EntryStage;
   hasHydrated: boolean;
+  hasSeenCardHelp: boolean;
   hasSeenSwipeHelp: boolean;
   hasSeenJournalHelp: boolean;
   setAnswer: <Key extends keyof IntakeAnswers>(
@@ -40,6 +41,7 @@ type TutiState = {
   openDetail: (placeId: string) => void;
   beginDetailClose: () => void;
   finishDetailClose: () => void;
+  markCardHelpSeen: () => void;
   markSwipeHelpSeen: () => void;
   markJournalHelpSeen: () => void;
   finishIntake: (status: EntryStatus) => void;
@@ -60,6 +62,7 @@ export const useTutiStore = create<TutiState>()(
       detailOverlay: { phase: "closed" },
       entryStage: "intake",
       hasHydrated: false,
+      hasSeenCardHelp: false,
       hasSeenSwipeHelp: false,
       hasSeenJournalHelp: false,
       setAnswer: (key, value) =>
@@ -95,6 +98,12 @@ export const useTutiStore = create<TutiState>()(
       finishDetailClose: () =>
         set({
           detailOverlay: { phase: "closed" },
+        }),
+      markCardHelpSeen: () =>
+        set({
+          hasSeenCardHelp: true,
+          hasSeenSwipeHelp: false,
+          hasSeenJournalHelp: false,
         }),
       markSwipeHelpSeen: () => set({ hasSeenSwipeHelp: true }),
       markJournalHelpSeen: () => set({ hasSeenJournalHelp: true }),
@@ -133,6 +142,7 @@ export const useTutiStore = create<TutiState>()(
           state.detailOverlay.phase === "open"
             ? state.detailOverlay
             : { phase: "closed" as const },
+        hasSeenCardHelp: state.hasSeenCardHelp,
         hasSeenSwipeHelp: state.hasSeenSwipeHelp,
         hasSeenJournalHelp: state.hasSeenJournalHelp,
       }),
