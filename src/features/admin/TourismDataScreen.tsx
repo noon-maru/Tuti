@@ -163,6 +163,7 @@ export function TourismDataScreen({
   const [appliedQuery, setAppliedQuery] = useState("");
   const [placeSido, setPlaceSido] = useState("");
   const [placeSigungu, setPlaceSigungu] = useState("");
+  const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
   const [reviewingPlaces, setReviewingPlaces] = useState(false);
@@ -234,6 +235,8 @@ export function TourismDataScreen({
     setLoading(true);
     setError(null);
     const searchParams = new URLSearchParams({ tab });
+    searchParams.set("page", String(page));
+    searchParams.set("take", "100");
 
     if (appliedQuery) searchParams.set("q", appliedQuery);
     if (tab === "places" && placeSido) {
@@ -248,6 +251,9 @@ export function TourismDataScreen({
         `tourism-data?${searchParams}`,
       );
       setData(response);
+      if (page > response.pagination.totalPages) {
+        setPage(response.pagination.totalPages);
+      }
       setAccessStatus(null);
     } catch (loadError) {
       setError(toErrorMessage(loadError));
@@ -257,7 +263,7 @@ export function TourismDataScreen({
     } finally {
       setLoading(false);
     }
-  }, [appliedQuery, placeSido, placeSigungu, tab]);
+  }, [appliedQuery, page, placeSido, placeSigungu, tab]);
 
   useEffect(() => {
     const timeout = window.setTimeout(() => {
@@ -269,6 +275,7 @@ export function TourismDataScreen({
 
   useEffect(() => {
     const handlePopState = () => {
+      setPage(1);
       setTab(
         normalizeTab(
           new URL(window.location.href).searchParams.get("tab"),
@@ -303,6 +310,7 @@ export function TourismDataScreen({
     setAppliedQuery("");
     setPlaceSido("");
     setPlaceSigungu("");
+    setPage(1);
     setError(null);
     const url = new URL(window.location.href);
     url.searchParams.set("tab", nextTab);
@@ -438,6 +446,7 @@ export function TourismDataScreen({
         <SearchForm
           onSubmit={(event) => {
             event.preventDefault();
+            setPage(1);
             setAppliedQuery(query.trim());
           }}
         >
@@ -457,13 +466,19 @@ export function TourismDataScreen({
         ) : tab === "places" ? (
           <PlaceRecords
             records={data?.places ?? []}
+            pagination={data?.pagination}
+            sigunguOptions={data?.placeFilters.sigunguNames ?? []}
             selectedSido={placeSido}
             selectedSigungu={placeSigungu}
             onSidoChange={(nextSido) => {
+              setPage(1);
               setPlaceSido(nextSido);
               setPlaceSigungu("");
             }}
-            onSigunguChange={setPlaceSigungu}
+            onSigunguChange={(nextSigungu) => {
+              setPage(1);
+              setPlaceSigungu(nextSigungu);
+            }}
             reviewing={reviewingPlaces}
             onPlaceUpdate={updatePlaceReview}
             onBulkReview={bulkReviewPlaces}
@@ -482,6 +497,13 @@ export function TourismDataScreen({
           <MetricRecords metrics={data?.metrics ?? []} />
         ) : (
           <SyncRuns runs={data?.runs ?? []} />
+        )}
+
+        {!loading && data && data.pagination.totalPages > 1 && (
+          <DataPagination
+            pagination={data.pagination}
+            onPageChange={setPage}
+          />
         )}
       </Content>
 
@@ -1199,6 +1221,8 @@ function WellnessRecords({
 
 function PlaceRecords({
   records,
+  pagination,
+  sigunguOptions,
   selectedSido,
   selectedSigungu,
   onSidoChange,
@@ -1208,6 +1232,8 @@ function PlaceRecords({
   onBulkReview,
 }: {
   records: TourismPlaceSourceItem[];
+  pagination?: TourismDataResponse["pagination"];
+  sigunguOptions: string[];
   selectedSido: string;
   selectedSigungu: string;
   onSidoChange: (value: string) => void;
@@ -1222,16 +1248,6 @@ function PlaceRecords({
   const [selectedRecord, setSelectedRecord] =
     useState<TourismPlaceSourceItem | null>(null);
   const [selectedPlaceIds, setSelectedPlaceIds] = useState<string[]>([]);
-  const sigunguOptions = useMemo(() => {
-    const names = new Set(
-      records
-        .filter((record) => !selectedSido || record.sidoName === selectedSido)
-        .map((record) => record.sigunguName)
-        .filter((name): name is string => Boolean(name)),
-    );
-
-    return [...names].sort((left, right) => left.localeCompare(right, "ko"));
-  }, [records, selectedSido]);
   const linkedCount = records.filter((record) => record.linkedPlaceId).length;
   const regionCount = new Set(
     records.map((record) => record.sidoName).filter(Boolean),
@@ -1285,13 +1301,15 @@ function PlaceRecords({
               <span>시군구</span>
               <Select
                 value={selectedSigungu}
-                disabled={!selectedSido}
+                disabled={!selectedSido || sigunguOptions.length === 0}
                 onChange={(event) => onSigunguChange(event.target.value)}
               >
                 <option value="">전체</option>
-                {selectedSigungu && (
-                  <option value={selectedSigungu}>{selectedSigungu}</option>
-                )}
+                {sigunguOptions.map((name) => (
+                  <option key={name} value={name}>
+                    {name}
+                  </option>
+                ))}
               </Select>
             </PlaceFilterLabel>
           </PlaceFilterGroup>
@@ -1355,7 +1373,11 @@ function PlaceRecords({
           <span>포함 시도</span>
           <strong>{regionCount}곳</strong>
         </PlaceSummaryItem>
-        <PlaceSummaryHint>최대 100건까지 표시됩니다.</PlaceSummaryHint>
+        <PlaceSummaryHint>
+          {pagination
+            ? `검색 결과 ${pagination.totalItems.toLocaleString("ko-KR")}건 중 ${getPageRangeLabel(pagination)}`
+            : "목록을 불러오는 중입니다."}
+        </PlaceSummaryHint>
       </PlaceDataSummary>
 
       <PlaceReviewToolbar>
@@ -1535,6 +1557,61 @@ function PlaceRecords({
         </PlaceDrawerBackdrop>
       )}
     </>
+  );
+}
+
+function DataPagination({
+  pagination,
+  onPageChange,
+}: {
+  pagination: TourismDataResponse["pagination"];
+  onPageChange: (page: number) => void;
+}) {
+  const pages = getVisiblePageNumbers(
+    pagination.page,
+    pagination.totalPages,
+  );
+
+  return (
+    <PaginationNav aria-label="관광 데이터 목록 페이지">
+      <PaginationSummary>
+        전체 {pagination.totalItems.toLocaleString("ko-KR")}건 ·{" "}
+        {pagination.page.toLocaleString("ko-KR")} /{" "}
+        {pagination.totalPages.toLocaleString("ko-KR")}페이지
+      </PaginationSummary>
+      <PaginationControls>
+        <PaginationButton
+          type="button"
+          disabled={pagination.page === 1}
+          onClick={() => onPageChange(pagination.page - 1)}
+        >
+          이전
+        </PaginationButton>
+        <PaginationNumbers>
+          {pages.map((pageNumber) => (
+            <PaginationNumberButton
+              key={pageNumber}
+              type="button"
+              $active={pageNumber === pagination.page}
+              aria-current={
+                pageNumber === pagination.page ? "page" : undefined
+              }
+              aria-label={`${pageNumber}페이지`}
+              onClick={() => onPageChange(pageNumber)}
+            >
+              {pageNumber}
+            </PaginationNumberButton>
+          ))}
+        </PaginationNumbers>
+        <PaginationButton
+          type="button"
+          disabled={pagination.page === pagination.totalPages}
+          onClick={() => onPageChange(pagination.page + 1)}
+        >
+          다음
+        </PaginationButton>
+      </PaginationControls>
+    </PaginationNav>
   );
 }
 
@@ -1756,6 +1833,31 @@ function toErrorMessage(error: unknown) {
 
 function formatDate(value: string) {
   return dateFormatter.format(new Date(value));
+}
+
+function getPageRangeLabel({
+  page,
+  pageSize,
+  totalItems,
+}: TourismDataResponse["pagination"]) {
+  if (totalItems === 0) return "0건";
+
+  const firstItem = (page - 1) * pageSize + 1;
+  const lastItem = Math.min(page * pageSize, totalItems);
+  return `${firstItem.toLocaleString("ko-KR")}–${lastItem.toLocaleString("ko-KR")}번째`;
+}
+
+function getVisiblePageNumbers(currentPage: number, totalPages: number) {
+  const visibleCount = Math.min(5, totalPages);
+  const firstPage = Math.min(
+    Math.max(1, currentPage - Math.floor(visibleCount / 2)),
+    totalPages - visibleCount + 1,
+  );
+
+  return Array.from(
+    { length: visibleCount },
+    (_, index) => firstPage + index,
+  );
 }
 
 function formatBaseYm(value: string) {
@@ -2901,6 +3003,103 @@ const PlaceDetailGrid = styled.div`
 
   @media (max-width: 380px) {
     grid-template-columns: 1fr;
+  }
+`;
+
+const PaginationNav = styled.nav`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  padding: var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--space-4);
+  background: var(--color-white);
+  box-shadow: 0 8px 24px rgb(var(--color-black-rgb) / 0.04);
+
+  @media (max-width: 640px) {
+    align-items: stretch;
+    flex-direction: column;
+  }
+`;
+
+const PaginationSummary = styled.p`
+  color: var(--color-text-muted);
+  font-size: var(--font-size-100);
+
+  @media (max-width: 640px) {
+    text-align: center;
+  }
+`;
+
+const PaginationControls = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+`;
+
+const PaginationNumbers = styled.div`
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+`;
+
+const PaginationButton = styled.button`
+  min-width: 60px;
+  height: 40px;
+  padding: 0 var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--space-3);
+  background: var(--color-white);
+  color: var(--color-text);
+  font: inherit;
+  font-size: var(--font-size-100);
+  font-weight: 700;
+  cursor: pointer;
+
+  &:hover:not(:disabled),
+  &:focus-visible {
+    border-color: var(--color-brand-600);
+    outline: 0;
+    background: var(--color-brand-100);
+  }
+
+  &:disabled {
+    color: var(--color-neutral-500);
+    cursor: default;
+  }
+
+  @media (max-width: 480px) {
+    min-width: 48px;
+    padding: 0 var(--space-2);
+  }
+`;
+
+const PaginationNumberButton = styled.button<{ $active: boolean }>`
+  width: 40px;
+  height: 40px;
+  border: 0;
+  border-radius: var(--space-3);
+  background: ${({ $active }) =>
+    $active ? "var(--color-brand-700)" : "transparent"};
+  color: ${({ $active }) =>
+    $active ? "var(--color-white)" : "var(--color-text-muted)"};
+  font: inherit;
+  font-size: var(--font-size-100);
+  font-weight: 700;
+  cursor: pointer;
+
+  &:hover,
+  &:focus-visible {
+    outline: 0;
+    background: ${({ $active }) =>
+      $active ? "var(--color-brand-700)" : "var(--color-brand-100)"};
+  }
+
+  @media (max-width: 480px) {
+    width: 36px;
+    height: 36px;
   }
 `;
 

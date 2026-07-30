@@ -1,3 +1,4 @@
+import type { Prisma } from "@/generated/prisma/client";
 import { authenticateAdmin } from "@/server/admin/auth";
 import { writeSystemLogSafely } from "@/server/admin/log";
 import { prisma } from "@/server/db/prisma";
@@ -56,13 +57,22 @@ export async function GET(request: Request) {
     url.searchParams.get("metricType"),
   );
   const take = normalizeInteger(
-    Number(url.searchParams.get("take")),
+    url.searchParams.get("take"),
     1,
     200,
     100,
   );
+  const page = normalizeInteger(
+    url.searchParams.get("page"),
+    1,
+    1_000_000,
+    1,
+  );
+  const skip = (page - 1) * take;
   const [
     overview,
+    totalItems,
+    placeSigunguOptions,
     places,
     wellness,
     municipalCore,
@@ -74,6 +84,24 @@ export async function GET(request: Request) {
   ] =
     await Promise.all([
     getOverview(),
+    getTotalItems({
+      tab,
+      query,
+      sidoName,
+      sigunguName,
+      metricType,
+    }),
+    tab === "places" && sidoName
+      ? prisma.tourismPlaceSourceRecord.findMany({
+          where: {
+            sidoName,
+            sigunguName: { not: null },
+          },
+          select: { sigunguName: true },
+          distinct: ["sigunguName"],
+          orderBy: { sigunguName: "asc" },
+        })
+      : Promise.resolve([]),
     tab === "places"
       ? prisma.tourismPlaceSourceRecord.findMany({
           where: {
@@ -120,6 +148,7 @@ export async function GET(request: Request) {
               },
             },
           },
+          skip,
           take,
         })
       : Promise.resolve([]),
@@ -137,6 +166,7 @@ export async function GET(request: Request) {
               }
             : undefined,
           orderBy: { syncedAt: "desc" },
+          skip,
           take,
         })
       : Promise.resolve([]),
@@ -164,6 +194,7 @@ export async function GET(request: Request) {
               }
             : undefined,
           orderBy: [{ baseYm: "desc" }, { rank: "asc" }],
+          skip,
           take,
         })
       : Promise.resolve([]),
@@ -190,6 +221,7 @@ export async function GET(request: Request) {
               }
             : undefined,
           orderBy: [{ baseYmd: "desc" }, { concentrationRate: "desc" }],
+          skip,
           take,
         })
       : Promise.resolve([]),
@@ -211,6 +243,7 @@ export async function GET(request: Request) {
               }
             : undefined,
           orderBy: [{ baseYmd: "desc" }, { visitorCount: "desc" }],
+          skip,
           take,
         })
       : Promise.resolve([]),
@@ -237,6 +270,7 @@ export async function GET(request: Request) {
               }
             : undefined,
           orderBy: { syncedAt: "desc" },
+          skip,
           take,
         })
       : Promise.resolve([]),
@@ -256,6 +290,7 @@ export async function GET(request: Request) {
               : {}),
           },
           orderBy: [{ baseYm: "desc" }, { syncedAt: "desc" }],
+          skip,
           take,
         })
       : Promise.resolve([]),
@@ -271,12 +306,24 @@ export async function GET(request: Request) {
               }
             : undefined,
           orderBy: { startedAt: "desc" },
+          skip,
           take,
         })
       : Promise.resolve([]),
     ]);
   const response: TourismDataResponse = {
     overview,
+    pagination: {
+      page,
+      pageSize: take,
+      totalItems,
+      totalPages: Math.max(1, Math.ceil(totalItems / take)),
+    },
+    placeFilters: {
+      sigunguNames: placeSigunguOptions.flatMap((item) =>
+        item.sigunguName ? [item.sigunguName] : [],
+      ),
+    },
     places: places.map((item) => ({
       ...item,
       sourceModifiedAt: item.sourceModifiedAt?.toISOString() ?? null,
@@ -522,6 +569,185 @@ export function OPTIONS(request: Request) {
   return createPreflightResponse(request);
 }
 
+async function getTotalItems({
+  tab,
+  query,
+  sidoName,
+  sigunguName,
+  metricType,
+}: {
+  tab: TourismDataTab;
+  query?: string;
+  sidoName?: string;
+  sigunguName?: string;
+  metricType?: RegionalMetricType;
+}) {
+  if (tab === "places") {
+    const where: Prisma.TourismPlaceSourceRecordWhereInput = {
+      ...(sidoName ? { sidoName } : {}),
+      ...(sigunguName ? { sigunguName } : {}),
+      ...(query
+        ? {
+            OR: [
+              { contentId: { contains: query } },
+              { title: { contains: query, mode: "insensitive" } },
+              { areaCode: { contains: query } },
+              { sidoName: { contains: query, mode: "insensitive" } },
+              { sigunguCode: { contains: query } },
+              {
+                sigunguName: {
+                  contains: query,
+                  mode: "insensitive",
+                },
+              },
+            ],
+          }
+        : {}),
+    };
+
+    return prisma.tourismPlaceSourceRecord.count({ where });
+  }
+
+  if (tab === "wellness") {
+    const where: Prisma.WellnessTourismSourceRecordWhereInput | undefined =
+      query
+        ? {
+            OR: [
+              { contentId: { contains: query } },
+              { title: { contains: query, mode: "insensitive" } },
+              { wellnessThemeCode: { contains: query } },
+              { areaCode: { contains: query } },
+              { sigunguCode: { contains: query } },
+            ],
+          }
+        : undefined;
+
+    return prisma.wellnessTourismSourceRecord.count({ where });
+  }
+
+  if (tab === "municipalCore") {
+    const where: Prisma.MunicipalCoreTourismSourceRecordWhereInput | undefined =
+      query
+        ? {
+            OR: [
+              { touristSpotCode: { contains: query } },
+              {
+                touristSpotName: {
+                  contains: query,
+                  mode: "insensitive",
+                },
+              },
+              { areaName: { contains: query, mode: "insensitive" } },
+              { sigunguName: { contains: query, mode: "insensitive" } },
+              { baseYm: { contains: query } },
+            ],
+          }
+        : undefined;
+
+    return prisma.municipalCoreTourismSourceRecord.count({ where });
+  }
+
+  if (tab === "concentration") {
+    const where:
+      | Prisma.TouristSpotConcentrationRateRecordWhereInput
+      | undefined = query
+      ? {
+          OR: [
+            {
+              touristSpotName: {
+                contains: query,
+                mode: "insensitive",
+              },
+            },
+            { areaName: { contains: query, mode: "insensitive" } },
+            { sigunguName: { contains: query, mode: "insensitive" } },
+            { baseYmd: { contains: query } },
+          ],
+        }
+      : undefined;
+
+    return prisma.touristSpotConcentrationRateRecord.count({ where });
+  }
+
+  if (tab === "visitors") {
+    const where: Prisma.RegionalVisitorCountRecordWhereInput | undefined =
+      query
+        ? {
+            OR: [
+              { regionName: { contains: query, mode: "insensitive" } },
+              {
+                visitorTypeName: {
+                  contains: query,
+                  mode: "insensitive",
+                },
+              },
+              { baseYmd: { contains: query } },
+              { aggregationLevel: { contains: query } },
+            ],
+          }
+        : undefined;
+
+    return prisma.regionalVisitorCountRecord.count({ where });
+  }
+
+  if (tab === "photos") {
+    const where:
+      | Prisma.TourismPhotoGallerySourceRecordWhereInput
+      | undefined = query
+      ? {
+          OR: [
+            { contentId: { contains: query } },
+            { title: { contains: query, mode: "insensitive" } },
+            {
+              photographyLocation: {
+                contains: query,
+                mode: "insensitive",
+              },
+            },
+            {
+              searchKeyword: {
+                contains: query,
+                mode: "insensitive",
+              },
+            },
+          ],
+        }
+      : undefined;
+
+    return prisma.tourismPhotoGallerySourceRecord.count({ where });
+  }
+
+  if (tab === "metrics") {
+    const where: Prisma.TourismRegionMetricWhereInput = {
+      ...(metricType ? { metricType } : {}),
+      ...(query
+        ? {
+            OR: [
+              { metricName: { contains: query, mode: "insensitive" } },
+              { areaName: { contains: query, mode: "insensitive" } },
+              { sigunguName: { contains: query, mode: "insensitive" } },
+              { baseYm: { contains: query } },
+            ],
+          }
+        : {}),
+    };
+
+    return prisma.tourismRegionMetric.count({ where });
+  }
+
+  const where: Prisma.ExternalDataSyncRunWhereInput | undefined = query
+    ? {
+        OR: [
+          { source: { contains: query, mode: "insensitive" } },
+          { operation: { contains: query, mode: "insensitive" } },
+          { status: { contains: query, mode: "insensitive" } },
+        ],
+      }
+    : undefined;
+
+  return prisma.externalDataSyncRun.count({ where });
+}
+
 async function getOverview() {
   const [
     placeSourceRecords,
@@ -659,12 +885,18 @@ function normalizeOptionalString(value: unknown, maximum: number) {
 }
 
 function normalizeInteger(
-  value: number,
+  value: string | null,
   minimum: number,
   maximum: number,
   fallback: number,
 ) {
-  return Number.isInteger(value)
-    ? Math.min(maximum, Math.max(minimum, value))
+  if (!value?.trim()) {
+    return fallback;
+  }
+
+  const parsed = Number(value);
+
+  return Number.isInteger(parsed)
+    ? Math.min(maximum, Math.max(minimum, parsed))
     : fallback;
 }

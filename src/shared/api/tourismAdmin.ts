@@ -163,6 +163,15 @@ export type ExternalDataSyncRunItem = {
 
 export type TourismDataResponse = {
   overview: TourismDataOverview;
+  pagination: {
+    page: number;
+    pageSize: number;
+    totalItems: number;
+    totalPages: number;
+  };
+  placeFilters: {
+    sigunguNames: string[];
+  };
   places: TourismPlaceSourceItem[];
   wellness: WellnessTourismSourceItem[];
   municipalCore: MunicipalCoreTourismSourceItem[];
