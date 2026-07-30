@@ -1,6 +1,7 @@
 import { authenticateAdmin } from "@/server/admin/auth";
 import { writeSystemLog } from "@/server/admin/log";
 import { prisma } from "@/server/db/prisma";
+import type { Prisma } from "@/generated/prisma/client";
 import {
   createPreflightResponse,
   isRequestOriginAllowed,
@@ -9,6 +10,8 @@ import {
 import type { AdminPlacesResponse } from "@/shared/api/admin";
 
 export const runtime = "nodejs";
+
+const PAGE_SIZE = 50;
 
 export async function GET(request: Request) {
   if (!isRequestOriginAllowed(request)) {
@@ -27,45 +30,193 @@ export async function GET(request: Request) {
     url.searchParams.get("reviewStatus"),
   );
   const source = url.searchParams.get("source")?.trim().slice(0, 80);
-  const places = await prisma.place.findMany({
-    where: {
-      ...(reviewStatus ? { reviewStatus } : {}),
-      ...(source ? { source } : {}),
-      ...(query
-        ? {
-            OR: [
-              { name: { contains: query, mode: "insensitive" } },
-              { id: { contains: query, mode: "insensitive" } },
-              { source: { contains: query, mode: "insensitive" } },
-              { sourceId: { contains: query, mode: "insensitive" } },
-            ],
-          }
-        : {}),
-    },
-    select: {
-      id: true,
-      name: true,
-      source: true,
-      sourceId: true,
-      sourceContentType: true,
-      sourceAddress: true,
-      sourceCopyright: true,
-      sourceSyncedAt: true,
-      reviewStatus: true,
-      isActive: true,
-      movementLevel: true,
-      fatigue: true,
-      updatedAt: true,
-    },
-    orderBy: [{ reviewStatus: "asc" }, { updatedAt: "desc" }],
-    take: 300,
-  });
+  const contentType = url.searchParams
+    .get("contentType")
+    ?.trim()
+    .slice(0, 40);
+  const sido = url.searchParams.get("sido")?.trim().slice(0, 80);
+  const sigungu = url.searchParams.get("sigungu")?.trim().slice(0, 80);
+  const visibility = normalizeVisibility(
+    url.searchParams.get("visibility"),
+  );
+  const sort = normalizePlaceSort(url.searchParams.get("sort"));
+  const page = normalizePage(url.searchParams.get("page"));
+  const where: Prisma.PlaceWhereInput = {
+    ...(reviewStatus ? { reviewStatus } : {}),
+    ...(source ? { source } : {}),
+    ...(contentType ? { sourceContentType: contentType } : {}),
+    ...(sido ? { sourceSidoName: sido } : {}),
+    ...(sigungu ? { sourceSigunguName: sigungu } : {}),
+    ...(visibility !== undefined ? { isActive: visibility } : {}),
+    ...(query
+      ? {
+          OR: [
+            { name: { contains: query, mode: "insensitive" } },
+            { id: { contains: query, mode: "insensitive" } },
+            { source: { contains: query, mode: "insensitive" } },
+            { sourceId: { contains: query, mode: "insensitive" } },
+            {
+              sourceAddress: {
+                contains: query,
+                mode: "insensitive",
+              },
+            },
+            {
+              sourceSidoName: {
+                contains: query,
+                mode: "insensitive",
+              },
+            },
+            {
+              sourceSigunguName: {
+                contains: query,
+                mode: "insensitive",
+              },
+            },
+          ],
+        }
+      : {}),
+  };
+  const sigunguOptionWhere: Prisma.PlaceWhereInput = {
+    sourceSigunguName: { not: null },
+    ...(sido ? { sourceSidoName: sido } : {}),
+  };
+  const [
+    places,
+    total,
+    all,
+    statusGroups,
+    visibilityGroups,
+    sourceGroups,
+    contentTypeGroups,
+    sidoGroups,
+    sigunguGroups,
+  ] = await Promise.all([
+    prisma.place.findMany({
+      where,
+      select: {
+        id: true,
+        name: true,
+        source: true,
+        sourceId: true,
+        sourceContentType: true,
+        sourceAddress: true,
+        sourceSidoName: true,
+        sourceSigunguName: true,
+        sourceCopyright: true,
+        sourceSyncedAt: true,
+        reviewStatus: true,
+        isActive: true,
+        movementLevel: true,
+        fatigue: true,
+        updatedAt: true,
+      },
+      orderBy: getPlaceOrderBy(sort),
+      skip: (page - 1) * PAGE_SIZE,
+      take: PAGE_SIZE,
+    }),
+    prisma.place.count({ where }),
+    prisma.place.count(),
+    prisma.place.groupBy({
+      by: ["reviewStatus"],
+      _count: { _all: true },
+    }),
+    prisma.place.groupBy({
+      by: ["isActive"],
+      _count: { _all: true },
+    }),
+    prisma.place.groupBy({
+      by: ["source"],
+      _count: { _all: true },
+      orderBy: { source: "asc" },
+    }),
+    prisma.place.groupBy({
+      by: ["sourceContentType"],
+      where: { sourceContentType: { not: null } },
+      _count: { _all: true },
+      orderBy: { sourceContentType: "asc" },
+    }),
+    prisma.place.groupBy({
+      by: ["sourceSidoName"],
+      where: { sourceSidoName: { not: null } },
+      _count: { _all: true },
+      orderBy: { sourceSidoName: "asc" },
+    }),
+    prisma.place.groupBy({
+      by: ["sourceSigunguName"],
+      where: sigunguOptionWhere,
+      _count: { _all: true },
+      orderBy: { sourceSigunguName: "asc" },
+    }),
+  ]);
+  const statusCounts = Object.fromEntries(
+    statusGroups.map((group) => [
+      group.reviewStatus,
+      group._count._all,
+    ]),
+  );
+  const visibilityCounts = Object.fromEntries(
+    visibilityGroups.map((group) => [
+      group.isActive ? "active" : "inactive",
+      group._count._all,
+    ]),
+  );
   const response: AdminPlacesResponse = {
     places: places.map((place) => ({
       ...place,
       sourceSyncedAt: place.sourceSyncedAt?.toISOString() ?? null,
       updatedAt: place.updatedAt.toISOString(),
     })),
+    meta: {
+      page,
+      pageSize: PAGE_SIZE,
+      total,
+      totalPages: Math.max(1, Math.ceil(total / PAGE_SIZE)),
+      all,
+      statusCounts: {
+        pending: statusCounts.pending ?? 0,
+        approved: statusCounts.approved ?? 0,
+        rejected: statusCounts.rejected ?? 0,
+      },
+      visibilityCounts: {
+        active: visibilityCounts.active ?? 0,
+        inactive: visibilityCounts.inactive ?? 0,
+      },
+      filters: {
+        sources: sourceGroups.map((group) => ({
+          value: group.source,
+          label: getSourceLabel(group.source),
+          count: group._count._all,
+        })),
+        contentTypes: contentTypeGroups.flatMap((group) =>
+          group.sourceContentType
+            ? [{
+                value: group.sourceContentType,
+                label: getContentTypeLabel(group.sourceContentType),
+                count: group._count._all,
+              }]
+            : [],
+        ),
+        sidos: sidoGroups.flatMap((group) =>
+          group.sourceSidoName
+            ? [{
+                value: group.sourceSidoName,
+                label: group.sourceSidoName,
+                count: group._count._all,
+              }]
+            : [],
+        ),
+        sigungus: sigunguGroups.flatMap((group) =>
+          group.sourceSigunguName
+            ? [{
+                value: group.sourceSigunguName,
+                label: group.sourceSigunguName,
+                count: group._count._all,
+              }]
+            : [],
+        ),
+      },
+    },
   };
 
   return withCors(request, Response.json(response));
@@ -237,6 +388,56 @@ function normalizeReviewStatus(value: unknown) {
     value === "rejected"
     ? value
     : undefined;
+}
+
+function normalizeVisibility(value: unknown) {
+  if (value === "active") return true;
+  if (value === "inactive") return false;
+  return undefined;
+}
+
+function normalizePage(value: unknown) {
+  const page = typeof value === "string" ? Number.parseInt(value, 10) : 1;
+  return Number.isSafeInteger(page) && page > 0 ? page : 1;
+}
+
+function normalizePlaceSort(value: unknown) {
+  return value === "updated-asc" ||
+    value === "name-asc" ||
+    value === "name-desc" ||
+    value === "synced-desc" ||
+    value === "fatigue-asc" ||
+    value === "fatigue-desc"
+    ? value
+    : "updated-desc";
+}
+
+function getPlaceOrderBy(
+  sort: ReturnType<typeof normalizePlaceSort>,
+): Prisma.PlaceOrderByWithRelationInput[] {
+  if (sort === "updated-asc") return [{ updatedAt: "asc" }, { name: "asc" }];
+  if (sort === "name-asc") return [{ name: "asc" }, { updatedAt: "desc" }];
+  if (sort === "name-desc") return [{ name: "desc" }, { updatedAt: "desc" }];
+  if (sort === "synced-desc") {
+    return [{ sourceSyncedAt: "desc" }, { updatedAt: "desc" }];
+  }
+  if (sort === "fatigue-asc") return [{ fatigue: "asc" }, { name: "asc" }];
+  if (sort === "fatigue-desc") return [{ fatigue: "desc" }, { name: "asc" }];
+  return [{ updatedAt: "desc" }, { name: "asc" }];
+}
+
+function getContentTypeLabel(value: string) {
+  if (value === "12") return "관광지";
+  if (value === "14") return "문화시설";
+  if (value === "25") return "여행코스";
+  if (value === "28") return "레포츠";
+  return value;
+}
+
+function getSourceLabel(value: string) {
+  if (value === "tourapi") return "한국관광공사 TourAPI";
+  if (value === "manual") return "직접 등록";
+  return value;
 }
 
 function normalizeEditorialUpdate(body: {

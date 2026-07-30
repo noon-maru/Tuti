@@ -38,6 +38,8 @@ export type AdminPlaceItem = {
   sourceId: string | null;
   sourceContentType: string | null;
   sourceAddress: string | null;
+  sourceSidoName: string | null;
+  sourceSigunguName: string | null;
   sourceCopyright: string | null;
   sourceSyncedAt: string | null;
   reviewStatus: PlaceReviewStatus;
@@ -45,6 +47,35 @@ export type AdminPlaceItem = {
   movementLevel: string;
   fatigue: number;
   updatedAt: string;
+};
+
+export type AdminPlaceFilterOption = {
+  value: string;
+  label: string;
+  count: number;
+};
+
+export type AdminPlacesMeta = {
+  page: number;
+  pageSize: number;
+  total: number;
+  totalPages: number;
+  all: number;
+  statusCounts: {
+    pending: number;
+    approved: number;
+    rejected: number;
+  };
+  visibilityCounts: {
+    active: number;
+    inactive: number;
+  };
+  filters: {
+    sources: AdminPlaceFilterOption[];
+    contentTypes: AdminPlaceFilterOption[];
+    sidos: AdminPlaceFilterOption[];
+    sigungus: AdminPlaceFilterOption[];
+  };
 };
 
 export type AdminReportItem = {
@@ -106,6 +137,7 @@ export type AdminLogsResponse = {
 
 export type AdminPlacesResponse = {
   places: AdminPlaceItem[];
+  meta: AdminPlacesMeta;
 };
 
 export type AdminReportsResponse = {

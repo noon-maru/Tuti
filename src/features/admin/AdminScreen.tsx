@@ -23,6 +23,7 @@ import type {
   AdminOverview,
   AdminOverviewResponse,
   AdminPlaceItem,
+  AdminPlacesMeta,
   AdminPlacesResponse,
   AdminReportItem,
   AdminReportsResponse,
@@ -68,6 +69,26 @@ const dateFormatter = new Intl.DateTimeFormat("ko-KR", {
   dateStyle: "medium",
   timeStyle: "short",
 });
+
+type PlaceFilterState = {
+  reviewStatus: string;
+  visibility: string;
+  source: string;
+  contentType: string;
+  sido: string;
+  sigungu: string;
+  sort: string;
+};
+
+const defaultPlaceFilters: PlaceFilterState = {
+  reviewStatus: "",
+  visibility: "",
+  source: "",
+  contentType: "",
+  sido: "",
+  sigungu: "",
+  sort: "updated-desc",
+};
 
 function AdminSectionIcon({
   section,
@@ -128,6 +149,7 @@ export function AdminScreen({
   const [overview, setOverview] = useState<AdminOverview | null>(null);
   const [logs, setLogs] = useState<AdminLogItem[]>([]);
   const [places, setPlaces] = useState<AdminPlaceItem[]>([]);
+  const [placesMeta, setPlacesMeta] = useState<AdminPlacesMeta | null>(null);
   const [reports, setReports] = useState<AdminReportItem[]>([]);
   const [inquiries, setInquiries] = useState<AdminInquiryItem[]>([]);
   const [users, setUsers] = useState<AdminUserItem[]>([]);
@@ -135,6 +157,10 @@ export function AdminScreen({
   const [query, setQuery] = useState("");
   const [appliedQuery, setAppliedQuery] = useState("");
   const [filter, setFilter] = useState("");
+  const [placeFilters, setPlaceFilters] = useState<PlaceFilterState>(
+    defaultPlaceFilters,
+  );
+  const [placePage, setPlacePage] = useState(1);
   const [loading, setLoading] = useState(true);
   const [mutatingId, setMutatingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -208,6 +234,8 @@ export function AdminScreen({
       setQuery("");
       setAppliedQuery("");
       setFilter("");
+      setPlaceFilters(defaultPlaceFilters);
+      setPlacePage(1);
       setError(null);
       setNotice(null);
       closeMobileMenu();
@@ -242,8 +270,27 @@ export function AdminScreen({
     if (appliedQuery) searchParams.set("q", appliedQuery);
 
     if (tab === "logs" && filter) searchParams.set("level", filter);
-    if (tab === "places" && filter) {
-      searchParams.set("reviewStatus", filter);
+    if (tab === "places") {
+      if (placeFilters.reviewStatus) {
+        searchParams.set("reviewStatus", placeFilters.reviewStatus);
+      }
+      if (placeFilters.visibility) {
+        searchParams.set("visibility", placeFilters.visibility);
+      }
+      if (placeFilters.source) {
+        searchParams.set("source", placeFilters.source);
+      }
+      if (placeFilters.contentType) {
+        searchParams.set("contentType", placeFilters.contentType);
+      }
+      if (placeFilters.sido) {
+        searchParams.set("sido", placeFilters.sido);
+      }
+      if (placeFilters.sigungu) {
+        searchParams.set("sigungu", placeFilters.sigungu);
+      }
+      searchParams.set("sort", placeFilters.sort);
+      searchParams.set("page", String(placePage));
     }
     if (tab === "reports" && filter) searchParams.set("status", filter);
     if (tab === "inquiries" && filter) searchParams.set("status", filter);
@@ -260,6 +307,7 @@ export function AdminScreen({
         `places${suffix}`,
       );
       setPlaces(response.places);
+      setPlacesMeta(response.meta);
     } else if (tab === "reports") {
       const response = await fetchAdminJson<AdminReportsResponse>(
         `reports${suffix}`,
@@ -280,7 +328,7 @@ export function AdminScreen({
         await fetchAdminJson<AdminSettingsResponse>("settings");
       setSettings(response.settings);
     }
-  }, [appliedQuery, filter, tab]);
+  }, [appliedQuery, filter, placeFilters, placePage, tab]);
 
   const refresh = useCallback(async () => {
     setLoading(true);
@@ -361,6 +409,17 @@ export function AdminScreen({
   };
 
   const filterOptions = useMemo(() => getFilterOptions(tab), [tab]);
+  const updatePlaceFilter = useCallback(
+    (key: keyof PlaceFilterState, value: string) => {
+      setPlaceFilters((current) => ({
+        ...current,
+        [key]: value,
+        ...(key === "sido" ? { sigungu: "" } : {}),
+      }));
+      setPlacePage(1);
+    },
+    [],
+  );
 
   if (accessStatus === 401 || accessStatus === 403) {
     return (
@@ -425,7 +484,26 @@ export function AdminScreen({
           </RefreshButton>
         </Header>
 
-        {tab !== "overview" && tab !== "settings" && (
+        {tab === "places" ? (
+          <PlacesToolbar
+            query={query}
+            appliedQuery={appliedQuery}
+            filters={placeFilters}
+            meta={placesMeta}
+            onQueryChange={setQuery}
+            onSearch={() => {
+              setAppliedQuery(query.trim());
+              setPlacePage(1);
+            }}
+            onFilterChange={updatePlaceFilter}
+            onReset={() => {
+              setQuery("");
+              setAppliedQuery("");
+              setPlaceFilters(defaultPlaceFilters);
+              setPlacePage(1);
+            }}
+          />
+        ) : tab !== "overview" && tab !== "settings" ? (
           <Toolbar
             onSubmit={(event) => {
               event.preventDefault();
@@ -453,7 +531,7 @@ export function AdminScreen({
             )}
             <SearchButton type="submit">검색</SearchButton>
           </Toolbar>
-        )}
+        ) : null}
 
         {error && <ErrorNotice role="alert">{error}</ErrorNotice>}
         {notice && <SuccessNotice role="status">{notice}</SuccessNotice>}
@@ -466,7 +544,9 @@ export function AdminScreen({
         ) : tab === "places" ? (
           <PlacesPanel
             places={places}
+            meta={placesMeta}
             mutatingId={mutatingId}
+            onPageChange={setPlacePage}
             onChange={(placeId, update) =>
               void mutate(
                 "places",
@@ -751,143 +831,396 @@ function LogsPanel({ logs }: { logs: AdminLogItem[] }) {
   );
 }
 
+function PlacesToolbar({
+  query,
+  appliedQuery,
+  filters,
+  meta,
+  onQueryChange,
+  onSearch,
+  onFilterChange,
+  onReset,
+}: {
+  query: string;
+  appliedQuery: string;
+  filters: PlaceFilterState;
+  meta: AdminPlacesMeta | null;
+  onQueryChange: (value: string) => void;
+  onSearch: () => void;
+  onFilterChange: (key: keyof PlaceFilterState, value: string) => void;
+  onReset: () => void;
+}) {
+  const filtersApplied =
+    Boolean(query.trim() || appliedQuery) ||
+    Object.entries(filters).some(
+      ([key, value]) =>
+        key !== "sort" && Boolean(value),
+    ) ||
+    filters.sort !== defaultPlaceFilters.sort;
+
+  return (
+    <PlaceToolbarCard>
+      <PlaceSearchRow
+        onSubmit={(event) => {
+          event.preventDefault();
+          onSearch();
+        }}
+      >
+        <SearchInput
+          value={query}
+          onChange={(event) => onQueryChange(event.target.value)}
+          placeholder={getSearchPlaceholder("places")}
+          aria-label="장소 검색"
+        />
+        <SearchButton type="submit">검색</SearchButton>
+      </PlaceSearchRow>
+      <PlaceFilterGrid>
+        <FilterField>
+          <span>검수 상태</span>
+          <Select
+            value={filters.reviewStatus}
+            onChange={(event) =>
+              onFilterChange("reviewStatus", event.target.value)
+            }
+          >
+            <option value="">전체 상태</option>
+            <option value="pending">
+              검토 대기{formatOptionCount(meta?.statusCounts.pending)}
+            </option>
+            <option value="approved">
+              승인{formatOptionCount(meta?.statusCounts.approved)}
+            </option>
+            <option value="rejected">
+              거절{formatOptionCount(meta?.statusCounts.rejected)}
+            </option>
+          </Select>
+        </FilterField>
+        <FilterField>
+          <span>노출 여부</span>
+          <Select
+            value={filters.visibility}
+            onChange={(event) =>
+              onFilterChange("visibility", event.target.value)
+            }
+          >
+            <option value="">전체 노출 상태</option>
+            <option value="active">
+              노출 중{formatOptionCount(meta?.visibilityCounts.active)}
+            </option>
+            <option value="inactive">
+              숨김{formatOptionCount(meta?.visibilityCounts.inactive)}
+            </option>
+          </Select>
+        </FilterField>
+        <FilterField>
+          <span>데이터 출처</span>
+          <Select
+            value={filters.source}
+            onChange={(event) =>
+              onFilterChange("source", event.target.value)
+            }
+          >
+            <option value="">전체 출처</option>
+            {meta?.filters.sources.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label} ({option.count})
+              </option>
+            ))}
+          </Select>
+        </FilterField>
+        <FilterField>
+          <span>장소 유형</span>
+          <Select
+            value={filters.contentType}
+            onChange={(event) =>
+              onFilterChange("contentType", event.target.value)
+            }
+          >
+            <option value="">전체 유형</option>
+            {meta?.filters.contentTypes.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label} ({option.count})
+              </option>
+            ))}
+          </Select>
+        </FilterField>
+        <FilterField>
+          <span>시도</span>
+          <Select
+            value={filters.sido}
+            onChange={(event) =>
+              onFilterChange("sido", event.target.value)
+            }
+          >
+            <option value="">전체 시도</option>
+            {meta?.filters.sidos.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label} ({option.count})
+              </option>
+            ))}
+          </Select>
+        </FilterField>
+        <FilterField>
+          <span>시군구</span>
+          <Select
+            value={filters.sigungu}
+            disabled={!filters.sido}
+            onChange={(event) =>
+              onFilterChange("sigungu", event.target.value)
+            }
+          >
+            <option value="">
+              {filters.sido ? "전체 시군구" : "시도를 먼저 선택"}
+            </option>
+            {meta?.filters.sigungus.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label} ({option.count})
+              </option>
+            ))}
+          </Select>
+        </FilterField>
+        <FilterField>
+          <span>정렬</span>
+          <Select
+            value={filters.sort}
+            onChange={(event) =>
+              onFilterChange("sort", event.target.value)
+            }
+          >
+            <option value="updated-desc">최근 수정순</option>
+            <option value="updated-asc">오래된 수정순</option>
+            <option value="synced-desc">최근 동기화순</option>
+            <option value="name-asc">이름 가나다순</option>
+            <option value="name-desc">이름 역순</option>
+            <option value="fatigue-asc">피로도 낮은순</option>
+            <option value="fatigue-desc">피로도 높은순</option>
+          </Select>
+        </FilterField>
+        <FilterResetButton
+          type="button"
+          disabled={!filtersApplied}
+          onClick={onReset}
+        >
+          필터 초기화
+        </FilterResetButton>
+      </PlaceFilterGrid>
+    </PlaceToolbarCard>
+  );
+}
+
 function PlacesPanel({
   places,
+  meta,
   mutatingId,
+  onPageChange,
   onChange,
 }: {
   places: AdminPlaceItem[];
+  meta: AdminPlacesMeta | null;
   mutatingId: string | null;
+  onPageChange: (page: number) => void;
   onChange: (
     placeId: string,
     update: { reviewStatus?: string; isActive?: boolean },
   ) => void;
 }) {
-  if (places.length === 0) return <StatePanel>조건에 맞는 장소가 없습니다.</StatePanel>;
-
   return (
-    <>
-      <DesktopOnly>
-        <TableCard>
-          <Table>
-            <thead>
-              <tr>
-                <th>장소</th>
-                <th>출처</th>
-                <th>피로도</th>
-                <th>검수 상태</th>
-                <th>노출</th>
-              </tr>
-            </thead>
-            <tbody>
-              {places.map((place) => (
-                <tr key={place.id}>
-                  <td>
-                    <strong>{place.name}</strong>
-                    <Small>{place.id}</Small>
-                  </td>
-                  <td>
-                    {place.source}
-                    {place.sourceId ? <Small>{place.sourceId}</Small> : null}
-                    {place.sourceContentType ? (
-                      <Small>
-                        유형 {getTourApiContentTypeLabel(place.sourceContentType)}
-                      </Small>
+    <PlaceResults>
+      <PlaceResultHeader>
+        <div>
+          <strong>{meta?.total.toLocaleString("ko-KR") ?? 0}</strong>
+          <span>
+            개 검색됨
+            {meta ? ` · 전체 ${meta.all.toLocaleString("ko-KR")}개` : ""}
+          </span>
+        </div>
+        {meta && (
+          <PlaceStatusSummary>
+            <span>대기 {meta.statusCounts.pending}</span>
+            <span>승인 {meta.statusCounts.approved}</span>
+            <span>노출 {meta.visibilityCounts.active}</span>
+          </PlaceStatusSummary>
+        )}
+      </PlaceResultHeader>
+
+      {places.length === 0 ? (
+        <StatePanel>조건에 맞는 장소가 없습니다.</StatePanel>
+      ) : (
+        <>
+          <DesktopOnly>
+            <TableCard>
+              <Table>
+                <thead>
+                  <tr>
+                    <th>장소</th>
+                    <th>지역</th>
+                    <th>출처·유형</th>
+                    <th>검수 상태</th>
+                    <th>노출</th>
+                    <th>최근 수정</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {places.map((place) => (
+                    <tr key={place.id}>
+                      <td>
+                        <strong>{place.name}</strong>
+                        <Small>
+                          피로도 {place.fatigue} · {place.movementLevel}
+                        </Small>
+                        <Small>{place.id}</Small>
+                      </td>
+                      <td>
+                        {formatPlaceRegion(place)}
+                        {place.sourceAddress ? (
+                          <Small>{place.sourceAddress}</Small>
+                        ) : null}
+                      </td>
+                      <td>
+                        {getPlaceSourceLabel(place.source)}
+                        {place.sourceContentType ? (
+                          <Small>
+                            {getTourApiContentTypeLabel(
+                              place.sourceContentType,
+                            )}
+                          </Small>
+                        ) : null}
+                        {place.sourceId ? (
+                          <Small>{place.sourceId}</Small>
+                        ) : null}
+                      </td>
+                      <td>
+                        <InlineSelect
+                          value={place.reviewStatus}
+                          disabled={mutatingId === place.id}
+                          onChange={(event) =>
+                            onChange(place.id, {
+                              reviewStatus: event.target.value,
+                            })
+                          }
+                        >
+                          <option value="pending">검토 대기</option>
+                          <option value="approved">승인</option>
+                          <option value="rejected">거절</option>
+                        </InlineSelect>
+                      </td>
+                      <td>
+                        <ToggleLabel>
+                          <input
+                            type="checkbox"
+                            checked={place.isActive}
+                            disabled={mutatingId === place.id}
+                            onChange={(event) =>
+                              onChange(place.id, {
+                                isActive: event.target.checked,
+                              })
+                            }
+                          />
+                          {place.isActive ? "노출" : "숨김"}
+                        </ToggleLabel>
+                      </td>
+                      <td>
+                        <Time dateTime={place.updatedAt}>
+                          {formatDate(place.updatedAt)}
+                        </Time>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </Table>
+            </TableCard>
+          </DesktopOnly>
+          <MobileRecordList>
+            {places.map((place) => (
+              <MobileRecordCard key={place.id}>
+                <MobileRecordHeader>
+                  <div>
+                    <h2>{place.name}</h2>
+                    <Meta>
+                      {formatPlaceRegion(place)} ·{" "}
+                      {getPlaceSourceLabel(place.source)}
+                      {place.sourceContentType
+                        ? ` · ${getTourApiContentTypeLabel(place.sourceContentType)}`
+                        : ""}
+                    </Meta>
+                    {place.sourceAddress ? (
+                      <Meta>{place.sourceAddress}</Meta>
                     ) : null}
-                  </td>
-                  <td>
-                    {place.fatigue} · {place.movementLevel}
-                  </td>
-                  <td>
-                    <InlineSelect
-                      value={place.reviewStatus}
+                  </div>
+                  <PlaceBadgeStack>
+                    <StatusBadge $tone={place.reviewStatus}>
+                      {getPlaceReviewStatusLabel(place.reviewStatus)}
+                    </StatusBadge>
+                    <VisibilityBadge $active={place.isActive}>
+                      {place.isActive ? "노출 중" : "숨김"}
+                    </VisibilityBadge>
+                  </PlaceBadgeStack>
+                </MobileRecordHeader>
+                <Small>
+                  피로도 {place.fatigue} · {place.movementLevel} · 수정{" "}
+                  {formatDate(place.updatedAt)}
+                </Small>
+                <Small>{place.sourceId ?? place.id}</Small>
+                {place.sourceCopyright ? (
+                  <Small>이미지 이용 구분 {place.sourceCopyright}</Small>
+                ) : null}
+                <MobileRecordActions>
+                  <InlineSelect
+                    value={place.reviewStatus}
+                    disabled={mutatingId === place.id}
+                    aria-label={`${place.name} 검수 상태`}
+                    onChange={(event) =>
+                      onChange(place.id, {
+                        reviewStatus: event.target.value,
+                      })
+                    }
+                  >
+                    <option value="pending">검토 대기</option>
+                    <option value="approved">승인</option>
+                    <option value="rejected">거절</option>
+                  </InlineSelect>
+                  <ToggleControl>
+                    <input
+                      type="checkbox"
+                      checked={place.isActive}
                       disabled={mutatingId === place.id}
                       onChange={(event) =>
                         onChange(place.id, {
-                          reviewStatus: event.target.value,
+                          isActive: event.target.checked,
                         })
                       }
-                    >
-                      <option value="pending">검토 대기</option>
-                      <option value="approved">승인</option>
-                      <option value="rejected">거절</option>
-                    </InlineSelect>
-                  </td>
-                  <td>
-                    <ToggleLabel>
-                      <input
-                        type="checkbox"
-                        checked={place.isActive}
-                        disabled={mutatingId === place.id}
-                        onChange={(event) =>
-                          onChange(place.id, {
-                            isActive: event.target.checked,
-                          })
-                        }
-                      />
-                      {place.isActive ? "노출" : "숨김"}
-                    </ToggleLabel>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </Table>
-        </TableCard>
-      </DesktopOnly>
-      <MobileRecordList>
-        {places.map((place) => (
-          <MobileRecordCard key={place.id}>
-            <MobileRecordHeader>
-              <div>
-                <h2>{place.name}</h2>
-                <Meta>
-                  {place.source} · {place.fatigue} · {place.movementLevel}
-                </Meta>
-                {place.sourceAddress ? (
-                  <Meta>{place.sourceAddress}</Meta>
-                ) : null}
-              </div>
-              <StatusBadge $tone={place.reviewStatus}>
-                {getPlaceReviewStatusLabel(place.reviewStatus)}
-              </StatusBadge>
-            </MobileRecordHeader>
-            <Small>{place.sourceId ?? place.id}</Small>
-            {place.sourceCopyright ? (
-              <Small>이미지 이용 구분 {place.sourceCopyright}</Small>
-            ) : null}
-            <MobileRecordActions>
-              <InlineSelect
-                value={place.reviewStatus}
-                disabled={mutatingId === place.id}
-                aria-label={`${place.name} 검수 상태`}
-                onChange={(event) =>
-                  onChange(place.id, {
-                    reviewStatus: event.target.value,
-                  })
-                }
-              >
-                <option value="pending">검토 대기</option>
-                <option value="approved">승인</option>
-                <option value="rejected">거절</option>
-              </InlineSelect>
-              <ToggleControl>
-                <input
-                  type="checkbox"
-                  checked={place.isActive}
-                  disabled={mutatingId === place.id}
-                  onChange={(event) =>
-                    onChange(place.id, {
-                      isActive: event.target.checked,
-                    })
-                  }
-                />
-                {place.isActive ? "노출 중" : "숨김"}
-              </ToggleControl>
-            </MobileRecordActions>
-          </MobileRecordCard>
-        ))}
-      </MobileRecordList>
-    </>
+                    />
+                    {place.isActive ? "노출 중" : "숨김"}
+                  </ToggleControl>
+                </MobileRecordActions>
+              </MobileRecordCard>
+            ))}
+          </MobileRecordList>
+        </>
+      )}
+
+      {meta && meta.totalPages > 1 && (
+        <Pagination aria-label="장소 목록 페이지">
+          <PaginationButton
+            type="button"
+            disabled={meta.page <= 1}
+            onClick={() => onPageChange(meta.page - 1)}
+          >
+            이전
+          </PaginationButton>
+          <span>
+            {meta.page} / {meta.totalPages}
+          </span>
+          <PaginationButton
+            type="button"
+            disabled={meta.page >= meta.totalPages}
+            onClick={() => onPageChange(meta.page + 1)}
+          >
+            다음
+          </PaginationButton>
+        </Pagination>
+      )}
+    </PlaceResults>
   );
 }
 
@@ -1317,6 +1650,24 @@ function getSearchPlaceholder(tab: AdminTab) {
   return "이메일 또는 사용자 ID 검색";
 }
 
+function formatOptionCount(value: number | undefined) {
+  return value === undefined ? "" : ` (${value.toLocaleString("ko-KR")})`;
+}
+
+function formatPlaceRegion(place: AdminPlaceItem) {
+  const region = [
+    place.sourceSidoName,
+    place.sourceSigunguName,
+  ].filter(Boolean);
+  return region.length > 0 ? region.join(" ") : "지역 미분류";
+}
+
+function getPlaceSourceLabel(source: string) {
+  if (source === "tourapi") return "TourAPI";
+  if (source === "manual") return "직접 등록";
+  return source;
+}
+
 function formatDate(value: string) {
   return dateFormatter.format(new Date(value));
 }
@@ -1633,6 +1984,80 @@ const Toolbar = styled.form`
     > input:first-of-type {
       grid-column: 1 / -1;
     }
+  }
+`;
+
+const PlaceToolbarCard = styled.section`
+  display: grid;
+  gap: var(--space-4);
+  padding: var(--space-5);
+  border: 1px solid var(--color-brand-200);
+  border-radius: var(--space-5);
+  background: var(--color-brand-100);
+
+  @media (max-width: 768px) {
+    gap: var(--space-3);
+    padding: var(--space-4);
+    border: 0;
+    border-radius: var(--space-4);
+    background: var(--color-neutral-200);
+  }
+`;
+
+const PlaceSearchRow = styled.form`
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: var(--space-3);
+`;
+
+const PlaceFilterGrid = styled.div`
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  align-items: end;
+  gap: var(--space-3);
+
+  @media (max-width: 1100px) {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  @media (max-width: 640px) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--space-2);
+  }
+`;
+
+const FilterField = styled.label`
+  min-width: 0;
+  display: grid;
+  gap: var(--space-1);
+
+  > span {
+    color: var(--color-text-muted);
+    font-size: var(--font-size-100);
+    font-weight: 600;
+  }
+
+  > select {
+    width: 100%;
+    min-width: 0;
+  }
+`;
+
+const FilterResetButton = styled.button`
+  min-height: var(--space-11);
+  padding: 0 var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--space-3);
+  background: var(--color-white);
+  color: var(--color-text-muted);
+  font: inherit;
+  font-size: var(--font-size-100);
+  font-weight: 700;
+  cursor: pointer;
+
+  &:disabled {
+    cursor: default;
+    opacity: 0.42;
   }
 `;
 
@@ -2145,6 +2570,72 @@ const MobileRecordCard = styled.article`
   }
 `;
 
+const PlaceResults = styled.section`
+  display: grid;
+  gap: var(--space-4);
+`;
+
+const PlaceResultHeader = styled.header`
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+
+  > div:first-of-type {
+    display: flex;
+    align-items: baseline;
+    gap: var(--space-2);
+  }
+
+  strong {
+    font-size: var(--font-size-500);
+    line-height: 1;
+  }
+
+  span {
+    color: var(--color-text-muted);
+    font-size: var(--font-size-100);
+  }
+
+  @media (max-width: 640px) {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: var(--space-2);
+  }
+`;
+
+const PlaceStatusSummary = styled.div`
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: var(--space-2);
+
+  span {
+    min-height: var(--space-7);
+    display: inline-flex;
+    align-items: center;
+    padding: 0 var(--space-3);
+    border-radius: 999px;
+    background: var(--color-secondary-200);
+    color: var(--color-secondary-1000);
+    font-weight: 700;
+  }
+
+  span:nth-of-type(2) {
+    background: var(--color-brand-100);
+    color: var(--color-brand-1000);
+  }
+
+  span:nth-of-type(3) {
+    background: var(--color-secondary-300);
+  }
+
+  @media (max-width: 640px) {
+    justify-content: flex-start;
+  }
+`;
+
 const MobileRecordHeader = styled.div`
   min-width: 0;
   display: flex;
@@ -2161,6 +2652,26 @@ const MobileRecordHeader = styled.div`
     font-size: var(--font-size-300);
     line-height: var(--line-height-subtitle);
   }
+`;
+
+const PlaceBadgeStack = styled.div`
+  flex: 0 0 auto;
+  display: grid;
+  justify-items: end;
+  gap: var(--space-1);
+`;
+
+const VisibilityBadge = styled.span<{ $active: boolean }>`
+  min-height: var(--space-6);
+  display: inline-flex;
+  align-items: center;
+  padding: 0 var(--space-2);
+  border-radius: 999px;
+  background: ${({ $active }) =>
+    $active ? "var(--color-secondary-300)" : "var(--color-neutral-300)"};
+  color: var(--color-text);
+  font-size: 11px;
+  font-weight: 700;
 `;
 
 const MobileRecordActions = styled.div`
@@ -2287,6 +2798,43 @@ const ToggleControl = styled(ToggleLabel)`
   border: 1px solid var(--color-border);
   border-radius: var(--space-2);
   background: var(--color-white);
+`;
+
+const Pagination = styled.nav`
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-4);
+  padding-top: var(--space-2);
+
+  span {
+    min-width: 72px;
+    color: var(--color-text-muted);
+    font-size: var(--font-size-100);
+    text-align: center;
+  }
+`;
+
+const PaginationButton = styled.button`
+  min-width: 88px;
+  min-height: var(--space-11);
+  padding: 0 var(--space-4);
+  border: 1px solid var(--color-brand-300);
+  border-radius: var(--space-3);
+  background: var(--color-brand-100);
+  color: var(--color-brand-1000);
+  font: inherit;
+  font-size: var(--font-size-100);
+  font-weight: 700;
+  cursor: pointer;
+
+  &:disabled {
+    border-color: var(--color-border);
+    background: var(--color-neutral-200);
+    color: var(--color-text-muted);
+    cursor: default;
+    opacity: 0.6;
+  }
 `;
 
 const CardActions = styled.div`
