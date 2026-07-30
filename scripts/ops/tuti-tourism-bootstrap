@@ -1,0 +1,18 @@
+#!/bin/sh
+
+set -eu
+
+project_dir="/var/services/homes/Tutiadmin/source/Tuti"
+
+cd "$project_dir"
+
+docker compose \
+  --env-file .env.production \
+  -f docker-compose.prod.yml \
+  build ops
+
+docker compose \
+  --env-file .env.production \
+  -f docker-compose.prod.yml \
+  run --rm --no-deps ops \
+  pnpm places:bootstrap:tourapi

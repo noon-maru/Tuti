@@ -15,6 +15,7 @@
     "db:studio": "prisma studio",
     "admin:promote": "pnpm db:generate && tsx scripts/set-user-role.ts --role admin",
     "admin:role": "pnpm db:generate && tsx scripts/set-user-role.ts",
+    "places:bootstrap:tourapi": "pnpm db:generate && tsx scripts/bootstrap-tourism-places.ts",
     "places:sync:tourapi": "pnpm db:generate && tsx scripts/sync-tourism-places.ts",
     "journal:trace": "tsx scripts/inspect-journal-share-trace.ts",
     "start": "next start",
