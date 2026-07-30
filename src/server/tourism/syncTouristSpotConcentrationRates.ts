@@ -68,20 +68,11 @@ export async function syncTouristSpotConcentrationRates(
       result.totalAvailable = page.totalCount;
       result.received += page.items.length;
 
-      for (const item of page.items) {
-        try {
-          const status = await upsertTouristSpotConcentrationRate(item);
-
-          if (status) {
-            result[status] += 1;
-          } else {
-            result.skipped += 1;
-          }
-        } catch (error) {
-          result.failed += 1;
-          console.error("관광지 집중률 원본 저장에 실패했습니다.", error);
-        }
-      }
+      const saved = await saveConcentrationRateBatch(page.items);
+      result.created += saved.created;
+      result.updated += saved.updated;
+      result.skipped += saved.skipped;
+      result.failed += saved.failed;
 
       if (
         page.items.length === 0 ||
@@ -97,6 +88,44 @@ export async function syncTouristSpotConcentrationRates(
     await failExternalDataSyncRun(run.id, error, result);
     throw error;
   }
+}
+
+async function saveConcentrationRateBatch(
+  items: TouristSpotConcentrationItem[],
+) {
+  const counts = {
+    created: 0,
+    updated: 0,
+    skipped: 0,
+    failed: 0,
+  };
+  const batchSize = 20;
+
+  for (let start = 0; start < items.length; start += batchSize) {
+    const batch = items.slice(start, start + batchSize);
+    const statuses = await Promise.all(
+      batch.map(async (item) => {
+        try {
+          return await upsertTouristSpotConcentrationRate(item);
+        } catch (error) {
+          console.error("관광지 집중률 원본 저장에 실패했습니다.", error);
+          return "failed" as const;
+        }
+      }),
+    );
+
+    for (const status of statuses) {
+      if (status === "created" || status === "updated") {
+        counts[status] += 1;
+      } else if (status === "failed") {
+        counts.failed += 1;
+      } else {
+        counts.skipped += 1;
+      }
+    }
+  }
+
+  return counts;
 }
 
 export async function upsertTouristSpotConcentrationRate(

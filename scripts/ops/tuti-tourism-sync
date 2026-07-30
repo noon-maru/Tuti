@@ -28,3 +28,14 @@ for content_type in $content_types; do
     --pages "$pages_per_type" \
     --start-page "$start_page"
 done
+
+echo "관광 공공데이터 통합 이어받기"
+
+if ! docker compose \
+  --env-file .env.production \
+  -f docker-compose.prod.yml \
+  run --rm --no-deps ops \
+  pnpm tourism:bootstrap:data -- \
+  --concurrency 4; then
+  echo "일부 데이터가 API 호출 한도 또는 일시 오류로 보류됐습니다. 다음 실행에서 이어받습니다." >&2
+fi

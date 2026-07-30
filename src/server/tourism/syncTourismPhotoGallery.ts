@@ -12,6 +12,7 @@ import {
 
 export type SyncTourismPhotoGalleryInput = {
   modifiedDate?: string;
+  startPage?: number;
   maxPages?: number;
   pageSize?: number;
 };
@@ -48,7 +49,11 @@ export async function syncTourismPhotoGallery(
   };
 
   try {
-    for (let pageNo = 1; pageNo <= normalized.maxPages; pageNo += 1) {
+    for (
+      let pageNo = normalized.startPage;
+      pageNo < normalized.startPage + normalized.maxPages;
+      pageNo += 1
+    ) {
       const page = await fetchTourismPhotoGalleryRecords({
         modifiedDate: normalized.modifiedDate,
         pageNo,
@@ -59,20 +64,11 @@ export async function syncTourismPhotoGallery(
       result.totalAvailable = page.totalCount;
       result.received += page.items.length;
 
-      for (const item of page.items) {
-        try {
-          const status = await saveTourismPhotoGalleryRecord(item);
-
-          if (status) {
-            result[status] += 1;
-          } else {
-            result.skipped += 1;
-          }
-        } catch (error) {
-          result.failed += 1;
-          console.error("관광사진 갤러리 원본 저장에 실패했습니다.", error);
-        }
-      }
+      const saved = await saveTourismPhotoGalleryRecords(page.items);
+      result.created += saved.created;
+      result.updated += saved.updated;
+      result.skipped += saved.skipped;
+      result.failed += saved.failed;
 
       if (
         page.items.length === 0 ||
@@ -90,41 +86,102 @@ export async function syncTourismPhotoGallery(
   }
 }
 
-async function saveTourismPhotoGalleryRecord(
-  item: TourismPhotoGalleryItem,
-): Promise<"created" | "updated" | null> {
-  const contentId = item.galContentId?.trim();
-  const title = item.galTitle?.trim();
-  const imageUrl = item.galWebImageUrl?.trim();
+async function saveTourismPhotoGalleryRecords(
+  items: TourismPhotoGalleryItem[],
+) {
+  const records = items.flatMap((item) => {
+    const contentId = item.galContentId?.trim();
+    const title = item.galTitle?.trim();
+    const imageUrl = item.galWebImageUrl?.trim();
 
-  if (!contentId || !title || !imageUrl) return null;
+    if (!contentId || !title || !imageUrl) return [];
 
-  const existing = await prisma.tourismPhotoGallerySourceRecord.findUnique({
-    where: { contentId },
-    select: { contentId: true },
+    return [
+      {
+        contentId,
+        data: {
+          contentTypeId: cleanString(item.galContentTypeId),
+          title,
+          imageUrl,
+          useFlag: cleanString(item.galUseFlag),
+          photographyMonth: cleanString(item.galPhotographyMonth),
+          photographyLocation: cleanString(item.galPhotographyLocation),
+          photographer: cleanString(item.galPhotographer),
+          searchKeyword: cleanString(item.galSearchKeyword),
+          sourceCreatedAt: parseTourismDate(item.galCreatedtime),
+          sourceModifiedAt: parseTourismDate(item.galModifiedtime),
+          rawPayload: item as Prisma.InputJsonValue,
+          syncedAt: new Date(),
+        },
+      },
+    ];
   });
-  const data = {
-    contentTypeId: cleanString(item.galContentTypeId),
-    title,
-    imageUrl,
-    useFlag: cleanString(item.galUseFlag),
-    photographyMonth: cleanString(item.galPhotographyMonth),
-    photographyLocation: cleanString(item.galPhotographyLocation),
-    photographer: cleanString(item.galPhotographer),
-    searchKeyword: cleanString(item.galSearchKeyword),
-    sourceCreatedAt: parseTourismDate(item.galCreatedtime),
-    sourceModifiedAt: parseTourismDate(item.galModifiedtime),
-    rawPayload: item as Prisma.InputJsonValue,
-    syncedAt: new Date(),
+  const skipped = items.length - records.length;
+
+  if (records.length === 0) {
+    return { created: 0, updated: 0, skipped, failed: 0 };
+  }
+
+  const existing = await prisma.tourismPhotoGallerySourceRecord.findMany({
+    where: {
+      contentId: { in: records.map((record) => record.contentId) },
+    },
+    select: { contentId: true, sourceModifiedAt: true },
+  });
+  const existingById = new Map(
+    existing.map((record) => [record.contentId, record.sourceModifiedAt]),
+  );
+  const newRecords = records.filter(
+    (record) => !existingById.has(record.contentId),
+  );
+  const changedRecords = records.filter((record) => {
+    const sourceModifiedAt = existingById.get(record.contentId);
+    if (sourceModifiedAt === undefined) return false;
+    return (
+      sourceModifiedAt?.getTime() !==
+      record.data.sourceModifiedAt?.getTime()
+    );
+  });
+
+  try {
+    if (newRecords.length > 0) {
+      await prisma.tourismPhotoGallerySourceRecord.createMany({
+        data: newRecords.map((record) => ({
+          contentId: record.contentId,
+          ...record.data,
+        })),
+        skipDuplicates: true,
+      });
+    }
+
+    if (changedRecords.length > 0) {
+      await prisma.$transaction(
+        changedRecords.map((record) =>
+          prisma.tourismPhotoGallerySourceRecord.upsert({
+            where: { contentId: record.contentId },
+            update: record.data,
+            create: { contentId: record.contentId, ...record.data },
+          }),
+        ),
+      );
+    }
+  } catch (error) {
+    console.error("관광사진 갤러리 원본 묶음 저장에 실패했습니다.", error);
+    return {
+      created: 0,
+      updated: 0,
+      skipped,
+      failed: records.length,
+    };
+  }
+
+  const updated = records.length - newRecords.length;
+  return {
+    created: newRecords.length,
+    updated,
+    skipped,
+    failed: 0,
   };
-
-  await prisma.tourismPhotoGallerySourceRecord.upsert({
-    where: { contentId },
-    update: data,
-    create: { contentId, ...data },
-  });
-
-  return existing ? "updated" : "created";
 }
 
 function normalizeInput(input: SyncTourismPhotoGalleryInput) {
@@ -136,6 +193,7 @@ function normalizeInput(input: SyncTourismPhotoGalleryInput) {
 
   return {
     modifiedDate: modifiedDate || undefined,
+    startPage: clampInteger(input.startPage, 1, 100_000, 1),
     maxPages: clampInteger(input.maxPages, 1, 20, 5),
     pageSize: clampInteger(input.pageSize, 1, 100, 100),
   };
