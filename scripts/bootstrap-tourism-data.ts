@@ -521,7 +521,7 @@ async function failStaleSyncRuns() {
 
 async function loadCompletedRunKeys(
   sources: string[],
-  createKey: (parameters: Record<string, Prisma.JsonValue>) => string | null,
+  createKey: (parameters: Prisma.JsonObject) => string | null,
 ) {
   const runs = await prisma.externalDataSyncRun.findMany({
     where: {
@@ -734,7 +734,9 @@ function cleanCode(value: Prisma.JsonValue | undefined) {
     : null;
 }
 
-function joinKey(...values: Prisma.JsonValue[]) {
+function joinKey(...values: string[]): string;
+function joinKey(...values: (Prisma.JsonValue | undefined)[]): string | null;
+function joinKey(...values: (Prisma.JsonValue | undefined)[]) {
   const normalized = values.map((value) => {
     if (typeof value === "string" && value.length > 0) return value;
     if (typeof value === "number" && Number.isFinite(value)) {
