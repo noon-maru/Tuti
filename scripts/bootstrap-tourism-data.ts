@@ -735,10 +735,17 @@ function cleanCode(value: Prisma.JsonValue | undefined) {
 }
 
 function joinKey(...values: Prisma.JsonValue[]) {
-  if (values.some((value) => typeof value !== "string" || value.length === 0)) {
+  const normalized = values.map((value) => {
+    if (typeof value === "string" && value.length > 0) return value;
+    if (typeof value === "number" && Number.isFinite(value)) {
+      return String(value);
+    }
     return null;
-  }
-  return values.join(":");
+  });
+
+  return normalized.some((value) => value === null)
+    ? null
+    : normalized.join(":");
 }
 
 function getErrorMessage(error: unknown) {
