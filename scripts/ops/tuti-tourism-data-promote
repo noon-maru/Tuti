@@ -1,0 +1,155 @@
+#!/bin/sh
+
+set -eu
+
+project_dir="/var/services/homes/Tutiadmin/source/Tuti"
+backup_dir="$project_dir/.ops-backups/tourism"
+timestamp="$(date +%Y%m%d-%H%M%S)"
+production_backup="$backup_dir/production-before-promote-$timestamp.sql"
+development_dump=""
+place_source_dump=""
+tables="
+tourism_place_source_records
+wellness_tourism_source_records
+municipal_core_tourism_source_records
+tourist_spot_concentration_rate_records
+regional_visitor_count_records
+tourism_photo_gallery_source_records
+tourism_region_metrics
+external_data_sync_runs
+"
+dump_tables="
+wellness_tourism_source_records
+municipal_core_tourism_source_records
+tourist_spot_concentration_rate_records
+regional_visitor_count_records
+tourism_photo_gallery_source_records
+tourism_region_metrics
+external_data_sync_runs
+"
+place_source_columns="content_id, content_type_id, title, area_code, sido_name, sigungu_code, sigungu_name, raw_payload, linked_place_id, source_modified_at, synced_at, created_at, updated_at"
+backup_arguments=""
+table_arguments=""
+truncate_tables=""
+
+cleanup() {
+  if [ -n "$development_dump" ]; then
+    rm -f "$development_dump"
+  fi
+  if [ -n "$place_source_dump" ]; then
+    rm -f "$place_source_dump"
+  fi
+}
+
+trap cleanup EXIT
+
+install -d -o root -g root -m 0700 "$backup_dir"
+development_dump="$(mktemp "$backup_dir/development-promote.XXXXXX.sql")"
+place_source_dump="$(mktemp "$backup_dir/development-place-source.XXXXXX.copy")"
+cd "$project_dir"
+
+for table in $tables; do
+  backup_arguments="$backup_arguments --table=public.$table"
+  if [ -n "$truncate_tables" ]; then
+    truncate_tables="$truncate_tables, "
+  fi
+  truncate_tables="${truncate_tables}public.${table}"
+done
+
+for table in $dump_tables; do
+  table_arguments="$table_arguments --table=public.$table"
+done
+
+echo "운영 관광 데이터 백업: $production_backup"
+
+# shellcheck disable=SC2086
+docker compose \
+  --env-file .env.production \
+  -f docker-compose.prod.yml \
+  exec -T db \
+  sh -lc 'exec pg_dump --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" --data-only --no-owner --no-privileges "$@"' \
+  sh $backup_arguments \
+  > "$production_backup"
+
+if [ ! -s "$production_backup" ]; then
+  echo "운영 백업 파일이 비어 있어 작업을 중단합니다." >&2
+  exit 1
+fi
+
+echo "개발 관광 데이터 스냅샷 생성"
+
+# shellcheck disable=SC2086
+docker compose \
+  -f docker-compose.dev.yml \
+  exec -T db \
+  sh -lc 'exec pg_dump --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" --data-only --no-owner --no-privileges "$@"' \
+  sh $table_arguments \
+  > "$development_dump"
+
+if [ ! -s "$development_dump" ]; then
+  echo "개발 데이터 덤프가 비어 있어 작업을 중단합니다." >&2
+  exit 1
+fi
+
+echo "개발 관광지 원천 데이터 스냅샷 생성"
+
+docker compose \
+  -f docker-compose.dev.yml \
+  exec -T db \
+  sh -lc 'exec psql --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" --quiet --command "COPY (SELECT content_id, content_type_id, title, area_code, sido_name, sigungu_code, sigungu_name, raw_payload, NULL::text AS linked_place_id, source_modified_at, synced_at, created_at, updated_at FROM public.tourism_place_source_records ORDER BY content_id) TO STDOUT"' \
+  > "$place_source_dump"
+
+if [ ! -s "$place_source_dump" ]; then
+  echo "개발 관광지 원천 데이터가 비어 있어 작업을 중단합니다." >&2
+  exit 1
+fi
+
+echo "운영 DB에 개발 관광 데이터 적용"
+
+{
+  printf 'BEGIN;\n'
+  printf 'TRUNCATE TABLE %s;\n' "$truncate_tables"
+  cat "$development_dump"
+  printf '\nCOPY public.tourism_place_source_records (%s) FROM STDIN;\n' \
+    "$place_source_columns"
+  cat "$place_source_dump"
+  printf '\\.\n'
+  printf '\nCOMMIT;\n'
+} | docker compose \
+  --env-file .env.production \
+  -f docker-compose.prod.yml \
+  exec -T db \
+  sh -lc 'exec psql --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" --set ON_ERROR_STOP=1'
+
+echo "개발·운영 레코드 수 검증"
+
+for table in $tables; do
+  development_count="$(
+    docker compose \
+      -f docker-compose.dev.yml \
+      exec -T db \
+      sh -lc 'exec psql --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" --tuples-only --no-align --command "SELECT count(*) FROM public.$1"' \
+      sh "$table"
+  )"
+  production_count="$(
+    docker compose \
+      --env-file .env.production \
+      -f docker-compose.prod.yml \
+      exec -T db \
+      sh -lc 'exec psql --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" --tuples-only --no-align --command "SELECT count(*) FROM public.$1"' \
+      sh "$table"
+  )"
+
+  printf '%s: dev=%s, prod=%s\n' \
+    "$table" \
+    "$development_count" \
+    "$production_count"
+
+  if [ "$development_count" != "$production_count" ]; then
+    echo "$table 레코드 수가 일치하지 않습니다." >&2
+    exit 1
+  fi
+done
+
+echo "관광 데이터 운영 DB 이관을 완료했습니다."
+echo "복구용 백업: $production_backup"
