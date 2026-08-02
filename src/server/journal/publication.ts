@@ -18,6 +18,7 @@ export async function getPublicJournalEntry(
       image: true,
       crowd: true,
       placeName: true,
+      theme: true,
       difficulty: true,
       visitedAt: true,
       publicId: true,
@@ -35,6 +36,7 @@ export async function getPublicJournalEntry(
     image: serializePublicImage(entry.image, entry.publicId),
     crowd: entry.crowd,
     placeName: entry.placeName,
+    theme: entry.theme,
     difficulty: entry.difficulty,
     visitedAt: entry.visitedAt.toISOString(),
   };

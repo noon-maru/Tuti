@@ -3,6 +3,7 @@
 import styled from "@emotion/styled";
 import { useState } from "react";
 
+import { JournalLocationLabel } from "@/features/tuti/components/JournalLocationLabel";
 import { fetchWithSession } from "@/lib/auth/session";
 import type { PublicJournalEntry } from "@/shared/api/journal";
 import { palette } from "@/styles/tokens";
@@ -81,9 +82,10 @@ export function PublicJournalScreen({
           <Content>
             <DateText>{formatPublicDate(entry.visitedAt)}</DateText>
             <h1>{entry.title || "남겨둔 공간"}</h1>
+            <JournalLocationLabel placeName={entry.placeName} />
             <Tags aria-label="기록 정보">
               <Tag $tone="brand">{entry.crowd}</Tag>
-              <Tag $tone="neutral">{entry.placeName}</Tag>
+              <Tag $tone="neutral">{entry.theme}</Tag>
               <Tag $tone="secondary">{entry.difficulty}</Tag>
             </Tags>
             <Description>

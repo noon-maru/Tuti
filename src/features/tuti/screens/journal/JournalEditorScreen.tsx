@@ -1,16 +1,15 @@
 "use client";
 
 import styled from "@emotion/styled";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   BaseButton,
   PrimaryButton,
 } from "@/features/tuti/components/buttons";
 import { ContextMenu } from "@/features/tuti/components/ContextMenu";
 import { ImageCropDialog } from "@/features/tuti/components/ImageCropDialog";
+import { JournalPlacePicker } from "@/features/tuti/components/JournalPlacePicker";
 import { ScreenFrame } from "@/features/tuti/components/ScreenFrame";
-import { useTutiJournalEntries } from "@/features/tuti/hooks/useTutiJournalEntries";
-import { useTutiRecommendations } from "@/features/tuti/hooks/useTutiRecommendations";
 import { readImageCaptureDate } from "@/features/tuti/lib/readImageCaptureDate";
 import type {
   JournalEntryInput,
@@ -19,6 +18,14 @@ import type {
 import { journalImageMaxWidth } from "@/styles/tokens";
 
 const CROWD_OPTIONS = ["한적함", "보통", "활기참"];
+const THEME_OPTIONS = [
+  "걷기 좋은",
+  "조용한",
+  "초록이 많은",
+  "사진 남기기 좋은",
+  "바람 쐬기 좋은",
+  "머물기 좋은",
+];
 const DIFFICULTY_OPTIONS = ["가벼움", "적당함", "조금 힘듦"];
 
 export type JournalEntryDraft = JournalEntryInput;
@@ -43,7 +50,11 @@ export function JournalEditorScreen({
   );
   const [cropSource, setCropSource] = useState<string | null>(null);
   const [crowd, setCrowd] = useState(entry?.crowd ?? "");
+  const [placeId, setPlaceId] = useState<string | null>(
+    entry?.placeId ?? null,
+  );
   const [placeName, setPlaceName] = useState(entry?.placeName ?? "");
+  const [theme, setTheme] = useState(entry?.theme ?? "");
   const [difficulty, setDifficulty] = useState(entry?.difficulty ?? "");
   const [visitDate, setVisitDate] = useState(() =>
     toDateInputValue(entry?.visitedAt ?? new Date()),
@@ -52,20 +63,6 @@ export function JournalEditorScreen({
   const [body, setBody] = useState(entry?.content ?? "");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
-  const { entries } = useTutiJournalEntries();
-  const { places } = useTutiRecommendations();
-  const placeOptions = useMemo(
-    () =>
-      Array.from(
-        new Set([
-          ...places.map((place) => place.name),
-          ...entries.map((journalEntry) => journalEntry.placeName),
-        ]),
-      )
-        .filter(Boolean)
-        .slice(0, 3),
-    [entries, places],
-  );
   const canSubmit = Boolean(
     title.trim() ||
       body.trim() ||
@@ -120,7 +117,9 @@ export function JournalEditorScreen({
     setBody("");
     setImageUrl(null);
     setCrowd("");
+    setPlaceId(null);
     setPlaceName("");
+    setTheme("");
     setDifficulty("");
     setSubmitError(null);
   };
@@ -138,7 +137,9 @@ export function JournalEditorScreen({
           content: body.trim(),
           image: imageUrl,
           crowd: crowd.trim() || "미정",
+          placeId,
           placeName: placeName.trim() || "남긴 공간",
+          theme: theme.trim() || "미정",
           difficulty: difficulty.trim() || "미정",
           visitedAt: toVisitedAt(visitDate),
         },
@@ -204,6 +205,15 @@ export function JournalEditorScreen({
           />
         </ImageArea>
 
+        <JournalPlacePicker
+          placeId={placeId}
+          value={placeName}
+          onChange={(place) => {
+            setPlaceId(place.id);
+            setPlaceName(place.name);
+          }}
+        />
+
         <Tags aria-label="기록 정보">
           <ContextMenu
             label="혼잡도 선택"
@@ -218,22 +228,19 @@ export function JournalEditorScreen({
             )}
           />
           <ContextMenu
-            label="장소 선택"
-            triggerContent={placeName || "장소"}
+            label="테마 선택"
+            triggerContent={theme || "테마"}
             triggerTone="neutral"
-            items={withCurrentOption(
-              placeOptions.length > 0 ? placeOptions : ["남긴 공간"],
-              placeName,
-            ).map((option) => ({
+            items={withCurrentOption(THEME_OPTIONS, theme).map((option) => ({
               label: option,
-              selected: option === placeName,
-              onSelect: () => setPlaceName(option),
+              selected: option === theme,
+              onSelect: () => setTheme(option),
             }))}
             textInput={{
-              label: "장소 직접 입력",
-              placeholder: "직접 입력",
-              value: placeName,
-              onSubmit: setPlaceName,
+              label: "테마 직접 입력",
+              placeholder: "나만의 테마",
+              value: theme,
+              onSubmit: setTheme,
             }}
           />
           <ContextMenu

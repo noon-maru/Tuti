@@ -4,7 +4,9 @@ export type TutiJournalEntry = {
   content: string;
   image: string | null;
   crowd: string;
+  placeId: string | null;
   placeName: string;
+  theme: string;
   difficulty: string;
   visitedAt: string;
   publication: JournalPublication | null;
@@ -17,8 +19,9 @@ export type JournalPublication = {
 
 export type JournalEntryInput = Pick<
   TutiJournalEntry,
-  "content" | "crowd" | "difficulty" | "image" | "placeName" | "title"
+  "content" | "crowd" | "difficulty" | "image" | "placeName" | "theme" | "title"
 > & {
+  placeId?: string | null;
   visitedAt?: string;
 };
 
@@ -61,7 +64,7 @@ export type JournalShareTraceFinalizationResponse = {
 
 export type PublicJournalEntry = Omit<
   TutiJournalEntry,
-  "id" | "publication"
+  "id" | "placeId" | "publication"
 > & {
   publicId: string;
   publishedAt: string;

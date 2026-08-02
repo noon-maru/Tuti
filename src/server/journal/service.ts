@@ -24,7 +24,9 @@ export async function getJournalEntries(
       content: true,
       image: true,
       crowd: true,
+      placeId: true,
       placeName: true,
+      theme: true,
       difficulty: true,
       visitedAt: true,
       ownerId: true,
@@ -42,6 +44,7 @@ export async function createJournalEntry(
   input: JournalEntryInput,
 ): Promise<TutiJournalEntry> {
   const entryId = crypto.randomUUID();
+  const selectedPlace = await resolveJournalPlace(input);
   const preparedImage = await prepareJournalImage({
     ownerId,
     entryId,
@@ -57,7 +60,9 @@ export async function createJournalEntry(
         content: input.content,
         image: preparedImage.image,
         crowd: input.crowd,
-        placeName: input.placeName,
+        placeId: selectedPlace.id,
+        placeName: selectedPlace.name,
+        theme: input.theme,
         difficulty: input.difficulty,
         visitedAt: input.visitedAt ? new Date(input.visitedAt) : new Date(),
       },
@@ -92,6 +97,7 @@ export async function updateJournalEntry(
 
   if (!currentEntry) return null;
 
+  const selectedPlace = await resolveJournalPlace(input);
   const preparedImage = await prepareJournalImage({
     ownerId,
     entryId,
@@ -109,7 +115,9 @@ export async function updateJournalEntry(
         content: input.content,
         image: preparedImage.image,
         crowd: input.crowd,
-        placeName: input.placeName,
+        placeId: selectedPlace.id,
+        placeName: selectedPlace.name,
+        theme: input.theme,
         difficulty: input.difficulty,
         ...(input.visitedAt
           ? { visitedAt: new Date(input.visitedAt) }
@@ -257,7 +265,9 @@ const journalEntrySelect = {
   content: true,
   image: true,
   crowd: true,
+  placeId: true,
   placeName: true,
+  theme: true,
   difficulty: true,
   visitedAt: true,
   ownerId: true,
@@ -281,7 +291,9 @@ function serializeJournalEntry(
     content: entry.content,
     image: serializeJournalImage(entry),
     crowd: entry.crowd,
+    placeId: entry.placeId,
     placeName: entry.placeName,
+    theme: entry.theme,
     difficulty: entry.difficulty,
     visitedAt: entry.visitedAt.toISOString(),
     publication:
@@ -292,6 +304,23 @@ function serializeJournalEntry(
           }
         : null,
   };
+}
+
+async function resolveJournalPlace(input: JournalEntryInput) {
+  if (!input.placeId) {
+    return { id: null, name: input.placeName };
+  }
+
+  const place = await prisma.place.findFirst({
+    where: {
+      id: input.placeId,
+      isActive: true,
+      reviewStatus: "approved",
+    },
+    select: { id: true, name: true },
+  });
+
+  return place ?? { id: null, name: input.placeName };
 }
 
 async function cleanupUploadedImage(image: string | null) {

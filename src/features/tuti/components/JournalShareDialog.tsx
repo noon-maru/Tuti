@@ -11,6 +11,7 @@ import {
 import { createPortal } from "react-dom";
 
 import { BaseButton, PrimaryButton } from "@/features/tuti/components/buttons";
+import { JournalLocationLabel } from "@/features/tuti/components/JournalLocationLabel";
 import {
   createJournalShareFilename,
   downloadJournalPng,
@@ -329,9 +330,10 @@ function JournalShareCard({
         </SharePhoto>
 
         <ShareBody>
+          <ShareLocation placeName={entry.placeName} />
           <ShareTags>
             <ShareTag $tone="brand">{entry.crowd}</ShareTag>
-            <ShareTag $tone="neutral">{entry.placeName}</ShareTag>
+            <ShareTag $tone="neutral">{entry.theme}</ShareTag>
             <ShareTag $tone="secondary">{entry.difficulty}</ShareTag>
           </ShareTags>
           <ShareDescription>
@@ -585,6 +587,16 @@ const ShareBody = styled.div`
   display: flex;
   flex-direction: column;
   padding: 44px 52px 40px;
+`;
+
+const ShareLocation = styled(JournalLocationLabel)`
+  margin-bottom: 22px;
+  font-size: 23px;
+
+  > span:first-of-type {
+    width: 18px;
+    height: 22px;
+  }
 `;
 
 const ShareTags = styled.div`

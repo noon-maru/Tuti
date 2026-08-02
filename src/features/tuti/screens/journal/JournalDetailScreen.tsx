@@ -5,6 +5,7 @@ import { useRef, useState } from "react";
 import { BaseButton } from "@/features/tuti/components/buttons";
 import { ContextMenu } from "@/features/tuti/components/ContextMenu";
 import { JournalShareDialog } from "@/features/tuti/components/JournalShareDialog";
+import { JournalLocationLabel } from "@/features/tuti/components/JournalLocationLabel";
 import {
   useJournalEntryTransition,
   useJournalEntryTransitionTarget,
@@ -126,9 +127,10 @@ export function JournalDetailScreen({
         <DetailContent
           $hidden={!entryTransition.isContentVisible}
         >
+          <JournalLocationLabel placeName={entry.placeName} />
           <Tags aria-label="기록 정보">
             <Tag $tone="brand">{entry.crowd}</Tag>
-            <Tag $tone="neutral">{entry.placeName}</Tag>
+            <Tag $tone="neutral">{entry.theme}</Tag>
             <Tag $tone="secondary">{entry.difficulty}</Tag>
           </Tags>
 

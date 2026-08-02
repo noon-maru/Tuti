@@ -12,7 +12,9 @@ export function parseJournalEntryInput(
     crowd,
     difficulty,
     image,
+    placeId,
     placeName,
+    theme,
     title,
     visitedAt,
   } = value;
@@ -22,8 +24,10 @@ export function parseJournalEntryInput(
     typeof content !== "string" ||
     typeof crowd !== "string" ||
     typeof placeName !== "string" ||
+    typeof theme !== "string" ||
     typeof difficulty !== "string" ||
     (image !== null && typeof image !== "string") ||
+    (placeId !== undefined && placeId !== null && typeof placeId !== "string") ||
     (visitedAt !== undefined && typeof visitedAt !== "string")
   ) {
     return null;
@@ -43,7 +47,12 @@ export function parseJournalEntryInput(
     content: content.trim(),
     image,
     crowd: crowd.trim() || "미정",
+    placeId:
+      typeof placeId === "string" && placeId.trim()
+        ? placeId.trim()
+        : null,
     placeName: placeName.trim() || "남긴 공간",
+    theme: theme.trim() || "미정",
     difficulty: difficulty.trim() || "미정",
     visitedAt,
   };

@@ -98,6 +98,7 @@ model Place {
   createdAt           DateTime                              @default(now()) @map("created_at")
   updatedAt           DateTime                              @updatedAt @map("updated_at")
   tourismSourceRecord TourismPlaceSourceRecord?
+  journalEntries      JournalEntry[]
 
   @@unique([source, sourceId])
   @@index([fatigue])
@@ -289,7 +290,9 @@ model JournalEntry {
   content     String
   image       String?
   crowd       String
+  placeId     String?   @map("place_id")
   placeName   String    @map("place_name")
+  theme       String    @default("미정")
   difficulty  String
   visitedAt   DateTime  @map("visited_at")
   publicId    String?   @unique @map("public_id")
@@ -297,8 +300,10 @@ model JournalEntry {
   createdAt   DateTime  @default(now()) @map("created_at")
   updatedAt   DateTime  @updatedAt @map("updated_at")
   owner       User      @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  place       Place?    @relation(fields: [placeId], references: [id], onDelete: SetNull)
 
   @@index([ownerId, visitedAt])
+  @@index([placeId])
   @@map("journal_entries")
 }
 
