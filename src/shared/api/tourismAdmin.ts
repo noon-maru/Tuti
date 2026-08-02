@@ -19,11 +19,36 @@ export type TourismDataOverview = {
   syncRuns: number;
   failedRuns: number;
   lastSyncedAt: string | null;
+  collectionProgress: TourismCollectionProgressItem[];
   connections: Array<{
     source: string;
     label: string;
     configured: boolean;
   }>;
+};
+
+export type TourismCollectionProgressItem = {
+  id:
+    | "places"
+    | "wellness"
+    | "photos"
+    | "municipalCore"
+    | "concentration"
+    | "visitors"
+    | "resourceDemand"
+    | "demandIntensity";
+  label: string;
+  description: string;
+  status: "complete" | "collecting" | "quota_wait" | "error" | "ready";
+  storedRecords: number;
+  completedJobs: number | null;
+  targetJobs: number | null;
+  remainingJobs: number | null;
+  progressPercent: number | null;
+  unresolvedFailures: number;
+  lastAttemptAt: string | null;
+  lastSuccessAt: string | null;
+  lastError: string | null;
 };
 
 export type TourismPlaceSourceItem = {

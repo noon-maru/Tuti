@@ -20,6 +20,7 @@ import { syncTourismPhotoGallery } from "@/server/tourism/syncTourismPhotoGaller
 import { syncTouristSpotConcentrationRates } from "@/server/tourism/syncTouristSpotConcentrationRates";
 import { syncTourismPlaces } from "@/server/tourism/syncTourismPlaces";
 import { syncWellnessTourism } from "@/server/tourism/syncWellnessTourism";
+import { getTourismCollectionProgress } from "@/server/tourism/getTourismCollectionProgress";
 import { TourApiError } from "@/server/tourism/tourApiClient";
 import { TouristSpotConcentrationApiError } from "@/server/tourism/touristSpotConcentrationApiClient";
 import { RegionalVisitorCountApiError } from "@/server/tourism/regionalVisitorCountApiClient";
@@ -760,6 +761,7 @@ async function getOverview() {
     syncRuns,
     failedRuns,
     lastRun,
+    collectionProgress,
   ] = await Promise.all([
     prisma.tourismPlaceSourceRecord.count(),
     prisma.wellnessTourismSourceRecord.count(),
@@ -777,6 +779,7 @@ async function getOverview() {
       orderBy: { finishedAt: "desc" },
       select: { finishedAt: true },
     }),
+    getTourismCollectionProgress(),
   ]);
 
   return {
@@ -790,6 +793,7 @@ async function getOverview() {
     syncRuns,
     failedRuns,
     lastSyncedAt: lastRun?.finishedAt?.toISOString() ?? null,
+    collectionProgress,
     connections: [
       {
         source: "ktoTourismPhotoGallery",

@@ -54,6 +54,52 @@ const tabs: Array<{ id: TourismDataTab; label: string }> = [
   { id: "runs", label: "동기화 기록" },
 ];
 
+const datasetDescriptions: Record<
+  TourismDataTab,
+  { eyebrow: string; title: string; description: string }
+> = {
+  places: {
+    eyebrow: "TOURAPI PLACE DATA",
+    title: "관광지 원천 데이터",
+    description: "추천 후보가 되는 장소 원본과 검수 연결 상태를 확인합니다.",
+  },
+  wellness: {
+    eyebrow: "WELLNESS DATA",
+    title: "웰니스 관광 원천",
+    description: "테마별 웰니스 관광지와 원본 응답을 확인합니다.",
+  },
+  municipalCore: {
+    eyebrow: "MUNICIPAL CORE",
+    title: "기초지자체 중심 관광지",
+    description: "월별·시군구별 주요 관광지 순위와 분류를 확인합니다.",
+  },
+  concentration: {
+    eyebrow: "CONCENTRATION",
+    title: "관광지 집중률",
+    description: "날짜와 지역에 따른 관광지 방문 집중도를 확인합니다.",
+  },
+  visitors: {
+    eyebrow: "VISITOR COUNT",
+    title: "지역별 방문자 수",
+    description: "광역·기초지자체별 방문자 규모와 유형을 확인합니다.",
+  },
+  photos: {
+    eyebrow: "PHOTO GALLERY",
+    title: "관광사진 메타데이터",
+    description: "사진 미리보기와 촬영지·촬영자·검색 키워드를 확인합니다.",
+  },
+  metrics: {
+    eyebrow: "REGIONAL METRICS",
+    title: "지역 관광 지표",
+    description: "관광 자원 수요와 체류·소비 강도를 월별로 확인합니다.",
+  },
+  runs: {
+    eyebrow: "SYNC HISTORY",
+    title: "동기화 실행 기록",
+    description: "공공데이터 요청 결과와 오류·요청 조건을 추적합니다.",
+  },
+};
+
 const sourceOptions: Array<{ value: SyncSource; label: string }> = [
   { value: "places", label: "국문 관광정보" },
   { value: "wellness", label: "웰니스 관광정보" },
@@ -163,6 +209,7 @@ export function TourismDataScreen({
   const [appliedQuery, setAppliedQuery] = useState("");
   const [placeSido, setPlaceSido] = useState("");
   const [placeSigungu, setPlaceSigungu] = useState("");
+  const [metricType, setMetricType] = useState("");
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
@@ -245,6 +292,9 @@ export function TourismDataScreen({
     if (tab === "places" && placeSigungu) {
       searchParams.set("sigungu", placeSigungu);
     }
+    if (tab === "metrics" && metricType) {
+      searchParams.set("metricType", metricType);
+    }
 
     try {
       const response = await fetchAdminJson<TourismDataResponse>(
@@ -263,7 +313,7 @@ export function TourismDataScreen({
     } finally {
       setLoading(false);
     }
-  }, [appliedQuery, page, placeSido, placeSigungu, tab]);
+  }, [appliedQuery, metricType, page, placeSido, placeSigungu, tab]);
 
   useEffect(() => {
     const timeout = window.setTimeout(() => {
@@ -310,6 +360,7 @@ export function TourismDataScreen({
     setAppliedQuery("");
     setPlaceSido("");
     setPlaceSigungu("");
+    setMetricType("");
     setPage(1);
     setError(null);
     const url = new URL(window.location.href);
@@ -412,6 +463,13 @@ export function TourismDataScreen({
       </Header>
 
       <Content>
+        {data && (
+          <CollectionDashboard
+            progress={data.overview.collectionProgress}
+            lastSyncedAt={data.overview.lastSyncedAt}
+          />
+        )}
+
         <DesktopDataTools>
           {data && <Overview overview={data.overview} />}
           <SyncPanel syncing={syncing} onSync={sync} />
@@ -452,7 +510,7 @@ export function TourismDataScreen({
         >
           <Input
             value={query}
-            placeholder="원본 ID, 지역명, 지표 또는 실행 상태 검색"
+            placeholder={getSearchPlaceholder(tab)}
             onChange={(event) => setQuery(event.target.value)}
           />
           <PrimaryButton type="submit">검색</PrimaryButton>
@@ -460,6 +518,18 @@ export function TourismDataScreen({
 
         {error && <ErrorNotice role="alert">{error}</ErrorNotice>}
         {notice && <SuccessNotice role="status">{notice}</SuccessNotice>}
+
+        {!loading && data && tab !== "places" && (
+          <DatasetExplorerHeader
+            tab={tab}
+            pagination={data.pagination}
+            metricType={metricType}
+            onMetricTypeChange={(value) => {
+              setPage(1);
+              setMetricType(value);
+            }}
+          />
+        )}
 
         {loading ? (
           <StatePanel>관광 데이터를 불러오고 있어요.</StatePanel>
@@ -568,7 +638,7 @@ function Overview({
     ["관광사진", overview.tourismPhotoGalleryRecords],
     ["지역 지표", overview.regionalMetrics],
     ["동기화 실행", overview.syncRuns],
-    ["확인 필요", overview.failedRuns],
+    ["실패 이력", overview.failedRuns],
   ];
 
   return (
@@ -600,6 +670,178 @@ function Overview({
           : "기록 없음"}
       </LastSync>
     </OverviewSection>
+  );
+}
+
+function CollectionDashboard({
+  progress,
+  lastSyncedAt,
+}: {
+  progress: TourismDataResponse["overview"]["collectionProgress"];
+  lastSyncedAt: string | null;
+}) {
+  const completedDatasets = progress.filter(
+    (item) => item.status === "complete",
+  ).length;
+  const pendingJobs = progress.reduce(
+    (sum, item) => sum + (item.remainingJobs ?? 0),
+    0,
+  );
+  const attentionDatasets = progress.filter(
+    (item) => item.status === "quota_wait" || item.status === "error",
+  ).length;
+
+  return (
+    <CollectionSection>
+      <CollectionHeader>
+        <div>
+          <Eyebrow>COLLECTION STATUS</Eyebrow>
+          <h2>공공데이터 수집 현황</h2>
+          <p>
+            성공 체크포인트를 기준으로 완료 범위와 다음 이어받기 상태를
+            계산합니다.
+          </p>
+        </div>
+        <CollectionHeadline>
+          <strong>
+            {completedDatasets}/{progress.length}
+          </strong>
+          <span>데이터셋 완료</span>
+        </CollectionHeadline>
+      </CollectionHeader>
+
+      <CollectionSummary>
+        <span>
+          남은 작업 <strong>{pendingJobs.toLocaleString("ko-KR")}건</strong>
+        </span>
+        <span>
+          확인할 상태 <strong>{attentionDatasets.toLocaleString("ko-KR")}곳</strong>
+        </span>
+        <span>
+          마지막 실행{" "}
+          <strong>{lastSyncedAt ? formatDate(lastSyncedAt) : "기록 없음"}</strong>
+        </span>
+      </CollectionSummary>
+
+      <CollectionGrid>
+        {progress.map((item) => (
+          <CollectionCard key={item.id} $status={item.status}>
+            <CollectionCardHeader>
+              <div>
+                <h3>{item.label}</h3>
+                <p>{item.description}</p>
+              </div>
+              <CollectionStatus $status={item.status}>
+                {getCollectionStatusLabel(item.status)}
+              </CollectionStatus>
+            </CollectionCardHeader>
+
+            {item.progressPercent === null ? (
+              <CollectionStoredCount>
+                <strong>{item.storedRecords.toLocaleString("ko-KR")}</strong>
+                <span>저장 레코드</span>
+              </CollectionStoredCount>
+            ) : (
+              <>
+                <CollectionProgressMeta>
+                  <strong>{item.progressPercent.toLocaleString("ko-KR")}%</strong>
+                  <span>
+                    {(item.completedJobs ?? 0).toLocaleString("ko-KR")} /{" "}
+                    {(item.targetJobs ?? 0).toLocaleString("ko-KR")} 작업
+                  </span>
+                </CollectionProgressMeta>
+                <CollectionProgressTrack aria-hidden="true">
+                  <CollectionProgressBar
+                    $progress={item.progressPercent}
+                    $status={item.status}
+                  />
+                </CollectionProgressTrack>
+              </>
+            )}
+
+            <CollectionCardFooter>
+              <span>
+                원천 {item.storedRecords.toLocaleString("ko-KR")}건
+                {item.remainingJobs !== null
+                  ? ` · 남음 ${item.remainingJobs.toLocaleString("ko-KR")}`
+                  : ""}
+                {item.unresolvedFailures > 0
+                  ? ` · 실패 ${item.unresolvedFailures.toLocaleString("ko-KR")}`
+                  : ""}
+              </span>
+              {item.lastError ? (
+                <CollectionError title={item.lastError}>
+                  {getCollectionErrorLabel(item.lastError)}
+                </CollectionError>
+              ) : (
+                <small>
+                  {item.lastSuccessAt
+                    ? `성공 ${formatDate(item.lastSuccessAt)}`
+                    : "수집 기록 없음"}
+                </small>
+              )}
+            </CollectionCardFooter>
+          </CollectionCard>
+        ))}
+      </CollectionGrid>
+
+      <CollectionNotice>
+        <span />
+        HTTP 429는 일일 호출 한도 대기 상태입니다. 다음 실행에서는 완료된
+        작업을 건너뛰고 남은 작업만 이어받습니다.
+      </CollectionNotice>
+    </CollectionSection>
+  );
+}
+
+function DatasetExplorerHeader({
+  tab,
+  pagination,
+  metricType,
+  onMetricTypeChange,
+}: {
+  tab: TourismDataTab;
+  pagination: TourismDataResponse["pagination"];
+  metricType: string;
+  onMetricTypeChange: (value: string) => void;
+}) {
+  const metadata = datasetDescriptions[tab];
+
+  return (
+    <DatasetHeader>
+      <div>
+        <span>{metadata.eyebrow}</span>
+        <h2>{metadata.title}</h2>
+        <p>{metadata.description}</p>
+      </div>
+      <DatasetHeaderSide>
+        {tab === "metrics" && (
+          <DatasetFilter>
+            <span>지표 유형</span>
+            <Select
+              value={metricType}
+              onChange={(event) => onMetricTypeChange(event.target.value)}
+            >
+              <option value="">전체 지표</option>
+              <option value="serviceDemand">관광 서비스 수요</option>
+              <option value="culturalResourceDemand">문화·자연 자원 수요</option>
+              <option value="stayIntensity">관광 체류 강도</option>
+              <option value="consumptionIntensity">관광 소비 강도</option>
+            </Select>
+          </DatasetFilter>
+        )}
+        <DatasetHeaderStats>
+          <div>
+            <span>검색 결과</span>
+            <strong>{pagination.totalItems.toLocaleString("ko-KR")}건</strong>
+          </div>
+          <div>
+            <span>현재 범위</span>
+            <strong>{getPageRangeLabel(pagination)}</strong>
+          </div>
+        </DatasetHeaderStats>
+      </DatasetHeaderSide>
+    </DatasetHeader>
   );
 }
 
@@ -1154,6 +1396,12 @@ function PhotoRecords({
     <RecordList>
       {records.map((record) => (
         <RecordCard key={record.contentId}>
+          <PhotoPreview
+            src={record.imageUrl}
+            alt=""
+            loading="lazy"
+            referrerPolicy="no-referrer"
+          />
           <RecordHeader>
             <div>
               <h2>{record.title}</h2>
@@ -1965,6 +2213,39 @@ function getRunStatusLabel(value: string) {
   return value;
 }
 
+function getCollectionStatusLabel(
+  status:
+    | "complete"
+    | "collecting"
+    | "quota_wait"
+    | "error"
+    | "ready",
+) {
+  if (status === "complete") return "완료";
+  if (status === "collecting") return "수집 중";
+  if (status === "quota_wait") return "한도 대기";
+  if (status === "error") return "오류";
+  return "수집 전";
+}
+
+function getCollectionErrorLabel(message: string) {
+  if (message.includes("HTTP 429")) return "호출 한도 대기";
+  if (message.includes("시간이 초과")) return "응답 시간 초과";
+  if (message.includes("HTTP 502")) return "일시적인 서버 오류";
+  return "오류 확인 필요";
+}
+
+function getSearchPlaceholder(tab: TourismDataTab) {
+  if (tab === "places") return "콘텐츠 ID, 관광지명, 시도 또는 시군구 검색";
+  if (tab === "wellness") return "콘텐츠 ID, 웰니스 관광지명 또는 테마 코드 검색";
+  if (tab === "municipalCore") return "관광지명, 지역명 또는 기준월 검색";
+  if (tab === "concentration") return "관광지명, 지역명 또는 기준일 검색";
+  if (tab === "visitors") return "지역명, 방문자 유형 또는 기준일 검색";
+  if (tab === "photos") return "사진 ID, 제목, 촬영지 또는 키워드 검색";
+  if (tab === "metrics") return "지표명, 지역명 또는 기준월 검색";
+  return "데이터 소스, 실행 작업 또는 상태 검색";
+}
+
 const Page = styled.div`
   height: 100dvh;
   overflow-y: auto;
@@ -2066,6 +2347,312 @@ const Content = styled.main`
   @media (max-width: 640px) {
     gap: var(--space-4);
     padding: var(--space-5) var(--space-4) var(--space-10);
+  }
+`;
+
+const CollectionSection = styled.section`
+  display: grid;
+  gap: var(--space-5);
+  padding: var(--space-6);
+  border: 1px solid var(--color-brand-200);
+  border-radius: var(--space-6);
+  background:
+    linear-gradient(
+      135deg,
+      var(--color-brand-100) 0%,
+      var(--color-white) 46%,
+      var(--color-secondary-100) 100%
+    );
+  box-shadow: 0 16px 38px rgb(var(--color-black-rgb) / 0.06);
+
+  @media (max-width: 640px) {
+    gap: var(--space-4);
+    padding: var(--space-4);
+    border-radius: var(--space-5);
+  }
+`;
+
+const CollectionHeader = styled.div`
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: var(--space-5);
+
+  h2 {
+    margin-top: var(--space-1);
+    font-size: var(--font-size-500);
+  }
+
+  p {
+    margin-top: var(--space-2);
+    color: var(--color-text-muted);
+    font-size: var(--font-size-100);
+  }
+
+  @media (max-width: 640px) {
+    align-items: center;
+
+    h2 {
+      font-size: var(--font-size-400);
+    }
+
+    p {
+      display: none;
+    }
+  }
+`;
+
+const CollectionHeadline = styled.div`
+  min-width: max-content;
+  display: grid;
+  justify-items: end;
+
+  strong {
+    color: var(--color-brand-900);
+    font-size: var(--font-size-700);
+    line-height: 1;
+  }
+
+  span {
+    margin-top: var(--space-1);
+    color: var(--color-text-muted);
+    font-size: var(--font-size-100);
+  }
+
+  @media (max-width: 640px) {
+    strong {
+      font-size: var(--font-size-500);
+    }
+  }
+`;
+
+const CollectionSummary = styled.div`
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+
+  > span {
+    padding: var(--space-2) var(--space-3);
+    border: 1px solid var(--color-neutral-300);
+    border-radius: 999px;
+    background: rgb(var(--color-white-rgb) / 0.82);
+    color: var(--color-text-muted);
+    font-size: var(--font-size-100);
+  }
+
+  strong {
+    color: var(--color-text);
+  }
+
+  @media (max-width: 640px) {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+
+    > span {
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+
+      &:last-child {
+        grid-column: 1 / -1;
+      }
+    }
+  }
+`;
+
+const CollectionGrid = styled.div`
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--space-3);
+
+  @media (max-width: 1040px) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  @media (max-width: 560px) {
+    display: flex;
+    overflow-x: auto;
+    gap: var(--space-2);
+    margin: 0 calc(var(--space-4) * -1);
+    padding: 0 var(--space-4) var(--space-1);
+    scroll-snap-type: x mandatory;
+    scrollbar-width: none;
+
+    &::-webkit-scrollbar {
+      display: none;
+    }
+
+    > article {
+      width: min(78vw, 290px);
+      flex: 0 0 auto;
+      scroll-snap-align: start;
+    }
+  }
+`;
+
+const CollectionCard = styled.article<{
+  $status: "complete" | "collecting" | "quota_wait" | "error" | "ready";
+}>`
+  min-width: 0;
+  display: grid;
+  align-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  border: 1px solid
+    ${({ $status }) =>
+      $status === "complete"
+        ? "var(--color-secondary-300)"
+        : $status === "quota_wait" || $status === "error"
+          ? "var(--color-brand-300)"
+          : "var(--color-neutral-300)"};
+  border-radius: var(--space-4);
+  background: rgb(var(--color-white-rgb) / 0.92);
+  box-shadow: 0 8px 22px rgb(var(--color-black-rgb) / 0.04);
+
+  @media (max-width: 560px) {
+    gap: var(--space-2);
+    padding: var(--space-3) var(--space-4);
+  }
+`;
+
+const CollectionCardHeader = styled.div`
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: var(--space-3);
+
+  > div {
+    min-width: 0;
+  }
+
+  h3 {
+    font-size: var(--font-size-200);
+  }
+
+  p {
+    display: -webkit-box;
+    overflow: hidden;
+    margin-top: var(--space-1);
+    color: var(--color-text-muted);
+    font-size: 11px;
+    line-height: var(--line-height-subtitle);
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+  }
+`;
+
+const CollectionStatus = styled.span<{
+  $status: "complete" | "collecting" | "quota_wait" | "error" | "ready";
+}>`
+  flex: 0 0 auto;
+  padding: var(--space-1) var(--space-2);
+  border-radius: 999px;
+  background: ${({ $status }) =>
+    $status === "complete"
+      ? "var(--color-secondary-300)"
+      : $status === "quota_wait"
+        ? "var(--color-secondary-200)"
+        : $status === "error"
+          ? "var(--color-neutral-200)"
+          : "var(--color-brand-200)"};
+  color: ${({ $status }) =>
+    $status === "error" ? "var(--color-error)" : "var(--color-text)"};
+  font-size: 11px;
+  font-weight: 700;
+`;
+
+const CollectionStoredCount = styled.div`
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+
+  strong {
+    font-size: var(--font-size-500);
+  }
+
+  span {
+    color: var(--color-text-muted);
+    font-size: var(--font-size-100);
+  }
+`;
+
+const CollectionProgressMeta = styled.div`
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-3);
+
+  strong {
+    font-size: var(--font-size-400);
+  }
+
+  span {
+    color: var(--color-text-muted);
+    font-size: 11px;
+  }
+`;
+
+const CollectionProgressTrack = styled.div`
+  height: var(--space-2);
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--color-neutral-300);
+`;
+
+const CollectionProgressBar = styled.div<{
+  $progress: number;
+  $status: "complete" | "collecting" | "quota_wait" | "error" | "ready";
+}>`
+  width: ${({ $progress }) => `${Math.max(0, Math.min(100, $progress))}%`};
+  height: 100%;
+  border-radius: inherit;
+  background: ${({ $status }) =>
+    $status === "complete"
+      ? "var(--color-secondary-600)"
+      : $status === "quota_wait"
+        ? "var(--color-secondary-500)"
+        : "var(--color-brand-600)"};
+`;
+
+const CollectionCardFooter = styled.div`
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  color: var(--color-text-muted);
+  font-size: 11px;
+
+  > span,
+  small {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+`;
+
+const CollectionError = styled.small`
+  flex: 0 0 auto;
+  color: var(--color-error);
+  font-weight: 700;
+`;
+
+const CollectionNotice = styled.p`
+  display: flex;
+  align-items: start;
+  gap: var(--space-2);
+  color: var(--color-text-muted);
+  font-size: var(--font-size-100);
+
+  span {
+    width: var(--space-2);
+    height: var(--space-2);
+    flex: 0 0 auto;
+    margin-top: 0.45em;
+    border-radius: 999px;
+    background: var(--color-secondary-600);
   }
 `;
 
@@ -2432,6 +3019,106 @@ const SearchForm = styled.form`
   @media (max-width: 400px) {
     > button {
       padding: 0 var(--space-4);
+    }
+  }
+`;
+
+const DatasetHeader = styled.section`
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: var(--space-5);
+  padding: var(--space-5);
+  border: 1px solid var(--color-brand-200);
+  border-radius: var(--space-5);
+  background: var(--color-brand-100);
+  box-shadow: 0 10px 28px rgb(var(--color-black-rgb) / 0.05);
+
+  > div:first-of-type > span {
+    color: var(--color-brand-800);
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+  }
+
+  h2 {
+    margin-top: var(--space-1);
+    font-size: var(--font-size-500);
+  }
+
+  p {
+    margin-top: var(--space-2);
+    color: var(--color-text-muted);
+    font-size: var(--font-size-100);
+  }
+
+  @media (max-width: 720px) {
+    align-items: stretch;
+    flex-direction: column;
+    gap: var(--space-4);
+  }
+
+  @media (max-width: 640px) {
+    padding: var(--space-4);
+
+    h2 {
+      font-size: var(--font-size-400);
+    }
+
+    p {
+      display: none;
+    }
+  }
+`;
+
+const DatasetHeaderSide = styled.div`
+  min-width: min(100%, 320px);
+  display: grid;
+  gap: var(--space-2);
+
+  @media (max-width: 720px) {
+    min-width: 0;
+  }
+`;
+
+const DatasetFilter = styled.label`
+  display: grid;
+  gap: var(--space-1);
+
+  > span {
+    color: var(--color-text-muted);
+    font-size: 11px;
+    font-weight: 700;
+  }
+`;
+
+const DatasetHeaderStats = styled.div`
+  display: grid;
+  grid-template-columns: repeat(2, minmax(120px, 1fr));
+  gap: var(--space-2);
+
+  > div {
+    display: grid;
+    gap: var(--space-1);
+    padding: var(--space-3) var(--space-4);
+    border-radius: var(--space-3);
+    background: rgb(var(--color-white-rgb) / 0.78);
+  }
+
+  span {
+    color: var(--color-text-muted);
+    font-size: 11px;
+  }
+
+  strong {
+    font-size: var(--font-size-200);
+  }
+
+  @media (max-width: 480px) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+
+    > div {
+      padding: var(--space-3);
     }
   }
 `;
@@ -3105,7 +3792,12 @@ const PaginationNumberButton = styled.button<{ $active: boolean }>`
 
 const RecordList = styled.section`
   display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: var(--space-3);
+
+  @media (max-width: 860px) {
+    grid-template-columns: 1fr;
+  }
 `;
 
 const RecordCard = styled.article`
@@ -3117,21 +3809,19 @@ const RecordCard = styled.article`
   background: var(--color-surface);
   box-shadow: 0 10px 28px rgb(var(--color-black-rgb) / 0.05);
 
-  &:nth-of-type(3n + 2) {
-    border-color: var(--color-brand-200);
-    background: var(--color-brand-100);
-  }
-
-  &:nth-of-type(3n) {
-    border-color: var(--color-secondary-300);
-    background: var(--color-secondary-100);
-  }
-
   @media (max-width: 480px) {
     padding: var(--space-4);
-    border: 0;
+    border-color: var(--color-neutral-300);
     border-radius: var(--space-5);
   }
+`;
+
+const PhotoPreview = styled.img`
+  width: 100%;
+  aspect-ratio: 16 / 7;
+  object-fit: cover;
+  border-radius: var(--space-3);
+  background: var(--color-neutral-200);
 `;
 
 const RecordHeader = styled.div`
