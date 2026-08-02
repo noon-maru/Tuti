@@ -2,18 +2,43 @@
 
 import { useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useTutiRecommendations } from "@/features/tuti/hooks/useTutiRecommendations";
 import { useSession } from "@/features/tuti/hooks/useSession";
+import { DailyCheckInScreen } from "@/features/tuti/screens/intake/DailyCheckInScreen";
 import { RecommendationsScreen } from "@/features/tuti/screens/recommendations/RecommendationsScreen";
 import { logoutAccount } from "@/lib/auth/session";
+import {
+  getKoreanDateKey,
+  isCurrentKoreanDate,
+} from "@/lib/date/koreanDate";
 import { useTutiStore } from "@/store/tuti";
 
 export function RecommendationsFlow({ interactive }: { interactive: boolean }) {
   const router = useRouter();
   const queryClient = useQueryClient();
   const session = useSession();
-  const { places, isFetched } = useTutiRecommendations();
+  const [currentDate, setCurrentDate] = useState(getKoreanDateKey);
+  const storedAnswers = useTutiStore((state) => state.answers);
+  const entryRecord = useTutiStore((state) => state.entryRecord);
+  const dailyCheckInRequested = useTutiStore(
+    (state) => state.dailyCheckInRequested,
+  );
+  const requestDailyCheckIn = useTutiStore(
+    (state) => state.requestDailyCheckIn,
+  );
+  const cancelDailyCheckIn = useTutiStore(
+    (state) => state.cancelDailyCheckIn,
+  );
+  const completeDailyCheckIn = useTutiStore(
+    (state) => state.completeDailyCheckIn,
+  );
+  const dailyRecordCurrent = isCurrentKoreanDate(entryRecord, currentDate);
+  const dailyCheckInVisible =
+    interactive && (!dailyRecordCurrent || dailyCheckInRequested);
+  const { places, isFetched } = useTutiRecommendations({
+    enabled: dailyRecordCurrent,
+  });
   const activeIndex = useTutiStore((state) => state.activeIndex);
   const activePlaceId = useTutiStore((state) => state.activePlaceId);
   const detailOverlay = useTutiStore((state) => state.detailOverlay);
@@ -27,7 +52,6 @@ export function RecommendationsFlow({ interactive }: { interactive: boolean }) {
   const markCardHelpSeen = useTutiStore((state) => state.markCardHelpSeen);
   const markSwipeHelpSeen = useTutiStore((state) => state.markSwipeHelpSeen);
   const markJournalHelpSeen = useTutiStore((state) => state.markJournalHelpSeen);
-  const resetIntake = useTutiStore((state) => state.resetIntake);
 
   const detailPlaceIndex =
     detailOverlay.placeId
@@ -46,6 +70,20 @@ export function RecommendationsFlow({ interactive }: { interactive: boolean }) {
   const detailPlace = detailOverlay.placeId
     ? places.find((place) => place.id === detailOverlay.placeId)
     : undefined;
+
+  useEffect(() => {
+    const refreshCurrentDate = () => setCurrentDate(getKoreanDateKey());
+    const interval = window.setInterval(refreshCurrentDate, 60_000);
+
+    window.addEventListener("focus", refreshCurrentDate);
+    document.addEventListener("visibilitychange", refreshCurrentDate);
+
+    return () => {
+      window.clearInterval(interval);
+      window.removeEventListener("focus", refreshCurrentDate);
+      document.removeEventListener("visibilitychange", refreshCurrentDate);
+    };
+  }, []);
 
   useEffect(() => {
     router.prefetch("/journal");
@@ -127,56 +165,66 @@ export function RecommendationsFlow({ interactive }: { interactive: boolean }) {
   };
 
   return (
-    <RecommendationsScreen
-      places={places}
-      activeIndex={displayedActiveIndex}
-      activePlace={activePlace}
-      onSelect={selectCard}
-      onMove={moveCard}
-      detailPhase={detailOverlay.phase}
-      detailPlace={detailPlace}
-      onDetail={openDetail}
-      onDetailExitStart={beginDetailClose}
-      onDetailClose={finishDetailClose}
-      onJournal={() => router.push("/journal")}
-      onAccount={() => router.push("/login")}
-      onAdmin={() => router.push("/admin")}
-      onInquiry={() => router.push("/inquiry")}
-      onRestartIntake={() => {
-        resetIntake();
-        router.push("/entry");
-      }}
-      onLogout={async () => {
-        await logoutAccount();
-        queryClient.setQueryData(["journal-entries"], []);
-      }}
-      accountConnected={Boolean(session?.account)}
-      adminAccess={session?.account?.role === "admin"}
-      interactive={interactive}
-      initialHelp={
-        interactive && detailOverlay.phase === "closed"
-          ? !hasSeenCardHelp
-            ? "cards"
-            : !hasSeenSwipeHelp
-              ? "detail"
-              : !hasSeenJournalHelp
-                ? "journal"
-                : null
-          : null
-      }
-      onInitialHelpShown={(kind) => {
-        if (kind === "cards") {
-          markCardHelpSeen();
-          return;
+    <>
+      <RecommendationsScreen
+        places={places}
+        activeIndex={displayedActiveIndex}
+        activePlace={activePlace}
+        onSelect={selectCard}
+        onMove={moveCard}
+        detailPhase={detailOverlay.phase}
+        detailPlace={detailPlace}
+        onDetail={openDetail}
+        onDetailExitStart={beginDetailClose}
+        onDetailClose={finishDetailClose}
+        onJournal={() => router.push("/journal")}
+        onAccount={() => router.push("/login")}
+        onAdmin={() => router.push("/admin")}
+        onInquiry={() => router.push("/inquiry")}
+        onRestartIntake={requestDailyCheckIn}
+        onLogout={async () => {
+          await logoutAccount();
+          queryClient.setQueryData(["journal-entries"], []);
+        }}
+        accountConnected={Boolean(session?.account)}
+        adminAccess={session?.account?.role === "admin"}
+        interactive={interactive && !dailyCheckInVisible}
+        initialHelp={
+          interactive && detailOverlay.phase === "closed"
+            ? !hasSeenCardHelp
+              ? "cards"
+              : !hasSeenSwipeHelp
+                ? "detail"
+                : !hasSeenJournalHelp
+                  ? "journal"
+                  : null
+            : null
         }
+        onInitialHelpShown={(kind) => {
+          if (kind === "cards") {
+            markCardHelpSeen();
+            return;
+          }
 
-        if (kind === "detail") {
-          markSwipeHelpSeen();
-          return;
-        }
+          if (kind === "detail") {
+            markSwipeHelpSeen();
+            return;
+          }
 
-        markJournalHelpSeen();
-      }}
-    />
+          markJournalHelpSeen();
+        }}
+      />
+      {dailyCheckInVisible && (
+        <DailyCheckInScreen
+          previousAnswers={storedAnswers}
+          initialMode={dailyCheckInRequested ? "questions" : "summary"}
+          dismissible={dailyRecordCurrent}
+          onReuse={() => completeDailyCheckIn("reused")}
+          onSkip={() => completeDailyCheckIn("skipped")}
+          onSubmit={(answers) => completeDailyCheckIn("answered", answers)}
+          onDismiss={cancelDailyCheckIn}
+        />
+      )}
+    </>
   );
 }

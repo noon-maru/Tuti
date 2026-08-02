@@ -1,12 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import { useTutiRecommendations } from "@/features/tuti/hooks/useTutiRecommendations";
 import { RecommendationReadyScreen } from "@/features/tuti/screens/recommendation/RecommendationReadyScreen";
 import { useTutiStore } from "@/store/tuti";
 
 export function RecommendationReadyFlow() {
-  const { userLocation } = useTutiRecommendations();
+  const userLocation = useTutiStore((state) => state.userLocation);
   const setUserLocation = useTutiStore((state) => state.setUserLocation);
   const finishEntry = useTutiStore((state) => state.finishEntry);
   const [resolvingLocation, setResolvingLocation] = useState(false);
