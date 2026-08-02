@@ -14,7 +14,16 @@ services:
       - .env
       - .env.development
     environment:
+      CI: "true"
       WATCHPACK_POLLING: "true"
+    command:
+      - sh
+      - -lc
+      - >-
+        CI=true pnpm install --frozen-lockfile --store-dir /pnpm/store &&
+        (chown -R node:"$$(id -gn node)" /app/node_modules /pnpm/store
+        /app/pnpm-lock.yaml /app/.next /app/src/generated 2>/dev/null || true) &&
+        su node -c 'pnpm dev --hostname 0.0.0.0'
     ports:
       - "5080:3000"
     volumes:
