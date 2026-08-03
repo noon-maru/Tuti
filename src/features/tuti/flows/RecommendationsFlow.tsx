@@ -10,6 +10,7 @@ import { RecommendationsScreen } from "@/features/tuti/screens/recommendations/R
 import { logoutAccount } from "@/lib/auth/session";
 import {
   getKoreanDateKey,
+  isKoreanDateBefore,
   isCurrentKoreanDate,
 } from "@/lib/date/koreanDate";
 import { useTutiStore } from "@/store/tuti";
@@ -24,6 +25,9 @@ export function RecommendationsFlow({ interactive }: { interactive: boolean }) {
   const dailyCheckInRequested = useTutiStore(
     (state) => state.dailyCheckInRequested,
   );
+  const dailyCheckInSnoozedUntil = useTutiStore(
+    (state) => state.dailyCheckInSnoozedUntil,
+  );
   const requestDailyCheckIn = useTutiStore(
     (state) => state.requestDailyCheckIn,
   );
@@ -33,11 +37,19 @@ export function RecommendationsFlow({ interactive }: { interactive: boolean }) {
   const completeDailyCheckIn = useTutiStore(
     (state) => state.completeDailyCheckIn,
   );
+  const snoozeDailyCheckIn = useTutiStore(
+    (state) => state.snoozeDailyCheckIn,
+  );
   const dailyRecordCurrent = isCurrentKoreanDate(entryRecord, currentDate);
+  const dailyCheckInSnoozed = isKoreanDateBefore(
+    currentDate,
+    dailyCheckInSnoozedUntil,
+  );
   const dailyCheckInVisible =
-    interactive && (!dailyRecordCurrent || dailyCheckInRequested);
+    interactive &&
+    (dailyCheckInRequested || (!dailyRecordCurrent && !dailyCheckInSnoozed));
   const { places, isFetched } = useTutiRecommendations({
-    enabled: dailyRecordCurrent,
+    enabled: dailyRecordCurrent || dailyCheckInSnoozed,
   });
   const activeIndex = useTutiStore((state) => state.activeIndex);
   const activePlaceId = useTutiStore((state) => state.activePlaceId);
@@ -218,9 +230,10 @@ export function RecommendationsFlow({ interactive }: { interactive: boolean }) {
         <DailyCheckInScreen
           previousAnswers={storedAnswers}
           initialMode={dailyCheckInRequested ? "questions" : "summary"}
-          dismissible={dailyRecordCurrent}
+          dismissible={dailyCheckInRequested || dailyRecordCurrent}
           onReuse={() => completeDailyCheckIn("reused")}
           onSkip={() => completeDailyCheckIn("skipped")}
+          onSnooze={snoozeDailyCheckIn}
           onSubmit={(answers) => completeDailyCheckIn("answered", answers)}
           onDismiss={cancelDailyCheckIn}
         />

@@ -1,6 +1,9 @@
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
-import { getKoreanDateKey } from "@/lib/date/koreanDate";
+import {
+  getKoreanDateKey,
+  getKoreanDateKeyAfterDays,
+} from "@/lib/date/koreanDate";
 import { preferencesStorage } from "@/lib/storage/preferencesStorage";
 import type { IntakeAnswers, UserLocation } from "@/shared/tuti/types";
 
@@ -33,6 +36,7 @@ type TutiState = {
   hasSeenSwipeHelp: boolean;
   hasSeenJournalHelp: boolean;
   dailyCheckInRequested: boolean;
+  dailyCheckInSnoozedUntil?: string;
   setAnswer: <Key extends keyof IntakeAnswers>(
     key: Key,
     value: IntakeAnswers[Key],
@@ -50,6 +54,7 @@ type TutiState = {
   finishIntake: (status: "answered" | "skipped") => void;
   requestDailyCheckIn: () => void;
   cancelDailyCheckIn: () => void;
+  snoozeDailyCheckIn: () => void;
   completeDailyCheckIn: (
     status: EntryStatus,
     answers?: IntakeAnswers,
@@ -75,6 +80,7 @@ export const useTutiStore = create<TutiState>()(
       hasSeenSwipeHelp: false,
       hasSeenJournalHelp: false,
       dailyCheckInRequested: false,
+      dailyCheckInSnoozedUntil: undefined,
       setAnswer: (key, value) =>
         set((state) => ({
           answers: {
@@ -126,9 +132,15 @@ export const useTutiStore = create<TutiState>()(
             completedAt: new Date().toISOString(),
           },
           entryStage: "recommendation-ready",
+          dailyCheckInSnoozedUntil: undefined,
         })),
       requestDailyCheckIn: () => set({ dailyCheckInRequested: true }),
       cancelDailyCheckIn: () => set({ dailyCheckInRequested: false }),
+      snoozeDailyCheckIn: () =>
+        set({
+          dailyCheckInRequested: false,
+          dailyCheckInSnoozedUntil: getKoreanDateKeyAfterDays(7),
+        }),
       completeDailyCheckIn: (status, answers) =>
         set((state) => ({
           answers:
@@ -139,6 +151,7 @@ export const useTutiStore = create<TutiState>()(
             completedAt: new Date().toISOString(),
           },
           dailyCheckInRequested: false,
+          dailyCheckInSnoozedUntil: undefined,
         })),
       finishEntry: () => set({ entryStage: "complete" }),
       markHydrated: () => set({ hasHydrated: true }),
@@ -152,6 +165,7 @@ export const useTutiStore = create<TutiState>()(
           detailOverlay: { phase: "closed" },
           entryStage: "intake",
           dailyCheckInRequested: false,
+          dailyCheckInSnoozedUntil: undefined,
         }),
     }),
     {
@@ -161,6 +175,7 @@ export const useTutiStore = create<TutiState>()(
       partialize: (state) => ({
         answers: state.answers,
         entryRecord: state.entryRecord,
+        dailyCheckInSnoozedUntil: state.dailyCheckInSnoozedUntil,
         activePlaceId: state.activePlaceId,
         activeJournalEntryId: state.activeJournalEntryId,
         detailOverlay:

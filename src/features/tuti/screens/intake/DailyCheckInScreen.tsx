@@ -29,6 +29,7 @@ export function DailyCheckInScreen({
   dismissible,
   onReuse,
   onSkip,
+  onSnooze,
   onSubmit,
   onDismiss,
 }: {
@@ -37,6 +38,7 @@ export function DailyCheckInScreen({
   dismissible: boolean;
   onReuse: () => void;
   onSkip: () => void;
+  onSnooze: () => void;
   onSubmit: (answers: IntakeAnswers) => void;
   onDismiss: () => void;
 }) {
@@ -286,6 +288,12 @@ export function DailyCheckInScreen({
                 <SkipAction type="button" onClick={() => closeWith(onSkip)}>
                   질문 없이 둘러보기
                 </SkipAction>
+                <SnoozeAction
+                  type="button"
+                  onClick={() => closeWith(onSnooze)}
+                >
+                  일주일간 보지 않기
+                </SnoozeAction>
               </Actions>
             </>
           ) : (
@@ -495,6 +503,12 @@ const ReviseButton = styled(BaseButton)`
 `;
 
 const SkipAction = styled(TextButton)`
+  font-size: var(--font-size-100);
+`;
+
+const SnoozeAction = styled(TextButton)`
+  margin-top: calc(var(--space-2) * -1);
+  color: var(--color-text-muted);
   font-size: var(--font-size-100);
 `;
 
