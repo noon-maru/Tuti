@@ -11,27 +11,14 @@ import {
 } from "react";
 import { BaseButton } from "@/features/tuti/components/buttons";
 import { useDeferredAnimationStart } from "@/features/tuti/hooks/useDeferredAnimationStart";
-import { useDeparturePlan } from "@/features/tuti/hooks/useDeparturePlan";
 import { DeparturePlanScreen } from "@/features/tuti/screens/departure/DeparturePlanScreen";
 import type { TutiPlace } from "@/lib/recommendations";
-import type {
-  DeparturePlan,
-  DepartureRouteMode,
-} from "@/shared/api/departurePlan";
-import type { UserLocation } from "@/shared/tuti/types";
-import { useTutiStore } from "@/store/tuti";
 
 const PEEK_HEIGHT = 208;
 const SNAP_DURATION = 460;
 const CLOSE_DURATION = 420;
 const DRAG_THRESHOLD = 72;
 const DEPARTURE_PEEK_HISTORY_KEY = "__tutiDeparturePeek";
-const ROUTE_MODE_PRIORITY: DepartureRouteMode[] = [
-  "walking",
-  "publicTransit",
-  "driving",
-  "bicycle",
-];
 
 type DragState = {
   pointerId: number;
@@ -42,12 +29,13 @@ type DragState = {
 
 export function PeekDeparturePlanScreen({
   place,
+  travelTimeLabel,
   onClose,
 }: {
   place: TutiPlace;
+  travelTimeLabel: string;
   onClose: () => void;
 }) {
-  const userLocation = useTutiStore((state) => state.userLocation);
   const animationReady = useDeferredAnimationStart();
   const [expanded, setExpanded] = useState(false);
   const [closing, setClosing] = useState(false);
@@ -64,7 +52,6 @@ export function PeekDeparturePlanScreen({
   const ignoreNextPopState = useRef(false);
   const closeTimer = useRef<number | null>(null);
   const interactionTimer = useRef<number | null>(null);
-  const departureQuery = useDeparturePlan(place.id, userLocation);
   const progress = Math.max(
     0,
     Math.min(
@@ -77,12 +64,6 @@ export function PeekDeparturePlanScreen({
     ),
   );
   const contentOpacity = Math.max(0, Math.min(1, (progress - 0.18) / 0.58));
-  const travelTimeLabel = resolveTravelTimeLabel({
-    userLocation,
-    plan: departureQuery.data,
-    isPending: departureQuery.isPending,
-    isError: departureQuery.isError,
-  });
 
   const requestClose = useCallback(
     (removeHistoryEntry: boolean) => {
@@ -334,12 +315,7 @@ export function PeekDeparturePlanScreen({
           <PreviewCopy>
             <small>출발 준비</small>
             <strong>{place.name}</strong>
-            <PreviewMeta>
-              <TravelBadge aria-live="polite">
-                {travelTimeLabel}
-              </TravelBadge>
-              <PreviewPhrase>{place.phrase}</PreviewPhrase>
-            </PreviewMeta>
+            <TravelBadge aria-live="polite">{travelTimeLabel}</TravelBadge>
             <GestureHint>
               위로 올려 출발 준비하기
               <ChevronUp aria-hidden="true" />
@@ -374,44 +350,6 @@ function getHistoryState(state: unknown = window.history.state) {
   return state && typeof state === "object"
     ? (state as Record<string, unknown>)
     : {};
-}
-
-function resolveTravelTimeLabel({
-  userLocation,
-  plan,
-  isPending,
-  isError,
-}: {
-  userLocation?: UserLocation;
-  plan?: DeparturePlan;
-  isPending: boolean;
-  isError: boolean;
-}) {
-  if (!userLocation) return "위치 없이 보는 중";
-  if (isPending) return "이동 시간 계산 중";
-  if (isError || !plan) return "이동 시간 확인 필요";
-
-  const mode =
-    plan.recommendedMode ??
-    ROUTE_MODE_PRIORITY.find(
-      (routeMode) => plan.routes[routeMode].status === "available",
-    );
-  const durationSeconds = mode
-    ? plan.routes[mode].durationSeconds
-    : null;
-
-  return durationSeconds === null
-    ? "이동 시간 확인 필요"
-    : formatDuration(durationSeconds);
-}
-
-function formatDuration(seconds: number) {
-  const minutes = Math.max(1, Math.round(seconds / 60));
-  if (minutes < 60) return `약 ${minutes}분`;
-
-  const hours = Math.floor(minutes / 60);
-  const remainder = minutes % 60;
-  return remainder ? `약 ${hours}시간 ${remainder}분` : `약 ${hours}시간`;
 }
 
 const Frame = styled.section`
@@ -597,15 +535,8 @@ const PreviewCopy = styled.div`
   }
 `;
 
-const PreviewMeta = styled.div`
-  min-width: 0;
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-`;
-
 const TravelBadge = styled.span`
-  flex: 0 0 auto;
+  width: fit-content;
   padding: var(--space-1) var(--space-2);
   border-radius: 999px;
   background: var(--color-brand-100);
@@ -613,17 +544,6 @@ const TravelBadge = styled.span`
   font-size: var(--font-size-100);
   font-weight: 600;
   line-height: var(--line-height-body);
-`;
-
-const PreviewPhrase = styled.p`
-  min-width: 0;
-  overflow: hidden;
-  color: var(--color-text-muted);
-  font-size: var(--font-size-100);
-  line-height: var(--line-height-body);
-  letter-spacing: var(--letter-spacing-body);
-  text-overflow: ellipsis;
-  white-space: nowrap;
 `;
 
 const GestureHint = styled.span`

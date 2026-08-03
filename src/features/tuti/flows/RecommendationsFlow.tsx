@@ -4,10 +4,12 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { useTutiRecommendations } from "@/features/tuti/hooks/useTutiRecommendations";
+import { useTravelTime } from "@/features/tuti/hooks/useTravelTime";
 import { useSession } from "@/features/tuti/hooks/useSession";
 import { useLocationAccess } from "@/features/tuti/location/LocationAccessProvider";
 import { DailyCheckInScreen } from "@/features/tuti/screens/intake/DailyCheckInScreen";
 import { RecommendationsScreen } from "@/features/tuti/screens/recommendations/RecommendationsScreen";
+import { formatTravelTimeLabel } from "@/features/tuti/lib/travelTimeLabel";
 import { logoutAccount } from "@/lib/auth/session";
 import {
   getKoreanDateKey,
@@ -91,6 +93,18 @@ export function RecommendationsFlow({ interactive }: { interactive: boolean }) {
   const detailPlace = detailOverlay.placeId
     ? places.find((place) => place.id === detailOverlay.placeId)
     : undefined;
+  const travelTimeQuery = useTravelTime(
+    activePlace?.id,
+    userLocation,
+    interactive && !dailyCheckInVisible,
+  );
+  const activeTravelTimeLabel = !userLocation
+    ? "위치 없이 추천"
+    : travelTimeQuery.isPending
+      ? "이동 시간 계산 중"
+      : travelTimeQuery.data
+        ? formatTravelTimeLabel(travelTimeQuery.data)
+        : "이동 시간 확인 필요";
 
   useEffect(() => {
     const refreshCurrentDate = () => setCurrentDate(getKoreanDateKey());
@@ -241,6 +255,7 @@ export function RecommendationsFlow({ interactive }: { interactive: boolean }) {
         adminAccess={session?.account?.role === "admin"}
         locationAvailable={Boolean(userLocation)}
         locationPermissionStatus={locationPermissionStatus}
+        activeTravelTimeLabel={activeTravelTimeLabel}
         interactive={interactive && !dailyCheckInVisible}
         initialHelp={
           interactive && detailOverlay.phase === "closed"

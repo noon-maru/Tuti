@@ -10,7 +10,7 @@ export function SwipeCard({
   place,
   offset,
   active,
-  locationAvailable,
+  travelTimeLabel,
   drag,
   nudging,
   detailProgress = 0,
@@ -19,7 +19,7 @@ export function SwipeCard({
   place: TutiPlace;
   offset: number;
   active: boolean;
-  locationAvailable: boolean;
+  travelTimeLabel: string;
   drag?: { x: number; y: number };
   nudging?: "up" | "down" | null;
   detailProgress?: number;
@@ -45,8 +45,8 @@ export function SwipeCard({
         zIndex: 10 - Math.abs(offset),
       }}
     >
-      <small>
-        {locationAvailable ? place.travelTime : "위치 없이 추천"}
+      <small aria-live={active ? "polite" : undefined}>
+        {travelTimeLabel}
       </small>
       <span>{place.phrase}</span>
       {active && <em>눌러서 출발 준비</em>}

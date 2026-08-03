@@ -73,6 +73,7 @@ export function RecommendationsScreen({
   adminAccess,
   locationAvailable,
   locationPermissionStatus,
+  activeTravelTimeLabel,
   interactive,
   initialHelp,
   onInitialHelpShown,
@@ -99,6 +100,7 @@ export function RecommendationsScreen({
   adminAccess: boolean;
   locationAvailable: boolean;
   locationPermissionStatus: LocationPermissionStatus;
+  activeTravelTimeLabel: string;
   interactive: boolean;
   initialHelp: HelpKind | null;
   onInitialHelpShown: (kind: HelpKind) => void;
@@ -596,7 +598,13 @@ export function RecommendationsScreen({
               place={place}
               offset={getOffset(index, activeIndex, places.length)}
               active={index === activeIndex}
-              locationAvailable={locationAvailable}
+              travelTimeLabel={
+                index === activeIndex
+                  ? activeTravelTimeLabel
+                  : locationAvailable
+                    ? "이동 시간 확인"
+                    : "위치 없이 추천"
+              }
               drag={dragStart || committing ? dragOffset : undefined}
               detailProgress={
                 index === activeIndex && transitionTarget === "detail"
@@ -632,7 +640,7 @@ export function RecommendationsScreen({
           >
             <DetailScreen
               place={presentedDetailPlace}
-              locationAvailable={locationAvailable}
+              travelTimeLabel={activeTravelTimeLabel}
               onBack={onDetailClose}
               onExitStart={onDetailExitStart}
               historyActive={detailVisible}
@@ -661,6 +669,7 @@ export function RecommendationsScreen({
           <PeekDeparturePlanScreen
             key={departurePresentation.place.id}
             place={departurePresentation.place}
+            travelTimeLabel={activeTravelTimeLabel}
             onClose={() => setDeparturePresentation(null)}
           />
         ) : departurePresentation.variant === "flip" ? (

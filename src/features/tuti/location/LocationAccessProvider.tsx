@@ -81,6 +81,7 @@ export function LocationAccessProvider({
 
   const clearLocationQueries = useCallback(() => {
     queryClient.removeQueries({ queryKey: ["departure-plan"] });
+    queryClient.removeQueries({ queryKey: ["travel-time"] });
     queryClient.removeQueries({ queryKey: ["recommendations"] });
   }, [queryClient]);
 

@@ -26,6 +26,10 @@ import type {
   TourismPlaceDetail,
 } from "@/shared/api/placeDetails";
 import type {
+  TravelTimeResponse,
+  TravelTimeSummary,
+} from "@/shared/api/travelTime";
+import type {
   RecommendationRequest,
   RecommendationResponse,
 } from "@/shared/api/recommendations";
@@ -90,6 +94,29 @@ export async function fetchDeparturePlan(
 
   const data = (await response.json()) as DeparturePlanResponse;
   return data.plan;
+}
+
+export async function fetchTravelTime(
+  placeId: string,
+  origin: UserLocation,
+): Promise<TravelTimeSummary | null> {
+  const response = await fetch(
+    apiUrl(`places/${encodeURIComponent(placeId)}/travel-time`),
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ origin }),
+    },
+  );
+
+  if (!response.ok) {
+    throw new Error(
+      await readApiError(response, "이동 시간을 불러오지 못했어요."),
+    );
+  }
+
+  const data = (await response.json()) as TravelTimeResponse;
+  return data.summary;
 }
 
 export async function fetchNearbyPlaces(

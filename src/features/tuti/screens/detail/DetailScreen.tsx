@@ -19,14 +19,14 @@ const DETAIL_HISTORY_STATE_KEY = "__tutiDetailOverlay";
 
 export function DetailScreen({
   place,
-  locationAvailable,
+  travelTimeLabel,
   onBack,
   onExitStart,
   historyActive = false,
   revealProgress = 1,
 }: {
   place: TutiPlace;
-  locationAvailable: boolean;
+  travelTimeLabel: string;
   onBack: () => void;
   onExitStart?: () => void;
   historyActive?: boolean;
@@ -135,9 +135,7 @@ export function DetailScreen({
         />
         <Content $revealProgress={revealProgress}>
           <Tags aria-label="장소 정보">
-            <Tag $tone="brand">
-              {locationAvailable ? place.travelTime : "위치 없이 추천"}
-            </Tag>
+            <Tag $tone="brand">{travelTimeLabel}</Tag>
             <Tag $tone="neutral">
               {place.crowdForecast
                 ? `예상 혼잡도 · ${getCrowdForecastLevelLabel(place.crowdForecast.level)}`

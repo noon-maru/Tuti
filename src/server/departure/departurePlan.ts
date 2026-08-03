@@ -5,6 +5,7 @@ import {
   fetchNearbyKakaoPlaces,
 } from "@/server/maps/kakaoMapClient";
 import { fetchKakaoDrivingRoute } from "@/server/maps/kakaoNaviClient";
+import { isWalkingDistance } from "@/server/departure/routeSelection";
 import { ensureTourismPlaceDetail } from "@/server/tourism/enrichTourismPlaceDetail";
 import type {
   DeparturePlan,
@@ -65,7 +66,11 @@ export async function createDeparturePlan(
     getRouteBundle(origin, destination, place.name),
     getNearbyPlaces(destination, place.name),
   ]);
-  const recommendedMode = selectRecommendedMode(routes);
+  const recommendedMode = selectRecommendedMode(
+    routes,
+    origin,
+    destination,
+  );
 
   return {
     place: {
@@ -184,18 +189,26 @@ async function getNearbyPlaces(
   return request;
 }
 
-function selectRecommendedMode(routes: RouteBundle) {
+function selectRecommendedMode(
+  routes: RouteBundle,
+  origin: UserLocation,
+  destination: UserLocation,
+) {
   if (
-    routes.walking.status === "available" &&
-    (routes.walking.distanceMeters ?? Number.MAX_SAFE_INTEGER) <= 1_800
+    isWalkingDistance(origin, destination) &&
+    isAvailableRoute(routes.walking)
   ) {
     return "walking";
   }
-  if (routes.publicTransit.status === "available") return "publicTransit";
-  if (routes.driving.status === "available") return "driving";
-  if (routes.bicycle.status === "available") return "bicycle";
-  if (routes.walking.status === "available") return "walking";
+  if (isAvailableRoute(routes.publicTransit)) return "publicTransit";
+  if (isAvailableRoute(routes.driving)) return "driving";
+  if (isAvailableRoute(routes.bicycle)) return "bicycle";
+  if (isAvailableRoute(routes.walking)) return "walking";
   return null;
+}
+
+function isAvailableRoute(route: DepartureRoute) {
+  return route.status === "available" && route.durationSeconds !== null;
 }
 
 function createSuggestedPlan(
