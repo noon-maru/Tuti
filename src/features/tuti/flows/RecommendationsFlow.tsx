@@ -2,9 +2,10 @@
 
 import { useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useTutiRecommendations } from "@/features/tuti/hooks/useTutiRecommendations";
 import { useSession } from "@/features/tuti/hooks/useSession";
+import { useLocationAccess } from "@/features/tuti/location/LocationAccessProvider";
 import { DailyCheckInScreen } from "@/features/tuti/screens/intake/DailyCheckInScreen";
 import { RecommendationsScreen } from "@/features/tuti/screens/recommendations/RecommendationsScreen";
 import { logoutAccount } from "@/lib/auth/session";
@@ -13,14 +14,22 @@ import {
   isKoreanDateBefore,
   isCurrentKoreanDate,
 } from "@/lib/date/koreanDate";
+import { LOCATION_TERMS_VERSION } from "@/shared/location/terms";
 import { useTutiStore } from "@/store/tuti";
 
 export function RecommendationsFlow({ interactive }: { interactive: boolean }) {
   const router = useRouter();
   const queryClient = useQueryClient();
+  const { requestLocation } = useLocationAccess();
   const session = useSession();
+  const automaticLocationRequest = useRef(false);
   const [currentDate, setCurrentDate] = useState(getKoreanDateKey);
   const storedAnswers = useTutiStore((state) => state.answers);
+  const userLocation = useTutiStore((state) => state.userLocation);
+  const locationPermissionStatus = useTutiStore(
+    (state) => state.locationPermissionStatus,
+  );
+  const locationConsent = useTutiStore((state) => state.locationConsent);
   const entryRecord = useTutiStore((state) => state.entryRecord);
   const dailyCheckInRequested = useTutiStore(
     (state) => state.dailyCheckInRequested,
@@ -99,7 +108,35 @@ export function RecommendationsFlow({ interactive }: { interactive: boolean }) {
 
   useEffect(() => {
     router.prefetch("/journal");
+    router.prefetch("/location");
   }, [router]);
+
+  useEffect(() => {
+    const canRestoreLocationWithoutPrompt =
+      interactive &&
+      !userLocation &&
+      locationPermissionStatus === "granted" &&
+      locationConsent?.status === "accepted" &&
+      locationConsent.termsVersion === LOCATION_TERMS_VERSION;
+
+    if (!canRestoreLocationWithoutPrompt) {
+      automaticLocationRequest.current = false;
+      return;
+    }
+
+    if (automaticLocationRequest.current) return;
+    automaticLocationRequest.current = true;
+
+    void requestLocation().finally(() => {
+      automaticLocationRequest.current = false;
+    });
+  }, [
+    interactive,
+    locationConsent,
+    locationPermissionStatus,
+    requestLocation,
+    userLocation,
+  ]);
 
   useEffect(() => {
     if (!isFetched) {
@@ -194,6 +231,7 @@ export function RecommendationsFlow({ interactive }: { interactive: boolean }) {
         onAccount={() => router.push("/login")}
         onAdmin={() => router.push("/admin")}
         onInquiry={() => router.push("/inquiry")}
+        onLocationSettings={() => router.push("/location")}
         onRestartIntake={requestDailyCheckIn}
         onLogout={async () => {
           await logoutAccount();
@@ -201,6 +239,8 @@ export function RecommendationsFlow({ interactive }: { interactive: boolean }) {
         }}
         accountConnected={Boolean(session?.account)}
         adminAccess={session?.account?.role === "admin"}
+        locationAvailable={Boolean(userLocation)}
+        locationPermissionStatus={locationPermissionStatus}
         interactive={interactive && !dailyCheckInVisible}
         initialHelp={
           interactive && detailOverlay.phase === "closed"

@@ -12,3 +12,22 @@ export type UserLocation = {
   latitude: number;
   longitude: number;
 };
+
+export type LocationConsentStatus =
+  | "accepted"
+  | "declined"
+  | "withdrawn";
+
+export type LocationConsentRecord = {
+  status: LocationConsentStatus;
+  termsVersion: string;
+  updatedAt: string;
+};
+
+export type LocationPermissionStatus =
+  | "unknown"
+  | "prompt"
+  | "granted"
+  | "denied"
+  | "unavailable"
+  | "timeout";

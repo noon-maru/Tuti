@@ -6,6 +6,8 @@ import { MapPin, Navigation, X } from "lucide-react";
 import { useLayoutEffect, useRef, useState } from "react";
 import { BaseButton, PrimaryButton } from "@/features/tuti/components/buttons";
 import { LoadingIndicator } from "@/features/tuti/components/LoadingIndicator";
+import { useLocationAccess } from "@/features/tuti/location/LocationAccessProvider";
+import type { LocationRequestResult } from "@/features/tuti/location/locationAccess";
 import { useDeparturePlan } from "@/features/tuti/hooks/useDeparturePlan";
 import { useVerticalSwipeBack } from "@/features/tuti/hooks/useVerticalSwipeBack";
 import type { TutiPlace } from "@/lib/recommendations";
@@ -14,7 +16,6 @@ import type {
   DepartureRoute,
   DepartureRouteMode,
 } from "@/shared/api/departurePlan";
-import type { UserLocation } from "@/shared/tuti/types";
 import { useTutiStore } from "@/store/tuti";
 
 const DEPARTURE_EXIT_DURATION = 420;
@@ -32,23 +33,18 @@ export function DeparturePlanScreen({
   onClose,
   embedded = false,
   respectEmbeddedTopSafeArea = true,
-  origin,
-  onOriginChange,
 }: {
   place: TutiPlace;
   onClose: () => void;
   embedded?: boolean;
   respectEmbeddedTopSafeArea?: boolean;
-  origin?: UserLocation;
-  onOriginChange?: (location: UserLocation) => void;
 }) {
-  const storedUserLocation = useTutiStore((state) => state.userLocation);
-  const setUserLocation = useTutiStore((state) => state.setUserLocation);
-  const userLocation = origin ?? storedUserLocation;
+  const { requestLocation } = useLocationAccess();
+  const userLocation = useTutiStore((state) => state.userLocation);
   const [preferredMode, setPreferredMode] =
     useState<DepartureRouteMode | null>(null);
   const [locationStatus, setLocationStatus] = useState<
-    "idle" | "loading" | "error"
+    "idle" | "loading" | Exclude<LocationRequestResult["status"], "ready">
   >("idle");
   const ownsHistoryEntry = useRef(false);
   const closingFromHistory = useRef(false);
@@ -128,36 +124,12 @@ export function DeparturePlanScreen({
     return () => window.removeEventListener("popstate", closeFromHistory);
   }, [embedded]);
 
-  const requestLocation = () => {
+  const requestCurrentLocation = async () => {
     if (locationStatus === "loading") return;
 
-    if (!navigator.geolocation) {
-      setLocationStatus("error");
-      return;
-    }
-
     setLocationStatus("loading");
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
-        const location = {
-          latitude: position.coords.latitude,
-          longitude: position.coords.longitude,
-        };
-
-        if (onOriginChange) {
-          onOriginChange(location);
-        } else {
-          setUserLocation(location);
-        }
-        setLocationStatus("idle");
-      },
-      () => setLocationStatus("error"),
-      {
-        enableHighAccuracy: false,
-        maximumAge: 1000 * 60 * 10,
-        timeout: 6000,
-      },
-    );
+    const result = await requestLocation();
+    setLocationStatus(result.status === "ready" ? "idle" : result.status);
   };
 
   return (
@@ -217,22 +189,22 @@ export function DeparturePlanScreen({
               <Navigation aria-hidden="true" />
               <h2>지금 있는 곳에서 출발할까요?</h2>
               <p>
-                현재 위치는 이동 경로를 계산할 때만 사용하고 저장하지
-                않아요.
+                현재 위치는 이동 경로를 계산할 때만 사용하고 계정이나
+                기록에는 남기지 않아요.
               </p>
               <LocationButton
                 type="button"
                 disabled={locationStatus === "loading"}
-                onClick={requestLocation}
+                onClick={() => void requestCurrentLocation()}
               >
                 {locationStatus === "loading"
                   ? "위치 확인 중..."
                   : "현재 위치 확인하기"}
               </LocationButton>
-              {locationStatus === "error" && (
+              {locationStatus !== "idle" &&
+                locationStatus !== "loading" && (
                 <StatusMessage role="alert">
-                  위치를 확인하지 못했어요. 브라우저나 앱의 위치 권한을
-                  확인해주세요.
+                  {getLocationStatusMessage(locationStatus)}
                 </StatusMessage>
               )}
             </LocationRequest>
@@ -408,6 +380,21 @@ function getModeLabel(mode: DepartureRouteMode) {
     bicycle: "자전거",
     walking: "도보",
   }[mode];
+}
+
+function getLocationStatusMessage(
+  status: Exclude<LocationRequestResult["status"], "ready">,
+) {
+  if (status === "declined") {
+    return "괜찮아요. 위치 없이도 장소 정보를 계속 볼 수 있어요.";
+  }
+  if (status === "denied") {
+    return "기기 설정에서 Tuti의 위치 권한을 허용한 뒤 다시 시도해주세요.";
+  }
+  if (status === "timeout") {
+    return "위치 확인이 오래 걸리고 있어요. 잠시 후 다시 시도해주세요.";
+  }
+  return "현재 기기에서는 위치를 확인할 수 없어요.";
 }
 
 function formatDuration(seconds: number | null) {

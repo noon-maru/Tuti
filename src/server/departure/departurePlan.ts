@@ -15,7 +15,6 @@ import type {
 import type { TourismPlaceDetail } from "@/shared/api/placeDetails";
 import type { UserLocation } from "@/shared/tuti/types";
 
-const ROUTE_CACHE_TTL_MS = 5 * 60 * 1_000;
 const NEARBY_CACHE_TTL_MS = 6 * 60 * 60 * 1_000;
 const MAX_MEMORY_CACHE_ENTRIES = 500;
 
@@ -26,7 +25,6 @@ type CachedValue<T> = {
 
 type RouteBundle = DeparturePlan["routes"];
 
-const routeCache = new Map<string, CachedValue<RouteBundle>>();
 const nearbyCache = new Map<
   string,
   CachedValue<DeparturePlan["nearbyPlaces"]>
@@ -109,17 +107,10 @@ async function getRouteBundle(
   destinationName: string,
 ): Promise<RouteBundle> {
   const key = createLocationCacheKey("routes", origin, destination);
-  const cached = readCache(routeCache, key);
-  if (cached) return cached;
-
   const existingRequest = routeRequests.get(key);
   if (existingRequest) return existingRequest;
 
   const request = fetchRouteBundle(origin, destination, destinationName)
-    .then((routes) => {
-      writeCache(routeCache, key, routes, ROUTE_CACHE_TTL_MS);
-      return routes;
-    })
     .finally(() => routeRequests.delete(key));
   routeRequests.set(key, request);
   return request;

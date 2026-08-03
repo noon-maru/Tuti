@@ -24,7 +24,6 @@ export function departurePlanQueryKey(
   return [
     "departure-plan",
     placeId,
-    userLocation?.latitude.toFixed(4),
-    userLocation?.longitude.toFixed(4),
+    Boolean(userLocation),
   ] as const;
 }

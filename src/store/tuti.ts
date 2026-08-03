@@ -5,7 +5,13 @@ import {
   getKoreanDateKeyAfterDays,
 } from "@/lib/date/koreanDate";
 import { preferencesStorage } from "@/lib/storage/preferencesStorage";
-import type { IntakeAnswers, UserLocation } from "@/shared/tuti/types";
+import { LOCATION_TERMS_VERSION } from "@/shared/location/terms";
+import type {
+  IntakeAnswers,
+  LocationConsentRecord,
+  LocationPermissionStatus,
+  UserLocation,
+} from "@/shared/tuti/types";
 
 type EntryStage = "intake" | "recommendation-ready" | "complete";
 type EntryStatus = "answered" | "reused" | "skipped";
@@ -26,6 +32,8 @@ type TutiState = {
   answers: IntakeAnswers;
   entryRecord?: EntryRecord;
   userLocation?: UserLocation;
+  locationConsent?: LocationConsentRecord;
+  locationPermissionStatus: LocationPermissionStatus;
   activeIndex: number;
   activePlaceId?: string;
   activeJournalEntryId?: string;
@@ -43,6 +51,10 @@ type TutiState = {
   ) => void;
   setUserLocation: (location: UserLocation) => void;
   clearUserLocation: () => void;
+  acceptLocationConsent: () => void;
+  declineLocationConsent: () => void;
+  withdrawLocationConsent: () => void;
+  setLocationPermissionStatus: (status: LocationPermissionStatus) => void;
   setActivePlace: (index: number, placeId: string) => void;
   setActiveJournalEntry: (entryId?: string) => void;
   openDetail: (placeId: string) => void;
@@ -70,6 +82,8 @@ export const useTutiStore = create<TutiState>()(
       answers: {},
       entryRecord: undefined,
       userLocation: undefined,
+      locationConsent: undefined,
+      locationPermissionStatus: "unknown",
       activeIndex: 0,
       activePlaceId: undefined,
       activeJournalEntryId: undefined,
@@ -90,6 +104,35 @@ export const useTutiStore = create<TutiState>()(
         })),
       setUserLocation: (userLocation) => set({ userLocation }),
       clearUserLocation: () => set({ userLocation: undefined }),
+      acceptLocationConsent: () =>
+        set({
+          locationConsent: {
+            status: "accepted",
+            termsVersion: LOCATION_TERMS_VERSION,
+            updatedAt: new Date().toISOString(),
+          },
+        }),
+      declineLocationConsent: () =>
+        set({
+          userLocation: undefined,
+          locationConsent: {
+            status: "declined",
+            termsVersion: LOCATION_TERMS_VERSION,
+            updatedAt: new Date().toISOString(),
+          },
+        }),
+      withdrawLocationConsent: () =>
+        set({
+          userLocation: undefined,
+          locationPermissionStatus: "unknown",
+          locationConsent: {
+            status: "withdrawn",
+            termsVersion: LOCATION_TERMS_VERSION,
+            updatedAt: new Date().toISOString(),
+          },
+        }),
+      setLocationPermissionStatus: (locationPermissionStatus) =>
+        set({ locationPermissionStatus }),
       setActivePlace: (activeIndex, activePlaceId) =>
         set({ activeIndex, activePlaceId }),
       setActiveJournalEntry: (activeJournalEntryId) =>
@@ -175,6 +218,7 @@ export const useTutiStore = create<TutiState>()(
       partialize: (state) => ({
         answers: state.answers,
         entryRecord: state.entryRecord,
+        locationConsent: state.locationConsent,
         dailyCheckInSnoozedUntil: state.dailyCheckInSnoozedUntil,
         activePlaceId: state.activePlaceId,
         activeJournalEntryId: state.activeJournalEntryId,

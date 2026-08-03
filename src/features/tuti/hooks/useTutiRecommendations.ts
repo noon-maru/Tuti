@@ -20,7 +20,7 @@ export function useTutiRecommendations({ enabled = true } = {}) {
     queryKey: [
       "recommendations",
       answers,
-      userLocation,
+      Boolean(userLocation),
       entryRecord?.effectiveDate,
       entryRecord?.status,
     ],

@@ -213,7 +213,7 @@ idle
 - [ ] 앱 재시작 시 복원할 상태와 초기화할 상태를 구분한다.
 - [x] `answers`와 엔트리 완료 여부를 Capacitor Preferences로 영속한다.
 - [x] 상세 장소 ID와 일반 캐러셀의 현재 장소 ID를 영속하고 인덱스는 추천 목록에서 다시 계산한다.
-- [ ] 위치 정보는 개인정보이므로 별도 결정 없이 영속화하지 않는다.
+- [x] 현재 좌표는 런타임 상태로만 관리하고 동의 상태만 Preferences에 영속한다. 상세 기준은 [`location-access.md`](./location-access.md)를 따른다.
 - [x] 상세는 현재 선택 카드에 종속된 세션 전용 로컬 오버레이로 관리한다.
 - [ ] 상세 공유가 필요해지면 `/?place=<id>` 형태로 루트와 오버레이 상태를 함께 복원한다.
 - [ ] Capacitor WebView가 nested URL에서 process restore될 때 root HTML로 시작하는 상황을 실기기에서 검증한다.
@@ -230,7 +230,7 @@ idle
 ### 작업
 
 - [ ] Capacitor Geolocation 사용 여부를 결정하고 iOS·Android 권한 문구와 manifest를 설정한다.
-- [ ] 위치 거부, 제한, timeout 상태를 UI에 명시한다.
+- [x] 위치 거부, 권한 차단, 사용 불가, timeout 상태를 위치 없는 추천 UI와 설정 화면에 명시한다.
 - [ ] Universal Links/App Links와 허용 route 검증을 구현한다.
 - [ ] 네이티브 아이콘, splash, 상태바, 화면 방향을 최종 자산으로 교체한다.
 - [ ] API rate limit, 인증 또는 앱 무결성 정책을 추가한다.

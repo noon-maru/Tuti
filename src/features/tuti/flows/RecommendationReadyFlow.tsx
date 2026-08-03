@@ -1,12 +1,12 @@
 "use client";
 
 import { useState } from "react";
+import { useLocationAccess } from "@/features/tuti/location/LocationAccessProvider";
 import { RecommendationReadyScreen } from "@/features/tuti/screens/recommendation/RecommendationReadyScreen";
 import { useTutiStore } from "@/store/tuti";
 
 export function RecommendationReadyFlow() {
-  const userLocation = useTutiStore((state) => state.userLocation);
-  const setUserLocation = useTutiStore((state) => state.setUserLocation);
+  const { requestLocation } = useLocationAccess();
   const finishEntry = useTutiStore((state) => state.finishEntry);
   const [resolvingLocation, setResolvingLocation] = useState(false);
 
@@ -14,34 +14,17 @@ export function RecommendationReadyFlow() {
     finishEntry();
   };
 
-  const openRecommendations = () => {
+  const openRecommendations = async () => {
     if (resolvingLocation) return;
 
-    if (userLocation || !navigator.geolocation) {
-      openMain();
-      return;
-    }
-
     setResolvingLocation(true);
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
-        setUserLocation({
-          latitude: position.coords.latitude,
-          longitude: position.coords.longitude,
-        });
-        setResolvingLocation(false);
-        openMain();
-      },
-      () => {
-        setResolvingLocation(false);
-        openMain();
-      },
-      {
-        enableHighAccuracy: false,
-        maximumAge: 1000 * 60 * 10,
-        timeout: 6000,
-      },
-    );
+
+    try {
+      await requestLocation();
+      openMain();
+    } finally {
+      setResolvingLocation(false);
+    }
   };
 
   return (

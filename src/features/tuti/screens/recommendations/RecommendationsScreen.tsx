@@ -2,6 +2,7 @@
 
 import { css, keyframes } from "@emotion/react";
 import styled from "@emotion/styled";
+import { MapPinOff } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { BaseButton } from "@/features/tuti/components/buttons";
 import { ContextMenu } from "@/features/tuti/components/ContextMenu";
@@ -18,6 +19,7 @@ import { PeekDeparturePlanScreen } from "@/features/tuti/screens/departure/PeekD
 import { DetailScreen } from "@/features/tuti/screens/detail/DetailScreen";
 import { JournalScreen } from "@/features/tuti/screens/journal/JournalScreen";
 import type { TutiPlace } from "@/lib/recommendations";
+import type { LocationPermissionStatus } from "@/shared/tuti/types";
 import { fluidByViewportHeight } from "@/styles/tokens";
 
 type Point = { x: number; y: number };
@@ -64,10 +66,13 @@ export function RecommendationsScreen({
   onAccount,
   onAdmin,
   onInquiry,
+  onLocationSettings,
   onRestartIntake,
   onLogout,
   accountConnected,
   adminAccess,
+  locationAvailable,
+  locationPermissionStatus,
   interactive,
   initialHelp,
   onInitialHelpShown,
@@ -87,10 +92,13 @@ export function RecommendationsScreen({
   onAccount: () => void;
   onAdmin: () => void;
   onInquiry: () => void;
+  onLocationSettings: () => void;
   onRestartIntake: () => void;
   onLogout: () => void | Promise<void>;
   accountConnected: boolean;
   adminAccess: boolean;
+  locationAvailable: boolean;
+  locationPermissionStatus: LocationPermissionStatus;
   interactive: boolean;
   initialHelp: HelpKind | null;
   onInitialHelpShown: (kind: HelpKind) => void;
@@ -530,6 +538,10 @@ export function RecommendationsScreen({
                       onSelect: onRestartIntake,
                     },
                     {
+                      label: "위치 설정",
+                      onSelect: onLocationSettings,
+                    },
+                    {
                       label: "1:1 문의",
                       onSelect: onInquiry,
                     },
@@ -549,6 +561,10 @@ export function RecommendationsScreen({
                       onSelect: onRestartIntake,
                     },
                     {
+                      label: "위치 설정",
+                      onSelect: onLocationSettings,
+                    },
+                    {
                       label: "1:1 문의",
                       onSelect: onInquiry,
                     },
@@ -561,6 +577,16 @@ export function RecommendationsScreen({
           <p>
             {activePlace?.reason ?? "지금의 마음에 맞는 장소를 찾고 있어요."}
           </p>
+          {!locationAvailable && (
+            <LocationModeButton
+              type="button"
+              onClick={onLocationSettings}
+              aria-label={`${getLocationModeLabel(locationPermissionStatus)}. 위치 설정 열기`}
+            >
+              <MapPinOff aria-hidden="true" />
+              {getLocationModeLabel(locationPermissionStatus)}
+            </LocationModeButton>
+          )}
         </Copy>
         <Carousel onWheel={scrollCard}>
           {places.map((place, index) => (
@@ -570,6 +596,7 @@ export function RecommendationsScreen({
               place={place}
               offset={getOffset(index, activeIndex, places.length)}
               active={index === activeIndex}
+              locationAvailable={locationAvailable}
               drag={dragStart || committing ? dragOffset : undefined}
               detailProgress={
                 index === activeIndex && transitionTarget === "detail"
@@ -605,6 +632,7 @@ export function RecommendationsScreen({
           >
             <DetailScreen
               place={presentedDetailPlace}
+              locationAvailable={locationAvailable}
               onBack={onDetailClose}
               onExitStart={onDetailExitStart}
               historyActive={detailVisible}
@@ -714,6 +742,13 @@ function normalizeWheelDelta(event: React.WheelEvent<HTMLElement>) {
   }
 
   return event.deltaY;
+}
+
+function getLocationModeLabel(status: LocationPermissionStatus) {
+  if (status === "denied") return "위치 권한이 꺼져 있어요";
+  if (status === "timeout") return "위치를 확인하지 못했어요";
+  if (status === "unavailable") return "위치를 사용할 수 없어요";
+  return "위치 없이 추천 중";
 }
 
 function getOffset(index: number, active: number, length: number) {
@@ -1077,6 +1112,25 @@ const Copy = styled.div<{ $progress: number }>`
     max-width: 300px;
     color: var(--color-text-muted);
     font-size: var(--font-size-200);
+  }
+`;
+
+const LocationModeButton = styled(BaseButton)`
+  width: fit-content;
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: var(--space-1) var(--space-3);
+  border: 1px solid var(--color-secondary-300);
+  border-radius: 999px;
+  background: var(--color-secondary-100);
+  color: var(--color-secondary-1000);
+  font-size: var(--font-size-100);
+  font-weight: 600;
+
+  svg {
+    width: 15px;
+    height: 15px;
   }
 `;
 

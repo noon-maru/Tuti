@@ -47,10 +47,7 @@ export function PeekDeparturePlanScreen({
   place: TutiPlace;
   onClose: () => void;
 }) {
-  const storedUserLocation = useTutiStore((state) => state.userLocation);
-  const [departureLocation, setDepartureLocation] =
-    useState<UserLocation>();
-  const userLocation = departureLocation ?? storedUserLocation;
+  const userLocation = useTutiStore((state) => state.userLocation);
   const animationReady = useDeferredAnimationStart();
   const [expanded, setExpanded] = useState(false);
   const [closing, setClosing] = useState(false);
@@ -58,9 +55,6 @@ export function PeekDeparturePlanScreen({
   const [maxTranslate, setMaxTranslate] = useState(0);
   const [contentMounted, setContentMounted] = useState(false);
   const [contentInteractive, setContentInteractive] = useState(false);
-  const [locationStatus, setLocationStatus] = useState<
-    "idle" | "loading" | "error"
-  >(userLocation ? "idle" : "loading");
   const sheetRef = useRef<HTMLElement | null>(null);
   const dragState = useRef<DragState | null>(null);
   const movedDuringDrag = useRef(false);
@@ -70,7 +64,6 @@ export function PeekDeparturePlanScreen({
   const ignoreNextPopState = useRef(false);
   const closeTimer = useRef<number | null>(null);
   const interactionTimer = useRef<number | null>(null);
-  const locationRequest = useRef<Promise<UserLocation> | null>(null);
   const departureQuery = useDeparturePlan(place.id, userLocation);
   const progress = Math.max(
     0,
@@ -86,7 +79,6 @@ export function PeekDeparturePlanScreen({
   const contentOpacity = Math.max(0, Math.min(1, (progress - 0.18) / 0.58));
   const travelTimeLabel = resolveTravelTimeLabel({
     userLocation,
-    locationStatus,
     plan: departureQuery.data,
     isPending: departureQuery.isPending,
     isError: departureQuery.isError,
@@ -189,31 +181,6 @@ export function PeekDeparturePlanScreen({
     window.addEventListener("keydown", closeFromEscape);
     return () => window.removeEventListener("keydown", closeFromEscape);
   }, [requestClose]);
-
-  useEffect(() => {
-    if (userLocation) return;
-
-    let active = true;
-    const request =
-      locationRequest.current ?? requestCurrentLocation();
-    locationRequest.current = request;
-
-    void request.then(
-      (location) => {
-        if (!active) return;
-        setDepartureLocation(location);
-        setLocationStatus("idle");
-      },
-      () => {
-        if (!active) return;
-        setLocationStatus("error");
-      },
-    );
-
-    return () => {
-      active = false;
-    };
-  }, [userLocation]);
 
   useEffect(
     () => () => {
@@ -394,8 +361,6 @@ export function PeekDeparturePlanScreen({
               place={place}
               embedded
               respectEmbeddedTopSafeArea={false}
-              origin={userLocation}
-              onOriginChange={setDepartureLocation}
               onClose={() => requestClose(true)}
             />
           )}
@@ -411,48 +376,18 @@ function getHistoryState(state: unknown = window.history.state) {
     : {};
 }
 
-function requestCurrentLocation(): Promise<UserLocation> {
-  return new Promise((resolve, reject) => {
-    if (!navigator.geolocation) {
-      reject(new Error("geolocation_not_supported"));
-      return;
-    }
-
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
-        resolve({
-          latitude: position.coords.latitude,
-          longitude: position.coords.longitude,
-        });
-      },
-      reject,
-      {
-        enableHighAccuracy: false,
-        maximumAge: 1000 * 60 * 10,
-        timeout: 6000,
-      },
-    );
-  });
-}
-
 function resolveTravelTimeLabel({
   userLocation,
-  locationStatus,
   plan,
   isPending,
   isError,
 }: {
   userLocation?: UserLocation;
-  locationStatus: "idle" | "loading" | "error";
   plan?: DeparturePlan;
   isPending: boolean;
   isError: boolean;
 }) {
-  if (!userLocation) {
-    return locationStatus === "loading"
-      ? "위치 확인 중"
-      : "현재 위치 확인 필요";
-  }
+  if (!userLocation) return "위치 없이 보는 중";
   if (isPending) return "이동 시간 계산 중";
   if (isError || !plan) return "이동 시간 확인 필요";
 
