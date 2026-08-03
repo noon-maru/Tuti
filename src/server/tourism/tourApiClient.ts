@@ -39,7 +39,7 @@ type FetchAreaBasedPlacesInput = {
   sigunguCode?: string;
 };
 
-type TourApiResponse = {
+type TourApiResponse<T> = {
   response?: {
     header?: {
       resultCode?: string;
@@ -47,7 +47,7 @@ type TourApiResponse = {
     };
     body?: {
       items?: {
-        item?: TourApiPlaceItem | TourApiPlaceItem[];
+        item?: T | T[];
       };
       pageNo?: number | string;
       numOfRows?: number | string;
@@ -73,6 +73,25 @@ export async function fetchAreaBasedTourismPlaces({
   areaCode,
   sigunguCode,
 }: FetchAreaBasedPlacesInput): Promise<TourApiPage> {
+  return fetchTourApiPage<TourApiPlaceItem>("areaBasedList2", {
+    arrange: "A",
+    pageNo: String(pageNo),
+    numOfRows: String(numOfRows),
+    ...(contentTypeId ? { contentTypeId } : {}),
+    ...(areaCode ? { areaCode } : {}),
+    ...(sigunguCode ? { sigunguCode } : {}),
+  });
+}
+
+export async function fetchTourApiPage<T>(
+  operation: string,
+  parameters: Record<string, string>,
+): Promise<{
+  items: T[];
+  pageNo: number;
+  numOfRows: number;
+  totalCount: number;
+}> {
   const serviceKey =
     process.env.KTO_TOURISM_INFO_SERVICE_KEY?.trim();
 
@@ -83,18 +102,20 @@ export async function fetchAreaBasedTourismPlaces({
     );
   }
 
-  const url = new URL(`${TOUR_API_BASE_URL}/areaBasedList2`);
+  if (!/^[A-Za-z][A-Za-z0-9]*$/.test(operation)) {
+    throw new TourApiError(
+      "지원하지 않는 TourAPI 작업입니다.",
+      "tour_api_invalid_operation",
+    );
+  }
+
+  const url = new URL(`${TOUR_API_BASE_URL}/${operation}`);
   url.search = new URLSearchParams({
     serviceKey,
     MobileOS: "ETC",
     MobileApp: "Tuti",
     _type: "json",
-    arrange: "A",
-    pageNo: String(pageNo),
-    numOfRows: String(numOfRows),
-    ...(contentTypeId ? { contentTypeId } : {}),
-    ...(areaCode ? { areaCode } : {}),
-    ...(sigunguCode ? { sigunguCode } : {}),
+    ...parameters,
   }).toString();
 
   let response: Response;
@@ -125,10 +146,10 @@ export async function fetchAreaBasedTourismPlaces({
     );
   }
 
-  let payload: TourApiResponse;
+  let payload: TourApiResponse<T>;
 
   try {
-    payload = JSON.parse(text) as TourApiResponse;
+    payload = JSON.parse(text) as TourApiResponse<T>;
   } catch {
     throw new TourApiError(
       "TourAPI 응답을 JSON으로 해석하지 못했습니다. 인증키 상태를 확인해주세요.",
@@ -152,8 +173,11 @@ export async function fetchAreaBasedTourismPlaces({
 
   return {
     items: Array.isArray(item) ? item : item ? [item] : [],
-    pageNo: toFiniteNumber(body.pageNo, pageNo),
-    numOfRows: toFiniteNumber(body.numOfRows, numOfRows),
+    pageNo: toFiniteNumber(body.pageNo, Number(parameters.pageNo) || 1),
+    numOfRows: toFiniteNumber(
+      body.numOfRows,
+      Number(parameters.numOfRows) || 10,
+    ),
     totalCount: toFiniteNumber(body.totalCount, 0),
   };
 }

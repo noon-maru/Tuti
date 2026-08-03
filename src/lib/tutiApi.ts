@@ -14,6 +14,10 @@ import type {
   TutiJournalEntry,
 } from "@/shared/api/journal";
 import type {
+  PlaceDetailResponse,
+  TourismPlaceDetail,
+} from "@/shared/api/placeDetails";
+import type {
   RecommendationRequest,
   RecommendationResponse,
 } from "@/shared/api/recommendations";
@@ -38,6 +42,23 @@ export async function fetchRecommendations(
 
   const data = (await response.json()) as RecommendationResponse;
   return data.places;
+}
+
+export async function fetchPlaceDetail(
+  placeId: string,
+): Promise<TourismPlaceDetail> {
+  const response = await fetch(
+    apiUrl(`places/${encodeURIComponent(placeId)}/detail`),
+  );
+
+  if (!response.ok) {
+    throw new Error(
+      await readApiError(response, "장소 정보를 불러오지 못했어요."),
+    );
+  }
+
+  const data = (await response.json()) as PlaceDetailResponse;
+  return data.detail;
 }
 
 export async function fetchJournalEntries(): Promise<TutiJournalEntry[]> {

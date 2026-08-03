@@ -123,11 +123,43 @@ model TourismPlaceSourceRecord {
   createdAt        DateTime  @default(now()) @map("created_at")
   updatedAt        DateTime  @updatedAt @map("updated_at")
   linkedPlace      Place?    @relation(fields: [linkedPlaceId], references: [id], onDelete: SetNull)
+  detailRecord     TourismPlaceDetailRecord?
 
   @@index([contentTypeId, syncedAt])
   @@index([areaCode, sigunguCode])
   @@index([sidoName, sigunguName])
   @@map("tourism_place_source_records")
+}
+
+model TourismPlaceDetailRecord {
+  contentId          String    @id @map("content_id")
+  contentTypeId      String?   @map("content_type_id")
+  overview           String?
+  homepage           String?
+  phone              String?
+  openingHours       String?   @map("opening_hours")
+  restDate           String?   @map("rest_date")
+  admissionFee       String?   @map("admission_fee")
+  parking            String?
+  reservation        String?
+  usageDuration      String?   @map("usage_duration")
+  experienceGuide    String?   @map("experience_guide")
+  commonPayload      Json?     @map("common_payload")
+  introPayload       Json?     @map("intro_payload")
+  infoPayload        Json?     @map("info_payload")
+  imagePayload       Json?     @map("image_payload")
+  sourceModifiedAt   DateTime? @map("source_modified_at")
+  syncedAt           DateTime? @map("synced_at")
+  lastAttemptAt      DateTime? @map("last_attempt_at")
+  retryAfter         DateTime? @map("retry_after")
+  lastError          String?   @map("last_error")
+  createdAt          DateTime  @default(now()) @map("created_at")
+  updatedAt          DateTime  @updatedAt @map("updated_at")
+  sourceRecord       TourismPlaceSourceRecord @relation(fields: [contentId], references: [contentId], onDelete: Cascade)
+
+  @@index([retryAfter])
+  @@index([syncedAt])
+  @@map("tourism_place_detail_records")
 }
 
 model WellnessTourismSourceRecord {
