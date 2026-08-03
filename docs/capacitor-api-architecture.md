@@ -120,11 +120,23 @@ sequenceDiagram
 
 - Kakao Developers에는 Kakao Login을 활성화하고
   `https://tuti.today/api/auth/oauth/kakao/callback`을 리디렉션 URI로
-  등록한다. REST API 키를 `KAKAO_CLIENT_ID`, 활성화된 Client Secret을
+  등록한다. REST API 키를 `KAKAO_REST_API_KEY`, 활성화된 Client Secret을
   `KAKAO_CLIENT_SECRET`에 넣고 서버의 `KAKAO_OAUTH_ENABLED`와 빌드
   시점의 `NEXT_PUBLIC_KAKAO_OAUTH_ENABLED`를 함께 활성화한다.
 
 - 로그인 세션 토큰도 원문 대신 SHA-256 해시만 `user_sessions`에 저장한다.
+
+## 출발 계획 API
+
+- `POST /api/places/{placeId}/departure-plan`은 현재 위치와 목적지 좌표를
+  바탕으로 대중교통·도보·자전거·자동차 이동 요약을 반환한다.
+- 대중교통·도보·자전거와 주변 장소는 카카오맵 REST API, 자동차는
+  카카오내비 길찾기 API를 사용하며 모두 `KAKAO_REST_API_KEY`를 공유한다.
+- 사용자 출발 좌표는 DB와 로그에 저장하지 않는다. 반복 호출을 줄이기 위해
+  좌표를 약 10m 단위로 반올림한 뒤 SHA-256 해시한 키로 5분 동안 메모리
+  캐시만 사용한다.
+- 관광지 상세정보는 TourAPI 지연 수집 캐시를 사용하고, 주변 장소는 6시간
+  메모리 캐시를 사용한다. 개별 이동수단 호출 실패는 다른 결과를 막지 않는다.
 
 - 웹과 Capacitor는 모두 `tuti-session` Preferences 키와 같은 클라이언트 API를 사용한다.
 

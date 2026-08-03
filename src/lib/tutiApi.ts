@@ -2,6 +2,10 @@ import type { TutiPlace } from "@/lib/recommendations";
 import { apiUrl } from "@/lib/api/apiUrl";
 import { fetchWithSession } from "@/lib/auth/session";
 import type {
+  DeparturePlan,
+  DeparturePlanResponse,
+} from "@/shared/api/departurePlan";
+import type {
   DeleteJournalEntryResponse,
   JournalEntriesResponse,
   JournalEntryInput,
@@ -59,6 +63,29 @@ export async function fetchPlaceDetail(
 
   const data = (await response.json()) as PlaceDetailResponse;
   return data.detail;
+}
+
+export async function fetchDeparturePlan(
+  placeId: string,
+  origin: UserLocation,
+): Promise<DeparturePlan> {
+  const response = await fetch(
+    apiUrl(`places/${encodeURIComponent(placeId)}/departure-plan`),
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ origin }),
+    },
+  );
+
+  if (!response.ok) {
+    throw new Error(
+      await readApiError(response, "출발 계획을 불러오지 못했어요."),
+    );
+  }
+
+  const data = (await response.json()) as DeparturePlanResponse;
+  return data.plan;
 }
 
 export async function fetchJournalEntries(): Promise<TutiJournalEntry[]> {

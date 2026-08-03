@@ -38,7 +38,7 @@ const providerConfigurations: Record<
   },
   kakao: {
     authorizationEndpoint: "https://kauth.kakao.com/oauth/authorize",
-    clientIdEnv: "KAKAO_CLIENT_ID",
+    clientIdEnv: "KAKAO_REST_API_KEY",
     enabledEnv: "KAKAO_OAUTH_ENABLED",
     scopeSeparator: ",",
     scopes: [],
@@ -444,7 +444,7 @@ async function fetchKakaoProfile(
   codeVerifier: string,
 ) {
   const redirectUri = createOAuthCallbackUrl("kakao");
-  const clientId = getRequiredAuthEnv("KAKAO_CLIENT_ID");
+  const clientId = getRequiredAuthEnv("KAKAO_REST_API_KEY");
   const tokenResponse = await fetch("https://kauth.kakao.com/oauth/token", {
     method: "POST",
     headers: {
