@@ -9,6 +9,7 @@ import {
   useState,
 } from "react";
 import { createPortal } from "react-dom";
+import { LoadingIndicator } from "@/features/tuti/components/LoadingIndicator";
 import { apiUrl } from "@/lib/api/apiUrl";
 import type {
   PlaceSearchResponse,
@@ -178,7 +179,9 @@ export function JournalPlacePicker({
 
               <ResultList aria-live="polite">
                 {status === "loading" && (
-                  <ResultStatus>장소를 찾고 있어요.</ResultStatus>
+                  <ResultStatus>
+                    <LoadingIndicator label="장소를 찾고 있어요." compact />
+                  </ResultStatus>
                 )}
                 {status === "error" && (
                   <ResultStatus>장소를 불러오지 못했어요.</ResultStatus>
@@ -395,7 +398,7 @@ const SelectedMark = styled.span`
   font-weight: 700;
 `;
 
-const ResultStatus = styled.p`
+const ResultStatus = styled.div`
   padding: var(--space-5) var(--space-2);
   color: var(--color-text-muted);
   font-size: var(--font-size-100);

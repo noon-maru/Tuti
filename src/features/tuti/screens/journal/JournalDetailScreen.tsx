@@ -11,6 +11,7 @@ import {
   useJournalEntryTransitionTarget,
 } from "@/features/tuti/components/JournalEntryTransition";
 import { ScreenFrame } from "@/features/tuti/components/ScreenFrame";
+import { LoadingIndicator } from "@/features/tuti/components/LoadingIndicator";
 import { getPublicJournalUrl } from "@/lib/journalShare";
 import type { TutiJournalEntry } from "@/shared/api/journal";
 import { journalImageMaxWidth } from "@/styles/tokens";
@@ -158,9 +159,11 @@ export function JournalDetailScreen({
 export function JournalDetailStatusScreen({
   message,
   onBack,
+  loading = false,
 }: {
   message: string;
   onBack: () => void;
+  loading?: boolean;
 }) {
   return (
     <Frame>
@@ -175,7 +178,9 @@ export function JournalDetailStatusScreen({
         <h1>지난 공간</h1>
         <HeaderSpacer />
       </Header>
-      <Status role="status">{message}</Status>
+      <Status role={loading ? undefined : "status"}>
+        {loading ? <LoadingIndicator label={message} /> : message}
+      </Status>
     </Frame>
   );
 }

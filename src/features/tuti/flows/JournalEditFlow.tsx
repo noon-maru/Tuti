@@ -36,6 +36,7 @@ export function JournalEditFlow() {
       <JournalEditorStatusScreen
         message="기록을 불러오고 있어요."
         onBack={returnToJournalFallback}
+        loading
       />
     );
   }

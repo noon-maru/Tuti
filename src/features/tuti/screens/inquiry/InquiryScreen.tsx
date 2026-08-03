@@ -8,6 +8,7 @@ import {
   BaseButton,
   PrimaryButton,
 } from "@/features/tuti/components/buttons";
+import { LoadingIndicator } from "@/features/tuti/components/LoadingIndicator";
 import { ScreenFrame } from "@/features/tuti/components/ScreenFrame";
 import { useSession } from "@/features/tuti/hooks/useSession";
 import { fetchWithSession } from "@/lib/auth/session";
@@ -248,7 +249,14 @@ function InquiryHistory({
   error: string | null;
 }) {
   if (loading) {
-    return <HistoryState>문의 내역을 불러오고 있어요.</HistoryState>;
+    return (
+      <HistoryState>
+        <LoadingIndicator
+          label="문의 내역을 불러오고 있어요."
+          compact
+        />
+      </HistoryState>
+    );
   }
 
   if (error) {

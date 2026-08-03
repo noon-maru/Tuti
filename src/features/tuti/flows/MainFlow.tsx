@@ -1,11 +1,10 @@
 "use client";
 
-import styled from "@emotion/styled";
 import { usePathname, useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { BrowserHistoryTransitionProvider } from "@/features/tuti/components/BrowserHistoryTransition";
 import { JournalEntryTransitionProvider } from "@/features/tuti/components/JournalEntryTransition";
-import { ScreenFrame } from "@/features/tuti/components/ScreenFrame";
+import { AppLoadingScreen } from "@/features/tuti/components/LoadingIndicator";
 import { RecommendationsFlow } from "@/features/tuti/flows/RecommendationsFlow";
 import { useTutiStore } from "@/store/tuti";
 
@@ -47,7 +46,7 @@ export function MainFlow({ children }: { children: React.ReactNode }) {
   );
 
   if (!hasHydrated || !entryRecord) {
-    return <BootstrapScreen aria-label="저장된 상태를 확인하고 있어요" />;
+    return <AppLoadingScreen label="저장된 상태를 확인하고 있어요." />;
   }
 
   return (
@@ -65,7 +64,3 @@ export function MainFlow({ children }: { children: React.ReactNode }) {
     </BrowserHistoryTransitionProvider>
   );
 }
-
-const BootstrapScreen = styled(ScreenFrame)`
-  background: var(--color-surface);
-`;

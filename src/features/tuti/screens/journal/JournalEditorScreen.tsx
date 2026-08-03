@@ -10,6 +10,7 @@ import { ContextMenu } from "@/features/tuti/components/ContextMenu";
 import { ImageCropDialog } from "@/features/tuti/components/ImageCropDialog";
 import { JournalPlacePicker } from "@/features/tuti/components/JournalPlacePicker";
 import { ScreenFrame } from "@/features/tuti/components/ScreenFrame";
+import { LoadingIndicator } from "@/features/tuti/components/LoadingIndicator";
 import { readImageCaptureDate } from "@/features/tuti/lib/readImageCaptureDate";
 import type {
   JournalEntryInput,
@@ -305,9 +306,11 @@ export function JournalEditorScreen({
 export function JournalEditorStatusScreen({
   message,
   onBack,
+  loading = false,
 }: {
   message: string;
   onBack: () => void;
+  loading?: boolean;
 }) {
   return (
     <Frame>
@@ -322,7 +325,9 @@ export function JournalEditorStatusScreen({
         <h1>고치는 공간</h1>
         <HeaderSpacer />
       </EditorHeader>
-      <Status role="status">{message}</Status>
+      <Status role={loading ? undefined : "status"}>
+        {loading ? <LoadingIndicator label={message} /> : message}
+      </Status>
     </Frame>
   );
 }

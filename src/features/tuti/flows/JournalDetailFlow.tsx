@@ -121,6 +121,7 @@ export function JournalDetailFlow() {
       <JournalDetailStatusScreen
         message="지난 공간을 불러오고 있어요."
         onBack={returnToJournalFallback}
+        loading
       />
     );
   }

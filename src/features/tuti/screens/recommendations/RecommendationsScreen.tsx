@@ -5,6 +5,7 @@ import styled from "@emotion/styled";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { BaseButton } from "@/features/tuti/components/buttons";
 import { ContextMenu } from "@/features/tuti/components/ContextMenu";
+import { LoadingIndicator } from "@/features/tuti/components/LoadingIndicator";
 import { ScreenFrame } from "@/features/tuti/components/ScreenFrame";
 import { SwipeCard } from "@/features/tuti/components/SwipeCard";
 import { DetailScreen } from "@/features/tuti/screens/detail/DetailScreen";
@@ -23,6 +24,7 @@ const WHEEL_TRANSITION_DURATION = 260;
 
 export function RecommendationsScreen({
   places,
+  loading,
   activeIndex,
   activePlace,
   onSelect,
@@ -45,6 +47,7 @@ export function RecommendationsScreen({
   onInitialHelpShown,
 }: {
   places: TutiPlace[];
+  loading: boolean;
   activeIndex: number;
   activePlace?: TutiPlace;
   onSelect: (index: number) => void;
@@ -85,7 +88,7 @@ export function RecommendationsScreen({
   const detailOpen = detailPhase === "open";
   const detailVisible = detailPhase !== "closed";
   const presentedDetailPlace = detailVisible ? detailPlace : activePlace;
-  const mainInteractive = interactive && !detailOpen;
+  const mainInteractive = interactive && !detailOpen && !loading;
   const helpVisible =
     mainInteractive &&
     Boolean(currentHelp) &&
@@ -614,6 +617,11 @@ export function RecommendationsScreen({
           </HelpContent>
         )}
       </HelpOverlay>
+      <LoadingOverlay $visible={loading} aria-hidden={!loading}>
+        {loading && (
+          <LoadingIndicator label="오늘의 장소를 고르고 있어요." />
+        )}
+      </LoadingOverlay>
     </Frame>
   );
 }
@@ -644,6 +652,20 @@ const Frame = styled(ScreenFrame)<{ $interactive: boolean }>`
   touch-action: none;
   pointer-events: ${({ $interactive }) => ($interactive ? "auto" : "none")};
   isolation: isolate;
+`;
+
+const LoadingOverlay = styled.div<{ $visible: boolean }>`
+  position: absolute;
+  z-index: 30;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background: rgb(var(--color-white-rgb) / 0.88);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  opacity: ${({ $visible }) => ($visible ? 1 : 0)};
+  pointer-events: ${({ $visible }) => ($visible ? "auto" : "none")};
+  transition: opacity 220ms ease;
 `;
 
 const CurrentLayer = styled.div<{ $progress: number; $dragY: number }>`

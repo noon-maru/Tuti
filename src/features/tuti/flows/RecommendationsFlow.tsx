@@ -48,7 +48,7 @@ export function RecommendationsFlow({ interactive }: { interactive: boolean }) {
   const dailyCheckInVisible =
     interactive &&
     (dailyCheckInRequested || (!dailyRecordCurrent && !dailyCheckInSnoozed));
-  const { places, isFetched } = useTutiRecommendations({
+  const { places, isFetched, isPending } = useTutiRecommendations({
     enabled: dailyRecordCurrent || dailyCheckInSnoozed,
   });
   const activeIndex = useTutiStore((state) => state.activeIndex);
@@ -180,6 +180,7 @@ export function RecommendationsFlow({ interactive }: { interactive: boolean }) {
     <>
       <RecommendationsScreen
         places={places}
+        loading={isPending && !dailyCheckInVisible}
         activeIndex={displayedActiveIndex}
         activePlace={activePlace}
         onSelect={selectCard}

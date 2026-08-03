@@ -9,6 +9,7 @@ import {
   useHistoryDestinationReveal,
 } from "@/features/tuti/components/BrowserHistoryTransition";
 import { ContextMenu } from "@/features/tuti/components/ContextMenu";
+import { LoadingIndicator } from "@/features/tuti/components/LoadingIndicator";
 import { useJournalEntryTransitionTarget } from "@/features/tuti/components/JournalEntryTransition";
 import { BaseButton } from "@/features/tuti/components/buttons";
 import { ScreenFrame } from "@/features/tuti/components/ScreenFrame";
@@ -317,7 +318,7 @@ export function JournalScreen({
         </MemoryStack>
       ) : isPending ? (
         <EmptyState>
-          <p>지난 공간을 불러오고 있어요.</p>
+          <LoadingIndicator label="지난 공간을 불러오고 있어요." />
         </EmptyState>
       ) : (
         <EmptyState>
