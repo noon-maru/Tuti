@@ -8,6 +8,13 @@ import { ContextMenu } from "@/features/tuti/components/ContextMenu";
 import { LoadingIndicator } from "@/features/tuti/components/LoadingIndicator";
 import { ScreenFrame } from "@/features/tuti/components/ScreenFrame";
 import { SwipeCard } from "@/features/tuti/components/SwipeCard";
+import { DeparturePlanScreen } from "@/features/tuti/screens/departure/DeparturePlanScreen";
+import { ExpandedDeparturePlanScreen } from "@/features/tuti/screens/departure/ExpandedDeparturePlanScreen";
+import {
+  FullscreenDeparturePlanScreen,
+  type CardTransitionRect,
+} from "@/features/tuti/screens/departure/FullscreenDeparturePlanScreen";
+import { PeekDeparturePlanScreen } from "@/features/tuti/screens/departure/PeekDeparturePlanScreen";
 import { DetailScreen } from "@/features/tuti/screens/detail/DetailScreen";
 import { JournalScreen } from "@/features/tuti/screens/journal/JournalScreen";
 import type { TutiPlace } from "@/lib/recommendations";
@@ -17,6 +24,25 @@ type Point = { x: number; y: number };
 type DragAxis = "horizontal" | "vertical" | null;
 type HelpKind = "cards" | "detail" | "journal";
 type DetailPhase = "closed" | "open" | "closing";
+type DeparturePresentation =
+  | {
+      variant: "expand";
+      place: TutiPlace;
+      sourceRect: CardTransitionRect;
+    }
+  | {
+      variant: "flip";
+      place: TutiPlace;
+      sourceRect: CardTransitionRect;
+    }
+  | {
+      variant: "peek";
+      place: TutiPlace;
+    }
+  | {
+      variant: "sheet";
+      place: TutiPlace;
+    };
 
 const WHEEL_DELTA_LIMIT = 28;
 const WHEEL_TRIGGER_THRESHOLD = 24;
@@ -73,10 +99,12 @@ export function RecommendationsScreen({
   const [dragOffset, setDragOffset] = useState<Point>({ x: 0, y: 0 });
   const [dragAxis, setDragAxis] = useState<DragAxis>(null);
   const [committing, setCommitting] = useState(false);
-  const [nudgingCard, setNudgingCard] = useState<"up" | "down" | null>(null);
   const [pressedCardIndex, setPressedCardIndex] = useState<number | null>(null);
   const [currentHelp, setCurrentHelp] = useState<HelpKind | null>(null);
   const [displayedHelp, setDisplayedHelp] = useState<HelpKind | null>(null);
+  const [departurePresentation, setDeparturePresentation] =
+    useState<DeparturePresentation | null>(null);
+  const pressedCardRect = useRef<CardTransitionRect | null>(null);
   const wheelDragY = useRef(0);
   const wheelAnimationFrame = useRef<number | null>(null);
   const wheelResetTimer = useRef<number | null>(null);
@@ -88,7 +116,8 @@ export function RecommendationsScreen({
   const detailOpen = detailPhase === "open";
   const detailVisible = detailPhase !== "closed";
   const presentedDetailPlace = detailVisible ? detailPlace : activePlace;
-  const mainInteractive = interactive && !detailOpen && !loading;
+  const mainInteractive =
+    interactive && !detailOpen && !departurePresentation && !loading;
   const helpVisible =
     mainInteractive &&
     Boolean(currentHelp) &&
@@ -114,17 +143,8 @@ export function RecommendationsScreen({
     setDragAxis(null);
     setCommitting(false);
     setPressedCardIndex(null);
+    pressedCardRect.current = null;
   }, []);
-
-  const nudgeActiveCard = useCallback((direction: "up" | "down" = "up") => {
-    if (committing) return;
-
-    setNudgingCard(null);
-    window.setTimeout(() => {
-      setNudgingCard(direction);
-      window.setTimeout(() => setNudgingCard(null), 560);
-    }, 0);
-  }, [committing]);
 
   const completeHelp = useCallback((kind: HelpKind) => {
     if (currentHelp !== kind) return;
@@ -153,7 +173,6 @@ export function RecommendationsScreen({
     // eslint-disable-next-line react-hooks/set-state-in-effect
     resetDrag();
     setCurrentHelp(null);
-    setNudgingCard(null);
   }, [mainInteractive, resetDrag]);
 
   useEffect(
@@ -268,6 +287,15 @@ export function RecommendationsScreen({
     }
 
     const point = { x: event.clientX, y: event.clientY };
+    const cardRect = cardElement.getBoundingClientRect();
+    const frameRect = event.currentTarget.getBoundingClientRect();
+
+    pressedCardRect.current = {
+      left: cardRect.left - frameRect.left,
+      top: cardRect.top - frameRect.top,
+      width: cardRect.width,
+      height: cardRect.height,
+    };
     event.currentTarget.setPointerCapture(event.pointerId);
     setDragStart(point);
     setDragOffset({ x: 0, y: 0 });
@@ -318,7 +346,28 @@ export function RecommendationsScreen({
 
     if (Math.abs(dx) < 8 && Math.abs(dy) < 8 && pressedCardIndex !== null) {
       if (pressedCardIndex === activeIndex) {
-        nudgeActiveCard();
+        const place = places[pressedCardIndex];
+        const sourceRect = pressedCardRect.current;
+
+        if (!currentHelp && place && sourceRect) {
+          const departureUi = new URL(
+            window.location.href,
+          ).searchParams.get("departure-ui");
+          const variant =
+            departureUi === "sheet"
+              ? "sheet"
+              : departureUi === "flip" || departureUi === "fullscreen"
+                ? "flip"
+                : departureUi === "expand"
+                  ? "expand"
+                  : "peek";
+
+          setDeparturePresentation(
+            variant === "sheet" || variant === "peek"
+              ? { variant, place }
+              : { variant, place, sourceRect },
+          );
+        }
       } else {
         onSelect(pressedCardIndex);
       }
@@ -444,6 +493,7 @@ export function RecommendationsScreen({
   return (
     <Frame
       $interactive={interactive}
+      $departureOpen={Boolean(departurePresentation)}
       aria-hidden={!interactive}
       inert={!interactive}
       onPointerDown={startDrag}
@@ -521,7 +571,6 @@ export function RecommendationsScreen({
               offset={getOffset(index, activeIndex, places.length)}
               active={index === activeIndex}
               drag={dragStart || committing ? dragOffset : undefined}
-              nudging={index === activeIndex ? nudgingCard : null}
               detailProgress={
                 index === activeIndex && transitionTarget === "detail"
                   ? verticalProgress
@@ -572,6 +621,35 @@ export function RecommendationsScreen({
             <JournalScreen onBack={() => undefined} />
           </TransitionLayer>
         )}
+
+      {departurePresentation &&
+        (departurePresentation.variant === "sheet" ? (
+          <DeparturePlanScreen
+            key={departurePresentation.place.id}
+            place={departurePresentation.place}
+            onClose={() => setDeparturePresentation(null)}
+          />
+        ) : departurePresentation.variant === "peek" ? (
+          <PeekDeparturePlanScreen
+            key={departurePresentation.place.id}
+            place={departurePresentation.place}
+            onClose={() => setDeparturePresentation(null)}
+          />
+        ) : departurePresentation.variant === "flip" ? (
+          <FullscreenDeparturePlanScreen
+            key={departurePresentation.place.id}
+            place={departurePresentation.place}
+            sourceRect={departurePresentation.sourceRect}
+            onClose={() => setDeparturePresentation(null)}
+          />
+        ) : (
+          <ExpandedDeparturePlanScreen
+            key={departurePresentation.place.id}
+            place={departurePresentation.place}
+            sourceRect={departurePresentation.sourceRect}
+            onClose={() => setDeparturePresentation(null)}
+          />
+        ))}
 
       <HelpOverlay
         $visible={helpVisible}
@@ -645,11 +723,15 @@ function getOffset(index: number, active: number, length: number) {
   return raw;
 }
 
-const Frame = styled(ScreenFrame)<{ $interactive: boolean }>`
+const Frame = styled(ScreenFrame)<{
+  $interactive: boolean;
+  $departureOpen: boolean;
+}>`
   z-index: 0;
   justify-content: space-between;
   overflow: hidden;
-  touch-action: none;
+  touch-action: ${({ $departureOpen }) =>
+    $departureOpen ? "pan-y" : "none"};
   pointer-events: ${({ $interactive }) => ($interactive ? "auto" : "none")};
   isolation: isolate;
 `;

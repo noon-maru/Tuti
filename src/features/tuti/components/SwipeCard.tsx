@@ -45,6 +45,7 @@ export function SwipeCard({
     >
       <small>{place.travelTime}</small>
       <span>{place.phrase}</span>
+      {active && <em>눌러서 출발 준비</em>}
     </CardButton>
   );
 }
@@ -145,7 +146,8 @@ const CardButton = styled(BaseButton)<{
   }
 
   span,
-  small {
+  small,
+  em {
     position: relative;
     z-index: 1;
   }
@@ -162,5 +164,22 @@ const CardButton = styled(BaseButton)<{
     font-size: var(--font-size-100);
     line-height: var(--line-height-body);
     letter-spacing: var(--letter-spacing-body);
+  }
+
+  em {
+    width: fit-content;
+    margin-top: var(--space-2);
+    padding: var(--space-1) var(--space-3);
+    border: 1px solid rgb(var(--color-white-rgb) / 0.34);
+    border-radius: 999px;
+    background: rgb(var(--color-black-rgb) / 0.14);
+    color: rgb(var(--color-white-rgb) / 0.9);
+    font-size: calc(var(--font-size-100) - 1px);
+    font-style: normal;
+    font-weight: 500;
+    line-height: var(--line-height-body);
+    letter-spacing: var(--letter-spacing-body);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
   }
 `;
