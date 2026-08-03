@@ -23,10 +23,14 @@ const PANEL_MARGIN = 16;
 export function JournalPlacePicker({
   placeId,
   value,
+  helperText,
+  helperStatus,
   onChange,
 }: {
   placeId: string | null;
   value: string;
+  helperText?: string;
+  helperStatus?: "loading" | "success" | "notice";
   onChange: (place: PlaceSearchResult) => void;
 }) {
   const [open, setOpen] = useState(false);
@@ -128,19 +132,29 @@ export function JournalPlacePicker({
 
   return (
     <>
-      <PlaceTrigger
-        ref={triggerRef}
-        type="button"
-        aria-haspopup="dialog"
-        aria-expanded={open}
-        onClick={() => {
-          setQuery(value);
-          setOpen(true);
-        }}
-      >
-        <PlaceMarker aria-hidden="true" />
-        <span data-selected={Boolean(placeId)}>{value || "장소 추가"}</span>
-      </PlaceTrigger>
+      <PlaceField>
+        <PlaceTrigger
+          ref={triggerRef}
+          type="button"
+          aria-haspopup="dialog"
+          aria-expanded={open}
+          onClick={() => {
+            setQuery(value);
+            setOpen(true);
+          }}
+        >
+          <PlaceMarker aria-hidden="true" />
+          <span data-selected={Boolean(placeId)}>
+            {value || "장소 추가"}
+          </span>
+        </PlaceTrigger>
+        {helperText && (
+          <PlaceHelper aria-live="polite" data-status={helperStatus}>
+            {helperStatus === "loading" && <HelperDot aria-hidden="true" />}
+            {helperText}
+          </PlaceHelper>
+        )}
+      </PlaceField>
 
       {open &&
         typeof document !== "undefined" &&
@@ -220,6 +234,13 @@ export function JournalPlacePicker({
   );
 }
 
+const PlaceField = styled.div`
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-1);
+`;
+
 const PlaceTrigger = styled(BaseButton)`
   width: fit-content;
   max-width: 100%;
@@ -256,6 +277,41 @@ const PlaceMarker = styled.span`
   );
   clip-path: polygon(0 0, 100% 0, 100% 56%, 50% 100%, 0 56%);
   transform: translateY(-1px);
+`;
+
+const PlaceHelper = styled.p`
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  color: var(--color-text-muted);
+  font-size: calc(var(--font-size-100) - 1px);
+  line-height: var(--line-height-body);
+  letter-spacing: var(--letter-spacing-body);
+
+  &[data-status="success"] {
+    color: var(--color-secondary-900);
+  }
+`;
+
+const HelperDot = styled.span`
+  width: 6px;
+  height: 6px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  background: var(--color-brand-500);
+  animation: place-helper-pulse 800ms ease-in-out infinite alternate;
+
+  @keyframes place-helper-pulse {
+    from {
+      opacity: 0.35;
+      transform: scale(0.8);
+    }
+
+    to {
+      opacity: 1;
+      transform: scale(1);
+    }
+  }
 `;
 
 const DismissLayer = styled.div`

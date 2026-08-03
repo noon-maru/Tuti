@@ -11,7 +11,8 @@ import { ImageCropDialog } from "@/features/tuti/components/ImageCropDialog";
 import { JournalPlacePicker } from "@/features/tuti/components/JournalPlacePicker";
 import { ScreenFrame } from "@/features/tuti/components/ScreenFrame";
 import { LoadingIndicator } from "@/features/tuti/components/LoadingIndicator";
-import { readImageCaptureDate } from "@/features/tuti/lib/readImageCaptureDate";
+import { readImageMetadata } from "@/features/tuti/lib/readImageMetadata";
+import { fetchNearbyPlaces } from "@/lib/tutiApi";
 import type {
   JournalEntryInput,
   TutiJournalEntry,
@@ -29,6 +30,11 @@ const THEME_OPTIONS = [
 ];
 const DIFFICULTY_OPTIONS = ["가벼움", "적당함", "조금 힘듦"];
 
+type PhotoPlaceHint = {
+  status: "loading" | "success" | "notice";
+  message: string;
+};
+
 export type JournalEntryDraft = JournalEntryInput;
 
 export function JournalEditorScreen({
@@ -45,6 +51,7 @@ export function JournalEditorScreen({
 }) {
   const imagePickerRef = useRef<HTMLLabelElement>(null);
   const hasEditedVisitDateRef = useRef(Boolean(entry));
+  const hasEditedPlaceRef = useRef(Boolean(entry?.placeId));
   const imageSelectionIdRef = useRef(0);
   const [imageUrl, setImageUrl] = useState<string | null>(
     entry?.image ?? null,
@@ -55,6 +62,8 @@ export function JournalEditorScreen({
     entry?.placeId ?? null,
   );
   const [placeName, setPlaceName] = useState(entry?.placeName ?? "");
+  const [photoPlaceHint, setPhotoPlaceHint] =
+    useState<PhotoPlaceHint | null>(null);
   const [theme, setTheme] = useState(entry?.theme ?? "");
   const [difficulty, setDifficulty] = useState(entry?.difficulty ?? "");
   const [visitDate, setVisitDate] = useState(() =>
@@ -86,14 +95,66 @@ export function JournalEditorScreen({
     });
     event.target.value = "";
 
-    if (!entry && !hasEditedVisitDateRef.current) {
-      void readImageCaptureDate(file).then((captureDate) => {
+    setPhotoPlaceHint(null);
+
+    if (
+      (!entry && !hasEditedVisitDateRef.current) ||
+      !hasEditedPlaceRef.current
+    ) {
+      void readImageMetadata(file).then(async (metadata) => {
+        if (selectionId !== imageSelectionIdRef.current) return;
+
         if (
-          captureDate &&
-          selectionId === imageSelectionIdRef.current &&
+          metadata.captureDate &&
+          !entry &&
           !hasEditedVisitDateRef.current
         ) {
-          setVisitDate(captureDate);
+          setVisitDate(metadata.captureDate);
+        }
+
+        if (!metadata.location || hasEditedPlaceRef.current) return;
+
+        setPhotoPlaceHint({
+          status: "loading",
+          message: "사진 위치에서 가까운 장소를 찾고 있어요.",
+        });
+
+        try {
+          const nearbyPlaces = await fetchNearbyPlaces(metadata.location);
+
+          if (
+            selectionId !== imageSelectionIdRef.current ||
+            hasEditedPlaceRef.current
+          ) {
+            return;
+          }
+
+          const nearestPlace = nearbyPlaces[0];
+          if (!nearestPlace) {
+            setPhotoPlaceHint({
+              status: "notice",
+              message: "사진 주변에 등록된 장소가 없어 직접 선택해주세요.",
+            });
+            return;
+          }
+
+          setPlaceId(nearestPlace.id);
+          setPlaceName(nearestPlace.name);
+          setPhotoPlaceHint({
+            status: "success",
+            message: `사진 위치에서 약 ${formatDistance(nearestPlace.distanceMeters)} 떨어진 장소예요.`,
+          });
+        } catch {
+          if (
+            selectionId !== imageSelectionIdRef.current ||
+            hasEditedPlaceRef.current
+          ) {
+            return;
+          }
+          setPhotoPlaceHint({
+            status: "notice",
+            message: "사진 위치로 장소를 찾지 못해 직접 선택해주세요.",
+          });
         }
       });
     }
@@ -114,12 +175,15 @@ export function JournalEditorScreen({
   };
 
   const clearEditor = () => {
+    imageSelectionIdRef.current += 1;
+    hasEditedPlaceRef.current = false;
     setTitle("");
     setBody("");
     setImageUrl(null);
     setCrowd("");
     setPlaceId(null);
     setPlaceName("");
+    setPhotoPlaceHint(null);
     setTheme("");
     setDifficulty("");
     setSubmitError(null);
@@ -209,9 +273,18 @@ export function JournalEditorScreen({
         <JournalPlacePicker
           placeId={placeId}
           value={placeName}
+          helperText={
+            photoPlaceHint?.message ??
+            (!placeId
+              ? "사진에 위치 정보가 있으면 가까운 장소를 자동으로 찾아요."
+              : undefined)
+          }
+          helperStatus={photoPlaceHint?.status ?? "notice"}
           onChange={(place) => {
+            hasEditedPlaceRef.current = true;
             setPlaceId(place.id);
             setPlaceName(place.name);
+            setPhotoPlaceHint(null);
           }}
         />
 
@@ -357,6 +430,12 @@ function toVisitedAt(value: string) {
   const date = new Date(year, month - 1, day, 12);
 
   return Number.isNaN(date.getTime()) ? undefined : date.toISOString();
+}
+
+function formatDistance(distanceMeters: number) {
+  return distanceMeters < 1_000
+    ? `${Math.max(1, Math.round(distanceMeters))}m`
+    : `${(distanceMeters / 1_000).toFixed(1)}km`;
 }
 
 const Frame = styled(ScreenFrame)`

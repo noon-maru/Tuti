@@ -6,6 +6,10 @@ import type {
   DeparturePlanResponse,
 } from "@/shared/api/departurePlan";
 import type {
+  NearbyPlaceResult,
+  NearbyPlacesResponse,
+} from "@/shared/api/nearbyPlaces";
+import type {
   DeleteJournalEntryResponse,
   JournalEntriesResponse,
   JournalEntryInput,
@@ -86,6 +90,25 @@ export async function fetchDeparturePlan(
 
   const data = (await response.json()) as DeparturePlanResponse;
   return data.plan;
+}
+
+export async function fetchNearbyPlaces(
+  location: UserLocation,
+): Promise<NearbyPlaceResult[]> {
+  const response = await fetch(apiUrl("places/nearby"), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ location }),
+  });
+
+  if (!response.ok) {
+    throw new Error(
+      await readApiError(response, "사진 주변의 장소를 찾지 못했어요."),
+    );
+  }
+
+  const data = (await response.json()) as NearbyPlacesResponse;
+  return data.places;
 }
 
 export async function fetchJournalEntries(): Promise<TutiJournalEntry[]> {
