@@ -13,6 +13,7 @@ import { BaseButton } from "@/features/tuti/components/buttons";
 import { useDeferredAnimationStart } from "@/features/tuti/hooks/useDeferredAnimationStart";
 import { DeparturePlanScreen } from "@/features/tuti/screens/departure/DeparturePlanScreen";
 import type { TutiPlace } from "@/lib/recommendations";
+import type { DepartureRoute } from "@/shared/api/departurePlan";
 
 const PEEK_HEIGHT = 208;
 const SNAP_DURATION = 460;
@@ -30,10 +31,14 @@ type DragState = {
 export function PeekDeparturePlanScreen({
   place,
   travelTimeLabel,
+  onExpanded,
+  onNavigationStart,
   onClose,
 }: {
   place: TutiPlace;
   travelTimeLabel: string;
+  onExpanded?: () => void;
+  onNavigationStart?: (route: DepartureRoute) => void;
   onClose: () => void;
 }) {
   const animationReady = useDeferredAnimationStart();
@@ -52,6 +57,7 @@ export function PeekDeparturePlanScreen({
   const ignoreNextPopState = useRef(false);
   const closeTimer = useRef<number | null>(null);
   const interactionTimer = useRef<number | null>(null);
+  const expansionReported = useRef(false);
   const progress = Math.max(
     0,
     Math.min(
@@ -97,13 +103,18 @@ export function PeekDeparturePlanScreen({
       window.clearTimeout(interactionTimer.current);
     }
 
+    if (!expansionReported.current) {
+      expansionReported.current = true;
+      onExpanded?.();
+    }
+
     setContentMounted(true);
     setExpanded(true);
     interactionTimer.current = window.setTimeout(() => {
       interactionTimer.current = null;
       setContentInteractive(true);
     }, SNAP_DURATION - 80);
-  }, []);
+  }, [onExpanded]);
 
   const collapseSheet = useCallback(() => {
     if (closingRef.current) return;
@@ -337,6 +348,7 @@ export function PeekDeparturePlanScreen({
               place={place}
               embedded
               respectEmbeddedTopSafeArea={false}
+              onNavigationStart={onNavigationStart}
               onClose={() => requestClose(true)}
             />
           )}

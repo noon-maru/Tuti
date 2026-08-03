@@ -2,7 +2,8 @@
 
 import { useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { DepartureReturnSheet } from "@/features/tuti/components/DepartureReturnSheet";
 import { useTutiRecommendations } from "@/features/tuti/hooks/useTutiRecommendations";
 import { useTravelTime } from "@/features/tuti/hooks/useTravelTime";
 import { useSession } from "@/features/tuti/hooks/useSession";
@@ -11,12 +12,16 @@ import { DailyCheckInScreen } from "@/features/tuti/screens/intake/DailyCheckInS
 import { RecommendationsScreen } from "@/features/tuti/screens/recommendations/RecommendationsScreen";
 import { formatTravelTimeLabel } from "@/features/tuti/lib/travelTimeLabel";
 import { logoutAccount } from "@/lib/auth/session";
+import { recordRecommendationAction } from "@/lib/tutiApi";
+import type { TutiPlace } from "@/lib/recommendations";
 import {
   getKoreanDateKey,
   isKoreanDateBefore,
   isCurrentKoreanDate,
 } from "@/lib/date/koreanDate";
 import { LOCATION_TERMS_VERSION } from "@/shared/location/terms";
+import type { DepartureRoute } from "@/shared/api/departurePlan";
+import type { RecommendationActionInput } from "@/shared/api/recommendationActions";
 import { useTutiStore } from "@/store/tuti";
 
 export function RecommendationsFlow({ interactive }: { interactive: boolean }) {
@@ -25,7 +30,9 @@ export function RecommendationsFlow({ interactive }: { interactive: boolean }) {
   const { requestLocation } = useLocationAccess();
   const session = useSession();
   const automaticLocationRequest = useRef(false);
+  const recordedRecommendationIds = useRef(new Set<string>());
   const [currentDate, setCurrentDate] = useState(getKoreanDateKey);
+  const [returnCheckInNow, setReturnCheckInNow] = useState(Date.now);
   const storedAnswers = useTutiStore((state) => state.answers);
   const userLocation = useTutiStore((state) => state.userLocation);
   const locationPermissionStatus = useTutiStore(
@@ -38,6 +45,19 @@ export function RecommendationsFlow({ interactive }: { interactive: boolean }) {
   );
   const dailyCheckInSnoozedUntil = useTutiStore(
     (state) => state.dailyCheckInSnoozedUntil,
+  );
+  const pendingDeparture = useTutiStore((state) => state.pendingDeparture);
+  const setPendingDeparture = useTutiStore(
+    (state) => state.setPendingDeparture,
+  );
+  const postponePendingDeparture = useTutiStore(
+    (state) => state.postponePendingDeparture,
+  );
+  const completePendingDeparture = useTutiStore(
+    (state) => state.completePendingDeparture,
+  );
+  const deferPendingDeparture = useTutiStore(
+    (state) => state.deferPendingDeparture,
   );
   const requestDailyCheckIn = useTutiStore(
     (state) => state.requestDailyCheckIn,
@@ -56,12 +76,18 @@ export function RecommendationsFlow({ interactive }: { interactive: boolean }) {
     currentDate,
     dailyCheckInSnoozedUntil,
   );
-  const dailyCheckInVisible =
+  const returnCheckInVisible = Boolean(
     interactive &&
+      pendingDeparture &&
+      new Date(pendingDeparture.promptAfter).getTime() <= returnCheckInNow,
+  );
+  const dailyCheckInVisible =
+    interactive && !returnCheckInVisible &&
     (dailyCheckInRequested || (!dailyRecordCurrent && !dailyCheckInSnoozed));
-  const { places, isFetched, isPending } = useTutiRecommendations({
-    enabled: dailyRecordCurrent || dailyCheckInSnoozed,
-  });
+  const { places, recommendationId, isFetched, isPending } =
+    useTutiRecommendations({
+      enabled: dailyRecordCurrent || dailyCheckInSnoozed,
+    });
   const activeIndex = useTutiStore((state) => state.activeIndex);
   const activePlaceId = useTutiStore((state) => state.activePlaceId);
   const detailOverlay = useTutiStore((state) => state.detailOverlay);
@@ -96,7 +122,7 @@ export function RecommendationsFlow({ interactive }: { interactive: boolean }) {
   const travelTimeQuery = useTravelTime(
     activePlace?.id,
     userLocation,
-    interactive && !dailyCheckInVisible,
+    interactive && !dailyCheckInVisible && !returnCheckInVisible,
   );
   const activeTravelTimeLabel = !userLocation
     ? "위치 없이 추천"
@@ -106,19 +132,52 @@ export function RecommendationsFlow({ interactive }: { interactive: boolean }) {
         ? formatTravelTimeLabel(travelTimeQuery.data)
         : "이동 시간 확인 필요";
 
-  useEffect(() => {
-    const refreshCurrentDate = () => setCurrentDate(getKoreanDateKey());
-    const interval = window.setInterval(refreshCurrentDate, 60_000);
+  const recordAction = useCallback((input: RecommendationActionInput) => {
+    void recordRecommendationAction(input).catch((error) => {
+      console.warn("추천 행동을 기록하지 못했습니다.", error);
+    });
+  }, []);
 
-    window.addEventListener("focus", refreshCurrentDate);
-    document.addEventListener("visibilitychange", refreshCurrentDate);
+  useEffect(() => {
+    const refreshCurrentState = () => {
+      setCurrentDate(getKoreanDateKey());
+      setReturnCheckInNow(Date.now());
+    };
+    const interval = window.setInterval(refreshCurrentState, 60_000);
+
+    window.addEventListener("focus", refreshCurrentState);
+    document.addEventListener("visibilitychange", refreshCurrentState);
 
     return () => {
       window.clearInterval(interval);
-      window.removeEventListener("focus", refreshCurrentDate);
-      document.removeEventListener("visibilitychange", refreshCurrentDate);
+      window.removeEventListener("focus", refreshCurrentState);
+      document.removeEventListener("visibilitychange", refreshCurrentState);
     };
   }, []);
+
+  useEffect(() => {
+    if (
+      !recommendationId ||
+      !isFetched ||
+      recordedRecommendationIds.current.has(recommendationId)
+    ) {
+      return;
+    }
+
+    recordedRecommendationIds.current.add(recommendationId);
+    recordAction({
+      journeyId: recommendationId,
+      action: "recommendation_shown",
+      placeId: activePlace?.id,
+      metadata: { placeCount: places.length },
+    });
+  }, [
+    activePlace?.id,
+    isFetched,
+    places.length,
+    recommendationId,
+    recordAction,
+  ]);
 
   useEffect(() => {
     router.prefetch("/journal");
@@ -207,6 +266,14 @@ export function RecommendationsFlow({ interactive }: { interactive: boolean }) {
     const nextPlace = places[nextIndex];
 
     setActivePlace(nextIndex, nextPlace.id);
+    if (recommendationId) {
+      recordAction({
+        journeyId: recommendationId,
+        action: "place_selected",
+        placeId: nextPlace.id,
+        metadata: { method: "swipe" },
+      });
+    }
   };
 
   const selectCard = (index: number) => {
@@ -217,6 +284,44 @@ export function RecommendationsFlow({ interactive }: { interactive: boolean }) {
     }
 
     setActivePlace(index, place.id);
+    if (recommendationId) {
+      recordAction({
+        journeyId: recommendationId,
+        action: "place_selected",
+        placeId: place.id,
+        metadata: { method: "direct" },
+      });
+    }
+  };
+
+  const startNavigation = (place: TutiPlace, route: DepartureRoute) => {
+    if (!recommendationId) return;
+
+    const now = Date.now();
+    const routeDuration = Math.max(0, route.durationSeconds ?? 0) * 1_000;
+    const promptDelay = Math.max(
+      30 * 60 * 1_000,
+      Math.min(routeDuration + 30 * 60 * 1_000, 4 * 60 * 60 * 1_000),
+    );
+
+    setPendingDeparture({
+      journeyId: recommendationId,
+      placeId: place.id,
+      placeName: place.name,
+      routeMode: route.mode,
+      startedAt: new Date(now).toISOString(),
+      promptAfter: new Date(now + promptDelay).toISOString(),
+    });
+    recordAction({
+      journeyId: recommendationId,
+      action: "navigation_started",
+      placeId: place.id,
+      routeMode: route.mode,
+      metadata: {
+        durationSeconds: route.durationSeconds,
+        distanceMeters: route.distanceMeters,
+      },
+    });
   };
 
   const openDetail = () => {
@@ -246,6 +351,24 @@ export function RecommendationsFlow({ interactive }: { interactive: boolean }) {
         onAdmin={() => router.push("/admin")}
         onInquiry={() => router.push("/inquiry")}
         onLocationSettings={() => router.push("/location")}
+        onDepartureOpen={(place, variant) => {
+          if (!recommendationId) return;
+          recordAction({
+            journeyId: recommendationId,
+            action: "departure_peek_opened",
+            placeId: place.id,
+            metadata: { variant },
+          });
+        }}
+        onDeparturePlanExpanded={(place) => {
+          if (!recommendationId) return;
+          recordAction({
+            journeyId: recommendationId,
+            action: "departure_plan_expanded",
+            placeId: place.id,
+          });
+        }}
+        onNavigationStart={startNavigation}
         onRestartIntake={requestDailyCheckIn}
         onLogout={async () => {
           await logoutAccount();
@@ -256,7 +379,9 @@ export function RecommendationsFlow({ interactive }: { interactive: boolean }) {
         locationAvailable={Boolean(userLocation)}
         locationPermissionStatus={locationPermissionStatus}
         activeTravelTimeLabel={activeTravelTimeLabel}
-        interactive={interactive && !dailyCheckInVisible}
+        interactive={
+          interactive && !dailyCheckInVisible && !returnCheckInVisible
+        }
         initialHelp={
           interactive && detailOverlay.phase === "closed"
             ? !hasSeenCardHelp
@@ -292,6 +417,47 @@ export function RecommendationsFlow({ interactive }: { interactive: boolean }) {
           onSnooze={snoozeDailyCheckIn}
           onSubmit={(answers) => completeDailyCheckIn("answered", answers)}
           onDismiss={cancelDailyCheckIn}
+        />
+      )}
+      {returnCheckInVisible && pendingDeparture && (
+        <DepartureReturnSheet
+          placeName={pendingDeparture.placeName}
+          onVisited={() => {
+            recordAction({
+              journeyId: pendingDeparture.journeyId,
+              action: "return_confirmed",
+              placeId: pendingDeparture.placeId,
+              routeMode: pendingDeparture.routeMode,
+            });
+            recordAction({
+              journeyId: pendingDeparture.journeyId,
+              action: "journal_started",
+              placeId: pendingDeparture.placeId,
+            });
+            const search = new URLSearchParams({
+              placeId: pendingDeparture.placeId,
+              placeName: pendingDeparture.placeName,
+              journeyId: pendingDeparture.journeyId,
+            });
+            completePendingDeparture();
+            router.push(`/journal/new?${search.toString()}`);
+          }}
+          onNotYet={() => {
+            recordAction({
+              journeyId: pendingDeparture.journeyId,
+              action: "return_dismissed",
+              placeId: pendingDeparture.placeId,
+            });
+            postponePendingDeparture();
+          }}
+          onLater={() => {
+            recordAction({
+              journeyId: pendingDeparture.journeyId,
+              action: "return_deferred",
+              placeId: pendingDeparture.placeId,
+            });
+            deferPendingDeparture();
+          }}
         />
       )}
     </>

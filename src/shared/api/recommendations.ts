@@ -8,5 +8,6 @@ export type RecommendationRequest = {
 };
 
 export type RecommendationResponse = {
+  recommendationId: string;
   places: TutiPlace[];
 };

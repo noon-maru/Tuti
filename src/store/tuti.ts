@@ -5,6 +5,7 @@ import {
   getKoreanDateKeyAfterDays,
 } from "@/lib/date/koreanDate";
 import { preferencesStorage } from "@/lib/storage/preferencesStorage";
+import type { DepartureRouteMode } from "@/shared/api/departurePlan";
 import { LOCATION_TERMS_VERSION } from "@/shared/location/terms";
 import type {
   IntakeAnswers,
@@ -28,6 +29,21 @@ export type DetailOverlayState = {
   placeId?: string;
 };
 
+export type PendingDeparture = {
+  journeyId: string;
+  placeId: string;
+  placeName: string;
+  routeMode: DepartureRouteMode;
+  startedAt: string;
+  promptAfter: string;
+};
+
+export type SavedDeparturePlace = {
+  placeId: string;
+  placeName: string;
+  savedAt: string;
+};
+
 type TutiState = {
   answers: IntakeAnswers;
   entryRecord?: EntryRecord;
@@ -45,6 +61,8 @@ type TutiState = {
   hasSeenJournalHelp: boolean;
   dailyCheckInRequested: boolean;
   dailyCheckInSnoozedUntil?: string;
+  pendingDeparture?: PendingDeparture;
+  savedDeparturePlaces: SavedDeparturePlace[];
   setAnswer: <Key extends keyof IntakeAnswers>(
     key: Key,
     value: IntakeAnswers[Key],
@@ -71,6 +89,10 @@ type TutiState = {
     status: EntryStatus,
     answers?: IntakeAnswers,
   ) => void;
+  setPendingDeparture: (departure: PendingDeparture) => void;
+  postponePendingDeparture: () => void;
+  completePendingDeparture: () => void;
+  deferPendingDeparture: () => void;
   finishEntry: () => void;
   markHydrated: () => void;
   resetIntake: () => void;
@@ -95,6 +117,8 @@ export const useTutiStore = create<TutiState>()(
       hasSeenJournalHelp: false,
       dailyCheckInRequested: false,
       dailyCheckInSnoozedUntil: undefined,
+      pendingDeparture: undefined,
+      savedDeparturePlaces: [],
       setAnswer: (key, value) =>
         set((state) => ({
           answers: {
@@ -196,6 +220,39 @@ export const useTutiStore = create<TutiState>()(
           dailyCheckInRequested: false,
           dailyCheckInSnoozedUntil: undefined,
         })),
+      setPendingDeparture: (pendingDeparture) => set({ pendingDeparture }),
+      postponePendingDeparture: () =>
+        set((state) => ({
+          pendingDeparture: state.pendingDeparture
+            ? {
+                ...state.pendingDeparture,
+                promptAfter: new Date(
+                  Date.now() + 24 * 60 * 60 * 1_000,
+                ).toISOString(),
+              }
+            : undefined,
+        })),
+      completePendingDeparture: () => set({ pendingDeparture: undefined }),
+      deferPendingDeparture: () =>
+        set((state) => {
+          if (!state.pendingDeparture) return state;
+
+          const savedPlace: SavedDeparturePlace = {
+            placeId: state.pendingDeparture.placeId,
+            placeName: state.pendingDeparture.placeName,
+            savedAt: new Date().toISOString(),
+          };
+
+          return {
+            pendingDeparture: undefined,
+            savedDeparturePlaces: [
+              savedPlace,
+              ...state.savedDeparturePlaces.filter(
+                (place) => place.placeId !== savedPlace.placeId,
+              ),
+            ].slice(0, 20),
+          };
+        }),
       finishEntry: () => set({ entryStage: "complete" }),
       markHydrated: () => set({ hasHydrated: true }),
       resetIntake: () =>
@@ -220,6 +277,8 @@ export const useTutiStore = create<TutiState>()(
         entryRecord: state.entryRecord,
         locationConsent: state.locationConsent,
         dailyCheckInSnoozedUntil: state.dailyCheckInSnoozedUntil,
+        pendingDeparture: state.pendingDeparture,
+        savedDeparturePlaces: state.savedDeparturePlaces,
         activePlaceId: state.activePlaceId,
         activeJournalEntryId: state.activeJournalEntryId,
         detailOverlay:

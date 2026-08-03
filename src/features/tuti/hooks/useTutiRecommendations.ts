@@ -16,7 +16,7 @@ export function useTutiRecommendations({ enabled = true } = {}) {
       ? {}
       : storedAnswers;
   const feature = useMemo(() => interpretState(answers), [answers]);
-  const { data: places = [], ...query } = useQuery({
+  const { data, ...query } = useQuery({
     queryKey: [
       "recommendations",
       answers,
@@ -32,7 +32,8 @@ export function useTutiRecommendations({ enabled = true } = {}) {
   return {
     answers,
     feature,
-    places,
+    places: data?.places ?? [],
+    recommendationId: data?.recommendationId,
     userLocation,
     ...query,
   };

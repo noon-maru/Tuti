@@ -2,6 +2,7 @@
 
 import { css, keyframes } from "@emotion/react";
 import styled from "@emotion/styled";
+import { Capacitor } from "@capacitor/core";
 import { MapPin, Navigation, X } from "lucide-react";
 import { useLayoutEffect, useRef, useState } from "react";
 import { BaseButton, PrimaryButton } from "@/features/tuti/components/buttons";
@@ -31,11 +32,13 @@ const ROUTE_MODES: DepartureRouteMode[] = [
 export function DeparturePlanScreen({
   place,
   onClose,
+  onNavigationStart,
   embedded = false,
   respectEmbeddedTopSafeArea = true,
 }: {
   place: TutiPlace;
   onClose: () => void;
+  onNavigationStart?: (route: DepartureRoute) => void;
   embedded?: boolean;
   respectEmbeddedTopSafeArea?: boolean;
 }) {
@@ -58,6 +61,10 @@ export function DeparturePlanScreen({
   const selectedMode = resolveSelectedMode(plan, preferredMode);
   const selectedRoute =
     plan && selectedMode ? plan.routes[selectedMode] : null;
+  const routeGuidanceUrl =
+    plan && selectedRoute
+      ? resolveRouteGuidanceUrl(selectedRoute, plan)
+      : null;
 
   const finishClose = () => {
     const shouldRemoveHistoryEntry =
@@ -130,6 +137,29 @@ export function DeparturePlanScreen({
     setLocationStatus("loading");
     const result = await requestLocation();
     setLocationStatus(result.status === "ready" ? "idle" : result.status);
+  };
+
+  const startRouteGuidance = (
+    event: React.MouseEvent<HTMLAnchorElement>,
+    route: DepartureRoute,
+  ) => {
+    onNavigationStart?.(route);
+
+    if (
+      !isNativeDrivingGuidance(route) ||
+      !routeGuidanceUrl ||
+      !route.externalUrl
+    ) {
+      return;
+    }
+
+    event.preventDefault();
+    window.location.href = routeGuidanceUrl;
+    window.setTimeout(() => {
+      if (document.visibilityState === "visible") {
+        window.open(route.externalUrl!, "_blank", "noopener,noreferrer");
+      }
+    }, 900);
   };
 
   return (
@@ -287,14 +317,23 @@ export function DeparturePlanScreen({
                         ))}
                       </RouteSteps>
                     )}
-                    {selectedRoute.externalUrl && (
+                    {routeGuidanceUrl && (
                       <RouteLink
-                        href={selectedRoute.externalUrl}
-                        target="_blank"
+                        href={routeGuidanceUrl}
+                        target={
+                          isNativeDrivingGuidance(selectedRoute)
+                            ? undefined
+                            : "_blank"
+                        }
                         rel="noreferrer"
                         data-swipe-back-ignore
+                        onClick={(event) =>
+                          startRouteGuidance(event, selectedRoute)
+                        }
                       >
-                        카카오맵에서 길 안내 보기
+                        {isNativeDrivingGuidance(selectedRoute)
+                          ? "카카오내비로 출발하기"
+                          : "길찾기 시작하기"}
                         <Navigation aria-hidden="true" />
                       </RouteLink>
                     )}
@@ -395,6 +434,27 @@ function getLocationStatusMessage(
     return "위치 확인이 오래 걸리고 있어요. 잠시 후 다시 시도해주세요.";
   }
   return "현재 기기에서는 위치를 확인할 수 없어요.";
+}
+
+function resolveRouteGuidanceUrl(
+  route: DepartureRoute,
+  plan: DeparturePlan,
+) {
+  if (isNativeDrivingGuidance(route)) {
+    const parameters = new URLSearchParams({
+      name: plan.place.name,
+      x: String(plan.place.longitude),
+      y: String(plan.place.latitude),
+      coord_type: "wgs84",
+    });
+    return `kakaonavi://navigate?${parameters.toString()}`;
+  }
+
+  return route.externalUrl;
+}
+
+function isNativeDrivingGuidance(route: DepartureRoute) {
+  return route.mode === "driving" && Capacitor.isNativePlatform();
 }
 
 function formatDuration(seconds: number | null) {

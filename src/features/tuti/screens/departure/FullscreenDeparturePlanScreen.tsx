@@ -5,6 +5,7 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react
 import { useDeferredAnimationStart } from "@/features/tuti/hooks/useDeferredAnimationStart";
 import { DeparturePlanScreen } from "@/features/tuti/screens/departure/DeparturePlanScreen";
 import type { TutiPlace } from "@/lib/recommendations";
+import type { DepartureRoute } from "@/shared/api/departurePlan";
 
 const FLIP_DURATION = 680;
 const DEPARTURE_FULLSCREEN_HISTORY_KEY = "__tutiDepartureFullscreen";
@@ -19,10 +20,12 @@ export type CardTransitionRect = {
 export function FullscreenDeparturePlanScreen({
   place,
   sourceRect,
+  onNavigationStart,
   onClose,
 }: {
   place: TutiPlace;
   sourceRect: CardTransitionRect;
+  onNavigationStart?: (route: DepartureRoute) => void;
   onClose: () => void;
 }) {
   const animationReady = useDeferredAnimationStart();
@@ -133,6 +136,7 @@ export function FullscreenDeparturePlanScreen({
           <DeparturePlanScreen
             place={place}
             embedded
+            onNavigationStart={onNavigationStart}
             onClose={() => requestClose(true)}
           />
         </BackFace>

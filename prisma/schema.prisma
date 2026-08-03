@@ -67,6 +67,19 @@ enum InquiryStatus {
   closed
 }
 
+enum RecommendationActionType {
+  recommendation_shown
+  place_selected
+  departure_peek_opened
+  departure_plan_expanded
+  navigation_started
+  return_confirmed
+  return_dismissed
+  return_deferred
+  journal_started
+  journal_created
+}
+
 model Place {
   id                  String                                @id
   name                String
@@ -99,6 +112,7 @@ model Place {
   updatedAt           DateTime                              @updatedAt @map("updated_at")
   tourismSourceRecord TourismPlaceSourceRecord?
   journalEntries      JournalEntry[]
+  recommendationActions RecommendationAction[]
 
   @@unique([source, sourceId])
   @@index([fatigue])
@@ -367,8 +381,28 @@ model User {
   journalEntries      JournalEntry[]
   oauthAuthorizations OAuthAuthorization[]
   sessions            UserSession[]
+  recommendationActions RecommendationAction[]
 
   @@map("users")
+}
+
+model RecommendationAction {
+  id          String                   @id
+  journeyId   String                   @map("journey_id")
+  userId      String                   @map("user_id")
+  placeId     String?                  @map("place_id")
+  action      RecommendationActionType
+  routeMode   String?                  @map("route_mode")
+  metadata    Json?
+  createdAt   DateTime                 @default(now()) @map("created_at")
+  user        User                     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  place       Place?                   @relation(fields: [placeId], references: [id], onDelete: SetNull)
+
+  @@index([journeyId, createdAt])
+  @@index([userId, createdAt])
+  @@index([placeId, action, createdAt])
+  @@index([action, createdAt])
+  @@map("recommendation_actions")
 }
 
 model SystemLog {

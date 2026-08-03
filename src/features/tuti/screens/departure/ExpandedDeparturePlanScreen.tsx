@@ -12,6 +12,7 @@ import { useDeferredAnimationStart } from "@/features/tuti/hooks/useDeferredAnim
 import { DeparturePlanScreen } from "@/features/tuti/screens/departure/DeparturePlanScreen";
 import type { CardTransitionRect } from "@/features/tuti/screens/departure/FullscreenDeparturePlanScreen";
 import type { TutiPlace } from "@/lib/recommendations";
+import type { DepartureRoute } from "@/shared/api/departurePlan";
 
 const EXPAND_DURATION = 560;
 const CONTENT_INTERACTION_DELAY = 430;
@@ -20,10 +21,12 @@ const DEPARTURE_EXPANDED_HISTORY_KEY = "__tutiDepartureExpanded";
 export function ExpandedDeparturePlanScreen({
   place,
   sourceRect,
+  onNavigationStart,
   onClose,
 }: {
   place: TutiPlace;
   sourceRect: CardTransitionRect;
+  onNavigationStart?: (route: DepartureRoute) => void;
   onClose: () => void;
 }) {
   const animationReady = useDeferredAnimationStart();
@@ -161,6 +164,7 @@ export function ExpandedDeparturePlanScreen({
           <DeparturePlanScreen
             place={place}
             embedded
+            onNavigationStart={onNavigationStart}
             onClose={() => requestClose(true)}
           />
         </ContentLayer>

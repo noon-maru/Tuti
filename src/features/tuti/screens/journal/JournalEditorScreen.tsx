@@ -39,10 +39,12 @@ export type JournalEntryDraft = JournalEntryInput;
 
 export function JournalEditorScreen({
   entry,
+  initialPlace,
   onBack,
   onSubmit,
 }: {
   entry?: TutiJournalEntry;
+  initialPlace?: { id: string; name: string };
   onBack: () => void;
   onSubmit: (
     draft: JournalEntryDraft,
@@ -51,7 +53,9 @@ export function JournalEditorScreen({
 }) {
   const imagePickerRef = useRef<HTMLLabelElement>(null);
   const hasEditedVisitDateRef = useRef(Boolean(entry));
-  const hasEditedPlaceRef = useRef(Boolean(entry?.placeId));
+  const hasEditedPlaceRef = useRef(
+    Boolean(entry?.placeId ?? initialPlace?.id),
+  );
   const imageSelectionIdRef = useRef(0);
   const [imageUrl, setImageUrl] = useState<string | null>(
     entry?.image ?? null,
@@ -59,9 +63,11 @@ export function JournalEditorScreen({
   const [cropSource, setCropSource] = useState<string | null>(null);
   const [crowd, setCrowd] = useState(entry?.crowd ?? "");
   const [placeId, setPlaceId] = useState<string | null>(
-    entry?.placeId ?? null,
+    entry?.placeId ?? initialPlace?.id ?? null,
   );
-  const [placeName, setPlaceName] = useState(entry?.placeName ?? "");
+  const [placeName, setPlaceName] = useState(
+    entry?.placeName ?? initialPlace?.name ?? "",
+  );
   const [photoPlaceHint, setPhotoPlaceHint] =
     useState<PhotoPlaceHint | null>(null);
   const [theme, setTheme] = useState(entry?.theme ?? "");

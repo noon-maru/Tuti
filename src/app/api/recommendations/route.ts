@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { createRecommendations } from "@/server/recommendations/service";
 import {
   createPreflightResponse,
@@ -24,7 +25,10 @@ export async function POST(request: Request) {
       normalizeLocation(body.location),
       normalizeStateText(body.stateText),
     );
-    const response: RecommendationResponse = { places };
+    const response: RecommendationResponse = {
+      recommendationId: randomUUID(),
+      places,
+    };
 
     return withCors(request, Response.json(response));
   } catch (error) {

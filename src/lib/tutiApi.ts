@@ -1,4 +1,3 @@
-import type { TutiPlace } from "@/lib/recommendations";
 import { apiUrl } from "@/lib/api/apiUrl";
 import { fetchWithSession } from "@/lib/auth/session";
 import type {
@@ -30,6 +29,10 @@ import type {
   TravelTimeSummary,
 } from "@/shared/api/travelTime";
 import type {
+  RecommendationActionInput,
+  RecommendationActionResponse,
+} from "@/shared/api/recommendationActions";
+import type {
   RecommendationRequest,
   RecommendationResponse,
 } from "@/shared/api/recommendations";
@@ -38,9 +41,9 @@ import type { IntakeAnswers, UserLocation } from "@/shared/tuti/types";
 export async function fetchRecommendations(
   answers: IntakeAnswers,
   location?: UserLocation,
-): Promise<TutiPlace[]> {
+): Promise<RecommendationResponse> {
   const request: RecommendationRequest = { answers, location };
-  const response = await fetch(apiUrl("recommendations"), {
+  const response = await fetchWithSession("recommendations", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -52,8 +55,25 @@ export async function fetchRecommendations(
     throw new Error("추천 데이터를 불러오지 못했어요.");
   }
 
-  const data = (await response.json()) as RecommendationResponse;
-  return data.places;
+  return (await response.json()) as RecommendationResponse;
+}
+
+export async function recordRecommendationAction(
+  input: RecommendationActionInput,
+) {
+  const response = await fetchWithSession("recommendation-actions", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(input),
+  });
+
+  if (!response.ok) {
+    throw new Error(
+      await readApiError(response, "행동을 기록하지 못했어요."),
+    );
+  }
+
+  return (await response.json()) as RecommendationActionResponse;
 }
 
 export async function fetchPlaceDetail(

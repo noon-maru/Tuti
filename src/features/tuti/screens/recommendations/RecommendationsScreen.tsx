@@ -19,6 +19,7 @@ import { PeekDeparturePlanScreen } from "@/features/tuti/screens/departure/PeekD
 import { DetailScreen } from "@/features/tuti/screens/detail/DetailScreen";
 import { JournalScreen } from "@/features/tuti/screens/journal/JournalScreen";
 import type { TutiPlace } from "@/lib/recommendations";
+import type { DepartureRoute } from "@/shared/api/departurePlan";
 import type { LocationPermissionStatus } from "@/shared/tuti/types";
 import { fluidByViewportHeight } from "@/styles/tokens";
 
@@ -67,6 +68,9 @@ export function RecommendationsScreen({
   onAdmin,
   onInquiry,
   onLocationSettings,
+  onDepartureOpen,
+  onDeparturePlanExpanded,
+  onNavigationStart,
   onRestartIntake,
   onLogout,
   accountConnected,
@@ -94,6 +98,12 @@ export function RecommendationsScreen({
   onAdmin: () => void;
   onInquiry: () => void;
   onLocationSettings: () => void;
+  onDepartureOpen: (
+    place: TutiPlace,
+    variant: DeparturePresentation["variant"],
+  ) => void;
+  onDeparturePlanExpanded: (place: TutiPlace) => void;
+  onNavigationStart: (place: TutiPlace, route: DepartureRoute) => void;
   onRestartIntake: () => void;
   onLogout: () => void | Promise<void>;
   accountConnected: boolean;
@@ -372,6 +382,7 @@ export function RecommendationsScreen({
                   ? "expand"
                   : "peek";
 
+          onDepartureOpen(place, variant);
           setDeparturePresentation(
             variant === "sheet" || variant === "peek"
               ? { variant, place }
@@ -663,6 +674,9 @@ export function RecommendationsScreen({
           <DeparturePlanScreen
             key={departurePresentation.place.id}
             place={departurePresentation.place}
+            onNavigationStart={(route) =>
+              onNavigationStart(departurePresentation.place, route)
+            }
             onClose={() => setDeparturePresentation(null)}
           />
         ) : departurePresentation.variant === "peek" ? (
@@ -670,6 +684,12 @@ export function RecommendationsScreen({
             key={departurePresentation.place.id}
             place={departurePresentation.place}
             travelTimeLabel={activeTravelTimeLabel}
+            onExpanded={() =>
+              onDeparturePlanExpanded(departurePresentation.place)
+            }
+            onNavigationStart={(route) =>
+              onNavigationStart(departurePresentation.place, route)
+            }
             onClose={() => setDeparturePresentation(null)}
           />
         ) : departurePresentation.variant === "flip" ? (
@@ -677,6 +697,9 @@ export function RecommendationsScreen({
             key={departurePresentation.place.id}
             place={departurePresentation.place}
             sourceRect={departurePresentation.sourceRect}
+            onNavigationStart={(route) =>
+              onNavigationStart(departurePresentation.place, route)
+            }
             onClose={() => setDeparturePresentation(null)}
           />
         ) : (
@@ -684,6 +707,9 @@ export function RecommendationsScreen({
             key={departurePresentation.place.id}
             place={departurePresentation.place}
             sourceRect={departurePresentation.sourceRect}
+            onNavigationStart={(route) =>
+              onNavigationStart(departurePresentation.place, route)
+            }
             onClose={() => setDeparturePresentation(null)}
           />
         ))}
