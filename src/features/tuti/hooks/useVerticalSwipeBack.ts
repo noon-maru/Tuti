@@ -313,7 +313,7 @@ function canScrollInDirection(element: HTMLElement | null, direction: Direction)
 
 function isInteractiveTarget(target: EventTarget | null) {
   return (
-    target instanceof HTMLElement &&
+    target instanceof Element &&
     Boolean(target.closest("button, a, input, textarea, select, [data-swipe-back-ignore]"))
   );
 }

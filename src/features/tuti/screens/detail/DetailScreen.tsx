@@ -4,13 +4,22 @@ import styled from "@emotion/styled";
 import {
   CalendarDays,
   Car,
+  ChevronLeft,
+  ChevronRight,
   Clock3,
   MapPin,
   Ticket,
 } from "lucide-react";
-import { useLayoutEffect, useRef } from "react";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from "react";
 import { BaseButton } from "@/features/tuti/components/buttons";
 import { ContextMenu } from "@/features/tuti/components/ContextMenu";
+import { useDeferredAnimationStart } from "@/features/tuti/hooks/useDeferredAnimationStart";
 import { usePlaceDetail } from "@/features/tuti/hooks/usePlaceDetail";
 import { useVerticalSwipeBack } from "@/features/tuti/hooks/useVerticalSwipeBack";
 import { shareContent } from "@/lib/shareContent";
@@ -19,12 +28,18 @@ import {
   getCrowdForecastLevelLabel,
   type TutiPlace,
 } from "@/lib/recommendations";
-import type { TourismPlaceDetail } from "@/shared/api/placeDetails";
+import type {
+  TourismPlaceDetail,
+  TourismPlaceDetailImage,
+} from "@/shared/api/placeDetails";
 import { fluidByViewportHeight } from "@/styles/tokens";
 
 const DETAIL_EXIT_DURATION = 480;
 const DETAIL_EXIT_FRAME_BUFFER = 34;
 const DETAIL_HISTORY_STATE_KEY = "__tutiDetailOverlay";
+const PHOTO_VIEWER_DURATION = 560;
+const PHOTO_VIEWER_ZOOM = 1.65;
+const PHOTO_DRAG_THRESHOLD = 4;
 
 export function DetailScreen({
   place,
@@ -41,10 +56,7 @@ export function DetailScreen({
   historyActive?: boolean;
   revealProgress?: number;
 }) {
-  const detailQuery = usePlaceDetail(
-    place.id,
-    historyActive || revealProgress > 0.35,
-  );
+  const detailQuery = usePlaceDetail(place.id);
   const detailResponse = detailQuery.data;
   const detail = detailResponse?.detail ?? null;
   const locationLabel =
@@ -53,6 +65,8 @@ export function DetailScreen({
   const crowdBadge = createCrowdBadge(place);
   const operationBadge = createOperationBadge(detail);
   const subtitle = createPlaceSubtitle(place);
+  const [selectedPhoto, setSelectedPhoto] =
+    useState<TourismPlaceDetailImage | null>(null);
   const ownsHistoryEntry = useRef(false);
   const closingFromHistory = useRef(false);
   const ignoreNextPopState = useRef(false);
@@ -134,7 +148,7 @@ export function DetailScreen({
   };
 
   return (
-    <Frame {...swipeBack.gestureProps}>
+    <Frame {...(selectedPhoto ? {} : swipeBack.gestureProps)}>
       <Backdrop
         type="button"
         aria-label="추천 화면으로 돌아가기"
@@ -251,16 +265,11 @@ export function DetailScreen({
                   <small>미리 보는 풍경</small>
                   <h2>공간의 다른 모습이에요.</h2>
                 </SectionTitle>
-                <PhotoStrip aria-label={`${place.name} 추가 사진`}>
-                  {detail.images.slice(0, 4).map((image, index) => (
-                    <Photo
-                      key={`${image.url}-${index}`}
-                      role="img"
-                      aria-label={image.title ?? `${place.name} 사진 ${index + 1}`}
-                      $image={image.thumbnailUrl ?? image.url}
-                    />
-                  ))}
-                </PhotoStrip>
+                <PhotoPreviewStrip
+                  images={detail.images.slice(0, 4)}
+                  placeName={place.name}
+                  onSelect={setSelectedPhoto}
+                />
               </Section>
             )}
 
@@ -282,7 +291,249 @@ export function DetailScreen({
           </Description>
         </Content>
       </Sheet>
+      {selectedPhoto && (
+        <PhotoViewer
+          photo={selectedPhoto}
+          placeName={place.name}
+          onClose={() => setSelectedPhoto(null)}
+        />
+      )}
     </Frame>
+  );
+}
+
+function PhotoPreviewStrip({
+  images,
+  placeName,
+  onSelect,
+}: {
+  images: TourismPlaceDetailImage[];
+  placeName: string;
+  onSelect: (image: TourismPlaceDetailImage) => void;
+}) {
+  const railRef = useRef<HTMLDivElement>(null);
+  const [canScrollLeft, setCanScrollLeft] = useState(false);
+  const [canScrollRight, setCanScrollRight] = useState(images.length > 2);
+
+  const updateScrollState = useCallback(() => {
+    const rail = railRef.current;
+    if (!rail) return;
+
+    const maxScrollLeft = Math.max(0, rail.scrollWidth - rail.clientWidth);
+    setCanScrollLeft(rail.scrollLeft > 2);
+    setCanScrollRight(rail.scrollLeft < maxScrollLeft - 2);
+  }, []);
+
+  useLayoutEffect(() => {
+    const rail = railRef.current;
+    if (!rail) return;
+
+    const frame = window.requestAnimationFrame(updateScrollState);
+    const resizeObserver = new ResizeObserver(updateScrollState);
+    resizeObserver.observe(rail);
+    return () => {
+      window.cancelAnimationFrame(frame);
+      resizeObserver.disconnect();
+    };
+  }, [images.length, updateScrollState]);
+
+  const scrollPhotos = (direction: -1 | 1) => {
+    const rail = railRef.current;
+    if (!rail) return;
+
+    rail.scrollBy({
+      left: direction * Math.max(120, rail.clientWidth * 0.72),
+      behavior: "smooth",
+    });
+  };
+
+  return (
+    <PhotoStripFrame
+      data-swipe-back-ignore
+      onPointerDown={(event) => event.stopPropagation()}
+      onTouchStart={(event) => event.stopPropagation()}
+    >
+      <PhotoRail
+        ref={railRef}
+        aria-label={`${placeName} 추가 사진`}
+        onScroll={updateScrollState}
+      >
+        {images.map((image, index) => (
+          <Photo
+            key={`${image.url}-${index}`}
+            type="button"
+            aria-haspopup="dialog"
+            aria-label={image.title ?? `${placeName} 사진 ${index + 1}`}
+            $image={image.thumbnailUrl ?? image.url}
+            onClick={() => onSelect(image)}
+          />
+        ))}
+      </PhotoRail>
+      {canScrollLeft && (
+        <PhotoRailControl
+          type="button"
+          aria-label="이전 사진 보기"
+          $side="left"
+          onClick={() => scrollPhotos(-1)}
+        >
+          <ChevronLeft aria-hidden="true" />
+        </PhotoRailControl>
+      )}
+      {canScrollRight && (
+        <PhotoRailControl
+          type="button"
+          aria-label="다음 사진 보기"
+          $side="right"
+          onClick={() => scrollPhotos(1)}
+        >
+          <ChevronRight aria-hidden="true" />
+        </PhotoRailControl>
+      )}
+    </PhotoStripFrame>
+  );
+}
+
+function PhotoViewer({
+  photo,
+  placeName,
+  onClose,
+}: {
+  photo: TourismPlaceDetailImage;
+  placeName: string;
+  onClose: () => void;
+}) {
+  const ready = useDeferredAnimationStart();
+  const [closing, setClosing] = useState(false);
+  const [zoomed, setZoomed] = useState(false);
+  const [dragging, setDragging] = useState(false);
+  const [panX, setPanX] = useState(0);
+  const closingRef = useRef(false);
+  const closeTimerRef = useRef<number | null>(null);
+  const photoDragRef = useRef<{
+    pointerId: number;
+    startX: number;
+    startPanX: number;
+    maxPanX: number;
+    moved: boolean;
+  } | null>(null);
+  const suppressPhotoClickRef = useRef(false);
+  const visible = ready && !closing;
+  const requestClose = useCallback(() => {
+    if (closingRef.current) return;
+
+    closingRef.current = true;
+    setClosing(true);
+    const closeDelay = window.matchMedia("(prefers-reduced-motion: reduce)")
+      .matches
+      ? 0
+      : PHOTO_VIEWER_DURATION;
+    closeTimerRef.current = window.setTimeout(onClose, closeDelay);
+  }, [onClose]);
+
+  useEffect(() => {
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") requestClose();
+    };
+    window.addEventListener("keydown", closeOnEscape);
+
+    return () => {
+      window.removeEventListener("keydown", closeOnEscape);
+      if (closeTimerRef.current !== null) {
+        window.clearTimeout(closeTimerRef.current);
+      }
+    };
+  }, [requestClose]);
+
+  const startPhotoDrag = (event: React.PointerEvent<HTMLButtonElement>) => {
+    event.stopPropagation();
+    if (!zoomed || event.button !== 0) return;
+
+    const width = event.currentTarget.getBoundingClientRect().width;
+    photoDragRef.current = {
+      pointerId: event.pointerId,
+      startX: event.clientX,
+      startPanX: panX,
+      maxPanX: (width * (PHOTO_VIEWER_ZOOM - 1)) / 2,
+      moved: false,
+    };
+    event.currentTarget.setPointerCapture(event.pointerId);
+    setDragging(true);
+  };
+
+  const updatePhotoDrag = (event: React.PointerEvent<HTMLButtonElement>) => {
+    const drag = photoDragRef.current;
+    if (!drag || drag.pointerId !== event.pointerId) return;
+
+    event.stopPropagation();
+    event.preventDefault();
+    const deltaX = event.clientX - drag.startX;
+    if (Math.abs(deltaX) >= PHOTO_DRAG_THRESHOLD) drag.moved = true;
+    setPanX(clamp(drag.startPanX + deltaX, -drag.maxPanX, drag.maxPanX));
+  };
+
+  const finishPhotoDrag = (event: React.PointerEvent<HTMLButtonElement>) => {
+    const drag = photoDragRef.current;
+    if (!drag || drag.pointerId !== event.pointerId) return;
+
+    event.stopPropagation();
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    }
+    suppressPhotoClickRef.current = drag.moved;
+    window.setTimeout(() => {
+      suppressPhotoClickRef.current = false;
+    }, 0);
+    photoDragRef.current = null;
+    setDragging(false);
+  };
+
+  return (
+    <PhotoViewerBackdrop
+      data-swipe-back-ignore
+      role="dialog"
+      aria-modal="true"
+      aria-label={`${placeName} 사진 크게 보기`}
+      $visible={visible}
+      onClick={requestClose}
+    >
+      <ExpandedPhoto
+        type="button"
+        autoFocus
+        aria-label={zoomed ? "사진 원래 크기로 보기" : "사진 더 크게 보기"}
+        aria-pressed={zoomed}
+        $visible={visible}
+        $zoomed={zoomed}
+        $dragging={dragging}
+        $panX={panX}
+        $previewImage={photo.thumbnailUrl ?? photo.url}
+        onPointerDown={startPhotoDrag}
+        onPointerMove={updatePhotoDrag}
+        onPointerUp={finishPhotoDrag}
+        onPointerCancel={finishPhotoDrag}
+        onClick={(event) => {
+          event.stopPropagation();
+          if (suppressPhotoClickRef.current) {
+            suppressPhotoClickRef.current = false;
+            return;
+          }
+          if (zoomed) setPanX(0);
+          setZoomed((current) => !current);
+        }}
+      >
+        {/* 원본 비율을 유지하는 외부 관광 이미지를 그대로 확대합니다. */}
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={photo.url}
+          alt={photo.title ?? `${placeName} 풍경`}
+          draggable="false"
+        />
+      </ExpandedPhoto>
+      <PhotoViewerHint $visible={visible}>
+        {zoomed
+          ? "좌우로 끌어 살펴보세요. 사진을 누르면 원래 크기로 돌아가요."
+          : "사진을 누르면 더 크게 볼 수 있어요. 바깥을 누르면 닫혀요."}
+      </PhotoViewerHint>
+    </PhotoViewerBackdrop>
   );
 }
 
@@ -360,13 +611,64 @@ function createOperationBadge(detail: TourismPlaceDetail | null) {
 
   const restDate = compactLabel(detail.restDate);
   if (restDate && /연중\s*무휴|연중무휴/.test(restDate)) {
-    return "연중무휴";
+    return "오늘 운영";
   }
 
   const openingHours = compactLabel(detail.openingHours);
-  if (openingHours && openingHours.length <= 14) return openingHours;
-  if (openingHours || restDate) return "운영정보 확인됨";
-  return null;
+  if (!openingHours && !restDate) return null;
+
+  if (restDate && isRestDayToday(restDate)) return "오늘 휴무";
+  return "오늘 운영";
+}
+
+function isRestDayToday(restDate: string) {
+  const now = new Date();
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: "Asia/Seoul",
+    month: "numeric",
+    day: "numeric",
+    weekday: "short",
+  }).formatToParts(now);
+  const value = (type: Intl.DateTimeFormatPartTypes) =>
+    parts.find((part) => part.type === type)?.value ?? "";
+  const month = Number(value("month"));
+  const day = Number(value("day"));
+  const weekday = value("weekday");
+
+  if (
+    Number.isFinite(month) &&
+    Number.isFinite(day) &&
+    new RegExp(`${month}\\s*월\\s*0?${day}\\s*일`).test(restDate)
+  ) {
+    return true;
+  }
+
+  const weekdayIndex = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].indexOf(
+    weekday,
+  );
+  const koreanWeekdays = ["일", "월", "화", "수", "목", "금", "토"];
+  const koreanWeekday = koreanWeekdays[weekdayIndex];
+  if (!koreanWeekday || !mentionsWeekday(restDate, koreanWeekday)) {
+    return false;
+  }
+
+  const weekOfMonth = Math.ceil(day / 7);
+  const ordinalWeeks = ["첫째", "둘째", "셋째", "넷째", "다섯째"];
+  const mentionedOrdinalWeeks = ordinalWeeks
+    .map((label, index) => (restDate.includes(label) ? index + 1 : null))
+    .filter((week): week is number => week !== null);
+
+  return (
+    mentionedOrdinalWeeks.length === 0 ||
+    mentionedOrdinalWeeks.includes(weekOfMonth)
+  );
+}
+
+function mentionsWeekday(text: string, weekday: string) {
+  return (
+    text.includes(`${weekday}요일`) ||
+    new RegExp(`(^|[\\s,·/()])${weekday}(?=$|[\\s,·/()])`).test(text)
+  );
 }
 
 function compactLabel(value: string | null) {
@@ -398,6 +700,10 @@ function createBurdenCopy(place: TutiPlace) {
     return "조금 여유를 내어 천천히 다녀오기 좋은 선택이에요.";
   }
   return "오늘 가능한 정도 안에서 가볍게 다녀올 수 있어요.";
+}
+
+function clamp(value: number, minimum: number, maximum: number) {
+  return Math.min(Math.max(value, minimum), maximum);
 }
 
 function getHistoryState(state: unknown = window.history.state) {
@@ -446,6 +752,8 @@ const Sheet = styled.article<{
 
   position: absolute;
   inset: 24% 0 0;
+  min-width: 0;
+  max-width: 100%;
   display: flex;
   flex-direction: column;
   padding: var(--detail-content-start) var(--space-5)
@@ -494,6 +802,8 @@ const HeroImage = styled.div<{ $image: string; $revealProgress: number }>`
 `;
 
 const Content = styled.div<{ $revealProgress: number }>`
+  width: 100%;
+  min-width: 0;
   min-height: 0;
   flex: 1;
   display: flex;
@@ -550,12 +860,12 @@ const Tags = styled.div`
 
 const Tag = styled.span<{ $tone: "brand" | "neutral" | "secondary" }>`
   min-width: 0;
-  min-height: var(--space-8);
+  min-height: var(--space-7);
   display: inline-flex;
   align-items: center;
   justify-content: center;
   flex: 0 0 auto;
-  padding: var(--space-1) var(--space-3);
+  padding: 2px var(--space-2);
   overflow: hidden;
   border-radius: 999px;
   background: ${({ $tone }) =>
@@ -565,8 +875,8 @@ const Tag = styled.span<{ $tone: "brand" | "neutral" | "secondary" }>`
         ? "var(--color-secondary-300)"
         : "var(--color-neutral-300)"};
   color: var(--color-text);
-  font-size: var(--font-size-200);
-  font-weight: 550;
+  font-size: var(--font-size-100);
+  font-weight: 400;
   line-height: 1.2;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -593,6 +903,8 @@ const Heading = styled.header`
 `;
 
 const Description = styled.div`
+  width: 100%;
+  min-width: 0;
   min-height: 0;
   display: grid;
   align-content: start;
@@ -645,6 +957,8 @@ const ReasonCard = styled.section`
 `;
 
 const Section = styled.section`
+  width: 100%;
+  min-width: 0;
   display: grid;
   gap: var(--space-4);
 `;
@@ -774,14 +1088,24 @@ const FactCard = styled.div`
   }
 `;
 
-const PhotoStrip = styled.div`
+const PhotoStripFrame = styled.div`
+  position: relative;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+`;
+
+const PhotoRail = styled.div`
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
   display: grid;
   grid-auto-flow: column;
   grid-auto-columns: minmax(112px, 42%);
   gap: var(--space-2);
   overflow-x: auto;
   overscroll-behavior-x: contain;
-  scroll-snap-type: x proximity;
   scrollbar-width: none;
 
   &::-webkit-scrollbar {
@@ -789,14 +1113,154 @@ const PhotoStrip = styled.div`
   }
 `;
 
-const Photo = styled.div<{ $image: string }>`
+const PhotoRailControl = styled(BaseButton)<{ $side: "left" | "right" }>`
+  position: absolute;
+  top: 50%;
+  ${({ $side }) => $side}: var(--space-2);
+  z-index: 1;
+  width: var(--space-8);
+  height: var(--space-8);
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 1px solid rgb(var(--color-black-rgb) / 0.1);
+  border-radius: 50%;
+  background: rgb(var(--color-white-rgb) / 0.9);
+  color: var(--color-neutral-1100);
+  box-shadow: 0 4px 16px rgb(var(--color-black-rgb) / 0.18);
+  transform: translateY(-50%);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+
+  svg {
+    width: var(--space-5);
+    height: var(--space-5);
+    stroke-width: 2;
+  }
+
+  &:hover {
+    background: var(--color-white);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--color-brand-500);
+    outline-offset: 2px;
+  }
+`;
+
+const Photo = styled(BaseButton)<{ $image: string }>`
+  width: 100%;
   aspect-ratio: 4 / 3;
+  padding: 0;
+  overflow: hidden;
   border-radius: 16px;
   background-color: var(--color-neutral-200);
   background-image: ${({ $image }) => `url(${$image})`};
   background-position: center;
   background-size: cover;
-  scroll-snap-align: start;
+  cursor: zoom-in;
+`;
+
+const PhotoViewerBackdrop = styled.div<{ $visible: boolean }>`
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  display: grid;
+  place-items: center;
+  padding: var(--space-4);
+  overflow: hidden;
+  background: rgb(var(--color-black-rgb) / 0.76);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  opacity: ${({ $visible }) => ($visible ? 1 : 0)};
+  transition: opacity 440ms cubic-bezier(0.22, 1, 0.36, 1);
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+
+  @media (prefers-reduced-motion: reduce) {
+    transition-duration: 1ms;
+  }
+`;
+
+const ExpandedPhoto = styled(BaseButton)<{
+  $visible: boolean;
+  $zoomed: boolean;
+  $dragging: boolean;
+  $panX: number;
+  $previewImage: string;
+}>`
+  width: 100%;
+  max-width: 360px;
+  max-height: 78%;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  background: transparent;
+  cursor: ${({ $zoomed, $dragging }) =>
+    $dragging ? "grabbing" : $zoomed ? "grab" : "zoom-in"};
+  opacity: ${({ $visible }) => ($visible ? 1 : 0.72)};
+  transform: translate3d(
+      ${({ $visible, $panX }) => ($visible ? $panX : 0)}px,
+      0,
+      0
+    )
+    scale(
+      ${({ $visible, $zoomed }) =>
+        $visible ? ($zoomed ? PHOTO_VIEWER_ZOOM : 1) : 0.68}
+    );
+  transition: ${({ $dragging }) =>
+    $dragging
+      ? "none"
+      : `opacity ${PHOTO_VIEWER_DURATION}ms cubic-bezier(0.22, 1, 0.36, 1), transform ${PHOTO_VIEWER_DURATION}ms cubic-bezier(0.22, 1, 0.36, 1)`};
+  touch-action: none;
+
+  img {
+    display: block;
+    width: 100%;
+    min-height: 220px;
+    max-height: min(72vh, 680px);
+    border-radius: 24px;
+    background-image: ${({ $previewImage }) => `url(${$previewImage})`};
+    background-position: center;
+    background-repeat: no-repeat;
+    background-size: contain;
+    object-fit: contain;
+    box-shadow: 0 24px 64px rgb(var(--color-black-rgb) / 0.38);
+    pointer-events: none;
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--color-brand-500);
+    outline-offset: var(--space-2);
+    border-radius: 24px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    transform: none;
+    transition-duration: 1ms;
+  }
+`;
+
+const PhotoViewerHint = styled.p<{ $visible: boolean }>`
+  position: absolute;
+  right: var(--space-4);
+  bottom: calc(var(--space-7) + var(--app-safe-area-bottom, 0px));
+  left: var(--space-4);
+  color: var(--color-white);
+  font-size: var(--font-size-100);
+  font-weight: 400;
+  line-height: var(--line-height-body);
+  text-align: center;
+  opacity: ${({ $visible }) => ($visible ? 0.82 : 0)};
+  transform: translateY(${({ $visible }) => ($visible ? 0 : 8)}px);
+  transition:
+    opacity 420ms ease,
+    transform 420ms cubic-bezier(0.22, 1, 0.36, 1);
+
+  @media (prefers-reduced-motion: reduce) {
+    transform: none;
+  }
 `;
 
 const DataNotice = styled.aside`
