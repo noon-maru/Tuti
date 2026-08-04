@@ -8,8 +8,10 @@ timestamp="$(date +%Y%m%d-%H%M%S)"
 production_backup="$backup_dir/production-before-promote-$timestamp.sql"
 development_dump=""
 place_source_dump=""
+place_detail_dump=""
 tables="
 tourism_place_source_records
+tourism_place_detail_records
 wellness_tourism_source_records
 municipal_core_tourism_source_records
 tourist_spot_concentration_rate_records
@@ -28,6 +30,7 @@ tourism_region_metrics
 external_data_sync_runs
 "
 place_source_columns="content_id, content_type_id, title, area_code, sido_name, sigungu_code, sigungu_name, raw_payload, linked_place_id, source_modified_at, synced_at, created_at, updated_at"
+place_detail_columns="content_id, content_type_id, overview, homepage, phone, opening_hours, rest_date, admission_fee, parking, reservation, usage_duration, experience_guide, common_payload, intro_payload, info_payload, image_payload, source_modified_at, synced_at, last_attempt_at, retry_after, last_error, created_at, updated_at"
 backup_arguments=""
 table_arguments=""
 truncate_tables=""
@@ -39,6 +42,9 @@ cleanup() {
   if [ -n "$place_source_dump" ]; then
     rm -f "$place_source_dump"
   fi
+  if [ -n "$place_detail_dump" ]; then
+    rm -f "$place_detail_dump"
+  fi
 }
 
 trap cleanup EXIT
@@ -46,7 +52,21 @@ trap cleanup EXIT
 install -d -o root -g root -m 0700 "$backup_dir"
 development_dump="$(mktemp "$backup_dir/development-promote.XXXXXX.sql")"
 place_source_dump="$(mktemp "$backup_dir/development-place-source.XXXXXX.copy")"
+place_detail_dump="$(mktemp "$backup_dir/development-place-detail.XXXXXX.copy")"
 cd "$project_dir"
+
+echo "운영 DB 스키마 마이그레이션 확인"
+
+docker compose \
+  --env-file .env.production \
+  -f docker-compose.prod.yml \
+  build ops
+
+docker compose \
+  --env-file .env.production \
+  -f docker-compose.prod.yml \
+  run --rm ops \
+  pnpm db:deploy
 
 for table in $tables; do
   backup_arguments="$backup_arguments --table=public.$table"
@@ -104,6 +124,14 @@ if [ ! -s "$place_source_dump" ]; then
   exit 1
 fi
 
+echo "개발 관광지 상세 데이터 스냅샷 생성"
+
+docker compose \
+  -f docker-compose.dev.yml \
+  exec -T db \
+  sh -lc 'exec psql --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" --quiet --command "COPY (SELECT content_id, content_type_id, overview, homepage, phone, opening_hours, rest_date, admission_fee, parking, reservation, usage_duration, experience_guide, common_payload, intro_payload, info_payload, image_payload, source_modified_at, synced_at, last_attempt_at, retry_after, last_error, created_at, updated_at FROM public.tourism_place_detail_records ORDER BY content_id) TO STDOUT"' \
+  > "$place_detail_dump"
+
 echo "운영 DB에 개발 관광 데이터 적용"
 
 {
@@ -113,6 +141,10 @@ echo "운영 DB에 개발 관광 데이터 적용"
   printf '\nCOPY public.tourism_place_source_records (%s) FROM STDIN;\n' \
     "$place_source_columns"
   cat "$place_source_dump"
+  printf '\\.\n'
+  printf '\nCOPY public.tourism_place_detail_records (%s) FROM STDIN;\n' \
+    "$place_detail_columns"
+  cat "$place_detail_dump"
   printf '\\.\n'
   printf '\nCOMMIT;\n'
 } | docker compose \
