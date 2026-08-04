@@ -111,6 +111,7 @@ model Place {
   createdAt           DateTime                              @default(now()) @map("created_at")
   updatedAt           DateTime                              @updatedAt @map("updated_at")
   tourismSourceRecord TourismPlaceSourceRecord?
+  seoulRealtimeAreaLink PlaceSeoulRealtimeArea?
   journalEntries      JournalEntry[]
   recommendationActions RecommendationAction[]
 
@@ -240,6 +241,53 @@ model TouristSpotConcentrationRateRecord {
   @@index([areaCode, sigunguCode, baseYmd])
   @@index([touristSpotName, baseYmd])
   @@map("tourist_spot_concentration_rate_records")
+}
+
+model SeoulRealtimeArea {
+  areaCode       String                              @id @map("area_code")
+  areaName       String                              @map("area_name")
+  category       String
+  geometry       Unsupported("geometry(MultiPolygon, 4326)")
+  sourceSyncedAt DateTime                            @map("source_synced_at")
+  createdAt      DateTime                            @default(now()) @map("created_at")
+  updatedAt      DateTime                            @updatedAt @map("updated_at")
+  placeLinks     PlaceSeoulRealtimeArea[]
+  populationCache SeoulRealtimePopulationCache?
+
+  @@index([category])
+  @@map("seoul_realtime_areas")
+}
+
+model PlaceSeoulRealtimeArea {
+  placeId      String             @id @map("place_id")
+  areaCode     String             @map("area_code")
+  matchMethod  String             @default("contains") @map("match_method")
+  confidence   Decimal            @default(1) @db.Decimal(4, 3)
+  linkedAt     DateTime           @default(now()) @map("linked_at")
+  updatedAt    DateTime           @updatedAt @map("updated_at")
+  place        Place              @relation(fields: [placeId], references: [id], onDelete: Cascade)
+  area         SeoulRealtimeArea  @relation(fields: [areaCode], references: [areaCode], onDelete: Cascade)
+
+  @@index([areaCode])
+  @@map("place_seoul_realtime_areas")
+}
+
+model SeoulRealtimePopulationCache {
+  areaCode           String             @id @map("area_code")
+  areaName           String             @map("area_name")
+  congestionLevel    String             @map("congestion_level")
+  congestionMessage  String?            @map("congestion_message")
+  populationMin      Int?               @map("population_min")
+  populationMax      Int?               @map("population_max")
+  observedAt         DateTime           @map("observed_at")
+  forecastPayload    Json?              @map("forecast_payload")
+  rawPayload         Json               @map("raw_payload")
+  fetchedAt          DateTime           @map("fetched_at")
+  expiresAt          DateTime           @map("expires_at")
+  area               SeoulRealtimeArea  @relation(fields: [areaCode], references: [areaCode], onDelete: Cascade)
+
+  @@index([expiresAt])
+  @@map("seoul_realtime_population_cache")
 }
 
 model RegionalVisitorCountRecord {

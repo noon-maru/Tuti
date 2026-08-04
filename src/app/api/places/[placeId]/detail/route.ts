@@ -32,15 +32,30 @@ export async function GET(
         isActive: true,
         reviewStatus: "approved",
       },
-      select: { id: true },
+      select: {
+        id: true,
+        name: true,
+        sourceAddress: true,
+        sourceSidoName: true,
+        sourceSigunguName: true,
+      },
     });
 
     if (!place) return notFoundResponse(request);
 
     const detail = await ensureTourismPlaceDetail(place.id);
-    if (!detail) return notFoundResponse(request);
-
-    const response: PlaceDetailResponse = { detail };
+    const response: PlaceDetailResponse = {
+      place: {
+        id: place.id,
+        name: place.name,
+        address: place.sourceAddress,
+        region:
+          [place.sourceSidoName, place.sourceSigunguName]
+            .filter(Boolean)
+            .join(" ") || null,
+      },
+      detail,
+    };
     return withCors(request, Response.json(response));
   } catch (error) {
     console.error("관광지 상세정보를 준비하지 못했습니다.", error);

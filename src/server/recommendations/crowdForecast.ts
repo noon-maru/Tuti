@@ -8,6 +8,10 @@ import {
   type TouristSpotConcentrationItem,
 } from "@/server/tourism/touristSpotConcentrationApiClient";
 import { upsertTouristSpotConcentrationRate } from "@/server/tourism/syncTouristSpotConcentrationRates";
+import {
+  findSeoulRealtimeAreaContexts,
+  resolveSeoulRealtimeCrowd,
+} from "@/server/recommendations/seoulRealtimeCrowd";
 
 const LIVE_REQUEST_TIMEOUT_MS = 4_000;
 const RECENT_CACHE_MAX_AGE_MS = 48 * 60 * 60 * 1_000;
@@ -26,10 +30,19 @@ type TouristSpotContext = {
 export async function enrichPlacesWithCrowdForecast(
   places: TutiPlace[],
 ): Promise<TutiPlace[]> {
-  const contexts = await findTouristSpotContexts(places);
+  const [contexts, seoulContexts] = await Promise.all([
+    findTouristSpotContexts(places),
+    findSeoulRealtimeAreaContexts(places),
+  ]);
 
   return Promise.all(
     places.map(async (place) => {
+      const seoulContext = seoulContexts.get(place.id);
+      if (seoulContext) {
+        const seoulForecast = await resolveSeoulRealtimeCrowd(seoulContext);
+        if (seoulForecast) return applyCrowdForecast(place, seoulForecast);
+      }
+
       const context = contexts.get(place.name);
       if (!context) return place;
 
@@ -152,7 +165,7 @@ async function findTypicalForecast(
 function applyCrowdForecast(place: TutiPlace, forecast: CrowdForecast): TutiPlace {
   return {
     ...place,
-    crowd: crowdTextForLevel(forecast.level),
+    crowd: forecast.label ?? crowdTextForLevel(forecast.level),
     crowdForecast: forecast,
   };
 }
@@ -163,6 +176,7 @@ function toCrowdForecast(
   forecastDate?: string,
 ): CrowdForecast {
   return {
+    provider: "kto_concentration",
     source,
     level: rate <= 35 ? "low" : rate <= 70 ? "medium" : "high",
     rate: Math.round(rate * 10) / 10,

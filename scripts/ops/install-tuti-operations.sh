@@ -19,7 +19,7 @@ esac
 
 install -d -o root -g root -m 0755 /usr/local/sbin
 
-for operation in tuti-prod-deploy tuti-dev-refresh tuti-dev-restart tuti-docker-status tuti-tourism-sync tuti-tourism-bootstrap tuti-tourism-data-bootstrap tuti-tourism-data-promote; do
+for operation in tuti-prod-deploy tuti-dev-refresh tuti-dev-restart tuti-docker-status tuti-tourism-sync tuti-tourism-bootstrap tuti-tourism-data-bootstrap tuti-tourism-data-promote tuti-seoul-realtime-sync; do
   install -o root -g root -m 0750 \
     "$source_dir/$operation" \
     "/usr/local/sbin/$operation"
@@ -29,7 +29,7 @@ sudoers_file="$(mktemp /etc/sudoers.d/tuti-operations.XXXXXX)"
 trap 'rm -f "$sudoers_file"' EXIT
 
 printf '%s\n' \
-  "${admin_user} ALL=(root) NOPASSWD: /usr/local/sbin/tuti-prod-deploy, /usr/local/sbin/tuti-dev-refresh, /usr/local/sbin/tuti-dev-restart, /usr/local/sbin/tuti-docker-status, /usr/local/sbin/tuti-tourism-sync, /usr/local/sbin/tuti-tourism-bootstrap, /usr/local/sbin/tuti-tourism-data-bootstrap, /usr/local/sbin/tuti-tourism-data-promote" \
+  "${admin_user} ALL=(root) NOPASSWD: /usr/local/sbin/tuti-prod-deploy, /usr/local/sbin/tuti-dev-refresh, /usr/local/sbin/tuti-dev-restart, /usr/local/sbin/tuti-docker-status, /usr/local/sbin/tuti-tourism-sync, /usr/local/sbin/tuti-tourism-bootstrap, /usr/local/sbin/tuti-tourism-data-bootstrap, /usr/local/sbin/tuti-tourism-data-promote, /usr/local/sbin/tuti-seoul-realtime-sync" \
   > "$sudoers_file"
 
 chmod 0440 "$sudoers_file"

@@ -1,0 +1,46 @@
+#!/bin/sh
+
+set -eu
+
+project_dir="/var/services/homes/Tutiadmin/source/Tuti"
+target="${1:-prod}"
+
+case "$target" in
+  dev)
+    compose_file="docker-compose.dev.yml"
+    service="app"
+    env_args=""
+    ;;
+  prod)
+    compose_file="docker-compose.prod.yml"
+    service="ops"
+    env_args="--env-file .env.production"
+    ;;
+  *)
+    echo "사용법: tuti-seoul-realtime-sync [dev|prod]" >&2
+    exit 1
+    ;;
+esac
+
+cd "$project_dir"
+
+if [ "$target" = "prod" ]; then
+  docker compose \
+    --env-file .env.production \
+    -f "$compose_file" \
+    build "$service"
+fi
+
+# shellcheck disable=SC2086
+docker compose \
+  $env_args \
+  -f "$compose_file" \
+  run --rm --no-deps "$service" \
+  pnpm db:deploy
+
+# shellcheck disable=SC2086
+docker compose \
+  $env_args \
+  -f "$compose_file" \
+  run --rm --no-deps "$service" \
+  pnpm seoul:sync:areas

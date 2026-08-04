@@ -27,23 +27,50 @@ export type TutiPlace = {
 };
 
 export type CrowdForecastSource = "live" | "cached" | "typical";
+export type CrowdForecastProvider =
+  | "seoul_citydata"
+  | "kto_concentration"
+  | "regional_visitors";
 
 export type CrowdForecast = {
   level: "low" | "medium" | "high";
   source: CrowdForecastSource;
-  /** 관광공사가 산출한 0~100 상대 집중률. 평시 기준에는 평균값을 담는다. */
+  provider?: CrowdForecastProvider;
+  /** 혼잡 부담을 비교하기 위한 0~100 값. 관광공사 데이터에는 원래 집중률을 담는다. */
   rate: number;
+  /** 원천에서 제공한 혼잡도 표현. 없으면 level을 한국어로 변환한다. */
+  label?: string;
+  /** 영역 단위 데이터인 경우 적용한 영역명. */
+  areaName?: string;
+  /** 실시간 또는 최근 데이터의 원천 측정 시각. */
+  observedAt?: string;
+  /** 원천이 제공한 혼잡도 안내 문구. */
+  message?: string;
   /** 예측 대상 일자(YYYYMMDD). 평시 평균은 별도 날짜를 두지 않는다. */
   forecastDate?: string;
 };
 
-export function getCrowdForecastLevelLabel(level: CrowdForecast["level"]) {
+export function getCrowdForecastLevelLabel(
+  value: CrowdForecast | CrowdForecast["level"],
+) {
+  if (typeof value !== "string" && value.label) return value.label;
+  const level = typeof value === "string" ? value : value.level;
   if (level === "low") return "여유";
   if (level === "high") return "혼잡";
   return "보통";
 }
 
 export function getCrowdForecastBasisLabel(forecast: CrowdForecast) {
+  if (forecast.provider === "seoul_citydata") {
+    const area = forecast.areaName ?? "서울 주요 장소";
+    if (forecast.source === "live") {
+      return forecast.observedAt
+        ? `${area} 실시간 · ${formatObservedTime(forecast.observedAt)}`
+        : `${area} 실시간`;
+    }
+    return `${area} 최근 정보`;
+  }
+
   if (forecast.source === "live") {
     return forecast.forecastDate === getKoreanDateKey()
       ? "오늘 예측 기준"
@@ -101,4 +128,14 @@ function getKoreanDateKey() {
 function formatForecastDate(value?: string) {
   if (!value || !/^\d{8}$/.test(value)) return "최근";
   return `${value.slice(4, 6)}.${value.slice(6, 8)}`;
+}
+
+function formatObservedTime(value: string) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "최근 측정";
+  return new Intl.DateTimeFormat("ko-KR", {
+    timeZone: "Asia/Seoul",
+    hour: "numeric",
+    minute: "2-digit",
+  }).format(date);
 }

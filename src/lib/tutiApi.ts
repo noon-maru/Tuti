@@ -22,7 +22,6 @@ import type {
 } from "@/shared/api/journal";
 import type {
   PlaceDetailResponse,
-  TourismPlaceDetail,
 } from "@/shared/api/placeDetails";
 import type {
   TravelTimeResponse,
@@ -79,7 +78,7 @@ export async function recordRecommendationAction(
 
 export async function fetchPlaceDetail(
   placeId: string,
-): Promise<TourismPlaceDetail> {
+): Promise<PlaceDetailResponse> {
   const response = await fetch(
     apiUrl(`places/${encodeURIComponent(placeId)}/detail`),
   );
@@ -91,7 +90,7 @@ export async function fetchPlaceDetail(
   }
 
   const data = (await response.json()) as PlaceDetailResponse;
-  return data.detail;
+  return data;
 }
 
 export async function fetchDeparturePlan(

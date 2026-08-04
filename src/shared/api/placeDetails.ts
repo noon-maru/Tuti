@@ -30,6 +30,14 @@ export type TourismPlaceDetail = {
   isStale: boolean;
 };
 
+export type PlaceDetailSummary = {
+  id: string;
+  name: string;
+  address: string | null;
+  region: string | null;
+};
+
 export type PlaceDetailResponse = {
-  detail: TourismPlaceDetail;
+  place: PlaceDetailSummary;
+  detail: TourismPlaceDetail | null;
 };
