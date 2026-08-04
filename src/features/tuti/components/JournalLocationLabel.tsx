@@ -1,4 +1,5 @@
 import styled from "@emotion/styled";
+import { TutiPlaceIcon } from "@/features/tuti/components/TutiPlaceIcon";
 
 export function JournalLocationLabel({
   className,
@@ -9,7 +10,7 @@ export function JournalLocationLabel({
 }) {
   return (
     <Label className={className}>
-      <Marker aria-hidden="true" />
+      <TutiPlaceIcon aria-hidden="true" />
       <span>{placeName}</span>
     </Label>
   );
@@ -31,17 +32,4 @@ const Label = styled.p`
     text-overflow: ellipsis;
     white-space: nowrap;
   }
-`;
-
-const Marker = styled.span`
-  width: 14px;
-  height: 18px;
-  flex: 0 0 auto;
-  border-radius: 50% 50% 55% 55% / 42% 42% 70% 70%;
-  background: linear-gradient(
-    to bottom,
-    var(--color-secondary-500) 0 50%,
-    var(--color-brand-500) 50% 100%
-  );
-  clip-path: polygon(0 0, 100% 0, 100% 56%, 50% 100%, 0 56%);
 `;

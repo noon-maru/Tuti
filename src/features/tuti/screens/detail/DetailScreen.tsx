@@ -7,7 +7,6 @@ import {
   ChevronLeft,
   ChevronRight,
   Clock3,
-  MapPin,
   Ticket,
 } from "lucide-react";
 import {
@@ -19,6 +18,7 @@ import {
 } from "react";
 import { BaseButton } from "@/features/tuti/components/buttons";
 import { ContextMenu } from "@/features/tuti/components/ContextMenu";
+import { TutiPlaceIcon } from "@/features/tuti/components/TutiPlaceIcon";
 import { useDeferredAnimationStart } from "@/features/tuti/hooks/useDeferredAnimationStart";
 import { usePlaceDetail } from "@/features/tuti/hooks/usePlaceDetail";
 import { useVerticalSwipeBack } from "@/features/tuti/hooks/useVerticalSwipeBack";
@@ -171,7 +171,7 @@ export function DetailScreen({
         <Content $revealProgress={revealProgress}>
           <TopLine>
             <LocationLabel>
-              <MapPin aria-hidden="true" />
+              <TutiPlaceIcon $size="small" aria-hidden="true" />
               <span>{locationLabel ?? "오늘 고른 공간"}</span>
             </LocationLabel>
             <ContextMenu
@@ -834,14 +834,6 @@ const LocationLabel = styled.div`
   font-size: var(--font-size-100);
   line-height: var(--line-height-body);
   letter-spacing: var(--letter-spacing-body);
-
-  svg {
-    width: var(--space-4);
-    height: var(--space-4);
-    flex: 0 0 auto;
-    color: var(--color-brand-700);
-    stroke-width: 2;
-  }
 
   span {
     overflow: hidden;

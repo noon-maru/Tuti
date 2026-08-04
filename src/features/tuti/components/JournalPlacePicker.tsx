@@ -10,6 +10,7 @@ import {
 } from "react";
 import { createPortal } from "react-dom";
 import { LoadingIndicator } from "@/features/tuti/components/LoadingIndicator";
+import { TutiPlaceIcon } from "@/features/tuti/components/TutiPlaceIcon";
 import { apiUrl } from "@/lib/api/apiUrl";
 import type {
   PlaceSearchResponse,
@@ -143,7 +144,7 @@ export function JournalPlacePicker({
             setOpen(true);
           }}
         >
-          <PlaceMarker aria-hidden="true" />
+          <PlacePickerIcon $size="small" aria-hidden="true" />
           <span data-selected={Boolean(placeId)}>
             {value || "장소 추가"}
           </span>
@@ -215,7 +216,7 @@ export function JournalPlacePicker({
                       aria-pressed={place.id === placeId}
                       onClick={() => selectPlace(place)}
                     >
-                      <PlaceMarker aria-hidden="true" />
+                      <PlacePickerIcon $size="small" aria-hidden="true" />
                       <span>
                         <strong>{place.name}</strong>
                         {place.region && <small>{place.region}</small>}
@@ -241,6 +242,10 @@ const PlaceField = styled.div`
   gap: var(--space-1);
 `;
 
+const PlacePickerIcon = styled(TutiPlaceIcon)`
+  transform: translateY(-1px);
+`;
+
 const PlaceTrigger = styled(BaseButton)`
   width: fit-content;
   max-width: 100%;
@@ -261,22 +266,6 @@ const PlaceTrigger = styled(BaseButton)`
     text-overflow: ellipsis;
     white-space: nowrap;
   }
-`;
-
-const PlaceMarker = styled.span`
-  position: relative;
-  width: 11px;
-  height: 14px;
-  flex: 0 0 auto;
-  overflow: hidden;
-  border-radius: 50% 50% 55% 55% / 42% 42% 70% 70%;
-  background: linear-gradient(
-    to bottom,
-    var(--color-secondary-500) 0 50%,
-    var(--color-brand-500) 50% 100%
-  );
-  clip-path: polygon(0 0, 100% 0, 100% 56%, 50% 100%, 0 56%);
-  transform: translateY(-1px);
 `;
 
 const PlaceHelper = styled.p`
