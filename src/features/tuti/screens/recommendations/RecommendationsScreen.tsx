@@ -68,6 +68,8 @@ export function RecommendationsScreen({
   onAdmin,
   onInquiry,
   onLocationSettings,
+  onSavedPlaces,
+  savedPlacesCount,
   onDepartureOpen,
   onDeparturePlanExpanded,
   onNavigationStart,
@@ -98,6 +100,8 @@ export function RecommendationsScreen({
   onAdmin: () => void;
   onInquiry: () => void;
   onLocationSettings: () => void;
+  onSavedPlaces: () => void;
+  savedPlacesCount: number;
   onDepartureOpen: (
     place: TutiPlace,
     variant: DeparturePresentation["variant"],
@@ -551,6 +555,12 @@ export function RecommendationsScreen({
                       onSelect: onRestartIntake,
                     },
                     {
+                      label: savedPlacesCount
+                        ? `다음에 갈 곳 (${savedPlacesCount})`
+                        : "다음에 갈 곳",
+                      onSelect: onSavedPlaces,
+                    },
+                    {
                       label: "위치 설정",
                       onSelect: onLocationSettings,
                     },
@@ -572,6 +582,12 @@ export function RecommendationsScreen({
                     {
                       label: "오늘 다시 고르기",
                       onSelect: onRestartIntake,
+                    },
+                    {
+                      label: savedPlacesCount
+                        ? `다음에 갈 곳 (${savedPlacesCount})`
+                        : "다음에 갈 곳",
+                      onSelect: onSavedPlaces,
                     },
                     {
                       label: "위치 설정",

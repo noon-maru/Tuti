@@ -29,6 +29,11 @@ const ROUTE_MODES: DepartureRouteMode[] = [
   "walking",
 ];
 
+export type DeparturePlace = Pick<
+  TutiPlace,
+  "id" | "name" | "image" | "phrase"
+>;
+
 export function DeparturePlanScreen({
   place,
   onClose,
@@ -36,7 +41,7 @@ export function DeparturePlanScreen({
   embedded = false,
   respectEmbeddedTopSafeArea = true,
 }: {
-  place: TutiPlace;
+  place: DeparturePlace;
   onClose: () => void;
   onNavigationStart?: (route: DepartureRoute) => void;
   embedded?: boolean;

@@ -1,4 +1,6 @@
 import { randomUUID } from "node:crypto";
+import { authenticateUser } from "@/server/auth/session";
+import { recordRecommendationRunSafely } from "@/server/recommendations/run";
 import { createRecommendations } from "@/server/recommendations/service";
 import {
   createPreflightResponse,
@@ -20,15 +22,30 @@ export async function POST(request: Request) {
 
   try {
     const body = (await request.json()) as RecommendationRequest;
+    const location = normalizeLocation(body.location);
+    const stateText = normalizeStateText(body.stateText);
+    const recommendationId = randomUUID();
     const places = await createRecommendations(
       body.answers ?? {},
-      normalizeLocation(body.location),
-      normalizeStateText(body.stateText),
+      location,
+      stateText,
     );
     const response: RecommendationResponse = {
-      recommendationId: randomUUID(),
+      recommendationId,
       places,
     };
+
+    const user = await authenticateUser(request);
+    if (user) {
+      await recordRecommendationRunSafely({
+        id: recommendationId,
+        userId: user.id,
+        request: body,
+        places,
+        locationUsed: Boolean(location),
+        stateTextUsed: Boolean(stateText),
+      });
+    }
 
     return withCors(request, Response.json(response));
   } catch (error) {

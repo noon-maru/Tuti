@@ -9,11 +9,15 @@ import { useTravelTime } from "@/features/tuti/hooks/useTravelTime";
 import { useSession } from "@/features/tuti/hooks/useSession";
 import { useLocationAccess } from "@/features/tuti/location/LocationAccessProvider";
 import { DailyCheckInScreen } from "@/features/tuti/screens/intake/DailyCheckInScreen";
+import {
+  DeparturePlanScreen,
+  type DeparturePlace,
+} from "@/features/tuti/screens/departure/DeparturePlanScreen";
+import { SavedDeparturePlacesSheet } from "@/features/tuti/screens/departure/SavedDeparturePlacesSheet";
 import { RecommendationsScreen } from "@/features/tuti/screens/recommendations/RecommendationsScreen";
 import { formatTravelTimeLabel } from "@/features/tuti/lib/travelTimeLabel";
 import { logoutAccount } from "@/lib/auth/session";
 import { recordRecommendationAction } from "@/lib/tutiApi";
-import type { TutiPlace } from "@/lib/recommendations";
 import {
   getKoreanDateKey,
   isKoreanDateBefore,
@@ -22,7 +26,10 @@ import {
 import { LOCATION_TERMS_VERSION } from "@/shared/location/terms";
 import type { DepartureRoute } from "@/shared/api/departurePlan";
 import type { RecommendationActionInput } from "@/shared/api/recommendationActions";
-import { useTutiStore } from "@/store/tuti";
+import {
+  type SavedDeparturePlace,
+  useTutiStore,
+} from "@/store/tuti";
 
 export function RecommendationsFlow({ interactive }: { interactive: boolean }) {
   const router = useRouter();
@@ -33,6 +40,9 @@ export function RecommendationsFlow({ interactive }: { interactive: boolean }) {
   const recordedRecommendationIds = useRef(new Set<string>());
   const [currentDate, setCurrentDate] = useState(getKoreanDateKey);
   const [returnCheckInNow, setReturnCheckInNow] = useState(Date.now);
+  const [savedPlacesOpen, setSavedPlacesOpen] = useState(false);
+  const [selectedSavedPlace, setSelectedSavedPlace] =
+    useState<SavedDeparturePlace | null>(null);
   const storedAnswers = useTutiStore((state) => state.answers);
   const userLocation = useTutiStore((state) => state.userLocation);
   const locationPermissionStatus = useTutiStore(
@@ -58,6 +68,12 @@ export function RecommendationsFlow({ interactive }: { interactive: boolean }) {
   );
   const deferPendingDeparture = useTutiStore(
     (state) => state.deferPendingDeparture,
+  );
+  const savedDeparturePlaces = useTutiStore(
+    (state) => state.savedDeparturePlaces,
+  );
+  const removeSavedDeparturePlace = useTutiStore(
+    (state) => state.removeSavedDeparturePlace,
   );
   const requestDailyCheckIn = useTutiStore(
     (state) => state.requestDailyCheckIn,
@@ -294,8 +310,12 @@ export function RecommendationsFlow({ interactive }: { interactive: boolean }) {
     }
   };
 
-  const startNavigation = (place: TutiPlace, route: DepartureRoute) => {
-    if (!recommendationId) return;
+  const startNavigation = (
+    place: DeparturePlace,
+    route: DepartureRoute,
+    journeyId = recommendationId,
+  ) => {
+    if (!journeyId) return;
 
     const now = Date.now();
     const routeDuration = Math.max(0, route.durationSeconds ?? 0) * 1_000;
@@ -305,15 +325,17 @@ export function RecommendationsFlow({ interactive }: { interactive: boolean }) {
     );
 
     setPendingDeparture({
-      journeyId: recommendationId,
+      journeyId,
       placeId: place.id,
       placeName: place.name,
+      placeImage: place.image,
+      placePhrase: place.phrase,
       routeMode: route.mode,
       startedAt: new Date(now).toISOString(),
       promptAfter: new Date(now + promptDelay).toISOString(),
     });
     recordAction({
-      journeyId: recommendationId,
+      journeyId,
       action: "navigation_started",
       placeId: place.id,
       routeMode: route.mode,
@@ -351,6 +373,8 @@ export function RecommendationsFlow({ interactive }: { interactive: boolean }) {
         onAdmin={() => router.push("/admin")}
         onInquiry={() => router.push("/inquiry")}
         onLocationSettings={() => router.push("/location")}
+        onSavedPlaces={() => setSavedPlacesOpen(true)}
+        savedPlacesCount={savedDeparturePlaces.length}
         onDepartureOpen={(place, variant) => {
           if (!recommendationId) return;
           recordAction({
@@ -380,7 +404,11 @@ export function RecommendationsFlow({ interactive }: { interactive: boolean }) {
         locationPermissionStatus={locationPermissionStatus}
         activeTravelTimeLabel={activeTravelTimeLabel}
         interactive={
-          interactive && !dailyCheckInVisible && !returnCheckInVisible
+          interactive &&
+          !dailyCheckInVisible &&
+          !returnCheckInVisible &&
+          !savedPlacesOpen &&
+          !selectedSavedPlace
         }
         initialHelp={
           interactive && detailOverlay.phase === "closed"
@@ -458,6 +486,52 @@ export function RecommendationsFlow({ interactive }: { interactive: boolean }) {
             });
             deferPendingDeparture();
           }}
+        />
+      )}
+      {savedPlacesOpen && (
+        <SavedDeparturePlacesSheet
+          places={savedDeparturePlaces}
+          onOpen={(place) => {
+            const journeyId =
+              place.journeyId || recommendationId || crypto.randomUUID();
+            recordAction({
+              journeyId,
+              action: "departure_plan_expanded",
+              placeId: place.placeId,
+              metadata: { source: "saved_places" },
+            });
+            setSavedPlacesOpen(false);
+            setSelectedSavedPlace({ ...place, journeyId });
+          }}
+          onRemove={removeSavedDeparturePlace}
+          onClose={() => setSavedPlacesOpen(false)}
+        />
+      )}
+      {selectedSavedPlace && (
+        <DeparturePlanScreen
+          place={{
+            id: selectedSavedPlace.placeId,
+            name: selectedSavedPlace.placeName,
+            image: selectedSavedPlace.placeImage || "",
+            phrase:
+              selectedSavedPlace.placePhrase ||
+              "다음에 가볍게 만나보려고 남겨둔 곳",
+          }}
+          onNavigationStart={(route) =>
+            startNavigation(
+              {
+                id: selectedSavedPlace.placeId,
+                name: selectedSavedPlace.placeName,
+                image: selectedSavedPlace.placeImage || "",
+                phrase:
+                  selectedSavedPlace.placePhrase ||
+                  "다음에 가볍게 만나보려고 남겨둔 곳",
+              },
+              route,
+              selectedSavedPlace.journeyId,
+            )
+          }
+          onClose={() => setSelectedSavedPlace(null)}
         />
       )}
     </>

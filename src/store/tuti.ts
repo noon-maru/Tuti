@@ -33,14 +33,19 @@ export type PendingDeparture = {
   journeyId: string;
   placeId: string;
   placeName: string;
+  placeImage: string;
+  placePhrase: string;
   routeMode: DepartureRouteMode;
   startedAt: string;
   promptAfter: string;
 };
 
 export type SavedDeparturePlace = {
+  journeyId: string;
   placeId: string;
   placeName: string;
+  placeImage: string;
+  placePhrase: string;
   savedAt: string;
 };
 
@@ -93,6 +98,7 @@ type TutiState = {
   postponePendingDeparture: () => void;
   completePendingDeparture: () => void;
   deferPendingDeparture: () => void;
+  removeSavedDeparturePlace: (placeId: string) => void;
   finishEntry: () => void;
   markHydrated: () => void;
   resetIntake: () => void;
@@ -238,8 +244,11 @@ export const useTutiStore = create<TutiState>()(
           if (!state.pendingDeparture) return state;
 
           const savedPlace: SavedDeparturePlace = {
+            journeyId: state.pendingDeparture.journeyId,
             placeId: state.pendingDeparture.placeId,
             placeName: state.pendingDeparture.placeName,
+            placeImage: state.pendingDeparture.placeImage,
+            placePhrase: state.pendingDeparture.placePhrase,
             savedAt: new Date().toISOString(),
           };
 
@@ -253,6 +262,12 @@ export const useTutiStore = create<TutiState>()(
             ].slice(0, 20),
           };
         }),
+      removeSavedDeparturePlace: (placeId) =>
+        set((state) => ({
+          savedDeparturePlaces: state.savedDeparturePlaces.filter(
+            (place) => place.placeId !== placeId,
+          ),
+        })),
       finishEntry: () => set({ entryStage: "complete" }),
       markHydrated: () => set({ hasHydrated: true }),
       resetIntake: () =>

@@ -5,6 +5,7 @@ export type RecommendationRequest = {
   answers?: IntakeAnswers;
   location?: UserLocation;
   stateText?: string;
+  entryStatus?: "answered" | "reused" | "skipped";
 };
 
 export type RecommendationResponse = {

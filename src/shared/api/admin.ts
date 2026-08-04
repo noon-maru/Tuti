@@ -131,6 +131,36 @@ export type AdminOverviewResponse = {
   overview: AdminOverview;
 };
 
+export type AdminRecommendationFunnelStage = {
+  action: string;
+  label: string;
+  journeys: number;
+  rateFromRuns: number;
+  rateFromPrevious: number;
+};
+
+export type AdminRecommendationFunnelPlace = {
+  placeId: string;
+  placeName: string;
+  navigationStarted: number;
+  journalCreated: number;
+};
+
+export type AdminRecommendationAlgorithm = {
+  version: string;
+  runs: number;
+};
+
+export type AdminRecommendationFunnelResponse = {
+  periodDays: number;
+  generatedAt: string;
+  recommendationRuns: number;
+  locationUsageRate: number;
+  stages: AdminRecommendationFunnelStage[];
+  topPlaces: AdminRecommendationFunnelPlace[];
+  algorithms: AdminRecommendationAlgorithm[];
+};
+
 export type AdminLogsResponse = {
   logs: AdminLogItem[];
 };

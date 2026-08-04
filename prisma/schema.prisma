@@ -382,8 +382,28 @@ model User {
   oauthAuthorizations OAuthAuthorization[]
   sessions            UserSession[]
   recommendationActions RecommendationAction[]
+  recommendationRuns  RecommendationRun[]
 
   @@map("users")
+}
+
+model RecommendationRun {
+  id               String   @id
+  userId           String   @map("user_id")
+  algorithmVersion String   @map("algorithm_version")
+  answers          Json
+  state            Json
+  entryStatus      String?  @map("entry_status")
+  locationUsed     Boolean  @default(false) @map("location_used")
+  stateTextUsed    Boolean  @default(false) @map("state_text_used")
+  candidates       Json
+  createdAt        DateTime @default(now()) @map("created_at")
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@index([algorithmVersion, createdAt])
+  @@index([createdAt])
+  @@map("recommendation_runs")
 }
 
 model RecommendationAction {

@@ -24,7 +24,8 @@ export function useTutiRecommendations({ enabled = true } = {}) {
       entryRecord?.effectiveDate,
       entryRecord?.status,
     ],
-    queryFn: () => fetchRecommendations(answers, userLocation),
+    queryFn: () =>
+      fetchRecommendations(answers, userLocation, entryRecord?.status),
     enabled,
     staleTime: Infinity,
   });

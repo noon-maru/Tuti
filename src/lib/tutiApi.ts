@@ -41,8 +41,9 @@ import type { IntakeAnswers, UserLocation } from "@/shared/tuti/types";
 export async function fetchRecommendations(
   answers: IntakeAnswers,
   location?: UserLocation,
+  entryStatus?: RecommendationRequest["entryStatus"],
 ): Promise<RecommendationResponse> {
-  const request: RecommendationRequest = { answers, location };
+  const request: RecommendationRequest = { answers, location, entryStatus };
   const response = await fetchWithSession("recommendations", {
     method: "POST",
     headers: {

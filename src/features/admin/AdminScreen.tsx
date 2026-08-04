@@ -25,6 +25,7 @@ import type {
   AdminPlaceItem,
   AdminPlacesMeta,
   AdminPlacesResponse,
+  AdminRecommendationFunnelResponse,
   AdminReportItem,
   AdminReportsResponse,
   AdminSettingItem,
@@ -35,6 +36,7 @@ import type {
 
 export type AdminTab =
   | "overview"
+  | "funnel"
   | "logs"
   | "places"
   | "reports"
@@ -44,6 +46,7 @@ export type AdminTab =
 
 const tabs: Array<{ id: AdminTab; label: string }> = [
   { id: "overview", label: "대시보드" },
+  { id: "funnel", label: "추천 퍼널" },
   { id: "logs", label: "로그" },
   { id: "places", label: "장소" },
   { id: "reports", label: "신고" },
@@ -60,6 +63,7 @@ const mobilePrimaryTabs: Array<{ id: AdminTab; label: string }> = [
 ];
 
 const mobileMoreTabs: Array<{ id: AdminTab; label: string }> = [
+  { id: "funnel", label: "추천 행동 퍼널" },
   { id: "users", label: "사용자 및 권한" },
   { id: "logs", label: "시스템 로그" },
   { id: "settings", label: "운영 설정" },
@@ -147,6 +151,9 @@ export function AdminScreen({
 }) {
   const [tab, setTab] = useState<AdminTab>(initialTab);
   const [overview, setOverview] = useState<AdminOverview | null>(null);
+  const [funnel, setFunnel] =
+    useState<AdminRecommendationFunnelResponse | null>(null);
+  const [funnelDays, setFunnelDays] = useState(30);
   const [logs, setLogs] = useState<AdminLogItem[]>([]);
   const [places, setPlaces] = useState<AdminPlaceItem[]>([]);
   const [placesMeta, setPlacesMeta] = useState<AdminPlacesMeta | null>(null);
@@ -297,7 +304,13 @@ export function AdminScreen({
 
     const suffix = searchParams.size ? `?${searchParams}` : "";
 
-    if (tab === "logs") {
+    if (tab === "funnel") {
+      const response =
+        await fetchAdminJson<AdminRecommendationFunnelResponse>(
+          `recommendation-funnel?days=${funnelDays}`,
+        );
+      setFunnel(response);
+    } else if (tab === "logs") {
       const response = await fetchAdminJson<AdminLogsResponse>(
         `logs${suffix}`,
       );
@@ -328,7 +341,7 @@ export function AdminScreen({
         await fetchAdminJson<AdminSettingsResponse>("settings");
       setSettings(response.settings);
     }
-  }, [appliedQuery, filter, placeFilters, placePage, tab]);
+  }, [appliedQuery, filter, funnelDays, placeFilters, placePage, tab]);
 
   const refresh = useCallback(async () => {
     setLoading(true);
@@ -503,7 +516,9 @@ export function AdminScreen({
               setPlacePage(1);
             }}
           />
-        ) : tab !== "overview" && tab !== "settings" ? (
+        ) : tab !== "overview" &&
+          tab !== "funnel" &&
+          tab !== "settings" ? (
           <Toolbar
             onSubmit={(event) => {
               event.preventDefault();
@@ -539,6 +554,12 @@ export function AdminScreen({
           <StatePanel>관리 데이터를 불러오고 있어요.</StatePanel>
         ) : tab === "overview" ? (
           <OverviewPanel overview={overview} onNavigate={changeTab} />
+        ) : tab === "funnel" ? (
+          <RecommendationFunnelPanel
+            funnel={funnel}
+            days={funnelDays}
+            onDaysChange={setFunnelDays}
+          />
         ) : tab === "logs" ? (
           <LogsPanel logs={logs} />
         ) : tab === "places" ? (
@@ -788,6 +809,108 @@ function OverviewPanel({
         </MetricGrid>
       </section>
     </OverviewContent>
+  );
+}
+
+function RecommendationFunnelPanel({
+  funnel,
+  days,
+  onDaysChange,
+}: {
+  funnel: AdminRecommendationFunnelResponse | null;
+  days: number;
+  onDaysChange: (days: number) => void;
+}) {
+  if (!funnel) {
+    return <StatePanel>추천 행동 데이터가 아직 없습니다.</StatePanel>;
+  }
+
+  return (
+    <FunnelContent>
+      <FunnelHeader>
+        <div>
+          <h2>추천 이후 행동 흐름</h2>
+          <p>각 단계는 중복 이벤트를 제외한 추천 여정 수로 계산합니다.</p>
+        </div>
+        <PeriodSelect
+          value={days}
+          onChange={(event) => onDaysChange(Number(event.target.value))}
+          aria-label="추천 퍼널 조회 기간"
+        >
+          <option value={7}>최근 7일</option>
+          <option value={30}>최근 30일</option>
+          <option value={90}>최근 90일</option>
+        </PeriodSelect>
+      </FunnelHeader>
+
+      <FunnelSummary>
+        <FunnelSummaryCard>
+          <span>추천 실행</span>
+          <strong>{funnel.recommendationRuns.toLocaleString("ko-KR")}</strong>
+          <small>회</small>
+        </FunnelSummaryCard>
+        <FunnelSummaryCard>
+          <span>위치 기반 추천</span>
+          <strong>{formatRate(funnel.locationUsageRate)}</strong>
+          <small>전체 추천 중</small>
+        </FunnelSummaryCard>
+        <FunnelSummaryCard>
+          <span>추천 버전</span>
+          <strong>{funnel.algorithms.length}</strong>
+          <small>개 운영됨</small>
+        </FunnelSummaryCard>
+      </FunnelSummary>
+
+      <FunnelStageList>
+        {funnel.stages.map((stage, index) => (
+          <FunnelStageCard key={stage.action}>
+            <FunnelStageIndex>{index + 1}</FunnelStageIndex>
+            <div>
+              <span>{stage.label}</span>
+              <strong>{stage.journeys.toLocaleString("ko-KR")}</strong>
+            </div>
+            <FunnelRates>
+              <span>전체 {formatRate(stage.rateFromRuns)}</span>
+              {index > 0 && (
+                <span>이전 단계 {formatRate(stage.rateFromPrevious)}</span>
+              )}
+            </FunnelRates>
+          </FunnelStageCard>
+        ))}
+      </FunnelStageList>
+
+      <FunnelBottomGrid>
+        <FunnelPanelCard>
+          <h3>출발로 이어진 장소</h3>
+          {funnel.topPlaces.length === 0 ? (
+            <FunnelEmpty>아직 길찾기 기록이 없습니다.</FunnelEmpty>
+          ) : (
+            <FunnelPlaceList>
+              {funnel.topPlaces.map((place, index) => (
+                <li key={place.placeId}>
+                  <span>{index + 1}</span>
+                  <strong>{place.placeName}</strong>
+                  <small>
+                    길찾기 {place.navigationStarted} · 기록 {place.journalCreated}
+                  </small>
+                </li>
+              ))}
+            </FunnelPlaceList>
+          )}
+        </FunnelPanelCard>
+        <FunnelPanelCard>
+          <h3>알고리즘 버전</h3>
+          <AlgorithmList>
+            {funnel.algorithms.map((algorithm) => (
+              <li key={algorithm.version}>
+                <code>{algorithm.version}</code>
+                <strong>{algorithm.runs.toLocaleString("ko-KR")}회</strong>
+              </li>
+            ))}
+          </AlgorithmList>
+        </FunnelPanelCard>
+      </FunnelBottomGrid>
+    </FunnelContent>
   );
 }
 
@@ -1650,6 +1773,10 @@ function getSearchPlaceholder(tab: AdminTab) {
   return "이메일 또는 사용자 ID 검색";
 }
 
+function formatRate(value: number) {
+  return `${value.toLocaleString("ko-KR", { maximumFractionDigits: 1 })}%`;
+}
+
 function formatOptionCount(value: number | undefined) {
   return value === undefined ? "" : ` (${value.toLocaleString("ko-KR")})`;
 }
@@ -2356,6 +2483,304 @@ const MetricCard = styled.article`
       background: var(--color-brand-200);
     }
   }
+`;
+
+const FunnelContent = styled.section`
+  display: grid;
+  gap: var(--space-6);
+`;
+
+const FunnelHeader = styled.header`
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--space-4);
+
+  h2 {
+    font-size: var(--font-size-500);
+  }
+
+  p {
+    margin-top: var(--space-1);
+    color: var(--color-text-muted);
+    font-size: var(--font-size-100);
+  }
+
+  @media (max-width: 520px) {
+    align-items: stretch;
+    flex-direction: column;
+  }
+`;
+
+const PeriodSelect = styled.select`
+  min-height: var(--space-11);
+  padding: 0 var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--space-3);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font: inherit;
+  font-size: var(--font-size-100);
+`;
+
+const FunnelSummary = styled.div`
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-4);
+
+  @media (max-width: 640px) {
+    grid-template-columns: 1fr;
+    gap: var(--space-2);
+  }
+`;
+
+const FunnelSummaryCard = styled.article`
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: end;
+  gap: var(--space-2);
+  padding: var(--space-5);
+  border: 1px solid var(--color-brand-200);
+  border-radius: var(--space-5);
+  background: var(--color-brand-100);
+  box-shadow: 0 12px 28px rgb(var(--color-black-rgb) / 0.05);
+
+  span {
+    grid-column: 1 / -1;
+    color: var(--color-text-muted);
+    font-size: var(--font-size-100);
+  }
+
+  strong {
+    font-size: var(--font-size-700);
+    line-height: 1;
+  }
+
+  small {
+    color: var(--color-text-muted);
+    font-size: var(--font-size-000);
+  }
+
+  &:nth-of-type(2) {
+    border-color: var(--color-secondary-300);
+    background: var(--color-secondary-100);
+  }
+
+  &:nth-of-type(3) {
+    border-color: var(--color-neutral-300);
+    background: var(--color-neutral-100);
+  }
+
+  @media (max-width: 640px) {
+    min-height: 68px;
+    grid-template-columns: 1fr auto;
+    align-items: center;
+    padding: var(--space-4);
+
+    span {
+      grid-column: auto;
+      font-weight: 600;
+    }
+
+    strong {
+      font-size: var(--font-size-500);
+    }
+
+    small {
+      display: none;
+    }
+  }
+`;
+
+const FunnelStageList = styled.div`
+  display: grid;
+  grid-template-columns: repeat(7, minmax(128px, 1fr));
+  gap: var(--space-2);
+  overflow-x: auto;
+  padding-bottom: var(--space-2);
+  scrollbar-width: thin;
+
+  @media (max-width: 768px) {
+    grid-template-columns: 1fr;
+    overflow: visible;
+    padding-bottom: 0;
+  }
+`;
+
+const FunnelStageCard = styled.article`
+  position: relative;
+  min-height: 160px;
+  display: grid;
+  align-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  border: 1px solid var(--color-secondary-300);
+  border-radius: var(--space-4);
+  background: linear-gradient(
+    155deg,
+    var(--color-surface),
+    var(--color-secondary-100)
+  );
+
+  > div:nth-of-type(1) {
+    display: grid;
+    gap: var(--space-2);
+
+    span {
+      min-height: 2.8em;
+      color: var(--color-text-muted);
+      font-size: var(--font-size-000);
+      font-weight: 600;
+    }
+
+    strong {
+      font-size: var(--font-size-600);
+    }
+  }
+
+  @media (max-width: 768px) {
+    min-height: auto;
+    grid-template-columns: auto 1fr auto;
+    align-items: center;
+    padding: var(--space-4);
+
+    > div:nth-of-type(1) {
+      span {
+        min-height: 0;
+      }
+    }
+  }
+`;
+
+const FunnelStageIndex = styled.span`
+  width: var(--space-7);
+  height: var(--space-7);
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  background: var(--color-secondary-400);
+  font-size: var(--font-size-000);
+  font-weight: 700;
+`;
+
+const FunnelRates = styled.div`
+  display: grid;
+  gap: var(--space-1);
+  color: var(--color-text-muted);
+  font-size: var(--font-size-000);
+
+  @media (max-width: 768px) {
+    justify-items: end;
+  }
+`;
+
+const FunnelBottomGrid = styled.div`
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(260px, 0.6fr);
+  gap: var(--space-4);
+
+  @media (max-width: 768px) {
+    grid-template-columns: 1fr;
+  }
+`;
+
+const FunnelPanelCard = styled.section`
+  display: grid;
+  align-content: start;
+  gap: var(--space-4);
+  padding: var(--space-5);
+  border: 1px solid var(--color-border);
+  border-radius: var(--space-5);
+  background: var(--color-surface);
+  box-shadow: 0 12px 30px rgb(var(--color-black-rgb) / 0.05);
+
+  h3 {
+    font-size: var(--font-size-300);
+  }
+`;
+
+const FunnelPlaceList = styled.ol`
+  display: grid;
+  gap: var(--space-2);
+  padding: 0;
+  margin: 0;
+  list-style: none;
+
+  li {
+    min-width: 0;
+    display: grid;
+    grid-template-columns: var(--space-7) minmax(0, 1fr) auto;
+    align-items: center;
+    gap: var(--space-3);
+    padding: var(--space-3);
+    border-radius: var(--space-3);
+    background: var(--color-neutral-100);
+  }
+
+  li > span {
+    color: var(--color-brand-900);
+    font-weight: 700;
+    text-align: center;
+  }
+
+  strong {
+    overflow: hidden;
+    font-size: var(--font-size-100);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  small {
+    color: var(--color-text-muted);
+    font-size: var(--font-size-000);
+  }
+
+  @media (max-width: 520px) {
+    li {
+      grid-template-columns: var(--space-6) minmax(0, 1fr);
+    }
+
+    small {
+      grid-column: 2;
+    }
+  }
+`;
+
+const AlgorithmList = styled.ul`
+  display: grid;
+  gap: var(--space-2);
+  padding: 0;
+  margin: 0;
+  list-style: none;
+
+  li {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-3);
+    padding: var(--space-3);
+    border-radius: var(--space-3);
+    background: var(--color-brand-100);
+  }
+
+  code {
+    overflow-wrap: anywhere;
+    font-size: var(--font-size-000);
+  }
+
+  strong {
+    flex: 0 0 auto;
+    font-size: var(--font-size-100);
+  }
+`;
+
+const FunnelEmpty = styled.p`
+  padding: var(--space-5);
+  border-radius: var(--space-3);
+  background: var(--color-neutral-100);
+  color: var(--color-text-muted);
+  font-size: var(--font-size-100);
+  text-align: center;
 `;
 
 const CardList = styled.section`
