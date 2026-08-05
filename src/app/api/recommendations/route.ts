@@ -12,6 +12,7 @@ import type {
   RecommendationResponse,
 } from "@/shared/api/recommendations";
 import type { UserLocation } from "@/shared/tuti/types";
+import { tourApiSidoOptions } from "@/shared/tourism/tourApiRegions";
 
 export const runtime = "nodejs";
 
@@ -23,12 +24,16 @@ export async function POST(request: Request) {
   try {
     const body = (await request.json()) as RecommendationRequest;
     const location = normalizeLocation(body.location);
+    const preferredRegion = location
+      ? undefined
+      : normalizePreferredRegion(body.preferredRegion);
     const stateText = normalizeStateText(body.stateText);
     const recommendationId = randomUUID();
     const places = await createRecommendations(
       body.answers ?? {},
       location,
       stateText,
+      preferredRegion,
     );
     const response: RecommendationResponse = {
       recommendationId,
@@ -67,6 +72,20 @@ export async function POST(request: Request) {
       ),
     );
   }
+}
+
+function normalizePreferredRegion(
+  region: RecommendationRequest["preferredRegion"],
+) {
+  if (!region) return undefined;
+
+  const matched = tourApiSidoOptions.find(
+    ([areaCode]) => areaCode === region.areaCode,
+  );
+
+  return matched
+    ? { areaCode: matched[0], name: matched[1] }
+    : undefined;
 }
 
 export function OPTIONS(request: Request) {

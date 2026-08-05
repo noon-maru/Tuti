@@ -11,6 +11,7 @@ import type {
   IntakeAnswers,
   LocationConsentRecord,
   LocationPermissionStatus,
+  PreferredRegion,
   UserLocation,
 } from "@/shared/tuti/types";
 
@@ -55,6 +56,7 @@ type TutiState = {
   userLocation?: UserLocation;
   locationConsent?: LocationConsentRecord;
   locationPermissionStatus: LocationPermissionStatus;
+  preferredRegion?: PreferredRegion;
   activeIndex: number;
   activePlaceId?: string;
   activeJournalEntryId?: string;
@@ -79,6 +81,7 @@ type TutiState = {
   declineLocationConsent: () => void;
   withdrawLocationConsent: () => void;
   setLocationPermissionStatus: (status: LocationPermissionStatus) => void;
+  setPreferredRegion: (region?: PreferredRegion) => void;
   setActivePlace: (index: number, placeId: string) => void;
   setActiveJournalEntry: (entryId?: string) => void;
   openDetail: (placeId: string) => void;
@@ -114,6 +117,7 @@ export const useTutiStore = create<TutiState>()(
       userLocation: undefined,
       locationConsent: undefined,
       locationPermissionStatus: "unknown",
+      preferredRegion: undefined,
       activeIndex: 0,
       activePlaceId: undefined,
       activeJournalEntryId: undefined,
@@ -166,6 +170,7 @@ export const useTutiStore = create<TutiState>()(
         }),
       setLocationPermissionStatus: (locationPermissionStatus) =>
         set({ locationPermissionStatus }),
+      setPreferredRegion: (preferredRegion) => set({ preferredRegion }),
       setActivePlace: (activeIndex, activePlaceId) =>
         set({ activeIndex, activePlaceId }),
       setActiveJournalEntry: (activeJournalEntryId) =>
@@ -296,6 +301,7 @@ export const useTutiStore = create<TutiState>()(
         answers: state.answers,
         entryRecord: state.entryRecord,
         locationConsent: state.locationConsent,
+        preferredRegion: state.preferredRegion,
         dailyCheckInSnoozedUntil: state.dailyCheckInSnoozedUntil,
         pendingDeparture: state.pendingDeparture,
         savedDeparturePlaces: state.savedDeparturePlaces,

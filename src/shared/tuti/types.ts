@@ -13,6 +13,11 @@ export type UserLocation = {
   longitude: number;
 };
 
+export type PreferredRegion = {
+  areaCode: string;
+  name: string;
+};
+
 export type LocationConsentStatus =
   | "accepted"
   | "declined"

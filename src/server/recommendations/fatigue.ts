@@ -13,6 +13,7 @@ import type {
 
 type MovementFatigueInput = Pick<
   TutiPlace,
+  | "name"
   | "fatigue"
   | "movementLevel"
   | "moodTags"
@@ -40,6 +41,13 @@ type ReasonCandidate = {
   detail: string;
   cardPhrase: string;
 };
+
+const collectionDefaultPhrases = new Set([
+  "잠깐 다른 공기를 만나기 좋은 곳",
+  "천천히 둘러보며 다른 감각을 만나는 곳",
+  "조금 더 길게 바깥의 흐름을 따라가는 날",
+  "몸을 움직이며 공기를 바꿔보고 싶은 날",
+]);
 
 const movementWeight: Record<MovementAnswer, number> = {
   near: 0,
@@ -273,11 +281,75 @@ function getRecommendationExplanation(
   return {
     headline: primary.headline,
     detail: primary.detail,
-    cardPhrase: primary.cardPhrase,
+    cardPhrase: createPlaceCharacterPhrase(place) ?? primary.cardPhrase,
     factors: secondary
       ? [primary.factor, secondary.factor]
       : [primary.factor],
   };
+}
+
+function createPlaceCharacterPhrase(place: MovementFatigueInput) {
+  const name = place.name.trim();
+
+  if (/도서관|책방|서점/.test(name)) {
+    return pickPhrase(name, [
+      "조용한 책장 사이에서 잠시 숨을 고르는 시간",
+      "말없이 한 페이지쯤 머물고 싶은 날",
+    ]);
+  }
+
+  if (/미술관|갤러리|전시|아트/.test(name)) {
+    return pickPhrase(name, [
+      "낯선 장면 앞에 잠시 멈추고 싶은 날",
+      "천천히 시선을 옮기며 공기를 바꾸는 시간",
+    ]);
+  }
+
+  if (/박물관|기념관|역사관|과학관/.test(name)) {
+    return pickPhrase(name, [
+      "천천히 이야기를 따라 걸어보고 싶은 날",
+      "익숙한 하루 밖의 이야기를 만나보는 시간",
+    ]);
+  }
+
+  if (/공원|정원|수목원|숲|휴양림/.test(name)) {
+    return pickPhrase(name, [
+      "바깥 공기를 천천히 걸어보고 싶은 날",
+      "나무 사이로 잠깐 시야를 돌리는 시간",
+    ]);
+  }
+
+  if (/바다|해변|해수욕장|호수|강|전망/.test(name)) {
+    return pickPhrase(name, [
+      "시야를 멀리 두고 잠시 머물고 싶은 날",
+      "탁 트인 쪽으로 공기를 바꾸러 가는 시간",
+    ]);
+  }
+
+  if (/시장|거리|골목|마을/.test(name)) {
+    return pickPhrase(name, [
+      "낯선 골목의 기척을 천천히 따라가는 날",
+      "사람 사는 풍경 속을 가볍게 걸어보는 시간",
+    ]);
+  }
+
+  if (/사찰|성당|교회|성지/.test(name)) {
+    return pickPhrase(name, [
+      "말이 적은 공간에서 잠시 머무는 시간",
+      "조용한 풍경 속에서 호흡을 고르는 날",
+    ]);
+  }
+
+  return null;
+}
+
+function pickPhrase(seed: string, phrases: readonly string[]) {
+  const index = Array.from(seed).reduce(
+    (total, character) => total + character.codePointAt(0)!,
+    0,
+  ) % phrases.length;
+
+  return phrases[index];
 }
 
 function createDistanceReason(
@@ -475,10 +547,7 @@ function createFallbackCardPhrase(place: MovementFatigueInput) {
 
 function preferEditorialPhrase(phrase: string, generatedPhrase: string) {
   const normalized = phrase.trim();
-  if (
-    normalized &&
-    normalized !== "잠깐 다른 공기를 만나기 좋은 곳"
-  ) {
+  if (normalized && !collectionDefaultPhrases.has(normalized)) {
     return normalized;
   }
 

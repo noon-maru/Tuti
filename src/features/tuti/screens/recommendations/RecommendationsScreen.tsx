@@ -669,7 +669,7 @@ export function RecommendationsScreen({
                   ? activeTravelTimeLabel
                   : locationAvailable
                     ? "이동 시간 확인"
-                    : "위치 없이 추천"
+                    : activeTravelTimeLabel
               }
               onActivate={() => activateCard(index)}
               drag={dragStart || committing ? dragOffset : undefined}

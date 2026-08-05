@@ -20,6 +20,7 @@ export type TutiPlace = {
   fatigue: number;
   movementLevel: "near" | "short" | "half";
   moodTags: string[];
+  sourceContentType?: string;
   crowdForecast?: CrowdForecast;
   distanceMeters?: number;
   fatigueScore?: number;

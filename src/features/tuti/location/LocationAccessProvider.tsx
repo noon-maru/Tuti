@@ -11,12 +11,14 @@ import {
   useState,
 } from "react";
 import { LocationConsentSheet } from "@/features/tuti/components/LocationConsentSheet";
+import { RegionPreferenceSheet } from "@/features/tuti/components/RegionPreferenceSheet";
 import {
   readLocationPermission,
   requestDeviceLocation,
   type LocationRequestResult,
 } from "@/features/tuti/location/locationAccess";
 import { LOCATION_TERMS_VERSION } from "@/shared/location/terms";
+import type { PreferredRegion } from "@/shared/tuti/types";
 import { useTutiStore } from "@/store/tuti";
 
 type LocationAccessContextValue = {
@@ -51,12 +53,18 @@ export function LocationAccessProvider({
   const setLocationPermissionStatus = useTutiStore(
     (state) => state.setLocationPermissionStatus,
   );
+  const preferredRegion = useTutiStore((state) => state.preferredRegion);
+  const setPreferredRegion = useTutiStore(
+    (state) => state.setPreferredRegion,
+  );
   const [consentSheetOpen, setConsentSheetOpen] = useState(false);
+  const [regionSheetOpen, setRegionSheetOpen] = useState(false);
   const [requesting, setRequesting] = useState(false);
   const requestPromiseRef = useRef<Promise<LocationRequestResult> | null>(null);
   const requestResolverRef = useRef<
     ((result: LocationRequestResult) => void) | null
   >(null);
+  const pendingLocationResultRef = useRef<LocationRequestResult | null>(null);
   const locationRef = useRef(userLocation);
   const consentRef = useRef(locationConsent);
 
@@ -106,6 +114,13 @@ export function LocationAccessProvider({
 
     setRequesting(false);
     setConsentSheetOpen(false);
+
+    if (result.status === "denied") {
+      pendingLocationResultRef.current = result;
+      setRegionSheetOpen(true);
+      return;
+    }
+
     finishRequest(result);
   }, [
     clearLocationQueries,
@@ -150,8 +165,24 @@ export function LocationAccessProvider({
     declineLocationConsent();
     clearLocationQueries();
     setConsentSheetOpen(false);
-    finishRequest({ status: "declined" });
-  }, [clearLocationQueries, declineLocationConsent, finishRequest]);
+    pendingLocationResultRef.current = { status: "declined" };
+    setRegionSheetOpen(true);
+  }, [clearLocationQueries, declineLocationConsent]);
+
+  const completeRegionPreference = useCallback(
+    (region?: PreferredRegion) => {
+      setPreferredRegion(region);
+      clearLocationQueries();
+      setRegionSheetOpen(false);
+
+      const result = pendingLocationResultRef.current ?? {
+        status: "declined" as const,
+      };
+      pendingLocationResultRef.current = null;
+      finishRequest(result);
+    },
+    [clearLocationQueries, finishRequest, setPreferredRegion],
+  );
 
   const agreeAndRequest = useCallback(() => {
     acceptLocationConsent();
@@ -176,6 +207,12 @@ export function LocationAccessProvider({
           requesting={requesting}
           onAgree={agreeAndRequest}
           onDecline={declineRequest}
+        />
+      )}
+      {regionSheetOpen && (
+        <RegionPreferenceSheet
+          initialRegion={preferredRegion}
+          onComplete={completeRegionPreference}
         />
       )}
     </LocationAccessContext.Provider>

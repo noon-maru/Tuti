@@ -45,6 +45,7 @@ export function RecommendationsFlow({ interactive }: { interactive: boolean }) {
     useState<SavedDeparturePlace | null>(null);
   const storedAnswers = useTutiStore((state) => state.answers);
   const userLocation = useTutiStore((state) => state.userLocation);
+  const preferredRegion = useTutiStore((state) => state.preferredRegion);
   const locationPermissionStatus = useTutiStore(
     (state) => state.locationPermissionStatus,
   );
@@ -147,7 +148,9 @@ export function RecommendationsFlow({ interactive }: { interactive: boolean }) {
     interactive && !dailyCheckInVisible && !returnCheckInVisible,
   );
   const activeTravelTimeLabel = !userLocation
-    ? "위치 없이 추천"
+    ? preferredRegion
+      ? `${getShortRegionName(preferredRegion.name)}에서 추천`
+      : "위치 없이 추천"
     : travelTimeQuery.isPending
       ? "이동 시간 계산 중"
       : travelTimeQuery.data
@@ -549,4 +552,13 @@ export function RecommendationsFlow({ interactive }: { interactive: boolean }) {
       )}
     </>
   );
+}
+
+function getShortRegionName(name: string) {
+  return name
+    .replace("특별자치도", "")
+    .replace("특별자치시", "")
+    .replace("특별시", "")
+    .replace("광역시", "")
+    .replace(/도$/, "");
 }

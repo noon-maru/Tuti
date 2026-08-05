@@ -35,14 +35,24 @@ import type {
   RecommendationRequest,
   RecommendationResponse,
 } from "@/shared/api/recommendations";
-import type { IntakeAnswers, UserLocation } from "@/shared/tuti/types";
+import type {
+  IntakeAnswers,
+  PreferredRegion,
+  UserLocation,
+} from "@/shared/tuti/types";
 
 export async function fetchRecommendations(
   answers: IntakeAnswers,
   location?: UserLocation,
   entryStatus?: RecommendationRequest["entryStatus"],
+  preferredRegion?: PreferredRegion,
 ): Promise<RecommendationResponse> {
-  const request: RecommendationRequest = { answers, location, entryStatus };
+  const request: RecommendationRequest = {
+    answers,
+    location,
+    entryStatus,
+    preferredRegion: location ? undefined : preferredRegion,
+  };
   const response = await fetchWithSession("recommendations", {
     method: "POST",
     headers: {

@@ -11,6 +11,7 @@ export function useTutiRecommendations({ enabled = true } = {}) {
   const storedAnswers = useTutiStore((state) => state.answers);
   const entryRecord = useTutiStore((state) => state.entryRecord);
   const userLocation = useTutiStore((state) => state.userLocation);
+  const preferredRegion = useTutiStore((state) => state.preferredRegion);
   const answers =
     isCurrentKoreanDate(entryRecord) && entryRecord?.status === "skipped"
       ? {}
@@ -21,11 +22,17 @@ export function useTutiRecommendations({ enabled = true } = {}) {
       "recommendations",
       answers,
       Boolean(userLocation),
+      userLocation ? null : preferredRegion?.areaCode,
       entryRecord?.effectiveDate,
       entryRecord?.status,
     ],
     queryFn: () =>
-      fetchRecommendations(answers, userLocation, entryRecord?.status),
+      fetchRecommendations(
+        answers,
+        userLocation,
+        entryRecord?.status,
+        preferredRegion,
+      ),
     enabled,
     staleTime: Infinity,
   });
@@ -36,6 +43,7 @@ export function useTutiRecommendations({ enabled = true } = {}) {
     places: data?.places ?? [],
     recommendationId: data?.recommendationId,
     userLocation,
+    preferredRegion,
     ...query,
   };
 }
