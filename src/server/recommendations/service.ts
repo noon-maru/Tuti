@@ -20,7 +20,7 @@ type PlaceRow = {
   distanceMeters?: number | null;
 };
 
-export const RECOMMENDATION_ALGORITHM_VERSION = "movement-fatigue-v1";
+export const RECOMMENDATION_ALGORITHM_VERSION = "movement-fatigue-v2";
 
 export async function createRecommendations(
   answers: IntakeAnswers,

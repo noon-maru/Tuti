@@ -693,6 +693,8 @@ function getFallbackDescription(place: TutiPlace) {
 }
 
 function createBurdenCopy(place: TutiPlace) {
+  if (place.reasonDetail) return place.reasonDetail;
+
   if (place.movementLevel === "near") {
     return "멀리 준비하지 않아도 닿을 수 있는 쪽으로 골랐어요.";
   }

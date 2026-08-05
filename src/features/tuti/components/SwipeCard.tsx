@@ -48,7 +48,7 @@ export function SwipeCard({
       <small aria-live={active ? "polite" : undefined}>
         {travelTimeLabel}
       </small>
-      <span>{place.phrase}</span>
+      <span>{place.cardPhrase ?? place.phrase}</span>
       {active && <em>눌러서 출발 준비</em>}
     </CardButton>
   );

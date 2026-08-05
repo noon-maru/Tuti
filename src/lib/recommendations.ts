@@ -24,7 +24,17 @@ export type TutiPlace = {
   distanceMeters?: number;
   fatigueScore?: number;
   reason?: string;
+  reasonDetail?: string;
+  reasonFactors?: RecommendationReasonFactor[];
+  cardPhrase?: string;
 };
+
+export type RecommendationReasonFactor =
+  | "distance"
+  | "crowd"
+  | "mood"
+  | "movement"
+  | "burden";
 
 export type CrowdForecastSource = "live" | "cached" | "typical";
 export type CrowdForecastProvider =

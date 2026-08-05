@@ -1,4 +1,9 @@
-import { interpretState, type StateFeature, type TutiPlace } from "@/lib/recommendations";
+import {
+  interpretState,
+  type RecommendationReasonFactor,
+  type StateFeature,
+  type TutiPlace,
+} from "@/lib/recommendations";
 import type {
   AirAnswer,
   DensityAnswer,
@@ -8,7 +13,13 @@ import type {
 
 type MovementFatigueInput = Pick<
   TutiPlace,
-  "fatigue" | "movementLevel" | "moodTags" | "crowd" | "distanceMeters"
+  | "fatigue"
+  | "movementLevel"
+  | "moodTags"
+  | "phrase"
+  | "crowd"
+  | "crowdForecast"
+  | "distanceMeters"
 >;
 
 type FatigueBreakdown = {
@@ -18,6 +29,16 @@ type FatigueBreakdown = {
   moodAdjustment: number;
   crowdPenalty: number;
   energyPenalty: number;
+};
+
+type CrowdLevel = "low" | "medium" | "high" | "unknown";
+
+type ReasonCandidate = {
+  factor: RecommendationReasonFactor;
+  score: number;
+  headline: string;
+  detail: string;
+  cardPhrase: string;
 };
 
 const movementWeight: Record<MovementAnswer, number> = {
@@ -42,11 +63,20 @@ export function rankByMovementFatigue(
     .map((place) => {
       const breakdown = calculateMovementFatigue(place, answers, feature);
       const fatigueScore = scoreBreakdown(breakdown);
+      const explanation = getRecommendationExplanation(
+        place,
+        answers,
+        breakdown,
+        feature,
+      );
 
       return {
         ...place,
         fatigueScore,
-        reason: getRecommendationReason(place, answers, breakdown, feature),
+        reason: explanation.headline,
+        reasonDetail: explanation.detail,
+        reasonFactors: explanation.factors,
+        cardPhrase: preferEditorialPhrase(place.phrase, explanation.cardPhrase),
       };
     })
     .sort((a, b) => a.fatigueScore - b.fatigueScore || a.fatigue - b.fatigue)
@@ -76,7 +106,12 @@ export function calculateMovementFatigue(
           ? -6
           : -2,
     moodAdjustment: hasMoodMatch ? -12 : moodTag ? 6 : 0,
-    crowdPenalty: getCrowdPenalty(place.crowd, density, place.moodTags),
+    crowdPenalty: getCrowdPenalty(
+      place.crowd,
+      density,
+      place.moodTags,
+      place.crowdForecast?.level,
+    ),
     energyPenalty:
       feature.energy === "low" && place.fatigue > 38
         ? 12
@@ -102,11 +137,15 @@ function getCrowdPenalty(
   crowd: string,
   density: DensityAnswer,
   moodTags: string[],
+  forecastLevel?: Exclude<CrowdLevel, "unknown">,
 ) {
-  const crowdLevel = normalizeCrowd(crowd);
+  const crowdLevel = normalizeCrowd(crowd, forecastLevel);
+
+  if (crowdLevel === "unknown") return 0;
 
   if (density === "quiet" && moodTags.includes("solitude")) {
-    return crowdLevel === "low" ? -8 : -4;
+    if (crowdLevel === "low") return -8;
+    return crowdLevel === "medium" ? 4 : 12;
   }
 
   if (density === "quiet") {
@@ -155,51 +194,303 @@ function getPhysicalDistanceScore(
   return 18;
 }
 
-function normalizeCrowd(crowd: string): "low" | "medium" | "high" {
-  if (crowd.includes("낮") || crowd.toLowerCase().includes("low")) {
+function normalizeCrowd(
+  crowd: string,
+  forecastLevel?: Exclude<CrowdLevel, "unknown">,
+): CrowdLevel {
+  if (forecastLevel) return forecastLevel;
+
+  const normalized = crowd.trim().toLowerCase();
+
+  if (
+    !normalized ||
+    /정보\s*없음|확인\s*(필요|중)|미확인|알\s*수\s*없/.test(normalized)
+  ) {
+    return "unknown";
+  }
+
+  if (
+    crowd.includes("낮") ||
+    crowd.includes("여유") ||
+    normalized.includes("low")
+  ) {
     return "low";
   }
 
-  if (crowd.includes("높") || crowd.includes("많") || crowd.toLowerCase().includes("high")) {
+  if (
+    crowd.includes("높") ||
+    crowd.includes("많") ||
+    crowd.includes("붐") ||
+    crowd.includes("혼잡") ||
+    normalized.includes("high")
+  ) {
     return "high";
   }
 
-  return "medium";
+  if (
+    crowd.includes("보통") ||
+    crowd.includes("약간") ||
+    normalized.includes("medium")
+  ) {
+    return "medium";
+  }
+
+  return "unknown";
 }
 
-function getRecommendationReason(
+function getRecommendationExplanation(
   place: MovementFatigueInput,
   answers: IntakeAnswers,
   breakdown: FatigueBreakdown,
   feature: StateFeature,
 ) {
+  const candidates = [
+    createDistanceReason(place, answers, feature),
+    createCrowdReason(place, answers, breakdown),
+    createMoodReason(place, answers, breakdown),
+    createMovementReason(place, answers, feature, breakdown),
+    createBurdenReason(place),
+  ].filter((candidate): candidate is ReasonCandidate => candidate !== null);
+
+  candidates.sort(
+    (a, b) =>
+      b.score - a.score || reasonPriority(a.factor) - reasonPriority(b.factor),
+  );
+
+  const primary = candidates[0] ?? {
+    factor: "burden" as const,
+    score: 0,
+    headline: feature.burdenNote,
+    detail: "오늘 답한 상태 안에서 준비와 이동 부담을 함께 낮췄어요.",
+    cardPhrase: createFallbackCardPhrase(place),
+  };
+  const secondary = candidates.find(
+    (candidate) =>
+      candidate.factor !== primary.factor &&
+      primary.score - candidate.score <= 5,
+  );
+
+  return {
+    headline: primary.headline,
+    detail: primary.detail,
+    cardPhrase: primary.cardPhrase,
+    factors: secondary
+      ? [primary.factor, secondary.factor]
+      : [primary.factor],
+  };
+}
+
+function createDistanceReason(
+  place: MovementFatigueInput,
+  answers: IntakeAnswers,
+  feature: StateFeature,
+): ReasonCandidate | null {
+  if (place.distanceMeters === undefined) return null;
+
+  const preferredDistance = {
+    near: 3_000,
+    short: 8_000,
+    half: 25_000,
+  }[feature.movement];
+  const ratio = place.distanceMeters / preferredDistance;
+  if (ratio > 1) return null;
+
+  return {
+    factor: "distance",
+    score: 28 + Math.round((1 - ratio) * 10),
+    headline:
+      place.distanceMeters <= 1_200
+        ? "지금 위치에서 큰 이동 없이 닿을 수 있어요."
+        : ratio <= 0.6
+          ? "지금 위치에서 이동 부담이 낮은 쪽이에요."
+          : answers.movement
+            ? "오늘 정한 이동 범위 안에서 닿을 수 있어요."
+            : "지금 위치에서 무리하지 않고 닿을 수 있는 범위예요.",
+    detail: "도착하기 전부터 지치지 않도록 실제 이동 거리를 먼저 살폈어요.",
+    cardPhrase:
+      place.distanceMeters <= 1_200
+        ? "오늘은 이 정도 거리면 충분할지도"
+        : ratio <= 0.6
+          ? "가까운 곳에서 잠깐 숨을 돌리고 싶은 날"
+          : "오늘 닿을 수 있는 만큼만 다녀오는 날",
+  };
+}
+
+function createCrowdReason(
+  place: MovementFatigueInput,
+  answers: IntakeAnswers,
+  breakdown: FatigueBreakdown,
+): ReasonCandidate | null {
+  const crowdLevel = normalizeCrowd(
+    place.crowd,
+    place.crowdForecast?.level,
+  );
+  if (crowdLevel === "unknown" || breakdown.crowdPenalty >= 0) return null;
+
+  const sourceBonus =
+    place.crowdForecast?.source === "live"
+      ? 5
+      : place.crowdForecast?.source === "cached"
+        ? 3
+        : place.crowdForecast?.source === "typical"
+          ? 1
+          : 0;
+  const detail =
+    place.crowdForecast?.source === "live"
+      ? "이동 부담과 지금 확인되는 혼잡도를 함께 살폈어요."
+      : place.crowdForecast?.source === "cached"
+        ? "이동 부담과 최근 확인된 혼잡도를 함께 살폈어요."
+        : place.crowdForecast?.source === "typical"
+          ? "이동 부담과 평소 같은 요일의 예상 혼잡도를 함께 살폈어요."
+          : "장소의 평소 혼잡 성격과 이동 부담을 함께 살폈어요.";
+
+  return {
+    factor: "crowd",
+    score: 28 + Math.abs(breakdown.crowdPenalty) + sourceBonus,
+    headline:
+      answers.density === "quiet"
+        ? "지금은 비교적 한적하게 머물 수 있는 쪽이에요."
+        : answers.density === "lively"
+          ? "사람들의 기척이 적당히 느껴지는 곳이에요."
+          : "너무 조용하거나 붐비지 않는 쪽이에요.",
+    detail,
+    cardPhrase:
+      answers.density === "quiet"
+        ? "말하지 않고 머물러도 자연스러운 곳"
+        : answers.density === "lively"
+          ? "사람들 사이의 가벼운 온기가 필요한 날"
+          : "적당한 기척 속에 잠시 머물기 좋은 곳",
+  };
+}
+
+function createMoodReason(
+  place: MovementFatigueInput,
+  answers: IntakeAnswers,
+  breakdown: FatigueBreakdown,
+): ReasonCandidate | null {
   const moodTag = answers.air ? moodTagByAir[answers.air] : undefined;
-
-  if (feature.energy === "low" && place.movementLevel === "near") {
-    return "오늘은 가까운 쪽으로만 골랐어요.";
+  if (!moodTag || breakdown.moodAdjustment >= 0) return null;
+  if (
+    answers.air === "quiet" &&
+    normalizeCrowd(place.crowd, place.crowdForecast?.level) === "high"
+  ) {
+    return null;
   }
 
-  if (breakdown.physicalDistance < 0) {
-    return "지금 위치에서 부담이 낮은 쪽이에요.";
+  return {
+    factor: "mood",
+    score: 30 + Math.abs(breakdown.moodAdjustment) / 2,
+    headline:
+      answers.air === "open"
+        ? "시야가 트인 공기를 만나기 좋은 쪽이에요."
+        : answers.air === "walk"
+          ? "천천히 걸으며 공기를 바꾸기 좋은 쪽이에요."
+          : "말이 적은 공기 속에 머물기 좋은 쪽이에요.",
+    detail: "오늘 원하는 공기와 장소의 성격이 맞는지를 먼저 살폈어요.",
+    cardPhrase:
+      answers.air === "open"
+        ? "시야만 조금 멀어져도 괜찮은 날"
+        : answers.air === "walk"
+          ? "천천히 걷다 보면 공기가 달라지는 곳"
+          : "조용한 공기 쪽으로 마음이 가는 날",
+  };
+}
+
+function createMovementReason(
+  place: MovementFatigueInput,
+  answers: IntakeAnswers,
+  feature: StateFeature,
+  breakdown: FatigueBreakdown,
+): ReasonCandidate | null {
+  if (!answers.movement || breakdown.movementPenalty >= 0) return null;
+
+  return {
+    factor: "movement",
+    score:
+      20 + Math.abs(breakdown.movementPenalty) +
+      (feature.energy === "low" ? 3 : 0),
+    headline:
+      place.movementLevel === "near"
+        ? "오늘은 가까운 범위 안에서 골랐어요."
+        : place.movementLevel === "half"
+          ? "반나절 안에서 천천히 다녀올 수 있어요."
+          : "짧게 다녀오기 좋은 움직임으로 골랐어요.",
+    detail: "오늘 답한 이동 범위를 넘지 않도록 필요한 움직임을 맞췄어요.",
+    cardPhrase:
+      place.movementLevel === "near"
+        ? "오늘은 가까운 곳이면 충분할지도"
+        : place.movementLevel === "half"
+          ? "조금 여유를 내어 오래 머물고 싶은 날"
+          : "잠깐 다녀오는 것만으로 충분한 날",
+  };
+}
+
+function createBurdenReason(
+  place: MovementFatigueInput,
+): ReasonCandidate | null {
+  const highCrowd =
+    normalizeCrowd(place.crowd, place.crowdForecast?.level) === "high";
+  const headline = !highCrowd && place.moodTags.includes("solitude")
+    ? "혼자 머물러도 자연스러운 성격의 공간이에요."
+    : !highCrowd && place.moodTags.includes("quiet")
+      ? "조용히 머물 수 있는 성격의 공간이에요."
+      : place.moodTags.includes("walk")
+        ? "천천히 걸으며 둘러보기 좋은 공간이에요."
+        : place.moodTags.includes("open")
+          ? "잠깐 시야를 바꾸기 좋은 성격의 공간이에요."
+          : null;
+
+  if (!headline) return null;
+
+  return {
+    factor: "burden",
+    score: 14 + Math.max(0, 40 - place.fatigue) / 4,
+    headline,
+    detail: "장소 유형과 필요한 움직임을 기준으로 부담이 낮은 쪽을 골랐어요.",
+    cardPhrase: createFallbackCardPhrase(place),
+  };
+}
+
+function createFallbackCardPhrase(place: MovementFatigueInput) {
+  if (place.moodTags.includes("solitude")) {
+    return "혼자 머물러도 자연스러운 곳";
+  }
+  if (place.moodTags.includes("quiet")) {
+    return "조용한 공기 속에 오래 머물고 싶은 날";
+  }
+  if (
+    place.moodTags.includes("walk") &&
+    place.moodTags.includes("open")
+  ) {
+    return "시야를 열어두고 천천히 걷는 시간";
+  }
+  if (place.moodTags.includes("walk")) {
+    return "목적지보다 걷는 시간이 필요한 날";
+  }
+  if (place.moodTags.includes("open")) {
+    return "시야만 조금 멀어져도 괜찮은 날";
+  }
+  return "같은 공기만 아니면 되는 날";
+}
+
+function preferEditorialPhrase(phrase: string, generatedPhrase: string) {
+  const normalized = phrase.trim();
+  if (
+    normalized &&
+    normalized !== "잠깐 다른 공기를 만나기 좋은 곳"
+  ) {
+    return normalized;
   }
 
-  if (answers.density === "quiet" && breakdown.crowdPenalty < 0) {
-    return "혼자 있어도 덜 신경 쓰이는 곳이에요.";
-  }
+  return generatedPhrase;
+}
 
-  if (answers.density === "lively" && breakdown.crowdPenalty < 0) {
-    return "사람들의 온기가 가볍게 느껴지는 곳이에요.";
-  }
-
-  if (moodTag && place.moodTags.includes(moodTag)) {
-    if (answers.air === "open") return "시야가 트인 곳부터 놓아둘게요.";
-    if (answers.air === "walk") return "천천히 걸어도 되는 쪽이에요.";
-    return "말이 적은 공기부터 골랐어요.";
-  }
-
-  if (breakdown.movementPenalty > 0) {
-    return "조금 멀 수 있어서 천천히 봐도 괜찮아요.";
-  }
-
-  return feature.burdenNote;
+function reasonPriority(factor: RecommendationReasonFactor) {
+  return {
+    crowd: 0,
+    distance: 1,
+    mood: 2,
+    movement: 3,
+    burden: 4,
+  }[factor];
 }
