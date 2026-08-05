@@ -9,6 +9,11 @@ export type TourApiPlaceDetailPayload = {
   images: TourApiDetailItem[];
 };
 
+export type TourApiPlaceEditorialPayload = Pick<
+  TourApiPlaceDetailPayload,
+  "common" | "intro"
+>;
+
 type FetchTourApiPlaceDetailInput = {
   contentId: string;
   contentTypeId: string | null;
@@ -63,5 +68,33 @@ export async function fetchTourApiPlaceDetail({
     intro: intro.items[0] ?? null,
     info: info.items,
     images: images.items,
+  };
+}
+
+export async function fetchTourApiPlaceEditorial({
+  contentId,
+  contentTypeId,
+}: FetchTourApiPlaceDetailInput): Promise<TourApiPlaceEditorialPayload> {
+  const pageParameters = {
+    pageNo: "1",
+    numOfRows: "100",
+  };
+  const [common, intro] = await Promise.all([
+    fetchTourApiPage<TourApiDetailItem>("detailCommon2", {
+      ...pageParameters,
+      contentId,
+    }),
+    contentTypeId
+      ? fetchTourApiPage<TourApiDetailItem>("detailIntro2", {
+          ...pageParameters,
+          contentId,
+          contentTypeId,
+        })
+      : Promise.resolve({ items: [] }),
+  ]);
+
+  return {
+    common: common.items[0] ?? null,
+    intro: intro.items[0] ?? null,
   };
 }

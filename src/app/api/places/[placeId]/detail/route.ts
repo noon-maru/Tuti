@@ -30,7 +30,12 @@ export async function GET(
       where: {
         id: placeId,
         isActive: true,
-        reviewStatus: "approved",
+        reviewStatus: { not: "rejected" },
+        OR: [
+          { reviewStatus: "approved" },
+          { candidateOverride: "include" },
+          { candidateOverride: "auto", candidateStatus: "selected" },
+        ],
       },
       select: {
         id: true,

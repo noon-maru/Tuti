@@ -76,6 +76,8 @@ async function ensureTourismPlaceDetailOnce(
         infoPayload: toJsonValue(payload.info),
         imagePayload: toJsonValue(payload.images),
         sourceModifiedAt: source.sourceModifiedAt,
+        editorialSyncedAt: syncedAt,
+        editorialAttemptAt: syncedAt,
         syncedAt,
         lastAttemptAt: syncedAt,
       },
@@ -87,6 +89,10 @@ async function ensureTourismPlaceDetailOnce(
         infoPayload: toJsonValue(payload.info),
         imagePayload: toJsonValue(payload.images),
         sourceModifiedAt: source.sourceModifiedAt,
+        editorialSyncedAt: syncedAt,
+        editorialAttemptAt: syncedAt,
+        editorialRetryAfter: null,
+        editorialLastError: null,
         syncedAt,
         lastAttemptAt: syncedAt,
         retryAfter: null,
@@ -142,7 +148,7 @@ function isFresh(
   );
 }
 
-function normalizeTourApiPlaceDetail(payload: TourApiPlaceDetailPayload) {
+export function normalizeTourApiPlaceDetail(payload: TourApiPlaceDetailPayload) {
   const common = payload.common ?? {};
   const intro = payload.intro ?? {};
 
@@ -345,7 +351,7 @@ function decodeHtml(value: string) {
     .replace(/&gt;/gi, ">");
 }
 
-function toJsonValue(value: unknown) {
+export function toJsonValue(value: unknown) {
   return value === null ? undefined : (value as Prisma.InputJsonValue);
 }
 

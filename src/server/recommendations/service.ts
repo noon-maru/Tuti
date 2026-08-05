@@ -3,6 +3,7 @@ import { prisma } from "@/server/db/prisma";
 import { interpretStateWithLlm } from "@/server/llm/stateInterpreter";
 import { rankByMovementFatigue } from "@/server/recommendations/fatigue";
 import { enrichPlacesWithCrowdForecast } from "@/server/recommendations/crowdForecast";
+import { recommendablePlaceWhere } from "@/server/recommendations/recommendablePlaceWhere";
 import type { IntakeAnswers, UserLocation } from "@/shared/tuti/types";
 
 type PlaceRow = {
@@ -45,11 +46,7 @@ export async function createRecommendations(
 
 async function findPlacesByBaseFatigue(): Promise<PlaceRow[]> {
   return prisma.place.findMany({
-    where: {
-      source: "tourapi",
-      isActive: true,
-      reviewStatus: "approved",
-    },
+    where: recommendablePlaceWhere,
     orderBy: [{ fatigue: "asc" }, { id: "asc" }],
     select: {
       id: true,
@@ -91,7 +88,14 @@ async function findPlacesNearLocation(location: UserLocation): Promise<PlaceRow[
     WHERE
       "is_active" = true
       AND "source" = 'tourapi'
-      AND "review_status" = 'approved'::"PlaceReviewStatus"
+      AND "review_status" <> 'rejected'::"PlaceReviewStatus"
+      AND (
+        "candidate_override" = 'include'::"PlaceCandidateOverride"
+        OR (
+          "candidate_override" = 'auto'::"PlaceCandidateOverride"
+          AND "candidate_status" = 'selected'::"PlaceCandidateStatus"
+        )
+      )
     ORDER BY
       "location" <-> ST_SetSRID(ST_MakePoint(${longitude}, ${latitude}), 4326),
       "fatigue" ASC,

@@ -266,6 +266,16 @@ export async function PATCH(request: Request) {
       data: {
         ...(reviewStatus ? { reviewStatus } : {}),
         ...(hasActiveValue ? { isActive: body.isActive as boolean } : {}),
+        ...((reviewStatus || hasActiveValue)
+          ? {
+              candidateOverride:
+                reviewStatus === "rejected" || body.isActive === false
+                  ? ("exclude" as const)
+                  : reviewStatus === "approved" || body.isActive === true
+                    ? ("include" as const)
+                    : ("auto" as const),
+            }
+          : {}),
         ...(editorial ?? {}),
       },
       select: {
@@ -342,6 +352,12 @@ export async function POST(request: Request) {
       data: {
         reviewStatus,
         isActive: reviewStatus === "approved",
+        candidateOverride:
+          reviewStatus === "approved"
+            ? "include"
+            : reviewStatus === "rejected"
+              ? "exclude"
+              : "auto",
       },
     });
 

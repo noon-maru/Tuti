@@ -31,6 +31,20 @@ enum PlaceReviewStatus {
   rejected
 }
 
+enum PlaceCandidateStatus {
+  selected
+  enrich
+  pending
+  low_burden_mismatch
+  invalid
+}
+
+enum PlaceCandidateOverride {
+  auto
+  include
+  exclude
+}
+
 enum LogLevel {
   info
   warning
@@ -81,63 +95,72 @@ enum RecommendationActionType {
 }
 
 model Place {
-  id                  String                                @id
-  name                String
-  phrase              String
-  note                String
-  image               String
-  travelTime          String                                @map("travel_time")
-  crowd               String
-  today               String
-  fatigue             Int
-  movementLevel       MovementLevel                         @map("movement_level")
-  moodTags            String[]                              @map("mood_tags")
-  latitude            Decimal                               @db.Decimal(9, 6)
-  longitude           Decimal                               @db.Decimal(9, 6)
-  location            Unsupported("geometry(Point, 4326)")?
-  source              String                                @default("manual")
-  sourceId            String?                               @map("source_id")
-  sourceContentType   String?                               @map("source_content_type")
-  sourceAddress       String?                               @map("source_address")
-  sourceAreaCode      String?                               @map("source_area_code")
-  sourceSidoName      String?                               @map("source_sido_name")
-  sourceSigunguCode   String?                               @map("source_sigungu_code")
-  sourceSigunguName   String?                               @map("source_sigungu_name")
-  sourceCopyright     String?                               @map("source_copyright")
-  sourceModifiedAt    DateTime?                             @map("source_modified_at")
-  sourceSyncedAt      DateTime?                             @map("source_synced_at")
-  reviewStatus        PlaceReviewStatus                     @default(approved) @map("review_status")
-  isActive            Boolean                               @default(true) @map("is_active")
-  createdAt           DateTime                              @default(now()) @map("created_at")
-  updatedAt           DateTime                              @updatedAt @map("updated_at")
-  tourismSourceRecord TourismPlaceSourceRecord?
-  seoulRealtimeAreaLink PlaceSeoulRealtimeArea?
-  journalEntries      JournalEntry[]
-  recommendationActions RecommendationAction[]
+  id                        String                                @id
+  name                      String
+  phrase                    String
+  note                      String
+  image                     String
+  travelTime                String                                @map("travel_time")
+  crowd                     String
+  today                     String
+  fatigue                   Int
+  movementLevel             MovementLevel                         @map("movement_level")
+  moodTags                  String[]                              @map("mood_tags")
+  latitude                  Decimal                               @db.Decimal(9, 6)
+  longitude                 Decimal                               @db.Decimal(9, 6)
+  location                  Unsupported("geometry(Point, 4326)")?
+  source                    String                                @default("manual")
+  sourceId                  String?                               @map("source_id")
+  sourceContentType         String?                               @map("source_content_type")
+  sourceAddress             String?                               @map("source_address")
+  sourceAreaCode            String?                               @map("source_area_code")
+  sourceSidoName            String?                               @map("source_sido_name")
+  sourceSigunguCode         String?                               @map("source_sigungu_code")
+  sourceSigunguName         String?                               @map("source_sigungu_name")
+  sourceCopyright           String?                               @map("source_copyright")
+  sourceModifiedAt          DateTime?                             @map("source_modified_at")
+  sourceSyncedAt            DateTime?                             @map("source_synced_at")
+  reviewStatus              PlaceReviewStatus                     @default(approved) @map("review_status")
+  isActive                  Boolean                               @default(true) @map("is_active")
+  candidateStatus           PlaceCandidateStatus?                 @map("candidate_status")
+  candidateScore            Int?                                  @map("candidate_score")
+  candidateSections         Json?                                 @map("candidate_sections")
+  candidateReasons          String[]                              @default([]) @map("candidate_reasons")
+  candidateExclusions       String[]                              @default([]) @map("candidate_exclusions")
+  candidateEvaluatedAt      DateTime?                             @map("candidate_evaluated_at")
+  candidateAlgorithmVersion String?                               @map("candidate_algorithm_version")
+  candidateOverride         PlaceCandidateOverride                @default(auto) @map("candidate_override")
+  createdAt                 DateTime                              @default(now()) @map("created_at")
+  updatedAt                 DateTime                              @updatedAt @map("updated_at")
+  tourismSourceRecord       TourismPlaceSourceRecord?
+  seoulRealtimeAreaLink     PlaceSeoulRealtimeArea?
+  journalEntries            JournalEntry[]
+  recommendationActions     RecommendationAction[]
 
   @@unique([source, sourceId])
   @@index([fatigue])
   @@index([movementLevel])
   @@index([source, reviewStatus, isActive])
   @@index([source, sourceContentType, reviewStatus])
+  @@index([source, candidateStatus, candidateOverride])
   @@map("places")
 }
 
 model TourismPlaceSourceRecord {
-  contentId        String    @id @map("content_id")
-  contentTypeId    String?   @map("content_type_id")
+  contentId        String                    @id @map("content_id")
+  contentTypeId    String?                   @map("content_type_id")
   title            String
-  areaCode         String?   @map("area_code")
-  sidoName         String?   @map("sido_name")
-  sigunguCode      String?   @map("sigungu_code")
-  sigunguName      String?   @map("sigungu_name")
-  rawPayload       Json      @map("raw_payload")
-  linkedPlaceId    String?   @unique @map("linked_place_id")
-  sourceModifiedAt DateTime? @map("source_modified_at")
-  syncedAt         DateTime  @map("synced_at")
-  createdAt        DateTime  @default(now()) @map("created_at")
-  updatedAt        DateTime  @updatedAt @map("updated_at")
-  linkedPlace      Place?    @relation(fields: [linkedPlaceId], references: [id], onDelete: SetNull)
+  areaCode         String?                   @map("area_code")
+  sidoName         String?                   @map("sido_name")
+  sigunguCode      String?                   @map("sigungu_code")
+  sigunguName      String?                   @map("sigungu_name")
+  rawPayload       Json                      @map("raw_payload")
+  linkedPlaceId    String?                   @unique @map("linked_place_id")
+  sourceModifiedAt DateTime?                 @map("source_modified_at")
+  syncedAt         DateTime                  @map("synced_at")
+  createdAt        DateTime                  @default(now()) @map("created_at")
+  updatedAt        DateTime                  @updatedAt @map("updated_at")
+  linkedPlace      Place?                    @relation(fields: [linkedPlaceId], references: [id], onDelete: SetNull)
   detailRecord     TourismPlaceDetailRecord?
 
   @@index([contentTypeId, syncedAt])
@@ -147,32 +170,38 @@ model TourismPlaceSourceRecord {
 }
 
 model TourismPlaceDetailRecord {
-  contentId          String    @id @map("content_id")
-  contentTypeId      String?   @map("content_type_id")
-  overview           String?
-  homepage           String?
-  phone              String?
-  openingHours       String?   @map("opening_hours")
-  restDate           String?   @map("rest_date")
-  admissionFee       String?   @map("admission_fee")
-  parking            String?
-  reservation        String?
-  usageDuration      String?   @map("usage_duration")
-  experienceGuide    String?   @map("experience_guide")
-  commonPayload      Json?     @map("common_payload")
-  introPayload       Json?     @map("intro_payload")
-  infoPayload        Json?     @map("info_payload")
-  imagePayload       Json?     @map("image_payload")
-  sourceModifiedAt   DateTime? @map("source_modified_at")
-  syncedAt           DateTime? @map("synced_at")
-  lastAttemptAt      DateTime? @map("last_attempt_at")
-  retryAfter         DateTime? @map("retry_after")
-  lastError          String?   @map("last_error")
-  createdAt          DateTime  @default(now()) @map("created_at")
-  updatedAt          DateTime  @updatedAt @map("updated_at")
-  sourceRecord       TourismPlaceSourceRecord @relation(fields: [contentId], references: [contentId], onDelete: Cascade)
+  contentId           String                   @id @map("content_id")
+  contentTypeId       String?                  @map("content_type_id")
+  overview            String?
+  homepage            String?
+  phone               String?
+  openingHours        String?                  @map("opening_hours")
+  restDate            String?                  @map("rest_date")
+  admissionFee        String?                  @map("admission_fee")
+  parking             String?
+  reservation         String?
+  usageDuration       String?                  @map("usage_duration")
+  experienceGuide     String?                  @map("experience_guide")
+  commonPayload       Json?                    @map("common_payload")
+  introPayload        Json?                    @map("intro_payload")
+  infoPayload         Json?                    @map("info_payload")
+  imagePayload        Json?                    @map("image_payload")
+  sourceModifiedAt    DateTime?                @map("source_modified_at")
+  editorialSyncedAt   DateTime?                @map("editorial_synced_at")
+  editorialAttemptAt  DateTime?                @map("editorial_attempt_at")
+  editorialRetryAfter DateTime?                @map("editorial_retry_after")
+  editorialLastError  String?                  @map("editorial_last_error")
+  syncedAt            DateTime?                @map("synced_at")
+  lastAttemptAt       DateTime?                @map("last_attempt_at")
+  retryAfter          DateTime?                @map("retry_after")
+  lastError           String?                  @map("last_error")
+  createdAt           DateTime                 @default(now()) @map("created_at")
+  updatedAt           DateTime                 @updatedAt @map("updated_at")
+  sourceRecord        TourismPlaceSourceRecord @relation(fields: [contentId], references: [contentId], onDelete: Cascade)
 
   @@index([retryAfter])
+  @@index([editorialRetryAfter])
+  @@index([editorialSyncedAt])
   @@index([syncedAt])
   @@map("tourism_place_detail_records")
 }
@@ -244,14 +273,14 @@ model TouristSpotConcentrationRateRecord {
 }
 
 model SeoulRealtimeArea {
-  areaCode       String                              @id @map("area_code")
-  areaName       String                              @map("area_name")
-  category       String
-  geometry       Unsupported("geometry(MultiPolygon, 4326)")
-  sourceSyncedAt DateTime                            @map("source_synced_at")
-  createdAt      DateTime                            @default(now()) @map("created_at")
-  updatedAt      DateTime                            @updatedAt @map("updated_at")
-  placeLinks     PlaceSeoulRealtimeArea[]
+  areaCode        String                                      @id @map("area_code")
+  areaName        String                                      @map("area_name")
+  category        String
+  geometry        Unsupported("geometry(MultiPolygon, 4326)")
+  sourceSyncedAt  DateTime                                    @map("source_synced_at")
+  createdAt       DateTime                                    @default(now()) @map("created_at")
+  updatedAt       DateTime                                    @updatedAt @map("updated_at")
+  placeLinks      PlaceSeoulRealtimeArea[]
   populationCache SeoulRealtimePopulationCache?
 
   @@index([category])
@@ -259,32 +288,32 @@ model SeoulRealtimeArea {
 }
 
 model PlaceSeoulRealtimeArea {
-  placeId      String             @id @map("place_id")
-  areaCode     String             @map("area_code")
-  matchMethod  String             @default("contains") @map("match_method")
-  confidence   Decimal            @default(1) @db.Decimal(4, 3)
-  linkedAt     DateTime           @default(now()) @map("linked_at")
-  updatedAt    DateTime           @updatedAt @map("updated_at")
-  place        Place              @relation(fields: [placeId], references: [id], onDelete: Cascade)
-  area         SeoulRealtimeArea  @relation(fields: [areaCode], references: [areaCode], onDelete: Cascade)
+  placeId     String            @id @map("place_id")
+  areaCode    String            @map("area_code")
+  matchMethod String            @default("contains") @map("match_method")
+  confidence  Decimal           @default(1) @db.Decimal(4, 3)
+  linkedAt    DateTime          @default(now()) @map("linked_at")
+  updatedAt   DateTime          @updatedAt @map("updated_at")
+  place       Place             @relation(fields: [placeId], references: [id], onDelete: Cascade)
+  area        SeoulRealtimeArea @relation(fields: [areaCode], references: [areaCode], onDelete: Cascade)
 
   @@index([areaCode])
   @@map("place_seoul_realtime_areas")
 }
 
 model SeoulRealtimePopulationCache {
-  areaCode           String             @id @map("area_code")
-  areaName           String             @map("area_name")
-  congestionLevel    String             @map("congestion_level")
-  congestionMessage  String?            @map("congestion_message")
-  populationMin      Int?               @map("population_min")
-  populationMax      Int?               @map("population_max")
-  observedAt         DateTime           @map("observed_at")
-  forecastPayload    Json?              @map("forecast_payload")
-  rawPayload         Json               @map("raw_payload")
-  fetchedAt          DateTime           @map("fetched_at")
-  expiresAt          DateTime           @map("expires_at")
-  area               SeoulRealtimeArea  @relation(fields: [areaCode], references: [areaCode], onDelete: Cascade)
+  areaCode          String            @id @map("area_code")
+  areaName          String            @map("area_name")
+  congestionLevel   String            @map("congestion_level")
+  congestionMessage String?           @map("congestion_message")
+  populationMin     Int?              @map("population_min")
+  populationMax     Int?              @map("population_max")
+  observedAt        DateTime          @map("observed_at")
+  forecastPayload   Json?             @map("forecast_payload")
+  rawPayload        Json              @map("raw_payload")
+  fetchedAt         DateTime          @map("fetched_at")
+  expiresAt         DateTime          @map("expires_at")
+  area              SeoulRealtimeArea @relation(fields: [areaCode], references: [areaCode], onDelete: Cascade)
 
   @@index([expiresAt])
   @@map("seoul_realtime_population_cache")
@@ -420,17 +449,17 @@ model JournalShareTrace {
 }
 
 model User {
-  id                  String               @id
-  tokenHash           String               @unique @map("token_hash")
-  role                UserRole             @default(user)
-  createdAt           DateTime             @default(now()) @map("created_at")
-  updatedAt           DateTime             @updatedAt @map("updated_at")
-  authIdentities      AuthIdentity[]
-  journalEntries      JournalEntry[]
-  oauthAuthorizations OAuthAuthorization[]
-  sessions            UserSession[]
+  id                    String                 @id
+  tokenHash             String                 @unique @map("token_hash")
+  role                  UserRole               @default(user)
+  createdAt             DateTime               @default(now()) @map("created_at")
+  updatedAt             DateTime               @updatedAt @map("updated_at")
+  authIdentities        AuthIdentity[]
+  journalEntries        JournalEntry[]
+  oauthAuthorizations   OAuthAuthorization[]
+  sessions              UserSession[]
   recommendationActions RecommendationAction[]
-  recommendationRuns  RecommendationRun[]
+  recommendationRuns    RecommendationRun[]
 
   @@map("users")
 }
@@ -455,16 +484,16 @@ model RecommendationRun {
 }
 
 model RecommendationAction {
-  id          String                   @id
-  journeyId   String                   @map("journey_id")
-  userId      String                   @map("user_id")
-  placeId     String?                  @map("place_id")
-  action      RecommendationActionType
-  routeMode   String?                  @map("route_mode")
-  metadata    Json?
-  createdAt   DateTime                 @default(now()) @map("created_at")
-  user        User                     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  place       Place?                   @relation(fields: [placeId], references: [id], onDelete: SetNull)
+  id        String                   @id
+  journeyId String                   @map("journey_id")
+  userId    String                   @map("user_id")
+  placeId   String?                  @map("place_id")
+  action    RecommendationActionType
+  routeMode String?                  @map("route_mode")
+  metadata  Json?
+  createdAt DateTime                 @default(now()) @map("created_at")
+  user      User                     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  place     Place?                   @relation(fields: [placeId], references: [id], onDelete: SetNull)
 
   @@index([journeyId, createdAt])
   @@index([userId, createdAt])
