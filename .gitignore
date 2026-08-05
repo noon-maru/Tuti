@@ -24,6 +24,7 @@
 # production
 /build
 /.ops-backups/
+/.ops-state/
 
 # misc
 .DS_Store

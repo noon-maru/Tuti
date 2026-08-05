@@ -28,7 +28,7 @@ tourism_photo_gallery_source_records
 tourism_region_metrics
 "
 place_source_columns="content_id, content_type_id, title, area_code, sido_name, sigungu_code, sigungu_name, raw_payload, linked_place_id, source_modified_at, synced_at, created_at, updated_at"
-place_detail_columns="content_id, content_type_id, overview, homepage, phone, opening_hours, rest_date, admission_fee, parking, reservation, usage_duration, experience_guide, common_payload, intro_payload, info_payload, image_payload, source_modified_at, synced_at, last_attempt_at, retry_after, last_error, created_at, updated_at"
+place_detail_columns="content_id, content_type_id, overview, homepage, phone, opening_hours, rest_date, admission_fee, parking, reservation, usage_duration, experience_guide, common_payload, intro_payload, info_payload, image_payload, source_modified_at, editorial_synced_at, editorial_attempt_at, editorial_retry_after, editorial_last_error, synced_at, last_attempt_at, retry_after, last_error, created_at, updated_at"
 backup_arguments=""
 table_arguments=""
 truncate_tables=""
@@ -127,7 +127,7 @@ echo "개발 관광지 상세 데이터 스냅샷 생성"
 docker compose \
   -f docker-compose.dev.yml \
   exec -T db \
-  sh -lc 'exec psql --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" --quiet --command "COPY (SELECT content_id, content_type_id, overview, homepage, phone, opening_hours, rest_date, admission_fee, parking, reservation, usage_duration, experience_guide, common_payload, intro_payload, info_payload, image_payload, source_modified_at, synced_at, last_attempt_at, retry_after, last_error, created_at, updated_at FROM public.tourism_place_detail_records ORDER BY content_id) TO STDOUT"' \
+  sh -lc 'exec psql --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" --quiet --command "COPY (SELECT content_id, content_type_id, overview, homepage, phone, opening_hours, rest_date, admission_fee, parking, reservation, usage_duration, experience_guide, common_payload, intro_payload, info_payload, image_payload, source_modified_at, editorial_synced_at, editorial_attempt_at, editorial_retry_after, editorial_last_error, synced_at, last_attempt_at, retry_after, last_error, created_at, updated_at FROM public.tourism_place_detail_records ORDER BY content_id) TO STDOUT"' \
   > "$place_detail_dump"
 
 echo "운영 DB에 개발 관광 데이터 적용"
