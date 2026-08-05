@@ -1,6 +1,5 @@
 import type {
   DepartureRoute,
-  DepartureRouteStep,
 } from "@/shared/api/departurePlan";
 import type { UserLocation } from "@/shared/tuti/types";
 
@@ -14,17 +13,6 @@ type KakaoNaviInput = {
   destinationName: string;
 };
 
-type KakaoNaviGuide = {
-  guidance?: string;
-  name?: string;
-  distance?: number;
-  duration?: number;
-};
-
-type KakaoNaviSection = {
-  guides?: KakaoNaviGuide[];
-};
-
 type KakaoNaviRoute = {
   result_code?: number;
   summary?: {
@@ -32,7 +20,6 @@ type KakaoNaviRoute = {
     duration?: number;
     fare?: { taxi?: number; toll?: number };
   };
-  sections?: KakaoNaviSection[];
 };
 
 type KakaoNaviResponse = {
@@ -70,7 +57,7 @@ export async function fetchKakaoDrivingRoute({
     priority: "RECOMMEND",
     alternatives: "false",
     road_details: "false",
-    summary: "false",
+    summary: "true",
   }).toString();
   let response: Response;
 
@@ -129,29 +116,8 @@ export async function fetchKakaoDrivingRoute({
       destination,
       destinationName,
     ),
-    steps: normalizeDrivingSteps(route.sections),
+    steps: [],
   };
-}
-
-function normalizeDrivingSteps(
-  sections: KakaoNaviSection[] | undefined,
-): DepartureRouteStep[] {
-  if (!Array.isArray(sections)) return [];
-
-  return sections.flatMap((section) =>
-    (section.guides ?? []).flatMap((guide) => {
-      const guidance = cleanText(guide.guidance ?? guide.name);
-      if (!guidance) return [];
-      return [
-        {
-          guidance,
-          durationSeconds: finiteNumber(guide.duration),
-          distanceMeters: finiteNumber(guide.distance),
-          vehicle: null,
-        },
-      ];
-    }),
-  );
 }
 
 function unavailableDrivingRoute(): DepartureRoute {
@@ -186,8 +152,4 @@ function createKakaoMapDrivingUrl(
 function finiteNumber(value: unknown) {
   const number = Number(value);
   return Number.isFinite(number) ? number : null;
-}
-
-function cleanText(value: unknown) {
-  return typeof value === "string" && value.trim() ? value.trim() : null;
 }

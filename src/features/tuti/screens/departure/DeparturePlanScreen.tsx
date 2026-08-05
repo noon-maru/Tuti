@@ -293,7 +293,7 @@ export function DeparturePlanScreen({
                   })}
                 </ModeTabs>
 
-                {selectedRoute && (
+                {selectedRoute?.mode === "publicTransit" && (
                   <RouteCard>
                     <RouteHeadline>
                       <div>
@@ -336,13 +336,39 @@ export function DeparturePlanScreen({
                           startRouteGuidance(event, selectedRoute)
                         }
                       >
-                        {isNativeDrivingGuidance(selectedRoute)
-                          ? "카카오내비로 출발하기"
-                          : "길찾기 시작하기"}
+                        {getRouteLinkLabel(selectedRoute)}
                         <Navigation aria-hidden="true" />
                       </RouteLink>
                     )}
                   </RouteCard>
+                )}
+
+                {selectedRoute && selectedRoute.mode !== "publicTransit" && (
+                  <DirectRouteCard>
+                    <DirectRouteCopy>
+                      <small>{getModeLabel(selectedRoute.mode)}</small>
+                      <strong>{getDirectRouteTitle(selectedRoute.mode)}</strong>
+                      <p>{getDirectRouteDescription(selectedRoute)}</p>
+                    </DirectRouteCopy>
+                    {routeGuidanceUrl && (
+                      <RouteLink
+                        href={routeGuidanceUrl}
+                        target={
+                          isNativeDrivingGuidance(selectedRoute)
+                            ? undefined
+                            : "_blank"
+                        }
+                        rel="noreferrer"
+                        data-swipe-back-ignore
+                        onClick={(event) =>
+                          startRouteGuidance(event, selectedRoute)
+                        }
+                      >
+                        {getRouteLinkLabel(selectedRoute)}
+                        <Navigation aria-hidden="true" />
+                      </RouteLink>
+                    )}
+                  </DirectRouteCard>
                 )}
               </Section>
 
@@ -490,6 +516,42 @@ function getRouteFacts(route: DepartureRoute) {
     facts.push(`택시 약 ${formatWon(route.taxiFareWon)}`);
   }
   return facts.length ? facts : ["경로에 따라 달라질 수 있어요"];
+}
+
+function getDirectRouteTitle(mode: Exclude<DepartureRouteMode, "publicTransit">) {
+  return {
+    driving: "내비에서 바로 이어볼까요?",
+    bicycle: "자전거 길은 지도에서 확인해주세요.",
+    walking: "걷는 길은 지도에서 확인해주세요.",
+  }[mode];
+}
+
+function getDirectRouteDescription(route: DepartureRoute) {
+  const distance = formatDistance(route.distanceMeters);
+
+  if (route.mode === "driving") {
+    const toll = route.tollWon !== null && route.tollWon > 0
+      ? ` · 예상 통행료 ${formatWon(route.tollWon)}`
+      : "";
+    const taxiFare = route.taxiFareWon !== null && route.taxiFareWon > 0
+      ? ` · 예상 택시비 ${formatWon(route.taxiFareWon)}`
+      : "";
+    return `${distance}${toll}${taxiFare}. 실제 도로 상황은 출발할 때 지도에서 확인할게요.`;
+  }
+  if (route.mode === "bicycle") {
+    return `${distance} 거리예요. 자전거도로와 주행 환경은 출발 전에 지도에서 확인해주세요.`;
+  }
+  return `${distance} 거리예요. 보행로와 경사는 출발 전에 지도에서 확인해주세요.`;
+}
+
+function getRouteLinkLabel(route: DepartureRoute) {
+  if (isNativeDrivingGuidance(route)) return "카카오내비로 출발하기";
+  return {
+    publicTransit: "카카오맵에서 대중교통 길찾기",
+    driving: "카카오맵에서 자동차 경로 보기",
+    bicycle: "카카오맵에서 자전거 길 보기",
+    walking: "카카오맵에서 걷는 길 보기",
+  }[route.mode];
 }
 
 function formatWon(value: number) {
@@ -886,6 +948,39 @@ const RouteCard = styled.div`
   background: var(--color-neutral-1300);
   color: var(--color-white);
   box-shadow: 0 16px 38px rgb(var(--color-black-rgb) / 0.16);
+`;
+
+const DirectRouteCard = styled.div`
+  display: grid;
+  gap: var(--space-4);
+  padding: var(--space-5);
+  border: 1px solid var(--color-secondary-300);
+  border-radius: 24px;
+  background: var(--color-secondary-100);
+`;
+
+const DirectRouteCopy = styled.div`
+  display: grid;
+  gap: var(--space-1);
+
+  small {
+    color: var(--color-brand-800);
+    font-size: var(--font-size-100);
+    font-weight: 600;
+  }
+
+  strong {
+    font-size: var(--font-size-300);
+    line-height: var(--line-height-subtitle);
+    letter-spacing: var(--letter-spacing-subtitle);
+  }
+
+  p {
+    color: var(--color-text-muted);
+    font-size: var(--font-size-100);
+    line-height: var(--line-height-body);
+    letter-spacing: var(--letter-spacing-body);
+  }
 `;
 
 const RouteHeadline = styled.div`
