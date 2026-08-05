@@ -110,6 +110,9 @@ export function RecommendationsFlow({ interactive }: { interactive: boolean }) {
   const hasSeenCardHelp = useTutiStore((state) => state.hasSeenCardHelp);
   const hasSeenSwipeHelp = useTutiStore((state) => state.hasSeenSwipeHelp);
   const hasSeenJournalHelp = useTutiStore((state) => state.hasSeenJournalHelp);
+  const hasSeenDepartureHelp = useTutiStore(
+    (state) => state.hasSeenDepartureHelp,
+  );
   const setActivePlace = useTutiStore((state) => state.setActivePlace);
   const openDetailOverlay = useTutiStore((state) => state.openDetail);
   const beginDetailClose = useTutiStore((state) => state.beginDetailClose);
@@ -117,6 +120,9 @@ export function RecommendationsFlow({ interactive }: { interactive: boolean }) {
   const markCardHelpSeen = useTutiStore((state) => state.markCardHelpSeen);
   const markSwipeHelpSeen = useTutiStore((state) => state.markSwipeHelpSeen);
   const markJournalHelpSeen = useTutiStore((state) => state.markJournalHelpSeen);
+  const markDepartureHelpSeen = useTutiStore(
+    (state) => state.markDepartureHelpSeen,
+  );
 
   const detailPlaceIndex =
     detailOverlay.placeId
@@ -418,7 +424,9 @@ export function RecommendationsFlow({ interactive }: { interactive: boolean }) {
                 ? "detail"
                 : !hasSeenJournalHelp
                   ? "journal"
-                  : null
+                  : !hasSeenDepartureHelp
+                    ? "departure"
+                    : null
             : null
         }
         onInitialHelpShown={(kind) => {
@@ -432,7 +440,12 @@ export function RecommendationsFlow({ interactive }: { interactive: boolean }) {
             return;
           }
 
-          markJournalHelpSeen();
+          if (kind === "journal") {
+            markJournalHelpSeen();
+            return;
+          }
+
+          markDepartureHelpSeen();
         }}
       />
       {dailyCheckInVisible && (

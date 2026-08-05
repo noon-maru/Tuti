@@ -30,7 +30,7 @@ type DragSession = {
   start: Point;
 };
 type DragAxis = "horizontal" | "vertical" | null;
-type HelpKind = "cards" | "detail" | "journal";
+type HelpKind = "cards" | "detail" | "journal" | "departure";
 type DetailPhase = "closed" | "open" | "closing";
 type DeparturePresentation =
   | {
@@ -46,6 +46,7 @@ type DeparturePresentation =
   | {
       variant: "peek";
       place: TutiPlace;
+      guideExpansion: boolean;
     }
   | {
       variant: "sheet";
@@ -306,7 +307,8 @@ export function RecommendationsScreen({
     }
 
     const place = places[cardIndex];
-    if (currentHelp || !place) return;
+    const departureGuideActive = currentHelp === "departure";
+    if ((currentHelp && !departureGuideActive) || !place) return;
 
     const sourceRect = getCardTransitionRect(
       frameRef.current,
@@ -318,19 +320,27 @@ export function RecommendationsScreen({
       window.location.href,
     ).searchParams.get("departure-ui");
     const variant =
-      departureUi === "sheet"
-        ? "sheet"
-        : departureUi === "flip" || departureUi === "fullscreen"
-          ? "flip"
-          : departureUi === "expand"
-            ? "expand"
-            : "peek";
+      departureGuideActive
+        ? "peek"
+        : departureUi === "sheet"
+          ? "sheet"
+          : departureUi === "flip" || departureUi === "fullscreen"
+            ? "flip"
+            : departureUi === "expand"
+              ? "expand"
+              : "peek";
 
+    if (departureGuideActive) {
+      setCurrentHelp(null);
+      onInitialHelpShown("departure");
+    }
     onDepartureOpen(place, variant);
     setDeparturePresentation(
-      variant === "sheet" || variant === "peek"
-        ? { variant, place }
-        : { variant, place, sourceRect },
+      variant === "peek"
+        ? { variant, place, guideExpansion: departureGuideActive }
+        : variant === "sheet"
+          ? { variant, place }
+          : { variant, place, sourceRect },
     );
   };
 
@@ -730,6 +740,7 @@ export function RecommendationsScreen({
             key={departurePresentation.place.id}
             place={departurePresentation.place}
             travelTimeLabel={activeTravelTimeLabel}
+            showExpansionGuide={departurePresentation.guideExpansion}
             onExpanded={() =>
               onDeparturePlanExpanded(departurePresentation.place)
             }
@@ -781,7 +792,7 @@ export function RecommendationsScreen({
                       <i />
                     </GestureArrowPair>
                   </>
-                ) : (
+                ) : displayedHelp !== "departure" ? (
                   <GestureArrowPair
                     $direction={
                       displayedHelp === "detail" ? "up" : "down"
@@ -790,7 +801,7 @@ export function RecommendationsScreen({
                     <i />
                     <i />
                   </GestureArrowPair>
-                )}
+                ) : null}
               </GestureArrows>
               <GestureThumb $kind={displayedHelp} />
             </GestureCue>
@@ -799,7 +810,9 @@ export function RecommendationsScreen({
                 ? "준비된 장소들의 공기를 살펴보세요"
                 : displayedHelp === "detail"
                   ? "위로 올려 상세한 정보를 확인해보세요"
-                  : "아래로 내려 지나간 공간을 기록해보세요"}
+                  : displayedHelp === "journal"
+                    ? "아래로 내려 지나간 공간을 기록해보세요"
+                    : "카드를 눌러 출발 준비를 열어보세요"}
             </HelpMessage>
           </HelpContent>
         )}
@@ -1004,6 +1017,21 @@ const moveDown = keyframes`
   }
 `;
 
+const tapCard = keyframes`
+  0%,
+  100% {
+    transform: translate(-50%, -50%) scale(1);
+  }
+
+  46% {
+    transform: translate(-50%, -50%) scale(0.72);
+  }
+
+  68% {
+    transform: translate(-50%, -50%) scale(1.08);
+  }
+`;
+
 const HelpOverlay = styled.div<{
   $visible: boolean;
   $kind: HelpKind;
@@ -1051,7 +1079,7 @@ const HelpMessage = styled.p<{ $kind: HelpKind }>`
   left: var(--space-6);
   right: var(--space-6);
   ${({ $kind }) =>
-    $kind === "cards"
+    $kind === "cards" || $kind === "departure"
       ? "top: 52%;"
       : $kind === "detail"
         ? "bottom: calc(10% + var(--app-safe-area-bottom, 0px));"
@@ -1078,6 +1106,13 @@ const GestureCue = styled.div<{ $kind: HelpKind }>`
         height: 32px;
         transform: translate(-50%, -50%);
       `
+      : $kind === "departure"
+        ? `
+          top: 43%;
+          width: 64px;
+          height: 64px;
+          transform: translate(-50%, -50%);
+        `
       : $kind === "detail"
         ? `
           bottom: calc(17% + var(--app-safe-area-bottom, 0px));
@@ -1102,6 +1137,12 @@ const GestureCue = styled.div<{ $kind: HelpKind }>`
           color-mix(in srgb, var(--color-secondary-500) 92%, transparent) 78%,
           transparent
         )`
+      : $kind === "departure"
+        ? `radial-gradient(
+            circle,
+            color-mix(in srgb, var(--color-secondary-500) 48%, transparent),
+            transparent 68%
+          )`
       : $kind === "detail"
         ? `linear-gradient(
             to top,
@@ -1181,6 +1222,8 @@ const GestureThumb = styled.div<{ $kind: HelpKind }>`
   animation: ${({ $kind }) =>
     $kind === "cards"
       ? css`${moveHorizontally} 1800ms ease-in-out infinite`
+      : $kind === "departure"
+        ? css`${tapCard} 1200ms ease-in-out infinite`
       : $kind === "detail"
         ? css`${moveUp} 1500ms ease-out infinite`
         : css`${moveDown} 1500ms ease-out infinite`};

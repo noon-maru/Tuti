@@ -1,5 +1,6 @@
 "use client";
 
+import { css, keyframes } from "@emotion/react";
 import styled from "@emotion/styled";
 import { ChevronUp } from "lucide-react";
 import {
@@ -31,12 +32,14 @@ type DragState = {
 export function PeekDeparturePlanScreen({
   place,
   travelTimeLabel,
+  showExpansionGuide = false,
   onExpanded,
   onNavigationStart,
   onClose,
 }: {
   place: TutiPlace;
   travelTimeLabel: string;
+  showExpansionGuide?: boolean;
   onExpanded?: () => void;
   onNavigationStart?: (route: DepartureRoute) => void;
   onClose: () => void;
@@ -48,6 +51,9 @@ export function PeekDeparturePlanScreen({
   const [maxTranslate, setMaxTranslate] = useState(0);
   const [contentMounted, setContentMounted] = useState(false);
   const [contentInteractive, setContentInteractive] = useState(false);
+  const [expansionGuideVisible, setExpansionGuideVisible] = useState(
+    showExpansionGuide,
+  );
   const sheetRef = useRef<HTMLElement | null>(null);
   const dragState = useRef<DragState | null>(null);
   const movedDuringDrag = useRef(false);
@@ -108,6 +114,7 @@ export function PeekDeparturePlanScreen({
       onExpanded?.();
     }
 
+    setExpansionGuideVisible(false);
     setContentMounted(true);
     setExpanded(true);
     interactionTimer.current = window.setTimeout(() => {
@@ -327,8 +334,13 @@ export function PeekDeparturePlanScreen({
             <small>출발 준비</small>
             <strong>{place.name}</strong>
             <TravelBadge aria-live="polite">{travelTimeLabel}</TravelBadge>
-            <GestureHint>
-              위로 올려 출발 준비하기
+            <GestureHint
+              $guided={expansionGuideVisible && !expanded}
+              aria-live={expansionGuideVisible ? "polite" : undefined}
+            >
+              {expansionGuideVisible
+                ? "위로 올려 전체 출발 준비 보기"
+                : "위로 올려 출발 준비하기"}
               <ChevronUp aria-hidden="true" />
             </GestureHint>
           </PreviewCopy>
@@ -558,7 +570,18 @@ const TravelBadge = styled.span`
   line-height: var(--line-height-body);
 `;
 
-const GestureHint = styled.span`
+const guideLift = keyframes`
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+
+  52% {
+    transform: translateY(-6px);
+  }
+`;
+
+const GestureHint = styled.span<{ $guided: boolean }>`
   width: fit-content;
   display: flex;
   align-items: center;
@@ -571,10 +594,20 @@ const GestureHint = styled.span`
   font-size: var(--font-size-100);
   font-weight: 600;
   line-height: var(--line-height-body);
+  box-shadow: ${({ $guided }) =>
+    $guided
+      ? "0 0 0 4px color-mix(in srgb, var(--color-secondary-300) 48%, transparent)"
+      : "none"};
+  animation: ${({ $guided }) =>
+    $guided ? css`${guideLift} 1200ms ease-in-out infinite` : "none"};
 
   svg {
     width: var(--space-4);
     height: var(--space-4);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    animation: none;
   }
 `;
 
