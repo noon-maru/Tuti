@@ -24,6 +24,11 @@ import type { LocationPermissionStatus } from "@/shared/tuti/types";
 import { fluidByViewportHeight } from "@/styles/tokens";
 
 type Point = { x: number; y: number };
+type DragSession = {
+  pointerId: number;
+  pointerType: string;
+  start: Point;
+};
 type DragAxis = "horizontal" | "vertical" | null;
 type HelpKind = "cards" | "detail" | "journal";
 type DetailPhase = "closed" | "open" | "closing";
@@ -50,6 +55,8 @@ type DeparturePresentation =
 const WHEEL_DELTA_LIMIT = 28;
 const WHEEL_TRIGGER_THRESHOLD = 24;
 const WHEEL_TRANSITION_DURATION = 260;
+const POINTER_TAP_SLOP = 8;
+const TOUCH_TAP_SLOP = 16;
 
 export function RecommendationsScreen({
   places,
@@ -123,12 +130,13 @@ export function RecommendationsScreen({
   const [dragOffset, setDragOffset] = useState<Point>({ x: 0, y: 0 });
   const [dragAxis, setDragAxis] = useState<DragAxis>(null);
   const [committing, setCommitting] = useState(false);
-  const [pressedCardIndex, setPressedCardIndex] = useState<number | null>(null);
   const [currentHelp, setCurrentHelp] = useState<HelpKind | null>(null);
   const [displayedHelp, setDisplayedHelp] = useState<HelpKind | null>(null);
   const [departurePresentation, setDeparturePresentation] =
     useState<DeparturePresentation | null>(null);
-  const pressedCardRect = useRef<CardTransitionRect | null>(null);
+  const frameRef = useRef<HTMLElement | null>(null);
+  const dragSession = useRef<DragSession | null>(null);
+  const suppressCardClickUntil = useRef(0);
   const wheelDragY = useRef(0);
   const wheelAnimationFrame = useRef<number | null>(null);
   const wheelResetTimer = useRef<number | null>(null);
@@ -166,8 +174,7 @@ export function RecommendationsScreen({
     setDragOffset({ x: 0, y: 0 });
     setDragAxis(null);
     setCommitting(false);
-    setPressedCardIndex(null);
-    pressedCardRect.current = null;
+    dragSession.current = null;
   }, []);
 
   const completeHelp = useCallback((kind: HelpKind) => {
@@ -290,6 +297,43 @@ export function RecommendationsScreen({
     wheelAnimationFrame.current = window.requestAnimationFrame(animate);
   };
 
+  const activateCard = (cardIndex: number) => {
+    if (window.performance.now() < suppressCardClickUntil.current) return;
+
+    if (cardIndex !== activeIndex) {
+      onSelect(cardIndex);
+      return;
+    }
+
+    const place = places[cardIndex];
+    if (currentHelp || !place) return;
+
+    const sourceRect = getCardTransitionRect(
+      frameRef.current,
+      cardIndex,
+    );
+    if (!sourceRect) return;
+
+    const departureUi = new URL(
+      window.location.href,
+    ).searchParams.get("departure-ui");
+    const variant =
+      departureUi === "sheet"
+        ? "sheet"
+        : departureUi === "flip" || departureUi === "fullscreen"
+          ? "flip"
+          : departureUi === "expand"
+            ? "expand"
+            : "peek";
+
+    onDepartureOpen(place, variant);
+    setDeparturePresentation(
+      variant === "sheet" || variant === "peek"
+        ? { variant, place }
+        : { variant, place, sourceRect },
+    );
+  };
+
   const startDrag = (event: React.PointerEvent<HTMLElement>) => {
     if (!mainInteractive) return;
 
@@ -311,28 +355,23 @@ export function RecommendationsScreen({
     }
 
     const point = { x: event.clientX, y: event.clientY };
-    const cardRect = cardElement.getBoundingClientRect();
-    const frameRect = event.currentTarget.getBoundingClientRect();
-
-    pressedCardRect.current = {
-      left: cardRect.left - frameRect.left,
-      top: cardRect.top - frameRect.top,
-      width: cardRect.width,
-      height: cardRect.height,
+    dragSession.current = {
+      pointerId: event.pointerId,
+      pointerType: event.pointerType,
+      start: point,
     };
-    event.currentTarget.setPointerCapture(event.pointerId);
     setDragStart(point);
     setDragOffset({ x: 0, y: 0 });
     setDragAxis(null);
     setCommitting(false);
-    setPressedCardIndex(Number(cardElement.dataset.swipeCardIndex));
   };
 
   const updateDrag = (event: React.PointerEvent<HTMLElement>) => {
-    if (!dragStart) return;
+    const session = dragSession.current;
+    if (!session || session.pointerId !== event.pointerId) return;
 
-    const dx = event.clientX - dragStart.x;
-    const dy = event.clientY - dragStart.y;
+    const dx = event.clientX - session.start.x;
+    const dy = event.clientY - session.start.y;
     const nextAxis =
       dragAxis ??
       (Math.abs(dx) > 8 || Math.abs(dy) > 8
@@ -343,6 +382,16 @@ export function RecommendationsScreen({
 
     if (nextAxis !== dragAxis) {
       setDragAxis(nextAxis);
+    }
+
+    const captureSlop = session.pointerType === "mouse"
+      ? POINTER_TAP_SLOP
+      : TOUCH_TAP_SLOP;
+    if (
+      (Math.abs(dx) >= captureSlop || Math.abs(dy) >= captureSlop) &&
+      !event.currentTarget.hasPointerCapture(event.pointerId)
+    ) {
+      event.currentTarget.setPointerCapture(event.pointerId);
     }
 
     if (detailPhase === "closing" && nextAxis === "vertical") {
@@ -357,49 +406,27 @@ export function RecommendationsScreen({
   };
 
   const finishDrag = (event: React.PointerEvent<HTMLElement>) => {
-    if (!dragStart) return;
+    const session = dragSession.current;
+    if (!session || session.pointerId !== event.pointerId) return;
 
-    const dx = event.clientX - dragStart.x;
-    const dy = event.clientY - dragStart.y;
+    const dx = event.clientX - session.start.x;
+    const dy = event.clientY - session.start.y;
     const axis = dragAxis ?? (Math.abs(dx) >= Math.abs(dy) ? "horizontal" : "vertical");
+    const tapSlop = session.pointerType === "mouse"
+      ? POINTER_TAP_SLOP
+      : TOUCH_TAP_SLOP;
 
     if (detailPhase === "closing" && axis === "vertical") {
       resetDrag();
       return;
     }
 
-    if (Math.abs(dx) < 8 && Math.abs(dy) < 8 && pressedCardIndex !== null) {
-      if (pressedCardIndex === activeIndex) {
-        const place = places[pressedCardIndex];
-        const sourceRect = pressedCardRect.current;
-
-        if (!currentHelp && place && sourceRect) {
-          const departureUi = new URL(
-            window.location.href,
-          ).searchParams.get("departure-ui");
-          const variant =
-            departureUi === "sheet"
-              ? "sheet"
-              : departureUi === "flip" || departureUi === "fullscreen"
-                ? "flip"
-                : departureUi === "expand"
-                  ? "expand"
-                  : "peek";
-
-          onDepartureOpen(place, variant);
-          setDeparturePresentation(
-            variant === "sheet" || variant === "peek"
-              ? { variant, place }
-              : { variant, place, sourceRect },
-          );
-        }
-      } else {
-        onSelect(pressedCardIndex);
-      }
-
+    if (Math.abs(dx) < tapSlop && Math.abs(dy) < tapSlop) {
       resetDrag();
       return;
     }
+
+    suppressCardClickUntil.current = window.performance.now() + 400;
 
     if (axis === "horizontal" && Math.abs(dx) > 36) {
       if (currentHelp && currentHelp !== "cards") {
@@ -439,6 +466,7 @@ export function RecommendationsScreen({
   };
 
   const cancelDrag = () => {
+    suppressCardClickUntil.current = window.performance.now() + 400;
     resetDrag();
   };
 
@@ -517,6 +545,7 @@ export function RecommendationsScreen({
 
   return (
     <Frame
+      ref={frameRef}
       $interactive={interactive}
       $departureOpen={Boolean(departurePresentation)}
       aria-hidden={!interactive}
@@ -632,6 +661,7 @@ export function RecommendationsScreen({
                     ? "이동 시간 확인"
                     : "위치 없이 추천"
               }
+              onActivate={() => activateCard(index)}
               drag={dragStart || committing ? dragOffset : undefined}
               detailProgress={
                 index === activeIndex && transitionTarget === "detail"
@@ -800,6 +830,25 @@ function getLocationModeLabel(status: LocationPermissionStatus) {
   if (status === "timeout") return "위치를 확인하지 못했어요";
   if (status === "unavailable") return "위치를 사용할 수 없어요";
   return "위치 없이 추천 중";
+}
+
+function getCardTransitionRect(
+  frame: HTMLElement | null,
+  cardIndex: number,
+): CardTransitionRect | null {
+  const card = frame?.querySelector<HTMLElement>(
+    `[data-swipe-card-index="${cardIndex}"]`,
+  );
+  if (!frame || !card) return null;
+
+  const frameRect = frame.getBoundingClientRect();
+  const cardRect = card.getBoundingClientRect();
+  return {
+    left: cardRect.left - frameRect.left,
+    top: cardRect.top - frameRect.top,
+    width: cardRect.width,
+    height: cardRect.height,
+  };
 }
 
 function getOffset(index: number, active: number, length: number) {

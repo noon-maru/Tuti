@@ -11,6 +11,7 @@ export function SwipeCard({
   offset,
   active,
   travelTimeLabel,
+  onActivate,
   drag,
   nudging,
   detailProgress = 0,
@@ -20,6 +21,7 @@ export function SwipeCard({
   offset: number;
   active: boolean;
   travelTimeLabel: string;
+  onActivate?: () => void;
   drag?: { x: number; y: number };
   nudging?: "up" | "down" | null;
   detailProgress?: number;
@@ -33,12 +35,14 @@ export function SwipeCard({
 
   return (
     <CardButton
+      type="button"
       $image={place.image}
       $active={active}
       $dragging={active && Boolean(drag)}
       $nudging={active ? nudging ?? null : null}
       $detailProgress={detailProgress}
       data-swipe-card-index={cardIndex}
+      onClick={onActivate}
       style={{
         transform: `translate(${baseX + dragX}px, ${dragY}px) scale(${scale}) rotate(${rotation}deg)`,
         opacity: hidden ? 0 : active ? 1 : 0.56,
