@@ -27,6 +27,7 @@ export async function POST(request: Request) {
     const preferredRegion = location
       ? undefined
       : normalizePreferredRegion(body.preferredRegion);
+    const excludePlaceIds = normalizeExcludedPlaceIds(body.excludePlaceIds);
     const stateText = normalizeStateText(body.stateText);
     const recommendationId = randomUUID();
     const places = await createRecommendations(
@@ -34,6 +35,7 @@ export async function POST(request: Request) {
       location,
       stateText,
       preferredRegion,
+      excludePlaceIds,
     );
     const response: RecommendationResponse = {
       recommendationId,
@@ -72,6 +74,19 @@ export async function POST(request: Request) {
       ),
     );
   }
+}
+
+function normalizeExcludedPlaceIds(placeIds: unknown) {
+  if (!Array.isArray(placeIds)) return [];
+
+  return Array.from(
+    new Set(
+      placeIds
+        .filter((placeId): placeId is string => typeof placeId === "string")
+        .map((placeId) => placeId.trim())
+        .filter(Boolean),
+    ),
+  ).slice(0, 20);
 }
 
 function normalizePreferredRegion(

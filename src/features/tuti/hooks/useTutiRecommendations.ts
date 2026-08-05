@@ -1,9 +1,12 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
 import { fetchRecommendations } from "@/lib/tutiApi";
-import { isCurrentKoreanDate } from "@/lib/date/koreanDate";
+import {
+  getKoreanDateKey,
+  isCurrentKoreanDate,
+} from "@/lib/date/koreanDate";
 import { interpretState } from "@/lib/recommendations";
 import { useTutiStore } from "@/store/tuti";
 
@@ -12,19 +15,37 @@ export function useTutiRecommendations({ enabled = true } = {}) {
   const entryRecord = useTutiStore((state) => state.entryRecord);
   const userLocation = useTutiStore((state) => state.userLocation);
   const preferredRegion = useTutiStore((state) => state.preferredRegion);
+  const dailyRecommendation = useTutiStore(
+    (state) => state.dailyRecommendation,
+  );
+  const recommendationCycle = useTutiStore(
+    (state) => state.recommendationCycle,
+  );
+  const recommendationExcludedPlaceIds = useTutiStore(
+    (state) => state.recommendationExcludedPlaceIds,
+  );
+  const cacheDailyRecommendation = useTutiStore(
+    (state) => state.cacheDailyRecommendation,
+  );
+  const recommendationDate = getKoreanDateKey();
   const answers =
     isCurrentKoreanDate(entryRecord) && entryRecord?.status === "skipped"
       ? {}
       : storedAnswers;
   const feature = useMemo(() => interpretState(answers), [answers]);
+  const cachedRecommendation =
+    dailyRecommendation?.effectiveDate === recommendationDate &&
+    dailyRecommendation.cycle === recommendationCycle
+      ? {
+          recommendationId: dailyRecommendation.recommendationId,
+          places: dailyRecommendation.places,
+        }
+      : undefined;
   const { data, ...query } = useQuery({
     queryKey: [
       "recommendations",
-      answers,
-      Boolean(userLocation),
-      userLocation ? null : preferredRegion?.areaCode,
-      entryRecord?.effectiveDate,
-      entryRecord?.status,
+      recommendationDate,
+      recommendationCycle,
     ],
     queryFn: () =>
       fetchRecommendations(
@@ -32,10 +53,31 @@ export function useTutiRecommendations({ enabled = true } = {}) {
         userLocation,
         entryRecord?.status,
         preferredRegion,
+        recommendationExcludedPlaceIds,
       ),
     enabled,
+    initialData: cachedRecommendation,
     staleTime: Infinity,
   });
+
+  useEffect(() => {
+    if (
+      !data?.recommendationId ||
+      (dailyRecommendation?.effectiveDate === recommendationDate &&
+        dailyRecommendation.cycle === recommendationCycle &&
+        dailyRecommendation.recommendationId === data.recommendationId)
+    ) {
+      return;
+    }
+
+    cacheDailyRecommendation(data.recommendationId, data.places);
+  }, [
+    cacheDailyRecommendation,
+    dailyRecommendation,
+    data,
+    recommendationCycle,
+    recommendationDate,
+  ]);
 
   return {
     answers,

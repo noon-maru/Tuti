@@ -26,6 +26,7 @@ import {
 import { LOCATION_TERMS_VERSION } from "@/shared/location/terms";
 import type { DepartureRoute } from "@/shared/api/departurePlan";
 import type { RecommendationActionInput } from "@/shared/api/recommendationActions";
+import type { IntakeAnswers } from "@/shared/tuti/types";
 import {
   type SavedDeparturePlace,
   useTutiStore,
@@ -85,6 +86,9 @@ export function RecommendationsFlow({ interactive }: { interactive: boolean }) {
   const completeDailyCheckIn = useTutiStore(
     (state) => state.completeDailyCheckIn,
   );
+  const refreshDailyRecommendation = useTutiStore(
+    (state) => state.refreshDailyRecommendation,
+  );
   const snoozeDailyCheckIn = useTutiStore(
     (state) => state.snoozeDailyCheckIn,
   );
@@ -101,7 +105,7 @@ export function RecommendationsFlow({ interactive }: { interactive: boolean }) {
   const dailyCheckInVisible =
     interactive && !returnCheckInVisible &&
     (dailyCheckInRequested || (!dailyRecordCurrent && !dailyCheckInSnoozed));
-  const { places, recommendationId, isFetched, isPending } =
+  const { places, recommendationId, isSuccess, isPending } =
     useTutiRecommendations({
       enabled: dailyRecordCurrent || dailyCheckInSnoozed,
     });
@@ -183,7 +187,7 @@ export function RecommendationsFlow({ interactive }: { interactive: boolean }) {
   useEffect(() => {
     if (
       !recommendationId ||
-      !isFetched ||
+      !isSuccess ||
       recordedRecommendationIds.current.has(recommendationId)
     ) {
       return;
@@ -198,7 +202,7 @@ export function RecommendationsFlow({ interactive }: { interactive: boolean }) {
     });
   }, [
     activePlace?.id,
-    isFetched,
+    isSuccess,
     places.length,
     recommendationId,
     recordAction,
@@ -237,7 +241,7 @@ export function RecommendationsFlow({ interactive }: { interactive: boolean }) {
   ]);
 
   useEffect(() => {
-    if (!isFetched) {
+    if (!isSuccess) {
       return;
     }
 
@@ -275,7 +279,7 @@ export function RecommendationsFlow({ interactive }: { interactive: boolean }) {
     detailOverlay.phase,
     detailOverlay.placeId,
     finishDetailClose,
-    isFetched,
+    isSuccess,
     places,
     restoredActiveIndex,
     setActivePlace,
@@ -361,6 +365,15 @@ export function RecommendationsFlow({ interactive }: { interactive: boolean }) {
     }
 
     openDetailOverlay(activePlace.id);
+  };
+
+  const replaceDailyRecommendation = (
+    status: "answered" | "reused" | "skipped",
+    answers?: IntakeAnswers,
+  ) => {
+    completeDailyCheckIn(status, answers);
+    refreshDailyRecommendation();
+    queryClient.removeQueries({ queryKey: ["recommendations"] });
   };
 
   return (
@@ -456,10 +469,12 @@ export function RecommendationsFlow({ interactive }: { interactive: boolean }) {
           previousAnswers={storedAnswers}
           initialMode={dailyCheckInRequested ? "questions" : "summary"}
           dismissible={dailyCheckInRequested || dailyRecordCurrent}
-          onReuse={() => completeDailyCheckIn("reused")}
-          onSkip={() => completeDailyCheckIn("skipped")}
+          onReuse={() => replaceDailyRecommendation("reused")}
+          onSkip={() => replaceDailyRecommendation("skipped")}
           onSnooze={snoozeDailyCheckIn}
-          onSubmit={(answers) => completeDailyCheckIn("answered", answers)}
+          onSubmit={(answers) =>
+            replaceDailyRecommendation("answered", answers)
+          }
           onDismiss={cancelDailyCheckIn}
         />
       )}

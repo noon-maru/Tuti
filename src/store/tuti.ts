@@ -5,6 +5,7 @@ import {
   getKoreanDateKeyAfterDays,
 } from "@/lib/date/koreanDate";
 import { preferencesStorage } from "@/lib/storage/preferencesStorage";
+import type { TutiPlace } from "@/lib/recommendations";
 import type { DepartureRouteMode } from "@/shared/api/departurePlan";
 import { LOCATION_TERMS_VERSION } from "@/shared/location/terms";
 import type {
@@ -50,6 +51,13 @@ export type SavedDeparturePlace = {
   savedAt: string;
 };
 
+export type DailyRecommendationSnapshot = {
+  effectiveDate: string;
+  cycle: number;
+  recommendationId: string;
+  places: TutiPlace[];
+};
+
 type TutiState = {
   answers: IntakeAnswers;
   entryRecord?: EntryRecord;
@@ -57,6 +65,9 @@ type TutiState = {
   locationConsent?: LocationConsentRecord;
   locationPermissionStatus: LocationPermissionStatus;
   preferredRegion?: PreferredRegion;
+  dailyRecommendation?: DailyRecommendationSnapshot;
+  recommendationCycle: number;
+  recommendationExcludedPlaceIds: string[];
   activeIndex: number;
   activePlaceId?: string;
   activeJournalEntryId?: string;
@@ -82,6 +93,11 @@ type TutiState = {
   withdrawLocationConsent: () => void;
   setLocationPermissionStatus: (status: LocationPermissionStatus) => void;
   setPreferredRegion: (region?: PreferredRegion) => void;
+  cacheDailyRecommendation: (
+    recommendationId: string,
+    places: TutiPlace[],
+  ) => void;
+  refreshDailyRecommendation: () => void;
   setActivePlace: (index: number, placeId: string) => void;
   setActiveJournalEntry: (entryId?: string) => void;
   openDetail: (placeId: string) => void;
@@ -118,6 +134,9 @@ export const useTutiStore = create<TutiState>()(
       locationConsent: undefined,
       locationPermissionStatus: "unknown",
       preferredRegion: undefined,
+      dailyRecommendation: undefined,
+      recommendationCycle: 0,
+      recommendationExcludedPlaceIds: [],
       activeIndex: 0,
       activePlaceId: undefined,
       activeJournalEntryId: undefined,
@@ -171,6 +190,26 @@ export const useTutiStore = create<TutiState>()(
       setLocationPermissionStatus: (locationPermissionStatus) =>
         set({ locationPermissionStatus }),
       setPreferredRegion: (preferredRegion) => set({ preferredRegion }),
+      cacheDailyRecommendation: (recommendationId, places) =>
+        set((state) => ({
+          dailyRecommendation: {
+            effectiveDate: getKoreanDateKey(),
+            cycle: state.recommendationCycle,
+            recommendationId,
+            places,
+          },
+          recommendationExcludedPlaceIds: [],
+        })),
+      refreshDailyRecommendation: () =>
+        set((state) => ({
+          dailyRecommendation: undefined,
+          recommendationCycle: state.recommendationCycle + 1,
+          recommendationExcludedPlaceIds:
+            state.dailyRecommendation?.places.map((place) => place.id) ?? [],
+          activeIndex: 0,
+          activePlaceId: undefined,
+          detailOverlay: { phase: "closed" },
+        })),
       setActivePlace: (activeIndex, activePlaceId) =>
         set({ activeIndex, activePlaceId }),
       setActiveJournalEntry: (activeJournalEntryId) =>
@@ -281,9 +320,12 @@ export const useTutiStore = create<TutiState>()(
       finishEntry: () => set({ entryStage: "complete" }),
       markHydrated: () => set({ hasHydrated: true }),
       resetIntake: () =>
-        set({
+        set((state) => ({
           answers: {},
           entryRecord: undefined,
+          dailyRecommendation: undefined,
+          recommendationCycle: state.recommendationCycle + 1,
+          recommendationExcludedPlaceIds: [],
           activeIndex: 0,
           activePlaceId: undefined,
           activeJournalEntryId: undefined,
@@ -291,7 +333,7 @@ export const useTutiStore = create<TutiState>()(
           entryStage: "intake",
           dailyCheckInRequested: false,
           dailyCheckInSnoozedUntil: undefined,
-        }),
+        })),
     }),
     {
       name: "tuti-ui",
@@ -302,6 +344,10 @@ export const useTutiStore = create<TutiState>()(
         entryRecord: state.entryRecord,
         locationConsent: state.locationConsent,
         preferredRegion: state.preferredRegion,
+        dailyRecommendation: state.dailyRecommendation,
+        recommendationCycle: state.recommendationCycle,
+        recommendationExcludedPlaceIds:
+          state.recommendationExcludedPlaceIds,
         dailyCheckInSnoozedUntil: state.dailyCheckInSnoozedUntil,
         pendingDeparture: state.pendingDeparture,
         savedDeparturePlaces: state.savedDeparturePlaces,

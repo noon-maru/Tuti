@@ -9,6 +9,7 @@ export type RecommendationRequest = {
   answers?: IntakeAnswers;
   location?: UserLocation;
   preferredRegion?: PreferredRegion;
+  excludePlaceIds?: string[];
   stateText?: string;
   entryStatus?: "answered" | "reused" | "skipped";
 };

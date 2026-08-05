@@ -33,17 +33,25 @@ export async function createRecommendations(
   location?: UserLocation,
   stateText?: string,
   preferredRegion?: PreferredRegion,
+  excludePlaceIds: string[] = [],
 ): Promise<TutiPlace[]> {
   const feature = await interpretStateWithLlm({ answers, stateText });
   const places = location
     ? await findPlacesNearLocation(location)
     : await findPlacesByBaseFatigue(preferredRegion?.areaCode);
 
+  const excludedPlaceIdSet = new Set(excludePlaceIds);
+  const eligiblePlaces = places.filter(
+    (place) => !excludedPlaceIdSet.has(place.id),
+  );
+  const recommendationPlaces = eligiblePlaces.length >= 6
+    ? eligiblePlaces
+    : places;
   const rankedPlaces = rankByMovementFatigue(
-    places.map(toTutiPlace),
+    recommendationPlaces.map(toTutiPlace),
     answers,
     feature,
-    location ? 12 : places.length,
+    location ? 12 : recommendationPlaces.length,
   );
   const shortlist = location
     ? rankedPlaces
