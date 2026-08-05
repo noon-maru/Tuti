@@ -165,6 +165,9 @@ const CardButton = styled(BaseButton)<{
     font-weight: 600;
     line-height: var(--line-height-subtitle);
     letter-spacing: var(--letter-spacing-subtitle);
+    word-break: keep-all;
+    overflow-wrap: break-word;
+    text-wrap: pretty;
   }
 
   small {
