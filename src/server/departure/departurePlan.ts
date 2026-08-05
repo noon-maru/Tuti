@@ -6,6 +6,7 @@ import {
 } from "@/server/maps/kakaoMapClient";
 import { fetchKakaoDrivingRoute } from "@/server/maps/kakaoNaviClient";
 import { isWalkingDistance } from "@/server/departure/routeSelection";
+import { recommendablePlaceWhere } from "@/server/recommendations/recommendablePlaceWhere";
 import { ensureTourismPlaceDetail } from "@/server/tourism/enrichTourismPlaceDetail";
 import type {
   DeparturePlan,
@@ -42,9 +43,8 @@ export async function createDeparturePlan(
 ): Promise<DeparturePlan | null> {
   const place = await prisma.place.findFirst({
     where: {
+      ...recommendablePlaceWhere,
       id: placeId,
-      isActive: true,
-      reviewStatus: "approved",
     },
     select: {
       id: true,

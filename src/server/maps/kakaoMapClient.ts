@@ -27,7 +27,6 @@ type KakaoRouteStep = {
 };
 
 type KakaoSimpleRouteResponse = {
-  status?: string;
   route?: {
     properties?: {
       totalDistance?: number;
@@ -179,7 +178,7 @@ function normalizeSimpleRoute(
   mode: "walking" | "bicycle",
   payload: KakaoSimpleRouteResponse,
 ): DepartureRoute {
-  const route = payload.status === "OK" ? payload.route : undefined;
+  const route = payload.route;
   if (!route?.properties) return unavailableRoute(mode);
 
   return {

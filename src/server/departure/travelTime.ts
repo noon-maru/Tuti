@@ -2,6 +2,7 @@ import { prisma } from "@/server/db/prisma";
 import { fetchKakaoMapRoute } from "@/server/maps/kakaoMapClient";
 import { fetchKakaoDrivingRoute } from "@/server/maps/kakaoNaviClient";
 import { isWalkingDistance } from "@/server/departure/routeSelection";
+import { recommendablePlaceWhere } from "@/server/recommendations/recommendablePlaceWhere";
 import type { DepartureRoute } from "@/shared/api/departurePlan";
 import type { TravelTimeSummary } from "@/shared/api/travelTime";
 import type { UserLocation } from "@/shared/tuti/types";
@@ -12,9 +13,8 @@ export async function createTravelTimeSummary(
 ): Promise<TravelTimeSummary | null> {
   const place = await prisma.place.findFirst({
     where: {
+      ...recommendablePlaceWhere,
       id: placeId,
-      isActive: true,
-      reviewStatus: "approved",
     },
     select: {
       name: true,
