@@ -18,7 +18,6 @@ tourist_spot_concentration_rate_records
 regional_visitor_count_records
 tourism_photo_gallery_source_records
 tourism_region_metrics
-external_data_sync_runs
 "
 dump_tables="
 wellness_tourism_source_records
@@ -27,7 +26,6 @@ tourist_spot_concentration_rate_records
 regional_visitor_count_records
 tourism_photo_gallery_source_records
 tourism_region_metrics
-external_data_sync_runs
 "
 place_source_columns="content_id, content_type_id, title, area_code, sido_name, sigungu_code, sigungu_name, raw_payload, linked_place_id, source_modified_at, synced_at, created_at, updated_at"
 place_detail_columns="content_id, content_type_id, overview, homepage, phone, opening_hours, rest_date, admission_fee, parking, reservation, usage_duration, experience_guide, common_payload, intro_payload, info_payload, image_payload, source_modified_at, synced_at, last_attempt_at, retry_after, last_error, created_at, updated_at"
