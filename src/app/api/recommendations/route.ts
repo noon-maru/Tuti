@@ -11,6 +11,7 @@ import type {
   RecommendationRequest,
   RecommendationResponse,
 } from "@/shared/api/recommendations";
+import { RECOMMENDATION_ALGORITHM_VERSION } from "@/shared/api/recommendations";
 import type { UserLocation } from "@/shared/tuti/types";
 import { tourApiSidoOptions } from "@/shared/tourism/tourApiRegions";
 
@@ -39,6 +40,7 @@ export async function POST(request: Request) {
     );
     const response: RecommendationResponse = {
       recommendationId,
+      algorithmVersion: RECOMMENDATION_ALGORITHM_VERSION,
       places,
     };
 

@@ -1,4 +1,5 @@
 import type { IntakeAnswers } from "@/shared/tuti/types";
+import type { TravelTimeSummary } from "@/shared/api/travelTime";
 
 export type StateFeature = {
   energy: "low" | "soft" | "open";
@@ -21,6 +22,9 @@ export type TutiPlace = {
   movementLevel: "near" | "short" | "half";
   moodTags: string[];
   sourceContentType?: string;
+  latitude?: number;
+  longitude?: number;
+  travelTimeSummary?: TravelTimeSummary;
   crowdForecast?: CrowdForecast;
   distanceMeters?: number;
   fatigueScore?: number;

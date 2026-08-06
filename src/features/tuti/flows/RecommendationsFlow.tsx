@@ -150,6 +150,7 @@ export function RecommendationsFlow({ interactive }: { interactive: boolean }) {
     activePlace?.id,
     userLocation,
     interactive && !dailyCheckInVisible && !returnCheckInVisible,
+    activePlace?.travelTimeSummary,
   );
   const activeTravelTimeLabel = !userLocation
     ? preferredRegion

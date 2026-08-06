@@ -55,6 +55,7 @@ export type DailyRecommendationSnapshot = {
   effectiveDate: string;
   cycle: number;
   recommendationId: string;
+  algorithmVersion: string;
   places: TutiPlace[];
 };
 
@@ -95,6 +96,7 @@ type TutiState = {
   setPreferredRegion: (region?: PreferredRegion) => void;
   cacheDailyRecommendation: (
     recommendationId: string,
+    algorithmVersion: string,
     places: TutiPlace[],
   ) => void;
   refreshDailyRecommendation: () => void;
@@ -190,12 +192,17 @@ export const useTutiStore = create<TutiState>()(
       setLocationPermissionStatus: (locationPermissionStatus) =>
         set({ locationPermissionStatus }),
       setPreferredRegion: (preferredRegion) => set({ preferredRegion }),
-      cacheDailyRecommendation: (recommendationId, places) =>
+      cacheDailyRecommendation: (
+        recommendationId,
+        algorithmVersion,
+        places,
+      ) =>
         set((state) => ({
           dailyRecommendation: {
             effectiveDate: getKoreanDateKey(),
             cycle: state.recommendationCycle,
             recommendationId,
+            algorithmVersion,
             places,
           },
           recommendationExcludedPlaceIds: [],

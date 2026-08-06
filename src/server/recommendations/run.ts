@@ -1,7 +1,7 @@
 import type { TutiPlace } from "@/lib/recommendations";
 import { interpretState } from "@/lib/recommendations";
 import { prisma } from "@/server/db/prisma";
-import { RECOMMENDATION_ALGORITHM_VERSION } from "@/server/recommendations/service";
+import { RECOMMENDATION_ALGORITHM_VERSION } from "@/shared/api/recommendations";
 import type { RecommendationRequest } from "@/shared/api/recommendations";
 
 type RecordRecommendationRunInput = {

@@ -4,6 +4,8 @@ import { interpretStateWithLlm } from "@/server/llm/stateInterpreter";
 import { rankByMovementFatigue } from "@/server/recommendations/fatigue";
 import { enrichPlacesWithCrowdForecast } from "@/server/recommendations/crowdForecast";
 import { recommendablePlaceWhere } from "@/server/recommendations/recommendablePlaceWhere";
+import { fetchKakaoMapRoute } from "@/server/maps/kakaoMapClient";
+import type { TravelTimeSummary } from "@/shared/api/travelTime";
 import type {
   IntakeAnswers,
   PreferredRegion,
@@ -23,10 +25,10 @@ type PlaceRow = {
   movementLevel: "near" | "short" | "half";
   moodTags: string[];
   sourceContentType: string | null;
+  latitude: unknown;
+  longitude: unknown;
   distanceMeters?: number | null;
 };
-
-export const RECOMMENDATION_ALGORITHM_VERSION = "movement-fatigue-v2";
 
 export async function createRecommendations(
   answers: IntakeAnswers,
@@ -37,7 +39,7 @@ export async function createRecommendations(
 ): Promise<TutiPlace[]> {
   const feature = await interpretStateWithLlm({ answers, stateText });
   const places = location
-    ? await findPlacesNearLocation(location)
+    ? await findPlacesNearLocation(location, feature.movement)
     : await findPlacesByBaseFatigue(preferredRegion?.areaCode);
 
   const excludedPlaceIdSet = new Set(excludePlaceIds);
@@ -51,10 +53,18 @@ export async function createRecommendations(
     recommendationPlaces.map(toTutiPlace),
     answers,
     feature,
-    location ? 12 : recommendationPlaces.length,
+    recommendationPlaces.length,
   );
   const shortlist = location
-    ? rankedPlaces
+    ? rankByMovementFatigue(
+        await enrichWithTransitTimes(
+          selectDiverseContentTypes(rankedPlaces, 12, 4),
+          location,
+        ),
+        answers,
+        feature,
+        12,
+      )
     : selectDiverseContentTypes(rankedPlaces, 12, 3);
   const forecastedPlaces = await enrichPlacesWithCrowdForecast(shortlist);
   const finalRanking = rankByMovementFatigue(
@@ -93,12 +103,22 @@ async function findPlacesByBaseFatigue(
       movementLevel: true,
       moodTags: true,
       sourceContentType: true,
+      latitude: true,
+      longitude: true,
     },
   });
 }
 
-async function findPlacesNearLocation(location: UserLocation): Promise<PlaceRow[]> {
+async function findPlacesNearLocation(
+  location: UserLocation,
+  movement: "near" | "short" | "half",
+): Promise<PlaceRow[]> {
   const { latitude, longitude } = location;
+  const targetDistanceMeters = {
+    near: 1_500,
+    short: 7_000,
+    half: 25_000,
+  }[movement];
 
   return prisma.$queryRaw<PlaceRow[]>`
     SELECT
@@ -114,6 +134,8 @@ async function findPlacesNearLocation(location: UserLocation): Promise<PlaceRow[
       "movement_level" AS "movementLevel",
       "mood_tags" AS "moodTags",
       "source_content_type" AS "sourceContentType",
+      "latitude",
+      "longitude",
       ST_Distance(
         "location"::geography,
         ST_SetSRID(ST_MakePoint(${longitude}, ${latitude}), 4326)::geography
@@ -131,10 +153,15 @@ async function findPlacesNearLocation(location: UserLocation): Promise<PlaceRow[
         )
       )
     ORDER BY
-      "location" <-> ST_SetSRID(ST_MakePoint(${longitude}, ${latitude}), 4326),
+      ABS(
+        ST_Distance(
+          "location"::geography,
+          ST_SetSRID(ST_MakePoint(${longitude}, ${latitude}), 4326)::geography
+        ) - ${targetDistanceMeters}
+      ),
       "fatigue" ASC,
       "id" ASC
-    LIMIT 30
+    LIMIT 180
   `;
 }
 
@@ -152,6 +179,8 @@ function toTutiPlace(place: PlaceRow): TutiPlace {
     movementLevel: place.movementLevel,
     moodTags: place.moodTags,
     sourceContentType: place.sourceContentType ?? undefined,
+    latitude: Number(place.latitude),
+    longitude: Number(place.longitude),
     distanceMeters:
       typeof place.distanceMeters === "number" ? place.distanceMeters : undefined,
   };
@@ -184,4 +213,64 @@ function selectDiverseContentTypes(
   }
 
   return selected;
+}
+
+async function enrichWithTransitTimes(
+  places: TutiPlace[],
+  origin: UserLocation,
+) {
+  return mapWithConcurrency(places, 6, async (place) => {
+    if (
+      !Number.isFinite(place.latitude) ||
+      !Number.isFinite(place.longitude)
+    ) {
+      return place;
+    }
+
+    const route = await fetchKakaoMapRoute("publicTransit", {
+      origin,
+      destination: {
+        latitude: place.latitude!,
+        longitude: place.longitude!,
+      },
+      destinationName: place.name,
+    }).catch(() => null);
+    const travelTimeSummary: TravelTimeSummary | undefined =
+      route?.status === "available" && route.durationSeconds !== null
+        ? {
+            mode: route.mode,
+            durationSeconds: route.durationSeconds,
+            distanceMeters: route.distanceMeters,
+          }
+        : undefined;
+
+    return travelTimeSummary
+      ? { ...place, travelTimeSummary }
+      : place;
+  });
+}
+
+async function mapWithConcurrency<Input, Output>(
+  items: Input[],
+  concurrency: number,
+  mapper: (item: Input) => Promise<Output>,
+) {
+  const results = new Array<Output>(items.length);
+  let cursor = 0;
+
+  const worker = async () => {
+    while (cursor < items.length) {
+      const index = cursor;
+      cursor += 1;
+      results[index] = await mapper(items[index]);
+    }
+  };
+
+  await Promise.all(
+    Array.from(
+      { length: Math.min(concurrency, Math.max(items.length, 1)) },
+      worker,
+    ),
+  );
+  return results;
 }

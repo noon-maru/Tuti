@@ -21,11 +21,13 @@ type MovementFatigueInput = Pick<
   | "crowd"
   | "crowdForecast"
   | "distanceMeters"
+  | "travelTimeSummary"
 >;
 
 type FatigueBreakdown = {
   base: number;
   physicalDistance: number;
+  travelTime: number;
   movementPenalty: number;
   moodAdjustment: number;
   crowdPenalty: number;
@@ -106,7 +108,13 @@ export function calculateMovementFatigue(
 
   return {
     base: place.fatigue,
-    physicalDistance: getPhysicalDistanceScore(place.distanceMeters, requestedMovement),
+    physicalDistance: place.travelTimeSummary
+      ? 0
+      : getPhysicalDistanceScore(place.distanceMeters, requestedMovement),
+    travelTime: getTravelTimeScore(
+      place.travelTimeSummary?.durationSeconds,
+      requestedMovement,
+    ),
     movementPenalty:
       movementGap > 0
         ? movementGap * 18
@@ -132,8 +140,9 @@ export function calculateMovementFatigue(
 function scoreBreakdown(breakdown: FatigueBreakdown) {
   return Math.max(
     0,
-    breakdown.base +
+      breakdown.base +
       breakdown.physicalDistance +
+      breakdown.travelTime +
       breakdown.movementPenalty +
       breakdown.moodAdjustment +
       breakdown.crowdPenalty +
@@ -190,16 +199,49 @@ function getPhysicalDistanceScore(
   }
 
   if (movement === "short") {
-    if (km <= 3) return -6;
-    if (km <= 8) return 0;
-    if (km <= 18) return 10;
-    return 22;
+    if (km < 1.5) return 8;
+    if (km < 3) return 0;
+    if (km <= 15) return -6;
+    if (km <= 25) return 8;
+    return 20;
   }
 
-  if (km <= 8) return -4;
-  if (km <= 25) return 0;
-  if (km <= 60) return 8;
+  if (km < 6) return 18;
+  if (km < 12) return 6;
+  if (km <= 45) return -8;
+  if (km <= 70) return 5;
   return 18;
+}
+
+function getTravelTimeScore(
+  durationSeconds: number | undefined,
+  movement: MovementAnswer,
+) {
+  if (!durationSeconds) return 0;
+  const minutes = durationSeconds / 60;
+
+  if (movement === "near") {
+    if (minutes <= 20) return -14;
+    if (minutes <= 35) return 4;
+    if (minutes <= 50) return 14;
+    return 28;
+  }
+
+  if (movement === "short") {
+    if (minutes < 10) return 12;
+    if (minutes < 20) return 3;
+    if (minutes <= 50) return -12;
+    if (minutes <= 70) return 5;
+    if (minutes <= 100) return 14;
+    return 24;
+  }
+
+  if (minutes < 25) return 22;
+  if (minutes < 45) return 8;
+  if (minutes <= 100) return -16;
+  if (minutes <= 130) return 5;
+  if (minutes <= 180) return 14;
+  return 26;
 }
 
 function normalizeCrowd(
@@ -357,21 +399,59 @@ function createDistanceReason(
   answers: IntakeAnswers,
   feature: StateFeature,
 ): ReasonCandidate | null {
-  if (place.distanceMeters === undefined) return null;
+  if (
+    place.distanceMeters === undefined &&
+    !place.travelTimeSummary?.durationSeconds
+  ) {
+    return null;
+  }
 
+  const travelMinutes = place.travelTimeSummary?.durationSeconds
+    ? Math.round(place.travelTimeSummary.durationSeconds / 60)
+    : null;
+
+  if (travelMinutes !== null) {
+    const preferred = isPreferredTravelTime(
+      travelMinutes,
+      feature.movement,
+    );
+
+    return {
+      factor: "distance",
+      score: preferred ? 42 : 20,
+      headline:
+        feature.movement === "half" && preferred
+          ? "반나절의 여유로 닿기 좋은 거리예요."
+          : feature.movement === "short" && preferred
+            ? "짧게 다녀오기 좋은 이동 시간이에요."
+            : feature.movement === "near" && preferred
+              ? "지금 있는 곳에서 가볍게 닿을 수 있어요."
+              : "오늘 정한 이동 범위 안에서 골랐어요.",
+      detail: `대중교통 약 ${travelMinutes}분과 오늘 가능한 이동 범위를 함께 살폈어요.`,
+      cardPhrase:
+        feature.movement === "half"
+          ? "조금 멀어져 다른 흐름을 만나보는 날"
+          : feature.movement === "short"
+            ? "잠깐 다녀오는 것만으로 충분한 날"
+            : "오늘은 가까운 곳이면 충분할지도",
+    };
+  }
+
+  const distanceMeters = place.distanceMeters;
+  if (distanceMeters === undefined) return null;
   const preferredDistance = {
     near: 3_000,
     short: 8_000,
     half: 25_000,
   }[feature.movement];
-  const ratio = place.distanceMeters / preferredDistance;
+  const ratio = distanceMeters / preferredDistance;
   if (ratio > 1) return null;
 
   return {
     factor: "distance",
     score: 28 + Math.round((1 - ratio) * 10),
     headline:
-      place.distanceMeters <= 1_200
+      distanceMeters <= 1_200
         ? "지금 위치에서 큰 이동 없이 닿을 수 있어요."
         : ratio <= 0.6
           ? "지금 위치에서 이동 부담이 낮은 쪽이에요."
@@ -380,12 +460,21 @@ function createDistanceReason(
             : "지금 위치에서 무리하지 않고 닿을 수 있는 범위예요.",
     detail: "도착하기 전부터 지치지 않도록 실제 이동 거리를 먼저 살폈어요.",
     cardPhrase:
-      place.distanceMeters <= 1_200
+      distanceMeters <= 1_200
         ? "오늘은 이 정도 거리면 충분할지도"
         : ratio <= 0.6
           ? "가까운 곳에서 잠깐 숨을 돌리고 싶은 날"
           : "오늘 닿을 수 있는 만큼만 다녀오는 날",
   };
+}
+
+function isPreferredTravelTime(
+  minutes: number,
+  movement: MovementAnswer,
+) {
+  if (movement === "near") return minutes <= 20;
+  if (movement === "short") return minutes >= 20 && minutes <= 50;
+  return minutes >= 45 && minutes <= 100;
 }
 
 function createCrowdReason(

@@ -8,6 +8,7 @@ import {
   isCurrentKoreanDate,
 } from "@/lib/date/koreanDate";
 import { interpretState } from "@/lib/recommendations";
+import { RECOMMENDATION_ALGORITHM_VERSION } from "@/shared/api/recommendations";
 import { useTutiStore } from "@/store/tuti";
 
 export function useTutiRecommendations({ enabled = true } = {}) {
@@ -35,9 +36,12 @@ export function useTutiRecommendations({ enabled = true } = {}) {
   const feature = useMemo(() => interpretState(answers), [answers]);
   const cachedRecommendation =
     dailyRecommendation?.effectiveDate === recommendationDate &&
-    dailyRecommendation.cycle === recommendationCycle
+    dailyRecommendation.cycle === recommendationCycle &&
+    dailyRecommendation.algorithmVersion ===
+      RECOMMENDATION_ALGORITHM_VERSION
       ? {
           recommendationId: dailyRecommendation.recommendationId,
+          algorithmVersion: dailyRecommendation.algorithmVersion,
           places: dailyRecommendation.places,
         }
       : undefined;
@@ -46,6 +50,7 @@ export function useTutiRecommendations({ enabled = true } = {}) {
       "recommendations",
       recommendationDate,
       recommendationCycle,
+      RECOMMENDATION_ALGORITHM_VERSION,
     ],
     queryFn: () =>
       fetchRecommendations(
@@ -65,12 +70,17 @@ export function useTutiRecommendations({ enabled = true } = {}) {
       !data?.recommendationId ||
       (dailyRecommendation?.effectiveDate === recommendationDate &&
         dailyRecommendation.cycle === recommendationCycle &&
-        dailyRecommendation.recommendationId === data.recommendationId)
+        dailyRecommendation.recommendationId === data.recommendationId &&
+        dailyRecommendation.algorithmVersion === data.algorithmVersion)
     ) {
       return;
     }
 
-    cacheDailyRecommendation(data.recommendationId, data.places);
+    cacheDailyRecommendation(
+      data.recommendationId,
+      data.algorithmVersion,
+      data.places,
+    );
   }, [
     cacheDailyRecommendation,
     dailyRecommendation,
