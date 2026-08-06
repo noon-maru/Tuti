@@ -24,7 +24,7 @@ type MovementFatigueInput = Pick<
   | "travelTimeSummary"
 >;
 
-type FatigueBreakdown = {
+export type FatigueBreakdown = {
   base: number;
   physicalDistance: number;
   travelTime: number;
@@ -137,7 +137,7 @@ export function calculateMovementFatigue(
   };
 }
 
-function scoreBreakdown(breakdown: FatigueBreakdown) {
+export function scoreBreakdown(breakdown: FatigueBreakdown) {
   return Math.max(
     0,
       breakdown.base +

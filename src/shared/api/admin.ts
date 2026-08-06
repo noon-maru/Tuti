@@ -7,6 +7,8 @@ import type {
   InquiryCategory,
   InquiryStatus,
 } from "@/generated/prisma/client";
+import type { StateFeature, TutiPlace } from "@/lib/recommendations";
+import type { IntakeAnswers, PreferredRegion, UserLocation } from "@/shared/tuti/types";
 
 export type AdminOverview = {
   users: number;
@@ -159,6 +161,42 @@ export type AdminRecommendationFunnelResponse = {
   stages: AdminRecommendationFunnelStage[];
   topPlaces: AdminRecommendationFunnelPlace[];
   algorithms: AdminRecommendationAlgorithm[];
+};
+
+export type AdminRecommendationSimulationRequest = {
+  answers: IntakeAnswers;
+  location?: UserLocation;
+  preferredRegion?: PreferredRegion;
+  stateText?: string;
+};
+
+export type AdminRecommendationScoreBreakdown = {
+  base: number;
+  physicalDistance: number;
+  travelTime: number;
+  movementPenalty: number;
+  moodAdjustment: number;
+  crowdPenalty: number;
+  energyPenalty: number;
+};
+
+export type AdminRecommendationSimulationCandidate = {
+  place: TutiPlace;
+  selected: boolean;
+  initialRank: number | null;
+  finalRank: number;
+  breakdown: AdminRecommendationScoreBreakdown;
+};
+
+export type AdminRecommendationSimulationResponse = {
+  algorithmVersion: string;
+  generatedAt: string;
+  elapsedMs: number;
+  feature: StateFeature;
+  sourceCandidateCount: number;
+  eligibleCandidateCount: number;
+  shortlistCount: number;
+  candidates: AdminRecommendationSimulationCandidate[];
 };
 
 export type AdminLogsResponse = {

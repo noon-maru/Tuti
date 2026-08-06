@@ -1,7 +1,12 @@
 import type { TutiPlace } from "@/lib/recommendations";
 import { prisma } from "@/server/db/prisma";
 import { interpretStateWithLlm } from "@/server/llm/stateInterpreter";
-import { rankByMovementFatigue } from "@/server/recommendations/fatigue";
+import {
+  calculateMovementFatigue,
+  rankByMovementFatigue,
+  scoreBreakdown,
+  type FatigueBreakdown,
+} from "@/server/recommendations/fatigue";
 import { enrichPlacesWithCrowdForecast } from "@/server/recommendations/crowdForecast";
 import { recommendablePlaceWhere } from "@/server/recommendations/recommendablePlaceWhere";
 import { fetchKakaoMapRoute } from "@/server/maps/kakaoMapClient";
@@ -37,6 +42,86 @@ export async function createRecommendations(
   preferredRegion?: PreferredRegion,
   excludePlaceIds: string[] = [],
 ): Promise<TutiPlace[]> {
+  const evaluation = await evaluateRecommendations(
+    answers,
+    location,
+    stateText,
+    preferredRegion,
+    excludePlaceIds,
+  );
+
+  return evaluation.recommendedPlaces;
+}
+
+export type RecommendationSimulationCandidate = {
+  place: TutiPlace;
+  selected: boolean;
+  initialRank: number | null;
+  finalRank: number;
+  breakdown: FatigueBreakdown;
+};
+
+export type RecommendationSimulation = {
+  feature: Awaited<ReturnType<typeof interpretStateWithLlm>>;
+  sourceCandidateCount: number;
+  eligibleCandidateCount: number;
+  shortlistCount: number;
+  recommendedPlaces: TutiPlace[];
+  candidates: RecommendationSimulationCandidate[];
+};
+
+export async function simulateRecommendations(
+  answers: IntakeAnswers,
+  location?: UserLocation,
+  stateText?: string,
+  preferredRegion?: PreferredRegion,
+  excludePlaceIds: string[] = [],
+): Promise<RecommendationSimulation> {
+  const evaluation = await evaluateRecommendations(
+    answers,
+    location,
+    stateText,
+    preferredRegion,
+    excludePlaceIds,
+  );
+  const selectedIds = new Set(
+    evaluation.recommendedPlaces.map((place) => place.id),
+  );
+  const initialRanks = new Map(
+    evaluation.initialRanking.map((place, index) => [place.id, index + 1]),
+  );
+
+  return {
+    feature: evaluation.feature,
+    sourceCandidateCount: evaluation.sourceCandidateCount,
+    eligibleCandidateCount: evaluation.eligibleCandidateCount,
+    shortlistCount: evaluation.finalRanking.length,
+    recommendedPlaces: evaluation.recommendedPlaces,
+    candidates: evaluation.finalRanking.map((place, index) => {
+      const breakdown = calculateMovementFatigue(
+        place,
+        answers,
+        evaluation.feature,
+      );
+
+      return {
+        place: { ...place, fatigueScore: scoreBreakdown(breakdown) },
+        selected: selectedIds.has(place.id),
+        initialRank: initialRanks.get(place.id) ?? null,
+        finalRank: index + 1,
+        breakdown,
+      };
+    }),
+  };
+}
+
+async function evaluateRecommendations(
+  answers: IntakeAnswers,
+  location?: UserLocation,
+  stateText?: string,
+  preferredRegion?: PreferredRegion,
+  excludePlaceIds: string[] = [],
+) {
   const feature = await interpretStateWithLlm({ answers, stateText });
   const places = location
     ? await findPlacesNearLocation(location, feature.movement)
@@ -71,12 +156,21 @@ export async function createRecommendations(
     forecastedPlaces,
     answers,
     feature,
-    location ? 6 : 12,
+    12,
   );
 
-  return location
-    ? finalRanking
+  const recommendedPlaces = location
+    ? finalRanking.slice(0, 6)
     : selectDiverseContentTypes(finalRanking, 6, 2);
+
+  return {
+    feature,
+    sourceCandidateCount: places.length,
+    eligibleCandidateCount: recommendationPlaces.length,
+    initialRanking: rankedPlaces,
+    finalRanking,
+    recommendedPlaces,
+  };
 }
 
 async function findPlacesByBaseFatigue(

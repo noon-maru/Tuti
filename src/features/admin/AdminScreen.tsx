@@ -476,6 +476,9 @@ export function AdminScreen({
             </NavButton>
           ))}
         </Navigation>
+        <TourismDataLink href="/admin/recommendation-simulator">
+          추천 시뮬레이터
+        </TourismDataLink>
         <TourismDataLink href="/admin/tourism-data">
           관광 데이터 관리
         </TourismDataLink>
@@ -749,6 +752,10 @@ export function AdminScreen({
                 <span aria-hidden="true">›</span>
               </MobileMenuButton>
             ))}
+            <MobileServiceLink href="/admin/recommendation-simulator">
+              <span>추천 시뮬레이터</span>
+              <span aria-hidden="true">›</span>
+            </MobileServiceLink>
             <MobileServiceLink href="/admin/tourism-data">
               <span>관광 데이터 관리</span>
               <span aria-hidden="true">›</span>
