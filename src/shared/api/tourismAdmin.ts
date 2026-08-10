@@ -20,11 +20,24 @@ export type TourismDataOverview = {
   failedRuns: number;
   lastSyncedAt: string | null;
   collectionProgress: TourismCollectionProgressItem[];
+  crowdCoverage: CrowdCoverageOverview;
   connections: Array<{
     source: string;
     label: string;
     configured: boolean;
   }>;
+};
+
+export type CrowdCoverageOverview = {
+  totalPlaces: number;
+  coveredPlaces: number;
+  coveragePercent: number;
+  realtimePlaces: number;
+  ktoForecastPlaces: number;
+  tutiEstimatePlaces: number;
+  unavailablePlaces: number;
+  estimateCalculatedAt: string | null;
+  concentrationSyncedAt: string | null;
 };
 
 export type TourismCollectionProgressItem = {

@@ -464,6 +464,10 @@ export function TourismDataScreen({
 
       <Content>
         {data && (
+          <CrowdCoverageDashboard coverage={data.overview.crowdCoverage} />
+        )}
+
+        {data && (
           <CollectionDashboard
             progress={data.overview.collectionProgress}
             lastSyncedAt={data.overview.lastSyncedAt}
@@ -792,6 +796,110 @@ function CollectionDashboard({
       </CollectionNotice>
     </CollectionSection>
   );
+}
+
+function CrowdCoverageDashboard({
+  coverage,
+}: {
+  coverage: TourismDataResponse["overview"]["crowdCoverage"];
+}) {
+  const tiers = [
+    {
+      id: "realtime",
+      label: "실시간 연결",
+      value: coverage.realtimePlaces,
+      description: "서울 도시데이터 연결 대상",
+    },
+    {
+      id: "forecast",
+      label: "관광공사 예상",
+      value: coverage.ktoForecastPlaces,
+      description: "실시간 제외 후 집중률 적용",
+    },
+    {
+      id: "estimate",
+      label: "Tuti 예상",
+      value: coverage.tutiEstimatePlaces,
+      description: "앞선 계층 제외 후 자체 추정",
+    },
+    {
+      id: "unavailable",
+      label: "정보 없음",
+      value: coverage.unavailablePlaces,
+      description: "세 계층 모두 미적용",
+    },
+  ] as const;
+
+  return (
+    <CrowdCoverageSection>
+      <CrowdCoverageHeader>
+        <div>
+          <Eyebrow>CROWD COVERAGE</Eyebrow>
+          <h2>추천풀 혼잡도 적용 현황</h2>
+          <p>
+            한 장소를 실시간, 관광공사 예상, Tuti 예상 순서로 한 계층에만
+            집계합니다.
+          </p>
+        </div>
+        <CrowdCoverageHeadline>
+          <strong>{coverage.coveragePercent.toLocaleString("ko-KR")}%</strong>
+          <span>
+            {coverage.coveredPlaces.toLocaleString("ko-KR")} /{" "}
+            {coverage.totalPlaces.toLocaleString("ko-KR")}곳
+          </span>
+        </CrowdCoverageHeadline>
+      </CrowdCoverageHeader>
+
+      <CrowdCoverageBar
+        role="img"
+        aria-label={`추천풀 ${coverage.totalPlaces}곳 중 혼잡도 적용 ${coverage.coveredPlaces}곳, 정보 없음 ${coverage.unavailablePlaces}곳`}
+      >
+        {tiers.map((tier) => (
+          <CrowdCoverageSegment
+            key={tier.id}
+            data-tone={tier.id}
+            style={{
+              width: `${percentageOf(tier.value, coverage.totalPlaces)}%`,
+            }}
+          />
+        ))}
+      </CrowdCoverageBar>
+
+      <CrowdTierGrid>
+        {tiers.map((tier) => (
+          <CrowdTierCard key={tier.id} data-tone={tier.id}>
+            <span>{tier.label}</span>
+            <strong>{tier.value.toLocaleString("ko-KR")}곳</strong>
+            <small>
+              {percentageOf(tier.value, coverage.totalPlaces).toFixed(1)}% ·{" "}
+              {tier.description}
+            </small>
+          </CrowdTierCard>
+        ))}
+      </CrowdTierGrid>
+
+      <CrowdCoverageMeta>
+        <span>
+          관광공사 집중률 갱신 {coverage.concentrationSyncedAt
+            ? formatDate(coverage.concentrationSyncedAt)
+            : "기록 없음"}
+        </span>
+        <span>
+          Tuti 예상 계산 {coverage.estimateCalculatedAt
+            ? formatDate(coverage.estimateCalculatedAt)
+            : "기록 없음"}
+        </span>
+      </CrowdCoverageMeta>
+      <CrowdCoverageNote>
+        실시간 연결은 서울 도시데이터 조회가 가능한 장소 매핑을 뜻합니다.
+        일시적인 API 장애가 발생하면 다음 예상 계층으로 자동 전환됩니다.
+      </CrowdCoverageNote>
+    </CrowdCoverageSection>
+  );
+}
+
+function percentageOf(value: number, total: number) {
+  return total > 0 ? (value / total) * 100 : 0;
 }
 
 function DatasetExplorerHeader({
@@ -2654,6 +2762,185 @@ const CollectionNotice = styled.p`
     border-radius: 999px;
     background: var(--color-secondary-600);
   }
+`;
+
+const CrowdCoverageSection = styled.section`
+  display: grid;
+  gap: var(--space-5);
+  padding: var(--space-6);
+  border: 1px solid var(--color-brand-200);
+  border-radius: var(--space-6);
+  background: var(--color-white);
+  box-shadow: 0 16px 42px rgb(var(--color-black-rgb) / 0.06);
+
+  @media (max-width: 640px) {
+    gap: var(--space-4);
+    padding: var(--space-5);
+    border-radius: var(--space-5);
+  }
+`;
+
+const CrowdCoverageHeader = styled.div`
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: var(--space-6);
+
+  h2 {
+    margin-top: var(--space-1);
+    font-size: var(--font-size-500);
+  }
+
+  p {
+    max-width: 620px;
+    margin-top: var(--space-2);
+    color: var(--color-text-muted);
+    font-size: var(--font-size-100);
+  }
+
+  @media (max-width: 640px) {
+    align-items: start;
+    gap: var(--space-3);
+
+    h2 {
+      font-size: var(--font-size-400);
+    }
+  }
+`;
+
+const CrowdCoverageHeadline = styled.div`
+  flex: 0 0 auto;
+  display: grid;
+  justify-items: end;
+  gap: var(--space-1);
+
+  strong {
+    color: var(--color-brand-800);
+    font-size: var(--font-size-800);
+    line-height: 1;
+  }
+
+  span {
+    color: var(--color-text-muted);
+    font-size: var(--font-size-100);
+  }
+
+  @media (max-width: 640px) {
+    strong {
+      font-size: var(--font-size-600);
+    }
+  }
+`;
+
+const CrowdCoverageBar = styled.div`
+  width: 100%;
+  height: var(--space-3);
+  display: flex;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--color-neutral-200);
+`;
+
+const CrowdCoverageSegment = styled.span`
+  height: 100%;
+
+  &[data-tone="realtime"] {
+    background: var(--color-brand-600);
+  }
+
+  &[data-tone="forecast"] {
+    background: var(--color-secondary-700);
+  }
+
+  &[data-tone="estimate"] {
+    background: var(--color-secondary-400);
+  }
+
+  &[data-tone="unavailable"] {
+    background: var(--color-neutral-500);
+  }
+`;
+
+const CrowdTierGrid = styled.div`
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--space-3);
+
+  @media (max-width: 760px) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+`;
+
+const CrowdTierCard = styled.article`
+  --tier-background: var(--color-neutral-100);
+  --tier-accent: var(--color-neutral-700);
+
+  min-width: 0;
+  display: grid;
+  gap: var(--space-2);
+  padding: var(--space-4);
+  border-radius: var(--space-4);
+  background: var(--tier-background);
+
+  &[data-tone="realtime"] {
+    --tier-background: var(--color-brand-100);
+    --tier-accent: var(--color-brand-800);
+  }
+
+  &[data-tone="forecast"] {
+    --tier-background: var(--color-secondary-200);
+    --tier-accent: var(--color-secondary-900);
+  }
+
+  &[data-tone="estimate"] {
+    --tier-background: var(--color-secondary-100);
+    --tier-accent: var(--color-secondary-700);
+  }
+
+  &[data-tone="unavailable"] {
+    --tier-background: var(--color-neutral-200);
+    --tier-accent: var(--color-error);
+  }
+
+  > span {
+    color: var(--tier-accent);
+    font-size: var(--font-size-100);
+    font-weight: 700;
+  }
+
+  strong {
+    font-size: var(--font-size-600);
+    line-height: 1.2;
+  }
+
+  small {
+    color: var(--color-text-muted);
+    font-size: var(--font-size-100);
+    line-height: 1.45;
+  }
+
+  @media (max-width: 480px) {
+    padding: var(--space-3);
+
+    strong {
+      font-size: var(--font-size-500);
+    }
+  }
+`;
+
+const CrowdCoverageMeta = styled.div`
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-5);
+  color: var(--color-text-muted);
+  font-size: var(--font-size-100);
+`;
+
+const CrowdCoverageNote = styled.p`
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--color-neutral-200);
+  color: var(--color-text-muted);
+  font-size: var(--font-size-100);
 `;
 
 const DesktopDataTools = styled.div`
