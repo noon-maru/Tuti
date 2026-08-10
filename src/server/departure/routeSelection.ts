@@ -12,7 +12,7 @@ export function isWalkingDistance(
   );
 }
 
-function calculateDistanceMeters(
+export function calculateDistanceMeters(
   origin: UserLocation,
   destination: UserLocation,
 ) {

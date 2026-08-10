@@ -5,7 +5,10 @@ import {
   fetchNearbyKakaoPlaces,
 } from "@/server/maps/kakaoMapClient";
 import { fetchKakaoDrivingRoute } from "@/server/maps/kakaoNaviClient";
-import { isWalkingDistance } from "@/server/departure/routeSelection";
+import {
+  calculateDistanceMeters,
+  isWalkingDistance,
+} from "@/server/departure/routeSelection";
 import { createDepartureSuggestedPlan } from "@/server/departure/departureSuggestedPlan";
 import { recommendablePlaceWhere } from "@/server/recommendations/recommendablePlaceWhere";
 import { ensureTourismPlaceDetail } from "@/server/tourism/enrichTourismPlaceDetail";
@@ -64,7 +67,7 @@ export async function createDeparturePlan(
   const [detail, routes, nearbyPlaces] = await Promise.all([
     getTourismDetail(place.id),
     getRouteBundle(origin, destination, place.name),
-    getNearbyPlaces(destination, place.name),
+    getNearbyPlaces(destination, place.id, place.name),
   ]);
   const recommendedMode = selectRecommendedMode(
     routes,
@@ -154,6 +157,7 @@ async function settleRoute(
 
 async function getNearbyPlaces(
   destination: UserLocation,
+  destinationId: string,
   destinationName: string,
 ): Promise<DeparturePlan["nearbyPlaces"]> {
   const key = createLocationCacheKey("nearby", destination);
@@ -163,15 +167,11 @@ async function getNearbyPlaces(
   const existingRequest = nearbyRequests.get(key);
   if (existingRequest) return existingRequest;
 
-  const request = fetchNearbyKakaoPlaces(destination)
-    .then((places) =>
-      places.filter(
-        (place) =>
-          place.distanceMeters === null ||
-          place.distanceMeters > 30 ||
-          normalizeName(place.name) !== normalizeName(destinationName),
-      ),
-    )
+  const request = fetchTutiNearbyPlaces(
+    destination,
+    destinationId,
+    destinationName,
+  )
     .catch((error) => {
       console.warn("목적지 주변 장소를 불러오지 못했습니다.", {
         error: getErrorName(error),
@@ -185,6 +185,206 @@ async function getNearbyPlaces(
     .finally(() => nearbyRequests.delete(key));
   nearbyRequests.set(key, request);
   return request;
+}
+
+async function fetchTutiNearbyPlaces(
+  destination: UserLocation,
+  destinationId: string,
+  destinationName: string,
+): Promise<DeparturePlan["nearbyPlaces"]> {
+  const [latestRelated, kakaoPlaces] = await Promise.all([
+    prisma.relatedTourismSourceRecord.aggregate({
+      _max: { baseYm: true },
+    }),
+    fetchNearbyKakaoPlaces(destination).catch((error) => {
+      console.warn("카카오 주변 장소를 불러오지 못했습니다.", {
+        error: getErrorName(error),
+      });
+      return [];
+    }),
+  ]);
+  const baseYm = latestRelated._max.baseYm;
+  const destinationKey = normalizeName(destinationName);
+  const coreRows = await prisma.municipalCoreTourismSourceRecord.findMany({
+    where: {
+      OR: [
+        { touristSpotName: destinationName },
+        {
+          touristSpotName: {
+            contains: destinationName,
+            mode: "insensitive",
+          },
+        },
+      ],
+    },
+    select: {
+      touristSpotCode: true,
+      touristSpotName: true,
+    },
+    orderBy: { baseYm: "desc" },
+    take: 50,
+  });
+  const coreSpotCodes = [
+    ...new Set(
+      coreRows
+        .filter(
+          (row) => normalizeName(row.touristSpotName) === destinationKey,
+        )
+        .map((row) => row.touristSpotCode),
+    ),
+  ];
+  let relatedRows =
+    baseYm && coreSpotCodes.length > 0
+      ? await prisma.relatedTourismSourceRecord.findMany({
+          where: {
+            baseYm,
+            touristSpotCode: { in: coreSpotCodes },
+          },
+          orderBy: { rank: "asc" },
+          take: 100,
+        })
+      : [];
+
+  if (baseYm && relatedRows.length === 0) {
+    relatedRows = (
+      await prisma.relatedTourismSourceRecord.findMany({
+        where: {
+          baseYm,
+          OR: [
+            { touristSpotName: destinationName },
+            {
+              touristSpotName: {
+                contains: destinationName,
+                mode: "insensitive",
+              },
+            },
+          ],
+        },
+        orderBy: { rank: "asc" },
+        take: 100,
+      })
+    ).filter(
+      (row) => normalizeName(row.touristSpotName) === destinationKey,
+    );
+  }
+
+  const relatedTargetCodes = [
+    ...new Set(relatedRows.map((row) => row.relatedTouristSpotCode)),
+  ];
+  const relatedTargetCoreRows = relatedTargetCodes.length > 0
+    ? await prisma.municipalCoreTourismSourceRecord.findMany({
+        where: { touristSpotCode: { in: relatedTargetCodes } },
+        select: {
+          touristSpotCode: true,
+          touristSpotName: true,
+        },
+        orderBy: { baseYm: "desc" },
+        distinct: ["touristSpotCode", "touristSpotName"],
+        take: 300,
+      })
+    : [];
+  const relationByTargetCode = new Map(
+    relatedRows.map((row) => [row.relatedTouristSpotCode, row]),
+  );
+  const relatedByName = new Map(
+    relatedRows.map((row) => [normalizeName(row.relatedTouristSpotName), row]),
+  );
+
+  relatedTargetCoreRows.forEach((row) => {
+    const relation = relationByTargetCode.get(row.touristSpotCode);
+    if (relation) {
+      relatedByName.set(normalizeName(row.touristSpotName), relation);
+    }
+  });
+  const kakaoByName = new Map(
+    kakaoPlaces.map((place) => [normalizeName(place.name), place]),
+  );
+  const candidateNames = [
+    ...new Set([
+      ...relatedRows.map((row) => row.relatedTouristSpotName),
+      ...relatedTargetCoreRows.map((row) => row.touristSpotName),
+      ...kakaoPlaces.map((place) => place.name),
+    ]),
+  ];
+
+  if (candidateNames.length === 0) return [];
+
+  const candidates = await prisma.place.findMany({
+    where: {
+      AND: [
+        recommendablePlaceWhere,
+        { id: { not: destinationId } },
+        { name: { in: candidateNames } },
+      ],
+    },
+    select: {
+      id: true,
+      name: true,
+      sourceContentType: true,
+      sourceAddress: true,
+      latitude: true,
+      longitude: true,
+    },
+  });
+
+  return candidates
+    .map((candidate) => {
+      const key = normalizeName(candidate.name);
+      const relation = relatedByName.get(key);
+      const kakao = kakaoByName.get(key);
+      const location = {
+        latitude: Number(candidate.latitude),
+        longitude: Number(candidate.longitude),
+      };
+      const distanceMeters = Math.round(
+        calculateDistanceMeters(destination, location),
+      );
+
+      return {
+        place: {
+          id: candidate.id,
+          name: candidate.name,
+          category: toNearbyCategory(candidate.sourceContentType),
+          categoryName:
+            relation?.relatedCategorySmallName ??
+            relation?.relatedCategoryMediumName ??
+            kakao?.categoryName ??
+            "주변 장소",
+          address: candidate.sourceAddress,
+          phone: kakao?.phone ?? null,
+          distanceMeters,
+          ...location,
+          externalUrl:
+            kakao?.externalUrl ?? createKakaoPlaceSearchUrl(candidate.name),
+        } satisfies DeparturePlan["nearbyPlaces"][number],
+        relatedRank: relation?.rank ?? Number.MAX_SAFE_INTEGER,
+        isRelated: Boolean(relation),
+      };
+    })
+    .filter(({ isRelated, place }) =>
+      isRelated ? place.distanceMeters <= 10_000 : place.distanceMeters <= 1_500,
+    )
+    .sort((left, right) => {
+      if (left.isRelated !== right.isRelated) return left.isRelated ? -1 : 1;
+      if (left.relatedRank !== right.relatedRank) {
+        return left.relatedRank - right.relatedRank;
+      }
+      return left.place.distanceMeters - right.place.distanceMeters;
+    })
+    .slice(0, 6)
+    .map(({ place }) => place);
+}
+
+function toNearbyCategory(
+  contentTypeId: string | null,
+): DeparturePlan["nearbyPlaces"][number]["category"] {
+  if (contentTypeId === "14") return "culture";
+  if (contentTypeId === "39") return "cafe";
+  return "attraction";
+}
+
+function createKakaoPlaceSearchUrl(name: string) {
+  return `https://map.kakao.com/link/search/${encodeURIComponent(name)}`;
 }
 
 function selectRecommendedMode(
