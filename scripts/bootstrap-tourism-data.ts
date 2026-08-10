@@ -10,6 +10,7 @@ import {
   type VisitorAggregationLevel,
 } from "../src/server/tourism/regionalVisitorCountApiClient";
 import { syncMunicipalCoreTourism } from "../src/server/tourism/syncMunicipalCoreTourism";
+import { syncRelatedTourism } from "../src/server/tourism/syncRelatedTourism";
 import { syncRegionalTourismMetrics } from "../src/server/tourism/syncRegionalTourismMetrics";
 import { syncRegionalVisitorCounts } from "../src/server/tourism/syncRegionalVisitorCounts";
 import { syncTourismPhotoGallery } from "../src/server/tourism/syncTourismPhotoGallery";
@@ -54,8 +55,10 @@ type Region = {
 
 type CollectionOptions = {
   months: number;
+  relatedMonths: number;
   visitorDays: number;
   concurrency: number;
+  only: "related" | null;
 };
 
 type JobResult = {
@@ -106,6 +109,14 @@ try {
 
   await runStage("기초지자체 중심 관광지", () =>
     collectMunicipalCore(regions, months, options.concurrency),
+  );
+
+  await runStage("관광지별 연관 관광지", () =>
+    collectRelatedTourism(
+      regions,
+      createMonthRange("202504", options.relatedMonths),
+      options.concurrency,
+    ),
   );
 
   await runStage("관광지 집중률", async () => {
@@ -202,6 +213,11 @@ async function runStage(
   label: string,
   collect: () => Promise<JobResult[]>,
 ) {
+  if (options.only === "related" && label !== "관광지별 연관 관광지") {
+    console.log(`\n[${label}] --only related 옵션으로 건너뜁니다.`);
+    return;
+  }
+
   console.log(`\n[${label}] 시작`);
   let stageResults: JobResult[];
 
@@ -306,6 +322,55 @@ async function collectMunicipalCore(
           });
           return toJobResult(
             `중심 관광지 ${baseYm} ${region.sigunguCode}`,
+            value,
+          );
+        },
+      });
+    }
+  }
+
+  return [...skipped, ...(await runJobs(jobs, concurrency))];
+}
+
+async function collectRelatedTourism(
+  regions: Region[],
+  months: string[],
+  concurrency: number,
+) {
+  const jobs = [];
+  const skipped: JobResult[] = [];
+  const completed = await loadCompletedRunKeys(
+    ["ktoRelatedTourism"],
+    (parameters) =>
+      joinKey(
+        parameters.baseYm,
+        parameters.areaCode,
+        parameters.sigunguCode,
+      ),
+  );
+
+  for (const baseYm of months) {
+    for (const region of regions) {
+      const key = joinKey(baseYm, region.areaCode, region.sigunguCode);
+      if (completed.has(key)) {
+        skipped.push({
+          label: `연관 관광지 ${baseYm} ${region.sigunguCode}`,
+          status: "skipped",
+        });
+        continue;
+      }
+
+      jobs.push({
+        label: `연관 관광지 ${baseYm} ${region.sigunguCode}`,
+        run: async () => {
+          const value = await syncRelatedTourism({
+            baseYm,
+            ...region,
+            maxPages: 500,
+            pageSize: PAGE_SIZE,
+          });
+          return toJobResult(
+            `연관 관광지 ${baseYm} ${region.sigunguCode}`,
             value,
           );
         },
@@ -687,6 +752,11 @@ function parseOptions(args: string[]): CollectionOptions {
 
   return {
     months: readPositiveInteger(values.get("--months"), DEFAULT_MONTHS, 60),
+    relatedMonths: readPositiveInteger(
+      values.get("--related-months"),
+      12,
+      12,
+    ),
     visitorDays: readPositiveInteger(
       values.get("--visitor-days"),
       DEFAULT_VISITOR_DAYS,
@@ -697,7 +767,14 @@ function parseOptions(args: string[]): CollectionOptions {
       DEFAULT_CONCURRENCY,
       4,
     ),
+    only: readOnlySource(values.get("--only")),
   };
+}
+
+function readOnlySource(value: string | undefined): "related" | null {
+  if (value === undefined) return null;
+  if (value === "related") return value;
+  throw new Error(`--only에는 related만 지정할 수 있습니다: ${value}`);
 }
 
 function readPositiveInteger(

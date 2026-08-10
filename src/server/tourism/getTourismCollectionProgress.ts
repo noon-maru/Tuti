@@ -4,6 +4,7 @@ import { getTourismSyncJobKey } from "@/server/tourism/syncCheckpoints";
 import type { TourismCollectionProgressItem } from "@/shared/api/tourismAdmin";
 
 const DEFAULT_MONTHS = 24;
+const RELATED_MONTHS = 12;
 const DEFAULT_VISITOR_DAYS = 90;
 const PHOTO_PAGES_PER_JOB = 20;
 const RESOURCE_METRIC_CODES = 19;
@@ -34,6 +35,7 @@ type CollectionCounts = {
   wellness: number;
   photos: number;
   municipalCore: number;
+  related: number;
   concentration: number;
   visitors: number;
   resourceMetrics: number;
@@ -58,6 +60,7 @@ export async function getTourismCollectionProgress() {
     wellness,
     photos,
     municipalCore,
+    related,
     concentration,
     visitors,
     resourceMetrics,
@@ -105,6 +108,7 @@ export async function getTourismCollectionProgress() {
     prisma.wellnessTourismSourceRecord.count(),
     prisma.tourismPhotoGallerySourceRecord.count(),
     prisma.municipalCoreTourismSourceRecord.count(),
+    prisma.relatedTourismSourceRecord.count(),
     prisma.touristSpotConcentrationRateRecord.count(),
     prisma.regionalVisitorCountRecord.count(),
     prisma.tourismRegionMetric.count({
@@ -124,6 +128,7 @@ export async function getTourismCollectionProgress() {
     wellness,
     photos,
     municipalCore,
+    related,
     concentration,
     visitors,
     resourceMetrics,
@@ -162,6 +167,14 @@ export async function getTourismCollectionProgress() {
       sources: ["ktoMunicipalCoreTourism"],
       storedRecords: counts.municipalCore,
       targetJobs: coverage.regionCount * DEFAULT_MONTHS,
+    },
+    {
+      id: "related",
+      label: "연관 관광지",
+      description: `2024.05~2025.04 · ${coverage.regionCount.toLocaleString("ko-KR")}개 시군구`,
+      sources: ["ktoRelatedTourism"],
+      storedRecords: counts.related,
+      targetJobs: coverage.regionCount * RELATED_MONTHS,
     },
     {
       id: "concentration",

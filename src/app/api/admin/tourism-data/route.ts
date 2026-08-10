@@ -13,7 +13,9 @@ import {
 import {
   MunicipalCoreTourismApiError,
 } from "@/server/tourism/municipalCoreTourismApiClient";
+import { RelatedTourismApiError } from "@/server/tourism/relatedTourismApiClient";
 import { syncMunicipalCoreTourism } from "@/server/tourism/syncMunicipalCoreTourism";
+import { syncRelatedTourism } from "@/server/tourism/syncRelatedTourism";
 import { syncRegionalTourismMetrics } from "@/server/tourism/syncRegionalTourismMetrics";
 import { syncRegionalVisitorCounts } from "@/server/tourism/syncRegionalVisitorCounts";
 import { syncTourismPhotoGallery } from "@/server/tourism/syncTourismPhotoGallery";
@@ -78,6 +80,7 @@ export async function GET(request: Request) {
     places,
     wellness,
     municipalCore,
+    related,
     concentration,
     visitors,
     photos,
@@ -196,6 +199,52 @@ export async function GET(request: Request) {
               }
             : undefined,
           orderBy: [{ baseYm: "desc" }, { rank: "asc" }],
+          skip,
+          take,
+        })
+      : Promise.resolve([]),
+    tab === "related"
+      ? prisma.relatedTourismSourceRecord.findMany({
+          where: query
+            ? {
+                OR: [
+                  { touristSpotCode: { contains: query } },
+                  {
+                    touristSpotName: {
+                      contains: query,
+                      mode: "insensitive",
+                    },
+                  },
+                  { relatedTouristSpotCode: { contains: query } },
+                  {
+                    relatedTouristSpotName: {
+                      contains: query,
+                      mode: "insensitive",
+                    },
+                  },
+                  { areaName: { contains: query, mode: "insensitive" } },
+                  { sigunguName: { contains: query, mode: "insensitive" } },
+                  {
+                    relatedAreaName: {
+                      contains: query,
+                      mode: "insensitive",
+                    },
+                  },
+                  {
+                    relatedSigunguName: {
+                      contains: query,
+                      mode: "insensitive",
+                    },
+                  },
+                  { baseYm: { contains: query } },
+                ],
+              }
+            : undefined,
+          orderBy: [
+            { baseYm: "desc" },
+            { touristSpotName: "asc" },
+            { rank: "asc" },
+          ],
           skip,
           take,
         })
@@ -348,6 +397,12 @@ export async function GET(request: Request) {
       createdAt: undefined,
       updatedAt: undefined,
     })),
+    related: related.map((item) => ({
+      ...item,
+      syncedAt: item.syncedAt.toISOString(),
+      createdAt: undefined,
+      updatedAt: undefined,
+    })),
     concentration: concentration.map((item) => ({
       ...item,
       concentrationRate: item.concentrationRate.toString(),
@@ -422,8 +477,10 @@ export async function POST(request: Request) {
           ? "wellness"
           : body.kind === "municipalCore"
             ? "municipalCore"
-            : body.kind === "concentration"
-              ? "concentration"
+            : body.kind === "related"
+              ? "related"
+              : body.kind === "concentration"
+                ? "concentration"
               : body.kind === "visitors"
                 ? "visitors"
                 : body.kind === "photos"
@@ -461,8 +518,16 @@ export async function POST(request: Request) {
                 maxPages: 2,
                 pageSize: 100,
               })
-            : kind === "concentration"
-              ? await syncTouristSpotConcentrationRates({
+            : kind === "related"
+              ? await syncRelatedTourism({
+                  baseYm: normalizeRequiredString(body.baseYm, 6),
+                  areaCode: normalizeRequiredString(body.areaCode, 10),
+                  sigunguCode: normalizeRequiredString(body.sigunguCode, 10),
+                  maxPages: 10,
+                  pageSize: 100,
+                })
+              : kind === "concentration"
+                ? await syncTouristSpotConcentrationRates({
                   areaCode: normalizeRequiredString(body.areaCode, 10),
                   sigunguCode: normalizeRequiredString(body.sigunguCode, 10),
                   touristSpotName:
@@ -527,6 +592,7 @@ export async function POST(request: Request) {
       error instanceof TourApiError ||
       error instanceof WellnessTourismApiError ||
       error instanceof MunicipalCoreTourismApiError ||
+      error instanceof RelatedTourismApiError ||
       error instanceof TouristSpotConcentrationApiError ||
       error instanceof RegionalVisitorCountApiError ||
       error instanceof TourismPhotoGalleryApiError ||
@@ -542,6 +608,9 @@ export async function POST(request: Request) {
       (error instanceof MunicipalCoreTourismApiError &&
         error.code === "municipal_core_api_not_configured")
       ||
+      (error instanceof RelatedTourismApiError &&
+        error.code === "related_tourism_api_not_configured")
+      ||
       (error instanceof TouristSpotConcentrationApiError &&
         error.code === "tourist_spot_concentration_api_not_configured")
       ||
@@ -554,6 +623,7 @@ export async function POST(request: Request) {
         : error instanceof TourApiError ||
             error instanceof WellnessTourismApiError ||
               error instanceof MunicipalCoreTourismApiError ||
+                error instanceof RelatedTourismApiError ||
                 error instanceof TouristSpotConcentrationApiError
                 || error instanceof RegionalVisitorCountApiError
                 || error instanceof TourismPhotoGalleryApiError
@@ -647,6 +717,47 @@ async function getTotalItems({
         : undefined;
 
     return prisma.municipalCoreTourismSourceRecord.count({ where });
+  }
+
+  if (tab === "related") {
+    const where: Prisma.RelatedTourismSourceRecordWhereInput | undefined =
+      query
+        ? {
+            OR: [
+              { touristSpotCode: { contains: query } },
+              {
+                touristSpotName: {
+                  contains: query,
+                  mode: "insensitive",
+                },
+              },
+              { relatedTouristSpotCode: { contains: query } },
+              {
+                relatedTouristSpotName: {
+                  contains: query,
+                  mode: "insensitive",
+                },
+              },
+              { areaName: { contains: query, mode: "insensitive" } },
+              { sigunguName: { contains: query, mode: "insensitive" } },
+              {
+                relatedAreaName: {
+                  contains: query,
+                  mode: "insensitive",
+                },
+              },
+              {
+                relatedSigunguName: {
+                  contains: query,
+                  mode: "insensitive",
+                },
+              },
+              { baseYm: { contains: query } },
+            ],
+          }
+        : undefined;
+
+    return prisma.relatedTourismSourceRecord.count({ where });
   }
 
   if (tab === "concentration") {
@@ -755,6 +866,7 @@ async function getOverview() {
     placeSourceRecords,
     wellnessSourceRecords,
     municipalCoreSourceRecords,
+    relatedTourismSourceRecords,
     touristSpotConcentrationRecords,
     regionalVisitorCountRecords,
     tourismPhotoGalleryRecords,
@@ -768,6 +880,7 @@ async function getOverview() {
     prisma.tourismPlaceSourceRecord.count(),
     prisma.wellnessTourismSourceRecord.count(),
     prisma.municipalCoreTourismSourceRecord.count(),
+    prisma.relatedTourismSourceRecord.count(),
     prisma.touristSpotConcentrationRateRecord.count(),
     prisma.regionalVisitorCountRecord.count(),
     prisma.tourismPhotoGallerySourceRecord.count(),
@@ -789,6 +902,7 @@ async function getOverview() {
     placeSourceRecords,
     wellnessSourceRecords,
     municipalCoreSourceRecords,
+    relatedTourismSourceRecords,
     touristSpotConcentrationRecords,
     regionalVisitorCountRecords,
     tourismPhotoGalleryRecords,
@@ -828,6 +942,13 @@ async function getOverview() {
         ),
       },
       {
+        source: "ktoRelatedTourism",
+        label: "관광지별 연관 관광지",
+        configured: Boolean(
+          process.env.KTO_RELATED_TOURISM_SERVICE_KEY,
+        ),
+      },
+      {
         source: "ktoWellnessTourism",
         label: "웰니스 관광정보",
         configured: Boolean(
@@ -860,6 +981,7 @@ async function getOverview() {
 function normalizeTab(value: unknown): TourismDataTab {
   return value === "wellness" ||
     value === "municipalCore" ||
+    value === "related" ||
     value === "concentration" ||
     value === "visitors" ||
     value === "photos" ||

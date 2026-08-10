@@ -2,6 +2,7 @@ export type TourismDataTab =
   | "places"
   | "wellness"
   | "municipalCore"
+  | "related"
   | "concentration"
   | "visitors"
   | "photos"
@@ -12,6 +13,7 @@ export type TourismDataOverview = {
   placeSourceRecords: number;
   wellnessSourceRecords: number;
   municipalCoreSourceRecords: number;
+  relatedTourismSourceRecords: number;
   touristSpotConcentrationRecords: number;
   regionalVisitorCountRecords: number;
   tourismPhotoGalleryRecords: number;
@@ -46,6 +48,7 @@ export type TourismCollectionProgressItem = {
     | "wellness"
     | "photos"
     | "municipalCore"
+    | "related"
     | "concentration"
     | "visitors"
     | "resourceDemand"
@@ -140,6 +143,29 @@ export type MunicipalCoreTourismSourceItem = {
   rawPayload: unknown;
 };
 
+export type RelatedTourismSourceItem = {
+  id: string;
+  baseYm: string;
+  touristSpotCode: string;
+  touristSpotName: string;
+  areaCode: string;
+  areaName: string;
+  sigunguCode: string;
+  sigunguName: string;
+  relatedTouristSpotCode: string;
+  relatedTouristSpotName: string;
+  relatedAreaCode: string;
+  relatedAreaName: string;
+  relatedSigunguCode: string;
+  relatedSigunguName: string;
+  relatedCategoryLargeName: string | null;
+  relatedCategoryMediumName: string | null;
+  relatedCategorySmallName: string | null;
+  rank: number;
+  syncedAt: string;
+  rawPayload: unknown;
+};
+
 export type TouristSpotConcentrationRateItem = {
   id: string;
   baseYmd: string;
@@ -213,6 +239,7 @@ export type TourismDataResponse = {
   places: TourismPlaceSourceItem[];
   wellness: WellnessTourismSourceItem[];
   municipalCore: MunicipalCoreTourismSourceItem[];
+  related: RelatedTourismSourceItem[];
   concentration: TouristSpotConcentrationRateItem[];
   visitors: RegionalVisitorCountItem[];
   photos: TourismPhotoGallerySourceItem[];

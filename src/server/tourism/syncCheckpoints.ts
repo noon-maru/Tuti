@@ -13,6 +13,9 @@ export function getTourismSyncJobKey(
   if (source === "ktoMunicipalCoreTourism") {
     return joinKey(values.baseYm, values.areaCode, values.sigunguCode);
   }
+  if (source === "ktoRelatedTourism") {
+    return joinKey(values.baseYm, values.areaCode, values.sigunguCode);
+  }
   if (source === "ktoTouristSpotConcentrationRate") {
     return joinKey(values.areaCode, values.sigunguCode);
   }

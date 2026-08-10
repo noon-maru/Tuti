@@ -24,6 +24,7 @@ import type {
   TourismRegionMetricItem,
   WellnessTourismSourceItem,
   MunicipalCoreTourismSourceItem,
+  RelatedTourismSourceItem,
   TouristSpotConcentrationRateItem,
   RegionalVisitorCountItem,
   TourismPhotoGallerySourceItem,
@@ -34,6 +35,7 @@ type SyncSource =
   | "places"
   | "wellness"
   | "municipalCore"
+  | "related"
   | "concentration"
   | "visitorMetropolitan"
   | "visitorMunicipal"
@@ -47,6 +49,7 @@ const tabs: Array<{ id: TourismDataTab; label: string }> = [
   { id: "places", label: "장소 원본" },
   { id: "wellness", label: "웰니스 원본" },
   { id: "municipalCore", label: "중심 관광지" },
+  { id: "related", label: "연관 관광지" },
   { id: "concentration", label: "집중률" },
   { id: "visitors", label: "방문자 수" },
   { id: "photos", label: "관광사진" },
@@ -72,6 +75,11 @@ const datasetDescriptions: Record<
     eyebrow: "MUNICIPAL CORE",
     title: "기초지자체 중심 관광지",
     description: "월별·시군구별 주요 관광지 순위와 분류를 확인합니다.",
+  },
+  related: {
+    eyebrow: "RELATED TOURISM",
+    title: "관광지별 연관 관광지",
+    description: "중심 관광지와 함께 차량으로 방문된 장소와 연계 순위를 확인합니다.",
   },
   concentration: {
     eyebrow: "CONCENTRATION",
@@ -104,6 +112,7 @@ const sourceOptions: Array<{ value: SyncSource; label: string }> = [
   { value: "places", label: "국문 관광정보" },
   { value: "wellness", label: "웰니스 관광정보" },
   { value: "municipalCore", label: "기초지자체 중심 관광지" },
+  { value: "related", label: "관광지별 연관 관광지" },
   { value: "concentration", label: "관광지 집중률" },
   { value: "visitorMetropolitan", label: "광역 방문자 수" },
   { value: "visitorMunicipal", label: "기초 방문자 수" },
@@ -118,6 +127,7 @@ const metricOptions: Record<
   Exclude<
     SyncSource,
     "places" | "wellness" | "municipalCore" | "concentration"
+      | "related"
       | "visitorMetropolitan" | "visitorMunicipal"
       | "photos"
   >,
@@ -561,6 +571,8 @@ export function TourismDataScreen({
           <WellnessRecords records={data?.wellness ?? []} />
         ) : tab === "municipalCore" ? (
           <MunicipalCoreRecords records={data?.municipalCore ?? []} />
+        ) : tab === "related" ? (
+          <RelatedTourismRecords records={data?.related ?? []} />
         ) : tab === "concentration" ? (
           <ConcentrationRecords records={data?.concentration ?? []} />
         ) : tab === "visitors" ? (
@@ -637,6 +649,7 @@ function Overview({
     ["장소 원본", overview.placeSourceRecords],
     ["웰니스 원본", overview.wellnessSourceRecords],
     ["중심 관광지", overview.municipalCoreSourceRecords],
+    ["연관 관광지", overview.relatedTourismSourceRecords],
     ["집중률 원본", overview.touristSpotConcentrationRecords],
     ["방문자 수", overview.regionalVisitorCountRecords],
     ["관광사진", overview.tourismPhotoGalleryRecords],
@@ -980,6 +993,7 @@ function SyncPanel({
       source === "places" ||
       source === "wellness" ||
       source === "municipalCore" ||
+      source === "related" ||
       source === "concentration" ||
       source === "visitorMetropolitan" ||
       source === "visitorMunicipal" ||
@@ -997,6 +1011,9 @@ function SyncPanel({
       setSigunguCode("");
     } else if (nextSource === "municipalCore") {
       setAreaCode((current) => current || "11");
+    } else if (nextSource === "related") {
+      setAreaCode((current) => current || "11");
+      setBaseMonth("2025-04");
     } else if (nextSource === "concentration") {
       setAreaCode((current) => current || "11");
     } else if (
@@ -1044,7 +1061,14 @@ function SyncPanel({
                       areaCode,
                       sigunguCode: municipalSigunguCode,
                     }
-                  : source === "concentration"
+                  : source === "related"
+                    ? {
+                        kind: "related",
+                        baseYm: baseMonth.replace("-", ""),
+                        areaCode,
+                        sigunguCode: municipalSigunguCode,
+                      }
+                    : source === "concentration"
                     ? {
                         kind: "concentration",
                         areaCode,
@@ -1185,7 +1209,7 @@ function SyncPanel({
               />
             </Field>
           </>
-        ) : source === "municipalCore" ? (
+        ) : source === "municipalCore" || source === "related" ? (
           <>
             <Field>
               <span>기준월</span>
@@ -1362,6 +1386,8 @@ function SyncPanel({
             syncing ||
             (source === "municipalCore" &&
               (!baseMonth || !municipalSigunguCode)) ||
+            (source === "related" &&
+              (!baseMonth || !municipalSigunguCode)) ||
             (source === "concentration" && !municipalSigunguCode) ||
             ((source === "visitorMetropolitan" ||
               source === "visitorMunicipal") &&
@@ -1369,6 +1395,7 @@ function SyncPanel({
             (source !== "places" &&
               source !== "wellness" &&
               source !== "municipalCore" &&
+              source !== "related" &&
               source !== "concentration" &&
               source !== "visitorMetropolitan" &&
               source !== "visitorMunicipal" &&
@@ -1413,6 +1440,51 @@ function MunicipalCoreRecords({
               : ""}
             {" · "}관광지 코드 {record.touristSpotCode} · 동기화{" "}
             {formatDate(record.syncedAt)}
+          </Metadata>
+          <RawDetails payload={record.rawPayload} />
+        </RecordCard>
+      ))}
+    </RecordList>
+  );
+}
+
+function RelatedTourismRecords({
+  records,
+}: {
+  records: RelatedTourismSourceItem[];
+}) {
+  if (records.length === 0) {
+    return <StatePanel>저장된 연관 관광지 원본이 없습니다.</StatePanel>;
+  }
+
+  return (
+    <RecordList>
+      {records.map((record) => (
+        <RecordCard key={record.id}>
+          <RecordHeader>
+            <div>
+              <h2>
+                {record.touristSpotName} → {record.relatedTouristSpotName}
+              </h2>
+              <p>
+                {record.areaName} {record.sigunguName}에서 출발 ·{" "}
+                {formatBaseYm(record.baseYm)}
+              </p>
+            </div>
+            <MetricValue>#{record.rank}</MetricValue>
+          </RecordHeader>
+          <Metadata>
+            {record.relatedAreaName} {record.relatedSigunguName}
+            {record.relatedCategoryLargeName
+              ? ` · ${record.relatedCategoryLargeName}`
+              : ""}
+            {record.relatedCategoryMediumName
+              ? ` · ${record.relatedCategoryMediumName}`
+              : ""}
+            {record.relatedCategorySmallName
+              ? ` · ${record.relatedCategorySmallName}`
+              : ""}
+            {" · "}동기화 {formatDate(record.syncedAt)}
           </Metadata>
           <RawDetails payload={record.rawPayload} />
         </RecordCard>
@@ -2172,6 +2244,7 @@ function RawDetails({
 function normalizeTab(value: unknown): TourismDataTab {
   return value === "wellness" ||
     value === "municipalCore" ||
+    value === "related" ||
     value === "concentration" ||
     value === "visitors" ||
     value === "photos" ||
@@ -2287,6 +2360,9 @@ function getSourceLabel(value: string) {
   if (value === "ktoMunicipalCoreTourism") {
     return "기초지자체 중심 관광지";
   }
+  if (value === "ktoRelatedTourism") {
+    return "관광지별 연관 관광지";
+  }
   if (value === "ktoTouristSpotConcentrationRate") {
     return "관광지 집중률";
   }
@@ -2347,6 +2423,7 @@ function getSearchPlaceholder(tab: TourismDataTab) {
   if (tab === "places") return "콘텐츠 ID, 관광지명, 시도 또는 시군구 검색";
   if (tab === "wellness") return "콘텐츠 ID, 웰니스 관광지명 또는 테마 코드 검색";
   if (tab === "municipalCore") return "관광지명, 지역명 또는 기준월 검색";
+  if (tab === "related") return "중심·연관 관광지명, 지역명 또는 기준월 검색";
   if (tab === "concentration") return "관광지명, 지역명 또는 기준일 검색";
   if (tab === "visitors") return "지역명, 방문자 유형 또는 기준일 검색";
   if (tab === "photos") return "사진 ID, 제목, 촬영지 또는 키워드 검색";

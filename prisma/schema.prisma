@@ -261,6 +261,37 @@ model MunicipalCoreTourismSourceRecord {
   @@map("municipal_core_tourism_source_records")
 }
 
+model RelatedTourismSourceRecord {
+  id                        String   @id
+  baseYm                    String   @map("base_ym")
+  touristSpotCode           String   @map("tourist_spot_code")
+  touristSpotName           String   @map("tourist_spot_name")
+  areaCode                  String   @map("area_code")
+  areaName                  String   @map("area_name")
+  sigunguCode               String   @map("sigungu_code")
+  sigunguName               String   @map("sigungu_name")
+  relatedTouristSpotCode    String   @map("related_tourist_spot_code")
+  relatedTouristSpotName    String   @map("related_tourist_spot_name")
+  relatedAreaCode           String   @map("related_area_code")
+  relatedAreaName           String   @map("related_area_name")
+  relatedSigunguCode        String   @map("related_sigungu_code")
+  relatedSigunguName        String   @map("related_sigungu_name")
+  relatedCategoryLargeName  String?  @map("related_category_large_name")
+  relatedCategoryMediumName String?  @map("related_category_medium_name")
+  relatedCategorySmallName  String?  @map("related_category_small_name")
+  rank                      Int
+  rawPayload                Json     @map("raw_payload")
+  syncedAt                  DateTime @map("synced_at")
+  createdAt                 DateTime @default(now()) @map("created_at")
+  updatedAt                 DateTime @updatedAt @map("updated_at")
+
+  @@unique([baseYm, touristSpotCode, relatedTouristSpotCode])
+  @@index([baseYm, areaCode, sigunguCode, touristSpotCode, rank])
+  @@index([touristSpotName])
+  @@index([relatedTouristSpotName])
+  @@map("related_tourism_source_records")
+}
+
 model TouristSpotConcentrationRateRecord {
   id                String   @id
   baseYmd           String   @map("base_ymd")
