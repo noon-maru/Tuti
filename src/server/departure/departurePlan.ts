@@ -6,15 +6,14 @@ import {
 } from "@/server/maps/kakaoMapClient";
 import { fetchKakaoDrivingRoute } from "@/server/maps/kakaoNaviClient";
 import { isWalkingDistance } from "@/server/departure/routeSelection";
+import { createDepartureSuggestedPlan } from "@/server/departure/departureSuggestedPlan";
 import { recommendablePlaceWhere } from "@/server/recommendations/recommendablePlaceWhere";
 import { ensureTourismPlaceDetail } from "@/server/tourism/enrichTourismPlaceDetail";
 import type {
   DeparturePlan,
-  DeparturePlanStep,
   DepartureRoute,
   DepartureRouteMode,
 } from "@/shared/api/departurePlan";
-import type { TourismPlaceDetail } from "@/shared/api/placeDetails";
 import type { UserLocation } from "@/shared/tuti/types";
 
 const NEARBY_CACHE_TTL_MS = 6 * 60 * 60 * 1_000;
@@ -50,6 +49,7 @@ export async function createDeparturePlan(
       id: true,
       name: true,
       sourceAddress: true,
+      sourceContentType: true,
       latitude: true,
       longitude: true,
     },
@@ -83,13 +83,11 @@ export async function createDeparturePlan(
     routes,
     recommendedMode,
     nearbyPlaces,
-    suggestedPlan: createSuggestedPlan(
-      place.name,
+    suggestedPlan: createDepartureSuggestedPlan({
+      placeName: place.name,
+      contentTypeId: place.sourceContentType,
       detail,
-      routes,
-      recommendedMode,
-      nearbyPlaces,
-    ),
+    }),
     generatedAt: new Date().toISOString(),
   };
 }
@@ -209,77 +207,6 @@ function selectRecommendedMode(
 
 function isAvailableRoute(route: DepartureRoute) {
   return route.status === "available" && route.durationSeconds !== null;
-}
-
-function createSuggestedPlan(
-  placeName: string,
-  detail: TourismPlaceDetail | null,
-  routes: RouteBundle,
-  recommendedMode: DepartureRouteMode | null,
-  nearbyPlaces: DeparturePlan["nearbyPlaces"],
-): DeparturePlanStep[] {
-  const steps: DeparturePlanStep[] = [];
-
-  if (recommendedMode) {
-    const route = routes[recommendedMode];
-    steps.push({
-      kind: "route",
-      title: `${getModeLabel(recommendedMode)}으로 가볍게 출발하기`,
-      description: createRouteDescription(route),
-    });
-  }
-
-  steps.push({
-    kind: "arrival",
-    title: `${placeName}에 도착하면 천천히 둘러보기`,
-    description:
-      detail?.openingHours && detail?.restDate
-        ? `${detail.openingHours} · 휴무 ${detail.restDate}`
-        : detail?.openingHours ?? detail?.overview?.slice(0, 100) ?? null,
-  });
-
-  const nearby =
-    nearbyPlaces.find((place) => place.category === "cafe") ??
-    nearbyPlaces[0];
-  if (nearby) {
-    steps.push({
-      kind: "nearby",
-      title: `힘들면 ${nearby.name}에서 잠깐 쉬기`,
-      description:
-        nearby.distanceMeters === null
-          ? nearby.categoryName
-          : `${nearby.distanceMeters.toLocaleString("ko-KR")}m 거리`,
-    });
-  }
-
-  return steps;
-}
-
-function createRouteDescription(route: DepartureRoute) {
-  const parts = [];
-  if (route.durationSeconds !== null) {
-    parts.push(`약 ${Math.max(1, Math.round(route.durationSeconds / 60))}분`);
-  }
-  if (route.distanceMeters !== null) {
-    parts.push(formatDistance(route.distanceMeters));
-  }
-  if (route.transfers !== null) parts.push(`환승 ${route.transfers}회`);
-  return parts.join(" · ") || null;
-}
-
-function formatDistance(distanceMeters: number) {
-  return distanceMeters < 1_000
-    ? `${Math.round(distanceMeters)}m`
-    : `${(distanceMeters / 1_000).toFixed(1)}km`;
-}
-
-function getModeLabel(mode: DepartureRouteMode) {
-  return {
-    publicTransit: "대중교통",
-    walking: "도보",
-    bicycle: "자전거",
-    driving: "자동차",
-  }[mode];
 }
 
 function unavailableRoute(mode: DepartureRouteMode): DepartureRoute {

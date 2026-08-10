@@ -55,7 +55,9 @@ async function ensureTourismPlaceDetailOnce(
   }
 
   if (!force && cached?.retryAfter && cached.retryAfter > now) {
-    return cached.syncedAt ? detailRecordToResult(cached, true) : null;
+    return hasDisplayableDetail(cached)
+      ? detailRecordToResult(cached, true)
+      : null;
   }
 
   try {
@@ -122,7 +124,9 @@ async function ensureTourismPlaceDetailOnce(
       },
     });
 
-    if (cached?.syncedAt) return detailRecordToResult(cached, true);
+    if (cached && hasDisplayableDetail(cached)) {
+      return detailRecordToResult(cached, true);
+    }
     throw error;
   }
 }
@@ -232,12 +236,13 @@ function detailRecordToResult(
     infoPayload: Prisma.JsonValue | null;
     imagePayload: Prisma.JsonValue | null;
     syncedAt: Date | null;
+    editorialSyncedAt: Date | null;
+    updatedAt: Date;
   },
   isStale: boolean,
 ): TourismPlaceDetail {
-  if (!record.syncedAt) {
-    throw new Error("동기화되지 않은 관광지 상세정보를 변환할 수 없습니다.");
-  }
+  const availableAt =
+    record.syncedAt ?? record.editorialSyncedAt ?? record.updatedAt;
 
   return {
     contentId: record.contentId,
@@ -254,9 +259,35 @@ function detailRecordToResult(
     experienceGuide: record.experienceGuide,
     sections: normalizeSections(record.infoPayload),
     images: normalizeImages(record.imagePayload),
-    syncedAt: record.syncedAt.toISOString(),
+    syncedAt: availableAt.toISOString(),
     isStale,
   };
+}
+
+function hasDisplayableDetail(record: {
+  overview: string | null;
+  openingHours: string | null;
+  restDate: string | null;
+  admissionFee: string | null;
+  parking: string | null;
+  reservation: string | null;
+  usageDuration: string | null;
+  experienceGuide: string | null;
+  infoPayload: Prisma.JsonValue | null;
+  imagePayload: Prisma.JsonValue | null;
+}) {
+  return Boolean(
+    record.overview ||
+      record.openingHours ||
+      record.restDate ||
+      record.admissionFee ||
+      record.parking ||
+      record.reservation ||
+      record.usageDuration ||
+      record.experienceGuide ||
+      record.infoPayload ||
+      record.imagePayload,
+  );
 }
 
 function normalizeSections(
