@@ -9,11 +9,12 @@
 
 | 데이터 | 테이블 | 유니크 키 | 권장 주기 |
 | --- | --- | --- | --- |
-| 관광정보 | `tourism_place_source_records` | `contentId` | 일 1회 및 수정분 수집 |
-| 웰니스 관광 | `wellness_tourism_source_records` | `contentId`, `langDivCd` | 일 1회 |
+| 관광정보 | `tourism_place_source_records` | `contentId` | 전수수집 완료·수동 복구 |
+| 웰니스 관광 | `wellness_tourism_source_records` | `contentId`, `langDivCd` | 전수수집 완료·수동 복구 |
 | 중심 관광지 | `municipal_core_tourism_source_records` | `baseYm`, `areaCode`, `sigunguCode`, `touristSpotCode` | 월 1회 |
-| 지역 방문자 수 | `regional_visitor_count_records` | `aggregationLevel`, `baseYmd`, `regionCode`, `weekdayCode`, `visitorTypeCode` | 일 1회 |
-| 관광사진 갤러리 | `tourism_photo_gallery_source_records` | `contentId` | 수정일 기준 일 1회 |
+| 관광지 집중률 | `tourist_spot_concentration_rate_records` | `baseYmd`, `areaCode`, `sigunguCode`, `touristSpotName` | 7개 묶음 순환·일 1회 |
+| 지역 방문자 수 | `regional_visitor_count_records` | `aggregationLevel`, `baseYmd`, `regionCode`, `weekdayCode`, `visitorTypeCode` | 주 1회·최근 14일 갱신 |
+| 관광사진 갤러리 | `tourism_photo_gallery_source_records` | `contentId` | 전수수집 완료·수동 복구 |
 | 지역 관광 지표 | `tourism_region_metrics` | `metricType`, `metricCode`, `baseYm`, `areaCode`, `sigunguCode` | 월 1회 |
 
 `metricType`은 서비스 수요·문화자원 수요·숙박 강도·소비 강도를 구분한다. 각
@@ -33,17 +34,14 @@ TourAPI의 지역 코드는 관광 데이터랩의 법정 지역 코드와 다�
 
 ## 실시간 활용 대상
 
-관광지 집중률 방문자 추이 예측 정보는 추천을 요청하는 시점에 서버에서 직접 호출한다.
-응답은 필요하면 감사·장애 대응용으로
-`tourist_spot_concentration_rate_records`에 저장할 수 있으며, 중복 기준은
-`baseYmd`, `areaCode`, `sigunguCode`, `touristSpotName`이다. 이 데이터는 정기
-동기화 결과가 아니라 추천 응답의 최신성 보강에 사용한다. 이 데이터는 실측 혼잡도가
-아닌 관광공사 방문 패턴 기반의 예측값이므로 UI에는 `예상 혼잡도`로만 표시한다.
+관광지 집중률 방문자 추이 예측 정보는 일곱 지역 묶음을 순환하며 매일 미리 수집한다.
+중복 기준은 `baseYmd`, `areaCode`, `sigunguCode`, `touristSpotName`이다. 이 데이터는
+실측 혼잡도가 아닌 관광공사 방문 패턴 기반의 예측값이므로 UI에는 `예상 혼잡도`로만
+표시한다.
 
-추천 호출에서 원천 API를 읽지 못하면 최근 48시간 안에 저장한 같은 관광지의 예측값을
-사용하고, 그것도 없으면 같은 요일의 누적 예측값 3건 이상으로 평시 예상 집중률을
-계산한다. 어느 기준도 충분하지 않으면 정적인 장소 혼잡도만 사용하며, 예측 데이터가
-있는 것처럼 표시하지 않는다.
+추천에서는 서울 실시간 혼잡도를 최우선으로 사용하고, 없으면 저장된 관광지 집중률을
+사용한다. 둘 다 없으면 `place_crowd_estimates`의 지역 방문 패턴 기반 예상값을 사용한다.
+추정 근거가 하나도 없으면 혼잡도 정보가 없는 상태를 유지한다.
 
 ## 동기화 실행 원칙
 

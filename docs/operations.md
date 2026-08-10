@@ -15,19 +15,19 @@ sudo -n /usr/local/sbin/tuti-prod-deploy
 sudo -n /usr/local/sbin/tuti-dev-refresh
 sudo -n /usr/local/sbin/tuti-dev-restart
 sudo -n /usr/local/sbin/tuti-docker-status
-sudo -n /usr/local/sbin/tuti-tourism-sync
 sudo -n /usr/local/sbin/tuti-tourism-bootstrap
 sudo -n /usr/local/sbin/tuti-tourism-data-bootstrap dev
 sudo -n /usr/local/sbin/tuti-tourism-data-bootstrap prod
 sudo -n /usr/local/sbin/tuti-tourism-backup
 sudo -n /usr/local/sbin/tuti-place-candidate-refresh
+sudo -n /usr/local/sbin/tuti-crowd-forecast-refresh
+sudo -n /usr/local/sbin/tuti-crowd-estimate-refresh
+sudo -n /usr/local/sbin/tuti-tourism-timeseries-refresh
 ```
 
 `tuti-prod-deploy`는 운영용 ops 이미지를 빌드하고 DB 마이그레이션을 적용한 뒤 앱 컨테이너만 다시 빌드·교체한다. 시드는 실행하지 않는다.
 
 `tuti-dev-refresh`는 개발 DB 마이그레이션을 적용한 뒤 개발 앱을 재시작한다. `tuti-dev-restart`는 마이그레이션 없이 개발 앱만 재시작한다.
-
-`tuti-tourism-sync`는 매 실행마다 한 시도를 순환 선택하고, 관광지·문화시설·여행코스·레포츠를 각각 최대 1,000건(100건 × 10페이지) 동기화한다. 17일 동안 전국을 한 바퀴 돌고, 다음 순환에서는 다음 10페이지 묶음을 수집한다. 이어서 웰니스, 관광사진 메타데이터, 중심 관광지, 집중률, 방문자 수, 지역 지표의 미완료 작업을 최대 동시 요청 4개로 이어받는다. API 일일 호출 한도에 도달한 데이터셋은 다음 실행까지 보류한다. 승인된 장소의 편집 필드는 동기화로 덮어쓰지 않는다.
 
 `tuti-tourism-bootstrap`은 관광지·문화시설·여행코스·레포츠의 전국 전체 페이지를 10페이지 구간으로 나누어 네 구간씩 병렬 동기화한다. 초기 기준 데이터를 구축하거나 전체 누락 여부를 복구할 때만 수동 실행하며, 기존 데이터는 upsert하고 승인된 장소의 편집 필드는 덮어쓰지 않는다.
 
@@ -37,7 +37,7 @@ sudo -n /usr/local/sbin/tuti-place-candidate-refresh
 
 전수 수집이 중단되거나 API가 HTTP 429를 반환해도 같은 명령을 다시 실행하면 `external_data_sync_checkpoints`에 완료된 작업만 건너뛰고 실패·부분 완료·중단된 작업을 다시 시도한다. 타임아웃과 HTTP 502~504는 한 작업 안에서 최대 세 번 재시도한다. 한 시간 넘게 `running`으로 남은 기록은 다음 실행 시작 시 실패 상태로 정리한다. API 호출 한도에 도달한 데이터셋은 즉시 보류하고 별도 키를 사용하는 다음 데이터셋 수집을 계속한다.
 
-개발 DB 전체를 운영 DB로 이관하는 명령은 제공하지 않는다. 운영 원천 데이터는 운영 환경에서 정기 동기화하고, 복구가 필요할 때는 검증된 백업을 별도 스키마에 적재한 뒤 자연 키 기준으로 병합한다.
+개발 DB 전체를 운영 DB로 이관하는 명령은 제공하지 않는다. 정기 시계열 작업은 개발 DB에서 외부 API를 한 번 호출한 뒤 실행 중 변경된 레코드만 자연 키 기준으로 운영 DB에 upsert한다. 복구가 필요할 때는 검증된 백업을 별도 스키마에 적재한 뒤 병합한다.
 
 `tuti-tourism-backup`은 개발·운영 DB의 관광 원천 테이블과 `external_data_sync_checkpoints`만 `.ops-backups/tourism-periodic`에 각각 백업한다. 수집 실행 로그, 사용자, 인증, 기록 및 애플리케이션 로그는 포함하지 않는다. 기본 보관 기간은 30일이다. 실행 일정은 Synology DSM 작업 스케줄러에서 `root` 사용자로 관리하며, 매일 오전 4시 30분 실행을 권장한다. 즉시 백업은 다음 명령으로 실행한다.
 
@@ -55,13 +55,33 @@ sudo -n /usr/local/sbin/tuti-tourism-backup
 
 현재 서비스 키의 정확한 한도를 확인하며 전수 보강하려면 `tuti-place-candidate-refresh --until-quota`를 실행한다. 남은 장소 전체를 대상으로 시작하되 공급자가 한도 초과 응답을 반환하면 즉시 수집을 멈추고, 그때까지 성공한 결과를 개발·운영 DB에 반영한다. 다음 실행에서는 완료된 장소를 건너뛰고 이어받는다.
 
-Synology DSM의 **제어판 → 작업 스케줄러**에서 다음 사용자 정의 스크립트를 매일 오전 3:10에 실행하면 된다.
+원천 장소 전수수집은 완료됐으므로 `tuti-tourism-sync`는 제거했다. 초기 전수수집 명령은 장애 복구를 위한 수동 명령으로만 남긴다.
+
+`tuti-crowd-forecast-refresh`는 중심 관광지 지역을 일곱 묶음으로 나눠 그날의 한 묶음에 해당하는 관광지 집중률 30일 예측을 개발 DB에서 갱신하고 운영 DB에 증분 반영한다. 매일 오전 3시에 실행하면 일주일에 전국을 한 번 갱신한다.
+
+`tuti-tourism-timeseries-refresh`는 최근 14일 지역 방문자 수를 다시 upsert한다. 매주 월요일 오전 2시에 실행한다. `--monthly`를 붙이면 최신 기준월의 중심 관광지와 지역 수요·체류·소비 지표도 다시 수집하므로 매월 5일 오전 1시에 별도 실행한다. 두 모드 모두 개발 DB 수집 후 운영 DB에 증분 반영한다.
+
+`tuti-crowd-estimate-refresh`는 개발·운영 DB 각각의 추천풀을 대상으로 지역 방문량 55%, 장소 중심성 25%, 지역 수요 20%를 가용한 항목끼리 재정규화해 오늘부터 8일치 예상 혼잡도를 계산한다. 외부 API를 호출하지 않는다. 관광 시계열·집중률 및 후보 재판정 작업이 모두 끝난 뒤 매일 한 번 실행한다.
+
+Synology DSM의 **제어판 → 작업 스케줄러**에는 아래 작업을 등록한다.
 
 ```sh
-/usr/local/sbin/tuti-tourism-sync
+/usr/local/sbin/tuti-crowd-forecast-refresh
 ```
 
-후보 보강을 우선하는 기간에는 위 정기 동기화 대신 다음 명령을 같은 방식으로 등록한다.
+```sh
+/usr/local/sbin/tuti-crowd-estimate-refresh
+```
+
+```sh
+/usr/local/sbin/tuti-tourism-timeseries-refresh
+```
+
+```sh
+/usr/local/sbin/tuti-tourism-timeseries-refresh --monthly
+```
+
+상세·소개정보 보강과 추천 후보 재판정은 다음 명령을 별도 일정으로 실행한다.
 
 ```sh
 /usr/local/sbin/tuti-place-candidate-refresh

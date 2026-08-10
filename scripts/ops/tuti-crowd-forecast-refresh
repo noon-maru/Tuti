@@ -1,0 +1,60 @@
+#!/bin/sh
+
+set -eu
+
+project_dir="/var/services/homes/Tutiadmin/source/Tuti"
+lock_dir="/tmp/tuti-crowd-forecast-refresh.lock"
+dump_file=""
+
+if ! mkdir "$lock_dir" 2>/dev/null; then
+  echo "관광지 집중률 갱신 작업이 이미 실행 중입니다." >&2
+  exit 1
+fi
+
+cleanup() {
+  [ -z "$dump_file" ] || rm -f "$dump_file"
+  rmdir "$lock_dir" 2>/dev/null || true
+}
+trap cleanup EXIT HUP INT TERM
+
+cd "$project_dir"
+dump_file="$(mktemp /tmp/tuti-crowd-forecast.XXXXXX.copy)"
+job_started="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+
+if ! docker compose -f docker-compose.dev.yml exec -T app \
+  sh -lc 'test -x node_modules/.bin/tsx && test -f scripts/refresh-tourist-spot-concentration.ts'; then
+  echo "개발 컨테이너 준비가 필요합니다: sudo -n /usr/local/sbin/tuti-dev-refresh" >&2
+  exit 1
+fi
+
+echo "개발 DB 관광지 집중률 순환 갱신"
+refresh_status=0
+docker compose -f docker-compose.dev.yml exec -T app \
+  su node -c "node_modules/.bin/tsx scripts/refresh-tourist-spot-concentration.ts" \
+  || refresh_status=$?
+
+echo "개발 DB 집중률 증분 스냅샷 생성"
+printf '%s\n' \
+  "COPY (SELECT id, base_ymd, area_code, area_name, sigungu_code, sigungu_name, tourist_spot_name, concentration_rate, raw_payload, synced_at, created_at, updated_at FROM public.tourist_spot_concentration_rate_records WHERE synced_at >= TIMESTAMPTZ '$job_started' ORDER BY id) TO STDOUT;" \
+  | docker compose -f docker-compose.dev.yml exec -T db \
+    sh -lc 'exec psql --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" --quiet --set ON_ERROR_STOP=1' \
+  > "$dump_file"
+
+echo "운영 DB에 집중률 증분 반영"
+{
+  printf '%s\n' 'BEGIN;' \
+    'CREATE TEMP TABLE crowd_forecast_stage (LIKE public.tourist_spot_concentration_rate_records INCLUDING DEFAULTS) ON COMMIT DROP;' \
+    'COPY crowd_forecast_stage FROM STDIN;'
+  sed -n '1,$p' "$dump_file"
+  printf '%s\n' '\.' \
+    'INSERT INTO public.tourist_spot_concentration_rate_records SELECT * FROM crowd_forecast_stage ON CONFLICT (base_ymd, area_code, sigungu_code, tourist_spot_name) DO UPDATE SET area_name = EXCLUDED.area_name, sigungu_name = EXCLUDED.sigungu_name, concentration_rate = EXCLUDED.concentration_rate, raw_payload = EXCLUDED.raw_payload, synced_at = EXCLUDED.synced_at, updated_at = EXCLUDED.updated_at;' \
+    'COMMIT;'
+} | docker compose --env-file .env.production -f docker-compose.prod.yml exec -T db \
+  sh -lc 'exec psql --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" --set ON_ERROR_STOP=1'
+
+echo "관광지 집중률 순환 갱신과 운영 반영을 완료했습니다."
+
+if [ "$refresh_status" -ne 0 ]; then
+  echo "일부 지역 갱신이 실패했습니다. 성공한 증분은 운영 DB에 반영했습니다." >&2
+  exit "$refresh_status"
+fi

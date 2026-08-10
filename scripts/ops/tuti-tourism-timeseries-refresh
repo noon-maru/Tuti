@@ -1,0 +1,91 @@
+#!/bin/sh
+
+set -eu
+
+project_dir="/var/services/homes/Tutiadmin/source/Tuti"
+lock_dir="/tmp/tuti-tourism-timeseries-refresh.lock"
+temporary_dir=""
+
+if ! mkdir "$lock_dir" 2>/dev/null; then
+  echo "관광 시계열 갱신 작업이 이미 실행 중입니다." >&2
+  exit 1
+fi
+
+cleanup() {
+  if [ -n "$temporary_dir" ]; then
+    rm -f \
+      "$temporary_dir/municipal.copy" \
+      "$temporary_dir/visitors.copy" \
+      "$temporary_dir/metrics.copy"
+    rmdir "$temporary_dir" 2>/dev/null || true
+  fi
+  rmdir "$lock_dir" 2>/dev/null || true
+}
+trap cleanup EXIT HUP INT TERM
+
+cd "$project_dir"
+temporary_dir="$(mktemp -d /tmp/tuti-tourism-timeseries.XXXXXX)"
+job_started="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+arguments=""
+if [ "$#" -eq 1 ] && [ "$1" = "--monthly" ]; then
+  arguments="--monthly"
+elif [ "$#" -gt 0 ]; then
+  echo "사용법: tuti-tourism-timeseries-refresh [--monthly]" >&2
+  exit 1
+fi
+
+if ! docker compose -f docker-compose.dev.yml exec -T app \
+  sh -lc 'test -x node_modules/.bin/tsx && test -f scripts/refresh-tourism-timeseries.ts'; then
+  echo "개발 컨테이너 준비가 필요합니다: sudo -n /usr/local/sbin/tuti-dev-refresh" >&2
+  exit 1
+fi
+
+echo "개발 DB 관광 시계열 증분 갱신"
+refresh_status=0
+docker compose -f docker-compose.dev.yml exec -T app \
+  su node -c "node_modules/.bin/tsx scripts/refresh-tourism-timeseries.ts $arguments" \
+  || refresh_status=$?
+
+export_table() {
+  table="$1"
+  output="$2"
+  printf '%s\n' \
+    "COPY (SELECT * FROM public.$table WHERE synced_at >= TIMESTAMPTZ '$job_started') TO STDOUT;" \
+    | docker compose -f docker-compose.dev.yml exec -T db \
+      sh -lc 'exec psql --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" --quiet --set ON_ERROR_STOP=1' \
+    > "$output"
+}
+
+echo "개발 DB 시계열 증분 스냅샷 생성"
+export_table municipal_core_tourism_source_records "$temporary_dir/municipal.copy"
+export_table regional_visitor_count_records "$temporary_dir/visitors.copy"
+export_table tourism_region_metrics "$temporary_dir/metrics.copy"
+
+echo "운영 DB에 관광 시계열 증분 반영"
+{
+  printf '%s\n' 'BEGIN;' \
+    'CREATE TEMP TABLE municipal_stage (LIKE public.municipal_core_tourism_source_records INCLUDING DEFAULTS) ON COMMIT DROP;' \
+    'COPY municipal_stage FROM STDIN;'
+  sed -n '1,$p' "$temporary_dir/municipal.copy"
+  printf '%s\n' '\.' \
+    'INSERT INTO public.municipal_core_tourism_source_records SELECT * FROM municipal_stage ON CONFLICT (base_ym, area_code, sigungu_code, tourist_spot_code) DO UPDATE SET area_name = EXCLUDED.area_name, sigungu_name = EXCLUDED.sigungu_name, tourist_spot_name = EXCLUDED.tourist_spot_name, rank = EXCLUDED.rank, category_large_name = EXCLUDED.category_large_name, category_medium_name = EXCLUDED.category_medium_name, longitude = EXCLUDED.longitude, latitude = EXCLUDED.latitude, raw_payload = EXCLUDED.raw_payload, synced_at = EXCLUDED.synced_at, updated_at = EXCLUDED.updated_at;' \
+    'CREATE TEMP TABLE visitor_stage (LIKE public.regional_visitor_count_records INCLUDING DEFAULTS) ON COMMIT DROP;' \
+    'COPY visitor_stage FROM STDIN;'
+  sed -n '1,$p' "$temporary_dir/visitors.copy"
+  printf '%s\n' '\.' \
+    'INSERT INTO public.regional_visitor_count_records SELECT * FROM visitor_stage ON CONFLICT (aggregation_level, base_ymd, region_code, weekday_code, visitor_type_code) DO UPDATE SET region_name = EXCLUDED.region_name, weekday_name = EXCLUDED.weekday_name, visitor_type_name = EXCLUDED.visitor_type_name, visitor_count = EXCLUDED.visitor_count, raw_payload = EXCLUDED.raw_payload, synced_at = EXCLUDED.synced_at, updated_at = EXCLUDED.updated_at;' \
+    'CREATE TEMP TABLE metric_stage (LIKE public.tourism_region_metrics INCLUDING DEFAULTS) ON COMMIT DROP;' \
+    'COPY metric_stage FROM STDIN;'
+  sed -n '1,$p' "$temporary_dir/metrics.copy"
+  printf '%s\n' '\.' \
+    'INSERT INTO public.tourism_region_metrics SELECT * FROM metric_stage ON CONFLICT (metric_type, metric_code, base_ym, area_code, sigungu_code) DO UPDATE SET dataset = EXCLUDED.dataset, metric_name = EXCLUDED.metric_name, metric_value = EXCLUDED.metric_value, area_name = EXCLUDED.area_name, sigungu_name = EXCLUDED.sigungu_name, raw_payload = EXCLUDED.raw_payload, synced_at = EXCLUDED.synced_at, updated_at = EXCLUDED.updated_at;' \
+    'COMMIT;'
+} | docker compose --env-file .env.production -f docker-compose.prod.yml exec -T db \
+  sh -lc 'exec psql --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" --set ON_ERROR_STOP=1'
+
+echo "관광 시계열 증분 갱신과 운영 반영을 완료했습니다."
+
+if [ "$refresh_status" -ne 0 ]; then
+  echo "일부 시계열 갱신이 실패했습니다. 성공한 증분은 운영 DB에 반영했습니다." >&2
+  exit "$refresh_status"
+fi

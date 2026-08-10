@@ -1,0 +1,62 @@
+#!/bin/sh
+
+set -eu
+
+project_dir="/var/services/homes/Tutiadmin/source/Tuti"
+lock_dir="/tmp/tuti-crowd-estimate-refresh.lock"
+
+if ! mkdir "$lock_dir" 2>/dev/null; then
+  echo "예상 혼잡도 계산 작업이 이미 실행 중입니다." >&2
+  exit 1
+fi
+trap 'rmdir "$lock_dir" 2>/dev/null || true' EXIT HUP INT TERM
+
+cd "$project_dir"
+
+if ! docker compose -f docker-compose.dev.yml exec -T app \
+  sh -lc 'test -x node_modules/.bin/tsx && test -f scripts/refresh-crowd-estimates.ts'; then
+  echo "개발 컨테이너 준비가 필요합니다: sudo -n /usr/local/sbin/tuti-dev-refresh" >&2
+  exit 1
+fi
+
+if ! docker compose \
+  --env-file .env.production \
+  -f docker-compose.prod.yml \
+  run --rm --no-deps -T ops \
+  sh -lc 'test -x node_modules/.bin/tsx && test -f scripts/refresh-crowd-estimates.ts'; then
+  echo "최신 운영 ops 이미지가 필요합니다: sudo -n /usr/local/sbin/tuti-prod-deploy" >&2
+  exit 1
+fi
+
+for target in development production; do
+  if [ "$target" = development ]; then
+    schema_ready="$(
+      docker compose -f docker-compose.dev.yml exec -T db sh -lc \
+        'exec psql --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" --tuples-only --no-align --command "SELECT to_regclass('\''public.place_crowd_estimates'\'') IS NOT NULL"'
+    )"
+  else
+    schema_ready="$(
+      docker compose --env-file .env.production -f docker-compose.prod.yml \
+        exec -T db sh -lc \
+        'exec psql --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" --tuples-only --no-align --command "SELECT to_regclass('\''public.place_crowd_estimates'\'') IS NOT NULL"'
+    )"
+  fi
+
+  if [ "$schema_ready" != "t" ]; then
+    echo "$target DB에 예상 혼잡도 마이그레이션이 필요합니다. 개발·운영 배포 명령을 먼저 실행해주세요." >&2
+    exit 1
+  fi
+done
+
+echo "개발 DB 추천풀 예상 혼잡도 8일치 계산"
+docker compose -f docker-compose.dev.yml exec -T app \
+  su node -c "node_modules/.bin/tsx scripts/refresh-crowd-estimates.ts --days 8"
+
+echo "운영 DB 추천풀 예상 혼잡도 8일치 계산"
+docker compose \
+  --env-file .env.production \
+  -f docker-compose.prod.yml \
+  run --rm --no-deps -T ops \
+  node_modules/.bin/tsx scripts/refresh-crowd-estimates.ts --days 8
+
+echo "개발·운영 예상 혼잡도 계산을 완료했습니다."
