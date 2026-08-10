@@ -10,6 +10,8 @@ export type TourApiPlaceItem = {
   addr2?: string;
   areacode?: string;
   sigungucode?: string;
+  lDongRegnCd?: string;
+  lDongSignguCd?: string;
   cat1?: string;
   cat2?: string;
   cat3?: string;

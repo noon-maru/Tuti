@@ -259,6 +259,7 @@ async function saveTourismPlaceSourceRecord(item: TourApiPlaceItem) {
   const region = resolveTourApiRegionLabels(
     item.areacode?.trim() || null,
     address,
+    item.lDongRegnCd,
   );
 
   if (!contentId || !title) return null;
@@ -269,9 +270,11 @@ async function saveTourismPlaceSourceRecord(item: TourApiPlaceItem) {
       contentId,
       contentTypeId: item.contenttypeid?.trim() || null,
       title,
-      areaCode: item.areacode?.trim() || null,
+      areaCode:
+        item.lDongRegnCd?.trim() || item.areacode?.trim() || null,
       sidoName: region.sidoName,
-      sigunguCode: item.sigungucode?.trim() || null,
+      sigunguCode:
+        item.lDongSignguCd?.trim() || item.sigungucode?.trim() || null,
       sigunguName: region.sigunguName,
       rawPayload: item as Prisma.InputJsonValue,
       sourceModifiedAt: parseTourApiDate(item.modifiedtime),
@@ -280,9 +283,11 @@ async function saveTourismPlaceSourceRecord(item: TourApiPlaceItem) {
     update: {
       contentTypeId: item.contenttypeid?.trim() || null,
       title,
-      areaCode: item.areacode?.trim() || null,
+      areaCode:
+        item.lDongRegnCd?.trim() || item.areacode?.trim() || null,
       sidoName: region.sidoName,
-      sigunguCode: item.sigungucode?.trim() || null,
+      sigunguCode:
+        item.lDongSignguCd?.trim() || item.sigungucode?.trim() || null,
       sigunguName: region.sigunguName,
       rawPayload: item as Prisma.InputJsonValue,
       sourceModifiedAt: parseTourApiDate(item.modifiedtime),
@@ -328,15 +333,18 @@ function normalizeTourApiPlace(
   const region = resolveTourApiRegionLabels(
     item.areacode?.trim() || null,
     address || null,
+    item.lDongRegnCd,
   );
   const profile = createEditorialDefaults(name, address, contentTypeId);
 
   return {
     contentId,
     contentTypeId,
-    areaCode: item.areacode?.trim() || null,
+    areaCode:
+      item.lDongRegnCd?.trim() || item.areacode?.trim() || null,
     sidoName: region.sidoName,
-    sigunguCode: item.sigungucode?.trim() || null,
+    sigunguCode:
+      item.lDongSignguCd?.trim() || item.sigungucode?.trim() || null,
     sigunguName: region.sigunguName,
     name,
     address: address || null,
