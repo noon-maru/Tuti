@@ -236,6 +236,7 @@ function normalizeNearbyPlace(
   return {
     id,
     name,
+    kind: "rest",
     category,
     categoryName: cleanText(item.category_name) ?? "주변 장소",
     address:

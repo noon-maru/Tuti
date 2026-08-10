@@ -327,7 +327,7 @@ async function fetchTutiNearbyPlaces(
     },
   });
 
-  return candidates
+  const continuationPlaces = candidates
     .map((candidate) => {
       const key = normalizeName(candidate.name);
       const relation = relatedByName.get(key);
@@ -344,6 +344,7 @@ async function fetchTutiNearbyPlaces(
         place: {
           id: candidate.id,
           name: candidate.name,
+          kind: "continuation" as const,
           category: toNearbyCategory(candidate.sourceContentType),
           categoryName:
             relation?.relatedCategorySmallName ??
@@ -361,9 +362,13 @@ async function fetchTutiNearbyPlaces(
         isRelated: Boolean(relation),
       };
     })
-    .filter(({ isRelated, place }) =>
-      isRelated ? place.distanceMeters <= 10_000 : place.distanceMeters <= 1_500,
-    )
+    .filter(({ isRelated, place }) => {
+      if (isRelated) return place.distanceMeters <= 10_000;
+      const kakao = kakaoByName.get(normalizeName(place.name));
+      return (
+        kakao?.category !== "cafe" && place.distanceMeters <= 1_500
+      );
+    })
     .sort((left, right) => {
       if (left.isRelated !== right.isRelated) return left.isRelated ? -1 : 1;
       if (left.relatedRank !== right.relatedRank) {
@@ -371,8 +376,28 @@ async function fetchTutiNearbyPlaces(
       }
       return left.place.distanceMeters - right.place.distanceMeters;
     })
-    .slice(0, 6)
+    .slice(0, 4)
     .map(({ place }) => place);
+  const continuationNames = new Set(
+    continuationPlaces.map((place) => normalizeName(place.name)),
+  );
+  const restPlaces = kakaoPlaces
+    .filter(
+      (place) =>
+        place.category === "cafe" &&
+        place.distanceMeters !== null &&
+        place.distanceMeters > 30 &&
+        place.distanceMeters <= 800 &&
+        normalizeName(place.name) !== destinationKey &&
+        !continuationNames.has(normalizeName(place.name)),
+    )
+    .slice(0, 4)
+    .map((place) => ({
+      ...place,
+      kind: "rest" as const,
+    }));
+
+  return [...continuationPlaces, ...restPlaces];
 }
 
 function toNearbyCategory(

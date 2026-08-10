@@ -30,6 +30,7 @@ export type DepartureRoute = {
 export type DepartureNearbyPlace = {
   id: string;
   name: string;
+  kind: "continuation" | "rest";
   category: "attraction" | "culture" | "cafe";
   categoryName: string;
   address: string | null;

@@ -63,6 +63,10 @@ export function DeparturePlanScreen({
   );
   const departureQuery = useDeparturePlan(place.id, userLocation);
   const plan = departureQuery.data;
+  const continuationPlaces =
+    plan?.nearbyPlaces.filter((nearby) => nearby.kind === "continuation") ?? [];
+  const restPlaces =
+    plan?.nearbyPlaces.filter((nearby) => nearby.kind === "rest") ?? [];
   const selectedMode = resolveSelectedMode(plan, preferredMode);
   const selectedRoute =
     plan && selectedMode ? plan.routes[selectedMode] : null;
@@ -400,24 +404,30 @@ export function DeparturePlanScreen({
                     <h2>조금 더 머물고 싶다면</h2>
                   </div>
                   </SectionHeading>
-                  <NearbyList>
-                    {plan.nearbyPlaces.slice(0, 4).map((nearby) => (
-                      <a
-                        key={nearby.id}
-                        href={nearby.externalUrl}
-                        target="_blank"
-                        rel="noreferrer"
-                        data-swipe-back-ignore
-                      >
-                        <strong>{nearby.name}</strong>
-                        <span>
-                          {getNearbyCategoryLabel(nearby.category)}
-                          {nearby.distanceMeters !== null &&
-                            ` · ${formatDistance(nearby.distanceMeters)}`}
-                        </span>
-                      </a>
-                    ))}
-                  </NearbyList>
+                  <NearbyGroups>
+                    {continuationPlaces.length > 0 && (
+                      <NearbyGroup>
+                        <h3>이어 둘러보기</h3>
+                        <p>Tuti가 선별한 연관 장소예요.</p>
+                        <NearbyList>
+                          {continuationPlaces.map((nearby) => (
+                            <NearbyPlaceLink key={nearby.id} nearby={nearby} />
+                          ))}
+                        </NearbyList>
+                      </NearbyGroup>
+                    )}
+                    {restPlaces.length > 0 && (
+                      <NearbyGroup>
+                        <h3>잠깐 쉬어가기</h3>
+                        <p>카카오맵에서 찾은 800m 이내 카페예요.</p>
+                        <NearbyList>
+                          {restPlaces.map((nearby) => (
+                            <NearbyPlaceLink key={nearby.id} nearby={nearby} />
+                          ))}
+                        </NearbyList>
+                      </NearbyGroup>
+                    )}
+                  </NearbyGroups>
                 </Section>
               )}
             </PlanContent>
@@ -425,6 +435,28 @@ export function DeparturePlanScreen({
         </ScrollContent>
       </Sheet>
     </Frame>
+  );
+}
+
+function NearbyPlaceLink({
+  nearby,
+}: {
+  nearby: DeparturePlan["nearbyPlaces"][number];
+}) {
+  return (
+    <a
+      href={nearby.externalUrl}
+      target="_blank"
+      rel="noreferrer"
+      data-swipe-back-ignore
+    >
+      <strong>{nearby.name}</strong>
+      <span>
+        {getNearbyCategoryLabel(nearby.category)}
+        {nearby.distanceMeters !== null &&
+          ` · ${formatDistance(nearby.distanceMeters)}`}
+      </span>
+    </a>
   );
 }
 
@@ -1123,6 +1155,28 @@ const SuggestedSteps = styled.ol`
     font-size: calc(var(--font-size-100) - 1px);
     line-height: var(--line-height-body);
     white-space: pre-line;
+  }
+`;
+
+const NearbyGroups = styled.div`
+  display: grid;
+  gap: var(--space-5);
+`;
+
+const NearbyGroup = styled.div`
+  display: grid;
+  gap: var(--space-2);
+
+  h3 {
+    font-size: var(--font-size-100);
+    line-height: var(--line-height-subtitle);
+  }
+
+  > p {
+    margin-top: calc(var(--space-1) * -1);
+    color: var(--color-text-muted);
+    font-size: calc(var(--font-size-100) - 2px);
+    line-height: var(--line-height-body);
   }
 `;
 
