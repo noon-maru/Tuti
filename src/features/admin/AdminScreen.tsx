@@ -75,6 +75,7 @@ const dateFormatter = new Intl.DateTimeFormat("ko-KR", {
 });
 
 type PlaceFilterState = {
+  candidate: string;
   reviewStatus: string;
   visibility: string;
   source: string;
@@ -85,6 +86,7 @@ type PlaceFilterState = {
 };
 
 const defaultPlaceFilters: PlaceFilterState = {
+  candidate: "pool",
   reviewStatus: "",
   visibility: "",
   source: "",
@@ -278,6 +280,7 @@ export function AdminScreen({
 
     if (tab === "logs" && filter) searchParams.set("level", filter);
     if (tab === "places") {
+      searchParams.set("candidate", placeFilters.candidate);
       if (placeFilters.reviewStatus) {
         searchParams.set("reviewStatus", placeFilters.reviewStatus);
       }
@@ -984,9 +987,8 @@ function PlacesToolbar({
     Boolean(query.trim() || appliedQuery) ||
     Object.entries(filters).some(
       ([key, value]) =>
-        key !== "sort" && Boolean(value),
-    ) ||
-    filters.sort !== defaultPlaceFilters.sort;
+        value !== defaultPlaceFilters[key as keyof PlaceFilterState],
+    );
 
   return (
     <PlaceToolbarCard>
@@ -1005,6 +1007,38 @@ function PlacesToolbar({
         <SearchButton type="submit">검색</SearchButton>
       </PlaceSearchRow>
       <PlaceFilterGrid>
+        <FilterField>
+          <span>추천 후보</span>
+          <Select
+            value={filters.candidate}
+            onChange={(event) =>
+              onFilterChange("candidate", event.target.value)
+            }
+          >
+            <option value="pool">
+              추천풀{formatOptionCount(meta?.candidateCounts.pool)}
+            </option>
+            <option value="all">
+              전체 장소{formatOptionCount(meta?.all)}
+            </option>
+            <option value="selected">
+              자동 선정{formatOptionCount(meta?.candidateCounts.selected)}
+            </option>
+            <option value="enrich">
+              정보 보강 필요{formatOptionCount(meta?.candidateCounts.enrich)}
+            </option>
+            <option value="pending">
+              판정 대기{formatOptionCount(meta?.candidateCounts.pending)}
+            </option>
+            <option value="low_burden_mismatch">
+              저부담 부적합
+              {formatOptionCount(meta?.candidateCounts.lowBurdenMismatch)}
+            </option>
+            <option value="invalid">
+              데이터 오류{formatOptionCount(meta?.candidateCounts.invalid)}
+            </option>
+          </Select>
+        </FilterField>
         <FilterField>
           <span>검수 상태</span>
           <Select
@@ -1026,19 +1060,19 @@ function PlacesToolbar({
           </Select>
         </FilterField>
         <FilterField>
-          <span>노출 여부</span>
+          <span>노출 설정</span>
           <Select
             value={filters.visibility}
             onChange={(event) =>
               onFilterChange("visibility", event.target.value)
             }
           >
-            <option value="">전체 노출 상태</option>
+            <option value="">전체 노출 설정</option>
             <option value="active">
-              노출 중{formatOptionCount(meta?.visibilityCounts.active)}
+              노출 허용{formatOptionCount(meta?.visibilityCounts.active)}
             </option>
             <option value="inactive">
-              숨김{formatOptionCount(meta?.visibilityCounts.inactive)}
+              노출 숨김{formatOptionCount(meta?.visibilityCounts.inactive)}
             </option>
           </Select>
         </FilterField>
@@ -1166,9 +1200,10 @@ function PlacesPanel({
         </div>
         {meta && (
           <PlaceStatusSummary>
+            <span>추천풀 {meta.candidateCounts.pool}</span>
             <span>대기 {meta.statusCounts.pending}</span>
             <span>승인 {meta.statusCounts.approved}</span>
-            <span>노출 {meta.visibilityCounts.active}</span>
+            <span>노출 허용 {meta.visibilityCounts.active}</span>
           </PlaceStatusSummary>
         )}
       </PlaceResultHeader>
@@ -1185,6 +1220,7 @@ function PlacesPanel({
                     <th>장소</th>
                     <th>지역</th>
                     <th>출처·유형</th>
+                    <th>추천 판정</th>
                     <th>검수 상태</th>
                     <th>노출</th>
                     <th>최근 수정</th>
@@ -1220,6 +1256,17 @@ function PlacesPanel({
                         ) : null}
                       </td>
                       <td>
+                        <CandidateBadge $inPool={isCandidatePoolPlace(place)}>
+                          {getCandidateStatusLabel(place)}
+                        </CandidateBadge>
+                        {place.candidateScore !== null ? (
+                          <Small>점수 {place.candidateScore}</Small>
+                        ) : null}
+                        {getCandidateExplanation(place) ? (
+                          <Small>{getCandidateExplanation(place)}</Small>
+                        ) : null}
+                      </td>
+                      <td>
                         <InlineSelect
                           value={place.reviewStatus}
                           disabled={mutatingId === place.id}
@@ -1246,7 +1293,7 @@ function PlacesPanel({
                               })
                             }
                           />
-                          {place.isActive ? "노출" : "숨김"}
+                          {place.isActive ? "허용" : "숨김"}
                         </ToggleLabel>
                       </td>
                       <td>
@@ -1278,11 +1325,14 @@ function PlacesPanel({
                     ) : null}
                   </div>
                   <PlaceBadgeStack>
+                    <CandidateBadge $inPool={isCandidatePoolPlace(place)}>
+                      {getCandidateStatusLabel(place)}
+                    </CandidateBadge>
                     <StatusBadge $tone={place.reviewStatus}>
                       {getPlaceReviewStatusLabel(place.reviewStatus)}
                     </StatusBadge>
                     <VisibilityBadge $active={place.isActive}>
-                      {place.isActive ? "노출 중" : "숨김"}
+                      {place.isActive ? "노출 허용" : "노출 숨김"}
                     </VisibilityBadge>
                   </PlaceBadgeStack>
                 </MobileRecordHeader>
@@ -1290,6 +1340,9 @@ function PlacesPanel({
                   피로도 {place.fatigue} · {place.movementLevel} · 수정{" "}
                   {formatDate(place.updatedAt)}
                 </Small>
+                {getCandidateExplanation(place) ? (
+                  <Small>{getCandidateExplanation(place)}</Small>
+                ) : null}
                 <Small>{place.sourceId ?? place.id}</Small>
                 {place.sourceCopyright ? (
                   <Small>이미지 이용 구분 {place.sourceCopyright}</Small>
@@ -1320,7 +1373,7 @@ function PlacesPanel({
                         })
                       }
                     />
-                    {place.isActive ? "노출 중" : "숨김"}
+                    {place.isActive ? "노출 허용" : "노출 숨김"}
                   </ToggleControl>
                 </MobileRecordActions>
               </MobileRecordCard>
@@ -1836,6 +1889,28 @@ function getPlaceReviewStatusLabel(status: string) {
   if (status === "approved") return "승인";
   if (status === "rejected") return "거절";
   return status;
+}
+
+function isCandidatePoolPlace(place: AdminPlaceItem) {
+  return place.candidateOverride === "include" ||
+    (place.candidateOverride === "auto" &&
+      place.candidateStatus === "selected");
+}
+
+function getCandidateStatusLabel(place: AdminPlaceItem) {
+  if (place.candidateOverride === "include") return "수동 추천풀 포함";
+  if (place.candidateOverride === "exclude") return "수동 추천풀 제외";
+  if (place.candidateStatus === "selected") return "추천풀 선정";
+  if (place.candidateStatus === "enrich") return "정보 보강 필요";
+  if (place.candidateStatus === "low_burden_mismatch") {
+    return "저부담 추천 부적합";
+  }
+  if (place.candidateStatus === "invalid") return "데이터 오류";
+  return "판정 대기";
+}
+
+function getCandidateExplanation(place: AdminPlaceItem) {
+  return place.candidateExclusions[0] ?? place.candidateReasons[0] ?? null;
 }
 
 function getReportStatusLabel(status: string) {
@@ -3091,6 +3166,21 @@ const PlaceBadgeStack = styled.div`
   display: grid;
   justify-items: end;
   gap: var(--space-1);
+`;
+
+const CandidateBadge = styled.span<{ $inPool: boolean }>`
+  width: fit-content;
+  min-height: var(--space-6);
+  display: inline-flex;
+  align-items: center;
+  padding: 0 var(--space-2);
+  border-radius: 999px;
+  background: ${({ $inPool }) =>
+    $inPool ? "var(--color-brand-200)" : "var(--color-neutral-300)"};
+  color: var(--color-text);
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
 `;
 
 const VisibilityBadge = styled.span<{ $active: boolean }>`

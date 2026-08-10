@@ -13,8 +13,18 @@ export async function persistPlaceCandidateAssessments(
   for (let index = 0; index < assessed.length; index += TRANSACTION_BATCH_SIZE) {
     const batch = assessed.slice(index, index + TRANSACTION_BATCH_SIZE);
     await prisma.$transaction(
-      batch.map(({ place, assessment, candidateOverride }) =>
-        prisma.place.update({
+      batch.map(({
+        place,
+        assessment,
+        candidateOverride,
+        reviewStatus,
+        visibilityOverride,
+      }) => {
+        const belongsToPool =
+          candidateOverride === "include" ||
+          (candidateOverride === "auto" && assessment.status === "selected");
+
+        return prisma.place.update({
           where: { id: place.id },
           data: {
             candidateStatus: assessment.status,
@@ -24,12 +34,15 @@ export async function persistPlaceCandidateAssessments(
             candidateExclusions: assessment.hardExclusions,
             candidateEvaluatedAt: evaluatedAt,
             candidateAlgorithmVersion: PLACE_CANDIDATE_ALGORITHM_VERSION,
-            ...(candidateOverride === "auto"
-              ? { isActive: assessment.status === "selected" }
+            ...(belongsToPool && reviewStatus === "pending"
+              ? { reviewStatus: "approved" as const }
+              : {}),
+            ...(visibilityOverride === "auto"
+              ? { isActive: belongsToPool }
               : {}),
           },
-        }),
-      ),
+        });
+      }),
     );
     updated += batch.length;
   }

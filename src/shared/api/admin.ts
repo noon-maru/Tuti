@@ -46,6 +46,19 @@ export type AdminPlaceItem = {
   sourceSyncedAt: string | null;
   reviewStatus: PlaceReviewStatus;
   isActive: boolean;
+  visibilityOverride: "auto" | "show" | "hide";
+  candidateStatus:
+    | "pending"
+    | "selected"
+    | "enrich"
+    | "low_burden_mismatch"
+    | "invalid"
+    | null;
+  candidateScore: number | null;
+  candidateOverride: "auto" | "include" | "exclude";
+  candidateReasons: string[];
+  candidateExclusions: string[];
+  candidateEvaluatedAt: string | null;
   movementLevel: string;
   fatigue: number;
   updatedAt: string;
@@ -71,6 +84,14 @@ export type AdminPlacesMeta = {
   visibilityCounts: {
     active: number;
     inactive: number;
+  };
+  candidateCounts: {
+    pool: number;
+    pending: number;
+    selected: number;
+    enrich: number;
+    lowBurdenMismatch: number;
+    invalid: number;
   };
   filters: {
     sources: AdminPlaceFilterOption[];

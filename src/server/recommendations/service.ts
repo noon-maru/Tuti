@@ -238,7 +238,7 @@ async function findPlacesNearLocation(
     WHERE
       "is_active" = true
       AND "source" = 'tourapi'
-      AND "review_status" <> 'rejected'::"PlaceReviewStatus"
+      AND "review_status" = 'approved'::"PlaceReviewStatus"
       AND (
         "candidate_override" = 'include'::"PlaceCandidateOverride"
         OR (

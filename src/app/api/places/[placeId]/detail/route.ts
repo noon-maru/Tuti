@@ -6,6 +6,7 @@ import {
 } from "@/server/http/cors";
 import { ensureTourismPlaceDetail } from "@/server/tourism/enrichTourismPlaceDetail";
 import type { PlaceDetailResponse } from "@/shared/api/placeDetails";
+import { recommendablePlaceWhere } from "@/server/recommendations/recommendablePlaceWhere";
 
 export const runtime = "nodejs";
 
@@ -29,13 +30,7 @@ export async function GET(
     const place = await prisma.place.findFirst({
       where: {
         id: placeId,
-        isActive: true,
-        reviewStatus: { not: "rejected" },
-        OR: [
-          { reviewStatus: "approved" },
-          { candidateOverride: "include" },
-          { candidateOverride: "auto", candidateStatus: "selected" },
-        ],
+        ...recommendablePlaceWhere,
       },
       select: {
         id: true,

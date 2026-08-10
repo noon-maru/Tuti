@@ -16,8 +16,6 @@ export async function getCrowdCoverageOverview() {
         SELECT place."id", place."name"
         FROM "places" AS place
         WHERE place."source" = 'tourapi'
-          AND place."is_active" = TRUE
-          AND place."review_status"::text <> 'rejected'
           AND (
             place."candidate_override"::text = 'include'
             OR (

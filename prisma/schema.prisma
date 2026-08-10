@@ -45,6 +45,12 @@ enum PlaceCandidateOverride {
   exclude
 }
 
+enum PlaceVisibilityOverride {
+  auto
+  show
+  hide
+}
+
 enum LogLevel {
   info
   warning
@@ -130,6 +136,7 @@ model Place {
   candidateEvaluatedAt      DateTime?                             @map("candidate_evaluated_at")
   candidateAlgorithmVersion String?                               @map("candidate_algorithm_version")
   candidateOverride         PlaceCandidateOverride                @default(auto) @map("candidate_override")
+  visibilityOverride        PlaceVisibilityOverride               @default(auto) @map("visibility_override")
   createdAt                 DateTime                              @default(now()) @map("created_at")
   updatedAt                 DateTime                              @updatedAt @map("updated_at")
   tourismSourceRecord       TourismPlaceSourceRecord?
@@ -144,6 +151,7 @@ model Place {
   @@index([source, reviewStatus, isActive])
   @@index([source, sourceContentType, reviewStatus])
   @@index([source, candidateStatus, candidateOverride])
+  @@index([source, candidateStatus, visibilityOverride])
   @@map("places")
 }
 

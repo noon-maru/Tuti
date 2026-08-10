@@ -8,6 +8,9 @@ import {
   withCors,
 } from "@/server/http/cors";
 import type { AdminPlacesResponse } from "@/shared/api/admin";
+import {
+  candidatePoolPlaceWhere,
+} from "@/server/recommendations/recommendablePlaceWhere";
 
 export const runtime = "nodejs";
 
@@ -39,17 +42,24 @@ export async function GET(request: Request) {
   const visibility = normalizeVisibility(
     url.searchParams.get("visibility"),
   );
+  const candidate = normalizeCandidateFilter(
+    url.searchParams.get("candidate"),
+  );
   const sort = normalizePlaceSort(url.searchParams.get("sort"));
   const page = normalizePage(url.searchParams.get("page"));
   const where: Prisma.PlaceWhereInput = {
-    ...(reviewStatus ? { reviewStatus } : {}),
-    ...(source ? { source } : {}),
-    ...(contentType ? { sourceContentType: contentType } : {}),
-    ...(sido ? { sourceSidoName: sido } : {}),
-    ...(sigungu ? { sourceSigunguName: sigungu } : {}),
-    ...(visibility !== undefined ? { isActive: visibility } : {}),
-    ...(query
-      ? {
+    AND: [
+      getCandidateWhere(candidate),
+      {
+        ...(reviewStatus ? { reviewStatus } : {}),
+        ...(source ? { source } : {}),
+        ...(contentType ? { sourceContentType: contentType } : {}),
+        ...(sido ? { sourceSidoName: sido } : {}),
+        ...(sigungu ? { sourceSigunguName: sigungu } : {}),
+        ...(visibility !== undefined ? { isActive: visibility } : {}),
+      },
+      ...(query
+        ? [{
           OR: [
             { name: { contains: query, mode: "insensitive" } },
             { id: { contains: query, mode: "insensitive" } },
@@ -74,8 +84,9 @@ export async function GET(request: Request) {
               },
             },
           ],
-        }
-      : {}),
+        } satisfies Prisma.PlaceWhereInput]
+        : []),
+    ],
   };
   const sigunguOptionWhere: Prisma.PlaceWhereInput = {
     sourceSigunguName: { not: null },
@@ -88,6 +99,8 @@ export async function GET(request: Request) {
     statusGroups,
     visibilityGroups,
     sourceGroups,
+    candidateStatusGroups,
+    candidatePoolCount,
     contentTypeGroups,
     sidoGroups,
     sigunguGroups,
@@ -107,6 +120,13 @@ export async function GET(request: Request) {
         sourceSyncedAt: true,
         reviewStatus: true,
         isActive: true,
+        visibilityOverride: true,
+        candidateStatus: true,
+        candidateScore: true,
+        candidateOverride: true,
+        candidateReasons: true,
+        candidateExclusions: true,
+        candidateEvaluatedAt: true,
         movementLevel: true,
         fatigue: true,
         updatedAt: true,
@@ -130,6 +150,11 @@ export async function GET(request: Request) {
       _count: { _all: true },
       orderBy: { source: "asc" },
     }),
+    prisma.place.groupBy({
+      by: ["candidateStatus"],
+      _count: { _all: true },
+    }),
+    prisma.place.count({ where: candidatePoolPlaceWhere }),
     prisma.place.groupBy({
       by: ["sourceContentType"],
       where: { sourceContentType: { not: null } },
@@ -161,10 +186,18 @@ export async function GET(request: Request) {
       group._count._all,
     ]),
   );
+  const candidateCounts = Object.fromEntries(
+    candidateStatusGroups.map((group) => [
+      group.candidateStatus,
+      group._count._all,
+    ]),
+  );
   const response: AdminPlacesResponse = {
     places: places.map((place) => ({
       ...place,
       sourceSyncedAt: place.sourceSyncedAt?.toISOString() ?? null,
+      candidateEvaluatedAt:
+        place.candidateEvaluatedAt?.toISOString() ?? null,
       updatedAt: place.updatedAt.toISOString(),
     })),
     meta: {
@@ -181,6 +214,14 @@ export async function GET(request: Request) {
       visibilityCounts: {
         active: visibilityCounts.active ?? 0,
         inactive: visibilityCounts.inactive ?? 0,
+      },
+      candidateCounts: {
+        pool: candidatePoolCount,
+        pending: candidateCounts.pending ?? 0,
+        selected: candidateCounts.selected ?? 0,
+        enrich: candidateCounts.enrich ?? 0,
+        lowBurdenMismatch: candidateCounts.low_burden_mismatch ?? 0,
+        invalid: candidateCounts.invalid ?? 0,
       },
       filters: {
         sources: sourceGroups.map((group) => ({
@@ -265,15 +306,12 @@ export async function PATCH(request: Request) {
       where: { id: placeId },
       data: {
         ...(reviewStatus ? { reviewStatus } : {}),
-        ...(hasActiveValue ? { isActive: body.isActive as boolean } : {}),
-        ...((reviewStatus || hasActiveValue)
+        ...(hasActiveValue
           ? {
-              candidateOverride:
-                reviewStatus === "rejected" || body.isActive === false
-                  ? ("exclude" as const)
-                  : reviewStatus === "approved" || body.isActive === true
-                    ? ("include" as const)
-                    : ("auto" as const),
+              isActive: body.isActive as boolean,
+              visibilityOverride: body.isActive
+                ? ("show" as const)
+                : ("hide" as const),
             }
           : {}),
         ...(editorial ?? {}),
@@ -283,6 +321,8 @@ export async function PATCH(request: Request) {
         name: true,
         reviewStatus: true,
         isActive: true,
+        visibilityOverride: true,
+        candidateStatus: true,
       },
     });
 
@@ -296,6 +336,8 @@ export async function PATCH(request: Request) {
       metadata: {
         reviewStatus: place.reviewStatus,
         isActive: place.isActive,
+        visibilityOverride: place.visibilityOverride,
+        candidateStatus: place.candidateStatus,
         editorialUpdated: Boolean(editorial),
       },
     });
@@ -352,11 +394,11 @@ export async function POST(request: Request) {
       data: {
         reviewStatus,
         isActive: reviewStatus === "approved",
-        candidateOverride:
+        visibilityOverride:
           reviewStatus === "approved"
-            ? "include"
+            ? "show"
             : reviewStatus === "rejected"
-              ? "exclude"
+              ? "hide"
               : "auto",
       },
     });
@@ -410,6 +452,25 @@ function normalizeVisibility(value: unknown) {
   if (value === "active") return true;
   if (value === "inactive") return false;
   return undefined;
+}
+
+function normalizeCandidateFilter(value: unknown) {
+  return value === "all" ||
+    value === "selected" ||
+    value === "pending" ||
+    value === "enrich" ||
+    value === "low_burden_mismatch" ||
+    value === "invalid"
+    ? value
+    : "pool";
+}
+
+function getCandidateWhere(
+  filter: ReturnType<typeof normalizeCandidateFilter>,
+): Prisma.PlaceWhereInput {
+  if (filter === "all") return {};
+  if (filter === "pool") return candidatePoolPlaceWhere;
+  return { candidateStatus: filter };
 }
 
 function normalizePage(value: unknown) {

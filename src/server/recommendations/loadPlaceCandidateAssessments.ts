@@ -12,6 +12,8 @@ export type AssessedPlace = {
   editorialSyncedAt: Date | null;
   editorialNeedsSync: boolean;
   candidateOverride: "auto" | "include" | "exclude";
+  reviewStatus: "pending" | "approved" | "rejected";
+  visibilityOverride: "auto" | "show" | "hide";
 };
 
 const EDITORIAL_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1_000;
@@ -37,6 +39,8 @@ export async function loadPlaceCandidateAssessments(): Promise<AssessedPlace[]> 
         sourceModifiedAt: true,
         sourceId: true,
         candidateOverride: true,
+        reviewStatus: true,
+        visibilityOverride: true,
         seoulRealtimeAreaLink: { select: { areaCode: true } },
         tourismSourceRecord: {
           select: {
@@ -141,6 +145,8 @@ export async function loadPlaceCandidateAssessments(): Promise<AssessedPlace[]> 
         row.sourceModifiedAt,
       ),
       candidateOverride: row.candidateOverride,
+      reviewStatus: row.reviewStatus,
+      visibilityOverride: row.visibilityOverride,
     };
   });
 }

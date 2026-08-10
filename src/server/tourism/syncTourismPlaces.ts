@@ -162,6 +162,7 @@ async function saveTourApiPlace(
     select: {
       id: true,
       reviewStatus: true,
+      visibilityOverride: true,
     },
   });
 
@@ -231,7 +232,7 @@ async function saveTourApiPlace(
             ...(autoApprove
               ? {
                   reviewStatus: "approved" as const,
-                  isActive: true,
+                  isActive: existing.visibilityOverride !== "hide",
                 }
               : {}),
           }

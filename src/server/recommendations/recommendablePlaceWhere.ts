@@ -1,11 +1,19 @@
 import type { Prisma } from "@/generated/prisma/client";
 
-export const recommendablePlaceWhere: Prisma.PlaceWhereInput = {
+export const candidatePoolPlaceWhere: Prisma.PlaceWhereInput = {
   source: "tourapi",
-  isActive: true,
-  reviewStatus: { not: "rejected" },
   OR: [
     { candidateOverride: "include" },
     { candidateOverride: "auto", candidateStatus: "selected" },
+  ],
+};
+
+export const recommendablePlaceWhere: Prisma.PlaceWhereInput = {
+  AND: [
+    candidatePoolPlaceWhere,
+    {
+      isActive: true,
+      reviewStatus: "approved",
+    },
   ],
 };

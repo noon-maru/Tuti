@@ -1,6 +1,6 @@
 import type { Prisma } from "../src/generated/prisma/client";
 import { prisma } from "../src/server/db/prisma";
-import { recommendablePlaceWhere } from "../src/server/recommendations/recommendablePlaceWhere";
+import { candidatePoolPlaceWhere } from "../src/server/recommendations/recommendablePlaceWhere";
 
 const ALGORITHM_VERSION = "regional-pattern-v1";
 const DEFAULT_DAYS = 8;
@@ -18,7 +18,7 @@ try {
 
   const [places, latestCoreMonth, latestMetricMonth] = await Promise.all([
     prisma.place.findMany({
-      where: recommendablePlaceWhere,
+      where: candidatePoolPlaceWhere,
       select: {
         id: true,
         name: true,
