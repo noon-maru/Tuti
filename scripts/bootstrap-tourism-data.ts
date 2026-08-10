@@ -521,25 +521,16 @@ async function failStaleSyncRuns() {
 
 async function loadCompletedRunKeys(
   sources: string[],
-  createKey: (parameters: Prisma.JsonObject) => string | null,
+  _createKey: (parameters: Prisma.JsonObject) => string | null,
 ) {
-  const runs = await prisma.externalDataSyncRun.findMany({
+  const checkpoints = await prisma.externalDataSyncCheckpoint.findMany({
     where: {
       source: { in: sources },
-      status: "succeeded",
     },
-    select: { parameters: true },
+    select: { jobKey: true },
   });
-  const keys = new Set<string>();
 
-  for (const run of runs) {
-    const parameters = asObject(run.parameters);
-    if (!parameters) continue;
-    const key = createKey(parameters);
-    if (key) keys.add(key);
-  }
-
-  return keys;
+  return new Set(checkpoints.map((checkpoint) => checkpoint.jobKey));
 }
 
 async function loadRegions(): Promise<Region[]> {

@@ -19,7 +19,7 @@ sudo -n /usr/local/sbin/tuti-tourism-sync
 sudo -n /usr/local/sbin/tuti-tourism-bootstrap
 sudo -n /usr/local/sbin/tuti-tourism-data-bootstrap dev
 sudo -n /usr/local/sbin/tuti-tourism-data-bootstrap prod
-sudo -n /usr/local/sbin/tuti-tourism-data-promote
+sudo -n /usr/local/sbin/tuti-tourism-backup
 sudo -n /usr/local/sbin/tuti-place-candidate-refresh
 ```
 
@@ -35,9 +35,15 @@ sudo -n /usr/local/sbin/tuti-place-candidate-refresh
 
 수집 범위와 동시 요청 수를 줄여 시험할 때는 `tuti-tourism-data-bootstrap dev --months 1 --visitor-days 1 --concurrency 1`처럼 실행한다. 월 이력은 최대 60개월, 일 이력은 최대 365일, 동시 작업은 최대 4개까지 지정할 수 있다.
 
-전수 수집이 중단되거나 API가 HTTP 429를 반환해도 같은 명령을 다시 실행하면 `succeeded` 상태의 작업만 건너뛰고 `failed`, `partial`, 중단된 작업을 다시 시도한다. 타임아웃과 HTTP 502~504는 한 작업 안에서 최대 세 번 재시도한다. 한 시간 넘게 `running`으로 남은 기록은 다음 실행 시작 시 실패 상태로 정리한다. API 호출 한도에 도달한 데이터셋은 즉시 보류하고 별도 키를 사용하는 다음 데이터셋 수집을 계속한다.
+전수 수집이 중단되거나 API가 HTTP 429를 반환해도 같은 명령을 다시 실행하면 `external_data_sync_checkpoints`에 완료된 작업만 건너뛰고 실패·부분 완료·중단된 작업을 다시 시도한다. 타임아웃과 HTTP 502~504는 한 작업 안에서 최대 세 번 재시도한다. 한 시간 넘게 `running`으로 남은 기록은 다음 실행 시작 시 실패 상태로 정리한다. API 호출 한도에 도달한 데이터셋은 즉시 보류하고 별도 키를 사용하는 다음 데이터셋 수집을 계속한다.
 
-`tuti-tourism-data-promote`는 개발 DB에서 수집한 관광지 원천·웰니스·관광사진·중심 관광지·집중률·방문자 수·지역 지표와 동기화 체크포인트를 운영 DB로 이관한다. 관광지 원천의 기존 승인 연결은 초기화하며 운영 사용자·장소·기록 데이터는 변경하지 않는다. 적용 직전에 운영의 동일 테이블을 `.ops-backups/tourism`에 백업하고, 대상 테이블 교체는 단일 트랜잭션으로 실행한다.
+개발 DB 전체를 운영 DB로 이관하는 명령은 제공하지 않는다. 운영 원천 데이터는 운영 환경에서 정기 동기화하고, 복구가 필요할 때는 검증된 백업을 별도 스키마에 적재한 뒤 자연 키 기준으로 병합한다.
+
+`tuti-tourism-backup`은 개발·운영 DB의 관광 원천 테이블과 `external_data_sync_checkpoints`만 `.ops-backups/tourism-periodic`에 각각 백업한다. 수집 실행 로그, 사용자, 인증, 기록 및 애플리케이션 로그는 포함하지 않는다. 기본 보관 기간은 30일이다. 실행 일정은 Synology DSM 작업 스케줄러에서 `root` 사용자로 관리하며, 매일 오전 4시 30분 실행을 권장한다. 즉시 백업은 다음 명령으로 실행한다.
+
+```sh
+sudo -n /usr/local/sbin/tuti-tourism-backup
+```
 
 `tuti-place-candidate-refresh`는 개발 DB에서 하루 최대 950곳의 공통·소개정보를 한 번만 수집한다. 추천·보강 후보, 판단 보류, 저부담 부적합, 유효성 문제 순서로 처리한다. 개발 DB의 관광지 중 운영에 없는 장소만 증분 생성하고, 기존 운영 장소의 편집·검수·수동 포함/제외 상태는 보존한다. 소개정보도 운영 DB에 증분 반영하되 운영의 지연 수집 이미지·반복정보는 덮어쓰지 않는다. 이후 개발·운영 DB에서 동일한 후보 판정식을 실행해 상태·점수·판정 근거를 각각 저장한다. 중복 실행은 호스트 잠금과 PostgreSQL advisory lock으로 차단한다.
 

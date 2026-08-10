@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import type { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/server/db/prisma";
+import { getTourismSyncJobKey } from "@/server/tourism/syncCheckpoints";
 
 type SyncRunCounts = {
   received: number;
@@ -31,17 +32,46 @@ export async function completeExternalDataSyncRun(
   id: string,
   counts: SyncRunCounts,
 ) {
-  return prisma.externalDataSyncRun.update({
-    where: { id },
-    data: {
-      status: counts.failed > 0 ? "partial" : "succeeded",
-      receivedCount: counts.received,
-      createdCount: counts.created,
-      updatedCount: counts.updated,
-      skippedCount: counts.skipped,
-      failedCount: counts.failed,
-      finishedAt: new Date(),
-    },
+  const completedAt = new Date();
+
+  return prisma.$transaction(async (transaction) => {
+    const run = await transaction.externalDataSyncRun.update({
+      where: { id },
+      data: {
+        status: counts.failed > 0 ? "partial" : "succeeded",
+        receivedCount: counts.received,
+        createdCount: counts.created,
+        updatedCount: counts.updated,
+        skippedCount: counts.skipped,
+        failedCount: counts.failed,
+        finishedAt: completedAt,
+      },
+    });
+
+    if (counts.failed === 0) {
+      const jobKey = getTourismSyncJobKey(run.source, run.parameters);
+      if (jobKey) {
+        await transaction.externalDataSyncCheckpoint.upsert({
+          where: {
+            source_jobKey: { source: run.source, jobKey },
+          },
+          create: {
+            source: run.source,
+            jobKey,
+            operation: run.operation,
+            parameters: run.parameters ?? undefined,
+            completedAt,
+          },
+          update: {
+            operation: run.operation,
+            parameters: run.parameters ?? undefined,
+            completedAt,
+          },
+        });
+      }
+    }
+
+    return run;
   });
 }
 

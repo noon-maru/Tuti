@@ -406,6 +406,18 @@ model ExternalDataSyncRun {
   @@map("external_data_sync_runs")
 }
 
+model ExternalDataSyncCheckpoint {
+  source      String
+  jobKey      String   @map("job_key")
+  operation   String
+  parameters  Json?
+  completedAt DateTime @map("completed_at")
+
+  @@id([source, jobKey])
+  @@index([source, completedAt])
+  @@map("external_data_sync_checkpoints")
+}
+
 model JournalEntry {
   id          String    @id
   ownerId     String    @map("owner_id")

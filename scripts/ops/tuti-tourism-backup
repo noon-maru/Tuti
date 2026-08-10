@@ -1,0 +1,121 @@
+#!/bin/sh
+
+set -eu
+
+project_dir="/var/services/homes/Tutiadmin/source/Tuti"
+backup_dir="$project_dir/.ops-backups/tourism-periodic"
+retention_days="${TUTI_TOURISM_BACKUP_RETENTION_DAYS:-30}"
+timestamp="$(date +%Y%m%d-%H%M%S)"
+tables="
+tourism_place_source_records
+tourism_place_detail_records
+wellness_tourism_source_records
+municipal_core_tourism_source_records
+tourist_spot_concentration_rate_records
+regional_visitor_count_records
+tourism_photo_gallery_source_records
+tourism_region_metrics
+external_data_sync_checkpoints
+"
+
+case "$retention_days" in
+  *[!0-9]* | "")
+    echo "백업 보관 일수는 0 이상의 정수여야 합니다." >&2
+    exit 1
+    ;;
+esac
+
+install -d -o root -g root -m 0700 "$backup_dir"
+cd "$project_dir"
+
+backup_environment() {
+  environment="$1"
+  output="$backup_dir/tuti-tourism-$environment-$timestamp.dump"
+  manifest="$backup_dir/tuti-tourism-$environment-$timestamp.manifest.txt"
+  checksum="$backup_dir/tuti-tourism-$environment-$timestamp.sha256"
+  temporary="$output.partial"
+  table_arguments=""
+  count_query=""
+
+  for table in $tables; do
+    table_arguments="$table_arguments --table=public.$table"
+    if [ -n "$count_query" ]; then
+      count_query="$count_query UNION ALL "
+    fi
+    count_query="${count_query}SELECT '$table' AS table_name, count(*)::text AS row_count FROM public.$table"
+  done
+
+  rm -f "$temporary"
+
+  if [ "$environment" = "production" ]; then
+    # shellcheck disable=SC2086
+    docker compose \
+      --env-file .env.production \
+      -f docker-compose.prod.yml \
+      exec -T db \
+      sh -lc 'exec pg_dump --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" --format=custom --compress=6 --data-only --no-owner --no-privileges "$@"' \
+      sh $table_arguments \
+      > "$temporary"
+
+    counts="$(
+      docker compose \
+        --env-file .env.production \
+        -f docker-compose.prod.yml \
+        exec -T db \
+        sh -lc 'exec psql --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" --tuples-only --no-align --field-separator="=" --command "$1"' \
+        sh "$count_query"
+    )"
+  else
+    # shellcheck disable=SC2086
+    docker compose \
+      -f docker-compose.dev.yml \
+      exec -T db \
+      sh -lc 'exec pg_dump --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" --format=custom --compress=6 --data-only --no-owner --no-privileges "$@"' \
+      sh $table_arguments \
+      > "$temporary"
+
+    counts="$(
+      docker compose \
+        -f docker-compose.dev.yml \
+        exec -T db \
+        sh -lc 'exec psql --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" --tuples-only --no-align --field-separator="=" --command "$1"' \
+        sh "$count_query"
+    )"
+  fi
+
+  if [ ! -s "$temporary" ]; then
+    echo "$environment 백업 파일이 비어 있습니다." >&2
+    rm -f "$temporary"
+    exit 1
+  fi
+
+  mv "$temporary" "$output"
+  {
+    printf 'environment=%s\n' "$environment"
+    printf 'created_at=%s\n' "$(date -Iseconds)"
+    printf 'scope=tourism-source-data-and-checkpoints\n'
+    printf 'excluded=external_data_sync_runs,users,auth,journals,application-logs\n'
+    printf '%s\n' "$counts"
+  } > "$manifest"
+
+  (
+    cd "$backup_dir"
+    sha256sum "$(basename "$output")" "$(basename "$manifest")" \
+      > "$(basename "$checksum")"
+    sha256sum -c "$(basename "$checksum")"
+  )
+}
+
+backup_environment production
+backup_environment development
+
+if [ "$retention_days" -gt 0 ]; then
+  find "$backup_dir" \
+    -mindepth 1 \
+    -maxdepth 1 \
+    -type f \
+    -mtime "+$retention_days" \
+    -delete
+fi
+
+echo "개발·운영 관광 데이터 정기 백업을 완료했습니다: $timestamp"

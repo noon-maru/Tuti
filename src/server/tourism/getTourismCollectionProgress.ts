@@ -1,5 +1,6 @@
 import type { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/server/db/prisma";
+import { getTourismSyncJobKey } from "@/server/tourism/syncCheckpoints";
 import type { TourismCollectionProgressItem } from "@/shared/api/tourismAdmin";
 
 const DEFAULT_MONTHS = 24;
@@ -15,6 +16,12 @@ type CollectionRun = {
   errorMessage: string | null;
   startedAt: Date;
   finishedAt: Date | null;
+};
+
+type CollectionCheckpoint = {
+  source: string;
+  jobKey: string;
+  completedAt: Date;
 };
 
 type CollectionCoverage = {
@@ -45,6 +52,7 @@ type ProgressDefinition = {
 export async function getTourismCollectionProgress() {
   const [
     runs,
+    checkpoints,
     coverageRows,
     places,
     wellness,
@@ -64,6 +72,14 @@ export async function getTourismCollectionProgress() {
         errorMessage: true,
         startedAt: true,
         finishedAt: true,
+      },
+    }),
+    prisma.externalDataSyncCheckpoint.findMany({
+      where: { source: { startsWith: "kto" } },
+      select: {
+        source: true,
+        jobKey: true,
+        completedAt: true,
       },
     }),
     prisma.$queryRaw<CollectionCoverage[]>`
@@ -113,7 +129,7 @@ export async function getTourismCollectionProgress() {
     resourceMetrics,
     intensityMetrics,
   };
-  const photoTarget = getPhotoTarget(runs);
+  const photoTarget = getPhotoTarget(checkpoints);
   const definitions: ProgressDefinition[] = [
     {
       id: "places",
@@ -184,24 +200,24 @@ export async function getTourismCollectionProgress() {
   ];
 
   return definitions.map((definition) =>
-    createProgressItem(definition, runs),
+    createProgressItem(definition, runs, checkpoints),
   );
 }
 
 function createProgressItem(
   definition: ProgressDefinition,
   allRuns: CollectionRun[],
+  allCheckpoints: CollectionCheckpoint[],
 ): TourismCollectionProgressItem {
   const runs = allRuns.filter((run) =>
     definition.sources.includes(run.source),
   );
-  const successfulKeys = new Set<string>();
-
-  for (const run of runs) {
-    if (run.status !== "succeeded") continue;
-    const key = getRunKey(run);
-    if (key) successfulKeys.add(key);
-  }
+  const checkpoints = allCheckpoints.filter((checkpoint) =>
+    definition.sources.includes(checkpoint.source),
+  );
+  const successfulKeys = new Set(
+    checkpoints.map((checkpoint) => checkpoint.jobKey),
+  );
 
   const unresolvedRuns = runs.filter((run) => {
     if (run.status !== "failed" && run.status !== "partial") return false;
@@ -215,9 +231,7 @@ function createProgressItem(
     }),
   );
   const latestRun = getLatestRun(runs);
-  const latestSuccess = getLatestRun(
-    runs.filter((run) => run.status === "succeeded"),
-  );
+  const latestSuccess = getLatestCheckpoint(checkpoints);
   const latestError = getLatestRun(unresolvedRuns);
   const completedJobs =
     definition.targetJobs === null ? null : successfulKeys.size;
@@ -239,7 +253,7 @@ function createProgressItem(
       ? definition.storedRecords > 0 &&
         Boolean(latestSuccess) &&
         (!latestError ||
-          latestSuccess!.startedAt.getTime() >= latestError.startedAt.getTime())
+          latestSuccess!.completedAt.getTime() >= latestError.startedAt.getTime())
       : remainingJobs === 0 && definition.targetJobs > 0;
   const isRunning = runs.some((run) => run.status === "running");
   const status: TourismCollectionProgressItem["status"] = isComplete
@@ -265,21 +279,20 @@ function createProgressItem(
     remainingJobs,
     progressPercent,
     unresolvedFailures: isComplete ? 0 : unresolvedKeys.size,
-    lastAttemptAt: latestRun?.startedAt.toISOString() ?? null,
-    lastSuccessAt:
-      latestSuccess?.finishedAt?.toISOString() ??
-      latestSuccess?.startedAt.toISOString() ??
+    lastAttemptAt:
+      latestRun?.startedAt.toISOString() ??
+      latestSuccess?.completedAt.toISOString() ??
       null,
+    lastSuccessAt: latestSuccess?.completedAt.toISOString() ?? null,
     lastError: isComplete ? null : latestError?.errorMessage ?? null,
   };
 }
 
-function getPhotoTarget(runs: CollectionRun[]) {
-  const starts = runs
-    .filter((run) => run.source === "ktoTourismPhotoGallery")
-    .flatMap((run) => {
-      const parameters = asObject(run.parameters);
-      const startPage = Number(parameters?.startPage);
+function getPhotoTarget(checkpoints: CollectionCheckpoint[]) {
+  const starts = checkpoints
+    .filter((checkpoint) => checkpoint.source === "ktoTourismPhotoGallery")
+    .flatMap((checkpoint) => {
+      const startPage = Number(checkpoint.jobKey);
       return Number.isInteger(startPage) && startPage > 0 ? [startPage] : [];
     });
   const maximumStart = starts.length > 0 ? Math.max(...starts) : 0;
@@ -290,51 +303,7 @@ function getPhotoTarget(runs: CollectionRun[]) {
 }
 
 function getRunKey(run: CollectionRun) {
-  const parameters = asObject(run.parameters);
-  if (!parameters) return null;
-
-  if (run.source === "ktoTourismPhotoGallery") {
-    return joinKey(parameters.startPage);
-  }
-  if (run.source === "ktoMunicipalCoreTourism") {
-    return joinKey(
-      parameters.baseYm,
-      parameters.areaCode,
-      parameters.sigunguCode,
-    );
-  }
-  if (run.source === "ktoTouristSpotConcentrationRate") {
-    return joinKey(parameters.areaCode, parameters.sigunguCode);
-  }
-  if (run.source === "ktoRegionalVisitorCount") {
-    return joinKey(parameters.aggregationLevel, parameters.baseYmd);
-  }
-  if (
-    run.source === "ktoRegionalResourceDemand" ||
-    run.source === "ktoRegionalDemandIntensity"
-  ) {
-    return joinKey(
-      parameters.metricType,
-      parameters.metricCode,
-      parameters.baseYm,
-      parameters.areaCode,
-    );
-  }
-  if (run.source === "ktoTourismInfo") {
-    return joinKey(
-      parameters.contentTypeId,
-      parameters.areaCode ?? "all",
-      parameters.startPage,
-    );
-  }
-  if (run.source === "ktoWellnessTourism") {
-    return joinKey(
-      parameters.wellnessThemeCode ?? "all",
-      parameters.startPage ?? 1,
-    );
-  }
-
-  return null;
+  return getTourismSyncJobKey(run.source, run.parameters);
 }
 
 function getLatestRun(runs: CollectionRun[]) {
@@ -347,22 +316,12 @@ function getLatestRun(runs: CollectionRun[]) {
   );
 }
 
-function asObject(value: Prisma.JsonValue | null) {
-  return value !== null && typeof value === "object" && !Array.isArray(value)
-    ? value
-    : null;
-}
-
-function joinKey(...values: Array<Prisma.JsonValue | undefined>) {
-  const normalized = values.map((value) => {
-    if (typeof value === "string" && value.trim()) return value.trim();
-    if (typeof value === "number" && Number.isFinite(value)) {
-      return String(value);
-    }
-    return null;
-  });
-
-  return normalized.some((value) => value === null)
-    ? null
-    : normalized.join(":");
+function getLatestCheckpoint(checkpoints: CollectionCheckpoint[]) {
+  return checkpoints.reduce<CollectionCheckpoint | null>(
+    (latest, checkpoint) =>
+      !latest || checkpoint.completedAt.getTime() > latest.completedAt.getTime()
+        ? checkpoint
+        : latest,
+    null,
+  );
 }
