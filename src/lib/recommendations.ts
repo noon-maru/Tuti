@@ -41,11 +41,12 @@ export type RecommendationReasonFactor =
   | "movement"
   | "burden";
 
-export type CrowdForecastSource = "live" | "cached" | "typical";
+export type CrowdForecastSource = "live" | "forecast" | "cached" | "typical";
 export type CrowdForecastProvider =
   | "seoul_citydata"
   | "kto_concentration"
-  | "regional_visitors";
+  | "regional_visitors"
+  | "tuti_estimate";
 
 export type CrowdForecast = {
   level: "low" | "medium" | "high";
@@ -63,6 +64,8 @@ export type CrowdForecast = {
   message?: string;
   /** 예측 대상 일자(YYYYMMDD). 평시 평균은 별도 날짜를 두지 않는다. */
   forecastDate?: string;
+  /** 추정 데이터의 내부 신뢰도. */
+  confidence?: "high" | "medium" | "low";
 };
 
 export function getCrowdForecastLevelLabel(
@@ -73,6 +76,20 @@ export function getCrowdForecastLevelLabel(
   if (level === "low") return "여유";
   if (level === "high") return "혼잡";
   return "보통";
+}
+
+export function getCrowdForecastKindLabel(forecast: CrowdForecast) {
+  if (forecast.provider === "seoul_citydata") {
+    return forecast.source === "live" ? "실시간 혼잡도" : "최근 혼잡도";
+  }
+
+  return "예상 혼잡도";
+}
+
+export function isRealtimeCrowdForecast(forecast: CrowdForecast) {
+  return (
+    forecast.provider === "seoul_citydata" && forecast.source === "live"
+  );
 }
 
 export function getCrowdForecastBasisLabel(forecast: CrowdForecast) {
@@ -86,7 +103,11 @@ export function getCrowdForecastBasisLabel(forecast: CrowdForecast) {
     return `${area} 최근 정보`;
   }
 
-  if (forecast.source === "live") {
+  if (forecast.provider === "tuti_estimate") {
+    return "지역 방문 패턴 예상";
+  }
+
+  if (forecast.source === "forecast" || forecast.source === "live") {
     return forecast.forecastDate === getKoreanDateKey()
       ? "오늘 예측 기준"
       : `${formatForecastDate(forecast.forecastDate)} 예측 기준`;

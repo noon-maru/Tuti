@@ -4,17 +4,11 @@ import {
 } from "@/lib/recommendations";
 import { prisma } from "@/server/db/prisma";
 import {
-  fetchTouristSpotConcentrationRates,
-  type TouristSpotConcentrationItem,
-} from "@/server/tourism/touristSpotConcentrationApiClient";
-import { upsertTouristSpotConcentrationRate } from "@/server/tourism/syncTouristSpotConcentrationRates";
-import {
   findSeoulRealtimeAreaContexts,
   resolveSeoulRealtimeCrowd,
 } from "@/server/recommendations/seoulRealtimeCrowd";
 
-const LIVE_REQUEST_TIMEOUT_MS = 4_000;
-const RECENT_CACHE_MAX_AGE_MS = 48 * 60 * 60 * 1_000;
+const FORECAST_MAX_AGE_MS = 8 * 24 * 60 * 60 * 1_000;
 const MIN_TYPICAL_SAMPLE_SIZE = 3;
 
 type TouristSpotContext = {
@@ -30,9 +24,10 @@ type TouristSpotContext = {
 export async function enrichPlacesWithCrowdForecast(
   places: TutiPlace[],
 ): Promise<TutiPlace[]> {
-  const [contexts, seoulContexts] = await Promise.all([
+  const [contexts, seoulContexts, estimates] = await Promise.all([
     findTouristSpotContexts(places),
     findSeoulRealtimeAreaContexts(places),
+    findEstimatedCrowds(places),
   ]);
 
   return Promise.all(
@@ -44,17 +39,69 @@ export async function enrichPlacesWithCrowdForecast(
       }
 
       const context = contexts.get(place.name);
-      if (!context) return place;
+      if (!context) {
+        return applyEstimatedCrowd(place, estimates.get(place.id));
+      }
 
       try {
         const forecast = await resolveCrowdForecast(context);
-        return forecast ? applyCrowdForecast(place, forecast) : place;
+        return forecast
+          ? applyCrowdForecast(place, forecast)
+          : applyEstimatedCrowd(place, estimates.get(place.id));
       } catch {
         // 혼잡도 API나 보조 데이터가 불안정해도 기본 추천은 항상 제공한다.
-        return place;
+        return applyEstimatedCrowd(place, estimates.get(place.id));
       }
     }),
   );
+}
+
+async function findEstimatedCrowds(places: TutiPlace[]) {
+  const placeIds = [...new Set(places.map((place) => place.id))];
+  if (placeIds.length === 0) return new Map<string, EstimatedCrowdRow>();
+  const forecastDate = getKoreanDateKey();
+  const rows = await prisma.placeCrowdEstimate.findMany({
+    where: { placeId: { in: placeIds }, forecastDate },
+    select: {
+      placeId: true,
+      forecastDate: true,
+      level: true,
+      score: true,
+      confidence: true,
+    },
+  });
+  return new Map(rows.map((row) => [row.placeId, row]));
+}
+
+type EstimatedCrowdRow = {
+  placeId: string;
+  forecastDate: string;
+  level: string;
+  score: { toString(): string };
+  confidence: string;
+};
+
+function applyEstimatedCrowd(
+  place: TutiPlace,
+  estimate: EstimatedCrowdRow | undefined,
+) {
+  if (!estimate) return place;
+  const level =
+    estimate.level === "low" || estimate.level === "high"
+      ? estimate.level
+      : "medium";
+  const confidence =
+    estimate.confidence === "high" || estimate.confidence === "medium"
+      ? estimate.confidence
+      : "low";
+  return applyCrowdForecast(place, {
+    provider: "tuti_estimate",
+    source: "forecast",
+    level,
+    rate: Number(estimate.score),
+    confidence,
+    forecastDate: estimate.forecastDate,
+  });
 }
 
 async function findTouristSpotContexts(places: TutiPlace[]) {
@@ -88,44 +135,21 @@ async function resolveCrowdForecast(
   context: TouristSpotContext,
 ): Promise<CrowdForecast | null> {
   const today = getKoreanDateKey();
-
-  try {
-    const page = await fetchTouristSpotConcentrationRates({
-      ...context,
-      pageNo: 1,
-      numOfRows: 100,
-      timeoutMs: LIVE_REQUEST_TIMEOUT_MS,
-    });
-    const liveItems = page.items.filter((item) => isSameTouristSpot(item, context));
-
-    await Promise.all(
-      liveItems.map((item) => upsertTouristSpotConcentrationRate(item)),
-    );
-
-    const liveItem = selectClosestPrediction(liveItems, today);
-    const liveRate = toRate(liveItem?.cnctrRate);
-
-    if (liveItem?.baseYmd && liveRate !== null) {
-      return toCrowdForecast("live", liveRate, liveItem.baseYmd);
-    }
-  } catch {
-    // 최근 저장 예측값과 평시 예상값을 순서대로 시도한다.
-  }
-
-  const recent = await findRecentForecast(context, today);
-  if (recent) return recent;
+  const forecast = await findStoredForecast(context, today);
+  if (forecast) return forecast;
 
   return findTypicalForecast(context, today);
 }
 
-async function findRecentForecast(
+async function findStoredForecast(
   context: TouristSpotContext,
   today: string,
 ): Promise<CrowdForecast | null> {
   const records = await prisma.touristSpotConcentrationRateRecord.findMany({
     where: {
       ...context,
-      syncedAt: { gte: new Date(Date.now() - RECENT_CACHE_MAX_AGE_MS) },
+      baseYmd: { gte: today },
+      syncedAt: { gte: new Date(Date.now() - FORECAST_MAX_AGE_MS) },
     },
     orderBy: [{ baseYmd: "asc" }, { syncedAt: "desc" }],
     take: 31,
@@ -133,7 +157,7 @@ async function findRecentForecast(
   const record = selectClosestPrediction(records, today);
 
   return record
-    ? toCrowdForecast("cached", Number(record.concentrationRate), record.baseYmd)
+    ? toCrowdForecast("forecast", Number(record.concentrationRate), record.baseYmd)
     : null;
 }
 
@@ -190,17 +214,6 @@ function crowdTextForLevel(level: CrowdForecast["level"]) {
   return "보통";
 }
 
-function isSameTouristSpot(
-  item: TouristSpotConcentrationItem,
-  context: TouristSpotContext,
-) {
-  return (
-    item.areaCd?.trim() === context.areaCode &&
-    item.signguCd?.trim() === context.sigunguCode &&
-    item.tAtsNm?.trim() === context.touristSpotName
-  );
-}
-
 function selectClosestPrediction<T extends { baseYmd?: string }>(
   records: T[],
   targetDate: string,
@@ -212,11 +225,6 @@ function selectClosestPrediction<T extends { baseYmd?: string }>(
       const bDistance = Math.abs(dateTimestamp(b.baseYmd ?? "") - dateTimestamp(targetDate));
       return aDistance - bDistance || (a.baseYmd ?? "").localeCompare(b.baseYmd ?? "");
     })[0];
-}
-
-function toRate(value: string | undefined) {
-  const rate = Number(value);
-  return Number.isFinite(rate) ? rate : null;
 }
 
 function getKoreanDateKey() {

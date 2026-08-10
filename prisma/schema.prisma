@@ -134,6 +134,7 @@ model Place {
   updatedAt                 DateTime                              @updatedAt @map("updated_at")
   tourismSourceRecord       TourismPlaceSourceRecord?
   seoulRealtimeAreaLink     PlaceSeoulRealtimeArea?
+  crowdEstimates            PlaceCrowdEstimate[]
   journalEntries            JournalEntry[]
   recommendationActions     RecommendationAction[]
 
@@ -317,6 +318,26 @@ model SeoulRealtimePopulationCache {
 
   @@index([expiresAt])
   @@map("seoul_realtime_population_cache")
+}
+
+model PlaceCrowdEstimate {
+  placeId                 String   @map("place_id")
+  forecastDate            String   @map("forecast_date")
+  level                   String
+  score                   Decimal  @db.Decimal(5, 2)
+  confidence              String
+  visitorPressure         Decimal? @map("visitor_pressure") @db.Decimal(5, 2)
+  centralityPressure      Decimal? @map("centrality_pressure") @db.Decimal(5, 2)
+  regionalDemandPressure  Decimal? @map("regional_demand_pressure") @db.Decimal(5, 2)
+  basis                   Json
+  algorithmVersion        String   @map("algorithm_version")
+  calculatedAt            DateTime @map("calculated_at")
+  place                   Place    @relation(fields: [placeId], references: [id], onDelete: Cascade)
+
+  @@id([placeId, forecastDate])
+  @@index([forecastDate, level])
+  @@index([calculatedAt])
+  @@map("place_crowd_estimates")
 }
 
 model RegionalVisitorCountRecord {

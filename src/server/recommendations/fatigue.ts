@@ -1,5 +1,6 @@
 import {
   interpretState,
+  isRealtimeCrowdForecast,
   type RecommendationReasonFactor,
   type StateFeature,
   type TutiPlace,
@@ -491,19 +492,14 @@ function createCrowdReason(
   const sourceBonus =
     place.crowdForecast?.source === "live"
       ? 5
-      : place.crowdForecast?.source === "cached"
+      : place.crowdForecast?.source === "forecast"
         ? 3
-        : place.crowdForecast?.source === "typical"
-          ? 1
-          : 0;
-  const detail =
-    place.crowdForecast?.source === "live"
-      ? "이동 부담과 지금 확인되는 혼잡도를 함께 살폈어요."
-      : place.crowdForecast?.source === "cached"
-        ? "이동 부담과 최근 확인된 혼잡도를 함께 살폈어요."
-        : place.crowdForecast?.source === "typical"
-          ? "이동 부담과 평소 같은 요일의 예상 혼잡도를 함께 살폈어요."
-          : "장소의 평소 혼잡 성격과 이동 부담을 함께 살폈어요.";
+        : place.crowdForecast?.source === "cached"
+          ? 3
+          : place.crowdForecast?.source === "typical"
+            ? 1
+            : 0;
+  const detail = getCrowdReasonDetail(place.crowdForecast);
 
   return {
     factor: "crowd",
@@ -522,6 +518,28 @@ function createCrowdReason(
           ? "사람들 사이의 가벼운 온기가 필요한 날"
           : "적당한 기척 속에 잠시 머물기 좋은 곳",
   };
+}
+
+function getCrowdReasonDetail(forecast: TutiPlace["crowdForecast"]) {
+  if (forecast && isRealtimeCrowdForecast(forecast)) {
+    return "이동 부담과 지금 확인되는 혼잡도를 함께 살폈어요.";
+  }
+  if (forecast?.provider === "seoul_citydata") {
+    return "이동 부담과 최근 확인된 혼잡도를 함께 살폈어요.";
+  }
+  if (
+    forecast?.source === "forecast" ||
+    forecast?.source === "live"
+  ) {
+    return "이동 부담과 오늘의 예상 혼잡도를 함께 살폈어요.";
+  }
+  if (forecast?.source === "cached") {
+    return "이동 부담과 최근 예상 혼잡도를 함께 살폈어요.";
+  }
+  if (forecast?.source === "typical") {
+    return "이동 부담과 평소 같은 요일의 예상 혼잡도를 함께 살폈어요.";
+  }
+  return "장소의 평소 혼잡 성격과 이동 부담을 함께 살폈어요.";
 }
 
 function createMoodReason(
