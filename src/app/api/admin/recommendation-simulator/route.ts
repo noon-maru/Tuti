@@ -15,7 +15,12 @@ import type {
 
 export const runtime = "nodejs";
 
-const movementAnswers = new Set<MovementAnswer>(["near", "short", "half"]);
+const movementAnswers = new Set<MovementAnswer>([
+  "near",
+  "short",
+  "half",
+  "far",
+]);
 const airAnswers = new Set<AirAnswer>(["quiet", "open", "walk"]);
 const densityAnswers = new Set<DensityAnswer>([
   "quiet",

@@ -1,4 +1,4 @@
-export type MovementAnswer = "near" | "short" | "half";
+export type MovementAnswer = "near" | "short" | "half" | "far";
 export type AirAnswer = "quiet" | "open" | "walk";
 export type DensityAnswer = "quiet" | "balanced" | "lively";
 

@@ -106,7 +106,7 @@ function createExperienceStep(
     .map((value) => normalizeText(value))
     .find(
       (value): value is string =>
-        Boolean(value) && !noticeOnlyPattern.test(value),
+        value !== null && !noticeOnlyPattern.test(value),
     );
   if (!option) return null;
 

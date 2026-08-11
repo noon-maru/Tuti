@@ -318,7 +318,7 @@ const MovementScale = styled.div`
 
 const SliderControl = styled.div`
   position: relative;
-  width: calc(100% * 2 / 3);
+  width: calc(100% - var(--space-4));
   height: var(--space-12);
   margin-inline: auto;
 `;
@@ -373,7 +373,7 @@ const SliderThumb = styled.i<{
   z-index: 1;
   top: 50%;
   left: ${({ $position }) =>
-    `calc(12px + (100% - 24px) * ${$position / 2})`};
+    `calc(12px + (100% - 24px) * ${$position / 3})`};
   width: 24px;
   height: 24px;
   border: 3px solid var(--color-surface);
@@ -441,7 +441,7 @@ const RangeInput = styled.input`
 
 const ScaleLabels = styled.div`
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
 `;
 
 const ScaleOption = styled(BaseButton)<{ $active: boolean }>`
@@ -468,7 +468,7 @@ const ScaleOption = styled(BaseButton)<{ $active: boolean }>`
   }
 
   span {
-    font-size: var(--font-size-300);
+    font-size: var(--font-size-200);
     font-weight: 700;
     line-height: var(--line-height-subtitle);
     letter-spacing: var(--letter-spacing-subtitle);

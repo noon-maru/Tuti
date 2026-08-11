@@ -68,6 +68,15 @@ type KakaoCategoryResponse = {
   documents?: KakaoCategoryDocument[];
 };
 
+export type KakaoPlaceSearchResult = {
+  id: string;
+  name: string;
+  address: string | null;
+  categoryName: string | null;
+  latitude: number;
+  longitude: number;
+};
+
 export class KakaoMapError extends Error {
   constructor(
     message: string,
@@ -150,6 +159,33 @@ export async function fetchNearbyKakaoPlaces(
         (right.distanceMeters ?? Number.MAX_SAFE_INTEGER),
     )
     .slice(0, 6);
+}
+
+export async function searchKakaoPlaces(
+  query: string,
+  size = 5,
+): Promise<KakaoPlaceSearchResult[]> {
+  const payload = await fetchKakaoJson<KakaoCategoryResponse>(
+    `${KAKAO_MAP_BASE_URL}/local/search/keyword.json`,
+    { query, size: String(Math.max(1, Math.min(size, 15))) },
+  );
+
+  return (payload.documents ?? []).flatMap((item) => {
+    const id = cleanText(item.id);
+    const name = cleanText(item.place_name);
+    const latitude = finiteNumber(item.y);
+    const longitude = finiteNumber(item.x);
+    if (!id || !name || latitude === null || longitude === null) return [];
+
+    return [{
+      id,
+      name,
+      address: cleanText(item.road_address_name) ?? cleanText(item.address_name),
+      categoryName: cleanText(item.category_name),
+      latitude,
+      longitude,
+    }];
+  });
 }
 
 function normalizeTransitRoute(

@@ -25,6 +25,8 @@
     "tourism:crowd:refresh": "pnpm db:generate && tsx scripts/refresh-tourist-spot-concentration.ts",
     "tourism:timeseries:refresh": "pnpm db:generate && tsx scripts/refresh-tourism-timeseries.ts",
     "tourism:crowd:estimate": "pnpm db:generate && tsx scripts/refresh-crowd-estimates.ts",
+    "transport:hubs:sync": "pnpm db:generate && tsx scripts/sync-transport-hubs.ts",
+    "transport:journey:verify": "pnpm db:generate && tsx scripts/inspect-long-distance.ts",
     "seoul:sync:areas": "pnpm db:generate && tsx scripts/sync-seoul-realtime-areas.ts",
     "wellness:sync:kto": "pnpm db:generate && tsx scripts/sync-wellness-tourism.ts",
     "journal:trace": "tsx scripts/inspect-journal-share-trace.ts",

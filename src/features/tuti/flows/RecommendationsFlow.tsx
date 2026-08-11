@@ -15,7 +15,10 @@ import {
 } from "@/features/tuti/screens/departure/DeparturePlanScreen";
 import { SavedDeparturePlacesSheet } from "@/features/tuti/screens/departure/SavedDeparturePlacesSheet";
 import { RecommendationsScreen } from "@/features/tuti/screens/recommendations/RecommendationsScreen";
-import { formatTravelTimeLabel } from "@/features/tuti/lib/travelTimeLabel";
+import {
+  formatLongDistanceTravelTimeLabel,
+  formatTravelTimeLabel,
+} from "@/features/tuti/lib/travelTimeLabel";
 import { logoutAccount } from "@/lib/auth/session";
 import { recordRecommendationAction } from "@/lib/tutiApi";
 import {
@@ -105,9 +108,19 @@ export function RecommendationsFlow({ interactive }: { interactive: boolean }) {
   const dailyCheckInVisible =
     interactive && !returnCheckInVisible &&
     (dailyCheckInRequested || (!dailyRecordCurrent && !dailyCheckInSnoozed));
+  const waitingForLocationRestore = Boolean(
+    !userLocation &&
+      locationConsent?.status === "accepted" &&
+      locationConsent.termsVersion === LOCATION_TERMS_VERSION &&
+      (locationPermissionStatus === "unknown" ||
+        locationPermissionStatus === "prompt" ||
+        locationPermissionStatus === "granted"),
+  );
   const { places, recommendationId, isSuccess, isPending } =
     useTutiRecommendations({
-      enabled: dailyRecordCurrent || dailyCheckInSnoozed,
+      enabled:
+        (dailyRecordCurrent || dailyCheckInSnoozed) &&
+        !waitingForLocationRestore,
     });
   const activeIndex = useTutiStore((state) => state.activeIndex);
   const activePlaceId = useTutiStore((state) => state.activePlaceId);
@@ -149,10 +162,15 @@ export function RecommendationsFlow({ interactive }: { interactive: boolean }) {
   const travelTimeQuery = useTravelTime(
     activePlace?.id,
     userLocation,
-    interactive && !dailyCheckInVisible && !returnCheckInVisible,
+    interactive &&
+      !dailyCheckInVisible &&
+      !returnCheckInVisible &&
+      !activePlace?.longDistanceJourney,
     activePlace?.travelTimeSummary,
   );
-  const activeTravelTimeLabel = !userLocation
+  const activeTravelTimeLabel = activePlace?.longDistanceJourney
+    ? formatLongDistanceTravelTimeLabel(activePlace.longDistanceJourney)
+    : !userLocation
     ? preferredRegion
       ? `${getShortRegionName(preferredRegion.name)}에서 추천`
       : "위치 없이 추천"

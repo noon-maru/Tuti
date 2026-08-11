@@ -1,7 +1,15 @@
 import type { TravelTimeSummary } from "@/shared/api/travelTime";
+import type { LongDistanceJourney } from "@/lib/recommendations";
 
 export function formatTravelTimeLabel(summary: TravelTimeSummary) {
   return `${getRouteModeLabel(summary.mode)} ${formatDuration(summary.durationSeconds)}`;
+}
+
+export function formatLongDistanceTravelTimeLabel(
+  journey: LongDistanceJourney,
+) {
+  const mode = journey.mode === "highSpeedRail" ? "고속열차" : "고속버스";
+  return `${mode} 포함 ${formatDuration(journey.outboundDurationSeconds)}`;
 }
 
 function getRouteModeLabel(mode: TravelTimeSummary["mode"]) {

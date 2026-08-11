@@ -13,6 +13,11 @@ enum MovementLevel {
   half
 }
 
+enum TransportHubMode {
+  rail
+  express_bus
+}
+
 enum AuthProvider {
   email
   apple
@@ -153,6 +158,29 @@ model Place {
   @@index([source, candidateStatus, candidateOverride])
   @@index([source, candidateStatus, visibilityOverride])
   @@map("places")
+}
+
+model TransportHub {
+  id           String           @id @default(cuid())
+  source       String
+  externalId   String           @map("external_id")
+  mode         TransportHubMode
+  name         String
+  aliases      String[]         @default([])
+  cityCode     String?          @map("city_code")
+  regionName   String?          @map("region_name")
+  latitude     Decimal          @db.Decimal(9, 6)
+  longitude    Decimal          @db.Decimal(9, 6)
+  rawPayload   Json?            @map("raw_payload")
+  isActive     Boolean          @default(true) @map("is_active")
+  sourceSyncedAt DateTime       @map("source_synced_at")
+  createdAt    DateTime         @default(now()) @map("created_at")
+  updatedAt    DateTime         @updatedAt @map("updated_at")
+
+  @@unique([source, externalId])
+  @@index([mode, isActive])
+  @@index([cityCode])
+  @@map("transport_hubs")
 }
 
 model TourismPlaceSourceRecord {

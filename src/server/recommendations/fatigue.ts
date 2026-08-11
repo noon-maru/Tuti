@@ -56,6 +56,7 @@ const movementWeight: Record<MovementAnswer, number> = {
   near: 0,
   short: 1,
   half: 2,
+  far: 3,
 };
 
 const moodTagByAir: Record<AirAnswer, string> = {
@@ -207,6 +208,13 @@ function getPhysicalDistanceScore(
     return 20;
   }
 
+  if (movement === "far") {
+    if (km < 60) return 12;
+    if (km <= 260) return -8;
+    if (km <= 420) return 3;
+    return 14;
+  }
+
   if (km < 6) return 18;
   if (km < 12) return 6;
   if (km <= 45) return -8;
@@ -235,6 +243,13 @@ function getTravelTimeScore(
     if (minutes <= 70) return 5;
     if (minutes <= 100) return 14;
     return 24;
+  }
+
+  if (movement === "far") {
+    if (minutes < 70) return 10;
+    if (minutes <= 180) return -12;
+    if (minutes <= 240) return 4;
+    return 18;
   }
 
   if (minutes < 25) return 22;
@@ -421,7 +436,9 @@ function createDistanceReason(
       factor: "distance",
       score: preferred ? 42 : 20,
       headline:
-        feature.movement === "half" && preferred
+        feature.movement === "far" && preferred
+          ? "멀어도 가는 과정이 단순한 이동이에요."
+          : feature.movement === "half" && preferred
           ? "반나절의 여유로 닿기 좋은 거리예요."
           : feature.movement === "short" && preferred
             ? "짧게 다녀오기 좋은 이동 시간이에요."
@@ -430,7 +447,9 @@ function createDistanceReason(
               : "오늘 정한 이동 범위 안에서 골랐어요.",
       detail: `대중교통 약 ${travelMinutes}분과 오늘 가능한 이동 범위를 함께 살폈어요.`,
       cardPhrase:
-        feature.movement === "half"
+        feature.movement === "far"
+          ? "한 번의 이동으로 완전히 다른 공기를 만나는 날"
+          : feature.movement === "half"
           ? "조금 멀어져 다른 흐름을 만나보는 날"
           : feature.movement === "short"
             ? "잠깐 다녀오는 것만으로 충분한 날"
@@ -444,6 +463,7 @@ function createDistanceReason(
     near: 3_000,
     short: 8_000,
     half: 25_000,
+    far: 180_000,
   }[feature.movement];
   const ratio = distanceMeters / preferredDistance;
   if (ratio > 1) return null;
@@ -475,7 +495,8 @@ function isPreferredTravelTime(
 ) {
   if (movement === "near") return minutes <= 20;
   if (movement === "short") return minutes >= 20 && minutes <= 50;
-  return minutes >= 45 && minutes <= 100;
+  if (movement === "half") return minutes >= 45 && minutes <= 100;
+  return minutes >= 70 && minutes <= 240;
 }
 
 function createCrowdReason(

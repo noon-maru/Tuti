@@ -19,7 +19,7 @@ const stateFeatureSchema = {
     },
     movement: {
       type: "string",
-      enum: ["near", "short", "half"],
+      enum: ["near", "short", "half", "far"],
       description: "How far the user can probably move without strain.",
     },
     crowdTolerance: {
@@ -88,7 +88,7 @@ function parseStateFeature(value: unknown): StateFeature | null {
 
   if (
     !isOneOf(energy, ["low", "soft", "open"]) ||
-    !isOneOf(movement, ["near", "short", "half"]) ||
+    !isOneOf(movement, ["near", "short", "half", "far"]) ||
     !isOneOf(crowdTolerance, ["low", "medium", "high"]) ||
     !isOneOf(goal, ["clear_air", "quiet_reset", "light_walk"]) ||
     typeof burdenNote !== "string"
@@ -111,10 +111,12 @@ function describeAnswers(answers: IntakeAnswers) {
       value: answers.movement ?? null,
       meaning:
         answers.movement === "near"
-          ? "집 근처 정도"
+          ? "문밖에 잠깐 나서는 정도"
+          : answers.movement === "far"
+            ? "오늘 하루를 내어 멀리 가되, 이동은 가볍고 편하게"
           : answers.movement === "half"
-            ? "반나절 정도"
-            : "조금만 움직일 수 있음",
+            ? "서두르지 않고 다녀올 수 있는 반나절"
+            : "가볍게 다녀올 수 있는 한두 시간",
     },
     air: {
       value: answers.air ?? null,

@@ -9,6 +9,7 @@ import {
 } from "@/server/recommendations/fatigue";
 import { enrichPlacesWithCrowdForecast } from "@/server/recommendations/crowdForecast";
 import { recommendablePlaceWhere } from "@/server/recommendations/recommendablePlaceWhere";
+import { createLongDistanceRecommendations } from "@/server/recommendations/longDistancePlanner";
 import { fetchKakaoMapRoute } from "@/server/maps/kakaoMapClient";
 import type { TravelTimeSummary } from "@/shared/api/travelTime";
 import type {
@@ -123,8 +124,30 @@ async function evaluateRecommendations(
   excludePlaceIds: string[] = [],
 ) {
   const feature = await interpretStateWithLlm({ answers, stateText });
+  if (feature.movement === "far" && location) {
+    const longDistancePlaces = await createLongDistanceRecommendations(
+      answers,
+      location,
+      excludePlaceIds,
+    );
+
+    if (longDistancePlaces.length >= 1) {
+      return {
+        feature,
+        sourceCandidateCount: longDistancePlaces.length,
+        eligibleCandidateCount: longDistancePlaces.length,
+        initialRanking: longDistancePlaces,
+        finalRanking: longDistancePlaces,
+        recommendedPlaces: longDistancePlaces.slice(0, 6),
+      };
+    }
+  }
+
   const places = location
-    ? await findPlacesNearLocation(location, feature.movement)
+    ? await findPlacesNearLocation(
+        location,
+        feature.movement === "far" ? "half" : feature.movement,
+      )
     : await findPlacesByBaseFatigue(preferredRegion?.areaCode);
 
   const excludedPlaceIdSet = new Set(excludePlaceIds);

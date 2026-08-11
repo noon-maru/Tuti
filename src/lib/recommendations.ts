@@ -3,7 +3,7 @@ import type { TravelTimeSummary } from "@/shared/api/travelTime";
 
 export type StateFeature = {
   energy: "low" | "soft" | "open";
-  movement: "near" | "short" | "half";
+  movement: "near" | "short" | "half" | "far";
   crowdTolerance: "low" | "medium" | "high";
   goal: "clear_air" | "quiet_reset" | "light_walk";
   burdenNote: string;
@@ -32,6 +32,37 @@ export type TutiPlace = {
   reasonDetail?: string;
   reasonFactors?: RecommendationReasonFactor[];
   cardPhrase?: string;
+  longDistanceJourney?: LongDistanceJourney;
+};
+
+export type LongDistanceMode = "highSpeedRail" | "expressBus";
+
+export type LongDistanceHub = {
+  id: string;
+  name: string;
+  latitude: number;
+  longitude: number;
+};
+
+export type LongDistanceService = {
+  serviceName: string;
+  serviceNumber?: string;
+  departureAt: string;
+  arrivalAt: string;
+  fareWon?: number;
+};
+
+export type LongDistanceJourney = {
+  mode: LongDistanceMode;
+  originHub: LongDistanceHub;
+  destinationHub: LongDistanceHub;
+  outbound: LongDistanceService;
+  returnService: LongDistanceService;
+  originAccess: TravelTimeSummary;
+  destinationAccess: TravelTimeSummary;
+  outboundDurationSeconds: number;
+  totalFareWon?: number;
+  bookingUrl: string;
 };
 
 export type RecommendationReasonFactor =
@@ -143,6 +174,8 @@ export function interpretState(answers: IntakeAnswers): StateFeature {
     burdenNote:
       answers.movement === "near"
         ? "오늘은 가까운 쪽으로만 골랐어요."
+        : answers.movement === "far"
+          ? "멀어도 가는 길이 단순한 곳으로 골랐어요."
         : "오늘 가능한 정도에 맞춰 가볍게 골랐어요.",
   };
 }

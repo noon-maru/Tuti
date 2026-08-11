@@ -3,7 +3,7 @@
 import { css, keyframes } from "@emotion/react";
 import styled from "@emotion/styled";
 import { Capacitor } from "@capacitor/core";
-import { MapPin, Navigation, X } from "lucide-react";
+import { ArrowRight, MapPin, Navigation, TrainFront, X } from "lucide-react";
 import { useLayoutEffect, useRef, useState } from "react";
 import { BaseButton, PrimaryButton } from "@/features/tuti/components/buttons";
 import { LoadingIndicator } from "@/features/tuti/components/LoadingIndicator";
@@ -31,7 +31,7 @@ const ROUTE_MODES: DepartureRouteMode[] = [
 
 export type DeparturePlace = Pick<
   TutiPlace,
-  "id" | "name" | "image" | "phrase"
+  "id" | "name" | "image" | "phrase" | "longDistanceJourney"
 >;
 
 export function DeparturePlanScreen({
@@ -247,11 +247,11 @@ export function DeparturePlanScreen({
                 </StatusMessage>
               )}
             </LocationRequest>
-          ) : departureQuery.isPending ? (
+          ) : departureQuery.isPending && !place.longDistanceJourney ? (
             <CenteredStatus>
               <LoadingIndicator label="가장 가벼운 길을 찾고 있어요." />
             </CenteredStatus>
-          ) : departureQuery.isError || !plan ? (
+          ) : (departureQuery.isError || !plan) && !place.longDistanceJourney ? (
             <ErrorState>
               <h2>경로를 불러오지 못했어요.</h2>
               <p>잠시 후 다시 확인하거나 다른 장소를 살펴보세요.</p>
@@ -264,7 +264,89 @@ export function DeparturePlanScreen({
             </ErrorState>
           ) : (
             <PlanContent>
-              <Section>
+              {place.longDistanceJourney && (
+                <LongDistanceSection>
+                  <SectionHeading>
+                    <div>
+                      <small>더 멀리, 편하게</small>
+                      <h2>갈아탈 고민은 여기까지 줄였어요.</h2>
+                    </div>
+                    <RecommendedBadge>추천</RecommendedBadge>
+                  </SectionHeading>
+                  <JourneyCard>
+                    <JourneyRoute>
+                      <JourneyHub>
+                        <small>출발</small>
+                        <strong>{place.longDistanceJourney.originHub.name}</strong>
+                      </JourneyHub>
+                      <JourneyLine aria-hidden="true">
+                        <TrainFront />
+                        <i />
+                        <ArrowRight />
+                      </JourneyLine>
+                      <JourneyHub $align="right">
+                        <small>도착</small>
+                        <strong>{place.longDistanceJourney.destinationHub.name}</strong>
+                      </JourneyHub>
+                    </JourneyRoute>
+                    <JourneyTimes>
+                      <span>
+                        <small>가는 편</small>
+                        <strong>
+                          {formatClock(place.longDistanceJourney.outbound.departureAt)}
+                          {" → "}
+                          {formatClock(place.longDistanceJourney.outbound.arrivalAt)}
+                        </strong>
+                        <em>
+                          {place.longDistanceJourney.outbound.serviceName}
+                          {place.longDistanceJourney.outbound.serviceNumber
+                            ? ` ${place.longDistanceJourney.outbound.serviceNumber}`
+                            : ""}
+                        </em>
+                      </span>
+                      <span>
+                        <small>돌아오는 편</small>
+                        <strong>
+                          {formatClock(place.longDistanceJourney.returnService.departureAt)}
+                          {" → "}
+                          {formatClock(place.longDistanceJourney.returnService.arrivalAt)}
+                        </strong>
+                        <em>{place.longDistanceJourney.returnService.serviceName}</em>
+                      </span>
+                    </JourneyTimes>
+                    <JourneyFacts>
+                      <span>
+                        집에서 출발 허브까지 {formatDuration(place.longDistanceJourney.originAccess.durationSeconds)}
+                      </span>
+                      <span>
+                        도착 허브에서 장소까지 {formatDuration(place.longDistanceJourney.destinationAccess.durationSeconds)}
+                      </span>
+                      {place.longDistanceJourney.totalFareWon && (
+                        <span>왕복 운임 약 {formatWon(place.longDistanceJourney.totalFareWon)}</span>
+                      )}
+                    </JourneyFacts>
+                    <BookingLink
+                      href={place.longDistanceJourney.bookingUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      data-swipe-back-ignore
+                      onClick={() =>
+                        onNavigationStart?.(
+                          toLongDistanceDepartureRoute(place.longDistanceJourney!),
+                        )
+                      }
+                    >
+                      좌석 및 시간 확인하기
+                      <ArrowRight aria-hidden="true" />
+                    </BookingLink>
+                    <JourneyNotice>
+                      표시된 시각과 운임은 공공데이터 기준이며, 좌석 여부는 예매처에서 마지막으로 확인해주세요.
+                    </JourneyNotice>
+                  </JourneyCard>
+                </LongDistanceSection>
+              )}
+
+              {!place.longDistanceJourney && plan && <Section>
                 <SectionHeading>
                   <div>
                     <h2>어떻게 가는 게 편할까요?</h2>
@@ -374,9 +456,9 @@ export function DeparturePlanScreen({
                     )}
                   </DirectRouteCard>
                 )}
-              </Section>
+              </Section>}
 
-              {plan.suggestedPlan.length > 0 && (
+              {(plan?.suggestedPlan.length ?? 0) > 0 && (
                 <Section>
                 <SectionHeading>
                   <div>
@@ -384,7 +466,7 @@ export function DeparturePlanScreen({
                   </div>
                   </SectionHeading>
                   <SuggestedSteps>
-                    {plan.suggestedPlan.map((step, index) => (
+                    {plan!.suggestedPlan.map((step, index) => (
                       <li key={`${step.kind}-${index}`}>
                         <i aria-hidden="true" />
                         <span>
@@ -397,7 +479,7 @@ export function DeparturePlanScreen({
                 </Section>
               )}
 
-              {plan.nearbyPlaces.length > 0 && (
+              {(plan?.nearbyPlaces.length ?? 0) > 0 && (
                 <Section>
                 <SectionHeading>
                   <div>
@@ -528,6 +610,32 @@ function formatDuration(seconds: number | null) {
   const hours = Math.floor(minutes / 60);
   const remainder = minutes % 60;
   return remainder ? `약 ${hours}시간 ${remainder}분` : `약 ${hours}시간`;
+}
+
+function formatClock(value: string) {
+  return new Intl.DateTimeFormat("ko-KR", {
+    timeZone: "Asia/Seoul",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  }).format(new Date(value));
+}
+
+function toLongDistanceDepartureRoute(
+  journey: NonNullable<DeparturePlace["longDistanceJourney"]>,
+): DepartureRoute {
+  return {
+    mode: "publicTransit",
+    status: "available",
+    durationSeconds: journey.outboundDurationSeconds,
+    distanceMeters: journey.originAccess.distanceMeters,
+    transfers: 0,
+    fareWon: journey.totalFareWon ?? null,
+    tollWon: null,
+    taxiFareWon: null,
+    externalUrl: journey.bookingUrl,
+    steps: [],
+  };
 }
 
 function formatDistance(meters: number | null) {
@@ -894,6 +1002,137 @@ const PlanContent = styled.div`
   display: grid;
   gap: var(--space-8);
   padding-top: var(--space-6);
+`;
+
+const LongDistanceSection = styled.section`
+  display: grid;
+  gap: var(--space-4);
+
+  > div:first-of-type small {
+    color: var(--color-info);
+    font-size: var(--font-size-100);
+    font-weight: 600;
+  }
+`;
+
+const JourneyCard = styled.div`
+  display: grid;
+  gap: var(--space-4);
+  padding: var(--space-5);
+  border: 1px solid var(--color-secondary-300);
+  border-radius: 24px;
+  background: linear-gradient(
+    145deg,
+    var(--color-secondary-100),
+    var(--color-surface) 68%
+  );
+`;
+
+const JourneyRoute = styled.div`
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 96px minmax(0, 1fr);
+  align-items: center;
+  gap: var(--space-2);
+`;
+
+const JourneyHub = styled.div<{ $align?: "right" }>`
+  display: grid;
+  gap: 2px;
+  text-align: ${({ $align }) => ($align === "right" ? "right" : "left")};
+
+  small {
+    color: var(--color-text-muted);
+    font-size: calc(var(--font-size-100) - 1px);
+  }
+
+  strong {
+    overflow-wrap: anywhere;
+    font-size: var(--font-size-200);
+  }
+`;
+
+const JourneyLine = styled.div`
+  display: grid;
+  grid-template-columns: auto minmax(8px, 1fr) auto;
+  align-items: center;
+  gap: var(--space-1);
+  color: var(--color-info);
+
+  svg {
+    width: 16px;
+    height: 16px;
+    stroke-width: 1.8;
+  }
+
+  i {
+    height: 1px;
+    background: var(--color-brand-500);
+  }
+`;
+
+const JourneyTimes = styled.div`
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-2);
+
+  > span {
+    min-width: 0;
+    display: grid;
+    gap: 2px;
+    padding: var(--space-3);
+    border-radius: 16px;
+    background: var(--color-surface);
+  }
+
+  small,
+  em {
+    color: var(--color-text-muted);
+    font-size: calc(var(--font-size-100) - 1px);
+    font-style: normal;
+  }
+
+  strong {
+    font-size: var(--font-size-200);
+    white-space: nowrap;
+  }
+`;
+
+const JourneyFacts = styled.div`
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+
+  span {
+    padding: var(--space-1) var(--space-2);
+    border-radius: 999px;
+    background: var(--color-secondary-200);
+    color: var(--color-neutral-1100);
+    font-size: calc(var(--font-size-100) - 1px);
+  }
+`;
+
+const BookingLink = styled.a`
+  min-height: var(--space-12);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  border-radius: 999px;
+  background: var(--color-brand-600);
+  color: var(--color-text);
+  font-size: var(--font-size-200);
+  font-weight: 700;
+
+  svg {
+    width: 17px;
+    height: 17px;
+  }
+`;
+
+const JourneyNotice = styled.p`
+  color: var(--color-text-muted);
+  font-size: calc(var(--font-size-100) - 1px);
+  line-height: var(--line-height-body);
 `;
 
 const Section = styled.section`
