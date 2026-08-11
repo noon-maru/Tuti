@@ -17,7 +17,31 @@ type OperationDetail = {
   openingHours: string | null;
   restDate: string | null;
   usageDuration: string | null;
+  admissionFee: string | null;
 };
+
+export async function enrichPlacesWithAdmissionFees(places: TutiPlace[]) {
+  if (places.length === 0) return places;
+  const sources = await prisma.tourismPlaceSourceRecord.findMany({
+    where: { linkedPlaceId: { in: places.map((place) => place.id) } },
+    select: {
+      linkedPlaceId: true,
+      detailRecord: { select: { admissionFee: true } },
+    },
+  });
+  const feeByPlaceId = new Map(
+    sources.flatMap((source) => {
+      const admissionFee = source.detailRecord?.admissionFee?.trim();
+      return source.linkedPlaceId && admissionFee
+        ? [[source.linkedPlaceId, admissionFee] as const]
+        : [];
+    }),
+  );
+  return places.map((place) => {
+    const admissionFee = feeByPlaceId.get(place.id);
+    return admissionFee ? { ...place, admissionFee } : place;
+  });
+}
 
 export async function enrichPlacesWithExecutionFeasibility(
   places: TutiPlace[],
@@ -36,6 +60,7 @@ export async function enrichPlacesWithExecutionFeasibility(
           openingHours: true,
           restDate: true,
           usageDuration: true,
+          admissionFee: true,
         },
       },
     },
@@ -49,15 +74,19 @@ export async function enrichPlacesWithExecutionFeasibility(
   );
 
   return places.map((place) => {
+    const detail = detailByPlaceId.get(place.id);
     const executionFeasibility = calculateExecutionFeasibility({
       place,
       answers,
-      detail: detailByPlaceId.get(place.id),
+      detail,
       now,
     });
-    return executionFeasibility
-      ? { ...place, executionFeasibility }
-      : place;
+    const admissionFee = detail?.admissionFee?.trim();
+    return {
+      ...place,
+      ...(admissionFee ? { admissionFee } : {}),
+      ...(executionFeasibility ? { executionFeasibility } : {}),
+    };
   });
 }
 

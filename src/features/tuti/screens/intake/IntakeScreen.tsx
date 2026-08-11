@@ -7,9 +7,14 @@ import {
   PrimaryButton,
   TextButton,
 } from "@/features/tuti/components/buttons";
+import { AuxiliaryConditions } from "@/features/tuti/components/AuxiliaryConditions";
 import { ScreenFrame } from "@/features/tuti/components/ScreenFrame";
 import { TutiWordmark } from "@/features/tuti/components/TutiWordmark";
 import type { IntakeStep } from "@/features/tuti/data/intakeSteps";
+import type {
+  BudgetAnswer,
+  CompanionAnswer,
+} from "@/shared/tuti/types";
 
 type MovementStep = Extract<IntakeStep, { key: "movement" }>;
 
@@ -23,6 +28,9 @@ export function IntakeScreen({
   onNext,
   onRestoreRecords,
   onSkip,
+  auxiliaryConditions,
+  onCompanionChange,
+  onBudgetChange,
 }: {
   step: number;
   total: number;
@@ -33,6 +41,12 @@ export function IntakeScreen({
   onNext: () => void;
   onRestoreRecords: () => void;
   onSkip: () => void;
+  auxiliaryConditions: {
+    companion?: CompanionAnswer;
+    budget?: BudgetAnswer;
+  };
+  onCompanionChange: (value?: CompanionAnswer) => void;
+  onBudgetChange: (value?: BudgetAnswer) => void;
 }) {
   const tintedQuestion =
     activeStep.key === "air" || activeStep.key === "density";
@@ -91,6 +105,14 @@ export function IntakeScreen({
             </OptionCard>
           ))}
         </OptionList>
+      )}
+      {step === total - 1 && (
+        <AuxiliaryConditions
+          companion={auxiliaryConditions.companion}
+          budget={auxiliaryConditions.budget}
+          onCompanionChange={onCompanionChange}
+          onBudgetChange={onBudgetChange}
+        />
       )}
       <QuestionActions>
         <NextButton disabled={!selectedValue} onClick={onNext}>

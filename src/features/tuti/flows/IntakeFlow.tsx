@@ -49,6 +49,9 @@ export function IntakeFlow() {
       onNext={goToNextQuestion}
       onRestoreRecords={() => router.push("/login")}
       onSkip={skipIntake}
+      auxiliaryConditions={answers}
+      onCompanionChange={(value) => setAnswer("companion", value)}
+      onBudgetChange={(value) => setAnswer("budget", value)}
     />
   );
 }

@@ -24,6 +24,7 @@ type MovementFatigueInput = Pick<
   | "weatherForecast"
   | "executionFeasibility"
   | "sourceContentType"
+  | "admissionFee"
   | "distanceMeters"
   | "travelTimeSummary"
 >;
@@ -40,6 +41,8 @@ export type FatigueBreakdown = {
   transferPenalty: number;
   walkingPenalty: number;
   weatherPenalty: number;
+  companionPenalty: number;
+  budgetPenalty: number;
 };
 
 type CrowdLevel = "low" | "medium" | "high" | "unknown";
@@ -150,6 +153,8 @@ export function calculateMovementFatigue(
       feature,
     ),
     weatherPenalty: getWeatherPenalty(place, feature),
+    companionPenalty: getCompanionPenalty(place, answers.companion),
+    budgetPenalty: getBudgetPenalty(place.admissionFee, answers.budget),
   };
 }
 
@@ -166,7 +171,9 @@ export function scoreBreakdown(breakdown: FatigueBreakdown) {
       breakdown.executionPenalty +
       breakdown.transferPenalty +
       breakdown.walkingPenalty +
-      breakdown.weatherPenalty,
+      breakdown.weatherPenalty +
+      breakdown.companionPenalty +
+      breakdown.budgetPenalty,
   );
 }
 
@@ -243,6 +250,78 @@ function isOutdoorPlace(place: MovementFatigueInput) {
       place.name,
     )
   );
+}
+
+function getCompanionPenalty(
+  place: MovementFatigueInput,
+  companion: IntakeAnswers["companion"],
+) {
+  if (!companion) return 0;
+  const name = place.name;
+  if (companion === "solo") {
+    if (
+      place.moodTags.includes("solitude") ||
+      place.moodTags.includes("quiet")
+    ) {
+      return -8;
+    }
+    return /놀이|축제|공연/.test(name) ? 5 : 0;
+  }
+  if (companion === "family") {
+    if (
+      /어린이|가족|과학관|박물관|동물원|아쿠아리움|공원|수목원|체험/.test(
+        name,
+      )
+    ) {
+      return -8;
+    }
+    return /등산|암벽|클라이밍/.test(name) ? 8 : 0;
+  }
+  if (companion === "partner") {
+    return place.moodTags.some((tag) => tag === "open" || tag === "walk")
+      ? -5
+      : 0;
+  }
+  return place.moodTags.some((tag) => tag === "walk" || tag === "open")
+    ? -4
+    : 0;
+}
+
+function getBudgetPenalty(
+  admissionFee: string | undefined,
+  budget: IntakeAnswers["budget"],
+) {
+  if (!budget || !admissionFee) return 0;
+  const fee = parseAdmissionFee(admissionFee);
+  if (fee.kind === "unknown") return 0;
+  if (budget === "free") return fee.kind === "free" ? -12 : 20;
+  if (fee.kind === "free") return -8;
+  if (fee.maximumWon !== null && fee.maximumWon <= 20_000) return -7;
+  if (fee.minimumWon !== null && fee.minimumWon > 20_000) return 14;
+  return 0;
+}
+
+function parseAdmissionFee(value: string) {
+  const normalized = value.replace(/\s+/g, " ").trim();
+  const wonValues = [...normalized.matchAll(/(\d[\d,]*)\s*원/g)]
+    .map((match) => Number(match[1].replace(/,/g, "")))
+    .filter((amount) => Number.isFinite(amount) && amount > 0);
+  const tenThousandWonValues = [
+    ...normalized.matchAll(/(\d+(?:\.\d+)?)\s*만\s*원/g),
+  ]
+    .map((match) => Number(match[1]) * 10_000)
+    .filter((amount) => Number.isFinite(amount) && amount > 0);
+  const amounts = [...wonValues, ...tenThousandWonValues];
+  if (amounts.length === 0) {
+    return /무료|요금\s*없음|입장료\s*없음/.test(normalized)
+      ? { kind: "free" as const, minimumWon: 0, maximumWon: 0 }
+      : { kind: "unknown" as const, minimumWon: null, maximumWon: null };
+  }
+  return {
+    kind: "paid" as const,
+    minimumWon: Math.min(...amounts),
+    maximumWon: Math.max(...amounts),
+  };
 }
 
 function getCrowdPenalty(
@@ -407,6 +486,8 @@ function getRecommendationExplanation(
     createExecutionReason(place, breakdown),
     createRouteReason(place, breakdown),
     createWeatherReason(place, breakdown),
+    createBudgetReason(place, answers, breakdown),
+    createCompanionReason(place, answers, breakdown),
     createDistanceReason(place, answers, feature),
     createCrowdReason(place, answers, breakdown),
     createMoodReason(place, answers, breakdown),
@@ -439,6 +520,61 @@ function getRecommendationExplanation(
     factors: secondary
       ? [primary.factor, secondary.factor]
       : [primary.factor],
+  };
+}
+
+function createBudgetReason(
+  place: MovementFatigueInput,
+  answers: IntakeAnswers,
+  breakdown: FatigueBreakdown,
+): ReasonCandidate | null {
+  if (!answers.budget || !place.admissionFee || breakdown.budgetPenalty >= 0) {
+    return null;
+  }
+  const free = parseAdmissionFee(place.admissionFee).kind === "free";
+  return {
+    factor: "budget",
+    score: 40 + Math.abs(breakdown.budgetPenalty),
+    headline: free
+      ? "입장료 없이 가볍게 머물 수 있어요."
+      : "오늘 정한 입장 비용 안에서 이용하기 좋아요.",
+    detail: free
+      ? "공식 관광정보의 이용요금이 무료인 장소를 우선했어요."
+      : "공식 관광정보의 이용요금을 선택한 예산과 함께 살폈어요.",
+    cardPhrase: "비용 부담까지 가볍게 다녀오는 곳",
+  };
+}
+
+function createCompanionReason(
+  place: MovementFatigueInput,
+  answers: IntakeAnswers,
+  breakdown: FatigueBreakdown,
+): ReasonCandidate | null {
+  if (!answers.companion || breakdown.companionPenalty >= 0) return null;
+  const copy = {
+    solo: [
+      "혼자 머물러도 자연스러운 곳이에요.",
+      "조용함과 혼자 머물기 좋은 장소 성격을 함께 살폈어요.",
+    ],
+    friend: [
+      "친구와 가볍게 둘러보기 좋은 곳이에요.",
+      "함께 걷고 시야를 바꾸기 좋은 장소 성격을 살폈어요.",
+    ],
+    partner: [
+      "둘이 천천히 걷기 좋은 곳이에요.",
+      "함께 걷거나 트인 풍경을 보기 좋은 장소를 우선했어요.",
+    ],
+    family: [
+      "가족과 함께 둘러보기 좋은 곳이에요.",
+      "장소 유형과 이름에서 가족이 함께 즐길 요소를 살폈어요.",
+    ],
+  }[answers.companion];
+  return {
+    factor: "companion",
+    score: 36 + Math.abs(breakdown.companionPenalty),
+    headline: copy[0],
+    detail: copy[1],
+    cardPhrase: "함께하는 사람까지 생각한 오늘의 장소",
   };
 }
 
@@ -848,10 +984,12 @@ function reasonPriority(factor: RecommendationReasonFactor) {
     schedule: 0,
     route: 1,
     weather: 2,
-    crowd: 3,
-    distance: 4,
-    mood: 5,
-    movement: 6,
-    burden: 7,
+    budget: 3,
+    companion: 4,
+    crowd: 5,
+    distance: 6,
+    mood: 7,
+    movement: 8,
+    burden: 9,
   }[factor];
 }

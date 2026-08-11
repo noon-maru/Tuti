@@ -19,6 +19,8 @@ import type {
 import { tourApiSidoOptions } from "@/shared/tourism/tourApiRegions";
 import type {
   AirAnswer,
+  BudgetAnswer,
+  CompanionAnswer,
   DensityAnswer,
   MovementAnswer,
 } from "@/shared/tuti/types";
@@ -55,6 +57,8 @@ const scoreLabels: Record<keyof AdminRecommendationScoreBreakdown, string> = {
   transferPenalty: "환승 부담",
   walkingPenalty: "실제 도보 부담",
   weatherPenalty: "도착 시각 날씨",
+  companionPenalty: "동행자 적합도",
+  budgetPenalty: "입장 예산 적합도",
 };
 
 const dateFormatter = new Intl.DateTimeFormat("ko-KR", {
@@ -67,6 +71,8 @@ export function RecommendationSimulatorScreen() {
   const [movement, setMovement] = useState<MovementAnswer>("short");
   const [air, setAir] = useState<AirAnswer>("quiet");
   const [density, setDensity] = useState<DensityAnswer>("balanced");
+  const [companion, setCompanion] = useState<CompanionAnswer | undefined>();
+  const [budget, setBudget] = useState<BudgetAnswer | undefined>();
   const [latitude, setLatitude] = useState("37.5665");
   const [longitude, setLongitude] = useState("126.9780");
   const [areaCode, setAreaCode] = useState("1");
@@ -118,7 +124,7 @@ export function RecommendationSimulatorScreen() {
     setError(null);
 
     const request: AdminRecommendationSimulationRequest = {
-      answers: { movement, air, density },
+      answers: { movement, air, density, companion, budget },
       ...(stateText.trim() ? { stateText: stateText.trim() } : {}),
     };
 
@@ -207,6 +213,8 @@ export function RecommendationSimulatorScreen() {
                 setMovement("short");
                 setAir("quiet");
                 setDensity("balanced");
+                setCompanion(undefined);
+                setBudget(undefined);
                 setLatitude("37.5665");
                 setLongitude("126.9780");
                 setAreaCode("1");
@@ -325,6 +333,44 @@ export function RecommendationSimulatorScreen() {
                   onClick={() => setDensity(option.value)}
                 >
                   {option.label}
+                </CompactButton>
+              ))}
+            </CompactOptions>
+          </FieldGroup>
+
+          <FieldGroup>
+            <FieldLabel>보조 조건 · 선택</FieldLabel>
+            <CompactOptions>
+              {([
+                ["solo", "혼자"],
+                ["friend", "친구와"],
+                ["partner", "연인과"],
+                ["family", "가족과"],
+              ] as const).map(([value, label]) => (
+                <CompactButton
+                  key={value}
+                  type="button"
+                  $active={companion === value}
+                  onClick={() =>
+                    setCompanion(companion === value ? undefined : value)
+                  }
+                >
+                  {label}
+                </CompactButton>
+              ))}
+            </CompactOptions>
+            <CompactOptions>
+              {([
+                ["free", "입장료 무료"],
+                ["under_20000", "입장료 2만원 안쪽"],
+              ] as const).map(([value, label]) => (
+                <CompactButton
+                  key={value}
+                  type="button"
+                  $active={budget === value}
+                  onClick={() => setBudget(budget === value ? undefined : value)}
+                >
+                  {label}
                 </CompactButton>
               ))}
             </CompactOptions>

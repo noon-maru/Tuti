@@ -22,6 +22,7 @@ export type TutiPlace = {
   movementLevel: "near" | "short" | "half";
   moodTags: string[];
   sourceContentType?: string;
+  admissionFee?: string;
   latitude?: number;
   longitude?: number;
   travelTimeSummary?: TravelTimeSummary;
@@ -76,6 +77,8 @@ export type RecommendationReasonFactor =
   | "schedule"
   | "route"
   | "weather"
+  | "companion"
+  | "budget"
   | "mood"
   | "movement"
   | "burden";

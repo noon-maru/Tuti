@@ -13,7 +13,10 @@ import { createLongDistanceRecommendations } from "@/server/recommendations/long
 import { fetchKakaoMapRoute } from "@/server/maps/kakaoMapClient";
 import { isWalkingDistance } from "@/server/departure/routeSelection";
 import { toTravelTimeSummary } from "@/server/departure/travelTimeSummary";
-import { enrichPlacesWithExecutionFeasibility } from "@/server/recommendations/executionFeasibility";
+import {
+  enrichPlacesWithAdmissionFees,
+  enrichPlacesWithExecutionFeasibility,
+} from "@/server/recommendations/executionFeasibility";
 import { enrichPlacesWithWeatherForecast } from "@/server/weather/kmaVilageForecast";
 import type {
   IntakeAnswers,
@@ -135,15 +138,25 @@ async function evaluateRecommendations(
     );
 
     if (longDistancePlaces.length >= 1) {
+      const admissionEnrichedPlaces =
+        await enrichPlacesWithAdmissionFees(longDistancePlaces);
       const weatherEnrichedPlaces =
-        await enrichPlacesWithWeatherForecast(longDistancePlaces);
+        await enrichPlacesWithWeatherForecast(admissionEnrichedPlaces);
+      const conditionedPlaces = answers.companion || answers.budget
+        ? rankByMovementFatigue(
+            weatherEnrichedPlaces,
+            answers,
+            feature,
+            weatherEnrichedPlaces.length,
+          )
+        : weatherEnrichedPlaces;
       return {
         feature,
         sourceCandidateCount: longDistancePlaces.length,
         eligibleCandidateCount: longDistancePlaces.length,
-        initialRanking: weatherEnrichedPlaces,
-        finalRanking: weatherEnrichedPlaces,
-        recommendedPlaces: weatherEnrichedPlaces.slice(0, 6),
+        initialRanking: conditionedPlaces,
+        finalRanking: conditionedPlaces,
+        recommendedPlaces: conditionedPlaces.slice(0, 6),
       };
     }
   }
@@ -179,13 +192,12 @@ async function evaluateRecommendations(
         12,
       )
     : selectDiverseContentTypes(rankedPlaces, 12, 3);
-  const executionEnrichedPlaces = location
-    ? await enrichPlacesWithExecutionFeasibility(shortlist, {
-        ...answers,
-        movement:
-          feature.movement === "far" ? "half" : feature.movement,
-      })
-    : shortlist;
+  const executionEnrichedPlaces =
+    await enrichPlacesWithExecutionFeasibility(shortlist, {
+      ...answers,
+      movement:
+        feature.movement === "far" ? "half" : feature.movement,
+    });
   const weatherEnrichedPlaces =
     await enrichPlacesWithWeatherForecast(executionEnrichedPlaces);
   const forecastedPlaces =

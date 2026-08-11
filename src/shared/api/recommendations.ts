@@ -5,7 +5,7 @@ import type {
   UserLocation,
 } from "@/shared/tuti/types";
 
-export const RECOMMENDATION_ALGORITHM_VERSION = "execution-context-v6";
+export const RECOMMENDATION_ALGORITHM_VERSION = "optional-context-v7";
 
 export type RecommendationRequest = {
   answers?: IntakeAnswers;

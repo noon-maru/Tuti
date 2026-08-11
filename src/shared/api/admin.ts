@@ -203,6 +203,8 @@ export type AdminRecommendationScoreBreakdown = {
   transferPenalty: number;
   walkingPenalty: number;
   weatherPenalty: number;
+  companionPenalty: number;
+  budgetPenalty: number;
 };
 
 export type AdminRecommendationSimulationCandidate = {

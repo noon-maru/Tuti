@@ -123,6 +123,8 @@ function normalizeAnswers(value: unknown): IntakeAnswers {
     "movement",
     "air",
     "density",
+    "companion",
+    "budget",
     "longDistanceTiming",
   ]);
 
@@ -141,6 +143,16 @@ function normalizeAnswers(value: unknown): IntakeAnswers {
       value.density,
       ["quiet", "balanced", "lively"],
       "선호 분위기",
+    ),
+    companion: normalizeOptionalEnum(
+      value.companion,
+      ["solo", "friend", "partner", "family"],
+      "동행자",
+    ),
+    budget: normalizeOptionalEnum(
+      value.budget,
+      ["free", "under_20000"],
+      "예산",
     ),
     longDistanceTiming: normalizeOptionalEnum(
       value.longDistanceTiming,

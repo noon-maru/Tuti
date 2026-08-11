@@ -15,6 +15,7 @@ import {
   PrimaryButton,
   TextButton,
 } from "@/features/tuti/components/buttons";
+import { AuxiliaryConditions } from "@/features/tuti/components/AuxiliaryConditions";
 import {
   getIntakeSteps,
 } from "@/features/tuti/data/intakeSteps";
@@ -76,6 +77,22 @@ export function DailyCheckInScreen({
       }),
     [previousAnswers],
   );
+  const previousAuxiliaryLabels = [
+    previousAnswers.companion
+      ? {
+          solo: "혼자",
+          friend: "친구와",
+          partner: "연인과",
+          family: "가족과",
+        }[previousAnswers.companion]
+      : null,
+    previousAnswers.budget
+      ? {
+          free: "입장료 무료",
+          under_20000: "입장료 2만원 안쪽",
+        }[previousAnswers.budget]
+      : null,
+  ].filter((label): label is string => label !== null);
   const canReuse = previousLabels.length === getIntakeSteps(previousAnswers).length;
 
   const closeWith = useCallback((complete: () => void) => {
@@ -272,7 +289,7 @@ export function DailyCheckInScreen({
               </SummaryCopy>
               {previousLabels.length > 0 && (
                 <AnswerSummary aria-label="이전 상태 답변">
-                  {previousLabels.map((label) => (
+                  {[...previousLabels, ...previousAuxiliaryLabels].map((label) => (
                     <span key={label}>{label}</span>
                   ))}
                 </AnswerSummary>
@@ -341,6 +358,24 @@ export function DailyCheckInScreen({
                   </Option>
                 ))}
               </Options>
+              {step === activeSteps.length - 1 && (
+                <AuxiliaryConditions
+                  companion={draftAnswers.companion}
+                  budget={draftAnswers.budget}
+                  onCompanionChange={(value) =>
+                    setDraftAnswers((current) => ({
+                      ...current,
+                      companion: value,
+                    }))
+                  }
+                  onBudgetChange={(value) =>
+                    setDraftAnswers((current) => ({
+                      ...current,
+                      budget: value,
+                    }))
+                  }
+                />
+              )}
               <QuestionAction
                 type="button"
                 disabled={!selectedValue}

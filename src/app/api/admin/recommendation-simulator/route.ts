@@ -9,6 +9,8 @@ import type { AdminRecommendationSimulationRequest } from "@/shared/api/admin";
 import { RECOMMENDATION_ALGORITHM_VERSION } from "@/shared/api/recommendations";
 import type {
   AirAnswer,
+  BudgetAnswer,
+  CompanionAnswer,
   DensityAnswer,
   MovementAnswer,
 } from "@/shared/tuti/types";
@@ -27,6 +29,13 @@ const densityAnswers = new Set<DensityAnswer>([
   "balanced",
   "lively",
 ]);
+const companionAnswers = new Set<CompanionAnswer>([
+  "solo",
+  "friend",
+  "partner",
+  "family",
+]);
+const budgetAnswers = new Set<BudgetAnswer>(["free", "under_20000"]);
 
 export async function POST(request: Request) {
   if (!isRequestOriginAllowed(request)) {
@@ -93,7 +102,7 @@ async function readInput(
     return { ok: false, error: "추천 응답을 입력해주세요." };
   }
 
-  const { movement, air, density } = body.answers;
+  const { movement, air, density, companion, budget } = body.answers;
   if (
     typeof movement !== "string" ||
     !movementAnswers.has(movement as MovementAnswer) ||
@@ -104,12 +113,34 @@ async function readInput(
   ) {
     return { ok: false, error: "추천 응답 값이 올바르지 않아요." };
   }
+  if (
+    companion !== undefined &&
+    (typeof companion !== "string" ||
+      !companionAnswers.has(companion as CompanionAnswer))
+  ) {
+    return { ok: false, error: "동행자 조건을 확인해주세요." };
+  }
+  if (
+    budget !== undefined &&
+    (typeof budget !== "string" ||
+      !budgetAnswers.has(budget as BudgetAnswer))
+  ) {
+    return { ok: false, error: "예산 조건을 확인해주세요." };
+  }
 
   const value: AdminRecommendationSimulationRequest = {
     answers: {
       movement: movement as MovementAnswer,
       air: air as AirAnswer,
       density: density as DensityAnswer,
+      ...(typeof companion === "string" &&
+      companionAnswers.has(companion as CompanionAnswer)
+        ? { companion: companion as CompanionAnswer }
+        : {}),
+      ...(typeof budget === "string" &&
+      budgetAnswers.has(budget as BudgetAnswer)
+        ? { budget: budget as BudgetAnswer }
+        : {}),
     },
   };
 
