@@ -148,7 +148,7 @@ async function evaluateRecommendations(
         location,
         feature.movement === "far" ? "half" : feature.movement,
       )
-    : await findPlacesByBaseFatigue(preferredRegion?.areaCode);
+    : await findPlacesByBaseFatigue(preferredRegion);
 
   const excludedPlaceIdSet = new Set(excludePlaceIds);
   const eligiblePlaces = places.filter(
@@ -197,13 +197,13 @@ async function evaluateRecommendations(
 }
 
 async function findPlacesByBaseFatigue(
-  preferredAreaCode?: string,
+  preferredRegion?: PreferredRegion,
 ): Promise<PlaceRow[]> {
   return prisma.place.findMany({
     where: {
       ...recommendablePlaceWhere,
-      ...(preferredAreaCode
-        ? { sourceAreaCode: preferredAreaCode }
+      ...(preferredRegion
+        ? getPreferredRegionWhere(preferredRegion)
         : {}),
     },
     orderBy: [{ fatigue: "asc" }, { id: "asc" }],
@@ -224,6 +224,46 @@ async function findPlacesByBaseFatigue(
       longitude: true,
     },
   });
+}
+
+const integratedGwangjuDistricts = [
+  "광산구",
+  "남구",
+  "동구",
+  "북구",
+  "서구",
+];
+
+function getPreferredRegionWhere(preferredRegion: PreferredRegion) {
+  const integratedRegionName = "전남광주통합특별시";
+
+  if (preferredRegion.name === "광주광역시") {
+    return {
+      OR: [
+        { sourceSidoName: preferredRegion.name },
+        {
+          sourceSidoName: integratedRegionName,
+          sourceSigunguName: { in: integratedGwangjuDistricts },
+        },
+      ],
+    };
+  }
+
+  if (preferredRegion.name === "전라남도") {
+    return {
+      OR: [
+        { sourceSidoName: preferredRegion.name },
+        {
+          sourceSidoName: integratedRegionName,
+          NOT: {
+            sourceSigunguName: { in: integratedGwangjuDistricts },
+          },
+        },
+      ],
+    };
+  }
+
+  return { sourceSidoName: preferredRegion.name };
 }
 
 async function findPlacesNearLocation(

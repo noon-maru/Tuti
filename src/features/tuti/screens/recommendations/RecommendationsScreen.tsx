@@ -62,6 +62,8 @@ const TOUCH_TAP_SLOP = 16;
 export function RecommendationsScreen({
   places,
   loading,
+  recommendationError,
+  onRetryRecommendations,
   activeIndex,
   activePlace,
   onSelect,
@@ -94,6 +96,8 @@ export function RecommendationsScreen({
 }: {
   places: TutiPlace[];
   loading: boolean;
+  recommendationError: boolean;
+  onRetryRecommendations: () => void;
   activeIndex: number;
   activePlace?: TutiPlace;
   onSelect: (index: number) => void;
@@ -148,9 +152,15 @@ export function RecommendationsScreen({
   const transitionTarget = dragOffset.y < 0 ? "detail" : "journal";
   const detailOpen = detailPhase === "open";
   const detailVisible = detailPhase !== "closed";
+  const recommendationStatusVisible =
+    !loading && (recommendationError || places.length === 0);
   const presentedDetailPlace = detailVisible ? detailPlace : activePlace;
   const mainInteractive =
-    interactive && !detailOpen && !departurePresentation && !loading;
+    interactive &&
+    !detailOpen &&
+    !departurePresentation &&
+    !loading &&
+    !recommendationStatusVisible;
   const helpVisible =
     mainInteractive &&
     Boolean(currentHelp) &&
@@ -822,6 +832,52 @@ export function RecommendationsScreen({
           <LoadingIndicator label="오늘의 장소를 고르고 있어요." />
         )}
       </LoadingOverlay>
+      <RecommendationStatusOverlay
+        $visible={recommendationStatusVisible}
+        aria-hidden={!recommendationStatusVisible}
+      >
+        {recommendationStatusVisible && (
+          <RecommendationStatusCard
+            role={recommendationError ? "alert" : "status"}
+          >
+            <span aria-hidden="true">
+              <MapPinOff />
+            </span>
+            <div>
+              <h2>
+                {recommendationError
+                  ? "오늘 가능한 곳을 불러오지 못했어요."
+                  : "지금 보여드릴 수 있는 곳을 찾지 못했어요."}
+              </h2>
+              <p>
+                {recommendationError
+                  ? "잠시 후 다시 시도하거나 위치 설정을 확인해주세요."
+                  : "위치나 오늘 가능한 정도를 바꾸면 다시 찾아볼 수 있어요."}
+              </p>
+            </div>
+            <RecommendationStatusActions>
+              <StatusPrimaryButton
+                type="button"
+                onClick={
+                  recommendationError
+                    ? onRetryRecommendations
+                    : onLocationSettings
+                }
+              >
+                {recommendationError ? "다시 불러오기" : "위치 설정 확인하기"}
+              </StatusPrimaryButton>
+              <StatusSecondaryButton
+                type="button"
+                onClick={
+                  recommendationError ? onLocationSettings : onRestartIntake
+                }
+              >
+                {recommendationError ? "위치 설정 확인하기" : "오늘 다시 고르기"}
+              </StatusSecondaryButton>
+            </RecommendationStatusActions>
+          </RecommendationStatusCard>
+        )}
+      </RecommendationStatusOverlay>
     </Frame>
   );
 }
@@ -896,6 +952,87 @@ const LoadingOverlay = styled.div<{ $visible: boolean }>`
   opacity: ${({ $visible }) => ($visible ? 1 : 0)};
   pointer-events: ${({ $visible }) => ($visible ? "auto" : "none")};
   transition: opacity 220ms ease;
+`;
+
+const RecommendationStatusOverlay = styled.div<{ $visible: boolean }>`
+  position: absolute;
+  z-index: 31;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: var(--space-5);
+  background: rgb(var(--color-white-rgb) / 0.92);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  opacity: ${({ $visible }) => ($visible ? 1 : 0)};
+  pointer-events: ${({ $visible }) => ($visible ? "auto" : "none")};
+  transition: opacity 220ms ease;
+`;
+
+const RecommendationStatusCard = styled.section`
+  width: min(100%, 320px);
+  display: grid;
+  justify-items: center;
+  gap: var(--space-4);
+  padding: var(--space-6);
+  border: 1px solid var(--color-neutral-300);
+  border-radius: 24px;
+  background: var(--color-surface);
+  text-align: center;
+  box-shadow: 0 18px 54px rgb(var(--color-black-rgb) / 0.1);
+
+  > span {
+    width: var(--space-12);
+    height: var(--space-12);
+    display: grid;
+    place-items: center;
+    border-radius: 16px;
+    background: var(--color-secondary-200);
+    color: var(--color-secondary-900);
+  }
+
+  > span svg {
+    width: 24px;
+    height: 24px;
+  }
+
+  > div:not(:last-child) {
+    display: grid;
+    gap: var(--space-2);
+  }
+
+  h2 {
+    font-size: var(--font-size-500);
+    word-break: keep-all;
+  }
+
+  p {
+    color: var(--color-text-muted);
+    font-size: var(--font-size-200);
+    word-break: keep-all;
+  }
+`;
+
+const RecommendationStatusActions = styled.div`
+  width: 100%;
+  display: grid;
+  gap: var(--space-2);
+`;
+
+const StatusPrimaryButton = styled(BaseButton)`
+  min-height: 48px;
+  border-radius: 16px;
+  background: var(--color-accent-primary);
+  color: var(--color-white);
+  font-weight: 700;
+`;
+
+const StatusSecondaryButton = styled(BaseButton)`
+  min-height: 44px;
+  border-radius: 14px;
+  background: var(--color-neutral-200);
+  color: var(--color-text-muted);
+  font-weight: 600;
 `;
 
 const CurrentLayer = styled.div<{ $progress: number; $dragY: number }>`

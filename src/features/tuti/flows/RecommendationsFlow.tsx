@@ -116,12 +116,18 @@ export function RecommendationsFlow({ interactive }: { interactive: boolean }) {
         locationPermissionStatus === "prompt" ||
         locationPermissionStatus === "granted"),
   );
-  const { places, recommendationId, isSuccess, isPending } =
-    useTutiRecommendations({
-      enabled:
-        (dailyRecordCurrent || dailyCheckInSnoozed) &&
-        !waitingForLocationRestore,
-    });
+  const {
+    places,
+    recommendationId,
+    isSuccess,
+    isPending,
+    isError,
+    refetch,
+  } = useTutiRecommendations({
+    enabled:
+      (dailyRecordCurrent || dailyCheckInSnoozed) &&
+      !waitingForLocationRestore,
+  });
   const activeIndex = useTutiStore((state) => state.activeIndex);
   const activePlaceId = useTutiStore((state) => state.activePlaceId);
   const detailOverlay = useTutiStore((state) => state.detailOverlay);
@@ -400,6 +406,8 @@ export function RecommendationsFlow({ interactive }: { interactive: boolean }) {
       <RecommendationsScreen
         places={places}
         loading={isPending && !dailyCheckInVisible}
+        recommendationError={isError}
+        onRetryRecommendations={() => void refetch()}
         activeIndex={displayedActiveIndex}
         activePlace={activePlace}
         onSelect={selectCard}
