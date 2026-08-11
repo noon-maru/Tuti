@@ -60,4 +60,30 @@ export const intakeSteps = [
   },
 ] as const;
 
-export type IntakeStep = (typeof intakeSteps)[number];
+export const longDistanceTimingStep = {
+  key: "longDistanceTiming",
+  question: "이번에는,\n언제 떠나볼까요?",
+  subtitle: "돌아오는 길까지 생각하지 않아도 되게 맞춰둘게요.",
+  options: [
+    {
+      value: "tomorrow_day_trip",
+      label: "내일 가볍게",
+      hint: "내일 떠나 오늘처럼 돌아오기",
+    },
+    {
+      value: "overnight_trip",
+      label: "오늘 먼저",
+      hint: "오늘 떠나 하룻밤 머물기",
+    },
+  ],
+} as const;
+
+export function getIntakeSteps(answers: { movement?: string }) {
+  return answers.movement === "far"
+    ? [...intakeSteps, longDistanceTimingStep]
+    : [...intakeSteps];
+}
+
+export type IntakeStep =
+  | (typeof intakeSteps)[number]
+  | typeof longDistanceTimingStep;

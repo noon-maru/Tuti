@@ -3,13 +3,21 @@
 import { css, keyframes } from "@emotion/react";
 import styled from "@emotion/styled";
 import { Capacitor } from "@capacitor/core";
-import { ArrowRight, MapPin, Navigation, TrainFront, X } from "lucide-react";
+import {
+  ArrowRight,
+  BedDouble,
+  MapPin,
+  Navigation,
+  TrainFront,
+  X,
+} from "lucide-react";
 import { useLayoutEffect, useRef, useState } from "react";
 import { BaseButton, PrimaryButton } from "@/features/tuti/components/buttons";
 import { LoadingIndicator } from "@/features/tuti/components/LoadingIndicator";
 import { useLocationAccess } from "@/features/tuti/location/LocationAccessProvider";
 import type { LocationRequestResult } from "@/features/tuti/location/locationAccess";
 import { useDeparturePlan } from "@/features/tuti/hooks/useDeparturePlan";
+import { useNearbyAccommodations } from "@/features/tuti/hooks/useNearbyAccommodations";
 import { useVerticalSwipeBack } from "@/features/tuti/hooks/useVerticalSwipeBack";
 import type { TutiPlace } from "@/lib/recommendations";
 import type {
@@ -62,6 +70,8 @@ export function DeparturePlanScreen({
     () => Promise.resolve(),
   );
   const departureQuery = useDeparturePlan(place.id, userLocation);
+  const overnight = place.longDistanceJourney?.timing === "overnight_trip";
+  const accommodationsQuery = useNearbyAccommodations(place.id, overnight);
   const plan = departureQuery.data;
   const continuationPlaces =
     plan?.nearbyPlaces.filter((nearby) => nearby.kind === "continuation") ?? [];
@@ -291,7 +301,9 @@ export function DeparturePlanScreen({
                     </JourneyRoute>
                     <JourneyTimes>
                       <span>
-                        <small>가는 편</small>
+                        <small>
+                          가는 편 · {formatDateLabel(place.longDistanceJourney.departureDate)}
+                        </small>
                         <strong>
                           {formatClock(place.longDistanceJourney.outbound.departureAt)}
                           {" → "}
@@ -305,7 +317,9 @@ export function DeparturePlanScreen({
                         </em>
                       </span>
                       <span>
-                        <small>돌아오는 편</small>
+                        <small>
+                          돌아오는 편 · {formatDateLabel(place.longDistanceJourney.returnDate)}
+                        </small>
                         <strong>
                           {formatClock(place.longDistanceJourney.returnService.departureAt)}
                           {" → "}
@@ -343,6 +357,56 @@ export function DeparturePlanScreen({
                       표시된 시각과 운임은 공공데이터 기준이며, 좌석 여부는 예매처에서 마지막으로 확인해주세요.
                     </JourneyNotice>
                   </JourneyCard>
+                  {overnight && (
+                    <StaySection>
+                      <SectionHeading>
+                        <div>
+                          <small>오늘 머물 곳</small>
+                          <h2>도착한 뒤 가까운 곳만 골랐어요.</h2>
+                        </div>
+                      </SectionHeading>
+                      {accommodationsQuery.isPending ? (
+                        <StayStatus>머물 곳을 가볍게 살펴보고 있어요.</StayStatus>
+                      ) : accommodationsQuery.data?.accommodations.length ? (
+                        <StayList>
+                          {accommodationsQuery.data.accommodations.map((stay) => (
+                            <StayCard key={stay.id}>
+                              <StayImage $image={stay.image} aria-hidden="true">
+                                {!stay.image && <BedDouble />}
+                              </StayImage>
+                              <StayCopy>
+                                <strong>{stay.name}</strong>
+                                <span>
+                                  장소에서 {formatDistance(stay.distanceMeters)}
+                                  {stay.checkInTime
+                                    ? ` · 체크인 ${stay.checkInTime}`
+                                    : ""}
+                                </span>
+                              </StayCopy>
+                              <StayLink
+                                href={
+                                  stay.bookingUrl ??
+                                  `https://map.kakao.com/link/search/${encodeURIComponent(stay.name)}`
+                                }
+                                target="_blank"
+                                rel="noreferrer"
+                                data-swipe-back-ignore
+                              >
+                                객실과 가격 확인
+                              </StayLink>
+                            </StayCard>
+                          ))}
+                        </StayList>
+                      ) : (
+                        <StayStatus>
+                          가까운 숙소의 객실과 가격은 지도에서 확인해주세요.
+                        </StayStatus>
+                      )}
+                      <JourneyNotice>
+                        숙소 정보는 관광공사 기준이며, 실제 객실과 가격은 예약처에서 확인해주세요.
+                      </JourneyNotice>
+                    </StaySection>
+                  )}
                 </LongDistanceSection>
               )}
 
@@ -619,6 +683,18 @@ function formatClock(value: string) {
     minute: "2-digit",
     hour12: false,
   }).format(new Date(value));
+}
+
+function formatDateLabel(value: string) {
+  const date = new Date(
+    `${value.slice(0, 4)}-${value.slice(4, 6)}-${value.slice(6, 8)}T12:00:00+09:00`,
+  );
+  return new Intl.DateTimeFormat("ko-KR", {
+    timeZone: "Asia/Seoul",
+    month: "short",
+    day: "numeric",
+    weekday: "short",
+  }).format(date);
 }
 
 function toLongDistanceDepartureRoute(
@@ -1133,6 +1209,86 @@ const JourneyNotice = styled.p`
   color: var(--color-text-muted);
   font-size: calc(var(--font-size-100) - 1px);
   line-height: var(--line-height-body);
+`;
+
+const StaySection = styled.section`
+  display: grid;
+  gap: var(--space-3);
+  margin-top: var(--space-3);
+`;
+
+const StayStatus = styled.p`
+  padding: var(--space-4);
+  border-radius: 18px;
+  background: var(--color-secondary-100);
+  color: var(--color-text-muted);
+  font-size: var(--font-size-100);
+`;
+
+const StayList = styled.div`
+  display: grid;
+  gap: var(--space-2);
+`;
+
+const StayCard = styled.article`
+  display: grid;
+  grid-template-columns: 52px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: 18px;
+  background: var(--color-surface);
+`;
+
+const StayImage = styled.div<{ $image: string | null }>`
+  width: 52px;
+  aspect-ratio: 1;
+  display: grid;
+  place-items: center;
+  border-radius: 14px;
+  background-color: var(--color-secondary-200);
+  background-image: ${({ $image }) => ($image ? `url(${$image})` : "none")};
+  background-position: center;
+  background-size: cover;
+  color: var(--color-secondary-900);
+
+  svg {
+    width: 22px;
+    height: 22px;
+  }
+`;
+
+const StayCopy = styled.div`
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+
+  strong {
+    overflow: hidden;
+    font-size: var(--font-size-100);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  span {
+    display: -webkit-box;
+    overflow: hidden;
+    color: var(--color-text-muted);
+    font-size: calc(var(--font-size-100) - 2px);
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+  }
+`;
+
+const StayLink = styled.a`
+  padding: var(--space-2) var(--space-3);
+  border-radius: 999px;
+  background: var(--color-secondary-300);
+  color: var(--color-text);
+  font-size: calc(var(--font-size-100) - 1px);
+  font-weight: 700;
+  white-space: nowrap;
 `;
 
 const Section = styled.section`

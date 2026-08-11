@@ -172,7 +172,7 @@ export async function createLongDistanceRecommendations(
     });
   });
 
-  const diverseCandidates = selectCandidateDestinations(candidates, 18);
+  const diverseCandidates = selectCandidateDestinations(candidates, 36);
   debugLog("후보", {
     places: rows.length,
     linked: candidates.length,
@@ -194,6 +194,7 @@ export async function createLongDistanceRecommendations(
         candidate.destinationHub,
         location,
         { latitude: candidate.latitude!, longitude: candidate.longitude! },
+        answers.longDistanceTiming ?? "tomorrow_day_trip",
       ).catch(() => null);
       if (!journey) continue;
 
@@ -243,7 +244,7 @@ function selectCandidateDestinations(candidates: CandidatePlace[], limit: number
     return priorityGap || left.fatigue - right.fatigue;
   })) {
     const count = perHub.get(candidate.destinationHub.id) ?? 0;
-    if (count >= 2) continue;
+    if (count >= 4) continue;
     perHub.set(candidate.destinationHub.id, count + 1);
     selected.push(candidate);
     if (selected.length >= limit) break;
@@ -256,13 +257,17 @@ async function planJourney(
   destinationHub: Hub,
   userLocation: UserLocation,
   placeLocation: UserLocation,
+  timing: "tomorrow_day_trip" | "overnight_trip",
 ): Promise<LongDistanceJourney | null> {
   if (originHub.externalId === destinationHub.externalId) return null;
-  const date = getKoreanDateKey();
+  const today = getKoreanDateKey();
+  const tomorrow = addKoreanDays(today, 1);
+  const outboundDate = timing === "overnight_trip" ? today : tomorrow;
+  const returnDate = timing === "overnight_trip" ? tomorrow : outboundDate;
   const [outboundServices, returnServices, originRoute, destinationRoute] =
     await Promise.all([
-      getSchedules(originHub, destinationHub, date),
-      getSchedules(destinationHub, originHub, date),
+      getSchedules(originHub, destinationHub, outboundDate),
+      getSchedules(destinationHub, originHub, returnDate),
       fetchCachedTransitRoute(
         `origin:${locationCell(userLocation)}:${originHub.id}`,
         30 * 60_000,
@@ -293,16 +298,19 @@ async function planJourney(
   if (originAccess.durationSeconds > 65 * 60) return null;
   if (destinationAccess.durationSeconds > 40 * 60) return null;
 
-  const earliestDeparture = Date.now() + originAccess.durationSeconds * 1_000 + 35 * 60_000;
+  const earliestDeparture = timing === "overnight_trip"
+    ? Date.now() + originAccess.durationSeconds * 1_000 + 35 * 60_000
+    : toKoreanDateTime(outboundDate, 8, 0).getTime();
   const outbound = outboundServices.find(
     (service) => service.departureAt.getTime() >= earliestDeparture,
   );
   if (!outbound) return null;
 
-  const earliestReturn =
-    outbound.arrivalAt.getTime() +
-    destinationAccess.durationSeconds * 2_000 +
-    MINIMUM_STAY_MS;
+  const earliestReturn = timing === "overnight_trip"
+    ? toKoreanDateTime(returnDate, 10, 30).getTime()
+    : outbound.arrivalAt.getTime() +
+      destinationAccess.durationSeconds * 2_000 +
+      MINIMUM_STAY_MS;
   const returnService = returnServices.find(
     (service) => service.departureAt.getTime() >= earliestReturn,
   );
@@ -320,6 +328,9 @@ async function planJourney(
   );
 
   return {
+    timing,
+    departureDate: outboundDate,
+    returnDate,
     mode,
     originHub: toPublicHub(originHub),
     destinationHub: toPublicHub(destinationHub),
@@ -461,6 +472,17 @@ function getKoreanDateKey() {
   const value = (type: Intl.DateTimeFormatPartTypes) =>
     parts.find((part) => part.type === type)?.value ?? "";
   return `${value("year")}${value("month")}${value("day")}`;
+}
+
+function addKoreanDays(dateKey: string, days: number) {
+  const date = toKoreanDateTime(dateKey, 12, 0);
+  date.setTime(date.getTime() + days * 24 * 60 * 60 * 1_000);
+  return getDateKey(date);
+}
+
+function toKoreanDateTime(dateKey: string, hour: number, minute: number) {
+  const iso = `${dateKey.slice(0, 4)}-${dateKey.slice(4, 6)}-${dateKey.slice(6, 8)}T${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}:00+09:00`;
+  return new Date(iso);
 }
 
 function getDateKey(date: Date) {

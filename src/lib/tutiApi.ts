@@ -35,6 +35,7 @@ import type {
   RecommendationRequest,
   RecommendationResponse,
 } from "@/shared/api/recommendations";
+import type { NearbyAccommodationsResponse } from "@/shared/api/accommodations";
 import type {
   IntakeAnswers,
   PreferredRegion,
@@ -68,6 +69,18 @@ export async function fetchRecommendations(
   }
 
   return (await response.json()) as RecommendationResponse;
+}
+
+export async function fetchNearbyAccommodations(
+  placeId: string,
+): Promise<NearbyAccommodationsResponse> {
+  const response = await fetch(
+    apiUrl(`places/${encodeURIComponent(placeId)}/accommodations`),
+  );
+  if (!response.ok) {
+    throw new Error("주변 숙박 정보를 불러오지 못했어요.");
+  }
+  return (await response.json()) as NearbyAccommodationsResponse;
 }
 
 export async function recordRecommendationAction(

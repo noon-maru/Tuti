@@ -158,6 +158,9 @@ export const useTutiStore = create<TutiState>()(
           answers: {
             ...state.answers,
             [key]: value,
+            ...(key === "movement" && value !== "far"
+              ? { longDistanceTiming: undefined }
+              : {}),
           },
         })),
       setUserLocation: (userLocation) => set({ userLocation }),

@@ -15,7 +15,9 @@ import {
   PrimaryButton,
   TextButton,
 } from "@/features/tuti/components/buttons";
-import { intakeSteps } from "@/features/tuti/data/intakeSteps";
+import {
+  getIntakeSteps,
+} from "@/features/tuti/data/intakeSteps";
 import { useDeferredAnimationStart } from "@/features/tuti/hooks/useDeferredAnimationStart";
 import type { IntakeAnswers } from "@/shared/tuti/types";
 
@@ -57,11 +59,15 @@ export function DailyCheckInScreen({
   const activePointerId = useRef<number | null>(null);
   const finishTimer = useRef<number | null>(null);
   const closingRef = useRef(false);
-  const activeStep = intakeSteps[step];
+  const activeSteps = useMemo(
+    () => getIntakeSteps(draftAnswers),
+    [draftAnswers],
+  );
+  const activeStep = activeSteps[step];
   const selectedValue = draftAnswers[activeStep.key];
   const previousLabels = useMemo(
     () =>
-      intakeSteps.flatMap((intakeStep) => {
+      getIntakeSteps(previousAnswers).flatMap((intakeStep) => {
         const value = previousAnswers[intakeStep.key];
         const option = intakeStep.options.find(
           (candidate) => candidate.value === value,
@@ -70,7 +76,7 @@ export function DailyCheckInScreen({
       }),
     [previousAnswers],
   );
-  const canReuse = previousLabels.length === intakeSteps.length;
+  const canReuse = previousLabels.length === getIntakeSteps(previousAnswers).length;
 
   const closeWith = useCallback((complete: () => void) => {
     if (closingRef.current) return;
@@ -129,11 +135,16 @@ export function DailyCheckInScreen({
 
   const chooseAnswer = (value: string) => {
     setDraftAnswers(
-      (current) =>
-        ({
+      (current) => {
+        const next = ({
           ...current,
           [activeStep.key]: value,
-        }) as IntakeAnswers,
+        }) as IntakeAnswers;
+        if (activeStep.key === "movement" && value !== "far") {
+          delete next.longDistanceTiming;
+        }
+        return next;
+      },
     );
   };
 
@@ -149,7 +160,7 @@ export function DailyCheckInScreen({
   const goNext = () => {
     if (!selectedValue) return;
 
-    if (step < intakeSteps.length - 1) {
+    if (step < activeSteps.length - 1) {
       setStep((current) => current + 1);
       return;
     }
@@ -308,7 +319,7 @@ export function DailyCheckInScreen({
                 >
                   <ChevronLeft aria-hidden="true" />
                 </IconButton>
-                <StepCount>{step + 1} / {intakeSteps.length}</StepCount>
+                <StepCount>{step + 1} / {activeSteps.length}</StepCount>
               </QuestionHeader>
               <QuestionCopy>
                 <h2 id="daily-check-in-title" ref={headingRef} tabIndex={-1}>
@@ -335,7 +346,7 @@ export function DailyCheckInScreen({
                 disabled={!selectedValue}
                 onClick={goNext}
               >
-                {step === intakeSteps.length - 1
+                {step === activeSteps.length - 1
                   ? "오늘 상태로 보기"
                   : "다음"}
               </QuestionAction>

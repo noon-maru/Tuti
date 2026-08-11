@@ -85,6 +85,17 @@ export async function fetchAreaBasedTourismPlaces({
   });
 }
 
+export async function fetchTourismAccommodations({
+  pageNo,
+  numOfRows,
+}: Pick<FetchAreaBasedPlacesInput, "pageNo" | "numOfRows">): Promise<TourApiPage> {
+  return fetchTourApiPage<TourApiPlaceItem>("searchStay2", {
+    arrange: "A",
+    pageNo: String(pageNo),
+    numOfRows: String(numOfRows),
+  });
+}
+
 export async function fetchTourApiPage<T>(
   operation: string,
   parameters: Record<string, string>,

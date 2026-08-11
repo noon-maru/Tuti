@@ -183,6 +183,50 @@ model TransportHub {
   @@map("transport_hubs")
 }
 
+model AccommodationSourceRecord {
+  contentId          String    @id @map("content_id")
+  contentTypeId      String    @default("32") @map("content_type_id")
+  name               String
+  address            String?
+  areaCode           String?   @map("area_code")
+  sigunguCode        String?   @map("sigungu_code")
+  latitude           Decimal   @db.Decimal(9, 6)
+  longitude          Decimal   @db.Decimal(9, 6)
+  image              String?
+  thumbnail          String?
+  phone              String?
+  categoryCode       String?   @map("category_code")
+  checkInTime        String?   @map("check_in_time")
+  checkOutTime       String?   @map("check_out_time")
+  roomCount          String?   @map("room_count")
+  roomType           String?   @map("room_type")
+  reservation        String?
+  reservationUrl     String?   @map("reservation_url")
+  parking            String?
+  pickup             String?
+  foodPlace          String?   @map("food_place")
+  subFacility        String?   @map("sub_facility")
+  homepage           String?
+  overview           String?
+  rawPayload         Json      @map("raw_payload")
+  introPayload       Json?     @map("intro_payload")
+  infoPayload        Json?     @map("info_payload")
+  imagePayload       Json?     @map("image_payload")
+  sourceModifiedAt   DateTime? @map("source_modified_at")
+  sourceSyncedAt     DateTime  @map("source_synced_at")
+  detailSyncedAt     DateTime? @map("detail_synced_at")
+  detailRetryAfter   DateTime? @map("detail_retry_after")
+  detailLastError    String?   @map("detail_last_error")
+  isActive           Boolean   @default(true) @map("is_active")
+  createdAt          DateTime  @default(now()) @map("created_at")
+  updatedAt          DateTime  @updatedAt @map("updated_at")
+
+  @@index([areaCode, sigunguCode])
+  @@index([latitude, longitude])
+  @@index([isActive, detailSyncedAt])
+  @@map("accommodation_source_records")
+}
+
 model TourismPlaceSourceRecord {
   contentId        String                    @id @map("content_id")
   contentTypeId    String?                   @map("content_type_id")

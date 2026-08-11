@@ -53,6 +53,9 @@ export type LongDistanceService = {
 };
 
 export type LongDistanceJourney = {
+  timing: "tomorrow_day_trip" | "overnight_trip";
+  departureDate: string;
+  returnDate: string;
   mode: LongDistanceMode;
   originHub: LongDistanceHub;
   destinationHub: LongDistanceHub;

@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { intakeSteps } from "@/features/tuti/data/intakeSteps";
+import { getIntakeSteps } from "@/features/tuti/data/intakeSteps";
 import { IntakeScreen } from "@/features/tuti/screens/intake/IntakeScreen";
 import { useTutiStore } from "@/store/tuti";
 
@@ -12,7 +12,8 @@ export function IntakeFlow() {
   const finishIntake = useTutiStore((state) => state.finishIntake);
   const answers = useTutiStore((state) => state.answers);
   const [step, setStep] = useState(0);
-  const activeStep = intakeSteps[step];
+  const activeSteps = getIntakeSteps(answers);
+  const activeStep = activeSteps[step];
 
   const chooseAnswer = (value: string) => {
     setAnswer(activeStep.key, value as never);
@@ -21,7 +22,7 @@ export function IntakeFlow() {
   const goToNextQuestion = () => {
     if (!answers[activeStep.key]) return;
 
-    if (step < intakeSteps.length - 1) {
+    if (step < activeSteps.length - 1) {
       setStep((current) => current + 1);
       return;
     }
@@ -40,7 +41,7 @@ export function IntakeFlow() {
   return (
     <IntakeScreen
       step={step}
-      total={intakeSteps.length}
+      total={activeSteps.length}
       activeStep={activeStep}
       selectedValue={answers[activeStep.key]}
       onBack={goToPreviousQuestion}

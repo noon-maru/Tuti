@@ -5,7 +5,7 @@ import type {
   UserLocation,
 } from "@/shared/tuti/types";
 
-export const RECOMMENDATION_ALGORITHM_VERSION = "low-burden-distance-v4";
+export const RECOMMENDATION_ALGORITHM_VERSION = "low-burden-distance-v5";
 
 export type RecommendationRequest = {
   answers?: IntakeAnswers;

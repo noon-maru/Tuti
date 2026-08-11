@@ -1,11 +1,15 @@
 export type MovementAnswer = "near" | "short" | "half" | "far";
 export type AirAnswer = "quiet" | "open" | "walk";
 export type DensityAnswer = "quiet" | "balanced" | "lively";
+export type LongDistanceTimingAnswer =
+  | "tomorrow_day_trip"
+  | "overnight_trip";
 
 export type IntakeAnswers = {
   movement?: MovementAnswer;
   air?: AirAnswer;
   density?: DensityAnswer;
+  longDistanceTiming?: LongDistanceTimingAnswer;
 };
 
 export type UserLocation = {

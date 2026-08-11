@@ -1,0 +1,33 @@
+#!/bin/sh
+
+set -eu
+
+project_dir="/var/services/homes/Tutiadmin/source/Tuti"
+target="${1:-dev}"
+if [ "$#" -gt 0 ]; then
+  shift
+fi
+
+cd "$project_dir"
+
+case "$target" in
+  dev)
+    docker compose -f docker-compose.dev.yml exec -T app \
+      su node -c "pnpm db:deploy && pnpm accommodations:sync -- $*"
+    ;;
+  prod)
+    docker compose \
+      --env-file .env.production \
+      -f docker-compose.prod.yml \
+      build ops
+    docker compose \
+      --env-file .env.production \
+      -f docker-compose.prod.yml \
+      run --rm --no-deps ops \
+      sh -lc "pnpm db:deploy && pnpm accommodations:sync -- $*"
+    ;;
+  *)
+    echo "사용법: tuti-accommodations-sync [dev|prod] [--all|--pages N]" >&2
+    exit 1
+    ;;
+esac
