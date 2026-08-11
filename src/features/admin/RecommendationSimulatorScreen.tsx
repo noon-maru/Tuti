@@ -9,6 +9,7 @@ import {
   AdminApiError,
   fetchAdminJson,
 } from "@/lib/adminApi";
+import type { TutiPlace } from "@/lib/recommendations";
 import type {
   AdminRecommendationScoreBreakdown,
   AdminRecommendationSimulationRequest,
@@ -50,6 +51,10 @@ const scoreLabels: Record<keyof AdminRecommendationScoreBreakdown, string> = {
   moodAdjustment: "공기 성향",
   crowdPenalty: "혼잡도",
   energyPenalty: "에너지 부담",
+  executionPenalty: "시간·운영 적합도",
+  transferPenalty: "환승 부담",
+  walkingPenalty: "실제 도보 부담",
+  weatherPenalty: "도착 시각 날씨",
 };
 
 const dateFormatter = new Intl.DateTimeFormat("ko-KR", {
@@ -393,7 +398,7 @@ export function RecommendationSimulatorScreen() {
 
                       <PlaceMeta>
                         <span><MapPin aria-hidden="true" />{formatDistance(candidate.place.distanceMeters)}</span>
-                        <span><Route aria-hidden="true" />{formatTravelTime(candidate.place.travelTimeSummary?.durationSeconds)}</span>
+                        <span><Route aria-hidden="true" />{formatTravelTime(candidate.place.travelTimeSummary)}</span>
                         <span>{candidate.place.sourceContentType ?? "유형 미상"}</span>
                       </PlaceMeta>
 
@@ -440,8 +445,13 @@ function formatDistance(meters?: number) {
   return meters! < 1_000 ? `${Math.round(meters!)}m` : `${(meters! / 1_000).toFixed(1)}km`;
 }
 
-function formatTravelTime(seconds?: number) {
-  return Number.isFinite(seconds) ? `대중교통 ${Math.round(seconds! / 60)}분` : "경로 정보 없음";
+function formatTravelTime(summary?: TutiPlace["travelTimeSummary"]) {
+  if (!summary) return "경로 정보 없음";
+  const mode = summary.mode === "walking" ? "도보" : "대중교통";
+  const transfer = summary.transfers === null
+    ? ""
+    : ` · 환승 ${summary.transfers}회`;
+  return `${mode} ${Math.round(summary.durationSeconds / 60)}분${transfer}`;
 }
 
 function featureLabel(value: string) {

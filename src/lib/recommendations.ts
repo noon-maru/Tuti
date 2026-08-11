@@ -26,6 +26,8 @@ export type TutiPlace = {
   longitude?: number;
   travelTimeSummary?: TravelTimeSummary;
   crowdForecast?: CrowdForecast;
+  weatherForecast?: WeatherForecast;
+  executionFeasibility?: ExecutionFeasibility;
   distanceMeters?: number;
   fatigueScore?: number;
   reason?: string;
@@ -71,9 +73,58 @@ export type LongDistanceJourney = {
 export type RecommendationReasonFactor =
   | "distance"
   | "crowd"
+  | "schedule"
+  | "route"
+  | "weather"
   | "mood"
   | "movement"
   | "burden";
+
+export type ExecutionFeasibility = {
+  availableMinutes: number;
+  oneWayMinutes: number;
+  roundTripMinutes: number;
+  minimumStayMinutes: number;
+  waitingMinutes: number;
+  totalMinutes: number;
+  fitsAvailableTime: boolean;
+  operationStatus:
+    | "available"
+    | "opens_later"
+    | "closes_too_soon"
+    | "closed_today"
+    | "unknown";
+  arrivalAt: string;
+  leaveAt: string;
+  returnAt: string;
+};
+
+export type WeatherForecast = {
+  provider: "kma_vilage";
+  forecastAt: string;
+  issuedAt: string;
+  temperatureCelsius?: number;
+  precipitationProbability?: number;
+  precipitationType: "none" | "rain" | "rain_snow" | "snow" | "shower";
+  sky: "clear" | "partly_cloudy" | "cloudy" | "unknown";
+  windSpeedMps?: number;
+  suitability: "good" | "caution" | "poor";
+};
+
+export function getWeatherForecastLabel(forecast: WeatherForecast) {
+  if (forecast.precipitationType === "snow") return "눈 예보";
+  if (forecast.precipitationType === "rain_snow") return "비·눈 예보";
+  if (
+    forecast.precipitationType === "rain" ||
+    forecast.precipitationType === "shower"
+  ) {
+    return "비 예보";
+  }
+  if (forecast.suitability === "poor") return "바람 강함";
+  if (forecast.sky === "clear") return "맑음";
+  if (forecast.sky === "cloudy") return "흐림";
+  return "구름 조금";
+}
 
 export type CrowdForecastSource = "live" | "forecast" | "cached" | "typical";
 export type CrowdForecastProvider =

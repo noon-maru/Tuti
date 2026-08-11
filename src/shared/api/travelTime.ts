@@ -9,6 +9,8 @@ export type TravelTimeSummary = {
   mode: DepartureRouteMode;
   durationSeconds: number;
   distanceMeters: number | null;
+  transfers: number | null;
+  walkingDistanceMeters: number | null;
 };
 
 export type TravelTimeResponse = {

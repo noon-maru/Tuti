@@ -2,6 +2,7 @@ import { prisma } from "@/server/db/prisma";
 import { fetchKakaoMapRoute } from "@/server/maps/kakaoMapClient";
 import { fetchKakaoDrivingRoute } from "@/server/maps/kakaoNaviClient";
 import { isWalkingDistance } from "@/server/departure/routeSelection";
+import { toTravelTimeSummary } from "@/server/departure/travelTimeSummary";
 import { recommendablePlaceWhere } from "@/server/recommendations/recommendablePlaceWhere";
 import type { DepartureRoute } from "@/shared/api/departurePlan";
 import type { TravelTimeSummary } from "@/shared/api/travelTime";
@@ -36,31 +37,31 @@ export async function createTravelTimeSummary(
     const walking = await settleRoute(() =>
       fetchKakaoMapRoute("walking", input),
     );
-    const summary = toSummary(walking);
+    const summary = toTravelTimeSummary(walking);
     if (summary) return summary;
   }
 
   const publicTransit = await settleRoute(() =>
     fetchKakaoMapRoute("publicTransit", input),
   );
-  const transitSummary = toSummary(publicTransit);
+  const transitSummary = toTravelTimeSummary(publicTransit);
   if (transitSummary) return transitSummary;
 
   const driving = await settleRoute(() => fetchKakaoDrivingRoute(input));
-  const drivingSummary = toSummary(driving);
+  const drivingSummary = toTravelTimeSummary(driving);
   if (drivingSummary) return drivingSummary;
 
   const bicycle = await settleRoute(() =>
     fetchKakaoMapRoute("bicycle", input),
   );
-  const bicycleSummary = toSummary(bicycle);
+  const bicycleSummary = toTravelTimeSummary(bicycle);
   if (bicycleSummary) return bicycleSummary;
 
   if (!walkingDistance) {
     const walking = await settleRoute(() =>
       fetchKakaoMapRoute("walking", input),
     );
-    return toSummary(walking);
+    return toTravelTimeSummary(walking);
   }
 
   return null;
@@ -75,20 +76,4 @@ async function settleRoute(fetcher: () => Promise<DepartureRoute>) {
     });
     return null;
   }
-}
-
-function toSummary(route: DepartureRoute | null): TravelTimeSummary | null {
-  if (
-    !route ||
-    route.status !== "available" ||
-    route.durationSeconds === null
-  ) {
-    return null;
-  }
-
-  return {
-    mode: route.mode,
-    durationSeconds: route.durationSeconds,
-    distanceMeters: route.distanceMeters,
-  };
 }

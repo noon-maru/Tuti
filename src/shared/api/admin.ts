@@ -199,6 +199,10 @@ export type AdminRecommendationScoreBreakdown = {
   moodAdjustment: number;
   crowdPenalty: number;
   energyPenalty: number;
+  executionPenalty: number;
+  transferPenalty: number;
+  walkingPenalty: number;
+  weatherPenalty: number;
 };
 
 export type AdminRecommendationSimulationCandidate = {

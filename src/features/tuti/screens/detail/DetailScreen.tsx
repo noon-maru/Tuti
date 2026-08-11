@@ -27,6 +27,7 @@ import {
   getCrowdForecastBasisLabel,
   getCrowdForecastKindLabel,
   getCrowdForecastLevelLabel,
+  getWeatherForecastLabel,
   type TutiPlace,
 } from "@/lib/recommendations";
 import type {
@@ -65,6 +66,9 @@ export function DetailScreen({
   const facts = createDetailFacts(detail);
   const crowdBadge = createCrowdBadge(place);
   const operationBadge = createOperationBadge(detail);
+  const weatherBadge = place.weatherForecast
+    ? getWeatherForecastLabel(place.weatherForecast)
+    : null;
   const subtitle = createPlaceSubtitle(place);
   const [selectedPhoto, setSelectedPhoto] =
     useState<TourismPlaceDetailImage | null>(null);
@@ -203,6 +207,7 @@ export function DetailScreen({
           <Tags aria-label="장소 정보">
             <Tag $tone="brand">{travelTimeLabel}</Tag>
             {crowdBadge && <Tag $tone="secondary">{crowdBadge}</Tag>}
+            {weatherBadge && <Tag $tone="secondary">{weatherBadge}</Tag>}
             {operationBadge && <Tag $tone="neutral">{operationBadge}</Tag>}
           </Tags>
 
@@ -284,6 +289,15 @@ export function DetailScreen({
                 </>
               ) : (
                 <span>현장 상황은 시간과 날씨에 따라 달라질 수 있어요.</span>
+              )}
+              {place.weatherForecast && (
+                <>
+                  <strong>기상청 단기예보</strong>
+                  <span>
+                    도착 예상 시각의 강수·기온·바람을 반영했어요. 실제
+                    날씨는 달라질 수 있어요.
+                  </span>
+                </>
               )}
               {detail?.isStale && (
                 <span>운영 정보는 최근 저장된 내용을 보여드리고 있어요.</span>

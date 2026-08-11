@@ -5,6 +5,7 @@ import type {
 } from "@/lib/recommendations";
 import { prisma } from "@/server/db/prisma";
 import { fetchKakaoMapRoute } from "@/server/maps/kakaoMapClient";
+import { toTravelTimeSummary } from "@/server/departure/travelTimeSummary";
 import { enrichPlacesWithCrowdForecast } from "@/server/recommendations/crowdForecast";
 import { recommendablePlaceWhere } from "@/server/recommendations/recommendablePlaceWhere";
 import {
@@ -12,7 +13,6 @@ import {
   fetchTrainSchedules,
   type TagoScheduledService,
 } from "@/server/transport/dataGoTransportClient";
-import type { TravelTimeSummary } from "@/shared/api/travelTime";
 import type { IntakeAnswers, UserLocation } from "@/shared/tuti/types";
 
 const KOREA_TIME_ZONE = "Asia/Seoul";
@@ -207,6 +207,14 @@ export async function createLongDistanceRecommendations(
           mode: "publicTransit",
           durationSeconds: journey.outboundDurationSeconds,
           distanceMeters: straightDistanceMeters,
+          transfers: sumKnownRouteValues(
+            journey.originAccess.transfers,
+            journey.destinationAccess.transfers,
+          ),
+          walkingDistanceMeters: sumKnownRouteValues(
+            journey.originAccess.walkingDistanceMeters,
+            journey.destinationAccess.walkingDistanceMeters,
+          ),
         },
         longDistanceJourney: journey,
         reason: "멀리 가도 갈아타는 수고가 적어요.",
@@ -220,6 +228,13 @@ export async function createLongDistanceRecommendations(
   }
 
   return enrichPlacesWithCrowdForecast(planned);
+}
+
+function sumKnownRouteValues(
+  first: number | null,
+  second: number | null,
+) {
+  return first === null || second === null ? null : first + second;
 }
 
 function selectOriginHubs(hubs: Hub[], location: UserLocation) {
@@ -411,15 +426,6 @@ function parseTagoDate(value: unknown) {
   const iso = `${digits.slice(0, 4)}-${digits.slice(4, 6)}-${digits.slice(6, 8)}T${digits.slice(8, 10)}:${digits.slice(10, 12)}:${digits.slice(12, 14) || "00"}+09:00`;
   const date = new Date(iso);
   return Number.isNaN(date.getTime()) ? null : date;
-}
-
-function toTravelTimeSummary(route: Awaited<ReturnType<typeof fetchKakaoMapRoute>>) {
-  if (route.status !== "available" || route.durationSeconds === null) return null;
-  return {
-    mode: route.mode,
-    durationSeconds: route.durationSeconds,
-    distanceMeters: route.distanceMeters,
-  } satisfies TravelTimeSummary;
 }
 
 function toPublicHub(hub: Hub) {

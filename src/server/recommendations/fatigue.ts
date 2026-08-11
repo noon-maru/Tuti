@@ -21,6 +21,9 @@ type MovementFatigueInput = Pick<
   | "phrase"
   | "crowd"
   | "crowdForecast"
+  | "weatherForecast"
+  | "executionFeasibility"
+  | "sourceContentType"
   | "distanceMeters"
   | "travelTimeSummary"
 >;
@@ -33,6 +36,10 @@ export type FatigueBreakdown = {
   moodAdjustment: number;
   crowdPenalty: number;
   energyPenalty: number;
+  executionPenalty: number;
+  transferPenalty: number;
+  walkingPenalty: number;
+  weatherPenalty: number;
 };
 
 type CrowdLevel = "low" | "medium" | "high" | "unknown";
@@ -136,6 +143,13 @@ export function calculateMovementFatigue(
         : feature.energy === "soft" && place.fatigue > 58
           ? 8
           : 0,
+    executionPenalty: getExecutionPenalty(place.executionFeasibility),
+    transferPenalty: getTransferPenalty(place.travelTimeSummary?.transfers),
+    walkingPenalty: getWalkingPenalty(
+      place.travelTimeSummary?.walkingDistanceMeters,
+      feature,
+    ),
+    weatherPenalty: getWeatherPenalty(place, feature),
   };
 }
 
@@ -148,7 +162,86 @@ export function scoreBreakdown(breakdown: FatigueBreakdown) {
       breakdown.movementPenalty +
       breakdown.moodAdjustment +
       breakdown.crowdPenalty +
-      breakdown.energyPenalty,
+      breakdown.energyPenalty +
+      breakdown.executionPenalty +
+      breakdown.transferPenalty +
+      breakdown.walkingPenalty +
+      breakdown.weatherPenalty,
+  );
+}
+
+function getExecutionPenalty(
+  execution: TutiPlace["executionFeasibility"],
+) {
+  if (!execution) return 0;
+  if (
+    execution.operationStatus === "closed_today" ||
+    execution.operationStatus === "closes_too_soon"
+  ) {
+    return 36;
+  }
+  if (!execution.fitsAvailableTime) {
+    return execution.totalMinutes <= execution.availableMinutes * 1.15
+      ? 12
+      : 30;
+  }
+  const margin = execution.availableMinutes - execution.totalMinutes;
+  return margin >= 30 ? -16 : -10;
+}
+
+function getTransferPenalty(transfers: number | null | undefined) {
+  if (transfers === null || transfers === undefined) return 0;
+  if (transfers === 0) return -4;
+  if (transfers === 1) return 2;
+  if (transfers === 2) return 9;
+  return 18;
+}
+
+function getWalkingPenalty(
+  meters: number | null | undefined,
+  feature: StateFeature,
+) {
+  if (meters === null || meters === undefined) return 0;
+  if (feature.goal === "light_walk") {
+    if (meters <= 3_000) return -6;
+    return meters <= 5_000 ? 0 : 8;
+  }
+  if (feature.energy === "low") {
+    if (meters <= 400) return -5;
+    if (meters <= 900) return 3;
+    if (meters <= 1_500) return 12;
+    return 22;
+  }
+  if (feature.energy === "soft") {
+    if (meters <= 600) return -4;
+    if (meters <= 1_500) return 2;
+    if (meters <= 2_500) return 9;
+    return 16;
+  }
+  return meters <= 2_000 ? -4 : meters <= 4_000 ? 2 : 8;
+}
+
+function getWeatherPenalty(
+  place: MovementFatigueInput,
+  feature: StateFeature,
+) {
+  const forecast = place.weatherForecast;
+  if (!forecast) return 0;
+  const outdoor = isOutdoorPlace(place);
+  if (forecast.suitability === "poor") return outdoor ? 24 : 6;
+  if (forecast.suitability === "caution") return outdoor ? 10 : 2;
+  return outdoor && feature.goal !== "quiet_reset" ? -6 : 0;
+}
+
+function isOutdoorPlace(place: MovementFatigueInput) {
+  if (place.sourceContentType === "28") return true;
+  if (place.sourceContentType === "14") return false;
+  return (
+    place.moodTags.includes("open") ||
+    place.moodTags.includes("walk") ||
+    /공원|정원|수목원|숲|휴양림|바다|해변|해수욕장|호수|강|전망|거리|골목/.test(
+      place.name,
+    )
   );
 }
 
@@ -311,6 +404,9 @@ function getRecommendationExplanation(
   feature: StateFeature,
 ) {
   const candidates = [
+    createExecutionReason(place, breakdown),
+    createRouteReason(place, breakdown),
+    createWeatherReason(place, breakdown),
     createDistanceReason(place, answers, feature),
     createCrowdReason(place, answers, breakdown),
     createMoodReason(place, answers, breakdown),
@@ -343,6 +439,62 @@ function getRecommendationExplanation(
     factors: secondary
       ? [primary.factor, secondary.factor]
       : [primary.factor],
+  };
+}
+
+function createExecutionReason(
+  place: MovementFatigueInput,
+  breakdown: FatigueBreakdown,
+): ReasonCandidate | null {
+  const execution = place.executionFeasibility;
+  if (!execution || breakdown.executionPenalty >= 0) return null;
+  return {
+    factor: "schedule",
+    score: 48 + Math.abs(breakdown.executionPenalty),
+    headline: "왕복하고 잠시 머물러도 오늘 여유 안에 들어와요.",
+    detail: `왕복 이동과 최소 ${execution.minimumStayMinutes}분 체류를 합쳐 약 ${execution.totalMinutes}분으로 계산했어요.`,
+    cardPhrase: "시간을 크게 비우지 않아도 다녀올 수 있는 곳",
+  };
+}
+
+function createRouteReason(
+  place: MovementFatigueInput,
+  breakdown: FatigueBreakdown,
+): ReasonCandidate | null {
+  const route = place.travelTimeSummary;
+  if (!route || breakdown.transferPenalty >= 0 || breakdown.walkingPenalty > 0) {
+    return null;
+  }
+  const walking = route.walkingDistanceMeters;
+  return {
+    factor: "route",
+    score: 38 + Math.abs(breakdown.transferPenalty),
+    headline:
+      route.mode === "walking"
+        ? "갈아탈 필요 없이 걸어서 닿을 수 있어요."
+        : "환승 없이 단순하게 다녀올 수 있어요.",
+    detail:
+      walking === null || walking === undefined
+        ? "실제 경로의 환승 횟수를 함께 살폈어요."
+        : `실제 경로에서 환승 ${route.transfers ?? 0}회, 도보 약 ${Math.round(walking)}m로 확인했어요.`,
+    cardPhrase: "가는 과정부터 복잡하지 않은 곳",
+  };
+}
+
+function createWeatherReason(
+  place: MovementFatigueInput,
+  breakdown: FatigueBreakdown,
+): ReasonCandidate | null {
+  const forecast = place.weatherForecast;
+  if (!forecast || !isOutdoorPlace(place) || breakdown.weatherPenalty >= 0) {
+    return null;
+  }
+  return {
+    factor: "weather",
+    score: 32 + Math.abs(breakdown.weatherPenalty),
+    headline: "도착할 무렵 바깥에 머물기 무난한 날씨예요.",
+    detail: `기상청 단기예보의 강수·기온·바람을 실제 도착 예상 시각에 맞춰 살폈어요.`,
+    cardPhrase: "오늘의 날씨까지 받쳐주는 바깥 시간",
   };
 }
 
@@ -445,7 +597,7 @@ function createDistanceReason(
             : feature.movement === "near" && preferred
               ? "지금 있는 곳에서 가볍게 닿을 수 있어요."
               : "오늘 정한 이동 범위 안에서 골랐어요.",
-      detail: `대중교통 약 ${travelMinutes}분과 오늘 가능한 이동 범위를 함께 살폈어요.`,
+      detail: `${getTravelModeLabel(place.travelTimeSummary!.mode)} 약 ${travelMinutes}분과 오늘 가능한 이동 범위를 함께 살폈어요.`,
       cardPhrase:
         feature.movement === "far"
           ? "한 번의 이동으로 완전히 다른 공기를 만나는 날"
@@ -487,6 +639,15 @@ function createDistanceReason(
           ? "가까운 곳에서 잠깐 숨을 돌리고 싶은 날"
           : "오늘 닿을 수 있는 만큼만 다녀오는 날",
   };
+}
+
+function getTravelModeLabel(
+  mode: NonNullable<TutiPlace["travelTimeSummary"]>["mode"],
+) {
+  if (mode === "walking") return "도보";
+  if (mode === "driving") return "자동차";
+  if (mode === "bicycle") return "자전거";
+  return "대중교통";
 }
 
 function isPreferredTravelTime(
@@ -684,10 +845,13 @@ function preferEditorialPhrase(phrase: string, generatedPhrase: string) {
 
 function reasonPriority(factor: RecommendationReasonFactor) {
   return {
-    crowd: 0,
-    distance: 1,
-    mood: 2,
-    movement: 3,
-    burden: 4,
+    schedule: 0,
+    route: 1,
+    weather: 2,
+    crowd: 3,
+    distance: 4,
+    mood: 5,
+    movement: 6,
+    burden: 7,
   }[factor];
 }

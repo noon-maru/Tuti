@@ -11,7 +11,10 @@ import { enrichPlacesWithCrowdForecast } from "@/server/recommendations/crowdFor
 import { recommendablePlaceWhere } from "@/server/recommendations/recommendablePlaceWhere";
 import { createLongDistanceRecommendations } from "@/server/recommendations/longDistancePlanner";
 import { fetchKakaoMapRoute } from "@/server/maps/kakaoMapClient";
-import type { TravelTimeSummary } from "@/shared/api/travelTime";
+import { isWalkingDistance } from "@/server/departure/routeSelection";
+import { toTravelTimeSummary } from "@/server/departure/travelTimeSummary";
+import { enrichPlacesWithExecutionFeasibility } from "@/server/recommendations/executionFeasibility";
+import { enrichPlacesWithWeatherForecast } from "@/server/weather/kmaVilageForecast";
 import type {
   IntakeAnswers,
   PreferredRegion,
@@ -132,13 +135,15 @@ async function evaluateRecommendations(
     );
 
     if (longDistancePlaces.length >= 1) {
+      const weatherEnrichedPlaces =
+        await enrichPlacesWithWeatherForecast(longDistancePlaces);
       return {
         feature,
         sourceCandidateCount: longDistancePlaces.length,
         eligibleCandidateCount: longDistancePlaces.length,
-        initialRanking: longDistancePlaces,
-        finalRanking: longDistancePlaces,
-        recommendedPlaces: longDistancePlaces.slice(0, 6),
+        initialRanking: weatherEnrichedPlaces,
+        finalRanking: weatherEnrichedPlaces,
+        recommendedPlaces: weatherEnrichedPlaces.slice(0, 6),
       };
     }
   }
@@ -174,7 +179,17 @@ async function evaluateRecommendations(
         12,
       )
     : selectDiverseContentTypes(rankedPlaces, 12, 3);
-  const forecastedPlaces = await enrichPlacesWithCrowdForecast(shortlist);
+  const executionEnrichedPlaces = location
+    ? await enrichPlacesWithExecutionFeasibility(shortlist, {
+        ...answers,
+        movement:
+          feature.movement === "far" ? "half" : feature.movement,
+      })
+    : shortlist;
+  const weatherEnrichedPlaces =
+    await enrichPlacesWithWeatherForecast(executionEnrichedPlaces);
+  const forecastedPlaces =
+    await enrichPlacesWithCrowdForecast(weatherEnrichedPlaces);
   const finalRanking = rankByMovementFatigue(
     forecastedPlaces,
     answers,
@@ -384,22 +399,19 @@ async function enrichWithTransitTimes(
       return place;
     }
 
-    const route = await fetchKakaoMapRoute("publicTransit", {
+    const destination = {
+      latitude: place.latitude!,
+      longitude: place.longitude!,
+    };
+    const mode = isWalkingDistance(origin, destination)
+      ? "walking"
+      : "publicTransit";
+    const route = await fetchKakaoMapRoute(mode, {
       origin,
-      destination: {
-        latitude: place.latitude!,
-        longitude: place.longitude!,
-      },
+      destination,
       destinationName: place.name,
     }).catch(() => null);
-    const travelTimeSummary: TravelTimeSummary | undefined =
-      route?.status === "available" && route.durationSeconds !== null
-        ? {
-            mode: route.mode,
-            durationSeconds: route.durationSeconds,
-            distanceMeters: route.distanceMeters,
-          }
-        : undefined;
+    const travelTimeSummary = toTravelTimeSummary(route);
 
     return travelTimeSummary
       ? { ...place, travelTimeSummary }
