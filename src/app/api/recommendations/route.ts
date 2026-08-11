@@ -3,6 +3,9 @@ import { authenticateUser } from "@/server/auth/session";
 import { recordRecommendationRunSafely } from "@/server/recommendations/run";
 import { createRecommendations } from "@/server/recommendations/service";
 import {
+  LongDistanceRecommendationsUnavailableError,
+} from "@/server/recommendations/longDistanceAvailability";
+import {
   createPreflightResponse,
   isRequestOriginAllowed,
   withCors,
@@ -62,8 +65,10 @@ export async function POST(request: Request) {
   } catch (error) {
     const invalidJson = error instanceof SyntaxError;
     const invalidRequest = error instanceof InvalidRecommendationRequestError;
+    const longDistanceUnavailable =
+      error instanceof LongDistanceRecommendationsUnavailableError;
 
-    if (!invalidJson && !invalidRequest) {
+    if (!invalidJson && !invalidRequest && !longDistanceUnavailable) {
       console.error("추천 API 처리 중 오류가 발생했습니다.", error);
     }
 
@@ -75,9 +80,19 @@ export async function POST(request: Request) {
             ? "요청 본문을 확인해주세요."
             : invalidRequest
               ? error.message
-              : "추천 데이터를 준비하지 못했어요.",
+              : longDistanceUnavailable
+                ? "고속열차·고속버스 여정을 준비하지 못했어요. 잠시 후 다시 시도해주세요."
+                : "추천 데이터를 준비하지 못했어요.",
+          ...(longDistanceUnavailable ? { code: error.code } : {}),
         },
-        { status: invalidJson || invalidRequest ? 400 : 500 },
+        {
+          status:
+            invalidJson || invalidRequest
+              ? 400
+              : longDistanceUnavailable
+                ? 503
+                : 500,
+        },
       ),
     );
   }

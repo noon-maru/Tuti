@@ -10,6 +10,10 @@ import {
 import { enrichPlacesWithCrowdForecast } from "@/server/recommendations/crowdForecast";
 import { recommendablePlaceWhere } from "@/server/recommendations/recommendablePlaceWhere";
 import { createLongDistanceRecommendations } from "@/server/recommendations/longDistancePlanner";
+import {
+  requireLongDistanceRecommendations,
+  requireNearbyMovement,
+} from "@/server/recommendations/longDistanceAvailability";
 import { fetchKakaoMapRoute } from "@/server/maps/kakaoMapClient";
 import { isWalkingDistance } from "@/server/departure/routeSelection";
 import { toTravelTimeSummary } from "@/server/departure/travelTimeSummary";
@@ -133,40 +137,40 @@ async function evaluateRecommendations(
 ) {
   const feature = await interpretStateWithLlm({ answers, stateText });
   if (feature.movement === "far" && location) {
-    const longDistancePlaces = await createLongDistanceRecommendations(
-      answers,
-      location,
-      excludePlaceIds,
+    const longDistancePlaces = requireLongDistanceRecommendations(
+      await createLongDistanceRecommendations(
+        answers,
+        location,
+        excludePlaceIds,
+      ),
     );
 
-    if (longDistancePlaces.length >= 1) {
-      const admissionEnrichedPlaces =
-        await enrichPlacesWithAdmissionFees(longDistancePlaces);
-      const weatherEnrichedPlaces =
-        await enrichPlacesWithWeatherForecast(admissionEnrichedPlaces);
-      const conditionedPlaces = answers.companion || answers.budget
-        ? rankByMovementFatigue(
-            weatherEnrichedPlaces,
-            answers,
-            feature,
-            weatherEnrichedPlaces.length,
-          )
-        : weatherEnrichedPlaces;
-      return {
-        feature,
-        sourceCandidateCount: longDistancePlaces.length,
-        eligibleCandidateCount: longDistancePlaces.length,
-        initialRanking: conditionedPlaces,
-        finalRanking: conditionedPlaces,
-        recommendedPlaces: conditionedPlaces.slice(0, 6),
-      };
-    }
+    const admissionEnrichedPlaces =
+      await enrichPlacesWithAdmissionFees(longDistancePlaces);
+    const weatherEnrichedPlaces =
+      await enrichPlacesWithWeatherForecast(admissionEnrichedPlaces);
+    const conditionedPlaces = answers.companion || answers.budget
+      ? rankByMovementFatigue(
+          weatherEnrichedPlaces,
+          answers,
+          feature,
+          weatherEnrichedPlaces.length,
+        )
+      : weatherEnrichedPlaces;
+    return {
+      feature,
+      sourceCandidateCount: longDistancePlaces.length,
+      eligibleCandidateCount: longDistancePlaces.length,
+      initialRanking: conditionedPlaces,
+      finalRanking: conditionedPlaces,
+      recommendedPlaces: conditionedPlaces.slice(0, 6),
+    };
   }
 
   const places = location
     ? await findPlacesNearLocation(
         location,
-        feature.movement === "far" ? "half" : feature.movement,
+        requireNearbyMovement(feature.movement),
       )
     : await findPlacesByBaseFatigue(preferredRegion);
 
@@ -192,8 +196,7 @@ async function evaluateRecommendations(
   const executionEnrichedPlaces =
     await enrichPlacesWithExecutionFeasibility(shortlist, {
       ...answers,
-      movement:
-        feature.movement === "far" ? "half" : feature.movement,
+      movement: feature.movement,
     });
   const weatherEnrichedPlaces =
     await enrichPlacesWithWeatherForecast(executionEnrichedPlaces);

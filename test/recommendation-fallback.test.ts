@@ -3,6 +3,11 @@ import test from "node:test";
 import { getRecommendationStatus } from "@/features/tuti/lib/recommendationStatus";
 import { selectRecommendationCandidatePool } from "@/server/recommendations/candidateFallback";
 import { getPreferredRegionWhere } from "@/server/recommendations/regionFallback";
+import {
+  LongDistanceRecommendationsUnavailableError,
+  requireLongDistanceRecommendations,
+  requireNearbyMovement,
+} from "@/server/recommendations/longDistanceAvailability";
 
 test("일반 지역은 선택한 시도명으로 조회한다", () => {
   assert.deepEqual(
@@ -77,6 +82,23 @@ test("원천 후보가 비어 있으면 빈 결과를 그대로 유지한다", (
     }),
     "empty",
   );
+});
+
+test("장거리 여정이 없으면 근거리 후보로 대체하지 않고 재시도 오류를 낸다", () => {
+  assert.throws(
+    () => requireLongDistanceRecommendations([]),
+    (error) =>
+      error instanceof LongDistanceRecommendationsUnavailableError &&
+      error.code === "long_distance_unavailable",
+  );
+
+  const places = [{ id: "long-distance-place" }];
+  assert.equal(requireLongDistanceRecommendations(places), places);
+  assert.throws(
+    () => requireNearbyMovement("far"),
+    LongDistanceRecommendationsUnavailableError,
+  );
+  assert.equal(requireNearbyMovement("half"), "half");
 });
 
 test("로딩·오류·정상 결과 상태가 빈 결과보다 우선한다", () => {

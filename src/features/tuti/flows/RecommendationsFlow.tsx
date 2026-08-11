@@ -20,7 +20,10 @@ import {
   formatTravelTimeLabel,
 } from "@/features/tuti/lib/travelTimeLabel";
 import { logoutAccount } from "@/lib/auth/session";
-import { recordRecommendationAction } from "@/lib/tutiApi";
+import {
+  RecommendationRequestError,
+  recordRecommendationAction,
+} from "@/lib/tutiApi";
 import {
   getKoreanDateKey,
   isKoreanDateBefore,
@@ -122,6 +125,7 @@ export function RecommendationsFlow({ interactive }: { interactive: boolean }) {
     isSuccess,
     isPending,
     isError,
+    error,
     refetch,
   } = useTutiRecommendations({
     enabled:
@@ -407,6 +411,10 @@ export function RecommendationsFlow({ interactive }: { interactive: boolean }) {
         places={places}
         loading={isPending && !dailyCheckInVisible}
         recommendationError={isError}
+        longDistanceUnavailable={
+          error instanceof RecommendationRequestError &&
+          error.code === "long_distance_unavailable"
+        }
         onRetryRecommendations={() => void refetch()}
         activeIndex={displayedActiveIndex}
         activePlace={activePlace}

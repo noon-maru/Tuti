@@ -5,7 +5,14 @@ import type {
   UserLocation,
 } from "@/shared/tuti/types";
 
-export const RECOMMENDATION_ALGORITHM_VERSION = "optional-context-v7";
+export const RECOMMENDATION_ALGORITHM_VERSION = "long-distance-intent-v8";
+
+export type RecommendationErrorCode = "long_distance_unavailable";
+
+export type RecommendationErrorResponse = {
+  error: string;
+  code?: RecommendationErrorCode;
+};
 
 export type RecommendationRequest = {
   answers?: IntakeAnswers;

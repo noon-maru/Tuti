@@ -32,6 +32,8 @@ import type {
   RecommendationActionResponse,
 } from "@/shared/api/recommendationActions";
 import type {
+  RecommendationErrorCode,
+  RecommendationErrorResponse,
   RecommendationRequest,
   RecommendationResponse,
 } from "@/shared/api/recommendations";
@@ -65,10 +67,32 @@ export async function fetchRecommendations(
   });
 
   if (!response.ok) {
-    throw new Error("추천 데이터를 불러오지 못했어요.");
+    const fallbackMessage = "추천 데이터를 불러오지 못했어요.";
+    let payload: RecommendationErrorResponse | null = null;
+    try {
+      payload = (await response.json()) as RecommendationErrorResponse;
+    } catch {
+      // 응답 본문을 읽지 못해도 상태 코드를 보존한다.
+    }
+    throw new RecommendationRequestError(
+      typeof payload?.error === "string" ? payload.error : fallbackMessage,
+      response.status,
+      payload?.code,
+    );
   }
 
   return (await response.json()) as RecommendationResponse;
+}
+
+export class RecommendationRequestError extends Error {
+  constructor(
+    message: string,
+    readonly status: number,
+    readonly code?: RecommendationErrorCode,
+  ) {
+    super(message);
+    this.name = "RecommendationRequestError";
+  }
 }
 
 export async function fetchNearbyAccommodations(

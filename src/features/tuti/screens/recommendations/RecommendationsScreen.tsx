@@ -64,6 +64,7 @@ export function RecommendationsScreen({
   places,
   loading,
   recommendationError,
+  longDistanceUnavailable,
   onRetryRecommendations,
   activeIndex,
   activePlace,
@@ -98,6 +99,7 @@ export function RecommendationsScreen({
   places: TutiPlace[];
   loading: boolean;
   recommendationError: boolean;
+  longDistanceUnavailable: boolean;
   onRetryRecommendations: () => void;
   activeIndex: number;
   activePlace?: TutiPlace;
@@ -851,14 +853,18 @@ export function RecommendationsScreen({
             </span>
             <div>
               <h2>
-                {recommendationError
-                  ? "오늘 가능한 곳을 불러오지 못했어요."
-                  : "지금 보여드릴 수 있는 곳을 찾지 못했어요."}
+                {longDistanceUnavailable
+                  ? "고속열차·고속버스 여정을 준비하지 못했어요."
+                  : recommendationError
+                    ? "오늘 가능한 곳을 불러오지 못했어요."
+                    : "지금 보여드릴 수 있는 곳을 찾지 못했어요."}
               </h2>
               <p>
-                {recommendationError
-                  ? "잠시 후 다시 시도하거나 위치 설정을 확인해주세요."
-                  : "위치나 오늘 가능한 정도를 바꾸면 다시 찾아볼 수 있어요."}
+                {longDistanceUnavailable
+                  ? "교통편 조회가 잠시 원활하지 않아요. 조금 뒤 다시 불러오거나 오늘 가능한 정도를 바꿔보세요."
+                  : recommendationError
+                    ? "잠시 후 다시 시도하거나 위치 설정을 확인해주세요."
+                    : "위치나 오늘 가능한 정도를 바꾸면 다시 찾아볼 수 있어요."}
               </p>
             </div>
             <RecommendationStatusActions>
@@ -875,10 +881,18 @@ export function RecommendationsScreen({
               <StatusSecondaryButton
                 type="button"
                 onClick={
-                  recommendationError ? onLocationSettings : onRestartIntake
+                  longDistanceUnavailable
+                    ? onRestartIntake
+                    : recommendationError
+                      ? onLocationSettings
+                      : onRestartIntake
                 }
               >
-                {recommendationError ? "위치 설정 확인하기" : "오늘 다시 고르기"}
+                {longDistanceUnavailable
+                  ? "오늘 다시 고르기"
+                  : recommendationError
+                    ? "위치 설정 확인하기"
+                    : "오늘 다시 고르기"}
               </StatusSecondaryButton>
             </RecommendationStatusActions>
           </RecommendationStatusCard>
