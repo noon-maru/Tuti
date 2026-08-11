@@ -322,7 +322,7 @@ export function JournalScreen({
         </EmptyState>
       ) : (
         <EmptyState>
-          <p>여행에 대한 공기를 남겨보세요 :)</p>
+          <p>잠깐 머문 공간의 공기를 남겨보세요.</p>
         </EmptyState>
       )}
     </Frame>

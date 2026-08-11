@@ -392,8 +392,8 @@ function createEditorialDefaults(
   return {
     phrase: getDefaultPhrase(contentTypeId),
     note: address
-      ? `${address}에 있는 관광 장소예요. 노출 전 상세 내용을 확인해주세요.`
-      : "한국관광공사 TourAPI에서 가져온 장소예요. 노출 전 상세 내용을 확인해주세요.",
+      ? `${address}에 있는 장소예요. 노출 전 상세 내용을 확인해주세요.`
+      : "공식 장소정보에서 가져온 곳이에요. 노출 전 상세 내용을 확인해주세요.",
     fatigue: isCourseOrLeisure ? 55 : contentTypeId === "14" ? 28 : 38,
     movementLevel: isCourseOrLeisure
       ? ("half" as const)

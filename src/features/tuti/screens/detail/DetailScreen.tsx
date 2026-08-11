@@ -619,9 +619,9 @@ function getCrowdForecastDescription(
     return "지역 방문 패턴을 바탕으로 한 평시 예상값이에요.";
   }
   if (forecast.provider === "tuti_estimate") {
-    return "지역 방문량과 관광 수요를 함께 살펴 계산한 예상값이에요.";
+    return "지역 방문량과 장소 수요를 함께 살펴 계산한 예상값이에요.";
   }
-  return "관광공사 방문 패턴을 바탕으로 한 예상값이며 실제 현장과 다를 수 있어요.";
+  return "한국관광공사의 방문 패턴을 바탕으로 한 예상값이며 실제 현장과 다를 수 있어요.";
 }
 
 function createOperationBadge(detail: TourismPlaceDetail | null) {
