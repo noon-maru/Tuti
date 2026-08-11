@@ -18,6 +18,8 @@ import {
   enrichPlacesWithExecutionFeasibility,
 } from "@/server/recommendations/executionFeasibility";
 import { enrichPlacesWithWeatherForecast } from "@/server/weather/kmaVilageForecast";
+import { selectRecommendationCandidatePool } from "@/server/recommendations/candidateFallback";
+import { getPreferredRegionWhere } from "@/server/recommendations/regionFallback";
 import type {
   IntakeAnswers,
   PreferredRegion,
@@ -168,13 +170,8 @@ async function evaluateRecommendations(
       )
     : await findPlacesByBaseFatigue(preferredRegion);
 
-  const excludedPlaceIdSet = new Set(excludePlaceIds);
-  const eligiblePlaces = places.filter(
-    (place) => !excludedPlaceIdSet.has(place.id),
-  );
-  const recommendationPlaces = eligiblePlaces.length >= 6
-    ? eligiblePlaces
-    : places;
+  const { eligiblePlaces, candidatePlaces: recommendationPlaces } =
+    selectRecommendationCandidatePool(places, excludePlaceIds);
   const rankedPlaces = rankByMovementFatigue(
     recommendationPlaces.map(toTutiPlace),
     answers,
@@ -216,7 +213,7 @@ async function evaluateRecommendations(
   return {
     feature,
     sourceCandidateCount: places.length,
-    eligibleCandidateCount: recommendationPlaces.length,
+    eligibleCandidateCount: eligiblePlaces.length,
     initialRanking: rankedPlaces,
     finalRanking,
     recommendedPlaces,
@@ -251,46 +248,6 @@ async function findPlacesByBaseFatigue(
       longitude: true,
     },
   });
-}
-
-const integratedGwangjuDistricts = [
-  "광산구",
-  "남구",
-  "동구",
-  "북구",
-  "서구",
-];
-
-function getPreferredRegionWhere(preferredRegion: PreferredRegion) {
-  const integratedRegionName = "전남광주통합특별시";
-
-  if (preferredRegion.name === "광주광역시") {
-    return {
-      OR: [
-        { sourceSidoName: preferredRegion.name },
-        {
-          sourceSidoName: integratedRegionName,
-          sourceSigunguName: { in: integratedGwangjuDistricts },
-        },
-      ],
-    };
-  }
-
-  if (preferredRegion.name === "전라남도") {
-    return {
-      OR: [
-        { sourceSidoName: preferredRegion.name },
-        {
-          sourceSidoName: integratedRegionName,
-          NOT: {
-            sourceSigunguName: { in: integratedGwangjuDistricts },
-          },
-        },
-      ],
-    };
-  }
-
-  return { sourceSidoName: preferredRegion.name };
 }
 
 async function findPlacesNearLocation(

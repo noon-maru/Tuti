@@ -18,6 +18,7 @@ import {
 import { PeekDeparturePlanScreen } from "@/features/tuti/screens/departure/PeekDeparturePlanScreen";
 import { DetailScreen } from "@/features/tuti/screens/detail/DetailScreen";
 import { JournalScreen } from "@/features/tuti/screens/journal/JournalScreen";
+import { getRecommendationStatus } from "@/features/tuti/lib/recommendationStatus";
 import type { TutiPlace } from "@/lib/recommendations";
 import type { DepartureRoute } from "@/shared/api/departurePlan";
 import type { LocationPermissionStatus } from "@/shared/tuti/types";
@@ -152,8 +153,13 @@ export function RecommendationsScreen({
   const transitionTarget = dragOffset.y < 0 ? "detail" : "journal";
   const detailOpen = detailPhase === "open";
   const detailVisible = detailPhase !== "closed";
+  const recommendationStatus = getRecommendationStatus({
+    loading,
+    recommendationError,
+    placeCount: places.length,
+  });
   const recommendationStatusVisible =
-    !loading && (recommendationError || places.length === 0);
+    recommendationStatus === "error" || recommendationStatus === "empty";
   const presentedDetailPlace = detailVisible ? detailPlace : activePlace;
   const mainInteractive =
     interactive &&
