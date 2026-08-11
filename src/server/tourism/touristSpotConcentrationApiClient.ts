@@ -66,11 +66,11 @@ export async function fetchTouristSpotConcentrationRates({
   timeoutMs = 20_000,
 }: FetchTouristSpotConcentrationInput): Promise<TouristSpotConcentrationPage> {
   const serviceKey =
-    process.env.KTO_TOURIST_SPOT_CONCENTRATION_RATE_SERVICE_KEY?.trim();
+    process.env.DATA_GO_KR_API_KEY?.trim();
 
   if (!serviceKey) {
     throw new TouristSpotConcentrationApiError(
-      "KTO_TOURIST_SPOT_CONCENTRATION_RATE_SERVICE_KEY 환경변수가 설정되지 않았습니다.",
+      "DATA_GO_KR_API_KEY 환경변수가 설정되지 않았습니다.",
       "tourist_spot_concentration_api_not_configured",
     );
   }

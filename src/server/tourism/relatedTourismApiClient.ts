@@ -75,11 +75,11 @@ export async function fetchRelatedTourism({
   numOfRows,
   timeoutMs = 20_000,
 }: FetchRelatedTourismInput): Promise<RelatedTourismPage> {
-  const serviceKey = process.env.KTO_RELATED_TOURISM_SERVICE_KEY?.trim();
+  const serviceKey = process.env.DATA_GO_KR_API_KEY?.trim();
 
   if (!serviceKey) {
     throw new RelatedTourismApiError(
-      "KTO_RELATED_TOURISM_SERVICE_KEY 환경변수가 설정되지 않았습니다.",
+      "DATA_GO_KR_API_KEY 환경변수가 설정되지 않았습니다.",
       "related_tourism_api_not_configured",
     );
   }

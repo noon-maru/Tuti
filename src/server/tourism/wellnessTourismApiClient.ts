@@ -82,11 +82,11 @@ export async function fetchWellnessTourismPlaces({
   language = "KOR",
 }: FetchWellnessTourismInput): Promise<WellnessTourismPage> {
   const serviceKey =
-    process.env.KTO_WELLNESS_TOURISM_SERVICE_KEY?.trim();
+    process.env.DATA_GO_KR_API_KEY?.trim();
 
   if (!serviceKey) {
     throw new WellnessTourismApiError(
-      "KTO_WELLNESS_TOURISM_SERVICE_KEY 환경변수가 설정되지 않았습니다.",
+      "DATA_GO_KR_API_KEY 환경변수가 설정되지 않았습니다.",
       "wellness_api_not_configured",
     );
   }

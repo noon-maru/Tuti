@@ -95,11 +95,11 @@ export async function fetchTourApiPage<T>(
   totalCount: number;
 }> {
   const serviceKey =
-    process.env.KTO_TOURISM_INFO_SERVICE_KEY?.trim();
+    process.env.DATA_GO_KR_API_KEY?.trim();
 
   if (!serviceKey) {
     throw new TourApiError(
-      "KTO_TOURISM_INFO_SERVICE_KEY 환경변수가 설정되지 않았습니다.",
+      "DATA_GO_KR_API_KEY 환경변수가 설정되지 않았습니다.",
       "tour_api_not_configured",
     );
   }

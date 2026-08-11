@@ -917,61 +917,61 @@ async function getOverview() {
         source: "ktoTourismPhotoGallery",
         label: "관광사진 갤러리",
         configured: Boolean(
-          process.env.KTO_TOURISM_PHOTO_GALLERY_SERVICE_KEY,
+          process.env.DATA_GO_KR_API_KEY,
         ),
       },
       {
         source: "ktoRegionalVisitorCount",
         label: "지역별 방문자 수",
         configured: Boolean(
-          process.env.KTO_REGIONAL_VISITOR_COUNT_SERVICE_KEY,
+          process.env.DATA_GO_KR_API_KEY,
         ),
       },
       {
         source: "ktoTouristSpotConcentrationRate",
         label: "관광지 집중률",
         configured: Boolean(
-          process.env.KTO_TOURIST_SPOT_CONCENTRATION_RATE_SERVICE_KEY,
+          process.env.DATA_GO_KR_API_KEY,
         ),
       },
       {
         source: "ktoMunicipalCoreTourism",
         label: "기초지자체 중심 관광지",
         configured: Boolean(
-          process.env.KTO_MUNICIPAL_CORE_TOURISM_SERVICE_KEY,
+          process.env.DATA_GO_KR_API_KEY,
         ),
       },
       {
         source: "ktoRelatedTourism",
         label: "관광지별 연관 관광지",
         configured: Boolean(
-          process.env.KTO_RELATED_TOURISM_SERVICE_KEY,
+          process.env.DATA_GO_KR_API_KEY,
         ),
       },
       {
         source: "ktoWellnessTourism",
         label: "웰니스 관광정보",
         configured: Boolean(
-          process.env.KTO_WELLNESS_TOURISM_SERVICE_KEY,
+          process.env.DATA_GO_KR_API_KEY,
         ),
       },
       {
         source: "ktoTourismInfo",
         label: "국문 관광정보",
-        configured: Boolean(process.env.KTO_TOURISM_INFO_SERVICE_KEY),
+        configured: Boolean(process.env.DATA_GO_KR_API_KEY),
       },
       {
         source: "ktoRegionalResourceDemand",
         label: "지역별 관광 자원 수요",
         configured: Boolean(
-          process.env.KTO_REGIONAL_RESOURCE_DEMAND_SERVICE_KEY,
+          process.env.DATA_GO_KR_API_KEY,
         ),
       },
       {
         source: "ktoRegionalDemandIntensity",
         label: "지역별 관광 수요 강도",
         configured: Boolean(
-          process.env.KTO_REGIONAL_DEMAND_INTENSITY_SERVICE_KEY,
+          process.env.DATA_GO_KR_API_KEY,
         ),
       },
     ],

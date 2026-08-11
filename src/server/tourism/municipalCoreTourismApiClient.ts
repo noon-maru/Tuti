@@ -69,11 +69,11 @@ export async function fetchMunicipalCoreTourism({
   numOfRows,
 }: FetchMunicipalCoreTourismInput): Promise<MunicipalCoreTourismPage> {
   const serviceKey =
-    process.env.KTO_MUNICIPAL_CORE_TOURISM_SERVICE_KEY?.trim();
+    process.env.DATA_GO_KR_API_KEY?.trim();
 
   if (!serviceKey) {
     throw new MunicipalCoreTourismApiError(
-      "KTO_MUNICIPAL_CORE_TOURISM_SERVICE_KEY 환경변수가 설정되지 않았습니다.",
+      "DATA_GO_KR_API_KEY 환경변수가 설정되지 않았습니다.",
       "municipal_core_api_not_configured",
     );
   }

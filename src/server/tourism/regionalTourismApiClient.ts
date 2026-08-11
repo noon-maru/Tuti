@@ -75,34 +75,27 @@ const metricConfigs: Record<
   {
     baseUrl: string;
     path: string;
-    keyEnvironmentName:
-      | "KTO_REGIONAL_RESOURCE_DEMAND_SERVICE_KEY"
-      | "KTO_REGIONAL_DEMAND_INTENSITY_SERVICE_KEY";
     metricCodeParameter: string;
   }
 > = {
   serviceDemand: {
     baseUrl: RESOURCE_DEMAND_BASE_URL,
     path: "areaTarSvcDemList",
-    keyEnvironmentName: "KTO_REGIONAL_RESOURCE_DEMAND_SERVICE_KEY",
     metricCodeParameter: "tarSvcDemIxCd",
   },
   culturalResourceDemand: {
     baseUrl: RESOURCE_DEMAND_BASE_URL,
     path: "areaCulResDemList",
-    keyEnvironmentName: "KTO_REGIONAL_RESOURCE_DEMAND_SERVICE_KEY",
     metricCodeParameter: "culResDemIxCd",
   },
   stayIntensity: {
     baseUrl: DEMAND_INTENSITY_BASE_URL,
     path: "areaTarSjrnDsList",
-    keyEnvironmentName: "KTO_REGIONAL_DEMAND_INTENSITY_SERVICE_KEY",
     metricCodeParameter: "tarSjrnDsIxCd",
   },
   consumptionIntensity: {
     baseUrl: DEMAND_INTENSITY_BASE_URL,
     path: "areaTarExpDsList",
-    keyEnvironmentName: "KTO_REGIONAL_DEMAND_INTENSITY_SERVICE_KEY",
     metricCodeParameter: "tarExpDsIxCd",
   },
 };
@@ -117,11 +110,11 @@ export async function fetchRegionalTourismMetrics({
   numOfRows,
 }: FetchRegionalMetricInput): Promise<RegionalMetricPage> {
   const config = metricConfigs[metricType];
-  const serviceKey = process.env[config.keyEnvironmentName]?.trim();
+  const serviceKey = process.env.DATA_GO_KR_API_KEY?.trim();
 
   if (!serviceKey) {
     throw new TourApiError(
-      `${config.keyEnvironmentName} 환경변수가 설정되지 않았습니다.`,
+      "DATA_GO_KR_API_KEY 환경변수가 설정되지 않았습니다.",
       "tour_api_not_configured",
     );
   }

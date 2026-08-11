@@ -66,11 +66,11 @@ export async function fetchTourismPhotoGalleryRecords({
   numOfRows,
 }: FetchTourismPhotoGalleryInput): Promise<TourismPhotoGalleryPage> {
   const serviceKey =
-    process.env.KTO_TOURISM_PHOTO_GALLERY_SERVICE_KEY?.trim();
+    process.env.DATA_GO_KR_API_KEY?.trim();
 
   if (!serviceKey) {
     throw new TourismPhotoGalleryApiError(
-      "KTO_TOURISM_PHOTO_GALLERY_SERVICE_KEY 환경변수가 설정되지 않았습니다.",
+      "DATA_GO_KR_API_KEY 환경변수가 설정되지 않았습니다.",
       "tourism_photo_gallery_api_not_configured",
     );
   }

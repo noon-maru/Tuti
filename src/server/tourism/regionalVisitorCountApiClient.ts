@@ -67,11 +67,11 @@ export async function fetchRegionalVisitorCounts({
   numOfRows,
 }: FetchRegionalVisitorCountInput): Promise<RegionalVisitorCountPage> {
   const serviceKey =
-    process.env.KTO_REGIONAL_VISITOR_COUNT_SERVICE_KEY?.trim();
+    process.env.DATA_GO_KR_API_KEY?.trim();
 
   if (!serviceKey) {
     throw new RegionalVisitorCountApiError(
-      "KTO_REGIONAL_VISITOR_COUNT_SERVICE_KEY 환경변수가 설정되지 않았습니다.",
+      "DATA_GO_KR_API_KEY 환경변수가 설정되지 않았습니다.",
       "regional_visitor_count_api_not_configured",
     );
   }
