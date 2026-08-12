@@ -1,7 +1,7 @@
 "use client";
 
 import styled from "@emotion/styled";
-import { Bookmark, Navigation, Trash2, X } from "lucide-react";
+import { Bookmark, Navigation, Trash2 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   BaseButton,
@@ -127,13 +127,6 @@ export function SavedDeparturePlacesSheet({
             <small>부담 없이 남겨둔 곳</small>
             <h2 id="saved-departure-title">다음에 갈 곳</h2>
           </div>
-          <CloseButton
-            type="button"
-            aria-label="다음에 갈 곳 닫기"
-            onClick={() => closeWith(onClose)}
-          >
-            <X aria-hidden="true" />
-          </CloseButton>
         </Header>
 
         {places.length ? (
@@ -275,21 +268,6 @@ const Header = styled.header`
   h2 {
     font-size: var(--font-size-500);
     line-height: var(--line-height-heading);
-  }
-`;
-
-const CloseButton = styled(BaseButton)`
-  width: var(--space-10);
-  height: var(--space-10);
-  display: grid;
-  place-items: center;
-  padding: 0;
-  border-radius: 50%;
-  background: var(--color-neutral-200);
-
-  svg {
-    width: 20px;
-    height: 20px;
   }
 `;
 

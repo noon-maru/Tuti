@@ -9,7 +9,6 @@ import {
   MapPin,
   Navigation,
   TrainFront,
-  X,
 } from "lucide-react";
 import { useLayoutEffect, useRef, useState } from "react";
 import { BaseButton, PrimaryButton } from "@/features/tuti/components/buttons";
@@ -210,15 +209,6 @@ export function DeparturePlanScreen({
             <span>출발 준비</span>
             <h1>{place.name}</h1>
           </HeaderCopy>
-          <CloseButton
-            type="button"
-            aria-label="출발 준비 닫기"
-            onClick={() =>
-              embedded ? onClose() : swipeBack.requestBack()
-            }
-          >
-            <X aria-hidden="true" />
-          </CloseButton>
         </Header>
 
         <ScrollContent data-scroll-region>
@@ -921,23 +911,6 @@ const HeaderCopy = styled.div`
     letter-spacing: var(--letter-spacing-heading);
     text-overflow: ellipsis;
     white-space: nowrap;
-  }
-`;
-
-const CloseButton = styled(BaseButton)`
-  width: var(--space-10);
-  height: var(--space-10);
-  flex: 0 0 auto;
-  display: grid;
-  place-items: center;
-  padding: 0;
-  border-radius: 50%;
-  background: var(--color-neutral-200);
-  color: var(--color-text-muted);
-
-  svg {
-    width: 20px;
-    height: 20px;
   }
 `;
 

@@ -543,7 +543,7 @@ const PreviewCopy = styled.div`
   gap: var(--space-1);
 
   small {
-    color: var(--color-brand-800);
+    color: var(--color-brand-700);
     font-size: var(--font-size-100);
     font-weight: 700;
     line-height: var(--line-height-body);

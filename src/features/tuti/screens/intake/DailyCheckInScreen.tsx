@@ -1,7 +1,7 @@
 "use client";
 
 import styled from "@emotion/styled";
-import { ChevronLeft, X } from "lucide-react";
+import { ChevronLeft } from "lucide-react";
 import {
   useCallback,
   useEffect,
@@ -273,15 +273,6 @@ export function DailyCheckInScreen({
                     오늘도 이 정도가 괜찮을까요?
                   </h2>
                 </div>
-                {dismissible && (
-                  <IconButton
-                    type="button"
-                    aria-label="오늘 상태 확인 닫기"
-                    onClick={() => closeWith(onDismiss)}
-                  >
-                    <X aria-hidden="true" />
-                  </IconButton>
-                )}
               </SheetHeader>
               <SummaryCopy>
                 이전 선택을 그대로 쓰거나, 지금의 상태만 가볍게 바꿀 수
@@ -306,7 +297,7 @@ export function DailyCheckInScreen({
                 <ReviseButton
                   type="button"
                   onClick={() => {
-                    setDraftAnswers(previousAnswers);
+                    setDraftAnswers({ movement: "short", ...previousAnswers });
                     setStep(0);
                     setMode("questions");
                   }}
@@ -486,7 +477,7 @@ const SheetHeader = styled.header`
 `;
 
 const Eyebrow = styled.p`
-  color: var(--color-brand-800);
+  color: var(--color-brand-700);
   font-size: var(--font-size-100);
   font-weight: 700;
 `;
@@ -533,16 +524,17 @@ const Actions = styled.div`
 
 const ConfirmButton = styled(PrimaryButton)`
   width: 100%;
-  background: var(--color-brand-700);
+  background: var(--color-secondary-500);
+  color: var(--color-black);
 
   &:hover {
-    background: var(--color-brand-800);
+    background: var(--color-secondary-600);
   }
 `;
 
 const ReviseButton = styled(BaseButton)`
   min-height: var(--space-14);
-  border: 1px solid var(--color-border);
+  border: 1px solid var(--color-secondary-500);
   border-radius: 999px;
   background: var(--color-surface);
   font-weight: 700;
