@@ -1,298 +1,230 @@
-import { readFile } from "node:fs/promises";
-import { resolve } from "node:path";
 import { prisma } from "../src/server/db/prisma";
-import { searchKakaoPlaces } from "../src/server/maps/kakaoMapClient";
+import type { Prisma } from "../src/generated/prisma/client";
+import {
+  searchKakaoPlaces,
+  type KakaoPlaceSearchResult,
+} from "../src/server/maps/kakaoMapClient";
+import {
+  createRailHubDefinition,
+  EXPRESS_BUS_HUB_DEFINITIONS,
+  findExpressBusHubDefinition,
+  isSupportedHighSpeedRailHub,
+  normalizeTransportHubName,
+  selectKakaoHubCandidate,
+  type TransportHubDefinition,
+} from "../src/server/transport/transportHubCatalog";
 import {
   fetchExpressBusTerminals,
   fetchTrainCities,
   fetchTrainStations,
 } from "../src/server/transport/dataGoTransportClient";
 
-const STATION_LOCATION_PATH = resolve(
-  process.cwd(),
-  "data/transport/korail-station-locations-20240401.csv",
-);
-
-type StationLocation = {
-  region: string;
-  name: string;
-  latitude: number;
-  longitude: number;
-};
+const KAKAO_COORDINATE_SOURCE = "kakao_map" as const;
 
 async function main() {
-  const stationLocations = await readStationLocations();
   const syncedAt = new Date();
-  const trainCount = await syncTrainHubs(stationLocations, syncedAt);
-  const busCount = await syncExpressBusHubs(syncedAt);
+  const train = await syncTrainHubs(syncedAt);
+  const expressBus = await syncExpressBusHubs(syncedAt);
 
-  console.log(
-    JSON.stringify(
-      { trainHubs: trainCount, expressBusHubs: busCount, syncedAt },
-      null,
-      2,
-    ),
-  );
+  console.log(JSON.stringify({ train, expressBus, syncedAt }, null, 2));
 }
 
-async function syncTrainHubs(
-  locations: StationLocation[],
-  syncedAt: Date,
-) {
+async function syncTrainHubs(syncedAt: Date) {
   const cities = await fetchTrainCities();
+  let discovered = 0;
   let synced = 0;
+  const skipped: string[] = [];
 
   for (const city of cities) {
     const cityCode = clean(city.citycode ?? city.cityCode);
     const cityName = clean(city.cityname ?? city.cityName);
-    if (!cityCode) continue;
-    const stations = await fetchTrainStations(cityCode);
+    if (!cityCode || !cityName) continue;
 
+    const stations = await fetchTrainStations(cityCode);
     for (const station of stations) {
       const externalId = clean(station.nodeid);
-      const name = clean(station.nodename);
-      if (!externalId || !name) continue;
+      const sourceName = clean(station.nodename);
+      if (
+        !externalId ||
+        !sourceName ||
+        !isSupportedHighSpeedRailHub(sourceName)
+      ) {
+        continue;
+      }
+      discovered += 1;
 
-      const csvLocation = findStationLocation(name, locations);
-      const searched = csvLocation
-        ? null
-        : await geocodeHub(`${cityName ?? ""} ${name}역`.trim());
-      const location = csvLocation ?? searched;
-      if (!location) {
-        console.warn(`좌표를 찾지 못한 철도역 건너뜀: ${name} (${externalId})`);
+      const definition = createRailHubDefinition(sourceName, cityName);
+      const verified = await findVerifiedKakaoHub(definition);
+      if (!verified) {
+        skipped.push(`${sourceName} (${externalId})`);
         continue;
       }
 
-      await prisma.transportHub.upsert({
-        where: { source_externalId: { source: "tago_train", externalId } },
-        create: {
-          source: "tago_train",
-          externalId,
-          mode: "rail",
-          name,
-          aliases: unique([name, `${name}역`]),
-          cityCode,
-          regionName: cityName ?? csvLocation?.region ?? searched?.region,
-          latitude: location.latitude,
-          longitude: location.longitude,
-          rawPayload: station,
-          sourceSyncedAt: syncedAt,
-        },
-        update: {
-          name,
-          aliases: unique([name, `${name}역`]),
-          cityCode,
-          regionName: cityName ?? csvLocation?.region ?? searched?.region,
-          latitude: location.latitude,
-          longitude: location.longitude,
-          rawPayload: station,
-          isActive: true,
-          sourceSyncedAt: syncedAt,
-        },
+      await upsertVerifiedHub({
+        source: "tago_train",
+        externalId,
+        sourceName,
+        cityCode,
+        definition,
+        verified,
+        rawPayload: station,
+        syncedAt,
       });
       synced += 1;
     }
   }
 
-  await prisma.transportHub.updateMany({
-    where: {
-      source: "tago_train",
-      sourceSyncedAt: { lt: syncedAt },
-      isActive: true,
-    },
-    data: { isActive: false },
-  });
-
-  return synced;
+  await deactivateStaleHubs("tago_train", syncedAt);
+  reportSkipped("고속철도역", skipped);
+  return { discovered, synced, skipped: skipped.length };
 }
 
 async function syncExpressBusHubs(syncedAt: Date) {
-  const uniqueTerminals = new Map<
-    string,
-    { externalId: string; name: string }
+  const terminals = await fetchExpressBusTerminals();
+  const selected = new Map<
+    TransportHubDefinition,
+    { externalId: string; sourceName: string; rawPayload: unknown }
   >();
 
-  const terminals = await fetchExpressBusTerminals();
   for (const terminal of terminals) {
     const externalId = clean(terminal.nodeid ?? terminal.terminalId);
-    const name = clean(terminal.nodename ?? terminal.terminalNm);
-    if (!externalId || !name || uniqueTerminals.has(externalId)) continue;
-    uniqueTerminals.set(externalId, { externalId, name });
+    const sourceName = clean(terminal.nodename ?? terminal.terminalNm);
+    if (!externalId || !sourceName) continue;
+
+    const definition = findExpressBusHubDefinition(sourceName);
+    if (!definition || selected.has(definition)) continue;
+    selected.set(definition, { externalId, sourceName, rawPayload: terminal });
   }
 
   let synced = 0;
-  for (const terminal of uniqueTerminals.values()) {
-    const existing = await prisma.transportHub.findUnique({
-      where: {
-        source_externalId: {
-          source: "tago_express_bus",
-          externalId: terminal.externalId,
-        },
-      },
-      select: {
-        latitude: true,
-        longitude: true,
-        regionName: true,
-        rawPayload: true,
-      },
-    });
-    const hasCurrentGeocode =
-      existing &&
-      isRecord(existing.rawPayload) &&
-      existing.rawPayload.geocodeVersion === 3;
-    const searched = hasCurrentGeocode
-      ? null
-      : await geocodeTerminal(terminal.name);
-    const location = hasCurrentGeocode
-      ? {
-          latitude: Number(existing!.latitude),
-          longitude: Number(existing!.longitude),
-          region: existing!.regionName ?? undefined,
-        }
-      : searched;
-    if (!location) {
-      console.warn(
-        `좌표를 찾지 못한 고속버스터미널 건너뜀: ${terminal.name} (${terminal.externalId})`,
-      );
+  const skipped: string[] = [];
+  for (const definition of EXPRESS_BUS_HUB_DEFINITIONS) {
+    const terminal = selected.get(definition);
+    if (!terminal) {
+      skipped.push(`${definition.sourceNames[0]} (TAGO 미발견)`);
       continue;
     }
 
-    await prisma.transportHub.upsert({
-      where: {
-        source_externalId: {
-          source: "tago_express_bus",
-          externalId: terminal.externalId,
-        },
-      },
-      create: {
-        source: "tago_express_bus",
-        externalId: terminal.externalId,
-        mode: "express_bus",
-        name: terminal.name,
-        aliases: unique([terminal.name, `${terminal.name} 터미널`]),
-        regionName: location.region,
-        latitude: location.latitude,
-        longitude: location.longitude,
-        rawPayload: { ...terminal, geocodeVersion: 3 },
-        sourceSyncedAt: syncedAt,
-      },
-      update: {
-        name: terminal.name,
-        aliases: unique([terminal.name, `${terminal.name} 터미널`]),
-        cityCode: null,
-        regionName: location.region,
-        latitude: location.latitude,
-        longitude: location.longitude,
-        rawPayload: { ...terminal, geocodeVersion: 3 },
-        isActive: true,
-        sourceSyncedAt: syncedAt,
-      },
+    const verified = await findVerifiedKakaoHub(definition);
+    if (!verified) {
+      skipped.push(`${terminal.sourceName} (${terminal.externalId})`);
+      continue;
+    }
+
+    await upsertVerifiedHub({
+      source: "tago_express_bus",
+      externalId: terminal.externalId,
+      sourceName: terminal.sourceName,
+      definition,
+      verified,
+      rawPayload: terminal.rawPayload,
+      syncedAt,
     });
     synced += 1;
   }
 
+  await deactivateStaleHubs("tago_express_bus", syncedAt);
+  reportSkipped("고속버스터미널", skipped);
+  return {
+    configured: EXPRESS_BUS_HUB_DEFINITIONS.length,
+    discovered: selected.size,
+    synced,
+    skipped: skipped.length,
+  };
+}
+
+async function findVerifiedKakaoHub(definition: TransportHubDefinition) {
+  const candidates = await searchKakaoPlaces(definition.query, 10);
+  const place = selectKakaoHubCandidate(definition, candidates);
+  if (!place) return null;
+
+  return {
+    place,
+    regionName:
+      place.address?.split(/\s+/).slice(0, 2).join(" ") || undefined,
+  };
+}
+
+async function upsertVerifiedHub(input: {
+  source: "tago_train" | "tago_express_bus";
+  externalId: string;
+  sourceName: string;
+  cityCode?: string;
+  definition: TransportHubDefinition;
+  verified: { place: KakaoPlaceSearchResult; regionName?: string };
+  rawPayload: unknown;
+  syncedAt: Date;
+}) {
+  const { place } = input.verified;
+  const data = {
+    sourceName: input.sourceName,
+    mode: input.definition.mode,
+    name: place.name,
+    aliases: unique([
+      input.sourceName,
+      place.name,
+      ...input.definition.sourceNames,
+      ...(input.definition.acceptedNames ?? []),
+    ]),
+    cityCode: input.cityCode ?? null,
+    regionName: input.verified.regionName,
+    kakaoPlaceId: place.id,
+    address: place.address,
+    latitude: place.latitude,
+    longitude: place.longitude,
+    coordinateSource: KAKAO_COORDINATE_SOURCE,
+    coordinateVerifiedAt: input.syncedAt,
+    rawPayload: input.rawPayload as Prisma.InputJsonValue,
+    isActive: true,
+    sourceSyncedAt: input.syncedAt,
+  };
+
+  await prisma.transportHub.upsert({
+    where: {
+      source_externalId: {
+        source: input.source,
+        externalId: input.externalId,
+      },
+    },
+    create: {
+      source: input.source,
+      externalId: input.externalId,
+      ...data,
+    },
+    update: data,
+  });
+}
+
+async function deactivateStaleHubs(source: string, syncedAt: Date) {
   await prisma.transportHub.updateMany({
     where: {
-      source: "tago_express_bus",
+      source,
       sourceSyncedAt: { lt: syncedAt },
       isActive: true,
     },
     data: { isActive: false },
   });
-
-  return synced;
 }
 
-async function geocodeTerminal(name: string) {
-  for (const query of [`${name} 고속버스터미널`, `${name} 버스터미널`]) {
-    const results = await searchKakaoPlaces(query, 5);
-    const result = results.find((candidate) =>
-      /터미널|정류장|정류소|버스/.test(
-        `${candidate.name} ${candidate.categoryName ?? ""}`,
-      ),
-    );
-    if (!result) continue;
-    return {
-      latitude: result.latitude,
-      longitude: result.longitude,
-      region:
-        result.address?.split(/\s+/).slice(0, 2).join(" ") || undefined,
-    };
-  }
-  return null;
-}
-
-async function readStationLocations(): Promise<StationLocation[]> {
-  const text = await readFile(STATION_LOCATION_PATH, "utf8");
-  return text
-    .split(/\r?\n/)
-    .slice(1)
-    .flatMap((line) => {
-      const [region, name, latitudeText, longitudeText] = parseCsvLine(line);
-      const latitude = Number(latitudeText);
-      const longitude = Number(longitudeText);
-      if (!name || !Number.isFinite(latitude) || !Number.isFinite(longitude)) {
-        return [];
-      }
-      return [{ region, name, latitude, longitude }];
-    });
-}
-
-function findStationLocation(name: string, locations: StationLocation[]) {
-  const normalized = normalizeHubName(name);
-  return locations.find(
-    (location) => normalizeHubName(location.name) === normalized,
+function reportSkipped(label: string, skipped: string[]) {
+  if (skipped.length === 0) return;
+  console.warn(
+    `${label} ${skipped.length}곳은 카카오 장소 검증에 실패해 비활성화합니다.`,
   );
-}
-
-async function geocodeHub(query: string) {
-  const result = (await searchKakaoPlaces(query, 3))[0];
-  if (!result) return null;
-  return {
-    latitude: result.latitude,
-    longitude: result.longitude,
-    region: result.address?.split(/\s+/).slice(0, 2).join(" ") || undefined,
-  };
-}
-
-function normalizeHubName(value: string) {
-  return value.normalize("NFC").replace(/[()\s·.역]/g, "").toLowerCase();
-}
-
-function parseCsvLine(line: string) {
-  const values: string[] = [];
-  let value = "";
-  let quoted = false;
-  for (let index = 0; index < line.length; index += 1) {
-    const character = line[index];
-    if (character === '"') {
-      if (quoted && line[index + 1] === '"') {
-        value += '"';
-        index += 1;
-      } else {
-        quoted = !quoted;
-      }
-    } else if (character === "," && !quoted) {
-      values.push(value.trim());
-      value = "";
-    } else {
-      value += character;
-    }
-  }
-  values.push(value.trim());
-  return values;
+  skipped.forEach((item) => console.warn(`- ${item}`));
 }
 
 function clean(value: unknown) {
   return typeof value === "string" && value.trim() ? value.trim() : null;
 }
 
-function unique(values: string[]) {
-  return [...new Set(values.filter(Boolean))];
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
+function unique(values: readonly string[]) {
+  const result = new Map<string, string>();
+  values.filter(Boolean).forEach((value) => {
+    const normalized = normalizeTransportHubName(value);
+    if (!result.has(normalized)) result.set(normalized, value);
+  });
+  return [...result.values()];
 }
 
 main()

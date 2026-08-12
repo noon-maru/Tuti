@@ -18,6 +18,11 @@ enum TransportHubMode {
   express_bus
 }
 
+enum TransportHubCoordinateSource {
+  legacy
+  kakao_map
+}
+
 enum AuthProvider {
   email
   apple
@@ -161,24 +166,31 @@ model Place {
 }
 
 model TransportHub {
-  id           String           @id @default(cuid())
-  source       String
-  externalId   String           @map("external_id")
-  mode         TransportHubMode
-  name         String
-  aliases      String[]         @default([])
-  cityCode     String?          @map("city_code")
-  regionName   String?          @map("region_name")
-  latitude     Decimal          @db.Decimal(9, 6)
-  longitude    Decimal          @db.Decimal(9, 6)
-  rawPayload   Json?            @map("raw_payload")
-  isActive     Boolean          @default(true) @map("is_active")
-  sourceSyncedAt DateTime       @map("source_synced_at")
-  createdAt    DateTime         @default(now()) @map("created_at")
-  updatedAt    DateTime         @updatedAt @map("updated_at")
+  id                   String                       @id @default(cuid())
+  source               String
+  externalId           String                       @map("external_id")
+  sourceName           String                       @map("source_name")
+  mode                 TransportHubMode
+  name                 String
+  aliases              String[]                     @default([])
+  cityCode             String?                      @map("city_code")
+  regionName           String?                      @map("region_name")
+  kakaoPlaceId         String?                      @map("kakao_place_id")
+  address              String?
+  latitude             Decimal                      @db.Decimal(9, 6)
+  longitude            Decimal                      @db.Decimal(9, 6)
+  coordinateSource     TransportHubCoordinateSource @default(legacy) @map("coordinate_source")
+  coordinateVerifiedAt DateTime?                    @map("coordinate_verified_at")
+  rawPayload           Json?                        @map("raw_payload")
+  isActive             Boolean                      @default(true) @map("is_active")
+  sourceSyncedAt       DateTime                     @map("source_synced_at")
+  createdAt            DateTime                     @default(now()) @map("created_at")
+  updatedAt            DateTime                     @updatedAt @map("updated_at")
 
   @@unique([source, externalId])
   @@index([mode, isActive])
+  @@index([coordinateSource, isActive])
+  @@index([kakaoPlaceId])
   @@index([cityCode])
   @@map("transport_hubs")
 }

@@ -5,7 +5,7 @@ import type {
   UserLocation,
 } from "@/shared/tuti/types";
 
-export const RECOMMENDATION_ALGORITHM_VERSION = "long-distance-intent-v8";
+export const RECOMMENDATION_ALGORITHM_VERSION = "verified-transport-hubs-v9";
 
 export type RecommendationErrorCode = "long_distance_unavailable";
 

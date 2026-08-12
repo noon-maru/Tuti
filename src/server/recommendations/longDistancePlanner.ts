@@ -19,16 +19,6 @@ const KOREA_TIME_ZONE = "Asia/Seoul";
 const MINIMUM_LONG_DISTANCE_METERS = 60_000;
 const MAXIMUM_DESTINATION_ACCESS_METERS = 28_000;
 const MINIMUM_STAY_MS = 3 * 60 * 60 * 1_000;
-const HIGH_SPEED_RAIL_HUB_NAMES = new Set([
-  "행신", "서울", "용산", "광명", "청량리", "상봉", "수서",
-  "천안아산", "오송", "대전", "서대전", "공주", "익산", "정읍",
-  "광주송정", "나주", "목포", "전주", "남원", "곡성", "구례구",
-  "순천", "여천", "여수엑스포", "김천구미", "동대구", "경주",
-  "울산", "부산", "구포", "밀양", "창원중앙", "창원", "마산",
-  "진주", "포항", "강릉", "만종", "횡성", "둔내", "평창",
-  "진부", "정동진", "묵호", "동해", "원주", "제천", "단양",
-  "풍기", "영주", "안동", "부전",
-].map(normalizeHubName));
 const scheduleCache = new Map<
   string,
   { expiresAt: number; services: NormalizedService[] }
@@ -44,6 +34,7 @@ const routeCache = new Map<
 type Hub = {
   id: string;
   externalId: string;
+  sourceName: string;
   mode: "rail" | "express_bus";
   name: string;
   latitude: number;
@@ -71,10 +62,16 @@ export async function createLongDistanceRecommendations(
   excludePlaceIds: string[],
 ): Promise<TutiPlace[]> {
   const hubs = (await prisma.transportHub.findMany({
-    where: { isActive: true },
+    where: {
+      isActive: true,
+      coordinateSource: "kakao_map",
+      coordinateVerifiedAt: { not: null },
+      kakaoPlaceId: { not: null },
+    },
     select: {
       id: true,
       externalId: true,
+      sourceName: true,
       mode: true,
       name: true,
       latitude: true,
@@ -84,12 +81,7 @@ export async function createLongDistanceRecommendations(
       ...hub,
       latitude: Number(hub.latitude),
       longitude: Number(hub.longitude),
-    }))
-    .filter(
-      (hub) =>
-        hub.mode === "express_bus" ||
-        HIGH_SPEED_RAIL_HUB_NAMES.has(normalizeHubName(hub.name)),
-    );
+    }));
 
   if (hubs.length === 0) return [];
 
@@ -396,8 +388,8 @@ async function getSchedules(origin: Hub, destination: Hub, date: string) {
     .filter((service) => getDateKey(service.departureAt) === date)
     .filter(
       (service) =>
-        matchesServiceHub(service.departurePlaceName, origin.name) &&
-        matchesServiceHub(service.arrivalPlaceName, destination.name),
+        matchesServiceHub(service.departurePlaceName, origin.sourceName) &&
+        matchesServiceHub(service.arrivalPlaceName, destination.sourceName),
     )
     .sort((left, right) => left.departureAt.getTime() - right.departureAt.getTime());
   scheduleCache.set(key, { expiresAt: Date.now() + 30 * 60_000, services });
@@ -531,7 +523,7 @@ function getHubRoutePriority(hub: Hub) {
         "광주유스퀘어", "전주", "청주고속", "공주",
       ];
   const index = preferred.findIndex(
-    (name) => normalizeHubName(name) === normalizeHubName(hub.name),
+    (name) => normalizeHubName(name) === normalizeHubName(hub.sourceName),
   );
   return index < 0 ? 100 : index;
 }
