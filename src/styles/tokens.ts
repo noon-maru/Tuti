@@ -38,6 +38,9 @@ export const palette = {
     900: "#577F27",
     1000: "#3C591D",
   },
+  accent: {
+    bridge: "#AAD4BB",
+  },
   status: {
     warning: "#9A5C00",
     error: "#C83D4A",
