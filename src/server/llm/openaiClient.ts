@@ -14,6 +14,9 @@ type CreateStructuredResponseInput = {
   schemaName: string;
   schema: object;
   timeoutMs?: number;
+  model?: string;
+  maxOutputTokens?: number;
+  description?: string;
 };
 
 type OpenAITextContent = {
@@ -35,7 +38,10 @@ export async function createStructuredOpenAIResponse({
   userPrompt,
   schemaName,
   schema,
-  timeoutMs = 2500,
+  timeoutMs = 15_000,
+  model,
+  maxOutputTokens = 600,
+  description = "Tuti background interpretation result",
 }: CreateStructuredResponseInput): Promise<unknown | null> {
   const apiKey = process.env.OPENAI_API_KEY?.trim();
 
@@ -55,7 +61,10 @@ export async function createStructuredOpenAIResponse({
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: process.env.OPENAI_STATE_MODEL?.trim() || "gpt-4o-mini",
+        model:
+          model?.trim() ||
+          process.env.OPENAI_PROFILE_MODEL?.trim() ||
+          "gpt-4o-mini",
         input: [
           { role: "system", content: systemPrompt },
           { role: "user", content: userPrompt },
@@ -66,11 +75,11 @@ export async function createStructuredOpenAIResponse({
             name: schemaName,
             strict: true,
             schema,
-            description: "Tuti user state interpretation result",
+            description,
           } satisfies ResponseTextFormat,
         },
         temperature: 0.2,
-        max_output_tokens: 220,
+        max_output_tokens: maxOutputTokens,
       }),
     });
 

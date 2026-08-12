@@ -1,6 +1,10 @@
 import type { TutiPlace } from "@/lib/recommendations";
 import { prisma } from "@/server/db/prisma";
-import { interpretStateWithLlm } from "@/server/llm/stateInterpreter";
+import { interpretState } from "@/lib/recommendations";
+import {
+  personalizeRecommendationRanking,
+  type PersonalizationAudit,
+} from "@/server/personalization/ranking";
 import {
   calculateMovementFatigue,
   rankByMovementFatigue,
@@ -51,16 +55,16 @@ type PlaceRow = {
 export async function createRecommendations(
   answers: IntakeAnswers,
   location?: UserLocation,
-  stateText?: string,
   preferredRegion?: PreferredRegion,
   excludePlaceIds: string[] = [],
+  userId?: string,
 ): Promise<TutiPlace[]> {
   const evaluation = await evaluateRecommendations(
     answers,
     location,
-    stateText,
     preferredRegion,
     excludePlaceIds,
+    userId,
   );
 
   return evaluation.recommendedPlaces;
@@ -75,7 +79,7 @@ export type RecommendationSimulationCandidate = {
 };
 
 export type RecommendationSimulation = {
-  feature: Awaited<ReturnType<typeof interpretStateWithLlm>>;
+  feature: ReturnType<typeof interpretState>;
   sourceCandidateCount: number;
   eligibleCandidateCount: number;
   shortlistCount: number;
@@ -86,14 +90,12 @@ export type RecommendationSimulation = {
 export async function simulateRecommendations(
   answers: IntakeAnswers,
   location?: UserLocation,
-  stateText?: string,
   preferredRegion?: PreferredRegion,
   excludePlaceIds: string[] = [],
 ): Promise<RecommendationSimulation> {
   const evaluation = await evaluateRecommendations(
     answers,
     location,
-    stateText,
     preferredRegion,
     excludePlaceIds,
   );
@@ -131,11 +133,13 @@ export async function simulateRecommendations(
 async function evaluateRecommendations(
   answers: IntakeAnswers,
   location?: UserLocation,
-  stateText?: string,
   preferredRegion?: PreferredRegion,
   excludePlaceIds: string[] = [],
+  userId?: string,
 ) {
-  const feature = await interpretStateWithLlm({ answers, stateText });
+  // 오늘 사용자가 명시적으로 고른 값은 항상 결정론적으로 해석한다.
+  // LLM 프로필은 아래의 후보 순위 보정 단계에서만 비동기로 활용된다.
+  const feature = interpretState(answers);
   if (feature.movement === "far" && location) {
     const longDistancePlaces = requireLongDistanceRecommendations(
       await createLongDistanceRecommendations(
@@ -157,13 +161,19 @@ async function evaluateRecommendations(
           weatherEnrichedPlaces.length,
         )
       : weatherEnrichedPlaces;
+    const personalization = await personalizeRecommendationRanking(
+      conditionedPlaces,
+      answers,
+      userId,
+    );
     return {
       feature,
       sourceCandidateCount: longDistancePlaces.length,
       eligibleCandidateCount: longDistancePlaces.length,
       initialRanking: conditionedPlaces,
-      finalRanking: conditionedPlaces,
-      recommendedPlaces: conditionedPlaces.slice(0, 6),
+      finalRanking: personalization.places,
+      recommendedPlaces: personalization.places.slice(0, 6),
+      personalization: personalization.audit,
     };
   }
 
@@ -209,17 +219,43 @@ async function evaluateRecommendations(
     12,
   );
 
+  const personalization = await personalizeRecommendationRanking(
+    finalRanking,
+    answers,
+    userId,
+  );
   const recommendedPlaces = location
-    ? finalRanking.slice(0, 6)
-    : selectDiverseContentTypes(finalRanking, 6, 2);
+    ? personalization.places.slice(0, 6)
+    : selectDiverseContentTypes(personalization.places, 6, 2);
 
   return {
     feature,
     sourceCandidateCount: places.length,
     eligibleCandidateCount: eligiblePlaces.length,
     initialRanking: rankedPlaces,
-    finalRanking,
+    finalRanking: personalization.places,
     recommendedPlaces,
+    personalization: personalization.audit,
+  };
+}
+
+export async function createRecommendationsWithAudit(
+  answers: IntakeAnswers,
+  location?: UserLocation,
+  preferredRegion?: PreferredRegion,
+  excludePlaceIds: string[] = [],
+  userId?: string,
+): Promise<{ places: TutiPlace[]; personalization: PersonalizationAudit }> {
+  const evaluation = await evaluateRecommendations(
+    answers,
+    location,
+    preferredRegion,
+    excludePlaceIds,
+    userId,
+  );
+  return {
+    places: evaluation.recommendedPlaces,
+    personalization: evaluation.personalization,
   };
 }
 

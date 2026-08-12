@@ -23,6 +23,7 @@ sudo -n /usr/local/sbin/tuti-place-candidate-refresh
 sudo -n /usr/local/sbin/tuti-crowd-forecast-refresh
 sudo -n /usr/local/sbin/tuti-crowd-estimate-refresh
 sudo -n /usr/local/sbin/tuti-tourism-timeseries-refresh
+sudo -n /usr/local/sbin/tuti-llm-profile-refresh
 ```
 
 `tuti-prod-deploy`는 운영용 ops 이미지를 빌드하고 DB 마이그레이션을 적용한 뒤 앱 컨테이너만 다시 빌드·교체한다. 시드는 실행하지 않는다.
@@ -85,6 +86,14 @@ Synology DSM의 **제어판 → 작업 스케줄러**에는 아래 작업을 등
 
 ```sh
 /usr/local/sbin/tuti-place-candidate-refresh
+```
+
+장소 상세정보와 행동 이벤트가 갱신된 뒤 LLM 프로필을 증분 생성한다. 추천 요청
+중에는 외부 LLM을 호출하지 않으며, 기본 shadow 모드에서는 실제 추천 순서도
+바꾸지 않는다. 장소 후보 보강 뒤인 매일 오전 5시 30분 실행을 권장한다.
+
+```sh
+/usr/local/sbin/tuti-llm-profile-refresh
 ```
 
 설치 명령은 저장소 안의 스크립트를 `/usr/local/sbin`에 root 소유 파일로 복사한 뒤, 위 고정 경로만 sudoers에 허용한다. 저장소 파일을 수정해도 이미 설치된 root 스크립트는 자동으로 변경되지 않으므로, 운영 명령의 변경 후에는 설치 명령을 다시 실행해야 한다.

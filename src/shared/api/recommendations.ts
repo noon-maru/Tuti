@@ -5,7 +5,7 @@ import type {
   UserLocation,
 } from "@/shared/tuti/types";
 
-export const RECOMMENDATION_ALGORITHM_VERSION = "verified-transport-hubs-v9";
+export const RECOMMENDATION_ALGORITHM_VERSION = "signal-profile-shadow-v10";
 
 export type RecommendationErrorCode = "long_distance_unavailable";
 
@@ -19,7 +19,6 @@ export type RecommendationRequest = {
   location?: UserLocation;
   preferredRegion?: PreferredRegion;
   excludePlaceIds?: string[];
-  stateText?: string;
   entryStatus?: "answered" | "reused" | "skipped";
 };
 

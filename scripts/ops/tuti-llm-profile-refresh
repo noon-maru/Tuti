@@ -1,0 +1,49 @@
+#!/bin/sh
+
+set -eu
+
+project_dir="/var/services/homes/Tutiadmin/source/Tuti"
+lock_dir="/tmp/tuti-llm-profile-refresh.lock"
+place_limit="${TUTI_LLM_PLACE_LIMIT:-100}"
+user_limit="${TUTI_LLM_USER_LIMIT:-100}"
+
+case "$place_limit:$user_limit" in
+  *[!0-9:]* | 0:* | *:0) echo "LLM 배치 한도는 양의 정수여야 합니다." >&2; exit 1 ;;
+esac
+
+if ! mkdir "$lock_dir" 2>/dev/null; then
+  echo "LLM 프로필 갱신 작업이 이미 실행 중입니다." >&2
+  exit 1
+fi
+trap 'rmdir "$lock_dir" 2>/dev/null || true' EXIT HUP INT TERM
+
+cd "$project_dir"
+
+if ! docker compose -f docker-compose.dev.yml exec -T app \
+  sh -lc 'test -x node_modules/.bin/tsx && test -f scripts/enrich-place-meaning-profiles.ts'; then
+  echo "개발 컨테이너 준비가 필요합니다: sudo -n /usr/local/sbin/tuti-dev-refresh" >&2
+  exit 1
+fi
+
+if ! docker compose --env-file .env.production -f docker-compose.prod.yml \
+  run --rm --no-deps -T ops \
+  sh -lc 'test -x node_modules/.bin/tsx && test -f scripts/enrich-place-meaning-profiles.ts'; then
+  echo "최신 운영 ops 이미지가 필요합니다: sudo -n /usr/local/sbin/tuti-prod-deploy" >&2
+  exit 1
+fi
+
+for target in development production; do
+  if [ "$target" = development ]; then
+    compose="docker compose -f docker-compose.dev.yml exec -T app su node -c"
+  else
+    compose="docker compose --env-file .env.production -f docker-compose.prod.yml run --rm --no-deps -T ops sh -lc"
+  fi
+
+  echo "$target DB 장소 의미 프로필 갱신"
+  $compose "node_modules/.bin/tsx scripts/enrich-place-meaning-profiles.ts --limit '$place_limit' --concurrency 2"
+
+  echo "$target DB 사용자 행동 프로필 갱신"
+  $compose "node_modules/.bin/tsx scripts/refresh-user-signal-profiles.ts --limit '$user_limit'"
+done
+
+echo "개발·운영 LLM 프로필 갱신을 완료했습니다. 추천 요청 중 OpenAI 호출은 발생하지 않습니다."

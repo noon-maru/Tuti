@@ -191,6 +191,19 @@ export async function verifyEmailCode(
           where: { requesterUserId: currentUser.id },
           data: { requesterUserId: existingIdentity.userId },
         }),
+        // 사용자가 명시적으로 병합을 고른 경우에만 익명 행동 신호도 옮긴다.
+        // 기존 계정 프로필은 다음 배치에서 합쳐진 원천 신호로 다시 생성한다.
+        prisma.recommendationAction.updateMany({
+          where: { userId: currentUser.id },
+          data: { userId: existingIdentity.userId },
+        }),
+        prisma.recommendationRun.updateMany({
+          where: { userId: currentUser.id },
+          data: { userId: existingIdentity.userId },
+        }),
+        prisma.userSignalProfile.deleteMany({
+          where: { userId: currentUser.id },
+        }),
         prisma.emailVerificationCode.update({
           where: { id: challenge.id },
           data: { consumedAt: new Date() },

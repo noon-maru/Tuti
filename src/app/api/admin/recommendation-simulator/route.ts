@@ -62,7 +62,6 @@ export async function POST(request: Request) {
   const simulation = await simulateRecommendations(
     input.value.answers,
     input.value.location,
-    input.value.stateText,
     input.value.preferredRegion,
   );
 
@@ -175,10 +174,6 @@ async function readInput(
       areaCode: body.preferredRegion.areaCode,
       name: body.preferredRegion.name,
     };
-  }
-
-  if (typeof body.stateText === "string" && body.stateText.trim()) {
-    value.stateText = body.stateText.trim().slice(0, 500);
   }
 
   return { ok: true, value };

@@ -296,6 +296,17 @@ export async function completeOAuthLogin(input: {
           where: { requesterUserId: authorization.userId },
           data: { requesterUserId: targetUserId },
         }),
+        prisma.recommendationAction.updateMany({
+          where: { userId: authorization.userId },
+          data: { userId: targetUserId },
+        }),
+        prisma.recommendationRun.updateMany({
+          where: { userId: authorization.userId },
+          data: { userId: targetUserId },
+        }),
+        prisma.userSignalProfile.deleteMany({
+          where: { userId: authorization.userId },
+        }),
         prisma.user.delete({
           where: { id: authorization.userId },
         }),

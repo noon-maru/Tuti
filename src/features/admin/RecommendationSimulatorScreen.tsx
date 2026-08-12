@@ -76,7 +76,6 @@ export function RecommendationSimulatorScreen() {
   const [latitude, setLatitude] = useState("37.5665");
   const [longitude, setLongitude] = useState("126.9780");
   const [areaCode, setAreaCode] = useState("1");
-  const [stateText, setStateText] = useState("");
   const [result, setResult] =
     useState<AdminRecommendationSimulationResponse | null>(null);
   const [resultLocationMode, setResultLocationMode] =
@@ -125,7 +124,6 @@ export function RecommendationSimulatorScreen() {
 
     const request: AdminRecommendationSimulationRequest = {
       answers: { movement, air, density, companion, budget },
-      ...(stateText.trim() ? { stateText: stateText.trim() } : {}),
     };
 
     if (locationMode === "location") {
@@ -218,7 +216,6 @@ export function RecommendationSimulatorScreen() {
                 setLatitude("37.5665");
                 setLongitude("126.9780");
                 setAreaCode("1");
-                setStateText("");
               }}
             >
               <TimerReset aria-hidden="true" />
@@ -375,16 +372,6 @@ export function RecommendationSimulatorScreen() {
               ))}
             </CompactOptions>
           </FieldGroup>
-
-          <LabeledInput>
-            <span>추가 상태 문장 · 선택</span>
-            <textarea
-              value={stateText}
-              maxLength={500}
-              placeholder="예: 오늘은 생각을 비우고 조용히 걷고 싶어요."
-              onChange={(event) => setStateText(event.target.value)}
-            />
-          </LabeledInput>
 
           <RunButton type="submit" disabled={loading}>
             <Play aria-hidden="true" />

@@ -188,7 +188,6 @@ export type AdminRecommendationSimulationRequest = {
   answers: IntakeAnswers;
   location?: UserLocation;
   preferredRegion?: PreferredRegion;
-  stateText?: string;
 };
 
 export type AdminRecommendationScoreBreakdown = {

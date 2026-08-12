@@ -3,6 +3,7 @@ import { interpretState } from "@/lib/recommendations";
 import { prisma } from "@/server/db/prisma";
 import { RECOMMENDATION_ALGORITHM_VERSION } from "@/shared/api/recommendations";
 import type { RecommendationRequest } from "@/shared/api/recommendations";
+import type { PersonalizationAudit } from "@/server/personalization/ranking";
 
 type RecordRecommendationRunInput = {
   id: string;
@@ -11,6 +12,7 @@ type RecordRecommendationRunInput = {
   places: TutiPlace[];
   locationUsed: boolean;
   stateTextUsed: boolean;
+  personalization?: PersonalizationAudit;
 };
 
 export async function recordRecommendationRunSafely({
@@ -20,6 +22,7 @@ export async function recordRecommendationRunSafely({
   places,
   locationUsed,
   stateTextUsed,
+  personalization,
 }: RecordRecommendationRunInput) {
   try {
     const answers = request.answers ?? {};
@@ -47,6 +50,7 @@ export async function recordRecommendationRunSafely({
             crowdForecast: place.crowdForecast ?? null,
           })),
         ),
+        personalization: personalization ? toJson(personalization) : undefined,
       },
     });
   } catch (error) {

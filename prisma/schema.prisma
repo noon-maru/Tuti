@@ -154,6 +154,7 @@ model Place {
   crowdEstimates            PlaceCrowdEstimate[]
   journalEntries            JournalEntry[]
   recommendationActions     RecommendationAction[]
+  meaningProfile            PlaceMeaningProfile?
 
   @@unique([source, sourceId])
   @@index([fatigue])
@@ -616,6 +617,7 @@ model User {
   sessions              UserSession[]
   recommendationActions RecommendationAction[]
   recommendationRuns    RecommendationRun[]
+  signalProfile         UserSignalProfile?
 
   @@map("users")
 }
@@ -630,6 +632,7 @@ model RecommendationRun {
   locationUsed     Boolean  @default(false) @map("location_used")
   stateTextUsed    Boolean  @default(false) @map("state_text_used")
   candidates       Json
+  personalization  Json?    @map("personalization")
   createdAt        DateTime @default(now()) @map("created_at")
   user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -637,6 +640,42 @@ model RecommendationRun {
   @@index([algorithmVersion, createdAt])
   @@index([createdAt])
   @@map("recommendation_runs")
+}
+
+model PlaceMeaningProfile {
+  placeId          String   @id @map("place_id")
+  traits           Json
+  confidence       Float
+  evidence         Json
+  sourceFingerprint String  @map("source_fingerprint")
+  model            String
+  profileVersion   String   @map("profile_version")
+  generatedAt      DateTime @map("generated_at")
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+  place            Place    @relation(fields: [placeId], references: [id], onDelete: Cascade)
+
+  @@index([generatedAt])
+  @@index([profileVersion])
+  @@map("place_meaning_profiles")
+}
+
+model UserSignalProfile {
+  userId           String   @id @map("user_id")
+  preferences      Json
+  confidence       Float
+  evidenceCount    Int      @map("evidence_count")
+  sourceCursor     DateTime? @map("source_cursor")
+  model            String
+  profileVersion   String   @map("profile_version")
+  generatedAt      DateTime @map("generated_at")
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([generatedAt])
+  @@index([profileVersion])
+  @@map("user_signal_profiles")
 }
 
 model RecommendationAction {

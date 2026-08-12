@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { authenticateUser } from "@/server/auth/session";
 import { recordRecommendationRunSafely } from "@/server/recommendations/run";
-import { createRecommendations } from "@/server/recommendations/service";
+import { createRecommendationsWithAudit } from "@/server/recommendations/service";
 import {
   LongDistanceRecommendationsUnavailableError,
 } from "@/server/recommendations/longDistanceAvailability";
@@ -34,14 +34,14 @@ export async function POST(request: Request) {
     const location = body.location;
     const preferredRegion = location ? undefined : body.preferredRegion;
     const excludePlaceIds = body.excludePlaceIds ?? [];
-    const stateText = body.stateText;
     const recommendationId = randomUUID();
-    const places = await createRecommendations(
+    const user = await authenticateUser(request);
+    const { places, personalization } = await createRecommendationsWithAudit(
       body.answers ?? {},
       location,
-      stateText,
       preferredRegion,
       excludePlaceIds,
+      user?.id,
     );
     const response: RecommendationResponse = {
       recommendationId,
@@ -49,7 +49,6 @@ export async function POST(request: Request) {
       places,
     };
 
-    const user = await authenticateUser(request);
     if (user) {
       await recordRecommendationRunSafely({
         id: recommendationId,
@@ -57,7 +56,8 @@ export async function POST(request: Request) {
         request: body,
         places,
         locationUsed: Boolean(location),
-        stateTextUsed: Boolean(stateText),
+        stateTextUsed: false,
+        personalization,
       });
     }
 
@@ -112,7 +112,6 @@ function parseRecommendationRequest(value: unknown): RecommendationRequest {
     "location",
     "preferredRegion",
     "excludePlaceIds",
-    "stateText",
     "entryStatus",
   ]);
 
@@ -121,7 +120,6 @@ function parseRecommendationRequest(value: unknown): RecommendationRequest {
     location: normalizeLocation(value.location),
     preferredRegion: normalizePreferredRegion(value.preferredRegion),
     excludePlaceIds: normalizeExcludedPlaceIds(value.excludePlaceIds),
-    stateText: normalizeStateText(value.stateText),
     entryStatus: normalizeEntryStatus(value.entryStatus),
   };
 }
@@ -269,19 +267,6 @@ function normalizeLocation(location: unknown): UserLocation | undefined {
   }
 
   return { latitude, longitude };
-}
-
-function normalizeStateText(stateText: unknown) {
-  if (stateText === undefined) return undefined;
-  if (typeof stateText !== "string") {
-    throw new InvalidRecommendationRequestError(
-      "현재 상태 문장을 확인해주세요.",
-    );
-  }
-
-  const trimmed = stateText.trim();
-
-  return trimmed ? trimmed.slice(0, 400) : undefined;
 }
 
 function normalizeEntryStatus(value: unknown) {
