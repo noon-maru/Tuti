@@ -48,7 +48,7 @@ export function DailyCheckInScreen({
   const [mode, setMode] = useState<CheckInMode>(initialMode);
   const [step, setStep] = useState(0);
   const [draftAnswers, setDraftAnswers] =
-    useState<IntakeAnswers>(previousAnswers);
+    useState<IntakeAnswers>({ movement: "short", ...previousAnswers });
   const [dragY, setDragY] = useState(0);
   const [dragging, setDragging] = useState(false);
   const [closing, setClosing] = useState(false);
@@ -577,6 +577,7 @@ const QuestionCopy = styled.div`
   h2 {
     max-width: 310px;
     font-size: var(--font-size-500);
+    word-break: keep-all;
     white-space: pre-line;
   }
 

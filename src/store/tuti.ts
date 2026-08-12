@@ -130,7 +130,7 @@ type TutiState = {
 export const useTutiStore = create<TutiState>()(
   persist(
     (set) => ({
-      answers: {},
+      answers: { movement: "short" },
       entryRecord: undefined,
       userLocation: undefined,
       locationConsent: undefined,
@@ -331,7 +331,7 @@ export const useTutiStore = create<TutiState>()(
       markHydrated: () => set({ hasHydrated: true }),
       resetIntake: () =>
         set((state) => ({
-          answers: {},
+          answers: { movement: "short" },
           entryRecord: undefined,
           dailyRecommendation: undefined,
           recommendationCycle: state.recommendationCycle + 1,

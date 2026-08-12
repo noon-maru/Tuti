@@ -1,7 +1,7 @@
 export const intakeSteps = [
   {
     key: "movement",
-    question: "오늘,\n바깥에 얼마나 시간을 낼 수 있나요?",
+    question: "오늘,\n바깥에 시간을 낼 수 있을까요?",
     subtitle: "그 안에서 무리 없이 다녀올 곳을 찾아둘게요.",
     options: [
       { value: "near", label: "잠깐", hint: "문밖에 나서는 정도" },

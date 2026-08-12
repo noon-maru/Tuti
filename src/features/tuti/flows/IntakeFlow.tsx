@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { getIntakeSteps } from "@/features/tuti/data/intakeSteps";
 import { IntakeScreen } from "@/features/tuti/screens/intake/IntakeScreen";
 import { useTutiStore } from "@/store/tuti";
@@ -14,6 +14,10 @@ export function IntakeFlow() {
   const [step, setStep] = useState(0);
   const activeSteps = getIntakeSteps(answers);
   const activeStep = activeSteps[step];
+
+  useEffect(() => {
+    if (!answers.movement) setAnswer("movement", "short");
+  }, [answers.movement, setAnswer]);
 
   const chooseAnswer = (value: string) => {
     setAnswer(activeStep.key, value as never);

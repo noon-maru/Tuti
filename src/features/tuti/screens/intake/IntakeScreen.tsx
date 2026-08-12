@@ -306,6 +306,7 @@ const QuestionBlock = styled.div`
   h2 {
     max-width: 320px;
     font-size: var(--font-size-600);
+    word-break: keep-all;
     white-space: pre-line;
   }
 `;
@@ -382,7 +383,9 @@ const ScalePoint = styled.i<{ $level: number }>`
       ? "var(--color-secondary-200)"
       : $level === 1
         ? "var(--color-secondary-500)"
-        : "var(--color-brand-500)"};
+        : $level === 2
+          ? "var(--color-accent-bridge)"
+          : "var(--color-brand-500)"};
   box-shadow: 0 0 0 1px var(--color-border);
 `;
 
@@ -405,7 +408,9 @@ const SliderThumb = styled.i<{
       ? "var(--color-secondary-200)"
       : $level === 1
         ? "var(--color-secondary-500)"
-        : "var(--color-brand-500)"};
+        : $level === 2
+          ? "var(--color-accent-bridge)"
+          : "var(--color-brand-500)"};
   box-shadow:
     0 0 0 1px var(--color-border),
     0 4px 12px rgb(var(--color-black-rgb) / 0.16);
