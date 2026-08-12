@@ -15,6 +15,7 @@ import { useDeferredAnimationStart } from "@/features/tuti/hooks/useDeferredAnim
 import { DeparturePlanScreen } from "@/features/tuti/screens/departure/DeparturePlanScreen";
 import type { TutiPlace } from "@/lib/recommendations";
 import type { DepartureRoute } from "@/shared/api/departurePlan";
+import { fluidByViewportHeight } from "@/styles/tokens";
 
 const PEEK_HEIGHT = 208;
 const SNAP_DURATION = 460;
@@ -321,30 +322,30 @@ export function PeekDeparturePlanScreen({
           <i aria-hidden="true" />
         </HandleButton>
 
-        <PreviewButton
-          type="button"
+        <PreviewPanel
           data-sheet-drag-region
           $progress={progress}
           aria-hidden={expanded}
-          tabIndex={expanded ? -1 : 0}
-          onClick={toggleFromClick}
         >
           <PreviewImage $image={place.image} aria-hidden="true" />
-          <PreviewCopy>
-            <small>출발 준비</small>
-            <strong>{place.name}</strong>
-            <TravelBadge aria-live="polite">{travelTimeLabel}</TravelBadge>
-            <GestureHint
+          <PreviewDetails>
+            <PreviewCopy>
+              <strong>{place.name}</strong>
+              <TravelBadge aria-live="polite">{travelTimeLabel}</TravelBadge>
+            </PreviewCopy>
+            <PrepareButton
+              type="button"
               $guided={expansionGuideVisible && !expanded}
-              aria-live={expansionGuideVisible ? "polite" : undefined}
+              tabIndex={expanded ? -1 : 0}
+              aria-label={`${place.name} 출발 준비 펼치기`}
+              onPointerDown={(event) => event.stopPropagation()}
+              onClick={expandSheet}
             >
-              {expansionGuideVisible
-                ? "위로 올려 전체 출발 준비 보기"
-                : "위로 올려 출발 준비하기"}
+              출발 준비하기
               <ChevronUp aria-hidden="true" />
-            </GestureHint>
-          </PreviewCopy>
-        </PreviewButton>
+            </PrepareButton>
+          </PreviewDetails>
+        </PreviewPanel>
 
         <ContentLayer
           data-departure-content
@@ -483,14 +484,17 @@ const HandleButton = styled(BaseButton)`
   }
 `;
 
-const PreviewButton = styled(BaseButton)<{ $progress: number }>`
+const PreviewPanel = styled.div<{ $progress: number }>`
+  --preview-image-size: ${fluidByViewportHeight(96, 116)};
+
   position: absolute;
   inset: var(--space-8) 0 auto;
   z-index: 3;
   width: 100%;
   min-height: ${PEEK_HEIGHT - 32}px;
   display: grid;
-  grid-template-columns: var(--space-16) minmax(0, 1fr);
+  grid-template-columns: var(--preview-image-size) minmax(0, 1fr);
+  align-content: center;
   align-items: center;
   gap: var(--space-4);
   padding: var(--space-3) var(--space-5)
@@ -513,15 +517,10 @@ const PreviewButton = styled(BaseButton)<{ $progress: number }>`
   &:active {
     cursor: grabbing;
   }
-
-  &:focus-visible {
-    outline: 2px solid var(--color-brand-500);
-    outline-offset: -4px;
-  }
 `;
 
 const PreviewImage = styled.div<{ $image: string }>`
-  width: var(--space-16);
+  width: var(--preview-image-size);
   aspect-ratio: 1;
   border: 1px solid var(--color-neutral-300);
   border-radius: 18px;
@@ -542,13 +541,6 @@ const PreviewCopy = styled.div`
   display: grid;
   gap: var(--space-1);
 
-  small {
-    color: var(--color-brand-700);
-    font-size: var(--font-size-100);
-    font-weight: 700;
-    line-height: var(--line-height-body);
-  }
-
   strong {
     overflow: hidden;
     font-size: var(--font-size-400);
@@ -559,14 +551,19 @@ const PreviewCopy = styled.div`
   }
 `;
 
+const PreviewDetails = styled.div`
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--space-2);
+`;
+
 const TravelBadge = styled.span`
   width: fit-content;
-  padding: var(--space-1) var(--space-2);
-  border-radius: 999px;
-  background: var(--color-brand-100);
-  color: var(--color-brand-900);
+  color: var(--color-brand-700);
   font-size: var(--font-size-100);
-  font-weight: 600;
+  font-weight: 700;
   line-height: var(--line-height-body);
 `;
 
@@ -581,25 +578,42 @@ const guideLift = keyframes`
   }
 `;
 
-const GestureHint = styled.span<{ $guided: boolean }>`
-  width: fit-content;
+const PrepareButton = styled(BaseButton)<{ $guided: boolean }>`
+  min-height: var(--space-9);
+  align-self: flex-end;
+  flex: 0 0 auto;
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: var(--space-1);
-  margin-top: var(--space-1);
-  padding: var(--space-1) var(--space-2);
+  padding: var(--space-1) var(--space-4);
   border-radius: 999px;
-  background: var(--color-secondary-200);
-  color: var(--color-secondary-1000);
+  background: var(--color-secondary-500);
+  color: var(--color-black);
   font-size: var(--font-size-100);
-  font-weight: 600;
+  font-weight: 700;
   line-height: var(--line-height-body);
+  white-space: nowrap;
   box-shadow: ${({ $guided }) =>
     $guided
       ? "0 0 0 4px color-mix(in srgb, var(--color-secondary-300) 48%, transparent)"
       : "none"};
   animation: ${({ $guided }) =>
     $guided ? css`${guideLift} 1200ms ease-in-out infinite` : "none"};
+  transition: background 180ms ease, transform 180ms ease;
+
+  &:hover {
+    background: var(--color-secondary-600);
+  }
+
+  &:active {
+    transform: scale(0.97);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--color-brand-500);
+    outline-offset: 2px;
+  }
 
   svg {
     width: var(--space-4);
