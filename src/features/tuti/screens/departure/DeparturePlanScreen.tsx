@@ -947,7 +947,15 @@ const ScrollContent = styled.div`
   overflow-y: auto;
   padding: 0 1px var(--space-6);
   overscroll-behavior: contain;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
   touch-action: pan-y;
+
+  &::-webkit-scrollbar {
+    display: none;
+    width: 0;
+    height: 0;
+  }
 `;
 
 const PlaceSummary = styled.div`
