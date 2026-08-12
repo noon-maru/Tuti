@@ -113,7 +113,7 @@ export function SavedDeparturePlacesSheet({
       >
         <DragHandle
           type="button"
-          aria-label="다음에 갈 곳 바텀시트 움직이기"
+          aria-label="다음에 갈 공간 바텀시트 움직이기"
           onPointerDown={startDrag}
           onPointerMove={updateDrag}
           onPointerUp={finishDrag}
@@ -124,8 +124,8 @@ export function SavedDeparturePlacesSheet({
 
         <Header>
           <div>
-            <small>부담 없이 남겨둔 곳</small>
-            <h2 id="saved-departure-title">다음에 갈 곳</h2>
+            <small>부담 없이 남겨둔 공간</small>
+            <h2 id="saved-departure-title">다음에 갈 공간</h2>
           </div>
         </Header>
 
@@ -142,12 +142,12 @@ export function SavedDeparturePlacesSheet({
                   <strong>{place.placeName}</strong>
                   <p>
                     {place.placePhrase ||
-                      "다음에 가볍게 만나볼 수 있도록 남겨둔 곳"}
+                      "다음에 가볍게 만나볼 수 있도록 남겨둔 공간"}
                   </p>
                 </PlaceCopy>
                 <RemoveButton
                   type="button"
-                  aria-label={`${place.placeName} 다음에 갈 곳에서 삭제`}
+                  aria-label={`${place.placeName} 다음에 갈 공간에서 삭제`}
                   onClick={() => onRemove(place.placeId)}
                 >
                   <Trash2 aria-hidden="true" />
@@ -165,9 +165,9 @@ export function SavedDeparturePlacesSheet({
         ) : (
           <EmptyState>
             <Bookmark aria-hidden="true" />
-            <strong>아직 남겨둔 곳이 없어요.</strong>
+            <strong>아직 남겨둔 공간이 없어요.</strong>
             <p>
-              길찾기 후 `다음에 갈 곳으로 남겨두기`를 선택하면 여기에
+              길찾기 후 `다음에 갈 공간으로 남겨두기`를 선택하면 여기에
               모아둘게요.
             </p>
           </EmptyState>

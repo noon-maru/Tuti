@@ -138,7 +138,7 @@ export function DepartureReturnSheet({
               아직이에요
             </NotYetButton>
             <LaterButton type="button" onClick={() => closeWith(onLater)}>
-              다음에 갈 곳으로 남겨두기
+              다음에 갈 공간으로 남겨두기
             </LaterButton>
           </Actions>
         </Content>

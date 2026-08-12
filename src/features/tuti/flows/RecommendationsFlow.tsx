@@ -581,7 +581,7 @@ export function RecommendationsFlow({ interactive }: { interactive: boolean }) {
             image: selectedSavedPlace.placeImage || "",
             phrase:
               selectedSavedPlace.placePhrase ||
-              "다음에 가볍게 만나보려고 남겨둔 곳",
+              "다음에 가볍게 만나보려고 남겨둔 공간",
           }}
           onNavigationStart={(route) =>
             startNavigation(
@@ -591,7 +591,7 @@ export function RecommendationsFlow({ interactive }: { interactive: boolean }) {
                 image: selectedSavedPlace.placeImage || "",
                 phrase:
                   selectedSavedPlace.placePhrase ||
-                  "다음에 가볍게 만나보려고 남겨둔 곳",
+                  "다음에 가볍게 만나보려고 남겨둔 공간",
               },
               route,
               selectedSavedPlace.journeyId,

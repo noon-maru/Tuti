@@ -613,8 +613,8 @@ export function RecommendationsScreen({
                     },
                     {
                       label: savedPlacesCount
-                        ? `다음에 갈 곳 (${savedPlacesCount})`
-                        : "다음에 갈 곳",
+                        ? `다음에 갈 공간 (${savedPlacesCount})`
+                        : "다음에 갈 공간",
                       onSelect: onSavedPlaces,
                     },
                     {
@@ -642,8 +642,8 @@ export function RecommendationsScreen({
                     },
                     {
                       label: savedPlacesCount
-                        ? `다음에 갈 곳 (${savedPlacesCount})`
-                        : "다음에 갈 곳",
+                        ? `다음에 갈 공간 (${savedPlacesCount})`
+                        : "다음에 갈 공간",
                       onSelect: onSavedPlaces,
                     },
                     {
