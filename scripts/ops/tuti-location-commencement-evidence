@@ -1,0 +1,114 @@
+#!/bin/sh
+
+set -eu
+
+project_dir="/var/services/homes/Tutiadmin/source/Tuti"
+evidence_dir="$project_dir/.compliance-evidence/location-service-commencement-2026-08-03/server"
+admin_user="${SUDO_USER:-Tutiadmin}"
+collected_at="$(date '+%Y%m%d-%H%M%S%z')"
+
+case "$admin_user" in
+  *[!A-Za-z0-9_-]* | "")
+    echo "증빙 파일 소유자 이름이 올바르지 않습니다." >&2
+    exit 1
+    ;;
+esac
+
+umask 077
+mkdir -p "$evidence_dir"
+cd "$project_dir"
+
+query_file="$evidence_dir/db-aggregate-$collected_at.sql"
+result_file="$evidence_dir/db-aggregate-$collected_at.txt"
+status_file="$evidence_dir/container-status-$collected_at.txt"
+
+cat >"$query_file" <<'SQL'
+\pset footer off
+\pset null '(none)'
+\pset format aligned
+
+WITH events AS (
+  SELECT 'users'::text AS dataset, created_at, false AS location_used FROM users
+  UNION ALL
+  SELECT 'user_sessions', created_at, false FROM user_sessions
+  UNION ALL
+  SELECT 'auth_identities', created_at, false FROM auth_identities
+  UNION ALL
+  SELECT 'journal_entries', created_at, false FROM journal_entries
+  UNION ALL
+  SELECT 'recommendation_runs', created_at, location_used FROM recommendation_runs
+  UNION ALL
+  SELECT 'recommendation_actions', created_at, false FROM recommendation_actions
+  UNION ALL
+  SELECT 'customer_inquiries', created_at, false FROM customer_inquiries
+  UNION ALL
+  SELECT 'content_reports', created_at, false FROM content_reports
+  UNION ALL
+  SELECT 'system_logs', created_at, false FROM system_logs
+), boundaries AS (
+  SELECT
+    TIMESTAMPTZ '2026-08-03 00:00:00+09' AS day_start,
+    TIMESTAMPTZ '2026-08-03 16:31:56+09' AS consent_commit,
+    TIMESTAMPTZ '2026-08-04 00:00:00+09' AS day_end
+)
+SELECT
+  dataset,
+  COUNT(*) FILTER (WHERE created_at < day_start) AS before_august_3,
+  COUNT(*) FILTER (
+    WHERE created_at >= day_start AND created_at < consent_commit
+  ) AS august_3_before_consent_commit,
+  COUNT(*) FILTER (
+    WHERE created_at >= consent_commit AND created_at < day_end
+  ) AS august_3_after_consent_commit,
+  COUNT(*) FILTER (WHERE created_at >= day_end) AS after_august_3,
+  COUNT(*) FILTER (WHERE location_used) AS location_used_total,
+  MIN(created_at) AS earliest_record,
+  MAX(created_at) AS latest_record
+FROM events
+CROSS JOIN boundaries
+GROUP BY dataset
+ORDER BY dataset;
+SQL
+
+{
+  echo "Tuti 위치기반서비스 사업개시일 보조 DB 집계"
+  echo "수집 시각: $(date --iso-8601=seconds)"
+  echo "기준 시각: 2026-08-03 16:31:56+09:00"
+  echo
+  echo "주의: 집계 결과는 현재 DB 상태만 보여주며 과거 접근의 부재를 단독으로 증명하지 않습니다."
+  echo "원본 좌표, 사용자 ID, 이메일, 토큰은 출력하지 않습니다."
+  echo
+
+  for target in development production; do
+    echo "===== $target ====="
+    if [ "$target" = development ]; then
+      docker compose -f docker-compose.dev.yml exec -T db \
+        sh -lc 'psql -v ON_ERROR_STOP=1 -U "$POSTGRES_USER" -d "$POSTGRES_DB"' \
+        <"$query_file"
+    else
+      docker compose --env-file .env.production -f docker-compose.prod.yml \
+        exec -T db \
+        sh -lc 'psql -v ON_ERROR_STOP=1 -U "$POSTGRES_USER" -d "$POSTGRES_DB"' \
+        <"$query_file"
+    fi
+    echo
+  done
+} >"$result_file"
+
+{
+  echo "수집 시각: $(date --iso-8601=seconds)"
+  echo
+  echo "===== production ====="
+  docker compose --env-file .env.production -f docker-compose.prod.yml ps
+  echo
+  echo "===== development ====="
+  docker compose -f docker-compose.dev.yml ps
+} >"$status_file"
+
+rm -f "$query_file"
+chown "$admin_user" "$result_file" "$status_file"
+chmod 0600 "$result_file" "$status_file"
+
+echo "개인정보를 포함하지 않은 집계 증빙을 생성했습니다."
+echo "$result_file"
+echo "$status_file"

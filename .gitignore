@@ -25,6 +25,7 @@
 /build
 /.ops-backups/
 /.ops-state/
+/.compliance-evidence/
 
 # misc
 .DS_Store
