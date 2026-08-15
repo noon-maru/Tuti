@@ -20,6 +20,8 @@ import type {
   AdminInquiryItem,
   AdminLogItem,
   AdminLogsResponse,
+  AdminLocationHistoryResponse,
+  AdminLocationUsageItem,
   AdminOverview,
   AdminOverviewResponse,
   AdminPlaceItem,
@@ -38,6 +40,7 @@ export type AdminTab =
   | "overview"
   | "funnel"
   | "logs"
+  | "location"
   | "places"
   | "reports"
   | "inquiries"
@@ -48,6 +51,7 @@ const tabs: Array<{ id: AdminTab; label: string }> = [
   { id: "overview", label: "대시보드" },
   { id: "funnel", label: "추천 퍼널" },
   { id: "logs", label: "로그" },
+  { id: "location", label: "위치 확인자료" },
   { id: "places", label: "장소" },
   { id: "reports", label: "신고" },
   { id: "inquiries", label: "1:1 문의" },
@@ -66,6 +70,7 @@ const mobileMoreTabs: Array<{ id: AdminTab; label: string }> = [
   { id: "funnel", label: "추천 행동 퍼널" },
   { id: "users", label: "사용자 및 권한" },
   { id: "logs", label: "시스템 로그" },
+  { id: "location", label: "위치정보 확인자료" },
   { id: "settings", label: "운영 설정" },
 ];
 
@@ -157,6 +162,8 @@ export function AdminScreen({
     useState<AdminRecommendationFunnelResponse | null>(null);
   const [funnelDays, setFunnelDays] = useState(30);
   const [logs, setLogs] = useState<AdminLogItem[]>([]);
+  const [locationLogs, setLocationLogs] = useState<AdminLocationUsageItem[]>([]);
+  const [locationLogTotal, setLocationLogTotal] = useState(0);
   const [places, setPlaces] = useState<AdminPlaceItem[]>([]);
   const [placesMeta, setPlacesMeta] = useState<AdminPlacesMeta | null>(null);
   const [reports, setReports] = useState<AdminReportItem[]>([]);
@@ -279,6 +286,10 @@ export function AdminScreen({
     if (appliedQuery) searchParams.set("q", appliedQuery);
 
     if (tab === "logs" && filter) searchParams.set("level", filter);
+    if (tab === "location" && filter) {
+      const [filterType, filterValue] = filter.split(":", 2);
+      if (filterType && filterValue) searchParams.set(filterType, filterValue);
+    }
     if (tab === "places") {
       searchParams.set("candidate", placeFilters.candidate);
       if (placeFilters.reviewStatus) {
@@ -318,6 +329,12 @@ export function AdminScreen({
         `logs${suffix}`,
       );
       setLogs(response.logs);
+    } else if (tab === "location") {
+      const response = await fetchAdminJson<AdminLocationHistoryResponse>(
+        `location-history${suffix}`,
+      );
+      setLocationLogs(response.logs);
+      setLocationLogTotal(response.total);
     } else if (tab === "places") {
       const response = await fetchAdminJson<AdminPlacesResponse>(
         `places${suffix}`,
@@ -568,6 +585,8 @@ export function AdminScreen({
           />
         ) : tab === "logs" ? (
           <LogsPanel logs={logs} />
+        ) : tab === "location" ? (
+          <LocationLogsPanel logs={locationLogs} total={locationLogTotal} />
         ) : tab === "places" ? (
           <PlacesPanel
             places={places}
@@ -990,6 +1009,70 @@ function LogsPanel({ logs }: { logs: AdminLogItem[] }) {
       ))}
     </CardList>
   );
+}
+
+function LocationLogsPanel({
+  logs,
+  total,
+}: {
+  logs: AdminLocationUsageItem[];
+  total: number;
+}) {
+  if (logs.length === 0) {
+    return <StatePanel>조건에 맞는 위치정보 확인자료가 없습니다.</StatePanel>;
+  }
+
+  return (
+    <CardList>
+      <LocationLogSummary>
+        <strong>{total.toLocaleString("ko-KR")}건</strong>
+        <span>최근 기록은 최대 200건까지 표시하며 원본 위도·경도는 기록하지 않습니다.</span>
+      </LocationLogSummary>
+      {logs.map((log) => (
+        <DataCard key={log.id}>
+          <CardTop>
+            <StatusBadge $tone={log.kind === "external_transfer" ? "warning" : "info"}>
+              {log.kind === "external_transfer" ? "외부 전달" : "내부 이용"}
+            </StatusBadge>
+            <Time>{formatDate(log.occurredAt)}</Time>
+          </CardTop>
+          <h2>
+            {log.kind === "external_transfer"
+              ? log.externalRecipient ?? "외부 서비스"
+              : getLocationServiceLabel(log.service)}
+          </h2>
+          <Meta>
+            {log.acquisitionSource === "photo_exif" ? "사진 촬영 위치" : "기기 현재 위치"}
+            {log.userId ? ` · 사용자 ${log.userId}` : " · 삭제된 사용자"}
+          </Meta>
+          <details>
+            <summary>확인자료 상세</summary>
+            <Code>
+              {JSON.stringify(
+                {
+                  처리경로: log.method,
+                  외부처리목적: log.externalPurpose,
+                  외부처리모드: log.externalMode,
+                  보존만료: formatDate(log.retentionUntil),
+                },
+                null,
+                2,
+              )}
+            </Code>
+          </details>
+        </DataCard>
+      ))}
+    </CardList>
+  );
+}
+
+function getLocationServiceLabel(service: AdminLocationUsageItem["service"]) {
+  return {
+    recommendation: "장소 추천",
+    travel_time: "이동시간 확인",
+    departure_plan: "출발 계획",
+    photo_nearby: "사진 주변 장소 찾기",
+  }[service];
 }
 
 function PlacesToolbar({
@@ -1813,6 +1896,20 @@ function getFilterOptions(tab: AdminTab) {
     ];
   }
 
+  if (tab === "location") {
+    return [
+      { value: "", label: "전체 기록" },
+      { value: "kind:internal_use", label: "내부 이용" },
+      { value: "kind:external_transfer", label: "외부 전달" },
+      { value: "service:recommendation", label: "장소 추천" },
+      { value: "service:travel_time", label: "이동시간" },
+      { value: "service:departure_plan", label: "출발 계획" },
+      { value: "service:photo_nearby", label: "사진 위치" },
+      { value: "days:7", label: "최근 7일" },
+      { value: "days:30", label: "최근 30일" },
+    ];
+  }
+
   if (tab === "places") {
     return [
       { value: "", label: "전체 상태" },
@@ -1853,6 +1950,7 @@ export function normalizeAdminTab(value: unknown): AdminTab {
 
 function getSearchPlaceholder(tab: AdminTab) {
   if (tab === "logs") return "메시지, 작업, 사용자 ID 검색";
+  if (tab === "location") return "사용자 ID, 외부 제공자 또는 처리 경로 검색";
   if (tab === "places") return "장소명, 장소 ID, 공공데이터 ID 검색";
   if (tab === "reports") return "제목, 신고 내용, 사용자 ID 검색";
   if (tab === "inquiries") {
@@ -2958,6 +3056,31 @@ const DataCard = styled.article`
     &:nth-of-type(3n) {
       background: var(--color-secondary-100);
     }
+  }
+`;
+
+const LocationLogSummary = styled.div`
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-4);
+  padding: var(--space-4) var(--space-5);
+  border: 1px solid var(--color-secondary-300);
+  border-radius: 20px;
+  background: var(--color-secondary-100);
+
+  strong {
+    font-size: var(--font-size-300);
+  }
+
+  span {
+    color: var(--color-text-secondary);
+    font-size: var(--font-size-100);
+  }
+
+  @media (max-width: 480px) {
+    align-items: flex-start;
+    flex-direction: column;
   }
 `;
 

@@ -430,6 +430,7 @@ export function RecommendationsFlow({ interactive }: { interactive: boolean }) {
         onAdmin={() => router.push("/admin")}
         onInquiry={() => router.push("/inquiry")}
         onLocationSettings={() => router.push("/location")}
+        onLegal={() => router.push("/legal")}
         onSavedPlaces={() => setSavedPlacesOpen(true)}
         savedPlacesCount={savedDeparturePlaces.length}
         onDepartureOpen={(place, variant) => {

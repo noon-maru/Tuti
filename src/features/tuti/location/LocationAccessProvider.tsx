@@ -27,6 +27,7 @@ import { useTutiStore } from "@/store/tuti";
 
 type LocationAccessContextValue = {
   requestLocation: () => Promise<LocationRequestResult>;
+  pauseLocation: () => Promise<void>;
   withdrawLocation: () => Promise<void>;
   requesting: boolean;
 };
@@ -43,13 +44,20 @@ export function LocationAccessProvider({
   const queryClient = useQueryClient();
   const userLocation = useTutiStore((state) => state.userLocation);
   const locationConsent = useTutiStore((state) => state.locationConsent);
+  const hasHydrated = useTutiStore((state) => state.hasHydrated);
   const setUserLocation = useTutiStore((state) => state.setUserLocation);
   const clearUserLocation = useTutiStore((state) => state.clearUserLocation);
   const acceptLocationConsent = useTutiStore(
     (state) => state.acceptLocationConsent,
   );
+  const syncLocationConsent = useTutiStore(
+    (state) => state.syncLocationConsent,
+  );
   const declineLocationConsent = useTutiStore(
     (state) => state.declineLocationConsent,
+  );
+  const pauseLocationConsent = useTutiStore(
+    (state) => state.pauseLocationConsent,
   );
   const withdrawLocationConsent = useTutiStore(
     (state) => state.withdrawLocationConsent,
@@ -91,6 +99,27 @@ export function LocationAccessProvider({
 
     void readLocationPermission().then(setLocationPermissionStatus);
   }, [locationConsent, setLocationPermissionStatus]);
+
+  useEffect(() => {
+    if (!hasHydrated) return;
+
+    void fetchLocationConsent()
+      .then((serverConsent) => {
+        const localConsent = consentRef.current;
+        syncLocationConsent(
+          serverConsent
+            ? {
+                status: serverConsent.status,
+                termsVersion: serverConsent.termsVersion,
+                updatedAt: serverConsent.updatedAt,
+              }
+            : localConsent?.status === "accepted"
+              ? undefined
+              : localConsent,
+        );
+      })
+      .catch(() => null);
+  }, [hasHydrated, syncLocationConsent]);
 
   const clearLocationQueries = useCallback(() => {
     queryClient.removeQueries({ queryKey: ["departure-plan"] });
@@ -241,9 +270,15 @@ export function LocationAccessProvider({
     clearLocationQueries();
   }, [clearLocationQueries, withdrawLocationConsent]);
 
+  const pauseLocation = useCallback(async () => {
+    await updateLocationConsent("paused");
+    pauseLocationConsent();
+    clearLocationQueries();
+  }, [clearLocationQueries, pauseLocationConsent]);
+
   const value = useMemo(
-    () => ({ requestLocation, requesting, withdrawLocation }),
-    [requestLocation, requesting, withdrawLocation],
+    () => ({ requestLocation, requesting, pauseLocation, withdrawLocation }),
+    [requestLocation, requesting, pauseLocation, withdrawLocation],
   );
 
   return (

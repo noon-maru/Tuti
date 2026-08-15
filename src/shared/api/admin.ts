@@ -40,6 +40,25 @@ export type AdminLogItem = {
   createdAt: string;
 };
 
+export type AdminLocationUsageItem = {
+  id: string;
+  userId: string | null;
+  acquisitionSource: "device" | "photo_exif";
+  service: "recommendation" | "travel_time" | "departure_plan" | "photo_nearby";
+  kind: "internal_use" | "external_transfer";
+  method: string;
+  externalRecipient: string | null;
+  externalPurpose: string | null;
+  externalMode: string | null;
+  occurredAt: string;
+  retentionUntil: string;
+};
+
+export type AdminLocationHistoryResponse = {
+  logs: AdminLocationUsageItem[];
+  total: number;
+};
+
 export type AdminPlaceItem = {
   id: string;
   name: string;

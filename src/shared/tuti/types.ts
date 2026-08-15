@@ -28,6 +28,7 @@ export type PreferredRegion = {
 
 export type LocationConsentStatus =
   | "accepted"
+  | "paused"
   | "declined"
   | "withdrawn";
 

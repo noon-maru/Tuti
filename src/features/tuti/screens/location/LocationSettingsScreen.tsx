@@ -1,6 +1,7 @@
 "use client";
 
 import styled from "@emotion/styled";
+import Link from "next/link";
 import {
   ChevronLeft,
   LocateFixed,
@@ -13,6 +14,7 @@ import {
   PrimaryButton,
 } from "@/features/tuti/components/buttons";
 import { ScreenFrame } from "@/features/tuti/components/ScreenFrame";
+import { LocationHistorySection } from "@/features/tuti/components/LocationHistorySection";
 import type {
   LocationConsentRecord,
   LocationPermissionStatus,
@@ -26,6 +28,7 @@ export function LocationSettingsScreen({
   requesting,
   onBack,
   onEnable,
+  onPause,
   onWithdraw,
 }: {
   consent?: LocationConsentRecord;
@@ -34,6 +37,7 @@ export function LocationSettingsScreen({
   requesting: boolean;
   onBack: () => void;
   onEnable: () => Promise<boolean>;
+  onPause: () => Promise<boolean>;
   onWithdraw: () => Promise<boolean | null>;
 }) {
   const [message, setMessage] = useState<string | null>(null);
@@ -64,6 +68,16 @@ export function LocationSettingsScreen({
       withdrawn
         ? "위치정보 이용 동의를 철회했어요."
         : "동의 철회를 기록하지 못했어요. 연결을 확인한 뒤 다시 시도해주세요.",
+    );
+  };
+
+  const pauseLocation = async () => {
+    setMessage(null);
+    const paused = await onPause();
+    setMessage(
+      paused
+        ? "위치정보 이용을 잠시 멈췄어요. 원할 때 다시 시작할 수 있어요."
+        : "위치 이용을 중지하지 못했어요. 연결을 확인한 뒤 다시 시도해주세요.",
     );
   };
 
@@ -101,12 +115,17 @@ export function LocationSettingsScreen({
             </EnableButton>
           )}
           {consent?.status === "accepted" && (
-            <WithdrawButton
-              type="button"
-              onClick={() => void withdrawLocation()}
-            >
-              위치정보 이용 동의 철회
-            </WithdrawButton>
+            <>
+              <PauseButton type="button" onClick={() => void pauseLocation()}>
+                위치 사용 잠시 멈추기
+              </PauseButton>
+              <WithdrawButton
+                type="button"
+                onClick={() => void withdrawLocation()}
+              >
+                위치정보 이용 동의 철회
+              </WithdrawButton>
+            </>
           )}
         </Actions>
 
@@ -120,6 +139,13 @@ export function LocationSettingsScreen({
             </p>
           </div>
         </PrivacySummary>
+
+        <LocationHistorySection />
+
+        <LegalLinks aria-label="법적 문서">
+          <Link href="/legal/privacy">개인정보 처리방침</Link>
+          <Link href="/legal/location-terms">공개 위치약관</Link>
+        </LegalLinks>
 
         <TermsArea>
           <TermsHeading>
@@ -186,6 +212,13 @@ function resolveLocationState({
     return {
       title: "위치 사용을 중지했어요.",
       description: "다시 동의하기 전에는 현재 위치를 요청하지 않아요.",
+    };
+  }
+
+  if (consent?.status === "paused") {
+    return {
+      title: "위치 사용을 잠시 멈췄어요.",
+      description: "다시 시작하기 전에는 현재 위치를 요청하지 않아요.",
     };
   }
 
@@ -310,6 +343,16 @@ const EnableButton = styled(PrimaryButton)`
   }
 `;
 
+const PauseButton = styled(BaseButton)`
+  min-height: var(--space-12);
+  border: 1px solid var(--color-secondary-500);
+  border-radius: 999px;
+  background: var(--color-secondary-100);
+  color: var(--color-text-primary);
+  font-size: var(--font-size-100);
+  font-weight: 600;
+`;
+
 const WithdrawButton = styled(BaseButton)`
   min-height: var(--space-12);
   border: 1px solid var(--color-border);
@@ -326,6 +369,21 @@ const Feedback = styled.p`
   background: var(--color-brand-100);
   color: var(--color-brand-1000);
   font-size: var(--font-size-100);
+`;
+
+const LegalLinks = styled.nav`
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+
+  a {
+    padding: var(--space-2) var(--space-4);
+    border: 1px solid var(--color-border);
+    border-radius: 999px;
+    color: var(--color-text-secondary);
+    font-size: var(--font-size-100);
+    text-decoration: none;
+  }
 `;
 
 const PrivacySummary = styled.section`

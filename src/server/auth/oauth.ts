@@ -304,6 +304,10 @@ export async function completeOAuthLogin(input: {
           where: { userId: authorization.userId },
           data: { userId: targetUserId },
         }),
+        prisma.locationUsageLog.updateMany({
+          where: { userId: authorization.userId },
+          data: { userId: targetUserId },
+        }),
         prisma.userSignalProfile.deleteMany({
           where: { userId: authorization.userId },
         }),

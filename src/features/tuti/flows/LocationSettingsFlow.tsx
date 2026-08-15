@@ -7,7 +7,7 @@ import { useTutiStore } from "@/store/tuti";
 
 export function LocationSettingsFlow() {
   const router = useRouter();
-  const { requestLocation, requesting, withdrawLocation } =
+  const { requestLocation, requesting, pauseLocation, withdrawLocation } =
     useLocationAccess();
   const userLocation = useTutiStore((state) => state.userLocation);
   const locationConsent = useTutiStore((state) => state.locationConsent);
@@ -25,6 +25,14 @@ export function LocationSettingsFlow() {
       onEnable={async () => {
         const result = await requestLocation();
         return result.status === "ready";
+      }}
+      onPause={async () => {
+        try {
+          await pauseLocation();
+          return true;
+        } catch {
+          return false;
+        }
       }}
       onWithdraw={async () => {
         if (

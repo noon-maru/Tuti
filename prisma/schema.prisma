@@ -112,6 +112,7 @@ enum RecommendationActionType {
 
 enum LocationConsentStatus {
   accepted
+  paused
   declined
   withdrawn
 }

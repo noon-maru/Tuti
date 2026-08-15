@@ -46,6 +46,7 @@ import type {
   UserLocation,
 } from "@/shared/tuti/types";
 import type { LocationConsentResponse } from "@/shared/api/locationCompliance";
+import type { LocationHistoryResponse } from "@/shared/api/locationHistory";
 import { LOCATION_TERMS_VERSION } from "@/shared/location/terms";
 
 export async function updateLocationConsent(
@@ -80,6 +81,16 @@ export async function fetchLocationConsent() {
     );
   }
   return ((await response.json()) as LocationConsentResponse).consent;
+}
+
+export async function fetchLocationHistory() {
+  const response = await fetchWithSession("location-history");
+  if (!response.ok) {
+    throw new Error(
+      await readApiError(response, "위치정보 이용내역을 불러오지 못했어요."),
+    );
+  }
+  return (await response.json()) as LocationHistoryResponse;
 }
 
 export async function fetchRecommendations(

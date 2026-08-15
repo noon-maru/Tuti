@@ -90,6 +90,8 @@ type TutiState = {
   setUserLocation: (location: UserLocation) => void;
   clearUserLocation: () => void;
   acceptLocationConsent: () => void;
+  syncLocationConsent: (consent?: LocationConsentRecord) => void;
+  pauseLocationConsent: () => void;
   declineLocationConsent: () => void;
   withdrawLocationConsent: () => void;
   setLocationPermissionStatus: (status: LocationPermissionStatus) => void;
@@ -169,6 +171,38 @@ export const useTutiStore = create<TutiState>()(
         set({
           locationConsent: {
             status: "accepted",
+            termsVersion: LOCATION_TERMS_VERSION,
+            updatedAt: new Date().toISOString(),
+          },
+        }),
+      syncLocationConsent: (locationConsent) =>
+        set(
+          locationConsent?.status === "accepted"
+            ? { locationConsent }
+            : {
+                userLocation: undefined,
+                locationPermissionStatus: "unknown",
+                dailyRecommendation: undefined,
+                recommendationExcludedPlaceIds: [],
+                activeIndex: 0,
+                activePlaceId: undefined,
+                detailOverlay: { phase: "closed" },
+                pendingDeparture: undefined,
+                locationConsent,
+              },
+        ),
+      pauseLocationConsent: () =>
+        set({
+          userLocation: undefined,
+          locationPermissionStatus: "unknown",
+          dailyRecommendation: undefined,
+          recommendationExcludedPlaceIds: [],
+          activeIndex: 0,
+          activePlaceId: undefined,
+          detailOverlay: { phase: "closed" },
+          pendingDeparture: undefined,
+          locationConsent: {
+            status: "paused",
             termsVersion: LOCATION_TERMS_VERSION,
             updatedAt: new Date().toISOString(),
           },

@@ -80,6 +80,7 @@ export function RecommendationsScreen({
   onAdmin,
   onInquiry,
   onLocationSettings,
+  onLegal,
   onSavedPlaces,
   savedPlacesCount,
   onDepartureOpen,
@@ -115,6 +116,7 @@ export function RecommendationsScreen({
   onAdmin: () => void;
   onInquiry: () => void;
   onLocationSettings: () => void;
+  onLegal: () => void;
   onSavedPlaces: () => void;
   savedPlacesCount: number;
   onDepartureOpen: (
@@ -626,6 +628,10 @@ export function RecommendationsScreen({
                       onSelect: onInquiry,
                     },
                     {
+                      label: "약관 및 개인정보",
+                      onSelect: onLegal,
+                    },
+                    {
                       label: "로그아웃",
                       onSelect: onLogout,
                       tone: "danger",
@@ -653,6 +659,10 @@ export function RecommendationsScreen({
                     {
                       label: "1:1 문의",
                       onSelect: onInquiry,
+                    },
+                    {
+                      label: "약관 및 개인정보",
+                      onSelect: onLegal,
                     },
                   ]
             }

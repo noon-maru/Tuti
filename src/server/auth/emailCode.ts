@@ -201,6 +201,12 @@ export async function verifyEmailCode(
           where: { userId: currentUser.id },
           data: { userId: existingIdentity.userId },
         }),
+        // 명시적 병합 시 이용자가 자신의 과거 위치 이용내역도 계속
+        // 열람할 수 있게 하되, 동의 상태 자체는 계정 간 이전하지 않는다.
+        prisma.locationUsageLog.updateMany({
+          where: { userId: currentUser.id },
+          data: { userId: existingIdentity.userId },
+        }),
         prisma.userSignalProfile.deleteMany({
           where: { userId: currentUser.id },
         }),

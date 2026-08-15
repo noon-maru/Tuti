@@ -21,7 +21,7 @@ export function getExternalLocationProcessingMode(): ExternalLocationProcessingM
 
 export function requireExternalLocationProcessingMode() {
   const mode = getExternalLocationProcessingMode();
-  if (mode === "pending") {
+  if (mode !== "processor") {
     throw new ExternalLocationProcessingPendingError();
   }
   return mode;

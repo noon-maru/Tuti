@@ -119,7 +119,12 @@ function parseConsentUpdate(value: unknown): LocationConsentUpdate {
 }
 
 function normalizeStatus(value: unknown): LocationConsentStatus {
-  if (value === "accepted" || value === "declined" || value === "withdrawn") {
+  if (
+    value === "accepted" ||
+    value === "paused" ||
+    value === "declined" ||
+    value === "withdrawn"
+  ) {
     return value;
   }
   throw new SyntaxError("Invalid location consent status");
