@@ -17,6 +17,8 @@ import type {
   JournalEntryInput,
   TutiJournalEntry,
 } from "@/shared/api/journal";
+import { LOCATION_TERMS_VERSION } from "@/shared/location/terms";
+import { useTutiStore } from "@/store/tuti";
 import { journalImageMaxWidth } from "@/styles/tokens";
 
 const CROWD_OPTIONS = ["한적함", "보통", "활기참"];
@@ -51,6 +53,11 @@ export function JournalEditorScreen({
     sourceElement: HTMLElement,
   ) => void | Promise<void>;
 }) {
+  const locationTermsAccepted = useTutiStore(
+    (state) =>
+      state.locationConsent?.status === "accepted" &&
+      state.locationConsent.termsVersion === LOCATION_TERMS_VERSION,
+  );
   const imagePickerRef = useRef<HTMLLabelElement>(null);
   const hasEditedVisitDateRef = useRef(Boolean(entry));
   const hasEditedPlaceRef = useRef(
@@ -107,7 +114,9 @@ export function JournalEditorScreen({
       (!entry && !hasEditedVisitDateRef.current) ||
       !hasEditedPlaceRef.current
     ) {
-      void readImageMetadata(file).then(async (metadata) => {
+      void readImageMetadata(file, {
+        includeLocation: locationTermsAccepted,
+      }).then(async (metadata) => {
         if (selectionId !== imageSelectionIdRef.current) return;
 
         if (

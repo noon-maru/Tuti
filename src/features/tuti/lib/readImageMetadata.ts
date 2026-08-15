@@ -11,14 +11,19 @@ export type ImageMetadata = {
   location: UserLocation | null;
 };
 
-export async function readImageMetadata(file: File): Promise<ImageMetadata> {
+export async function readImageMetadata(
+  file: File,
+  { includeLocation = false }: { includeLocation?: boolean } = {},
+): Promise<ImageMetadata> {
   try {
     const { default: exifr } = await import("exifr");
     const [dateResult, gpsResult] = await Promise.allSettled([
       exifr.parse(file, [...CAPTURE_DATE_TAGS]) as Promise<
         CaptureDateMetadata | undefined
       >,
-      exifr.gps(file) as Promise<UserLocation | undefined>,
+      includeLocation
+        ? (exifr.gps(file) as Promise<UserLocation | undefined>)
+        : Promise.resolve(undefined),
     ]);
     const dateMetadata =
       dateResult.status === "fulfilled" ? dateResult.value : undefined;

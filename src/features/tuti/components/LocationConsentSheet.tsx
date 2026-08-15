@@ -234,15 +234,19 @@ export function LocationConsentSheet({
               </BackButton>
               <div>
                 <h2 id="location-consent-title">
-                  개인위치정보 이용약관
+                  위치기반서비스 이용약관
                 </h2>
-                <p>시행 전 검토를 위한 임시 약관이에요.</p>
+                <p>시행일 {locationTerms.effectiveDate}</p>
               </div>
             </TermsHeader>
             <TermsScroll data-scroll-region>
               <ProviderInfo>
-                <strong>{locationTerms.provider.name}</strong>
-                <span>{locationTerms.provider.contact}</span>
+                <strong>
+                  {locationTerms.provider.businessName} · {locationTerms.provider.serviceName}
+                </strong>
+                <span>대표 {locationTerms.provider.representative}</span>
+                <span>{locationTerms.provider.phone}</span>
+                <span>{locationTerms.provider.email}</span>
                 <span>{locationTerms.provider.address}</span>
               </ProviderInfo>
               {locationTerms.sections.map((section) => (
@@ -253,11 +257,11 @@ export function LocationConsentSheet({
                   ))}
                 </TermsSection>
               ))}
-              <DraftNotice>
-                이 문안은 위치기반서비스사업 신고와 법률 검토 전에 사용하는
-                임시 약관입니다. 사업자 정보, 외부 사업자와의 처리 관계 및
-                확인자료 보관기간은 출시 전에 확정해야 합니다.
-              </DraftNotice>
+              <TermsAppendix>
+                {locationTerms.appendix.map((paragraph) => (
+                  <p key={paragraph}>{paragraph}</p>
+                ))}
+              </TermsAppendix>
             </TermsScroll>
           </TermsContent>
         )}
@@ -549,7 +553,7 @@ const TermsSection = styled.section`
   }
 `;
 
-const DraftNotice = styled.p`
+const TermsAppendix = styled.div`
   padding: var(--space-4);
   border-radius: 14px;
   background: var(--color-secondary-100);

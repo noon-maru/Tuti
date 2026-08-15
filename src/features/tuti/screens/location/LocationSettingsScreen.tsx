@@ -110,15 +110,19 @@ export function LocationSettingsScreen({
         <TermsArea>
           <TermsHeading>
             <div>
-              <h2>개인위치정보 이용약관</h2>
-              <p>현재 문안은 신고와 법률 검토 전 임시 약관입니다.</p>
+              <h2>위치기반서비스 이용약관</h2>
+              <p>시행일 {locationTerms.effectiveDate}</p>
             </div>
             <span>{consent?.termsVersion ?? "미동의"}</span>
           </TermsHeading>
 
           <ProviderInfo>
-            <strong>{locationTerms.provider.name}</strong>
-            <span>{locationTerms.provider.contact}</span>
+            <strong>
+              {locationTerms.provider.businessName} · {locationTerms.provider.serviceName}
+            </strong>
+            <span>대표 {locationTerms.provider.representative}</span>
+            <span>{locationTerms.provider.phone}</span>
+            <span>{locationTerms.provider.email}</span>
             <span>{locationTerms.provider.address}</span>
           </ProviderInfo>
 
@@ -130,6 +134,11 @@ export function LocationSettingsScreen({
               ))}
             </TermsSection>
           ))}
+          <TermsAppendix>
+            {locationTerms.appendix.map((paragraph) => (
+              <p key={paragraph}>{paragraph}</p>
+            ))}
+          </TermsAppendix>
         </TermsArea>
       </ScrollContent>
     </Frame>
@@ -387,4 +396,14 @@ const TermsSection = styled.section`
     color: var(--color-text-muted);
     font-size: var(--font-size-100);
   }
+`;
+
+const TermsAppendix = styled.div`
+  display: grid;
+  gap: var(--space-1);
+  padding: var(--space-4);
+  border-radius: 14px;
+  background: var(--color-secondary-100);
+  color: var(--color-secondary-1000);
+  font-size: var(--font-size-100);
 `;

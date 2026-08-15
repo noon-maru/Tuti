@@ -541,6 +541,7 @@ function fetchCachedTransitRoute(
 ) {
   const cached = routeCache.get(key);
   if (cached && cached.expiresAt > Date.now()) return cached.route;
+  if (cached) routeCache.delete(key);
   const route = fetchKakaoMapRoute("publicTransit", {
     origin,
     destination,
@@ -549,7 +550,12 @@ function fetchCachedTransitRoute(
     routeCache.delete(key);
     throw error;
   });
-  routeCache.set(key, { expiresAt: Date.now() + ttlMs, route });
+  const entry = { expiresAt: Date.now() + ttlMs, route };
+  routeCache.set(key, entry);
+  const expiryTimer = setTimeout(() => {
+    if (routeCache.get(key) === entry) routeCache.delete(key);
+  }, ttlMs);
+  expiryTimer.unref?.();
   return route;
 }
 
