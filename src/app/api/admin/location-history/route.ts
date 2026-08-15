@@ -3,6 +3,12 @@ import { writeSystemLogSafely } from "@/server/admin/log";
 import type { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/server/db/prisma";
 import {
+  createRequestAuditIdentity,
+  recordLocationSecurityAuditEvent,
+  recordLocationSecurityAuditEventSafely,
+  verifyLocationSecurityAuditEvent,
+} from "@/server/location/securityAudit";
+import {
   createPreflightResponse,
   isRequestOriginAllowed,
   withCors,
@@ -16,7 +22,17 @@ export async function GET(request: Request) {
     return Response.json({ error: "허용되지 않은 요청 출처예요." }, { status: 403 });
   }
   const authentication = await authenticateAdmin(request);
-  if (!authentication.ok) return withCors(request, authentication.response);
+  if (!authentication.ok) {
+    await recordLocationSecurityAuditEventSafely({
+      category: "system_access",
+      result: "denied",
+      actorIdentity: createRequestAuditIdentity(request),
+      action: "admin.location-history.read",
+      resource: "location_usage_logs",
+      details: { responseStatus: authentication.response.status },
+    });
+    return withCors(request, authentication.response);
+  }
 
   const url = new URL(request.url);
   const query = url.searchParams.get("q")?.trim().slice(0, 120);
@@ -40,7 +56,7 @@ export async function GET(request: Request) {
         }
       : {}),
   };
-  const [logs, total] = await Promise.all([
+  const [logs, total, securityEvents, securityEventTotal] = await Promise.all([
     prisma.locationUsageLog.findMany({
       where,
       orderBy: [{ occurredAt: "desc" }, { id: "desc" }],
@@ -60,6 +76,11 @@ export async function GET(request: Request) {
       },
     }),
     prisma.locationUsageLog.count({ where }),
+    prisma.locationSecurityAuditEvent.findMany({
+      orderBy: [{ occurredAt: "desc" }, { id: "desc" }],
+      take: 200,
+    }),
+    prisma.locationSecurityAuditEvent.count(),
   ]);
   const response: AdminLocationHistoryResponse = {
     total,
@@ -68,7 +89,38 @@ export async function GET(request: Request) {
       occurredAt: log.occurredAt.toISOString(),
       retentionUntil: log.retentionUntil.toISOString(),
     })),
+    securityEvents: securityEvents.map((event) => ({
+      id: event.id,
+      category: event.category,
+      result: event.result,
+      actorUserId: event.actorUserId,
+      action: event.action,
+      resource: event.resource,
+      details: event.details,
+      occurredAt: event.occurredAt.toISOString(),
+      retentionUntil: event.retentionUntil.toISOString(),
+      integrityValid: verifyLocationSecurityAuditEvent(event),
+    })),
+    securityEventTotal,
   };
+  await recordLocationSecurityAuditEvent({
+    category: "system_access",
+    result: "success",
+    actorUserId: authentication.user.id,
+    actorIdentity: `user:${authentication.user.id}`,
+    ...(query ? { targetIdentity: `query:${query}` } : {}),
+    action: "admin.location-history.read",
+    resource: "location_usage_logs",
+    details: {
+      resultCount: logs.length,
+      total,
+      securityEventCount: securityEvents.length,
+      kind: kind ?? "all",
+      service: service ?? "all",
+      days: days ?? 0,
+      queryUsed: Boolean(query),
+    },
+  });
   await writeSystemLogSafely({
     category: "location-compliance",
     action: "view-location-history",

@@ -1,7 +1,11 @@
 import { deleteStoredJournalImage } from "@/server/journal/imageStorage";
 import { prisma } from "@/server/db/prisma";
+import type { LocationSecurityAuditData } from "@/server/location/securityAudit";
 
-export async function forceDeleteUser(userId: string) {
+export async function forceDeleteUser(
+  userId: string,
+  permissionAudit?: LocationSecurityAuditData,
+) {
   const user = await prisma.user.findUnique({
     where: { id: userId },
     select: {
@@ -17,16 +21,21 @@ export async function forceDeleteUser(userId: string) {
 
   if (!user) return null;
 
-  await prisma.$transaction([
-    prisma.customerInquiry.updateMany({
+  await prisma.$transaction(async (transaction) => {
+    await transaction.customerInquiry.updateMany({
       where: { requesterUserId: userId },
       data: {
         requesterUserId: null,
         requesterEmail: null,
       },
-    }),
-    prisma.user.delete({ where: { id: userId } }),
-  ]);
+    });
+    await transaction.user.delete({ where: { id: userId } });
+    if (permissionAudit) {
+      await transaction.locationSecurityAuditEvent.create({
+        data: permissionAudit,
+      });
+    }
+  });
 
   const failedImageDeletions: string[] = [];
 

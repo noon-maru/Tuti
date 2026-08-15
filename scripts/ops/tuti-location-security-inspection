@@ -1,0 +1,66 @@
+#!/bin/sh
+
+set -eu
+
+project_dir="/var/services/homes/Tutiadmin/source/Tuti"
+evidence_root="$project_dir/.compliance-evidence/location-security"
+timestamp="$(date '+%Y%m%d-%H%M%S%z')"
+report_dir="$evidence_root/$timestamp"
+operator_id="${SUDO_USER:-Tutiadmin}"
+operator_group="$(id -gn "$operator_id")"
+
+umask 077
+install -d -o "$operator_id" -g "$operator_group" -m 0700 \
+  "$evidence_root" "$report_dir"
+find "$evidence_root" -mindepth 1 -maxdepth 1 -type d \
+  -exec chown "$operator_id:$operator_group" {} + \
+  -exec chmod 0700 {} +
+cd "$project_dir"
+
+run_inspection() {
+  environment="$1"
+  output="$report_dir/$environment.json"
+
+  if [ "$environment" = development ]; then
+    echo "개발 DB 위치정보 보호 자동점검"
+    if ! docker compose -f docker-compose.dev.yml exec -T app \
+      sh -lc 'test -x node_modules/.bin/tsx && test -f scripts/inspect-location-security.ts'; then
+      echo "개발 컨테이너에 점검 코드가 없습니다. tuti-dev-refresh를 먼저 실행하세요." >&2
+      return 1
+    fi
+    docker compose -f docker-compose.dev.yml exec -T \
+      -e TUTI_INSPECTION_ENV=development \
+      -e TUTI_OPERATOR_ID="$operator_id" \
+      app node_modules/.bin/tsx scripts/inspect-location-security.ts >"$output"
+  else
+    echo "운영 DB 위치정보 보호 자동점검"
+    if ! docker compose --env-file .env.production -f docker-compose.prod.yml \
+      run --rm --no-deps -T ops \
+      sh -lc 'test -x node_modules/.bin/tsx && test -f scripts/inspect-location-security.ts'; then
+      echo "운영 ops 이미지에 최신 점검 코드가 없습니다." >&2
+      echo "변경사항을 검증한 뒤 tuti-prod-deploy로 운영 이미지와 DB를 갱신하세요." >&2
+      return 1
+    fi
+    docker compose --env-file .env.production -f docker-compose.prod.yml \
+      run --rm --no-deps -T \
+      -e TUTI_INSPECTION_ENV=production \
+      -e TUTI_OPERATOR_ID="$operator_id" \
+      ops node_modules/.bin/tsx scripts/inspect-location-security.ts >"$output"
+  fi
+
+  chmod 0600 "$output"
+  chown "$operator_id" "$output"
+}
+
+run_inspection development
+run_inspection production
+
+(
+  cd "$report_dir"
+  sha256sum development.json production.json >SHA256SUMS
+)
+chmod 0600 "$report_dir/SHA256SUMS"
+chown "$operator_id" "$report_dir/SHA256SUMS"
+
+echo "개발·운영 위치정보 보호 자동점검을 완료했습니다."
+echo "$report_dir"

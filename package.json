@@ -30,6 +30,8 @@
     "llm:places:refresh": "pnpm db:generate && tsx scripts/enrich-place-meaning-profiles.ts",
     "llm:users:refresh": "pnpm db:generate && tsx scripts/refresh-user-signal-profiles.ts",
     "location:compliance:purge": "pnpm db:generate && tsx scripts/purge-location-compliance.ts",
+    "location:security:inspect": "pnpm db:generate && tsx scripts/inspect-location-security.ts",
+    "location:access:record": "pnpm db:generate && tsx scripts/record-location-access-change.ts",
     "accommodations:sync": "pnpm db:generate && tsx scripts/sync-accommodations.ts",
     "seoul:sync:areas": "pnpm db:generate && tsx scripts/sync-seoul-realtime-areas.ts",
     "wellness:sync:kto": "pnpm db:generate && tsx scripts/sync-wellness-tourism.ts",

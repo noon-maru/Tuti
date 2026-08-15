@@ -4,6 +4,7 @@ import {
   PrismaClient,
   type UserRole,
 } from "../src/generated/prisma/client";
+import { buildLocationSecurityAuditEventData } from "../src/server/location/securityAudit";
 
 const connectionString = process.env.DATABASE_URL;
 
@@ -44,26 +45,48 @@ try {
     );
   }
 
-  const user = await prisma.user.update({
+  const currentUser = await prisma.user.findUniqueOrThrow({
     where: { id: userIds[0] },
-    data: { role },
-    select: { id: true, role: true },
+    select: { role: true },
   });
-
-  await prisma.systemLog.create({
-    data: {
-      id: randomUUID(),
-      category: "permission",
-      action: "role.changed.cli",
-      message: `${email} 계정의 권한을 ${role}(으)로 변경했습니다.`,
-      targetType: "user",
-      targetId: user.id,
-      metadata: {
-        email,
-        role,
-        source: "cli",
-      },
+  const permissionAudit = buildLocationSecurityAuditEventData({
+    category: "permission_change",
+    result: "success",
+    actorIdentity: `cli:${process.env.SUDO_USER ?? "tuti-operator"}`,
+    targetIdentity: `user:${userIds[0]}`,
+    action: "application-role.change",
+    resource: "tuti_admin",
+    details: {
+      previousRole: currentUser.role,
+      nextRole: role,
+      source: "cli",
     },
+  });
+  const user = await prisma.$transaction(async (transaction) => {
+    const updatedUser = await transaction.user.update({
+      where: { id: userIds[0] },
+      data: { role },
+      select: { id: true, role: true },
+    });
+    await transaction.systemLog.create({
+      data: {
+        id: randomUUID(),
+        category: "permission",
+        action: "role.changed.cli",
+        message: `${email} 계정의 권한을 ${role}(으)로 변경했습니다.`,
+        targetType: "user",
+        targetId: updatedUser.id,
+        metadata: {
+          email,
+          role,
+          source: "cli",
+        },
+      },
+    });
+    await transaction.locationSecurityAuditEvent.create({
+      data: permissionAudit,
+    });
+    return updatedUser;
   });
 
   console.log(`${email} (${user.id}) → ${user.role}`);

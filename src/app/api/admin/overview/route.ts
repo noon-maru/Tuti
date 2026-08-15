@@ -8,6 +8,11 @@ import {
 import type { AdminOverviewResponse } from "@/shared/api/admin";
 import { getExternalLocationProcessingMode } from "@/server/location/externalProcessing";
 import { LOCATION_TERMS_VERSION } from "@/shared/location/terms";
+import {
+  createRequestAuditIdentity,
+  recordLocationSecurityAuditEvent,
+  recordLocationSecurityAuditEventSafely,
+} from "@/server/location/securityAudit";
 
 export const runtime = "nodejs";
 
@@ -19,6 +24,14 @@ export async function GET(request: Request) {
   const authentication = await authenticateAdmin(request);
 
   if (!authentication.ok) {
+    await recordLocationSecurityAuditEventSafely({
+      category: "system_access",
+      result: "denied",
+      actorIdentity: createRequestAuditIdentity(request),
+      action: "admin.location-compliance-overview.read",
+      resource: "location_compliance_overview",
+      details: { responseStatus: authentication.response.status },
+    });
     return withCors(request, authentication.response);
   }
 
@@ -102,6 +115,20 @@ export async function GET(request: Request) {
       },
     },
   };
+  await recordLocationSecurityAuditEvent({
+    category: "system_access",
+    result: "success",
+    actorUserId: authentication.user.id,
+    actorIdentity: `user:${authentication.user.id}`,
+    action: "admin.location-compliance-overview.read",
+    resource: "location_compliance_overview",
+    details: {
+      activeConsents: Number(activeConsentRows[0]?.count ?? 0),
+      usageLogsToday: locationUsageLogsToday,
+      externalTransfersToday,
+      expiringWithinSevenDays,
+    },
+  });
 
   return withCors(request, Response.json(response));
 }

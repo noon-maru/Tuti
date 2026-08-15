@@ -57,6 +57,26 @@ export type AdminLocationUsageItem = {
 export type AdminLocationHistoryResponse = {
   logs: AdminLocationUsageItem[];
   total: number;
+  securityEvents: AdminLocationSecurityEventItem[];
+  securityEventTotal: number;
+};
+
+export type AdminLocationSecurityEventItem = {
+  id: string;
+  category:
+    | "system_access"
+    | "permission_change"
+    | "maintenance"
+    | "inspection"
+    | "incident";
+  result: "success" | "denied" | "failed";
+  actorUserId: string | null;
+  action: string;
+  resource: string;
+  details: unknown;
+  occurredAt: string;
+  retentionUntil: string;
+  integrityValid: boolean;
 };
 
 export type AdminPlaceItem = {

@@ -1,5 +1,8 @@
 import { authenticateAdmin } from "@/server/admin/auth";
 import { writeSystemLog } from "@/server/admin/log";
+import {
+  buildLocationSecurityAuditEventData,
+} from "@/server/location/securityAudit";
 import { forceDeleteUser } from "@/server/admin/users";
 import { prisma } from "@/server/db/prisma";
 import {
@@ -132,10 +135,30 @@ export async function PATCH(request: Request) {
       }
     }
 
-    const user = await prisma.user.update({
-      where: { id: userId },
-      data: { role },
-      select: { id: true, role: true },
+    const permissionAudit = buildLocationSecurityAuditEventData({
+      category: "permission_change",
+      result: "success",
+      actorUserId: authentication.user.id,
+      actorIdentity: `user:${authentication.user.id}`,
+      targetIdentity: `user:${userId}`,
+      action: "application-role.change",
+      resource: "tuti_admin",
+      details: {
+        previousRole: currentUser.role,
+        nextRole: role,
+        source: "admin_api",
+      },
+    });
+    const user = await prisma.$transaction(async (transaction) => {
+      const updatedUser = await transaction.user.update({
+        where: { id: userId },
+        data: { role },
+        select: { id: true, role: true },
+      });
+      await transaction.locationSecurityAuditEvent.create({
+        data: permissionAudit,
+      });
+      return updatedUser;
     });
 
     await writeSystemLog({
@@ -235,7 +258,23 @@ export async function DELETE(request: Request) {
       }
     }
 
-    const deletedUser = await forceDeleteUser(userId);
+    const permissionAudit = targetUser.role === "admin"
+      ? buildLocationSecurityAuditEventData({
+          category: "permission_change",
+          result: "success",
+          actorUserId: authentication.user.id,
+          actorIdentity: `user:${authentication.user.id}`,
+          targetIdentity: `user:${userId}`,
+          action: "application-role.revoke-by-account-deletion",
+          resource: "tuti_admin",
+          details: {
+            previousRole: targetUser.role,
+            nextRole: "deleted",
+            source: "admin_api",
+          },
+        })
+      : undefined;
+    const deletedUser = await forceDeleteUser(userId, permissionAudit);
 
     if (!deletedUser) {
       return withCors(

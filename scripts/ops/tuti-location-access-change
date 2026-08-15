@@ -1,0 +1,13 @@
+#!/bin/sh
+
+set -eu
+
+project_dir="/var/services/homes/Tutiadmin/source/Tuti"
+operator_id="${SUDO_USER:-Tutiadmin}"
+
+cd "$project_dir"
+
+docker compose --env-file .env.production -f docker-compose.prod.yml \
+  run --rm --no-deps -T \
+  -e TUTI_OPERATOR_ID="$operator_id" \
+  ops node_modules/.bin/tsx scripts/record-location-access-change.ts "$@"

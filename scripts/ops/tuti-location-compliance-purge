@@ -28,11 +28,14 @@ fi
 
 echo "개발 DB의 보존기간 만료 위치정보 확인자료 파기"
 docker compose -f docker-compose.dev.yml exec -T app \
-  su node -c "node_modules/.bin/tsx scripts/purge-location-compliance.ts"
+  su node -c "TUTI_INSPECTION_ENV=development TUTI_OPERATOR_ID=scheduler node_modules/.bin/tsx scripts/purge-location-compliance.ts"
 
 echo "운영 DB의 보존기간 만료 위치정보 확인자료 파기"
 docker compose --env-file .env.production -f docker-compose.prod.yml \
-  run --rm --no-deps -T ops \
+  run --rm --no-deps -T \
+  -e TUTI_INSPECTION_ENV=production \
+  -e TUTI_OPERATOR_ID=scheduler \
+  ops \
   node_modules/.bin/tsx scripts/purge-location-compliance.ts
 
 echo "개발·운영 위치정보 확인자료 파기를 완료했습니다."

@@ -58,6 +58,9 @@
 - 서버 동의 원장: `location_consent_events`
 - 이용·제공사실 확인자료: `location_usage_logs`
 - 6개월 만료 자료 파기: `sudo -n /usr/local/sbin/tuti-location-compliance-purge`
+- 위치정보시스템 접근·권한·점검 감사 원장: `location_security_audit_events`
+- 위치정보 보호 자동점검: `sudo -n /usr/local/sbin/tuti-location-security-inspection`
+- 인프라 권한 변경 기록: `sudo -n /usr/local/sbin/tuti-location-access-change ...`
 - 외부 좌표 처리 모드: `LOCATION_EXTERNAL_COORDINATE_MODE`
   - `pending`: Kakao·Kakao Mobility에 현재 좌표 전달 차단
   - `processor`: 처리위탁 확인 및 관련 고지 완료 후 사용
@@ -88,6 +91,42 @@ DSM 작업 스케줄러에서 매일 새벽 04:40에 다음 명령을 실행한�
 ```sh
 /usr/local/sbin/tuti-location-compliance-purge
 ```
+
+매년 정기점검 전과 위치정보 처리 구조가 크게 변경된 뒤에는 다음 명령으로
+개발·운영 감사서명, 보존기간과 관리자 존재 여부를 자동 점검한다.
+
+```sh
+/usr/local/sbin/tuti-location-security-inspection
+```
+
+자동 이상을 일찍 발견하려면 DSM 작업 스케줄러에서 매월 1일 새벽 05:10에도
+같은 명령을 실행한다. 월별 자동 결과를 보관하되, 연 1회 책임자 수동 점검과
+서명은 생략하지 않는다.
+
+자동 결과는 `.compliance-evidence/location-security/`에 원본과 SHA-256 해시로
+보관하고, `docs/compliance/location-security-self-inspection.md`의 수동 항목을
+작성해 책임자가 서명한다.
+
+NAS, Docker, PostgreSQL, Cloudflare, 오브젝트 스토리지 등 인프라 권한을
+부여·변경·말소한 직후에는 다음 형식으로 5년 보존 이력을 남긴다. 대상 계정은
+HMAC 가명처리되며 이유에 이메일·비밀번호·API 키를 입력하지 않는다.
+
+```sh
+/usr/local/sbin/tuti-location-access-change \
+  --subject Tutiadmin \
+  --system synology-nas \
+  --action change \
+  --previous operator \
+  --next administrator \
+  --reason "위치기반서비스 운영 책임자 권한 정비"
+```
+
+세부 내부 기준은 다음 문서를 따른다.
+
+- `docs/compliance/location-information-protection-plan.md`
+- `docs/compliance/location-security-self-inspection.md`
+- `docs/compliance/location-incident-response.md`
+- `docs/compliance/location-handler-training-record.md`
 
 ## Kakao 외부 처리 확인 기록
 

@@ -21,6 +21,7 @@ import type {
   AdminLogItem,
   AdminLogsResponse,
   AdminLocationHistoryResponse,
+  AdminLocationSecurityEventItem,
   AdminLocationUsageItem,
   AdminOverview,
   AdminOverviewResponse,
@@ -164,6 +165,11 @@ export function AdminScreen({
   const [logs, setLogs] = useState<AdminLogItem[]>([]);
   const [locationLogs, setLocationLogs] = useState<AdminLocationUsageItem[]>([]);
   const [locationLogTotal, setLocationLogTotal] = useState(0);
+  const [locationSecurityEvents, setLocationSecurityEvents] = useState<
+    AdminLocationSecurityEventItem[]
+  >([]);
+  const [locationSecurityEventTotal, setLocationSecurityEventTotal] =
+    useState(0);
   const [places, setPlaces] = useState<AdminPlaceItem[]>([]);
   const [placesMeta, setPlacesMeta] = useState<AdminPlacesMeta | null>(null);
   const [reports, setReports] = useState<AdminReportItem[]>([]);
@@ -335,6 +341,8 @@ export function AdminScreen({
       );
       setLocationLogs(response.logs);
       setLocationLogTotal(response.total);
+      setLocationSecurityEvents(response.securityEvents);
+      setLocationSecurityEventTotal(response.securityEventTotal);
     } else if (tab === "places") {
       const response = await fetchAdminJson<AdminPlacesResponse>(
         `places${suffix}`,
@@ -586,7 +594,13 @@ export function AdminScreen({
         ) : tab === "logs" ? (
           <LogsPanel logs={logs} />
         ) : tab === "location" ? (
-          <LocationLogsPanel logs={locationLogs} total={locationLogTotal} />
+          <LocationCompliancePanels>
+            <LocationLogsPanel logs={locationLogs} total={locationLogTotal} />
+            <LocationSecurityEventsPanel
+              events={locationSecurityEvents}
+              total={locationSecurityEventTotal}
+            />
+          </LocationCompliancePanels>
         ) : tab === "places" ? (
           <PlacesPanel
             places={places}
@@ -1073,6 +1087,96 @@ function getLocationServiceLabel(service: AdminLocationUsageItem["service"]) {
     departure_plan: "출발 계획",
     photo_nearby: "사진 주변 장소 찾기",
   }[service];
+}
+
+function LocationSecurityEventsPanel({
+  events,
+  total,
+}: {
+  events: AdminLocationSecurityEventItem[];
+  total: number;
+}) {
+  return (
+    <CardList>
+      <LocationLogSummary>
+        <strong>
+          시스템 접근·권한·점검 기록 {total.toLocaleString("ko-KR")}건
+        </strong>
+        <span>
+          최근 200건의 서명 검증 결과를 표시합니다. 권한 변경·점검 기록은 5년,
+          일반 시스템 접근기록은 1년간 보존합니다.
+        </span>
+      </LocationLogSummary>
+      {events.length === 0 ? (
+        <StatePanel>아직 위치정보 보안 감사기록이 없습니다.</StatePanel>
+      ) : (
+        events.map((event) => (
+          <DataCard key={event.id}>
+            <CardTop>
+              <StatusBadge
+                $tone={
+                  !event.integrityValid || event.result === "failed"
+                    ? "error"
+                    : event.result === "denied"
+                      ? "warning"
+                      : "approved"
+                }
+              >
+                {!event.integrityValid
+                  ? "무결성 확인 필요"
+                  : getLocationSecurityResultLabel(event.result)}
+              </StatusBadge>
+              <Time>{formatDate(event.occurredAt)}</Time>
+            </CardTop>
+            <h2>{getLocationSecurityCategoryLabel(event.category)}</h2>
+            <Meta>
+              {event.action} · {event.resource}
+              {event.actorUserId
+                ? ` · 관리자 ${event.actorUserId}`
+                : " · 시스템/외부 요청"}
+            </Meta>
+            <details>
+              <summary>감사기록 상세</summary>
+              <Code>
+                {JSON.stringify(
+                  {
+                    결과: getLocationSecurityResultLabel(event.result),
+                    서명검증: event.integrityValid ? "정상" : "실패",
+                    보존만료: formatDate(event.retentionUntil),
+                    세부정보: event.details,
+                  },
+                  null,
+                  2,
+                )}
+              </Code>
+            </details>
+          </DataCard>
+        ))
+      )}
+    </CardList>
+  );
+}
+
+function getLocationSecurityCategoryLabel(
+  category: AdminLocationSecurityEventItem["category"],
+) {
+  return {
+    system_access: "위치정보시스템 접근",
+    permission_change: "접근권한 변경",
+    maintenance: "보존·파기 작업",
+    inspection: "보호조치 자체점검",
+    incident: "보안사고 대응",
+  }[category];
+}
+
+function getLocationSecurityResultLabel(
+  result: AdminLocationSecurityEventItem["result"],
+) {
+  return {
+    success: "정상",
+    denied: "접근 거부",
+    failed: "실패",
+  }[result];
 }
 
 function PlacesToolbar({
@@ -3003,6 +3107,11 @@ const FunnelEmpty = styled.p`
 const CardList = styled.section`
   display: grid;
   gap: var(--space-3);
+`;
+
+const LocationCompliancePanels = styled.div`
+  display: grid;
+  gap: var(--space-8);
 `;
 
 const DataCard = styled.article`

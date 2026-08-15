@@ -134,6 +134,20 @@ enum LocationUsageKind {
   external_transfer
 }
 
+enum LocationSecurityEventCategory {
+  system_access
+  permission_change
+  maintenance
+  inspection
+  incident
+}
+
+enum LocationSecurityEventResult {
+  success
+  denied
+  failed
+}
+
 model Place {
   id                        String                                @id
   name                      String
@@ -690,6 +704,28 @@ model LocationUsageLog {
   @@index([service, occurredAt])
   @@index([kind, externalRecipient, occurredAt])
   @@map("location_usage_logs")
+}
+
+model LocationSecurityAuditEvent {
+  id               String                        @id
+  category         LocationSecurityEventCategory
+  result           LocationSecurityEventResult
+  actorKey         String                        @map("actor_key")
+  actorUserId      String?                       @map("actor_user_id")
+  targetKey        String?                       @map("target_key")
+  action           String
+  resource         String
+  details          Json?
+  occurredAt       DateTime                      @default(now()) @map("occurred_at")
+  retentionUntil   DateTime                      @map("retention_until")
+  signatureVersion String                        @default("hmac-sha256-v1") @map("signature_version")
+  signature        String
+
+  @@index([category, occurredAt])
+  @@index([result, occurredAt])
+  @@index([actorUserId, occurredAt])
+  @@index([retentionUntil])
+  @@map("location_security_audit_events")
 }
 
 model RecommendationRun {
