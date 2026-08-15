@@ -11,6 +11,9 @@ import { ImageCropDialog } from "@/features/tuti/components/ImageCropDialog";
 import { JournalPlacePicker } from "@/features/tuti/components/JournalPlacePicker";
 import { ScreenFrame } from "@/features/tuti/components/ScreenFrame";
 import { LoadingIndicator } from "@/features/tuti/components/LoadingIndicator";
+import {
+  PhotoLocationConsentDialog,
+} from "@/features/tuti/components/PhotoLocationConsentDialog";
 import { readImageMetadata } from "@/features/tuti/lib/readImageMetadata";
 import { fetchLocationConsent, fetchNearbyPlaces } from "@/lib/tutiApi";
 import type {
@@ -35,6 +38,11 @@ const DIFFICULTY_OPTIONS = ["가벼움", "적당함", "조금 힘듦"];
 type PhotoPlaceHint = {
   status: "loading" | "success" | "notice";
   message: string;
+};
+
+type PendingPhotoLocationChoice = {
+  file: File;
+  selectionId: number;
 };
 
 export type JournalEntryDraft = JournalEntryInput;
@@ -77,6 +85,8 @@ export function JournalEditorScreen({
   );
   const [photoPlaceHint, setPhotoPlaceHint] =
     useState<PhotoPlaceHint | null>(null);
+  const [pendingPhotoLocationChoice, setPendingPhotoLocationChoice] =
+    useState<PendingPhotoLocationChoice | null>(null);
   const [theme, setTheme] = useState(entry?.theme ?? "");
   const [difficulty, setDifficulty] = useState(entry?.difficulty ?? "");
   const [visitDate, setVisitDate] = useState(() =>
@@ -102,19 +112,35 @@ export function JournalEditorScreen({
 
     const selectionId = ++imageSelectionIdRef.current;
 
+    event.target.value = "";
+
+    setPhotoPlaceHint(null);
+
+    if (locationTermsAccepted && !hasEditedPlaceRef.current) {
+      setPendingPhotoLocationChoice({ file, selectionId });
+      return;
+    }
+
+    processSelectedImage(file, selectionId, false);
+  };
+
+  const processSelectedImage = (
+    file: File,
+    selectionId: number,
+    includePhotoLocation: boolean,
+  ) => {
     setCropSource((current) => {
       if (current) URL.revokeObjectURL(current);
       return URL.createObjectURL(file);
     });
-    event.target.value = "";
-
-    setPhotoPlaceHint(null);
 
     if (
       (!entry && !hasEditedVisitDateRef.current) ||
       !hasEditedPlaceRef.current
     ) {
-      const metadataRequest = locationTermsAccepted
+      const shouldReadLocation =
+        includePhotoLocation && !hasEditedPlaceRef.current;
+      const metadataRequest = shouldReadLocation
         ? fetchLocationConsent()
             .then((serverConsent) =>
               readImageMetadata(file, {
@@ -184,6 +210,18 @@ export function JournalEditorScreen({
         }
       });
     }
+  };
+
+  const resolvePhotoLocationChoice = (includePhotoLocation: boolean) => {
+    const pending = pendingPhotoLocationChoice;
+    if (!pending) return;
+
+    setPendingPhotoLocationChoice(null);
+    processSelectedImage(
+      pending.file,
+      pending.selectionId,
+      includePhotoLocation,
+    );
   };
 
   useEffect(
@@ -302,7 +340,7 @@ export function JournalEditorScreen({
           helperText={
             photoPlaceHint?.message ??
             (!placeId
-              ? "사진에 위치 정보가 있으면 가까운 장소를 자동으로 찾아요."
+              ? "사진을 고르면 촬영 위치를 사용할지 먼저 물어봐요."
               : undefined)
           }
           helperStatus={photoPlaceHint?.status ?? "notice"}
@@ -396,6 +434,12 @@ export function JournalEditorScreen({
             setImageUrl(croppedImage);
             closeCropper();
           }}
+        />
+      )}
+      {pendingPhotoLocationChoice && (
+        <PhotoLocationConsentDialog
+          onAccept={() => resolvePhotoLocationChoice(true)}
+          onDecline={() => resolvePhotoLocationChoice(false)}
         />
       )}
     </Frame>
