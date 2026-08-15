@@ -54,31 +54,41 @@ notify_failure() {
 run_checks() {
   echo "checked_at=$(date -Iseconds)"
   echo "운영 Compose 상태"
-  docker compose --env-file .env.production -f docker-compose.prod.yml ps
+  docker compose --env-file .env.production -f docker-compose.prod.yml ps \
+    || return 1
 
   echo "PostgreSQL 준비 상태"
   docker compose --env-file .env.production -f docker-compose.prod.yml \
-    exec -T db sh -lc 'exec pg_isready --username "$POSTGRES_USER" --dbname "$POSTGRES_DB"'
+    exec -T db sh -lc 'exec pg_isready --username "$POSTGRES_USER" --dbname "$POSTGRES_DB"' \
+    || return 1
 
   echo "Next.js liveness"
   docker compose --env-file .env.production -f docker-compose.prod.yml \
     exec -T app node -e \
-    'fetch("http://127.0.0.1:3000/api/health?scope=liveness").then(async response => { console.log(await response.text()); if (!response.ok) process.exit(1); }).catch(error => { console.error(error.message); process.exit(1); })'
+    'fetch("http://127.0.0.1:3000/api/health?scope=liveness").then(async response => { const body = await response.text(); console.log(`status=${response.status}`); if (response.headers.get("content-type")?.includes("application/json")) console.log(body.slice(0, 1000)); if (!response.ok) process.exit(1); }).catch(error => { console.error(error.message); process.exit(1); })' \
+    || return 1
 
   echo "애플리케이션 readiness"
   docker compose --env-file .env.production -f docker-compose.prod.yml \
     exec -T app node -e \
-    'fetch("http://127.0.0.1:3000/api/health").then(async response => { console.log(await response.text()); if (!response.ok) process.exit(1); }).catch(error => { console.error(error.message); process.exit(1); })'
+    'fetch("http://127.0.0.1:3000/api/health").then(async response => { const body = await response.text(); console.log(`status=${response.status}`); if (response.headers.get("content-type")?.includes("application/json")) console.log(body.slice(0, 1000)); if (!response.ok) process.exit(1); }).catch(error => { console.error(error.message); process.exit(1); })' \
+    || return 1
 
   if command -v curl >/dev/null 2>&1; then
     echo "공개 도메인 TLS·Cloudflare 경로"
     curl --fail --silent --show-error --max-time 15 \
-      https://tuti.today/api/health
+      https://tuti.today/api/health \
+      || return 1
     echo
   fi
 
   echo "스토리지 Compose 상태"
-  docker compose --env-file .env.storage -f docker-compose.storage.yml ps
+  docker compose --env-file .env.storage -f docker-compose.storage.yml ps \
+    || return 1
+  storage_health="$(docker inspect tuti-storage --format '{{if .State.Health}}{{.State.Health.Status}}{{else}}{{.State.Status}}{{end}}' 2>/dev/null)" \
+    || return 1
+  echo "garage_health=$storage_health"
+  [ "$storage_health" = healthy ] || return 1
 
   echo "백업·스토리지 볼륨 사용률"
   for path in /volume1/tuti/backups /volume1/tuti/object-storage; do
