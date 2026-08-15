@@ -1,0 +1,117 @@
+#!/bin/sh
+
+set -eu
+
+project_dir="/var/services/homes/Tutiadmin/source/Tuti"
+maintenance_dir="$project_dir/.ops-state/maintenance"
+maintenance_marker="$maintenance_dir/$$"
+backup_root="${TUTI_FULL_BACKUP_ROOT:-/volume1/tuti/backups/full}"
+retention_days="${TUTI_FULL_BACKUP_RETENTION_DAYS:-30}"
+timestamp="$(date +%Y%m%d-%H%M%S)"
+backup_dir="$backup_root/$timestamp"
+temporary_dir="$backup_root/.$timestamp.partial"
+
+case "$backup_root" in
+  /volume1/tuti/backups/full | /volumeUSB*/*)
+    ;;
+  *)
+    echo "백업 경로는 /volume1/tuti/backups/full 또는 외장 볼륨 하위여야 합니다: $backup_root" >&2
+    exit 1
+    ;;
+esac
+
+case "$retention_days" in
+  *[!0-9]* | "")
+    echo "백업 보관 일수는 0 이상의 정수여야 합니다." >&2
+    exit 1
+    ;;
+esac
+
+install -d -o root -g root -m 0700 "$backup_root"
+install -d -o root -g root -m 0700 "$maintenance_dir"
+printf 'backup\n' > "$maintenance_marker"
+chmod 0600 "$maintenance_marker"
+rm -rf "$temporary_dir"
+install -d -o root -g root -m 0700 "$temporary_dir"
+app_was_running="$(docker inspect tuti-prod --format '{{.State.Running}}' 2>/dev/null || printf false)"
+app_image_before="$(docker inspect tuti-prod --format '{{.Config.Image}}' 2>/dev/null || printf tuti:prod)"
+app_release_before="$(docker inspect tuti-prod --format '{{range .Config.Env}}{{println .}}{{end}}' 2>/dev/null | sed -n 's/^TUTI_RELEASE=//p' | head -n 1)"
+
+cleanup() {
+  rm -rf "$temporary_dir"
+  rm -f "$maintenance_marker"
+  if [ "$app_was_running" = true ]; then
+    TUTI_APP_IMAGE="$app_image_before" TUTI_RELEASE="${app_release_before:-unknown}" \
+      docker compose --env-file .env.production -f docker-compose.prod.yml \
+      up -d --no-deps app >/dev/null 2>&1 || true
+  fi
+}
+trap cleanup EXIT INT TERM
+
+cd "$project_dir"
+
+if [ "$app_was_running" = true ]; then
+  echo "DB와 객체의 동일 시점 백업을 위해 운영 앱 쓰기를 잠시 중지합니다."
+  docker compose --env-file .env.production -f docker-compose.prod.yml stop app
+fi
+
+echo "운영 PostgreSQL 전체 백업"
+docker compose \
+  --env-file .env.production \
+  -f docker-compose.prod.yml \
+  exec -T db \
+  sh -lc 'exec pg_dump --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" --format=custom --compress=6 --no-owner --no-privileges' \
+  > "$temporary_dir/postgres.dump"
+
+if [ ! -s "$temporary_dir/postgres.dump" ]; then
+  echo "PostgreSQL 백업 파일이 비어 있습니다." >&2
+  exit 1
+fi
+
+echo "Garage 오브젝트 논리 백업"
+docker compose \
+  --env-file .env.production \
+  -f docker-compose.prod.yml \
+  run --rm --no-deps \
+  -v "$temporary_dir:/backup" \
+  ops pnpm ops:objects:backup -- /backup
+
+schema_migrations="$temporary_dir/migrations.txt"
+find prisma/migrations -mindepth 1 -maxdepth 1 -type d -printf '%f\n' 2>/dev/null \
+  | sort > "$schema_migrations" || true
+
+cat > "$temporary_dir/manifest.txt" <<EOF
+backup_version=1
+created_at=$(date -Iseconds)
+git_revision=$(git rev-parse HEAD 2>/dev/null || printf unknown)
+database=production-full-custom-dump
+object_storage=logical-s3-object-copy
+secrets_included=false
+restore_scope=database-and-journal-objects
+EOF
+
+(
+  cd "$temporary_dir"
+  find . -type f ! -name checksums.sha256 -print0 \
+    | sort -z \
+    | xargs -0 sha256sum > checksums.sha256
+  sha256sum -c checksums.sha256
+)
+
+mv "$temporary_dir" "$backup_dir"
+
+if [ "$app_was_running" = true ]; then
+  TUTI_APP_IMAGE="$app_image_before" TUTI_RELEASE="${app_release_before:-unknown}" \
+    docker compose --env-file .env.production -f docker-compose.prod.yml \
+    up -d --no-deps app
+fi
+rm -f "$maintenance_marker"
+trap - EXIT INT TERM
+
+if [ "$retention_days" -gt 0 ]; then
+  find "$backup_root" -mindepth 1 -maxdepth 1 -type d \
+    -name '????????-??????' -mtime "+$retention_days" -exec rm -rf -- {} \;
+fi
+
+echo "운영 전체 백업 완료: $backup_dir"
+echo "주의: 이 백업은 같은 NAS에 있습니다. Hyper Backup으로 원격지 또는 외장 장치에 다시 복제하세요."

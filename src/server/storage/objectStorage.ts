@@ -3,6 +3,7 @@ import {
   GetObjectCommand,
   HeadBucketCommand,
   HeadObjectCommand,
+  ListObjectsV2Command,
   PutObjectCommand,
   S3Client,
   type GetObjectCommandOutput,
@@ -146,6 +147,35 @@ export async function deleteObject(key: string) {
       }),
     ),
   );
+}
+
+export async function listObjects(continuationToken?: string) {
+  const { bucket } = getObjectStorageConfiguration();
+  const result = await executeStorageRequest(
+    "이미지 목록을 불러오지 못했어요.",
+    () =>
+      getObjectStorageClient().send(
+        new ListObjectsV2Command({
+          Bucket: bucket,
+          ContinuationToken: continuationToken,
+          MaxKeys: 1_000,
+        }),
+      ),
+  );
+
+  return {
+    objects: (result.Contents ?? []).flatMap((item) =>
+      item.Key
+        ? [{
+            key: item.Key,
+            size: item.Size ?? 0,
+            etag: item.ETag,
+            lastModified: item.LastModified,
+          }]
+        : [],
+    ),
+    nextContinuationToken: result.NextContinuationToken,
+  };
 }
 
 export function getObjectStorageBucket() {

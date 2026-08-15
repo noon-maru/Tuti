@@ -1,0 +1,72 @@
+#!/bin/sh
+
+set -eu
+
+project_dir="/var/services/homes/Tutiadmin/source/Tuti"
+maintenance_dir="$project_dir/.ops-state/maintenance"
+maintenance_marker="$maintenance_dir/$$"
+backup_root="${TUTI_FULL_BACKUP_ROOT:-/volume1/tuti/backups/full}"
+backup_id="${1:-}"
+confirmation="${2:-}"
+
+case "$backup_id" in
+  ????????-??????)
+    ;;
+  *)
+    echo "사용법: tuti-prod-restore YYYYMMDD-HHMMSS --confirm-production-restore" >&2
+    exit 1
+    ;;
+esac
+
+if [ "$confirmation" != "--confirm-production-restore" ]; then
+  echo "운영 데이터를 교체하는 작업입니다. --confirm-production-restore 확인 인자가 필요합니다." >&2
+  exit 1
+fi
+
+backup_dir="$backup_root/$backup_id"
+
+if [ ! -f "$backup_dir/postgres.dump" ] || \
+   [ ! -f "$backup_dir/objects.manifest.json" ] || \
+   [ ! -f "$backup_dir/checksums.sha256" ]; then
+  echo "완전한 백업을 찾지 못했습니다: $backup_dir" >&2
+  exit 1
+fi
+
+cd "$backup_dir"
+sha256sum -c checksums.sha256
+cd "$project_dir"
+install -d -o root -g root -m 0700 "$maintenance_dir"
+printf 'restore\n' > "$maintenance_marker"
+chmod 0600 "$maintenance_marker"
+
+restart_app() {
+  rm -f "$maintenance_marker"
+  docker compose --env-file .env.production -f docker-compose.prod.yml up -d --no-deps app >/dev/null 2>&1 || true
+}
+trap restart_app EXIT INT TERM
+
+echo "운영 앱 중지"
+docker compose --env-file .env.production -f docker-compose.prod.yml stop app
+
+echo "운영 PostgreSQL 복구"
+docker compose \
+  --env-file .env.production \
+  -f docker-compose.prod.yml \
+  exec -T db \
+  sh -lc 'exec pg_restore --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" --clean --if-exists --no-owner --no-privileges --exit-on-error' \
+  < "$backup_dir/postgres.dump"
+
+echo "Garage 오브젝트 복구"
+docker compose \
+  --env-file .env.production \
+  -f docker-compose.prod.yml \
+  run --rm --no-deps \
+  -v "$backup_dir:/backup:ro" \
+  ops pnpm ops:objects:restore -- /backup
+
+docker compose --env-file .env.production -f docker-compose.prod.yml up -d --no-deps app
+rm -f "$maintenance_marker"
+trap - EXIT INT TERM
+
+echo "운영 복구 완료: $backup_id"
+echo "백업에 없던 Garage 객체는 자동 삭제하지 않았습니다. 복구 확인 후 별도 정리하세요."

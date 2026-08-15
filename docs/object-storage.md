@@ -158,3 +158,6 @@ DB의 `journal_entries.image`에는 객체 키만 남는다. 기록 조회 응�
 - 단일 노드의 `replication_factor = 1`은 Garage 자체 복제를 제공하지
   않는다. `/volume1/tuti/object-storage` 전체를 별도 장치나 원격지에
   정기적으로 백업한다.
+- 운영 논리 백업은 `tuti-prod-backup`이 S3 API로 모든 객체를 읽어 PostgreSQL
+  전체 백업과 같은 시각의 디렉터리에 저장한다. 이 디렉터리도 Hyper Backup으로
+  NAS 밖에 복제한다. 복구 절차는 `docs/operations.md`를 따른다.
