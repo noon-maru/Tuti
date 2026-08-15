@@ -12,6 +12,10 @@ sudo sh scripts/ops/install-tuti-operations.sh
 
 ```sh
 sudo -n /usr/local/sbin/tuti-prod-deploy
+sudo -n /usr/local/sbin/tuti-prod-rollback
+sudo -n /usr/local/sbin/tuti-prod-backup
+sudo -n /usr/local/sbin/tuti-prod-restore YYYYMMDD-HHMMSS --confirm-production-restore
+sudo -n /usr/local/sbin/tuti-prod-health
 sudo -n /usr/local/sbin/tuti-dev-refresh
 sudo -n /usr/local/sbin/tuti-dev-restart
 sudo -n /usr/local/sbin/tuti-docker-status
@@ -26,7 +30,93 @@ sudo -n /usr/local/sbin/tuti-tourism-timeseries-refresh
 sudo -n /usr/local/sbin/tuti-llm-profile-refresh
 ```
 
-`tuti-prod-deploy`는 운영용 ops 이미지를 빌드하고 DB 마이그레이션을 적용한 뒤 앱 컨테이너만 다시 빌드·교체한다. 시드는 실행하지 않는다.
+`tuti-prod-deploy`는 현재 Git 커밋으로 `tuti:prod-{커밋}`과
+`tuti:ops-{커밋}` 이미지를 만든다. 이미지 안에서 테스트를 실행한 뒤 PostgreSQL
+전체와 Garage 객체를 백업하고, DB 마이그레이션과 교통 거점 동기화를 적용한다.
+커밋되지 않은 파일이 있으면 이미지 출처가 모호해지므로 배포를 시작하지 않는다.
+새 앱의 readiness가 60초 안에 확인되면 배포 상태를 저장하고, 실패하면 이전 앱
+이미지로 자동 복귀한다. 시드는 실행하지 않는다. DB 마이그레이션은 데이터 손실을
+막기 위해 자동으로 역적용하지 않으므로 모든 운영 마이그레이션은 이전 앱과도
+호환되는 expand-contract 방식으로 작성한다.
+성공한 앱·ops 커밋 이미지는 각각 최근 5개까지 유지한다.
+
+`tuti-prod-rollback`은 마지막 성공 배포 직전의 앱 이미지로 되돌린다. DB 스키마는
+되돌리지 않으며 readiness 확인을 통과해야 성공한다. 롤백 가능한 이미지를 임의로
+정리하지 말고 적어도 직전 두 버전은 유지한다.
+
+## 전체 백업과 복구
+
+`tuti-prod-backup`은 운영 PostgreSQL의 스키마와 전체 데이터를 custom dump로
+저장하고, Garage 버킷의 객체를 S3 API로 읽어 각 객체의 SHA-256, 콘텐츠 유형,
+캐시 정책과 함께 논리 백업한다. 기본 경로는
+`/volume1/tuti/backups/full/{YYYYMMDD-HHMMSS}`이고 기본 보존기간은 30일이다.
+각 백업에는 전체 파일 체크섬과 Git 리비전이 포함된다. `.env`와 API 비밀키는
+백업에 포함하지 않으므로 별도 암호관리 도구에 보관한다.
+DB가 가리키는 객체와 실제 객체의 시점을 맞추기 위해 백업 중에는 운영 앱을 잠시
+중지하고 완료 또는 실패 시 원래 상태로 다시 시작한다. 새벽 저사용 시간에 실행한다.
+
+```sh
+sudo -n /usr/local/sbin/tuti-prod-backup
+```
+
+동일 NAS의 백업은 디스크·화재·랜섬웨어 장애를 함께 겪을 수 있다. Synology Hyper
+Backup으로 `/volume1/tuti/backups/full`을 외장 장치나 원격 저장소에 한 번 더
+복제한다. 기존 관광·혼잡도 정기 작업보다 앞선 매일 오전 00:20 전체 백업,
+보관 30일을 권장한다.
+
+복구는 운영 앱을 중지하고 PostgreSQL 객체를 교체한 뒤 백업에 포함된 Garage
+객체를 검증·덮어쓴다. 백업에 없던 Garage 객체는 자동 삭제하지 않는다. 운영
+데이터를 바꾸는 작업이므로 백업 ID와 확인 인자가 모두 필요하다.
+
+```sh
+sudo -n /usr/local/sbin/tuti-prod-restore \
+  20260815-022000 \
+  --confirm-production-restore
+```
+
+분기마다 별도 테스트 환경에서 최근 백업을 복구하고 로그인, 추천, 저널 이미지
+조회까지 확인한다. 복구 시험 결과와 소요시간을 운영 기록에 남긴다.
+
+## 상태 점검과 알림
+
+`/api/health?scope=liveness`는 Next.js 프로세스만 확인하고 `/api/health`는
+PostgreSQL과 활성화된 Garage 버킷까지 확인한다. 비밀값이나 DB 상세 오류는
+응답하지 않는다. 운영 앱 컨테이너도 liveness를 30초마다 확인한다.
+
+`tuti-prod-health`는 앱 liveness/readiness, PostgreSQL, Garage Compose와 백업·
+스토리지 볼륨 사용률을 점검하고 `.ops-state/health`에 30일간 로그를 남긴다.
+오류 시 0이 아닌 종료코드를 반환하므로 DSM 작업 스케줄러의 실패 이메일 알림을
+활성화한다. 매 5분 실행을 권장한다.
+백업·배포·복구 프로세스가 실행 중이면 유지보수 상태로 기록하고 정상 종료하므로
+계획된 앱 중지로 인한 거짓 장애 알림은 발생하지 않는다. 종료된 프로세스가 남긴
+표식은 다음 점검에서 자동으로 제거한다.
+
+```sh
+/usr/local/sbin/tuti-prod-health
+```
+
+디스크 경고 기본값은 85%다. 작업 스케줄러 명령 앞에 환경변수를 지정해 바꿀 수
+있다. JSON `{ "text": "..." }`를 받는 Slack/Discord 호환 프록시가 있다면 실패
+알림 웹훅도 설정할 수 있다.
+
+```sh
+TUTI_DISK_WARNING_PERCENT=80 \
+TUTI_OPERATIONS_ALERT_WEBHOOK_URL='https://example.invalid/webhook' \
+/usr/local/sbin/tuti-prod-health
+```
+
+## API 요청 제한
+
+`src/proxy.ts`는 `/api` 요청을 IP와 세션 토큰의 단방향 축약값 조합으로 구분해
+고정 시간창 요청 제한을 적용한다. 인증코드, OAuth, 추천, 경로 계산, 이미지 변경,
+문의·신고에는 일반 조회보다 낮은 별도 한도가 적용된다. 제한 응답은 HTTP 429,
+`Retry-After`와 `X-RateLimit-*` 헤더를 제공하고 Capacitor 출처에도 CORS를
+유지한다. 토큰 원문은 카운터 키에 저장하지 않는다.
+
+현재 운영은 단일 Next.js 인스턴스이므로 프로세스 메모리 카운터를 사용한다.
+인스턴스가 여러 개가 되면 Redis 등 공용 저장소 또는 Cloudflare Rate Limiting으로
+카운터를 이전해야 한다. Cloudflare에서도 `/api/auth`, 이미지 업로드와 추천 API에
+IP 기반 1차 제한을 두면 우회·분산 요청 방어가 강화된다.
 
 `tuti-dev-refresh`는 개발 DB 마이그레이션을 적용한 뒤 개발 앱을 재시작한다. `tuti-dev-restart`는 마이그레이션 없이 개발 앱만 재시작한다.
 

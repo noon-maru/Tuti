@@ -2,7 +2,7 @@ name: tuti-prod
 
 services:
   app:
-    image: tuti:prod
+    image: ${TUTI_APP_IMAGE:-tuti:prod}
     container_name: tuti-prod
     build:
       context: .
@@ -15,17 +15,30 @@ services:
     env_file:
       - .env
       - .env.production
+    environment:
+      TUTI_RELEASE: ${TUTI_RELEASE:-unknown}
     restart: unless-stopped
     ports:
       - "5050:3000"
     depends_on:
-      - db
+      db:
+        condition: service_healthy
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - fetch('http://127.0.0.1:3000/api/health?scope=liveness').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
     networks:
       - default
       - storage
 
   ops:
-    image: tuti:ops
+    image: ${TUTI_OPS_IMAGE:-tuti:ops}
     build:
       context: .
       target: builder
@@ -38,7 +51,8 @@ services:
       - .env
       - .env.production
     depends_on:
-      - db
+      db:
+        condition: service_healthy
     profiles:
       - ops
 
@@ -50,6 +64,12 @@ services:
       - .env.production
     volumes:
       - tuti_prod_postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
 
 volumes:
   tuti_prod_postgres:

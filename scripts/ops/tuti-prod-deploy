@@ -3,32 +3,129 @@
 set -eu
 
 project_dir="/var/services/homes/Tutiadmin/source/Tuti"
+state_dir="$project_dir/.ops-state/deploy"
+state_file="$state_dir/releases.env"
+lock_dir="$state_dir/deploy.lock"
+maintenance_dir="$project_dir/.ops-state/maintenance"
+maintenance_marker="$maintenance_dir/$$"
+revision="$(git -C "$project_dir" rev-parse --short=12 HEAD)"
+app_image="tuti:prod-$revision"
+ops_image="tuti:ops-$revision"
+previous_image="$(docker inspect tuti-prod --format '{{.Config.Image}}' 2>/dev/null || true)"
+previous_release="$(docker inspect tuti-prod --format '{{range .Config.Env}}{{println .}}{{end}}' 2>/dev/null | sed -n 's/^TUTI_RELEASE=//p' | head -n 1)"
+
+case "$revision" in
+  *[!0-9a-f]* | "")
+    echo "배포 Git 리비전을 확인하지 못했습니다." >&2
+    exit 1
+    ;;
+esac
+
+if [ -n "$(git -C "$project_dir" status --porcelain)" ]; then
+  echo "커밋되지 않은 변경사항이 있어 운영 이미지의 출처를 확정할 수 없습니다." >&2
+  echo "변경사항을 커밋한 뒤 다시 배포하세요." >&2
+  exit 1
+fi
+
+install -d -o root -g root -m 0700 "$state_dir"
+install -d -o root -g root -m 0700 "$maintenance_dir"
+if ! mkdir "$lock_dir" 2>/dev/null; then
+  echo "다른 운영 배포가 진행 중입니다." >&2
+  exit 1
+fi
+printf 'deploy\n' > "$maintenance_marker"
+chmod 0600 "$maintenance_marker"
+trap 'rm -f "$maintenance_marker"; rmdir "$lock_dir" 2>/dev/null || true' EXIT INT TERM
+
+case "$previous_image" in
+  "") ;;
+  tuti:prod-*) ;;
+  *)
+    preserved_image="tuti:prod-before-$revision"
+    docker tag "$previous_image" "$preserved_image"
+    previous_image="$preserved_image"
+    ;;
+esac
 
 cd "$project_dir"
 
-docker compose \
-  --env-file .env.production \
-  -f docker-compose.prod.yml \
-  build ops app
+export TUTI_APP_IMAGE="$app_image"
+export TUTI_OPS_IMAGE="$ops_image"
+export TUTI_RELEASE="$revision"
 
-docker compose \
-  --env-file .env.production \
-  -f docker-compose.prod.yml \
-  run --rm ops \
-  pnpm db:deploy
+echo "커밋별 운영 이미지 빌드: $revision"
+docker compose --env-file .env.production -f docker-compose.prod.yml build ops app
 
-docker compose \
-  --env-file .env.production \
-  -f docker-compose.prod.yml \
-  run --rm ops \
-  pnpm transport:hubs:sync
+echo "배포 이미지 테스트"
+docker compose --env-file .env.production -f docker-compose.prod.yml \
+  run --rm --no-deps ops pnpm test
 
-docker compose \
-  --env-file .env.production \
-  -f docker-compose.prod.yml \
+echo "배포 직전 전체 백업"
+sh scripts/ops/tuti-prod-backup
+
+echo "운영 DB 마이그레이션"
+docker compose --env-file .env.production -f docker-compose.prod.yml \
+  run --rm ops pnpm db:deploy
+docker compose --env-file .env.production -f docker-compose.prod.yml \
+  run --rm ops pnpm transport:hubs:sync
+
+echo "새 운영 앱 교체"
+docker compose --env-file .env.production -f docker-compose.prod.yml \
   up -d --no-deps app
 
-docker compose \
-  --env-file .env.production \
-  -f docker-compose.prod.yml \
-  ps
+healthy=false
+attempt=1
+while [ "$attempt" -le 12 ]; do
+  if docker compose --env-file .env.production -f docker-compose.prod.yml \
+    exec -T app node -e \
+    'Promise.all([fetch("http://127.0.0.1:3000/api/health"), fetch("http://127.0.0.1:3000/")]).then(responses=>{if(responses.some(response=>!response.ok))process.exit(1)}).catch(()=>process.exit(1))' \
+    >/dev/null 2>&1; then
+    healthy=true
+    break
+  fi
+  sleep 5
+  attempt=$((attempt + 1))
+done
+
+if [ "$healthy" != true ]; then
+  echo "새 버전 readiness 확인에 실패했습니다." >&2
+  if [ -n "$previous_image" ]; then
+    echo "이전 앱 이미지로 복귀합니다: $previous_image" >&2
+    TUTI_APP_IMAGE="$previous_image" TUTI_RELEASE="${previous_release:-rollback}" \
+      docker compose --env-file .env.production -f docker-compose.prod.yml \
+      up -d --no-deps app
+  fi
+  echo "DB 마이그레이션은 자동으로 되돌리지 않았습니다. expand-contract 원칙에 따라 확인하세요." >&2
+  exit 1
+fi
+
+cat > "$state_file" <<EOF
+current_image=$app_image
+current_ops_image=$ops_image
+current_release=$revision
+previous_image=${previous_image:-}
+previous_release=${previous_release:-}
+deployed_at=$(date -Iseconds)
+EOF
+chmod 0600 "$state_file"
+
+docker tag "$app_image" tuti:prod
+docker tag "$ops_image" tuti:ops
+
+prune_release_tags() {
+  prefix="$1"
+  docker image ls tuti --format '{{.Repository}}:{{.Tag}}' \
+    | grep "^tuti:${prefix}-" \
+    | awk 'NR > 5' \
+    | while IFS= read -r stale_image; do
+        [ -n "$stale_image" ] || continue
+        docker image rm "$stale_image" >/dev/null 2>&1 || true
+      done
+}
+
+prune_release_tags prod
+prune_release_tags ops
+
+docker compose --env-file .env.production -f docker-compose.prod.yml ps
+echo "운영 배포 완료: $revision"
+echo "문제가 있으면 sudo -n /usr/local/sbin/tuti-prod-rollback 을 실행하세요."
