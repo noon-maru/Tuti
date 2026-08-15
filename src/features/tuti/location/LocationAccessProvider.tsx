@@ -17,13 +17,17 @@ import {
   requestDeviceLocation,
   type LocationRequestResult,
 } from "@/features/tuti/location/locationAccess";
+import {
+  fetchLocationConsent,
+  updateLocationConsent,
+} from "@/lib/tutiApi";
 import { LOCATION_TERMS_VERSION } from "@/shared/location/terms";
 import type { PreferredRegion } from "@/shared/tuti/types";
 import { useTutiStore } from "@/store/tuti";
 
 type LocationAccessContextValue = {
   requestLocation: () => Promise<LocationRequestResult>;
-  withdrawLocation: () => void;
+  withdrawLocation: () => Promise<void>;
   requesting: boolean;
 };
 
@@ -60,6 +64,7 @@ export function LocationAccessProvider({
   const [consentSheetOpen, setConsentSheetOpen] = useState(false);
   const [regionSheetOpen, setRegionSheetOpen] = useState(false);
   const [requesting, setRequesting] = useState(false);
+  const [consentError, setConsentError] = useState<string | null>(null);
   const requestPromiseRef = useRef<Promise<LocationRequestResult> | null>(null);
   const requestResolverRef = useRef<
     ((result: LocationRequestResult) => void) | null
@@ -153,8 +158,32 @@ export function LocationAccessProvider({
       consent.termsVersion === LOCATION_TERMS_VERSION;
 
     if (acceptedCurrentTerms) {
-      void resolveDeviceLocation();
+      setConsentError(null);
+      setRequesting(true);
+      void fetchLocationConsent()
+        .then((serverConsent) => {
+          const acceptedOnServer =
+            serverConsent?.status === "accepted" &&
+            serverConsent.termsVersion === LOCATION_TERMS_VERSION &&
+            serverConsent.ageConfirmed;
+          if (!acceptedOnServer) {
+            setRequesting(false);
+            setConsentSheetOpen(true);
+            return;
+          }
+          return resolveDeviceLocation();
+        })
+        .catch((error) => {
+          setRequesting(false);
+          setConsentSheetOpen(true);
+          setConsentError(
+            error instanceof Error
+              ? error.message
+              : "위치정보 동의를 기록하지 못했어요.",
+          );
+        });
     } else {
+      setConsentError(null);
       setConsentSheetOpen(true);
     }
 
@@ -162,11 +191,15 @@ export function LocationAccessProvider({
   }, [resolveDeviceLocation]);
 
   const declineRequest = useCallback(() => {
-    declineLocationConsent();
-    clearLocationQueries();
-    setConsentSheetOpen(false);
-    pendingLocationResultRef.current = { status: "declined" };
-    setRegionSheetOpen(true);
+    void updateLocationConsent("declined")
+      .catch(() => null)
+      .then(() => {
+        declineLocationConsent();
+        clearLocationQueries();
+        setConsentSheetOpen(false);
+        pendingLocationResultRef.current = { status: "declined" };
+        setRegionSheetOpen(true);
+      });
   }, [clearLocationQueries, declineLocationConsent]);
 
   const completeRegionPreference = useCallback(
@@ -185,11 +218,25 @@ export function LocationAccessProvider({
   );
 
   const agreeAndRequest = useCallback(() => {
-    acceptLocationConsent();
-    void resolveDeviceLocation();
+    setConsentError(null);
+    setRequesting(true);
+    void updateLocationConsent("accepted", true)
+      .then(() => {
+        acceptLocationConsent();
+        return resolveDeviceLocation();
+      })
+      .catch((error) => {
+        setRequesting(false);
+        setConsentError(
+          error instanceof Error
+            ? error.message
+            : "위치정보 동의를 기록하지 못했어요.",
+        );
+      });
   }, [acceptLocationConsent, resolveDeviceLocation]);
 
-  const withdrawLocation = useCallback(() => {
+  const withdrawLocation = useCallback(async () => {
+    await updateLocationConsent("withdrawn");
     withdrawLocationConsent();
     clearLocationQueries();
   }, [clearLocationQueries, withdrawLocationConsent]);
@@ -205,6 +252,7 @@ export function LocationAccessProvider({
       {consentSheetOpen && (
         <LocationConsentSheet
           requesting={requesting}
+          error={consentError}
           onAgree={agreeAndRequest}
           onDecline={declineRequest}
         />

@@ -1,0 +1,38 @@
+#!/bin/sh
+
+set -eu
+
+project_dir="/var/services/homes/Tutiadmin/source/Tuti"
+lock_dir="/tmp/tuti-location-compliance-purge.lock"
+
+if ! mkdir "$lock_dir" 2>/dev/null; then
+  echo "위치정보 확인자료 파기 작업이 이미 실행 중입니다." >&2
+  exit 1
+fi
+trap 'rmdir "$lock_dir" 2>/dev/null || true' EXIT HUP INT TERM
+
+cd "$project_dir"
+
+if ! docker compose -f docker-compose.dev.yml exec -T app \
+  sh -lc 'test -x node_modules/.bin/tsx && test -f scripts/purge-location-compliance.ts'; then
+  echo "개발 컨테이너 준비가 필요합니다: sudo -n /usr/local/sbin/tuti-dev-refresh" >&2
+  exit 1
+fi
+
+if ! docker compose --env-file .env.production -f docker-compose.prod.yml \
+  run --rm --no-deps -T ops \
+  sh -lc 'test -x node_modules/.bin/tsx && test -f scripts/purge-location-compliance.ts'; then
+  echo "최신 운영 ops 이미지가 필요합니다: sudo -n /usr/local/sbin/tuti-prod-deploy" >&2
+  exit 1
+fi
+
+echo "개발 DB의 보존기간 만료 위치정보 확인자료 파기"
+docker compose -f docker-compose.dev.yml exec -T app \
+  su node -c "node_modules/.bin/tsx scripts/purge-location-compliance.ts"
+
+echo "운영 DB의 보존기간 만료 위치정보 확인자료 파기"
+docker compose --env-file .env.production -f docker-compose.prod.yml \
+  run --rm --no-deps -T ops \
+  node_modules/.bin/tsx scripts/purge-location-compliance.ts
+
+echo "개발·운영 위치정보 확인자료 파기를 완료했습니다."

@@ -34,7 +34,7 @@ export function LocationSettingsScreen({
   requesting: boolean;
   onBack: () => void;
   onEnable: () => Promise<boolean>;
-  onWithdraw: () => void;
+  onWithdraw: () => Promise<boolean | null>;
 }) {
   const [message, setMessage] = useState<string | null>(null);
   const state = resolveLocationState({
@@ -54,6 +54,17 @@ export function LocationSettingsScreen({
           : "괜찮아요. 위치 없이도 장소를 계속 둘러볼 수 있어요.",
       );
     }
+  };
+
+  const withdrawLocation = async () => {
+    setMessage(null);
+    const withdrawn = await onWithdraw();
+    if (withdrawn === null) return;
+    setMessage(
+      withdrawn
+        ? "위치정보 이용 동의를 철회했어요."
+        : "동의 철회를 기록하지 못했어요. 연결을 확인한 뒤 다시 시도해주세요.",
+    );
   };
 
   return (
@@ -90,7 +101,10 @@ export function LocationSettingsScreen({
             </EnableButton>
           )}
           {consent?.status === "accepted" && (
-            <WithdrawButton type="button" onClick={onWithdraw}>
+            <WithdrawButton
+              type="button"
+              onClick={() => void withdrawLocation()}
+            >
               위치정보 이용 동의 철회
             </WithdrawButton>
           )}

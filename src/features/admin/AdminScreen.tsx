@@ -818,6 +818,34 @@ function OverviewPanel({
           ))}
         </MetricGrid>
       </section>
+      <section>
+        <SectionTitle>위치정보 준수 현황</SectionTitle>
+        <MetricGrid>
+          <MetricCard>
+            <span>현행 약관 동의</span>
+            <strong>{overview?.locationCompliance.activeConsents ?? 0}</strong>
+          </MetricCard>
+          <MetricCard>
+            <span>오늘 이용 기록</span>
+            <strong>{overview?.locationCompliance.usageLogsToday ?? 0}</strong>
+          </MetricCard>
+          <MetricCard>
+            <span>오늘 외부 전달</span>
+            <strong>
+              {overview?.locationCompliance.externalTransfersToday ?? 0}
+            </strong>
+          </MetricCard>
+          <MetricCard>
+            <span>7일 내 파기 예정</span>
+            <strong>
+              {overview?.locationCompliance.expiringWithinSevenDays ?? 0}
+            </strong>
+          </MetricCard>
+        </MetricGrid>
+        <ComplianceMode>
+          외부 좌표 처리 모드: {overview?.locationCompliance.externalProcessingMode ?? "pending"}
+        </ComplianceMode>
+      </section>
     </OverviewContent>
   );
 }
@@ -2498,6 +2526,15 @@ const MetricGrid = styled.section`
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: var(--space-3);
   }
+`;
+
+const ComplianceMode = styled.p`
+  justify-self: start;
+  padding: var(--space-2) var(--space-3);
+  border-radius: 999px;
+  background: var(--color-secondary-200);
+  color: var(--color-text-muted);
+  font-size: var(--font-size-100);
 `;
 
 const MetricCard = styled.article`

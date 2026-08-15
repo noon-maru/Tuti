@@ -12,7 +12,7 @@ import { JournalPlacePicker } from "@/features/tuti/components/JournalPlacePicke
 import { ScreenFrame } from "@/features/tuti/components/ScreenFrame";
 import { LoadingIndicator } from "@/features/tuti/components/LoadingIndicator";
 import { readImageMetadata } from "@/features/tuti/lib/readImageMetadata";
-import { fetchNearbyPlaces } from "@/lib/tutiApi";
+import { fetchLocationConsent, fetchNearbyPlaces } from "@/lib/tutiApi";
 import type {
   JournalEntryInput,
   TutiJournalEntry,
@@ -114,9 +114,20 @@ export function JournalEditorScreen({
       (!entry && !hasEditedVisitDateRef.current) ||
       !hasEditedPlaceRef.current
     ) {
-      void readImageMetadata(file, {
-        includeLocation: locationTermsAccepted,
-      }).then(async (metadata) => {
+      const metadataRequest = locationTermsAccepted
+        ? fetchLocationConsent()
+            .then((serverConsent) =>
+              readImageMetadata(file, {
+                includeLocation:
+                  serverConsent?.status === "accepted" &&
+                  serverConsent.termsVersion === LOCATION_TERMS_VERSION &&
+                  serverConsent.ageConfirmed,
+              }),
+            )
+            .catch(() => readImageMetadata(file))
+        : readImageMetadata(file);
+
+      void metadataRequest.then(async (metadata) => {
         if (selectionId !== imageSelectionIdRef.current) return;
 
         if (

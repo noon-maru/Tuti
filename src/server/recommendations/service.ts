@@ -21,6 +21,7 @@ import {
 import { fetchKakaoMapRoute } from "@/server/maps/kakaoMapClient";
 import { isWalkingDistance } from "@/server/departure/routeSelection";
 import { toTravelTimeSummary } from "@/server/departure/travelTimeSummary";
+import { getExternalLocationProcessingMode } from "@/server/location/externalProcessing";
 import {
   enrichPlacesWithAdmissionFees,
   enrichPlacesWithExecutionFeasibility,
@@ -140,7 +141,11 @@ async function evaluateRecommendations(
   // 오늘 사용자가 명시적으로 고른 값은 항상 결정론적으로 해석한다.
   // LLM 프로필은 아래의 후보 순위 보정 단계에서만 비동기로 활용된다.
   const feature = interpretState(answers);
-  if (feature.movement === "far" && location) {
+  if (
+    feature.movement === "far" &&
+    location &&
+    getExternalLocationProcessingMode() !== "pending"
+  ) {
     const longDistancePlaces = requireLongDistanceRecommendations(
       await createLongDistanceRecommendations(
         answers,
@@ -180,7 +185,9 @@ async function evaluateRecommendations(
   const places = location
     ? await findPlacesNearLocation(
         location,
-        requireNearbyMovement(feature.movement),
+        feature.movement === "far"
+          ? "half"
+          : requireNearbyMovement(feature.movement),
       )
     : await findPlacesByBaseFatigue(preferredRegion);
 

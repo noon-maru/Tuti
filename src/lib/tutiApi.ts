@@ -1,5 +1,6 @@
 import { apiUrl } from "@/lib/api/apiUrl";
 import { fetchWithSession } from "@/lib/auth/session";
+import { Capacitor } from "@capacitor/core";
 import type {
   DeparturePlan,
   DeparturePlanResponse,
@@ -40,9 +41,46 @@ import type {
 import type { NearbyAccommodationsResponse } from "@/shared/api/accommodations";
 import type {
   IntakeAnswers,
+  LocationConsentStatus,
   PreferredRegion,
   UserLocation,
 } from "@/shared/tuti/types";
+import type { LocationConsentResponse } from "@/shared/api/locationCompliance";
+import { LOCATION_TERMS_VERSION } from "@/shared/location/terms";
+
+export async function updateLocationConsent(
+  status: LocationConsentStatus,
+  ageConfirmed = false,
+) {
+  const platform = Capacitor.getPlatform();
+  const response = await fetchWithSession("location-consent", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      status,
+      termsVersion: LOCATION_TERMS_VERSION,
+      ageConfirmed,
+      clientPlatform:
+        platform === "ios" || platform === "android" ? platform : "web",
+    }),
+  });
+  if (!response.ok) {
+    throw new Error(
+      await readApiError(response, "위치정보 동의를 기록하지 못했어요."),
+    );
+  }
+  return (await response.json()) as LocationConsentResponse;
+}
+
+export async function fetchLocationConsent() {
+  const response = await fetchWithSession("location-consent");
+  if (!response.ok) {
+    throw new Error(
+      await readApiError(response, "위치정보 동의 상태를 확인하지 못했어요."),
+    );
+  }
+  return ((await response.json()) as LocationConsentResponse).consent;
+}
 
 export async function fetchRecommendations(
   answers: IntakeAnswers,
@@ -146,8 +184,8 @@ export async function fetchDeparturePlan(
   placeId: string,
   origin: UserLocation,
 ): Promise<DeparturePlan> {
-  const response = await fetch(
-    apiUrl(`places/${encodeURIComponent(placeId)}/departure-plan`),
+  const response = await fetchWithSession(
+    `places/${encodeURIComponent(placeId)}/departure-plan`,
     {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -169,8 +207,8 @@ export async function fetchTravelTime(
   placeId: string,
   origin: UserLocation,
 ): Promise<TravelTimeSummary | null> {
-  const response = await fetch(
-    apiUrl(`places/${encodeURIComponent(placeId)}/travel-time`),
+  const response = await fetchWithSession(
+    `places/${encodeURIComponent(placeId)}/travel-time`,
     {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -191,7 +229,7 @@ export async function fetchTravelTime(
 export async function fetchNearbyPlaces(
   location: UserLocation,
 ): Promise<NearbyPlaceResult[]> {
-  const response = await fetch(apiUrl("places/nearby"), {
+  const response = await fetchWithSession("places/nearby", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ location }),

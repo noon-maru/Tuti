@@ -1,4 +1,10 @@
 import { prisma } from "@/server/db/prisma";
+import { authenticateUser } from "@/server/auth/session";
+import {
+  LocationComplianceError,
+  requireCurrentLocationConsent,
+  runWithLocationUsage,
+} from "@/server/location/compliance";
 import {
   createPreflightResponse,
   isRequestOriginAllowed,
@@ -32,6 +38,8 @@ export async function POST(request: Request) {
   }
 
   try {
+    const user = await authenticateUser(request);
+    const consent = await requireCurrentLocationConsent(user);
     const body = (await request.json()) as unknown;
     const location = normalizeLocation(
       (body as Partial<NearbyPlacesRequest> | null)?.location,
@@ -47,7 +55,14 @@ export async function POST(request: Request) {
       );
     }
 
-    const places = await findNearbyPlaces(location);
+    const places = await runWithLocationUsage({
+      user: user!,
+      consent,
+      acquisitionSource: "photo_exif",
+      service: "photo_nearby",
+      method: "POST /api/places/nearby",
+      operation: () => findNearbyPlaces(location),
+    });
     const response: NearbyPlacesResponse = {
       places: places.map((place) => ({
         id: place.id,
@@ -62,7 +77,9 @@ export async function POST(request: Request) {
 
     return withCors(request, Response.json(response));
   } catch (error) {
-    if (!(error instanceof SyntaxError)) {
+    const complianceError =
+      error instanceof LocationComplianceError ? error : null;
+    if (!(error instanceof SyntaxError) && !complianceError) {
       // 사진 좌표는 개인정보이므로 오류 객체나 요청 본문을 로그에 남기지 않는다.
       console.error("사진 주변 장소 검색 중 오류가 발생했습니다.");
     }
@@ -74,9 +91,13 @@ export async function POST(request: Request) {
           error:
             error instanceof SyntaxError
               ? "요청 본문을 확인해주세요."
-              : "사진 주변의 장소를 찾지 못했어요.",
+              : complianceError?.message ?? "사진 주변의 장소를 찾지 못했어요.",
+          ...(complianceError ? { code: complianceError.code } : {}),
         },
-        { status: error instanceof SyntaxError ? 400 : 500 },
+        {
+          status:
+            error instanceof SyntaxError ? 400 : complianceError?.status ?? 500,
+        },
       ),
     );
   }

@@ -46,7 +46,7 @@ export async function recordRecommendationRunSafely({
             reasonFactors: place.reasonFactors ?? [],
             cardPhrase: place.cardPhrase ?? null,
             fatigueScore: place.fatigueScore ?? null,
-            distanceMeters: place.distanceMeters ?? null,
+            distanceBand: toDistanceBand(place.distanceMeters),
             crowdForecast: place.crowdForecast ?? null,
           })),
         ),
@@ -56,6 +56,17 @@ export async function recordRecommendationRunSafely({
   } catch (error) {
     console.error("추천 실행 스냅샷을 저장하지 못했습니다.", error);
   }
+}
+
+function toDistanceBand(distanceMeters: number | undefined) {
+  if (distanceMeters === undefined || !Number.isFinite(distanceMeters)) {
+    return null;
+  }
+  if (distanceMeters < 2_000) return "under_2km";
+  if (distanceMeters < 10_000) return "2_to_10km";
+  if (distanceMeters < 30_000) return "10_to_30km";
+  if (distanceMeters < 100_000) return "30_to_100km";
+  return "over_100km";
 }
 
 function toJson(value: unknown) {

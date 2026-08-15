@@ -2,6 +2,8 @@ import type {
   DepartureRoute,
 } from "@/shared/api/departurePlan";
 import type { UserLocation } from "@/shared/tuti/types";
+import { recordExternalLocationTransfer } from "@/server/location/compliance";
+import { requireExternalLocationProcessingMode } from "@/server/location/externalProcessing";
 
 const KAKAO_NAVI_DIRECTIONS_URL =
   "https://apis-navi.kakaomobility.com/v1/directions";
@@ -42,6 +44,7 @@ export async function fetchKakaoDrivingRoute({
   destination,
   destinationName,
 }: KakaoNaviInput): Promise<DepartureRoute> {
+  const externalMode = requireExternalLocationProcessingMode();
   const apiKey = process.env.KAKAO_REST_API_KEY?.trim();
   if (!apiKey) {
     throw new KakaoNaviError(
@@ -59,6 +62,12 @@ export async function fetchKakaoDrivingRoute({
     road_details: "false",
     summary: "true",
   }).toString();
+  await recordExternalLocationTransfer({
+    recipient: "Kakao Mobility",
+    purpose: "자동차 경로·예상 이동시간·통행료·예상 택시비 계산",
+    method: "GET apis-navi.kakaomobility.com/v1/directions",
+    mode: externalMode,
+  });
   let response: Response;
 
   try {
@@ -112,7 +121,6 @@ export async function fetchKakaoDrivingRoute({
     tollWon: finiteNumber(route.summary.fare?.toll),
     taxiFareWon: finiteNumber(route.summary.fare?.taxi),
     externalUrl: createKakaoMapDrivingUrl(
-      origin,
       destination,
       destinationName,
     ),
@@ -136,17 +144,13 @@ function unavailableDrivingRoute(): DepartureRoute {
 }
 
 function createKakaoMapDrivingUrl(
-  origin: UserLocation,
   destination: UserLocation,
   destinationName: string,
 ) {
-  const from = encodeURIComponent(
-    `현재 위치,${origin.latitude},${origin.longitude}`,
-  );
   const to = encodeURIComponent(
     `${destinationName},${destination.latitude},${destination.longitude}`,
   );
-  return `https://map.kakao.com/link/from/${from}/to/${to}`;
+  return `https://map.kakao.com/link/to/${to}`;
 }
 
 function finiteNumber(value: unknown) {

@@ -1,5 +1,10 @@
 import { randomUUID } from "node:crypto";
 import { authenticateUser } from "@/server/auth/session";
+import {
+  LocationComplianceError,
+  requireCurrentLocationConsent,
+  runWithLocationUsage,
+} from "@/server/location/compliance";
 import { recordRecommendationRunSafely } from "@/server/recommendations/run";
 import { createRecommendationsWithAudit } from "@/server/recommendations/service";
 import {
@@ -30,19 +35,30 @@ export async function POST(request: Request) {
   }
 
   try {
+    const user = await authenticateUser(request);
     const body = parseRecommendationRequest(await request.json());
     const location = body.location;
     const preferredRegion = location ? undefined : body.preferredRegion;
     const excludePlaceIds = body.excludePlaceIds ?? [];
     const recommendationId = randomUUID();
-    const user = await authenticateUser(request);
-    const { places, personalization } = await createRecommendationsWithAudit(
-      body.answers ?? {},
-      location,
-      preferredRegion,
-      excludePlaceIds,
-      user?.id,
-    );
+    const createRecommendations = () =>
+      createRecommendationsWithAudit(
+        body.answers ?? {},
+        location,
+        preferredRegion,
+        excludePlaceIds,
+        user?.id,
+      );
+    const { places, personalization } = location
+      ? await runWithLocationUsage({
+          user: user!,
+          consent: await requireCurrentLocationConsent(user),
+          acquisitionSource: "device",
+          service: "recommendation",
+          method: "POST /api/recommendations",
+          operation: createRecommendations,
+        })
+      : await createRecommendations();
     const response: RecommendationResponse = {
       recommendationId,
       algorithmVersion: RECOMMENDATION_ALGORITHM_VERSION,
@@ -67,8 +83,15 @@ export async function POST(request: Request) {
     const invalidRequest = error instanceof InvalidRecommendationRequestError;
     const longDistanceUnavailable =
       error instanceof LongDistanceRecommendationsUnavailableError;
+    const complianceError =
+      error instanceof LocationComplianceError ? error : null;
 
-    if (!invalidJson && !invalidRequest && !longDistanceUnavailable) {
+    if (
+      !invalidJson &&
+      !invalidRequest &&
+      !longDistanceUnavailable &&
+      !complianceError
+    ) {
       console.error("추천 API 처리 중 오류가 발생했습니다.", error);
     }
 
@@ -82,8 +105,14 @@ export async function POST(request: Request) {
               ? error.message
               : longDistanceUnavailable
                 ? "고속열차·고속버스 여정을 준비하지 못했어요. 잠시 후 다시 시도해주세요."
-                : "추천 데이터를 준비하지 못했어요.",
-          ...(longDistanceUnavailable ? { code: error.code } : {}),
+                : complianceError
+                  ? complianceError.message
+                  : "추천 데이터를 준비하지 못했어요.",
+          ...(longDistanceUnavailable
+            ? { code: error.code }
+            : complianceError
+              ? { code: complianceError.code }
+              : {}),
         },
         {
           status:
@@ -91,7 +120,7 @@ export async function POST(request: Request) {
               ? 400
               : longDistanceUnavailable
                 ? 503
-                : 500,
+                : complianceError?.status ?? 500,
         },
       ),
     );

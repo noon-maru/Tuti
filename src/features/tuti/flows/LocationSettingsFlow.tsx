@@ -26,13 +26,19 @@ export function LocationSettingsFlow() {
         const result = await requestLocation();
         return result.status === "ready";
       }}
-      onWithdraw={() => {
+      onWithdraw={async () => {
         if (
-          window.confirm(
+          !window.confirm(
             "위치정보 이용 동의를 철회할까요? 이후에는 현재 위치를 요청하지 않아요.",
           )
         ) {
-          withdrawLocation();
+          return null;
+        }
+        try {
+          await withdrawLocation();
+          return true;
+        } catch {
+          return false;
         }
       }}
     />

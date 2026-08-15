@@ -5,6 +5,8 @@ import type {
   DepartureRouteStep,
 } from "@/shared/api/departurePlan";
 import type { UserLocation } from "@/shared/tuti/types";
+import { recordExternalLocationTransfer } from "@/server/location/compliance";
+import { requireExternalLocationProcessingMode } from "@/server/location/externalProcessing";
 
 const KAKAO_MAP_BASE_URL = "https://dapi.kakao.com/v2";
 const KAKAO_REQUEST_TIMEOUT_MS = 10_000;
@@ -92,12 +94,19 @@ export async function fetchKakaoMapRoute(
   mode: KakaoMapRouteMode,
   input: RouteInput,
 ): Promise<DepartureRoute> {
+  const externalMode = requireExternalLocationProcessingMode();
   const operation =
     mode === "publicTransit"
       ? "publictraffic"
       : mode === "walking"
         ? "walk"
         : "bicycle";
+  await recordExternalLocationTransfer({
+    recipient: "Kakao",
+    purpose: `${mode} 경로와 예상 이동시간 계산`,
+    method: `GET dapi.kakao.com/v2/routing/${operation}`,
+    mode: externalMode,
+  });
   const payload = await fetchKakaoJson<
     KakaoTransitResponse | KakaoSimpleRouteResponse
   >(`${KAKAO_MAP_BASE_URL}/routing/${operation}`, {

@@ -110,6 +110,29 @@ enum RecommendationActionType {
   journal_created
 }
 
+enum LocationConsentStatus {
+  accepted
+  declined
+  withdrawn
+}
+
+enum LocationAcquisitionSource {
+  device
+  photo_exif
+}
+
+enum LocationUsageService {
+  recommendation
+  travel_time
+  departure_plan
+  photo_nearby
+}
+
+enum LocationUsageKind {
+  internal_use
+  external_transfer
+}
+
 model Place {
   id                        String                                @id
   name                      String
@@ -618,8 +641,54 @@ model User {
   recommendationActions RecommendationAction[]
   recommendationRuns    RecommendationRun[]
   signalProfile         UserSignalProfile?
+  locationConsentEvents LocationConsentEvent[]
+  locationUsageLogs     LocationUsageLog[]
 
   @@map("users")
+}
+
+model LocationConsentEvent {
+  id               String                @id
+  userId           String?               @map("user_id")
+  subjectKey       String                @map("subject_key")
+  status           LocationConsentStatus
+  termsVersion     String                @map("terms_version")
+  ageConfirmed     Boolean               @default(false) @map("age_confirmed")
+  clientPlatform   String                @map("client_platform")
+  createdAt        DateTime              @default(now()) @map("created_at")
+  user             User?                 @relation(fields: [userId], references: [id], onDelete: SetNull)
+  usageLogs        LocationUsageLog[]
+
+  @@index([userId, createdAt])
+  @@index([subjectKey, createdAt])
+  @@index([createdAt])
+  @@map("location_consent_events")
+}
+
+model LocationUsageLog {
+  id               String                    @id
+  userId           String?                   @map("user_id")
+  subjectKey       String                    @map("subject_key")
+  consentEventId   String?                   @map("consent_event_id")
+  termsVersion     String                    @map("terms_version")
+  acquisitionSource LocationAcquisitionSource @map("acquisition_source")
+  service          LocationUsageService
+  kind             LocationUsageKind
+  method           String
+  externalRecipient String?                  @map("external_recipient")
+  externalPurpose  String?                   @map("external_purpose")
+  externalMode     String?                   @map("external_mode")
+  occurredAt       DateTime                  @default(now()) @map("occurred_at")
+  retentionUntil   DateTime                  @map("retention_until")
+  user             User?                     @relation(fields: [userId], references: [id], onDelete: SetNull)
+  consentEvent     LocationConsentEvent?      @relation(fields: [consentEventId], references: [id], onDelete: SetNull)
+
+  @@index([userId, occurredAt])
+  @@index([subjectKey, occurredAt])
+  @@index([retentionUntil])
+  @@index([service, occurredAt])
+  @@index([kind, externalRecipient, occurredAt])
+  @@map("location_usage_logs")
 }
 
 model RecommendationRun {

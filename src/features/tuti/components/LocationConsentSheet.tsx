@@ -28,10 +28,12 @@ const DISMISS_THRESHOLD = 72;
 
 export function LocationConsentSheet({
   requesting,
+  error,
   onAgree,
   onDecline,
 }: {
   requesting: boolean;
+  error?: string | null;
   onAgree: () => void;
   onDecline: () => void;
 }) {
@@ -202,6 +204,8 @@ export function LocationConsentSheet({
                 만 14세 이상이며 위치기반서비스 이용약관에 동의해요.
               </span>
             </AgreementToggle>
+
+            {error && <ConsentError role="alert">{error}</ConsentError>}
 
             <Actions>
               <AgreeButton
@@ -559,4 +563,10 @@ const TermsAppendix = styled.div`
   background: var(--color-secondary-100);
   color: var(--color-secondary-1000);
   font-size: var(--font-size-100);
+`;
+
+const ConsentError = styled.p`
+  color: var(--color-error-700);
+  font-size: var(--font-size-100);
+  text-align: center;
 `;

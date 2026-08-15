@@ -186,6 +186,12 @@ export const useTutiStore = create<TutiState>()(
         set({
           userLocation: undefined,
           locationPermissionStatus: "unknown",
+          dailyRecommendation: undefined,
+          recommendationExcludedPlaceIds: [],
+          activeIndex: 0,
+          activePlaceId: undefined,
+          detailOverlay: { phase: "closed" },
+          pendingDeparture: undefined,
           locationConsent: {
             status: "withdrawn",
             termsVersion: LOCATION_TERMS_VERSION,

@@ -1,4 +1,10 @@
 import { createDeparturePlan } from "@/server/departure/departurePlan";
+import { authenticateUser } from "@/server/auth/session";
+import {
+  LocationComplianceError,
+  requireCurrentLocationConsent,
+  runWithLocationUsage,
+} from "@/server/location/compliance";
 import {
   createPreflightResponse,
   isRequestOriginAllowed,
@@ -28,6 +34,8 @@ export async function POST(
   }
 
   try {
+    const user = await authenticateUser(request);
+    const consent = await requireCurrentLocationConsent(user);
     const [{ placeId }, body] = await Promise.all([
       context.params,
       request.json() as Promise<unknown>,
@@ -46,7 +54,14 @@ export async function POST(
       );
     }
 
-    const plan = await createDeparturePlan(placeId, origin);
+    const plan = await runWithLocationUsage({
+      user: user!,
+      consent,
+      acquisitionSource: "device",
+      service: "departure_plan",
+      method: "POST /api/places/:placeId/departure-plan",
+      operation: () => createDeparturePlan(placeId, origin),
+    });
     if (!plan) {
       return withCors(
         request,
@@ -61,8 +76,10 @@ export async function POST(
     return withCors(request, Response.json(response));
   } catch (error) {
     const invalidJson = error instanceof SyntaxError;
+    const complianceError =
+      error instanceof LocationComplianceError ? error : null;
 
-    if (!invalidJson) {
+    if (!invalidJson && !complianceError) {
       console.error("출발 계획을 준비하지 못했습니다.", error);
     }
 
@@ -72,9 +89,10 @@ export async function POST(
         {
           error: invalidJson
             ? "요청 본문을 확인해주세요."
-            : "출발 계획을 준비하지 못했어요.",
+            : complianceError?.message ?? "출발 계획을 준비하지 못했어요.",
+          ...(complianceError ? { code: complianceError.code } : {}),
         },
-        { status: invalidJson ? 400 : 500 },
+        { status: invalidJson ? 400 : complianceError?.status ?? 500 },
       ),
     );
   }

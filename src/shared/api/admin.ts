@@ -18,6 +18,13 @@ export type AdminOverview = {
   pendingReports: number;
   pendingInquiries: number;
   logsToday: number;
+  locationCompliance: {
+    activeConsents: number;
+    usageLogsToday: number;
+    externalTransfersToday: number;
+    expiringWithinSevenDays: number;
+    externalProcessingMode: "pending" | "processor" | "third_party";
+  };
 };
 
 export type AdminLogItem = {
