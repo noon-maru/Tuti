@@ -99,12 +99,6 @@ export function ContextMenu({
   }, [hasTextInput, items.length, open]);
 
   useEffect(() => {
-    if (open && hasTextInput) {
-      setTextInputValue(initialTextInputValue);
-    }
-  }, [hasTextInput, initialTextInputValue, open]);
-
-  useEffect(() => {
     if (!open) return;
 
     const closeOnEscape = (event: KeyboardEvent) => {
@@ -129,7 +123,14 @@ export function ContextMenu({
   const toggleMenu = (event: MouseEvent<HTMLButtonElement>) => {
     event.preventDefault();
     event.stopPropagation();
-    setOpen((currentOpen) => !currentOpen);
+
+    const nextOpen = !open;
+
+    if (nextOpen && hasTextInput) {
+      setTextInputValue(initialTextInputValue);
+    }
+
+    setOpen(nextOpen);
   };
 
   return (
