@@ -276,6 +276,7 @@ const HeaderSpacer = styled.span`
 `;
 
 const ScrollContent = styled.div`
+  flex: 1;
   min-height: 0;
   display: grid;
   align-content: start;
@@ -283,7 +284,10 @@ const ScrollContent = styled.div`
   padding: var(--space-6) var(--space-5)
     calc(var(--space-8) + var(--app-safe-area-bottom, 0px));
   overflow-y: auto;
+  overflow-x: hidden;
   overscroll-behavior: contain;
+  touch-action: pan-y;
+  -webkit-overflow-scrolling: touch;
 `;
 
 const StatusCard = styled.section<{ $active: boolean }>`

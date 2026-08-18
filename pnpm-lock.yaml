@@ -17,12 +17,18 @@ importers:
       '@capacitor/android':
         specifier: 8.3.4
         version: 8.3.4(@capacitor/core@8.3.4)
+      '@capacitor/app':
+        specifier: 8.1.1
+        version: 8.1.1(@capacitor/core@8.3.4)
       '@capacitor/core':
         specifier: ^8.3.4
         version: 8.3.4
       '@capacitor/filesystem':
         specifier: 8.1.2
         version: 8.1.2(@capacitor/core@8.3.4)
+      '@capacitor/geolocation':
+        specifier: 8.2.0
+        version: 8.2.0(@capacitor/core@8.3.4)
       '@capacitor/ios':
         specifier: 8.3.4
         version: 8.3.4(@capacitor/core@8.3.4)
@@ -271,6 +277,11 @@ packages:
     peerDependencies:
       '@capacitor/core': ^8.3.0
 
+  '@capacitor/app@8.1.1':
+    resolution: {integrity: sha512-xM2ZTX5jK60tFtmjsmJv+Cdj1Qsb6NcavkqmdEnCPQBeya9oKhamZJxYOnQNj1ZvcJM7sWfG6BEtSLx42pisbA==}
+    peerDependencies:
+      '@capacitor/core': '>=8.0.0'
+
   '@capacitor/assets@3.0.5':
     resolution: {integrity: sha512-ohz/OUq61Y1Fc6aVSt0uDrUdeOA7oTH4pkWDbv/8I3UrPjH7oPkzYhShuDRUjekNp9RBi198VSFdt0CetpEOzw==}
     engines: {node: '>=10.3.0'}
@@ -291,6 +302,11 @@ packages:
 
   '@capacitor/filesystem@8.1.2':
     resolution: {integrity: sha512-doaaMfGoFR2hWU6aV6u83I+5ZsGyJVq+Gz4r9lMpJzUKMm1eMu0hLnFdV1aXZlU9FlK/RndFrVD8oRZfNOqWgQ==}
+    peerDependencies:
+      '@capacitor/core': '>=8.0.0'
+
+  '@capacitor/geolocation@8.2.0':
+    resolution: {integrity: sha512-N29QcoIPmme0xSxRkm7+3hjoHp6mBAOarxecvtCCZKyOBeKiJsFUq981cezg2XWBa6fhCXJMCCjQPngKK/dIag==}
     peerDependencies:
       '@capacitor/core': '>=8.0.0'
 
@@ -4147,6 +4163,10 @@ snapshots:
     dependencies:
       '@capacitor/core': 8.3.4
 
+  '@capacitor/app@8.1.1(@capacitor/core@8.3.4)':
+    dependencies:
+      '@capacitor/core': 8.3.4
+
   '@capacitor/assets@3.0.5(@types/node@20.19.41)(typescript@5.9.3)':
     dependencies:
       '@capacitor/cli': 5.7.8
@@ -4218,6 +4238,11 @@ snapshots:
       tslib: 2.8.1
 
   '@capacitor/filesystem@8.1.2(@capacitor/core@8.3.4)':
+    dependencies:
+      '@capacitor/core': 8.3.4
+      '@capacitor/synapse': 1.0.4
+
+  '@capacitor/geolocation@8.2.0(@capacitor/core@8.3.4)':
     dependencies:
       '@capacitor/core': 8.3.4
       '@capacitor/synapse': 1.0.4

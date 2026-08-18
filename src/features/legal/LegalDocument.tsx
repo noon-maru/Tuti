@@ -57,11 +57,30 @@ export function LegalDocument({
 
 const Page = styled.main`
   width: min(100%, 760px);
-  min-height: 100dvh;
+  height: 100vh;
+  height: 100dvh;
+  min-height: 0;
   margin-inline: auto;
-  padding: clamp(var(--space-5), 5vw, var(--space-12));
+  padding: max(var(--space-5), env(safe-area-inset-top, 0px))
+    max(var(--space-5), env(safe-area-inset-right, 0px))
+    max(var(--space-8), env(safe-area-inset-bottom, 0px))
+    max(var(--space-5), env(safe-area-inset-left, 0px));
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
+  touch-action: pan-y;
+  -webkit-overflow-scrolling: touch;
   background: var(--color-surface);
   color: var(--color-text-primary);
+
+  @media (min-width: 768px) {
+    height: calc(100dvh - var(--space-16));
+    margin-block: var(--space-8);
+    padding: var(--space-10) var(--space-12);
+    border: 1px solid var(--color-border);
+    border-radius: 32px;
+    box-shadow: 0 24px 80px rgb(var(--color-black-rgb) / 0.1);
+  }
 `;
 
 const Header = styled.header`

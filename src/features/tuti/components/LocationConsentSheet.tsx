@@ -21,6 +21,7 @@ import {
   TextButton,
 } from "@/features/tuti/components/buttons";
 import { useDeferredAnimationStart } from "@/features/tuti/hooks/useDeferredAnimationStart";
+import { ANDROID_BACK_EVENT } from "@/features/tuti/navigation/androidBack";
 import { locationTerms } from "@/shared/location/terms";
 
 const TRANSITION_DURATION = 380;
@@ -74,6 +75,19 @@ export function LocationConsentSheet({
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [closeWithoutLocation, requesting, view]);
+
+  useEffect(() => {
+    if (view !== "terms" || requesting) return;
+
+    const returnToSummary = (event: Event) => {
+      event.preventDefault();
+      setView("summary");
+    };
+
+    window.addEventListener(ANDROID_BACK_EVENT, returnToSummary);
+    return () =>
+      window.removeEventListener(ANDROID_BACK_EVENT, returnToSummary);
+  }, [requesting, view]);
 
   useEffect(
     () => () => {
@@ -141,6 +155,7 @@ export function LocationConsentSheet({
         $closing={closing}
         $dragging={dragging}
         $dragY={dragY}
+        $terms={view === "terms"}
       >
         <DragHandle
           type="button"
@@ -292,9 +307,17 @@ const Sheet = styled.section<{
   $closing: boolean;
   $dragging: boolean;
   $dragY: number;
+  $terms: boolean;
 }>`
   width: 100%;
+  height: ${({ $terms }) =>
+    $terms
+      ? "calc(100% - var(--app-safe-area-top, 0px) - var(--space-5))"
+      : "auto"};
   max-height: calc(100% - var(--app-safe-area-top, 0px) - var(--space-5));
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
   overflow: hidden;
   border-radius: 30px 30px 0 0;
   background: var(--color-surface);
@@ -479,10 +502,9 @@ const DeclineButton = styled(TextButton)`
 `;
 
 const TermsContent = styled.div`
+  width: 100%;
+  flex: 1;
   min-height: 0;
-  max-height: calc(
-    100cqh - var(--app-safe-area-top, 0px) - var(--space-8)
-  );
   display: grid;
   grid-template-rows: auto minmax(0, 1fr);
   gap: var(--space-4);
@@ -527,7 +549,13 @@ const TermsScroll = styled.div`
   gap: var(--space-5);
   padding-right: var(--space-1);
   overflow-y: auto;
+  overflow-x: hidden;
   overscroll-behavior: contain;
+  touch-action: pan-y;
+  -webkit-overflow-scrolling: touch;
+
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-neutral-500) transparent;
 `;
 
 const ProviderInfo = styled.div`
