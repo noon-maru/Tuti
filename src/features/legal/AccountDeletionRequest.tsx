@@ -169,17 +169,23 @@ export function AccountDeletionRequest() {
 
 const Page = styled.main`
   width: min(100%, 720px);
-  min-height: 100vh;
-  min-height: 100dvh;
+  height: 100vh;
+  height: 100dvh;
+  min-height: 0;
   margin-inline: auto;
   padding: max(var(--space-6), env(safe-area-inset-top, 0px))
     max(var(--space-5), env(safe-area-inset-right, 0px))
     max(var(--space-10), env(safe-area-inset-bottom, 0px))
     max(var(--space-5), env(safe-area-inset-left, 0px));
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
+  touch-action: pan-y;
+  -webkit-overflow-scrolling: touch;
   background: var(--color-surface);
 
   @media (min-width: 768px) {
-    min-height: calc(100dvh - var(--space-16));
+    height: calc(100dvh - var(--space-16));
     margin-block: var(--space-8);
     padding: var(--space-10) var(--space-12);
     border: 1px solid var(--color-border);
