@@ -179,7 +179,7 @@ sequenceDiagram
   `NEXT_PUBLIC_KAKAO_OAUTH_ENABLED`를 함께 검사한다. Apple은 연결
   작업이 끝날 때까지 비활성 상태로 둔다.
 
-- Capacitor 최종 앱 ID는 `today.tuti.app`을 사용한다.
+- Capacitor 최종 앱 ID는 `com.noonmaru.tuti`를 사용한다.
 
 - 현재 OAuth 완료 리디렉션은 웹 `/login`으로 연결한다. Capacitor는
   iOS/Android 네이티브 프로젝트 생성 후 시스템 브라우저와 앱 딥링크를
