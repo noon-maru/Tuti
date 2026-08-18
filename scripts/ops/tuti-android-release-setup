@@ -1,0 +1,133 @@
+#!/bin/sh
+
+set -eu
+
+project_dir="/var/services/homes/Tutiadmin/source/Tuti"
+secret_dir="/var/services/homes/Tutiadmin/.tuti-secrets/android"
+keystore_file="$secret_dir/tuti-upload.jks"
+certificate_file="$secret_dir/tuti-upload-certificate.pem"
+signing_file="$secret_dir/release.env"
+keystore_alias="tuti-upload"
+admin_user="${SUDO_USER:-Tutiadmin}"
+
+if [ "$(id -u)" -ne 0 ]; then
+  echo "sudo로 실행해야 합니다." >&2
+  exit 1
+fi
+
+case "$admin_user" in
+  *[!A-Za-z0-9_-]* | "")
+    echo "관리자 사용자 이름이 올바르지 않습니다." >&2
+    exit 1
+    ;;
+esac
+
+admin_uid="$(id -u "$admin_user")"
+admin_gid="$(id -g "$admin_user")"
+
+if [ -e "$keystore_file" ] || [ -e "$signing_file" ]; then
+  echo "릴리스 서명 설정이 이미 존재합니다: $secret_dir" >&2
+  echo "기존 업로드 키를 덮어쓰지 않습니다." >&2
+  exit 1
+fi
+
+install -d -o root -g "$admin_gid" -m 0750 "$secret_dir"
+
+password="$(od -An -N32 -tx1 /dev/urandom | tr -d ' \n')"
+if [ "${#password}" -ne 64 ]; then
+  echo "안전한 임의 비밀번호를 생성하지 못했습니다." >&2
+  exit 1
+fi
+
+tmp_keystore="$secret_dir/.tuti-upload.jks.tmp"
+tmp_certificate="$secret_dir/.tuti-upload-certificate.pem.tmp"
+tmp_signing="$secret_dir/.release.env.tmp"
+
+cleanup() {
+  rm -f "$tmp_keystore" "$tmp_certificate" "$tmp_signing"
+  unset TUTI_ANDROID_KEYSTORE_PASSWORD TUTI_ANDROID_KEY_PASSWORD
+}
+trap cleanup EXIT HUP INT TERM
+
+cd "$project_dir"
+
+export DEV_UID="$admin_uid"
+export DEV_GID="$admin_gid"
+export TUTI_ANDROID_KEYSTORE_PASSWORD="$password"
+export TUTI_ANDROID_KEY_PASSWORD="$password"
+
+echo "Android 업로드 키를 생성합니다."
+docker compose \
+  --env-file .env \
+  --env-file .env.production \
+  -f docker-compose.android.yml \
+  run --build --rm \
+  --user 0:0 \
+  -e TUTI_ANDROID_KEYSTORE_PASSWORD \
+  -e TUTI_ANDROID_KEY_PASSWORD \
+  -v "$secret_dir:/secrets" \
+  builder \
+  keytool -genkeypair \
+    -keystore /secrets/.tuti-upload.jks.tmp \
+    -storetype PKCS12 \
+    -storepass:env TUTI_ANDROID_KEYSTORE_PASSWORD \
+    -alias "$keystore_alias" \
+    -keypass:env TUTI_ANDROID_KEY_PASSWORD \
+    -keyalg RSA \
+    -keysize 4096 \
+    -validity 10000 \
+    -dname "CN=Tuti, OU=Tuti, O=Noonmaru, L=Seoul, ST=Seoul, C=KR" \
+    -noprompt
+
+docker compose \
+  --env-file .env \
+  --env-file .env.production \
+  -f docker-compose.android.yml \
+  run --rm \
+  --user 0:0 \
+  -e TUTI_ANDROID_KEYSTORE_PASSWORD \
+  -v "$secret_dir:/secrets" \
+  builder \
+  keytool -exportcert -rfc \
+    -keystore /secrets/.tuti-upload.jks.tmp \
+    -storepass:env TUTI_ANDROID_KEYSTORE_PASSWORD \
+    -alias "$keystore_alias" \
+    -file /secrets/.tuti-upload-certificate.pem.tmp
+
+cat > "$tmp_signing" <<EOF
+TUTI_ANDROID_KEYSTORE_PASSWORD=$password
+TUTI_ANDROID_KEY_ALIAS=$keystore_alias
+TUTI_ANDROID_KEY_PASSWORD=$password
+EOF
+
+mv "$tmp_keystore" "$keystore_file"
+mv "$tmp_certificate" "$certificate_file"
+mv "$tmp_signing" "$signing_file"
+chown root:"$admin_gid" "$keystore_file" "$certificate_file"
+chown root:root "$signing_file"
+chmod 0640 "$keystore_file"
+chmod 0644 "$certificate_file"
+chmod 0600 "$signing_file"
+
+echo ""
+echo "업로드 인증서 지문"
+docker compose \
+  --env-file .env \
+  --env-file .env.production \
+  -f docker-compose.android.yml \
+  run --rm \
+  --user 0:0 \
+  -e TUTI_ANDROID_KEYSTORE_PASSWORD \
+  -v "$secret_dir:/secrets:ro" \
+  builder \
+  keytool -list -v \
+    -keystore /secrets/tuti-upload.jks \
+    -storepass:env TUTI_ANDROID_KEYSTORE_PASSWORD \
+    -alias "$keystore_alias"
+
+echo ""
+echo "릴리스 서명 설정을 완료했습니다."
+echo "비밀 백업 대상: $keystore_file"
+echo "비밀 백업 대상: $signing_file"
+echo "공개 인증서: $certificate_file"
+echo "키스토어와 release.env를 NAS 밖의 암호화된 저장소에도 백업하세요."

@@ -1,0 +1,110 @@
+#!/bin/sh
+
+set -eu
+
+project_dir="/var/services/homes/Tutiadmin/source/Tuti"
+secret_dir="/var/services/homes/Tutiadmin/.tuti-secrets/android"
+keystore_file="$secret_dir/tuti-upload.jks"
+signing_file="$secret_dir/release.env"
+aab_file="$project_dir/android/app/build/outputs/bundle/release/app-release.aab"
+admin_user="${SUDO_USER:-Tutiadmin}"
+
+if [ "$(id -u)" -ne 0 ]; then
+  echo "sudo로 실행해야 합니다." >&2
+  exit 1
+fi
+
+case "$admin_user" in
+  *[!A-Za-z0-9_-]* | "")
+    echo "관리자 사용자 이름이 올바르지 않습니다." >&2
+    exit 1
+    ;;
+esac
+
+if [ ! -f "$keystore_file" ] || [ ! -f "$signing_file" ]; then
+  echo "릴리스 서명 설정이 없습니다." >&2
+  echo "먼저 sudo -n /usr/local/sbin/tuti-android-release-setup 을 실행하세요." >&2
+  exit 1
+fi
+
+signing_mode="$(stat -c '%a' "$signing_file")"
+if [ "$signing_mode" != "600" ]; then
+  echo "$signing_file 권한은 600이어야 합니다. 현재: $signing_mode" >&2
+  exit 1
+fi
+
+set -a
+# root만 읽을 수 있고 setup 명령이 생성한 고정 형식의 파일이다.
+. "$signing_file"
+set +a
+
+: "${TUTI_ANDROID_KEYSTORE_PASSWORD:?키스토어 비밀번호가 없습니다.}"
+: "${TUTI_ANDROID_KEY_ALIAS:?키 별칭이 없습니다.}"
+: "${TUTI_ANDROID_KEY_PASSWORD:?키 비밀번호가 없습니다.}"
+
+admin_uid="$(id -u "$admin_user")"
+admin_gid="$(id -g "$admin_user")"
+export DEV_UID="$admin_uid"
+export DEV_GID="$admin_gid"
+export TUTI_ANDROID_KEYSTORE_PATH="/run/tuti-android-signing/tuti-upload.jks"
+
+version_code="$(sed -n 's/^[[:space:]]*versionCode[[:space:]]\+\([0-9][0-9]*\).*$/\1/p' "$project_dir/android/app/build.gradle" | head -n 1)"
+version_name="$(sed -n 's/^[[:space:]]*versionName[[:space:]]\+"\([^"]*\)".*$/\1/p' "$project_dir/android/app/build.gradle" | head -n 1)"
+
+if [ -z "$version_code" ] || [ -z "$version_name" ]; then
+  echo "Android 버전 정보를 읽지 못했습니다." >&2
+  exit 1
+fi
+
+cd "$project_dir"
+
+echo "Tuti Android Release AAB 빌드"
+echo "versionCode: $version_code"
+echo "versionName: $version_name"
+
+docker compose \
+  --env-file .env \
+  --env-file .env.production \
+  -f docker-compose.android.yml \
+  run --build --rm \
+  -e TUTI_ANDROID_KEYSTORE_PATH \
+  -e TUTI_ANDROID_KEYSTORE_PASSWORD \
+  -e TUTI_ANDROID_KEY_ALIAS \
+  -e TUTI_ANDROID_KEY_PASSWORD \
+  -v "$secret_dir:/run/tuti-android-signing:ro" \
+  builder \
+  sh -lc "CI=true pnpm install --frozen-lockfile --store-dir /pnpm/store && pnpm android:release"
+
+if [ ! -s "$aab_file" ]; then
+  echo "Release AAB가 생성되지 않았습니다: $aab_file" >&2
+  exit 1
+fi
+
+verification_output="$(
+  docker compose \
+    --env-file .env \
+    --env-file .env.production \
+    -f docker-compose.android.yml \
+    run --rm builder \
+    jarsigner -verify /workspace/android/app/build/outputs/bundle/release/app-release.aab \
+    2>&1
+)"
+printf '%s\n' "$verification_output"
+
+case "$verification_output" in
+  *"jar verified."*) ;;
+  *)
+    echo "Release AAB 서명 검증에 실패했습니다." >&2
+    exit 1
+    ;;
+esac
+
+aab_size="$(stat -c '%s' "$aab_file")"
+aab_sha256="$(sha256sum "$aab_file" | cut -d ' ' -f 1)"
+
+echo ""
+echo "Android Release AAB 생성 완료"
+echo "경로: $aab_file"
+echo "크기: $aab_size bytes"
+echo "SHA-256: $aab_sha256"
+echo "버전: $version_name ($version_code)"

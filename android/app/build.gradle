@@ -1,5 +1,16 @@
 apply plugin: 'com.android.application'
 
+def releaseKeystorePath = System.getenv("TUTI_ANDROID_KEYSTORE_PATH")
+def releaseKeystorePassword = System.getenv("TUTI_ANDROID_KEYSTORE_PASSWORD")
+def releaseKeyAlias = System.getenv("TUTI_ANDROID_KEY_ALIAS")
+def releaseKeyPassword = System.getenv("TUTI_ANDROID_KEY_PASSWORD")
+def hasReleaseSigning = [
+    releaseKeystorePath,
+    releaseKeystorePassword,
+    releaseKeyAlias,
+    releaseKeyPassword,
+].every { value -> value != null && !value.isBlank() }
+
 android {
     namespace = "com.noonmaru.tuti"
     compileSdk = rootProject.ext.compileSdkVersion
@@ -8,7 +19,7 @@ android {
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 1
-        versionName "1.0"
+        versionName "0.1.0"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
@@ -16,11 +27,37 @@ android {
             ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
         }
     }
+    signingConfigs {
+        if (hasReleaseSigning) {
+            release {
+                storeFile file(releaseKeystorePath)
+                storePassword releaseKeystorePassword
+                keyAlias releaseKeyAlias
+                keyPassword releaseKeyPassword
+            }
+        }
+    }
     buildTypes {
         release {
+            if (hasReleaseSigning) {
+                signingConfig signingConfigs.release
+            }
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }
+    }
+}
+
+gradle.taskGraph.whenReady { graph ->
+    def releaseRequested = graph.allTasks.any { task ->
+        task.name == 'bundleRelease' || task.name == 'assembleRelease'
+    }
+
+    if (releaseRequested && !hasReleaseSigning) {
+        throw new GradleException(
+            'Release signing environment variables are required. ' +
+            'Run /usr/local/sbin/tuti-android-release-setup first.'
+        )
     }
 }
 

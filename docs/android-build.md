@@ -60,9 +60,47 @@ Docker Compose 명령을 실행한다.
 pnpm assets:generate
 ```
 
-## 릴리스 빌드
+## 릴리스 서명 최초 설정
 
-현재 단계에서는 서명되지 않은 Debug APK만 만든다. Debug APK의 위치 권한,
-API 통신, 공유, Preferences, OAuth 딥링크와 Android 뒤로가기를 실기기에서
-검증한 뒤 업로드 키스토어와 Play App Signing을 구성하고 `bundleRelease`를
-추가한다.
+Google Play에 올리는 AAB는 Debug 인증서가 아니라 별도의 업로드 키로 서명한다.
+최초 한 번 아래 명령을 실행한다.
+
+```sh
+sudo -n /usr/local/sbin/tuti-android-release-setup
+```
+
+명령은 256비트 임의 비밀번호와 RSA 4096비트 업로드 키를 자동 생성하고 인증서
+지문을 출력한다. 비밀 파일은 저장소 밖의 아래 경로에만 둔다.
+
+```text
+/var/services/homes/Tutiadmin/.tuti-secrets/android/tuti-upload.jks
+/var/services/homes/Tutiadmin/.tuti-secrets/android/release.env
+```
+
+두 파일은 NAS 장애에 대비해 외부의 암호화된 저장소에도 함께 백업한다. 공개 인증서
+`tuti-upload-certificate.pem`은 Play Console에 업로드 키 등록 또는 재설정이 필요할
+때 사용한다. setup 명령은 기존 키를 발견하면 덮어쓰지 않고 중단한다.
+
+## Release AAB 빌드
+
+버전을 확인하고 서명된 AAB를 만드는 명령은 다음과 같다.
+
+```sh
+sudo -n /usr/local/sbin/tuti-android-release-build
+```
+
+명령은 운영 웹 빌드, Capacitor 동기화, Gradle `bundleRelease`, JAR 서명 검증과
+SHA-256 출력을 순서대로 수행한다. 완성된 파일은 아래에 생성된다.
+
+```text
+android/app/build/outputs/bundle/release/app-release.aab
+```
+
+현재 첫 폐쇄 테스트 버전은 `versionCode 1`, `versionName 0.1.0`이다. Play Console에
+AAB를 한 번이라도 올린 뒤에는 매 업로드마다 `versionCode`를 증가시켜야 한다.
+정식 배포 시점의 표시 버전은 별개로 `1.0.0`을 사용할 수 있다.
+
+최초 AAB를 Play Console 폐쇄 테스트 트랙에 올릴 때 Play App Signing을 활성화한다.
+Google이 최종 앱 서명키를 관리하고, Tuti 키스토어는 이후 AAB의 업로드 키로 계속
+사용한다. OAuth 공급자에는 필요에 따라 업로드 인증서와 Play App Signing 인증서의
+SHA-1·SHA-256을 각각 등록한다.

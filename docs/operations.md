@@ -20,6 +20,8 @@ sudo -n /usr/local/sbin/tuti-dev-refresh
 sudo -n /usr/local/sbin/tuti-dev-restart
 sudo -n /usr/local/sbin/tuti-docker-status
 sudo -n /usr/local/sbin/tuti-android-debug-build
+sudo -n /usr/local/sbin/tuti-android-release-setup
+sudo -n /usr/local/sbin/tuti-android-release-build
 sudo -n /usr/local/sbin/tuti-tourism-bootstrap
 sudo -n /usr/local/sbin/tuti-tourism-data-bootstrap dev
 sudo -n /usr/local/sbin/tuti-tourism-data-bootstrap prod
@@ -126,6 +128,12 @@ IP 기반 1차 제한을 두면 우회·분산 요청 방어가 강화된다.
 `tuti-android-debug-build`는 JDK와 Android SDK를 격리한 전용 Docker 이미지에서
 Capacitor 정적 앱을 동기화하고 Debug APK를 생성한다. 자세한 빌드 환경과 산출물
 경로는 [Android 빌드](./android-build.md)를 따른다.
+
+`tuti-android-release-setup`은 저장소 밖에 Play 업로드 키와 임의 비밀번호를 최초
+한 번 생성한다. 기존 키는 절대로 덮어쓰지 않는다. `tuti-android-release-build`는
+해당 비밀값을 환경변수로만 Gradle에 전달해 운영 정적 앱을 서명된 AAB로 만들고,
+서명과 SHA-256을 검증한다. 키스토어와 비밀번호 파일은 NAS 외부에도 암호화해
+백업한다. 자세한 절차는 [Android 빌드](./android-build.md)를 따른다.
 
 `tuti-tourism-bootstrap`은 관광지·문화시설·여행코스·레포츠의 전국 전체 페이지를 10페이지 구간으로 나누어 네 구간씩 병렬 동기화한다. 초기 기준 데이터를 구축하거나 전체 누락 여부를 복구할 때만 수동 실행하며, 기존 데이터는 upsert하고 승인된 장소의 편집 필드는 덮어쓰지 않는다.
 
