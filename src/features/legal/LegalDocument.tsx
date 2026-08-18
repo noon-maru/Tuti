@@ -50,6 +50,7 @@ export function LegalDocument({
       <Footer>
         <strong>눈마루 · Tuti</strong>
         <span>admin@tuti.today · 010-2724-4307</span>
+        <Link href="/account-deletion">계정 및 데이터 삭제 요청</Link>
       </Footer>
     </Page>
   );
@@ -180,5 +181,15 @@ const Footer = styled.footer`
   span {
     color: var(--color-text-secondary);
     font-size: var(--font-size-100);
+  }
+
+  a {
+    width: fit-content;
+    margin-top: var(--space-2);
+    color: var(--color-brand-800);
+    font-size: var(--font-size-100);
+    font-weight: 600;
+    text-decoration: underline;
+    text-underline-offset: 3px;
   }
 `;

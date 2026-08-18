@@ -235,6 +235,9 @@ export function AccountScreen({
           >
             {pending ? "로그아웃 중..." : "로그아웃"}
           </LogoutButton>
+          <DeletionLink href="/account-deletion">
+            계정 및 데이터 삭제 요청
+          </DeletionLink>
         </AccountContent>
       ) : oauthCompletion?.pending &&
         oauthCompletion.currentJournalCount === undefined ? (
@@ -879,4 +882,13 @@ const LogoutButton = styled(PrimaryButton)`
   width: 100%;
   margin-top: auto;
   background: var(--color-neutral-1100);
+`;
+
+const DeletionLink = styled.a`
+  margin-top: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  color: var(--color-text-muted);
+  font-size: var(--font-size-100);
+  text-decoration: underline;
+  text-underline-offset: 3px;
 `;
