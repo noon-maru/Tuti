@@ -112,7 +112,7 @@ TutiAppShell
 - [ ] 루트 화면에서 Android back을 눌렀을 때 exit 또는 minimize 중 어떤 정책을 쓸지 결정한다.
 - [ ] 인테이크 도중 back은 이전 질문으로 이동하고 첫 질문에서만 이전 라우트로 이동하도록 한다.
 - [ ] 비동기 위치 요청이 완료되기 전에 화면을 떠난 경우 오래된 callback의 라우팅을 무시한다.
-- [ ] `appUrlOpen`, `getLaunchUrl`을 통해 deep link를 root bootstrap 후 client router로 전달한다.
+- [x] `appUrlOpen`, `getLaunchUrl`을 통해 OAuth deep link를 root bootstrap 후 client router로 전달한다.
 
 ### 기본 라우트 정책
 

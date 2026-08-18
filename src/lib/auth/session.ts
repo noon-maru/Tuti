@@ -104,7 +104,10 @@ export async function verifyEmailLoginCode(
   return data;
 }
 
-export async function createOAuthLoginUrl(provider: OAuthProvider) {
+export async function createOAuthLoginUrl(
+  provider: OAuthProvider,
+  options: { native?: boolean } = {},
+) {
   const response = await fetchWithSession(
     `auth/oauth/${provider}/start`,
     {
@@ -112,7 +115,10 @@ export async function createOAuthLoginUrl(provider: OAuthProvider) {
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ returnTo: "/" }),
+      body: JSON.stringify({
+        returnTo: "/",
+        native: options.native === true,
+      }),
     },
   );
 
