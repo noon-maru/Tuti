@@ -1,0 +1,15 @@
+#!/bin/sh
+
+set -eu
+
+project_dir="/var/services/homes/Tutiadmin/source/Tuti"
+
+cd "$project_dir"
+
+docker compose \
+  --env-file .env \
+  --env-file .env.production \
+  -f docker-compose.android.yml \
+  run --build --rm builder
+
+echo "Android Debug APK: $project_dir/android/app/build/outputs/apk/debug/app-debug.apk"

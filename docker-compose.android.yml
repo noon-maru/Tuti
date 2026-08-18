@@ -1,0 +1,27 @@
+name: tuti-android-build
+
+services:
+  builder:
+    image: tuti:android-builder
+    build:
+      context: .
+      dockerfile: Dockerfile.android
+      args:
+        DEV_UID: ${DEV_UID:-1000}
+        DEV_GID: ${DEV_GID:-1000}
+    environment:
+      CI: "true"
+      NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:?NEXT_PUBLIC_API_BASE_URL is required}
+      NEXT_PUBLIC_ACCOUNT_AUTH_ENABLED: ${NEXT_PUBLIC_ACCOUNT_AUTH_ENABLED:-false}
+      NEXT_PUBLIC_GOOGLE_OAUTH_ENABLED: ${NEXT_PUBLIC_GOOGLE_OAUTH_ENABLED:-false}
+      NEXT_PUBLIC_KAKAO_OAUTH_ENABLED: ${NEXT_PUBLIC_KAKAO_OAUTH_ENABLED:-false}
+    volumes:
+      - .:/workspace
+      - tuti_android_node_modules:/workspace/node_modules
+      - tuti_android_pnpm_store:/pnpm/store
+      - tuti_android_gradle:/home/node/.gradle
+
+volumes:
+  tuti_android_node_modules:
+  tuti_android_pnpm_store:
+  tuti_android_gradle:

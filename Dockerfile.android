@@ -1,0 +1,65 @@
+FROM node:24-bookworm-slim AS node-runtime
+
+FROM eclipse-temurin:21-jdk-jammy
+
+ARG DEV_UID=1000
+ARG DEV_GID=1000
+ARG ANDROID_COMMAND_LINE_TOOLS_VERSION=13114758
+ARG ANDROID_COMMAND_LINE_TOOLS_SHA256=7ec965280a073311c339e571cd5de778b9975026cfcbe79f2b1cdcb1e15317ee
+
+ENV ANDROID_HOME=/opt/android-sdk
+ENV ANDROID_SDK_ROOT=/opt/android-sdk
+ENV GRADLE_USER_HOME=/home/node/.gradle
+ENV PNPM_HOME=/pnpm
+ENV PNPM_STORE_DIR=/pnpm/store
+ENV PATH=/opt/android-sdk/cmdline-tools/latest/bin:/opt/android-sdk/platform-tools:/pnpm:$PATH
+
+COPY --from=node-runtime /usr/local /usr/local
+
+RUN apt-get update -y \
+  && apt-get install -y --no-install-recommends \
+    ca-certificates \
+    curl \
+    passwd \
+    unzip \
+  && rm -rf /var/lib/apt/lists/*
+
+RUN set -eux; \
+  archive=/tmp/android-command-line-tools.zip; \
+  curl -fsSL \
+    "https://dl.google.com/android/repository/commandlinetools-linux-${ANDROID_COMMAND_LINE_TOOLS_VERSION}_latest.zip" \
+    -o "$archive"; \
+  echo "${ANDROID_COMMAND_LINE_TOOLS_SHA256}  ${archive}" | sha256sum -c -; \
+  mkdir -p "${ANDROID_HOME}/cmdline-tools"; \
+  unzip -q "$archive" -d /tmp/android-command-line-tools; \
+  mv /tmp/android-command-line-tools/cmdline-tools "${ANDROID_HOME}/cmdline-tools/latest"; \
+  rm -f "$archive"
+
+RUN yes | sdkmanager --licenses >/dev/null \
+  && sdkmanager \
+    "platform-tools" \
+    "platforms;android-36" \
+    "build-tools;35.0.0" \
+    "build-tools;36.0.0"
+
+RUN npm install -g pnpm@11.2.2
+
+RUN set -eux; \
+  target_group="$(getent group "${DEV_GID}" | cut -d: -f1 || true)"; \
+  if [ -z "$target_group" ]; then \
+    groupadd --gid "${DEV_GID}" node; \
+    target_group=node; \
+  fi; \
+  if id node >/dev/null 2>&1; then \
+    usermod --uid "${DEV_UID}" --gid "$target_group" node; \
+  else \
+    useradd --uid "${DEV_UID}" --gid "$target_group" --create-home --shell /bin/bash node; \
+  fi; \
+  mkdir -p /workspace/node_modules /pnpm/store /home/node/.gradle; \
+  chown -R node:"$target_group" /workspace /pnpm /home/node/.gradle
+
+WORKDIR /workspace
+
+USER node
+
+CMD ["sh", "-lc", "CI=true pnpm install --frozen-lockfile --store-dir /pnpm/store && pnpm android:debug"]

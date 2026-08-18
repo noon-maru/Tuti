@@ -43,6 +43,8 @@
     "test": "node --import tsx --test test/*.test.ts",
     "assets:generate": "capacitor-assets generate --assetPath assets/capacitor && tsx scripts/normalize-capacitor-assets.ts",
     "cap:sync": "pnpm build:app && cap sync",
+    "android:sync": "pnpm build:app && cap sync android",
+    "android:debug": "pnpm android:sync && cd android && ./gradlew --no-daemon assembleDebug",
     "cap:open:ios": "cap open ios",
     "cap:open:android": "cap open android"
   },
