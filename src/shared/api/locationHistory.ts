@@ -3,7 +3,7 @@ import type {
   LocationConsentStatus,
   LocationUsageKind,
   LocationUsageService,
-} from "@/generated/prisma/client";
+} from "@/shared/tuti/types";
 
 export type LocationConsentHistoryItem = {
   id: string;

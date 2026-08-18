@@ -327,9 +327,11 @@ export default nextConfig;
 
 1. `.app-build/`을 깨끗하게 생성한다.
 2. `public`, 클라이언트 소스, Next.js 설정을 복사한다.
-3. `src/app/api`, `src/server`, `src/generated`를 제외한다.
+3. 사용자 앱에 필요하지 않은 `src/app/admin`과 서버 전용 `src/app/api`,
+   `src/proxy.ts`, `src/server`, `src/generated`를 제외한다.
 4. `NEXT_PUBLIC_API_BASE_URL`이 `/api` 경로를 포함한 절대 HTTPS URL인지 검증한다.
-5. `TUTI_TARGET=app`으로 임시 프로젝트를 static export한다.
+5. 상위 웹 프로젝트를 자동 루트로 선택하지 않도록 Webpack을 사용하고,
+   `TUTI_TARGET=app`으로 임시 프로젝트를 static export한다.
 6. 성공한 산출물만 프로젝트 루트의 `out/`으로 교체한다.
 7. 임시 프로젝트를 제거한다.
 

@@ -23,8 +23,6 @@ type WebManifest = {
 
 const generatedIconsDirectory = join(
   process.cwd(),
-  "public",
-  "assets",
   "icons",
 );
 const appIconsDirectory = join(process.cwd(), "public", "app-icons");

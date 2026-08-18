@@ -32,6 +32,14 @@ export type LocationConsentStatus =
   | "declined"
   | "withdrawn";
 
+export type LocationAcquisitionSource = "device" | "photo_exif";
+export type LocationUsageService =
+  | "recommendation"
+  | "travel_time"
+  | "departure_plan"
+  | "photo_nearby";
+export type LocationUsageKind = "internal_use" | "external_transfer";
+
 export type LocationConsentRecord = {
   status: LocationConsentStatus;
   termsVersion: string;

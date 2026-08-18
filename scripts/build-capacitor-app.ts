@@ -18,10 +18,12 @@ const pendingOutputDirectory = resolve(projectRoot, ".app-out-next");
 
 const copiedDirectories = ["public", "src"] as const;
 const copiedFiles = ["next.config.ts", "package.json", "tsconfig.json"] as const;
-const excludedSourceDirectories = [
+const excludedSourcePaths = [
+  join("src", "app", "admin"),
   join("src", "app", "api"),
   join("src", "app", "shared"),
   join("src", "generated"),
+  join("src", "proxy.ts"),
   join("src", "server"),
 ] as const;
 
@@ -76,7 +78,7 @@ async function createAppBuildProjection() {
 function shouldCopySourcePath(sourcePath: string) {
   const projectRelativePath = relative(projectRoot, sourcePath);
 
-  return !excludedSourceDirectories.some(
+  return !excludedSourcePaths.some(
     (excludedPath) =>
       projectRelativePath === excludedPath ||
       projectRelativePath.startsWith(`${excludedPath}${sep}`),
@@ -84,7 +86,7 @@ function shouldCopySourcePath(sourcePath: string) {
 }
 
 async function assertServerFilesExcluded() {
-  for (const excludedPath of excludedSourceDirectories) {
+  for (const excludedPath of excludedSourcePaths) {
     const stagedPath = resolve(stagingDirectory, excludedPath);
 
     try {
@@ -181,7 +183,7 @@ async function runNextBuild(apiBaseUrl: string) {
   await new Promise<void>((resolvePromise, reject) => {
     const child = spawn(
       process.platform === "win32" ? "pnpm.cmd" : "pnpm",
-      ["exec", "next", "build", stagingDirectory],
+      ["exec", "next", "build", stagingDirectory, "--webpack"],
       {
         cwd: projectRoot,
         env: {

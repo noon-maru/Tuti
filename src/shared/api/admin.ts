@@ -1,14 +1,13 @@
-import type {
-  LogLevel,
-  PlaceReviewStatus,
-  ReportReason,
-  ReportStatus,
-  UserRole,
-  InquiryCategory,
-  InquiryStatus,
-} from "@/generated/prisma/client";
 import type { StateFeature, TutiPlace } from "@/lib/recommendations";
 import type { IntakeAnswers, PreferredRegion, UserLocation } from "@/shared/tuti/types";
+
+type LogLevel = "info" | "warning" | "error";
+type PlaceReviewStatus = "pending" | "approved" | "rejected";
+type ReportReason = "inappropriate" | "copyright" | "privacy" | "spam" | "other";
+type ReportStatus = "pending" | "reviewing" | "resolved" | "dismissed";
+type UserRole = "user" | "admin";
+type InquiryCategory = "account" | "service" | "place" | "privacy" | "other";
+type InquiryStatus = "pending" | "reviewing" | "answered" | "closed";
 
 export type AdminOverview = {
   users: number;
