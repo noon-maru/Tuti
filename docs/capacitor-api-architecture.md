@@ -124,6 +124,19 @@ sequenceDiagram
   `KAKAO_CLIENT_SECRET`에 넣고 서버의 `KAKAO_OAUTH_ENABLED`와 빌드
   시점의 `NEXT_PUBLIC_KAKAO_OAUTH_ENABLED`를 함께 활성화한다.
 
+- Apple OAuth는 HTTPS 콜백의 `form_post` 응답을 처리하고, 서버에서
+  ES256 client-secret을 만들어 authorization code를 교환한다. 반환된
+  ID token은 Apple 공개키 서명과 `iss`, `aud`, `exp`, `iat`, `nonce`를
+  검증한 뒤 `sub`를 계정 식별자로 사용한다. `APPLE_CLIENT_ID`에는
+  App ID(`com.noonmaru.tuti`)에 연결한 Services ID
+  (`com.noonmaru.tuti.apple.web`)를 넣으며, 웹과
+  Capacitor 모두 같은 HTTPS 콜백을 사용한다.
+
+- Apple authorization code 교환으로 받은 refresh token은
+  `APPLE_TOKEN_ENCRYPTION_KEY`의 AES-256-GCM으로 암호화한 뒤에만
+  저장한다. 계정 삭제 시 Apple 토큰 폐기에 성공한 후 사용자 데이터를
+  삭제하며, 폐기에 실패하면 계정 삭제를 중단해 재시도할 수 있게 한다.
+
 - 로그인 세션 토큰도 원문 대신 SHA-256 해시만 `user_sessions`에 저장한다.
 
 ## 출발 계획 API
@@ -173,11 +186,11 @@ sequenceDiagram
 
 - 서버는 별도의 `ACCOUNT_AUTH_ENABLED=false`를 검사하므로 클라이언트 UI를 우회해도 이메일 코드 발송과 OAuth 시작·콜백이 `503`으로 종료된다.
 
-- Google은 추가로 서버의 `GOOGLE_OAUTH_ENABLED`와 클라이언트의
+- Apple은 서버의 `APPLE_OAUTH_ENABLED`와 클라이언트의
+  `NEXT_PUBLIC_APPLE_OAUTH_ENABLED`를 함께 검사한다. Google은 추가로 서버의 `GOOGLE_OAUTH_ENABLED`와 클라이언트의
   `NEXT_PUBLIC_GOOGLE_OAUTH_ENABLED`가 모두 `true`여야 한다. Kakao도
   서버의 `KAKAO_OAUTH_ENABLED`와 클라이언트의
-  `NEXT_PUBLIC_KAKAO_OAUTH_ENABLED`를 함께 검사한다. Apple은 연결
-  작업이 끝날 때까지 비활성 상태로 둔다.
+  `NEXT_PUBLIC_KAKAO_OAUTH_ENABLED`를 함께 검사한다.
 
 - Capacitor 최종 앱 ID는 `com.noonmaru.tuti`를 사용한다.
 

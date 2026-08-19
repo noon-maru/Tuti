@@ -881,6 +881,7 @@ model AuthIdentity {
   provider        AuthProvider
   providerSubject String       @map("provider_subject")
   email           String?
+  providerRefreshTokenEncrypted String?      @map("provider_refresh_token_encrypted")
   createdAt       DateTime     @default(now()) @map("created_at")
   updatedAt       DateTime     @updatedAt @map("updated_at")
   user            User         @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -913,6 +914,7 @@ model OAuthAuthorization {
   returnTo            String       @default("/") @map("return_to")
   providerSubject     String?      @map("provider_subject")
   providerEmail       String?      @map("provider_email")
+  providerRefreshTokenEncrypted String?      @map("provider_refresh_token_encrypted")
   completionTokenHash String?      @unique @map("completion_token_hash")
   completedAt         DateTime?    @map("completed_at")
   expiresAt           DateTime     @map("expires_at")

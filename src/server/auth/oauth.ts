@@ -15,6 +15,13 @@ import {
   createNativeOAuthCallbackUrl,
   NATIVE_OAUTH_RETURN_TO,
 } from "@/shared/auth/nativeOAuth";
+import {
+  AppleOAuthError,
+  createAppleClientSecret,
+  encryptAppleRefreshToken,
+  verifyAppleIdentityToken,
+} from "@/server/auth/appleOAuth";
+import { readOAuthCallbackParameters } from "@/server/auth/oauthCallback";
 
 const OAUTH_LIFETIME_MINUTES = 10;
 
@@ -99,11 +106,12 @@ export async function createOAuthAuthorization(
     );
   }
   authorizationUrl.searchParams.set("state", state);
-  authorizationUrl.searchParams.set("code_challenge", codeChallenge);
-  authorizationUrl.searchParams.set("code_challenge_method", "S256");
-
   if (provider === "apple") {
     authorizationUrl.searchParams.set("response_mode", "form_post");
+    authorizationUrl.searchParams.set("nonce", codeChallenge);
+  } else {
+    authorizationUrl.searchParams.set("code_challenge", codeChallenge);
+    authorizationUrl.searchParams.set("code_challenge_method", "S256");
   }
 
   return authorizationUrl.toString();
@@ -128,22 +136,15 @@ export async function completeOAuthAuthorization(
   assertAccountAuthEnabled();
   assertOAuthProviderEnabled(provider);
 
-  if (provider === "apple") {
-    throw new AccountAuthError(
-      "선택한 로그인 공급자를 준비하고 있어요.",
-      "oauth_provider_disabled",
-      503,
-    );
-  }
-
-  const callbackUrl = new URL(request.url);
-  const providerError = callbackUrl.searchParams.get("error");
+  const callbackParameters = await readOAuthCallbackParameters(request);
+  const providerError = callbackParameters.get("error");
 
   if (providerError) {
     const providerLabel = getOAuthProviderLabel(provider);
 
     throw new AccountAuthError(
-      providerError === "access_denied"
+      providerError === "access_denied" ||
+        providerError === "user_cancelled_authorize"
         ? `${providerLabel} 로그인이 취소됐어요.`
         : `${providerLabel} 로그인을 완료하지 못했어요.`,
       `${provider}_${providerError}`,
@@ -151,8 +152,8 @@ export async function completeOAuthAuthorization(
     );
   }
 
-  const state = callbackUrl.searchParams.get("state")?.trim();
-  const code = callbackUrl.searchParams.get("code")?.trim();
+  const state = callbackParameters.get("state")?.trim();
+  const code = callbackParameters.get("code")?.trim();
 
   if (!state || !code) {
     throw new AccountAuthError(
@@ -180,9 +181,11 @@ export async function completeOAuthAuthorization(
   }
 
   const profile =
-    provider === "google"
-      ? await fetchGoogleProfile(code, authorization.codeVerifier)
-      : await fetchKakaoProfile(code, authorization.codeVerifier);
+    provider === "apple"
+      ? await fetchAppleProfile(code, authorization.codeVerifier)
+      : provider === "google"
+        ? await fetchGoogleProfile(code, authorization.codeVerifier)
+        : await fetchKakaoProfile(code, authorization.codeVerifier);
   const completionToken = randomBytes(32).toString("base64url");
 
   await prisma.oAuthAuthorization.update({
@@ -190,6 +193,8 @@ export async function completeOAuthAuthorization(
     data: {
       providerSubject: profile.subject,
       providerEmail: profile.email,
+      providerRefreshTokenEncrypted:
+        profile.providerRefreshTokenEncrypted,
       completionTokenHash: hashAccessToken(completionToken),
       completedAt: new Date(),
     },
@@ -206,8 +211,8 @@ export async function createOAuthFailureUrl(
   request: Request,
   message: string,
 ) {
-  const callbackUrl = new URL(request.url);
-  const state = callbackUrl.searchParams.get("state")?.trim();
+  const callbackParameters = await readOAuthCallbackParameters(request);
+  const state = callbackParameters.get("state")?.trim();
   const authorization = state
     ? await prisma.oAuthAuthorization.findUnique({
         where: { stateHash: hashAccessToken(state) },
@@ -249,6 +254,7 @@ export async function completeOAuthLogin(input: {
       provider: true,
       providerSubject: true,
       providerEmail: true,
+      providerRefreshTokenEncrypted: true,
       completedAt: true,
       expiresAt: true,
       user: {
@@ -279,7 +285,7 @@ export async function completeOAuthLogin(input: {
         providerSubject: authorization.providerSubject,
       },
     },
-    select: { userId: true },
+    select: { id: true, userId: true },
   });
   let targetUserId = authorization.userId;
 
@@ -308,8 +314,22 @@ export async function completeOAuthLogin(input: {
 
     targetUserId = existingIdentity.userId;
 
+    const identityUpdate = prisma.authIdentity.update({
+      where: { id: existingIdentity.id },
+      data: {
+        email: authorization.providerEmail,
+        ...(authorization.providerRefreshTokenEncrypted
+          ? {
+              providerRefreshTokenEncrypted:
+                authorization.providerRefreshTokenEncrypted,
+            }
+          : {}),
+      },
+    });
+
     if (journalResolution === "merge") {
       await prisma.$transaction([
+        identityUpdate,
         prisma.journalEntry.updateMany({
           where: { ownerId: authorization.userId },
           data: { ownerId: targetUserId },
@@ -343,6 +363,7 @@ export async function completeOAuthLogin(input: {
       ]);
     } else {
       await prisma.$transaction([
+        identityUpdate,
         prisma.customerInquiry.updateMany({
           where: { requesterUserId: authorization.userId },
           data: { requesterUserId: targetUserId },
@@ -363,6 +384,12 @@ export async function completeOAuthLogin(input: {
         },
         update: {
           email: authorization.providerEmail,
+          ...(authorization.providerRefreshTokenEncrypted
+            ? {
+                providerRefreshTokenEncrypted:
+                  authorization.providerRefreshTokenEncrypted,
+              }
+            : {}),
         },
         create: {
           id: randomUUID(),
@@ -370,6 +397,8 @@ export async function completeOAuthLogin(input: {
           provider: authorization.provider,
           providerSubject: authorization.providerSubject,
           email: authorization.providerEmail,
+          providerRefreshTokenEncrypted:
+            authorization.providerRefreshTokenEncrypted,
         },
       }),
       prisma.oAuthAuthorization.delete({
@@ -422,10 +451,89 @@ function assertOAuthProviderEnabled(provider: OAuthProvider) {
   );
 }
 
+type OAuthProfile = {
+  subject: string;
+  email: string | null;
+  providerRefreshTokenEncrypted?: string;
+};
+
+async function fetchAppleProfile(
+  code: string,
+  codeVerifier: string,
+): Promise<OAuthProfile> {
+  const clientId = getRequiredAuthEnv("APPLE_CLIENT_ID");
+  const clientSecret = createAppleClientSecret({
+    clientId,
+    teamId: getRequiredAuthEnv("APPLE_TEAM_ID"),
+    keyId: getRequiredAuthEnv("APPLE_KEY_ID"),
+    privateKey: getRequiredAuthEnv("APPLE_PRIVATE_KEY"),
+  });
+  const tokenResponse = await fetch("https://appleid.apple.com/auth/token", {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({
+      client_id: clientId,
+      client_secret: clientSecret,
+      code,
+      grant_type: "authorization_code",
+      redirect_uri: createOAuthCallbackUrl("apple"),
+    }),
+    cache: "no-store",
+  });
+  const tokenData = (await tokenResponse.json().catch(() => null)) as {
+    id_token?: unknown;
+    refresh_token?: unknown;
+    error?: unknown;
+  } | null;
+  const identityToken =
+    typeof tokenData?.id_token === "string" ? tokenData.id_token : "";
+  const refreshToken =
+    typeof tokenData?.refresh_token === "string"
+      ? tokenData.refresh_token
+      : "";
+
+  if (!tokenResponse.ok || !identityToken || !refreshToken) {
+    console.error("Apple OAuth 토큰 교환에 실패했습니다.", {
+      error:
+        typeof tokenData?.error === "string"
+          ? tokenData.error
+          : "unknown",
+      status: tokenResponse.status,
+    });
+    throw new AccountAuthError(
+      "Apple 로그인을 완료하지 못했어요.",
+      "apple_token_exchange_failed",
+      502,
+    );
+  }
+
+  try {
+    const profile = await verifyAppleIdentityToken(identityToken, {
+      clientId,
+      nonce: createHash("sha256").update(codeVerifier).digest("base64url"),
+    });
+    return {
+      ...profile,
+      providerRefreshTokenEncrypted: encryptAppleRefreshToken(
+        refreshToken,
+        getRequiredAuthEnv("APPLE_TOKEN_ENCRYPTION_KEY"),
+      ),
+    };
+  } catch (error) {
+    if (!(error instanceof AppleOAuthError)) throw error;
+
+    throw new AccountAuthError(
+      "Apple 계정 정보를 확인하지 못했어요.",
+      error.code,
+      502,
+    );
+  }
+}
+
 async function fetchGoogleProfile(
   code: string,
   codeVerifier: string,
-) {
+): Promise<OAuthProfile> {
   const redirectUri = createOAuthCallbackUrl("google");
   const clientId = getRequiredAuthEnv("GOOGLE_CLIENT_ID");
   const tokenResponse = await fetch("https://oauth2.googleapis.com/token", {
@@ -500,7 +608,7 @@ async function fetchGoogleProfile(
 async function fetchKakaoProfile(
   code: string,
   codeVerifier: string,
-) {
+): Promise<OAuthProfile> {
   const redirectUri = createOAuthCallbackUrl("kakao");
   const clientId = getRequiredAuthEnv("KAKAO_REST_API_KEY");
   const tokenResponse = await fetch("https://kauth.kakao.com/oauth/token", {

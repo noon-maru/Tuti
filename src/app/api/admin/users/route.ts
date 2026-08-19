@@ -296,6 +296,8 @@ export async function DELETE(request: Request) {
         deletedJournalCount: deletedUser.deletedJournalCount,
         failedImageDeletionCount:
           deletedUser.failedImageDeletionCount,
+        revokedAppleIdentityCount:
+          deletedUser.revokedAppleIdentityCount,
       },
     });
 

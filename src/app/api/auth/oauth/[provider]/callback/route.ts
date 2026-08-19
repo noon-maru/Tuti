@@ -29,6 +29,8 @@ async function handleCallback(
   request: Request,
   context: OAuthCallbackContext,
 ) {
+  const failureRequest = request.clone();
+
   try {
     const { provider } = await context.params;
     assertOAuthProvider(provider);
@@ -47,7 +49,7 @@ async function handleCallback(
     }
 
     const failureUrl = await createOAuthFailureUrl(
-      request,
+      failureRequest,
       accountError?.message ?? "OAuth 로그인을 완료하지 못했어요.",
     );
     return Response.redirect(failureUrl, 303);
