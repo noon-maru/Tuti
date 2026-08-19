@@ -64,8 +64,8 @@ TutiAppShell
 - [ ] 최소 허용 origin에 웹 배포 origin, `capacitor://localhost`, `https://localhost`를 포함한다.
 - [x] 앱 빌드에서 `NEXT_PUBLIC_API_BASE_URL`이 비어 있거나 절대 HTTPS URL이 아니면 빌드를 실패시킨다.
 - [x] 최종 Bundle ID/Application ID를 `com.noonmaru.tuti`로 확정한다.
-- [ ] 동일한 Capacitor 8 버전으로 `@capacitor/android`, `@capacitor/ios`, `@capacitor/app`을 설치한다.
-- [ ] `android/`, `ios/` 플랫폼 프로젝트를 생성하고 소스 저장소에 포함한다.
+- [x] 동일한 Capacitor 8 버전으로 `@capacitor/android`, `@capacitor/ios`, `@capacitor/app`을 설치한다.
+- [x] `android/`, `ios/` 플랫폼 프로젝트를 생성하고 소스 저장소에 포함한다.
 
 ### 완료 기준
 

@@ -421,6 +421,13 @@ const SliderThumb = styled.i<{
     $dragging
       ? "background 180ms ease, transform 140ms ease"
       : "left 180ms ease-out, background 180ms ease, transform 140ms ease"};
+
+  ${SliderControl}:focus-within & {
+    box-shadow:
+      0 0 0 1px var(--color-border),
+      0 0 0 4px var(--color-brand-200),
+      0 4px 12px rgb(var(--color-black-rgb) / 0.16);
+  }
 `;
 
 const RangeInput = styled.input`
@@ -430,10 +437,13 @@ const RangeInput = styled.input`
   width: 100%;
   height: 100%;
   padding: 0;
+  -webkit-appearance: none;
   appearance: none;
+  outline: none;
   background: transparent;
   cursor: grab;
   touch-action: pan-y;
+  -webkit-tap-highlight-color: transparent;
 
   &:active {
     cursor: grabbing;
@@ -441,6 +451,7 @@ const RangeInput = styled.input`
 
   &::-webkit-slider-runnable-track {
     height: 8px;
+    -webkit-appearance: none;
     background: transparent;
   }
 
@@ -449,8 +460,12 @@ const RangeInput = styled.input`
     height: 24px;
     margin-top: -8px;
     border: 0;
+    border-radius: 0;
+    -webkit-appearance: none;
     appearance: none;
     background: transparent;
+    box-shadow: none;
+    opacity: 0;
   }
 
   &::-moz-range-track {
