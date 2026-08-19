@@ -2,6 +2,9 @@
 
 set -eu
 
+PATH="/usr/local/bin:/usr/bin:/bin:/usr/local/sbin:/usr/sbin:/sbin:$PATH"
+export PATH
+
 project_dir="/var/services/homes/Tutiadmin/source/Tuti"
 state_dir="$project_dir/.ops-state/deploy"
 state_file="$state_dir/releases.env"
