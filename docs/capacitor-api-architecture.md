@@ -181,9 +181,12 @@ sequenceDiagram
 
 - Capacitor 최종 앱 ID는 `com.noonmaru.tuti`를 사용한다.
 
-- 현재 OAuth 완료 리디렉션은 웹 `/login`으로 연결한다. Capacitor는
-  iOS/Android 네이티브 프로젝트 생성 후 시스템 브라우저와 앱 딥링크를
-  같은 일회용 티켓 교환 API에 연결한다.
+- 웹에서 시작한 OAuth 완료 리디렉션은 웹 `/login`으로 연결한다.
+  Capacitor 앱에서 시작한 요청은 서버에 네이티브 흐름으로 기록하며,
+  공급자 인증이 끝나면 `com.noonmaru.tuti://oauth/callback` 딥링크로 앱을
+  다시 연다. 앱은 `appUrlOpen`과 `getLaunchUrl`로 성공 티켓 또는 오류를
+  받아 같은 일회용 티켓 교환 API에서 로그인을 마무리한다. 공급자에
+  등록하는 콜백 URI는 기존 HTTPS 서버 콜백을 그대로 사용한다.
 
 ### 빌드 파이프라인
 

@@ -1,6 +1,7 @@
 import {
   assertOAuthProvider,
   completeOAuthAuthorization,
+  createOAuthFailureUrl,
 } from "@/server/auth/oauth";
 import { AccountAuthError } from "@/server/auth/session";
 
@@ -45,12 +46,8 @@ async function handleCallback(
       console.error("OAuth 콜백 처리 중 오류가 발생했습니다.", error);
     }
 
-    const failureUrl = new URL(
-      "/login",
-      process.env.AUTH_PUBLIC_BASE_URL ?? request.url,
-    );
-    failureUrl.searchParams.set(
-      "oauthError",
+    const failureUrl = await createOAuthFailureUrl(
+      request,
       accountError?.message ?? "OAuth 로그인을 완료하지 못했어요.",
     );
     return Response.redirect(failureUrl, 303);

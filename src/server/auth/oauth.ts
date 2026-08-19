@@ -11,6 +11,10 @@ import {
   authProviders,
   type OAuthProvider,
 } from "@/shared/api/session";
+import {
+  createNativeOAuthCallbackUrl,
+  NATIVE_OAUTH_RETURN_TO,
+} from "@/shared/auth/nativeOAuth";
 
 const OAUTH_LIFETIME_MINUTES = 10;
 
@@ -49,6 +53,7 @@ export async function createOAuthAuthorization(
   currentUser: AuthenticatedUser,
   provider: OAuthProvider,
   returnTo = "/",
+  native = false,
 ) {
   assertAccountAuthEnabled();
   const configuration = providerConfigurations[provider];
@@ -73,7 +78,9 @@ export async function createOAuthAuthorization(
       provider,
       stateHash: hashAccessToken(state),
       codeVerifier,
-      returnTo: sanitizeReturnTo(returnTo),
+      returnTo: native
+        ? NATIVE_OAUTH_RETURN_TO
+        : sanitizeReturnTo(returnTo),
       expiresAt,
     },
   });
@@ -188,12 +195,31 @@ export async function completeOAuthAuthorization(
     },
   });
 
-  const completionUrl = new URL(
-    "/login",
-    getRequiredAuthEnv("AUTH_PUBLIC_BASE_URL"),
+  return createOAuthCompletionUrl(
+    authorization.returnTo,
+    "oauthTicket",
+    completionToken,
   );
-  completionUrl.searchParams.set("oauthTicket", completionToken);
-  return completionUrl.toString();
+}
+
+export async function createOAuthFailureUrl(
+  request: Request,
+  message: string,
+) {
+  const callbackUrl = new URL(request.url);
+  const state = callbackUrl.searchParams.get("state")?.trim();
+  const authorization = state
+    ? await prisma.oAuthAuthorization.findUnique({
+        where: { stateHash: hashAccessToken(state) },
+        select: { returnTo: true },
+      })
+    : null;
+
+  return createOAuthCompletionUrl(
+    authorization?.returnTo ?? "/",
+    "oauthError",
+    message,
+  );
 }
 
 export async function completeOAuthLogin(input: {
@@ -365,6 +391,23 @@ function createOAuthCallbackUrl(provider: OAuthProvider) {
   );
 
   return `${baseUrl}/api/auth/oauth/${provider}/callback`;
+}
+
+function createOAuthCompletionUrl(
+  returnTo: string,
+  parameter: "oauthTicket" | "oauthError",
+  value: string,
+) {
+  if (returnTo === NATIVE_OAUTH_RETURN_TO) {
+    return createNativeOAuthCallbackUrl(parameter, value);
+  }
+
+  const completionUrl = new URL(
+    "/login",
+    getRequiredAuthEnv("AUTH_PUBLIC_BASE_URL"),
+  );
+  completionUrl.searchParams.set(parameter, value);
+  return completionUrl.toString();
 }
 
 function assertOAuthProviderEnabled(provider: OAuthProvider) {

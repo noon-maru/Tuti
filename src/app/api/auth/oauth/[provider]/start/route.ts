@@ -49,12 +49,14 @@ export async function POST(
     assertOAuthProvider(provider);
     const input = (await request.json().catch(() => ({}))) as {
       returnTo?: unknown;
+      native?: unknown;
     };
     const response: OAuthStartResponse = {
       authorizationUrl: await createOAuthAuthorization(
         currentUser,
         provider,
         typeof input.returnTo === "string" ? input.returnTo : "/",
+        input.native === true,
       ),
     };
 

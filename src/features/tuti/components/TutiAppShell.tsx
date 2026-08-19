@@ -3,6 +3,7 @@
 import { AppFrame } from "@/features/tuti/components/AppFrame";
 import { Providers } from "@/app/providers";
 import { AndroidBackButtonHandler } from "@/features/tuti/components/AndroidBackButtonHandler";
+import { NativeOAuthCallbackHandler } from "@/features/tuti/components/NativeOAuthCallbackHandler";
 import { LocationAccessProvider } from "@/features/tuti/location/LocationAccessProvider";
 
 export function TutiAppShell({ children }: { children: React.ReactNode }) {
@@ -10,6 +11,7 @@ export function TutiAppShell({ children }: { children: React.ReactNode }) {
     <Providers>
       <AppFrame>
         <AndroidBackButtonHandler />
+        <NativeOAuthCallbackHandler />
         <LocationAccessProvider>{children}</LocationAccessProvider>
       </AppFrame>
     </Providers>
