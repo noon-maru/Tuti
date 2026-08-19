@@ -1,7 +1,7 @@
 "use client";
 
 import { Global, css } from "@emotion/react";
-import { palette } from "@/styles/tokens";
+import { breakpoints, palette } from "@/styles/tokens";
 
 const horizontalOverscrollBehavior =
   process.env.NEXT_PUBLIC_TUTI_TARGET === "app" ? "none" : "auto";
@@ -168,6 +168,13 @@ const globalStyles = css`
     -moz-osx-font-smoothing: grayscale;
     overscroll-behavior-x: ${horizontalOverscrollBehavior};
     overscroll-behavior-y: none;
+  }
+
+  @media (max-width: ${breakpoints.mobile}px) {
+    html,
+    body {
+      background: var(--color-surface);
+    }
   }
 
   h1,

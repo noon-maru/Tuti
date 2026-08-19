@@ -8,6 +8,11 @@ export const metadata: Metadata = {
   title: "Tuti",
   description: "오늘 가능한 만큼만, 잠깐 다른 공기로.",
   manifest: "/manifest.json",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "Tuti",
+  },
   icons: {
     icon: "/brand/tuti-symbol.svg",
     apple: "/app-icons/icon-192.png",
