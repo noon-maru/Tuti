@@ -57,6 +57,7 @@ export const breakpoints = {
 } as const;
 
 export const layoutHeightRange = {
+  compactMin: 520,
   min: 690,
   max: 960,
 } as const;
@@ -71,8 +72,40 @@ export function fluidByViewportHeight(
   const slope = (maxViewportValue - minViewportValue) / viewportRange;
   const viewportCoefficient = slope * 100;
   const intercept = minViewportValue - slope * layoutHeightRange.min;
-  const lowerBound = Math.min(minViewportValue, maxViewportValue);
-  const upperBound = Math.max(minViewportValue, maxViewportValue);
+  const extrapolatedCompactValue =
+    minViewportValue +
+    slope * (layoutHeightRange.compactMin - layoutHeightRange.min);
+  const compactValue =
+    minViewportValue >= 0 && maxViewportValue >= 0
+      ? Math.max(0, extrapolatedCompactValue)
+      : extrapolatedCompactValue;
+  const lowerBound = Math.min(
+    compactValue,
+    minViewportValue,
+    maxViewportValue,
+  );
+  const upperBound = Math.max(
+    compactValue,
+    minViewportValue,
+    maxViewportValue,
+  );
+  const operator = intercept < 0 ? "-" : "+";
+
+  return `clamp(${lowerBound}px, calc(${viewportCoefficient.toFixed(6)}cqh ${operator} ${Math.abs(intercept).toFixed(6)}px), ${upperBound}px)`;
+}
+
+export function fluidByCompactViewportHeight(
+  compactViewportValue: number,
+  regularViewportValue: number,
+) {
+  const viewportRange = layoutHeightRange.min - layoutHeightRange.compactMin;
+  const slope =
+    (regularViewportValue - compactViewportValue) / viewportRange;
+  const viewportCoefficient = slope * 100;
+  const intercept =
+    compactViewportValue - slope * layoutHeightRange.compactMin;
+  const lowerBound = Math.min(compactViewportValue, regularViewportValue);
+  const upperBound = Math.max(compactViewportValue, regularViewportValue);
   const operator = intercept < 0 ? "-" : "+";
 
   return `clamp(${lowerBound}px, calc(${viewportCoefficient.toFixed(6)}cqh ${operator} ${Math.abs(intercept).toFixed(6)}px), ${upperBound}px)`;

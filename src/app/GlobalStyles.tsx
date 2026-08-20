@@ -134,7 +134,7 @@ const globalStyles = css`
   }
 
   html {
-    min-width: 320px;
+    min-width: 280px;
     min-height: 100%;
     background: var(--color-app-background);
     -webkit-text-size-adjust: 100%;

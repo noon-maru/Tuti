@@ -2,6 +2,7 @@
 
 import styled from "@emotion/styled";
 import Image from "next/image";
+import { AdaptiveOrientation } from "@/features/tuti/components/AdaptiveOrientation";
 import { TutiWordmark } from "@/features/tuti/components/TutiWordmark";
 import { breakpoints } from "@/styles/tokens";
 
@@ -10,6 +11,7 @@ export function AppFrame({ children }: { children: React.ReactNode }) {
 
   return (
     <Shell $nativeApp={nativeApp}>
+      <AdaptiveOrientation />
       <DesktopBrand data-desktop-brand>
         <BrandIcon
           src="/brand/tuti-symbol.svg"
@@ -70,6 +72,11 @@ const Shell = styled.main<{ $nativeApp: boolean }>`
     background: var(--color-surface);
   }
 
+  @media (max-width: ${breakpoints.laptop}px) and (hover: none) and (pointer: coarse) {
+    padding: 0;
+    background: var(--color-surface);
+  }
+
   ${({ $nativeApp }) =>
     $nativeApp &&
     `
@@ -102,6 +109,10 @@ const DesktopBrand = styled.aside`
     justify-items: start;
     gap: var(--space-7);
     transform: translateY(-50%);
+  }
+
+  @media (max-width: ${breakpoints.laptop}px) and (hover: none) and (pointer: coarse) {
+    display: none;
   }
 `;
 
@@ -184,6 +195,34 @@ const AppViewport = styled.section<{ $nativeApp: boolean }>`
   isolation: isolate;
 
   @media (max-width: ${breakpoints.mobile}px) {
+    --app-safe-area-top: var(
+      --safe-area-inset-top,
+      env(safe-area-inset-top, 0px)
+    );
+    --app-safe-area-right: var(
+      --safe-area-inset-right,
+      env(safe-area-inset-right, 0px)
+    );
+    --app-safe-area-bottom: var(
+      --safe-area-inset-bottom,
+      env(safe-area-inset-bottom, 0px)
+    );
+    --app-safe-area-left: var(
+      --safe-area-inset-left,
+      env(safe-area-inset-left, 0px)
+    );
+
+    width: 100%;
+    max-width: none;
+    height: 100vh;
+    height: 100dvh;
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+  }
+
+  /* 펼친 폴더블과 태블릿의 터치 화면은 데스크톱 프레임으로 제한하지 않는다. */
+  @media (max-width: ${breakpoints.laptop}px) and (hover: none) and (pointer: coarse) {
     --app-safe-area-top: var(
       --safe-area-inset-top,
       env(safe-area-inset-top, 0px)

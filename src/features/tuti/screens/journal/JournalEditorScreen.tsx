@@ -574,6 +574,10 @@ const ImageArea = styled.div`
   flex: 0 0 auto;
   align-self: center;
   aspect-ratio: 4 / 3;
+
+  @container app-viewport (min-width: 600px) {
+    width: min(78%, 480px);
+  }
 `;
 
 const ImagePicker = styled.label<{ $image?: string }>`

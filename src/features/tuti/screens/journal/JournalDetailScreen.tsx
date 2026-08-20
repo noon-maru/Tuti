@@ -271,6 +271,10 @@ const DetailImage = styled.div<{ $image?: string; $hidden?: boolean }>`
   background-size: cover;
   box-shadow: inset 0 0 0 1px rgb(var(--color-white-rgb) / 0.16);
   opacity: ${({ $hidden = false }) => ($hidden ? 0 : 1)};
+
+  @container app-viewport (min-width: 600px) {
+    width: min(78%, 480px);
+  }
 `;
 
 const DetailContent = styled.div<{ $hidden: boolean }>`

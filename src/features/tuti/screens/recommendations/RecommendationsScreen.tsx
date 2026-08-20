@@ -22,7 +22,10 @@ import { getRecommendationStatus } from "@/features/tuti/lib/recommendationStatu
 import type { TutiPlace } from "@/lib/recommendations";
 import type { DepartureRoute } from "@/shared/api/departurePlan";
 import type { LocationPermissionStatus } from "@/shared/tuti/types";
-import { fluidByViewportHeight } from "@/styles/tokens";
+import {
+  fluidByCompactViewportHeight,
+  fluidByViewportHeight,
+} from "@/styles/tokens";
 
 type Point = { x: number; y: number };
 type DragSession = {
@@ -1451,6 +1454,16 @@ const Carousel = styled.div`
   display: grid;
   place-items: center;
   perspective: 900px;
+
+  @container app-viewport (max-height: 689px) {
+    height: ${fluidByCompactViewportHeight(360, 480)};
+    margin-top: ${fluidByCompactViewportHeight(0, 8)};
+  }
+
+  @container app-viewport (min-width: 600px) and (min-height: 700px) {
+    height: clamp(520px, 64cqh, 600px);
+    margin-top: clamp(var(--space-4), 4cqh, var(--space-10));
+  }
 `;
 
 const Dots = styled.div<{ $progress: number }>`

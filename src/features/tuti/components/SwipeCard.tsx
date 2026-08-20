@@ -2,7 +2,10 @@
 
 import styled from "@emotion/styled";
 import type { TutiPlace } from "@/lib/recommendations";
-import { fluidByViewportHeight } from "@/styles/tokens";
+import {
+  fluidByCompactViewportHeight,
+  fluidByViewportHeight,
+} from "@/styles/tokens";
 import { BaseButton } from "./buttons";
 
 export function SwipeCard({
@@ -105,6 +108,17 @@ const CardButton = styled(BaseButton)<{
       : $nudging === "down"
         ? "nudgeDown 520ms ease"
         : "none"};
+
+  @container app-viewport (max-height: 689px) {
+    width: min(
+      calc(100% - var(--space-2)),
+      ${fluidByCompactViewportHeight(210, 256)}
+    );
+  }
+
+  @container app-viewport (min-width: 600px) and (min-height: 700px) {
+    width: clamp(312px, 46cqw, 360px);
+  }
 
   @keyframes nudgeUp {
     0% {

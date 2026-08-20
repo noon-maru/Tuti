@@ -489,6 +489,10 @@ const MemoryCardLayer = styled.div<{
     opacity 240ms ease;
   touch-action: none;
   will-change: transform;
+
+  @container app-viewport (min-width: 600px) and (min-height: 700px) {
+    width: min(78%, 480px);
+  }
 `;
 
 const MemoryCard = styled(BaseButton)<{

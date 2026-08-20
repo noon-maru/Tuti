@@ -173,7 +173,7 @@ function MovementSlider({
 
   return (
     <MovementScale>
-      <SliderControl>
+      <SliderControl data-slider-control>
         <ScaleTrack aria-hidden="true" />
         <ScaleTicks aria-hidden="true">
           {activeStep.options.map((option, index) => (
@@ -309,6 +309,12 @@ const QuestionBlock = styled.div`
     word-break: keep-all;
     white-space: pre-line;
   }
+
+  @container app-viewport (min-width: 600px) {
+    h2 {
+      max-width: 520px;
+    }
+  }
 `;
 
 const QuestionNavigation = styled.div`
@@ -337,6 +343,11 @@ const QuestionSubtitle = styled.p`
 const MovementScale = styled.div`
   display: grid;
   gap: var(--space-1);
+
+  @container app-viewport (min-width: 600px) {
+    width: min(100%, 600px);
+    justify-self: center;
+  }
 `;
 
 const SliderControl = styled.div`
@@ -422,7 +433,7 @@ const SliderThumb = styled.i<{
       ? "background 180ms ease, transform 140ms ease"
       : "left 180ms ease-out, background 180ms ease, transform 140ms ease"};
 
-  ${SliderControl}:focus-within & {
+  [data-slider-control]:focus-within & {
     box-shadow:
       0 0 0 1px var(--color-border),
       0 0 0 4px var(--color-brand-200),
@@ -525,6 +536,10 @@ const ScaleOption = styled(BaseButton)<{ $active: boolean }>`
 const OptionList = styled.div`
   display: grid;
   gap: var(--space-3);
+
+  @container app-viewport (min-width: 600px) {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
 `;
 
 const OptionCard = styled(BaseButton)<{
@@ -585,12 +600,23 @@ const OptionCard = styled(BaseButton)<{
     color: var(--color-text-muted);
     font-size: var(--font-size-100);
   }
+
+  @container app-viewport (min-width: 600px) {
+    min-height: 112px;
+    align-content: center;
+    padding: var(--space-4);
+  }
 `;
 
 const QuestionActions = styled.div`
   display: grid;
   gap: var(--space-2);
   margin-top: auto;
+
+  @container app-viewport (min-width: 600px) {
+    width: min(100%, 420px);
+    align-self: center;
+  }
 `;
 
 const NextButton = styled(PrimaryButton)`
