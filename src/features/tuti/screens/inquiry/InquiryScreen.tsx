@@ -54,7 +54,16 @@ export function InquiryScreen({ onBack }: { onBack: () => void }) {
     subject.trim().length >= 2 && message.trim().length >= 10;
 
   const submitInquiry = async () => {
-    if (!canSubmit || submitting) return;
+    if (submitting) return;
+
+    if (!canSubmit) {
+      setError(
+        subject.trim().length < 2
+          ? "문의 제목을 2자 이상 입력해주세요."
+          : "문의 내용을 10자 이상 입력해주세요.",
+      );
+      return;
+    }
 
     setSubmitting(true);
     setError(null);
@@ -171,9 +180,10 @@ export function InquiryScreen({ onBack }: { onBack: () => void }) {
               <span>문의 유형</span>
               <Select
                 value={category}
-                onChange={(event) =>
-                  setCategory(event.target.value as InquiryCategory)
-                }
+                onChange={(event) => {
+                  setCategory(event.target.value as InquiryCategory);
+                  setError(null);
+                }}
               >
                 <option value="service">서비스 이용</option>
                 <option value="account">계정 및 로그인</option>
@@ -189,8 +199,14 @@ export function InquiryScreen({ onBack }: { onBack: () => void }) {
                 value={subject}
                 maxLength={120}
                 placeholder="문의 내용을 간단히 적어주세요."
-                onChange={(event) => setSubject(event.target.value)}
+                onChange={(event) => {
+                  setSubject(event.target.value);
+                  setError(null);
+                }}
               />
+              <FieldHint $invalid={subject.length > 0 && subject.trim().length < 2}>
+                2자 이상 입력해주세요.
+              </FieldHint>
             </Field>
 
             <Field>
@@ -199,9 +215,19 @@ export function InquiryScreen({ onBack }: { onBack: () => void }) {
                 value={message}
                 maxLength={4000}
                 placeholder="확인에 필요한 내용을 자세히 알려주세요."
-                onChange={(event) => setMessage(event.target.value)}
+                onChange={(event) => {
+                  setMessage(event.target.value);
+                  setError(null);
+                }}
               />
-              <Counter>{message.length} / 4,000</Counter>
+              <CounterRow>
+                <FieldHint
+                  $invalid={message.length > 0 && message.trim().length < 10}
+                >
+                  10자 이상 입력해주세요.
+                </FieldHint>
+                <Counter>{message.length} / 4,000</Counter>
+              </CounterRow>
             </Field>
 
             <Field>
@@ -214,7 +240,10 @@ export function InquiryScreen({ onBack }: { onBack: () => void }) {
                   session?.account?.email ??
                   "답변이 필요하다면 이메일을 입력해주세요."
                 }
-                onChange={(event) => setEmail(event.target.value)}
+                onChange={(event) => {
+                  setEmail(event.target.value);
+                  setError(null);
+                }}
               />
               {session?.account?.email && !email && (
                 <Hint>
@@ -228,7 +257,7 @@ export function InquiryScreen({ onBack }: { onBack: () => void }) {
 
           <SubmitButton
             type="button"
-            disabled={!canSubmit || submitting}
+            disabled={submitting}
             onClick={() => void submitInquiry()}
           >
             {submitting ? "접수 중..." : "문의 보내기"}
@@ -404,10 +433,14 @@ const Intro = styled.div`
 
 const Form = styled.div`
   min-height: 0;
+  flex: 1;
   display: grid;
+  align-content: start;
   gap: var(--space-4);
   overflow-y: auto;
   padding-right: var(--space-1);
+  overscroll-behavior-y: contain;
+  touch-action: pan-y;
 `;
 
 const Field = styled.label`
@@ -458,8 +491,20 @@ const TextArea = styled.textarea`
 `;
 
 const Counter = styled.small`
-  justify-self: end;
   color: var(--color-text-muted);
+  font-size: var(--font-size-100);
+`;
+
+const CounterRow = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+`;
+
+const FieldHint = styled.small<{ $invalid: boolean }>`
+  color: ${({ $invalid }) =>
+    $invalid ? "var(--color-error)" : "var(--color-text-muted)"};
   font-size: var(--font-size-100);
 `;
 
