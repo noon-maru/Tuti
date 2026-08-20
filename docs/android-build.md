@@ -96,7 +96,7 @@ SHA-256 출력을 순서대로 수행한다. 완성된 파일은 아래에 생�
 android/app/build/outputs/bundle/release/app-release.aab
 ```
 
-현재 첫 폐쇄 테스트 버전은 `versionCode 1`, `versionName 0.1.0`이다. Play Console에
+현재 폐쇄 테스트 버전은 `versionCode 2`, `versionName 0.2.0`이다. Play Console에
 AAB를 한 번이라도 올린 뒤에는 매 업로드마다 `versionCode`를 증가시켜야 한다.
 정식 배포 시점의 표시 버전은 별개로 `1.0.0`을 사용할 수 있다.
 
