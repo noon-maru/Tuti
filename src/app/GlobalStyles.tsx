@@ -236,6 +236,27 @@ const globalStyles = css`
     cursor: default;
   }
 
+  /* iOS Safari와 WKWebView는 16px 미만 입력에 포커스하면 화면을 확대한다. */
+  @supports (-webkit-touch-callout: none) {
+    input:not([type]),
+    input[type="date"],
+    input[type="datetime-local"],
+    input[type="email"],
+    input[type="month"],
+    input[type="number"],
+    input[type="password"],
+    input[type="search"],
+    input[type="tel"],
+    input[type="text"],
+    input[type="time"],
+    input[type="url"],
+    input[type="week"],
+    select,
+    textarea {
+      font-size: max(16px, 1em) !important;
+    }
+  }
+
   img,
   picture,
   svg,
