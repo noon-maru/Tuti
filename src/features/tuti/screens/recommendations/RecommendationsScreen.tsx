@@ -642,7 +642,7 @@ export function RecommendationsScreen({
                   ]
                 : [
                     {
-                      label: "기록 불러오기",
+                      label: "계정 및 데이터",
                       onSelect: onAccount,
                     },
                     {

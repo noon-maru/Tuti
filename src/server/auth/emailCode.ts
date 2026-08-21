@@ -14,6 +14,7 @@ import {
   type AuthenticatedUser,
 } from "@/server/auth/session";
 import { prisma } from "@/server/db/prisma";
+import { purgeExpiredAuthRecordsIfDue } from "@/server/auth/retention";
 import type {
   AccountJournalResolution,
   EmailCodeRequest,
@@ -29,6 +30,7 @@ const MAX_VERIFICATION_ATTEMPTS = 5;
 export async function requestEmailCode(input: EmailCodeRequest) {
   assertAccountAuthEnabled();
   const email = parseEmail(input);
+  await purgeExpiredAuthRecordsIfDue();
   const requestWindowStart = minutesAgo(REQUEST_WINDOW_MINUTES);
   const recentRequestCount = await prisma.emailVerificationCode.count({
     where: {

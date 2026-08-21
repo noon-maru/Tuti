@@ -187,6 +187,10 @@ async function runNextBuild(apiBaseUrl: string) {
     process.env.NEXT_PUBLIC_KAKAO_OAUTH_ENABLED?.trim() ||
     (await readPublicEnvValue("NEXT_PUBLIC_KAKAO_OAUTH_ENABLED")) ||
     "false";
+  const journalPublicationEnabled =
+    process.env.NEXT_PUBLIC_JOURNAL_PUBLICATION_ENABLED?.trim() ||
+    (await readPublicEnvValue("NEXT_PUBLIC_JOURNAL_PUBLICATION_ENABLED")) ||
+    "false";
 
   await new Promise<void>((resolvePromise, reject) => {
     const child = spawn(
@@ -202,6 +206,8 @@ async function runNextBuild(apiBaseUrl: string) {
           NEXT_PUBLIC_APPLE_OAUTH_ENABLED: appleOAuthEnabled,
           NEXT_PUBLIC_GOOGLE_OAUTH_ENABLED: googleOAuthEnabled,
           NEXT_PUBLIC_KAKAO_OAUTH_ENABLED: kakaoOAuthEnabled,
+          NEXT_PUBLIC_JOURNAL_PUBLICATION_ENABLED:
+            journalPublicationEnabled,
           NEXT_TELEMETRY_DISABLED: "1",
           NODE_ENV: "production",
           TUTI_TARGET: "app",

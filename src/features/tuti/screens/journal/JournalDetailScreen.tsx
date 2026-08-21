@@ -18,6 +18,7 @@ import { journalImageMaxWidth } from "@/styles/tokens";
 
 export function JournalDetailScreen({
   entry,
+  publicationEnabled,
   onBack,
   onDelete,
   onEdit,
@@ -26,6 +27,7 @@ export function JournalDetailScreen({
   onUnpublish,
 }: {
   entry: TutiJournalEntry;
+  publicationEnabled: boolean;
   onBack: () => void;
   onCopyPublicLink: () => void | Promise<void>;
   onDelete: () => void | Promise<void>;
@@ -74,7 +76,7 @@ export function JournalDetailScreen({
               label: "수정하기",
               onSelect: onEdit,
             },
-            ...(entry.publication
+            ...(publicationEnabled && entry.publication
               ? [
                   {
                     label: "PNG로 공유하기",
@@ -95,10 +97,14 @@ export function JournalDetailScreen({
                     label: "PNG로 공유하기",
                     onSelect: () => setShareOpen(true),
                   },
-                  {
-                    label: "인터넷에 공개",
-                    onSelect: onPublish,
-                  },
+                  ...(publicationEnabled
+                    ? [
+                        {
+                          label: "인터넷에 공개",
+                          onSelect: onPublish,
+                        },
+                      ]
+                    : []),
                 ]),
             {
               label: "삭제하기",
@@ -146,7 +152,7 @@ export function JournalDetailScreen({
           entry={entry}
           onClose={() => setShareOpen(false)}
           publicUrl={
-            entry.publication
+            publicationEnabled && entry.publication
               ? getPublicJournalUrl(entry.publication.publicId)
               : undefined
           }

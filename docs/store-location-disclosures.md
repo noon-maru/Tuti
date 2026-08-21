@@ -15,7 +15,10 @@
 - Tracking 목적은 선택하지 않는다.
 - 계정과 연결 여부는 원본 좌표 미저장 구조와 Apple의 최신 질문 문구를 대조하여 제출 시 다시 확인한다.
 - `NSLocationWhenInUseUsageDescription`에는 “현재 위치에 맞는 장소와 이동시간을 추천하기 위해 사용합니다. 위치는 백그라운드에서 추적하지 않습니다.”와 같은 구체적 목적을 기재한다.
-- `Always` 또는 백그라운드 위치 권한은 선언하지 않는다.
+- 백그라운드 위치 capability와 Always 권한 요청은 사용하지 않는다. Capacitor
+  Geolocation 8의 기반 라이브러리가 요구하는
+  `NSLocationAlwaysAndWhenInUseUsageDescription` 목적 문구는 포함하지만 실제
+  Always 권한 프롬프트를 요청하지 않는다.
 
 ## Google Play Console
 

@@ -1,6 +1,7 @@
 import { createHash, randomBytes, randomUUID } from "node:crypto";
 import { writeSystemLogSafely } from "@/server/admin/log";
 import { prisma } from "@/server/db/prisma";
+import { purgeExpiredAuthRecordsIfDue } from "@/server/auth/retention";
 import type {
   AccountProfile,
   AuthProvider,
@@ -24,6 +25,7 @@ export type AuthenticatedUser = {
 };
 
 export async function createAnonymousSession(): Promise<TutiSession> {
+  await purgeExpiredAuthRecordsIfDue();
   const accessToken = createAccessToken();
   const userId = randomUUID();
 

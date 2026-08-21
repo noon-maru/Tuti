@@ -1,12 +1,14 @@
 import { prisma } from "../src/server/db/prisma";
 import { generateUserSignalProfile } from "../src/server/personalization/profileGeneration";
 import { PERSONALIZATION_PROFILE_VERSION } from "../src/server/personalization/types";
+import { isUserAiProfilingEnabled } from "../src/server/personalization/config";
 
 const limit = readPositiveInteger("--limit", 100);
 const minimumSignals = readPositiveInteger("--minimum-signals", 5);
 const model = process.env.OPENAI_PROFILE_MODEL?.trim() || "gpt-4o-mini";
 const since = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000);
 
+assertUserProfilingEnabled();
 assertApiKey();
 
 const users = await prisma.user.findMany({
@@ -113,6 +115,14 @@ function assertApiKey() {
   const key = process.env.OPENAI_API_KEY?.trim();
   if (!key || key.includes("example")) {
     throw new Error("OPENAI_API_KEY가 설정되지 않았습니다.");
+  }
+}
+
+function assertUserProfilingEnabled() {
+  if (!isUserAiProfilingEnabled()) {
+    throw new Error(
+      "사용자 행동 AI 프로필은 명시적 동의 기능을 마련하기 전까지 비활성화되어 있습니다.",
+    );
   }
 }
 

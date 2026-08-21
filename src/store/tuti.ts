@@ -127,6 +127,7 @@ type TutiState = {
   finishEntry: () => void;
   markHydrated: () => void;
   resetIntake: () => void;
+  resetAllData: () => void;
 };
 
 export const useTutiStore = create<TutiState>()(
@@ -384,6 +385,32 @@ export const useTutiStore = create<TutiState>()(
           dailyCheckInRequested: false,
           dailyCheckInSnoozedUntil: undefined,
         })),
+      resetAllData: () =>
+        set({
+          answers: { movement: "short" },
+          entryRecord: undefined,
+          userLocation: undefined,
+          locationConsent: undefined,
+          locationPermissionStatus: "unknown",
+          preferredRegion: undefined,
+          dailyRecommendation: undefined,
+          recommendationCycle: 0,
+          recommendationExcludedPlaceIds: [],
+          activeIndex: 0,
+          activePlaceId: undefined,
+          activeJournalEntryId: undefined,
+          detailOverlay: { phase: "closed" },
+          entryStage: "intake",
+          hasHydrated: true,
+          hasSeenCardHelp: false,
+          hasSeenSwipeHelp: false,
+          hasSeenJournalHelp: false,
+          hasSeenDepartureHelp: false,
+          dailyCheckInRequested: false,
+          dailyCheckInSnoozedUntil: undefined,
+          pendingDeparture: undefined,
+          savedDeparturePlaces: [],
+        }),
     }),
     {
       name: "tuti-ui",

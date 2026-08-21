@@ -6,6 +6,7 @@ import {
   withCors,
 } from "@/server/http/cors";
 import type { JournalPublicationResponse } from "@/shared/api/journal";
+import { journalPublicationEnabled } from "@/shared/features/release";
 
 export const runtime = "nodejs";
 
@@ -45,6 +46,16 @@ export async function PATCH(
         Response.json(
           { error: "공개 설정을 확인해주세요." },
           { status: 400 },
+        ),
+      );
+    }
+
+    if (input.published && !journalPublicationEnabled) {
+      return withCors(
+        request,
+        Response.json(
+          { error: "인터넷 공개 기능은 현재 제공하지 않아요." },
+          { status: 403 },
         ),
       );
     }

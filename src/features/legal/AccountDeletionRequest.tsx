@@ -62,8 +62,8 @@ export function AccountDeletionRequest() {
         <Link href="/" aria-label="Tuti로 돌아가기">‹</Link>
         <div>
           <span>눈마루 · Tuti</span>
-          <h1>계정 및 데이터 삭제 요청</h1>
-          <p>앱을 다시 설치하지 않아도 이 페이지에서 요청할 수 있어요.</p>
+          <h1>계정 및 데이터 삭제</h1>
+          <p>앱에서는 본인 확인된 현재 세션으로 즉시 삭제할 수 있어요.</p>
         </div>
       </Header>
 
@@ -85,8 +85,7 @@ export function AccountDeletionRequest() {
             <h2>무엇이 삭제되나요?</h2>
             <p>
               Tuti 계정, 로그인 연결 정보, 지난 공간의 기록과 이미지,
-              공개 공유 링크, 추천·선택·길찾기 행동 및 개인화 정보가
-              삭제됩니다.
+              추천·선택·길찾기 행동 및 개인화 정보가 삭제됩니다.
             </p>
           </Intro>
 
@@ -101,13 +100,24 @@ export function AccountDeletionRequest() {
           </RetentionNotice>
 
           <Steps>
-            <h2>처리 절차</h2>
+            <h2>앱에서 바로 삭제하기</h2>
             <ol>
-              <li><i>1</i><span>회신받을 이메일로 삭제 요청</span></li>
-              <li><i>2</i><span>이메일 회신을 통한 계정 소유 확인</span></li>
-              <li><i>3</i><span>계정과 관련 데이터 삭제 후 결과 안내</span></li>
+              <li><i>1</i><span>메인 메뉴에서 계정 및 데이터 선택</span></li>
+              <li><i>2</i><span>계정 또는 내 데이터 삭제 선택</span></li>
+              <li><i>3</i><span>삭제 내용을 확인하면 즉시 처리 완료</span></li>
             </ol>
+            <ImmediateLink href="/login">
+              앱에서 계정 및 데이터 열기
+            </ImmediateLink>
           </Steps>
+
+          <FallbackCopy>
+            <h2>앱에 접근할 수 없나요?</h2>
+            <p>
+              기기를 분실했거나 로그인할 수 없다면 아래 양식으로 요청해주세요.
+              계정 소유 확인이 필요한 경우 이메일로 안내합니다.
+            </p>
+          </FallbackCopy>
 
           <Form onSubmit={submitRequest}>
             <Field>
@@ -153,7 +163,7 @@ export function AccountDeletionRequest() {
             {error && <ErrorMessage role="alert">{error}</ErrorMessage>}
 
             <SubmitButton type="submit" disabled={!confirmed || submitting}>
-              {submitting ? "요청을 접수하고 있어요" : "계정 삭제 요청하기"}
+              {submitting ? "요청을 접수하고 있어요" : "삭제 지원 요청하기"}
             </SubmitButton>
           </Form>
 
@@ -287,6 +297,35 @@ const Steps = styled.section`
     font-style: normal;
     font-weight: 700;
   }
+`;
+
+const FallbackCopy = styled.section`
+  display: grid;
+  gap: var(--space-2);
+  margin-top: var(--space-10);
+
+  h2 {
+    font-size: var(--font-size-400);
+  }
+
+  p {
+    color: var(--color-text-muted);
+    font-size: var(--font-size-200);
+  }
+`;
+
+const ImmediateLink = styled(Link)`
+  min-height: var(--space-12);
+  display: grid;
+  place-items: center;
+  margin-top: var(--space-5);
+  padding: var(--space-3) var(--space-5);
+  border-radius: 999px;
+  background: var(--color-brand-500);
+  color: var(--color-white);
+  font-size: var(--font-size-200);
+  font-weight: 600;
+  text-decoration: none;
 `;
 
 const Form = styled.form`

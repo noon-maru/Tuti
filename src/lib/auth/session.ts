@@ -1,6 +1,7 @@
 import { apiUrl } from "@/lib/api/apiUrl";
 import { preferencesStorage } from "@/lib/storage/preferencesStorage";
 import type {
+  AccountDeletionResponse,
   EmailCodeRequestResponse,
   EmailCodeVerification,
   EmailCodeVerificationResult,
@@ -187,6 +188,35 @@ export async function logoutAccount() {
   const data = (await response.json()) as SessionResponse;
   await storeSession(data.session);
   return data.session;
+}
+
+export async function deleteAccount() {
+  const currentSession = await ensureSession();
+  const response = await fetchWithToken(
+    "account",
+    currentSession.accessToken,
+    {
+      method: "DELETE",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ confirmed: true }),
+    },
+  );
+
+  if (!response.ok) {
+    throw new Error(
+      await readApiError(response, "계정과 데이터를 삭제하지 못했어요."),
+    );
+  }
+
+  const data = (await response.json()) as AccountDeletionResponse;
+  if (data.deleted !== true || !data.deletionReference) {
+    throw new Error("계정 삭제 응답을 확인하지 못했어요.");
+  }
+
+  await clearStoredSession();
+  return data;
 }
 
 async function loadOrCreateSession() {

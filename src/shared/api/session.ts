@@ -19,6 +19,11 @@ export type SessionResponse = {
   session: TutiSession;
 };
 
+export type AccountDeletionResponse = {
+  deleted: true;
+  deletionReference: string;
+};
+
 export type EmailCodeRequest = {
   email: string;
 };

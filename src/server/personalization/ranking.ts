@@ -1,6 +1,10 @@
 import type { TutiPlace } from "@/lib/recommendations";
 import { prisma } from "@/server/db/prisma";
 import {
+  getPersonalizationMode,
+  type PersonalizationMode,
+} from "@/server/personalization/config";
+import {
   parsePlaceMeaningProfile,
   parseUserSignalProfile,
   PERSONALIZATION_PROFILE_VERSION,
@@ -8,8 +12,6 @@ import {
   type UserSignalPreferences,
 } from "@/server/personalization/types";
 import type { IntakeAnswers } from "@/shared/tuti/types";
-
-export type PersonalizationMode = "off" | "shadow" | "active";
 
 export type PersonalizationAudit = {
   mode: PersonalizationMode;
@@ -120,9 +122,4 @@ export function calculateProfileMatch(
     { score: 0, weight: 0 },
   );
   return weighted.score / weighted.weight;
-}
-
-function getPersonalizationMode(): PersonalizationMode {
-  const value = process.env.TUTI_PERSONALIZATION_MODE?.trim().toLowerCase();
-  return value === "active" || value === "off" ? value : "shadow";
 }

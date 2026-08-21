@@ -32,6 +32,7 @@
     "location:compliance:purge": "pnpm db:generate && tsx scripts/purge-location-compliance.ts",
     "location:security:inspect": "pnpm db:generate && tsx scripts/inspect-location-security.ts",
     "location:access:record": "pnpm db:generate && tsx scripts/record-location-access-change.ts",
+    "auth:retention:purge": "pnpm db:generate && tsx scripts/purge-auth-retention.ts",
     "ops:objects:backup": "tsx scripts/backup-object-storage.ts",
     "ops:objects:restore": "tsx scripts/restore-object-storage.ts",
     "accommodations:sync": "pnpm db:generate && tsx scripts/sync-accommodations.ts",

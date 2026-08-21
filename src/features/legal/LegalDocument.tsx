@@ -50,7 +50,7 @@ export function LegalDocument({
       <Footer>
         <strong>눈마루 · Tuti</strong>
         <span>admin@tuti.today · 010-2724-4307</span>
-        <Link href="/account-deletion">계정 및 데이터 삭제 요청</Link>
+        <Link href="/account-deletion">계정 및 데이터 삭제 안내</Link>
       </Footer>
     </Page>
   );

@@ -29,6 +29,7 @@ export function AccountScreen({
   onBack,
   onEmailCodeRequest,
   onEmailCodeVerify,
+  onDeleteAccount,
   onLogout,
   onOAuth,
 }: {
@@ -51,6 +52,7 @@ export function AccountScreen({
     code: string,
     journalResolution?: AccountJournalResolution,
   ) => Promise<EmailCodeVerificationResult>;
+  onDeleteAccount: () => Promise<string>;
   onLogout: () => Promise<void>;
   onOAuth: (provider: OAuthProvider) => Promise<void>;
 }) {
@@ -60,6 +62,10 @@ export function AccountScreen({
   const [journalResolutionRequest, setJournalResolutionRequest] =
     useState<{ currentJournalCount: number } | null>(null);
   const [pending, setPending] = useState(false);
+  const [deletionPending, setDeletionPending] = useState(false);
+  const [deletionReference, setDeletionReference] = useState<string | null>(
+    null,
+  );
   const [error, setError] = useState<string | null>(null);
   const hasEmailInput =
     emailStep === "email"
@@ -166,6 +172,34 @@ export function AccountScreen({
     }
   };
 
+  const deleteCurrentAccount = async () => {
+    if (pending || deletionPending) return;
+
+    const targetLabel = providers.length > 0 ? "계정" : "현재 이용 데이터";
+    if (
+      !window.confirm(
+        `${targetLabel}과 기록, 사진, 추천 이력을 모두 삭제할까요? 삭제한 데이터는 복구할 수 없어요.`,
+      )
+    ) {
+      return;
+    }
+
+    setDeletionPending(true);
+    setError(null);
+
+    try {
+      setDeletionReference(await onDeleteAccount());
+    } catch (deletionError) {
+      setError(
+        deletionError instanceof Error
+          ? deletionError.message
+          : "계정과 데이터를 삭제하지 못했어요.",
+      );
+    } finally {
+      setDeletionPending(false);
+    }
+  };
+
   const displayedJournalResolution =
     oauthCompletion?.currentJournalCount !== undefined
       ? {
@@ -204,11 +238,26 @@ export function AccountScreen({
         >
           ‹
         </BackButton>
-        <h1>{providers.length > 0 ? "계정" : "기록 불러오기"}</h1>
+        <h1>계정 및 데이터</h1>
         <HeaderSpacer aria-hidden="true" />
       </Header>
 
-      {providers.length > 0 ? (
+      {deletionReference ? (
+        <DeletionComplete role="status">
+          <DeletionCompleteMark aria-hidden="true">✓</DeletionCompleteMark>
+          <h2>계정과 데이터를 삭제했어요.</h2>
+          <p>
+            기존 로그인 정보와 기록은 복구할 수 없어요. Tuti를 다시 시작하면
+            새로운 익명 이용 정보가 만들어집니다.
+          </p>
+          <DeletionReference>
+            처리 번호 {deletionReference.slice(0, 8)}
+          </DeletionReference>
+          <PrimaryButton type="button" onClick={onBack}>
+            처음부터 다시 시작하기
+          </PrimaryButton>
+        </DeletionComplete>
+      ) : providers.length > 0 ? (
         <AccountContent>
           <AccountMark aria-hidden="true">T</AccountMark>
           <AccountCopy>
@@ -236,9 +285,13 @@ export function AccountScreen({
           >
             {pending ? "로그아웃 중..." : "로그아웃"}
           </LogoutButton>
-          <DeletionLink href="/account-deletion">
-            계정 및 데이터 삭제 요청
-          </DeletionLink>
+          <DeletionButton
+            type="button"
+            disabled={deletionPending}
+            onClick={() => void deleteCurrentAccount()}
+          >
+            {deletionPending ? "삭제하고 있어요..." : "계정 및 데이터 삭제"}
+          </DeletionButton>
         </AccountContent>
       ) : oauthCompletion?.pending &&
         oauthCompletion.currentJournalCount === undefined ? (
@@ -433,6 +486,22 @@ export function AccountScreen({
               계정 로그인 기능을 준비하고 있어요.
             </DisabledNotice>
           )}
+          <GuestDeletionSection>
+            <div>
+              <strong>현재 이용 데이터 삭제</strong>
+              <p>
+                계정을 연결하지 않았어도 현재 기록과 추천 이력을 바로 삭제할 수
+                있어요.
+              </p>
+            </div>
+            <DeletionButton
+              type="button"
+              disabled={deletionPending}
+              onClick={() => void deleteCurrentAccount()}
+            >
+              {deletionPending ? "삭제하고 있어요..." : "내 데이터 삭제"}
+            </DeletionButton>
+          </GuestDeletionSection>
         </LoginContent>
       )}
     </Frame>
@@ -889,11 +958,84 @@ const LogoutButton = styled(PrimaryButton)`
   background: var(--color-neutral-1100);
 `;
 
-const DeletionLink = styled.a`
+const DeletionButton = styled(BaseButton)`
   margin-top: var(--space-3);
   padding: var(--space-2) var(--space-3);
+  border: 0;
+  background: transparent;
   color: var(--color-text-muted);
   font-size: var(--font-size-100);
   text-decoration: underline;
   text-underline-offset: 3px;
+`;
+
+const GuestDeletionSection = styled.section`
+  display: grid;
+  gap: var(--space-3);
+  margin-top: var(--space-10);
+  padding-top: var(--space-6);
+  border-top: 1px solid var(--color-border);
+  text-align: center;
+
+  div {
+    display: grid;
+    gap: var(--space-2);
+  }
+
+  strong {
+    font-size: var(--font-size-200);
+  }
+
+  p {
+    color: var(--color-text-muted);
+    font-size: var(--font-size-100);
+  }
+
+  ${DeletionButton} {
+    margin-top: 0;
+    color: var(--color-error);
+  }
+`;
+
+const DeletionComplete = styled.div`
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-4);
+  padding-bottom: var(--space-16);
+  text-align: center;
+
+  h2 {
+    font-size: var(--font-size-500);
+  }
+
+  p {
+    max-width: 360px;
+    color: var(--color-text-muted);
+    font-size: var(--font-size-200);
+  }
+
+  ${PrimaryButton} {
+    width: 100%;
+    margin-top: var(--space-5);
+  }
+`;
+
+const DeletionCompleteMark = styled.div`
+  width: 72px;
+  height: 72px;
+  display: grid;
+  place-items: center;
+  border-radius: 24px;
+  background: var(--color-brand-500);
+  color: var(--color-white);
+  font-size: var(--font-size-600);
+  font-weight: 700;
+`;
+
+const DeletionReference = styled.span`
+  color: var(--color-text-muted);
+  font-size: var(--font-size-100);
 `;

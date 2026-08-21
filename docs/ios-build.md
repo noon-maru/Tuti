@@ -59,6 +59,9 @@ Capacitor CLI가 사용하는 `ios/App/App.xcodeproj`는 실제
 
 저널 이미지를 임시 파일로 공유할 때 Filesystem 플러그인을 사용하므로
 `PrivacyInfo.xcprivacy`에 파일 타임스탬프 API의 승인 사유 `C617.1`을 선언한다.
+세션과 화면 상태 저장에 Preferences 플러그인을 사용하므로 UserDefaults 승인
+사유 `CA92.1`도 선언한다. 같은 파일의 수집 항목은 App Store Connect의
+개인정보 답변과 일치시킨다.
 
 ## 실기기와 App Store 배포
 
@@ -74,3 +77,7 @@ Apple 사용자 식별자 마이그레이션이 발생하지 않도록 Apple·Go
 모두 `false`로 유지하고, 이메일 로그인을 위한 `ACCOUNT_AUTH_ENABLED`와
 `NEXT_PUBLIC_ACCOUNT_AUTH_ENABLED`는 `true`로 유지한다. 앱 이전 후 정연한
 팀에서 각 OAuth 공급자를 다시 구성하고 검증한 다음 활성화한다.
+
+첫 출시에서는 사용자 행동의 외부 AI 전송과 공개 저널 링크도 비활성화한다.
+앱의 `계정 및 데이터` 화면에서는 로그인 계정과 자동 생성된 익명 계정을 모두
+직접 삭제할 수 있어야 한다.

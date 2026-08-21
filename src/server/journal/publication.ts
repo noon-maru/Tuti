@@ -1,10 +1,12 @@
 import { prisma } from "@/server/db/prisma";
 import { isStoredJournalImage } from "@/server/journal/imageStorage";
 import type { PublicJournalEntry } from "@/shared/api/journal";
+import { journalPublicationEnabled } from "@/shared/features/release";
 
 export async function getPublicJournalEntry(
   publicId: string,
 ): Promise<PublicJournalEntry | null> {
+  if (!journalPublicationEnabled) return null;
   if (!isValidPublicId(publicId)) return null;
 
   const entry = await prisma.journalEntry.findFirst({
@@ -43,6 +45,7 @@ export async function getPublicJournalEntry(
 }
 
 export async function getPublicJournalImage(publicId: string) {
+  if (!journalPublicationEnabled) return null;
   if (!isValidPublicId(publicId)) return null;
 
   const entry = await prisma.journalEntry.findFirst({

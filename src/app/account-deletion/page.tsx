@@ -2,8 +2,9 @@ import type { Metadata } from "next";
 import { AccountDeletionRequest } from "@/features/legal/AccountDeletionRequest";
 
 export const metadata: Metadata = {
-  title: "계정 및 데이터 삭제 요청 | Tuti",
-  description: "Tuti 계정과 관련 데이터의 삭제를 요청하는 공개 페이지입니다.",
+  title: "계정 및 데이터 삭제 안내 | Tuti",
+  description:
+    "Tuti 앱에서 계정과 데이터를 즉시 삭제하는 방법과 앱에 접근할 수 없을 때의 지원 요청 방법을 안내합니다.",
 };
 
 export default function AccountDeletionPage() {

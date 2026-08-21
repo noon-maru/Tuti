@@ -14,6 +14,7 @@ import { useSession } from "@/features/tuti/hooks/useSession";
 import {
   completeOAuthLogin,
   createOAuthLoginUrl,
+  deleteAccount,
   logoutAccount,
   requestEmailLoginCode,
   verifyEmailLoginCode,
@@ -30,6 +31,7 @@ export function AccountFlow() {
   const entryRecord = useTutiStore((state) => state.entryRecord);
   const finishIntake = useTutiStore((state) => state.finishIntake);
   const finishEntry = useTutiStore((state) => state.finishEntry);
+  const resetAllData = useTutiStore((state) => state.resetAllData);
   const oauthTicket = searchParams.get("oauthTicket");
   const oauthCallbackError = searchParams.get("oauthError");
   const handledOAuthTicket = useRef<string | null>(null);
@@ -171,6 +173,12 @@ export function AccountFlow() {
         await logoutAccount();
         queryClient.setQueryData(["journal-entries"], []);
         router.replace("/");
+      }}
+      onDeleteAccount={async () => {
+        const result = await deleteAccount();
+        queryClient.clear();
+        resetAllData();
+        return result.deletionReference;
       }}
     />
   );
