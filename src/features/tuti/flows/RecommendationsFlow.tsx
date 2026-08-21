@@ -457,7 +457,10 @@ export function RecommendationsFlow({ interactive }: { interactive: boolean }) {
           queryClient.setQueryData(["journal-entries"], []);
         }}
         accountConnected={Boolean(session?.account)}
-        adminAccess={session?.account?.role === "admin"}
+        adminAccess={
+          process.env.NEXT_PUBLIC_TUTI_TARGET !== "app" &&
+          session?.account?.role === "admin"
+        }
         locationAvailable={Boolean(userLocation)}
         locationPermissionStatus={locationPermissionStatus}
         activeTravelTimeLabel={activeTravelTimeLabel}
