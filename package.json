@@ -46,9 +46,10 @@
     "android:sync": "pnpm build:app && cap sync android",
     "android:debug": "pnpm android:sync && cd android && ./gradlew --no-daemon assembleDebug",
     "android:release": "pnpm android:sync && cd android && ./gradlew --no-daemon bundleRelease",
-    "ios:sync": "pnpm build:app && cap sync ios",
-    "ios:debug": "pnpm ios:sync && xcodebuild -project ios/App/App.xcodeproj -scheme App -configuration Debug -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' -derivedDataPath ios/DerivedData CODE_SIGNING_ALLOWED=NO build",
-    "cap:open:ios": "cap open ios",
+    "ios:project:ensure": "tsx scripts/ensure-ios-project-link.ts",
+    "ios:sync": "pnpm ios:project:ensure && pnpm build:app && cap sync ios",
+    "ios:debug": "pnpm ios:sync && xcodebuild -project ios/App/Tuti.xcodeproj -scheme Tuti -configuration Debug -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' -derivedDataPath ios/DerivedData CODE_SIGNING_ALLOWED=NO build",
+    "cap:open:ios": "pnpm ios:project:ensure && open ios/App/Tuti.xcodeproj",
     "cap:open:android": "cap open android"
   },
   "dependencies": {

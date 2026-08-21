@@ -29,13 +29,14 @@ pnpm ios:debug
 이 명령은 다음 작업을 순서대로 수행한다.
 
 1. 서버 전용 코드를 제외한 Next.js 정적 앱을 `out/`에 빌드한다.
-2. 웹 산출물과 Capacitor 플러그인을 `ios/` 프로젝트에 동기화한다.
+2. `Tuti.xcodeproj`와 Capacitor 호환 링크를 확인한 뒤 웹 산출물과
+   Capacitor 플러그인을 `ios/` 프로젝트에 동기화한다.
 3. 코드 서명 없이 iOS Simulator용 Debug 앱을 빌드한다.
 
 빌드 결과는 아래 경로에 생성된다.
 
 ```text
-ios/DerivedData/Build/Products/Debug-iphonesimulator/App.app
+ios/DerivedData/Build/Products/Debug-iphonesimulator/Tuti.app
 ```
 
 Xcode에서 실행하려면 다음 명령으로 프로젝트를 연 뒤 대상 Simulator를 선택한다.
@@ -43,6 +44,12 @@ Xcode에서 실행하려면 다음 명령으로 프로젝트를 연 뒤 대상 S
 ```sh
 pnpm cap:open:ios
 ```
+
+Xcode에서는 프로젝트·target·scheme·product가 모두 `Tuti`로 표시된다.
+Capacitor CLI가 사용하는 `ios/App/App.xcodeproj`는 실제
+`Tuti.xcodeproj`를 가리키는 상대 심볼릭 링크로 유지한다. Git clone 시
+링크가 함께 복원되며, 누락된 경우 `ios:sync`와 `cap:open:ios`가 자동으로
+다시 생성한다. `node_modules`의 Capacitor 코드는 수정하지 않는다.
 
 ## 권한과 개인정보 매니페스트
 
@@ -56,6 +63,6 @@ pnpm cap:open:ios
 ## 실기기와 App Store 배포
 
 Simulator 빌드에는 Apple Developer 계정이나 코드 서명이 필요하지 않다. 실기기
-설치와 App Store 배포 전에는 Xcode의 App target에서 Team을 선택하고 Signing &
+설치와 App Store 배포 전에는 Xcode의 Tuti target에서 Team을 선택하고 Signing &
 Capabilities를 설정해야 한다. App Store용 Archive 자동화는 배포 인증서와
 프로비저닝 방식이 확정된 뒤 추가한다.

@@ -4,6 +4,9 @@ const config: CapacitorConfig = {
   appId: "com.noonmaru.tuti",
   appName: "Tuti",
   webDir: "out",
+  ios: {
+    scheme: "Tuti",
+  },
   server: {
     androidScheme: "https",
   },
