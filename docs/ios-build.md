@@ -66,3 +66,11 @@ Simulator 빌드에는 Apple Developer 계정이나 코드 서명이 필요하�
 설치와 App Store 배포 전에는 Xcode의 Tuti target에서 Team을 선택하고 Signing &
 Capabilities를 설정해야 한다. App Store용 Archive 자동화는 배포 인증서와
 프로비저닝 방식이 확정된 뒤 추가한다.
+
+첫 버전은 김민형 팀에서 출시한 뒤 정연한 팀으로 이전한다. 이전 전에는
+Apple 사용자 식별자 마이그레이션이 발생하지 않도록 Apple·Google·Kakao
+로그인을 모두 숨기고 이메일 로그인만 제공한다. 이 기간에는 서버의
+`SOCIAL_OAUTH_ENABLED`와 빌드 시점의 `NEXT_PUBLIC_SOCIAL_OAUTH_ENABLED`를
+모두 `false`로 유지하고, 이메일 로그인을 위한 `ACCOUNT_AUTH_ENABLED`와
+`NEXT_PUBLIC_ACCOUNT_AUTH_ENABLED`는 `true`로 유지한다. 앱 이전 후 정연한
+팀에서 각 OAuth 공급자를 다시 구성하고 검증한 다음 활성화한다.

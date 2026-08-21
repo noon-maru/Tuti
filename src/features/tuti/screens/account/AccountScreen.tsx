@@ -16,6 +16,7 @@ import type {
 import {
   oauthProviderEnabled,
   oauthProviderLabels,
+  socialOAuthEnabled,
 } from "@/shared/auth/config";
 
 type EmailStep = "email" | "code";
@@ -318,47 +319,51 @@ export function AccountScreen({
             </OAuthErrorMessage>
           )}
 
-          <ProviderList aria-label="소셜 로그인">
-            {(["apple", "google", "kakao"] as const).map((provider) => (
-              <ProviderButton
-                key={provider}
-                type="button"
-                aria-label={`${oauthProviderLabels[provider]}로 계속하기`}
-                disabled={
-                  !authEnabled ||
-                  !oauthProviderEnabled[provider] ||
-                  pending
-                }
-                $provider={provider}
-                onClick={() => void startOAuth(provider)}
-              >
-                <ProviderIconSlot aria-hidden="true">
-                  <ProviderIcon
-                    $provider={provider}
-                    src={
-                      provider === "apple"
-                        ? "/brand/oauth/apple-logo.png"
-                        : provider === "kakao"
-                          ? "/brand/oauth/kakao-symbol.png"
-                          : "/brand/oauth/google-g.png"
+          {socialOAuthEnabled && (
+            <>
+              <ProviderList aria-label="소셜 로그인">
+                {(["apple", "google", "kakao"] as const).map((provider) => (
+                  <ProviderButton
+                    key={provider}
+                    type="button"
+                    aria-label={`${oauthProviderLabels[provider]}로 계속하기`}
+                    disabled={
+                      !authEnabled ||
+                      !oauthProviderEnabled[provider] ||
+                      pending
                     }
-                    alt=""
-                    draggable="false"
-                  />
-                </ProviderIconSlot>
-                <ProviderLabel>
-                  {provider === "kakao"
-                    ? "카카오 로그인"
-                    : `${oauthProviderLabels[provider]}로 계속하기`}
-                </ProviderLabel>
-                <ProviderBalance aria-hidden="true" />
-              </ProviderButton>
-            ))}
-          </ProviderList>
+                    $provider={provider}
+                    onClick={() => void startOAuth(provider)}
+                  >
+                    <ProviderIconSlot aria-hidden="true">
+                      <ProviderIcon
+                        $provider={provider}
+                        src={
+                          provider === "apple"
+                            ? "/brand/oauth/apple-logo.png"
+                            : provider === "kakao"
+                              ? "/brand/oauth/kakao-symbol.png"
+                              : "/brand/oauth/google-g.png"
+                        }
+                        alt=""
+                        draggable="false"
+                      />
+                    </ProviderIconSlot>
+                    <ProviderLabel>
+                      {provider === "kakao"
+                        ? "카카오 로그인"
+                        : `${oauthProviderLabels[provider]}로 계속하기`}
+                    </ProviderLabel>
+                    <ProviderBalance aria-hidden="true" />
+                  </ProviderButton>
+                ))}
+              </ProviderList>
 
-          <Divider>
-            <span>또는</span>
-          </Divider>
+              <Divider>
+                <span>또는</span>
+              </Divider>
+            </>
+          )}
 
           <EmailForm onSubmit={submitEmail}>
             <Field>

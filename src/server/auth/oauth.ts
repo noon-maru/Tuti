@@ -440,6 +440,14 @@ function createOAuthCompletionUrl(
 }
 
 function assertOAuthProviderEnabled(provider: OAuthProvider) {
+  if (process.env.SOCIAL_OAUTH_ENABLED !== "true") {
+    throw new AccountAuthError(
+      "소셜 로그인을 준비하고 있어요.",
+      "social_oauth_disabled",
+      503,
+    );
+  }
+
   const configuration = providerConfigurations[provider];
 
   if (process.env[configuration.enabledEnv] === "true") return;

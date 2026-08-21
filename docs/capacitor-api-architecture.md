@@ -182,11 +182,23 @@ sequenceDiagram
 
 - 계정 인증과 각 OAuth 공급자는 별도 플래그로 활성화한다.
 
+- 첫 iOS 버전을 김민형 팀에서 출시한 뒤 정연한 팀으로 이전할 때까지
+  `SOCIAL_OAUTH_ENABLED=false`와 `NEXT_PUBLIC_SOCIAL_OAUTH_ENABLED=false`를
+  유지한다. 이 전역 차단이 적용되면 Apple·Google·Kakao 공급자별 설정과
+  관계없이 서버 진입을 거부하고 클라이언트의 소셜 로그인 영역 전체를 숨긴다.
+  앱 이전 후 새 팀의 인증 정보와 콜백 설정을 검증한 다음 두 값을 함께
+  `true`로 변경한다.
+
+- 이전 기간에도 이메일 인증코드 기반 계정 로그인은 유지한다. 운영 웹과
+  Capacitor 앱은 `NEXT_PUBLIC_ACCOUNT_AUTH_ENABLED=true`, 서버는
+  `ACCOUNT_AUTH_ENABLED=true`로 실행한다.
+
 - 클라이언트는 `NEXT_PUBLIC_ACCOUNT_AUTH_ENABLED=false`일 때 모든 로그인 입력과 공급자 버튼을 비활성화한다.
 
 - 서버는 별도의 `ACCOUNT_AUTH_ENABLED=false`를 검사하므로 클라이언트 UI를 우회해도 이메일 코드 발송과 OAuth 시작·콜백이 `503`으로 종료된다.
 
-- Apple은 서버의 `APPLE_OAUTH_ENABLED`와 클라이언트의
+- 소셜 OAuth 전역 플래그가 활성화된 상태에서 Apple은 서버의
+  `APPLE_OAUTH_ENABLED`와 클라이언트의
   `NEXT_PUBLIC_APPLE_OAUTH_ENABLED`를 함께 검사한다. Google은 추가로 서버의 `GOOGLE_OAUTH_ENABLED`와 클라이언트의
   `NEXT_PUBLIC_GOOGLE_OAUTH_ENABLED`가 모두 `true`여야 한다. Kakao도
   서버의 `KAKAO_OAUTH_ENABLED`와 클라이언트의

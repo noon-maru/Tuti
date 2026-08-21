@@ -170,6 +170,14 @@ async function runNextBuild(apiBaseUrl: string) {
   const accountAuthEnabled =
     process.env.NEXT_PUBLIC_ACCOUNT_AUTH_ENABLED?.trim() ||
     (await readPublicEnvValue("NEXT_PUBLIC_ACCOUNT_AUTH_ENABLED")) ||
+    "true";
+  const socialOAuthEnabled =
+    process.env.NEXT_PUBLIC_SOCIAL_OAUTH_ENABLED?.trim() ||
+    (await readPublicEnvValue("NEXT_PUBLIC_SOCIAL_OAUTH_ENABLED")) ||
+    "false";
+  const appleOAuthEnabled =
+    process.env.NEXT_PUBLIC_APPLE_OAUTH_ENABLED?.trim() ||
+    (await readPublicEnvValue("NEXT_PUBLIC_APPLE_OAUTH_ENABLED")) ||
     "false";
   const googleOAuthEnabled =
     process.env.NEXT_PUBLIC_GOOGLE_OAUTH_ENABLED?.trim() ||
@@ -190,6 +198,8 @@ async function runNextBuild(apiBaseUrl: string) {
           ...process.env,
           NEXT_PUBLIC_API_BASE_URL: apiBaseUrl,
           NEXT_PUBLIC_ACCOUNT_AUTH_ENABLED: accountAuthEnabled,
+          NEXT_PUBLIC_SOCIAL_OAUTH_ENABLED: socialOAuthEnabled,
+          NEXT_PUBLIC_APPLE_OAUTH_ENABLED: appleOAuthEnabled,
           NEXT_PUBLIC_GOOGLE_OAUTH_ENABLED: googleOAuthEnabled,
           NEXT_PUBLIC_KAKAO_OAUTH_ENABLED: kakaoOAuthEnabled,
           NEXT_TELEMETRY_DISABLED: "1",
