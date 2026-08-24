@@ -4,6 +4,16 @@ import {
   randomUUID,
   timingSafeEqual,
 } from "node:crypto";
+import {
+  AppReviewAuthConfigurationError,
+  getAppReviewAuthConfig,
+  isAppReviewEmail,
+  type AppReviewAuthConfig,
+} from "@/server/auth/appReview";
+import {
+  writeEmailAuthAudit,
+  type EmailAuthDeliveryMode,
+} from "@/server/auth/audit";
 import { assertAccountAuthEnabled, getRequiredAuthEnv } from "@/server/auth/config";
 import { sendEmailVerificationCode } from "@/server/auth/emailDelivery";
 import {
@@ -28,8 +38,50 @@ const MAX_REQUESTS_PER_WINDOW = 5;
 const MAX_VERIFICATION_ATTEMPTS = 5;
 
 export async function requestEmailCode(input: EmailCodeRequest) {
-  assertAccountAuthEnabled();
-  const email = parseEmail(input);
+  const startedAt = Date.now();
+  let appReviewAccount = false;
+  let deliveryMode: EmailAuthDeliveryMode = "unresolved";
+
+  try {
+    assertAccountAuthEnabled();
+    const email = parseEmail(input);
+    const appReviewConfig = readAppReviewAuthConfig();
+    appReviewAccount = isAppReviewEmail(email, appReviewConfig);
+    deliveryMode = appReviewAccount ? "app_review_fixed_code" : "smtp";
+    const response = await createAndDeliverEmailCode(
+      email,
+      appReviewConfig,
+      appReviewAccount,
+    );
+
+    await writeEmailAuthAudit({
+      operation: "request",
+      outcome: "succeeded",
+      deliveryMode,
+      appReviewAccount,
+      durationMs: Date.now() - startedAt,
+      result: "challenge_created",
+    });
+
+    return response;
+  } catch (error) {
+    await writeEmailAuthAudit({
+      operation: "request",
+      outcome: "failed",
+      deliveryMode,
+      appReviewAccount,
+      durationMs: Date.now() - startedAt,
+      errorCode: getAuthAuditErrorCode(error),
+    });
+    throw error;
+  }
+}
+
+async function createAndDeliverEmailCode(
+  email: string,
+  appReviewConfig: AppReviewAuthConfig | null,
+  appReviewAccount: boolean,
+) {
   await purgeExpiredAuthRecordsIfDue();
   const requestWindowStart = minutesAgo(REQUEST_WINDOW_MINUTES);
   const recentRequestCount = await prisma.emailVerificationCode.count({
@@ -48,7 +100,9 @@ export async function requestEmailCode(input: EmailCodeRequest) {
   }
 
   const id = randomUUID();
-  const code = randomInt(0, 1_000_000).toString().padStart(6, "0");
+  const code = appReviewAccount
+    ? appReviewConfig!.verificationCode
+    : randomInt(0, 1_000_000).toString().padStart(6, "0");
   const expiresAt = new Date();
   expiresAt.setMinutes(expiresAt.getMinutes() + CODE_LIFETIME_MINUTES);
 
@@ -72,11 +126,13 @@ export async function requestEmailCode(input: EmailCodeRequest) {
     }),
   ]);
 
-  try {
-    await sendEmailVerificationCode(email, code);
-  } catch (error) {
-    await prisma.emailVerificationCode.deleteMany({ where: { id } });
-    throw error;
+  if (!appReviewAccount) {
+    try {
+      await sendEmailVerificationCode(email, code);
+    } catch (error) {
+      await prisma.emailVerificationCode.deleteMany({ where: { id } });
+      throw error;
+    }
   }
 
   return {
@@ -89,8 +145,46 @@ export async function verifyEmailCode(
   currentUser: AuthenticatedUser,
   input: EmailCodeVerification,
 ): Promise<EmailCodeVerificationResult> {
-  assertAccountAuthEnabled();
-  const email = parseEmail(input);
+  const startedAt = Date.now();
+  let appReviewAccount = false;
+  let deliveryMode: EmailAuthDeliveryMode = "unresolved";
+
+  try {
+    assertAccountAuthEnabled();
+    const email = parseEmail(input);
+    const appReviewConfig = readAppReviewAuthConfig();
+    appReviewAccount = isAppReviewEmail(email, appReviewConfig);
+    deliveryMode = appReviewAccount ? "app_review_fixed_code" : "smtp";
+    const result = await verifyParsedEmailCode(currentUser, input, email);
+
+    await writeEmailAuthAudit({
+      operation: "verify",
+      outcome: "succeeded",
+      deliveryMode,
+      appReviewAccount,
+      durationMs: Date.now() - startedAt,
+      result: result.status,
+    });
+
+    return result;
+  } catch (error) {
+    await writeEmailAuthAudit({
+      operation: "verify",
+      outcome: "failed",
+      deliveryMode,
+      appReviewAccount,
+      durationMs: Date.now() - startedAt,
+      errorCode: getAuthAuditErrorCode(error),
+    });
+    throw error;
+  }
+}
+
+async function verifyParsedEmailCode(
+  currentUser: AuthenticatedUser,
+  input: EmailCodeVerification,
+  email: string,
+): Promise<EmailCodeVerificationResult> {
   const code = parseCode(input);
   const journalResolution = parseJournalResolution(input);
   const challenge = await prisma.emailVerificationCode.findFirst({
@@ -332,4 +426,21 @@ function hashVerificationCode(id: string, email: string, code: string) {
 
 function minutesAgo(minutes: number) {
   return new Date(Date.now() - minutes * 60 * 1000);
+}
+
+function readAppReviewAuthConfig() {
+  try {
+    return getAppReviewAuthConfig();
+  } catch (error) {
+    if (error instanceof AppReviewAuthConfigurationError) {
+      throw new AccountAuthError(error.message, error.code, 503);
+    }
+    throw error;
+  }
+}
+
+function getAuthAuditErrorCode(error: unknown) {
+  if (error instanceof AccountAuthError) return error.code;
+  if (error instanceof SyntaxError) return "invalid_request_body";
+  return error instanceof Error ? error.name : "unknown_error";
 }
