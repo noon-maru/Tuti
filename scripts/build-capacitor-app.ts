@@ -174,19 +174,19 @@ async function runNextBuild(apiBaseUrl: string) {
   const socialOAuthEnabled =
     process.env.NEXT_PUBLIC_SOCIAL_OAUTH_ENABLED?.trim() ||
     (await readPublicEnvValue("NEXT_PUBLIC_SOCIAL_OAUTH_ENABLED")) ||
-    "false";
+    "true";
   const appleOAuthEnabled =
     process.env.NEXT_PUBLIC_APPLE_OAUTH_ENABLED?.trim() ||
     (await readPublicEnvValue("NEXT_PUBLIC_APPLE_OAUTH_ENABLED")) ||
-    "false";
+    "true";
   const googleOAuthEnabled =
     process.env.NEXT_PUBLIC_GOOGLE_OAUTH_ENABLED?.trim() ||
     (await readPublicEnvValue("NEXT_PUBLIC_GOOGLE_OAUTH_ENABLED")) ||
-    "false";
+    "true";
   const kakaoOAuthEnabled =
     process.env.NEXT_PUBLIC_KAKAO_OAUTH_ENABLED?.trim() ||
     (await readPublicEnvValue("NEXT_PUBLIC_KAKAO_OAUTH_ENABLED")) ||
-    "false";
+    "true";
   const journalPublicationEnabled =
     process.env.NEXT_PUBLIC_JOURNAL_PUBLICATION_ENABLED?.trim() ||
     (await readPublicEnvValue("NEXT_PUBLIC_JOURNAL_PUBLICATION_ENABLED")) ||

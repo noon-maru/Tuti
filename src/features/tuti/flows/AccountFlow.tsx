@@ -1,5 +1,6 @@
 "use client";
 
+import { Browser } from "@capacitor/browser";
 import { useQueryClient } from "@tanstack/react-query";
 import { Capacitor } from "@capacitor/core";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -164,9 +165,16 @@ export function AccountFlow() {
         return result;
       }}
       onOAuth={async (provider) => {
+        const native = Capacitor.isNativePlatform();
         const authorizationUrl = await createOAuthLoginUrl(provider, {
-          native: Capacitor.isNativePlatform(),
+          native,
         });
+
+        if (native) {
+          await Browser.open({ url: authorizationUrl });
+          return;
+        }
+
         window.location.assign(authorizationUrl);
       }}
       onLogout={async () => {

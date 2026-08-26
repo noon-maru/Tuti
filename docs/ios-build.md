@@ -70,14 +70,17 @@ Simulator 빌드에는 Apple Developer 계정이나 코드 서명이 필요하�
 Capabilities를 설정해야 한다. App Store용 Archive 자동화는 배포 인증서와
 프로비저닝 방식이 확정된 뒤 추가한다.
 
-첫 버전은 김민형 팀에서 출시한 뒤 정연한 팀으로 이전한다. 이전 전에는
-Apple 사용자 식별자 마이그레이션이 발생하지 않도록 Apple·Google·Kakao
-로그인을 모두 숨기고 이메일 로그인만 제공한다. 이 기간에는 서버의
-`SOCIAL_OAUTH_ENABLED`와 빌드 시점의 `NEXT_PUBLIC_SOCIAL_OAUTH_ENABLED`를
-모두 `false`로 유지하고, 이메일 로그인을 위한 `ACCOUNT_AUTH_ENABLED`와
-`NEXT_PUBLIC_ACCOUNT_AUTH_ENABLED`는 `true`로 유지한다. 앱 이전 후 정연한
-팀에서 각 OAuth 공급자를 다시 구성하고 검증한 다음 활성화한다.
+첫 버전 출시와 정연한 팀으로의 앱 이전을 완료했다. 새 팀의 공급자 설정을
+사용해 Apple·Google·Kakao 로그인을 운영하며 서버의 `SOCIAL_OAUTH_ENABLED`와
+빌드 시점의 `NEXT_PUBLIC_SOCIAL_OAUTH_ENABLED`, 각 공급자별 플래그를 모두
+`true`로 유지한다. 이메일 로그인을 위한 `ACCOUNT_AUTH_ENABLED`와
+`NEXT_PUBLIC_ACCOUNT_AUTH_ENABLED`도 계속 `true`로 유지한다.
 
-첫 출시에서는 사용자 행동의 외부 AI 전송과 공개 저널 링크도 비활성화한다.
+네이티브 OAuth는 시스템 인증 브라우저를 열고
+`com.noonmaru.tuti://oauth/callback` URL Scheme으로 앱에 복귀한다. 새 기기에서
+OAuth를 검증할 때는 공급자 페이지가 앱 WebView 안이 아니라 시스템 브라우저로
+열리는지와 성공·취소 모두 로그인 화면으로 돌아오는지 확인한다.
+
+현재 사용자 행동의 외부 AI 전송과 공개 저널 링크는 비활성화한다.
 앱의 `계정 및 데이터` 화면에서는 로그인 계정과 자동 생성된 익명 계정을 모두
 직접 삭제할 수 있어야 한다.

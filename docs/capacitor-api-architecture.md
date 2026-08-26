@@ -193,14 +193,14 @@ sequenceDiagram
 
 - 계정 인증과 각 OAuth 공급자는 별도 플래그로 활성화한다.
 
-- 첫 iOS 버전을 김민형 팀에서 출시한 뒤 정연한 팀으로 이전할 때까지
-  `SOCIAL_OAUTH_ENABLED=false`와 `NEXT_PUBLIC_SOCIAL_OAUTH_ENABLED=false`를
-  유지한다. 이 전역 차단이 적용되면 Apple·Google·Kakao 공급자별 설정과
-  관계없이 서버 진입을 거부하고 클라이언트의 소셜 로그인 영역 전체를 숨긴다.
-  앱 이전 후 새 팀의 인증 정보와 콜백 설정을 검증한 다음 두 값을 함께
-  `true`로 변경한다.
+- 첫 iOS 버전 출시와 정연한 팀으로의 앱 이전을 완료했다. 새 팀의 인증 정보와
+  콜백 설정을 사용해 `SOCIAL_OAUTH_ENABLED=true`와
+  `NEXT_PUBLIC_SOCIAL_OAUTH_ENABLED=true`를 유지하고 Apple·Google·Kakao
+  공급자별 서버·클라이언트 플래그도 함께 활성화한다. 전역 플래그는 장애나
+  공급자 재구성 시 모든 소셜 로그인을 즉시 숨기고 차단하는 비상 스위치로
+  남긴다.
 
-- 이전 기간에도 이메일 인증코드 기반 계정 로그인은 유지한다. 운영 웹과
+- 소셜 로그인과 별개로 이메일 인증코드 기반 계정 로그인도 유지한다. 운영 웹과
   Capacitor 앱은 `NEXT_PUBLIC_ACCOUNT_AUTH_ENABLED=true`, 서버는
   `ACCOUNT_AUTH_ENABLED=true`로 실행한다.
 
@@ -219,8 +219,9 @@ sequenceDiagram
 
 - 웹에서 시작한 OAuth 완료 리디렉션은 웹 `/login`으로 연결한다.
   Capacitor 앱에서 시작한 요청은 서버에 네이티브 흐름으로 기록하며,
-  공급자 인증이 끝나면 `com.noonmaru.tuti://oauth/callback` 딥링크로 앱을
-  다시 연다. 앱은 `appUrlOpen`과 `getLaunchUrl`로 성공 티켓 또는 오류를
+  공급자 인증은 네이티브 WebView가 아닌 시스템 인증 브라우저에서 진행한다.
+  인증이 끝나면 `com.noonmaru.tuti://oauth/callback` 딥링크로 앱을 다시 연다.
+  앱은 `appUrlOpen`과 `getLaunchUrl`로 성공 티켓 또는 오류를
   받아 같은 일회용 티켓 교환 API에서 로그인을 마무리한다. 공급자에
   등록하는 콜백 URI는 기존 HTTPS 서버 콜백을 그대로 사용한다.
 
