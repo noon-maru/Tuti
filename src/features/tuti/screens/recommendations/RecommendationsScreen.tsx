@@ -83,6 +83,7 @@ export function RecommendationsScreen({
   onAdmin,
   onInquiry,
   onLocationSettings,
+  onNotificationSettings,
   onLegal,
   onSavedPlaces,
   savedPlacesCount,
@@ -119,6 +120,7 @@ export function RecommendationsScreen({
   onAdmin: () => void;
   onInquiry: () => void;
   onLocationSettings: () => void;
+  onNotificationSettings: () => void;
   onLegal: () => void;
   onSavedPlaces: () => void;
   savedPlacesCount: number;
@@ -626,6 +628,14 @@ export function RecommendationsScreen({
                       label: "위치 설정",
                       onSelect: onLocationSettings,
                     },
+                    ...(process.env.NEXT_PUBLIC_TUTI_TARGET === "app"
+                      ? [
+                          {
+                            label: "알림 설정",
+                            onSelect: onNotificationSettings,
+                          },
+                        ]
+                      : []),
                     {
                       label: "1:1 문의",
                       onSelect: onInquiry,
@@ -659,6 +669,14 @@ export function RecommendationsScreen({
                       label: "위치 설정",
                       onSelect: onLocationSettings,
                     },
+                    ...(process.env.NEXT_PUBLIC_TUTI_TARGET === "app"
+                      ? [
+                          {
+                            label: "알림 설정",
+                            onSelect: onNotificationSettings,
+                          },
+                        ]
+                      : []),
                     {
                       label: "1:1 문의",
                       onSelect: onInquiry,

@@ -240,6 +240,9 @@ export function RecommendationsFlow({ interactive }: { interactive: boolean }) {
   useEffect(() => {
     router.prefetch("/journal");
     router.prefetch("/location");
+    if (process.env.NEXT_PUBLIC_TUTI_TARGET === "app") {
+      router.prefetch("/notifications");
+    }
   }, [router]);
 
   useEffect(() => {
@@ -430,6 +433,7 @@ export function RecommendationsFlow({ interactive }: { interactive: boolean }) {
         onAdmin={() => router.push("/admin")}
         onInquiry={() => router.push("/inquiry")}
         onLocationSettings={() => router.push("/location")}
+        onNotificationSettings={() => router.push("/notifications")}
         onLegal={() => router.push("/legal")}
         onSavedPlaces={() => setSavedPlacesOpen(true)}
         savedPlacesCount={savedDeparturePlaces.length}

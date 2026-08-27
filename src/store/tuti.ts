@@ -59,6 +59,11 @@ export type DailyRecommendationSnapshot = {
   places: TutiPlace[];
 };
 
+export type NotificationPreferences = {
+  dailyReminderEnabled: boolean;
+  dailyReminderTime: string;
+};
+
 type TutiState = {
   answers: IntakeAnswers;
   entryRecord?: EntryRecord;
@@ -83,6 +88,7 @@ type TutiState = {
   dailyCheckInSnoozedUntil?: string;
   pendingDeparture?: PendingDeparture;
   savedDeparturePlaces: SavedDeparturePlace[];
+  notificationPreferences: NotificationPreferences;
   setAnswer: <Key extends keyof IntakeAnswers>(
     key: Key,
     value: IntakeAnswers[Key],
@@ -124,6 +130,9 @@ type TutiState = {
   completePendingDeparture: () => void;
   deferPendingDeparture: () => void;
   removeSavedDeparturePlace: (placeId: string) => void;
+  setNotificationPreferences: (
+    preferences: NotificationPreferences,
+  ) => void;
   finishEntry: () => void;
   markHydrated: () => void;
   resetIntake: () => void;
@@ -156,6 +165,10 @@ export const useTutiStore = create<TutiState>()(
       dailyCheckInSnoozedUntil: undefined,
       pendingDeparture: undefined,
       savedDeparturePlaces: [],
+      notificationPreferences: {
+        dailyReminderEnabled: false,
+        dailyReminderTime: "10:00",
+      },
       setAnswer: (key, value) =>
         set((state) => ({
           answers: {
@@ -368,6 +381,8 @@ export const useTutiStore = create<TutiState>()(
             (place) => place.placeId !== placeId,
           ),
         })),
+      setNotificationPreferences: (notificationPreferences) =>
+        set({ notificationPreferences }),
       finishEntry: () => set({ entryStage: "complete" }),
       markHydrated: () => set({ hasHydrated: true }),
       resetIntake: () =>
@@ -428,6 +443,7 @@ export const useTutiStore = create<TutiState>()(
         dailyCheckInSnoozedUntil: state.dailyCheckInSnoozedUntil,
         pendingDeparture: state.pendingDeparture,
         savedDeparturePlaces: state.savedDeparturePlaces,
+        notificationPreferences: state.notificationPreferences,
         activePlaceId: state.activePlaceId,
         activeJournalEntryId: state.activeJournalEntryId,
         detailOverlay:
