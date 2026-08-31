@@ -2,7 +2,10 @@ import { createSign } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import { prisma } from "@/server/db/prisma";
 import { isInvalidRegistrationError } from "@/server/notifications/fcmErrors";
-import { createSafePushData } from "@/server/notifications/pushPayload";
+import {
+  createAndroidFcmMessage,
+  type ServerPushMessage,
+} from "@/server/notifications/pushPayload";
 import { parseFcmPushTestEmails } from "@/server/notifications/pushTestAccess";
 
 const FCM_SCOPE = "https://www.googleapis.com/auth/firebase.messaging";
@@ -18,14 +21,6 @@ type ServiceAccount = {
 type CachedAccessToken = {
   value: string;
   expiresAt: number;
-};
-
-export type ServerPushMessage = {
-  title: string;
-  body: string;
-  path: string;
-  type: string;
-  entityId?: string;
 };
 
 let serviceAccountPromise: Promise<ServiceAccount> | null = null;
@@ -127,23 +122,7 @@ async function sendFcmMessage(
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        message: {
-          token,
-          notification: {
-            title: message.title,
-            body: message.body,
-          },
-          data: createSafePushData(message),
-          android: {
-            priority: "normal",
-            notification: {
-              channelId: "tuti_service_updates",
-              icon: "tuti_notification_icon",
-              color: "#8CBDEF",
-              defaultSound: true,
-            },
-          },
-        },
+        message: createAndroidFcmMessage(token, message),
       }),
     },
   );

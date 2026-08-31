@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { isInvalidRegistrationError } from "../src/server/notifications/fcmErrors";
 import {
+  createAndroidFcmMessage,
   createInquiryAnsweredPushMessage,
   createSafePushData,
 } from "../src/server/notifications/pushPayload";
@@ -30,6 +31,25 @@ test("문의 알림은 이용자가 작성한 내용을 메시지에 포함하�
     path: "/inquiry?view=history",
   });
   assert.equal("entityId" in createSafePushData(message), false);
+});
+
+test("문의 답변 푸시를 소리·진동·고우선순위 채널로 전송한다", () => {
+  const message = createAndroidFcmMessage(
+    "device-token",
+    createInquiryAnsweredPushMessage("inquiry-internal-id"),
+  );
+
+  assert.equal(message.android.priority, "high");
+  assert.equal(
+    message.android.notification.channelId,
+    "tuti_service_updates_v2",
+  );
+  assert.equal(
+    message.android.notification.notificationPriority,
+    "PRIORITY_HIGH",
+  );
+  assert.equal(message.android.notification.defaultSound, true);
+  assert.equal(message.android.notification.defaultVibrateTimings, true);
 });
 
 test("FCM 내부 QA 허용 이메일을 정규화하고 중복 제거한다", () => {

@@ -10,10 +10,11 @@ import type {
   PushDeviceResponse,
   RegisterPushDeviceRequest,
 } from "@/shared/api/push";
+import { TUTI_SERVICE_PUSH_CHANNEL_ID } from "@/shared/notifications/pushChannel";
 
 const INSTALLATION_ID_KEY = "tuti-push-installation-id";
 const REGISTRATION_TIMEOUT_MS = 15_000;
-export const TUTI_SERVICE_PUSH_CHANNEL_ID = "tuti_service_updates";
+const LEGACY_TUTI_SERVICE_PUSH_CHANNEL_ID = "tuti_service_updates";
 
 export type PushNotificationStatus = {
   supported: boolean;
@@ -121,12 +122,15 @@ async function configurePushChannel() {
     id: TUTI_SERVICE_PUSH_CHANNEL_ID,
     name: "Tuti 소식",
     description: "문의 답변처럼 사용자가 기다리는 소식을 알려드려요.",
-    importance: 3,
+    importance: 4,
     visibility: 1,
-    vibration: false,
+    vibration: true,
     lights: true,
     lightColor: "#C7EA86",
   });
+  await PushNotifications.deleteChannel({
+    id: LEGACY_TUTI_SERVICE_PUSH_CHANNEL_ID,
+  }).catch(() => undefined);
 }
 
 async function requestPushToken() {
