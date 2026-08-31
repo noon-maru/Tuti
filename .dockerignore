@@ -2,9 +2,14 @@ node_modules
 .pnpm-store
 .next
 out
+.ops-backups
+.ops-state
 src/generated/prisma
 build
 coverage
+android/.gradle
+android/**/build
+ios/DerivedData
 .git
 .vercel
 .env
