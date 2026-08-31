@@ -35,6 +35,11 @@ enum UserRole {
   admin
 }
 
+enum PushPlatform {
+  android
+  ios
+}
+
 enum PlaceReviewStatus {
   pending
   approved
@@ -658,8 +663,30 @@ model User {
   signalProfile         UserSignalProfile?
   locationConsentEvents LocationConsentEvent[]
   locationUsageLogs     LocationUsageLog[]
+  pushDevices           PushDevice[]
 
   @@map("users")
+}
+
+model PushDevice {
+  id             String       @id
+  userId         String       @map("user_id")
+  installationId String       @unique @map("installation_id")
+  platform       PushPlatform
+  token          String       @unique
+  enabled        Boolean      @default(true)
+  appVersion     String?      @map("app_version")
+  locale         String?
+  lastSeenAt     DateTime     @default(now()) @map("last_seen_at")
+  invalidatedAt  DateTime?    @map("invalidated_at")
+  createdAt      DateTime     @default(now()) @map("created_at")
+  updatedAt      DateTime     @updatedAt @map("updated_at")
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, enabled])
+  @@index([platform, enabled])
+  @@index([lastSeenAt])
+  @@map("push_devices")
 }
 
 model LocationConsentEvent {

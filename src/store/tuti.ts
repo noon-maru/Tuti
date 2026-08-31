@@ -62,6 +62,7 @@ export type DailyRecommendationSnapshot = {
 export type NotificationPreferences = {
   dailyReminderEnabled: boolean;
   dailyReminderTime: string;
+  inquiryReplyEnabled: boolean;
 };
 
 type TutiState = {
@@ -168,6 +169,7 @@ export const useTutiStore = create<TutiState>()(
       notificationPreferences: {
         dailyReminderEnabled: false,
         dailyReminderTime: "10:00",
+        inquiryReplyEnabled: false,
       },
       setAnswer: (key, value) =>
         set((state) => ({

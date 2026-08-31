@@ -12,6 +12,13 @@ import {
 import { NotificationSettingsScreen } from "@/features/tuti/screens/notifications/NotificationSettingsScreen";
 import { useTutiStore } from "@/store/tuti";
 import type { LocalNotificationStatus } from "@/features/tuti/notifications/localNotifications";
+import {
+  disableServerPushNotifications,
+  enableServerPushNotifications,
+  getPushNotificationStatus,
+  supportsServerPushNotifications,
+  type PushNotificationStatus,
+} from "@/features/tuti/notifications/pushNotifications";
 
 export function NotificationSettingsFlow() {
   const router = useRouter();
@@ -26,6 +33,12 @@ export function NotificationSettingsFlow() {
   );
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+  const [pushStatus, setPushStatus] = useState<PushNotificationStatus | null>(
+    () =>
+      supportsServerPushNotifications()
+        ? null
+        : { supported: false, permission: "unsupported" },
+  );
 
   const refreshStatus = async () => {
     const nextStatus = await getLocalNotificationStatus();
@@ -39,16 +52,28 @@ export function NotificationSettingsFlow() {
     const refreshVisibleStatus = () => {
       if (document.visibilityState !== "visible") return;
 
-      void getLocalNotificationStatus()
-        .then((nextStatus) => {
-          if (!disposed) setStatus(nextStatus);
+      void Promise.all([
+        getLocalNotificationStatus(),
+        getPushNotificationStatus(),
+      ])
+        .then(([nextStatus, nextPushStatus]) => {
+          if (!disposed) {
+            setStatus(nextStatus);
+            setPushStatus(nextPushStatus);
+          }
         })
         .catch(() => undefined);
     };
 
-    void getLocalNotificationStatus()
-      .then((nextStatus) => {
-        if (!disposed) setStatus(nextStatus);
+    void Promise.all([
+      getLocalNotificationStatus(),
+      getPushNotificationStatus(),
+    ])
+      .then(([nextStatus, nextPushStatus]) => {
+        if (!disposed) {
+          setStatus(nextStatus);
+          setPushStatus(nextPushStatus);
+        }
       })
       .catch(() => {
         if (!disposed) {
@@ -64,6 +89,33 @@ export function NotificationSettingsFlow() {
       document.removeEventListener("visibilitychange", refreshVisibleStatus);
     };
   }, []);
+
+  const changeInquiryReplyEnabled = async (enabled: boolean) => {
+    setBusy(true);
+    setMessage(null);
+
+    try {
+      if (!enabled) {
+        await disableServerPushNotifications();
+        setPreferences({ ...preferences, inquiryReplyEnabled: false });
+        setMessage("문의 답변 알림을 껐어요.");
+      } else {
+        const result = await enableServerPushNotifications();
+        if (result.status === "registered") {
+          setPreferences({ ...preferences, inquiryReplyEnabled: true });
+          setMessage("문의에 답변이 오면 알려드릴게요.");
+        } else if (result.status === "denied") {
+          setMessage("기기에서 알림 권한을 허용해야 답변 알림을 받을 수 있어요.");
+        }
+      }
+      setPushStatus(await getPushNotificationStatus());
+    } catch (error) {
+      console.warn("문의 답변 알림 설정을 변경하지 못했습니다.", error);
+      setMessage("문의 답변 알림을 저장하지 못했어요. 잠시 후 다시 시도해주세요.");
+    } finally {
+      setBusy(false);
+    }
+  };
 
   const changeEnabled = async (enabled: boolean) => {
     setBusy(true);
@@ -159,12 +211,15 @@ export function NotificationSettingsFlow() {
       enabled={preferences.dailyReminderEnabled}
       time={preferences.dailyReminderTime}
       status={status}
+      inquiryReplyEnabled={preferences.inquiryReplyEnabled}
+      pushStatus={pushStatus}
       busy={busy}
       message={message}
       onBack={() => router.replace("/")}
       onEnabledChange={changeEnabled}
       onTimeChange={changeTime}
       onPreview={preview}
+      onInquiryReplyEnabledChange={changeInquiryReplyEnabled}
     />
   );
 }

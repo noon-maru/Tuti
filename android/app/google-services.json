@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "975549832953",
+    "project_id": "tuti-noonmaru",
+    "storage_bucket": "tuti-noonmaru.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:975549832953:android:b84a833d2ceb5b56760c28",
+        "android_client_info": {
+          "package_name": "com.noonmaru.tuti"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDKGnWQ9oCephLxMZSc_Wyet_G8DKpPrw0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

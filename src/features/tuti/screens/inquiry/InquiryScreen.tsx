@@ -19,10 +19,16 @@ import type {
   UserInquiriesResponse,
 } from "@/shared/api/inquiry";
 
-export function InquiryScreen({ onBack }: { onBack: () => void }) {
+export function InquiryScreen({
+  initialView = "write",
+  onBack,
+}: {
+  initialView?: "write" | "history";
+  onBack: () => void;
+}) {
   const session = useSession();
   const queryClient = useQueryClient();
-  const [view, setView] = useState<"write" | "history">("write");
+  const [view, setView] = useState<"write" | "history">(initialView);
   const [category, setCategory] = useState<InquiryCategory>("service");
   const [subject, setSubject] = useState("");
   const [message, setMessage] = useState("");

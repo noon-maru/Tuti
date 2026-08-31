@@ -1,10 +1,25 @@
 "use client";
 
-import { useRouter } from "next/navigation";
+import { Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { InquiryScreen } from "@/features/tuti/screens/inquiry/InquiryScreen";
 
 export default function InquiryPage() {
-  const router = useRouter();
+  return (
+    <Suspense>
+      <InquiryPageContent />
+    </Suspense>
+  );
+}
 
-  return <InquiryScreen onBack={() => router.replace("/")} />;
+function InquiryPageContent() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+
+  return (
+    <InquiryScreen
+      initialView={searchParams.get("view") === "history" ? "history" : "write"}
+      onBack={() => router.replace("/")}
+    />
+  );
 }

@@ -7,6 +7,7 @@ import {
   withCors,
 } from "@/server/http/cors";
 import type { AdminInquiriesResponse } from "@/shared/api/admin";
+import { sendPushToUserSafely } from "@/server/notifications/fcm";
 
 export const runtime = "nodejs";
 
@@ -85,6 +86,17 @@ export async function PATCH(request: Request) {
       );
     }
 
+    const previousInquiry = await prisma.customerInquiry.findUnique({
+      where: { id: inquiryId },
+      select: { adminResponse: true, status: true },
+    });
+    if (!previousInquiry) {
+      return withCors(
+        request,
+        Response.json({ error: "문의를 찾지 못했습니다." }, { status: 404 }),
+      );
+    }
+
     const inquiry = await prisma.customerInquiry.update({
       where: { id: inquiryId },
       data: {
@@ -96,6 +108,8 @@ export async function PATCH(request: Request) {
       select: {
         id: true,
         status: true,
+        requesterUserId: true,
+        subject: true,
       },
     });
 
@@ -111,6 +125,20 @@ export async function PATCH(request: Request) {
         hasResponse: Boolean(adminResponse),
       },
     });
+
+    const responseChanged =
+      Boolean(adminResponse) && adminResponse !== previousInquiry.adminResponse;
+    const becameAnswered =
+      status === "answered" && previousInquiry.status !== "answered";
+    if (responseChanged || becameAnswered) {
+      await sendPushToUserSafely(inquiry.requesterUserId, {
+        title: "문의에 답변이 도착했어요",
+        body: inquiry.subject,
+        type: "inquiry-answered",
+        path: "/inquiry?view=history",
+        entityId: inquiry.id,
+      });
+    }
 
     return withCors(request, Response.json({ inquiry }));
   } catch (error) {

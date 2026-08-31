@@ -20,9 +20,14 @@ services:
       - .env.production
     environment:
       TUTI_RELEASE: ${TUTI_RELEASE:-unknown}
+      GOOGLE_APPLICATION_CREDENTIALS: /run/secrets/tuti-firebase-service-account.json
     restart: unless-stopped
     ports:
       - "5050:3000"
+    volumes:
+      - ${FIREBASE_SERVICE_ACCOUNT_HOST_PATH:-/var/services/homes/Tutiadmin/.tuti-secrets/firebase/tuti-push-sender.json}:/run/secrets/tuti-firebase-service-account.json:ro
+    group_add:
+      - "${TUTI_SECRET_GID:-101}"
     depends_on:
       db:
         condition: service_healthy

@@ -6,6 +6,7 @@ import { AndroidBackButtonHandler } from "@/features/tuti/components/AndroidBack
 import { NativeOAuthCallbackHandler } from "@/features/tuti/components/NativeOAuthCallbackHandler";
 import { LocationAccessProvider } from "@/features/tuti/location/LocationAccessProvider";
 import { LocalNotificationHandler } from "@/features/tuti/components/LocalNotificationHandler";
+import { PushNotificationHandler } from "@/features/tuti/components/PushNotificationHandler";
 
 export function TutiAppShell({ children }: { children: React.ReactNode }) {
   return (
@@ -14,6 +15,7 @@ export function TutiAppShell({ children }: { children: React.ReactNode }) {
         <AndroidBackButtonHandler />
         <NativeOAuthCallbackHandler />
         <LocalNotificationHandler />
+        <PushNotificationHandler />
         <LocationAccessProvider>{children}</LocationAccessProvider>
       </AppFrame>
     </Providers>

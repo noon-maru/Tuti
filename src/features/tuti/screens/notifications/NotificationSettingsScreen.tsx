@@ -5,27 +5,34 @@ import { BellRing, ChevronLeft, Clock3, ShieldCheck } from "lucide-react";
 import { BaseButton, PrimaryButton } from "@/features/tuti/components/buttons";
 import { ScreenFrame } from "@/features/tuti/components/ScreenFrame";
 import type { LocalNotificationStatus } from "@/features/tuti/notifications/localNotifications";
+import type { PushNotificationStatus } from "@/features/tuti/notifications/pushNotifications";
 
 export function NotificationSettingsScreen({
   enabled,
   time,
   status,
+  inquiryReplyEnabled,
+  pushStatus,
   busy,
   message,
   onBack,
   onEnabledChange,
   onTimeChange,
   onPreview,
+  onInquiryReplyEnabledChange,
 }: {
   enabled: boolean;
   time: string;
   status: LocalNotificationStatus | null;
+  inquiryReplyEnabled: boolean;
+  pushStatus: PushNotificationStatus | null;
   busy: boolean;
   message: string | null;
   onBack: () => void;
   onEnabledChange: (enabled: boolean) => Promise<void>;
   onTimeChange: (time: string) => Promise<void>;
   onPreview: () => Promise<void>;
+  onInquiryReplyEnabledChange: (enabled: boolean) => Promise<void>;
 }) {
   const supported = status?.supported ?? true;
   const permissionDenied = status?.permission === "denied";
@@ -108,6 +115,30 @@ export function NotificationSettingsScreen({
           </SettingsCard>
         )}
 
+        {pushStatus?.supported && (
+          <SettingsCard>
+            <SettingRow>
+              <SettingCopy>
+                <strong>문의 답변</strong>
+                <p>남겨둔 1:1 문의에 답변이 도착했을 때만 알려드려요.</p>
+              </SettingCopy>
+              <Switch>
+                <input
+                  type="checkbox"
+                  role="switch"
+                  aria-label="문의 답변 알림"
+                  checked={inquiryReplyEnabled}
+                  disabled={busy}
+                  onChange={(event) =>
+                    void onInquiryReplyEnabledChange(event.currentTarget.checked)
+                  }
+                />
+                <span aria-hidden="true" />
+              </Switch>
+            </SettingRow>
+          </SettingsCard>
+        )}
+
         {permissionDenied && (
           <PermissionNotice role="alert">
             <strong>기기에서 알림이 꺼져 있어요.</strong>
@@ -123,10 +154,11 @@ export function NotificationSettingsScreen({
         <PrivacySummary>
           <ShieldCheck aria-hidden="true" />
           <div>
-            <strong>알림 시간은 이 기기에만 보관해요.</strong>
+            <strong>알림 선택은 언제든 바꿀 수 있어요.</strong>
             <p>
-              로컬 알림은 서버에서 보내지 않으며, 선택한 시간에 기기 안에서
-              예약돼요. 기기 상황에 따라 몇 분 정도 늦게 도착할 수 있어요.
+              오늘의 Tuti 시간은 이 기기에만 보관해요. 문의 답변 알림을 켜면
+              알림 전송에 필요한 기기 식별값만 서버에 보관하고, 끄면 연결을
+              바로 해제해요.
             </p>
           </div>
         </PrivacySummary>
