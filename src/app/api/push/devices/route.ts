@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { authenticateUser } from "@/server/auth/session";
 import { prisma } from "@/server/db/prisma";
-import { isFcmPushEnabled } from "@/server/notifications/fcm";
+import { isFcmPushEnabledForUser } from "@/server/notifications/fcm";
 import {
   createPreflightResponse,
   isRequestOriginAllowed,
@@ -21,22 +21,22 @@ export async function POST(request: Request) {
     return Response.json({ error: "허용되지 않은 요청 출처예요." }, { status: 403 });
   }
 
-  if (!isFcmPushEnabled()) {
-    return withCors(
-      request,
-      Response.json(
-        { error: "문의 답변 알림을 준비하고 있어요." },
-        { status: 503 },
-      ),
-    );
-  }
-
   try {
     const user = await authenticateUser(request);
     if (!user) {
       return withCors(
         request,
         Response.json({ error: "사용자 인증이 필요합니다." }, { status: 401 }),
+      );
+    }
+
+    if (!(await isFcmPushEnabledForUser(user.id))) {
+      return withCors(
+        request,
+        Response.json(
+          { error: "문의 답변 알림은 10월 1일부터 사용할 수 있어요." },
+          { status: 503 },
+        ),
       );
     }
 

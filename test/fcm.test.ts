@@ -5,6 +5,7 @@ import {
   createInquiryAnsweredPushMessage,
   createSafePushData,
 } from "../src/server/notifications/pushPayload";
+import { parseFcmPushTestEmails } from "../src/server/notifications/pushTestAccess";
 
 test("FCM이 만료된 토큰을 반환하면 기기를 무효화한다", () => {
   assert.equal(isInvalidRegistrationError(404, "UNREGISTERED"), true);
@@ -29,4 +30,12 @@ test("문의 알림은 이용자가 작성한 내용을 메시지에 포함하�
     path: "/inquiry?view=history",
   });
   assert.equal("entityId" in createSafePushData(message), false);
+});
+
+test("FCM 내부 QA 허용 이메일을 정규화하고 중복 제거한다", () => {
+  assert.deepEqual(
+    parseFcmPushTestEmails(" Admin@Tuti.Today,qa@example.com,admin@tuti.today "),
+    ["admin@tuti.today", "qa@example.com"],
+  );
+  assert.deepEqual(parseFcmPushTestEmails(undefined), []);
 });

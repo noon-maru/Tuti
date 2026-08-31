@@ -12,10 +12,15 @@ HTTP v1을 사용한다. 현재 첫 사용처는 사용자가 직접 남긴 1:1 
 - 컨테이너 내부 경로:
   `/run/secrets/tuti-firebase-service-account.json`
 - 서버 활성화 환경변수: `FCM_PUSH_ENABLED=true`
+- 시행 전 내부 QA 허용 목록: `FCM_PUSH_TEST_EMAILS=admin@tuti.today`
 
 서비스 계정 파일은 Git, 앱 번들, Docker 이미지에 포함하지 않는다. 호스트에서는
 `root:administrators`, 디렉터리 `0750`, 파일 `0640`으로 보관한다. 개발·운영
 컨테이너에는 읽기 전용으로 마운트하고 `administrators`의 숫자 GID만 추가한다.
+
+운영 전체 활성화 전에는 `FCM_PUSH_ENABLED=false`를 유지하면서
+`FCM_PUSH_TEST_EMAILS`에 명시한 로그인 계정만 기기 등록과 알림 발송을 허용한다.
+익명 사용자와 다른 계정에는 적용되지 않으며 내부 QA가 끝나면 허용 목록을 비운다.
 
 ## 사용자 흐름
 

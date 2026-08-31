@@ -93,12 +93,26 @@ export async function registerPushDevice(token: string) {
   });
 
   if (!response.ok) {
-    throw new Error("서버 알림 기기를 등록하지 못했습니다.");
+    throw new Error(
+      await readPushApiError(
+        response,
+        "서버 알림 기기를 등록하지 못했습니다.",
+      ),
+    );
   }
 
   const data = (await response.json()) as PushDeviceResponse;
   if (data.registered !== true) {
     throw new Error("서버 알림 등록 응답을 확인하지 못했습니다.");
+  }
+}
+
+async function readPushApiError(response: Response, fallback: string) {
+  try {
+    const body = (await response.json()) as { error?: unknown };
+    return typeof body.error === "string" ? body.error : fallback;
+  } catch {
+    return fallback;
   }
 }
 

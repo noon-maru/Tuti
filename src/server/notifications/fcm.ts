@@ -3,6 +3,7 @@ import { readFile } from "node:fs/promises";
 import { prisma } from "@/server/db/prisma";
 import { isInvalidRegistrationError } from "@/server/notifications/fcmErrors";
 import { createSafePushData } from "@/server/notifications/pushPayload";
+import { parseFcmPushTestEmails } from "@/server/notifications/pushTestAccess";
 
 const FCM_SCOPE = "https://www.googleapis.com/auth/firebase.messaging";
 const DEFAULT_TOKEN_URI = "https://oauth2.googleapis.com/token";
@@ -34,11 +35,29 @@ export function isFcmPushEnabled() {
   return process.env.FCM_PUSH_ENABLED?.trim().toLowerCase() === "true";
 }
 
+export async function isFcmPushEnabledForUser(userId: string) {
+  if (isFcmPushEnabled()) return true;
+
+  const testEmails = parseFcmPushTestEmails(
+    process.env.FCM_PUSH_TEST_EMAILS,
+  );
+  if (testEmails.length === 0) return false;
+
+  const identity = await prisma.authIdentity.findFirst({
+    where: {
+      userId,
+      email: { in: testEmails, mode: "insensitive" },
+    },
+    select: { id: true },
+  });
+  return identity !== null;
+}
+
 export async function sendPushToUserSafely(
   userId: string | null,
   message: ServerPushMessage,
 ) {
-  if (!userId || !isFcmPushEnabled()) return;
+  if (!userId) return;
 
   try {
     await sendPushToUser(userId, message);
@@ -56,7 +75,9 @@ export async function sendPushToUser(
   userId: string,
   message: ServerPushMessage,
 ) {
-  if (!isFcmPushEnabled()) return { attempted: 0, sent: 0, invalidated: 0 };
+  if (!(await isFcmPushEnabledForUser(userId))) {
+    return { attempted: 0, sent: 0, invalidated: 0 };
+  }
 
   const devices = await prisma.pushDevice.findMany({
     where: {

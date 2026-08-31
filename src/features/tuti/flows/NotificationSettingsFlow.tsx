@@ -111,7 +111,11 @@ export function NotificationSettingsFlow() {
       setPushStatus(await getPushNotificationStatus());
     } catch (error) {
       console.warn("문의 답변 알림 설정을 변경하지 못했습니다.", error);
-      setMessage("문의 답변 알림을 저장하지 못했어요. 잠시 후 다시 시도해주세요.");
+      setMessage(
+        error instanceof Error
+          ? error.message
+          : "문의 답변 알림을 저장하지 못했어요. 잠시 후 다시 시도해주세요.",
+      );
     } finally {
       setBusy(false);
     }
