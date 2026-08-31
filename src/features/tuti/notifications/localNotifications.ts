@@ -2,8 +2,14 @@ import { Capacitor, type PermissionState } from "@capacitor/core";
 import { LocalNotifications } from "@capacitor/local-notifications";
 
 export const DAILY_TUTI_NOTIFICATION_ID = 10_001;
-export const DAILY_TUTI_CHANNEL_ID = "daily_tuti";
 export const DEFAULT_DAILY_TUTI_TIME = "10:00";
+export const DEFAULT_DAILY_NOTIFICATION_STYLE = "quiet";
+
+const LEGACY_DAILY_TUTI_CHANNEL_ID = "daily_tuti";
+const DAILY_TUTI_QUIET_CHANNEL_ID = "daily_tuti_quiet_v2";
+const DAILY_TUTI_PROMINENT_CHANNEL_ID = "daily_tuti_prominent_v2";
+
+export type DailyNotificationStyle = "quiet" | "prominent";
 
 export type LocalNotificationPermission = PermissionState | "unsupported";
 
@@ -48,6 +54,7 @@ export async function getLocalNotificationStatus(): Promise<LocalNotificationSta
 
 export async function enableDailyTutiReminder(
   time: string,
+  style: DailyNotificationStyle = DEFAULT_DAILY_NOTIFICATION_STYLE,
 ): Promise<DailyReminderResult> {
   if (!supportsLocalNotifications()) {
     return { status: "unsupported" };
@@ -59,13 +66,14 @@ export async function enableDailyTutiReminder(
   }
 
   await configureAndroidChannels();
-  await scheduleDailyTutiReminder(time);
+  await scheduleDailyTutiReminder(time, style);
   return { status: "scheduled" };
 }
 
 export async function syncDailyTutiReminder(
   enabled: boolean,
   time: string,
+  style: DailyNotificationStyle = DEFAULT_DAILY_NOTIFICATION_STYLE,
 ): Promise<DailyReminderResult> {
   if (!supportsLocalNotifications()) {
     return { status: "unsupported" };
@@ -83,7 +91,7 @@ export async function syncDailyTutiReminder(
   }
 
   await configureAndroidChannels();
-  await scheduleDailyTutiReminder(time);
+  await scheduleDailyTutiReminder(time, style);
   return { status: "scheduled" };
 }
 
@@ -96,7 +104,9 @@ export async function disableDailyTutiReminder(): Promise<DailyReminderResult> {
   return { status: "cancelled" };
 }
 
-export async function scheduleNotificationPreview() {
+export async function scheduleNotificationPreview(
+  style: DailyNotificationStyle = DEFAULT_DAILY_NOTIFICATION_STYLE,
+) {
   if (!supportsLocalNotifications()) {
     return { status: "unsupported" } as const;
   }
@@ -119,7 +129,7 @@ export async function scheduleNotificationPreview() {
         schedule: {
           at: new Date(Date.now() + 5_000),
         },
-        channelId: DAILY_TUTI_CHANNEL_ID,
+        ...getNotificationPresentation(style),
         isExactNotification: false,
         extra: {
           action: "daily-check-in",
@@ -146,18 +156,34 @@ async function configureAndroidChannels() {
   if (Capacitor.getPlatform() !== "android") return;
 
   await LocalNotifications.createChannel({
-    id: DAILY_TUTI_CHANNEL_ID,
-    name: "오늘의 Tuti",
-    description: "오늘 가능한 상태와 공간을 가볍게 떠올릴 수 있도록 알려드려요.",
+    id: DAILY_TUTI_QUIET_CHANNEL_ID,
+    name: "오늘의 Tuti · 조용히",
+    description: "소리와 진동 없이 오늘 가능한 상태와 공간을 알려드려요.",
     importance: 3,
     visibility: 1,
     vibration: false,
     lights: true,
     lightColor: "#C7EA86",
   });
+  await LocalNotifications.createChannel({
+    id: DAILY_TUTI_PROMINENT_CHANNEL_ID,
+    name: "오늘의 Tuti · 팝업",
+    description: "화면 상단 팝업과 진동으로 오늘의 Tuti를 알려드려요.",
+    importance: 4,
+    visibility: 1,
+    vibration: true,
+    lights: true,
+    lightColor: "#C7EA86",
+  });
+  await LocalNotifications.deleteChannel({
+    id: LEGACY_DAILY_TUTI_CHANNEL_ID,
+  }).catch(() => undefined);
 }
 
-async function scheduleDailyTutiReminder(time: string) {
+async function scheduleDailyTutiReminder(
+  time: string,
+  style: DailyNotificationStyle,
+) {
   const { hour, minute } = parseDailyReminderTime(time);
 
   await cancelDailyTutiReminder();
@@ -170,7 +196,7 @@ async function scheduleDailyTutiReminder(time: string) {
         schedule: {
           on: { hour, minute },
         },
-        channelId: DAILY_TUTI_CHANNEL_ID,
+        ...getNotificationPresentation(style),
         isExactNotification: false,
         extra: {
           action: "daily-check-in",
@@ -179,6 +205,30 @@ async function scheduleDailyTutiReminder(time: string) {
       },
     ],
   });
+}
+
+function getNotificationPresentation(style: DailyNotificationStyle) {
+  if (style === "prominent") {
+    return {
+      channelId: DAILY_TUTI_PROMINENT_CHANNEL_ID,
+      foreground: true,
+      interruptionLevel: "active" as const,
+      sound: "default",
+    };
+  }
+
+  return {
+    channelId: DAILY_TUTI_QUIET_CHANNEL_ID,
+    foreground: false,
+    interruptionLevel: "passive" as const,
+    silent: true,
+  };
+}
+
+export function normalizeDailyNotificationStyle(
+  style: unknown,
+): DailyNotificationStyle {
+  return style === "prominent" ? "prominent" : "quiet";
 }
 
 async function cancelDailyTutiReminder() {

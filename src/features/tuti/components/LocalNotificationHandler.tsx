@@ -5,6 +5,7 @@ import type { PluginListenerHandle } from "@capacitor/core";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef } from "react";
 import {
+  normalizeDailyNotificationStyle,
   supportsLocalNotifications,
   syncDailyTutiReminder,
 } from "@/features/tuti/notifications/localNotifications";
@@ -64,6 +65,9 @@ export function LocalNotificationHandler() {
     const preferenceKey = [
       notificationPreferences.dailyReminderEnabled,
       notificationPreferences.dailyReminderTime,
+      normalizeDailyNotificationStyle(
+        notificationPreferences.dailyReminderStyle,
+      ),
     ].join(":");
 
     if (lastSyncedPreference.current === preferenceKey) return;
@@ -72,6 +76,9 @@ export function LocalNotificationHandler() {
     void syncDailyTutiReminder(
       notificationPreferences.dailyReminderEnabled,
       notificationPreferences.dailyReminderTime,
+      normalizeDailyNotificationStyle(
+        notificationPreferences.dailyReminderStyle,
+      ),
     ).catch((error) => {
       lastSyncedPreference.current = null;
       console.warn("로컬 알림 예약을 동기화하지 못했습니다.", error);

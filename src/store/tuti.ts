@@ -4,6 +4,7 @@ import {
   getKoreanDateKey,
   getKoreanDateKeyAfterDays,
 } from "@/lib/date/koreanDate";
+import type { DailyNotificationStyle } from "@/features/tuti/notifications/localNotifications";
 import { preferencesStorage } from "@/lib/storage/preferencesStorage";
 import type { TutiPlace } from "@/lib/recommendations";
 import type { DepartureRouteMode } from "@/shared/api/departurePlan";
@@ -62,6 +63,7 @@ export type DailyRecommendationSnapshot = {
 export type NotificationPreferences = {
   dailyReminderEnabled: boolean;
   dailyReminderTime: string;
+  dailyReminderStyle?: DailyNotificationStyle;
   inquiryReplyEnabled: boolean;
 };
 
@@ -169,6 +171,7 @@ export const useTutiStore = create<TutiState>()(
       notificationPreferences: {
         dailyReminderEnabled: false,
         dailyReminderTime: "10:00",
+        dailyReminderStyle: "quiet",
         inquiryReplyEnabled: false,
       },
       setAnswer: (key, value) =>

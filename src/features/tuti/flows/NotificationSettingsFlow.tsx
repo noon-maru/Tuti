@@ -6,12 +6,14 @@ import {
   disableDailyTutiReminder,
   enableDailyTutiReminder,
   getLocalNotificationStatus,
+  normalizeDailyNotificationStyle,
   scheduleNotificationPreview,
   supportsLocalNotifications,
+  type DailyNotificationStyle,
+  type LocalNotificationStatus,
 } from "@/features/tuti/notifications/localNotifications";
 import { NotificationSettingsScreen } from "@/features/tuti/screens/notifications/NotificationSettingsScreen";
 import { useTutiStore } from "@/store/tuti";
-import type { LocalNotificationStatus } from "@/features/tuti/notifications/localNotifications";
 import {
   disableServerPushNotifications,
   enableServerPushNotifications,
@@ -38,6 +40,9 @@ export function NotificationSettingsFlow() {
       supportsServerPushNotifications()
         ? null
         : { supported: false, permission: "unsupported" },
+  );
+  const dailyReminderStyle = normalizeDailyNotificationStyle(
+    preferences.dailyReminderStyle,
   );
 
   const refreshStatus = async () => {
@@ -139,6 +144,7 @@ export function NotificationSettingsFlow() {
 
       const result = await enableDailyTutiReminder(
         preferences.dailyReminderTime,
+        dailyReminderStyle,
       );
 
       if (result.status === "scheduled") {
@@ -146,7 +152,11 @@ export function NotificationSettingsFlow() {
           ...preferences,
           dailyReminderEnabled: true,
         });
-        setMessage("정해둔 시간에 조용히 알려드릴게요.");
+        setMessage(
+          dailyReminderStyle === "prominent"
+            ? "정해둔 시간에 바로 알아볼 수 있게 알려드릴게요."
+            : "정해둔 시간에 조용히 알려드릴게요.",
+        );
       } else if (result.status === "denied") {
         setMessage("기기에서 알림 권한을 허용해야 알림을 받을 수 있어요.");
       }
@@ -168,7 +178,10 @@ export function NotificationSettingsFlow() {
 
     try {
       if (preferences.dailyReminderEnabled) {
-        const result = await enableDailyTutiReminder(time);
+        const result = await enableDailyTutiReminder(
+          time,
+          dailyReminderStyle,
+        );
         if (result.status !== "scheduled") {
           setMessage("알림 시간을 바꾸지 못했어요. 기기 권한을 확인해주세요.");
           await refreshStatus();
@@ -190,12 +203,47 @@ export function NotificationSettingsFlow() {
     }
   };
 
+  const changeStyle = async (style: DailyNotificationStyle) => {
+    setBusy(true);
+    setMessage(null);
+
+    try {
+      if (preferences.dailyReminderEnabled) {
+        const result = await enableDailyTutiReminder(
+          preferences.dailyReminderTime,
+          style,
+        );
+        if (result.status !== "scheduled") {
+          setMessage("알림 방식을 바꾸지 못했어요. 기기 권한을 확인해주세요.");
+          await refreshStatus();
+          return;
+        }
+      }
+
+      setPreferences({
+        ...preferences,
+        dailyReminderStyle: style,
+      });
+      setMessage(
+        style === "prominent"
+          ? "화면에서 바로 알아볼 수 있게 알려드릴게요."
+          : "알림함에 조용히 남겨드릴게요.",
+      );
+      await refreshStatus();
+    } catch (error) {
+      console.warn("오늘의 Tuti 알림 방식을 변경하지 못했습니다.", error);
+      setMessage("알림 방식을 저장하지 못했어요. 잠시 후 다시 시도해주세요.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const preview = async () => {
     setBusy(true);
     setMessage(null);
 
     try {
-      const result = await scheduleNotificationPreview();
+      const result = await scheduleNotificationPreview(dailyReminderStyle);
       setMessage(
         result.status === "scheduled"
           ? "앱을 잠시 내려두면 5초 뒤 테스트 알림이 도착해요."
@@ -214,6 +262,7 @@ export function NotificationSettingsFlow() {
     <NotificationSettingsScreen
       enabled={preferences.dailyReminderEnabled}
       time={preferences.dailyReminderTime}
+      dailyReminderStyle={dailyReminderStyle}
       status={status}
       inquiryReplyEnabled={preferences.inquiryReplyEnabled}
       pushStatus={pushStatus}
@@ -222,6 +271,7 @@ export function NotificationSettingsFlow() {
       onBack={() => router.replace("/")}
       onEnabledChange={changeEnabled}
       onTimeChange={changeTime}
+      onStyleChange={changeStyle}
       onPreview={preview}
       onInquiryReplyEnabledChange={changeInquiryReplyEnabled}
     />

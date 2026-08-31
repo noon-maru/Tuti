@@ -4,12 +4,16 @@ import styled from "@emotion/styled";
 import { BellRing, ChevronLeft, Clock3, ShieldCheck } from "lucide-react";
 import { BaseButton, PrimaryButton } from "@/features/tuti/components/buttons";
 import { ScreenFrame } from "@/features/tuti/components/ScreenFrame";
-import type { LocalNotificationStatus } from "@/features/tuti/notifications/localNotifications";
+import type {
+  DailyNotificationStyle,
+  LocalNotificationStatus,
+} from "@/features/tuti/notifications/localNotifications";
 import type { PushNotificationStatus } from "@/features/tuti/notifications/pushNotifications";
 
 export function NotificationSettingsScreen({
   enabled,
   time,
+  dailyReminderStyle,
   status,
   inquiryReplyEnabled,
   pushStatus,
@@ -18,11 +22,13 @@ export function NotificationSettingsScreen({
   onBack,
   onEnabledChange,
   onTimeChange,
+  onStyleChange,
   onPreview,
   onInquiryReplyEnabledChange,
 }: {
   enabled: boolean;
   time: string;
+  dailyReminderStyle: DailyNotificationStyle;
   status: LocalNotificationStatus | null;
   inquiryReplyEnabled: boolean;
   pushStatus: PushNotificationStatus | null;
@@ -31,6 +37,7 @@ export function NotificationSettingsScreen({
   onBack: () => void;
   onEnabledChange: (enabled: boolean) => Promise<void>;
   onTimeChange: (time: string) => Promise<void>;
+  onStyleChange: (style: DailyNotificationStyle) => Promise<void>;
   onPreview: () => Promise<void>;
   onInquiryReplyEnabledChange: (enabled: boolean) => Promise<void>;
 }) {
@@ -53,7 +60,7 @@ export function NotificationSettingsScreen({
             <BellRing />
           </IntroIcon>
           <div>
-            <strong>오늘의 공기를 조용히 떠올려드려요.</strong>
+            <strong>오늘의 공기를 원하는 방식으로 떠올려드려요.</strong>
             <p>
               정해둔 시간에 하루 한 번만 알려드리고, 원할 때 바로 끌 수
               있어요.
@@ -102,6 +109,38 @@ export function NotificationSettingsScreen({
                 onChange={(event) => void onTimeChange(event.currentTarget.value)}
               />
             </TimeRow>
+
+            <StyleFieldset disabled={!enabled || busy}>
+              <legend>알림 방식</legend>
+              <StyleOptions>
+                <StyleOption $selected={dailyReminderStyle === "quiet"}>
+                  <input
+                    type="radio"
+                    name="daily-notification-style"
+                    value="quiet"
+                    checked={dailyReminderStyle === "quiet"}
+                    onChange={() => void onStyleChange("quiet")}
+                  />
+                  <span>
+                    <strong>조용히</strong>
+                    <small>알림함에 가볍게 남겨요.</small>
+                  </span>
+                </StyleOption>
+                <StyleOption $selected={dailyReminderStyle === "prominent"}>
+                  <input
+                    type="radio"
+                    name="daily-notification-style"
+                    value="prominent"
+                    checked={dailyReminderStyle === "prominent"}
+                    onChange={() => void onStyleChange("prominent")}
+                  />
+                  <span>
+                    <strong>팝업으로</strong>
+                    <small>바로 알아볼 수 있게 띄워요.</small>
+                  </span>
+                </StyleOption>
+              </StyleOptions>
+            </StyleFieldset>
 
             {enabled && (
               <PreviewButton
@@ -156,9 +195,9 @@ export function NotificationSettingsScreen({
           <div>
             <strong>알림 선택은 언제든 바꿀 수 있어요.</strong>
             <p>
-              오늘의 Tuti 시간은 이 기기에만 보관해요. 문의 답변 알림을 켜면
-              알림 전송에 필요한 기기 식별값만 서버에 보관하고, 끄면 연결을
-              바로 해제해요.
+              오늘의 Tuti 시간과 알림 방식은 이 기기에만 보관해요. 문의 답변
+              알림을 켜면 알림 전송에 필요한 기기 식별값만 서버에 보관하고,
+              끄면 연결을 바로 해제해요.
             </p>
           </div>
         </PrivacySummary>
@@ -379,6 +418,85 @@ const TimeRow = styled.div<{ $enabled: boolean }>`
     color: var(--color-text-primary);
     font: inherit;
     font-size: var(--font-size-100);
+  }
+`;
+
+const StyleFieldset = styled.fieldset`
+  display: grid;
+  gap: var(--space-2);
+  min-width: 0;
+  border: 0;
+
+  legend {
+    margin-bottom: var(--space-2);
+    font-size: var(--font-size-100);
+    font-weight: 600;
+  }
+
+  &:disabled {
+    opacity: 0.55;
+  }
+`;
+
+const StyleOptions = styled.div`
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-2);
+`;
+
+const StyleOption = styled.label<{ $selected: boolean }>`
+  position: relative;
+  min-width: 0;
+  cursor: pointer;
+
+  input {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    opacity: 0;
+  }
+
+  > span {
+    min-height: 76px;
+    display: grid;
+    align-content: center;
+    gap: var(--space-1);
+    padding: var(--space-3);
+    border: 1px solid
+      ${({ $selected }) =>
+        $selected
+          ? "var(--color-secondary-600)"
+          : "var(--color-neutral-400)"};
+    border-radius: 16px;
+    background: ${({ $selected }) =>
+      $selected ? "var(--color-secondary-100)" : "var(--color-white)"};
+    transition:
+      border-color 180ms ease,
+      background 180ms ease;
+  }
+
+  strong,
+  small {
+    display: block;
+  }
+
+  strong {
+    font-size: var(--font-size-100);
+  }
+
+  small {
+    color: var(--color-text-muted);
+    font-size: var(--font-size-50);
+    line-height: 1.45;
+  }
+
+  input:focus-visible + span {
+    outline: 3px solid var(--color-brand-300);
+    outline-offset: 2px;
+  }
+
+  input:disabled + span {
+    cursor: wait;
   }
 `;
 
