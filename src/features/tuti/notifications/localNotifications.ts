@@ -128,6 +128,7 @@ export async function scheduleNotificationPreview(
         body: "오늘은 어떤 공기가 필요할까요?",
         schedule: {
           at: new Date(Date.now() + 5_000),
+          allowWhileIdle: true,
         },
         ...getNotificationPresentation(style),
         isExactNotification: false,
@@ -195,6 +196,7 @@ async function scheduleDailyTutiReminder(
         body: "오늘은 어떤 공기가 필요할까요?",
         schedule: {
           on: { hour, minute },
+          allowWhileIdle: true,
         },
         ...getNotificationPresentation(style),
         isExactNotification: false,
