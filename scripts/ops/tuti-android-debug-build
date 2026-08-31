@@ -3,13 +3,42 @@
 set -eu
 
 project_dir="/var/services/homes/Tutiadmin/source/Tuti"
+mode="${1:-production}"
 
 cd "$project_dir"
 
+case "$mode" in
+  production)
+    environment_file=".env.production"
+    ;;
+  --development | development)
+    environment_file=".env.android.development"
+    if [ ! -f "$environment_file" ]; then
+      echo "$environment_file 파일이 없습니다." >&2
+      echo ".env.android.development.example을 복사하고 외부 기기에서 접근 가능한 HTTPS 개발 API 주소를 설정하세요." >&2
+      exit 1
+    fi
+    ;;
+  *)
+    echo "사용법: tuti-android-debug-build [--development]" >&2
+    exit 1
+    ;;
+esac
+
+api_base_url="$(sed -n 's/^[[:space:]]*NEXT_PUBLIC_API_BASE_URL[[:space:]]*=[[:space:]]*//p' "$environment_file" | tail -n 1 | tr -d '\r\"' | tr -d "'")"
+case "$api_base_url" in
+  https://*/api | https://*/api/ | https://*/api/*)
+    ;;
+  *)
+    echo "$environment_file의 NEXT_PUBLIC_API_BASE_URL은 외부에서 접근 가능한 https:// 주소이며 /api 경로를 포함해야 합니다." >&2
+    exit 1
+    ;;
+esac
+
 docker compose \
   --env-file .env \
-  --env-file .env.production \
+  --env-file "$environment_file" \
   -f docker-compose.android.yml \
   run --build --rm builder
 
-echo "Android Debug APK: $project_dir/android/app/build/outputs/apk/debug/app-debug.apk"
+echo "Android Debug APK ($mode): $project_dir/android/app/build/outputs/apk/debug/app-debug.apk"

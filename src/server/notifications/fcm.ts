@@ -2,6 +2,7 @@ import { createSign } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import { prisma } from "@/server/db/prisma";
 import { isInvalidRegistrationError } from "@/server/notifications/fcmErrors";
+import { createSafePushData } from "@/server/notifications/pushPayload";
 
 const FCM_SCOPE = "https://www.googleapis.com/auth/firebase.messaging";
 const DEFAULT_TOKEN_URI = "https://oauth2.googleapis.com/token";
@@ -111,11 +112,7 @@ async function sendFcmMessage(
             title: message.title,
             body: message.body,
           },
-          data: {
-            type: message.type,
-            path: message.path,
-            ...(message.entityId ? { entityId: message.entityId } : {}),
-          },
+          data: createSafePushData(message),
           android: {
             priority: "normal",
             notification: {

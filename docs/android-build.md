@@ -47,6 +47,31 @@ sudo -n /usr/local/sbin/tuti-android-debug-build
 android/app/build/outputs/apk/debug/app-debug.apk
 ```
 
+### 개발 서버 푸시 테스트 APK
+
+운영 FCM을 활성화하기 전 실기기 푸시를 검증할 때는 운영 API를 사용하는 기본
+디버그 APK와 구분된 개발 빌드를 사용한다. 먼저 예시 파일을 복사한다.
+
+```sh
+cp .env.android.development.example .env.android.development
+```
+
+`.env.android.development`의 `NEXT_PUBLIC_API_BASE_URL`에는 휴대전화에서 접근할 수
+있는 HTTPS 개발 API 주소를 넣는다. `localhost`, NAS 사설 IP와 평문 HTTP 주소는
+허용하지 않는다. 이 파일은 비공개 환경 파일이므로 Git에 포함되지 않는다.
+
+운영 명령을 다시 설치한 뒤 개발 모드로 빌드한다.
+
+```sh
+sudo sh scripts/ops/install-tuti-operations.sh
+sudo -n /usr/local/sbin/tuti-android-debug-build --development
+```
+
+개발 서버의 `.env.development`에는 `FCM_PUSH_ENABLED=true`, 운영 서버에는 사전
+고지 시행 전까지 `FCM_PUSH_ENABLED=false`를 유지한다. APK 출력 경로는 기본
+디버그 빌드와 같으므로 어떤 환경으로 마지막 빌드했는지 기록하고 배포 파일을
+혼동하지 않는다.
+
 `out/`, Android 빌드 결과와 의존성 캐시는 재생성할 수 있으므로 다른 빌드 장비로
 이전하지 않는다. 새 장비에서는 Git 저장소와 비공개 환경변수를 복원하고 동일한
 Docker Compose 명령을 실행한다.

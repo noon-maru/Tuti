@@ -8,6 +8,7 @@ import {
 } from "@/server/http/cors";
 import type { AdminInquiriesResponse } from "@/shared/api/admin";
 import { sendPushToUserSafely } from "@/server/notifications/fcm";
+import { createInquiryAnsweredPushMessage } from "@/server/notifications/pushPayload";
 
 export const runtime = "nodejs";
 
@@ -109,7 +110,6 @@ export async function PATCH(request: Request) {
         id: true,
         status: true,
         requesterUserId: true,
-        subject: true,
       },
     });
 
@@ -131,13 +131,10 @@ export async function PATCH(request: Request) {
     const becameAnswered =
       status === "answered" && previousInquiry.status !== "answered";
     if (responseChanged || becameAnswered) {
-      await sendPushToUserSafely(inquiry.requesterUserId, {
-        title: "문의에 답변이 도착했어요",
-        body: inquiry.subject,
-        type: "inquiry-answered",
-        path: "/inquiry?view=history",
-        entityId: inquiry.id,
-      });
+      await sendPushToUserSafely(
+        inquiry.requesterUserId,
+        createInquiryAnsweredPushMessage(inquiry.id),
+      );
     }
 
     return withCors(request, Response.json({ inquiry }));

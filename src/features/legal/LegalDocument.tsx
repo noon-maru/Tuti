@@ -12,12 +12,19 @@ export function LegalDocument({
   title,
   effectiveDate,
   summary,
+  announcement,
   sections,
   appendix,
 }: {
   title: string;
   effectiveDate: string;
   summary?: string;
+  announcement?: {
+    title: string;
+    description: string;
+    href: string;
+    linkLabel: string;
+  };
   sections: readonly LegalSection[];
   appendix: readonly string[];
 }) {
@@ -31,6 +38,13 @@ export function LegalDocument({
           <p>시행일 {effectiveDate}</p>
         </div>
       </Header>
+      {announcement && (
+        <Announcement>
+          <strong>{announcement.title}</strong>
+          <p>{announcement.description}</p>
+          <Link href={announcement.href}>{announcement.linkLabel}</Link>
+        </Announcement>
+      )}
       {summary && <Summary>{summary}</Summary>}
       <Navigation aria-label="법적 문서">
         <Link href="/legal/privacy">개인정보 처리방침</Link>
@@ -81,6 +95,34 @@ const Page = styled.main`
     border: 1px solid var(--color-border);
     border-radius: 32px;
     box-shadow: 0 24px 80px rgb(var(--color-black-rgb) / 0.1);
+  }
+`;
+
+const Announcement = styled.aside`
+  display: grid;
+  gap: var(--space-2);
+  margin-top: var(--space-8);
+  padding: var(--space-5);
+  border: 1px solid var(--color-secondary-400);
+  border-radius: 22px;
+  background: var(--color-secondary-100);
+
+  strong {
+    font-size: var(--font-size-300);
+  }
+
+  p {
+    color: var(--color-text-secondary);
+    font-size: var(--font-size-100);
+    line-height: var(--line-height-body);
+  }
+
+  a {
+    width: fit-content;
+    color: var(--color-brand-800);
+    font-size: var(--font-size-100);
+    font-weight: 700;
+    text-underline-offset: 3px;
   }
 `;
 
