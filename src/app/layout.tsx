@@ -3,6 +3,7 @@ import { palette } from "@/styles/tokens";
 import EmotionRegistry from "./EmotionRegistry";
 import GlobalStyles from "./GlobalStyles";
 import { pretendard } from "./fonts";
+import { AndroidBackButtonHandler } from "@/features/tuti/components/AndroidBackButtonHandler";
 
 export const metadata: Metadata = {
   title: "Tuti",
@@ -36,6 +37,7 @@ export default function RootLayout({
       <body>
         <EmotionRegistry>
           <GlobalStyles />
+          <AndroidBackButtonHandler />
           {children}
         </EmotionRegistry>
       </body>

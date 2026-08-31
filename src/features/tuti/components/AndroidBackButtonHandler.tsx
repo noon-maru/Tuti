@@ -3,13 +3,19 @@
 import { App } from "@capacitor/app";
 import { Capacitor, type PluginListenerHandle } from "@capacitor/core";
 import styled from "@emotion/styled";
+import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import { dispatchAndroidBackEvent } from "@/features/tuti/navigation/androidBack";
+import {
+  dispatchAndroidBackEvent,
+  resolveAndroidBackDestination,
+} from "@/features/tuti/navigation/androidBack";
 import { palette } from "@/styles/tokens";
 
 const EXIT_CONFIRMATION_WINDOW_MS = 2_000;
 
 export function AndroidBackButtonHandler() {
+  const pathname = usePathname();
+  const router = useRouter();
   const [messageVisible, setMessageVisible] = useState(false);
   const lastBackPressedAt = useRef(0);
   const hideTimer = useRef<number | null>(null);
@@ -36,6 +42,14 @@ export function AndroidBackButtonHandler() {
         lastBackPressedAt.current = 0;
         hideMessage();
         window.history.back();
+        return;
+      }
+
+      const destination = resolveAndroidBackDestination(pathname);
+      if (destination) {
+        lastBackPressedAt.current = 0;
+        hideMessage();
+        router.replace(destination);
         return;
       }
 
@@ -72,7 +86,7 @@ export function AndroidBackButtonHandler() {
       }
       void listener?.remove();
     };
-  }, []);
+  }, [pathname, router]);
 
   return (
     <ExitMessage
