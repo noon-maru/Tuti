@@ -3,11 +3,10 @@
 import styled from "@emotion/styled";
 import Link from "next/link";
 import {
-  type PointerEvent as ReactPointerEvent,
+  type ReactNode,
   useCallback,
   useEffect,
   useMemo,
-  useRef,
   useState,
 } from "react";
 import {
@@ -45,6 +44,30 @@ type SyncSource =
   | "stayIntensity"
   | "consumptionIntensity";
 
+export type TourismWorkspaceMode = "overview" | "explorer" | "runs";
+
+const workspaceModes: Array<{
+  id: TourismWorkspaceMode;
+  label: string;
+  description: string;
+}> = [
+  {
+    id: "overview",
+    label: "현황",
+    description: "수집 범위와 혼잡도 적용 상태",
+  },
+  {
+    id: "explorer",
+    label: "데이터 탐색",
+    description: "원본과 지역 지표 비교",
+  },
+  {
+    id: "runs",
+    label: "실행 기록",
+    description: "동기화 결과와 오류 추적",
+  },
+];
+
 const tabs: Array<{ id: TourismDataTab; label: string }> = [
   { id: "places", label: "장소 원본" },
   { id: "wellness", label: "웰니스 원본" },
@@ -57,52 +80,48 @@ const tabs: Array<{ id: TourismDataTab; label: string }> = [
   { id: "runs", label: "동기화 기록" },
 ];
 
+const datasetTabs = tabs.filter(
+  (item): item is { id: Exclude<TourismDataTab, "runs">; label: string } =>
+    item.id !== "runs",
+);
+
 const datasetDescriptions: Record<
   TourismDataTab,
-  { eyebrow: string; title: string; description: string }
+  { title: string; description: string }
 > = {
   places: {
-    eyebrow: "TOURAPI PLACE DATA",
     title: "관광지 원천 데이터",
     description: "추천 후보가 되는 장소 원본과 검수 연결 상태를 확인합니다.",
   },
   wellness: {
-    eyebrow: "WELLNESS DATA",
     title: "웰니스 관광 원천",
     description: "테마별 웰니스 관광지와 원본 응답을 확인합니다.",
   },
   municipalCore: {
-    eyebrow: "MUNICIPAL CORE",
     title: "기초지자체 중심 관광지",
     description: "월별·시군구별 주요 관광지 순위와 분류를 확인합니다.",
   },
   related: {
-    eyebrow: "RELATED TOURISM",
     title: "관광지별 연관 관광지",
     description: "중심 관광지와 함께 차량으로 방문된 장소와 연계 순위를 확인합니다.",
   },
   concentration: {
-    eyebrow: "CONCENTRATION",
     title: "관광지 집중률",
     description: "날짜와 지역에 따른 관광지 방문 집중도를 확인합니다.",
   },
   visitors: {
-    eyebrow: "VISITOR COUNT",
     title: "지역별 방문자 수",
     description: "광역·기초지자체별 방문자 규모와 유형을 확인합니다.",
   },
   photos: {
-    eyebrow: "PHOTO GALLERY",
     title: "관광사진 메타데이터",
     description: "사진 미리보기와 촬영지·촬영자·검색 키워드를 확인합니다.",
   },
   metrics: {
-    eyebrow: "REGIONAL METRICS",
     title: "지역 관광 지표",
     description: "관광 자원 수요와 체류·소비 강도를 월별로 확인합니다.",
   },
   runs: {
-    eyebrow: "SYNC HISTORY",
     title: "동기화 실행 기록",
     description: "공공데이터 요청 결과와 오류·요청 조건을 추적합니다.",
   },
@@ -210,10 +229,16 @@ const dateFormatter = new Intl.DateTimeFormat("ko-KR", {
 
 export function TourismDataScreen({
   initialTab,
+  initialMode,
 }: {
   initialTab: TourismDataTab;
+  initialMode: TourismWorkspaceMode;
 }) {
   const [tab, setTab] = useState(initialTab);
+  const [mode, setMode] = useState<TourismWorkspaceMode>(initialMode);
+  const [lastDatasetTab, setLastDatasetTab] = useState<
+    Exclude<TourismDataTab, "runs">
+  >(initialTab === "runs" ? "places" : initialTab);
   const [data, setData] = useState<TourismDataResponse | null>(null);
   const [query, setQuery] = useState("");
   const [appliedQuery, setAppliedQuery] = useState("");
@@ -227,66 +252,6 @@ export function TourismDataScreen({
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [accessStatus, setAccessStatus] = useState<number | null>(null);
-  const [mobileToolsOpen, setMobileToolsOpen] = useState(false);
-  const [mobileToolsDragOffset, setMobileToolsDragOffset] = useState(0);
-  const [mobileToolsDragging, setMobileToolsDragging] = useState(false);
-  const mobileToolsDragStart = useRef({ y: 0, time: 0 });
-
-  const closeMobileTools = useCallback(() => {
-    setMobileToolsOpen(false);
-    setMobileToolsDragging(false);
-    setMobileToolsDragOffset(0);
-  }, []);
-
-  const openMobileTools = () => {
-    setMobileToolsDragging(false);
-    setMobileToolsDragOffset(0);
-    setMobileToolsOpen(true);
-  };
-
-  const handleMobileToolsPointerDown = (
-    event: ReactPointerEvent<HTMLButtonElement>,
-  ) => {
-    mobileToolsDragStart.current = {
-      y: event.clientY,
-      time: performance.now(),
-    };
-    setMobileToolsDragging(true);
-    event.currentTarget.setPointerCapture(event.pointerId);
-  };
-
-  const handleMobileToolsPointerMove = (
-    event: ReactPointerEvent<HTMLButtonElement>,
-  ) => {
-    if (!mobileToolsDragging) return;
-    setMobileToolsDragOffset(
-      Math.max(0, event.clientY - mobileToolsDragStart.current.y),
-    );
-  };
-
-  const finishMobileToolsDrag = (
-    event: ReactPointerEvent<HTMLButtonElement>,
-  ) => {
-    if (!mobileToolsDragging) return;
-
-    const distance = Math.max(
-      0,
-      event.clientY - mobileToolsDragStart.current.y,
-    );
-    const elapsed = Math.max(
-      1,
-      performance.now() - mobileToolsDragStart.current.time,
-    );
-    const velocity = distance / elapsed;
-
-    setMobileToolsDragging(false);
-
-    if (distance >= 72 || (distance >= 32 && velocity >= 0.5)) {
-      closeMobileTools();
-    } else {
-      setMobileToolsDragOffset(0);
-    }
-  };
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -335,12 +300,12 @@ export function TourismDataScreen({
 
   useEffect(() => {
     const handlePopState = () => {
+      const url = new URL(window.location.href);
+      const nextTab = normalizeTab(url.searchParams.get("tab"));
       setPage(1);
-      setTab(
-        normalizeTab(
-          new URL(window.location.href).searchParams.get("tab"),
-        ),
-      );
+      setTab(nextTab);
+      setMode(normalizeWorkspaceMode(url.searchParams.get("view"), nextTab));
+      if (nextTab !== "runs") setLastDatasetTab(nextTab);
     };
 
     window.addEventListener("popstate", handlePopState);
@@ -353,19 +318,10 @@ export function TourismDataScreen({
     return () => window.clearTimeout(timeout);
   }, [notice]);
 
-  useEffect(() => {
-    if (!mobileToolsOpen) return;
-
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") closeMobileTools();
-    };
-
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [closeMobileTools, mobileToolsOpen]);
-
   const changeTab = (nextTab: TourismDataTab) => {
     setTab(nextTab);
+    setMode(nextTab === "runs" ? "runs" : "explorer");
+    if (nextTab !== "runs") setLastDatasetTab(nextTab);
     setQuery("");
     setAppliedQuery("");
     setPlaceSido("");
@@ -374,6 +330,28 @@ export function TourismDataScreen({
     setPage(1);
     setError(null);
     const url = new URL(window.location.href);
+    url.searchParams.set("tab", nextTab);
+    url.searchParams.set("view", nextTab === "runs" ? "runs" : "explorer");
+    window.history.pushState({}, "", url);
+  };
+
+  const changeMode = (nextMode: TourismWorkspaceMode) => {
+    const nextTab =
+      nextMode === "runs"
+        ? "runs"
+        : tab === "runs"
+          ? lastDatasetTab
+          : tab;
+
+    setMode(nextMode);
+    setTab(nextTab);
+    setQuery("");
+    setAppliedQuery("");
+    setPage(1);
+    setError(null);
+
+    const url = new URL(window.location.href);
+    url.searchParams.set("view", nextMode);
     url.searchParams.set("tab", nextTab);
     window.history.pushState({}, "", url);
   };
@@ -463,7 +441,6 @@ export function TourismDataScreen({
             ‹
           </BackLink>
           <div>
-            <Eyebrow>TUTI ADMIN</Eyebrow>
             <h1>관광 데이터</h1>
           </div>
           <RefreshButton type="button" onClick={() => void load()}>
@@ -473,169 +450,135 @@ export function TourismDataScreen({
       </Header>
 
       <Content>
-        {data && (
-          <CrowdCoverageDashboard coverage={data.overview.crowdCoverage} />
-        )}
-
-        {data && (
-          <CollectionDashboard
-            progress={data.overview.collectionProgress}
-            lastSyncedAt={data.overview.lastSyncedAt}
-          />
-        )}
-
-        <DesktopDataTools>
-          {data && <Overview overview={data.overview} />}
-          <SyncPanel syncing={syncing} onSync={sync} />
-        </DesktopDataTools>
-
-        <MobileToolsButton
-          type="button"
-          onClick={openMobileTools}
-        >
-          <span>데이터 도구</span>
-          <small>
-            {data
-              ? `원본 ${data.overview.placeSourceRecords.toLocaleString("ko-KR")}건 · 동기화 및 연결 상태`
-              : "동기화 및 연결 상태"}
-          </small>
-          <b aria-hidden="true">›</b>
-        </MobileToolsButton>
-
-        <Tabs aria-label="관광 데이터 구분">
-          {tabs.map((item) => (
-            <TabButton
+        <WorkspaceNav aria-label="관광 데이터 작업 모드">
+          {workspaceModes.map((item) => (
+            <WorkspaceNavButton
               key={item.id}
               type="button"
-              $active={tab === item.id}
-              onClick={() => changeTab(item.id)}
+              $active={mode === item.id}
+              aria-current={mode === item.id ? "page" : undefined}
+              onClick={() => changeMode(item.id)}
             >
-              {item.label}
-            </TabButton>
+              <span>{item.label}</span>
+              <small>{item.description}</small>
+            </WorkspaceNavButton>
           ))}
-        </Tabs>
-
-        <SearchForm
-          onSubmit={(event) => {
-            event.preventDefault();
-            setPage(1);
-            setAppliedQuery(query.trim());
-          }}
-        >
-          <Input
-            value={query}
-            placeholder={getSearchPlaceholder(tab)}
-            onChange={(event) => setQuery(event.target.value)}
-          />
-          <PrimaryButton type="submit">검색</PrimaryButton>
-        </SearchForm>
+        </WorkspaceNav>
 
         {error && <ErrorNotice role="alert">{error}</ErrorNotice>}
         {notice && <SuccessNotice role="status">{notice}</SuccessNotice>}
 
-        {!loading && data && tab !== "places" && (
-          <DatasetExplorerHeader
-            tab={tab}
-            pagination={data.pagination}
-            metricType={metricType}
-            onMetricTypeChange={(value) => {
-              setPage(1);
-              setMetricType(value);
-            }}
-          />
-        )}
-
-        {loading ? (
-          <StatePanel>관광 데이터를 불러오고 있어요.</StatePanel>
-        ) : tab === "places" ? (
-          <PlaceRecords
-            records={data?.places ?? []}
-            pagination={data?.pagination}
-            sigunguOptions={data?.placeFilters.sigunguNames ?? []}
-            selectedSido={placeSido}
-            selectedSigungu={placeSigungu}
-            onSidoChange={(nextSido) => {
-              setPage(1);
-              setPlaceSido(nextSido);
-              setPlaceSigungu("");
-            }}
-            onSigunguChange={(nextSigungu) => {
-              setPage(1);
-              setPlaceSigungu(nextSigungu);
-            }}
-            reviewing={reviewingPlaces}
-            onPlaceUpdate={updatePlaceReview}
-            onBulkReview={bulkReviewPlaces}
-          />
-        ) : tab === "wellness" ? (
-          <WellnessRecords records={data?.wellness ?? []} />
-        ) : tab === "municipalCore" ? (
-          <MunicipalCoreRecords records={data?.municipalCore ?? []} />
-        ) : tab === "related" ? (
-          <RelatedTourismRecords records={data?.related ?? []} />
-        ) : tab === "concentration" ? (
-          <ConcentrationRecords records={data?.concentration ?? []} />
-        ) : tab === "visitors" ? (
-          <VisitorRecords records={data?.visitors ?? []} />
-        ) : tab === "photos" ? (
-          <PhotoRecords records={data?.photos ?? []} />
-        ) : tab === "metrics" ? (
-          <MetricRecords metrics={data?.metrics ?? []} />
+        {mode === "overview" ? (
+          loading && !data ? (
+            <StatePanel>관광 데이터 현황을 불러오고 있어요.</StatePanel>
+          ) : data ? (
+            <OverviewWorkspace>
+              <Overview overview={data.overview} />
+              <CrowdCoverageDashboard coverage={data.overview.crowdCoverage} />
+              <CollectionDashboard
+                progress={data.overview.collectionProgress}
+                lastSyncedAt={data.overview.lastSyncedAt}
+              />
+              <SyncPanel syncing={syncing} onSync={sync} />
+            </OverviewWorkspace>
+          ) : (
+            <StatePanel>표시할 관광 데이터 현황이 없습니다.</StatePanel>
+          )
         ) : (
-          <SyncRuns runs={data?.runs ?? []} />
-        )}
+          <ExplorerWorkspace>
+            {mode === "explorer" && (
+              <DatasetTabs aria-label="관광 데이터셋 선택">
+                {datasetTabs.map((item) => (
+                  <DatasetTabButton
+                    key={item.id}
+                    type="button"
+                    $active={tab === item.id}
+                    aria-pressed={tab === item.id}
+                    onClick={() => changeTab(item.id)}
+                  >
+                    {item.label}
+                  </DatasetTabButton>
+                ))}
+              </DatasetTabs>
+            )}
 
-        {!loading && data && data.pagination.totalPages > 1 && (
-          <DataPagination
-            pagination={data.pagination}
-            onPageChange={setPage}
-          />
+            <SearchForm
+              onSubmit={(event) => {
+                event.preventDefault();
+                setPage(1);
+                setAppliedQuery(query.trim());
+              }}
+            >
+              <Input
+                value={query}
+                aria-label={`${mode === "runs" ? "동기화 실행 기록" : datasetDescriptions[tab].title} 검색`}
+                placeholder={getSearchPlaceholder(mode === "runs" ? "runs" : tab)}
+                onChange={(event) => setQuery(event.target.value)}
+              />
+              <PrimaryButton type="submit">검색</PrimaryButton>
+            </SearchForm>
+
+            {!loading && data && (mode === "runs" || tab !== "places") && (
+              <DatasetExplorerHeader
+                tab={mode === "runs" ? "runs" : tab}
+                pagination={data.pagination}
+                metricType={metricType}
+                onMetricTypeChange={(value) => {
+                  setPage(1);
+                  setMetricType(value);
+                }}
+              />
+            )}
+
+            {loading ? (
+              <StatePanel>관광 데이터를 불러오고 있어요.</StatePanel>
+            ) : mode === "runs" ? (
+              <SyncRuns runs={data?.runs ?? []} />
+            ) : tab === "places" ? (
+              <PlaceRecords
+                records={data?.places ?? []}
+                pagination={data?.pagination}
+                sigunguOptions={data?.placeFilters.sigunguNames ?? []}
+                selectedSido={placeSido}
+                selectedSigungu={placeSigungu}
+                onSidoChange={(nextSido) => {
+                  setPage(1);
+                  setPlaceSido(nextSido);
+                  setPlaceSigungu("");
+                }}
+                onSigunguChange={(nextSigungu) => {
+                  setPage(1);
+                  setPlaceSigungu(nextSigungu);
+                }}
+                reviewing={reviewingPlaces}
+                onPlaceUpdate={updatePlaceReview}
+                onBulkReview={bulkReviewPlaces}
+              />
+            ) : tab === "wellness" ? (
+              <WellnessRecords records={data?.wellness ?? []} />
+            ) : tab === "municipalCore" ? (
+              <MunicipalCoreRecords records={data?.municipalCore ?? []} />
+            ) : tab === "related" ? (
+              <RelatedTourismRecords records={data?.related ?? []} />
+            ) : tab === "concentration" ? (
+              <ConcentrationRecords records={data?.concentration ?? []} />
+            ) : tab === "visitors" ? (
+              <VisitorRecords records={data?.visitors ?? []} />
+            ) : tab === "photos" ? (
+              <PhotoRecords records={data?.photos ?? []} />
+            ) : (
+              <MetricRecords metrics={data?.metrics ?? []} />
+            )}
+
+            {!loading && data && data.pagination.totalPages > 1 && (
+              <DataPagination
+                pagination={data.pagination}
+                onPageChange={setPage}
+              />
+            )}
+          </ExplorerWorkspace>
         )}
       </Content>
-
-      {mobileToolsOpen && (
-        <MobileToolsBackdrop
-          $dragOffset={mobileToolsDragOffset}
-          $dragging={mobileToolsDragging}
-          role="presentation"
-          onMouseDown={closeMobileTools}
-        >
-          <MobileToolsDrawer
-            $dragOffset={mobileToolsDragOffset}
-            $dragging={mobileToolsDragging}
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="mobile-data-tools-title"
-            onMouseDown={(event) => event.stopPropagation()}
-          >
-            <MobileToolsHandle
-              type="button"
-              aria-label="아래로 끌어 데이터 도구 닫기"
-              onPointerDown={handleMobileToolsPointerDown}
-              onPointerMove={handleMobileToolsPointerMove}
-              onPointerUp={finishMobileToolsDrag}
-              onPointerCancel={finishMobileToolsDrag}
-            >
-              <span />
-            </MobileToolsHandle>
-            <MobileToolsHeader>
-              <div>
-                <span>관리자 도구</span>
-                <h2 id="mobile-data-tools-title">데이터 현황과 동기화</h2>
-              </div>
-              <DrawerCloseButton
-                type="button"
-                onClick={closeMobileTools}
-                aria-label="데이터 도구 닫기"
-              >
-                ×
-              </DrawerCloseButton>
-            </MobileToolsHeader>
-            {data && <Overview overview={data.overview} />}
-            <SyncPanel syncing={syncing} onSync={sync} />
-          </MobileToolsDrawer>
-        </MobileToolsBackdrop>
-      )}
     </Page>
   );
 }
@@ -657,34 +600,48 @@ function Overview({
     ["동기화 실행", overview.syncRuns],
     ["실패 이력", overview.failedRuns],
   ];
+  const connectionConfigured = overview.connections.every(
+    (connection) => connection.configured,
+  );
 
   return (
     <OverviewSection>
-      <ConnectionList>
-        {overview.connections.map((connection) => (
-          <ConnectionBadge
-            key={connection.source}
-            $configured={connection.configured}
-          >
-            <span />
-            {connection.label}
-            <small>{connection.configured ? "연결됨" : "키 없음"}</small>
-          </ConnectionBadge>
-        ))}
-      </ConnectionList>
-      <MetricGrid>
-        {metrics.map(([label, value]) => (
-          <MetricCard key={label}>
-            <span>{label}</span>
-            <strong>{value}</strong>
-          </MetricCard>
-        ))}
-      </MetricGrid>
+      <SectionHeading>
+        <div>
+          <h2>저장 데이터</h2>
+          <p>데이터셋별 누적 레코드와 실행 이력을 확인합니다.</p>
+        </div>
+        <ConnectionSummary $configured={connectionConfigured}>
+          <span aria-hidden="true" />
+          <div>
+            <strong>공공데이터포털 인증 키</strong>
+            <small>{connectionConfigured ? "설정됨" : "확인 필요"}</small>
+          </div>
+        </ConnectionSummary>
+      </SectionHeading>
+      <InventoryTable>
+        <thead>
+          <tr>
+            <th scope="col">데이터셋</th>
+            <th scope="col">저장 건수</th>
+          </tr>
+        </thead>
+        <tbody>
+          {metrics.map(([label, value]) => (
+            <tr key={label}>
+              <th scope="row">{label}</th>
+              <td>{Number(value).toLocaleString("ko-KR")}</td>
+            </tr>
+          ))}
+        </tbody>
+      </InventoryTable>
       <LastSync>
         마지막 동기화{" "}
-        {overview.lastSyncedAt
-          ? formatDate(overview.lastSyncedAt)
-          : "기록 없음"}
+        <strong>
+          {overview.lastSyncedAt
+            ? formatDate(overview.lastSyncedAt)
+            : "기록 없음"}
+        </strong>
       </LastSync>
     </OverviewSection>
   );
@@ -712,7 +669,7 @@ function CollectionDashboard({
     <CollectionSection>
       <CollectionHeader>
         <div>
-          <Eyebrow>COLLECTION STATUS</Eyebrow>
+          <Eyebrow>수집 상태</Eyebrow>
           <h2>공공데이터 수집 현황</h2>
           <p>
             성공 체크포인트를 기준으로 완료 범위와 다음 이어받기 상태를
@@ -740,67 +697,75 @@ function CollectionDashboard({
         </span>
       </CollectionSummary>
 
-      <CollectionGrid>
-        {progress.map((item) => (
-          <CollectionCard key={item.id} $status={item.status}>
-            <CollectionCardHeader>
-              <div>
-                <h3>{item.label}</h3>
-                <p>{item.description}</p>
-              </div>
-              <CollectionStatus $status={item.status}>
-                {getCollectionStatusLabel(item.status)}
-              </CollectionStatus>
-            </CollectionCardHeader>
-
-            {item.progressPercent === null ? (
-              <CollectionStoredCount>
-                <strong>{item.storedRecords.toLocaleString("ko-KR")}</strong>
-                <span>저장 레코드</span>
-              </CollectionStoredCount>
-            ) : (
-              <>
-                <CollectionProgressMeta>
-                  <strong>{item.progressPercent.toLocaleString("ko-KR")}%</strong>
-                  <span>
-                    {(item.completedJobs ?? 0).toLocaleString("ko-KR")} /{" "}
-                    {(item.targetJobs ?? 0).toLocaleString("ko-KR")} 작업
-                  </span>
-                </CollectionProgressMeta>
-                <CollectionProgressTrack aria-hidden="true">
-                  <CollectionProgressBar
-                    $progress={item.progressPercent}
-                    $status={item.status}
-                  />
-                </CollectionProgressTrack>
-              </>
-            )}
-
-            <CollectionCardFooter>
-              <span>
-                원천 {item.storedRecords.toLocaleString("ko-KR")}건
-                {item.remainingJobs !== null
-                  ? ` · 남음 ${item.remainingJobs.toLocaleString("ko-KR")}`
-                  : ""}
-                {item.unresolvedFailures > 0
-                  ? ` · 실패 ${item.unresolvedFailures.toLocaleString("ko-KR")}`
-                  : ""}
-              </span>
-              {item.lastError ? (
-                <CollectionError title={item.lastError}>
-                  {getCollectionErrorLabel(item.lastError)}
-                </CollectionError>
-              ) : (
-                <small>
-                  {item.lastSuccessAt
-                    ? `성공 ${formatDate(item.lastSuccessAt)}`
-                    : "수집 기록 없음"}
-                </small>
-              )}
-            </CollectionCardFooter>
-          </CollectionCard>
-        ))}
-      </CollectionGrid>
+      <CollectionTableFrame>
+        <CollectionTable>
+          <thead>
+            <tr>
+              <th scope="col">데이터셋</th>
+              <th scope="col">상태</th>
+              <th scope="col">진행</th>
+              <th scope="col">저장</th>
+              <th scope="col">남은 작업</th>
+              <th scope="col">실패</th>
+              <th scope="col">최근 결과</th>
+            </tr>
+          </thead>
+          <tbody>
+            {progress.map((item) => (
+              <tr key={item.id}>
+                <th scope="row">
+                  <strong>{item.label}</strong>
+                  <small>{item.description}</small>
+                </th>
+                <td data-label="상태">
+                  <CollectionStatus $status={item.status}>
+                    {getCollectionStatusLabel(item.status)}
+                  </CollectionStatus>
+                </td>
+                <td data-label="진행">
+                  {item.progressPercent === null ? (
+                    <TableMuted>범위 없음</TableMuted>
+                  ) : (
+                    <InlineProgress>
+                      <span>{item.progressPercent.toLocaleString("ko-KR")}%</span>
+                      <CollectionProgressTrack aria-hidden="true">
+                        <CollectionProgressBar
+                          $progress={item.progressPercent}
+                          $status={item.status}
+                        />
+                      </CollectionProgressTrack>
+                    </InlineProgress>
+                  )}
+                </td>
+                <td data-label="저장" data-numeric="true">
+                  {item.storedRecords.toLocaleString("ko-KR")}
+                </td>
+                <td data-label="남은 작업" data-numeric="true">
+                  {item.remainingJobs === null
+                    ? "-"
+                    : item.remainingJobs.toLocaleString("ko-KR")}
+                </td>
+                <td data-label="실패" data-numeric="true">
+                  {item.unresolvedFailures.toLocaleString("ko-KR")}
+                </td>
+                <td data-label="최근 결과">
+                  {item.lastError ? (
+                    <CollectionError title={item.lastError}>
+                      {getCollectionErrorLabel(item.lastError)}
+                    </CollectionError>
+                  ) : (
+                    <TableMuted>
+                      {item.lastSuccessAt
+                        ? formatDate(item.lastSuccessAt)
+                        : "수집 기록 없음"}
+                    </TableMuted>
+                  )}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </CollectionTable>
+      </CollectionTableFrame>
 
       <CollectionNotice>
         <span />
@@ -847,7 +812,7 @@ function CrowdCoverageDashboard({
     <CrowdCoverageSection>
       <CrowdCoverageHeader>
         <div>
-          <Eyebrow>CROWD COVERAGE</Eyebrow>
+          <Eyebrow>혼잡도 적용</Eyebrow>
           <h2>추천풀 혼잡도 적용 현황</h2>
           <p>
             한 장소를 실시간, 관광공사 예상, Tuti 예상 순서로 한 계층에만
@@ -878,18 +843,33 @@ function CrowdCoverageDashboard({
         ))}
       </CrowdCoverageBar>
 
-      <CrowdTierGrid>
-        {tiers.map((tier) => (
-          <CrowdTierCard key={tier.id} data-tone={tier.id}>
-            <span>{tier.label}</span>
-            <strong>{tier.value.toLocaleString("ko-KR")}곳</strong>
-            <small>
-              {percentageOf(tier.value, coverage.totalPlaces).toFixed(1)}% ·{" "}
-              {tier.description}
-            </small>
-          </CrowdTierCard>
-        ))}
-      </CrowdTierGrid>
+      <CrowdLegend>
+        <thead>
+          <tr>
+            <th scope="col">적용 계층</th>
+            <th scope="col">장소</th>
+            <th scope="col">비중</th>
+            <th scope="col">적용 기준</th>
+          </tr>
+        </thead>
+        <tbody>
+          {tiers.map((tier) => (
+            <tr key={tier.id} data-tone={tier.id}>
+              <th scope="row">
+                <span aria-hidden="true" />
+                {tier.label}
+              </th>
+              <td data-numeric="true">
+                {tier.value.toLocaleString("ko-KR")}곳
+              </td>
+              <td data-numeric="true">
+                {percentageOf(tier.value, coverage.totalPlaces).toFixed(1)}%
+              </td>
+              <td>{tier.description}</td>
+            </tr>
+          ))}
+        </tbody>
+      </CrowdLegend>
 
       <CrowdCoverageMeta>
         <span>
@@ -931,7 +911,6 @@ function DatasetExplorerHeader({
   return (
     <DatasetHeader>
       <div>
-        <span>{metadata.eyebrow}</span>
         <h2>{metadata.title}</h2>
         <p>{metadata.description}</p>
       </div>
@@ -977,7 +956,7 @@ function SyncPanel({
   const [contentTypeId, setContentTypeId] = useState("12");
   const [tourismAreaCode, setTourismAreaCode] = useState("");
   const [tourismSigunguCode, setTourismSigunguCode] = useState("");
-  const [baseMonth, setBaseMonth] = useState("2025-09");
+  const [baseMonth, setBaseMonth] = useState(getPreviousMonthInputValue);
   const [areaCode, setAreaCode] = useState("11");
   const [sigunguCode, setSigunguCode] = useState("");
   const [municipalSigunguCode, setMunicipalSigunguCode] = useState("11530");
@@ -1013,7 +992,6 @@ function SyncPanel({
       setAreaCode((current) => current || "11");
     } else if (nextSource === "related") {
       setAreaCode((current) => current || "11");
-      setBaseMonth("2025-04");
     } else if (nextSource === "concentration") {
       setAreaCode((current) => current || "11");
     } else if (
@@ -1410,41 +1388,199 @@ function SyncPanel({
   );
 }
 
+type RecordTableColumn = {
+  key: string;
+  label: string;
+  numeric?: boolean;
+  mobile: "primary" | "secondary" | "value" | "hide";
+};
+
+type RecordTableRow = {
+  id: string;
+  title: string;
+  subtitle: string;
+  cells: Record<string, ReactNode>;
+  details: Array<{ label: string; value: ReactNode }>;
+  rawPayload: unknown;
+  rawLabel?: string;
+};
+
+function RecordDataTable({
+  label,
+  columns,
+  rows,
+  emptyMessage,
+}: {
+  label: string;
+  columns: RecordTableColumn[];
+  rows: RecordTableRow[];
+  emptyMessage: string;
+}) {
+  const [selectedRow, setSelectedRow] = useState<RecordTableRow | null>(null);
+
+  useEffect(() => {
+    if (!selectedRow) return;
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setSelectedRow(null);
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [selectedRow]);
+
+  if (rows.length === 0) return <StatePanel>{emptyMessage}</StatePanel>;
+
+  return (
+    <>
+      <RecordTableFrame>
+        <RecordTable aria-label={label}>
+          <thead>
+            <tr>
+              {columns.map((column) => (
+                <th
+                  key={column.key}
+                  scope="col"
+                  data-numeric={column.numeric || undefined}
+                >
+                  {column.label}
+                </th>
+              ))}
+              <th scope="col">상세</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((row) => (
+              <tr key={row.id}>
+                {columns.map((column) => (
+                  <td
+                    key={column.key}
+                    data-mobile={column.mobile}
+                    data-numeric={column.numeric || undefined}
+                  >
+                    {column.mobile === "primary" ? (
+                      <PrimaryCellButton
+                        type="button"
+                        aria-label={`${row.title} 상세 보기`}
+                        onClick={() => setSelectedRow(row)}
+                      >
+                        {row.cells[column.key]}
+                      </PrimaryCellButton>
+                    ) : (
+                      row.cells[column.key]
+                    )}
+                  </td>
+                ))}
+                <td data-mobile="action">
+                  <RowDetailButton
+                    type="button"
+                    aria-label={`${row.title} 상세 보기`}
+                    onClick={() => setSelectedRow(row)}
+                  >
+                    상세
+                  </RowDetailButton>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </RecordTable>
+      </RecordTableFrame>
+
+      {selectedRow && (
+        <PlaceDrawerBackdrop
+          role="presentation"
+          onMouseDown={() => setSelectedRow(null)}
+        >
+          <PlaceDrawer
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="record-detail-title"
+            onMouseDown={(event) => event.stopPropagation()}
+          >
+            <PlaceDrawerHandle />
+            <PlaceDrawerHeader>
+              <div>
+                <span>원본 레코드</span>
+                <h2 id="record-detail-title">{selectedRow.title}</h2>
+                <p>{selectedRow.subtitle}</p>
+              </div>
+              <DrawerCloseButton
+                type="button"
+                autoFocus
+                aria-label="상세 닫기"
+                onClick={() => setSelectedRow(null)}
+              >
+                ×
+              </DrawerCloseButton>
+            </PlaceDrawerHeader>
+            <RecordDetailGrid>
+              {selectedRow.details.map((detail) => (
+                <div key={detail.label}>
+                  <span>{detail.label}</span>
+                  <strong>{detail.value}</strong>
+                </div>
+              ))}
+            </RecordDetailGrid>
+            <RawDetails
+              payload={selectedRow.rawPayload}
+              label={selectedRow.rawLabel}
+            />
+          </PlaceDrawer>
+        </PlaceDrawerBackdrop>
+      )}
+    </>
+  );
+}
+
 function MunicipalCoreRecords({
   records,
 }: {
   records: MunicipalCoreTourismSourceItem[];
 }) {
-  if (records.length === 0) {
-    return <StatePanel>저장된 중심 관광지 원본이 없습니다.</StatePanel>;
-  }
-
   return (
-    <RecordList>
-      {records.map((record) => (
-        <RecordCard key={record.id}>
-          <RecordHeader>
-            <div>
-              <h2>{record.touristSpotName}</h2>
-              <p>
-                {record.areaName} {record.sigunguName} ·{" "}
-                {formatBaseYm(record.baseYm)}
-              </p>
-            </div>
-            <MetricValue>#{record.rank}</MetricValue>
-          </RecordHeader>
-          <Metadata>
-            {record.categoryLargeName ?? "분류 없음"}
-            {record.categoryMediumName
-              ? ` · ${record.categoryMediumName}`
-              : ""}
-            {" · "}관광지 코드 {record.touristSpotCode} · 동기화{" "}
-            {formatDate(record.syncedAt)}
-          </Metadata>
-          <RawDetails payload={record.rawPayload} />
-        </RecordCard>
-      ))}
-    </RecordList>
+    <RecordDataTable
+      label="기초지자체 중심 관광지 목록"
+      emptyMessage="저장된 중심 관광지 원본이 없습니다."
+      columns={[
+        { key: "baseYm", label: "기준월", mobile: "hide" },
+        { key: "region", label: "지역", mobile: "secondary" },
+        { key: "rank", label: "순위", numeric: true, mobile: "value" },
+        { key: "place", label: "관광지", mobile: "primary" },
+        { key: "category", label: "분류", mobile: "hide" },
+        { key: "code", label: "코드", mobile: "hide" },
+        { key: "syncedAt", label: "동기화", mobile: "hide" },
+      ]}
+      rows={records.map((record) => {
+        const region = `${record.areaName} ${record.sigunguName}`;
+        const category = [record.categoryLargeName, record.categoryMediumName]
+          .filter(Boolean)
+          .join(" · ") || "분류 없음";
+
+        return {
+          id: record.id,
+          title: record.touristSpotName,
+          subtitle: `${region} · ${formatBaseYm(record.baseYm)}`,
+          cells: {
+            baseYm: formatBaseYm(record.baseYm),
+            region,
+            rank: `#${record.rank}`,
+            place: <TablePrimary>{record.touristSpotName}</TablePrimary>,
+            category,
+            code: <CodeText>{record.touristSpotCode}</CodeText>,
+            syncedAt: formatDate(record.syncedAt),
+          },
+          details: [
+            { label: "기준월", value: formatBaseYm(record.baseYm) },
+            { label: "지역", value: region },
+            { label: "순위", value: `#${record.rank}` },
+            { label: "분류", value: category },
+            { label: "관광지 코드", value: record.touristSpotCode },
+            { label: "동기화", value: formatDate(record.syncedAt) },
+          ],
+          rawPayload: record.rawPayload,
+        };
+      })}
+    />
   );
 }
 
@@ -1453,43 +1589,55 @@ function RelatedTourismRecords({
 }: {
   records: RelatedTourismSourceItem[];
 }) {
-  if (records.length === 0) {
-    return <StatePanel>저장된 연관 관광지 원본이 없습니다.</StatePanel>;
-  }
-
   return (
-    <RecordList>
-      {records.map((record) => (
-        <RecordCard key={record.id}>
-          <RecordHeader>
-            <div>
-              <h2>
-                {record.touristSpotName} → {record.relatedTouristSpotName}
-              </h2>
-              <p>
-                {record.areaName} {record.sigunguName}에서 출발 ·{" "}
-                {formatBaseYm(record.baseYm)}
-              </p>
-            </div>
-            <MetricValue>#{record.rank}</MetricValue>
-          </RecordHeader>
-          <Metadata>
-            {record.relatedAreaName} {record.relatedSigunguName}
-            {record.relatedCategoryLargeName
-              ? ` · ${record.relatedCategoryLargeName}`
-              : ""}
-            {record.relatedCategoryMediumName
-              ? ` · ${record.relatedCategoryMediumName}`
-              : ""}
-            {record.relatedCategorySmallName
-              ? ` · ${record.relatedCategorySmallName}`
-              : ""}
-            {" · "}동기화 {formatDate(record.syncedAt)}
-          </Metadata>
-          <RawDetails payload={record.rawPayload} />
-        </RecordCard>
-      ))}
-    </RecordList>
+    <RecordDataTable
+      label="관광지별 연관 관광지 목록"
+      emptyMessage="저장된 연관 관광지 원본이 없습니다."
+      columns={[
+        { key: "baseYm", label: "기준월", mobile: "hide" },
+        { key: "origin", label: "출발 관광지", mobile: "primary" },
+        { key: "related", label: "연관 관광지", mobile: "secondary" },
+        { key: "region", label: "도착 지역", mobile: "hide" },
+        { key: "rank", label: "순위", numeric: true, mobile: "value" },
+        { key: "category", label: "분류", mobile: "hide" },
+        { key: "syncedAt", label: "동기화", mobile: "hide" },
+      ]}
+      rows={records.map((record) => {
+        const originRegion = `${record.areaName} ${record.sigunguName}`;
+        const relatedRegion = `${record.relatedAreaName} ${record.relatedSigunguName}`;
+        const category = [
+          record.relatedCategoryLargeName,
+          record.relatedCategoryMediumName,
+          record.relatedCategorySmallName,
+        ].filter(Boolean).join(" · ") || "분류 없음";
+
+        return {
+          id: record.id,
+          title: `${record.touristSpotName} → ${record.relatedTouristSpotName}`,
+          subtitle: `${originRegion}에서 출발 · ${formatBaseYm(record.baseYm)}`,
+          cells: {
+            baseYm: formatBaseYm(record.baseYm),
+            origin: <TablePrimary>{record.touristSpotName}</TablePrimary>,
+            related: record.relatedTouristSpotName,
+            region: relatedRegion,
+            rank: `#${record.rank}`,
+            category,
+            syncedAt: formatDate(record.syncedAt),
+          },
+          details: [
+            { label: "기준월", value: formatBaseYm(record.baseYm) },
+            { label: "출발 관광지", value: record.touristSpotName },
+            { label: "출발 지역", value: originRegion },
+            { label: "연관 관광지", value: record.relatedTouristSpotName },
+            { label: "도착 지역", value: relatedRegion },
+            { label: "연관 순위", value: `#${record.rank}` },
+            { label: "분류", value: category },
+            { label: "동기화", value: formatDate(record.syncedAt) },
+          ],
+          rawPayload: record.rawPayload,
+        };
+      })}
+    />
   );
 }
 
@@ -1498,31 +1646,40 @@ function ConcentrationRecords({
 }: {
   records: TouristSpotConcentrationRateItem[];
 }) {
-  if (records.length === 0) {
-    return <StatePanel>저장된 관광지 집중률 원본이 없습니다.</StatePanel>;
-  }
-
   return (
-    <RecordList>
-      {records.map((record) => (
-        <RecordCard key={record.id}>
-          <RecordHeader>
-            <div>
-              <h2>{record.touristSpotName}</h2>
-              <p>
-                {record.areaName} {record.sigunguName} ·{" "}
-                {formatBaseYmd(record.baseYmd)}
-              </p>
-            </div>
-            <MetricValue>{record.concentrationRate}%</MetricValue>
-          </RecordHeader>
-          <Metadata>
-            관광지 집중률 · 동기화 {formatDate(record.syncedAt)}
-          </Metadata>
-          <RawDetails payload={record.rawPayload} />
-        </RecordCard>
-      ))}
-    </RecordList>
+    <RecordDataTable
+      label="관광지 집중률 목록"
+      emptyMessage="저장된 관광지 집중률 원본이 없습니다."
+      columns={[
+        { key: "baseYmd", label: "기준일", mobile: "hide" },
+        { key: "region", label: "지역", mobile: "secondary" },
+        { key: "place", label: "관광지", mobile: "primary" },
+        { key: "rate", label: "집중률", numeric: true, mobile: "value" },
+        { key: "syncedAt", label: "동기화", mobile: "hide" },
+      ]}
+      rows={records.map((record) => {
+        const region = `${record.areaName} ${record.sigunguName}`;
+        return {
+          id: record.id,
+          title: record.touristSpotName,
+          subtitle: `${region} · ${formatBaseYmd(record.baseYmd)}`,
+          cells: {
+            baseYmd: formatBaseYmd(record.baseYmd),
+            region,
+            place: <TablePrimary>{record.touristSpotName}</TablePrimary>,
+            rate: <TableMetric>{record.concentrationRate}%</TableMetric>,
+            syncedAt: formatDate(record.syncedAt),
+          },
+          details: [
+            { label: "기준일", value: formatBaseYmd(record.baseYmd) },
+            { label: "지역", value: region },
+            { label: "집중률", value: `${record.concentrationRate}%` },
+            { label: "동기화", value: formatDate(record.syncedAt) },
+          ],
+          rawPayload: record.rawPayload,
+        };
+      })}
+    />
   );
 }
 
@@ -1531,35 +1688,48 @@ function VisitorRecords({
 }: {
   records: RegionalVisitorCountItem[];
 }) {
-  if (records.length === 0) {
-    return <StatePanel>저장된 지역별 방문자 수 원본이 없습니다.</StatePanel>;
-  }
-
   return (
-    <RecordList>
-      {records.map((record) => (
-        <RecordCard key={record.id}>
-          <RecordHeader>
-            <div>
-              <h2>{record.regionName}</h2>
-              <p>
-                {record.aggregationLevel === "metropolitan"
-                  ? "광역 지자체"
-                  : "기초 지자체"}
-                {" · "}
-                {formatBaseYmd(record.baseYmd)} · {record.weekdayName}
-              </p>
-            </div>
-            <MetricValue>{formatVisitorCount(record.visitorCount)}명</MetricValue>
-          </RecordHeader>
-          <Metadata>
-            {record.visitorTypeName} · 코드 {record.regionCode} · 동기화{" "}
-            {formatDate(record.syncedAt)}
-          </Metadata>
-          <RawDetails payload={record.rawPayload} />
-        </RecordCard>
-      ))}
-    </RecordList>
+    <RecordDataTable
+      label="지역별 방문자 수 목록"
+      emptyMessage="저장된 지역별 방문자 수 원본이 없습니다."
+      columns={[
+        { key: "baseYmd", label: "기준일", mobile: "hide" },
+        { key: "level", label: "구분", mobile: "hide" },
+        { key: "region", label: "지역", mobile: "primary" },
+        { key: "type", label: "방문자 유형", mobile: "secondary" },
+        { key: "count", label: "방문자 수", numeric: true, mobile: "value" },
+        { key: "syncedAt", label: "동기화", mobile: "hide" },
+      ]}
+      rows={records.map((record) => {
+        const level = record.aggregationLevel === "metropolitan"
+          ? "광역 지자체"
+          : "기초 지자체";
+        return {
+          id: record.id,
+          title: record.regionName,
+          subtitle: `${level} · ${formatBaseYmd(record.baseYmd)} · ${record.weekdayName}`,
+          cells: {
+            baseYmd: formatBaseYmd(record.baseYmd),
+            level,
+            region: <TablePrimary>{record.regionName}</TablePrimary>,
+            type: record.visitorTypeName,
+            count: <TableMetric>{formatVisitorCount(record.visitorCount)}</TableMetric>,
+            syncedAt: formatDate(record.syncedAt),
+          },
+          details: [
+            { label: "기준일", value: formatBaseYmd(record.baseYmd) },
+            { label: "구분", value: level },
+            { label: "지역", value: record.regionName },
+            { label: "지역 코드", value: record.regionCode },
+            { label: "요일", value: record.weekdayName },
+            { label: "방문자 유형", value: record.visitorTypeName },
+            { label: "방문자 수", value: `${formatVisitorCount(record.visitorCount)}명` },
+            { label: "동기화", value: formatDate(record.syncedAt) },
+          ],
+          rawPayload: record.rawPayload,
+        };
+      })}
+    />
   );
 }
 
@@ -1568,46 +1738,61 @@ function PhotoRecords({
 }: {
   records: TourismPhotoGallerySourceItem[];
 }) {
-  if (records.length === 0) {
-    return <StatePanel>저장된 관광사진 원본이 없습니다.</StatePanel>;
-  }
-
   return (
-    <RecordList>
-      {records.map((record) => (
-        <RecordCard key={record.contentId}>
-          <PhotoPreview
-            src={record.imageUrl}
-            alt=""
-            loading="lazy"
-            referrerPolicy="no-referrer"
-          />
-          <RecordHeader>
-            <div>
-              <h2>{record.title}</h2>
-              <p>
-                {record.photographyLocation ?? "촬영 장소 미상"}
-                {record.photographyMonth
-                  ? ` · ${record.photographyMonth}`
-                  : ""}
-              </p>
-            </div>
-            <PhotoLink
-              href={record.imageUrl}
-              target="_blank"
-              rel="noreferrer"
-            >
-              이미지 열기
-            </PhotoLink>
-          </RecordHeader>
-          <Metadata>
-            {record.photographer ? `${record.photographer} · ` : ""}
-            콘텐츠 {record.contentId} · 동기화 {formatDate(record.syncedAt)}
-          </Metadata>
-          <RawDetails payload={record.rawPayload} />
-        </RecordCard>
-      ))}
-    </RecordList>
+    <RecordDataTable
+      label="관광사진 메타데이터 목록"
+      emptyMessage="저장된 관광사진 원본이 없습니다."
+      columns={[
+        { key: "preview", label: "미리보기", mobile: "hide" },
+        { key: "title", label: "사진", mobile: "primary" },
+        { key: "location", label: "촬영지 · 월", mobile: "secondary" },
+        { key: "photographer", label: "촬영자", mobile: "hide" },
+        { key: "contentId", label: "콘텐츠 ID", mobile: "hide" },
+        { key: "syncedAt", label: "동기화", mobile: "hide" },
+      ]}
+      rows={records.map((record) => {
+        const location = [record.photographyLocation ?? "촬영 장소 미상", record.photographyMonth]
+          .filter(Boolean)
+          .join(" · ");
+        return {
+          id: record.contentId,
+          title: record.title,
+          subtitle: location,
+          cells: {
+            preview: (
+              <TablePhotoPreview
+                src={record.imageUrl}
+                alt=""
+                loading="lazy"
+                referrerPolicy="no-referrer"
+              />
+            ),
+            title: <TablePrimary>{record.title}</TablePrimary>,
+            location,
+            photographer: record.photographer ?? "-",
+            contentId: <CodeText>{record.contentId}</CodeText>,
+            syncedAt: formatDate(record.syncedAt),
+          },
+          details: [
+            { label: "촬영지", value: record.photographyLocation ?? "정보 없음" },
+            { label: "촬영월", value: record.photographyMonth ?? "정보 없음" },
+            { label: "촬영자", value: record.photographer ?? "정보 없음" },
+            { label: "콘텐츠 ID", value: record.contentId },
+            { label: "검색 키워드", value: record.searchKeyword ?? "정보 없음" },
+            { label: "동기화", value: formatDate(record.syncedAt) },
+            {
+              label: "원본 이미지",
+              value: (
+                <PhotoLink href={record.imageUrl} target="_blank" rel="noreferrer">
+                  이미지 열기
+                </PhotoLink>
+              ),
+            },
+          ],
+          rawPayload: record.rawPayload,
+        };
+      })}
+    />
   );
 }
 
@@ -1616,34 +1801,51 @@ function WellnessRecords({
 }: {
   records: WellnessTourismSourceItem[];
 }) {
-  if (records.length === 0) {
-    return <StatePanel>저장된 웰니스 관광 원본이 없습니다.</StatePanel>;
-  }
-
   return (
-    <RecordList>
-      {records.map((record) => (
-        <RecordCard key={record.id}>
-          <RecordHeader>
-            <div>
-              <h2>{record.title}</h2>
-              <p>
-                콘텐츠 {record.contentId} · 유형{" "}
-                {record.contentTypeId ?? "미분류"}
-              </p>
-            </div>
-            <StatusBadge $tone="success">
-              {getWellnessThemeLabel(record.wellnessThemeCode)}
-            </StatusBadge>
-          </RecordHeader>
-          <Metadata>
-            지역 {record.areaCode ?? "-"} / {record.sigunguCode ?? "-"} ·{" "}
-            {record.langDivCd} · 동기화 {formatDate(record.syncedAt)}
-          </Metadata>
-          <RawDetails payload={record.rawPayload} />
-        </RecordCard>
-      ))}
-    </RecordList>
+    <RecordDataTable
+      label="웰니스 관광 원본 목록"
+      emptyMessage="저장된 웰니스 관광 원본이 없습니다."
+      columns={[
+        { key: "title", label: "관광지", mobile: "primary" },
+        { key: "contentId", label: "콘텐츠 ID", mobile: "hide" },
+        { key: "theme", label: "테마", mobile: "value" },
+        { key: "region", label: "지역 코드", mobile: "secondary" },
+        { key: "language", label: "언어", mobile: "hide" },
+        { key: "syncedAt", label: "동기화", mobile: "hide" },
+      ]}
+      rows={records.map((record) => {
+        const region = `${record.areaCode ?? "-"} / ${record.sigunguCode ?? "-"}`;
+        const theme = getWellnessThemeLabel(record.wellnessThemeCode);
+        return {
+          id: record.id,
+          title: record.title,
+          subtitle: `지역 ${region} · ${theme}`,
+          cells: {
+            title: <TablePrimary>{record.title}</TablePrimary>,
+            contentId: <CodeText>{record.contentId}</CodeText>,
+            theme: <TaxonomyBadge>{theme}</TaxonomyBadge>,
+            region,
+            language: record.langDivCd,
+            syncedAt: formatDate(record.syncedAt),
+          },
+          details: [
+            { label: "콘텐츠 ID", value: record.contentId },
+            { label: "콘텐츠 유형", value: record.contentTypeId ?? "미분류" },
+            { label: "웰니스 테마", value: theme },
+            { label: "지역 코드", value: region },
+            { label: "언어", value: record.langDivCd },
+            {
+              label: "원본 수정",
+              value: record.sourceModifiedAt
+                ? formatDate(record.sourceModifiedAt)
+                : "정보 없음",
+            },
+            { label: "동기화", value: formatDate(record.syncedAt) },
+          ],
+          rawPayload: record.rawPayload,
+        };
+      })}
+    />
   );
 }
 
@@ -1706,7 +1908,6 @@ function PlaceRecords({
       <>
         <PlaceExplorerHeader>
           <div>
-            <span>TOURAPI PLACE DATA</span>
             <h2>관광지 원천 데이터</h2>
             <p>시도와 시군구를 기준으로 저장된 원본을 빠르게 확인합니다.</p>
           </div>
@@ -1751,7 +1952,6 @@ function PlaceRecords({
     <>
       <PlaceExplorerHeader>
         <div>
-          <span>TOURAPI PLACE DATA</span>
           <h2>관광지 원천 데이터</h2>
           <p>행을 선택하면 원본 필드와 연결 상태를 상세히 볼 수 있습니다.</p>
         </div>
@@ -1913,11 +2113,12 @@ function PlaceRecords({
             <PlaceDrawerHandle />
             <PlaceDrawerHeader>
               <div>
-                <span>TOURAPI 원본</span>
+                <span>원본 레코드</span>
                 <h2 id="place-drawer-title">{selectedRecord.title}</h2>
               </div>
               <DrawerCloseButton
                 type="button"
+                autoFocus
                 onClick={() => setSelectedRecord(null)}
                 aria-label="상세 닫기"
               >
@@ -2162,67 +2363,108 @@ function MetricRecords({
 }: {
   metrics: TourismRegionMetricItem[];
 }) {
-  if (metrics.length === 0) {
-    return <StatePanel>저장된 지역 지표가 없습니다.</StatePanel>;
-  }
-
   return (
-    <RecordList>
-      {metrics.map((metric) => (
-        <RecordCard key={metric.id}>
-          <RecordHeader>
-            <div>
-              <h2>{metric.metricName}</h2>
-              <p>
-                {metric.areaName} {normalizeSigunguName(metric.sigunguName)} ·{" "}
-                {formatBaseYm(metric.baseYm)}
-              </p>
-            </div>
-            <MetricValue>{metric.metricValue ?? "-"}</MetricValue>
-          </RecordHeader>
-          <Metadata>
-            {getMetricTypeLabel(metric.metricType)} · 코드 {metric.metricCode} ·
-            동기화 {formatDate(metric.syncedAt)}
-          </Metadata>
-          <RawDetails payload={metric.rawPayload} />
-        </RecordCard>
-      ))}
-    </RecordList>
+    <RecordDataTable
+      label="지역 관광 지표 목록"
+      emptyMessage="저장된 지역 지표가 없습니다."
+      columns={[
+        { key: "baseYm", label: "기준월", mobile: "hide" },
+        { key: "metric", label: "지표", mobile: "primary" },
+        { key: "type", label: "유형", mobile: "hide" },
+        { key: "region", label: "지역", mobile: "secondary" },
+        { key: "value", label: "값", numeric: true, mobile: "value" },
+        { key: "code", label: "코드", mobile: "hide" },
+        { key: "syncedAt", label: "동기화", mobile: "hide" },
+      ]}
+      rows={metrics.map((metric) => {
+        const region = `${metric.areaName} ${normalizeSigunguName(metric.sigunguName)}`;
+        const type = getMetricTypeLabel(metric.metricType);
+        return {
+          id: metric.id,
+          title: metric.metricName,
+          subtitle: `${region} · ${formatBaseYm(metric.baseYm)}`,
+          cells: {
+            baseYm: formatBaseYm(metric.baseYm),
+            metric: <TablePrimary>{metric.metricName}</TablePrimary>,
+            type,
+            region,
+            value: <TableMetric>{metric.metricValue ?? "-"}</TableMetric>,
+            code: <CodeText>{metric.metricCode}</CodeText>,
+            syncedAt: formatDate(metric.syncedAt),
+          },
+          details: [
+            { label: "기준월", value: formatBaseYm(metric.baseYm) },
+            { label: "지표", value: metric.metricName },
+            { label: "지표 유형", value: type },
+            { label: "지역", value: region },
+            { label: "값", value: metric.metricValue ?? "-" },
+            { label: "지표 코드", value: metric.metricCode },
+            { label: "동기화", value: formatDate(metric.syncedAt) },
+          ],
+          rawPayload: metric.rawPayload,
+        };
+      })}
+    />
   );
 }
 
 function SyncRuns({ runs }: { runs: ExternalDataSyncRunItem[] }) {
-  if (runs.length === 0) {
-    return <StatePanel>동기화 실행 기록이 없습니다.</StatePanel>;
-  }
-
   return (
-    <RecordList>
-      {runs.map((run) => (
-        <RecordCard key={run.id}>
-          <RecordHeader>
-            <div>
-              <h2>{getSourceLabel(run.source)}</h2>
-              <p>
-                {run.operation} · {formatDate(run.startedAt)}
-              </p>
-            </div>
-            <StatusBadge $tone={run.status}>
-              {getRunStatusLabel(run.status)}
-            </StatusBadge>
-          </RecordHeader>
-          <RunCounts>
-            <span>수신 {run.receivedCount}</span>
-            <span>추가 {run.createdCount}</span>
-            <span>갱신 {run.updatedCount}</span>
-            <span>제외 {run.skippedCount}</span>
-            <span>실패 {run.failedCount}</span>
-          </RunCounts>
-          {run.errorMessage && <ErrorText>{run.errorMessage}</ErrorText>}
-          <RawDetails payload={run.parameters} label="요청 조건" />
-        </RecordCard>
-      ))}
-    </RecordList>
+    <RecordDataTable
+      label="공공데이터 동기화 실행 기록"
+      emptyMessage="동기화 실행 기록이 없습니다."
+      columns={[
+        { key: "startedAt", label: "시작", mobile: "secondary" },
+        { key: "source", label: "데이터 소스", mobile: "primary" },
+        { key: "operation", label: "작업", mobile: "hide" },
+        { key: "status", label: "상태", mobile: "value" },
+        { key: "received", label: "수신", numeric: true, mobile: "hide" },
+        { key: "created", label: "추가", numeric: true, mobile: "hide" },
+        { key: "updated", label: "갱신", numeric: true, mobile: "hide" },
+        { key: "skipped", label: "제외", numeric: true, mobile: "hide" },
+        { key: "failed", label: "실패", numeric: true, mobile: "hide" },
+      ]}
+      rows={runs.map((run) => {
+        const source = getSourceLabel(run.source);
+        const status = getRunStatusLabel(run.status);
+        return {
+          id: run.id,
+          title: source,
+          subtitle: `${run.operation} · ${formatDate(run.startedAt)}`,
+          cells: {
+            startedAt: formatDate(run.startedAt),
+            source: <TablePrimary>{source}</TablePrimary>,
+            operation: run.operation,
+            status: <StatusBadge $tone={run.status}>{status}</StatusBadge>,
+            received: run.receivedCount.toLocaleString("ko-KR"),
+            created: run.createdCount.toLocaleString("ko-KR"),
+            updated: run.updatedCount.toLocaleString("ko-KR"),
+            skipped: run.skippedCount.toLocaleString("ko-KR"),
+            failed: run.failedCount.toLocaleString("ko-KR"),
+          },
+          details: [
+            { label: "데이터 소스", value: source },
+            { label: "작업", value: run.operation },
+            { label: "상태", value: status },
+            { label: "시작", value: formatDate(run.startedAt) },
+            {
+              label: "종료",
+              value: run.finishedAt ? formatDate(run.finishedAt) : "진행 중",
+            },
+            { label: "수신", value: run.receivedCount.toLocaleString("ko-KR") },
+            { label: "추가", value: run.createdCount.toLocaleString("ko-KR") },
+            { label: "갱신", value: run.updatedCount.toLocaleString("ko-KR") },
+            { label: "제외", value: run.skippedCount.toLocaleString("ko-KR") },
+            { label: "실패", value: run.failedCount.toLocaleString("ko-KR") },
+            ...(run.errorMessage
+              ? [{ label: "오류", value: <ErrorText>{run.errorMessage}</ErrorText> }]
+              : []),
+          ],
+          rawPayload: run.parameters,
+          rawLabel: "요청 조건",
+        };
+      })}
+    />
   );
 }
 
@@ -2252,6 +2494,15 @@ function normalizeTab(value: unknown): TourismDataTab {
     value === "runs"
     ? value
     : "places";
+}
+
+function normalizeWorkspaceMode(
+  value: unknown,
+  tab: TourismDataTab,
+): TourismWorkspaceMode {
+  if (value === "overview") return "overview";
+  if (value === "runs" || tab === "runs") return "runs";
+  return "explorer";
 }
 
 function toErrorMessage(error: unknown) {
@@ -2313,6 +2564,19 @@ function toDateInputValue(value: Date) {
   const month = String(value.getMonth() + 1).padStart(2, "0");
   const day = String(value.getDate()).padStart(2, "0");
   return `${year}-${month}-${day}`;
+}
+
+function toMonthInputValue(value: Date) {
+  const year = value.getFullYear();
+  const month = String(value.getMonth() + 1).padStart(2, "0");
+  return `${year}-${month}`;
+}
+
+function getPreviousMonthInputValue() {
+  const previousMonth = new Date();
+  previousMonth.setDate(1);
+  previousMonth.setMonth(previousMonth.getMonth() - 1);
+  return toMonthInputValue(previousMonth);
 }
 
 function normalizeSigunguName(value: string) {
@@ -2434,28 +2698,37 @@ function getSearchPlaceholder(tab: TourismDataTab) {
 const Page = styled.div`
   height: 100dvh;
   overflow-y: auto;
-  background: var(--color-white);
+  background: var(--color-app-background);
   color: var(--color-text);
   -webkit-overflow-scrolling: touch;
+
+  :where(button, a, input, select, textarea, summary, [tabindex]):focus-visible {
+    outline: 3px solid var(--color-brand-900);
+    outline-offset: 2px;
+  }
+
+  &:has([aria-modal="true"]) {
+    overflow: hidden;
+  }
 `;
 
 const Header = styled.header`
   position: sticky;
   z-index: 20;
   top: 0;
-  border-bottom: 1px solid var(--color-brand-200);
-  background: rgb(var(--color-white-rgb) / 0.9);
-  backdrop-filter: blur(16px);
+  border-bottom: 1px solid var(--color-neutral-400);
+  background: rgb(var(--color-white-rgb) / 0.94);
+  backdrop-filter: blur(12px);
 `;
 
 const HeaderInner = styled.div`
-  width: min(100%, 1280px);
-  min-height: 80px;
+  width: min(100%, 1360px);
+  min-height: 72px;
   display: grid;
   grid-template-columns: auto 1fr auto;
   align-items: center;
   gap: var(--space-4);
-  padding: var(--space-4) var(--space-8);
+  padding: var(--space-3) var(--space-8);
   margin: 0 auto;
 
   h1 {
@@ -2478,14 +2751,15 @@ const HeaderInner = styled.div`
 `;
 
 const BackLink = styled(Link)`
-  width: 44px;
-  height: 44px;
+  width: 40px;
+  height: 40px;
   display: grid;
   place-items: center;
-  border-radius: 999px;
-  background: var(--color-brand-100);
+  border: 1px solid var(--color-neutral-400);
+  border-radius: 8px;
+  background: var(--color-white);
   color: var(--color-brand-1000);
-  font-size: var(--font-size-800);
+  font-size: var(--font-size-700);
   line-height: 1;
 `;
 
@@ -2494,16 +2768,16 @@ const Eyebrow = styled.span`
   color: var(--color-brand-800);
   font-size: 10px;
   font-weight: 700;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.02em;
 `;
 
 const RefreshButton = styled.button`
-  min-height: 44px;
+  min-height: 40px;
   padding: 0 var(--space-4);
-  border: 1px solid var(--color-brand-300);
-  border-radius: 999px;
-  background: var(--color-brand-100);
-  color: var(--color-brand-1000);
+  border: 1px solid var(--color-neutral-400);
+  border-radius: 8px;
+  background: var(--color-white);
+  color: var(--color-text);
   font: inherit;
   font-size: var(--font-size-100);
   font-weight: 700;
@@ -2523,37 +2797,149 @@ const RefreshButton = styled.button`
 `;
 
 const Content = styled.main`
-  width: min(100%, 1280px);
+  width: min(100%, 1360px);
   display: grid;
-  gap: var(--space-6);
-  padding: var(--space-8);
+  gap: var(--space-5);
+  padding: var(--space-6) var(--space-8) var(--space-10);
   margin: 0 auto;
 
   @media (max-width: 640px) {
-    gap: var(--space-4);
-    padding: var(--space-5) var(--space-4) var(--space-10);
+    gap: var(--space-3);
+    padding: var(--space-4) var(--space-4) var(--space-10);
+  }
+`;
+
+const WorkspaceNav = styled.nav`
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  border: 1px solid var(--color-neutral-400);
+  border-radius: 10px;
+  background: var(--color-white);
+
+  @media (max-width: 640px) {
+    position: sticky;
+    z-index: 12;
+    top: max(68px, calc(36px + env(safe-area-inset-top)));
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgb(var(--color-black-rgb) / 0.06);
+  }
+`;
+
+const WorkspaceNavButton = styled.button<{ $active: boolean }>`
+  position: relative;
+  min-width: 0;
+  min-height: 64px;
+  display: grid;
+  align-content: center;
+  gap: 2px;
+  padding: var(--space-3) var(--space-4);
+  border: 0;
+  border-right: 1px solid var(--color-neutral-300);
+  border-radius: 0;
+  background: ${({ $active }) =>
+    $active ? "var(--color-brand-100)" : "var(--color-white)"};
+  color: ${({ $active }) =>
+    $active ? "var(--color-brand-1000)" : "var(--color-text-muted)"};
+  text-align: left;
+  font: inherit;
+  cursor: pointer;
+
+  &:first-of-type {
+    border-radius: 9px 0 0 9px;
+  }
+
+  &:last-of-type {
+    border-right: 0;
+    border-radius: 0 9px 9px 0;
+  }
+
+  &::after {
+    position: absolute;
+    right: var(--space-4);
+    bottom: 0;
+    left: var(--space-4);
+    height: 3px;
+    border-radius: 3px 3px 0 0;
+    background: ${({ $active }) =>
+      $active ? "var(--color-brand-700)" : "transparent"};
+    content: "";
+  }
+
+  span {
+    font-size: var(--font-size-200);
+    font-weight: 750;
+  }
+
+  small {
+    overflow: hidden;
+    font-size: 11px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  &:focus-visible {
+    z-index: 1;
+    outline: 3px solid var(--color-brand-900);
+    outline-offset: -3px;
+  }
+
+  @media (max-width: 640px) {
+    min-height: 48px;
+    justify-items: center;
+    padding: 0 var(--space-2);
+    text-align: center;
+
+    small {
+      display: none;
+    }
+
+    &::after {
+      right: var(--space-3);
+      left: var(--space-3);
+    }
+  }
+`;
+
+const OverviewWorkspace = styled.div`
+  display: grid;
+  grid-template-columns: minmax(0, 0.72fr) minmax(0, 1.28fr);
+  gap: var(--space-4);
+
+  > :nth-of-type(n + 3) {
+    grid-column: 1 / -1;
+  }
+
+  @media (max-width: 920px) {
+    grid-template-columns: 1fr;
+
+    > * {
+      grid-column: 1;
+    }
+  }
+`;
+
+const ExplorerWorkspace = styled.div`
+  min-width: 0;
+  display: grid;
+  gap: var(--space-4);
+
+  @media (max-width: 640px) {
+    gap: var(--space-3);
   }
 `;
 
 const CollectionSection = styled.section`
   display: grid;
-  gap: var(--space-5);
-  padding: var(--space-6);
-  border: 1px solid var(--color-brand-200);
-  border-radius: var(--space-6);
-  background:
-    linear-gradient(
-      135deg,
-      var(--color-brand-100) 0%,
-      var(--color-white) 46%,
-      var(--color-secondary-100) 100%
-    );
-  box-shadow: 0 16px 38px rgb(var(--color-black-rgb) / 0.06);
+  gap: var(--space-4);
+  padding: var(--space-5);
+  border: 1px solid var(--color-neutral-400);
+  border-radius: 10px;
+  background: var(--color-white);
 
   @media (max-width: 640px) {
-    gap: var(--space-4);
+    gap: var(--space-3);
     padding: var(--space-4);
-    border-radius: var(--space-5);
+    border-radius: 8px;
   }
 `;
 
@@ -2612,17 +2998,21 @@ const CollectionHeadline = styled.div`
 `;
 
 const CollectionSummary = styled.div`
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-2);
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  border: 1px solid var(--color-neutral-300);
+  border-radius: 8px;
 
   > span {
-    padding: var(--space-2) var(--space-3);
-    border: 1px solid var(--color-neutral-300);
-    border-radius: 999px;
-    background: rgb(var(--color-white-rgb) / 0.82);
+    min-width: 0;
+    padding: var(--space-3) var(--space-4);
+    border-right: 1px solid var(--color-neutral-300);
     color: var(--color-text-muted);
     font-size: var(--font-size-100);
+
+    &:last-child {
+      border-right: 0;
+    }
   }
 
   strong {
@@ -2630,101 +3020,185 @@ const CollectionSummary = styled.div`
   }
 
   @media (max-width: 640px) {
-    display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
 
     > span {
-      min-width: 0;
       overflow: hidden;
+      padding: var(--space-2) var(--space-3);
       text-overflow: ellipsis;
       white-space: nowrap;
 
       &:last-child {
         grid-column: 1 / -1;
+        border-top: 1px solid var(--color-neutral-300);
+      }
+
+      &:nth-child(2) {
+        border-right: 0;
       }
     }
   }
 `;
 
-const CollectionGrid = styled.div`
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: var(--space-3);
+const CollectionTableFrame = styled.div`
+  overflow-x: auto;
+  border: 1px solid var(--color-neutral-300);
+  border-radius: 8px;
 
-  @media (max-width: 1040px) {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  @media (max-width: 560px) {
-    display: flex;
-    overflow-x: auto;
-    gap: var(--space-2);
-    margin: 0 calc(var(--space-4) * -1);
-    padding: 0 var(--space-4) var(--space-1);
-    scroll-snap-type: x mandatory;
-    scrollbar-width: none;
-
-    &::-webkit-scrollbar {
-      display: none;
-    }
-
-    > article {
-      width: min(78vw, 290px);
-      flex: 0 0 auto;
-      scroll-snap-align: start;
-    }
-  }
-`;
-
-const CollectionCard = styled.article<{
-  $status: "complete" | "collecting" | "quota_wait" | "error" | "ready";
-}>`
-  min-width: 0;
-  display: grid;
-  align-content: space-between;
-  gap: var(--space-3);
-  padding: var(--space-4);
-  border: 1px solid
-    ${({ $status }) =>
-      $status === "complete"
-        ? "var(--color-secondary-300)"
-        : $status === "quota_wait" || $status === "error"
-          ? "var(--color-brand-300)"
-          : "var(--color-neutral-300)"};
-  border-radius: var(--space-4);
-  background: rgb(var(--color-white-rgb) / 0.92);
-  box-shadow: 0 8px 22px rgb(var(--color-black-rgb) / 0.04);
-
-  @media (max-width: 560px) {
-    gap: var(--space-2);
-    padding: var(--space-3) var(--space-4);
-  }
-`;
-
-const CollectionCardHeader = styled.div`
-  display: flex;
-  align-items: start;
-  justify-content: space-between;
-  gap: var(--space-3);
-
-  > div {
-    min-width: 0;
-  }
-
-  h3 {
-    font-size: var(--font-size-200);
-  }
-
-  p {
-    display: -webkit-box;
+  @media (max-width: 720px) {
     overflow: hidden;
-    margin-top: var(--space-1);
+  }
+`;
+
+const CollectionTable = styled.table`
+  width: 100%;
+  min-width: 980px;
+  border-collapse: collapse;
+  font-size: var(--font-size-100);
+  font-variant-numeric: tabular-nums;
+
+  th,
+  td {
+    padding: var(--space-3);
+    border-bottom: 1px solid var(--color-neutral-300);
+    text-align: left;
+    vertical-align: middle;
+  }
+
+  thead th {
+    background: var(--color-neutral-200);
     color: var(--color-text-muted);
     font-size: 11px;
-    line-height: var(--line-height-subtitle);
-    -webkit-box-orient: vertical;
-    -webkit-line-clamp: 2;
+    font-weight: 700;
+    white-space: nowrap;
   }
+
+  tbody tr:last-child > * {
+    border-bottom: 0;
+  }
+
+  tbody th {
+    min-width: 210px;
+    font-weight: 700;
+
+    strong,
+    small {
+      display: block;
+    }
+
+    small {
+      max-width: 280px;
+      overflow: hidden;
+      margin-top: 2px;
+      color: var(--color-text-muted);
+      font-weight: 400;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+  }
+
+  [data-numeric="true"] {
+    text-align: right;
+  }
+
+  @media (max-width: 720px) {
+    min-width: 0;
+    display: block;
+
+    thead {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      overflow: hidden;
+      clip-path: inset(50%);
+      white-space: nowrap;
+    }
+
+    tbody {
+      display: block;
+    }
+
+    tbody tr {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: var(--space-2) var(--space-3);
+      padding: var(--space-3);
+      border-bottom: 1px solid var(--color-neutral-300);
+    }
+
+    tbody tr:last-child {
+      border-bottom: 0;
+    }
+
+    th,
+    td {
+      padding: 0;
+      border: 0;
+    }
+
+    tbody th {
+      grid-column: 1 / 3;
+      grid-row: 1;
+
+      small {
+        max-width: none;
+      }
+    }
+
+    td[data-label="상태"] {
+      grid-column: 3;
+      grid-row: 1;
+      justify-self: end;
+    }
+
+    td[data-label="진행"] {
+      grid-column: 1 / -1;
+      grid-row: 2;
+    }
+
+    td[data-label="저장"],
+    td[data-label="남은 작업"],
+    td[data-label="실패"] {
+      display: grid;
+      gap: 2px;
+      grid-row: 3;
+      text-align: left;
+
+      &::before {
+        color: var(--color-text-muted);
+        font-size: 10px;
+        content: attr(data-label);
+      }
+    }
+
+    td[data-label="최근 결과"] {
+      grid-column: 1 / -1;
+      grid-row: 4;
+      padding-top: var(--space-2);
+      border-top: 1px solid var(--color-neutral-300);
+    }
+  }
+`;
+
+const InlineProgress = styled.div`
+  min-width: 118px;
+  display: grid;
+  grid-template-columns: 38px minmax(72px, 1fr);
+  align-items: center;
+  gap: var(--space-2);
+
+  > span {
+    font-weight: 700;
+    text-align: right;
+  }
+
+  @media (max-width: 720px) {
+    grid-template-columns: 42px minmax(0, 1fr);
+  }
+`;
+
+const TableMuted = styled.span`
+  color: var(--color-text-muted);
 `;
 
 const CollectionStatus = styled.span<{
@@ -2737,49 +3211,22 @@ const CollectionStatus = styled.span<{
     $status === "complete"
       ? "var(--color-secondary-300)"
       : $status === "quota_wait"
-        ? "var(--color-secondary-200)"
+        ? "#FFF1D6"
         : $status === "error"
-          ? "var(--color-neutral-200)"
+          ? "#FDE8EA"
           : "var(--color-brand-200)"};
   color: ${({ $status }) =>
-    $status === "error" ? "var(--color-error)" : "var(--color-text)"};
+    $status === "error"
+      ? "var(--color-error)"
+      : $status === "quota_wait"
+        ? "var(--color-warning)"
+        : "var(--color-text)"};
   font-size: 11px;
   font-weight: 700;
 `;
 
-const CollectionStoredCount = styled.div`
-  display: flex;
-  align-items: baseline;
-  gap: var(--space-2);
-
-  strong {
-    font-size: var(--font-size-500);
-  }
-
-  span {
-    color: var(--color-text-muted);
-    font-size: var(--font-size-100);
-  }
-`;
-
-const CollectionProgressMeta = styled.div`
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: var(--space-3);
-
-  strong {
-    font-size: var(--font-size-400);
-  }
-
-  span {
-    color: var(--color-text-muted);
-    font-size: 11px;
-  }
-`;
-
 const CollectionProgressTrack = styled.div`
-  height: var(--space-2);
+  height: 6px;
   overflow: hidden;
   border-radius: 999px;
   background: var(--color-neutral-300);
@@ -2796,26 +3243,10 @@ const CollectionProgressBar = styled.div<{
     $status === "complete"
       ? "var(--color-secondary-600)"
       : $status === "quota_wait"
-        ? "var(--color-secondary-500)"
-        : "var(--color-brand-600)"};
-`;
-
-const CollectionCardFooter = styled.div`
-  min-width: 0;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-2);
-  color: var(--color-text-muted);
-  font-size: 11px;
-
-  > span,
-  small {
-    min-width: 0;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
+        ? "var(--color-warning)"
+        : $status === "error"
+          ? "var(--color-error)"
+          : "var(--color-brand-600)"};
 `;
 
 const CollectionError = styled.small`
@@ -2836,24 +3267,23 @@ const CollectionNotice = styled.p`
     height: var(--space-2);
     flex: 0 0 auto;
     margin-top: 0.45em;
-    border-radius: 999px;
+    border-radius: 2px;
     background: var(--color-secondary-600);
   }
 `;
 
 const CrowdCoverageSection = styled.section`
   display: grid;
-  gap: var(--space-5);
-  padding: var(--space-6);
-  border: 1px solid var(--color-brand-200);
-  border-radius: var(--space-6);
+  gap: var(--space-4);
+  padding: var(--space-5);
+  border: 1px solid var(--color-neutral-400);
+  border-radius: 10px;
   background: var(--color-white);
-  box-shadow: 0 16px 42px rgb(var(--color-black-rgb) / 0.06);
 
   @media (max-width: 640px) {
-    gap: var(--space-4);
-    padding: var(--space-5);
-    border-radius: var(--space-5);
+    gap: var(--space-3);
+    padding: var(--space-4);
+    border-radius: 8px;
   }
 `;
 
@@ -2893,7 +3323,7 @@ const CrowdCoverageHeadline = styled.div`
 
   strong {
     color: var(--color-brand-800);
-    font-size: var(--font-size-800);
+    font-size: var(--font-size-700);
     line-height: 1;
   }
 
@@ -2914,8 +3344,102 @@ const CrowdCoverageBar = styled.div`
   height: var(--space-3);
   display: flex;
   overflow: hidden;
-  border-radius: 999px;
+  border-radius: 3px;
   background: var(--color-neutral-200);
+`;
+
+const CrowdLegend = styled.table`
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--font-size-100);
+  font-variant-numeric: tabular-nums;
+
+  th,
+  td {
+    padding: var(--space-2) var(--space-3);
+    border-bottom: 1px solid var(--color-neutral-300);
+    text-align: left;
+  }
+
+  thead th {
+    color: var(--color-text-muted);
+    font-size: 11px;
+    font-weight: 700;
+  }
+
+  tbody tr:last-child > * {
+    border-bottom: 0;
+  }
+
+  tbody th {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    font-weight: 700;
+    white-space: nowrap;
+
+    span {
+      width: 8px;
+      height: 8px;
+      flex: 0 0 auto;
+      border-radius: 2px;
+      background: var(--color-neutral-500);
+    }
+  }
+
+  tr[data-tone="realtime"] th span {
+    background: var(--color-brand-600);
+  }
+
+  tr[data-tone="forecast"] th span {
+    background: var(--color-secondary-700);
+  }
+
+  tr[data-tone="estimate"] th span {
+    background: var(--color-secondary-400);
+  }
+
+  [data-numeric="true"] {
+    text-align: right;
+    white-space: nowrap;
+  }
+
+  @media (max-width: 640px) {
+    thead {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      overflow: hidden;
+      clip-path: inset(50%);
+      white-space: nowrap;
+    }
+
+    tbody,
+    tr {
+      display: block;
+    }
+
+    tr {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto auto;
+      align-items: center;
+      border-bottom: 1px solid var(--color-neutral-300);
+    }
+
+    tbody tr:last-child {
+      border-bottom: 0;
+    }
+
+    th,
+    td {
+      padding: var(--space-2);
+      border: 0;
+    }
+
+    td:last-child {
+      display: none;
+    }
+  }
 `;
 
 const CrowdCoverageSegment = styled.span`
@@ -2938,73 +3462,6 @@ const CrowdCoverageSegment = styled.span`
   }
 `;
 
-const CrowdTierGrid = styled.div`
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: var(--space-3);
-
-  @media (max-width: 760px) {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-`;
-
-const CrowdTierCard = styled.article`
-  --tier-background: var(--color-neutral-100);
-  --tier-accent: var(--color-neutral-700);
-
-  min-width: 0;
-  display: grid;
-  gap: var(--space-2);
-  padding: var(--space-4);
-  border-radius: var(--space-4);
-  background: var(--tier-background);
-
-  &[data-tone="realtime"] {
-    --tier-background: var(--color-brand-100);
-    --tier-accent: var(--color-brand-800);
-  }
-
-  &[data-tone="forecast"] {
-    --tier-background: var(--color-secondary-200);
-    --tier-accent: var(--color-secondary-900);
-  }
-
-  &[data-tone="estimate"] {
-    --tier-background: var(--color-secondary-100);
-    --tier-accent: var(--color-secondary-700);
-  }
-
-  &[data-tone="unavailable"] {
-    --tier-background: var(--color-neutral-200);
-    --tier-accent: var(--color-error);
-  }
-
-  > span {
-    color: var(--tier-accent);
-    font-size: var(--font-size-100);
-    font-weight: 700;
-  }
-
-  strong {
-    font-size: var(--font-size-600);
-    line-height: 1.2;
-  }
-
-  small {
-    color: var(--color-text-muted);
-    font-size: var(--font-size-100);
-    line-height: 1.45;
-  }
-
-  @media (max-width: 480px) {
-    padding: var(--space-3);
-
-    strong {
-      font-size: var(--font-size-500);
-    }
-  }
-`;
-
 const CrowdCoverageMeta = styled.div`
   display: flex;
   flex-wrap: wrap;
@@ -3020,230 +3477,129 @@ const CrowdCoverageNote = styled.p`
   font-size: var(--font-size-100);
 `;
 
-const DesktopDataTools = styled.div`
+const OverviewSection = styled.section`
   display: grid;
-  gap: var(--space-6);
-
-  @media (max-width: 640px) {
-    display: none;
-  }
-`;
-
-const MobileToolsButton = styled.button`
-  display: none;
-
-  @media (max-width: 640px) {
-    width: 100%;
-    display: grid;
-    grid-template-columns: 1fr auto;
-    gap: var(--space-1) var(--space-3);
-    align-items: center;
-    padding: var(--space-4);
-    border: 1px solid var(--color-secondary-300);
-    border-radius: var(--space-4);
-    background: var(--color-secondary-100);
-    color: var(--color-text);
-    text-align: left;
-    font: inherit;
-    box-shadow: 0 8px 22px rgb(var(--color-black-rgb) / 0.04);
-
-    span {
-      font-size: var(--font-size-200);
-      font-weight: 700;
-    }
-
-    small {
-      overflow: hidden;
-      grid-column: 1;
-      color: var(--color-text-muted);
-      font-size: var(--font-size-100);
-      text-overflow: ellipsis;
-      white-space: nowrap;
-    }
-
-    b {
-      grid-column: 2;
-      grid-row: 1 / span 2;
-      color: var(--color-brand-900);
-      font-size: var(--font-size-600);
-      font-weight: 400;
-    }
-  }
-`;
-
-const MobileToolsBackdrop = styled.div<{
-  $dragOffset: number;
-  $dragging: boolean;
-}>`
-  position: fixed;
-  z-index: 100;
-  inset: 0;
-  display: none;
-  background: rgb(var(--color-black-rgb) / 0.32);
-
-  @media (max-width: 640px) {
-    display: flex;
-    align-items: end;
-    opacity: ${({ $dragOffset }) => Math.max(0.18, 1 - $dragOffset / 320)};
-    transition: ${({ $dragging }) => ($dragging ? "none" : "opacity 240ms ease")};
-  }
-`;
-
-const MobileToolsDrawer = styled.aside<{
-  $dragOffset: number;
-  $dragging: boolean;
-}>`
-  width: 100%;
-  max-height: min(88dvh, 860px);
-  overflow-y: auto;
-  padding:
-    var(--space-3)
-    var(--space-5)
-    max(var(--space-6), env(safe-area-inset-bottom));
-  border-radius: var(--space-5) var(--space-5) 0 0;
+  gap: var(--space-4);
+  padding: var(--space-5);
+  border: 1px solid var(--color-neutral-400);
+  border-radius: 10px;
   background: var(--color-white);
-  box-shadow: 0 -18px 40px rgb(var(--color-black-rgb) / 0.16);
-  transform: translateY(${({ $dragOffset }) => `${$dragOffset}px`});
-  transition: ${({ $dragging }) =>
-    $dragging ? "none" : "transform 360ms cubic-bezier(0.22, 1, 0.36, 1)"};
-  will-change: transform;
 
-  > section {
-    margin-top: var(--space-5);
+  @media (max-width: 640px) {
+    padding: var(--space-4);
+    border-radius: 8px;
   }
 `;
 
-const MobileToolsHandle = styled.button`
-  width: 64px;
-  height: 28px;
-  display: grid;
-  place-items: center;
-  justify-self: center;
-  padding: 0;
-  border: 0;
-  background: transparent;
-  cursor: grab;
-  touch-action: none;
-
-  &:active {
-    cursor: grabbing;
-  }
-
-  span {
-    width: var(--space-10);
-    height: var(--space-1);
-    border-radius: 999px;
-    background: var(--color-brand-500);
-  }
-`;
-
-const MobileToolsHeader = styled.div`
+const SectionHeading = styled.div`
   display: flex;
   align-items: start;
   justify-content: space-between;
   gap: var(--space-4);
 
-  span {
-    color: var(--color-brand-800);
-    font-size: 10px;
-    font-weight: 700;
-    letter-spacing: 0.08em;
-  }
-
   h2 {
     margin-top: var(--space-1);
     font-size: var(--font-size-400);
   }
-`;
 
-const OverviewSection = styled.section`
-  display: grid;
-  gap: var(--space-4);
-`;
-
-const ConnectionList = styled.div`
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-2);
-`;
-
-const ConnectionBadge = styled.div<{ $configured: boolean }>`
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-2);
-  padding: var(--space-2) var(--space-3);
-  border-radius: 999px;
-  background: ${({ $configured }) =>
-    $configured
-      ? "var(--color-secondary-200)"
-      : "var(--color-neutral-200)"};
-  font-size: var(--font-size-100);
-  font-weight: 600;
-
-  > span {
-    width: var(--space-2);
-    height: var(--space-2);
-    border-radius: 999px;
-    background: ${({ $configured }) =>
-      $configured
-        ? "var(--color-success)"
-        : "var(--color-neutral-600)"};
-  }
-
-  small {
-    color: var(--color-text-muted);
-  }
-`;
-
-const MetricGrid = styled.div`
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: var(--space-3);
-
-  @media (max-width: 720px) {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-`;
-
-const MetricCard = styled.article`
-  display: grid;
-  gap: var(--space-2);
-  padding: var(--space-5);
-  border-radius: var(--space-4);
-  background: var(--color-brand-100);
-  box-shadow: 0 10px 28px rgb(var(--color-black-rgb) / 0.05);
-
-  &:nth-of-type(even) {
-    background: var(--color-secondary-100);
-  }
-
-  span {
+  p {
+    margin-top: var(--space-1);
     color: var(--color-text-muted);
     font-size: var(--font-size-100);
   }
 
-  strong {
-    font-size: var(--font-size-700);
+  @media (max-width: 560px) {
+    align-items: stretch;
+    flex-direction: column;
+  }
+`;
+
+const ConnectionSummary = styled.div<{ $configured: boolean }>`
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--color-neutral-300);
+  border-radius: 8px;
+
+  > span {
+    width: 8px;
+    height: 8px;
+    flex: 0 0 auto;
+    border-radius: 2px;
+    background: ${({ $configured }) =>
+      $configured ? "var(--color-success)" : "var(--color-error)"};
   }
 
-  @media (max-width: 480px) {
-    padding: var(--space-4);
+  strong,
+  small {
+    display: block;
+  }
+
+  strong {
+    font-size: var(--font-size-100);
+  }
+
+  small {
+    color: var(--color-text-muted);
+    font-size: 11px;
+  }
+`;
+
+const InventoryTable = styled.table`
+  width: 100%;
+  border: 1px solid var(--color-neutral-300);
+  border-collapse: separate;
+  border-spacing: 0;
+  border-radius: 8px;
+  font-size: var(--font-size-100);
+  font-variant-numeric: tabular-nums;
+
+  th,
+  td {
+    padding: var(--space-2) var(--space-3);
+    border-bottom: 1px solid var(--color-neutral-300);
+  }
+
+  thead th {
+    background: var(--color-neutral-200);
+    color: var(--color-text-muted);
+    font-size: 11px;
+    text-align: left;
+  }
+
+  thead th:last-child,
+  tbody td {
+    text-align: right;
+  }
+
+  tbody th {
+    font-weight: 600;
+    text-align: left;
+  }
+
+  tbody tr:last-child > * {
+    border-bottom: 0;
   }
 `;
 
 const LastSync = styled.p`
   color: var(--color-text-muted);
   font-size: var(--font-size-100);
+
+  strong {
+    color: var(--color-text);
+    font-variant-numeric: tabular-nums;
+  }
 `;
 
 const SyncSection = styled.section`
   display: grid;
   gap: var(--space-4);
   padding: var(--space-5);
-  border: 1px solid var(--color-secondary-300);
-  border-radius: var(--space-5);
-  background: var(--color-secondary-100);
-  box-shadow: 0 12px 30px rgb(var(--color-black-rgb) / 0.05);
+  border: 1px solid var(--color-neutral-400);
+  border-radius: 10px;
+  background: var(--color-white);
 
   h2 {
     font-size: var(--font-size-400);
@@ -3253,6 +3609,11 @@ const SyncSection = styled.section`
     margin-top: var(--space-1);
     color: var(--color-text-muted);
     font-size: var(--font-size-100);
+  }
+
+  @media (max-width: 640px) {
+    padding: var(--space-4);
+    border-radius: 8px;
   }
 `;
 
@@ -3295,7 +3656,7 @@ const Input = styled.input`
   min-height: 44px;
   padding: 0 var(--space-3);
   border: 1px solid var(--color-border);
-  border-radius: var(--space-3);
+  border-radius: 7px;
   outline: 0;
   background: var(--color-white);
   color: var(--color-text);
@@ -3312,7 +3673,7 @@ const Select = styled.select`
   min-height: 44px;
   padding: 0 var(--space-3);
   border: 1px solid var(--color-border);
-  border-radius: var(--space-3);
+  border-radius: 7px;
   background: var(--color-white);
   color: var(--color-text);
   font: inherit;
@@ -3322,7 +3683,7 @@ const PrimaryButton = styled.button`
   min-height: 44px;
   padding: 0 var(--space-5);
   border: 0;
-  border-radius: var(--space-3);
+  border-radius: 7px;
   background: var(--color-brand-700);
   color: var(--color-white);
   font: inherit;
@@ -3335,11 +3696,11 @@ const PrimaryButton = styled.button`
   }
 `;
 
-const Tabs = styled.nav`
+const DatasetTabs = styled.nav`
   display: flex;
-  gap: var(--space-2);
+  gap: 0;
   overflow-x: auto;
-  padding-bottom: var(--space-1);
+  border-bottom: 1px solid var(--color-neutral-400);
   scroll-snap-type: x proximity;
   scrollbar-width: none;
 
@@ -3349,25 +3710,42 @@ const Tabs = styled.nav`
 
   @media (max-width: 640px) {
     margin: 0 calc(var(--space-4) * -1);
-    padding: 0 var(--space-4) var(--space-1);
+    padding: 0 var(--space-4);
   }
 `;
 
-const TabButton = styled.button<{ $active: boolean }>`
+const DatasetTabButton = styled.button<{ $active: boolean }>`
+  position: relative;
   min-width: max-content;
   min-height: 44px;
-  padding: 0 var(--space-5);
+  padding: 0 var(--space-4);
   border: 0;
-  border-radius: 999px;
-  background: ${({ $active }) =>
-    $active ? "var(--color-brand-700)" : "var(--color-brand-100)"};
+  border-radius: 0;
+  background: transparent;
   color: ${({ $active }) =>
-    $active ? "var(--color-white)" : "var(--color-text)"};
+    $active ? "var(--color-brand-1000)" : "var(--color-text-muted)"};
   font: inherit;
   font-size: var(--font-size-100);
   font-weight: 700;
   cursor: pointer;
   scroll-snap-align: start;
+
+  &::after {
+    position: absolute;
+    right: var(--space-3);
+    bottom: -1px;
+    left: var(--space-3);
+    height: 3px;
+    border-radius: 3px 3px 0 0;
+    background: ${({ $active }) =>
+      $active ? "var(--color-brand-700)" : "transparent"};
+    content: "";
+  }
+
+  &:focus-visible {
+    outline: 3px solid var(--color-brand-900);
+    outline-offset: -3px;
+  }
 
   @media (max-width: 640px) {
     min-height: 40px;
@@ -3392,21 +3770,12 @@ const DatasetHeader = styled.section`
   align-items: end;
   justify-content: space-between;
   gap: var(--space-5);
-  padding: var(--space-5);
-  border: 1px solid var(--color-brand-200);
-  border-radius: var(--space-5);
-  background: var(--color-brand-100);
-  box-shadow: 0 10px 28px rgb(var(--color-black-rgb) / 0.05);
-
-  > div:first-of-type > span {
-    color: var(--color-brand-800);
-    font-size: 10px;
-    font-weight: 700;
-    letter-spacing: 0.08em;
-  }
+  padding: var(--space-4);
+  border: 1px solid var(--color-neutral-400);
+  border-radius: 8px;
+  background: var(--color-white);
 
   h2 {
-    margin-top: var(--space-1);
     font-size: var(--font-size-500);
   }
 
@@ -3465,8 +3834,9 @@ const DatasetHeaderStats = styled.div`
     display: grid;
     gap: var(--space-1);
     padding: var(--space-3) var(--space-4);
-    border-radius: var(--space-3);
-    background: rgb(var(--color-white-rgb) / 0.78);
+    border-left: 2px solid var(--color-brand-500);
+    border-radius: 0;
+    background: var(--color-neutral-200);
   }
 
   span {
@@ -3492,27 +3862,17 @@ const PlaceExplorerHeader = styled.section`
   align-items: end;
   justify-content: space-between;
   gap: var(--space-5);
-  padding: var(--space-6);
-  border: 1px solid var(--color-brand-200);
-  border-radius: var(--space-5);
-  background: var(--color-brand-100);
-  box-shadow: 0 10px 28px rgb(var(--color-black-rgb) / 0.05);
+  padding: var(--space-4);
+  border: 1px solid var(--color-neutral-400);
+  border-radius: 8px;
+  background: var(--color-white);
 
-  > div:first-of-type > span,
   h2,
   p {
     display: block;
   }
 
-  > div:first-of-type > span {
-    color: var(--color-brand-800);
-    font-size: 10px;
-    font-weight: 700;
-    letter-spacing: 0.08em;
-  }
-
   h2 {
-    margin-top: var(--space-1);
     font-size: var(--font-size-500);
   }
 
@@ -3525,7 +3885,7 @@ const PlaceExplorerHeader = styled.section`
   @media (max-width: 720px) {
     align-items: stretch;
     flex-direction: column;
-    padding: var(--space-5);
+    padding: var(--space-4);
   }
 
   @media (max-width: 640px) {
@@ -3586,9 +3946,10 @@ const PlaceDataSummary = styled.section`
 const PlaceSummaryItem = styled.div`
   display: grid;
   gap: var(--space-1);
-  padding: var(--space-4);
-  border-radius: var(--space-4);
-  background: var(--color-secondary-100);
+  padding: var(--space-2) var(--space-3);
+  border-left: 2px solid var(--color-brand-500);
+  border-radius: 0;
+  background: var(--color-white);
 
   span {
     color: var(--color-text-muted);
@@ -3601,8 +3962,7 @@ const PlaceSummaryItem = styled.div`
 
   @media (max-width: 640px) {
     gap: 0;
-    padding: var(--space-3);
-    border-radius: var(--space-3);
+    padding: var(--space-2);
 
     span {
       overflow: hidden;
@@ -3639,7 +3999,7 @@ const PlaceReviewToolbar = styled.section`
   gap: var(--space-3);
   padding: var(--space-3) var(--space-4);
   border: 1px solid var(--color-border);
-  border-radius: var(--space-4);
+  border-radius: 8px;
   background: var(--color-white);
 
   > span {
@@ -3670,7 +4030,7 @@ const ToolbarButton = styled.button<{ $danger?: boolean }>`
   padding: 0 var(--space-3);
   border: 1px solid ${({ $danger }) =>
     $danger ? "var(--color-error)" : "var(--color-brand-300)"};
-  border-radius: var(--space-3);
+  border-radius: 7px;
   background: ${({ $danger }) =>
     $danger ? "var(--color-white)" : "var(--color-brand-100)"};
   color: ${({ $danger }) =>
@@ -3689,16 +4049,14 @@ const ToolbarButton = styled.button<{ $danger?: boolean }>`
 const PlaceTable = styled.section`
   overflow: hidden;
   border: 1px solid var(--color-border);
-  border-radius: var(--space-5);
+  border-radius: 8px;
   background: var(--color-surface);
-  box-shadow: 0 12px 30px rgb(var(--color-black-rgb) / 0.05);
 
   @media (max-width: 720px) {
-    overflow: visible;
-    border: 0;
-    border-radius: 0;
-    background: transparent;
-    box-shadow: none;
+    overflow: hidden;
+    border: 1px solid var(--color-neutral-400);
+    border-radius: 8px;
+    background: var(--color-white);
   }
 `;
 
@@ -3722,7 +4080,7 @@ const PlaceTableBody = styled.div`
   display: grid;
 
   @media (max-width: 720px) {
-    gap: var(--space-2);
+    gap: 0;
   }
 `;
 
@@ -3742,10 +4100,14 @@ const PlaceTableRow = styled.div`
   @media (max-width: 720px) {
     grid-template-columns: 32px minmax(0, 1fr);
     align-items: start;
-    border: 1px solid var(--color-border);
-    border-radius: var(--space-4);
+    border: 0;
+    border-bottom: 1px solid var(--color-neutral-300);
+    border-radius: 0;
     background: var(--color-surface);
-    box-shadow: 0 6px 18px rgb(var(--color-black-rgb) / 0.04);
+
+    &:last-child {
+      border-bottom: 0;
+    }
   }
 `;
 
@@ -3848,8 +4210,8 @@ const PlaceReviewSection = styled.section`
   padding: var(--space-5);
   margin-bottom: var(--space-5);
   border: 1px solid var(--color-secondary-300);
-  border-radius: var(--space-5);
-  background: var(--color-secondary-100);
+  border-radius: 8px;
+  background: var(--color-neutral-200);
 `;
 
 const PlaceReviewHeader = styled.div`
@@ -3900,7 +4262,7 @@ const TextArea = styled.textarea`
   resize: vertical;
   padding: var(--space-3);
   border: 1px solid var(--color-border);
-  border-radius: var(--space-3);
+  border-radius: 7px;
   outline: 0;
   background: var(--color-white);
   color: var(--color-text);
@@ -3933,7 +4295,7 @@ const PlaceReviewActions = styled.div`
 const PlaceReviewUnavailable = styled.p`
   padding: var(--space-4);
   margin-bottom: var(--space-5);
-  border-radius: var(--space-4);
+  border-radius: 8px;
   background: var(--color-neutral-100);
   color: var(--color-text-muted);
   font-size: var(--font-size-100);
@@ -3965,7 +4327,7 @@ const PlaceDrawer = styled.aside`
       var(--space-3)
       var(--space-5)
       max(var(--space-6), env(safe-area-inset-bottom));
-    border-radius: var(--space-5) var(--space-5) 0 0;
+    border-radius: 12px 12px 0 0;
     box-shadow: 0 -18px 40px rgb(var(--color-black-rgb) / 0.16);
   }
 `;
@@ -4000,6 +4362,12 @@ const PlaceDrawerHeader = styled.div`
     margin-top: var(--space-1);
     font-size: var(--font-size-500);
   }
+
+  p {
+    margin-top: var(--space-1);
+    color: var(--color-text-muted);
+    font-size: var(--font-size-100);
+  }
 `;
 
 const DrawerCloseButton = styled.button`
@@ -4009,7 +4377,7 @@ const DrawerCloseButton = styled.button`
   flex: 0 0 auto;
   place-items: center;
   border: 0;
-  border-radius: 999px;
+  border-radius: 7px;
   background: var(--color-neutral-100);
   color: var(--color-text);
   font: inherit;
@@ -4033,13 +4401,14 @@ const PlaceDetailGrid = styled.div`
   margin-bottom: var(--space-6);
 
   > div {
-    min-height: 86px;
+    min-height: 72px;
     display: grid;
     align-content: start;
     gap: var(--space-2);
     padding: var(--space-4);
-    border-radius: var(--space-4);
-    background: var(--color-brand-100);
+    border: 1px solid var(--color-neutral-300);
+    border-radius: 8px;
+    background: var(--color-white);
   }
 
   span {
@@ -4057,6 +4426,14 @@ const PlaceDetailGrid = styled.div`
   }
 `;
 
+const RecordDetailGrid = styled(PlaceDetailGrid)`
+  margin-top: var(--space-6);
+
+  > div {
+    min-height: 0;
+  }
+`;
+
 const PaginationNav = styled.nav`
   display: flex;
   align-items: center;
@@ -4064,9 +4441,8 @@ const PaginationNav = styled.nav`
   gap: var(--space-4);
   padding: var(--space-4);
   border: 1px solid var(--color-border);
-  border-radius: var(--space-4);
+  border-radius: 8px;
   background: var(--color-white);
-  box-shadow: 0 8px 24px rgb(var(--color-black-rgb) / 0.04);
 
   @media (max-width: 640px) {
     align-items: stretch;
@@ -4101,7 +4477,7 @@ const PaginationButton = styled.button`
   height: 40px;
   padding: 0 var(--space-3);
   border: 1px solid var(--color-border);
-  border-radius: var(--space-3);
+  border-radius: 7px;
   background: var(--color-white);
   color: var(--color-text);
   font: inherit;
@@ -4131,7 +4507,7 @@ const PaginationNumberButton = styled.button<{ $active: boolean }>`
   width: 40px;
   height: 40px;
   border: 0;
-  border-radius: var(--space-3);
+  border-radius: 7px;
   background: ${({ $active }) =>
     $active ? "var(--color-brand-700)" : "transparent"};
   color: ${({ $active }) =>
@@ -4154,55 +4530,238 @@ const PaginationNumberButton = styled.button<{ $active: boolean }>`
   }
 `;
 
-const RecordList = styled.section`
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: var(--space-3);
+const RecordTableFrame = styled.div`
+  min-width: 0;
+  overflow-x: auto;
+  border: 1px solid var(--color-neutral-400);
+  border-radius: 8px;
+  background: var(--color-white);
 
-  @media (max-width: 860px) {
-    grid-template-columns: 1fr;
+  @media (max-width: 720px) {
+    overflow: hidden;
   }
 `;
 
-const RecordCard = styled.article`
-  display: grid;
-  gap: var(--space-3);
-  padding: var(--space-5);
-  border: 1px solid var(--color-border);
-  border-radius: var(--space-4);
-  background: var(--color-surface);
-  box-shadow: 0 10px 28px rgb(var(--color-black-rgb) / 0.05);
-
-  @media (max-width: 480px) {
-    padding: var(--space-4);
-    border-color: var(--color-neutral-300);
-    border-radius: var(--space-5);
-  }
-`;
-
-const PhotoPreview = styled.img`
+const RecordTable = styled.table`
   width: 100%;
-  aspect-ratio: 16 / 7;
+  min-width: 900px;
+  border-collapse: collapse;
+  font-size: var(--font-size-100);
+  font-variant-numeric: tabular-nums;
+
+  th,
+  td {
+    min-width: 0;
+    padding: var(--space-3);
+    border-bottom: 1px solid var(--color-neutral-300);
+    color: var(--color-text-muted);
+    text-align: left;
+    vertical-align: middle;
+  }
+
+  thead th {
+    position: sticky;
+    z-index: 1;
+    top: 0;
+    background: var(--color-neutral-200);
+    font-size: 11px;
+    font-weight: 700;
+    white-space: nowrap;
+  }
+
+  thead th:last-child {
+    width: 64px;
+    text-align: right;
+  }
+
+  tbody tr {
+    transition: background 120ms ease;
+
+    &:hover {
+      background: var(--color-brand-100);
+    }
+  }
+
+  tbody tr:last-child td {
+    border-bottom: 0;
+  }
+
+  td[data-numeric="true"],
+  th[data-numeric="true"] {
+    text-align: right;
+  }
+
+  td:last-child {
+    text-align: right;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    tbody tr {
+      transition: none;
+    }
+  }
+
+  @media (max-width: 720px) {
+    min-width: 0;
+    display: block;
+
+    thead {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      overflow: hidden;
+      clip-path: inset(50%);
+      white-space: nowrap;
+    }
+
+    tbody {
+      display: block;
+    }
+
+    tbody tr {
+      min-height: 68px;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      grid-template-rows: auto auto;
+      align-items: center;
+      gap: 2px var(--space-3);
+      padding: var(--space-3);
+      border-bottom: 1px solid var(--color-neutral-300);
+    }
+
+    tbody tr:last-child {
+      border-bottom: 0;
+    }
+
+    td {
+      display: none;
+      padding: 0;
+      border: 0;
+    }
+
+    td[data-mobile="primary"] {
+      min-width: 0;
+      display: block;
+      grid-column: 1;
+      grid-row: 1;
+      color: var(--color-text);
+    }
+
+    td[data-mobile="secondary"] {
+      min-width: 0;
+      display: block;
+      overflow: hidden;
+      grid-column: 1;
+      grid-row: 2;
+      font-size: 11px;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    td[data-mobile="value"] {
+      display: block;
+      grid-column: 2;
+      grid-row: 1;
+      justify-self: end;
+      color: var(--color-text);
+      text-align: right;
+    }
+
+    td[data-mobile="action"] {
+      display: block;
+      grid-column: 2;
+      grid-row: 2;
+      justify-self: end;
+    }
+  }
+`;
+
+const RowDetailButton = styled.button`
+  min-height: 32px;
+  padding: 0 var(--space-2);
+  border: 1px solid var(--color-neutral-400);
+  border-radius: 6px;
+  background: var(--color-white);
+  color: var(--color-brand-900);
+  font: inherit;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+
+  &:hover,
+  &:focus-visible {
+    border-color: var(--color-brand-600);
+    outline: 0;
+    background: var(--color-brand-100);
+  }
+`;
+
+const PrimaryCellButton = styled.button`
+  width: 100%;
+  min-height: 36px;
+  display: block;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  font: inherit;
+  cursor: pointer;
+
+  &:focus-visible {
+    border-radius: 4px;
+    outline: 3px solid var(--color-brand-900);
+    outline-offset: 2px;
+  }
+
+  @media (max-width: 720px) {
+    min-height: 44px;
+    display: grid;
+    align-items: center;
+  }
+`;
+
+const TablePrimary = styled.strong`
+  display: block;
+  overflow: hidden;
+  color: var(--color-text);
+  font-size: var(--font-size-100);
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+`;
+
+const TableMetric = styled.strong`
+  color: var(--color-text);
+  font-size: var(--font-size-200);
+  font-variant-numeric: tabular-nums;
+`;
+
+const CodeText = styled.code`
+  color: var(--color-text-muted);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 11px;
+`;
+
+const TablePhotoPreview = styled.img`
+  width: 64px;
+  height: 44px;
+  display: block;
   object-fit: cover;
-  border-radius: var(--space-3);
+  border-radius: 6px;
   background: var(--color-neutral-200);
 `;
 
-const RecordHeader = styled.div`
-  display: flex;
-  align-items: start;
-  justify-content: space-between;
-  gap: var(--space-4);
-
-  h2 {
-    font-size: var(--font-size-300);
-  }
-
-  p {
-    margin-top: var(--space-1);
-    color: var(--color-text-muted);
-    font-size: var(--font-size-100);
-  }
+const TaxonomyBadge = styled.span`
+  display: inline-block;
+  padding: 3px var(--space-2);
+  border: 1px solid var(--color-neutral-400);
+  border-radius: 999px;
+  background: var(--color-white);
+  color: var(--color-text-muted);
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
 `;
 
 const StatusBadge = styled.span<{ $tone: string }>`
@@ -4212,20 +4771,19 @@ const StatusBadge = styled.span<{ $tone: string }>`
   background: ${({ $tone }) =>
     $tone === "success" || $tone === "succeeded" || $tone === "approved"
       ? "var(--color-secondary-300)"
-      : $tone === "failed" || $tone === "rejected"
-        ? "var(--color-neutral-200)"
+    : $tone === "failed" || $tone === "rejected"
+        ? "#FDE8EA"
+      : $tone === "partial"
+        ? "#FFF1D6"
         : "var(--color-brand-200)"};
   color: ${({ $tone }) =>
     $tone === "failed" || $tone === "rejected"
       ? "var(--color-error)"
+      : $tone === "partial"
+        ? "var(--color-warning)"
       : "var(--color-text)"};
   font-size: var(--font-size-100);
   font-weight: 700;
-`;
-
-const MetricValue = styled.strong`
-  color: var(--color-brand-900);
-  font-size: var(--font-size-600);
 `;
 
 const PhotoLink = styled.a`
@@ -4234,29 +4792,11 @@ const PhotoLink = styled.a`
   display: inline-grid;
   place-items: center;
   padding: 0 var(--space-3);
-  border-radius: 999px;
+  border-radius: 6px;
   background: var(--color-brand-100);
   color: var(--color-brand-1000);
   font-size: var(--font-size-100);
   font-weight: 700;
-`;
-
-const Metadata = styled.p`
-  color: var(--color-text-muted);
-  font-size: var(--font-size-100);
-`;
-
-const RunCounts = styled.div`
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-2);
-
-  span {
-    padding: var(--space-1) var(--space-2);
-    border-radius: var(--space-2);
-    background: var(--color-white);
-    font-size: var(--font-size-100);
-  }
 `;
 
 const ErrorText = styled.p`
@@ -4277,7 +4817,7 @@ const Details = styled.details`
     overflow: auto;
     padding: var(--space-4);
     margin: var(--space-2) 0 0;
-    border-radius: var(--space-3);
+    border-radius: 7px;
     background: var(--color-neutral-1200);
     color: var(--color-neutral-200);
     font-size: 12px;
@@ -4292,22 +4832,22 @@ const StatePanel = styled.div`
   display: grid;
   place-items: center;
   padding: var(--space-6);
-  border-radius: var(--space-5);
+  border: 1px solid var(--color-neutral-300);
+  border-radius: 8px;
   background: var(--color-neutral-100);
   color: var(--color-text-muted);
-  box-shadow: 0 10px 28px rgb(var(--color-black-rgb) / 0.05);
 `;
 
 const ErrorNotice = styled.div`
   padding: var(--space-4);
   border: 1px solid var(--color-error);
-  border-radius: var(--space-3);
+  border-radius: 7px;
   color: var(--color-error);
 `;
 
 const SuccessNotice = styled.div`
   padding: var(--space-4);
-  border-radius: var(--space-3);
+  border-radius: 7px;
   background: var(--color-secondary-200);
   color: var(--color-text);
   font-weight: 700;
@@ -4326,7 +4866,7 @@ const AccessCard = styled.section`
   display: grid;
   gap: var(--space-4);
   padding: var(--space-8);
-  border-radius: var(--space-5);
+  border-radius: 10px;
   background: var(--color-brand-100);
   box-shadow: 0 16px 40px rgb(var(--color-black-rgb) / 0.08);
 
@@ -4343,7 +4883,7 @@ const PrimaryLink = styled(Link)`
   min-height: 44px;
   display: grid;
   place-items: center;
-  border-radius: var(--space-3);
+  border-radius: 7px;
   background: var(--color-brand-700);
   color: var(--color-white);
   font-weight: 700;

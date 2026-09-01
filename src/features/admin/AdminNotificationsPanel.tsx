@@ -42,6 +42,10 @@ export function AdminNotificationsPanel({
         </PulseCopy>
         <HeroMetrics>
           <HeroMetric>
+            <span>알림 사용자</span>
+            <strong>{data.summary.activeUsers.toLocaleString("ko-KR")}</strong>
+          </HeroMetric>
+          <HeroMetric>
             <span>활성 기기</span>
             <strong>{data.summary.activeDevices.toLocaleString("ko-KR")}</strong>
           </HeroMetric>
@@ -54,7 +58,18 @@ export function AdminNotificationsPanel({
             </strong>
           </HeroMetric>
         </HeroMetrics>
-        <DeliveryTrack aria-label="최근 24시간 알림 전달 성공 비율">
+        <DeliveryTrack
+          role="progressbar"
+          aria-label="최근 24시간 알림 전달 성공 비율"
+          aria-valuemin={0}
+          aria-valuemax={100}
+          aria-valuenow={data.summary.successRate ?? undefined}
+          aria-valuetext={
+            data.summary.successRate === null
+              ? "최근 24시간 전송 없음"
+              : `${data.summary.successRate}% 성공`
+          }
+        >
           <DeliverySuccess style={{ width: `${deliveryWidth}%` }} />
         </DeliveryTrack>
         <DeliveryLegend>
@@ -63,65 +78,79 @@ export function AdminNotificationsPanel({
           <time>
             마지막 성공 {formatOptionalDate(data.summary.lastSentAt)}
           </time>
+          <time>집계 {formatDate(data.generatedAt)}</time>
         </DeliveryLegend>
       </PulseHero>
 
-      <PlatformGrid>
-        {data.platforms.map((summary) => {
-          const configuration = data.configuration[summary.platform];
-          return (
-            <PlatformCard key={summary.platform}>
-              <PlatformHeader>
-                <PlatformIdentity>
-                  <PlatformMark $platform={summary.platform} aria-hidden="true">
-                    {summary.platform === "android" ? "A" : "i"}
-                  </PlatformMark>
-                  <div>
-                    <h3>{getPlatformLabel(summary.platform)}</h3>
-                    <p>{getConfigurationLabel(configuration)}</p>
-                  </div>
-                </PlatformIdentity>
-                <ConfigurationBadge
-                  $state={
-                    configuration.enabled
-                      ? "enabled"
-                      : configuration.testMode
-                        ? "test"
-                        : "disabled"
-                  }
-                >
-                  {configuration.enabled
-                    ? "전체 사용"
-                    : configuration.testMode
-                      ? "내부 테스트"
-                      : "꺼짐"}
-                </ConfigurationBadge>
-              </PlatformHeader>
-              <PlatformStats>
-                <div>
-                  <span>활성</span>
-                  <strong>{summary.activeDevices}</strong>
-                </div>
-                <div>
-                  <span>무효</span>
-                  <strong>{summary.invalidatedDevices}</strong>
-                </div>
-                <div>
-                  <span>24시간 성공</span>
-                  <strong>{summary.sent24h}</strong>
-                </div>
-                <div>
-                  <span>24시간 실패</span>
-                  <strong>{summary.failed24h + summary.invalidated24h}</strong>
-                </div>
-              </PlatformStats>
-              <PlatformFooter>
-                마지막 전달 {formatOptionalDate(summary.lastSentAt)}
-              </PlatformFooter>
-            </PlatformCard>
-          );
-        })}
-      </PlatformGrid>
+      <OperationsSection>
+        <SectionHeading>
+          <div>
+            <h3>플랫폼 비교</h3>
+            <p>발송 설정과 등록 기기, 최근 전달 결과를 같은 기준으로 비교합니다.</p>
+          </div>
+        </SectionHeading>
+        <TableViewport>
+          <NotificationTable>
+            <thead>
+              <tr>
+                <th scope="col">플랫폼</th>
+                <th scope="col">발송 범위</th>
+                <th scope="col">활성</th>
+                <th scope="col">해제</th>
+                <th scope="col">무효</th>
+                <th scope="col">24시간 성공</th>
+                <th scope="col">24시간 실패</th>
+                <th scope="col">마지막 성공</th>
+              </tr>
+            </thead>
+            <tbody>
+              {data.platforms.map((summary) => {
+                const configuration = data.configuration[summary.platform];
+                return (
+                  <tr key={summary.platform}>
+                    <td data-label="플랫폼">
+                      <PlatformIdentity>
+                        <PlatformMark $platform={summary.platform} aria-hidden="true">
+                          {summary.platform === "android" ? "A" : "i"}
+                        </PlatformMark>
+                        <strong>{getPlatformLabel(summary.platform)}</strong>
+                      </PlatformIdentity>
+                    </td>
+                    <td data-label="발송 범위">
+                      <ConfigurationBadge
+                        $state={
+                          configuration.enabled
+                            ? "enabled"
+                            : configuration.testMode
+                              ? "test"
+                              : "disabled"
+                        }
+                      >
+                        {configuration.enabled
+                          ? "전체 사용"
+                          : configuration.testMode
+                            ? "내부 테스트"
+                            : "꺼짐"}
+                      </ConfigurationBadge>
+                      <TableHint>{getConfigurationLabel(configuration)}</TableHint>
+                    </td>
+                    <td data-label="활성">{summary.activeDevices}</td>
+                    <td data-label="해제">{summary.disabledDevices}</td>
+                    <td data-label="무효">{summary.invalidatedDevices}</td>
+                    <td data-label="24시간 성공">{summary.sent24h}</td>
+                    <td data-label="24시간 실패">
+                      {summary.failed24h + summary.invalidated24h}
+                    </td>
+                    <td data-label="마지막 성공">
+                      {formatOptionalDate(summary.lastSentAt)}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </NotificationTable>
+        </TableViewport>
+      </OperationsSection>
 
       <ContentGrid>
         <OperationsSection>
@@ -138,18 +167,28 @@ export function AdminNotificationsPanel({
               <span>최근 전송 기록에서 공급자 오류가 발견되지 않았습니다.</span>
             </QuietState>
           ) : (
-            <ErrorList>
-              {data.errors.map((error) => (
-                <li key={`${error.platform}:${error.code}`}>
-                  <PlatformPill>{getPlatformLabel(error.platform)}</PlatformPill>
-                  <div>
-                    <strong>{error.code}</strong>
-                    <span>마지막 {formatDate(error.lastOccurredAt)}</span>
-                  </div>
-                  <ErrorCount>{error.count}회</ErrorCount>
-                </li>
-              ))}
-            </ErrorList>
+            <TableViewport>
+              <NotificationTable>
+                <thead>
+                  <tr>
+                    <th scope="col">플랫폼</th>
+                    <th scope="col">오류 코드</th>
+                    <th scope="col">횟수</th>
+                    <th scope="col">마지막 발생</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {data.errors.map((error) => (
+                    <tr key={`${error.platform}:${error.code}`}>
+                      <td data-label="플랫폼">{getPlatformLabel(error.platform)}</td>
+                      <td data-label="오류 코드"><code>{error.code}</code></td>
+                      <td data-label="횟수"><ErrorCount>{error.count}회</ErrorCount></td>
+                      <td data-label="마지막 발생">{formatDate(error.lastOccurredAt)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </NotificationTable>
+            </TableViewport>
           )}
         </OperationsSection>
 
@@ -161,42 +200,56 @@ export function AdminNotificationsPanel({
             </div>
             <CountBadge>{data.devices.length}</CountBadge>
           </SectionHeading>
-          <DeviceList>
-            {data.devices.map((device) => (
-              <li key={device.id}>
-                <DeviceMain>
-                  <PlatformMark $platform={device.platform} aria-hidden="true">
-                    {device.platform === "android" ? "A" : "i"}
-                  </PlatformMark>
-                  <div>
-                    <strong>{device.email ?? shortenId(device.userId)}</strong>
-                    <span>
+          <DeviceTableViewport
+            role="region"
+            tabIndex={0}
+            aria-label="등록 기기 목록, 최대 60개"
+          >
+            <NotificationTable>
+              <thead>
+                <tr>
+                  <th scope="col">플랫폼</th>
+                  <th scope="col">계정</th>
+                  <th scope="col">앱·언어</th>
+                  <th scope="col">상태</th>
+                  <th scope="col">최근 확인</th>
+                </tr>
+              </thead>
+              <tbody>
+                {data.devices.map((device) => (
+                  <tr key={device.id}>
+                    <td data-label="플랫폼">{getPlatformLabel(device.platform)}</td>
+                    <td data-label="계정">
+                      <strong>{device.email ?? shortenId(device.userId)}</strong>
+                      <TableHint>{shortenId(device.userId)}</TableHint>
+                    </td>
+                    <td data-label="앱·언어">
                       {device.appVersion ? `v${device.appVersion}` : "버전 미확인"}
                       {device.locale ? ` · ${device.locale}` : ""}
-                    </span>
-                  </div>
-                </DeviceMain>
-                <DeviceTail>
-                  <DeviceStatus
-                    $state={
-                      device.invalidatedAt
-                        ? "invalidated"
-                        : device.enabled
-                          ? "active"
-                          : "disabled"
-                    }
-                  >
-                    {device.invalidatedAt
-                      ? "토큰 무효"
-                      : device.enabled
-                        ? "활성"
-                        : "해제"}
-                  </DeviceStatus>
-                  <time>{formatDate(device.lastSeenAt)}</time>
-                </DeviceTail>
-              </li>
-            ))}
-          </DeviceList>
+                    </td>
+                    <td data-label="상태">
+                      <DeviceStatus
+                        $state={
+                          device.invalidatedAt
+                            ? "invalidated"
+                            : device.enabled
+                              ? "active"
+                              : "disabled"
+                        }
+                      >
+                        {device.invalidatedAt
+                          ? "토큰 무효"
+                          : device.enabled
+                            ? "활성"
+                            : "해제"}
+                      </DeviceStatus>
+                    </td>
+                    <td data-label="최근 확인">{formatDate(device.lastSeenAt)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </NotificationTable>
+          </DeviceTableViewport>
         </OperationsSection>
       </ContentGrid>
 
@@ -214,31 +267,55 @@ export function AdminNotificationsPanel({
             <span>새 알림이 발송되면 결과가 이곳에 쌓입니다.</span>
           </QuietState>
         ) : (
-          <DeliveryList>
-            {data.recent.map((delivery) => (
-              <li key={delivery.id}>
-                <DeliveryIdentity>
-                  <DeliveryDot $status={delivery.status} />
-                  <div>
-                    <strong>{getMessageTypeLabel(delivery.messageType)}</strong>
-                    <span>{delivery.email ?? shortenId(delivery.userId)}</span>
-                  </div>
-                </DeliveryIdentity>
-                <DeliveryMeta>
-                  <span>{getPlatformLabel(delivery.platform)}</span>
-                  <DeliveryStatus $status={delivery.status}>
-                    {getDeliveryStatusLabel(delivery.status)}
-                  </DeliveryStatus>
-                  <time>{formatDate(delivery.createdAt)}</time>
-                </DeliveryMeta>
-                {(delivery.errorCode || delivery.errorMessage) && (
-                  <DeliveryError>
-                    {delivery.errorCode ?? delivery.errorMessage}
-                  </DeliveryError>
-                )}
-              </li>
-            ))}
-          </DeliveryList>
+          <TableViewport>
+            <NotificationTable>
+              <thead>
+                <tr>
+                  <th scope="col">결과</th>
+                  <th scope="col">알림</th>
+                  <th scope="col">계정</th>
+                  <th scope="col">플랫폼·공급자</th>
+                  <th scope="col">앱 버전</th>
+                  <th scope="col">오류</th>
+                  <th scope="col">발송 시각</th>
+                </tr>
+              </thead>
+              <tbody>
+                {data.recent.map((delivery) => (
+                  <tr key={delivery.id}>
+                    <td data-label="결과">
+                      <DeliveryStatus $status={delivery.status}>
+                        {getDeliveryStatusLabel(delivery.status)}
+                      </DeliveryStatus>
+                    </td>
+                    <td data-label="알림">
+                      <strong>{getMessageTypeLabel(delivery.messageType)}</strong>
+                    </td>
+                    <td data-label="계정">
+                      {delivery.email ?? shortenId(delivery.userId)}
+                    </td>
+                    <td data-label="플랫폼·공급자">
+                      {getPlatformLabel(delivery.platform)} · {delivery.provider}
+                    </td>
+                    <td data-label="앱 버전">{delivery.appVersion ?? "—"}</td>
+                    <td data-label="오류">
+                      {delivery.errorCode || delivery.errorMessage ? (
+                        <DeliveryError>
+                          <summary>
+                            {delivery.errorCode ?? "오류 상세"}
+                          </summary>
+                          {delivery.errorMessage && (
+                            <span>{delivery.errorMessage}</span>
+                          )}
+                        </DeliveryError>
+                      ) : "—"}
+                    </td>
+                    <td data-label="발송 시각">{formatDate(delivery.createdAt)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </NotificationTable>
+          </TableViewport>
         )}
       </OperationsSection>
     </PanelRoot>
@@ -303,16 +380,16 @@ const PulseHero = styled.section`
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   gap: var(--space-6);
-  padding: var(--space-7);
+  padding: var(--space-5);
   border: 1px solid var(--color-brand-200);
-  border-radius: var(--space-6);
+  border-radius: 8px;
   background: var(--color-white);
-  box-shadow: 0 18px 48px rgb(var(--color-black-rgb) / 0.06);
+  box-shadow: none;
 
   &::before {
     position: absolute;
     inset: 0 0 auto;
-    height: 5px;
+    height: 3px;
     background: linear-gradient(
       90deg,
       var(--color-brand-500),
@@ -326,7 +403,7 @@ const PulseHero = styled.section`
     grid-template-columns: 1fr;
     gap: var(--space-5);
     padding: var(--space-5);
-    border-radius: var(--space-5);
+    border-radius: 8px;
   }
 `;
 
@@ -350,7 +427,7 @@ const PulseCopy = styled.div`
 `;
 
 const StatusKicker = styled.span`
-  color: var(--color-brand-700);
+  color: var(--color-brand-800);
   font-size: var(--font-size-100);
   font-weight: 700;
 `;
@@ -367,7 +444,7 @@ const HeroMetric = styled.div`
   align-content: center;
   gap: var(--space-1);
   padding: var(--space-4);
-  border-radius: var(--space-4);
+  border-radius: 6px;
   background: var(--color-neutral-100);
 
   span {
@@ -430,33 +507,6 @@ const DeliveryLegend = styled.div`
   }
 `;
 
-const PlatformGrid = styled.div`
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: var(--space-4);
-
-  @media (max-width: 680px) {
-    grid-template-columns: 1fr;
-  }
-`;
-
-const PlatformCard = styled.section`
-  display: grid;
-  gap: var(--space-5);
-  padding: var(--space-5);
-  border: 1px solid var(--color-border);
-  border-radius: var(--space-5);
-  background: var(--color-white);
-  box-shadow: 0 12px 34px rgb(var(--color-black-rgb) / 0.045);
-`;
-
-const PlatformHeader = styled.header`
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: var(--space-3);
-`;
-
 const PlatformIdentity = styled.div`
   min-width: 0;
   display: flex;
@@ -480,7 +530,7 @@ const PlatformMark = styled.span<{ $platform: AdminNotificationPlatform }>`
   flex: 0 0 auto;
   display: grid;
   place-items: center;
-  border-radius: 12px;
+  border-radius: 6px;
   background: ${({ $platform }) =>
     $platform === "android"
       ? "var(--color-secondary-300)"
@@ -507,38 +557,6 @@ const ConfigurationBadge = styled.span<{
   font-weight: 700;
 `;
 
-const PlatformStats = styled.div`
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: var(--space-2);
-
-  > div {
-    display: grid;
-    gap: var(--space-1);
-    padding: var(--space-3);
-    border-radius: var(--space-3);
-    background: var(--color-neutral-100);
-  }
-
-  span {
-    color: var(--color-text-muted);
-    font-size: 11px;
-  }
-
-  strong {
-    font-size: var(--font-size-300);
-  }
-
-  @media (max-width: 440px) {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-`;
-
-const PlatformFooter = styled.p`
-  color: var(--color-text-muted);
-  font-size: 12px;
-`;
-
 const ContentGrid = styled.div`
   display: grid;
   grid-template-columns: minmax(280px, 0.8fr) minmax(0, 1.2fr);
@@ -554,9 +572,9 @@ const OperationsSection = styled.section`
   min-width: 0;
   overflow: hidden;
   border: 1px solid var(--color-border);
-  border-radius: var(--space-5);
+  border-radius: 8px;
   background: var(--color-white);
-  box-shadow: 0 12px 34px rgb(var(--color-black-rgb) / 0.045);
+  box-shadow: none;
 `;
 
 const SectionHeading = styled.header`
@@ -564,7 +582,7 @@ const SectionHeading = styled.header`
   align-items: center;
   justify-content: space-between;
   gap: var(--space-4);
-  padding: var(--space-5);
+  padding: var(--space-4);
   border-bottom: 1px solid var(--color-border);
 
   h3 {
@@ -608,118 +626,8 @@ const QuietState = styled.div`
   }
 `;
 
-const ErrorList = styled.ul`
-  list-style: none;
-
-  li {
-    display: grid;
-    grid-template-columns: auto minmax(0, 1fr) auto;
-    align-items: center;
-    gap: var(--space-3);
-    padding: var(--space-4) var(--space-5);
-    border-bottom: 1px solid var(--color-border);
-  }
-
-  li:last-child {
-    border-bottom: 0;
-  }
-
-  div {
-    min-width: 0;
-    display: grid;
-    gap: 2px;
-  }
-
-  strong {
-    overflow: hidden;
-    font-size: var(--font-size-100);
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
-  span {
-    color: var(--color-text-muted);
-    font-size: 11px;
-  }
-`;
-
-const PlatformPill = styled.span`
-  padding: 5px 8px;
-  border-radius: 999px;
-  background: var(--color-neutral-200);
-  color: var(--color-text) !important;
-  font-weight: 700;
-`;
-
 const ErrorCount = styled.strong`
   color: var(--color-error);
-`;
-
-const DeviceList = styled.ul`
-  max-height: 410px;
-  overflow-y: auto;
-  list-style: none;
-
-  > li {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: var(--space-4);
-    padding: var(--space-4) var(--space-5);
-    border-bottom: 1px solid var(--color-border);
-  }
-
-  > li:last-child {
-    border-bottom: 0;
-  }
-
-  @media (max-width: 480px) {
-    > li {
-      align-items: flex-start;
-      padding: var(--space-4);
-    }
-  }
-`;
-
-const DeviceMain = styled.div`
-  min-width: 0;
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
-
-  > div {
-    min-width: 0;
-    display: grid;
-    gap: 2px;
-  }
-
-  strong,
-  span {
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
-  strong {
-    font-size: var(--font-size-100);
-  }
-
-  span {
-    color: var(--color-text-muted);
-    font-size: 11px;
-  }
-`;
-
-const DeviceTail = styled.div`
-  flex: 0 0 auto;
-  display: grid;
-  justify-items: end;
-  gap: 4px;
-
-  time {
-    color: var(--color-text-muted);
-    font-size: 10px;
-  }
 `;
 
 const DeviceStatus = styled.span<{
@@ -739,86 +647,6 @@ const DeviceStatus = styled.span<{
   font-weight: 700;
 `;
 
-const DeliveryList = styled.ul`
-  list-style: none;
-
-  > li {
-    display: grid;
-    grid-template-columns: minmax(180px, 1fr) auto;
-    align-items: center;
-    gap: var(--space-3) var(--space-5);
-    padding: var(--space-4) var(--space-5);
-    border-bottom: 1px solid var(--color-border);
-  }
-
-  > li:last-child {
-    border-bottom: 0;
-  }
-
-  @media (max-width: 620px) {
-    > li {
-      grid-template-columns: 1fr;
-      padding: var(--space-4);
-    }
-  }
-`;
-
-const DeliveryIdentity = styled.div`
-  min-width: 0;
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
-
-  > div {
-    min-width: 0;
-    display: grid;
-    gap: 2px;
-  }
-
-  strong,
-  span {
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
-  strong {
-    font-size: var(--font-size-100);
-  }
-
-  span {
-    color: var(--color-text-muted);
-    font-size: 11px;
-  }
-`;
-
-const DeliveryDot = styled.span<{
-  $status: AdminNotificationDeliveryStatus;
-}>`
-  width: 10px;
-  height: 10px;
-  flex: 0 0 auto;
-  border-radius: 999px;
-  background: ${({ $status }) =>
-    $status === "sent"
-      ? "var(--color-secondary-600)"
-      : "var(--color-error)"};
-`;
-
-const DeliveryMeta = styled.div`
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: var(--space-2);
-  color: var(--color-text-muted);
-  font-size: 11px;
-
-  @media (max-width: 620px) {
-    justify-content: flex-start;
-    flex-wrap: wrap;
-  }
-`;
-
 const DeliveryStatus = styled.span<{
   $status: AdminNotificationDeliveryStatus;
 }>`
@@ -833,14 +661,146 @@ const DeliveryStatus = styled.span<{
   font-weight: 700;
 `;
 
-const DeliveryError = styled.p`
-  grid-column: 1 / -1;
-  overflow: hidden;
-  padding-left: 22px;
+const DeliveryError = styled.details`
+  max-width: 240px;
   color: var(--color-error);
   font-size: 11px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+
+  summary {
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+    overflow: hidden;
+    cursor: pointer;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  span {
+    display: block;
+    padding-bottom: var(--space-2);
+    color: var(--color-text-muted);
+    line-height: 1.5;
+    overflow-wrap: anywhere;
+  }
+`;
+
+const TableViewport = styled.div`
+  overflow-x: auto;
+`;
+
+const DeviceTableViewport = styled(TableViewport)`
+  max-height: min(480px, 58dvh);
+  overflow: auto;
+  overscroll-behavior: contain;
+
+  thead th {
+    position: sticky;
+    z-index: 1;
+    top: 0;
+  }
+`;
+
+const NotificationTable = styled.table`
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--font-size-100);
+  font-variant-numeric: tabular-nums;
+
+  th,
+  td {
+    padding: 12px var(--space-4);
+    border-bottom: 1px solid var(--color-border);
+    text-align: left;
+    vertical-align: middle;
+  }
+
+  th {
+    background: var(--color-neutral-200);
+    color: var(--color-text-muted);
+    font-size: 11px;
+    font-weight: 700;
+    white-space: nowrap;
+  }
+
+  tbody tr:last-child td {
+    border-bottom: 0;
+  }
+
+  tbody tr:hover {
+    background: var(--color-brand-100);
+  }
+
+  code {
+    font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+    font-size: 11px;
+  }
+
+  @media (max-width: 680px) {
+    display: block;
+
+    thead {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      overflow: hidden;
+      clip-path: inset(50%);
+      white-space: nowrap;
+    }
+
+    tbody,
+    tr {
+      display: grid;
+    }
+
+    tr {
+      border-bottom: 1px solid var(--color-border);
+    }
+
+    tr:last-child {
+      border-bottom: 0;
+    }
+
+    td {
+      display: grid;
+      grid-template-columns: minmax(92px, 34%) minmax(0, 1fr);
+      align-items: center;
+      gap: var(--space-3);
+      padding: 10px var(--space-4);
+      border-bottom: 1px solid var(--color-neutral-300);
+      overflow-wrap: anywhere;
+
+      &::before {
+        color: var(--color-text-muted);
+        font-size: 11px;
+        font-weight: 700;
+        content: attr(data-label);
+      }
+
+      > * {
+        grid-column: 2;
+      }
+    }
+
+    tr td:last-child {
+      border-bottom: 0;
+    }
+
+    tbody tr:last-child td {
+      border-bottom: 1px solid var(--color-neutral-300);
+    }
+
+    tbody tr:last-child td:last-child {
+      border-bottom: 0;
+    }
+  }
+`;
+
+const TableHint = styled.span`
+  display: block;
+  margin-top: 3px;
+  color: var(--color-text-muted);
+  font-size: 11px;
 `;
 
 const EmptyState = styled.div`
@@ -849,7 +809,7 @@ const EmptyState = styled.div`
   place-items: center;
   padding: var(--space-6);
   border: 1px solid var(--color-border);
-  border-radius: var(--space-5);
+  border-radius: 8px;
   background: var(--color-white);
   color: var(--color-text-muted);
 `;

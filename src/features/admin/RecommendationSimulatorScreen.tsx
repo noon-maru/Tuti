@@ -26,6 +26,8 @@ import type {
 } from "@/shared/tuti/types";
 
 type LocationMode = "location" | "region" | "none";
+type SimulationCandidate =
+  AdminRecommendationSimulationResponse["candidates"][number];
 
 const movementOptions: Array<{ value: MovementAnswer; label: string; hint: string }> = [
   { value: "near", label: "집 근처", hint: "대중교통 20분 안쪽" },
@@ -164,7 +166,13 @@ export function RecommendationSimulatorScreen() {
   };
 
   if (checkingAccess) {
-    return <AccessPage><AccessLoading>관리자 권한을 확인하고 있어요.</AccessLoading></AccessPage>;
+    return (
+      <AccessPage>
+        <AccessLoading role="status">
+          관리자 권한을 확인하고 있어요.
+        </AccessLoading>
+      </AccessPage>
+    );
   }
 
   if (accessStatus === 401 || accessStatus === 403) {
@@ -198,7 +206,12 @@ export function RecommendationSimulatorScreen() {
       </Header>
 
       <Content>
-        <ConditionPanel as="form" onSubmit={submit}>
+        <ConditionPanel
+          as="form"
+          aria-busy={loading}
+          aria-describedby={error ? "simulation-error" : undefined}
+          onSubmit={submit}
+        >
           <PanelHeading>
             <div>
               <span>테스트 조건</span>
@@ -311,6 +324,7 @@ export function RecommendationSimulatorScreen() {
                   key={option.value}
                   type="button"
                   $active={air === option.value}
+                  aria-pressed={air === option.value}
                   onClick={() => setAir(option.value)}
                 >
                   {option.label}
@@ -327,6 +341,7 @@ export function RecommendationSimulatorScreen() {
                   key={option.value}
                   type="button"
                   $active={density === option.value}
+                  aria-pressed={density === option.value}
                   onClick={() => setDensity(option.value)}
                 >
                   {option.label}
@@ -337,7 +352,7 @@ export function RecommendationSimulatorScreen() {
 
           <FieldGroup>
             <FieldLabel>보조 조건 · 선택</FieldLabel>
-            <CompactOptions>
+            <OptionalOptions>
               {([
                 ["solo", "혼자"],
                 ["friend", "친구와"],
@@ -348,6 +363,7 @@ export function RecommendationSimulatorScreen() {
                   key={value}
                   type="button"
                   $active={companion === value}
+                  aria-pressed={companion === value}
                   onClick={() =>
                     setCompanion(companion === value ? undefined : value)
                   }
@@ -355,8 +371,8 @@ export function RecommendationSimulatorScreen() {
                   {label}
                 </CompactButton>
               ))}
-            </CompactOptions>
-            <CompactOptions>
+            </OptionalOptions>
+            <OptionalOptions>
               {([
                 ["free", "입장료 무료"],
                 ["under_20000", "입장료 2만원 안쪽"],
@@ -365,22 +381,34 @@ export function RecommendationSimulatorScreen() {
                   key={value}
                   type="button"
                   $active={budget === value}
+                  aria-pressed={budget === value}
                   onClick={() => setBudget(budget === value ? undefined : value)}
                 >
                   {label}
                 </CompactButton>
               ))}
-            </CompactOptions>
+            </OptionalOptions>
           </FieldGroup>
 
-          <RunButton type="submit" disabled={loading}>
+          <RunButton type="submit" disabled={loading} aria-busy={loading}>
             <Play aria-hidden="true" />
             {loading ? "실제 추천 경로를 계산하고 있어요" : "시뮬레이션 실행"}
           </RunButton>
-          {error && <ErrorNotice role="alert">{error}</ErrorNotice>}
+          {error && (
+            <ErrorNotice id="simulation-error" role="alert">
+              {error}
+            </ErrorNotice>
+          )}
         </ConditionPanel>
 
-        <ResultArea>
+        <ResultArea aria-busy={loading}>
+          <ResultAnnouncement role="status" aria-live="polite">
+            {loading
+              ? "시뮬레이션을 실행하고 있습니다."
+              : result
+                ? `추천 후보 ${result.candidates.length}개의 비교 결과를 표시했습니다.`
+                : ""}
+          </ResultAnnouncement>
           {!result ? (
             <EmptyResult>
               <Route aria-hidden="true" />
@@ -393,7 +421,12 @@ export function RecommendationSimulatorScreen() {
                 <div>
                   <span>{result.algorithmVersion}</span>
                   <h2>추천 진단 결과</h2>
-                  <p>{dateFormatter.format(new Date(result.generatedAt))} · {result.elapsedMs.toLocaleString()}ms</p>
+                  <p>
+                    <time dateTime={result.generatedAt}>
+                      {dateFormatter.format(new Date(result.generatedAt))}
+                    </time>{" "}
+                    · {result.elapsedMs.toLocaleString()}ms
+                  </p>
                   <ScoreGuide>총점은 낮을수록 부담이 낮고, 음수 항목은 추천 보너스예요.</ScoreGuide>
                 </div>
                 <FeatureSummary>
@@ -410,56 +443,173 @@ export function RecommendationSimulatorScreen() {
                 <MetricCard $accent><span>최종 추천</span><strong>{result.candidates.filter((candidate) => candidate.selected).length}</strong></MetricCard>
               </MetricGrid>
 
-              <CandidateList>
-                {result.candidates.map((candidate) => (
-                  <CandidateCard key={candidate.place.id} $selected={candidate.selected}>
-                    <CandidateImage $image={candidate.place.image} aria-hidden="true" />
-                    <CandidateBody>
-                      <CandidateTop>
+              <CandidateComparison aria-labelledby="candidate-comparison-title">
+                <CandidateComparisonHeader>
+                  <div>
+                    <h3 id="candidate-comparison-title">후보 비교</h3>
+                    <p>순위, 이동 부담, 선정 근거를 같은 행에서 비교합니다.</p>
+                  </div>
+                  <span>{result.candidates.length}개 후보</span>
+                </CandidateComparisonHeader>
+
+                <CandidateTableViewport>
+                  <CandidateTable>
+                    <caption>추천 시뮬레이션 후보 비교</caption>
+                    <thead>
+                      <tr>
+                        <th scope="col">순위</th>
+                        <th scope="col">장소</th>
+                        <th scope="col">결과</th>
+                        <th scope="col">부담 점수</th>
+                        <th scope="col">이동</th>
+                        <th scope="col">선정 근거</th>
+                        <th scope="col">점수 구성</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {result.candidates.map((candidate) => (
+                        <CandidateTableRow
+                          key={candidate.place.id}
+                          $selected={candidate.selected}
+                        >
+                          <td>
+                            <RankCell>
+                              <strong>{candidate.finalRank}</strong>
+                              <span>최종</span>
+                              {candidate.initialRank && (
+                                <small>초기 {candidate.initialRank}위</small>
+                              )}
+                            </RankCell>
+                          </td>
+                          <th scope="row">
+                            <TablePlace>
+                              <CandidateThumbnail
+                                $image={candidate.place.image}
+                                aria-hidden="true"
+                              />
+                              <div>
+                                <strong>{candidate.place.name}</strong>
+                                <span>
+                                  {candidate.place.sourceContentType ??
+                                    "유형 미상"}
+                                </span>
+                              </div>
+                            </TablePlace>
+                          </th>
+                          <td>
+                            <StatusPill $selected={candidate.selected}>
+                              {candidate.selected ? "추천" : "비추천"}
+                            </StatusPill>
+                          </td>
+                          <td>
+                            <Score>
+                              {candidate.place.fatigueScore ?? "—"}
+                              <small>점</small>
+                            </Score>
+                          </td>
+                          <td>
+                            <RouteMeta>
+                              <span>
+                                <MapPin aria-hidden="true" />
+                                {formatDistance(
+                                  candidate.place.distanceMeters,
+                                )}
+                              </span>
+                              <span>
+                                <Route aria-hidden="true" />
+                                {formatTravelTime(
+                                  candidate.place.travelTimeSummary,
+                                )}
+                              </span>
+                            </RouteMeta>
+                          </td>
+                          <td>
+                            <ReasonText>
+                              <strong>
+                                {candidate.place.reason ??
+                                  "추천 근거 확인 필요"}
+                              </strong>
+                              <p>
+                                {candidate.place.reasonDetail ??
+                                  "세부 추천 근거가 없습니다."}
+                              </p>
+                              {!candidate.selected && (
+                                <ExclusionReason>
+                                  {getExclusionReason(resultLocationMode)}
+                                </ExclusionReason>
+                              )}
+                            </ReasonText>
+                          </td>
+                          <td>
+                            <CandidateScoreDetails candidate={candidate} />
+                          </td>
+                        </CandidateTableRow>
+                      ))}
+                    </tbody>
+                  </CandidateTable>
+                </CandidateTableViewport>
+
+                <MobileCandidateList role="list" aria-label="추천 후보 비교">
+                  {result.candidates.map((candidate) => (
+                    <MobileCandidateRow
+                      key={candidate.place.id}
+                      $selected={candidate.selected}
+                    >
+                      <MobileCandidateHeader>
                         <div>
                           <RankLine>
                             <StatusPill $selected={candidate.selected}>
                               {candidate.selected ? "추천" : "비추천"}
                             </StatusPill>
                             <span>최종 {candidate.finalRank}위</span>
-                            {candidate.initialRank && <span>초기 {candidate.initialRank}위</span>}
+                            {candidate.initialRank && (
+                              <span>초기 {candidate.initialRank}위</span>
+                            )}
                           </RankLine>
-                          <h3>{candidate.place.name}</h3>
+                          <h4>{candidate.place.name}</h4>
+                          <small>
+                            {candidate.place.sourceContentType ?? "유형 미상"}
+                          </small>
                         </div>
-                        <Score>{candidate.place.fatigueScore ?? "-"}<small>점</small></Score>
-                      </CandidateTop>
+                        <Score data-mobile-score>
+                          {candidate.place.fatigueScore ?? "—"}
+                          <small>점</small>
+                        </Score>
+                      </MobileCandidateHeader>
 
-                      <PlaceMeta>
-                        <span><MapPin aria-hidden="true" />{formatDistance(candidate.place.distanceMeters)}</span>
-                        <span><Route aria-hidden="true" />{formatTravelTime(candidate.place.travelTimeSummary)}</span>
-                        <span>{candidate.place.sourceContentType ?? "유형 미상"}</span>
-                      </PlaceMeta>
+                      <RouteMeta>
+                        <span>
+                          <MapPin aria-hidden="true" />
+                          {formatDistance(candidate.place.distanceMeters)}
+                        </span>
+                        <span>
+                          <Route aria-hidden="true" />
+                          {formatTravelTime(
+                            candidate.place.travelTimeSummary,
+                          )}
+                        </span>
+                      </RouteMeta>
 
-                      <ReasonBox>
-                        <strong>{candidate.place.reason ?? "추천 근거 확인 필요"}</strong>
-                        <p>{candidate.place.reasonDetail ?? "세부 추천 근거가 없습니다."}</p>
-                      </ReasonBox>
+                      <ReasonText>
+                        <strong>
+                          {candidate.place.reason ?? "추천 근거 확인 필요"}
+                        </strong>
+                        <p>
+                          {candidate.place.reasonDetail ??
+                            "세부 추천 근거가 없습니다."}
+                        </p>
+                        {!candidate.selected && (
+                          <ExclusionReason>
+                            {getExclusionReason(resultLocationMode)}
+                          </ExclusionReason>
+                        )}
+                      </ReasonText>
 
-                      <ScoreGrid>
-                        {Object.entries(candidate.breakdown).map(([key, value]) => (
-                          <ScoreItem key={key} $value={value}>
-                            <span>{scoreLabels[key as keyof AdminRecommendationScoreBreakdown]}</span>
-                            <strong>{value > 0 ? `+${value}` : value}</strong>
-                          </ScoreItem>
-                        ))}
-                      </ScoreGrid>
-
-                      {!candidate.selected && (
-                        <ExclusionReason>
-                          {resultLocationMode === "location"
-                            ? "최종 피로도 순위가 추천 6곳 밖이라 제외"
-                            : "최종 순위와 장소 유형 다양성 제한에 따라 제외"}
-                        </ExclusionReason>
-                      )}
-                    </CandidateBody>
-                  </CandidateCard>
-                ))}
-              </CandidateList>
+                      <CandidateScoreDetails candidate={candidate} />
+                    </MobileCandidateRow>
+                  ))}
+                </MobileCandidateList>
+              </CandidateComparison>
 
               <RawDetails>
                 <summary>결과 JSON 확인</summary>
@@ -471,6 +621,42 @@ export function RecommendationSimulatorScreen() {
       </Content>
     </Page>
   );
+}
+
+function CandidateScoreDetails({
+  candidate,
+}: {
+  candidate: SimulationCandidate;
+}) {
+  return (
+    <BreakdownDetails>
+      <summary aria-label={`${candidate.place.name} 세부 점수 구성`}>
+        세부 점수
+      </summary>
+      <ScoreDefinitionList>
+        {Object.entries(candidate.breakdown).map(([key, value]) => (
+          <div key={key}>
+            <dt>
+              {scoreLabels[key as keyof AdminRecommendationScoreBreakdown]}
+            </dt>
+            <dd data-tone={value < 0 ? "bonus" : value > 0 ? "penalty" : "zero"}>
+              {formatScoreValue(value)}
+            </dd>
+          </div>
+        ))}
+      </ScoreDefinitionList>
+    </BreakdownDetails>
+  );
+}
+
+function formatScoreValue(value: number) {
+  return value > 0 ? `+${value}` : String(value);
+}
+
+function getExclusionReason(locationMode: LocationMode) {
+  return locationMode === "location"
+    ? "최종 피로도 순위가 추천 6곳 밖이라 제외"
+    : "최종 순위와 장소 유형 다양성 제한에 따라 제외";
 }
 
 function formatDistance(meters?: number) {
@@ -501,12 +687,17 @@ function crowdToleranceLabel(value: string) {
 
 const Page = styled.main`
   min-height: 100dvh;
-  background: var(--color-surface);
+  background: var(--color-neutral-200);
   color: var(--color-text);
+
+  :where(button, a, input, select, textarea, summary, [tabindex]):focus-visible {
+    outline: 3px solid var(--color-brand-900);
+    outline-offset: 2px;
+  }
 `;
 
 const Header = styled.header`
-  border-bottom: 1px solid var(--color-border);
+  border-bottom: 1px solid var(--color-neutral-400);
   background: var(--color-neutral-100);
 `;
 
@@ -525,7 +716,7 @@ const HeaderInner = styled.div`
 
 const BackLink = styled(Link)`
   width: fit-content;
-  min-height: 40px;
+  min-height: 44px;
   display: inline-flex;
   align-items: center;
   gap: var(--space-2);
@@ -534,6 +725,11 @@ const BackLink = styled(Link)`
   text-decoration: none;
 
   svg { width: 20px; height: 20px; }
+
+  &:focus-visible {
+    outline: 3px solid var(--color-brand-900);
+    outline-offset: 3px;
+  }
 `;
 
 const HeaderCopy = styled.div`
@@ -549,12 +745,18 @@ const Content = styled.div`
   margin: 0 auto;
   padding: var(--space-6) 0 var(--space-12);
   display: grid;
-  grid-template-columns: minmax(300px, 380px) minmax(0, 1fr);
+  grid-template-columns: minmax(300px, 340px) minmax(0, 1fr);
   align-items: start;
   gap: var(--space-6);
 
-  @media (max-width: 960px) { grid-template-columns: 1fr; }
-  @media (max-width: 768px) { width: calc(100% - 24px); padding-top: var(--space-4); }
+  @media (max-width: 1240px) {
+    grid-template-columns: 1fr;
+  }
+
+  @media (max-width: 768px) {
+    width: calc(100% - 24px);
+    padding-top: var(--space-4);
+  }
 `;
 
 const ConditionPanel = styled.section`
@@ -563,13 +765,17 @@ const ConditionPanel = styled.section`
   display: grid;
   gap: var(--space-5);
   padding: var(--space-5);
-  border: 1px solid var(--color-border);
-  border-radius: 24px;
+  border: 1px solid var(--color-neutral-400);
+  border-radius: var(--space-2);
   background: var(--color-surface);
-  box-shadow: 0 14px 38px rgb(var(--color-black-rgb) / 0.08);
 
-  @media (max-width: 960px) { position: static; }
-  @media (max-width: 480px) { padding: var(--space-4); border-radius: 20px; }
+  @media (max-width: 1240px) {
+    position: static;
+  }
+
+  @media (max-width: 480px) {
+    padding: var(--space-4);
+  }
 `;
 
 const PanelHeading = styled.header`
@@ -582,25 +788,32 @@ const PanelHeading = styled.header`
 `;
 
 const ResetButton = styled.button`
-  min-height: 40px;
+  min-height: 44px;
   padding: 0 var(--space-3);
   display: inline-flex;
   align-items: center;
   gap: var(--space-2);
   border: 0;
-  border-radius: 14px;
+  border-radius: var(--space-1);
   background: var(--color-neutral-200);
   color: var(--color-text-muted);
   font: inherit;
   font-size: var(--font-size-100);
   cursor: pointer;
   svg { width: 16px; height: 16px; }
+
+  &:focus-visible {
+    outline: 3px solid var(--color-brand-900);
+    outline-offset: 2px;
+  }
 `;
 
 const FieldGroup = styled.fieldset`
   min-width: 0;
   display: grid;
   gap: var(--space-2);
+  margin: 0;
+  padding: 0;
   border: 0;
 `;
 
@@ -622,15 +835,20 @@ const OptionButton = styled.button<{ $active: boolean }>`
   display: grid;
   place-content: center;
   gap: var(--space-1);
-  border: 1px solid ${({ $active }) => $active ? "var(--color-secondary-700)" : "var(--color-border)"};
-  border-radius: 16px;
+  border: 1px solid ${({ $active }) => $active ? "var(--color-secondary-900)" : "var(--color-neutral-800)"};
+  border-radius: var(--space-1);
   background: ${({ $active }) => $active ? "var(--color-secondary-200)" : "var(--color-surface)"};
   color: var(--color-text);
   font: inherit;
   text-align: center;
   cursor: pointer;
   strong { font-size: var(--font-size-100); }
-  span { color: var(--color-text-muted); font-size: var(--font-size-000); line-height: 1.35; }
+  span { color: var(--color-text-muted); font-size: var(--font-size-100); line-height: 1.35; }
+
+  &:focus-visible {
+    outline: 3px solid var(--color-brand-900);
+    outline-offset: 2px;
+  }
 `;
 
 const CoordinateGrid = styled.div`
@@ -648,19 +866,26 @@ const LabeledInput = styled.label`
     width: 100%;
     min-height: 46px;
     padding: var(--space-3);
-    border: 1px solid var(--color-border);
-    border-radius: 14px;
+    border: 1px solid var(--color-neutral-800);
+    border-radius: var(--space-1);
     background: var(--color-surface);
     color: var(--color-text);
     font: inherit;
     font-size: var(--font-size-200);
   }
   textarea { min-height: 82px; resize: vertical; }
+
+  input:focus-visible,
+  select:focus-visible,
+  textarea:focus-visible {
+    outline: 3px solid var(--color-brand-900);
+    outline-offset: 2px;
+  }
 `;
 
 const ModeNotice = styled.p`
   padding: var(--space-3);
-  border-radius: 14px;
+  border-left: 3px solid var(--color-brand-800);
   background: var(--color-neutral-200);
   color: var(--color-text-muted);
   font-size: var(--font-size-100);
@@ -672,16 +897,25 @@ const CompactOptions = styled.div`
   gap: var(--space-2);
 `;
 
+const OptionalOptions = styled(CompactOptions)`
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+`;
+
 const CompactButton = styled.button<{ $active: boolean }>`
   min-height: 44px;
   padding: var(--space-2);
-  border: 1px solid ${({ $active }) => $active ? "var(--color-secondary-700)" : "var(--color-border)"};
-  border-radius: 14px;
+  border: 1px solid ${({ $active }) => $active ? "var(--color-secondary-900)" : "var(--color-neutral-800)"};
+  border-radius: var(--space-1);
   background: ${({ $active }) => $active ? "var(--color-secondary-200)" : "var(--color-surface)"};
   color: var(--color-text);
   font: inherit;
   font-size: var(--font-size-100);
   cursor: pointer;
+
+  &:focus-visible {
+    outline: 3px solid var(--color-brand-900);
+    outline-offset: 2px;
+  }
 `;
 
 const RunButton = styled.button`
@@ -691,7 +925,7 @@ const RunButton = styled.button`
   justify-content: center;
   gap: var(--space-2);
   border: 0;
-  border-radius: 16px;
+  border-radius: var(--space-1);
   background: var(--color-secondary-800);
   color: var(--color-black);
   font: inherit;
@@ -701,17 +935,35 @@ const RunButton = styled.button`
   &:disabled { opacity: 0.55; cursor: wait; }
   &:not(:disabled):active { transform: scale(0.985); }
   svg { width: 18px; height: 18px; fill: currentColor; }
+
+  &:focus-visible {
+    outline: 3px solid var(--color-brand-900);
+    outline-offset: 2px;
+  }
 `;
 
 const ErrorNotice = styled.p`
   padding: var(--space-3);
-  border-radius: 14px;
-  background: var(--color-error-100);
-  color: var(--color-error-900);
+  border-left: 3px solid var(--color-error);
+  background: var(--color-neutral-100);
+  color: var(--color-error);
   font-size: var(--font-size-100);
 `;
 
-const ResultArea = styled.section`min-width: 0; display: grid; gap: var(--space-5);`;
+const ResultArea = styled.section`
+  min-width: 0;
+  display: grid;
+  gap: var(--space-5);
+`;
+
+const ResultAnnouncement = styled.p`
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+`;
 
 const EmptyResult = styled.div`
   min-height: 420px;
@@ -720,8 +972,9 @@ const EmptyResult = styled.div`
   justify-items: center;
   gap: var(--space-3);
   padding: var(--space-6);
-  border: 1px dashed var(--color-border);
-  border-radius: 24px;
+  border: 1px dashed var(--color-neutral-800);
+  border-radius: var(--space-2);
+  background: var(--color-surface);
   color: var(--color-text-muted);
   text-align: center;
   svg { width: 44px; height: 44px; color: var(--color-secondary-800); }
@@ -735,7 +988,7 @@ const ResultHeader = styled.header`
   justify-content: space-between;
   gap: var(--space-4);
   > div:first-child { display: grid; gap: var(--space-1); }
-  > div:first-child > span { color: var(--color-info-800); font-size: var(--font-size-000); font-weight: 700; }
+  > div:first-child > span { color: var(--color-brand-900); font-size: var(--font-size-100); font-weight: 700; }
   h2 { font-size: var(--font-size-600); }
   p { color: var(--color-text-muted); font-size: var(--font-size-100); }
   @media (max-width: 640px) { align-items: flex-start; flex-direction: column; }
@@ -743,61 +996,59 @@ const ResultHeader = styled.header`
 
 const ScoreGuide = styled.small`
   color: var(--color-text-muted);
-  font-size: var(--font-size-000);
+  font-size: var(--font-size-100);
 `;
 
 const FeatureSummary = styled.div`
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-2);
-  span { padding: var(--space-2) var(--space-3); border-radius: 999px; background: var(--color-secondary-200); font-size: var(--font-size-000); font-weight: 600; }
+
+  span {
+    padding: var(--space-2) var(--space-3);
+    border-left: 3px solid var(--color-secondary-900);
+    border-radius: 2px;
+    background: var(--color-secondary-100);
+    font-size: var(--font-size-100);
+    font-weight: 600;
+  }
 `;
 
 const MetricGrid = styled.div`
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: var(--space-3);
-  @media (max-width: 640px) { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  overflow: hidden;
+  border: 1px solid var(--color-neutral-400);
+  border-radius: var(--space-1);
+  background: var(--color-surface);
+
+  @media (max-width: 640px) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 `;
 
-const MetricCard = styled.article<{ $accent?: boolean }>`
+const MetricCard = styled.div<{ $accent?: boolean }>`
   display: grid;
   gap: var(--space-2);
   padding: var(--space-4);
-  border-radius: 18px;
-  background: ${({ $accent }) => $accent ? "var(--color-secondary-300)" : "var(--color-neutral-200)"};
+  border-right: 1px solid var(--color-neutral-400);
+  background: ${({ $accent }) => $accent ? "var(--color-secondary-100)" : "var(--color-surface)"};
   span { color: var(--color-text-muted); font-size: var(--font-size-100); }
   strong { font-size: var(--font-size-600); }
-`;
 
-const CandidateList = styled.div`display: grid; gap: var(--space-4);`;
+  &:last-of-type {
+    border-right: 0;
+  }
 
-const CandidateCard = styled.article<{ $selected: boolean }>`
-  min-width: 0;
-  display: grid;
-  grid-template-columns: 150px minmax(0, 1fr);
-  overflow: hidden;
-  border: 1px solid ${({ $selected }) => $selected ? "var(--color-secondary-600)" : "var(--color-border)"};
-  border-radius: 22px;
-  background: var(--color-surface);
-  box-shadow: 0 10px 28px rgb(var(--color-black-rgb) / ${({ $selected }) => $selected ? 0.1 : 0.05});
-  @media (max-width: 640px) { grid-template-columns: 1fr; }
-`;
+  @media (max-width: 640px) {
+    &:nth-of-type(2n) {
+      border-right: 0;
+    }
 
-const CandidateImage = styled.div<{ $image: string }>`
-  min-height: 100%;
-  background: var(--color-neutral-300) url(${({ $image }) => JSON.stringify($image)}) center / cover no-repeat;
-  @media (max-width: 640px) { min-height: 160px; }
-`;
-
-const CandidateBody = styled.div`min-width: 0; display: grid; gap: var(--space-3); padding: var(--space-4);`;
-
-const CandidateTop = styled.div`
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: var(--space-3);
-  h3 { margin-top: var(--space-2); font-size: var(--font-size-400); }
+    &:nth-of-type(-n + 2) {
+      border-bottom: 1px solid var(--color-neutral-400);
+    }
+  }
 `;
 
 const RankLine = styled.div`
@@ -805,80 +1056,465 @@ const RankLine = styled.div`
   flex-wrap: wrap;
   align-items: center;
   gap: var(--space-2);
-  > span { color: var(--color-text-muted); font-size: var(--font-size-000); }
+  > span { color: var(--color-text-muted); font-size: var(--font-size-100); }
 `;
 
 const StatusPill = styled.span<{ $selected: boolean }>`
+  width: fit-content;
   padding: 4px 9px;
   border-radius: 999px;
   background: ${({ $selected }) => $selected ? "var(--color-secondary-400)" : "var(--color-neutral-300)"};
   color: var(--color-text) !important;
+  font-size: var(--font-size-100);
   font-weight: 700;
+  white-space: nowrap;
 `;
 
 const Score = styled.strong`
   flex: none;
-  font-size: var(--font-size-700);
+  font-size: var(--font-size-500);
+  font-variant-numeric: tabular-nums;
   line-height: 1;
-  small { margin-left: 2px; color: var(--color-text-muted); font-size: var(--font-size-000); font-weight: 500; }
+  small { margin-left: 2px; color: var(--color-text-muted); font-size: var(--font-size-100); font-weight: 500; }
 `;
 
-const PlaceMeta = styled.div`
+const CandidateComparison = styled.section`
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid var(--color-neutral-400);
+  border-radius: var(--space-1);
+  background: var(--color-surface);
+`;
+
+const CandidateComparisonHeader = styled.header`
   display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-2);
-  span { display: inline-flex; align-items: center; gap: 4px; padding: 5px 9px; border-radius: 999px; background: var(--color-neutral-200); color: var(--color-text-muted); font-size: var(--font-size-000); }
-  svg { width: 13px; height: 13px; }
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  padding: var(--space-4);
+  border-bottom: 1px solid var(--color-neutral-400);
+
+  h3 {
+    font-size: var(--font-size-300);
+  }
+
+  p,
+  > span {
+    color: var(--color-text-muted);
+    font-size: var(--font-size-100);
+  }
+
+  p {
+    margin-top: 2px;
+  }
+
+  > span {
+    flex: 0 0 auto;
+    font-variant-numeric: tabular-nums;
+  }
 `;
 
-const ReasonBox = styled.div`
+const CandidateTableViewport = styled.div`
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+
+  @media (max-width: 640px) {
+    display: none;
+  }
+`;
+
+const CandidateTable = styled.table`
+  width: 100%;
+  min-width: 840px;
+  border-collapse: collapse;
+  font-size: var(--font-size-100);
+
+  caption {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  th,
+  td {
+    padding: var(--space-3);
+    border-bottom: 1px solid var(--color-neutral-400);
+    text-align: left;
+    vertical-align: top;
+  }
+
+  thead th {
+    position: sticky;
+    z-index: 1;
+    top: 0;
+    background: var(--color-neutral-200);
+    color: var(--color-text-muted);
+    font-size: var(--font-size-100);
+    font-weight: 700;
+    white-space: nowrap;
+  }
+
+  tbody th {
+    font-weight: inherit;
+  }
+
+  tr > :nth-child(1) {
+    width: 56px;
+  }
+
+  tr > :nth-child(2) {
+    width: 180px;
+  }
+
+  tr > :nth-child(3) {
+    width: 70px;
+  }
+
+  tr > :nth-child(4) {
+    width: 80px;
+  }
+
+  tr > :nth-child(5) {
+    width: 130px;
+  }
+
+  tr > :nth-child(6) {
+    min-width: 200px;
+  }
+
+  tr > :nth-child(7) {
+    width: 120px;
+  }
+
+  tbody tr:last-of-type > * {
+    border-bottom: 0;
+  }
+`;
+
+const CandidateTableRow = styled.tr<{ $selected: boolean }>`
+  background: ${({ $selected }) =>
+    $selected ? "var(--color-secondary-100)" : "var(--color-surface)"};
+
+  td:first-of-type {
+    box-shadow: ${({ $selected }) =>
+      $selected
+        ? "inset 3px 0 var(--color-secondary-900)"
+        : "none"};
+  }
+
+  &:hover {
+    background: ${({ $selected }) =>
+      $selected ? "var(--color-secondary-100)" : "var(--color-brand-100)"};
+  }
+`;
+
+const RankCell = styled.div`
+  display: grid;
+  justify-items: start;
+  gap: 1px;
+  font-variant-numeric: tabular-nums;
+
+  strong {
+    font-size: var(--font-size-500);
+    line-height: 1;
+  }
+
+  span,
+  small {
+    color: var(--color-text-muted);
+    font-size: var(--font-size-100);
+  }
+`;
+
+const TablePlace = styled.div`
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+
+  > div:last-of-type {
+    min-width: 0;
+    display: grid;
+    gap: 2px;
+  }
+
+  strong {
+    overflow-wrap: anywhere;
+    font-size: var(--font-size-200);
+  }
+
+  span {
+    color: var(--color-text-muted);
+    font-size: var(--font-size-100);
+  }
+`;
+
+const CandidateThumbnail = styled.div<{ $image: string }>`
+  width: 48px;
+  height: 48px;
+  flex: 0 0 auto;
+  border-radius: var(--space-1);
+  background: var(--color-neutral-300) url(${({ $image }) => JSON.stringify($image)}) center / cover no-repeat;
+`;
+
+const RouteMeta = styled.div`
   display: grid;
   gap: var(--space-1);
-  padding: var(--space-3);
-  border-radius: 14px;
-  background: var(--color-secondary-100);
-  strong { font-size: var(--font-size-200); }
-  p { color: var(--color-text-muted); font-size: var(--font-size-100); }
+
+  span {
+    display: inline-flex;
+    align-items: flex-start;
+    gap: var(--space-1);
+    color: var(--color-text-muted);
+    font-size: var(--font-size-100);
+    line-height: 1.4;
+  }
+
+  svg {
+    width: 14px;
+    height: 14px;
+    flex: 0 0 auto;
+    margin-top: 1px;
+  }
 `;
 
-const ScoreGrid = styled.div`
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: var(--space-2);
-  @media (max-width: 720px) { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-`;
-
-const ScoreItem = styled.div<{ $value: number }>`
+const ReasonText = styled.div`
   min-width: 0;
   display: grid;
-  gap: 3px;
-  padding: var(--space-2);
-  border-radius: 10px;
-  background: ${({ $value }) => $value < 0 ? "var(--color-secondary-100)" : $value > 0 ? "var(--color-warning-100)" : "var(--color-neutral-200)"};
-  span { overflow: hidden; color: var(--color-text-muted); font-size: var(--font-size-000); text-overflow: ellipsis; white-space: nowrap; }
-  strong { font-size: var(--font-size-100); }
+  gap: var(--space-1);
+
+  strong {
+    font-size: var(--font-size-100);
+    overflow-wrap: anywhere;
+  }
+
+  p {
+    color: var(--color-text-muted);
+    font-size: var(--font-size-100);
+    line-height: 1.45;
+    overflow-wrap: anywhere;
+  }
 `;
 
 const ExclusionReason = styled.p`
-  padding-top: var(--space-2);
-  border-top: 1px solid var(--color-border);
+  margin-top: var(--space-1);
+  padding-left: var(--space-2);
+  border-left: 2px solid var(--color-neutral-700);
   color: var(--color-text-muted);
-  font-size: var(--font-size-000);
+  font-size: var(--font-size-100);
+`;
+
+const BreakdownDetails = styled.details`
+  min-width: 116px;
+
+  summary {
+    width: fit-content;
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+    padding: 0 var(--space-3);
+    border: 1px solid var(--color-neutral-800);
+    border-radius: var(--space-1);
+    background: var(--color-surface);
+    color: var(--color-text);
+    font-size: var(--font-size-100);
+    font-weight: 700;
+    cursor: pointer;
+  }
+
+  summary::after {
+    margin-left: var(--space-2);
+    content: "+";
+  }
+
+  &[open] summary::after {
+    content: "−";
+  }
+
+  summary:focus-visible {
+    outline: 3px solid var(--color-brand-900);
+    outline-offset: 2px;
+  }
+
+  &[open] summary {
+    margin-bottom: var(--space-2);
+    border-color: var(--color-brand-900);
+    background: var(--color-brand-100);
+  }
+`;
+
+const ScoreDefinitionList = styled.dl`
+  min-width: 220px;
+  display: grid;
+  gap: 0;
+  margin: 0;
+  border-top: 1px solid var(--color-neutral-400);
+
+  > div {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: var(--space-3);
+    padding: var(--space-1) 0;
+    border-bottom: 1px solid var(--color-neutral-300);
+  }
+
+  dt,
+  dd {
+    margin: 0;
+    font-size: var(--font-size-100);
+  }
+
+  dt {
+    color: var(--color-text-muted);
+  }
+
+  dd {
+    flex: 0 0 auto;
+    font-variant-numeric: tabular-nums;
+    font-weight: 700;
+  }
+
+  dd[data-tone="bonus"] {
+    color: var(--color-secondary-900);
+  }
+
+  dd[data-tone="penalty"] {
+    color: var(--color-warning);
+  }
+`;
+
+const MobileCandidateList = styled.ol`
+  display: none;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+
+  @media (max-width: 640px) {
+    display: grid;
+  }
+`;
+
+const MobileCandidateRow = styled.li<{ $selected: boolean }>`
+  min-width: 0;
+  display: grid;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  border-bottom: 1px solid var(--color-neutral-400);
+  background: ${({ $selected }) =>
+    $selected ? "var(--color-secondary-100)" : "var(--color-surface)"};
+  box-shadow: ${({ $selected }) =>
+    $selected
+      ? "inset 3px 0 var(--color-secondary-900)"
+      : "none"};
+
+  &:last-of-type {
+    border-bottom: 0;
+  }
+
+  dl {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    column-gap: var(--space-4);
+  }
+
+  > details {
+    min-width: 0;
+  }
+`;
+
+const MobileCandidateHeader = styled.div`
+  min-width: 0;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-3);
+
+  > div {
+    min-width: 0;
+    display: grid;
+    gap: var(--space-1);
+  }
+
+  h4 {
+    overflow-wrap: anywhere;
+    font-size: var(--font-size-300);
+  }
+
+  > div > small {
+    color: var(--color-text-muted);
+    font-size: var(--font-size-100);
+  }
+
+  [data-mobile-score] {
+    font-size: var(--font-size-600);
+  }
 `;
 
 const RawDetails = styled.details`
-  border: 1px solid var(--color-border);
-  border-radius: 18px;
+  border: 1px solid var(--color-neutral-400);
+  border-radius: var(--space-1);
   background: var(--color-neutral-100);
   summary { padding: var(--space-4); font-size: var(--font-size-200); font-weight: 600; cursor: pointer; }
-  pre { max-height: 520px; margin: 0; padding: var(--space-4); overflow: auto; border-top: 1px solid var(--color-border); font-size: 12px; line-height: 1.5; }
+  summary:focus-visible { outline: 3px solid var(--color-brand-900); outline-offset: 2px; }
+  pre { max-height: 520px; margin: 0; padding: var(--space-4); overflow: auto; border-top: 1px solid var(--color-neutral-400); font-size: 12px; line-height: 1.5; }
 `;
 
-const AccessPage = styled.main`min-height: 100dvh; display: grid; place-items: center; padding: var(--space-5); background: var(--color-neutral-200);`;
-const AccessLoading = styled.p`color: var(--color-text-muted); font-size: var(--font-size-200);`;
-const AccessCard = styled.section`
-  width: min(420px, 100%); display: grid; gap: var(--space-4); padding: var(--space-6); border-radius: 24px; background: var(--color-surface); box-shadow: 0 16px 48px rgb(var(--color-black-rgb) / 0.12);
-  > strong { color: var(--color-info-800); } h1 { font-size: var(--font-size-600); } p { color: var(--color-text-muted); }
+const AccessPage = styled.main`
+  min-height: 100dvh;
+  display: grid;
+  place-items: center;
+  padding: var(--space-5);
+  background: var(--color-neutral-200);
 `;
-const PrimaryLink = styled(Link)`min-height: 48px; display: grid; place-items: center; border-radius: 14px; background: var(--color-secondary-700); color: var(--color-black); font-weight: 700; text-decoration: none;`;
-const TextLink = styled(Link)`min-height: 40px; display: grid; place-items: center; color: var(--color-text-muted); text-decoration: none;`;
+
+const AccessLoading = styled.p`
+  color: var(--color-text-muted);
+  font-size: var(--font-size-200);
+`;
+
+const AccessCard = styled.section`
+  width: min(420px, 100%);
+  display: grid;
+  gap: var(--space-4);
+  padding: var(--space-6);
+  border: 1px solid var(--color-neutral-400);
+  border-radius: var(--space-3);
+  background: var(--color-surface);
+  box-shadow: 0 12px 36px rgb(var(--color-black-rgb) / 0.08);
+
+  > strong { color: var(--color-brand-900); }
+  h1 { font-size: var(--font-size-600); }
+  p { color: var(--color-text-muted); }
+`;
+
+const PrimaryLink = styled(Link)`
+  min-height: 48px;
+  display: grid;
+  place-items: center;
+  border-radius: var(--space-1);
+  background: var(--color-secondary-800);
+  color: var(--color-black);
+  font-weight: 700;
+  text-decoration: none;
+
+  &:focus-visible {
+    outline: 3px solid var(--color-brand-900);
+    outline-offset: 2px;
+  }
+`;
+
+const TextLink = styled(Link)`
+  min-height: 44px;
+  display: grid;
+  place-items: center;
+  color: var(--color-text-muted);
+  text-decoration: none;
+
+  &:focus-visible {
+    outline: 3px solid var(--color-brand-900);
+    outline-offset: 2px;
+  }
+`;

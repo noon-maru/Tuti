@@ -52,28 +52,50 @@ export type AdminTab =
   | "settings";
 
 const tabs: Array<{ id: AdminTab; label: string }> = [
-  { id: "overview", label: "대시보드" },
-  { id: "notifications", label: "알림 운영" },
-  { id: "funnel", label: "추천 퍼널" },
-  { id: "logs", label: "로그" },
-  { id: "location", label: "위치 확인자료" },
-  { id: "places", label: "장소" },
+  { id: "overview", label: "운영 현황" },
+  { id: "notifications", label: "알림 전달" },
+  { id: "funnel", label: "추천 성과" },
+  { id: "logs", label: "시스템 로그" },
+  { id: "location", label: "위치정보 감사" },
+  { id: "places", label: "장소 운영" },
   { id: "reports", label: "신고" },
-  { id: "inquiries", label: "1:1 문의" },
-  { id: "users", label: "권한" },
-  { id: "settings", label: "설정" },
+  { id: "inquiries", label: "문의" },
+  { id: "users", label: "계정·권한" },
+  { id: "settings", label: "운영 설정" },
+];
+
+const navigationGroups: Array<{
+  label: string;
+  items: Array<{ id: AdminTab; label: string }>;
+}> = [
+  {
+    label: "운영",
+    items: tabs.filter((item) =>
+      ["overview", "inquiries", "reports", "places"].includes(item.id),
+    ),
+  },
+  {
+    label: "관측",
+    items: tabs.filter((item) =>
+      ["funnel", "notifications", "logs", "location"].includes(item.id),
+    ),
+  },
+  {
+    label: "관리",
+    items: tabs.filter((item) => ["users", "settings"].includes(item.id)),
+  },
 ];
 
 const mobilePrimaryTabs: Array<{ id: AdminTab; label: string }> = [
   { id: "overview", label: "홈" },
   { id: "inquiries", label: "문의" },
   { id: "reports", label: "신고" },
-  { id: "notifications", label: "알림" },
+  { id: "places", label: "장소" },
 ];
 
 const mobileMoreTabs: Array<{ id: AdminTab; label: string }> = [
-  { id: "places", label: "장소 검수 및 노출" },
   { id: "funnel", label: "추천 행동 퍼널" },
+  { id: "notifications", label: "알림 전달" },
   { id: "users", label: "사용자 및 권한" },
   { id: "logs", label: "시스템 로그" },
   { id: "location", label: "위치정보 확인자료" },
@@ -207,8 +229,12 @@ export function AdminScreen({
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [drawerDragOffset, setDrawerDragOffset] = useState(0);
   const [drawerDragging, setDrawerDragging] = useState(false);
-  const drawerDragStart = useRef({ y: 0, time: 0 });
+  const drawerDragStart = useRef({ x: 0, y: 0, time: 0 });
+  const suppressDrawerHandleClick = useRef(false);
   const adminLayoutRef = useRef<HTMLDivElement>(null);
+  const mobileMenuRef = useRef<HTMLDivElement>(null);
+  const overviewLoadedRef = useRef(false);
+  const notificationsLoadedRef = useRef(false);
 
   const closeMobileMenu = useCallback(() => {
     setMobileMenuOpen(false);
@@ -225,7 +251,9 @@ export function AdminScreen({
   const handleDrawerPointerDown = (
     event: ReactPointerEvent<HTMLButtonElement>,
   ) => {
+    suppressDrawerHandleClick.current = false;
     drawerDragStart.current = {
+      x: event.clientX,
       y: event.clientY,
       time: performance.now(),
     };
@@ -251,11 +279,19 @@ export function AdminScreen({
       0,
       event.clientY - drawerDragStart.current.y,
     );
+    const pointerMovement = Math.hypot(
+      event.clientX - drawerDragStart.current.x,
+      event.clientY - drawerDragStart.current.y,
+    );
     const elapsed = Math.max(
       1,
       performance.now() - drawerDragStart.current.time,
     );
     const velocity = distance / elapsed;
+
+    if (pointerMovement >= 4) {
+      suppressDrawerHandleClick.current = true;
+    }
 
     setDrawerDragging(false);
 
@@ -264,6 +300,15 @@ export function AdminScreen({
     } else {
       setDrawerDragOffset(0);
     }
+  };
+
+  const handleDrawerHandleClick = () => {
+    if (suppressDrawerHandleClick.current) {
+      suppressDrawerHandleClick.current = false;
+      return;
+    }
+
+    closeMobileMenu();
   };
 
   const changeTab = useCallback(
@@ -297,12 +342,16 @@ export function AdminScreen({
   );
 
   const loadOverview = useCallback(async () => {
-    const [response, notificationResponse] = await Promise.all([
-      fetchAdminJson<AdminOverviewResponse>("overview"),
-      fetchAdminJson<AdminNotificationsResponse>("notifications"),
-    ]);
+    const response = await fetchAdminJson<AdminOverviewResponse>("overview");
     setOverview(response.overview);
+    overviewLoadedRef.current = true;
+  }, []);
+
+  const loadNotifications = useCallback(async () => {
+    const notificationResponse =
+      await fetchAdminJson<AdminNotificationsResponse>("notifications");
     setNotifications(notificationResponse);
+    notificationsLoadedRef.current = true;
   }, []);
 
   const loadTab = useCallback(async () => {
@@ -352,6 +401,7 @@ export function AdminScreen({
         `notifications${suffix}`,
       );
       setNotifications(response);
+      notificationsLoadedRef.current = true;
     } else if (tab === "funnel") {
       const response =
         await fetchAdminJson<AdminRecommendationFunnelResponse>(
@@ -399,15 +449,25 @@ export function AdminScreen({
     }
   }, [appliedQuery, filter, funnelDays, placeFilters, placePage, tab]);
 
-  const refresh = useCallback(async () => {
+  const refresh = useCallback(async (forceSignals = false) => {
     setLoading(true);
     setError(null);
 
     try {
-      await Promise.all([
-        loadOverview(),
-        tab === "overview" ? Promise.resolve() : loadTab(),
-      ]);
+      if (tab === "overview") {
+        await Promise.all([loadOverview(), loadNotifications()]);
+      } else {
+        await Promise.all([
+          !forceSignals && overviewLoadedRef.current
+            ? Promise.resolve()
+            : loadOverview(),
+          tab === "notifications" ||
+          (!forceSignals && notificationsLoadedRef.current)
+            ? Promise.resolve()
+            : loadNotifications(),
+          loadTab(),
+        ]);
+      }
       setAccessStatus(null);
     } catch (loadError) {
       setError(toErrorMessage(loadError));
@@ -417,7 +477,7 @@ export function AdminScreen({
     } finally {
       setLoading(false);
     }
-  }, [loadOverview, loadTab, tab]);
+  }, [loadNotifications, loadOverview, loadTab, tab]);
 
   useEffect(() => {
     const timeout = window.setTimeout(() => {
@@ -449,12 +509,49 @@ export function AdminScreen({
   useEffect(() => {
     if (!mobileMenuOpen) return;
 
+    const previousFocus = document.activeElement as HTMLElement | null;
+    const previousBodyOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") closeMobileMenu();
+      if (event.key === "Escape") {
+        closeMobileMenu();
+        return;
+      }
+
+      if (event.key !== "Tab" || !mobileMenuRef.current) return;
+
+      const focusable = Array.from(
+        mobileMenuRef.current.querySelectorAll<HTMLElement>(
+          'a[href], button:not([disabled]), select:not([disabled]), textarea:not([disabled]), input:not([disabled]), [tabindex]:not([tabindex="-1"])',
+        ),
+      );
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+
+      if (!first || !last) return;
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
     };
 
     window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
+    const frame = window.requestAnimationFrame(() => {
+      mobileMenuRef.current
+        ?.querySelector<HTMLElement>("[data-mobile-menu-initial]")
+        ?.focus();
+    });
+
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+      window.cancelAnimationFrame(frame);
+      document.body.style.overflow = previousBodyOverflow;
+      previousFocus?.focus();
+    };
   }, [closeMobileMenu, mobileMenuOpen]);
 
   const mutate = async (
@@ -521,33 +618,44 @@ export function AdminScreen({
           <span>관리자 콘솔</span>
         </Brand>
         <Navigation aria-label="관리자 메뉴">
-          {tabs.map((item) => (
-            <NavButton
-              key={item.id}
-              type="button"
-              $active={tab === item.id}
-              onClick={() => changeTab(item.id)}
-            >
-              {item.label}
-            </NavButton>
+          {navigationGroups.map((group) => (
+            <NavGroup key={group.label}>
+              <NavGroupLabel>{group.label}</NavGroupLabel>
+              {group.items.map((item) => (
+                <NavButton
+                  key={item.id}
+                  type="button"
+                  $active={tab === item.id}
+                  aria-current={tab === item.id ? "page" : undefined}
+                  onClick={() => changeTab(item.id)}
+                >
+                  <span>{item.label}</span>
+                </NavButton>
+              ))}
+            </NavGroup>
           ))}
+          <NavGroup>
+            <NavGroupLabel>도구</NavGroupLabel>
+            <NavLink href="/admin/recommendation-simulator">
+              추천 시뮬레이터
+            </NavLink>
+            <NavLink href="/admin/tourism-data">관광 데이터</NavLink>
+          </NavGroup>
         </Navigation>
-        <TourismDataLink href="/admin/recommendation-simulator">
-          추천 시뮬레이터
-        </TourismDataLink>
-        <TourismDataLink href="/admin/tourism-data">
-          관광 데이터 관리
-        </TourismDataLink>
         <HomeLink href="/">서비스로 돌아가기</HomeLink>
       </Sidebar>
 
-      <Main>
+      <Main aria-busy={loading}>
         <Header>
           <div>
-            <HeaderContext>{getAdminHeaderContext(tab)}</HeaderContext>
             <h1>{tabs.find((item) => item.id === tab)?.label}</h1>
+            <HeaderContext>{getAdminHeaderContext(tab)}</HeaderContext>
           </div>
-          <RefreshButton type="button" onClick={() => void refresh()}>
+          <RefreshButton
+            type="button"
+            disabled={loading}
+            onClick={() => void refresh(true)}
+          >
             <RefreshIcon viewBox="0 0 24 24" aria-hidden="true">
               <path d="M20 7v5h-5" />
               <path d="M18.2 16.8A8 8 0 1 1 19.8 9" />
@@ -616,6 +724,14 @@ export function AdminScreen({
             overview={overview}
             notifications={notifications}
             onNavigate={changeTab}
+            onNavigatePendingPlaces={() => {
+              changeTab("places");
+              setPlaceFilters({
+                ...defaultPlaceFilters,
+                candidate: "all",
+                reviewStatus: "pending",
+              });
+            }}
           />
         ) : tab === "notifications" ? (
           <AdminNotificationsPanel data={notifications} />
@@ -653,11 +769,15 @@ export function AdminScreen({
           <ReportsPanel
             reports={reports}
             mutatingId={mutatingId}
-            onStatusChange={(reportId, status) =>
+            onSave={(reportId, status, resolutionNote) =>
               void mutate(
                 "reports",
                 reportId,
-                adminJsonRequest("PATCH", { reportId, status }),
+                adminJsonRequest("PATCH", {
+                  reportId,
+                  status,
+                  resolutionNote,
+                }),
               )
             }
             onForceDelete={(report) => {
@@ -740,6 +860,7 @@ export function AdminScreen({
             key={item.id}
             type="button"
             $active={tab === item.id}
+            aria-current={tab === item.id ? "page" : undefined}
             onClick={() => changeTab(item.id)}
           >
             <MobileNavIcon $active={tab === item.id}>
@@ -753,12 +874,6 @@ export function AdminScreen({
             {item.id === "reports" &&
               Boolean(overview?.pendingReports) && (
                 <MobileNavBadge>{overview?.pendingReports}</MobileNavBadge>
-              )}
-            {item.id === "notifications" &&
-              Boolean(notifications?.summary.failed24h) && (
-                <MobileNavBadge>
-                  {notifications?.summary.failed24h}
-                </MobileNavBadge>
               )}
           </MobileNavButton>
         ))}
@@ -774,6 +889,9 @@ export function AdminScreen({
             <AdminSectionIcon section="more" />
           </MobileNavIcon>
           <MobileNavLabel>더보기</MobileNavLabel>
+          {Boolean(notifications?.summary.failed24h) && (
+            <MobileNavBadge>{notifications?.summary.failed24h}</MobileNavBadge>
+          )}
         </MobileNavButton>
       </MobileNavigation>
 
@@ -785,6 +903,7 @@ export function AdminScreen({
         onClick={closeMobileMenu}
       >
         <MobileMenu
+          ref={mobileMenuRef}
           $open={mobileMenuOpen}
           $dragOffset={drawerDragOffset}
           $dragging={drawerDragging}
@@ -795,7 +914,9 @@ export function AdminScreen({
         >
           <MobileMenuHandle
             type="button"
-            aria-label="아래로 끌어 더보기 메뉴 닫기"
+            data-mobile-menu-initial
+            aria-label="탭하거나 아래로 끌어 더보기 메뉴 닫기"
+            onClick={handleDrawerHandleClick}
             onPointerDown={handleDrawerPointerDown}
             onPointerMove={handleDrawerPointerMove}
             onPointerUp={finishDrawerDrag}
@@ -808,13 +929,6 @@ export function AdminScreen({
               <span>더보기</span>
               <h2>관리자 메뉴</h2>
             </div>
-            <DrawerCloseButton
-              type="button"
-              aria-label="더보기 메뉴 닫기"
-              onClick={closeMobileMenu}
-            >
-              ×
-            </DrawerCloseButton>
           </MobileMenuHeader>
           <MobileMenuList>
             {mobileMoreTabs.map((item) => (
@@ -822,6 +936,7 @@ export function AdminScreen({
                 key={item.id}
                 type="button"
                 $active={tab === item.id}
+                aria-current={tab === item.id ? "page" : undefined}
                 onClick={() => changeTab(item.id)}
               >
                 <span>{item.label}</span>
@@ -851,10 +966,12 @@ function OverviewPanel({
   overview,
   notifications,
   onNavigate,
+  onNavigatePendingPlaces,
 }: {
   overview: AdminOverview | null;
   notifications: AdminNotificationsResponse | null;
   onNavigate: (tab: AdminTab) => void;
+  onNavigatePendingPlaces: () => void;
 }) {
   const pendingTotal =
     (overview?.pendingInquiries ?? 0) +
@@ -885,31 +1002,18 @@ function OverviewPanel({
             보여드립니다.
           </p>
         </HeroCopy>
-        <SignalRail aria-label="운영 신호 요약">
-          <SignalButton type="button" onClick={() => onNavigate("inquiries")}>
-            <SignalDot $tone="lime" />
-            <span>문의</span>
-            <strong>{overview?.pendingInquiries ?? 0}</strong>
-          </SignalButton>
-          <SignalButton type="button" onClick={() => onNavigate("reports")}>
-            <SignalDot $tone="bridge" />
-            <span>신고</span>
-            <strong>{overview?.pendingReports ?? 0}</strong>
-          </SignalButton>
-          <SignalButton type="button" onClick={() => onNavigate("places")}>
-            <SignalDot $tone="blue" />
-            <span>장소 검수</span>
-            <strong>{overview?.pendingPlaces ?? 0}</strong>
-          </SignalButton>
-          <SignalButton
-            type="button"
-            onClick={() => onNavigate("notifications")}
-          >
-            <SignalDot $tone={failedNotifications > 0 ? "error" : "quiet"} />
+        <HeroStatusSummary aria-label="운영 신호 요약">
+          <div>
+            <span>처리 대기</span>
+            <strong>{pendingTotal.toLocaleString("ko-KR")}</strong>
+          </div>
+          <div>
             <span>알림 실패</span>
-            <strong>{failedNotifications}</strong>
-          </SignalButton>
-        </SignalRail>
+            <strong data-alert={failedNotifications > 0 || undefined}>
+              {failedNotifications.toLocaleString("ko-KR")}
+            </strong>
+          </div>
+        </HeroStatusSummary>
       </OperationsHero>
 
       <OverviewSplit>
@@ -926,7 +1030,7 @@ function OverviewPanel({
               <strong>{overview?.pendingReports ?? 0}</strong>
               <i aria-hidden="true">›</i>
             </QueueRow>
-            <QueueRow type="button" onClick={() => onNavigate("places")}>
+            <QueueRow type="button" onClick={onNavigatePendingPlaces}>
               <span>검토 대기 장소</span>
               <strong>{overview?.pendingPlaces ?? 0}</strong>
               <i aria-hidden="true">›</i>
@@ -1054,23 +1158,36 @@ function RecommendationFunnelPanel({
         </FunnelSummaryCard>
       </FunnelSummary>
 
-      <FunnelStageList>
-        {funnel.stages.map((stage, index) => (
-          <FunnelStageCard key={stage.action}>
-            <FunnelStageIndex>{index + 1}</FunnelStageIndex>
-            <div>
-              <span>{stage.label}</span>
-              <strong>{stage.journeys.toLocaleString("ko-KR")}</strong>
-            </div>
-            <FunnelRates>
-              <span>전체 {formatRate(stage.rateFromRuns)}</span>
-              {index > 0 && (
-                <span>이전 단계 {formatRate(stage.rateFromPrevious)}</span>
-              )}
-            </FunnelRates>
-          </FunnelStageCard>
-        ))}
-      </FunnelStageList>
+      <TableCard>
+        <Table>
+          <thead>
+            <tr>
+              <th scope="col">단계</th>
+              <th scope="col">행동</th>
+              <th scope="col">여정 수</th>
+              <th scope="col">전체 대비</th>
+              <th scope="col">이전 단계 대비</th>
+            </tr>
+          </thead>
+          <tbody>
+            {funnel.stages.map((stage, index) => (
+              <tr key={stage.action}>
+                <td data-label="단계">
+                  <FunnelStageIndex>{index + 1}</FunnelStageIndex>
+                </td>
+                <td data-label="행동"><strong>{stage.label}</strong></td>
+                <td data-label="여정 수">
+                  {stage.journeys.toLocaleString("ko-KR")}
+                </td>
+                <td data-label="전체 대비">{formatRate(stage.rateFromRuns)}</td>
+                <td data-label="이전 단계 대비">
+                  {index > 0 ? formatRate(stage.rateFromPrevious) : "기준 단계"}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </Table>
+      </TableCard>
 
       <FunnelBottomGrid>
         <FunnelPanelCard>
@@ -1111,39 +1228,65 @@ function LogsPanel({ logs }: { logs: AdminLogItem[] }) {
   if (logs.length === 0) return <StatePanel>조건에 맞는 로그가 없습니다.</StatePanel>;
 
   return (
-    <CardList>
-      {logs.map((log) => (
-        <DataCard key={log.id}>
-          <CardTop>
-            <StatusBadge $tone={log.level}>
-              {getLogLevelLabel(log.level)}
-            </StatusBadge>
-            <Time>{formatDate(log.createdAt)}</Time>
-          </CardTop>
-          <h2>{log.message}</h2>
-          <Meta>
-            {log.category} · {log.action}
-            {log.actorUserId ? ` · 작업자 ${log.actorUserId}` : ""}
-          </Meta>
-          {Boolean(log.targetId || log.metadata) && (
-            <details>
-              <summary>상세 정보</summary>
-              <Code>
-                {JSON.stringify(
-                  {
-                    targetType: log.targetType,
-                    targetId: log.targetId,
-                    metadata: log.metadata,
-                  },
-                  null,
-                  2,
+    <TableCard>
+      <Table>
+        <thead>
+          <tr>
+            <th scope="col">수준</th>
+            <th scope="col">내용</th>
+            <th scope="col">분류·작업</th>
+            <th scope="col">작업자·대상</th>
+            <th scope="col">발생 시각</th>
+            <th scope="col">원문</th>
+          </tr>
+        </thead>
+        <tbody>
+          {logs.map((log) => (
+            <tr key={log.id}>
+              <td data-label="수준">
+                <StatusBadge $tone={log.level}>
+                  {getLogLevelLabel(log.level)}
+                </StatusBadge>
+              </td>
+              <td data-label="내용">
+                <strong>{log.message}</strong>
+              </td>
+              <td data-label="분류·작업">
+                {log.category}
+                <Small>{log.action}</Small>
+              </td>
+              <td data-label="작업자·대상">
+                {log.actorUserId ?? "시스템"}
+                <Small>{log.targetId ?? "대상 없음"}</Small>
+              </td>
+              <td data-label="발생 시각">
+                <Time>{formatDate(log.createdAt)}</Time>
+              </td>
+              <td data-label="원문">
+                {Boolean(log.targetId || log.metadata) ? (
+                  <CompactDetails>
+                    <summary>보기</summary>
+                    <Code>
+                      {JSON.stringify(
+                        {
+                          targetType: log.targetType,
+                          targetId: log.targetId,
+                          metadata: log.metadata,
+                        },
+                        null,
+                        2,
+                      )}
+                    </Code>
+                  </CompactDetails>
+                ) : (
+                  "—"
                 )}
-              </Code>
-            </details>
-          )}
-        </DataCard>
-      ))}
-    </CardList>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </Table>
+    </TableCard>
   );
 }
 
@@ -1159,46 +1302,71 @@ function LocationLogsPanel({
   }
 
   return (
-    <CardList>
+    <RecordsSection>
       <LocationLogSummary>
         <strong>{total.toLocaleString("ko-KR")}건</strong>
         <span>최근 기록은 최대 200건까지 표시하며 원본 위도·경도는 기록하지 않습니다.</span>
       </LocationLogSummary>
-      {logs.map((log) => (
-        <DataCard key={log.id}>
-          <CardTop>
-            <StatusBadge $tone={log.kind === "external_transfer" ? "warning" : "info"}>
-              {log.kind === "external_transfer" ? "외부 전달" : "내부 이용"}
-            </StatusBadge>
-            <Time>{formatDate(log.occurredAt)}</Time>
-          </CardTop>
-          <h2>
-            {log.kind === "external_transfer"
-              ? log.externalRecipient ?? "외부 서비스"
-              : getLocationServiceLabel(log.service)}
-          </h2>
-          <Meta>
-            {log.acquisitionSource === "photo_exif" ? "사진 촬영 위치" : "기기 현재 위치"}
-            {log.userId ? ` · 사용자 ${log.userId}` : " · 삭제된 사용자"}
-          </Meta>
-          <details>
-            <summary>확인자료 상세</summary>
-            <Code>
-              {JSON.stringify(
-                {
-                  처리경로: log.method,
-                  외부처리목적: log.externalPurpose,
-                  외부처리모드: log.externalMode,
-                  보존만료: formatDate(log.retentionUntil),
-                },
-                null,
-                2,
-              )}
-            </Code>
-          </details>
-        </DataCard>
-      ))}
-    </CardList>
+      <TableCard>
+        <Table>
+          <thead>
+            <tr>
+              <th scope="col">구분</th>
+              <th scope="col">이용 서비스</th>
+              <th scope="col">취득 경로</th>
+              <th scope="col">사용자</th>
+              <th scope="col">발생 시각</th>
+              <th scope="col">확인자료</th>
+            </tr>
+          </thead>
+          <tbody>
+            {logs.map((log) => (
+              <tr key={log.id}>
+                <td data-label="구분">
+                  <StatusBadge
+                    $tone={log.kind === "external_transfer" ? "warning" : "info"}
+                  >
+                    {log.kind === "external_transfer" ? "외부 전달" : "내부 이용"}
+                  </StatusBadge>
+                </td>
+                <td data-label="이용 서비스">
+                  {log.kind === "external_transfer"
+                    ? log.externalRecipient ?? "외부 서비스"
+                    : getLocationServiceLabel(log.service)}
+                  <Small>{log.method}</Small>
+                </td>
+                <td data-label="취득 경로">
+                  {log.acquisitionSource === "photo_exif"
+                    ? "사진 촬영 위치"
+                    : "기기 현재 위치"}
+                </td>
+                <td data-label="사용자">{log.userId ?? "삭제된 사용자"}</td>
+                <td data-label="발생 시각">
+                  <Time>{formatDate(log.occurredAt)}</Time>
+                </td>
+                <td data-label="확인자료">
+                  <CompactDetails>
+                    <summary>보기</summary>
+                    <Code>
+                      {JSON.stringify(
+                        {
+                          처리경로: log.method,
+                          외부처리목적: log.externalPurpose,
+                          외부처리모드: log.externalMode,
+                          보존만료: formatDate(log.retentionUntil),
+                        },
+                        null,
+                        2,
+                      )}
+                    </Code>
+                  </CompactDetails>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </Table>
+      </TableCard>
+    </RecordsSection>
   );
 }
 
@@ -1219,63 +1387,86 @@ function LocationSecurityEventsPanel({
   total: number;
 }) {
   return (
-    <CardList>
+    <RecordsSection>
       <LocationLogSummary>
         <strong>
           시스템 접근·권한·점검 기록 {total.toLocaleString("ko-KR")}건
         </strong>
         <span>
-          최근 200건의 서명 검증 결과를 표시합니다. 권한 변경·점검 기록은 5년,
-          일반 시스템 접근기록은 1년간 보존합니다.
+          상단 검색·필터와 별개로 최근 200건을 표시합니다. 권한 변경·점검
+          기록은 5년, 일반 시스템 접근기록은 1년간 보존합니다.
         </span>
       </LocationLogSummary>
       {events.length === 0 ? (
         <StatePanel>아직 위치정보 보안 감사기록이 없습니다.</StatePanel>
       ) : (
-        events.map((event) => (
-          <DataCard key={event.id}>
-            <CardTop>
-              <StatusBadge
-                $tone={
-                  !event.integrityValid || event.result === "failed"
-                    ? "error"
-                    : event.result === "denied"
-                      ? "warning"
-                      : "approved"
-                }
-              >
-                {!event.integrityValid
-                  ? "무결성 확인 필요"
-                  : getLocationSecurityResultLabel(event.result)}
-              </StatusBadge>
-              <Time>{formatDate(event.occurredAt)}</Time>
-            </CardTop>
-            <h2>{getLocationSecurityCategoryLabel(event.category)}</h2>
-            <Meta>
-              {event.action} · {event.resource}
-              {event.actorUserId
-                ? ` · 관리자 ${event.actorUserId}`
-                : " · 시스템/외부 요청"}
-            </Meta>
-            <details>
-              <summary>감사기록 상세</summary>
-              <Code>
-                {JSON.stringify(
-                  {
-                    결과: getLocationSecurityResultLabel(event.result),
-                    서명검증: event.integrityValid ? "정상" : "실패",
-                    보존만료: formatDate(event.retentionUntil),
-                    세부정보: event.details,
-                  },
-                  null,
-                  2,
-                )}
-              </Code>
-            </details>
-          </DataCard>
-        ))
+        <TableCard>
+          <Table>
+            <thead>
+              <tr>
+                <th scope="col">결과</th>
+                <th scope="col">기록 유형</th>
+                <th scope="col">작업·자원</th>
+                <th scope="col">작업자</th>
+                <th scope="col">발생 시각</th>
+                <th scope="col">감사 원문</th>
+              </tr>
+            </thead>
+            <tbody>
+              {events.map((event) => (
+                <tr key={event.id}>
+                  <td data-label="결과">
+                    <StatusBadge
+                      $tone={
+                        !event.integrityValid || event.result === "failed"
+                          ? "error"
+                          : event.result === "denied"
+                            ? "warning"
+                            : "approved"
+                      }
+                    >
+                      {!event.integrityValid
+                        ? "무결성 확인 필요"
+                        : getLocationSecurityResultLabel(event.result)}
+                    </StatusBadge>
+                  </td>
+                  <td data-label="기록 유형">
+                    {getLocationSecurityCategoryLabel(event.category)}
+                  </td>
+                  <td data-label="작업·자원">
+                    {event.action}
+                    <Small>{event.resource}</Small>
+                  </td>
+                  <td data-label="작업자">
+                    {event.actorUserId ?? "시스템/외부 요청"}
+                  </td>
+                  <td data-label="발생 시각">
+                    <Time>{formatDate(event.occurredAt)}</Time>
+                  </td>
+                  <td data-label="감사 원문">
+                    <CompactDetails>
+                      <summary>보기</summary>
+                      <Code>
+                        {JSON.stringify(
+                          {
+                            결과: getLocationSecurityResultLabel(event.result),
+                            서명검증: event.integrityValid ? "정상" : "실패",
+                            보존만료: formatDate(event.retentionUntil),
+                            세부정보: event.details,
+                          },
+                          null,
+                          2,
+                        )}
+                      </Code>
+                    </CompactDetails>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </Table>
+        </TableCard>
       )}
-    </CardList>
+    </RecordsSection>
   );
 }
 
@@ -1320,12 +1511,17 @@ function PlacesToolbar({
   onFilterChange: (key: keyof PlaceFilterState, value: string) => void;
   onReset: () => void;
 }) {
+  const [filtersOpen, setFiltersOpen] = useState(false);
   const filtersApplied =
     Boolean(query.trim() || appliedQuery) ||
     Object.entries(filters).some(
       ([key, value]) =>
         value !== defaultPlaceFilters[key as keyof PlaceFilterState],
     );
+  const activeFilterCount = Object.entries(filters).filter(
+    ([key, value]) =>
+      value !== defaultPlaceFilters[key as keyof PlaceFilterState],
+  ).length + (appliedQuery ? 1 : 0);
 
   return (
     <PlaceToolbarCard>
@@ -1343,7 +1539,57 @@ function PlacesToolbar({
         />
         <SearchButton type="submit">검색</SearchButton>
       </PlaceSearchRow>
-      <PlaceFilterGrid>
+      <PlaceSavedViews aria-label="장소 저장 보기">
+        <PlaceViewButton
+          type="button"
+          $active={filters.candidate === "pool" && !filters.reviewStatus}
+          aria-pressed={filters.candidate === "pool" && !filters.reviewStatus}
+          onClick={() => {
+            onFilterChange("candidate", "pool");
+            onFilterChange("reviewStatus", "");
+          }}
+        >
+          추천풀 <span>{meta?.candidateCounts.pool ?? 0}</span>
+        </PlaceViewButton>
+        <PlaceViewButton
+          type="button"
+          $active={
+            filters.candidate === "all" && filters.reviewStatus === "pending"
+          }
+          aria-pressed={
+            filters.candidate === "all" && filters.reviewStatus === "pending"
+          }
+          onClick={() => {
+            onFilterChange("candidate", "all");
+            onFilterChange("reviewStatus", "pending");
+          }}
+        >
+          검토 대기 <span>{meta?.statusCounts.pending ?? 0}</span>
+        </PlaceViewButton>
+        <PlaceViewButton
+          type="button"
+          $active={filters.candidate === "all" && !filters.reviewStatus}
+          aria-pressed={filters.candidate === "all" && !filters.reviewStatus}
+          onClick={() => {
+            onFilterChange("candidate", "all");
+            onFilterChange("reviewStatus", "");
+          }}
+        >
+          전체 <span>{meta?.all ?? 0}</span>
+        </PlaceViewButton>
+      </PlaceSavedViews>
+      <PlaceFilterToggle
+        type="button"
+        aria-expanded={filtersOpen}
+        onClick={() => setFiltersOpen((open) => !open)}
+      >
+        <span>상세 필터</span>
+        <strong>
+          {activeFilterCount > 0 ? `${activeFilterCount}개 적용 중` : "조건 추가"}
+        </strong>
+        <i aria-hidden="true">{filtersOpen ? "−" : "+"}</i>
+      </PlaceFilterToggle>
+      <PlaceFilterGrid $mobileOpen={filtersOpen}>
         <FilterField>
           <span>추천 후보</span>
           <Select
@@ -1537,10 +1783,18 @@ function PlacesPanel({
         </div>
         {meta && (
           <PlaceStatusSummary>
-            <span>추천풀 {meta.candidateCounts.pool}</span>
-            <span>대기 {meta.statusCounts.pending}</span>
-            <span>승인 {meta.statusCounts.approved}</span>
-            <span>노출 허용 {meta.visibilityCounts.active}</span>
+            <PlaceSummaryBadge $tone="brand">
+              추천풀 {meta.candidateCounts.pool}
+            </PlaceSummaryBadge>
+            <PlaceSummaryBadge $tone="pending">
+              대기 {meta.statusCounts.pending}
+            </PlaceSummaryBadge>
+            <PlaceSummaryBadge $tone="success">
+              승인 {meta.statusCounts.approved}
+            </PlaceSummaryBadge>
+            <PlaceSummaryBadge $tone="neutral">
+              노출 허용 {meta.visibilityCounts.active}
+            </PlaceSummaryBadge>
           </PlaceStatusSummary>
         )}
       </PlaceResultHeader>
@@ -1549,173 +1803,104 @@ function PlacesPanel({
         <StatePanel>조건에 맞는 장소가 없습니다.</StatePanel>
       ) : (
         <>
-          <DesktopOnly>
-            <TableCard>
-              <Table>
-                <thead>
-                  <tr>
-                    <th>장소</th>
-                    <th>지역</th>
-                    <th>출처·유형</th>
-                    <th>추천 판정</th>
-                    <th>검수 상태</th>
-                    <th>노출</th>
-                    <th>최근 수정</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {places.map((place) => (
-                    <tr key={place.id}>
-                      <td>
-                        <strong>{place.name}</strong>
+          <TableCard>
+            <Table>
+              <thead>
+                <tr>
+                  <th scope="col">장소</th>
+                  <th scope="col">지역</th>
+                  <th scope="col">출처·유형</th>
+                  <th scope="col">추천 판정</th>
+                  <th scope="col">검수 상태</th>
+                  <th scope="col">노출</th>
+                  <th scope="col">갱신 시각</th>
+                </tr>
+              </thead>
+              <tbody>
+                {places.map((place) => (
+                  <tr key={place.id}>
+                    <td data-label="장소">
+                      <strong>{place.name}</strong>
+                      <Small>
+                        피로도 {place.fatigue} · {place.movementLevel}
+                      </Small>
+                      <Small>{place.id}</Small>
+                    </td>
+                    <td data-label="지역">
+                      {formatPlaceRegion(place)}
+                      {place.sourceAddress ? (
+                        <Small>{place.sourceAddress}</Small>
+                      ) : null}
+                    </td>
+                    <td data-label="출처·유형">
+                      {getPlaceSourceLabel(place.source)}
+                      {place.sourceContentType ? (
                         <Small>
-                          피로도 {place.fatigue} · {place.movementLevel}
+                          {getTourApiContentTypeLabel(place.sourceContentType)}
                         </Small>
-                        <Small>{place.id}</Small>
-                      </td>
-                      <td>
-                        {formatPlaceRegion(place)}
-                        {place.sourceAddress ? (
-                          <Small>{place.sourceAddress}</Small>
-                        ) : null}
-                      </td>
-                      <td>
-                        {getPlaceSourceLabel(place.source)}
-                        {place.sourceContentType ? (
-                          <Small>
-                            {getTourApiContentTypeLabel(
-                              place.sourceContentType,
-                            )}
-                          </Small>
-                        ) : null}
-                        {place.sourceId ? (
-                          <Small>{place.sourceId}</Small>
-                        ) : null}
-                      </td>
-                      <td>
-                        <CandidateBadge $inPool={isCandidatePoolPlace(place)}>
-                          {getCandidateStatusLabel(place)}
-                        </CandidateBadge>
-                        {place.candidateScore !== null ? (
-                          <Small>점수 {place.candidateScore}</Small>
-                        ) : null}
-                        {getCandidateExplanation(place) ? (
-                          <Small>{getCandidateExplanation(place)}</Small>
-                        ) : null}
-                      </td>
-                      <td>
-                        <InlineSelect
-                          value={place.reviewStatus}
+                      ) : null}
+                      {place.sourceId ? <Small>{place.sourceId}</Small> : null}
+                      {place.sourceCopyright ? (
+                        <Small>이미지 이용 구분 {place.sourceCopyright}</Small>
+                      ) : null}
+                    </td>
+                    <td data-label="추천 판정">
+                      <CandidateBadge $inPool={isCandidatePoolPlace(place)}>
+                        {getCandidateStatusLabel(place)}
+                      </CandidateBadge>
+                      {place.candidateScore !== null ? (
+                        <Small>점수 {place.candidateScore}</Small>
+                      ) : null}
+                      {getCandidateExplanation(place) ? (
+                        <Small>{getCandidateExplanation(place)}</Small>
+                      ) : null}
+                      <Small>
+                        판정 {formatOptionalDate(place.candidateEvaluatedAt)}
+                      </Small>
+                    </td>
+                    <td data-label="검수 상태">
+                      <InlineSelect
+                        value={place.reviewStatus}
+                        disabled={mutatingId === place.id}
+                        aria-label={`${place.name} 검수 상태`}
+                        onChange={(event) =>
+                          onChange(place.id, {
+                            reviewStatus: event.target.value,
+                          })
+                        }
+                      >
+                        <option value="pending">검토 대기</option>
+                        <option value="approved">승인</option>
+                        <option value="rejected">거절</option>
+                      </InlineSelect>
+                    </td>
+                    <td data-label="노출">
+                      <ToggleLabel>
+                        <input
+                          type="checkbox"
+                          checked={place.isActive}
                           disabled={mutatingId === place.id}
                           onChange={(event) =>
                             onChange(place.id, {
-                              reviewStatus: event.target.value,
+                              isActive: event.target.checked,
                             })
                           }
-                        >
-                          <option value="pending">검토 대기</option>
-                          <option value="approved">승인</option>
-                          <option value="rejected">거절</option>
-                        </InlineSelect>
-                      </td>
-                      <td>
-                        <ToggleLabel>
-                          <input
-                            type="checkbox"
-                            checked={place.isActive}
-                            disabled={mutatingId === place.id}
-                            onChange={(event) =>
-                              onChange(place.id, {
-                                isActive: event.target.checked,
-                              })
-                            }
-                          />
-                          {place.isActive ? "허용" : "숨김"}
-                        </ToggleLabel>
-                      </td>
-                      <td>
-                        <Time dateTime={place.updatedAt}>
-                          {formatDate(place.updatedAt)}
-                        </Time>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </Table>
-            </TableCard>
-          </DesktopOnly>
-          <MobileRecordList>
-            {places.map((place) => (
-              <MobileRecordCard key={place.id}>
-                <MobileRecordHeader>
-                  <div>
-                    <h2>{place.name}</h2>
-                    <Meta>
-                      {formatPlaceRegion(place)} ·{" "}
-                      {getPlaceSourceLabel(place.source)}
-                      {place.sourceContentType
-                        ? ` · ${getTourApiContentTypeLabel(place.sourceContentType)}`
-                        : ""}
-                    </Meta>
-                    {place.sourceAddress ? (
-                      <Meta>{place.sourceAddress}</Meta>
-                    ) : null}
-                  </div>
-                  <PlaceBadgeStack>
-                    <CandidateBadge $inPool={isCandidatePoolPlace(place)}>
-                      {getCandidateStatusLabel(place)}
-                    </CandidateBadge>
-                    <StatusBadge $tone={place.reviewStatus}>
-                      {getPlaceReviewStatusLabel(place.reviewStatus)}
-                    </StatusBadge>
-                    <VisibilityBadge $active={place.isActive}>
-                      {place.isActive ? "노출 허용" : "노출 숨김"}
-                    </VisibilityBadge>
-                  </PlaceBadgeStack>
-                </MobileRecordHeader>
-                <Small>
-                  피로도 {place.fatigue} · {place.movementLevel} · 수정{" "}
-                  {formatDate(place.updatedAt)}
-                </Small>
-                {getCandidateExplanation(place) ? (
-                  <Small>{getCandidateExplanation(place)}</Small>
-                ) : null}
-                <Small>{place.sourceId ?? place.id}</Small>
-                {place.sourceCopyright ? (
-                  <Small>이미지 이용 구분 {place.sourceCopyright}</Small>
-                ) : null}
-                <MobileRecordActions>
-                  <InlineSelect
-                    value={place.reviewStatus}
-                    disabled={mutatingId === place.id}
-                    aria-label={`${place.name} 검수 상태`}
-                    onChange={(event) =>
-                      onChange(place.id, {
-                        reviewStatus: event.target.value,
-                      })
-                    }
-                  >
-                    <option value="pending">검토 대기</option>
-                    <option value="approved">승인</option>
-                    <option value="rejected">거절</option>
-                  </InlineSelect>
-                  <ToggleControl>
-                    <input
-                      type="checkbox"
-                      checked={place.isActive}
-                      disabled={mutatingId === place.id}
-                      onChange={(event) =>
-                        onChange(place.id, {
-                          isActive: event.target.checked,
-                        })
-                      }
-                    />
-                    {place.isActive ? "노출 허용" : "노출 숨김"}
-                  </ToggleControl>
-                </MobileRecordActions>
-              </MobileRecordCard>
-            ))}
-          </MobileRecordList>
+                        />
+                        {place.isActive ? "허용" : "숨김"}
+                      </ToggleLabel>
+                      <Small>정책 {getVisibilityOverrideLabel(place.visibilityOverride)}</Small>
+                    </td>
+                    <td data-label="갱신 시각">
+                      <Time dateTime={place.updatedAt}>
+                        {formatDate(place.updatedAt)}
+                      </Time>
+                      <Small>원천 {formatOptionalDate(place.sourceSyncedAt)}</Small>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </Table>
+          </TableCard>
         </>
       )}
 
@@ -1747,55 +1932,137 @@ function PlacesPanel({
 function ReportsPanel({
   reports,
   mutatingId,
-  onStatusChange,
+  onSave,
   onForceDelete,
 }: {
   reports: AdminReportItem[];
   mutatingId: string | null;
-  onStatusChange: (reportId: string, status: string) => void;
+  onSave: (
+    reportId: string,
+    status: string,
+    resolutionNote: string,
+  ) => void;
   onForceDelete: (report: AdminReportItem) => void;
 }) {
   if (reports.length === 0) return <StatePanel>접수된 신고가 없습니다.</StatePanel>;
 
   return (
-    <CardList>
-      {reports.map((report) => (
-        <DataCard key={report.id}>
-          <CardTop>
-            <StatusBadge $tone={report.status}>
-              {getReportStatusLabel(report.status)}
-            </StatusBadge>
-            <Time>{formatDate(report.createdAt)}</Time>
-          </CardTop>
-          <h2>{report.targetTitle}</h2>
-          <Meta>
-            사유 {report.reason} · 신고자 {report.reporterUserId}
-          </Meta>
-          {report.detail && <Description>{report.detail}</Description>}
-          <CardActions>
-            <InlineSelect
-              value={report.status}
-              disabled={mutatingId === report.id}
-              onChange={(event) =>
-                onStatusChange(report.id, event.target.value)
-              }
-            >
-              <option value="pending">접수</option>
-              <option value="reviewing">검토 중</option>
-              <option value="resolved">처리 완료</option>
-              <option value="dismissed">기각</option>
-            </InlineSelect>
-            <DangerButton
-              type="button"
-              disabled={mutatingId === report.id || !report.entryId}
-              onClick={() => onForceDelete(report)}
-            >
-              기록 강제 삭제
-            </DangerButton>
-          </CardActions>
-        </DataCard>
-      ))}
-    </CardList>
+    <TableCard>
+      <Table>
+        <thead>
+          <tr>
+            <th scope="col">상태</th>
+            <th scope="col">신고 대상</th>
+            <th scope="col">사유·상세</th>
+            <th scope="col">신고자</th>
+            <th scope="col">처리 이력</th>
+            <th scope="col">접수 시각</th>
+            <th scope="col">조치</th>
+          </tr>
+        </thead>
+        <tbody>
+          {reports.map((report) => (
+            <tr key={report.id}>
+              <td data-label="상태">
+                <StatusBadge $tone={report.status}>
+                  {getReportStatusLabel(report.status)}
+                </StatusBadge>
+              </td>
+              <td data-label="신고 대상">
+                <strong>{report.targetTitle}</strong>
+                <Small>{report.targetPublicId ?? report.entryId ?? "삭제됨"}</Small>
+              </td>
+              <td data-label="사유·상세">
+                {report.reason}
+                {report.detail ? <Small>{report.detail}</Small> : null}
+              </td>
+              <td data-label="신고자">{report.reporterUserId}</td>
+              <td data-label="처리 이력">
+                {report.reviewerUserId ?? "미지정"}
+                <Small>
+                  {report.reviewedAt ? formatDate(report.reviewedAt) : "처리 전"}
+                </Small>
+                {report.resolutionNote ? <Small>{report.resolutionNote}</Small> : null}
+              </td>
+              <td data-label="접수 시각">
+                <Time>{formatDate(report.createdAt)}</Time>
+              </td>
+              <td data-label="조치">
+                <ReportActionEditor
+                  key={`${report.id}:${report.status}:${report.resolutionNote ?? ""}`}
+                  report={report}
+                  saving={mutatingId === report.id}
+                  onSave={onSave}
+                  onForceDelete={onForceDelete}
+                />
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </Table>
+    </TableCard>
+  );
+}
+
+function ReportActionEditor({
+  report,
+  saving,
+  onSave,
+  onForceDelete,
+}: {
+  report: AdminReportItem;
+  saving: boolean;
+  onSave: (
+    reportId: string,
+    status: string,
+    resolutionNote: string,
+  ) => void;
+  onForceDelete: (report: AdminReportItem) => void;
+}) {
+  const [status, setStatus] = useState(report.status);
+  const [resolutionNote, setResolutionNote] = useState(
+    report.resolutionNote ?? "",
+  );
+  const changed =
+    status !== report.status ||
+    resolutionNote.trim() !== (report.resolutionNote ?? "");
+
+  return (
+    <TableActions>
+      <InlineSelect
+        value={status}
+        disabled={saving}
+        aria-label={`${report.targetTitle} 신고 상태`}
+        onChange={(event) => setStatus(event.target.value as typeof status)}
+      >
+        <option value="pending">접수</option>
+        <option value="reviewing">검토 중</option>
+        <option value="resolved">처리 완료</option>
+        <option value="dismissed">기각</option>
+      </InlineSelect>
+      <ReportNoteInput
+        value={resolutionNote}
+        disabled={saving}
+        maxLength={1000}
+        aria-label={`${report.targetTitle} 신고 처리 메모`}
+        placeholder="처리 메모"
+        onChange={(event) => setResolutionNote(event.target.value)}
+      />
+      <CompactActionButton
+        type="button"
+        disabled={saving || !changed}
+        onClick={() => onSave(report.id, status, resolutionNote.trim())}
+      >
+        저장
+      </CompactActionButton>
+      <DangerButton
+        type="button"
+        disabled={saving || !report.entryId}
+        onClick={() => onForceDelete(report)}
+      >
+        기록 삭제
+      </DangerButton>
+    </TableActions>
   );
 }
 
@@ -1819,7 +2086,13 @@ function InquiriesPanel({
   }
 
   return (
-    <CardList>
+    <InquiryTable>
+      <InquiryTableHead aria-hidden="true">
+        <span>상태·문의</span>
+        <span>요청자·처리자</span>
+        <span>접수 시각</span>
+        <span>열기</span>
+      </InquiryTableHead>
       {inquiries.map((inquiry) => (
         <InquiryEditor
           key={`${inquiry.id}:${inquiry.updatedAt}`}
@@ -1834,7 +2107,7 @@ function InquiriesPanel({
           onSave={onSave}
         />
       ))}
-    </CardList>
+    </InquiryTable>
   );
 }
 
@@ -1864,27 +2137,33 @@ function InquiryEditor({
     adminResponse.trim() !== (inquiry.adminResponse ?? "");
 
   return (
-    <DataCard>
+    <InquiryRecord>
       <InquirySummaryButton
         type="button"
         aria-expanded={expanded}
         onClick={onToggle}
       >
-        <CardTop>
+        <InquirySubject>
           <StatusBadge $tone={inquiry.status}>
             {getInquiryStatusLabel(inquiry.status)}
           </StatusBadge>
-          <Time>{formatDate(inquiry.createdAt)}</Time>
-        </CardTop>
-        <h2>{inquiry.subject}</h2>
-        <Meta>
-          {getInquiryCategoryLabel(inquiry.category)} ·{" "}
+          <div>
+            <h2>{inquiry.subject}</h2>
+            <InquiryPreview>{inquiry.message}</InquiryPreview>
+          </div>
+        </InquirySubject>
+        <InquiryRequester>
           {inquiry.requesterEmail ??
             inquiry.requesterUserId ??
             "삭제된 사용자"}
-        </Meta>
-        <InquiryPreview>{inquiry.message}</InquiryPreview>
-        <ExpandLabel>{expanded ? "접기" : "문의 확인 및 답변"}</ExpandLabel>
+          <Small>{getInquiryCategoryLabel(inquiry.category)}</Small>
+          <Small>
+            처리 {inquiry.handledByUserId ?? "담당자 미지정"}
+            {inquiry.handledAt ? ` · ${formatDate(inquiry.handledAt)}` : ""}
+          </Small>
+        </InquiryRequester>
+        <Time>{formatDate(inquiry.createdAt)}</Time>
+        <ExpandLabel>{expanded ? "접기" : "확인"}</ExpandLabel>
       </InquirySummaryButton>
       {expanded && (
         <InquiryDetail>
@@ -1922,7 +2201,7 @@ function InquiryEditor({
           </ResponseArea>
         </InquiryDetail>
       )}
-    </DataCard>
+    </InquiryRecord>
   );
 }
 
@@ -1940,43 +2219,37 @@ function UsersPanel({
   if (users.length === 0) return <StatePanel>조건에 맞는 사용자가 없습니다.</StatePanel>;
 
   return (
-    <>
-      <DesktopOnly>
-        <TableCard>
-          <Table>
+    <TableCard>
+      <Table>
         <thead>
           <tr>
-            <th>계정</th>
-            <th>공급자</th>
-            <th>기록</th>
-            <th>가입일</th>
-            <th>권한</th>
-            <th>관리</th>
+            <th scope="col">계정</th>
+            <th scope="col">공급자</th>
+            <th scope="col">기록</th>
+            <th scope="col">가입일</th>
+            <th scope="col">권한</th>
+            <th scope="col">관리</th>
           </tr>
         </thead>
         <tbody>
           {users.map((user) => (
             <tr key={user.id}>
-              <td>
+              <td data-label="계정">
                 <strong>{user.email ?? "익명 사용자"}</strong>
                 <Small>{user.id}</Small>
               </td>
-              <td>{user.providers.join(", ") || "-"}</td>
-              <td>{user.journalCount}</td>
-              <td>{formatDate(user.createdAt)}</td>
-              <td>
-                <InlineSelect
-                  value={user.role}
-                  disabled={mutatingId === user.id}
-                  onChange={(event) =>
-                    onRoleChange(user.id, event.target.value)
-                  }
-                >
-                  <option value="user">사용자</option>
-                  <option value="admin">관리자</option>
-                </InlineSelect>
+              <td data-label="공급자">{user.providers.join(", ") || "-"}</td>
+              <td data-label="기록">{user.journalCount}</td>
+              <td data-label="가입일">{formatDate(user.createdAt)}</td>
+              <td data-label="권한">
+                <UserRoleEditor
+                  key={`${user.id}:${user.role}`}
+                  user={user}
+                  saving={mutatingId === user.id}
+                  onSave={onRoleChange}
+                />
               </td>
-              <td>
+              <td data-label="관리">
                 <DangerButton
                   type="button"
                   disabled={mutatingId === user.id}
@@ -1988,51 +2261,41 @@ function UsersPanel({
             </tr>
           ))}
         </tbody>
-          </Table>
-        </TableCard>
-      </DesktopOnly>
-      <MobileRecordList>
-        {users.map((user) => (
-          <MobileRecordCard key={user.id}>
-            <MobileRecordHeader>
-              <div>
-                <h2>{user.email ?? "익명 사용자"}</h2>
-                <Meta>
-                  {user.providers.join(", ") || "연결된 공급자 없음"} · 기록{" "}
-                  {user.journalCount}개
-                </Meta>
-              </div>
-              <StatusBadge $tone={user.role}>
-                {user.role === "admin" ? "관리자" : "사용자"}
-              </StatusBadge>
-            </MobileRecordHeader>
-            <Small>
-              {user.id} · {formatDate(user.createdAt)} 가입
-            </Small>
-            <MobileRecordActions>
-              <InlineSelect
-                value={user.role}
-                disabled={mutatingId === user.id}
-                aria-label={`${user.email ?? user.id} 권한`}
-                onChange={(event) =>
-                  onRoleChange(user.id, event.target.value)
-                }
-              >
-                <option value="user">사용자</option>
-                <option value="admin">관리자</option>
-              </InlineSelect>
-              <DangerButton
-                type="button"
-                disabled={mutatingId === user.id}
-                onClick={() => onForceDelete(user)}
-              >
-                계정 삭제
-              </DangerButton>
-            </MobileRecordActions>
-          </MobileRecordCard>
-        ))}
-      </MobileRecordList>
-    </>
+      </Table>
+    </TableCard>
+  );
+}
+
+function UserRoleEditor({
+  user,
+  saving,
+  onSave,
+}: {
+  user: AdminUserItem;
+  saving: boolean;
+  onSave: (userId: string, role: string) => void;
+}) {
+  const [role, setRole] = useState(user.role);
+
+  return (
+    <InlineActionGroup>
+      <InlineSelect
+        value={role}
+        disabled={saving}
+        aria-label={`${user.email ?? user.id} 권한`}
+        onChange={(event) => setRole(event.target.value as typeof role)}
+      >
+        <option value="user">사용자</option>
+        <option value="admin">관리자</option>
+      </InlineSelect>
+      <CompactActionButton
+        type="button"
+        disabled={saving || role === user.role}
+        onClick={() => onSave(user.id, role)}
+      >
+        적용
+      </CompactActionButton>
+    </InlineActionGroup>
   );
 }
 
@@ -2076,21 +2339,27 @@ function SettingEditor({
         <h2>{setting.label}</h2>
         <Description>{setting.description}</Description>
         <Small>{setting.key}</Small>
+        <Small>최근 변경 {formatOptionalDate(setting.updatedAt)}</Small>
       </div>
       {setting.type === "boolean" ? (
-        <ToggleLabel>
-          <input
-            type="checkbox"
-            checked={value === "true"}
-            disabled={saving}
-            onChange={(event) => {
-              const nextValue = String(event.target.checked);
-              setValue(nextValue);
-              onSave(setting.key, nextValue);
-            }}
-          />
-          {value === "true" ? "사용" : "사용 안 함"}
-        </ToggleLabel>
+        <InlineActionGroup>
+          <ToggleLabel>
+            <input
+              type="checkbox"
+              checked={value === "true"}
+              disabled={saving}
+              onChange={(event) => setValue(String(event.target.checked))}
+            />
+            {value === "true" ? "사용" : "사용 안 함"}
+          </ToggleLabel>
+          <CompactActionButton
+            type="button"
+            disabled={saving || value === setting.value}
+            onClick={() => onSave(setting.key, value)}
+          >
+            적용
+          </CompactActionButton>
+        </InlineActionGroup>
       ) : (
         <SettingInputRow>
           <SearchInput
@@ -2238,6 +2507,10 @@ function formatDate(value: string) {
   return dateFormatter.format(new Date(value));
 }
 
+function formatOptionalDate(value: string | null) {
+  return value ? formatDate(value) : "기록 없음";
+}
+
 function getInquiryStatusLabel(status: string) {
   if (status === "pending") return "접수";
   if (status === "reviewing") return "확인 중";
@@ -2263,11 +2536,10 @@ function getInquiryCategoryLabel(category: string) {
   return category;
 }
 
-function getPlaceReviewStatusLabel(status: string) {
-  if (status === "pending") return "검토 대기";
-  if (status === "approved") return "승인";
-  if (status === "rejected") return "거절";
-  return status;
+function getVisibilityOverrideLabel(value: AdminPlaceItem["visibilityOverride"]) {
+  if (value === "show") return "수동 노출";
+  if (value === "hide") return "수동 숨김";
+  return "자동";
 }
 
 function isCandidatePoolPlace(place: AdminPlaceItem) {
@@ -2317,16 +2589,21 @@ const AdminLayout = styled.div<{ $drawerOpen: boolean }>`
   height: 100dvh;
   min-height: 0;
   display: grid;
-  grid-template-columns: 240px minmax(0, 1fr);
+  grid-template-columns: 216px minmax(0, 1fr);
   overflow-x: hidden;
   overflow-y: auto;
   overscroll-behavior-y: auto;
-  background: var(--color-white);
+  background: var(--color-neutral-200);
   color: var(--color-text);
   touch-action: pan-y;
   -webkit-overflow-scrolling: touch;
 
-  @media (max-width: 768px) {
+  :where(button, a, input, select, textarea, summary, [tabindex]):focus-visible {
+    outline: 3px solid var(--color-brand-900);
+    outline-offset: 2px;
+  }
+
+  @media (max-width: 1024px) {
     grid-template-columns: 1fr;
     align-content: start;
     overflow-y: ${({ $drawerOpen }) =>
@@ -2342,13 +2619,13 @@ const Sidebar = styled.aside`
   height: 100dvh;
   display: flex;
   flex-direction: column;
-  gap: var(--space-6);
-  padding: var(--space-8) var(--space-5);
+  gap: var(--space-5);
+  padding: var(--space-6) var(--space-4);
   overflow-y: auto;
   border-right: 1px solid var(--color-border);
   background: var(--color-white);
 
-  @media (max-width: 768px) {
+  @media (max-width: 1024px) {
     display: none;
   }
 `;
@@ -2362,20 +2639,6 @@ const Brand = styled.div`
     color: var(--color-text-muted);
     font-size: var(--font-size-100);
   }
-
-  &::after {
-    width: 42px;
-    height: 5px;
-    margin-left: auto;
-    border-radius: 999px;
-    background: linear-gradient(
-      90deg,
-      var(--color-brand-500),
-      var(--color-accent-bridge),
-      var(--color-secondary-500)
-    );
-    content: "";
-  }
 `;
 
 const Wordmark = styled.strong`
@@ -2386,34 +2649,32 @@ const Wordmark = styled.strong`
 
 const Navigation = styled.nav`
   display: grid;
-  gap: var(--space-2);
+  gap: var(--space-5);
+`;
 
-  @media (max-width: 768px) {
-    grid-column: 1 / -1;
-    display: flex;
-    gap: var(--space-2);
-    overflow-x: auto;
-    overscroll-behavior-x: contain;
-    scrollbar-width: none;
-    scroll-snap-type: x proximity;
+const NavGroup = styled.div`
+  display: grid;
+  gap: 2px;
+`;
 
-    &::-webkit-scrollbar {
-      display: none;
-    }
-  }
+const NavGroupLabel = styled.span`
+  padding: 0 var(--space-3) var(--space-1);
+  color: var(--color-neutral-800);
+  font-size: 11px;
+  font-weight: 700;
 `;
 
 const NavButton = styled.button<{ $active: boolean }>`
   position: relative;
-  min-height: var(--space-11);
-  padding: 0 var(--space-4);
+  min-height: 38px;
+  padding: 0 var(--space-3);
   border: 0;
-  border-radius: var(--space-3);
+  border-radius: 6px;
   background: ${({ $active }) =>
-    $active ? "var(--color-secondary-300)" : "transparent"};
+    $active ? "var(--color-brand-100)" : "transparent"};
   color: var(--color-text);
   font: inherit;
-  font-size: var(--font-size-200);
+  font-size: var(--font-size-100);
   font-weight: ${({ $active }) => ($active ? 700 : 500)};
   text-align: left;
   cursor: pointer;
@@ -2422,15 +2683,10 @@ const NavButton = styled.button<{ $active: boolean }>`
     position: absolute;
     top: 50%;
     left: 0;
-    width: 4px;
+    width: 3px;
     height: ${({ $active }) => ($active ? "22px" : "0")};
     border-radius: 999px;
-    background: linear-gradient(
-      180deg,
-      var(--color-brand-500),
-      var(--color-accent-bridge),
-      var(--color-secondary-500)
-    );
+    background: var(--color-brand-700);
     transform: translateY(-50%);
     transition: height 180ms ease;
     content: "";
@@ -2439,12 +2695,12 @@ const NavButton = styled.button<{ $active: boolean }>`
   &:hover {
     background: ${({ $active }) =>
       $active
-        ? "var(--color-secondary-300)"
-        : "var(--color-brand-100)"};
+        ? "var(--color-brand-100)"
+        : "var(--color-neutral-200)"};
   }
 
   &:focus-visible {
-    outline: 3px solid var(--color-brand-300);
+    outline: 3px solid var(--color-brand-900);
     outline-offset: 2px;
   }
 
@@ -2454,14 +2710,26 @@ const NavButton = styled.button<{ $active: boolean }>`
     }
   }
 
-  @media (max-width: 768px) {
-    min-width: max-content;
-    min-height: 44px;
-    flex: 0 0 auto;
-    padding: 0 var(--space-4);
-    text-align: center;
-    scroll-snap-align: start;
-    white-space: nowrap;
+`;
+
+const NavLink = styled(Link)`
+  min-height: 38px;
+  display: flex;
+  align-items: center;
+  padding: 0 var(--space-3);
+  border-radius: 6px;
+  color: var(--color-text);
+  font-size: var(--font-size-100);
+  font-weight: 500;
+  text-decoration: none;
+
+  &:hover {
+    background: var(--color-neutral-200);
+  }
+
+  &:focus-visible {
+    outline: 3px solid var(--color-brand-900);
+    outline-offset: 2px;
   }
 `;
 
@@ -2478,31 +2746,17 @@ const HomeLink = styled(Link)`
   }
 `;
 
-const TourismDataLink = styled(Link)`
-  min-height: var(--space-11);
-  display: flex;
-  align-items: center;
-  padding: 0 var(--space-4);
-  border: 1px solid var(--color-brand-300);
-  border-radius: var(--space-3);
-  background: var(--color-brand-100);
-  color: var(--color-brand-1000);
-  font-size: var(--font-size-100);
-  font-weight: 700;
-  text-decoration: none;
-`;
-
 const Main = styled.main`
   min-width: 0;
   min-height: 100dvh;
-  width: min(100%, 1440px);
+  width: min(100%, 1600px);
   display: grid;
   align-content: start;
-  gap: var(--space-6);
-  padding: var(--space-8);
+  gap: var(--space-5);
+  padding: var(--space-6);
   margin: 0 auto;
 
-  @media (max-width: 768px) {
+  @media (max-width: 1024px) {
     min-height: calc(100dvh - 76px - env(safe-area-inset-bottom));
     gap: var(--space-5);
     padding:
@@ -2518,10 +2772,12 @@ const Header = styled.header`
   align-items: center;
   justify-content: space-between;
   gap: var(--space-4);
+  min-height: 64px;
+  padding-bottom: var(--space-4);
+  border-bottom: 1px solid var(--color-border);
 
   h1 {
-    margin-top: var(--space-1);
-    font-size: var(--font-size-700);
+    font-size: var(--font-size-600);
     line-height: var(--line-height-heading);
   }
 
@@ -2542,13 +2798,14 @@ const Header = styled.header`
     backdrop-filter: blur(16px);
 
     h1 {
-      margin-top: 0;
       font-size: var(--font-size-500);
     }
   }
 `;
 
 const HeaderContext = styled.span`
+  display: block;
+  margin-top: var(--space-1);
   color: var(--color-text-muted);
   font-size: var(--font-size-100);
   font-weight: 600;
@@ -2567,11 +2824,16 @@ const RefreshButton = styled.button`
   gap: var(--space-2);
   padding: 0 var(--space-4);
   border: 1px solid var(--color-border);
-  border-radius: 999px;
-  background: var(--color-brand-100);
+  border-radius: 6px;
+  background: var(--color-white);
   color: var(--color-brand-1000);
   font: inherit;
   cursor: pointer;
+
+  &:disabled {
+    cursor: wait;
+    opacity: 0.55;
+  }
 
   @media (max-width: 480px) {
     width: 44px;
@@ -2609,6 +2871,9 @@ const Toolbar = styled.form`
   display: grid;
   grid-template-columns: minmax(180px, 1fr) 180px auto;
   gap: var(--space-3);
+  padding: var(--space-3);
+  border: 1px solid var(--color-border);
+  background: var(--color-white);
 
   @media (max-width: 640px) {
     grid-template-columns: minmax(0, 1fr) auto;
@@ -2622,17 +2887,17 @@ const Toolbar = styled.form`
 const PlaceToolbarCard = styled.section`
   display: grid;
   gap: var(--space-4);
-  padding: var(--space-5);
-  border: 1px solid var(--color-brand-200);
-  border-radius: var(--space-5);
-  background: var(--color-brand-100);
+  padding: var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: var(--color-white);
 
   @media (max-width: 768px) {
     gap: var(--space-3);
     padding: var(--space-4);
     border: 0;
-    border-radius: var(--space-4);
-    background: var(--color-neutral-200);
+    border-radius: 6px;
+    background: var(--color-white);
   }
 `;
 
@@ -2642,7 +2907,78 @@ const PlaceSearchRow = styled.form`
   gap: var(--space-3);
 `;
 
-const PlaceFilterGrid = styled.div`
+const PlaceSavedViews = styled.div`
+  display: flex;
+  gap: var(--space-2);
+  overflow-x: auto;
+  scrollbar-width: none;
+
+  &::-webkit-scrollbar {
+    display: none;
+  }
+`;
+
+const PlaceViewButton = styled.button<{ $active: boolean }>`
+  min-height: 38px;
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 0 var(--space-3);
+  border: 1px solid
+    ${({ $active }) =>
+      $active ? "var(--color-brand-800)" : "var(--color-border)"};
+  border-radius: 6px;
+  background: ${({ $active }) =>
+    $active ? "var(--color-brand-100)" : "var(--color-white)"};
+  color: ${({ $active }) =>
+    $active ? "var(--color-brand-1000)" : "var(--color-text-muted)"};
+  font: inherit;
+  font-size: var(--font-size-100);
+  font-weight: 700;
+  cursor: pointer;
+
+  span {
+    min-width: 20px;
+    font-variant-numeric: tabular-nums;
+    text-align: right;
+  }
+`;
+
+const PlaceFilterToggle = styled.button`
+  display: none;
+
+  @media (max-width: 640px) {
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-3);
+    padding: 0 var(--space-3);
+    border: 1px solid var(--color-border);
+    border-radius: 6px;
+    background: var(--color-white);
+    color: var(--color-text);
+    font: inherit;
+    font-size: var(--font-size-100);
+    font-weight: 700;
+    cursor: pointer;
+
+    strong {
+      margin-left: auto;
+      color: var(--color-text-muted);
+      font-size: 11px;
+    }
+
+    i {
+      color: var(--color-brand-900);
+      font-style: normal;
+      font-size: var(--font-size-300);
+    }
+  }
+`;
+
+const PlaceFilterGrid = styled.div<{ $mobileOpen: boolean }>`
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   align-items: end;
@@ -2653,8 +2989,13 @@ const PlaceFilterGrid = styled.div`
   }
 
   @media (max-width: 640px) {
+    display: ${({ $mobileOpen }) => ($mobileOpen ? "grid" : "none")};
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: var(--space-2);
+
+    > button:last-child {
+      grid-column: 1 / -1;
+    }
   }
 `;
 
@@ -2679,7 +3020,7 @@ const FilterResetButton = styled.button`
   min-height: var(--space-11);
   padding: 0 var(--space-4);
   border: 1px solid var(--color-border);
-  border-radius: var(--space-3);
+  border-radius: 6px;
   background: var(--color-white);
   color: var(--color-text-muted);
   font: inherit;
@@ -2698,15 +3039,15 @@ const SearchInput = styled.input`
   min-height: var(--space-11);
   padding: 0 var(--space-4);
   border: 1px solid var(--color-border);
-  border-radius: var(--space-3);
+  border-radius: 6px;
   outline: 0;
-  background: rgb(var(--color-white-rgb) / 0.88);
+  background: var(--color-white);
   color: var(--color-text);
   font: inherit;
 
   &:focus {
-    border-color: var(--color-brand-600);
-    box-shadow: 0 0 0 3px var(--color-brand-200);
+    border-color: var(--color-brand-800);
+    box-shadow: 0 0 0 2px var(--color-brand-200);
   }
 `;
 
@@ -2714,8 +3055,8 @@ const Select = styled.select`
   min-height: var(--space-11);
   padding: 0 var(--space-4);
   border: 1px solid var(--color-border);
-  border-radius: var(--space-3);
-  background: rgb(var(--color-white-rgb) / 0.88);
+  border-radius: 6px;
+  background: var(--color-white);
   color: var(--color-text);
   font: inherit;
 `;
@@ -2724,8 +3065,9 @@ const SearchButton = styled.button`
   min-height: var(--space-11);
   padding: 0 var(--space-5);
   border: 0;
-  border-radius: var(--space-3);
-  background: var(--color-brand-700);
+  border: 1px solid var(--color-brand-800);
+  border-radius: 6px;
+  background: var(--color-brand-800);
   color: var(--color-white);
   font: inherit;
   font-weight: 700;
@@ -2773,15 +3115,15 @@ const StatePanel = styled.div`
   place-items: center;
   padding: var(--space-6);
   border: 1px solid var(--color-border);
-  border-radius: var(--space-5);
-  background: var(--color-surface);
+  border-radius: 8px;
+  background: var(--color-white);
   color: var(--color-text-muted);
-  box-shadow: 0 12px 32px rgb(var(--color-black-rgb) / 0.05);
+  box-shadow: none;
 `;
 
 const OverviewContent = styled.div`
   display: grid;
-  gap: var(--space-7);
+  gap: var(--space-6);
 
   section {
     display: grid;
@@ -2795,17 +3137,17 @@ const OperationsHero = styled.section`
   display: grid;
   grid-template-columns: minmax(260px, 0.8fr) minmax(420px, 1.2fr);
   align-items: end;
-  gap: var(--space-7);
-  padding: var(--space-7);
+  gap: var(--space-6);
+  padding: var(--space-5);
   border: 1px solid var(--color-brand-200);
-  border-radius: var(--space-6);
+  border-radius: 8px;
   background: var(--color-white);
-  box-shadow: 0 18px 48px rgb(var(--color-black-rgb) / 0.06);
+  box-shadow: none;
 
   &::before {
     position: absolute;
     inset: 0 0 auto;
-    height: 5px;
+    height: 3px;
     background: linear-gradient(
       90deg,
       var(--color-brand-500),
@@ -2822,8 +3164,8 @@ const OperationsHero = styled.section`
 
   @media (max-width: 520px) {
     gap: var(--space-5);
-    padding: var(--space-5);
-    border-radius: var(--space-5);
+    padding: var(--space-4);
+    border-radius: 8px;
   }
 `;
 
@@ -2846,93 +3188,46 @@ const HeroCopy = styled.div`
 `;
 
 const StatusKicker = styled.span`
-  color: var(--color-brand-700);
+  color: var(--color-brand-800);
   font-size: var(--font-size-100);
   font-weight: 700;
 `;
 
-const SignalRail = styled.div`
+const HeroStatusSummary = styled.div`
+  align-self: stretch;
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   border: 1px solid var(--color-border);
-  border-radius: var(--space-4);
-  background: var(--color-neutral-100);
+  border-radius: 6px;
+  background: var(--color-white);
 
-  @media (max-width: 560px) {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+  > div {
+    display: grid;
+    align-content: center;
+    gap: var(--space-2);
+    padding: var(--space-5);
+    border-right: 1px solid var(--color-border);
   }
-`;
 
-const SignalButton = styled.button`
-  min-width: 0;
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
-  gap: var(--space-1) var(--space-2);
-  padding: var(--space-4);
-  border: 0;
-  border-right: 1px solid var(--color-border);
-  background: transparent;
-  color: var(--color-text);
-  font: inherit;
-  text-align: left;
-  cursor: pointer;
-
-  &:last-child {
+  > div:last-child {
     border-right: 0;
   }
 
   span {
-    overflow: hidden;
     color: var(--color-text-muted);
-    font-size: 11px;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+    font-size: var(--font-size-100);
+    font-weight: 600;
   }
 
   strong {
-    grid-column: 1 / -1;
-    padding-left: 18px;
-    font-size: var(--font-size-500);
-    line-height: 1.1;
-  }
+    font-size: var(--font-size-700);
+    font-variant-numeric: tabular-nums;
+    line-height: 1;
 
-  &:hover {
-    background: var(--color-white);
-  }
-
-  &:focus-visible {
-    outline: 3px solid var(--color-brand-300);
-    outline-offset: -3px;
-  }
-
-  @media (max-width: 560px) {
-    &:nth-of-type(2) {
-      border-right: 0;
-    }
-
-    &:nth-of-type(-n + 2) {
-      border-bottom: 1px solid var(--color-border);
+    &[data-alert="true"] {
+      color: var(--color-error);
     }
   }
-`;
-
-const SignalDot = styled.span<{
-  $tone: "blue" | "bridge" | "lime" | "error" | "quiet";
-}>`
-  width: 10px;
-  height: 10px;
-  align-self: center;
-  border-radius: 999px;
-  background: ${({ $tone }) =>
-    $tone === "blue"
-      ? "var(--color-brand-500)"
-      : $tone === "bridge"
-        ? "var(--color-accent-bridge)"
-        : $tone === "lime"
-          ? "var(--color-secondary-500)"
-          : $tone === "error"
-            ? "var(--color-error)"
-            : "var(--color-neutral-500)"};
 `;
 
 const OverviewSplit = styled.div`
@@ -2974,9 +3269,9 @@ const SectionTitle = styled.h2`
 const QueueList = styled.div`
   overflow: hidden;
   border: 1px solid var(--color-border);
-  border-radius: var(--space-5);
+  border-radius: 8px;
   background: var(--color-white);
-  box-shadow: 0 12px 34px rgb(var(--color-black-rgb) / 0.045);
+  box-shadow: none;
 `;
 
 const QueueRow = styled.button`
@@ -3026,7 +3321,7 @@ const QueueRow = styled.button`
 
   &:focus-visible {
     position: relative;
-    outline: 3px solid var(--color-brand-300);
+    outline: 3px solid var(--color-brand-900);
     outline-offset: -3px;
   }
 `;
@@ -3038,20 +3333,20 @@ const NotificationGlance = styled.button`
   gap: var(--space-5);
   padding: var(--space-5);
   border: 1px solid var(--color-border);
-  border-radius: var(--space-5);
+  border-radius: 8px;
   background: var(--color-white);
   color: var(--color-text);
   font: inherit;
   text-align: left;
   cursor: pointer;
-  box-shadow: 0 12px 34px rgb(var(--color-black-rgb) / 0.045);
+  box-shadow: none;
 
   &:hover {
     border-color: var(--color-brand-300);
   }
 
   &:focus-visible {
-    outline: 3px solid var(--color-brand-300);
+    outline: 3px solid var(--color-brand-900);
     outline-offset: 2px;
   }
 `;
@@ -3099,7 +3394,11 @@ const GlanceMeta = styled.p`
 const MetricGrid = styled.section`
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: var(--space-4);
+  gap: 0;
+  overflow: hidden;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: var(--color-white);
 
   @media (max-width: 900px) {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -3127,11 +3426,13 @@ const ComplianceMode = styled.p`
 const MetricCard = styled.article`
   display: grid;
   gap: var(--space-3);
-  padding: var(--space-5);
-  border: 1px solid var(--color-border);
-  border-radius: var(--space-5);
+  padding: var(--space-4);
+  border: 0;
+  border-right: 1px solid var(--color-border);
+  border-bottom: 1px solid var(--color-border);
+  border-radius: 0;
   background: var(--color-white);
-  box-shadow: 0 10px 28px rgb(var(--color-black-rgb) / 0.04);
+  box-shadow: none;
 
   span {
     color: var(--color-text-muted);
@@ -3146,8 +3447,8 @@ const MetricCard = styled.article`
   @media (max-width: 520px) {
     gap: var(--space-3);
     padding: var(--space-4);
-    border-radius: var(--space-4);
-    box-shadow: 0 8px 24px rgb(var(--color-black-rgb) / 0.04);
+    border-radius: 0;
+    box-shadow: none;
 
     strong {
       font-size: var(--font-size-700);
@@ -3197,11 +3498,14 @@ const PeriodSelect = styled.select`
 const FunnelSummary = styled.div`
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: var(--space-4);
+  gap: 0;
+  overflow: hidden;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: var(--color-white);
 
   @media (max-width: 640px) {
     grid-template-columns: 1fr;
-    gap: var(--space-2);
   }
 `;
 
@@ -3210,11 +3514,12 @@ const FunnelSummaryCard = styled.article`
   grid-template-columns: 1fr auto;
   align-items: end;
   gap: var(--space-2);
-  padding: var(--space-5);
-  border: 1px solid var(--color-brand-200);
-  border-radius: var(--space-5);
-  background: var(--color-brand-100);
-  box-shadow: 0 12px 28px rgb(var(--color-black-rgb) / 0.05);
+  padding: var(--space-4);
+  border: 0;
+  border-right: 1px solid var(--color-border);
+  border-radius: 0;
+  background: var(--color-white);
+  box-shadow: none;
 
   span {
     grid-column: 1 / -1;
@@ -3229,17 +3534,11 @@ const FunnelSummaryCard = styled.article`
 
   small {
     color: var(--color-text-muted);
-    font-size: var(--font-size-000);
+    font-size: 11px;
   }
 
-  &:nth-of-type(2) {
-    border-color: var(--color-secondary-300);
-    background: var(--color-secondary-100);
-  }
-
-  &:nth-of-type(3) {
-    border-color: var(--color-neutral-300);
-    background: var(--color-neutral-100);
+  &:last-child {
+    border-right: 0;
   }
 
   @media (max-width: 640px) {
@@ -3247,6 +3546,12 @@ const FunnelSummaryCard = styled.article`
     grid-template-columns: 1fr auto;
     align-items: center;
     padding: var(--space-4);
+    border-right: 0;
+    border-bottom: 1px solid var(--color-border);
+
+    &:last-child {
+      border-bottom: 0;
+    }
 
     span {
       grid-column: auto;
@@ -3263,86 +3568,16 @@ const FunnelSummaryCard = styled.article`
   }
 `;
 
-const FunnelStageList = styled.div`
-  display: grid;
-  grid-template-columns: repeat(7, minmax(128px, 1fr));
-  gap: var(--space-2);
-  overflow-x: auto;
-  padding-bottom: var(--space-2);
-  scrollbar-width: thin;
-
-  @media (max-width: 768px) {
-    grid-template-columns: 1fr;
-    overflow: visible;
-    padding-bottom: 0;
-  }
-`;
-
-const FunnelStageCard = styled.article`
-  position: relative;
-  min-height: 160px;
-  display: grid;
-  align-content: space-between;
-  gap: var(--space-3);
-  padding: var(--space-4);
-  border: 1px solid var(--color-secondary-300);
-  border-radius: var(--space-4);
-  background: linear-gradient(
-    155deg,
-    var(--color-surface),
-    var(--color-secondary-100)
-  );
-
-  > div:nth-of-type(1) {
-    display: grid;
-    gap: var(--space-2);
-
-    span {
-      min-height: 2.8em;
-      color: var(--color-text-muted);
-      font-size: var(--font-size-000);
-      font-weight: 600;
-    }
-
-    strong {
-      font-size: var(--font-size-600);
-    }
-  }
-
-  @media (max-width: 768px) {
-    min-height: auto;
-    grid-template-columns: auto 1fr auto;
-    align-items: center;
-    padding: var(--space-4);
-
-    > div:nth-of-type(1) {
-      span {
-        min-height: 0;
-      }
-    }
-  }
-`;
-
 const FunnelStageIndex = styled.span`
   width: var(--space-7);
   height: var(--space-7);
   display: grid;
   place-items: center;
-  border-radius: 999px;
-  background: var(--color-secondary-400);
-  font-size: var(--font-size-000);
+  border-radius: 4px;
+  background: var(--color-brand-100);
+  color: var(--color-brand-900);
+  font-size: 11px;
   font-weight: 700;
-`;
-
-const FunnelRates = styled.div`
-  display: grid;
-  gap: var(--space-1);
-  color: var(--color-text-muted);
-  font-size: var(--font-size-000);
-
-  @media (max-width: 768px) {
-    justify-items: end;
-  }
 `;
 
 const FunnelBottomGrid = styled.div`
@@ -3359,11 +3594,11 @@ const FunnelPanelCard = styled.section`
   display: grid;
   align-content: start;
   gap: var(--space-4);
-  padding: var(--space-5);
+  padding: var(--space-4);
   border: 1px solid var(--color-border);
-  border-radius: var(--space-5);
+  border-radius: 8px;
   background: var(--color-surface);
-  box-shadow: 0 12px 30px rgb(var(--color-black-rgb) / 0.05);
+  box-shadow: none;
 
   h3 {
     font-size: var(--font-size-300);
@@ -3384,8 +3619,9 @@ const FunnelPlaceList = styled.ol`
     align-items: center;
     gap: var(--space-3);
     padding: var(--space-3);
-    border-radius: var(--space-3);
-    background: var(--color-neutral-100);
+    border-bottom: 1px solid var(--color-border);
+    border-radius: 0;
+    background: var(--color-white);
   }
 
   li > span {
@@ -3403,7 +3639,7 @@ const FunnelPlaceList = styled.ol`
 
   small {
     color: var(--color-text-muted);
-    font-size: var(--font-size-000);
+    font-size: 11px;
   }
 
   @media (max-width: 520px) {
@@ -3419,9 +3655,10 @@ const FunnelPlaceList = styled.ol`
 
 const AlgorithmList = styled.ul`
   display: grid;
-  gap: var(--space-2);
+  gap: 0;
   padding: 0;
   margin: 0;
+  border-top: 1px solid var(--color-border);
   list-style: none;
 
   li {
@@ -3429,14 +3666,14 @@ const AlgorithmList = styled.ul`
     align-items: center;
     justify-content: space-between;
     gap: var(--space-3);
-    padding: var(--space-3);
-    border-radius: var(--space-3);
-    background: var(--color-brand-100);
+    padding: var(--space-3) 0;
+    border-bottom: 1px solid var(--color-border);
+    background: transparent;
   }
 
   code {
     overflow-wrap: anywhere;
-    font-size: var(--font-size-000);
+    font-size: 11px;
   }
 
   strong {
@@ -3454,68 +3691,14 @@ const FunnelEmpty = styled.p`
   text-align: center;
 `;
 
-const CardList = styled.section`
-  display: grid;
-  gap: var(--space-3);
-`;
-
 const LocationCompliancePanels = styled.div`
   display: grid;
-  gap: var(--space-8);
+  gap: var(--space-6);
 `;
 
-const DataCard = styled.article`
+const RecordsSection = styled.div`
   display: grid;
   gap: var(--space-3);
-  padding: var(--space-5);
-  border: 1px solid var(--color-border);
-  border-radius: var(--space-4);
-  background: var(--color-surface);
-  box-shadow: 0 12px 30px rgb(var(--color-black-rgb) / 0.06);
-
-  &:nth-of-type(3n + 1) {
-    border-color: var(--color-neutral-400);
-    background: var(--color-neutral-100);
-  }
-
-  &:nth-of-type(3n + 2) {
-    border-color: var(--color-brand-200);
-    background: var(--color-brand-100);
-  }
-
-  &:nth-of-type(3n) {
-    border-color: var(--color-secondary-300);
-    background: var(--color-secondary-100);
-  }
-
-  h2 {
-    font-size: var(--font-size-300);
-    line-height: var(--line-height-subtitle);
-  }
-
-  summary {
-    color: var(--color-text-muted);
-    cursor: pointer;
-  }
-
-  @media (max-width: 480px) {
-    padding: var(--space-4);
-    border-color: transparent;
-    border-radius: var(--space-5);
-    box-shadow: 0 8px 24px rgb(var(--color-black-rgb) / 0.05);
-
-    &:nth-of-type(3n + 1) {
-      background: var(--color-neutral-100);
-    }
-
-    &:nth-of-type(3n + 2) {
-      background: var(--color-brand-100);
-    }
-
-    &:nth-of-type(3n) {
-      background: var(--color-secondary-100);
-    }
-  }
 `;
 
 const LocationLogSummary = styled.div`
@@ -3523,17 +3706,17 @@ const LocationLogSummary = styled.div`
   align-items: baseline;
   justify-content: space-between;
   gap: var(--space-4);
-  padding: var(--space-4) var(--space-5);
-  border: 1px solid var(--color-secondary-300);
-  border-radius: 20px;
-  background: var(--color-secondary-100);
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  background: var(--color-white);
 
   strong {
     font-size: var(--font-size-300);
   }
 
   span {
-    color: var(--color-text-secondary);
+    color: var(--color-text-muted);
     font-size: var(--font-size-100);
   }
 
@@ -3546,8 +3729,10 @@ const LocationLogSummary = styled.div`
 const InquirySummaryButton = styled.button`
   min-width: 0;
   display: grid;
-  gap: var(--space-3);
-  padding: 0;
+  grid-template-columns: minmax(280px, 1.5fr) minmax(160px, 0.8fr) 130px 52px;
+  align-items: center;
+  gap: var(--space-4);
+  padding: var(--space-3) var(--space-4);
   border: 0;
   background: transparent;
   color: var(--color-text);
@@ -3557,7 +3742,75 @@ const InquirySummaryButton = styled.button`
 
   h2 {
     overflow-wrap: anywhere;
+    font-size: var(--font-size-100);
   }
+
+  &:hover {
+    background: var(--color-neutral-200);
+  }
+
+  @media (max-width: 768px) {
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: start;
+
+    > time {
+      grid-column: 1;
+      text-align: left;
+    }
+  }
+`;
+
+const InquiryTable = styled.div`
+  overflow: hidden;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: var(--color-white);
+`;
+
+const InquiryTableHead = styled.div`
+  display: grid;
+  grid-template-columns: minmax(280px, 1.5fr) minmax(160px, 0.8fr) 130px 52px;
+  gap: var(--space-4);
+  padding: 10px var(--space-4);
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-neutral-200);
+  color: var(--color-text-muted);
+  font-size: 11px;
+  font-weight: 700;
+
+  @media (max-width: 768px) {
+    display: none;
+  }
+`;
+
+const InquiryRecord = styled.article`
+  border-bottom: 1px solid var(--color-border);
+
+  &:last-child {
+    border-bottom: 0;
+  }
+`;
+
+const InquirySubject = styled.div`
+  min-width: 0;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: var(--space-3);
+
+  > div {
+    min-width: 0;
+  }
+
+  @media (max-width: 768px) {
+    grid-column: 1 / -1;
+  }
+`;
+
+const InquiryRequester = styled.div`
+  min-width: 0;
+  overflow-wrap: anywhere;
+  font-size: var(--font-size-100);
 `;
 
 const InquiryPreview = styled.p`
@@ -3567,12 +3820,12 @@ const InquiryPreview = styled.p`
   font-size: var(--font-size-100);
   line-height: var(--line-height-body);
   -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
+  -webkit-line-clamp: 1;
 `;
 
 const ExpandLabel = styled.span`
   justify-self: end;
-  color: var(--color-brand-800);
+  color: var(--color-brand-900);
   font-size: var(--font-size-100);
   font-weight: 700;
 `;
@@ -3580,40 +3833,37 @@ const ExpandLabel = styled.span`
 const InquiryDetail = styled.div`
   display: grid;
   gap: var(--space-3);
-  padding-top: var(--space-3);
+  padding: var(--space-4);
   border-top: 1px solid var(--color-border);
-`;
-
-const CardTop = styled.div`
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-3);
+  background: var(--color-neutral-200);
 `;
 
 const StatusBadge = styled.span<{ $tone: string }>`
   display: inline-flex;
-  min-height: var(--space-7);
+  min-height: 24px;
   align-items: center;
-  padding: 0 var(--space-3);
+  padding: 0 var(--space-2);
   border-radius: 999px;
   background: ${({ $tone }) =>
     $tone === "error"
-      ? "var(--color-neutral-100)"
+      ? "color-mix(in srgb, var(--color-error) 9%, var(--color-white))"
       : $tone === "pending"
-      ? "var(--color-secondary-200)"
+      ? "var(--color-neutral-300)"
       : $tone === "warning" || $tone === "reviewing"
-        ? "var(--color-brand-200)"
+        ? "color-mix(in srgb, var(--color-warning) 12%, var(--color-white))"
         : $tone === "approved" ||
             $tone === "answered" ||
             $tone === "resolved" ||
             $tone === "admin"
-          ? "var(--color-secondary-300)"
+          ? "var(--color-secondary-200)"
           : "var(--color-neutral-300)"};
   color: ${({ $tone }) =>
-    $tone === "error" ? "var(--color-error)" : "var(--color-text)"};
-  font-size: var(--font-size-100);
+    $tone === "error"
+      ? "var(--color-error)"
+      : $tone === "warning" || $tone === "reviewing"
+        ? "var(--color-warning)"
+        : "var(--color-text)"};
+  font-size: 11px;
   font-weight: 700;
 `;
 
@@ -3621,12 +3871,6 @@ const Time = styled.time`
   color: var(--color-text-muted);
   font-size: var(--font-size-100);
   text-align: right;
-`;
-
-const Meta = styled.p`
-  color: var(--color-text-muted);
-  font-size: var(--font-size-100);
-  overflow-wrap: anywhere;
 `;
 
 const Description = styled.p`
@@ -3648,55 +3892,45 @@ const Code = styled.pre`
   white-space: pre-wrap;
 `;
 
-const TableCard = styled.section`
+const CompactDetails = styled.details`
+  position: relative;
+
+  summary {
+    min-height: 32px;
+    display: inline-flex;
+    align-items: center;
+    color: var(--color-brand-900);
+    font-size: 11px;
+    font-weight: 700;
+    cursor: pointer;
+  }
+
+  &[open] pre {
+    min-width: min(520px, 70vw);
+  }
+
+  @media (max-width: 768px) {
+    &[open] pre {
+      width: 100%;
+      min-width: 0;
+      max-width: 100%;
+    }
+  }
+`;
+
+const TableCard = styled.div`
   overflow-x: auto;
-  border: 1px solid var(--color-brand-200);
-  border-radius: var(--space-4);
-  background: rgb(var(--color-white-rgb) / 0.9);
-  box-shadow: 0 16px 36px rgb(var(--color-black-rgb) / 0.05);
-
-  @media (max-width: 640px) {
-    overflow: visible;
-    border: 0;
-    border-radius: 0;
-    background: transparent;
-  }
-`;
-
-const DesktopOnly = styled.div`
-  @media (max-width: 768px) {
-    display: none;
-  }
-`;
-
-const MobileRecordList = styled.section`
-  display: none;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: var(--color-white);
+  box-shadow: none;
 
   @media (max-width: 768px) {
-    display: grid;
-    gap: var(--space-3);
+    overflow: hidden;
   }
 `;
 
-const MobileRecordCard = styled.article`
-  display: grid;
-  gap: var(--space-3);
-  padding: var(--space-4);
-  border: 0;
-  border-radius: var(--space-5);
-  background: var(--color-surface);
-  box-shadow: 0 8px 24px rgb(var(--color-black-rgb) / 0.05);
-
-  &:nth-of-type(odd) {
-    background: var(--color-brand-100);
-  }
-
-  &:nth-of-type(even) {
-    background: var(--color-secondary-100);
-  }
-`;
-
-const PlaceResults = styled.section`
+const PlaceResults = styled.div`
   display: grid;
   gap: var(--space-4);
 `;
@@ -3737,54 +3971,30 @@ const PlaceStatusSummary = styled.div`
   justify-content: flex-end;
   gap: var(--space-2);
 
-  span {
-    min-height: var(--space-7);
-    display: inline-flex;
-    align-items: center;
-    padding: 0 var(--space-3);
-    border-radius: 999px;
-    background: var(--color-secondary-200);
-    color: var(--color-secondary-1000);
-    font-weight: 700;
-  }
-
-  span:nth-of-type(2) {
-    background: var(--color-brand-100);
-    color: var(--color-brand-1000);
-  }
-
-  span:nth-of-type(3) {
-    background: var(--color-secondary-300);
-  }
-
   @media (max-width: 640px) {
     justify-content: flex-start;
   }
 `;
 
-const MobileRecordHeader = styled.div`
-  min-width: 0;
-  display: flex;
-  align-items: start;
-  justify-content: space-between;
-  gap: var(--space-3);
-
-  > div {
-    min-width: 0;
-  }
-
-  h2 {
-    overflow-wrap: anywhere;
-    font-size: var(--font-size-300);
-    line-height: var(--line-height-subtitle);
-  }
-`;
-
-const PlaceBadgeStack = styled.div`
-  flex: 0 0 auto;
-  display: grid;
-  justify-items: end;
-  gap: var(--space-1);
+const PlaceSummaryBadge = styled.span<{
+  $tone: "brand" | "pending" | "success" | "neutral";
+}>`
+  min-height: var(--space-7);
+  display: inline-flex;
+  align-items: center;
+  padding: 0 var(--space-3);
+  border-radius: 999px;
+  background: ${({ $tone }) =>
+    $tone === "brand"
+      ? "var(--color-brand-100)"
+      : $tone === "success"
+        ? "var(--color-secondary-200)"
+        : $tone === "pending"
+          ? "color-mix(in srgb, var(--color-warning) 9%, var(--color-white))"
+          : "var(--color-neutral-200)"};
+  color: var(--color-text-muted);
+  font-size: 11px;
+  font-weight: 700;
 `;
 
 const CandidateBadge = styled.span<{ $inPool: boolean }>`
@@ -3802,46 +4012,26 @@ const CandidateBadge = styled.span<{ $inPool: boolean }>`
   white-space: nowrap;
 `;
 
-const VisibilityBadge = styled.span<{ $active: boolean }>`
-  min-height: var(--space-6);
-  display: inline-flex;
-  align-items: center;
-  padding: 0 var(--space-2);
-  border-radius: 999px;
-  background: ${({ $active }) =>
-    $active ? "var(--color-secondary-300)" : "var(--color-neutral-300)"};
-  color: var(--color-text);
-  font-size: 11px;
-  font-weight: 700;
-`;
-
-const MobileRecordActions = styled.div`
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  gap: var(--space-2);
-
-  > * {
-    width: 100%;
-  }
-`;
-
 const Table = styled.table`
   width: 100%;
+  min-width: 760px;
   border-collapse: collapse;
   font-size: var(--font-size-100);
+  font-variant-numeric: tabular-nums;
 
   th,
   td {
-    padding: var(--space-4);
+    padding: 12px var(--space-4);
     border-bottom: 1px solid var(--color-border);
     text-align: left;
     vertical-align: middle;
   }
 
   th {
-    background: var(--color-brand-100);
-    color: var(--color-brand-1000);
-    font-weight: 600;
+    background: var(--color-neutral-200);
+    color: var(--color-text-muted);
+    font-size: 11px;
+    font-weight: 700;
   }
 
   tr:last-of-type td {
@@ -3853,28 +4043,38 @@ const Table = styled.table`
   }
 
   tbody tr:hover {
-    background: var(--color-secondary-100);
+    background: var(--color-brand-100);
   }
 
-  @media (max-width: 640px) {
+  @media (max-width: 768px) {
+    min-width: 0;
     display: block;
 
     thead {
-      display: none;
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      overflow: hidden;
+      clip-path: inset(50%);
+      white-space: nowrap;
     }
 
     tbody {
       display: grid;
-      gap: var(--space-3);
+      gap: 0;
     }
 
     tr {
       display: grid;
       gap: 0;
       overflow: hidden;
-      border: 1px solid var(--color-border);
-      border-radius: var(--space-4);
-      background: var(--color-surface);
+      border-bottom: 1px solid var(--color-border);
+      border-radius: 0;
+      background: var(--color-white);
+    }
+
+    tr:last-child {
+      border-bottom: 0;
     }
 
     td {
@@ -3883,6 +4083,7 @@ const Table = styled.table`
       align-items: center;
       gap: var(--space-3);
       padding: var(--space-3) var(--space-4);
+      border-bottom: 1px solid var(--color-neutral-300);
       overflow-wrap: anywhere;
 
       &::before {
@@ -3894,6 +4095,10 @@ const Table = styled.table`
 
       &:last-of-type {
         border-bottom: 0;
+      }
+
+      > * {
+        grid-column: 2;
       }
     }
   }
@@ -3911,7 +4116,7 @@ const InlineSelect = styled.select`
   min-height: 44px;
   padding: 0 var(--space-3);
   border: 1px solid var(--color-border);
-  border-radius: var(--space-2);
+  border-radius: 6px;
   background: var(--color-white);
   color: var(--color-text);
   font: inherit;
@@ -3931,14 +4136,6 @@ const ToggleLabel = styled.label`
     height: var(--space-5);
     accent-color: var(--color-brand-700);
   }
-`;
-
-const ToggleControl = styled(ToggleLabel)`
-  justify-content: center;
-  padding: 0 var(--space-3);
-  border: 1px solid var(--color-border);
-  border-radius: var(--space-2);
-  background: var(--color-white);
 `;
 
 const Pagination = styled.nav`
@@ -3978,15 +4175,66 @@ const PaginationButton = styled.button`
   }
 `;
 
-const CardActions = styled.div`
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-3);
-  padding-top: var(--space-2);
+const TableActions = styled.div`
+  min-width: 520px;
+  display: grid;
+  grid-template-columns: 128px minmax(160px, 1fr) auto auto;
+  align-items: center;
+  gap: var(--space-2);
 
-  @media (max-width: 480px) {
+  select,
+  button {
+    min-height: 36px;
+    white-space: nowrap;
+  }
+
+  @media (max-width: 768px) {
+    min-width: 0;
     display: grid;
     grid-template-columns: 1fr;
+
+    > * {
+      width: 100%;
+    }
+  }
+`;
+
+const ReportNoteInput = styled.input`
+  min-width: 0;
+  min-height: 36px;
+  padding: 0 var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  outline: 0;
+  background: var(--color-white);
+  color: var(--color-text);
+  font: inherit;
+  font-size: var(--font-size-100);
+
+  &:focus {
+    border-color: var(--color-brand-800);
+    box-shadow: 0 0 0 2px var(--color-brand-200);
+  }
+`;
+
+const CompactActionButton = styled(SearchButton)`
+  min-height: 36px;
+  padding: 0 var(--space-3);
+`;
+
+const InlineActionGroup = styled.div`
+  display: inline-grid;
+  grid-template-columns: minmax(112px, 1fr) auto;
+  align-items: center;
+  gap: var(--space-2);
+
+  select,
+  button {
+    min-height: 36px;
+  }
+
+  @media (max-width: 768px) {
+    width: 100%;
 
     > * {
       width: 100%;
@@ -4049,7 +4297,11 @@ const DangerButton = styled.button`
 
 const SettingsGrid = styled.section`
   display: grid;
-  gap: var(--space-4);
+  gap: 0;
+  overflow: hidden;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: var(--color-white);
 `;
 
 const SettingCard = styled.article`
@@ -4057,15 +4309,15 @@ const SettingCard = styled.article`
   grid-template-columns: minmax(0, 1fr) minmax(240px, 0.7fr);
   align-items: center;
   gap: var(--space-6);
-  padding: var(--space-5);
-  border: 1px solid var(--color-brand-200);
-  border-radius: var(--space-4);
-  background: var(--color-brand-100);
-  box-shadow: 0 12px 30px rgb(var(--color-black-rgb) / 0.06);
+  padding: var(--space-4);
+  border: 0;
+  border-bottom: 1px solid var(--color-border);
+  border-radius: 0;
+  background: var(--color-white);
+  box-shadow: none;
 
-  &:nth-of-type(even) {
-    border-color: var(--color-secondary-300);
-    background: var(--color-secondary-100);
+  &:last-child {
+    border-bottom: 0;
   }
 
   h2 {
@@ -4133,7 +4385,7 @@ const PrimaryLink = styled(Link)`
   min-height: var(--space-11);
   place-items: center;
   border-radius: var(--space-3);
-  background: var(--color-brand-700);
+  background: var(--color-brand-800);
   color: var(--color-white);
   font-weight: 700;
   text-decoration: none;
@@ -4150,7 +4402,7 @@ const SecondaryLink = styled(Link)`
 const MobileNavigation = styled.nav`
   display: none;
 
-  @media (max-width: 768px) {
+  @media (max-width: 1024px) {
     position: fixed;
     z-index: 40;
     right: 0;
@@ -4241,7 +4493,7 @@ const MobileMenuBackdrop = styled.div<{
 }>`
   display: none;
 
-  @media (max-width: 768px) {
+  @media (max-width: 1024px) {
     position: fixed;
     z-index: 50;
     inset: 0;
@@ -4268,14 +4520,16 @@ const MobileMenu = styled.section<{
   $dragging: boolean;
 }>`
   display: grid;
+  max-height: min(86dvh, 720px);
+  grid-template-rows: auto auto minmax(0, 1fr);
   gap: var(--space-4);
   padding:
     var(--space-3)
     max(var(--space-5), env(safe-area-inset-right))
     max(var(--space-6), env(safe-area-inset-bottom))
     max(var(--space-5), env(safe-area-inset-left));
-  border-radius: var(--space-7) var(--space-7) 0 0;
-  background: var(--color-brand-100);
+  border-radius: 12px 12px 0 0;
+  background: var(--color-white);
   box-shadow: 0 -20px 56px rgb(var(--color-black-rgb) / 0.16);
   transform: translateY(
     ${({ $open, $dragOffset }) =>
@@ -4329,24 +4583,12 @@ const MobileMenuHeader = styled.header`
   }
 `;
 
-const DrawerCloseButton = styled.button`
-  width: 44px;
-  height: 44px;
-  display: grid;
-  place-items: center;
-  border: 0;
-  border-radius: 999px;
-  background: var(--color-brand-200);
-  color: var(--color-brand-1000);
-  font: inherit;
-  font-size: var(--font-size-500);
-  cursor: pointer;
-`;
-
 const MobileMenuList = styled.div`
   display: grid;
-  overflow: hidden;
-  border-radius: var(--space-4);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
   background: var(--color-surface);
 `;
 
