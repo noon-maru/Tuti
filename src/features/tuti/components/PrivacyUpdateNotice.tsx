@@ -23,7 +23,6 @@ export function PrivacyUpdateNotice() {
 
   useEffect(() => {
     if (!hasHydrated || pathname !== "/") {
-      setVisible(false);
       return;
     }
 
@@ -47,7 +46,7 @@ export function PrivacyUpdateNotice() {
     router.push(PRIVACY_POLICY_UPDATE_PATH);
   };
 
-  if (!visible) return null;
+  if (!visible || !hasHydrated || pathname !== "/") return null;
 
   return (
     <Notice role="region" aria-label="개인정보 처리방침 개정 안내">

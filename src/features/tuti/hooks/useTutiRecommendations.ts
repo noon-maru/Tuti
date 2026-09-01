@@ -29,10 +29,12 @@ export function useTutiRecommendations({ enabled = true } = {}) {
     (state) => state.cacheDailyRecommendation,
   );
   const recommendationDate = getKoreanDateKey();
-  const answers =
-    isCurrentKoreanDate(entryRecord) && entryRecord?.status === "skipped"
-      ? {}
-      : storedAnswers;
+  const skippedToday =
+    isCurrentKoreanDate(entryRecord) && entryRecord?.status === "skipped";
+  const answers = useMemo(
+    () => (skippedToday ? {} : storedAnswers),
+    [skippedToday, storedAnswers],
+  );
   const feature = useMemo(() => interpretState(answers), [answers]);
   const cachedRecommendation =
     dailyRecommendation?.effectiveDate === recommendationDate &&

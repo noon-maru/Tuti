@@ -1,10 +1,7 @@
 import type { Prisma } from "../src/generated/prisma/client";
 import { prisma } from "../src/server/db/prisma";
 import { fetchMunicipalCoreTourism } from "../src/server/tourism/municipalCoreTourismApiClient";
-import {
-  fetchRegionalTourismMetrics,
-  type RegionalMetricType,
-} from "../src/server/tourism/regionalTourismApiClient";
+import type { RegionalMetricType } from "../src/server/tourism/regionalTourismApiClient";
 import {
   fetchRegionalVisitorCounts,
   type VisitorAggregationLevel,
@@ -120,11 +117,9 @@ try {
   );
 
   await runStage("관광지 집중률", async () => {
-    const completed = await loadCompletedRunKeys(
-      ["ktoTouristSpotConcentrationRate"],
-      (parameters) =>
-        joinKey(parameters.areaCode, parameters.sigunguCode),
-    );
+    const completed = await loadCompletedRunKeys([
+      "ktoTouristSpotConcentrationRate",
+    ]);
     const skipped: JobResult[] = [];
     const jobs = regions.flatMap((region) => {
       const key = joinKey(region.areaCode, region.sigunguCode);
@@ -249,10 +244,7 @@ async function collectPhotoGallery(concurrency: number) {
   });
   const jobs = [];
   const skipped: JobResult[] = [];
-  const completed = await loadCompletedRunKeys(
-    ["ktoTourismPhotoGallery"],
-    (parameters) => joinKey(parameters.startPage),
-  );
+  const completed = await loadCompletedRunKeys(["ktoTourismPhotoGallery"]);
 
   for (
     let startPage = 1;
@@ -290,15 +282,7 @@ async function collectMunicipalCore(
 ) {
   const jobs = [];
   const skipped: JobResult[] = [];
-  const completed = await loadCompletedRunKeys(
-    ["ktoMunicipalCoreTourism"],
-    (parameters) =>
-      joinKey(
-        parameters.baseYm,
-        parameters.areaCode,
-        parameters.sigunguCode,
-      ),
-  );
+  const completed = await loadCompletedRunKeys(["ktoMunicipalCoreTourism"]);
 
   for (const baseYm of months) {
     for (const region of regions) {
@@ -339,15 +323,7 @@ async function collectRelatedTourism(
 ) {
   const jobs = [];
   const skipped: JobResult[] = [];
-  const completed = await loadCompletedRunKeys(
-    ["ktoRelatedTourism"],
-    (parameters) =>
-      joinKey(
-        parameters.baseYm,
-        parameters.areaCode,
-        parameters.sigunguCode,
-      ),
-  );
+  const completed = await loadCompletedRunKeys(["ktoRelatedTourism"]);
 
   for (const baseYm of months) {
     for (const region of regions) {
@@ -388,11 +364,7 @@ async function collectVisitorCounts(
   const levels: VisitorAggregationLevel[] = ["metropolitan", "municipal"];
   const jobs = [];
   const skipped: JobResult[] = [];
-  const completed = await loadCompletedRunKeys(
-    ["ktoRegionalVisitorCount"],
-    (parameters) =>
-      joinKey(parameters.aggregationLevel, parameters.baseYmd),
-  );
+  const completed = await loadCompletedRunKeys(["ktoRegionalVisitorCount"]);
 
   for (const baseYmd of dates) {
     for (const aggregationLevel of levels) {
@@ -434,16 +406,10 @@ async function collectRegionalMetrics(
 ) {
   const jobs = [];
   const skipped: JobResult[] = [];
-  const completed = await loadCompletedRunKeys(
-    ["ktoRegionalResourceDemand", "ktoRegionalDemandIntensity"],
-    (parameters) =>
-      joinKey(
-        parameters.metricType,
-        parameters.metricCode,
-        parameters.baseYm,
-        parameters.areaCode,
-      ),
-  );
+  const completed = await loadCompletedRunKeys([
+    "ktoRegionalResourceDemand",
+    "ktoRegionalDemandIntensity",
+  ]);
 
   for (const baseYm of months) {
     for (const areaCode of areaCodes) {
@@ -584,10 +550,7 @@ async function failStaleSyncRuns() {
   return updated.count;
 }
 
-async function loadCompletedRunKeys(
-  sources: string[],
-  _createKey: (parameters: Prisma.JsonObject) => string | null,
-) {
+async function loadCompletedRunKeys(sources: string[]) {
   const checkpoints = await prisma.externalDataSyncCheckpoint.findMany({
     where: {
       source: { in: sources },
