@@ -943,15 +943,21 @@ export function AdminScreen({
                 <span aria-hidden="true">›</span>
               </MobileMenuButton>
             ))}
-            <MobileServiceLink href="/admin/recommendation-simulator">
+            <MobileServiceLink
+              href="/admin/recommendation-simulator"
+              onClick={closeMobileMenu}
+            >
               <span>추천 시뮬레이터</span>
               <span aria-hidden="true">›</span>
             </MobileServiceLink>
-            <MobileServiceLink href="/admin/tourism-data">
+            <MobileServiceLink
+              href="/admin/tourism-data"
+              onClick={closeMobileMenu}
+            >
               <span>관광 데이터 관리</span>
               <span aria-hidden="true">›</span>
             </MobileServiceLink>
-            <MobileServiceLink href="/">
+            <MobileServiceLink href="/" onClick={closeMobileMenu}>
               <span>Tuti 서비스로 돌아가기</span>
               <span aria-hidden="true">›</span>
             </MobileServiceLink>

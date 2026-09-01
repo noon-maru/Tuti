@@ -686,9 +686,16 @@ function crowdToleranceLabel(value: string) {
 }
 
 const Page = styled.main`
-  min-height: 100dvh;
+  height: 100vh;
+  height: 100dvh;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior-y: auto;
   background: var(--color-neutral-200);
   color: var(--color-text);
+  touch-action: pan-y;
+  -webkit-overflow-scrolling: touch;
 
   :where(button, a, input, select, textarea, summary, [tabindex]):focus-visible {
     outline: 3px solid var(--color-brand-900);
