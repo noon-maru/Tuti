@@ -5,12 +5,20 @@ set -eu
 project_dir="/var/services/homes/Tutiadmin/source/Tuti"
 state_dir="$project_dir/.ops-state/health"
 maintenance_dir="$project_dir/.ops-state/maintenance"
+maintenance_lock_file="$project_dir/.ops-state/maintenance.lock"
 timestamp="$(date +%Y%m%d-%H%M%S)"
 log_file="$state_dir/$timestamp.log"
 disk_warning_percent="${TUTI_DISK_WARNING_PERCENT:-85}"
 
 install -d -o root -g root -m 0700 "$state_dir"
 cd "$project_dir"
+
+exec 9>"$maintenance_lock_file"
+if ! /usr/bin/flock --shared --nonblock 9; then
+  printf 'checked_at=%s\nstatus=maintenance\n' "$(date -Iseconds)" > "$log_file"
+  cat "$log_file"
+  exit 0
+fi
 
 if [ -d "$maintenance_dir" ]; then
   maintenance_active=false

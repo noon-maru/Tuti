@@ -4,6 +4,9 @@ set -eu
 
 project_dir="/var/services/homes/Tutiadmin/source/Tuti"
 state_file="$project_dir/.ops-state/deploy/releases.env"
+maintenance_dir="$project_dir/.ops-state/maintenance"
+maintenance_marker="$maintenance_dir/$$"
+maintenance_lock_file="$project_dir/.ops-state/maintenance.lock"
 
 if [ ! -f "$state_file" ]; then
   echo "이전 배포 상태가 없습니다. 커밋별 배포를 한 번 이상 완료해야 합니다." >&2
@@ -31,6 +34,13 @@ if ! docker image inspect "$previous_image" >/dev/null 2>&1; then
   echo "이전 앱 이미지가 Docker에 남아 있지 않습니다: $previous_image" >&2
   exit 1
 fi
+
+install -d -o root -g root -m 0700 "$maintenance_dir"
+exec 9>"$maintenance_lock_file"
+/usr/bin/flock --exclusive 9
+printf 'rollback\n' > "$maintenance_marker"
+chmod 0600 "$maintenance_marker"
+trap 'rm -f "$maintenance_marker"' EXIT INT TERM
 
 cd "$project_dir"
 echo "앱 이미지를 이전 버전으로 되돌립니다: $previous_image"

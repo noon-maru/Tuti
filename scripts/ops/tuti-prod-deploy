@@ -11,6 +11,7 @@ state_file="$state_dir/releases.env"
 lock_dir="$state_dir/deploy.lock"
 maintenance_dir="$project_dir/.ops-state/maintenance"
 maintenance_marker="$maintenance_dir/$$"
+maintenance_lock_file="$project_dir/.ops-state/maintenance.lock"
 revision="$(git -C "$project_dir" rev-parse --short=12 HEAD)"
 app_image="tuti:prod-$revision"
 ops_image="tuti:ops-$revision"
@@ -36,6 +37,8 @@ if ! mkdir "$lock_dir" 2>/dev/null; then
   echo "다른 운영 배포가 진행 중입니다." >&2
   exit 1
 fi
+exec 9>"$maintenance_lock_file"
+/usr/bin/flock --exclusive 9
 printf 'deploy\n' > "$maintenance_marker"
 chmod 0600 "$maintenance_marker"
 trap 'rm -f "$maintenance_marker"; rmdir "$lock_dir" 2>/dev/null || true' EXIT INT TERM

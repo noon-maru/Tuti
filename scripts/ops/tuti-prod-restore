@@ -5,6 +5,7 @@ set -eu
 project_dir="/var/services/homes/Tutiadmin/source/Tuti"
 maintenance_dir="$project_dir/.ops-state/maintenance"
 maintenance_marker="$maintenance_dir/$$"
+maintenance_lock_file="$project_dir/.ops-state/maintenance.lock"
 backup_root="${TUTI_FULL_BACKUP_ROOT:-/volume1/tuti/backups/full}"
 backup_id="${1:-}"
 confirmation="${2:-}"
@@ -36,6 +37,8 @@ cd "$backup_dir"
 sha256sum -c checksums.sha256
 cd "$project_dir"
 install -d -o root -g root -m 0700 "$maintenance_dir"
+exec 9>"$maintenance_lock_file"
+/usr/bin/flock --exclusive 9
 printf 'restore\n' > "$maintenance_marker"
 chmod 0600 "$maintenance_marker"
 
