@@ -6,7 +6,10 @@ import {
   PRIVACY_POLICY_UPDATE_PATH,
 } from "@/shared/legal/privacyPolicyUpdate";
 
-export const metadata: Metadata = { title: "개인정보 처리방침 | Tuti" };
+export const metadata: Metadata = {
+  title: "개인정보 처리방침 | Tuti",
+  alternates: { canonical: "/legal/privacy" },
+};
 
 export default function PrivacyPolicyPage() {
   return (
