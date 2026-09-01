@@ -17,6 +17,7 @@ services:
       CI: "true"
       WATCHPACK_POLLING: "true"
       GOOGLE_APPLICATION_CREDENTIALS: /run/secrets/tuti-firebase-service-account.json
+      APNS_PRIVATE_KEY_PATH: /run/secrets/tuti-apns-auth-key.p8
     command:
       - sh
       - -lc
@@ -30,6 +31,7 @@ services:
     volumes:
       - .:/app
       - ${FIREBASE_SERVICE_ACCOUNT_HOST_PATH:-/var/services/homes/Tutiadmin/.tuti-secrets/firebase/tuti-push-sender.json}:/run/secrets/tuti-firebase-service-account.json:ro
+      - ${APNS_PRIVATE_KEY_HOST_PATH:-/var/services/homes/Tutiadmin/.tuti-secrets/apple/tuti-apns-auth-key.p8}:/run/secrets/tuti-apns-auth-key.p8:ro
       - tuti_dev_node_modules:/app/node_modules
       - tuti_dev_pnpm_store:/pnpm/store
     group_add:

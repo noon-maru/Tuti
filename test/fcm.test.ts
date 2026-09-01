@@ -1,9 +1,15 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { generateKeyPairSync, verify } from "node:crypto";
+import {
+  createApnsProviderToken,
+  isInvalidApnsTokenResponse,
+} from "../src/server/notifications/apns";
 import { isInvalidRegistrationError } from "../src/server/notifications/fcmErrors";
 import {
   createAndroidFcmMessage,
   createInquiryAnsweredPushMessage,
+  createIosApnsPayload,
   createSafePushData,
 } from "../src/server/notifications/pushPayload";
 import { parseFcmPushTestEmails } from "../src/server/notifications/pushTestAccess";
@@ -58,4 +64,57 @@ test("FCM 내부 QA 허용 이메일을 정규화하고 중복 제거한다", ()
     ["admin@tuti.today", "qa@example.com"],
   );
   assert.deepEqual(parseFcmPushTestEmails(undefined), []);
+});
+
+test("APNs 인증 토큰을 ES256 JWT로 생성한다", () => {
+  const { privateKey, publicKey } = generateKeyPairSync("ec", {
+    namedCurve: "P-256",
+  });
+  const token = createApnsProviderToken({
+    keyId: "APNSKEY123",
+    privateKey: privateKey.export({ type: "pkcs8", format: "pem" }).toString(),
+    teamId: "TEAM123456",
+    now: 1_788_220_800_000,
+  });
+  const [header, claims, signature] = token.split(".");
+
+  assert.deepEqual(JSON.parse(Buffer.from(header, "base64url").toString()), {
+    alg: "ES256",
+    kid: "APNSKEY123",
+  });
+  assert.deepEqual(JSON.parse(Buffer.from(claims, "base64url").toString()), {
+    iss: "TEAM123456",
+    iat: 1_788_220_800,
+  });
+  assert.equal(
+    verify(
+      "sha256",
+      Buffer.from(`${header}.${claims}`),
+      { key: publicKey, dsaEncoding: "ieee-p1363" },
+      Buffer.from(signature, "base64url"),
+    ),
+    true,
+  );
+});
+
+test("iOS 문의 답변 알림은 APNs 표시 데이터와 안전한 이동 경로만 담는다", () => {
+  const payload = createIosApnsPayload(
+    createInquiryAnsweredPushMessage("inquiry-internal-id"),
+  );
+
+  assert.deepEqual(payload.aps.alert, {
+    title: "문의에 답변이 도착했어요",
+    body: "남겨둔 문의의 답변을 확인해보세요.",
+  });
+  assert.equal(payload.aps.sound, "default");
+  assert.equal(payload.path, "/inquiry?view=history");
+  assert.equal("entityId" in payload, false);
+});
+
+test("APNs의 만료·불일치 토큰 응답만 기기 무효화로 처리한다", () => {
+  assert.equal(isInvalidApnsTokenResponse(410, "Unregistered"), true);
+  assert.equal(isInvalidApnsTokenResponse(400, "BadDeviceToken"), true);
+  assert.equal(isInvalidApnsTokenResponse(400, "DeviceTokenNotForTopic"), true);
+  assert.equal(isInvalidApnsTokenResponse(403, "InvalidProviderToken"), false);
+  assert.equal(isInvalidApnsTokenResponse(500, "InternalServerError"), false);
 });

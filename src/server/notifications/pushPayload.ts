@@ -43,6 +43,20 @@ export function createAndroidFcmMessage(
   } as const;
 }
 
+export function createIosApnsPayload(message: ServerPushMessage) {
+  return {
+    aps: {
+      alert: {
+        title: message.title,
+        body: message.body,
+      },
+      sound: "default",
+      "thread-id": "tuti-service-updates",
+    },
+    ...createSafePushData(message),
+  } as const;
+}
+
 export function createInquiryAnsweredPushMessage(inquiryId: string) {
   return {
     title: "문의에 답변이 도착했어요",

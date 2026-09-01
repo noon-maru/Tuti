@@ -21,11 +21,13 @@ services:
     environment:
       TUTI_RELEASE: ${TUTI_RELEASE:-unknown}
       GOOGLE_APPLICATION_CREDENTIALS: /run/secrets/tuti-firebase-service-account.json
+      APNS_PRIVATE_KEY_PATH: /run/secrets/tuti-apns-auth-key.p8
     restart: unless-stopped
     ports:
       - "5050:3000"
     volumes:
       - ${FIREBASE_SERVICE_ACCOUNT_HOST_PATH:-/var/services/homes/Tutiadmin/.tuti-secrets/firebase/tuti-push-sender.json}:/run/secrets/tuti-firebase-service-account.json:ro
+      - ${APNS_PRIVATE_KEY_HOST_PATH:-/var/services/homes/Tutiadmin/.tuti-secrets/apple/tuti-apns-auth-key.p8}:/run/secrets/tuti-apns-auth-key.p8:ro
     group_add:
       - "${TUTI_SECRET_GID:-101}"
     depends_on:

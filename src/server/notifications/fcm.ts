@@ -2,11 +2,11 @@ import { createSign } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import { prisma } from "@/server/db/prisma";
 import { isInvalidRegistrationError } from "@/server/notifications/fcmErrors";
+import { isPushEnabledForUser } from "@/server/notifications/pushAccess";
 import {
   createAndroidFcmMessage,
   type ServerPushMessage,
 } from "@/server/notifications/pushPayload";
-import { parseFcmPushTestEmails } from "@/server/notifications/pushTestAccess";
 
 const FCM_SCOPE = "https://www.googleapis.com/auth/firebase.messaging";
 const DEFAULT_TOKEN_URI = "https://oauth2.googleapis.com/token";
@@ -31,42 +31,10 @@ export function isFcmPushEnabled() {
 }
 
 export async function isFcmPushEnabledForUser(userId: string) {
-  if (isFcmPushEnabled()) return true;
-
-  const testEmails = parseFcmPushTestEmails(
-    process.env.FCM_PUSH_TEST_EMAILS,
-  );
-  if (testEmails.length === 0) return false;
-
-  const identity = await prisma.authIdentity.findFirst({
-    where: {
-      userId,
-      email: { in: testEmails, mode: "insensitive" },
-    },
-    select: { id: true },
-  });
-  return identity !== null;
+  return isPushEnabledForUser(userId, "android");
 }
 
-export async function sendPushToUserSafely(
-  userId: string | null,
-  message: ServerPushMessage,
-) {
-  if (!userId) return;
-
-  try {
-    await sendPushToUser(userId, message);
-  } catch (error) {
-    console.error("사용자 푸시 알림을 보내지 못했습니다.", {
-      error: error instanceof Error ? error.message : "UnknownError",
-      userId,
-      type: message.type,
-      entityId: message.entityId,
-    });
-  }
-}
-
-export async function sendPushToUser(
+export async function sendAndroidPushToUser(
   userId: string,
   message: ServerPushMessage,
 ) {

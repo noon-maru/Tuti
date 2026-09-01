@@ -7,7 +7,7 @@ import {
   withCors,
 } from "@/server/http/cors";
 import type { AdminInquiriesResponse } from "@/shared/api/admin";
-import { sendPushToUserSafely } from "@/server/notifications/fcm";
+import { sendPushToUserSafely } from "@/server/notifications/push";
 import { createInquiryAnsweredPushMessage } from "@/server/notifications/pushPayload";
 
 export const runtime = "nodejs";

@@ -7,6 +7,7 @@ import {
 } from "@capacitor/push-notifications";
 import { fetchWithSession } from "@/lib/auth/session";
 import type {
+  PushPlatform,
   PushDeviceResponse,
   RegisterPushDeviceRequest,
 } from "@/shared/api/push";
@@ -22,7 +23,8 @@ export type PushNotificationStatus = {
 };
 
 export function supportsServerPushNotifications() {
-  return Capacitor.getPlatform() === "android";
+  const platform = Capacitor.getPlatform();
+  return platform === "android" || platform === "ios";
 }
 
 export async function getPushNotificationStatus(): Promise<PushNotificationStatus> {
@@ -82,7 +84,7 @@ export async function registerPushDevice(token: string) {
   ]);
   const input: RegisterPushDeviceRequest = {
     installationId,
-    platform: "android",
+    platform: getPushPlatform(),
     token,
     appVersion: `${appInfo.version} (${appInfo.build})`,
     locale: navigator.language,
@@ -118,6 +120,8 @@ async function readPushApiError(response: Response, fallback: string) {
 }
 
 async function configurePushChannel() {
+  if (Capacitor.getPlatform() !== "android") return;
+
   await PushNotifications.createChannel({
     id: TUTI_SERVICE_PUSH_CHANNEL_ID,
     name: "Tuti 소식",
@@ -131,6 +135,10 @@ async function configurePushChannel() {
   await PushNotifications.deleteChannel({
     id: LEGACY_TUTI_SERVICE_PUSH_CHANNEL_ID,
   }).catch(() => undefined);
+}
+
+function getPushPlatform(): PushPlatform {
+  return Capacitor.getPlatform() === "ios" ? "ios" : "android";
 }
 
 async function requestPushToken() {

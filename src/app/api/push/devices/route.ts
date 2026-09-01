@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { authenticateUser } from "@/server/auth/session";
 import { prisma } from "@/server/db/prisma";
-import { isFcmPushEnabledForUser } from "@/server/notifications/fcm";
+import { isPushEnabledForUser } from "@/server/notifications/pushAccess";
 import {
   createPreflightResponse,
   isRequestOriginAllowed,
@@ -30,7 +30,11 @@ export async function POST(request: Request) {
       );
     }
 
-    if (!(await isFcmPushEnabledForUser(user.id))) {
+    const input = parseRegistration(
+      (await request.json()) as RegisterPushDeviceRequest,
+    );
+
+    if (!(await isPushEnabledForUser(user.id, input.platform))) {
       return withCors(
         request,
         Response.json(
@@ -40,9 +44,6 @@ export async function POST(request: Request) {
       );
     }
 
-    const input = parseRegistration(
-      (await request.json()) as RegisterPushDeviceRequest,
-    );
     const now = new Date();
 
     await prisma.$transaction(async (transaction) => {
