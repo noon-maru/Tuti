@@ -5,6 +5,7 @@ set -eu
 project_dir="/var/services/homes/Tutiadmin/source/Tuti"
 maintenance_dir="$project_dir/.ops-state/maintenance"
 maintenance_marker="$maintenance_dir/$$"
+parent_maintenance_marker="$maintenance_dir/$PPID"
 maintenance_lock_file="$project_dir/.ops-state/maintenance.lock"
 backup_root="${TUTI_FULL_BACKUP_ROOT:-/volume1/tuti/backups/full}"
 retention_days="${TUTI_FULL_BACKUP_RETENTION_DAYS:-30}"
@@ -30,10 +31,22 @@ esac
 
 install -d -o root -g root -m 0700 "$backup_root"
 install -d -o root -g root -m 0700 "$maintenance_dir"
-if [ "$(readlink "/proc/$$/fd/9" 2>/dev/null || true)" != "$maintenance_lock_file" ]; then
-  exec 9>"$maintenance_lock_file"
+
+# 배포 스크립트가 이미 유지보수 잠금을 잡은 상태에서 이 백업을 호출할 수 있습니다.
+# 일부 셸은 exec 시 9번 파일 디스크립터를 닫으므로 FD 경로만 비교하면 자가 교착이
+# 발생합니다. 직속 부모의 배포 마커도 함께 확인해 중첩 잠금을 피합니다.
+parent_holds_maintenance_lock=false
+if [ -r "$parent_maintenance_marker" ] \
+  && [ "$(cat "$parent_maintenance_marker" 2>/dev/null || true)" = "deploy" ]; then
+  parent_holds_maintenance_lock=true
 fi
-/usr/bin/flock --exclusive 9
+
+if [ "$parent_holds_maintenance_lock" != true ]; then
+  if [ "$(readlink "/proc/$$/fd/9" 2>/dev/null || true)" != "$maintenance_lock_file" ]; then
+    exec 9>"$maintenance_lock_file"
+  fi
+  /usr/bin/flock --exclusive 9
+fi
 printf 'backup\n' > "$maintenance_marker"
 chmod 0600 "$maintenance_marker"
 rm -rf "$temporary_dir"
