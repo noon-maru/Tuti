@@ -15,6 +15,7 @@ import {
   AdminApiError,
   fetchAdminJson,
 } from "@/lib/adminApi";
+import { AdminNotificationsPanel } from "@/features/admin/AdminNotificationsPanel";
 import type {
   AdminInquiriesResponse,
   AdminInquiryItem,
@@ -25,6 +26,7 @@ import type {
   AdminLocationUsageItem,
   AdminOverview,
   AdminOverviewResponse,
+  AdminNotificationsResponse,
   AdminPlaceItem,
   AdminPlacesMeta,
   AdminPlacesResponse,
@@ -39,6 +41,7 @@ import type {
 
 export type AdminTab =
   | "overview"
+  | "notifications"
   | "funnel"
   | "logs"
   | "location"
@@ -50,6 +53,7 @@ export type AdminTab =
 
 const tabs: Array<{ id: AdminTab; label: string }> = [
   { id: "overview", label: "대시보드" },
+  { id: "notifications", label: "알림 운영" },
   { id: "funnel", label: "추천 퍼널" },
   { id: "logs", label: "로그" },
   { id: "location", label: "위치 확인자료" },
@@ -64,10 +68,11 @@ const mobilePrimaryTabs: Array<{ id: AdminTab; label: string }> = [
   { id: "overview", label: "홈" },
   { id: "inquiries", label: "문의" },
   { id: "reports", label: "신고" },
-  { id: "places", label: "장소" },
+  { id: "notifications", label: "알림" },
 ];
 
 const mobileMoreTabs: Array<{ id: AdminTab; label: string }> = [
+  { id: "places", label: "장소 검수 및 노출" },
   { id: "funnel", label: "추천 행동 퍼널" },
   { id: "users", label: "사용자 및 권한" },
   { id: "logs", label: "시스템 로그" },
@@ -143,6 +148,15 @@ function AdminSectionIcon({
     );
   }
 
+  if (section === "notifications") {
+    return (
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M6.5 9a5.5 5.5 0 0 1 11 0c0 6 2.5 6.5 2.5 6.5H4S6.5 15 6.5 9Z" />
+        <path d="M9.5 18.5a2.8 2.8 0 0 0 5 0" />
+      </svg>
+    );
+  }
+
   return (
     <svg viewBox="0 0 24 24" aria-hidden="true">
       <circle cx="5" cy="12" r="1.4" />
@@ -159,6 +173,8 @@ export function AdminScreen({
 }) {
   const [tab, setTab] = useState<AdminTab>(initialTab);
   const [overview, setOverview] = useState<AdminOverview | null>(null);
+  const [notifications, setNotifications] =
+    useState<AdminNotificationsResponse | null>(null);
   const [funnel, setFunnel] =
     useState<AdminRecommendationFunnelResponse | null>(null);
   const [funnelDays, setFunnelDays] = useState(30);
@@ -281,9 +297,12 @@ export function AdminScreen({
   );
 
   const loadOverview = useCallback(async () => {
-    const response =
-      await fetchAdminJson<AdminOverviewResponse>("overview");
+    const [response, notificationResponse] = await Promise.all([
+      fetchAdminJson<AdminOverviewResponse>("overview"),
+      fetchAdminJson<AdminNotificationsResponse>("notifications"),
+    ]);
     setOverview(response.overview);
+    setNotifications(notificationResponse);
   }, []);
 
   const loadTab = useCallback(async () => {
@@ -321,10 +340,19 @@ export function AdminScreen({
     }
     if (tab === "reports" && filter) searchParams.set("status", filter);
     if (tab === "inquiries" && filter) searchParams.set("status", filter);
+    if (tab === "notifications" && filter) {
+      const [filterType, filterValue] = filter.split(":", 2);
+      if (filterType && filterValue) searchParams.set(filterType, filterValue);
+    }
 
     const suffix = searchParams.size ? `?${searchParams}` : "";
 
-    if (tab === "funnel") {
+    if (tab === "notifications") {
+      const response = await fetchAdminJson<AdminNotificationsResponse>(
+        `notifications${suffix}`,
+      );
+      setNotifications(response);
+    } else if (tab === "funnel") {
       const response =
         await fetchAdminJson<AdminRecommendationFunnelResponse>(
           `recommendation-funnel?days=${funnelDays}`,
@@ -516,7 +544,7 @@ export function AdminScreen({
       <Main>
         <Header>
           <div>
-            <Eyebrow>TUTI ADMIN</Eyebrow>
+            <HeaderContext>{getAdminHeaderContext(tab)}</HeaderContext>
             <h1>{tabs.find((item) => item.id === tab)?.label}</h1>
           </div>
           <RefreshButton type="button" onClick={() => void refresh()}>
@@ -584,7 +612,13 @@ export function AdminScreen({
         {loading ? (
           <StatePanel>관리 데이터를 불러오고 있어요.</StatePanel>
         ) : tab === "overview" ? (
-          <OverviewPanel overview={overview} onNavigate={changeTab} />
+          <OverviewPanel
+            overview={overview}
+            notifications={notifications}
+            onNavigate={changeTab}
+          />
+        ) : tab === "notifications" ? (
+          <AdminNotificationsPanel data={notifications} />
         ) : tab === "funnel" ? (
           <RecommendationFunnelPanel
             funnel={funnel}
@@ -720,6 +754,12 @@ export function AdminScreen({
               Boolean(overview?.pendingReports) && (
                 <MobileNavBadge>{overview?.pendingReports}</MobileNavBadge>
               )}
+            {item.id === "notifications" &&
+              Boolean(notifications?.summary.failed24h) && (
+                <MobileNavBadge>
+                  {notifications?.summary.failed24h}
+                </MobileNavBadge>
+              )}
           </MobileNavButton>
         ))}
         <MobileNavButton
@@ -809,11 +849,18 @@ export function AdminScreen({
 
 function OverviewPanel({
   overview,
+  notifications,
   onNavigate,
 }: {
   overview: AdminOverview | null;
+  notifications: AdminNotificationsResponse | null;
   onNavigate: (tab: AdminTab) => void;
 }) {
+  const pendingTotal =
+    (overview?.pendingInquiries ?? 0) +
+    (overview?.pendingReports ?? 0) +
+    (overview?.pendingPlaces ?? 0);
+  const failedNotifications = notifications?.summary.failed24h ?? 0;
   const cards = [
     ["전체 사용자", overview?.users ?? 0],
     ["관리자", overview?.admins ?? 0],
@@ -823,23 +870,98 @@ function OverviewPanel({
 
   return (
     <OverviewContent>
-      <section>
-        <SectionTitle>지금 처리할 일</SectionTitle>
-        <QueueGrid>
-          <QueueCard type="button" onClick={() => onNavigate("inquiries")}>
-            <span>답변을 기다리는 문의</span>
+      <OperationsHero>
+        <HeroCopy>
+          <StatusKicker>오늘 운영 상태</StatusKicker>
+          <h2>
+            {failedNotifications > 0
+              ? "알림 전달 상태를 먼저 확인해 주세요."
+              : pendingTotal > 0
+                ? `처리할 일이 ${pendingTotal}건 남아 있어요.`
+                : "지금은 조용히 운영되고 있어요."}
+          </h2>
+          <p>
+            문의·신고·장소 검수와 알림 전달 상태를 최근 운영 신호 순서로
+            보여드립니다.
+          </p>
+        </HeroCopy>
+        <SignalRail aria-label="운영 신호 요약">
+          <SignalButton type="button" onClick={() => onNavigate("inquiries")}>
+            <SignalDot $tone="lime" />
+            <span>문의</span>
             <strong>{overview?.pendingInquiries ?? 0}</strong>
-          </QueueCard>
-          <QueueCard type="button" onClick={() => onNavigate("reports")}>
-            <span>확인이 필요한 신고</span>
+          </SignalButton>
+          <SignalButton type="button" onClick={() => onNavigate("reports")}>
+            <SignalDot $tone="bridge" />
+            <span>신고</span>
             <strong>{overview?.pendingReports ?? 0}</strong>
-          </QueueCard>
-          <QueueCard type="button" onClick={() => onNavigate("places")}>
-            <span>검토 대기 장소</span>
+          </SignalButton>
+          <SignalButton type="button" onClick={() => onNavigate("places")}>
+            <SignalDot $tone="blue" />
+            <span>장소 검수</span>
             <strong>{overview?.pendingPlaces ?? 0}</strong>
-          </QueueCard>
-        </QueueGrid>
-      </section>
+          </SignalButton>
+          <SignalButton
+            type="button"
+            onClick={() => onNavigate("notifications")}
+          >
+            <SignalDot $tone={failedNotifications > 0 ? "error" : "quiet"} />
+            <span>알림 실패</span>
+            <strong>{failedNotifications}</strong>
+          </SignalButton>
+        </SignalRail>
+      </OperationsHero>
+
+      <OverviewSplit>
+        <OverviewSection>
+          <SectionTitle>지금 처리할 일</SectionTitle>
+          <QueueList>
+            <QueueRow type="button" onClick={() => onNavigate("inquiries")}>
+              <span>답변을 기다리는 문의</span>
+              <strong>{overview?.pendingInquiries ?? 0}</strong>
+              <i aria-hidden="true">›</i>
+            </QueueRow>
+            <QueueRow type="button" onClick={() => onNavigate("reports")}>
+              <span>확인이 필요한 신고</span>
+              <strong>{overview?.pendingReports ?? 0}</strong>
+              <i aria-hidden="true">›</i>
+            </QueueRow>
+            <QueueRow type="button" onClick={() => onNavigate("places")}>
+              <span>검토 대기 장소</span>
+              <strong>{overview?.pendingPlaces ?? 0}</strong>
+              <i aria-hidden="true">›</i>
+            </QueueRow>
+          </QueueList>
+        </OverviewSection>
+        <OverviewSection>
+          <SectionTitle>알림 전달</SectionTitle>
+          <NotificationGlance
+            type="button"
+            onClick={() => onNavigate("notifications")}
+          >
+            <GlanceHeader>
+              <span>최근 24시간</span>
+              <strong>
+                {notifications?.summary.successRate === null ||
+                notifications?.summary.successRate === undefined
+                  ? "전송 없음"
+                  : `${notifications.summary.successRate}% 성공`}
+              </strong>
+            </GlanceHeader>
+            <GlanceTrack>
+              <span
+                style={{
+                  width: `${notifications?.summary.successRate ?? 0}%`,
+                }}
+              />
+            </GlanceTrack>
+            <GlanceMeta>
+              활성 기기 {notifications?.summary.activeDevices ?? 0} · 성공{" "}
+              {notifications?.summary.sent24h ?? 0} · 실패 {failedNotifications}
+            </GlanceMeta>
+          </NotificationGlance>
+        </OverviewSection>
+      </OverviewSplit>
       <section>
         <SectionTitle>운영 현황</SectionTitle>
         <MetricGrid>
@@ -1991,6 +2113,17 @@ function SettingEditor({
 }
 
 function getFilterOptions(tab: AdminTab) {
+  if (tab === "notifications") {
+    return [
+      { value: "", label: "전체 알림" },
+      { value: "platform:android", label: "Android" },
+      { value: "platform:ios", label: "iOS" },
+      { value: "status:sent", label: "전달 성공" },
+      { value: "status:failed", label: "전달 실패" },
+      { value: "status:invalidated", label: "토큰 무효" },
+    ];
+  }
+
   if (tab === "logs") {
     return [
       { value: "", label: "전체 레벨" },
@@ -2053,6 +2186,9 @@ export function normalizeAdminTab(value: unknown): AdminTab {
 }
 
 function getSearchPlaceholder(tab: AdminTab) {
+  if (tab === "notifications") {
+    return "이메일, 사용자 ID, 알림 유형 또는 오류 코드 검색";
+  }
   if (tab === "logs") return "메시지, 작업, 사용자 ID 검색";
   if (tab === "location") return "사용자 ID, 외부 제공자 또는 처리 경로 검색";
   if (tab === "places") return "장소명, 장소 ID, 공공데이터 ID 검색";
@@ -2061,6 +2197,19 @@ function getSearchPlaceholder(tab: AdminTab) {
     return "제목, 문의 내용, 이메일 또는 사용자 ID 검색";
   }
   return "이메일 또는 사용자 ID 검색";
+}
+
+function getAdminHeaderContext(tab: AdminTab) {
+  if (tab === "overview") return "지금 확인할 운영 신호";
+  if (tab === "notifications") return "앱 알림 전달과 기기 상태";
+  if (tab === "funnel") return "추천 이후 행동 흐름";
+  if (tab === "location") return "위치정보 이용·제공 확인";
+  if (tab === "places") return "추천 장소 검수와 노출";
+  if (tab === "reports") return "신고 검토와 조치";
+  if (tab === "inquiries") return "사용자 문의와 답변";
+  if (tab === "users") return "계정과 관리자 권한";
+  if (tab === "settings") return "서비스 운영 기준";
+  return "서비스 기록과 이상 징후";
 }
 
 function formatRate(value: number) {
@@ -2193,8 +2342,9 @@ const Sidebar = styled.aside`
   height: 100dvh;
   display: flex;
   flex-direction: column;
-  gap: var(--space-8);
+  gap: var(--space-6);
   padding: var(--space-8) var(--space-5);
+  overflow-y: auto;
   border-right: 1px solid var(--color-border);
   background: var(--color-white);
 
@@ -2211,6 +2361,20 @@ const Brand = styled.div`
   span {
     color: var(--color-text-muted);
     font-size: var(--font-size-100);
+  }
+
+  &::after {
+    width: 42px;
+    height: 5px;
+    margin-left: auto;
+    border-radius: 999px;
+    background: linear-gradient(
+      90deg,
+      var(--color-brand-500),
+      var(--color-accent-bridge),
+      var(--color-secondary-500)
+    );
+    content: "";
   }
 `;
 
@@ -2240,6 +2404,7 @@ const Navigation = styled.nav`
 `;
 
 const NavButton = styled.button<{ $active: boolean }>`
+  position: relative;
   min-height: var(--space-11);
   padding: 0 var(--space-4);
   border: 0;
@@ -2253,11 +2418,40 @@ const NavButton = styled.button<{ $active: boolean }>`
   text-align: left;
   cursor: pointer;
 
+  &::before {
+    position: absolute;
+    top: 50%;
+    left: 0;
+    width: 4px;
+    height: ${({ $active }) => ($active ? "22px" : "0")};
+    border-radius: 999px;
+    background: linear-gradient(
+      180deg,
+      var(--color-brand-500),
+      var(--color-accent-bridge),
+      var(--color-secondary-500)
+    );
+    transform: translateY(-50%);
+    transition: height 180ms ease;
+    content: "";
+  }
+
   &:hover {
     background: ${({ $active }) =>
       $active
         ? "var(--color-secondary-300)"
         : "var(--color-brand-100)"};
+  }
+
+  &:focus-visible {
+    outline: 3px solid var(--color-brand-300);
+    outline-offset: 2px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    &::before {
+      transition: none;
+    }
   }
 
   @media (max-width: 768px) {
@@ -2354,14 +2548,13 @@ const Header = styled.header`
   }
 `;
 
-const Eyebrow = styled.span`
-  color: var(--color-brand-800);
+const HeaderContext = styled.span`
+  color: var(--color-text-muted);
   font-size: var(--font-size-100);
-  font-weight: 700;
-  letter-spacing: 0.08em;
+  font-weight: 600;
 
   @media (max-width: 480px) {
-    color: var(--color-brand-800);
+    color: var(--color-text-muted);
     font-size: 10px;
   }
 `;
@@ -2588,12 +2781,175 @@ const StatePanel = styled.div`
 
 const OverviewContent = styled.div`
   display: grid;
-  gap: var(--space-8);
+  gap: var(--space-7);
 
   section {
     display: grid;
     gap: var(--space-3);
   }
+`;
+
+const OperationsHero = styled.section`
+  position: relative;
+  overflow: hidden;
+  display: grid;
+  grid-template-columns: minmax(260px, 0.8fr) minmax(420px, 1.2fr);
+  align-items: end;
+  gap: var(--space-7);
+  padding: var(--space-7);
+  border: 1px solid var(--color-brand-200);
+  border-radius: var(--space-6);
+  background: var(--color-white);
+  box-shadow: 0 18px 48px rgb(var(--color-black-rgb) / 0.06);
+
+  &::before {
+    position: absolute;
+    inset: 0 0 auto;
+    height: 5px;
+    background: linear-gradient(
+      90deg,
+      var(--color-brand-500),
+      var(--color-accent-bridge) 52%,
+      var(--color-secondary-500)
+    );
+    content: "";
+  }
+
+  @media (max-width: 980px) {
+    grid-template-columns: 1fr;
+    align-items: stretch;
+  }
+
+  @media (max-width: 520px) {
+    gap: var(--space-5);
+    padding: var(--space-5);
+    border-radius: var(--space-5);
+  }
+`;
+
+const HeroCopy = styled.div`
+  h2 {
+    max-width: 18ch;
+    margin-top: var(--space-2);
+    font-size: clamp(var(--font-size-500), 2.5vw, var(--font-size-700));
+    line-height: 1.3;
+    letter-spacing: var(--letter-spacing-heading);
+  }
+
+  p {
+    max-width: 48ch;
+    margin-top: var(--space-3);
+    color: var(--color-text-muted);
+    font-size: var(--font-size-100);
+    line-height: 1.65;
+  }
+`;
+
+const StatusKicker = styled.span`
+  color: var(--color-brand-700);
+  font-size: var(--font-size-100);
+  font-weight: 700;
+`;
+
+const SignalRail = styled.div`
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  border: 1px solid var(--color-border);
+  border-radius: var(--space-4);
+  background: var(--color-neutral-100);
+
+  @media (max-width: 560px) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+`;
+
+const SignalButton = styled.button`
+  min-width: 0;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: var(--space-1) var(--space-2);
+  padding: var(--space-4);
+  border: 0;
+  border-right: 1px solid var(--color-border);
+  background: transparent;
+  color: var(--color-text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+
+  &:last-child {
+    border-right: 0;
+  }
+
+  span {
+    overflow: hidden;
+    color: var(--color-text-muted);
+    font-size: 11px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  strong {
+    grid-column: 1 / -1;
+    padding-left: 18px;
+    font-size: var(--font-size-500);
+    line-height: 1.1;
+  }
+
+  &:hover {
+    background: var(--color-white);
+  }
+
+  &:focus-visible {
+    outline: 3px solid var(--color-brand-300);
+    outline-offset: -3px;
+  }
+
+  @media (max-width: 560px) {
+    &:nth-of-type(2) {
+      border-right: 0;
+    }
+
+    &:nth-of-type(-n + 2) {
+      border-bottom: 1px solid var(--color-border);
+    }
+  }
+`;
+
+const SignalDot = styled.span<{
+  $tone: "blue" | "bridge" | "lime" | "error" | "quiet";
+}>`
+  width: 10px;
+  height: 10px;
+  align-self: center;
+  border-radius: 999px;
+  background: ${({ $tone }) =>
+    $tone === "blue"
+      ? "var(--color-brand-500)"
+      : $tone === "bridge"
+        ? "var(--color-accent-bridge)"
+        : $tone === "lime"
+          ? "var(--color-secondary-500)"
+          : $tone === "error"
+            ? "var(--color-error)"
+            : "var(--color-neutral-500)"};
+`;
+
+const OverviewSplit = styled.div`
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-5);
+
+  @media (max-width: 760px) {
+    grid-template-columns: 1fr;
+  }
+`;
+
+const OverviewSection = styled.section`
+  min-width: 0;
+  display: grid;
+  align-content: start;
+  gap: var(--space-3);
 `;
 
 const SectionTitle = styled.h2`
@@ -2615,100 +2971,129 @@ const SectionTitle = styled.h2`
   }
 `;
 
-const QueueGrid = styled.div`
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: var(--space-4);
-
-  @media (max-width: 640px) {
-    grid-template-columns: 1fr;
-    gap: var(--space-2);
-  }
+const QueueList = styled.div`
+  overflow: hidden;
+  border: 1px solid var(--color-border);
+  border-radius: var(--space-5);
+  background: var(--color-white);
+  box-shadow: 0 12px 34px rgb(var(--color-black-rgb) / 0.045);
 `;
 
-const QueueCard = styled.button`
-  min-height: 96px;
-  display: flex;
+const QueueRow = styled.button`
+  width: 100%;
+  min-height: 66px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
   align-items: center;
-  justify-content: space-between;
-  gap: var(--space-4);
-  padding: var(--space-5);
-  border: 1px solid var(--color-secondary-500);
-  border-radius: var(--space-5);
-  background: var(--color-secondary-200);
+  gap: var(--space-3);
+  padding: var(--space-4) var(--space-5);
+  border: 0;
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-white);
   color: var(--color-text);
   font: inherit;
   text-align: left;
   cursor: pointer;
-  box-shadow: 0 12px 30px rgb(var(--color-black-rgb) / 0.07);
+
+  &:last-child {
+    border-bottom: 0;
+  }
 
   span {
-    font-size: var(--font-size-200);
+    font-size: var(--font-size-100);
     font-weight: 600;
   }
 
   strong {
-    font-size: var(--font-size-700);
-    line-height: 1;
-  }
-
-  &:nth-of-type(1) {
-    border-color: var(--color-secondary-400);
+    min-width: 32px;
+    height: 32px;
+    display: grid;
+    place-items: center;
+    border-radius: 999px;
     background: var(--color-secondary-200);
+    font-size: var(--font-size-200);
   }
 
-  &:nth-of-type(2) {
+  i {
+    color: var(--color-text-muted);
+    font-style: normal;
+    font-size: var(--font-size-400);
+  }
+
+  &:hover {
+    background: var(--color-neutral-100);
+  }
+
+  &:focus-visible {
+    position: relative;
+    outline: 3px solid var(--color-brand-300);
+    outline-offset: -3px;
+  }
+`;
+
+const NotificationGlance = styled.button`
+  min-height: 198px;
+  display: grid;
+  align-content: center;
+  gap: var(--space-5);
+  padding: var(--space-5);
+  border: 1px solid var(--color-border);
+  border-radius: var(--space-5);
+  background: var(--color-white);
+  color: var(--color-text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  box-shadow: 0 12px 34px rgb(var(--color-black-rgb) / 0.045);
+
+  &:hover {
     border-color: var(--color-brand-300);
-    background: var(--color-brand-200);
   }
 
-  &:nth-of-type(3) {
-    border-color: var(--color-secondary-300);
-    background: var(--color-secondary-100);
+  &:focus-visible {
+    outline: 3px solid var(--color-brand-300);
+    outline-offset: 2px;
+  }
+`;
+
+const GlanceHeader = styled.div`
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-4);
+
+  span {
+    color: var(--color-text-muted);
+    font-size: var(--font-size-100);
   }
 
-  @media (max-width: 640px) {
-    min-height: 68px;
-    padding: var(--space-4);
-    border-color: transparent;
-    border-radius: var(--space-4);
-    background: var(--color-surface);
-    box-shadow: 0 8px 24px rgb(var(--color-black-rgb) / 0.05);
-
-    strong {
-      min-width: var(--space-10);
-      height: var(--space-10);
-      display: grid;
-      place-items: center;
-      border-radius: 999px;
-      background: var(--color-secondary-300);
-      font-size: var(--font-size-500);
-    }
-
-    &:nth-of-type(1) {
-      background: var(--color-secondary-200);
-
-      strong {
-        background: var(--color-secondary-500);
-      }
-    }
-
-    &:nth-of-type(2) {
-      background: var(--color-brand-200);
-
-      strong {
-        background: var(--color-brand-500);
-      }
-    }
-
-    &:nth-of-type(3) {
-      background: var(--color-secondary-100);
-
-      strong {
-        background: var(--color-secondary-400);
-      }
-    }
+  strong {
+    font-size: var(--font-size-400);
   }
+`;
+
+const GlanceTrack = styled.div`
+  height: 10px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--color-neutral-300);
+
+  span {
+    height: 100%;
+    display: block;
+    border-radius: inherit;
+    background: linear-gradient(
+      90deg,
+      var(--color-brand-500),
+      var(--color-accent-bridge),
+      var(--color-secondary-500)
+    );
+  }
+`;
+
+const GlanceMeta = styled.p`
+  color: var(--color-text-muted);
+  font-size: 12px;
 `;
 
 const MetricGrid = styled.section`
@@ -2741,12 +3126,12 @@ const ComplianceMode = styled.p`
 
 const MetricCard = styled.article`
   display: grid;
-  gap: var(--space-4);
-  padding: var(--space-6);
+  gap: var(--space-3);
+  padding: var(--space-5);
   border: 1px solid var(--color-border);
   border-radius: var(--space-5);
-  background: var(--color-surface);
-  box-shadow: 0 14px 32px rgb(var(--color-black-rgb) / 0.05);
+  background: var(--color-white);
+  box-shadow: 0 10px 28px rgb(var(--color-black-rgb) / 0.04);
 
   span {
     color: var(--color-text-muted);
@@ -2754,33 +3139,13 @@ const MetricCard = styled.article`
   }
 
   strong {
-    font-size: var(--font-size-800);
+    font-size: var(--font-size-600);
     line-height: 1;
-  }
-
-  &:nth-of-type(4n + 1) {
-    border-color: var(--color-brand-200);
-    background: var(--color-brand-100);
-  }
-
-  &:nth-of-type(4n + 2) {
-    border-color: var(--color-secondary-300);
-    background: var(--color-secondary-100);
-  }
-
-  &:nth-of-type(4n + 3) {
-    background: var(--color-neutral-100);
-  }
-
-  &:nth-of-type(4n) {
-    border-color: var(--color-brand-300);
-    background: var(--color-brand-200);
   }
 
   @media (max-width: 520px) {
     gap: var(--space-3);
     padding: var(--space-4);
-    border-color: transparent;
     border-radius: var(--space-4);
     box-shadow: 0 8px 24px rgb(var(--color-black-rgb) / 0.04);
 
@@ -2788,21 +3153,6 @@ const MetricCard = styled.article`
       font-size: var(--font-size-700);
     }
 
-    &:nth-of-type(4n + 1) {
-      background: var(--color-brand-100);
-    }
-
-    &:nth-of-type(4n + 2) {
-      background: var(--color-secondary-100);
-    }
-
-    &:nth-of-type(4n + 3) {
-      background: var(--color-neutral-100);
-    }
-
-    &:nth-of-type(4n) {
-      background: var(--color-brand-200);
-    }
   }
 `;
 

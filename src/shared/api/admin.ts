@@ -199,6 +199,79 @@ export type AdminOverviewResponse = {
   overview: AdminOverview;
 };
 
+export type AdminNotificationPlatform = "android" | "ios";
+export type AdminNotificationDeliveryStatus =
+  | "sent"
+  | "failed"
+  | "invalidated";
+
+export type AdminNotificationPlatformSummary = {
+  platform: AdminNotificationPlatform;
+  activeDevices: number;
+  disabledDevices: number;
+  invalidatedDevices: number;
+  sent24h: number;
+  failed24h: number;
+  invalidated24h: number;
+  lastSentAt: string | null;
+};
+
+export type AdminNotificationDevice = {
+  id: string;
+  userId: string;
+  email: string | null;
+  platform: AdminNotificationPlatform;
+  enabled: boolean;
+  invalidatedAt: string | null;
+  appVersion: string | null;
+  locale: string | null;
+  lastSeenAt: string;
+  createdAt: string;
+};
+
+export type AdminNotificationDelivery = {
+  id: string;
+  userId: string | null;
+  email: string | null;
+  platform: AdminNotificationPlatform;
+  provider: string;
+  messageType: string;
+  status: AdminNotificationDeliveryStatus;
+  errorCode: string | null;
+  errorMessage: string | null;
+  createdAt: string;
+  appVersion: string | null;
+};
+
+export type AdminNotificationErrorSummary = {
+  platform: AdminNotificationPlatform;
+  code: string;
+  count: number;
+  lastOccurredAt: string;
+};
+
+export type AdminNotificationsResponse = {
+  generatedAt: string;
+  configuration: Record<
+    AdminNotificationPlatform,
+    { enabled: boolean; testMode: boolean }
+  >;
+  summary: {
+    totalDevices: number;
+    activeDevices: number;
+    activeUsers: number;
+    invalidatedDevices: number;
+    sent24h: number;
+    failed24h: number;
+    successRate: number | null;
+    lastSentAt: string | null;
+  };
+  platforms: AdminNotificationPlatformSummary[];
+  errors: AdminNotificationErrorSummary[];
+  devices: AdminNotificationDevice[];
+  recent: AdminNotificationDelivery[];
+};
+
 export type AdminRecommendationFunnelStage = {
   action: string;
   label: string;

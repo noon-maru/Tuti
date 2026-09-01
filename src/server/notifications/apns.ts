@@ -6,6 +6,7 @@ import {
 import { createPrivateKey, sign } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import { prisma } from "@/server/db/prisma";
+import { recordPushDeliverySafely } from "@/server/notifications/deliveryLog";
 import { isPushEnabledForUser } from "@/server/notifications/pushAccess";
 import {
   createIosApnsPayload,
@@ -38,7 +39,7 @@ export async function sendIosPushToUser(
   message: ServerPushMessage,
 ) {
   if (!(await isPushEnabledForUser(userId, "ios"))) {
-    return { attempted: 0, sent: 0, invalidated: 0 };
+    return { attempted: 0, sent: 0, failed: 0, invalidated: 0 };
   }
 
   const devices = await prisma.pushDevice.findMany({
@@ -52,24 +53,55 @@ export async function sendIosPushToUser(
   });
 
   let sent = 0;
+  let failed = 0;
   let invalidated = 0;
 
   for (const device of devices) {
-    const result = await sendApnsMessage(device.token, message);
-    if (result === "sent") {
-      sent += 1;
-      continue;
-    }
-    if (result === "invalid") {
-      invalidated += 1;
-      await prisma.pushDevice.updateMany({
-        where: { id: device.id, token: device.token },
-        data: { enabled: false, invalidatedAt: new Date() },
+    try {
+      const result = await sendApnsMessage(device.token, message);
+      if (result === "sent") {
+        sent += 1;
+        await recordPushDeliverySafely({
+          userId,
+          deviceId: device.id,
+          platform: "ios",
+          provider: "apns",
+          message,
+          status: "sent",
+        });
+        continue;
+      }
+      if (result === "invalid") {
+        invalidated += 1;
+        await prisma.pushDevice.updateMany({
+          where: { id: device.id, token: device.token },
+          data: { enabled: false, invalidatedAt: new Date() },
+        });
+        await recordPushDeliverySafely({
+          userId,
+          deviceId: device.id,
+          platform: "ios",
+          provider: "apns",
+          message,
+          status: "invalidated",
+          errorCode: "INVALID_DEVICE_TOKEN",
+        });
+      }
+    } catch (error) {
+      failed += 1;
+      await recordPushDeliverySafely({
+        userId,
+        deviceId: device.id,
+        platform: "ios",
+        provider: "apns",
+        message,
+        status: "failed",
+        error,
       });
     }
   }
 
-  return { attempted: devices.length, sent, invalidated };
+  return { attempted: devices.length, sent, failed, invalidated };
 }
 
 export function createApnsProviderToken(input: {

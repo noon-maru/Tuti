@@ -32,6 +32,7 @@ export default async function AdminPage({
 
 function normalizeAdminTab(value: unknown): AdminTab {
   return value === "logs" ||
+    value === "notifications" ||
     value === "location" ||
     value === "funnel" ||
     value === "places" ||

@@ -40,6 +40,12 @@ enum PushPlatform {
   ios
 }
 
+enum PushDeliveryStatus {
+  sent
+  failed
+  invalidated
+}
+
 enum PlaceReviewStatus {
   pending
   approved
@@ -664,6 +670,7 @@ model User {
   locationConsentEvents LocationConsentEvent[]
   locationUsageLogs     LocationUsageLog[]
   pushDevices           PushDevice[]
+  pushDeliveries        PushDelivery[]
 
   @@map("users")
 }
@@ -682,11 +689,33 @@ model PushDevice {
   createdAt      DateTime     @default(now()) @map("created_at")
   updatedAt      DateTime     @updatedAt @map("updated_at")
   user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  deliveries     PushDelivery[]
 
   @@index([userId, enabled])
   @@index([platform, enabled])
   @@index([lastSeenAt])
   @@map("push_devices")
+}
+
+model PushDelivery {
+  id           String             @id
+  userId       String?            @map("user_id")
+  deviceId     String?            @map("device_id")
+  platform     PushPlatform
+  provider     String
+  messageType  String             @map("message_type")
+  entityId     String?            @map("entity_id")
+  status       PushDeliveryStatus
+  errorCode    String?            @map("error_code")
+  errorMessage String?            @map("error_message")
+  createdAt    DateTime           @default(now()) @map("created_at")
+  user         User?              @relation(fields: [userId], references: [id], onDelete: SetNull)
+  device       PushDevice?        @relation(fields: [deviceId], references: [id], onDelete: SetNull)
+
+  @@index([createdAt])
+  @@index([platform, status, createdAt])
+  @@index([userId, createdAt])
+  @@map("push_deliveries")
 }
 
 model LocationConsentEvent {

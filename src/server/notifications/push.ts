@@ -32,6 +32,7 @@ export async function sendPushToUser(
   return {
     attempted: android.attempted + ios.attempted,
     sent: android.sent + ios.sent,
+    failed: android.failed + ios.failed,
     invalidated: android.invalidated + ios.invalidated,
   };
 }
