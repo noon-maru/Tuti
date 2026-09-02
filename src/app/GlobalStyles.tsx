@@ -170,6 +170,20 @@ const globalStyles = css`
     overscroll-behavior-y: none;
   }
 
+  /* 사용자 화면은 스크롤 동작을 유지하되 시각적인 스크롤바만 숨긴다. */
+  html:not([data-admin-scrollbars]),
+  html:not([data-admin-scrollbars]) * {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+
+  html:not([data-admin-scrollbars])::-webkit-scrollbar,
+  html:not([data-admin-scrollbars]) *::-webkit-scrollbar {
+    width: 0;
+    height: 0;
+    display: none;
+  }
+
   @media (max-width: ${breakpoints.mobile}px) {
     html,
     body {

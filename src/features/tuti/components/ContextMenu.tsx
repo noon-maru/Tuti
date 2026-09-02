@@ -16,8 +16,9 @@ const MENU_WIDTH = 160;
 const MENU_ITEM_HEIGHT = 44;
 const MENU_PADDING = 6;
 const MENU_GAP = 4;
-const MENU_MAX_HEIGHT = 360;
+const MENU_MAX_HEIGHT = 480;
 const MENU_INPUT_HEIGHT = 52;
+const MENU_VIEWPORT_MARGIN = 12;
 
 export type ContextMenuItem = {
   label: string;
@@ -51,7 +52,11 @@ export function ContextMenu({
   textInput?: ContextMenuTextInput;
 }) {
   const [open, setOpen] = useState(false);
-  const [position, setPosition] = useState({ left: 0, top: 0 });
+  const [position, setPosition] = useState({
+    left: 0,
+    maxHeight: MENU_MAX_HEIGHT,
+    top: 0,
+  });
   const [textInputValue, setTextInputValue] = useState("");
   const triggerRef = useRef<HTMLButtonElement>(null);
   const firstItemRef = useRef<HTMLButtonElement>(null);
@@ -76,25 +81,25 @@ export function ContextMenu({
         (hasTextInput ? MENU_INPUT_HEIGHT : 0) +
         MENU_PADDING * 2,
       MENU_MAX_HEIGHT,
-      viewportRect.bottom - viewportRect.top - MENU_PADDING * 2,
+      viewportRect.bottom - viewportRect.top - MENU_VIEWPORT_MARGIN * 2,
     );
     const left = Math.min(
       Math.max(
         triggerRect.right - MENU_WIDTH,
-        viewportRect.left + MENU_PADDING,
+        viewportRect.left + MENU_VIEWPORT_MARGIN,
       ),
-      viewportRect.right - MENU_WIDTH - MENU_PADDING,
+      viewportRect.right - MENU_WIDTH - MENU_VIEWPORT_MARGIN,
     );
     const preferredTop = triggerRect.bottom + MENU_GAP;
     const top =
-      preferredTop + menuHeight <= viewportRect.bottom - MENU_PADDING
+      preferredTop + menuHeight <= viewportRect.bottom - MENU_VIEWPORT_MARGIN
         ? preferredTop
         : Math.max(
-            viewportRect.top + MENU_PADDING,
+            viewportRect.top + MENU_VIEWPORT_MARGIN,
             triggerRect.top - menuHeight - MENU_GAP,
           );
 
-    setPosition({ left, top });
+    setPosition({ left, maxHeight: menuHeight, top });
     window.requestAnimationFrame(() => firstItemRef.current?.focus());
   }, [hasTextInput, items.length, open]);
 
