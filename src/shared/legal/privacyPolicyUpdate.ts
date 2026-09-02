@@ -79,6 +79,6 @@ export const upcomingPrivacyPolicy = {
     `개정안 공개일: ${PRIVACY_POLICY_UPDATE_PUBLISHED_AT}`,
     `시행 예정일: ${PRIVACY_POLICY_UPDATE_EFFECTIVE_AT}`,
     "개인정보 처리방침 개정안 버전: 2026-10-01",
-    "시행 전까지는 2026-08-21 버전의 개인정보 처리방침이 적용됩니다.",
+    "시행 전까지는 2026-09-02 버전의 개인정보 처리방침이 적용됩니다.",
   ],
 } as const;

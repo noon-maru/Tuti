@@ -2,14 +2,116 @@ import { randomUUID } from "node:crypto";
 import { writeSystemLogSafely } from "@/server/admin/log";
 import { deleteUserAccount } from "@/server/admin/users";
 import { authenticateUser } from "@/server/auth/session";
+import { prisma } from "@/server/db/prisma";
 import {
   createPreflightResponse,
   isRequestOriginAllowed,
   withCors,
 } from "@/server/http/cors";
-import type { AccountDeletionResponse } from "@/shared/api/session";
+import type {
+  AccountDeletionResponse,
+  AccountProfileResponse,
+  AccountProfileUpdateRequest,
+  AccountProfileUpdateResponse,
+} from "@/shared/api/session";
+import { normalizeAccountDisplayName } from "@/shared/auth/displayName";
 
 export const runtime = "nodejs";
+
+export async function GET(request: Request) {
+  if (!isRequestOriginAllowed(request)) {
+    return Response.json(
+      { error: "허용되지 않은 요청 출처예요." },
+      { status: 403 },
+    );
+  }
+
+  const user = await authenticateUser(request);
+  if (!user?.account) {
+    return withCors(
+      request,
+      Response.json(
+        { error: "로그인 계정을 확인해주세요." },
+        { status: 401 },
+      ),
+    );
+  }
+
+  const response: AccountProfileResponse = { account: user.account };
+  return withCors(request, Response.json(response));
+}
+
+export async function PATCH(request: Request) {
+  if (!isRequestOriginAllowed(request)) {
+    return Response.json(
+      { error: "허용되지 않은 요청 출처예요." },
+      { status: 403 },
+    );
+  }
+
+  try {
+    const user = await authenticateUser(request);
+
+    if (!user?.account) {
+      return withCors(
+        request,
+        Response.json(
+          { error: "이름을 수정할 로그인 계정을 확인해주세요." },
+          { status: 401 },
+        ),
+      );
+    }
+
+    const input = (await request.json()) as Partial<AccountProfileUpdateRequest>;
+    const displayName = normalizeAccountDisplayName(input.displayName);
+
+    if (!displayName) {
+      return withCors(
+        request,
+        Response.json(
+          { error: "사용할 이름을 입력해주세요." },
+          { status: 400 },
+        ),
+      );
+    }
+
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { displayName },
+    });
+    await writeSystemLogSafely({
+      category: "account",
+      action: "account.profile.updated",
+      message: "사용자가 계정 이름을 수정했습니다.",
+      actorUserId: user.id,
+      targetType: "user",
+      targetId: user.id,
+    });
+
+    const response: AccountProfileUpdateResponse = { displayName };
+    return withCors(request, Response.json(response));
+  } catch (error) {
+    const invalidJson = error instanceof SyntaxError;
+
+    if (!invalidJson) {
+      console.error("계정 이름을 수정하지 못했습니다.", {
+        error: error instanceof Error ? error.name : "UnknownError",
+      });
+    }
+
+    return withCors(
+      request,
+      Response.json(
+        {
+          error: invalidJson
+            ? "이름 입력 내용을 확인해주세요."
+            : "이름을 수정하지 못했어요. 잠시 후 다시 시도해주세요.",
+        },
+        { status: invalidJson ? 400 : 500 },
+      ),
+    );
+  }
+}
 
 export async function DELETE(request: Request) {
   if (!isRequestOriginAllowed(request)) {

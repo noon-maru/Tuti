@@ -23,6 +23,7 @@ import {
   hashAccessToken,
   type AuthenticatedUser,
 } from "@/server/auth/session";
+import { mergeUserIntoCurrentAccount } from "@/server/auth/accountMerge";
 import { prisma } from "@/server/db/prisma";
 import { purgeExpiredAuthRecordsIfDue } from "@/server/auth/retention";
 import type {
@@ -247,21 +248,26 @@ async function verifyParsedEmailCode(
     },
   });
 
-  if (
-    existingIdentity &&
-    existingIdentity.userId !== currentUser.id &&
-    currentUser.account
-  ) {
-    throw new AccountAuthError(
-      "현재 계정에서 로그아웃한 뒤 다시 시도해주세요.",
-      "account_switch_requires_logout",
-      409,
-    );
-  }
-
-  const targetUserId = existingIdentity?.userId ?? currentUser.id;
+  const linkingAccount = Boolean(currentUser.account);
+  const targetUserId = linkingAccount
+    ? currentUser.id
+    : existingIdentity?.userId ?? currentUser.id;
 
   if (existingIdentity && existingIdentity.userId !== currentUser.id) {
+    if (linkingAccount) {
+      await mergeUserIntoCurrentAccount({
+        sourceUserId: existingIdentity.userId,
+        targetUserId: currentUser.id,
+        emailChallengeId: challenge.id,
+      });
+
+      return {
+        status: "authenticated",
+        linked: true,
+        session: await createUserSession(currentUser.id),
+      };
+    }
+
     const currentJournalCount = await prisma.journalEntry.count({
       where: { ownerId: currentUser.id },
     });
@@ -362,6 +368,7 @@ async function verifyParsedEmailCode(
 
   return {
     status: "authenticated",
+    ...(linkingAccount ? { linked: true } : {}),
     session: await createUserSession(targetUserId),
   };
 }

@@ -8,6 +8,7 @@ import {
 } from "@/features/tuti/components/buttons";
 import { ScreenFrame } from "@/features/tuti/components/ScreenFrame";
 import type {
+  AccountIdentityProfile,
   AccountJournalResolution,
   AuthProvider,
   EmailCodeVerificationResult,
@@ -23,18 +24,26 @@ type EmailStep = "email" | "code";
 
 export function AccountScreen({
   authEnabled,
+  accountNotice,
+  displayName,
   email,
+  identities = [],
   oauthCompletion,
   providers = [],
   onBack,
   onEmailCodeRequest,
   onEmailCodeVerify,
   onDeleteAccount,
+  onDisplayNameUpdate,
   onLogout,
   onOAuth,
+  onUnlinkIdentity,
 }: {
   authEnabled: boolean;
+  accountNotice?: string | null;
+  displayName?: string;
   email?: string;
+  identities?: AccountIdentityProfile[];
   oauthCompletion?: {
     pending: boolean;
     error?: string;
@@ -53,8 +62,10 @@ export function AccountScreen({
     journalResolution?: AccountJournalResolution,
   ) => Promise<EmailCodeVerificationResult>;
   onDeleteAccount: () => Promise<string>;
+  onDisplayNameUpdate: (displayName: string) => Promise<string>;
   onLogout: () => Promise<void>;
   onOAuth: (provider: OAuthProvider) => Promise<void>;
+  onUnlinkIdentity: (identityId: string) => Promise<void>;
 }) {
   const [emailStep, setEmailStep] = useState<EmailStep>("email");
   const [formEmail, setFormEmail] = useState("");
@@ -63,6 +74,9 @@ export function AccountScreen({
     useState<{ currentJournalCount: number } | null>(null);
   const [pending, setPending] = useState(false);
   const [deletionPending, setDeletionPending] = useState(false);
+  const [unlinkingIdentityId, setUnlinkingIdentityId] = useState<
+    string | null
+  >(null);
   const [deletionReference, setDeletionReference] = useState<string | null>(
     null,
   );
@@ -94,7 +108,13 @@ export function AccountScreen({
           currentJournalCount: result.currentJournalCount,
         });
         setPending(false);
+        return;
       }
+
+      setEmailStep("email");
+      setFormEmail("");
+      setVerificationCode("");
+      setPending(false);
     } catch (submitError) {
       setError(
         submitError instanceof Error
@@ -169,6 +189,34 @@ export function AccountScreen({
           : "로그아웃하지 못했어요.",
       );
       setPending(false);
+    }
+  };
+
+  const unlinkIdentity = async (identity: AccountIdentityProfile) => {
+    if (pending || unlinkingIdentityId) return;
+
+    const providerLabel = getIdentityLabel(identity);
+    if (
+      !window.confirm(
+        `${providerLabel} 연결을 해제할까요?\n\n현재 Tuti 계정의 기록과 데이터는 유지되지만, 분리된 로그인 수단에는 데이터가 남지 않으며 이 수단으로는 현재 계정에 다시 들어올 수 없어요.`,
+      )
+    ) {
+      return;
+    }
+
+    setUnlinkingIdentityId(identity.id);
+    setError(null);
+
+    try {
+      await onUnlinkIdentity(identity.id);
+    } catch (unlinkError) {
+      setError(
+        unlinkError instanceof Error
+          ? unlinkError.message
+          : "로그인 수단 연결을 해제하지 못했어요.",
+      );
+    } finally {
+      setUnlinkingIdentityId(null);
     }
   };
 
@@ -261,22 +309,153 @@ export function AccountScreen({
         <AccountContent>
           <AccountMark aria-hidden="true">T</AccountMark>
           <AccountCopy>
-            <strong>{email ?? "연결된 Tuti 계정"}</strong>
+            <strong>{displayName ?? email ?? "연결된 Tuti 계정"}</strong>
+            {displayName && email && <AccountEmail>{email}</AccountEmail>}
             <p>
               이 계정으로 기록이 연결되어 있어요.
               <br />
               다른 기기에서도 같은 기록을 불러올 수 있어요.
             </p>
           </AccountCopy>
-          <ConnectedProviders aria-label="연결된 로그인 방식">
-            {providers.map((provider) => (
-              <span key={provider}>
-                {provider === "email"
-                  ? "이메일"
-                  : oauthProviderLabels[provider]}
-              </span>
-            ))}
-          </ConnectedProviders>
+          <AccountNameEditor
+            displayName={displayName}
+            onSave={onDisplayNameUpdate}
+            onError={setError}
+          />
+          <LoginMethodSection>
+            <LoginMethodHeading>
+              <div>
+                <strong>로그인 수단 관리</strong>
+                <p>
+                  다른 로그인 수단에 기존 계정이 있으면 기록과 데이터를 현재
+                  계정으로 합쳐요.
+                </p>
+              </div>
+            </LoginMethodHeading>
+            {accountNotice && (
+              <AccountNotice role="status">{accountNotice}</AccountNotice>
+            )}
+            {oauthCompletion?.error && (
+              <ErrorMessage role="alert">
+                {oauthCompletion.error}
+              </ErrorMessage>
+            )}
+            <IdentityList>
+              {identities.map((identity) => (
+                <IdentityRow key={identity.id}>
+                  <IdentitySummary>
+                    <IdentityProvider>
+                      {identity.provider === "email"
+                        ? "이메일"
+                        : oauthProviderLabels[identity.provider]}
+                    </IdentityProvider>
+                    {identity.email && <span>{identity.email}</span>}
+                  </IdentitySummary>
+                  <UnlinkButton
+                    type="button"
+                    disabled={
+                      identities.length <= 1 ||
+                      unlinkingIdentityId !== null
+                    }
+                    onClick={() => void unlinkIdentity(identity)}
+                  >
+                    {unlinkingIdentityId === identity.id
+                      ? "해제 중"
+                      : "연결 해제"}
+                  </UnlinkButton>
+                </IdentityRow>
+              ))}
+            </IdentityList>
+            {identities.length <= 1 && (
+              <LastIdentityNotice>
+                마지막 로그인 수단은 해제할 수 없어요. 다른 수단을 먼저
+                연결해주세요.
+              </LastIdentityNotice>
+            )}
+
+            {socialOAuthEnabled && (
+              <LinkProviderList>
+                {(["apple", "google", "kakao"] as const)
+                  .filter((provider) => !providers.includes(provider))
+                  .map((provider) => (
+                    <LinkProviderButton
+                      key={provider}
+                      type="button"
+                      disabled={
+                        !authEnabled ||
+                        !oauthProviderEnabled[provider] ||
+                        pending
+                      }
+                      onClick={() => void startOAuth(provider)}
+                    >
+                      {oauthProviderLabels[provider]} 연결
+                    </LinkProviderButton>
+                  ))}
+              </LinkProviderList>
+            )}
+
+            <EmailLinkForm onSubmit={submitEmail}>
+              <Field>
+                <span>
+                  {emailStep === "email"
+                    ? "다른 이메일 연결"
+                    : "이메일 인증코드"}
+                </span>
+                {emailStep === "email" ? (
+                  <input
+                    type="email"
+                    inputMode="email"
+                    autoComplete="email"
+                    placeholder="name@example.com"
+                    required
+                    value={formEmail}
+                    onChange={(event) => setFormEmail(event.target.value)}
+                  />
+                ) : (
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    autoComplete="one-time-code"
+                    pattern="[0-9]{6}"
+                    maxLength={6}
+                    placeholder="6자리 코드"
+                    required
+                    value={verificationCode}
+                    onChange={(event) =>
+                      setVerificationCode(
+                        event.target.value.replace(/\D/g, "").slice(0, 6),
+                      )
+                    }
+                  />
+                )}
+              </Field>
+              {emailStep === "code" && (
+                <EmailHint>
+                  <span>{formEmail}로 보낸 코드를 입력해주세요.</span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEmailStep("email");
+                      setVerificationCode("");
+                      setError(null);
+                    }}
+                  >
+                    이메일 변경
+                  </button>
+                </EmailHint>
+              )}
+              <LinkEmailButton
+                type="submit"
+                disabled={!authEnabled || pending || !hasEmailInput}
+              >
+                {pending
+                  ? "연결 중..."
+                  : emailStep === "email"
+                    ? "인증코드 받기"
+                    : "이메일 연결"}
+              </LinkEmailButton>
+            </EmailLinkForm>
+          </LoginMethodSection>
           {error && <ErrorMessage role="alert">{error}</ErrorMessage>}
           <LogoutButton
             type="button"
@@ -506,6 +685,82 @@ export function AccountScreen({
       )}
     </Frame>
   );
+}
+
+function AccountNameEditor({
+  displayName,
+  onSave,
+  onError,
+}: {
+  displayName?: string;
+  onSave: (displayName: string) => Promise<string>;
+  onError: (message: string | null) => void;
+}) {
+  const [value, setValue] = useState(displayName ?? "");
+  const [pending, setPending] = useState(false);
+  const [saved, setSaved] = useState(false);
+
+  const submit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (pending || !value.trim()) return;
+
+    setPending(true);
+    setSaved(false);
+    onError(null);
+
+    try {
+      const savedDisplayName = await onSave(value);
+      setValue(savedDisplayName);
+      setSaved(true);
+    } catch (error) {
+      onError(
+        error instanceof Error ? error.message : "이름을 수정하지 못했어요.",
+      );
+    } finally {
+      setPending(false);
+    }
+  };
+
+  return (
+    <NameForm onSubmit={submit}>
+      <label htmlFor="account-display-name">이름</label>
+      <NameInputRow>
+        <input
+          id="account-display-name"
+          type="text"
+          autoComplete="name"
+          maxLength={100}
+          value={value}
+          placeholder="Tuti에서 사용할 이름"
+          disabled={pending}
+          onChange={(event) => {
+            setValue(event.target.value);
+            setSaved(false);
+          }}
+        />
+        <NameSaveButton
+          type="submit"
+          disabled={
+            pending ||
+            !value.trim() ||
+            value.trim() === (displayName ?? "")
+          }
+        >
+          {pending ? "저장 중" : "저장"}
+        </NameSaveButton>
+      </NameInputRow>
+      {saved && <NameSavedMessage role="status">저장했어요.</NameSavedMessage>}
+    </NameForm>
+  );
+}
+
+function getIdentityLabel(identity: AccountIdentityProfile) {
+  const provider =
+    identity.provider === "email"
+      ? "이메일"
+      : oauthProviderLabels[identity.provider];
+
+  return identity.email ? `${provider} (${identity.email})` : provider;
 }
 
 const Frame = styled(ScreenFrame)`
@@ -904,7 +1159,7 @@ const AccountContent = styled.div`
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding-top: clamp(var(--space-16), 15cqh, 120px);
+  padding-top: clamp(var(--space-8), 8cqh, var(--space-14));
   text-align: center;
 `;
 
@@ -936,25 +1191,212 @@ const AccountCopy = styled.div`
   }
 `;
 
-const ConnectedProviders = styled.div`
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: var(--space-2);
-  margin-top: var(--space-5);
+const AccountEmail = styled.span`
+  color: var(--color-text-muted);
+  font-size: var(--font-size-100);
+`;
 
-  span {
-    padding: var(--space-1) var(--space-3);
-    border-radius: 999px;
-    background: var(--color-neutral-200);
+const NameForm = styled.form`
+  width: 100%;
+  display: grid;
+  gap: var(--space-2);
+  margin-top: var(--space-6);
+  text-align: left;
+
+  label {
     color: var(--color-text-muted);
     font-size: var(--font-size-100);
+    font-weight: 500;
+  }
+`;
+
+const NameInputRow = styled.div`
+  display: flex;
+  gap: var(--space-2);
+
+  input {
+    min-width: 0;
+    flex: 1;
+    height: var(--space-12);
+    padding: 0 var(--space-4);
+    border: 1px solid var(--color-border);
+    border-radius: 12px;
+    outline: 0;
+    background: var(--color-neutral-100);
+    color: var(--color-text);
+    font-size: var(--font-size-200);
+
+    &:focus {
+      border-color: var(--color-brand-600);
+      box-shadow: 0 0 0 3px var(--color-brand-100);
+    }
+  }
+`;
+
+const NameSaveButton = styled(BaseButton)`
+  min-width: 72px;
+  height: var(--space-12);
+  padding: 0 var(--space-4);
+  border-radius: 12px;
+  background: var(--color-secondary-700);
+  color: var(--color-neutral-1300);
+  font-size: var(--font-size-100);
+  font-weight: 600;
+
+  &:disabled {
+    background: var(--color-neutral-300);
+    color: var(--color-text-muted);
+  }
+`;
+
+const NameSavedMessage = styled.span`
+  color: var(--color-brand-800);
+  font-size: var(--font-size-100);
+`;
+
+const LoginMethodSection = styled.section`
+  width: 100%;
+  display: grid;
+  gap: var(--space-3);
+  margin-top: var(--space-7);
+  padding-top: var(--space-6);
+  border-top: 1px solid var(--color-border);
+  text-align: left;
+`;
+
+const LoginMethodHeading = styled.div`
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-3);
+
+  strong {
+    font-size: var(--font-size-300);
+    font-weight: 600;
+  }
+
+  p {
+    margin-top: var(--space-1);
+    color: var(--color-text-muted);
+    font-size: var(--font-size-100);
+    line-height: 1.55;
+  }
+`;
+
+const AccountNotice = styled.p`
+  padding: var(--space-3);
+  border: 1px solid var(--color-secondary-500);
+  border-radius: 10px;
+  background: var(--color-secondary-100);
+  color: var(--color-neutral-1200);
+  font-size: var(--font-size-100);
+`;
+
+const IdentityList = styled.div`
+  display: grid;
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  overflow: hidden;
+`;
+
+const IdentityRow = styled.div`
+  min-height: var(--space-14);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  background: var(--color-neutral-100);
+
+  & + & {
+    border-top: 1px solid var(--color-border);
+  }
+`;
+
+const IdentitySummary = styled.div`
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+
+  span {
+    overflow: hidden;
+    color: var(--color-text-muted);
+    font-size: var(--font-size-100);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+`;
+
+const IdentityProvider = styled.strong`
+  font-size: var(--font-size-200);
+  font-weight: 600;
+`;
+
+const UnlinkButton = styled(BaseButton)`
+  flex: none;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: 9px;
+  background: var(--color-surface);
+  color: var(--color-text-muted);
+  font-size: var(--font-size-100);
+
+  &:disabled {
+    opacity: 0.4;
+  }
+`;
+
+const LastIdentityNotice = styled.p`
+  color: var(--color-text-muted);
+  font-size: var(--font-size-100);
+  line-height: 1.5;
+`;
+
+const LinkProviderList = styled.div`
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+`;
+
+const LinkProviderButton = styled(BaseButton)`
+  min-width: 0;
+  height: var(--space-11);
+  padding: 0 var(--space-2);
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  background: var(--color-neutral-100);
+  color: var(--color-text);
+  font-size: var(--font-size-100);
+  font-weight: 600;
+
+  &:disabled {
+    color: var(--color-text-muted);
+    opacity: 0.5;
+  }
+`;
+
+const EmailLinkForm = styled(EmailForm)`
+  margin-top: var(--space-2);
+`;
+
+const LinkEmailButton = styled(BaseButton)`
+  width: 100%;
+  height: var(--space-11);
+  border-radius: 10px;
+  background: var(--color-secondary-700);
+  color: var(--color-neutral-1300);
+  font-size: var(--font-size-100);
+  font-weight: 600;
+
+  &:disabled {
+    background: var(--color-neutral-300);
+    color: var(--color-text-muted);
   }
 `;
 
 const LogoutButton = styled(PrimaryButton)`
   width: 100%;
-  margin-top: auto;
+  margin-top: var(--space-10);
   background: var(--color-neutral-1100);
 `;
 

@@ -13,6 +13,7 @@ const MINIMUM_TOKEN_LENGTH = 32;
 const SESSION_LIFETIME_DAYS = 90;
 
 type IdentityProfile = {
+  id: string;
   email: string | null;
   provider: AuthProvider;
 };
@@ -51,9 +52,12 @@ export async function authenticateUser(
     where: { tokenHash },
     select: {
       id: true,
+      displayName: true,
       role: true,
       authIdentities: {
+        orderBy: { updatedAt: "desc" },
         select: {
+          id: true,
           email: true,
           provider: true,
         },
@@ -66,6 +70,7 @@ export async function authenticateUser(
       id: anonymousUser.id,
       role: anonymousUser.role,
       account: createAccountProfile(
+        anonymousUser.displayName,
         anonymousUser.authIdentities,
         anonymousUser.role,
       ),
@@ -80,9 +85,12 @@ export async function authenticateUser(
       user: {
         select: {
           id: true,
+          displayName: true,
           role: true,
           authIdentities: {
+            orderBy: { updatedAt: "desc" },
             select: {
+              id: true,
               email: true,
               provider: true,
             },
@@ -103,6 +111,7 @@ export async function authenticateUser(
     id: session.user.id,
     role: session.user.role,
     account: createAccountProfile(
+      session.user.displayName,
       session.user.authIdentities,
       session.user.role,
     ),
@@ -118,9 +127,12 @@ export async function createUserSession(userId: string) {
   const user = await prisma.user.findUniqueOrThrow({
     where: { id: userId },
     select: {
+      displayName: true,
       role: true,
       authIdentities: {
+        orderBy: { updatedAt: "desc" },
         select: {
+          id: true,
           email: true,
           provider: true,
         },
@@ -137,7 +149,11 @@ export async function createUserSession(userId: string) {
     },
   });
 
-  const account = createAccountProfile(user.authIdentities, user.role);
+  const account = createAccountProfile(
+    user.displayName,
+    user.authIdentities,
+    user.role,
+  );
 
   await writeSystemLogSafely({
     category: "auth",
@@ -178,7 +194,8 @@ export function hashAccessToken(accessToken: string) {
   return createHash("sha256").update(accessToken).digest("hex");
 }
 
-function createAccountProfile(
+export function createAccountProfile(
+  userDisplayName: string | null,
   identities: IdentityProfile[],
   role: "user" | "admin",
 ): AccountProfile | undefined {
@@ -191,6 +208,12 @@ function createAccountProfile(
 
   return {
     ...(email ? { email } : {}),
+    ...(userDisplayName ? { displayName: userDisplayName } : {}),
+    identities: identities.map((identity) => ({
+      id: identity.id,
+      provider: identity.provider,
+      ...(identity.email ? { email: identity.email } : {}),
+    })),
     providers,
     role,
   };

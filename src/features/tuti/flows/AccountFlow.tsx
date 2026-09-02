@@ -17,7 +17,10 @@ import {
   createOAuthLoginUrl,
   deleteAccount,
   logoutAccount,
+  refreshAccountProfile,
   requestEmailLoginCode,
+  unlinkAccountIdentity,
+  updateAccountDisplayName,
   verifyEmailLoginCode,
 } from "@/lib/auth/session";
 import type { AccountJournalResolution } from "@/shared/api/session";
@@ -36,6 +39,8 @@ export function AccountFlow() {
   const oauthTicket = searchParams.get("oauthTicket");
   const oauthCallbackError = searchParams.get("oauthError");
   const handledOAuthTicket = useRef<string | null>(null);
+  const accountProfileRefreshed = useRef(false);
+  const [accountNotice, setAccountNotice] = useState<string | null>(null);
   const [oauthCompletion, setOAuthCompletion] = useState<{
     pending: boolean;
     error?: string;
@@ -45,13 +50,20 @@ export function AccountFlow() {
     ...(oauthCallbackError ? { error: oauthCallbackError } : {}),
   });
 
-  const finishAccountChange = useCallback(async () => {
+  const finishAccountChange = useCallback(async (linked = false) => {
+    await queryClient.invalidateQueries({ queryKey: ["journal-entries"] });
+
+    if (linked) {
+      setAccountNotice("로그인 수단과 기존 데이터를 현재 계정에 연결했어요.");
+      router.replace("/login");
+      return;
+    }
+
     if (!entryRecord) {
       finishIntake("skipped");
       finishEntry();
     }
 
-    await queryClient.invalidateQueries({ queryKey: ["journal-entries"] });
     router.replace("/");
   }, [
     entryRecord,
@@ -60,6 +72,15 @@ export function AccountFlow() {
     queryClient,
     router,
   ]);
+
+  useEffect(() => {
+    if (!session?.account || accountProfileRefreshed.current) return;
+
+    accountProfileRefreshed.current = true;
+    void refreshAccountProfile().catch(() => {
+      accountProfileRefreshed.current = false;
+    });
+  }, [session?.account]);
 
   useEffect(() => {
     if (
@@ -82,7 +103,7 @@ export function AccountFlow() {
           return;
         }
 
-        await finishAccountChange();
+        await finishAccountChange(result.linked === true);
       })
       .catch((error: unknown) => {
         setOAuthCompletion({
@@ -120,7 +141,7 @@ export function AccountFlow() {
         return;
       }
 
-      await finishAccountChange();
+      await finishAccountChange(result.linked === true);
     } catch (error) {
       setOAuthCompletion((current) => ({
         ...current,
@@ -135,8 +156,11 @@ export function AccountFlow() {
 
   return (
     <AccountScreen
+      displayName={session?.account?.displayName}
       email={session?.account?.email}
+      identities={session?.account?.identities}
       providers={session?.account?.providers}
+      accountNotice={accountNotice}
       authEnabled={accountAuthEnabled}
       oauthCompletion={
         oauthTicket || oauthCallbackError
@@ -159,7 +183,7 @@ export function AccountFlow() {
         });
 
         if (result.status === "authenticated") {
-          await finishAccountChange();
+          await finishAccountChange(result.linked === true);
         }
 
         return result;
@@ -181,6 +205,11 @@ export function AccountFlow() {
         await logoutAccount();
         queryClient.setQueryData(["journal-entries"], []);
         router.replace("/");
+      }}
+      onDisplayNameUpdate={updateAccountDisplayName}
+      onUnlinkIdentity={async (identityId) => {
+        await unlinkAccountIdentity(identityId);
+        setAccountNotice("로그인 수단 연결을 해제했어요.");
       }}
       onDeleteAccount={async () => {
         const result = await deleteAccount();

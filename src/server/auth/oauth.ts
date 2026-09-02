@@ -22,6 +22,11 @@ import {
   verifyAppleIdentityToken,
 } from "@/server/auth/appleOAuth";
 import { readOAuthCallbackParameters } from "@/server/auth/oauthCallback";
+import { mergeUserIntoCurrentAccount } from "@/server/auth/accountMerge";
+import {
+  formatKoreanOrderedName,
+  normalizeAccountDisplayName,
+} from "@/shared/auth/displayName";
 
 const OAUTH_LIFETIME_MINUTES = 10;
 
@@ -32,27 +37,31 @@ const providerConfigurations: Record<
     clientIdEnv: string;
     enabledEnv: string;
     scopeSeparator?: string;
-    scopes: string[];
+    baseScopes: string[];
+    displayNameScopes: string[];
   }
 > = {
   apple: {
     authorizationEndpoint: "https://appleid.apple.com/auth/authorize",
     clientIdEnv: "APPLE_CLIENT_ID",
     enabledEnv: "APPLE_OAUTH_ENABLED",
-    scopes: ["name", "email"],
+    baseScopes: ["email"],
+    displayNameScopes: ["name"],
   },
   google: {
     authorizationEndpoint: "https://accounts.google.com/o/oauth2/v2/auth",
     clientIdEnv: "GOOGLE_CLIENT_ID",
     enabledEnv: "GOOGLE_OAUTH_ENABLED",
-    scopes: ["openid", "email", "profile"],
+    baseScopes: ["openid", "email"],
+    displayNameScopes: ["profile"],
   },
   kakao: {
     authorizationEndpoint: "https://kauth.kakao.com/oauth/authorize",
     clientIdEnv: "KAKAO_REST_API_KEY",
     enabledEnv: "KAKAO_OAUTH_ENABLED",
     scopeSeparator: ",",
-    scopes: [],
+    baseScopes: ["account_email"],
+    displayNameScopes: ["profile_nickname"],
   },
 };
 
@@ -73,6 +82,7 @@ export async function createOAuthAuthorization(
   const expiresAt = new Date();
   expiresAt.setMinutes(expiresAt.getMinutes() + OAUTH_LIFETIME_MINUTES);
   const redirectUri = createOAuthCallbackUrl(provider);
+  const collectDisplayName = !currentUser.account;
 
   await prisma.oAuthAuthorization.deleteMany({
     where: { expiresAt: { lte: new Date() } },
@@ -83,6 +93,7 @@ export async function createOAuthAuthorization(
       id: randomUUID(),
       userId: currentUser.id,
       provider,
+      collectDisplayName,
       stateHash: hashAccessToken(state),
       codeVerifier,
       returnTo: native
@@ -99,10 +110,11 @@ export async function createOAuthAuthorization(
   );
   authorizationUrl.searchParams.set("redirect_uri", redirectUri);
   authorizationUrl.searchParams.set("response_type", "code");
-  if (configuration.scopes.length > 0) {
+  const scopes = getOAuthScopes(provider, collectDisplayName);
+  if (scopes.length > 0) {
     authorizationUrl.searchParams.set(
       "scope",
-      configuration.scopes.join(configuration.scopeSeparator ?? " "),
+      scopes.join(configuration.scopeSeparator ?? " "),
     );
   }
   authorizationUrl.searchParams.set("state", state);
@@ -115,6 +127,18 @@ export async function createOAuthAuthorization(
   }
 
   return authorizationUrl.toString();
+}
+
+export function getOAuthScopes(
+  provider: OAuthProvider,
+  collectDisplayName: boolean,
+) {
+  const configuration = providerConfigurations[provider];
+
+  return [
+    ...configuration.baseScopes,
+    ...(collectDisplayName ? configuration.displayNameScopes : []),
+  ];
 }
 
 export function assertOAuthProvider(
@@ -182,10 +206,24 @@ export async function completeOAuthAuthorization(
 
   const profile =
     provider === "apple"
-      ? await fetchAppleProfile(code, authorization.codeVerifier)
+      ? await fetchAppleProfile(
+          code,
+          authorization.codeVerifier,
+          authorization.collectDisplayName
+            ? parseAppleDisplayName(callbackParameters.get("user"))
+            : null,
+        )
       : provider === "google"
-        ? await fetchGoogleProfile(code, authorization.codeVerifier)
-        : await fetchKakaoProfile(code, authorization.codeVerifier);
+        ? await fetchGoogleProfile(
+            code,
+            authorization.codeVerifier,
+            authorization.collectDisplayName,
+          )
+        : await fetchKakaoProfile(
+            code,
+            authorization.codeVerifier,
+            authorization.collectDisplayName,
+          );
   const completionToken = randomBytes(32).toString("base64url");
 
   await prisma.oAuthAuthorization.update({
@@ -193,6 +231,7 @@ export async function completeOAuthAuthorization(
     data: {
       providerSubject: profile.subject,
       providerEmail: profile.email,
+      providerDisplayName: profile.displayName,
       providerRefreshTokenEncrypted:
         profile.providerRefreshTokenEncrypted,
       completionTokenHash: hashAccessToken(completionToken),
@@ -254,6 +293,8 @@ export async function completeOAuthLogin(input: {
       provider: true,
       providerSubject: true,
       providerEmail: true,
+      providerDisplayName: true,
+      collectDisplayName: true,
       providerRefreshTokenEncrypted: true,
       completedAt: true,
       expiresAt: true,
@@ -294,11 +335,29 @@ export async function completeOAuthLogin(input: {
     existingIdentity.userId !== authorization.userId
   ) {
     if (authorization.user.authIdentities.length > 0) {
-      throw new AccountAuthError(
-        "현재 계정에서 로그아웃한 뒤 다시 시도해주세요.",
-        "account_switch_requires_logout",
-        409,
-      );
+      await mergeUserIntoCurrentAccount({
+        sourceUserId: existingIdentity.userId,
+        targetUserId: authorization.userId,
+        oauthAuthorizationId: authorization.id,
+        identityUpdate: {
+          identityId: existingIdentity.id,
+          ...(authorization.providerEmail
+            ? { email: authorization.providerEmail }
+            : {}),
+          ...(authorization.providerRefreshTokenEncrypted
+            ? {
+                providerRefreshTokenEncrypted:
+                  authorization.providerRefreshTokenEncrypted,
+              }
+            : {}),
+        },
+      });
+
+      return {
+        status: "authenticated" as const,
+        linked: true,
+        session: await createUserSession(authorization.userId),
+      };
     }
 
     const currentJournalCount = await prisma.journalEntry.count({
@@ -317,7 +376,9 @@ export async function completeOAuthLogin(input: {
     const identityUpdate = prisma.authIdentity.update({
       where: { id: existingIdentity.id },
       data: {
-        email: authorization.providerEmail,
+        ...(authorization.providerEmail
+          ? { email: authorization.providerEmail }
+          : {}),
         ...(authorization.providerRefreshTokenEncrypted
           ? {
               providerRefreshTokenEncrypted:
@@ -374,6 +435,10 @@ export async function completeOAuthLogin(input: {
       ]);
     }
   } else {
+    const initialDisplayName = authorization.collectDisplayName
+      ? authorization.providerDisplayName
+      : null;
+
     await prisma.$transaction([
       prisma.authIdentity.upsert({
         where: {
@@ -383,7 +448,9 @@ export async function completeOAuthLogin(input: {
           },
         },
         update: {
-          email: authorization.providerEmail,
+          ...(authorization.providerEmail
+            ? { email: authorization.providerEmail }
+            : {}),
           ...(authorization.providerRefreshTokenEncrypted
             ? {
                 providerRefreshTokenEncrypted:
@@ -401,6 +468,14 @@ export async function completeOAuthLogin(input: {
             authorization.providerRefreshTokenEncrypted,
         },
       }),
+      ...(initialDisplayName
+        ? [
+            prisma.user.updateMany({
+              where: { id: authorization.userId, displayName: null },
+              data: { displayName: initialDisplayName },
+            }),
+          ]
+        : []),
       prisma.oAuthAuthorization.delete({
         where: { id: authorization.id },
       }),
@@ -409,6 +484,7 @@ export async function completeOAuthLogin(input: {
 
   return {
     status: "authenticated" as const,
+    ...(!authorization.collectDisplayName ? { linked: true } : {}),
     session: await createUserSession(targetUserId),
   };
 }
@@ -462,12 +538,14 @@ function assertOAuthProviderEnabled(provider: OAuthProvider) {
 type OAuthProfile = {
   subject: string;
   email: string | null;
+  displayName: string | null;
   providerRefreshTokenEncrypted?: string;
 };
 
 async function fetchAppleProfile(
   code: string,
   codeVerifier: string,
+  displayName: string | null,
 ): Promise<OAuthProfile> {
   const clientId = getRequiredAuthEnv("APPLE_CLIENT_ID");
   const clientSecret = createAppleClientSecret({
@@ -522,6 +600,7 @@ async function fetchAppleProfile(
     });
     return {
       ...profile,
+      displayName,
       providerRefreshTokenEncrypted: encryptAppleRefreshToken(
         refreshToken,
         getRequiredAuthEnv("APPLE_TOKEN_ENCRYPTION_KEY"),
@@ -541,6 +620,7 @@ async function fetchAppleProfile(
 async function fetchGoogleProfile(
   code: string,
   codeVerifier: string,
+  collectDisplayName: boolean,
 ): Promise<OAuthProfile> {
   const redirectUri = createOAuthCallbackUrl("google");
   const clientId = getRequiredAuthEnv("GOOGLE_CLIENT_ID");
@@ -592,6 +672,9 @@ async function fetchGoogleProfile(
     sub?: unknown;
     email?: unknown;
     email_verified?: unknown;
+    name?: unknown;
+    given_name?: unknown;
+    family_name?: unknown;
   } | null;
   const subject = typeof profile?.sub === "string" ? profile.sub : "";
 
@@ -605,6 +688,13 @@ async function fetchGoogleProfile(
 
   return {
     subject,
+    displayName: collectDisplayName
+      ? formatKoreanOrderedName(
+          profile?.given_name,
+          profile?.family_name,
+          profile?.name,
+        )
+      : null,
     email:
       profile?.email_verified === true &&
       typeof profile.email === "string"
@@ -616,6 +706,7 @@ async function fetchGoogleProfile(
 async function fetchKakaoProfile(
   code: string,
   codeVerifier: string,
+  collectDisplayName: boolean,
 ): Promise<OAuthProfile> {
   const redirectUri = createOAuthCallbackUrl("kakao");
   const clientId = getRequiredAuthEnv("KAKAO_REST_API_KEY");
@@ -662,16 +753,36 @@ async function fetchKakaoProfile(
   const profileResponse = await fetch(
     "https://kapi.kakao.com/v2/user/me",
     {
-      headers: { Authorization: `Bearer ${accessToken}` },
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": "application/x-www-form-urlencoded;charset=utf-8",
+      },
+      body: new URLSearchParams({
+        property_keys: JSON.stringify(
+          collectDisplayName
+            ? [
+                "kakao_account.profile.nickname",
+                "kakao_account.email",
+              ]
+            : ["kakao_account.email"],
+        ),
+      }),
       cache: "no-store",
     },
   );
   const profile = (await profileResponse.json().catch(() => null)) as {
     id?: unknown;
+    properties?: {
+      nickname?: unknown;
+    };
     kakao_account?: {
       email?: unknown;
       is_email_valid?: unknown;
       is_email_verified?: unknown;
+      profile?: {
+        nickname?: unknown;
+      };
     };
   } | null;
   const subject =
@@ -690,6 +801,11 @@ async function fetchKakaoProfile(
   const account = profile?.kakao_account;
   return {
     subject,
+    displayName: collectDisplayName
+      ? normalizeAccountDisplayName(
+          account?.profile?.nickname ?? profile?.properties?.nickname,
+        )
+      : null,
     email:
       account?.is_email_valid === true &&
       account.is_email_verified === true &&
@@ -697,6 +813,25 @@ async function fetchKakaoProfile(
         ? account.email.trim().toLowerCase()
         : null,
   };
+}
+
+export function parseAppleDisplayName(value: string | null) {
+  if (!value || value.length > 4_096) return null;
+
+  try {
+    const payload = JSON.parse(value) as {
+      name?: {
+        firstName?: unknown;
+        lastName?: unknown;
+      };
+    };
+    return formatKoreanOrderedName(
+      payload?.name?.firstName,
+      payload?.name?.lastName,
+    );
+  } catch {
+    return null;
+  }
 }
 
 function getOAuthProviderLabel(provider: OAuthProvider) {

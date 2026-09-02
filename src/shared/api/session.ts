@@ -3,8 +3,16 @@ export type OAuthProvider = (typeof authProviders)[number];
 export type AuthProvider = "email" | OAuthProvider;
 export type UserRole = "user" | "admin";
 
+export type AccountIdentityProfile = {
+  id: string;
+  provider: AuthProvider;
+  email?: string;
+};
+
 export type AccountProfile = {
   email?: string;
+  displayName?: string;
+  identities?: AccountIdentityProfile[];
   providers: AuthProvider[];
   role?: UserRole;
 };
@@ -22,6 +30,22 @@ export type SessionResponse = {
 export type AccountDeletionResponse = {
   deleted: true;
   deletionReference: string;
+};
+
+export type AccountProfileUpdateRequest = {
+  displayName: string;
+};
+
+export type AccountProfileUpdateResponse = {
+  displayName: string;
+};
+
+export type AccountProfileResponse = {
+  account: AccountProfile;
+};
+
+export type AccountIdentityUnlinkResponse = AccountProfileResponse & {
+  unlinked: true;
 };
 
 export type EmailCodeRequest = {
@@ -44,6 +68,7 @@ export type EmailCodeVerificationResult =
   | {
       status: "authenticated";
       session: TutiSession;
+      linked?: boolean;
     }
   | {
       status: "journal-resolution-required";

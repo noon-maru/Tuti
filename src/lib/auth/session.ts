@@ -2,6 +2,9 @@ import { apiUrl } from "@/lib/api/apiUrl";
 import { preferencesStorage } from "@/lib/storage/preferencesStorage";
 import type {
   AccountDeletionResponse,
+  AccountIdentityUnlinkResponse,
+  AccountProfileResponse,
+  AccountProfileUpdateResponse,
   EmailCodeRequestResponse,
   EmailCodeVerification,
   EmailCodeVerificationResult,
@@ -219,6 +222,93 @@ export async function deleteAccount() {
   return data;
 }
 
+export async function updateAccountDisplayName(displayName: string) {
+  const currentSession = await ensureSession();
+  const response = await fetchWithToken(
+    "account",
+    currentSession.accessToken,
+    {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ displayName }),
+    },
+  );
+
+  if (!response.ok) {
+    throw new Error(await readApiError(response, "이름을 수정하지 못했어요."));
+  }
+
+  const data = (await response.json()) as AccountProfileUpdateResponse;
+  if (!data.displayName || !currentSession.account) {
+    throw new Error("계정 이름 응답을 확인하지 못했어요.");
+  }
+
+  const nextSession: TutiSession = {
+    ...currentSession,
+    account: {
+      ...currentSession.account,
+      displayName: data.displayName,
+    },
+  };
+  await storeSession(nextSession);
+  return data.displayName;
+}
+
+export async function refreshAccountProfile() {
+  const currentSession = await ensureSession();
+  const response = await fetchWithToken(
+    "account",
+    currentSession.accessToken,
+  );
+
+  if (!response.ok) {
+    throw new Error(
+      await readApiError(response, "계정 정보를 불러오지 못했어요."),
+    );
+  }
+
+  const data = (await response.json()) as AccountProfileResponse;
+  if (!data.account) {
+    throw new Error("계정 정보 응답을 확인하지 못했어요.");
+  }
+
+  const nextSession: TutiSession = {
+    ...currentSession,
+    account: data.account,
+  };
+  await storeSession(nextSession);
+  return data.account;
+}
+
+export async function unlinkAccountIdentity(identityId: string) {
+  const currentSession = await ensureSession();
+  const response = await fetchWithToken(
+    `account/identities/${encodeURIComponent(identityId)}`,
+    currentSession.accessToken,
+    {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ confirmed: true }),
+    },
+  );
+
+  if (!response.ok) {
+    throw new Error(
+      await readApiError(response, "로그인 수단 연결을 해제하지 못했어요."),
+    );
+  }
+
+  const data = (await response.json()) as AccountIdentityUnlinkResponse;
+  if (data.unlinked !== true || !data.account) {
+    throw new Error("로그인 수단 연결 해제 응답을 확인하지 못했어요.");
+  }
+
+  await storeSession({ ...currentSession, account: data.account });
+  return data.account;
+}
+
 async function loadOrCreateSession() {
   const [storedValue, legacyStoredValue] = await Promise.all([
     preferencesStorage.getItem(SESSION_STORAGE_KEY),
@@ -324,6 +414,21 @@ function isTutiSession(value: unknown): value is TutiSession {
       session.account !== null &&
       (session.account.email === undefined ||
         typeof session.account.email === "string") &&
+      (session.account.displayName === undefined ||
+        typeof session.account.displayName === "string") &&
+      (session.account.identities === undefined ||
+        (Array.isArray(session.account.identities) &&
+          session.account.identities.every(
+            (identity) =>
+              typeof identity === "object" &&
+              identity !== null &&
+              typeof identity.id === "string" &&
+              ["email", "apple", "google", "kakao"].includes(
+                identity.provider,
+              ) &&
+              (identity.email === undefined ||
+                typeof identity.email === "string"),
+          ))) &&
       (session.account.role === undefined ||
         session.account.role === "user" ||
         session.account.role === "admin") &&
