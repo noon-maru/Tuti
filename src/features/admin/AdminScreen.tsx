@@ -2193,11 +2193,25 @@ function InquiryEditor({
               disabled={saving}
               maxLength={4000}
               placeholder="사용자에게 보여줄 답변을 작성해주세요."
-              onChange={(event) => setAdminResponse(event.target.value)}
+              onChange={(event) => {
+                const nextResponse = event.target.value;
+                setAdminResponse(nextResponse);
+                setStatus((current) => {
+                  if (nextResponse.trim()) {
+                    return current === "closed" ? current : "answered";
+                  }
+
+                  return current === "answered" ? "reviewing" : current;
+                });
+              }}
             />
             <SearchButton
               type="button"
-              disabled={saving || !changed}
+              disabled={
+                saving ||
+                !changed ||
+                (status === "answered" && !adminResponse.trim())
+              }
               onClick={() =>
                 onSave(inquiry.id, status, adminResponse.trim())
               }

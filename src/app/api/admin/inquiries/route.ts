@@ -9,6 +9,7 @@ import {
 import type { AdminInquiriesResponse } from "@/shared/api/admin";
 import { sendPushToUserSafely } from "@/server/notifications/push";
 import { createInquiryAnsweredPushMessage } from "@/server/notifications/pushPayload";
+import { resolveInquiryAnswerState } from "@/server/inquiries/answerState";
 
 export const runtime = "nodejs";
 
@@ -98,13 +99,25 @@ export async function PATCH(request: Request) {
       );
     }
 
+    const answerState = resolveInquiryAnswerState({
+      requestedStatus: status,
+      submittedResponse: adminResponse,
+      previousResponse: previousInquiry.adminResponse,
+    });
+    if (!answerState.ok) {
+      return withCors(
+        request,
+        Response.json({ error: answerState.error }, { status: 400 }),
+      );
+    }
+
     const inquiry = await prisma.customerInquiry.update({
       where: { id: inquiryId },
       data: {
-        status,
-        ...(adminResponse !== undefined ? { adminResponse } : {}),
+        status: answerState.status,
+        adminResponse: answerState.adminResponse,
         handledByUserId: authentication.user.id,
-        handledAt: status === "pending" ? null : new Date(),
+        handledAt: answerState.status === "pending" ? null : new Date(),
       },
       select: {
         id: true,
@@ -116,20 +129,22 @@ export async function PATCH(request: Request) {
     await writeSystemLog({
       category: "inquiry",
       action: "inquiry.updated",
-      message: `1:1 문의 상태를 ${status}(으)로 변경했습니다.`,
+      message: `1:1 문의 상태를 ${answerState.status}(으)로 변경했습니다.`,
       actorUserId: authentication.user.id,
       targetType: "inquiry",
       targetId: inquiry.id,
       metadata: {
-        status,
-        hasResponse: Boolean(adminResponse),
+        status: answerState.status,
+        hasResponse: Boolean(answerState.adminResponse),
       },
     });
 
     const responseChanged =
-      Boolean(adminResponse) && adminResponse !== previousInquiry.adminResponse;
+      Boolean(answerState.adminResponse) &&
+      answerState.adminResponse !== previousInquiry.adminResponse;
     const becameAnswered =
-      status === "answered" && previousInquiry.status !== "answered";
+      answerState.status === "answered" &&
+      previousInquiry.status !== "answered";
     if (responseChanged || becameAnswered) {
       await sendPushToUserSafely(
         inquiry.requesterUserId,
