@@ -659,6 +659,7 @@ model User {
   tokenHash             String                 @unique @map("token_hash")
   displayName           String?                @map("display_name")
   role                  UserRole               @default(user)
+  lastAccessedAt        DateTime               @default(now()) @map("last_accessed_at")
   createdAt             DateTime               @default(now()) @map("created_at")
   updatedAt             DateTime               @updatedAt @map("updated_at")
   authIdentities        AuthIdentity[]
@@ -673,6 +674,7 @@ model User {
   pushDevices           PushDevice[]
   pushDeliveries        PushDelivery[]
 
+  @@index([lastAccessedAt])
   @@map("users")
 }
 

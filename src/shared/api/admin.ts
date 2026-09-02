@@ -165,9 +165,11 @@ export type AdminReportItem = {
 export type AdminUserItem = {
   id: string;
   role: UserRole;
+  displayName: string | null;
   email: string | null;
   providers: string[];
   journalCount: number;
+  lastAccessedAt: string;
   createdAt: string;
 };
 

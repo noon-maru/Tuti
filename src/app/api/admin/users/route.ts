@@ -34,6 +34,7 @@ export async function GET(request: Request) {
       ? {
           OR: [
             { id: { contains: query, mode: "insensitive" } },
+            { displayName: { contains: query, mode: "insensitive" } },
             {
               authIdentities: {
                 some: {
@@ -46,7 +47,9 @@ export async function GET(request: Request) {
       : undefined,
     select: {
       id: true,
+      displayName: true,
       role: true,
+      lastAccessedAt: true,
       createdAt: true,
       authIdentities: {
         select: {
@@ -66,6 +69,7 @@ export async function GET(request: Request) {
   const response: AdminUsersResponse = {
     users: users.map((user) => ({
       id: user.id,
+      displayName: user.displayName,
       role: user.role,
       email:
         user.authIdentities.find((identity) => identity.email)?.email ?? null,
@@ -73,6 +77,7 @@ export async function GET(request: Request) {
         new Set(user.authIdentities.map((identity) => identity.provider)),
       ),
       journalCount: user._count.journalEntries,
+      lastAccessedAt: user.lastAccessedAt.toISOString(),
       createdAt: user.createdAt.toISOString(),
     })),
   };

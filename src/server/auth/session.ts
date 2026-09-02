@@ -11,6 +11,7 @@ import type {
 const BEARER_PREFIX = "Bearer ";
 const MINIMUM_TOKEN_LENGTH = 32;
 const SESSION_LIFETIME_DAYS = 90;
+const LAST_ACCESS_UPDATE_INTERVAL_MS = 15 * 60 * 1000;
 
 type IdentityProfile = {
   id: string;
@@ -54,6 +55,7 @@ export async function authenticateUser(
       id: true,
       displayName: true,
       role: true,
+      lastAccessedAt: true,
       authIdentities: {
         orderBy: { updatedAt: "desc" },
         select: {
@@ -66,6 +68,11 @@ export async function authenticateUser(
   });
 
   if (anonymousUser) {
+    await touchUserLastAccessedAt(
+      anonymousUser.id,
+      anonymousUser.lastAccessedAt,
+    );
+
     return {
       id: anonymousUser.id,
       role: anonymousUser.role,
@@ -87,6 +94,7 @@ export async function authenticateUser(
           id: true,
           displayName: true,
           role: true,
+          lastAccessedAt: true,
           authIdentities: {
             orderBy: { updatedAt: "desc" },
             select: {
@@ -107,6 +115,11 @@ export async function authenticateUser(
     return null;
   }
 
+  await touchUserLastAccessedAt(
+    session.user.id,
+    session.user.lastAccessedAt,
+  );
+
   return {
     id: session.user.id,
     role: session.user.role,
@@ -117,6 +130,27 @@ export async function authenticateUser(
     ),
     sessionId: session.id,
   };
+}
+
+async function touchUserLastAccessedAt(userId: string, lastAccessedAt: Date) {
+  const now = new Date();
+
+  if (
+    now.getTime() - lastAccessedAt.getTime() <
+    LAST_ACCESS_UPDATE_INTERVAL_MS
+  ) {
+    return;
+  }
+
+  await prisma.user.updateMany({
+    where: {
+      id: userId,
+      lastAccessedAt: {
+        lt: new Date(now.getTime() - LAST_ACCESS_UPDATE_INTERVAL_MS),
+      },
+    },
+    data: { lastAccessedAt: now },
+  });
 }
 
 export async function createUserSession(userId: string) {

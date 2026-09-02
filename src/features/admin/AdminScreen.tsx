@@ -2232,6 +2232,7 @@ function UsersPanel({
             <th scope="col">계정</th>
             <th scope="col">공급자</th>
             <th scope="col">기록</th>
+            <th scope="col">최종 접속</th>
             <th scope="col">가입일</th>
             <th scope="col">권한</th>
             <th scope="col">관리</th>
@@ -2241,11 +2242,13 @@ function UsersPanel({
           {users.map((user) => (
             <tr key={user.id}>
               <td data-label="계정">
-                <strong>{user.email ?? "익명 사용자"}</strong>
+                <strong>{user.displayName ?? "이름 미등록"}</strong>
+                <Small>{user.email ?? "익명 사용자"}</Small>
                 <Small>{user.id}</Small>
               </td>
               <td data-label="공급자">{user.providers.join(", ") || "-"}</td>
               <td data-label="기록">{user.journalCount}</td>
+              <td data-label="최종 접속">{formatDate(user.lastAccessedAt)}</td>
               <td data-label="가입일">{formatDate(user.createdAt)}</td>
               <td data-label="권한">
                 <UserRoleEditor
