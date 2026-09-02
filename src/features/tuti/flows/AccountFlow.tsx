@@ -91,7 +91,7 @@ export function AccountFlow() {
     }
 
     handledOAuthTicket.current = oauthTicket;
-    window.history.replaceState(window.history.state, "", "/login");
+    router.replace("/login", { scroll: false });
 
     void completeOAuthLogin({ ticket: oauthTicket })
       .then(async (result) => {
@@ -103,6 +103,7 @@ export function AccountFlow() {
           return;
         }
 
+        setOAuthCompletion({ pending: false });
         await finishAccountChange(result.linked === true);
       })
       .catch((error: unknown) => {
@@ -114,12 +115,20 @@ export function AccountFlow() {
               : "소셜 로그인을 완료하지 못했어요.",
         });
       });
-  }, [finishAccountChange, oauthTicket]);
+  }, [finishAccountChange, oauthTicket, router]);
+
+  useEffect(() => {
+    if (!oauthCallbackError) return;
+
+    router.replace("/login", { scroll: false });
+    setOAuthCompletion({ pending: false, error: oauthCallbackError });
+  }, [oauthCallbackError, router]);
 
   const resolveOAuthJournals = async (
     journalResolution: AccountJournalResolution,
   ) => {
-    if (!oauthTicket || oauthCompletion.pending) return;
+    const activeOAuthTicket = handledOAuthTicket.current;
+    if (!activeOAuthTicket || oauthCompletion.pending) return;
 
     setOAuthCompletion((current) => ({
       ...current,
@@ -129,7 +138,7 @@ export function AccountFlow() {
 
     try {
       const result = await completeOAuthLogin({
-        ticket: oauthTicket,
+        ticket: activeOAuthTicket,
         journalResolution,
       });
 
@@ -141,6 +150,7 @@ export function AccountFlow() {
         return;
       }
 
+      setOAuthCompletion({ pending: false });
       await finishAccountChange(result.linked === true);
     } catch (error) {
       setOAuthCompletion((current) => ({
@@ -162,15 +172,15 @@ export function AccountFlow() {
       providers={session?.account?.providers}
       accountNotice={accountNotice}
       authEnabled={accountAuthEnabled}
-      oauthCompletion={
-        oauthTicket || oauthCallbackError
-          ? {
-              ...oauthCompletion,
-              onJournalResolution: resolveOAuthJournals,
-              onCancel: () => router.replace("/login"),
-            }
-          : undefined
-      }
+      oauthCompletion={{
+        ...oauthCompletion,
+        onJournalResolution: resolveOAuthJournals,
+        onCancel: () => {
+          handledOAuthTicket.current = null;
+          setOAuthCompletion({ pending: false });
+          router.replace("/login", { scroll: false });
+        },
+      }}
       onBack={() => router.replace("/")}
       onEmailCodeRequest={async (email) => {
         await requestEmailLoginCode(email);
