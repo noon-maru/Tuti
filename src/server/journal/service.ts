@@ -7,6 +7,10 @@ import {
   prepareJournalImage,
   serializeJournalImage,
 } from "@/server/journal/imageStorage";
+import {
+  canOwnerPublishJournalEntry,
+  isJournalEntryPublic,
+} from "@/server/journal/publicationState";
 import type {
   JournalEntryInput,
   TutiJournalEntry,
@@ -33,6 +37,8 @@ export async function getJournalEntries(
       updatedAt: true,
       publicId: true,
       publishedAt: true,
+      publicationStatus: true,
+      publicationStatusChangedAt: true,
     },
   });
 
@@ -166,15 +172,19 @@ export async function deleteJournalEntry(
 
   if (!entry) return false;
 
-  const result = await prisma.journalEntry.deleteMany({
-    where: { id: entryId, ownerId },
-  });
-
-  if (result.count > 0) {
-    await prisma.contentReport.updateMany({
+  const result = await prisma.$transaction(async (transaction) => {
+    await transaction.journalShareTrace.deleteMany({ where: { entryId } });
+    await transaction.contentReport.updateMany({
       where: { entryId },
       data: { entryId: null },
     });
+
+    return transaction.journalEntry.deleteMany({
+      where: { id: entryId, ownerId },
+    });
+  });
+
+  if (result.count > 0) {
     await cleanupReplacedImage(entry.image);
     await writeSystemLogSafely({
       category: "journal",
@@ -197,10 +207,13 @@ export async function forceDeleteJournalEntry(entryId: string) {
 
   if (!entry) return false;
 
-  await prisma.journalEntry.delete({ where: { id: entryId } });
-  await prisma.contentReport.updateMany({
-    where: { entryId },
-    data: { entryId: null },
+  await prisma.$transaction(async (transaction) => {
+    await transaction.journalShareTrace.deleteMany({ where: { entryId } });
+    await transaction.contentReport.updateMany({
+      where: { entryId },
+      data: { entryId: null },
+    });
+    await transaction.journalEntry.delete({ where: { id: entryId } });
   });
   await cleanupReplacedImage(entry.image);
   return true;
@@ -220,9 +233,18 @@ export async function setJournalEntryPublication(
 
   if (
     published ===
-    Boolean(currentEntry.publicId && currentEntry.publishedAt)
+    isJournalEntryPublic(currentEntry)
   ) {
     return serializeJournalEntry(currentEntry);
+  }
+
+  if (
+    published &&
+    !canOwnerPublishJournalEntry(currentEntry.publicationStatus)
+  ) {
+    throw new JournalPublicationStateError(
+      "관리자 확인으로 숨겨진 기록은 다시 공개할 수 없어요.",
+    );
   }
 
   const result = await prisma.journalEntry.updateMany({
@@ -231,10 +253,14 @@ export async function setJournalEntryPublication(
       ? {
           publicId: randomBytes(24).toString("base64url"),
           publishedAt: new Date(),
+          publicationStatus: "published",
+          publicationStatusChangedAt: new Date(),
         }
       : {
           publicId: null,
           publishedAt: null,
+          publicationStatus: "private",
+          publicationStatusChangedAt: new Date(),
         },
   });
 
@@ -274,6 +300,8 @@ const journalEntrySelect = {
   updatedAt: true,
   publicId: true,
   publishedAt: true,
+  publicationStatus: true,
+  publicationStatusChangedAt: true,
 } as const;
 
 function serializeJournalEntry(
@@ -281,6 +309,8 @@ function serializeJournalEntry(
     ownerId: string;
     publicId: string | null;
     publishedAt: Date | null;
+    publicationStatus: "private" | "pending" | "published" | "hidden";
+    publicationStatusChangedAt: Date;
     updatedAt: Date;
     visitedAt: Date;
   },
@@ -297,13 +327,20 @@ function serializeJournalEntry(
     difficulty: entry.difficulty,
     visitedAt: entry.visitedAt.toISOString(),
     publication:
-      entry.publicId && entry.publishedAt
+      isJournalEntryPublic(entry)
         ? {
-            publicId: entry.publicId,
-            publishedAt: entry.publishedAt.toISOString(),
+            publicId: entry.publicId!,
+            publishedAt: entry.publishedAt!.toISOString(),
           }
         : null,
   };
+}
+
+export class JournalPublicationStateError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "JournalPublicationStateError";
+  }
 }
 
 async function resolveJournalPlace(input: JournalEntryInput) {

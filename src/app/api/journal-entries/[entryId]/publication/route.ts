@@ -1,5 +1,8 @@
 import { authenticateUser } from "@/server/auth/session";
-import { setJournalEntryPublication } from "@/server/journal/service";
+import {
+  JournalPublicationStateError,
+  setJournalEntryPublication,
+} from "@/server/journal/service";
 import {
   createPreflightResponse,
   isRequestOriginAllowed,
@@ -94,6 +97,7 @@ export async function PATCH(
     return withCors(request, Response.json(response));
   } catch (error) {
     const invalidJson = error instanceof SyntaxError;
+    const invalidState = error instanceof JournalPublicationStateError;
 
     if (!invalidJson) {
       console.error("기록 공개 설정을 변경하지 못했습니다.", error);
@@ -105,9 +109,11 @@ export async function PATCH(
         {
           error: invalidJson
             ? "요청 본문을 확인해주세요."
+            : invalidState
+              ? error.message
             : "기록 공개 설정을 변경하지 못했어요.",
         },
-        { status: invalidJson ? 400 : 500 },
+        { status: invalidJson ? 400 : invalidState ? 409 : 500 },
       ),
     );
   }

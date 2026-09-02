@@ -8,6 +8,7 @@ import {
   isRequestOriginAllowed,
   withCors,
 } from "@/server/http/cors";
+import { journalPublicationEnabled } from "@/shared/features/release";
 
 export const runtime = "nodejs";
 
@@ -36,6 +37,16 @@ export async function POST(request: Request) {
       );
     }
 
+    if (!journalPublicationEnabled) {
+      return withCors(
+        request,
+        Response.json(
+          { error: "현재 신고할 수 있는 공개 기록이 없습니다." },
+          { status: 404 },
+        ),
+      );
+    }
+
     const body = (await request.json()) as {
       entryId?: unknown;
       publicId?: unknown;
@@ -60,7 +71,11 @@ export async function POST(request: Request) {
     }
 
     const entry = await prisma.journalEntry.findFirst({
-      where: entryId ? { id: entryId } : { publicId },
+      where: {
+        ...(entryId ? { id: entryId } : { publicId }),
+        publicationStatus: "published",
+        publishedAt: { not: null },
+      },
       select: {
         id: true,
         ownerId: true,

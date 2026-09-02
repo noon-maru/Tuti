@@ -13,6 +13,7 @@ export async function getPublicJournalEntry(
     where: {
       publicId,
       publishedAt: { not: null },
+      publicationStatus: "published",
     },
     select: {
       title: true,
@@ -52,6 +53,7 @@ export async function getPublicJournalImage(publicId: string) {
     where: {
       publicId,
       publishedAt: { not: null },
+      publicationStatus: "published",
     },
     select: { image: true },
   });

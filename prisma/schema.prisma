@@ -93,6 +93,13 @@ enum ReportStatus {
   dismissed
 }
 
+enum JournalPublicationStatus {
+  private
+  pending
+  published
+  hidden
+}
+
 enum InquiryCategory {
   account
   service
@@ -626,6 +633,8 @@ model JournalEntry {
   visitedAt   DateTime  @map("visited_at")
   publicId    String?   @unique @map("public_id")
   publishedAt DateTime? @map("published_at")
+  publicationStatus          JournalPublicationStatus @default(private) @map("publication_status")
+  publicationStatusChangedAt DateTime                 @default(now()) @map("publication_status_changed_at")
   createdAt   DateTime  @default(now()) @map("created_at")
   updatedAt   DateTime  @updatedAt @map("updated_at")
   owner       User      @relation(fields: [ownerId], references: [id], onDelete: Cascade)
@@ -633,6 +642,7 @@ model JournalEntry {
 
   @@index([ownerId, visitedAt])
   @@index([placeId])
+  @@index([publicationStatus, publishedAt])
   @@map("journal_entries")
 }
 
