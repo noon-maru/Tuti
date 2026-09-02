@@ -3736,9 +3736,10 @@ const LocationLogSummary = styled.div`
 `;
 
 const InquirySummaryButton = styled.button`
+  width: 100%;
   min-width: 0;
   display: grid;
-  grid-template-columns: minmax(280px, 1.5fr) minmax(160px, 0.8fr) 130px 52px;
+  grid-template-columns: var(--inquiry-table-columns);
   align-items: center;
   gap: var(--space-4);
   padding: var(--space-3) var(--space-4);
@@ -3770,6 +3771,8 @@ const InquirySummaryButton = styled.button`
 `;
 
 const InquiryTable = styled.div`
+  --inquiry-table-columns: minmax(280px, 1.5fr) minmax(160px, 0.8fr) 130px 52px;
+
   overflow: hidden;
   border: 1px solid var(--color-border);
   border-radius: 8px;
@@ -3778,7 +3781,7 @@ const InquiryTable = styled.div`
 
 const InquiryTableHead = styled.div`
   display: grid;
-  grid-template-columns: minmax(280px, 1.5fr) minmax(160px, 0.8fr) 130px 52px;
+  grid-template-columns: var(--inquiry-table-columns);
   gap: var(--space-4);
   padding: 10px var(--space-4);
   border-bottom: 1px solid var(--color-border);
@@ -3786,6 +3789,10 @@ const InquiryTableHead = styled.div`
   color: var(--color-text-muted);
   font-size: 11px;
   font-weight: 700;
+
+  span:nth-of-type(n + 3) {
+    text-align: right;
+  }
 
   @media (max-width: 768px) {
     display: none;
