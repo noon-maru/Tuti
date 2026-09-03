@@ -9,7 +9,10 @@ import {
   withCors,
 } from "@/server/http/cors";
 import type { JournalPublicationResponse } from "@/shared/api/journal";
-import { journalPublicationEnabled } from "@/shared/features/release";
+import {
+  canAccountPublishJournal,
+  journalPublicationEnabled,
+} from "@/shared/features/release";
 
 export const runtime = "nodejs";
 
@@ -71,6 +74,16 @@ export async function PATCH(
             error: "기록을 공개하려면 먼저 계정을 연결해주세요.",
             code: "account_required",
           },
+          { status: 403 },
+        ),
+      );
+    }
+
+    if (input.published && !canAccountPublishJournal(user.account?.role)) {
+      return withCors(
+        request,
+        Response.json(
+          { error: "기록 웹 공유를 내부에서 점검하고 있어요." },
           { status: 403 },
         ),
       );

@@ -9,7 +9,7 @@ import {
 } from "@/features/tuti/screens/journal/JournalDetailScreen";
 import { useTutiStore } from "@/store/tuti";
 import { copyJournalPublicUrl } from "@/lib/journalShare";
-import { journalPublicationEnabled } from "@/shared/features/release";
+import { canAccountPublishJournal } from "@/shared/features/release";
 
 export function JournalDetailFlow() {
   const router = useRouter();
@@ -140,7 +140,7 @@ export function JournalDetailFlow() {
   return (
     <JournalDetailScreen
       entry={entry}
-      publicationEnabled={journalPublicationEnabled}
+      publicationEnabled={canAccountPublishJournal(session?.account?.role)}
       onBack={returnToJournal}
       onCopyPublicLink={copyPublicLink}
       onDelete={deleteEntry}
