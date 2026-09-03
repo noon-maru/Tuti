@@ -158,6 +158,7 @@ export type AdminReportItem = {
     | "published"
     | "hidden"
     | null;
+  targetOwnerPublicationRestrictedAt: string | null;
   reporterUserId: string;
   reason: ReportReason;
   detail: string | null;

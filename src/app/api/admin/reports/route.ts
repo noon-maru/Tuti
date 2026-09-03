@@ -54,12 +54,21 @@ export async function GET(request: Request) {
   const publicationStatusByEntryId = new Map(
     targetEntries.map((entry) => [entry.id, entry.publicationStatus]),
   );
+  const targetOwners = await prisma.user.findMany({
+    where: { id: { in: [...new Set(reports.map((report) => report.targetOwnerId))] } },
+    select: { id: true, journalPublicationRestrictedAt: true },
+  });
+  const restrictionByOwnerId = new Map(
+    targetOwners.map((owner) => [owner.id, owner.journalPublicationRestrictedAt]),
+  );
   const response: AdminReportsResponse = {
     reports: reports.map((report) => ({
       ...report,
       targetPublicationStatus: report.entryId
         ? publicationStatusByEntryId.get(report.entryId) ?? null
         : null,
+      targetOwnerPublicationRestrictedAt:
+        restrictionByOwnerId.get(report.targetOwnerId)?.toISOString() ?? null,
       createdAt: report.createdAt.toISOString(),
       reviewedAt: report.reviewedAt?.toISOString() ?? null,
     })),
@@ -85,20 +94,34 @@ export async function PATCH(request: Request) {
       status?: unknown;
       resolutionNote?: unknown;
       moderationAction?: unknown;
+      ownerAction?: unknown;
     };
     const reportId =
       typeof body.reportId === "string" ? body.reportId.trim() : "";
     const status = normalizeReportStatus(body.status);
     const moderationAction = normalizeModerationAction(body.moderationAction);
+    const ownerAction = normalizeOwnerAction(body.ownerAction);
     const resolutionNote =
       typeof body.resolutionNote === "string"
         ? body.resolutionNote.trim().slice(0, 1000)
         : undefined;
 
-    if (!reportId || (!status && !moderationAction)) {
+    if (!reportId || (!status && !moderationAction && !ownerAction)) {
       return withCors(
         request,
         Response.json({ error: "신고 처리값을 확인해주세요." }, { status: 400 }),
+      );
+    }
+
+    if (ownerAction) {
+      return withCors(
+        request,
+        await moderateReportedOwner({
+          reportId,
+          action: ownerAction,
+          resolutionNote,
+          reviewerUserId: authentication.user.id,
+        }),
       );
     }
 
@@ -241,6 +264,95 @@ function normalizeReportStatus(value: unknown) {
 
 function normalizeModerationAction(value: unknown) {
   return value === "hide" || value === "restore" ? value : undefined;
+}
+
+function normalizeOwnerAction(value: unknown) {
+  return value === "restrict" || value === "unrestrict" ? value : undefined;
+}
+
+async function moderateReportedOwner({
+  reportId,
+  action,
+  resolutionNote,
+  reviewerUserId,
+}: {
+  reportId: string;
+  action: "restrict" | "unrestrict";
+  resolutionNote?: string;
+  reviewerUserId: string;
+}) {
+  const report = await prisma.contentReport.findUnique({
+    where: { id: reportId },
+    select: { id: true, targetOwnerId: true },
+  });
+  if (!report) {
+    return Response.json({ error: "신고를 찾지 못했습니다." }, { status: 404 });
+  }
+
+  const now = new Date();
+  const reason = resolutionNote || "반복적인 공개 운영정책 위반";
+  const result = await prisma.$transaction(async (transaction) => {
+    const updatedUser = await transaction.user.updateMany({
+      where: {
+        id: report.targetOwnerId,
+        journalPublicationRestrictedAt:
+          action === "restrict" ? null : { not: null },
+      },
+      data: action === "restrict"
+        ? {
+            journalPublicationRestrictedAt: now,
+            journalPublicationRestrictionReason: reason,
+            journalPublicationRestrictedByUserId: reviewerUserId,
+          }
+        : {
+            journalPublicationRestrictedAt: null,
+            journalPublicationRestrictionReason: null,
+            journalPublicationRestrictedByUserId: null,
+          },
+    });
+    if (updatedUser.count === 0) return null;
+
+    const hiddenEntries = action === "restrict"
+      ? await transaction.journalEntry.updateMany({
+          where: {
+            ownerId: report.targetOwnerId,
+            publicationStatus: { in: ["pending", "published"] },
+          },
+          data: {
+            publicationStatus: "hidden",
+            publicationStatusChangedAt: now,
+            publicationReviewedAt: now,
+            publicationReviewerUserId: reviewerUserId,
+          },
+        })
+      : { count: 0 };
+
+    return hiddenEntries.count;
+  });
+
+  if (result === null) {
+    return Response.json(
+      { error: action === "restrict" ? "이미 공개가 제한된 계정입니다." : "공개 제한 상태가 아닙니다." },
+      { status: 409 },
+    );
+  }
+
+  await writeSystemLog({
+    level: action === "restrict" ? "warning" : "info",
+    category: "moderation",
+    action: action === "restrict"
+      ? "journal.owner.restricted"
+      : "journal.owner.unrestricted",
+    message: action === "restrict"
+      ? "사용자의 추가 기록 공개를 제한했습니다."
+      : "사용자의 기록 공개 제한을 해제했습니다.",
+    actorUserId: reviewerUserId,
+    targetType: "user",
+    targetId: report.targetOwnerId,
+    metadata: { reportId, reason, hiddenEntryCount: result },
+  });
+
+  return Response.json({ ownerId: report.targetOwnerId, action });
 }
 
 async function moderateReportedJournalEntry({

@@ -278,6 +278,19 @@ export async function setJournalEntryPublication(
     );
   }
 
+  if (published) {
+    const owner = await prisma.user.findUnique({
+      where: { id: ownerId },
+      select: { journalPublicationRestrictedAt: true },
+    });
+
+    if (owner?.journalPublicationRestrictedAt) {
+      throw new JournalPublicationStateError(
+        "운영 정책에 따라 현재는 기록을 인터넷에 공개할 수 없어요.",
+      );
+    }
+  }
+
   const safety = published
     ? assessJournalPublicationSafety(currentEntry)
     : null;

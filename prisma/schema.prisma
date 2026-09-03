@@ -672,6 +672,9 @@ model User {
   tokenHash             String                 @unique @map("token_hash")
   displayName           String?                @map("display_name")
   role                  UserRole               @default(user)
+  journalPublicationRestrictedAt DateTime?      @map("journal_publication_restricted_at")
+  journalPublicationRestrictionReason String?  @map("journal_publication_restriction_reason")
+  journalPublicationRestrictedByUserId String? @map("journal_publication_restricted_by_user_id")
   lastAccessedAt        DateTime               @default(now()) @map("last_accessed_at")
   createdAt             DateTime               @default(now()) @map("created_at")
   updatedAt             DateTime               @updatedAt @map("updated_at")
@@ -688,6 +691,7 @@ model User {
   pushDeliveries        PushDelivery[]
 
   @@index([lastAccessedAt])
+  @@index([journalPublicationRestrictedAt])
   @@map("users")
 }
 

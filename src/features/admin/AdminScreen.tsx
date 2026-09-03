@@ -852,6 +852,30 @@ export function AdminScreen({
                 adminJsonRequest("PATCH", { entryId, action }),
               );
             }}
+            onModerateOwner={(report, ownerAction) => {
+              const restricting = ownerAction === "restrict";
+              if (
+                !window.confirm(
+                  restricting
+                    ? "이 사용자의 기존 공개 기록을 모두 숨기고 추가 공개를 제한할까요?"
+                    : "이 사용자의 공개 제한을 해제할까요? 기존 기록은 자동으로 재공개되지 않습니다.",
+                )
+              ) {
+                return;
+              }
+
+              void mutate(
+                "reports",
+                report.id,
+                adminJsonRequest("PATCH", {
+                  reportId: report.id,
+                  ownerAction,
+                  resolutionNote: restricting
+                    ? "반복적인 공개 운영정책 위반"
+                    : "관리자 공개 제한 해제",
+                }),
+              );
+            }}
           />
         ) : tab === "inquiries" ? (
           <InquiriesPanel
@@ -2000,6 +2024,7 @@ function ReportsPanel({
   onForceDelete,
   onModerate,
   onReviewPublication,
+  onModerateOwner,
 }: {
   reports: AdminReportItem[];
   publicationReviews: AdminJournalPublicationReviewItem[];
@@ -2017,6 +2042,10 @@ function ReportsPanel({
   onReviewPublication: (
     entryId: string,
     action: "approve" | "reject",
+  ) => void;
+  onModerateOwner: (
+    report: AdminReportItem,
+    action: "restrict" | "unrestrict",
   ) => void;
 }) {
   if (reports.length === 0 && publicationReviews.length === 0) {
@@ -2125,6 +2154,7 @@ function ReportsPanel({
                   onSave={onSave}
                   onForceDelete={onForceDelete}
                   onModerate={onModerate}
+                  onModerateOwner={onModerateOwner}
                 />
               </td>
             </tr>
@@ -2142,6 +2172,7 @@ function ReportActionEditor({
   onSave,
   onForceDelete,
   onModerate,
+  onModerateOwner,
 }: {
   report: AdminReportItem;
   saving: boolean;
@@ -2154,6 +2185,10 @@ function ReportActionEditor({
   onModerate: (
     report: AdminReportItem,
     action: "hide" | "restore",
+  ) => void;
+  onModerateOwner: (
+    report: AdminReportItem,
+    action: "restrict" | "unrestrict",
   ) => void;
 }) {
   const [status, setStatus] = useState(report.status);
@@ -2209,6 +2244,22 @@ function ReportActionEditor({
           공개 복원
         </CompactActionButton>
       ) : null}
+      <DangerButton
+        type="button"
+        disabled={saving}
+        onClick={() =>
+          onModerateOwner(
+            report,
+            report.targetOwnerPublicationRestrictedAt
+              ? "unrestrict"
+              : "restrict",
+          )
+        }
+      >
+        {report.targetOwnerPublicationRestrictedAt
+          ? "공개 제한 해제"
+          : "작성자 공개 제한"}
+      </DangerButton>
       <DangerButton
         type="button"
         disabled={saving || !report.entryId}
