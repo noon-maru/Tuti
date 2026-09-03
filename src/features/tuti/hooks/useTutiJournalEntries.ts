@@ -69,10 +69,12 @@ export function useTutiJournalEntries() {
     mutationFn: ({
       entryId,
       published,
+      consentVersion,
     }: {
       entryId: string;
       published: boolean;
-    }) => setJournalEntryPublication(entryId, published),
+      consentVersion?: string;
+    }) => setJournalEntryPublication(entryId, published, consentVersion),
     onSuccess: (entry) => {
       queryClient.setQueryData<TutiJournalEntry[]>(
         journalEntriesQueryKey,
@@ -101,8 +103,8 @@ export function useTutiJournalEntries() {
     [deleteCurrentEntry],
   );
   const changeEntryPublication = useCallback(
-    (entryId: string, published: boolean) =>
-      updatePublication({ entryId, published }),
+    (entryId: string, published: boolean, consentVersion?: string) =>
+      updatePublication({ entryId, published, consentVersion }),
     [updatePublication],
   );
 

@@ -13,6 +13,10 @@ import {
   canAccountPublishJournal,
   journalPublicationEnabled,
 } from "@/shared/features/release";
+import {
+  isCurrentJournalPublicationPolicy,
+  JOURNAL_PUBLICATION_POLICY_VERSION,
+} from "@/shared/legal/journalPublicationPolicy";
 
 export const runtime = "nodejs";
 
@@ -44,7 +48,10 @@ export async function PATCH(
       );
     }
 
-    const input = (await request.json()) as { published?: unknown };
+    const input = (await request.json()) as {
+      consentVersion?: unknown;
+      published?: unknown;
+    };
 
     if (typeof input.published !== "boolean") {
       return withCors(
@@ -89,11 +96,25 @@ export async function PATCH(
       );
     }
 
+    if (
+      input.published &&
+      !isCurrentJournalPublicationPolicy(input.consentVersion)
+    ) {
+      return withCors(
+        request,
+        Response.json(
+          { error: "최신 기록 공개 안내를 확인해주세요." },
+          { status: 400 },
+        ),
+      );
+    }
+
     const { entryId } = await context.params;
     const entry = await setJournalEntryPublication(
       user.id,
       entryId,
       input.published,
+      input.published ? JOURNAL_PUBLICATION_POLICY_VERSION : undefined,
     );
 
     if (!entry) {
@@ -124,7 +145,7 @@ export async function PATCH(
             ? "요청 본문을 확인해주세요."
             : invalidState
               ? error.message
-            : "기록 공개 설정을 변경하지 못했어요.",
+              : "기록 공개 설정을 변경하지 못했어요.",
         },
         { status: invalidJson ? 400 : invalidState ? 409 : 500 },
       ),

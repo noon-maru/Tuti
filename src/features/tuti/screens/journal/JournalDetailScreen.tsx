@@ -5,6 +5,7 @@ import { useRef, useState } from "react";
 import { BaseButton } from "@/features/tuti/components/buttons";
 import { ContextMenu } from "@/features/tuti/components/ContextMenu";
 import { JournalShareDialog } from "@/features/tuti/components/JournalShareDialog";
+import { JournalPublicationConsentDialog } from "@/features/tuti/components/JournalPublicationConsentDialog";
 import { JournalLocationLabel } from "@/features/tuti/components/JournalLocationLabel";
 import {
   useJournalEntryTransition,
@@ -37,6 +38,7 @@ export function JournalDetailScreen({
 }) {
   const imageRef = useRef<HTMLDivElement>(null);
   const [shareOpen, setShareOpen] = useState(false);
+  const [publicationConsentOpen, setPublicationConsentOpen] = useState(false);
   const { startTransition } = useJournalEntryTransition();
   const entryTransition = useJournalEntryTransitionTarget(
     entry.id,
@@ -114,7 +116,7 @@ export function JournalDetailScreen({
                     ? [
                         {
                           label: "인터넷에 공개",
-                          onSelect: onPublish,
+                          onSelect: () => setPublicationConsentOpen(true),
                         },
                       ]
                     : []),
@@ -177,6 +179,15 @@ export function JournalDetailScreen({
               ? getPublicJournalUrl(entry.publication.publicId)
               : undefined
           }
+        />
+      )}
+      {publicationConsentOpen && (
+        <JournalPublicationConsentDialog
+          placeName={entry.placeName}
+          onClose={() => setPublicationConsentOpen(false)}
+          onConfirm={async () => {
+            await onPublish();
+          }}
         />
       )}
     </Frame>

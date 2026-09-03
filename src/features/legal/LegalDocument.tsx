@@ -49,6 +49,7 @@ export function LegalDocument({
       <Navigation aria-label="법적 문서">
         <Link href="/legal/privacy">개인정보 처리방침</Link>
         <Link href="/legal/location-terms">위치기반서비스 이용약관</Link>
+        <Link href="/legal/community-guidelines">기록 공개 운영정책</Link>
       </Navigation>
       <Content>
         {sections.map((section) => (

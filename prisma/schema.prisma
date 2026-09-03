@@ -638,6 +638,8 @@ model JournalEntry {
   publicationReviewReasons   Json?                    @map("publication_review_reasons")
   publicationReviewedAt      DateTime?                @map("publication_reviewed_at")
   publicationReviewerUserId  String?                  @map("publication_reviewer_user_id")
+  publicationConsentVersion  String?                  @map("publication_consent_version")
+  publicationConsentedAt     DateTime?                @map("publication_consented_at")
   createdAt   DateTime  @default(now()) @map("created_at")
   updatedAt   DateTime  @updatedAt @map("updated_at")
   owner       User      @relation(fields: [ownerId], references: [id], onDelete: Cascade)

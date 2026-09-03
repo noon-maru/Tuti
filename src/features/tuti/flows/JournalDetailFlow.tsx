@@ -10,6 +10,7 @@ import {
 import { useTutiStore } from "@/store/tuti";
 import { copyJournalPublicUrl } from "@/lib/journalShare";
 import { canAccountPublishJournal } from "@/shared/features/release";
+import { JOURNAL_PUBLICATION_POLICY_VERSION } from "@/shared/legal/journalPublicationPolicy";
 
 export function JournalDetailFlow() {
   const router = useRouter();
@@ -42,23 +43,11 @@ export function JournalDetailFlow() {
       return;
     }
 
-    if (
-      !window.confirm(
-        "링크를 아는 사람이라면 누구나 이 기록을 볼 수 있어요. 인터넷에 공개할까요?",
-      )
-    ) {
-      return;
-    }
-
-    try {
-      await changeEntryPublication(entry.id, true);
-    } catch (error) {
-      window.alert(
-        error instanceof Error
-          ? error.message
-          : "기록을 공개하지 못했어요.",
-      );
-    }
+    await changeEntryPublication(
+      entry.id,
+      true,
+      JOURNAL_PUBLICATION_POLICY_VERSION,
+    );
   };
   const unpublishEntry = async () => {
     if (

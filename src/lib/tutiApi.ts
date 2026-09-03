@@ -332,6 +332,7 @@ export async function deleteJournalEntry(entryId: string) {
 export async function setJournalEntryPublication(
   entryId: string,
   published: boolean,
+  consentVersion?: string,
 ) {
   const response = await fetchWithSession(
     `journal-entries/${encodeURIComponent(entryId)}/publication`,
@@ -340,7 +341,7 @@ export async function setJournalEntryPublication(
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ published }),
+      body: JSON.stringify({ published, consentVersion }),
     },
   );
 

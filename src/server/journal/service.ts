@@ -17,6 +17,7 @@ import type {
   JournalEntryInput,
   TutiJournalEntry,
 } from "@/shared/api/journal";
+import { isCurrentJournalPublicationPolicy } from "@/shared/legal/journalPublicationPolicy";
 
 export async function getJournalEntries(
   ownerId: string,
@@ -252,6 +253,7 @@ export async function setJournalEntryPublication(
   ownerId: string,
   entryId: string,
   published: boolean,
+  consentVersion?: string,
 ): Promise<TutiJournalEntry | null> {
   const currentEntry = await prisma.journalEntry.findFirst({
     where: { id: entryId, ownerId },
@@ -259,6 +261,12 @@ export async function setJournalEntryPublication(
   });
 
   if (!currentEntry) return null;
+
+  if (published && !isCurrentJournalPublicationPolicy(consentVersion)) {
+    throw new JournalPublicationStateError(
+      "최신 기록 공개 안내를 확인해주세요.",
+    );
+  }
 
   if (
     (published &&
@@ -310,6 +318,8 @@ export async function setJournalEntryPublication(
           publicationReviewedAt:
             publicationStatus === "published" ? now : null,
           publicationReviewerUserId: null,
+          publicationConsentVersion: consentVersion,
+          publicationConsentedAt: now,
         }
       : {
           publicId: null,
@@ -338,6 +348,9 @@ export async function setJournalEntryPublication(
     actorUserId: ownerId,
     targetType: "journalEntry",
     targetId: entryId,
+    metadata: published
+      ? { consentVersion: consentVersion ?? null, publicationStatus }
+      : undefined,
   });
 
   return serializeJournalEntry(entry);
@@ -360,6 +373,8 @@ const journalEntrySelect = {
   publishedAt: true,
   publicationStatus: true,
   publicationStatusChangedAt: true,
+  publicationConsentVersion: true,
+  publicationConsentedAt: true,
 } as const;
 
 function serializeJournalEntry(

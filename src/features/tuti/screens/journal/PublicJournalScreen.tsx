@@ -110,7 +110,10 @@ export function PublicJournalScreen({
         </Card>
 
         <Footer>
-          <p>오늘 가능한 만큼만, 잠깐 다른 공기로.</p>
+          <FooterCopy>
+            <p>오늘 가능한 만큼만, 잠깐 다른 공기로.</p>
+            <a href="/legal/community-guidelines">기록 공개 운영정책</a>
+          </FooterCopy>
           <FooterActions>
             <ReportButton
               type="button"
@@ -329,6 +332,23 @@ const Footer = styled.footer`
     align-items: stretch;
     flex-direction: column;
     text-align: center;
+  }
+`;
+
+const FooterCopy = styled.div`
+  display: grid;
+  gap: 4px;
+
+  a {
+    width: fit-content;
+    color: inherit;
+    font-size: 12px;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+
+  @media (max-width: 520px) {
+    justify-items: center;
   }
 `;
 
