@@ -1,22 +1,26 @@
 import { isJournalPublicationPolicyEffective } from "@/shared/legal/journalPublicationPolicy";
 
 export function isJournalPublicationEnabled(
-  value = process.env.NEXT_PUBLIC_JOURNAL_PUBLICATION_ENABLED,
+  value?: string,
 ) {
   return value?.trim().toLowerCase() === "true";
 }
 
-export const journalPublicationEnabled = isJournalPublicationEnabled();
+export const journalPublicationEnabled = isJournalPublicationEnabled(
+  process.env.NEXT_PUBLIC_JOURNAL_PUBLICATION_ENABLED,
+);
 
 export type JournalPublicationAudience = "internal" | "public";
 
 export function getJournalPublicationAudience(
-  value = process.env.NEXT_PUBLIC_JOURNAL_PUBLICATION_AUDIENCE,
+  value?: string,
 ): JournalPublicationAudience {
   return value?.trim().toLowerCase() === "public" ? "public" : "internal";
 }
 
-export const journalPublicationAudience = getJournalPublicationAudience();
+export const journalPublicationAudience = getJournalPublicationAudience(
+  process.env.NEXT_PUBLIC_JOURNAL_PUBLICATION_AUDIENCE,
+);
 
 export function canAccountPublishJournal(
   role: "user" | "admin" | undefined,
