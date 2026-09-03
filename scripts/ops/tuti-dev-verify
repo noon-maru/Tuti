@@ -16,6 +16,13 @@ docker compose -f docker-compose.dev.yml exec -T app pnpm db:deploy
 echo "자동 회귀 테스트 실행"
 docker compose -f docker-compose.dev.yml exec -T app pnpm test
 
+echo "기록 웹 공개 DB 통합 검증 실행"
+docker compose -f docker-compose.dev.yml exec -T \
+  -e TUTI_INSPECTION_ENV=development \
+  -e NEXT_PUBLIC_JOURNAL_PUBLICATION_ENABLED=true \
+  -e NEXT_PUBLIC_JOURNAL_PUBLICATION_AUDIENCE=internal \
+  app pnpm journal:publication:verify
+
 echo "ESLint 정적 검사 실행"
 docker compose -f docker-compose.dev.yml exec -T app pnpm lint
 

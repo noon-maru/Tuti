@@ -41,6 +41,7 @@
     "journal:trace": "tsx scripts/inspect-journal-share-trace.ts",
     "journal:publication:audit": "tsx scripts/inspect-journal-publications.ts",
     "journal:moderation:purge": "tsx scripts/purge-journal-moderation-retention.ts",
+    "journal:publication:verify": "tsx scripts/verify-journal-publication.ts",
     "start": "next start",
     "lint": "pnpm db:generate && eslint",
     "test": "node --import tsx --test test/*.test.ts",

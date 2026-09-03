@@ -3,11 +3,20 @@
 set -eu
 
 project_dir="/var/services/homes/Tutiadmin/source/Tuti"
+target="${1:-all}"
 report_root="$project_dir/.ops-state/journal-publication-audit"
 timestamp="$(date '+%Y%m%d-%H%M%S%z')"
 report_dir="$report_root/$timestamp"
 operator_id="${SUDO_USER:-Tutiadmin}"
 operator_group="$(id -gn "$operator_id")"
+
+case "$target" in
+  development|production|all) ;;
+  *)
+    echo "사용법: tuti-journal-publication-audit [development|production|all]" >&2
+    exit 2
+    ;;
+esac
 
 umask 077
 install -d -o "$operator_id" -g "$operator_group" -m 0700 \
@@ -37,15 +46,30 @@ run_audit() {
   chown "$operator_id:$operator_group" "$output"
 }
 
-run_audit development
-run_audit production
+case "$target" in
+  development)
+    run_audit development
+    audited_files="development.json"
+    ;;
+  production)
+    run_audit production
+    audited_files="production.json"
+    ;;
+  all)
+    run_audit development
+    run_audit production
+    audited_files="development.json production.json"
+    ;;
+esac
 
 (
   cd "$report_dir"
-  sha256sum development.json production.json >SHA256SUMS
+  # audited_files에는 위 case에서 정한 고정 파일명만 들어갑니다.
+  # shellcheck disable=SC2086
+  sha256sum $audited_files >SHA256SUMS
 )
 chmod 0600 "$report_dir/SHA256SUMS"
 chown "$operator_id:$operator_group" "$report_dir/SHA256SUMS"
 
-echo "개발·운영 기록 공개 운영상태 점검을 완료했습니다."
+echo "$target 기록 공개 운영상태 점검을 완료했습니다."
 echo "$report_dir"

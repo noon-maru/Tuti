@@ -44,25 +44,35 @@
 
 ## 자동 운영상태 점검
 
-운영 명령을 다시 설치한 뒤 다음 명령으로 개발·운영 DB를 함께 점검한다.
+운영 명령을 다시 설치한 뒤 개발 환경의 자동 검증과 운영자료 점검을 실행한다.
 
 ```bash
 sudo sh scripts/ops/install-tuti-operations.sh
 sudo -n /usr/local/sbin/tuti-dev-verify
-sudo -n /usr/local/sbin/tuti-journal-publication-audit
+sudo -n /usr/local/sbin/tuti-journal-publication-audit development
 sudo -n /usr/local/sbin/tuti-journal-moderation-purge
 ```
 
 `tuti-dev-verify`는 개발 컨테이너에서 Prisma 생성·마이그레이션, 전체 자동 테스트,
-ESLint를 차례로 실행한다. 하나라도 실패하면 운영 배포와 공개 범위 확대를 멈추고
-먼저 원인을 수정한다.
+격리된 임시 데이터로 기록 공개 DB 통합 검증, ESLint를 차례로 실행한다. 통합
+검증 데이터는 성공·실패와 관계없이 정리하며 운영 DB에는 생성하지 않는다. 하나라도
+실패하면 운영 배포와 공개 범위 확대를 멈추고 먼저 원인을 수정한다.
+
+운영 배포 전에는 `development`로 개발 DB만 점검한다. 배포 후에는 아래처럼 개발·운영
+양쪽을 함께 점검하며, 운영 DB만 다시 확인할 때는 `production`을 사용한다.
+
+```bash
+sudo -n /usr/local/sbin/tuti-journal-publication-audit all
+sudo -n /usr/local/sbin/tuti-journal-publication-audit production
+```
 
 `tuti-journal-moderation-purge`는 처리 완료 후 3년이 지난 신고와 기록 공개 운영
 감사 로그를 개발·운영 DB에서 파기한다. DSM 작업 스케줄러에서 매월 1일 새벽처럼
 서비스 사용이 적은 시간에 실행하며, 실패한 경우에만 이메일을 보내도록 설정한다.
 
-결과는 `.ops-state/journal-publication-audit/<실행시각>/`에 개발·운영 JSON과
-SHA-256 검증값으로 저장된다. 다음 항목을 확인한다.
+결과는 `.ops-state/journal-publication-audit/<실행시각>/`에 선택한 환경의 JSON과
+SHA-256 검증값으로 저장된다. `all`이면 개발·운영 JSON을 모두 만든다. 다음 항목을
+확인한다.
 
 - 상태별 기록과 신고 건수
 - 24시간을 넘긴 공개 검토 및 미종결 신고
