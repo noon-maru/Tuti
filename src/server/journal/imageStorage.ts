@@ -40,6 +40,10 @@ export async function prepareJournalImage({
 }): Promise<PreparedJournalImage> {
   if (!image) return { image: null, uploadedKey: null };
 
+  if (currentImage && image === currentImage) {
+    return { image: currentImage, uploadedKey: null };
+  }
+
   if (
     currentImage &&
     isStoredJournalImage(currentImage) &&
@@ -58,7 +62,10 @@ export async function prepareJournalImage({
   }
 
   if (!parsedImage) {
-    return { image, uploadedKey: null };
+    throw new JournalImageError(
+      "기록 사진은 기기에서 직접 선택한 이미지만 사용할 수 있어요.",
+      "external_journal_image_not_allowed",
+    );
   }
 
   if (!isObjectStorageEnabled()) {

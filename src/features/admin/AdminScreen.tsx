@@ -2796,6 +2796,7 @@ function getReportStatusLabel(status: string) {
 
 function getPublicationReviewReasonLabel(reason: string) {
   if (reason === "image_review_required") return "이미지 확인";
+  if (reason === "external_image_not_publishable") return "외부 이미지 입력";
   if (reason === "contact_information") return "연락처 노출 가능성";
   if (reason === "external_link") return "외부 링크";
   if (reason === "unsafe_language") return "위험 표현";

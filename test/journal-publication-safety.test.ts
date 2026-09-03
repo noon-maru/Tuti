@@ -54,3 +54,20 @@ test("sexual exploitation, hate, threats, and self-harm signals require review",
     "threat_or_self_harm",
   ]);
 });
+
+test("legacy external images cannot pass publication automatically", () => {
+  assert.deepEqual(
+    assessJournalPublicationSafety({
+      title: "오래된 기록",
+      content: "기존에 저장한 기록이에요.",
+      image: "https://images.example.com/tracking-pixel.jpg",
+    }),
+    {
+      decision: "review",
+      reasons: [
+        "image_review_required",
+        "external_image_not_publishable",
+      ],
+    },
+  );
+});

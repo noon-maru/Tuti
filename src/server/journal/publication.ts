@@ -124,11 +124,9 @@ function serializePublicImage(
   image: string | null,
   publicId: string,
 ) {
-  if (!image || image.startsWith("data:")) return null;
+  if (!image || !isStoredJournalImage(image)) return null;
 
-  return isStoredJournalImage(image)
-    ? `/api/public/journal-entry-images/${encodeURIComponent(publicId)}`
-    : image;
+  return `/api/public/journal-entry-images/${encodeURIComponent(publicId)}`;
 }
 
 function isValidPublicId(publicId: string) {

@@ -1,5 +1,6 @@
 export type JournalPublicationReviewReason =
   | "image_review_required"
+  | "external_image_not_publishable"
   | "contact_information"
   | "external_link"
   | "unsafe_language"
@@ -36,6 +37,9 @@ export function assessJournalPublicationSafety({
   const reasons: JournalPublicationReviewReason[] = [];
 
   if (image) reasons.push("image_review_required");
+  if (image && !image.startsWith("journal-images/")) {
+    reasons.push("external_image_not_publishable");
+  }
   if (EMAIL_PATTERN.test(text) || PHONE_PATTERN.test(text)) {
     reasons.push("contact_information");
   }

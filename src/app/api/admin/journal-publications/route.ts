@@ -1,7 +1,10 @@
 import { authenticateAdmin } from "@/server/admin/auth";
 import { writeSystemLog } from "@/server/admin/log";
 import { prisma } from "@/server/db/prisma";
-import { serializeJournalImage } from "@/server/journal/imageStorage";
+import {
+  isStoredJournalImage,
+  serializeJournalImage,
+} from "@/server/journal/imageStorage";
 import {
   createPreflightResponse,
   isRequestOriginAllowed,
@@ -41,7 +44,10 @@ export async function GET(request: Request) {
       ownerId: entry.ownerId,
       title: entry.title,
       content: entry.content,
-      image: serializeJournalImage(entry),
+      image:
+        entry.image && isStoredJournalImage(entry.image)
+          ? serializeJournalImage(entry)
+          : null,
       placeName: entry.placeName,
       reasons: normalizeReasons(entry.publicationReviewReasons),
       requestedAt: entry.publicationStatusChangedAt.toISOString(),
