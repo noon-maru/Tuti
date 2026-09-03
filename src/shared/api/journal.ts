@@ -9,6 +9,7 @@ export type TutiJournalEntry = {
   theme: string;
   difficulty: string;
   visitedAt: string;
+  publicationStatus: "private" | "pending" | "published" | "hidden";
   publication: JournalPublication | null;
 };
 
@@ -64,7 +65,7 @@ export type JournalShareTraceFinalizationResponse = {
 
 export type PublicJournalEntry = Omit<
   TutiJournalEntry,
-  "id" | "placeId" | "publication"
+  "id" | "placeId" | "publication" | "publicationStatus"
 > & {
   publicId: string;
   publishedAt: string;

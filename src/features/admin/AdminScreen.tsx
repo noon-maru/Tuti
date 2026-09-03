@@ -795,6 +795,30 @@ export function AdminScreen({
                 adminJsonRequest("DELETE", { reportId: report.id }),
               );
             }}
+            onModerate={(report, moderationAction) => {
+              const actionLabel =
+                moderationAction === "hide" ? "즉시 숨길" : "다시 공개할";
+              if (
+                !window.confirm(
+                  `"${report.targetTitle}" 기록을 ${actionLabel}까요? 조치 내용은 감사 로그에 남습니다.`,
+                )
+              ) {
+                return;
+              }
+
+              void mutate(
+                "reports",
+                report.id,
+                adminJsonRequest("PATCH", {
+                  reportId: report.id,
+                  moderationAction,
+                  resolutionNote:
+                    moderationAction === "hide"
+                      ? "관리자 즉시 숨김"
+                      : "관리자 공개 복원",
+                }),
+              );
+            }}
           />
         ) : tab === "inquiries" ? (
           <InquiriesPanel
@@ -1940,6 +1964,7 @@ function ReportsPanel({
   mutatingId,
   onSave,
   onForceDelete,
+  onModerate,
 }: {
   reports: AdminReportItem[];
   mutatingId: string | null;
@@ -1949,6 +1974,10 @@ function ReportsPanel({
     resolutionNote: string,
   ) => void;
   onForceDelete: (report: AdminReportItem) => void;
+  onModerate: (
+    report: AdminReportItem,
+    action: "hide" | "restore",
+  ) => void;
 }) {
   if (reports.length === 0) return <StatePanel>접수된 신고가 없습니다.</StatePanel>;
 
@@ -2000,6 +2029,7 @@ function ReportsPanel({
                   saving={mutatingId === report.id}
                   onSave={onSave}
                   onForceDelete={onForceDelete}
+                  onModerate={onModerate}
                 />
               </td>
             </tr>
@@ -2015,6 +2045,7 @@ function ReportActionEditor({
   saving,
   onSave,
   onForceDelete,
+  onModerate,
 }: {
   report: AdminReportItem;
   saving: boolean;
@@ -2024,6 +2055,10 @@ function ReportActionEditor({
     resolutionNote: string,
   ) => void;
   onForceDelete: (report: AdminReportItem) => void;
+  onModerate: (
+    report: AdminReportItem,
+    action: "hide" | "restore",
+  ) => void;
 }) {
   const [status, setStatus] = useState(report.status);
   const [resolutionNote, setResolutionNote] = useState(
@@ -2061,6 +2096,23 @@ function ReportActionEditor({
       >
         저장
       </CompactActionButton>
+      {report.targetPublicationStatus === "published" ? (
+        <DangerButton
+          type="button"
+          disabled={saving}
+          onClick={() => onModerate(report, "hide")}
+        >
+          즉시 숨김
+        </DangerButton>
+      ) : report.targetPublicationStatus === "hidden" ? (
+        <CompactActionButton
+          type="button"
+          disabled={saving}
+          onClick={() => onModerate(report, "restore")}
+        >
+          공개 복원
+        </CompactActionButton>
+      ) : null}
       <DangerButton
         type="button"
         disabled={saving || !report.entryId}

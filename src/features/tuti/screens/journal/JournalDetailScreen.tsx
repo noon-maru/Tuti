@@ -14,7 +14,7 @@ import { ScreenFrame } from "@/features/tuti/components/ScreenFrame";
 import { LoadingIndicator } from "@/features/tuti/components/LoadingIndicator";
 import { getPublicJournalUrl } from "@/lib/journalShare";
 import type { TutiJournalEntry } from "@/shared/api/journal";
-import { journalImageMaxWidth } from "@/styles/tokens";
+import { journalImageMaxWidth, palette } from "@/styles/tokens";
 
 export function JournalDetailScreen({
   entry,
@@ -97,7 +97,20 @@ export function JournalDetailScreen({
                     label: "PNG로 공유하기",
                     onSelect: () => setShareOpen(true),
                   },
-                  ...(publicationEnabled
+                  ...(publicationEnabled &&
+                  (entry.publicationStatus === "hidden" ||
+                    entry.publicationStatus === "pending")
+                    ? [
+                        {
+                          label:
+                            entry.publicationStatus === "pending"
+                              ? "공개 요청 취소"
+                              : "인터넷 공개 중지",
+                          tone: "danger" as const,
+                          onSelect: onUnpublish,
+                        },
+                      ]
+                    : publicationEnabled
                     ? [
                         {
                           label: "인터넷에 공개",
@@ -134,6 +147,14 @@ export function JournalDetailScreen({
         <DetailContent
           $hidden={!entryTransition.isContentVisible}
         >
+          {(entry.publicationStatus === "hidden" ||
+            entry.publicationStatus === "pending") && (
+            <ModerationNotice role="status">
+              {entry.publicationStatus === "hidden"
+                ? "신고 검토로 인터넷 공개가 중지된 기록이에요. 기록은 나만 볼 수 있으며, 메뉴에서 기존 공개 링크를 완전히 폐기할 수 있어요."
+                : "인터넷 공개 전 안전 확인을 기다리고 있어요. 확인이 끝나기 전에는 나만 볼 수 있어요."}
+            </ModerationNotice>
+          )}
           <JournalLocationLabel placeName={entry.placeName} />
           <Tags aria-label="기록 정보">
             <Tag $tone="brand">{entry.crowd}</Tag>
@@ -207,6 +228,17 @@ const Frame = styled(ScreenFrame)`
   z-index: 1;
   gap: var(--space-7);
   background: var(--color-surface);
+`;
+
+const ModerationNotice = styled.p`
+  margin: 0 0 var(--space-4);
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid ${palette.status.error};
+  border-radius: 14px;
+  background: ${palette.neutral[200]};
+  color: ${palette.neutral[1100]};
+  font-size: var(--font-size-200);
+  line-height: 1.55;
 `;
 
 const Header = styled.header<{ $hidden?: boolean }>`

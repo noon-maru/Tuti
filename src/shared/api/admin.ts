@@ -152,6 +152,12 @@ export type AdminReportItem = {
   targetOwnerId: string;
   targetTitle: string;
   targetPublicId: string | null;
+  targetPublicationStatus:
+    | "private"
+    | "pending"
+    | "published"
+    | "hidden"
+    | null;
   reporterUserId: string;
   reason: ReportReason;
   detail: string | null;

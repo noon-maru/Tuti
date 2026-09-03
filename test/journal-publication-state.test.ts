@@ -3,6 +3,7 @@ import test from "node:test";
 
 import {
   canOwnerPublishJournalEntry,
+  getJournalModerationTransition,
   isJournalEntryPublic,
 } from "../src/server/journal/publicationState.ts";
 
@@ -33,6 +34,19 @@ test("only a complete published state is publicly readable", () => {
     }),
     false,
   );
+});
+
+test("moderation only permits published-to-hidden and hidden-to-published", () => {
+  assert.deepEqual(getJournalModerationTransition("published", "hide"), {
+    expectedStatus: "published",
+    nextStatus: "hidden",
+  });
+  assert.deepEqual(getJournalModerationTransition("hidden", "restore"), {
+    expectedStatus: "hidden",
+    nextStatus: "published",
+  });
+  assert.equal(getJournalModerationTransition("private", "hide"), null);
+  assert.equal(getJournalModerationTransition("pending", "restore"), null);
 });
 
 test("an owner cannot republish a moderation-hidden journal entry", () => {

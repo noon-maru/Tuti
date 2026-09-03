@@ -7,6 +7,7 @@ import {
   withCors,
 } from "@/server/http/cors";
 import { forceDeleteJournalEntry } from "@/server/journal/service";
+import { getJournalModerationTransition } from "@/server/journal/publicationState";
 import type { AdminReportsResponse } from "@/shared/api/admin";
 
 export const runtime = "nodejs";
@@ -42,9 +43,23 @@ export async function GET(request: Request) {
     orderBy: [{ status: "asc" }, { createdAt: "desc" }],
     take: 200,
   });
+  const targetEntries = await prisma.journalEntry.findMany({
+    where: {
+      id: {
+        in: reports.flatMap((report) => report.entryId ? [report.entryId] : []),
+      },
+    },
+    select: { id: true, publicationStatus: true },
+  });
+  const publicationStatusByEntryId = new Map(
+    targetEntries.map((entry) => [entry.id, entry.publicationStatus]),
+  );
   const response: AdminReportsResponse = {
     reports: reports.map((report) => ({
       ...report,
+      targetPublicationStatus: report.entryId
+        ? publicationStatusByEntryId.get(report.entryId) ?? null
+        : null,
       createdAt: report.createdAt.toISOString(),
       reviewedAt: report.reviewedAt?.toISOString() ?? null,
     })),
@@ -69,26 +84,40 @@ export async function PATCH(request: Request) {
       reportId?: unknown;
       status?: unknown;
       resolutionNote?: unknown;
+      moderationAction?: unknown;
     };
     const reportId =
       typeof body.reportId === "string" ? body.reportId.trim() : "";
     const status = normalizeReportStatus(body.status);
+    const moderationAction = normalizeModerationAction(body.moderationAction);
     const resolutionNote =
       typeof body.resolutionNote === "string"
         ? body.resolutionNote.trim().slice(0, 1000)
         : undefined;
 
-    if (!reportId || !status) {
+    if (!reportId || (!status && !moderationAction)) {
       return withCors(
         request,
         Response.json({ error: "신고 처리값을 확인해주세요." }, { status: 400 }),
       );
     }
 
+    if (moderationAction) {
+      return withCors(
+        request,
+        await moderateReportedJournalEntry({
+          reportId,
+          action: moderationAction,
+          resolutionNote,
+          reviewerUserId: authentication.user.id,
+        }),
+      );
+    }
+
     const report = await prisma.contentReport.update({
       where: { id: reportId },
       data: {
-        status,
+        status: status!,
         resolutionNote,
         reviewerUserId: authentication.user.id,
         reviewedAt: status === "pending" ? null : new Date(),
@@ -208,6 +237,134 @@ function normalizeReportStatus(value: unknown) {
     value === "dismissed"
     ? value
     : undefined;
+}
+
+function normalizeModerationAction(value: unknown) {
+  return value === "hide" || value === "restore" ? value : undefined;
+}
+
+async function moderateReportedJournalEntry({
+  reportId,
+  action,
+  resolutionNote,
+  reviewerUserId,
+}: {
+  reportId: string;
+  action: "hide" | "restore";
+  resolutionNote?: string;
+  reviewerUserId: string;
+}) {
+  const report = await prisma.contentReport.findUnique({
+    where: { id: reportId },
+    select: {
+      id: true,
+      entryId: true,
+      targetTitle: true,
+    },
+  });
+
+  if (!report?.entryId) {
+    return Response.json(
+      { error: "조치할 신고 대상 기록이 없습니다." },
+      { status: 409 },
+    );
+  }
+
+  const entry = await prisma.journalEntry.findUnique({
+    where: { id: report.entryId },
+    select: { publicationStatus: true },
+  });
+  const transition = entry
+    ? getJournalModerationTransition(entry.publicationStatus, action)
+    : null;
+
+  if (!transition) {
+    return Response.json(
+      {
+        error:
+          action === "hide"
+            ? "현재 공개 중인 기록만 숨길 수 있습니다."
+            : "관리자가 숨긴 기록만 복원할 수 있습니다.",
+      },
+      { status: 409 },
+    );
+  }
+
+  const now = new Date();
+  const defaultNote = action === "hide" ? "관리자 즉시 숨김" : "관리자 공개 복원";
+  const note = resolutionNote || defaultNote;
+
+  const result = await prisma.$transaction(async (transaction) => {
+    const updatedEntry = await transaction.journalEntry.updateMany({
+      where: {
+        id: report.entryId!,
+        publicationStatus: transition.expectedStatus,
+        publicId: { not: null },
+        publishedAt: { not: null },
+      },
+      data: {
+        publicationStatus: transition.nextStatus,
+        publicationStatusChangedAt: now,
+      },
+    });
+
+    if (updatedEntry.count === 0) return null;
+
+    await transaction.contentReport.updateMany({
+      where: {
+        entryId: report.entryId,
+        status: { in: ["pending", "reviewing"] },
+      },
+      data: {
+        status: "resolved",
+        resolutionNote: note,
+        reviewerUserId,
+        reviewedAt: now,
+      },
+    });
+
+    return transaction.contentReport.update({
+      where: { id: report.id },
+      data: {
+        status: "resolved",
+        resolutionNote: note,
+        reviewerUserId,
+        reviewedAt: now,
+      },
+      select: { id: true, entryId: true, status: true },
+    });
+  });
+
+  if (!result) {
+    return Response.json(
+      {
+        error:
+          action === "hide"
+            ? "현재 공개 중인 기록만 숨길 수 있습니다."
+            : "관리자가 숨긴 기록만 복원할 수 있습니다.",
+      },
+      { status: 409 },
+    );
+  }
+
+  await writeSystemLog({
+    level: action === "hide" ? "warning" : "info",
+    category: "moderation",
+    action: action === "hide" ? "journal.hidden" : "journal.restored",
+    message:
+      action === "hide"
+        ? `${report.targetTitle} 기록을 공개 화면에서 숨겼습니다.`
+        : `${report.targetTitle} 기록의 공개를 복원했습니다.`,
+    actorUserId: reviewerUserId,
+    targetType: "journalEntry",
+    targetId: report.entryId,
+    metadata: { reportId: report.id, resolutionNote: note },
+  });
+
+  return Response.json({
+    report: result,
+    publicationStatus: transition.nextStatus,
+  });
 }
 
 function adminMutationError(

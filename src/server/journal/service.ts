@@ -305,7 +305,10 @@ const journalEntrySelect = {
 } as const;
 
 function serializeJournalEntry(
-  entry: Omit<TutiJournalEntry, "visitedAt" | "publication"> & {
+  entry: Omit<
+    TutiJournalEntry,
+    "visitedAt" | "publication" | "publicationStatus"
+  > & {
     ownerId: string;
     publicId: string | null;
     publishedAt: Date | null;
@@ -326,6 +329,7 @@ function serializeJournalEntry(
     theme: entry.theme,
     difficulty: entry.difficulty,
     visitedAt: entry.visitedAt.toISOString(),
+    publicationStatus: entry.publicationStatus,
     publication:
       isJournalEntryPublic(entry)
         ? {

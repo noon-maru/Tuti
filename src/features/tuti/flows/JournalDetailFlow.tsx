@@ -62,9 +62,10 @@ export function JournalDetailFlow() {
   };
   const unpublishEntry = async () => {
     if (
-      !entry?.publication ||
+      !entry ||
+      entry.publicationStatus === "private" ||
       !window.confirm(
-        "공개를 중지하면 기존 링크는 다시 사용할 수 없어요. 계속할까요?",
+        "인터넷 공개를 중지하면 기존 링크는 다시 사용할 수 없어요. 계속할까요?",
       )
     ) {
       return;

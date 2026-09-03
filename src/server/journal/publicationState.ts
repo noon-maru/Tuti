@@ -18,3 +18,18 @@ export function canOwnerPublishJournalEntry(
 ) {
   return status !== "hidden";
 }
+
+export function getJournalModerationTransition(
+  status: JournalPublicationState["publicationStatus"],
+  action: "hide" | "restore",
+) {
+  if (action === "hide" && status === "published") {
+    return { expectedStatus: "published", nextStatus: "hidden" } as const;
+  }
+
+  if (action === "restore" && status === "hidden") {
+    return { expectedStatus: "hidden", nextStatus: "published" } as const;
+  }
+
+  return null;
+}
