@@ -120,6 +120,7 @@ type TutiState = {
   markSwipeHelpSeen: () => void;
   markJournalHelpSeen: () => void;
   markDepartureHelpSeen: () => void;
+  skipInitialHelp: () => void;
   finishIntake: (status: "answered" | "skipped") => void;
   requestDailyCheckIn: () => void;
   cancelDailyCheckIn: () => void;
@@ -314,6 +315,13 @@ export const useTutiStore = create<TutiState>()(
       markSwipeHelpSeen: () => set({ hasSeenSwipeHelp: true }),
       markJournalHelpSeen: () => set({ hasSeenJournalHelp: true }),
       markDepartureHelpSeen: () => set({ hasSeenDepartureHelp: true }),
+      skipInitialHelp: () =>
+        set({
+          hasSeenCardHelp: true,
+          hasSeenSwipeHelp: true,
+          hasSeenJournalHelp: true,
+          hasSeenDepartureHelp: true,
+        }),
       finishIntake: (status) =>
         set((state) => ({
           answers: status === "skipped" ? {} : state.answers,

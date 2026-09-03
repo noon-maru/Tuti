@@ -38,6 +38,7 @@ export function AccountFlow() {
   const entryRecord = useTutiStore((state) => state.entryRecord);
   const finishIntake = useTutiStore((state) => state.finishIntake);
   const finishEntry = useTutiStore((state) => state.finishEntry);
+  const skipInitialHelp = useTutiStore((state) => state.skipInitialHelp);
   const resetAllData = useTutiStore((state) => state.resetAllData);
   const oauthTicket = searchParams.get("oauthTicket");
   const oauthCallbackError = searchParams.get("oauthError");
@@ -70,6 +71,7 @@ export function AccountFlow() {
       finishEntry();
     }
 
+    skipInitialHelp();
     router.replace("/");
   }, [
     entryRecord,
@@ -77,6 +79,7 @@ export function AccountFlow() {
     finishIntake,
     queryClient,
     router,
+    skipInitialHelp,
   ]);
 
   useEffect(() => {
