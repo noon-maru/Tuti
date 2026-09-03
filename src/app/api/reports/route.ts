@@ -114,31 +114,36 @@ export async function POST(request: Request) {
       );
     }
 
-    const report = await prisma.contentReport.create({
-      data: {
-        id: randomUUID(),
-        reporterUserId: user.id,
-        entryId: entry.id,
-        targetOwnerId: entry.ownerId,
-        targetTitle: entry.title || entry.placeName,
-        targetPublicId: entry.publicId,
-        reason,
-        detail,
-      },
-      select: { id: true, status: true },
-    });
-
-    await writeSystemLog({
-      category: "report",
-      action: "report.created",
-      message: "새 콘텐츠 신고가 접수되었습니다.",
-      actorUserId: user.id,
-      targetType: "journalEntry",
-      targetId: entry.id,
-      metadata: {
-        reportId: report.id,
-        reason,
-      },
+    const report = await prisma.$transaction(async (transaction) => {
+      const createdReport = await transaction.contentReport.create({
+        data: {
+          id: randomUUID(),
+          reporterUserId: user.id,
+          entryId: entry.id,
+          targetOwnerId: entry.ownerId,
+          targetTitle: entry.title || entry.placeName,
+          targetPublicId: entry.publicId,
+          reason,
+          detail,
+        },
+        select: { id: true, status: true },
+      });
+      await writeSystemLog(
+        {
+          category: "report",
+          action: "report.created",
+          message: "새 콘텐츠 신고가 접수되었습니다.",
+          actorUserId: user.id,
+          targetType: "journalEntry",
+          targetId: entry.id,
+          metadata: {
+            reportId: createdReport.id,
+            reason,
+          },
+        },
+        transaction,
+      );
+      return createdReport;
     });
 
     return withCors(

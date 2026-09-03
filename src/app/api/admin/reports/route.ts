@@ -138,32 +138,37 @@ export async function PATCH(request: Request) {
       );
     }
 
-    const report = await prisma.contentReport.update({
-      where: { id: reportId },
-      data: {
-        status: status!,
-        resolutionNote,
-        reviewerUserId: authentication.user.id,
-        reviewedAt: status === "pending" ? null : new Date(),
-      },
-      select: {
-        id: true,
-        entryId: true,
-        status: true,
-      },
-    });
-
-    await writeSystemLog({
-      category: "report",
-      action: "report.status.updated",
-      message: `신고 상태를 ${status}(으)로 변경했습니다.`,
-      actorUserId: authentication.user.id,
-      targetType: "report",
-      targetId: report.id,
-      metadata: {
-        entryId: report.entryId,
-        status,
-      },
+    const report = await prisma.$transaction(async (transaction) => {
+      const updatedReport = await transaction.contentReport.update({
+        where: { id: reportId },
+        data: {
+          status: status!,
+          resolutionNote,
+          reviewerUserId: authentication.user.id,
+          reviewedAt: status === "pending" ? null : new Date(),
+        },
+        select: {
+          id: true,
+          entryId: true,
+          status: true,
+        },
+      });
+      await writeSystemLog(
+        {
+          category: "report",
+          action: "report.status.updated",
+          message: `신고 상태를 ${status}(으)로 변경했습니다.`,
+          actorUserId: authentication.user.id,
+          targetType: "report",
+          targetId: updatedReport.id,
+          metadata: {
+            entryId: updatedReport.entryId,
+            status,
+          },
+        },
+        transaction,
+      );
+      return updatedReport;
     });
 
     return withCors(request, Response.json({ report }));
@@ -328,6 +333,28 @@ async function moderateReportedOwner({
         })
       : { count: 0 };
 
+    await writeSystemLog(
+      {
+        level: action === "restrict" ? "warning" : "info",
+        category: "moderation",
+        action: action === "restrict"
+          ? "journal.owner.restricted"
+          : "journal.owner.unrestricted",
+        message: action === "restrict"
+          ? "사용자의 추가 기록 공개를 제한했습니다."
+          : "사용자의 기록 공개 제한을 해제했습니다.",
+        actorUserId: reviewerUserId,
+        targetType: "user",
+        targetId: report.targetOwnerId,
+        metadata: {
+          reportId,
+          reason,
+          hiddenEntryCount: hiddenEntries.count,
+        },
+      },
+      transaction,
+    );
+
     return hiddenEntries.count;
   });
 
@@ -337,21 +364,6 @@ async function moderateReportedOwner({
       { status: 409 },
     );
   }
-
-  await writeSystemLog({
-    level: action === "restrict" ? "warning" : "info",
-    category: "moderation",
-    action: action === "restrict"
-      ? "journal.owner.restricted"
-      : "journal.owner.unrestricted",
-    message: action === "restrict"
-      ? "사용자의 추가 기록 공개를 제한했습니다."
-      : "사용자의 기록 공개 제한을 해제했습니다.",
-    actorUserId: reviewerUserId,
-    targetType: "user",
-    targetId: report.targetOwnerId,
-    metadata: { reportId, reason, hiddenEntryCount: result },
-  });
 
   return Response.json({ ownerId: report.targetOwnerId, action });
 }
@@ -469,7 +481,7 @@ async function moderateReportedJournalEntry({
       },
     });
 
-    return transaction.contentReport.update({
+    const updatedReport = await transaction.contentReport.update({
       where: { id: report.id },
       data: {
         status: "resolved",
@@ -479,6 +491,23 @@ async function moderateReportedJournalEntry({
       },
       select: { id: true, entryId: true, status: true },
     });
+    await writeSystemLog(
+      {
+        level: action === "hide" ? "warning" : "info",
+        category: "moderation",
+        action: action === "hide" ? "journal.hidden" : "journal.restored",
+        message:
+          action === "hide"
+            ? `${report.targetTitle} 기록을 공개 화면에서 숨겼습니다.`
+            : `${report.targetTitle} 기록의 공개를 복원했습니다.`,
+        actorUserId: reviewerUserId,
+        targetType: "journalEntry",
+        targetId: report.entryId,
+        metadata: { reportId: report.id, resolutionNote: note },
+      },
+      transaction,
+    );
+    return updatedReport;
   });
 
   if (!result) {
@@ -492,20 +521,6 @@ async function moderateReportedJournalEntry({
       { status: 409 },
     );
   }
-
-  await writeSystemLog({
-    level: action === "hide" ? "warning" : "info",
-    category: "moderation",
-    action: action === "hide" ? "journal.hidden" : "journal.restored",
-    message:
-      action === "hide"
-        ? `${report.targetTitle} 기록을 공개 화면에서 숨겼습니다.`
-        : `${report.targetTitle} 기록의 공개를 복원했습니다.`,
-    actorUserId: reviewerUserId,
-    targetType: "journalEntry",
-    targetId: report.entryId,
-    metadata: { reportId: report.id, resolutionNote: note },
-  });
 
   return Response.json({
     report: result,

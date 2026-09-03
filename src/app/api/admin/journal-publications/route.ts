@@ -135,30 +135,56 @@ export async function PATCH(request: Request) {
     }
 
     const now = new Date();
-    const result = await prisma.journalEntry.updateMany({
-      where: {
-        id: entryId,
-        publicationStatus: action === "restore" ? "hidden" : "pending",
-        publicId: { not: null },
-        owner: { journalPublicationRestrictedAt: null },
-        ...(action === "reject"
-          ? {}
-          : {
-              publicationConsentVersion:
-                JOURNAL_PUBLICATION_POLICY_VERSION,
-              publicationConsentedAt: { not: null },
-            }),
-      },
-      data: {
-        publicationStatus: action === "reject" ? "hidden" : "published",
-        publishedAt: action === "reject" ? null : now,
-        publicationStatusChangedAt: now,
-        publicationReviewedAt: now,
-        publicationReviewerUserId: authentication.user.id,
-      },
+    const updated = await prisma.$transaction(async (transaction) => {
+      const result = await transaction.journalEntry.updateMany({
+        where: {
+          id: entryId,
+          publicationStatus: action === "restore" ? "hidden" : "pending",
+          publicId: { not: null },
+          owner: { journalPublicationRestrictedAt: null },
+          ...(action === "reject"
+            ? {}
+            : {
+                publicationConsentVersion:
+                  JOURNAL_PUBLICATION_POLICY_VERSION,
+                publicationConsentedAt: { not: null },
+              }),
+        },
+        data: {
+          publicationStatus: action === "reject" ? "hidden" : "published",
+          publishedAt: action === "reject" ? null : now,
+          publicationStatusChangedAt: now,
+          publicationReviewedAt: now,
+          publicationReviewerUserId: authentication.user.id,
+        },
+      });
+      if (result.count === 0) return false;
+
+      await writeSystemLog(
+        {
+          level: action === "reject" ? "warning" : "info",
+          category: "moderation",
+          action: action === "approve"
+            ? "journal.publication.approved"
+            : action === "restore"
+              ? "journal.publication.restored"
+              : "journal.publication.rejected",
+          message: action === "approve"
+            ? "기록의 인터넷 공개를 승인했습니다."
+            : action === "restore"
+              ? "공개 거절 기록을 재검토하여 복원했습니다."
+              : "기록의 인터넷 공개를 거절했습니다.",
+          actorUserId: authentication.user.id,
+          targetType: "journalEntry",
+          targetId: entryId,
+          metadata: { note: note || null },
+        },
+        transaction,
+      );
+      return true;
     });
 
-    if (result.count === 0) {
+    if (!updated) {
       return withCors(
         request,
         Response.json(
@@ -171,25 +197,6 @@ export async function PATCH(request: Request) {
         ),
       );
     }
-
-    await writeSystemLog({
-      level: action === "reject" ? "warning" : "info",
-      category: "moderation",
-      action: action === "approve"
-        ? "journal.publication.approved"
-        : action === "restore"
-          ? "journal.publication.restored"
-          : "journal.publication.rejected",
-      message: action === "approve"
-        ? "기록의 인터넷 공개를 승인했습니다."
-        : action === "restore"
-          ? "공개 거절 기록을 재검토하여 복원했습니다."
-          : "기록의 인터넷 공개를 거절했습니다.",
-      actorUserId: authentication.user.id,
-      targetType: "journalEntry",
-      targetId: entryId,
-      metadata: { note: note || null },
-    });
 
     return withCors(request, Response.json({ entryId, action }));
   } catch (error) {

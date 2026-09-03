@@ -2,6 +2,8 @@ import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 
 import { PATCH as reviewJournalPublication } from "../src/app/api/admin/journal-publications/route";
+import { PATCH as moderateReport } from "../src/app/api/admin/reports/route";
+import { POST as submitReport } from "../src/app/api/reports/route";
 import { prisma } from "../src/server/db/prisma";
 import { deleteUserAccount } from "../src/server/admin/users";
 import { mergeUserIntoCurrentAccount } from "../src/server/auth/accountMerge";
@@ -25,6 +27,7 @@ const viewerId = `journal-verification-viewer-${runId}`;
 const deletionOwnerId = `journal-verification-delete-${runId}`;
 const adminId = `journal-verification-admin-${runId}`;
 const adminAccessToken = `journal-verification-admin-token-${runId}`;
+const viewerAccessToken = `journal-verification-viewer-token-${runId}`;
 const mergeSourceId = `journal-verification-merge-source-${runId}`;
 const mergeTargetId = `journal-verification-merge-target-${runId}`;
 const cleanEntryId = `journal-verification-clean-${runId}`;
@@ -34,6 +37,7 @@ const mergeEntryPublicId = randomUUID().replaceAll("-", "");
 const reportId = `journal-verification-report-${runId}`;
 const moderationLogId = `journal-verification-log-${runId}`;
 const startedAt = new Date();
+let submittedReportId: string | undefined;
 
 try {
   await prisma.user.createMany({
@@ -53,7 +57,9 @@ try {
           }
         : {
             id,
-            tokenHash: `verification-token-${id}`,
+            tokenHash: id === viewerId
+              ? hashAccessToken(viewerAccessToken)
+              : `verification-token-${id}`,
           },
     ),
   });
@@ -286,6 +292,26 @@ try {
   assert.ok(finalPublicId);
   assert.notEqual(finalPublicId, secondPublicId);
 
+  const reportResponse = await submitReport(
+    createViewerReportRequest(finalPublicId),
+  );
+  assert.equal(reportResponse.status, 201);
+  const submittedReport = (await reportResponse.json()) as {
+    report?: { id?: string };
+  };
+  submittedReportId = submittedReport.report?.id;
+  assert.ok(submittedReportId);
+  const hideResponse = await moderateReport(
+    createAdminReportModerationRequest(submittedReportId, "hide"),
+  );
+  assert.equal(hideResponse.status, 200);
+  assert.equal(await getPublicJournalEntry(finalPublicId, viewerId), null);
+  const reportedRestoreResponse = await moderateReport(
+    createAdminReportModerationRequest(submittedReportId, "restore"),
+  );
+  assert.equal(reportedRestoreResponse.status, 200);
+  assert.ok(await getPublicJournalEntry(finalPublicId, viewerId));
+
   const pendingPublication = await setJournalEntryPublication(
     ownerId,
     imageEntryId,
@@ -338,6 +364,25 @@ try {
   );
   assert.equal(restoreResponse.status, 200);
   assert.ok(await getPublicJournalEntry(pendingRecord.publicId, viewerId));
+
+  for (const action of [
+    "journal.published",
+    "report.created",
+    "journal.hidden",
+    "journal.restored",
+    "journal.publication.rejected",
+    "journal.publication.restored",
+  ]) {
+    assert.ok(
+      await prisma.systemLog.count({
+        where: {
+          action,
+          targetId: { in: [cleanEntryId, imageEntryId] },
+        },
+      }),
+      `${action} 감사 로그가 없습니다.`,
+    );
+  }
 
   await prisma.contentReport.create({
     data: {
@@ -408,9 +453,11 @@ try {
           "moderation_hidden_and_restored",
           "moderation_hidden_owner_transition_rejected",
           "restricted_owner_rejected",
+          "report_submission_hide_and_restore",
           "image_entry_pending",
           "admin_rejected_and_restored_pending_entry",
           "admin_outdated_consent_restore_rejected",
+          "publication_and_moderation_audit_logs_created",
           "deleted_account_moderation_anonymized",
           "deleted_entry_trace_removed",
         ],
@@ -420,7 +467,11 @@ try {
     ),
   );
 } finally {
-  await prisma.contentReport.deleteMany({ where: { id: reportId } });
+  await prisma.contentReport.deleteMany({
+    where: {
+      id: { in: [reportId, ...(submittedReportId ? [submittedReportId] : [])] },
+    },
+  });
   await prisma.systemLog.deleteMany({
     where: {
       OR: [
@@ -481,5 +532,38 @@ function createAdminReviewRequest(
       "Content-Type": "application/json",
     },
     body: JSON.stringify({ entryId, action, note: "자동 통합 검증" }),
+  });
+}
+
+function createViewerReportRequest(publicId: string) {
+  return new Request("http://localhost/api/reports", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${viewerAccessToken}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      publicId,
+      reason: "privacy",
+      detail: "자동 통합 검증 신고",
+    }),
+  });
+}
+
+function createAdminReportModerationRequest(
+  reportId: string,
+  moderationAction: "hide" | "restore",
+) {
+  return new Request("http://localhost/api/admin/reports", {
+    method: "PATCH",
+    headers: {
+      Authorization: `Bearer ${adminAccessToken}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      reportId,
+      moderationAction,
+      resolutionNote: "자동 통합 검증",
+    }),
   });
 }

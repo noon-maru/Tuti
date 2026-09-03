@@ -1,7 +1,10 @@
 import { randomBytes } from "node:crypto";
 
 import { Prisma } from "@/generated/prisma/client";
-import { writeSystemLogSafely } from "@/server/admin/log";
+import {
+  writeSystemLog,
+  writeSystemLogSafely,
+} from "@/server/admin/log";
 import { prisma } from "@/server/db/prisma";
 import {
   deleteStoredJournalImage,
@@ -316,52 +319,58 @@ export async function setJournalEntryPublication(
     safety?.decision === "review" ? "pending" : "published";
   const now = new Date();
 
-  const result = await prisma.journalEntry.updateMany({
-    where: { id: entryId, ownerId },
-    data: published
-      ? {
-          publicId: randomBytes(24).toString("base64url"),
-          publishedAt: publicationStatus === "published" ? now : null,
-          publicationStatus,
-          publicationStatusChangedAt: now,
-          publicationReviewReasons: safety?.reasons ?? [],
-          publicationReviewedAt:
-            publicationStatus === "published" ? now : null,
-          publicationReviewerUserId: null,
-          publicationConsentVersion: consentVersion,
-          publicationConsentedAt: now,
-        }
-      : {
-          publicId: null,
-          publishedAt: null,
-          publicationStatus: "private",
-          publicationStatusChangedAt: now,
-          publicationReviewReasons: Prisma.DbNull,
-          publicationReviewedAt: null,
-          publicationReviewerUserId: null,
-        },
+  const entry = await prisma.$transaction(async (transaction) => {
+    const result = await transaction.journalEntry.updateMany({
+      where: { id: entryId, ownerId },
+      data: published
+        ? {
+            publicId: randomBytes(24).toString("base64url"),
+            publishedAt: publicationStatus === "published" ? now : null,
+            publicationStatus,
+            publicationStatusChangedAt: now,
+            publicationReviewReasons: safety?.reasons ?? [],
+            publicationReviewedAt:
+              publicationStatus === "published" ? now : null,
+            publicationReviewerUserId: null,
+            publicationConsentVersion: consentVersion,
+            publicationConsentedAt: now,
+          }
+        : {
+            publicId: null,
+            publishedAt: null,
+            publicationStatus: "private",
+            publicationStatusChangedAt: now,
+            publicationReviewReasons: Prisma.DbNull,
+            publicationReviewedAt: null,
+            publicationReviewerUserId: null,
+          },
+    });
+    if (result.count === 0) return null;
+
+    const updatedEntry = await transaction.journalEntry.findUniqueOrThrow({
+      where: { id: entryId },
+      select: journalEntrySelect,
+    });
+    await writeSystemLog(
+      {
+        category: "journal",
+        action: published ? "journal.published" : "journal.unpublished",
+        message: published
+          ? "기록이 공개되었습니다."
+          : "기록 공개가 해제되었습니다.",
+        actorUserId: ownerId,
+        targetType: "journalEntry",
+        targetId: entryId,
+        metadata: published
+          ? { consentVersion: consentVersion ?? null, publicationStatus }
+          : undefined,
+      },
+      transaction,
+    );
+    return updatedEntry;
   });
 
-  if (result.count === 0) return null;
-
-  const entry = await prisma.journalEntry.findUniqueOrThrow({
-    where: { id: entryId },
-    select: journalEntrySelect,
-  });
-
-  await writeSystemLogSafely({
-    category: "journal",
-    action: published ? "journal.published" : "journal.unpublished",
-    message: published
-      ? "기록이 공개되었습니다."
-      : "기록 공개가 해제되었습니다.",
-    actorUserId: ownerId,
-    targetType: "journalEntry",
-    targetId: entryId,
-    metadata: published
-      ? { consentVersion: consentVersion ?? null, publicationStatus }
-      : undefined,
-  });
+  if (!entry) return null;
 
   return serializeJournalEntry(entry);
 }

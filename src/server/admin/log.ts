@@ -13,8 +13,11 @@ type SystemLogInput = {
   metadata?: Record<string, boolean | number | string | null>;
 };
 
-export async function writeSystemLog(input: SystemLogInput) {
-  return prisma.systemLog.create({
+export async function writeSystemLog(
+  input: SystemLogInput,
+  client: Pick<typeof prisma, "systemLog"> = prisma,
+) {
+  return client.systemLog.create({
     data: {
       id: randomUUID(),
       level: input.level,
