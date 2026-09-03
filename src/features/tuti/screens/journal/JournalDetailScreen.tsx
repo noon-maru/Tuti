@@ -104,16 +104,7 @@ export function JournalDetailScreen({
                     label: "PNG로 공유하기",
                     onSelect: () => setShareOpen(true),
                   },
-                  ...(publicationEnabled &&
-                  entry.publicationStatus === "pending"
-                    ? [
-                        {
-                          label: "공개 요청 취소",
-                          tone: "danger" as const,
-                          onSelect: onUnpublish,
-                        },
-                      ]
-                    : publicationEnabled
+                  ...(publicationEnabled
                     ? [
                         {
                           label: "인터넷에 공개",
@@ -150,12 +141,10 @@ export function JournalDetailScreen({
         <DetailContent
           $hidden={!entryTransition.isContentVisible}
         >
-          {(entry.publicationStatus === "hidden" ||
-            entry.publicationStatus === "pending") && (
+          {entry.publicationStatus === "hidden" && (
             <ModerationNotice role="status">
-              {entry.publicationStatus === "hidden"
-                ? "운영 검토로 인터넷 공개가 중지된 기록이에요. 기록은 나만 볼 수 있으며, 재검토가 필요하면 1:1 문의로 알려주세요."
-                : "인터넷 공개 전 안전 확인을 기다리고 있어요. 확인이 끝나기 전에는 나만 볼 수 있어요."}
+              운영 검토로 인터넷 공개가 중지된 기록이에요. 기록은 나만 볼 수
+              있으며, 재검토가 필요하면 1:1 문의로 알려주세요.
             </ModerationNotice>
           )}
           <JournalLocationLabel placeName={entry.placeName} />

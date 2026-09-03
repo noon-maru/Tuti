@@ -1,7 +1,6 @@
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 
-import { PATCH as reviewJournalPublication } from "../src/app/api/admin/journal-publications/route";
 import { PATCH as moderateReport } from "../src/app/api/admin/reports/route";
 import { POST as submitReport } from "../src/app/api/reports/route";
 import { prisma } from "../src/server/db/prisma";
@@ -88,8 +87,8 @@ try {
       {
         id: imageEntryId,
         ownerId,
-        title: "이미지 검토 대기 기록",
-        content: "관리자 확인 전에는 공개되지 않아요.",
+        title: "이미지 즉시 공개 기록",
+        content: "명시적 동의 후 바로 공개되는 기록이에요.",
         image: `journal-images/${ownerId}/${imageEntryId}/verification.webp`,
         crowd: "보통",
         placeName: "검증 공간",
@@ -312,66 +311,22 @@ try {
   assert.equal(reportedRestoreResponse.status, 200);
   assert.ok(await getPublicJournalEntry(finalPublicId, viewerId));
 
-  const pendingPublication = await setJournalEntryPublication(
+  const imagePublication = await setJournalEntryPublication(
     ownerId,
     imageEntryId,
     true,
     JOURNAL_PUBLICATION_POLICY_VERSION,
   );
-  assert.equal(pendingPublication?.publicationStatus, "pending");
-  const pendingRecord = await prisma.journalEntry.findUniqueOrThrow({
-    where: { id: imageEntryId },
-    select: { publicId: true },
-  });
-  assert.ok(pendingRecord.publicId);
-  assert.equal(
-    await getPublicJournalEntry(pendingRecord.publicId, viewerId),
-    null,
-  );
-  const rejectResponse = await reviewJournalPublication(
-    createAdminReviewRequest(imageEntryId, "reject"),
-  );
-  assert.equal(rejectResponse.status, 200);
-  assert.equal(
-    (
-      await prisma.journalEntry.findUniqueOrThrow({
-        where: { id: imageEntryId },
-        select: { publicationStatus: true },
-      })
-    ).publicationStatus,
-    "hidden",
-  );
-  await assert.rejects(
-    setJournalEntryPublication(ownerId, imageEntryId, false),
-    /작성자가 공개 상태를 바꿀 수 없어요/,
-  );
-  await prisma.journalEntry.update({
-    where: { id: imageEntryId },
-    data: { publicationConsentVersion: "legacy-pre-consent" },
-  });
-  const outdatedConsentRestoreResponse = await reviewJournalPublication(
-    createAdminReviewRequest(imageEntryId, "restore"),
-  );
-  assert.equal(outdatedConsentRestoreResponse.status, 409);
-  await prisma.journalEntry.update({
-    where: { id: imageEntryId },
-    data: {
-      publicationConsentVersion: JOURNAL_PUBLICATION_POLICY_VERSION,
-    },
-  });
-  const restoreResponse = await reviewJournalPublication(
-    createAdminReviewRequest(imageEntryId, "restore"),
-  );
-  assert.equal(restoreResponse.status, 200);
-  assert.ok(await getPublicJournalEntry(pendingRecord.publicId, viewerId));
+  assert.equal(imagePublication?.publicationStatus, "published");
+  const imagePublicId = imagePublication?.publication?.publicId;
+  assert.ok(imagePublicId);
+  assert.ok(await getPublicJournalEntry(imagePublicId, viewerId));
 
   for (const action of [
     "journal.published",
     "report.created",
     "journal.hidden",
     "journal.restored",
-    "journal.publication.rejected",
-    "journal.publication.restored",
   ]) {
     assert.ok(
       await prisma.systemLog.count({
@@ -454,9 +409,7 @@ try {
           "moderation_hidden_owner_transition_rejected",
           "restricted_owner_rejected",
           "report_submission_hide_and_restore",
-          "image_entry_pending",
-          "admin_rejected_and_restored_pending_entry",
-          "admin_outdated_consent_restore_rejected",
+          "image_entry_published_without_preapproval",
           "publication_and_moderation_audit_logs_created",
           "deleted_account_moderation_anonymized",
           "deleted_entry_trace_removed",
@@ -519,20 +472,6 @@ try {
     },
   });
   await prisma.$disconnect();
-}
-
-function createAdminReviewRequest(
-  entryId: string,
-  action: "approve" | "reject" | "restore",
-) {
-  return new Request("http://localhost/api/admin/journal-publications", {
-    method: "PATCH",
-    headers: {
-      Authorization: `Bearer ${adminAccessToken}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({ entryId, action, note: "자동 통합 검증" }),
-  });
 }
 
 function createViewerReportRequest(publicId: string) {

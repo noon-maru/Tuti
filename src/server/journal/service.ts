@@ -15,7 +15,6 @@ import {
   canOwnerPublishJournalEntry,
   isJournalEntryPublic,
 } from "@/server/journal/publicationState";
-import { assessJournalPublicationSafety } from "@/server/journal/publicationSafety";
 import type {
   JournalEntryInput,
   TutiJournalEntry,
@@ -139,25 +138,8 @@ export async function updateJournalEntry(
               publicationStatus:
                 currentEntry.publicationStatus === "hidden"
                   ? ("hidden" as const)
-                  : ("pending" as const),
-              ...(currentEntry.publicationStatus === "hidden"
-                ? {}
-                : {
-                    publishedAt: null,
-                    publicationStatusChangedAt: new Date(),
-                  }),
-              publicationReviewReasons: [
-                "content_changed_after_publication",
-                ...assessJournalPublicationSafety({
-                  title: input.title,
-                  content: input.content,
-                  image: preparedImage.image,
-                  placeName: selectedPlace.name,
-                  crowd: input.crowd,
-                  theme: input.theme,
-                  difficulty: input.difficulty,
-                }).reasons,
-              ],
+                  : ("published" as const),
+              publicationReviewReasons: Prisma.DbNull,
               publicationReviewedAt: null,
               publicationReviewerUserId: null,
             }
@@ -277,8 +259,7 @@ export async function setJournalEntryPublication(
 
   if (
     (published &&
-      (isJournalEntryPublic(currentEntry) ||
-        currentEntry.publicationStatus === "pending")) ||
+      isJournalEntryPublic(currentEntry)) ||
     (!published && currentEntry.publicationStatus === "private")
   ) {
     return serializeJournalEntry(currentEntry);
@@ -289,7 +270,7 @@ export async function setJournalEntryPublication(
     !canOwnerPublishJournalEntry(currentEntry.publicationStatus)
   ) {
     throw new JournalPublicationStateError(
-      "관리자 확인으로 숨겨진 기록은 다시 공개할 수 없어요.",
+      "관리자 조치로 숨겨진 기록은 다시 공개할 수 없어요.",
     );
   }
 
@@ -312,11 +293,7 @@ export async function setJournalEntryPublication(
     }
   }
 
-  const safety = published
-    ? assessJournalPublicationSafety(currentEntry)
-    : null;
-  const publicationStatus =
-    safety?.decision === "review" ? "pending" : "published";
+  const publicationStatus = "published";
   const now = new Date();
 
   const entry = await prisma.$transaction(async (transaction) => {
@@ -325,12 +302,11 @@ export async function setJournalEntryPublication(
       data: published
         ? {
             publicId: randomBytes(24).toString("base64url"),
-            publishedAt: publicationStatus === "published" ? now : null,
+            publishedAt: now,
             publicationStatus,
             publicationStatusChangedAt: now,
-            publicationReviewReasons: safety?.reasons ?? [],
-            publicationReviewedAt:
-              publicationStatus === "published" ? now : null,
+            publicationReviewReasons: Prisma.DbNull,
+            publicationReviewedAt: null,
             publicationReviewerUserId: null,
             publicationConsentVersion: consentVersion,
             publicationConsentedAt: now,
