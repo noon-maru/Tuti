@@ -2799,6 +2799,9 @@ function getPublicationReviewReasonLabel(reason: string) {
   if (reason === "contact_information") return "연락처 노출 가능성";
   if (reason === "external_link") return "외부 링크";
   if (reason === "unsafe_language") return "위험 표현";
+  if (reason === "sexual_or_exploitative_content") return "성적·착취 의심 표현";
+  if (reason === "hate_or_harassment") return "혐오·괴롭힘 의심 표현";
+  if (reason === "threat_or_self_harm") return "위해·자해 의심 표현";
   if (reason === "spam_pattern") return "반복·홍보 패턴";
   if (reason === "content_changed_after_publication") return "공개 후 내용 변경";
   return reason;

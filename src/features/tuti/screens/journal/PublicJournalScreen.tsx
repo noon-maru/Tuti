@@ -112,7 +112,10 @@ export function PublicJournalScreen({
         <Footer>
           <FooterCopy>
             <p>오늘 가능한 만큼만, 잠깐 다른 공기로.</p>
-            <a href="/legal/community-guidelines">기록 공개 운영정책</a>
+            <FooterLinks>
+              <a href="/legal/community-guidelines">기록 공개 운영정책</a>
+              <a href="mailto:admin@tuti.today">운영자 문의</a>
+            </FooterLinks>
           </FooterCopy>
           <FooterActions>
             <ReportButton
@@ -339,16 +342,21 @@ const FooterCopy = styled.div`
   display: grid;
   gap: 4px;
 
+  @media (max-width: 520px) {
+    justify-items: center;
+  }
+`;
+
+const FooterLinks = styled.span`
+  display: flex;
+  gap: 10px;
+
   a {
     width: fit-content;
     color: inherit;
     font-size: 12px;
     text-decoration: underline;
     text-underline-offset: 3px;
-  }
-
-  @media (max-width: 520px) {
-    justify-items: center;
   }
 `;
 

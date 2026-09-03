@@ -38,3 +38,19 @@ test("external links and repeated promotional text require review", () => {
   assert.equal(assessment.decision, "review");
   assert.deepEqual(assessment.reasons, ["external_link", "spam_pattern"]);
 });
+
+test("sexual exploitation, hate, threats, and self-harm signals require review", () => {
+  const assessment = assessJournalPublicationSafety({
+    title: "꺼져라",
+    content: "혐오 표현과 아동 성 착취, 죽인다 또는 자살해 같은 위해 표현",
+    image: null,
+  });
+
+  assert.equal(assessment.decision, "review");
+  assert.deepEqual(assessment.reasons, [
+    "unsafe_language",
+    "sexual_or_exploitative_content",
+    "hate_or_harassment",
+    "threat_or_self_harm",
+  ]);
+});
