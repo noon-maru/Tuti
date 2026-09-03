@@ -168,6 +168,17 @@ export type AdminReportItem = {
   createdAt: string;
 };
 
+export type AdminJournalPublicationReviewItem = {
+  id: string;
+  ownerId: string;
+  title: string;
+  content: string;
+  image: string | null;
+  placeName: string;
+  reasons: string[];
+  requestedAt: string;
+};
+
 export type AdminUserItem = {
   id: string;
   role: UserRole;
@@ -362,6 +373,10 @@ export type AdminPlacesResponse = {
 
 export type AdminReportsResponse = {
   reports: AdminReportItem[];
+};
+
+export type AdminJournalPublicationReviewsResponse = {
+  reviews: AdminJournalPublicationReviewItem[];
 };
 
 export type AdminUsersResponse = {

@@ -18,6 +18,8 @@ import {
 import { AdminNotificationsPanel } from "@/features/admin/AdminNotificationsPanel";
 import type {
   AdminInquiriesResponse,
+  AdminJournalPublicationReviewItem,
+  AdminJournalPublicationReviewsResponse,
   AdminInquiryItem,
   AdminLogItem,
   AdminLogsResponse,
@@ -211,6 +213,9 @@ export function AdminScreen({
   const [places, setPlaces] = useState<AdminPlaceItem[]>([]);
   const [placesMeta, setPlacesMeta] = useState<AdminPlacesMeta | null>(null);
   const [reports, setReports] = useState<AdminReportItem[]>([]);
+  const [publicationReviews, setPublicationReviews] = useState<
+    AdminJournalPublicationReviewItem[]
+  >([]);
   const [inquiries, setInquiries] = useState<AdminInquiryItem[]>([]);
   const [users, setUsers] = useState<AdminUserItem[]>([]);
   const [settings, setSettings] = useState<AdminSettingItem[]>([]);
@@ -428,10 +433,14 @@ export function AdminScreen({
       setPlaces(response.places);
       setPlacesMeta(response.meta);
     } else if (tab === "reports") {
-      const response = await fetchAdminJson<AdminReportsResponse>(
-        `reports${suffix}`,
-      );
-      setReports(response.reports);
+      const [reportResponse, publicationResponse] = await Promise.all([
+        fetchAdminJson<AdminReportsResponse>(`reports${suffix}`),
+        fetchAdminJson<AdminJournalPublicationReviewsResponse>(
+          "journal-publications",
+        ),
+      ]);
+      setReports(reportResponse.reports);
+      setPublicationReviews(publicationResponse.reviews);
     } else if (tab === "inquiries") {
       const response = await fetchAdminJson<AdminInquiriesResponse>(
         `inquiries${suffix}`,
@@ -555,7 +564,13 @@ export function AdminScreen({
   }, [closeMobileMenu, mobileMenuOpen]);
 
   const mutate = async (
-    resource: "inquiries" | "places" | "reports" | "settings" | "users",
+    resource:
+      | "inquiries"
+      | "journal-publications"
+      | "places"
+      | "reports"
+      | "settings"
+      | "users",
     id: string,
     init: RequestInit,
   ) => {
@@ -768,6 +783,7 @@ export function AdminScreen({
         ) : tab === "reports" ? (
           <ReportsPanel
             reports={reports}
+            publicationReviews={publicationReviews}
             mutatingId={mutatingId}
             onSave={(reportId, status, resolutionNote) =>
               void mutate(
@@ -817,6 +833,23 @@ export function AdminScreen({
                       ? "관리자 즉시 숨김"
                       : "관리자 공개 복원",
                 }),
+              );
+            }}
+            onReviewPublication={(entryId, action) => {
+              if (
+                !window.confirm(
+                  action === "approve"
+                    ? "이 기록을 인터넷에 공개할까요?"
+                    : "이 공개 요청을 거절하고 작성자만 볼 수 있도록 숨길까요?",
+                )
+              ) {
+                return;
+              }
+
+              void mutate(
+                "journal-publications",
+                entryId,
+                adminJsonRequest("PATCH", { entryId, action }),
               );
             }}
           />
@@ -1961,12 +1994,15 @@ function PlacesPanel({
 
 function ReportsPanel({
   reports,
+  publicationReviews,
   mutatingId,
   onSave,
   onForceDelete,
   onModerate,
+  onReviewPublication,
 }: {
   reports: AdminReportItem[];
+  publicationReviews: AdminJournalPublicationReviewItem[];
   mutatingId: string | null;
   onSave: (
     reportId: string,
@@ -1978,11 +2014,70 @@ function ReportsPanel({
     report: AdminReportItem,
     action: "hide" | "restore",
   ) => void;
+  onReviewPublication: (
+    entryId: string,
+    action: "approve" | "reject",
+  ) => void;
 }) {
-  if (reports.length === 0) return <StatePanel>접수된 신고가 없습니다.</StatePanel>;
+  if (reports.length === 0 && publicationReviews.length === 0) {
+    return <StatePanel>검토할 공개 요청이나 신고가 없습니다.</StatePanel>;
+  }
 
   return (
-    <TableCard>
+    <ReportSections>
+      {publicationReviews.length > 0 && (
+        <TableCard>
+          <SectionHeading>공개 전 안전 검토</SectionHeading>
+          <Table>
+            <thead>
+              <tr>
+                <th scope="col">기록</th>
+                <th scope="col">내용</th>
+                <th scope="col">검토 사유</th>
+                <th scope="col">요청 시각</th>
+                <th scope="col">조치</th>
+              </tr>
+            </thead>
+            <tbody>
+              {publicationReviews.map((review) => (
+                <tr key={review.id}>
+                  <td data-label="기록">
+                    {review.image && (
+                      <ReviewThumbnail src={review.image} alt="" />
+                    )}
+                    <strong>{review.title || review.placeName}</strong>
+                    <Small>{review.placeName}</Small>
+                  </td>
+                  <td data-label="내용">{review.content}</td>
+                  <td data-label="검토 사유">
+                    {review.reasons.map(getPublicationReviewReasonLabel).join(", ")}
+                  </td>
+                  <td data-label="요청 시각">{formatDate(review.requestedAt)}</td>
+                  <td data-label="조치">
+                    <TableActions>
+                      <CompactActionButton
+                        type="button"
+                        disabled={mutatingId === review.id}
+                        onClick={() => onReviewPublication(review.id, "approve")}
+                      >
+                        공개 승인
+                      </CompactActionButton>
+                      <DangerButton
+                        type="button"
+                        disabled={mutatingId === review.id}
+                        onClick={() => onReviewPublication(review.id, "reject")}
+                      >
+                        공개 거절
+                      </DangerButton>
+                    </TableActions>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </Table>
+        </TableCard>
+      )}
+      {reports.length > 0 && <TableCard>
       <Table>
         <thead>
           <tr>
@@ -2036,7 +2131,8 @@ function ReportsPanel({
           ))}
         </tbody>
       </Table>
-    </TableCard>
+      </TableCard>}
+    </ReportSections>
   );
 }
 
@@ -2645,6 +2741,16 @@ function getReportStatusLabel(status: string) {
   if (status === "resolved") return "처리 완료";
   if (status === "dismissed") return "기각";
   return status;
+}
+
+function getPublicationReviewReasonLabel(reason: string) {
+  if (reason === "image_review_required") return "이미지 확인";
+  if (reason === "contact_information") return "연락처 노출 가능성";
+  if (reason === "external_link") return "외부 링크";
+  if (reason === "unsafe_language") return "위험 표현";
+  if (reason === "spam_pattern") return "반복·홍보 패턴";
+  if (reason === "content_changed_after_publication") return "공개 후 내용 변경";
+  return reason;
 }
 
 function getLogLevelLabel(level: string) {
@@ -4010,6 +4116,27 @@ const TableCard = styled.div`
   @media (max-width: 768px) {
     overflow: hidden;
   }
+`;
+
+const ReportSections = styled.div`
+  display: grid;
+  gap: var(--space-5);
+`;
+
+const SectionHeading = styled.h2`
+  margin: 0;
+  padding: var(--space-4) var(--space-5);
+  border-bottom: 1px solid var(--color-border);
+  font-size: var(--font-size-300);
+`;
+
+const ReviewThumbnail = styled.img`
+  width: 64px;
+  height: 64px;
+  display: block;
+  margin-bottom: var(--space-2);
+  border-radius: 6px;
+  object-fit: cover;
 `;
 
 const PlaceResults = styled.div`
