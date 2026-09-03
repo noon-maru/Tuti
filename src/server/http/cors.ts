@@ -16,11 +16,18 @@ export function isRequestOriginAllowed(request: Request) {
 export function withCors(request: Request, response: Response) {
   const origin = request.headers.get("origin");
 
-  if (!origin || !isRequestOriginAllowed(request)) return response;
-
   const headers = new Headers(response.headers);
-  headers.set("Access-Control-Allow-Origin", origin);
   headers.set("Vary", appendVary(headers.get("Vary"), "Origin"));
+
+  if (!origin || !isRequestOriginAllowed(request)) {
+    return new Response(response.body, {
+      status: response.status,
+      statusText: response.statusText,
+      headers,
+    });
+  }
+
+  headers.set("Access-Control-Allow-Origin", origin);
 
   return new Response(response.body, {
     status: response.status,

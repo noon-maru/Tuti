@@ -51,6 +51,9 @@ export function JournalShareDialog({
   } | null>(null);
   const [previewScale, setPreviewScale] = useState(1);
   const [png, setPng] = useState<Blob | null>(null);
+  const [shareImageUrl, setShareImageUrl] = useState<string | null>(
+    entry.image ? null : "",
+  );
   const [trace, setTrace] = useState<JournalShareTraceIssue | null>(
     null,
   );
@@ -61,6 +64,34 @@ export function JournalShareDialog({
     "공유 이미지 추적 번호를 준비하고 있어요.",
   );
   const nativePlatform = isNativeSharePlatform();
+
+  useEffect(() => {
+    if (!entry.image) return;
+
+    let active = true;
+
+    void fetch(entry.image, { cache: "no-store" })
+      .then((response) => {
+        if (!response.ok) {
+          throw new Error("기록 사진을 불러오지 못했어요.");
+        }
+        return response.blob();
+      })
+      .then(readBlobAsDataUrl)
+      .then((dataUrl) => {
+        if (!active) return;
+        setShareImageUrl(dataUrl);
+      })
+      .catch(() => {
+        if (!active) return;
+        setStatus("error");
+        setMessage("기록 사진을 공유 이미지로 불러오지 못했어요.");
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [entry.image]);
 
   useLayoutEffect(() => {
     const preview = previewRef.current;
@@ -128,7 +159,7 @@ export function JournalShareDialog({
   }, [entry.id]);
 
   useEffect(() => {
-    if (!trace) return;
+    if (!trace || shareImageUrl === null) return;
 
     let cancelled = false;
 
@@ -199,7 +230,7 @@ export function JournalShareDialog({
     return () => {
       cancelled = true;
     };
-  }, [entry, trace]);
+  }, [entry, shareImageUrl, trace]);
 
   const shareImage = async () => {
     if (!png || status === "sharing") return;
@@ -255,6 +286,7 @@ export function JournalShareDialog({
             <JournalShareCard
               cardRef={cardRef}
               entry={entry}
+              imageUrl={shareImageUrl || null}
               traceCode={trace?.shortCode}
             />
           </PreviewScale>
@@ -301,21 +333,23 @@ export function JournalShareDialog({
 function JournalShareCard({
   cardRef,
   entry,
+  imageUrl,
   traceCode,
 }: {
   cardRef: Ref<HTMLDivElement>;
   entry: TutiJournalEntry;
+  imageUrl: string | null;
   traceCode?: string;
 }) {
   return (
     <ShareCard ref={cardRef}>
       <ShareSurface>
         <SharePhoto>
-          {entry.image && (
+          {imageUrl && (
             <PhotoImage
-              src={entry.image}
+              src={imageUrl}
               alt=""
-              crossOrigin="anonymous"
+              data-share-photo
               draggable="false"
             />
           )}
@@ -365,15 +399,36 @@ function formatShareDate(value: string) {
 function waitForImages(node: HTMLElement) {
   return Promise.all(
     [...node.querySelectorAll("img")].map(async (image) => {
-      if (image.complete) return;
+      if (image.complete && image.naturalWidth > 0) return;
 
       try {
         await image.decode();
       } catch {
+        if (image.hasAttribute("data-share-photo")) {
+          throw new Error("기록 사진을 공유 이미지로 준비하지 못했어요.");
+        }
         // 이미지가 없더라도 브랜드 배경으로 공유 카드를 생성한다.
       }
     }),
   );
+}
+
+function readBlobAsDataUrl(blob: Blob) {
+  return new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+
+    reader.addEventListener("load", () => {
+      if (typeof reader.result !== "string") {
+        reject(new Error("기록 사진을 변환하지 못했어요."));
+        return;
+      }
+      resolve(reader.result);
+    });
+    reader.addEventListener("error", () => {
+      reject(new Error("기록 사진을 변환하지 못했어요."));
+    });
+    reader.readAsDataURL(blob);
+  });
 }
 
 function waitForPaint() {
