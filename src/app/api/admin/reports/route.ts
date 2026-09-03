@@ -138,11 +138,18 @@ export async function PATCH(request: Request) {
       );
     }
 
+    if (!status) {
+      return withCors(
+        request,
+        Response.json({ error: "신고 상태를 확인해주세요." }, { status: 400 }),
+      );
+    }
+
     const report = await prisma.$transaction(async (transaction) => {
       const updatedReport = await transaction.contentReport.update({
         where: { id: reportId },
         data: {
-          status: status!,
+          status,
           resolutionNote,
           reviewerUserId: authentication.user.id,
           reviewedAt: status === "pending" ? null : new Date(),
@@ -394,9 +401,10 @@ async function moderateReportedJournalEntry({
       { status: 409 },
     );
   }
+  const entryId = report.entryId;
 
   const entry = await prisma.journalEntry.findUnique({
-    where: { id: report.entryId },
+    where: { id: entryId },
     select: {
       publicationStatus: true,
       publicationConsentVersion: true,
@@ -447,7 +455,7 @@ async function moderateReportedJournalEntry({
   const result = await prisma.$transaction(async (transaction) => {
     const updatedEntry = await transaction.journalEntry.updateMany({
       where: {
-        id: report.entryId!,
+        id: entryId,
         publicationStatus: transition.expectedStatus,
         publicId: { not: null },
         publishedAt: { not: null },
@@ -470,7 +478,7 @@ async function moderateReportedJournalEntry({
 
     await transaction.contentReport.updateMany({
       where: {
-        entryId: report.entryId,
+        entryId,
         status: { in: ["pending", "reviewing"] },
       },
       data: {
@@ -502,7 +510,7 @@ async function moderateReportedJournalEntry({
             : `${report.targetTitle} 기록의 공개를 복원했습니다.`,
         actorUserId: reviewerUserId,
         targetType: "journalEntry",
-        targetId: report.entryId,
+        targetId: entryId,
         metadata: { reportId: report.id, resolutionNote: note },
       },
       transaction,
