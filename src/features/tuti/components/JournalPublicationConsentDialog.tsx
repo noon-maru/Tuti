@@ -156,7 +156,7 @@ export function JournalPublicationConsentDialog({
             disabled={!agreed || submitting}
             onClick={() => void confirmPublication()}
           >
-            {submitting ? "안전 확인 중" : "인터넷에 공개하기"}
+            {submitting ? "공개하는 중" : "인터넷에 공개하기"}
           </PublishButton>
           <CancelButton
             type="button"
@@ -371,9 +371,12 @@ const Actions = styled.div`
 
 const PublishButton = styled(PrimaryButton)`
   width: 100%;
-  min-height: var(--space-13);
+  min-height: var(--space-14);
+  padding: var(--space-3) var(--space-6);
   background: var(--color-secondary-500);
   color: var(--color-neutral-1300);
+  font-size: var(--font-size-200);
+  line-height: var(--line-height-subtitle);
 `;
 
 const CancelButton = styled(BaseButton)`
