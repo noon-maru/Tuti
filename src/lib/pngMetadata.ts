@@ -15,21 +15,18 @@ const crcTable = createCrcTable();
 export async function embedJournalShareMetadata({
   entry,
   png,
-  publicUrl,
   trace,
 }: {
   entry: TutiJournalEntry;
   png: Blob;
-  publicUrl?: string;
   trace: JournalShareTraceFinalization;
 }) {
-  const source = publicUrl ?? "https://tuti.today";
   const metadata = [
     ["Title", entry.title || "Tuti 기록"],
     ["Publisher", "Tuti"],
     ["Software", "Tuti"],
     ["Description", "Tuti에서 생성된 기록 공유 이미지"],
-    ["Source", source],
+    ["Source", "https://tuti.today"],
     ["Tuti Trace ID", trace.traceId],
     ["Tuti Short Code", trace.shortCode],
     ["Tuti Signature", trace.signature],

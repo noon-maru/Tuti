@@ -35,11 +35,9 @@ const SHARE_HEIGHT = 1350;
 export function JournalShareDialog({
   entry,
   onClose,
-  publicUrl,
 }: {
   entry: TutiJournalEntry;
   onClose: () => void;
-  publicUrl?: string;
 }) {
   const cardRef = useRef<HTMLDivElement>(null);
   const previewRef = useRef<HTMLDivElement>(null);
@@ -168,7 +166,6 @@ export function JournalShareDialog({
       return embedJournalShareMetadata({
         entry,
         png: image,
-        publicUrl,
         trace: finalizedTrace,
       });
     };
@@ -202,7 +199,7 @@ export function JournalShareDialog({
     return () => {
       cancelled = true;
     };
-  }, [entry, publicUrl, trace]);
+  }, [entry, trace]);
 
   const shareImage = async () => {
     if (!png || status === "sharing") return;

@@ -74,6 +74,51 @@ export async function copyJournalPublicUrl(publicId: string) {
   return url;
 }
 
+export async function shareJournalPublicUrl(
+  publicId: string,
+  entry: Pick<TutiJournalEntry, "placeName" | "title">,
+) {
+  const shareData = createJournalPublicShareData(
+    getPublicJournalUrl(publicId),
+    entry,
+  );
+
+  if (isNativeSharePlatform()) {
+    const { Share } = await import("@capacitor/share");
+    await Share.share({
+      ...shareData,
+      dialogTitle: "Tuti 기록 링크 공유하기",
+    });
+    return "shared" as const;
+  }
+
+  if (navigator.share) {
+    try {
+      await navigator.share(shareData);
+      return "shared" as const;
+    } catch (error) {
+      if (isShareCancellation(error)) return "cancelled" as const;
+      throw error;
+    }
+  }
+
+  await copyJournalPublicUrl(publicId);
+  return "copied" as const;
+}
+
+export function createJournalPublicShareData(
+  url: string,
+  entry: Pick<TutiJournalEntry, "placeName" | "title">,
+) {
+  const subject = entry.title.trim() || entry.placeName.trim() || "지난 공간";
+
+  return {
+    title: `${subject} | Tuti`,
+    text: `${entry.placeName.trim() || "오늘의 공간"}에서 남긴 기록이에요.`,
+    url,
+  };
+}
+
 export function downloadJournalPng(
   blob: Blob,
   filename: string,

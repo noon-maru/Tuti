@@ -8,7 +8,10 @@ import {
   JournalDetailStatusScreen,
 } from "@/features/tuti/screens/journal/JournalDetailScreen";
 import { useTutiStore } from "@/store/tuti";
-import { copyJournalPublicUrl } from "@/lib/journalShare";
+import {
+  copyJournalPublicUrl,
+  shareJournalPublicUrl,
+} from "@/lib/journalShare";
 import { canAccountPublishJournal } from "@/shared/features/release";
 import { JOURNAL_PUBLICATION_POLICY_VERSION } from "@/shared/legal/journalPublicationPolicy";
 
@@ -80,6 +83,21 @@ export function JournalDetailFlow() {
       window.alert("공유 링크를 복사하지 못했어요.");
     }
   };
+  const sharePublicLink = async () => {
+    if (!entry?.publication) return;
+
+    try {
+      const result = await shareJournalPublicUrl(
+        entry.publication.publicId,
+        entry,
+      );
+      if (result === "copied") {
+        window.alert("공유를 지원하지 않아 링크를 복사했어요.");
+      }
+    } catch {
+      window.alert("공유 화면을 열지 못했어요.");
+    }
+  };
   const deleteEntry = async () => {
     if (!entry || !window.confirm("이 기록을 삭제할까요?")) return;
 
@@ -139,6 +157,7 @@ export function JournalDetailFlow() {
         )
       }
       onPublish={publishEntry}
+      onSharePublicLink={sharePublicLink}
       onUnpublish={unpublishEntry}
     />
   );

@@ -13,7 +13,6 @@ import {
 } from "@/features/tuti/components/JournalEntryTransition";
 import { ScreenFrame } from "@/features/tuti/components/ScreenFrame";
 import { LoadingIndicator } from "@/features/tuti/components/LoadingIndicator";
-import { getPublicJournalUrl } from "@/lib/journalShare";
 import type { TutiJournalEntry } from "@/shared/api/journal";
 import { journalImageMaxWidth, palette } from "@/styles/tokens";
 
@@ -24,6 +23,7 @@ export function JournalDetailScreen({
   onDelete,
   onEdit,
   onCopyPublicLink,
+  onSharePublicLink,
   onPublish,
   onUnpublish,
 }: {
@@ -31,6 +31,7 @@ export function JournalDetailScreen({
   publicationEnabled: boolean;
   onBack: () => void;
   onCopyPublicLink: () => void | Promise<void>;
+  onSharePublicLink: () => void | Promise<void>;
   onDelete: () => void | Promise<void>;
   onEdit: () => void;
   onPublish: () => void | Promise<void>;
@@ -83,6 +84,10 @@ export function JournalDetailScreen({
                   {
                     label: "PNG로 공유하기",
                     onSelect: () => setShareOpen(true),
+                  },
+                  {
+                    label: "웹 링크로 공유",
+                    onSelect: onSharePublicLink,
                   },
                   {
                     label: "공유 링크 복사",
@@ -174,11 +179,6 @@ export function JournalDetailScreen({
         <JournalShareDialog
           entry={entry}
           onClose={() => setShareOpen(false)}
-          publicUrl={
-            publicationEnabled && entry.publication
-              ? getPublicJournalUrl(entry.publication.publicId)
-              : undefined
-          }
         />
       )}
       {publicationConsentOpen && (
