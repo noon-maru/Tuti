@@ -144,7 +144,7 @@ export function JournalPublicationConsentDialog({
           <span>
             공개 범위와{" "}
             <Link href="/legal/community-guidelines">기록 공개 운영정책</Link>을
-            확인했어요.
+            확인했고 동의해요.
           </span>
         </Agreement>
 
