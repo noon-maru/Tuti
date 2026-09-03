@@ -3,8 +3,22 @@ import { isStoredJournalImage } from "@/server/journal/imageStorage";
 import type { PublicJournalEntry } from "@/shared/api/journal";
 import { journalPublicationEnabled } from "@/shared/features/release";
 
+export async function isPublicJournalEntryAvailable(publicId: string) {
+  if (!journalPublicationEnabled || !isValidPublicId(publicId)) return false;
+
+  return Boolean(await prisma.journalEntry.findFirst({
+    where: {
+      publicId,
+      publicationStatus: "published",
+      publishedAt: { not: null },
+    },
+    select: { id: true },
+  }));
+}
+
 export async function getPublicJournalEntry(
   publicId: string,
+  viewerUserId?: string,
 ): Promise<PublicJournalEntry | null> {
   if (!journalPublicationEnabled) return null;
   if (!isValidPublicId(publicId)) return null;
@@ -26,10 +40,14 @@ export async function getPublicJournalEntry(
       visitedAt: true,
       publicId: true,
       publishedAt: true,
+      ownerId: true,
     },
   });
 
   if (!entry?.publicId || !entry.publishedAt) return null;
+  if (viewerUserId && await isJournalAuthorBlocked(viewerUserId, entry.ownerId)) {
+    return null;
+  }
 
   return {
     publicId: entry.publicId,
@@ -45,7 +63,10 @@ export async function getPublicJournalEntry(
   };
 }
 
-export async function getPublicJournalImage(publicId: string) {
+export async function getPublicJournalImage(
+  publicId: string,
+  viewerUserId?: string,
+) {
   if (!journalPublicationEnabled) return null;
   if (!isValidPublicId(publicId)) return null;
 
@@ -55,12 +76,37 @@ export async function getPublicJournalImage(publicId: string) {
       publishedAt: { not: null },
       publicationStatus: "published",
     },
-    select: { image: true },
+    select: { image: true, ownerId: true },
   });
+
+  if (
+    entry &&
+    viewerUserId &&
+    await isJournalAuthorBlocked(viewerUserId, entry.ownerId)
+  ) {
+    return null;
+  }
 
   return entry?.image && isStoredJournalImage(entry.image)
     ? entry.image
     : null;
+}
+
+async function isJournalAuthorBlocked(
+  viewerUserId: string,
+  ownerId: string,
+) {
+  if (viewerUserId === ownerId) return false;
+
+  return Boolean(await prisma.journalAuthorBlock.findUnique({
+    where: {
+      blockerUserId_blockedUserId: {
+        blockerUserId: viewerUserId,
+        blockedUserId: ownerId,
+      },
+    },
+    select: { blockerUserId: true },
+  }));
 }
 
 function serializePublicImage(

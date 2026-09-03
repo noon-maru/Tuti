@@ -70,3 +70,16 @@ export type PublicJournalEntry = Omit<
   publicId: string;
   publishedAt: string;
 };
+
+export type PublicJournalEntryResponse = {
+  entry: PublicJournalEntry;
+};
+
+export type JournalAuthorBlockItem = {
+  blockedUserId: string;
+  createdAt: string;
+};
+
+export type JournalAuthorBlocksResponse = {
+  blocks: JournalAuthorBlockItem[];
+};

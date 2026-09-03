@@ -16,14 +16,17 @@ import {
   completeOAuthLogin,
   createOAuthLoginUrl,
   deleteAccount,
+  fetchJournalAuthorBlocks,
   logoutAccount,
   refreshAccountProfile,
   requestEmailLoginCode,
   unlinkAccountIdentity,
   updateAccountDisplayName,
+  unblockJournalAuthor,
   verifyEmailLoginCode,
 } from "@/lib/auth/session";
 import type { AccountJournalResolution } from "@/shared/api/session";
+import type { JournalAuthorBlockItem } from "@/shared/api/journal";
 import { accountAuthEnabled } from "@/shared/auth/config";
 import { useTutiStore } from "@/store/tuti";
 
@@ -41,6 +44,9 @@ export function AccountFlow() {
   const handledOAuthTicket = useRef<string | null>(null);
   const accountProfileRefreshed = useRef(false);
   const [accountNotice, setAccountNotice] = useState<string | null>(null);
+  const [journalAuthorBlocks, setJournalAuthorBlocks] = useState<
+    JournalAuthorBlockItem[]
+  >([]);
   const [oauthCompletion, setOAuthCompletion] = useState<{
     pending: boolean;
     error?: string;
@@ -80,6 +86,13 @@ export function AccountFlow() {
     void refreshAccountProfile().catch(() => {
       accountProfileRefreshed.current = false;
     });
+  }, [session?.account]);
+
+  useEffect(() => {
+    if (!session?.account) return;
+    void fetchJournalAuthorBlocks()
+      .then(setJournalAuthorBlocks)
+      .catch(() => setJournalAuthorBlocks([]));
   }, [session?.account]);
 
   useEffect(() => {
@@ -169,6 +182,7 @@ export function AccountFlow() {
       displayName={session?.account?.displayName}
       email={session?.account?.email}
       identities={session?.account?.identities}
+      journalAuthorBlocks={journalAuthorBlocks}
       providers={session?.account?.providers}
       accountNotice={accountNotice}
       authEnabled={accountAuthEnabled}
@@ -220,6 +234,13 @@ export function AccountFlow() {
       onUnlinkIdentity={async (identityId) => {
         await unlinkAccountIdentity(identityId);
         setAccountNotice("로그인 수단 연결을 해제했어요.");
+      }}
+      onUnblockJournalAuthor={async (blockedUserId) => {
+        await unblockJournalAuthor(blockedUserId);
+        setJournalAuthorBlocks((current) =>
+          current.filter((block) => block.blockedUserId !== blockedUserId),
+        );
+        setAccountNotice("공개 기록 작성자 차단을 해제했어요.");
       }}
       onDeleteAccount={async () => {
         const result = await deleteAccount();

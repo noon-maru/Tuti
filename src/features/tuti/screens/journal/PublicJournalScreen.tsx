@@ -10,8 +10,12 @@ import { palette } from "@/styles/tokens";
 
 export function PublicJournalScreen({
   entry,
+  loading,
+  onBlockAuthor,
 }: {
-  entry: PublicJournalEntry;
+  entry: PublicJournalEntry | null;
+  loading: boolean;
+  onBlockAuthor: () => Promise<void>;
 }) {
   const [reportOpen, setReportOpen] = useState(false);
   const [reportReason, setReportReason] = useState("inappropriate");
@@ -20,6 +24,17 @@ export function PublicJournalScreen({
     "idle" | "submitting" | "submitted"
   >("idle");
   const [reportError, setReportError] = useState<string | null>(null);
+
+  if (!entry) {
+    return (
+      <Page>
+        <Shell>
+          <Header><Wordmark src="/brand/tuti-wordmark.svg" alt="Tuti" /></Header>
+          <Card><Content><h1>{loading ? "공유된 기록을 불러오고 있어요." : "공개된 기록을 찾지 못했어요."}</h1></Content></Card>
+        </Shell>
+      </Page>
+    );
+  }
 
   const submitReport = async () => {
     setReportStatus("submitting");
@@ -97,6 +112,16 @@ export function PublicJournalScreen({
         <Footer>
           <p>오늘 가능한 만큼만, 잠깐 다른 공기로.</p>
           <FooterActions>
+            <ReportButton
+              type="button"
+              onClick={() => {
+                if (window.confirm("이 작성자의 공개 기록을 더 이상 보지 않을까요?")) {
+                  void onBlockAuthor();
+                }
+              }}
+            >
+              작성자 차단
+            </ReportButton>
             <ReportButton type="button" onClick={() => setReportOpen(true)}>
               신고하기
             </ReportButton>

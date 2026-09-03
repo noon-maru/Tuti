@@ -15,6 +15,7 @@ import type {
   SessionResponse,
   TutiSession,
 } from "@/shared/api/session";
+import type { JournalAuthorBlocksResponse } from "@/shared/api/journal";
 
 const SESSION_STORAGE_KEY = "tuti-session";
 const LEGACY_SESSION_STORAGE_KEY = "tuti-anonymous-session";
@@ -220,6 +221,25 @@ export async function deleteAccount() {
 
   await clearStoredSession();
   return data;
+}
+
+export async function fetchJournalAuthorBlocks() {
+  const response = await fetchWithSession("journal-author-blocks");
+  if (!response.ok) {
+    throw new Error(await readApiError(response, "차단 목록을 불러오지 못했어요."));
+  }
+  return ((await response.json()) as JournalAuthorBlocksResponse).blocks;
+}
+
+export async function unblockJournalAuthor(blockedUserId: string) {
+  const response = await fetchWithSession("journal-author-blocks", {
+    method: "DELETE",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ blockedUserId }),
+  });
+  if (!response.ok) {
+    throw new Error(await readApiError(response, "작성자 차단을 해제하지 못했어요."));
+  }
 }
 
 export async function updateAccountDisplayName(displayName: string) {

@@ -1,8 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-
-import { PublicJournalScreen } from "@/features/tuti/screens/journal/PublicJournalScreen";
-import { getPublicJournalEntry } from "@/server/journal/publication";
+import { PublicJournalFlow } from "@/features/tuti/flows/PublicJournalFlow";
+import { isPublicJournalEntryAvailable } from "@/server/journal/publication";
 
 export const dynamic = "force-dynamic";
 
@@ -10,24 +9,10 @@ type PublicJournalPageProps = {
   params: Promise<{ publicId: string }>;
 };
 
-export async function generateMetadata({
-  params,
-}: PublicJournalPageProps): Promise<Metadata> {
-  const { publicId } = await params;
-  const entry = await getPublicJournalEntry(publicId);
-
-  if (!entry) {
-    return {
-      title: "공개되지 않은 기록 | Tuti",
-      robots: { index: false, follow: false },
-    };
-  }
-
+export async function generateMetadata(): Promise<Metadata> {
   return {
-    title: `${entry.title || entry.placeName} | Tuti`,
-    description:
-      entry.content.trim().slice(0, 120) ||
-      `${entry.placeName}에서 남긴 Tuti 기록`,
+    title: "공유된 지난 공간 | Tuti",
+    description: "Tuti에서 공유된 지난 공간 기록입니다.",
     robots: { index: false, follow: false },
   };
 }
@@ -36,9 +21,6 @@ export default async function PublicJournalPage({
   params,
 }: PublicJournalPageProps) {
   const { publicId } = await params;
-  const entry = await getPublicJournalEntry(publicId);
-
-  if (!entry) notFound();
-
-  return <PublicJournalScreen entry={entry} />;
+  if (!(await isPublicJournalEntryAvailable(publicId))) notFound();
+  return <PublicJournalFlow publicId={publicId} />;
 }

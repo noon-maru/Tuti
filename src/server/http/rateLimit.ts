@@ -75,6 +75,7 @@ export function selectApiRateLimitPolicy(pathname: string, method: string) {
     normalizedMethod === "POST" &&
     (pathname === "/api/inquiries" ||
       pathname === "/api/reports" ||
+      pathname === "/api/journal-author-blocks" ||
       pathname === "/api/account-deletion-requests")
   ) {
     return policies.userSubmission;

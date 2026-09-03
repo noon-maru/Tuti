@@ -689,10 +689,24 @@ model User {
   locationUsageLogs     LocationUsageLog[]
   pushDevices           PushDevice[]
   pushDeliveries        PushDelivery[]
+  journalAuthorBlocksMade JournalAuthorBlock[] @relation("JournalAuthorBlocker")
+  journalAuthorBlocksReceived JournalAuthorBlock[] @relation("JournalAuthorBlocked")
 
   @@index([lastAccessedAt])
   @@index([journalPublicationRestrictedAt])
   @@map("users")
+}
+
+model JournalAuthorBlock {
+  blockerUserId String   @map("blocker_user_id")
+  blockedUserId String   @map("blocked_user_id")
+  createdAt     DateTime @default(now()) @map("created_at")
+  blocker       User     @relation("JournalAuthorBlocker", fields: [blockerUserId], references: [id], onDelete: Cascade)
+  blocked       User     @relation("JournalAuthorBlocked", fields: [blockedUserId], references: [id], onDelete: Cascade)
+
+  @@id([blockerUserId, blockedUserId])
+  @@index([blockedUserId, createdAt])
+  @@map("journal_author_blocks")
 }
 
 model PushDevice {

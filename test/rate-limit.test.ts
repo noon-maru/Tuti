@@ -31,6 +31,10 @@ test("비용이 큰 API에 별도 정책을 적용한다", () => {
     )?.id,
     "journal-publication",
   );
+  assert.equal(
+    selectApiRateLimitPolicy("/api/journal-author-blocks", "POST")?.id,
+    "user-submission",
+  );
 });
 
 test("고정 시간창의 허용량과 재시도 시간을 계산한다", () => {

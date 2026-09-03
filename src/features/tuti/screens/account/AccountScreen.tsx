@@ -14,6 +14,7 @@ import type {
   EmailCodeVerificationResult,
   OAuthProvider,
 } from "@/shared/api/session";
+import type { JournalAuthorBlockItem } from "@/shared/api/journal";
 import {
   oauthProviderEnabled,
   oauthProviderLabels,
@@ -28,6 +29,7 @@ export function AccountScreen({
   displayName,
   email,
   identities = [],
+  journalAuthorBlocks = [],
   oauthCompletion,
   providers = [],
   onBack,
@@ -38,12 +40,14 @@ export function AccountScreen({
   onLogout,
   onOAuth,
   onUnlinkIdentity,
+  onUnblockJournalAuthor,
 }: {
   authEnabled: boolean;
   accountNotice?: string | null;
   displayName?: string;
   email?: string;
   identities?: AccountIdentityProfile[];
+  journalAuthorBlocks?: JournalAuthorBlockItem[];
   oauthCompletion?: {
     pending: boolean;
     error?: string;
@@ -66,6 +70,7 @@ export function AccountScreen({
   onLogout: () => Promise<void>;
   onOAuth: (provider: OAuthProvider) => Promise<void>;
   onUnlinkIdentity: (identityId: string) => Promise<void>;
+  onUnblockJournalAuthor: (blockedUserId: string) => Promise<void>;
 }) {
   const [emailStep, setEmailStep] = useState<EmailStep>("email");
   const [formEmail, setFormEmail] = useState("");
@@ -456,6 +461,32 @@ export function AccountScreen({
               </LinkEmailButton>
             </EmailLinkForm>
           </LoginMethodSection>
+          {journalAuthorBlocks.length > 0 && (
+            <LoginMethodSection>
+              <LoginMethodHeading>
+                <div>
+                  <strong>차단한 공개 기록 작성자</strong>
+                  <p>차단을 해제하면 해당 작성자의 공유 링크를 다시 볼 수 있어요.</p>
+                </div>
+              </LoginMethodHeading>
+              <IdentityList>
+                {journalAuthorBlocks.map((block, index) => (
+                  <IdentityRow key={block.blockedUserId}>
+                    <IdentitySummary>
+                      <IdentityProvider>차단한 작성자 {index + 1}</IdentityProvider>
+                      <span>{new Date(block.createdAt).toLocaleDateString("ko-KR")}</span>
+                    </IdentitySummary>
+                    <UnlinkButton
+                      type="button"
+                      onClick={() => void onUnblockJournalAuthor(block.blockedUserId)}
+                    >
+                      차단 해제
+                    </UnlinkButton>
+                  </IdentityRow>
+                ))}
+              </IdentityList>
+            </LoginMethodSection>
+          )}
           {error && <ErrorMessage role="alert">{error}</ErrorMessage>}
           <LogoutButton
             type="button"

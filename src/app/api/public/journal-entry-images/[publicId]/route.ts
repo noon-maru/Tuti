@@ -1,4 +1,5 @@
 import { getPublicJournalImage } from "@/server/journal/publication";
+import { authenticateUser } from "@/server/auth/session";
 import { getObject } from "@/server/storage/objectStorage";
 import {
   createPreflightResponse,
@@ -24,8 +25,10 @@ export async function GET(
   }
 
   try {
+    const user = await authenticateUser(request);
+    if (!user) return notFoundResponse(request);
     const { publicId } = await context.params;
-    const imageKey = await getPublicJournalImage(publicId);
+    const imageKey = await getPublicJournalImage(publicId, user.id);
 
     if (!imageKey) return notFoundResponse(request);
 
