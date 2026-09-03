@@ -25,13 +25,29 @@ export async function GET(
   const { publicId } = await context.params;
   const entry = await getPublicJournalEntry(publicId, user.id);
   if (!entry) {
-    return withCors(request, Response.json({ error: "공개 기록을 찾지 못했어요." }, { status: 404 }));
+    return withCors(
+      request,
+      Response.json(
+        { error: "공개 기록을 찾지 못했어요." },
+        { status: 404, headers: privateNoStoreHeaders() },
+      ),
+    );
   }
 
   const response: PublicJournalEntryResponse = { entry };
-  return withCors(request, Response.json(response));
+  return withCors(
+    request,
+    Response.json(response, { headers: privateNoStoreHeaders() }),
+  );
 }
 
 export function OPTIONS(request: Request) {
   return createPreflightResponse(request);
+}
+
+function privateNoStoreHeaders() {
+  return {
+    "Cache-Control": "private, no-store, max-age=0",
+    "X-Content-Type-Options": "nosniff",
+  };
 }
