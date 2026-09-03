@@ -105,14 +105,10 @@ export function JournalDetailScreen({
                     onSelect: () => setShareOpen(true),
                   },
                   ...(publicationEnabled &&
-                  (entry.publicationStatus === "hidden" ||
-                    entry.publicationStatus === "pending")
+                  entry.publicationStatus === "pending"
                     ? [
                         {
-                          label:
-                            entry.publicationStatus === "pending"
-                              ? "공개 요청 취소"
-                              : "인터넷 공개 중지",
+                          label: "공개 요청 취소",
                           tone: "danger" as const,
                           onSelect: onUnpublish,
                         },
@@ -158,7 +154,7 @@ export function JournalDetailScreen({
             entry.publicationStatus === "pending") && (
             <ModerationNotice role="status">
               {entry.publicationStatus === "hidden"
-                ? "신고 검토로 인터넷 공개가 중지된 기록이에요. 기록은 나만 볼 수 있으며, 메뉴에서 기존 공개 링크를 완전히 폐기할 수 있어요."
+                ? "운영 검토로 인터넷 공개가 중지된 기록이에요. 기록은 나만 볼 수 있으며, 재검토가 필요하면 1:1 문의로 알려주세요."
                 : "인터넷 공개 전 안전 확인을 기다리고 있어요. 확인이 끝나기 전에는 나만 볼 수 있어요."}
             </ModerationNotice>
           )}

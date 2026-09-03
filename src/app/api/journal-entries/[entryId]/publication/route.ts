@@ -133,7 +133,7 @@ export async function PATCH(
     const invalidJson = error instanceof SyntaxError;
     const invalidState = error instanceof JournalPublicationStateError;
 
-    if (!invalidJson) {
+    if (!invalidJson && !invalidState) {
       console.error("기록 공개 설정을 변경하지 못했습니다.", error);
     }
 

@@ -1,9 +1,11 @@
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 
+import { PATCH as reviewJournalPublication } from "../src/app/api/admin/journal-publications/route";
 import { prisma } from "../src/server/db/prisma";
 import { deleteUserAccount } from "../src/server/admin/users";
 import { mergeUserIntoCurrentAccount } from "../src/server/auth/accountMerge";
+import { hashAccessToken } from "../src/server/auth/session";
 import {
   deleteJournalEntry,
   setJournalEntryPublication,
@@ -21,10 +23,14 @@ const runId = randomUUID();
 const ownerId = `journal-verification-owner-${runId}`;
 const viewerId = `journal-verification-viewer-${runId}`;
 const deletionOwnerId = `journal-verification-delete-${runId}`;
+const adminId = `journal-verification-admin-${runId}`;
+const adminAccessToken = `journal-verification-admin-token-${runId}`;
 const mergeSourceId = `journal-verification-merge-source-${runId}`;
 const mergeTargetId = `journal-verification-merge-target-${runId}`;
 const cleanEntryId = `journal-verification-clean-${runId}`;
 const imageEntryId = `journal-verification-image-${runId}`;
+const mergeEntryId = `journal-verification-merge-entry-${runId}`;
+const mergeEntryPublicId = randomUUID().replaceAll("-", "");
 const reportId = `journal-verification-report-${runId}`;
 const moderationLogId = `journal-verification-log-${runId}`;
 const startedAt = new Date();
@@ -35,12 +41,30 @@ try {
       ownerId,
       viewerId,
       deletionOwnerId,
+      adminId,
       mergeSourceId,
       mergeTargetId,
-    ].map((id) => ({
-      id,
-      tokenHash: `verification-token-${id}`,
-    })),
+    ].map((id) =>
+      id === adminId
+        ? {
+            id,
+            role: "admin" as const,
+            tokenHash: hashAccessToken(adminAccessToken),
+          }
+        : {
+            id,
+            tokenHash: `verification-token-${id}`,
+          },
+    ),
+  });
+  await prisma.authIdentity.create({
+    data: {
+      id: `journal-verification-admin-identity-${runId}`,
+      userId: adminId,
+      provider: "email",
+      providerSubject: `journal-verification-admin-${runId}@tuti.invalid`,
+      email: `journal-verification-admin-${runId}@tuti.invalid`,
+    },
   });
   await prisma.journalEntry.createMany({
     data: [
@@ -67,6 +91,23 @@ try {
         difficulty: "가벼움",
         visitedAt: startedAt,
       },
+      {
+        id: mergeEntryId,
+        ownerId: mergeTargetId,
+        title: "병합 제재 검증 기록",
+        content: "병합 후에는 공개가 중지되어야 해요.",
+        crowd: "한적함",
+        placeName: "검증 공간",
+        theme: "걷기 좋은",
+        difficulty: "가벼움",
+        visitedAt: startedAt,
+        publicId: mergeEntryPublicId,
+        publishedAt: startedAt,
+        publicationStatus: "published",
+        publicationStatusChangedAt: startedAt,
+        publicationConsentVersion: JOURNAL_PUBLICATION_POLICY_VERSION,
+        publicationConsentedAt: startedAt,
+      },
     ],
   });
 
@@ -85,6 +126,18 @@ try {
   const firstPublicId = firstPublication?.publication?.publicId;
   assert.ok(firstPublicId);
   assert.ok(await getPublicJournalEntry(firstPublicId, viewerId));
+
+  await prisma.journalEntry.update({
+    where: { id: cleanEntryId },
+    data: { publicationConsentVersion: "legacy-pre-consent" },
+  });
+  assert.equal(await getPublicJournalEntry(firstPublicId, viewerId), null);
+  await prisma.journalEntry.update({
+    where: { id: cleanEntryId },
+    data: {
+      publicationConsentVersion: JOURNAL_PUBLICATION_POLICY_VERSION,
+    },
+  });
 
   await prisma.journalAuthorBlock.create({
     data: { blockerUserId: viewerId, blockedUserId: ownerId },
@@ -157,6 +210,19 @@ try {
     mergedTarget.journalPublicationRestrictionReason,
     "병합 승계 검증",
   );
+  assert.equal(
+    (
+      await prisma.journalEntry.findUniqueOrThrow({
+        where: { id: mergeEntryId },
+        select: { publicationStatus: true },
+      })
+    ).publicationStatus,
+    "hidden",
+  );
+  assert.equal(
+    await getPublicJournalEntry(mergeEntryPublicId, viewerId),
+    null,
+  );
 
   await setJournalEntryPublication(ownerId, cleanEntryId, false);
   assert.equal(await getPublicJournalEntry(firstPublicId, viewerId), null);
@@ -176,6 +242,10 @@ try {
     data: { publicationStatus: "hidden" },
   });
   assert.equal(await getPublicJournalEntry(secondPublicId, viewerId), null);
+  await assert.rejects(
+    setJournalEntryPublication(ownerId, cleanEntryId, false),
+    /작성자가 공개 상태를 바꿀 수 없어요/,
+  );
   await prisma.journalEntry.update({
     where: { id: cleanEntryId },
     data: { publicationStatus: "published" },
@@ -232,6 +302,42 @@ try {
     await getPublicJournalEntry(pendingRecord.publicId, viewerId),
     null,
   );
+  const rejectResponse = await reviewJournalPublication(
+    createAdminReviewRequest(imageEntryId, "reject"),
+  );
+  assert.equal(rejectResponse.status, 200);
+  assert.equal(
+    (
+      await prisma.journalEntry.findUniqueOrThrow({
+        where: { id: imageEntryId },
+        select: { publicationStatus: true },
+      })
+    ).publicationStatus,
+    "hidden",
+  );
+  await assert.rejects(
+    setJournalEntryPublication(ownerId, imageEntryId, false),
+    /작성자가 공개 상태를 바꿀 수 없어요/,
+  );
+  await prisma.journalEntry.update({
+    where: { id: imageEntryId },
+    data: { publicationConsentVersion: "legacy-pre-consent" },
+  });
+  const outdatedConsentRestoreResponse = await reviewJournalPublication(
+    createAdminReviewRequest(imageEntryId, "restore"),
+  );
+  assert.equal(outdatedConsentRestoreResponse.status, 409);
+  await prisma.journalEntry.update({
+    where: { id: imageEntryId },
+    data: {
+      publicationConsentVersion: JOURNAL_PUBLICATION_POLICY_VERSION,
+    },
+  });
+  const restoreResponse = await reviewJournalPublication(
+    createAdminReviewRequest(imageEntryId, "restore"),
+  );
+  assert.equal(restoreResponse.status, 200);
+  assert.ok(await getPublicJournalEntry(pendingRecord.publicId, viewerId));
 
   await prisma.contentReport.create({
     data: {
@@ -293,13 +399,18 @@ try {
         checks: [
           "outdated_consent_rejected",
           "clean_entry_published",
+          "outdated_consent_not_public",
           "blocked_author_hidden",
           "account_merge_preserved_blocks_and_restriction",
+          "account_merge_hid_restricted_publications",
           "unpublished_url_revoked",
           "republished_url_rotated",
           "moderation_hidden_and_restored",
+          "moderation_hidden_owner_transition_rejected",
           "restricted_owner_rejected",
           "image_entry_pending",
+          "admin_rejected_and_restored_pending_entry",
+          "admin_outdated_consent_restore_rejected",
           "deleted_account_moderation_anonymized",
           "deleted_entry_trace_removed",
         ],
@@ -314,13 +425,18 @@ try {
     where: {
       OR: [
         { id: moderationLogId },
-        { targetId: { in: [cleanEntryId, imageEntryId] } },
+        {
+          targetId: {
+            in: [cleanEntryId, imageEntryId, mergeEntryId],
+          },
+        },
         {
           actorUserId: {
             in: [
               ownerId,
               viewerId,
               deletionOwnerId,
+              adminId,
               mergeSourceId,
               mergeTargetId,
             ],
@@ -330,10 +446,12 @@ try {
     },
   });
   await prisma.journalShareTrace.deleteMany({
-    where: { entryId: { in: [cleanEntryId, imageEntryId] } },
+    where: {
+      entryId: { in: [cleanEntryId, imageEntryId, mergeEntryId] },
+    },
   });
   await prisma.journalEntry.deleteMany({
-    where: { id: { in: [cleanEntryId, imageEntryId] } },
+    where: { id: { in: [cleanEntryId, imageEntryId, mergeEntryId] } },
   });
   await prisma.user.deleteMany({
     where: {
@@ -342,6 +460,7 @@ try {
           ownerId,
           viewerId,
           deletionOwnerId,
+          adminId,
           mergeSourceId,
           mergeTargetId,
         ],
@@ -349,4 +468,18 @@ try {
     },
   });
   await prisma.$disconnect();
+}
+
+function createAdminReviewRequest(
+  entryId: string,
+  action: "approve" | "reject" | "restore",
+) {
+  return new Request("http://localhost/api/admin/journal-publications", {
+    method: "PATCH",
+    headers: {
+      Authorization: `Bearer ${adminAccessToken}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ entryId, action, note: "자동 통합 검증" }),
+  });
 }

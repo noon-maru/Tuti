@@ -38,6 +38,7 @@ export async function mergeUserIntoCurrentAccount({
       select: {
         role: true,
         journalPublicationRestrictedAt: true,
+        journalPublicationRestrictedByUserId: true,
       },
     }),
   ]);
@@ -57,6 +58,14 @@ export async function mergeUserIntoCurrentAccount({
       409,
     );
   }
+
+  const mergedAccountPublicationRestricted = Boolean(
+    sourceUser.journalPublicationRestrictedAt ||
+      targetUser.journalPublicationRestrictedAt,
+  );
+  const restrictionReviewerUserId =
+    targetUser.journalPublicationRestrictedByUserId ??
+    sourceUser.journalPublicationRestrictedByUserId;
 
   await prisma.$transaction(async (transaction) => {
     if (
@@ -111,6 +120,20 @@ export async function mergeUserIntoCurrentAccount({
       where: { ownerId: sourceUserId },
       data: { ownerId: targetUserId },
     });
+    const hiddenJournalEntries = mergedAccountPublicationRestricted
+      ? await transaction.journalEntry.updateMany({
+          where: {
+            ownerId: targetUserId,
+            publicationStatus: { in: ["pending", "published"] },
+          },
+          data: {
+            publicationStatus: "hidden",
+            publicationStatusChangedAt: new Date(),
+            publicationReviewedAt: new Date(),
+            publicationReviewerUserId: restrictionReviewerUserId,
+          },
+        })
+      : { count: 0 };
     await transaction.journalShareTrace.updateMany({
       where: { originUserId: sourceUserId },
       data: { originUserId: targetUserId },
@@ -229,6 +252,11 @@ export async function mergeUserIntoCurrentAccount({
         actorUserId: targetUserId,
         targetType: "user",
         targetId: sourceUserId,
+        metadata: {
+          journalPublicationRestrictionInherited:
+            mergedAccountPublicationRestricted,
+          hiddenJournalEntryCount: hiddenJournalEntries.count,
+        },
       },
     });
     await transaction.user.delete({ where: { id: sourceUserId } });

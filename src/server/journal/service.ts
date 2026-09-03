@@ -290,6 +290,12 @@ export async function setJournalEntryPublication(
     );
   }
 
+  if (!published && currentEntry.publicationStatus === "hidden") {
+    throw new JournalPublicationStateError(
+      "관리자가 숨긴 기록은 작성자가 공개 상태를 바꿀 수 없어요. 1:1 문의로 재검토를 요청해주세요.",
+    );
+  }
+
   if (published) {
     const owner = await prisma.user.findUnique({
       where: { id: ownerId },

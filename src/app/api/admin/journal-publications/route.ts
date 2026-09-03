@@ -11,6 +11,7 @@ import {
   withCors,
 } from "@/server/http/cors";
 import type { AdminJournalPublicationReviewsResponse } from "@/shared/api/admin";
+import { JOURNAL_PUBLICATION_POLICY_VERSION } from "@/shared/legal/journalPublicationPolicy";
 
 export const runtime = "nodejs";
 
@@ -23,23 +24,50 @@ export async function GET(request: Request) {
   if (!authentication.ok) return withCors(request, authentication.response);
 
   const entries = await prisma.journalEntry.findMany({
-    where: { publicationStatus: "pending" },
+    where: { publicationStatus: { in: ["pending", "hidden"] } },
     orderBy: { publicationStatusChangedAt: "asc" },
-    take: 100,
+    take: 200,
     select: {
       id: true,
       ownerId: true,
+      owner: {
+        select: { journalPublicationRestrictedAt: true },
+      },
       title: true,
       content: true,
       image: true,
       placeName: true,
       updatedAt: true,
       publicationReviewReasons: true,
+      publicationStatus: true,
       publicationStatusChangedAt: true,
     },
   });
+  const reportedEntryIds = new Set(
+    (
+      await prisma.contentReport.findMany({
+        where: {
+          entryId: {
+            in: entries
+              .filter((entry) => entry.publicationStatus === "hidden")
+              .map((entry) => entry.id),
+          },
+        },
+        distinct: ["entryId"],
+        select: { entryId: true },
+      })
+    ).flatMap((report) => (report.entryId ? [report.entryId] : [])),
+  );
+  const reviews = entries
+    .filter(
+      (entry) =>
+        !entry.owner.journalPublicationRestrictedAt &&
+        (entry.publicationStatus === "pending" ||
+          !reportedEntryIds.has(entry.id)),
+    )
+    .slice(0, 100);
   const response: AdminJournalPublicationReviewsResponse = {
-    reviews: entries.map((entry) => ({
+    reviews: reviews.map((entry) => ({
       id: entry.id,
       ownerId: entry.ownerId,
       title: entry.title,
@@ -50,6 +78,8 @@ export async function GET(request: Request) {
           : null,
       placeName: entry.placeName,
       reasons: normalizeReasons(entry.publicationReviewReasons),
+      status:
+        entry.publicationStatus === "pending" ? "pending" : "hidden",
       requestedAt: entry.publicationStatusChangedAt.toISOString(),
     })),
   };
@@ -72,7 +102,9 @@ export async function PATCH(request: Request) {
       note?: unknown;
     };
     const entryId = typeof body.entryId === "string" ? body.entryId.trim() : "";
-    const action = body.action === "approve" || body.action === "reject"
+    const action = body.action === "approve" ||
+      body.action === "reject" ||
+      body.action === "restore"
       ? body.action
       : null;
     const note = typeof body.note === "string"
@@ -86,12 +118,40 @@ export async function PATCH(request: Request) {
       );
     }
 
+    if (
+      action === "restore" &&
+      await prisma.contentReport.findFirst({
+        where: { entryId },
+        select: { id: true },
+      })
+    ) {
+      return withCors(
+        request,
+        Response.json(
+          { error: "신고로 숨긴 기록은 신고 관리에서 복원해주세요." },
+          { status: 409 },
+        ),
+      );
+    }
+
     const now = new Date();
     const result = await prisma.journalEntry.updateMany({
-      where: { id: entryId, publicationStatus: "pending", publicId: { not: null } },
+      where: {
+        id: entryId,
+        publicationStatus: action === "restore" ? "hidden" : "pending",
+        publicId: { not: null },
+        owner: { journalPublicationRestrictedAt: null },
+        ...(action === "reject"
+          ? {}
+          : {
+              publicationConsentVersion:
+                JOURNAL_PUBLICATION_POLICY_VERSION,
+              publicationConsentedAt: { not: null },
+            }),
+      },
       data: {
-        publicationStatus: action === "approve" ? "published" : "hidden",
-        publishedAt: action === "approve" ? now : null,
+        publicationStatus: action === "reject" ? "hidden" : "published",
+        publishedAt: action === "reject" ? null : now,
         publicationStatusChangedAt: now,
         publicationReviewedAt: now,
         publicationReviewerUserId: authentication.user.id,
@@ -101,19 +161,30 @@ export async function PATCH(request: Request) {
     if (result.count === 0) {
       return withCors(
         request,
-        Response.json({ error: "검토 대기 중인 기록을 찾지 못했습니다." }, { status: 409 }),
+        Response.json(
+          {
+            error: action === "restore"
+              ? "복원할 공개 거절 기록을 찾지 못했습니다."
+              : "검토 대기 중인 기록을 찾지 못했습니다.",
+          },
+          { status: 409 },
+        ),
       );
     }
 
     await writeSystemLog({
-      level: action === "approve" ? "info" : "warning",
+      level: action === "reject" ? "warning" : "info",
       category: "moderation",
       action: action === "approve"
         ? "journal.publication.approved"
-        : "journal.publication.rejected",
+        : action === "restore"
+          ? "journal.publication.restored"
+          : "journal.publication.rejected",
       message: action === "approve"
         ? "기록의 인터넷 공개를 승인했습니다."
-        : "기록의 인터넷 공개를 거절했습니다.",
+        : action === "restore"
+          ? "공개 거절 기록을 재검토하여 복원했습니다."
+          : "기록의 인터넷 공개를 거절했습니다.",
       actorUserId: authentication.user.id,
       targetType: "journalEntry",
       targetId: entryId,

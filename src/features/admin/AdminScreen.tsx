@@ -840,7 +840,9 @@ export function AdminScreen({
                 !window.confirm(
                   action === "approve"
                     ? "이 기록을 인터넷에 공개할까요?"
-                    : "이 공개 요청을 거절하고 작성자만 볼 수 있도록 숨길까요?",
+                    : action === "restore"
+                      ? "이 공개 거절 기록을 재검토하여 인터넷에 복원할까요?"
+                      : "이 공개 요청을 거절하고 작성자만 볼 수 있도록 숨길까요?",
                 )
               ) {
                 return;
@@ -2041,7 +2043,7 @@ function ReportsPanel({
   ) => void;
   onReviewPublication: (
     entryId: string,
-    action: "approve" | "reject",
+    action: "approve" | "reject" | "restore",
   ) => void;
   onModerateOwner: (
     report: AdminReportItem,
@@ -2056,13 +2058,14 @@ function ReportsPanel({
     <ReportSections>
       {publicationReviews.length > 0 && (
         <TableCard>
-          <SectionHeading>공개 전 안전 검토</SectionHeading>
+          <SectionHeading>공개 안전 검토·재검토</SectionHeading>
           <Table>
             <thead>
               <tr>
                 <th scope="col">기록</th>
                 <th scope="col">내용</th>
                 <th scope="col">검토 사유</th>
+                <th scope="col">상태</th>
                 <th scope="col">요청 시각</th>
                 <th scope="col">조치</th>
               </tr>
@@ -2081,23 +2084,38 @@ function ReportsPanel({
                   <td data-label="검토 사유">
                     {review.reasons.map(getPublicationReviewReasonLabel).join(", ")}
                   </td>
+                  <td data-label="상태">
+                    {review.status === "pending" ? "검토 대기" : "공개 거절"}
+                  </td>
                   <td data-label="요청 시각">{formatDate(review.requestedAt)}</td>
                   <td data-label="조치">
                     <TableActions>
-                      <CompactActionButton
-                        type="button"
-                        disabled={mutatingId === review.id}
-                        onClick={() => onReviewPublication(review.id, "approve")}
-                      >
-                        공개 승인
-                      </CompactActionButton>
-                      <DangerButton
-                        type="button"
-                        disabled={mutatingId === review.id}
-                        onClick={() => onReviewPublication(review.id, "reject")}
-                      >
-                        공개 거절
-                      </DangerButton>
+                      {review.status === "pending" ? (
+                        <>
+                          <CompactActionButton
+                            type="button"
+                            disabled={mutatingId === review.id}
+                            onClick={() => onReviewPublication(review.id, "approve")}
+                          >
+                            공개 승인
+                          </CompactActionButton>
+                          <DangerButton
+                            type="button"
+                            disabled={mutatingId === review.id}
+                            onClick={() => onReviewPublication(review.id, "reject")}
+                          >
+                            공개 거절
+                          </DangerButton>
+                        </>
+                      ) : (
+                        <CompactActionButton
+                          type="button"
+                          disabled={mutatingId === review.id}
+                          onClick={() => onReviewPublication(review.id, "restore")}
+                        >
+                          재검토 후 복원
+                        </CompactActionButton>
+                      )}
                     </TableActions>
                   </td>
                 </tr>

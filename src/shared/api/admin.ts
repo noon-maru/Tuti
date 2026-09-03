@@ -177,6 +177,7 @@ export type AdminJournalPublicationReviewItem = {
   image: string | null;
   placeName: string;
   reasons: string[];
+  status: "pending" | "hidden";
   requestedAt: string;
 };
 

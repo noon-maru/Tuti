@@ -3,6 +3,7 @@ import { isStoredJournalImage } from "@/server/journal/imageStorage";
 import type { PublicJournalEntry } from "@/shared/api/journal";
 import { journalPublicationEnabled } from "@/shared/features/release";
 import { canViewerAccessJournalEntry } from "@/server/journal/publicationState";
+import { JOURNAL_PUBLICATION_POLICY_VERSION } from "@/shared/legal/journalPublicationPolicy";
 
 export async function isPublicJournalEntryAvailable(publicId: string) {
   if (!journalPublicationEnabled || !isValidPublicId(publicId)) return false;
@@ -12,6 +13,8 @@ export async function isPublicJournalEntryAvailable(publicId: string) {
       publicId,
       publicationStatus: "published",
       publishedAt: { not: null },
+      publicationConsentVersion: JOURNAL_PUBLICATION_POLICY_VERSION,
+      publicationConsentedAt: { not: null },
     },
     select: { id: true },
   }));
@@ -29,6 +32,8 @@ export async function getPublicJournalEntry(
       publicId,
       publishedAt: { not: null },
       publicationStatus: "published",
+      publicationConsentVersion: JOURNAL_PUBLICATION_POLICY_VERSION,
+      publicationConsentedAt: { not: null },
     },
     select: {
       title: true,
@@ -80,6 +85,8 @@ export async function getPublicJournalImage(
       publicId,
       publishedAt: { not: null },
       publicationStatus: "published",
+      publicationConsentVersion: JOURNAL_PUBLICATION_POLICY_VERSION,
+      publicationConsentedAt: { not: null },
     },
     select: {
       image: true,

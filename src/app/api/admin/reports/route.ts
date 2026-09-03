@@ -9,6 +9,7 @@ import {
 import { forceDeleteJournalEntry } from "@/server/journal/service";
 import { getJournalModerationTransition } from "@/server/journal/publicationState";
 import type { AdminReportsResponse } from "@/shared/api/admin";
+import { JOURNAL_PUBLICATION_POLICY_VERSION } from "@/shared/legal/journalPublicationPolicy";
 
 export const runtime = "nodejs";
 
@@ -384,8 +385,33 @@ async function moderateReportedJournalEntry({
 
   const entry = await prisma.journalEntry.findUnique({
     where: { id: report.entryId },
-    select: { publicationStatus: true },
+    select: {
+      publicationStatus: true,
+      publicationConsentVersion: true,
+      publicationConsentedAt: true,
+      owner: { select: { journalPublicationRestrictedAt: true } },
+    },
   });
+  if (
+    action === "restore" &&
+    entry?.owner.journalPublicationRestrictedAt
+  ) {
+    return Response.json(
+      { error: "작성자의 공개 제한을 먼저 해제해주세요." },
+      { status: 409 },
+    );
+  }
+  if (
+    action === "restore" &&
+    (entry?.publicationConsentVersion !==
+      JOURNAL_PUBLICATION_POLICY_VERSION ||
+      !entry.publicationConsentedAt)
+  ) {
+    return Response.json(
+      { error: "최신 기록 공개 동의가 없어 복원할 수 없습니다." },
+      { status: 409 },
+    );
+  }
   const transition = entry
     ? getJournalModerationTransition(entry.publicationStatus, action)
     : null;
@@ -413,6 +439,14 @@ async function moderateReportedJournalEntry({
         publicationStatus: transition.expectedStatus,
         publicId: { not: null },
         publishedAt: { not: null },
+        ...(action === "restore"
+          ? {
+              owner: { journalPublicationRestrictedAt: null },
+              publicationConsentVersion:
+                JOURNAL_PUBLICATION_POLICY_VERSION,
+              publicationConsentedAt: { not: null },
+            }
+          : {}),
       },
       data: {
         publicationStatus: transition.nextStatus,
