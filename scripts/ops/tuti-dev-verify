@@ -1,0 +1,22 @@
+#!/bin/sh
+
+set -eu
+
+project_dir="/var/services/homes/Tutiadmin/source/Tuti"
+
+cd "$project_dir"
+
+echo "개발 컨테이너 실행 상태 확인"
+docker compose -f docker-compose.dev.yml up -d db app
+
+echo "Prisma 클라이언트와 마이그레이션 확인"
+docker compose -f docker-compose.dev.yml exec -T app pnpm db:generate
+docker compose -f docker-compose.dev.yml exec -T app pnpm db:deploy
+
+echo "자동 회귀 테스트 실행"
+docker compose -f docker-compose.dev.yml exec -T app pnpm test
+
+echo "ESLint 정적 검사 실행"
+docker compose -f docker-compose.dev.yml exec -T app pnpm lint
+
+echo "Tuti 개발 코드 검증을 완료했습니다."

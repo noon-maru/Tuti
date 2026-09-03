@@ -41,8 +41,13 @@
 
 ```bash
 sudo sh scripts/ops/install-tuti-operations.sh
+sudo -n /usr/local/sbin/tuti-dev-verify
 sudo -n /usr/local/sbin/tuti-journal-publication-audit
 ```
+
+`tuti-dev-verify`는 개발 컨테이너에서 Prisma 생성·마이그레이션, 전체 자동 테스트,
+ESLint를 차례로 실행한다. 하나라도 실패하면 운영 배포와 공개 범위 확대를 멈추고
+먼저 원인을 수정한다.
 
 결과는 `.ops-state/journal-publication-audit/<실행시각>/`에 개발·운영 JSON과
 SHA-256 검증값으로 저장된다. 다음 항목을 확인한다.
