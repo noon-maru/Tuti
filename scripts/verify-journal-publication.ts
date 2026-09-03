@@ -3,6 +3,7 @@ import { randomUUID } from "node:crypto";
 
 import { prisma } from "../src/server/db/prisma";
 import { deleteUserAccount } from "../src/server/admin/users";
+import { mergeUserIntoCurrentAccount } from "../src/server/auth/accountMerge";
 import {
   deleteJournalEntry,
   setJournalEntryPublication,
@@ -20,6 +21,8 @@ const runId = randomUUID();
 const ownerId = `journal-verification-owner-${runId}`;
 const viewerId = `journal-verification-viewer-${runId}`;
 const deletionOwnerId = `journal-verification-delete-${runId}`;
+const mergeSourceId = `journal-verification-merge-source-${runId}`;
+const mergeTargetId = `journal-verification-merge-target-${runId}`;
 const cleanEntryId = `journal-verification-clean-${runId}`;
 const imageEntryId = `journal-verification-image-${runId}`;
 const reportId = `journal-verification-report-${runId}`;
@@ -28,7 +31,13 @@ const startedAt = new Date();
 
 try {
   await prisma.user.createMany({
-    data: [ownerId, viewerId, deletionOwnerId].map((id) => ({
+    data: [
+      ownerId,
+      viewerId,
+      deletionOwnerId,
+      mergeSourceId,
+      mergeTargetId,
+    ].map((id) => ({
       id,
       tokenHash: `verification-token-${id}`,
     })),
@@ -89,6 +98,65 @@ try {
       },
     },
   });
+
+  await prisma.user.update({
+    where: { id: mergeSourceId },
+    data: {
+      journalPublicationRestrictedAt: startedAt,
+      journalPublicationRestrictionReason: "병합 승계 검증",
+    },
+  });
+  await prisma.journalAuthorBlock.createMany({
+    data: [
+      { blockerUserId: mergeSourceId, blockedUserId: ownerId },
+      { blockerUserId: mergeTargetId, blockedUserId: ownerId },
+      { blockerUserId: viewerId, blockedUserId: mergeSourceId },
+      { blockerUserId: mergeSourceId, blockedUserId: mergeTargetId },
+    ],
+  });
+  await mergeUserIntoCurrentAccount({
+    sourceUserId: mergeSourceId,
+    targetUserId: mergeTargetId,
+  });
+  assert.equal(
+    await prisma.journalAuthorBlock.count({
+      where: { blockerUserId: mergeTargetId, blockedUserId: ownerId },
+    }),
+    1,
+  );
+  assert.equal(
+    await prisma.journalAuthorBlock.count({
+      where: { blockerUserId: viewerId, blockedUserId: mergeTargetId },
+    }),
+    1,
+  );
+  assert.equal(
+    await prisma.journalAuthorBlock.count({
+      where: {
+        OR: [
+          { blockerUserId: mergeSourceId },
+          { blockedUserId: mergeSourceId },
+          { blockerUserId: mergeTargetId, blockedUserId: mergeTargetId },
+        ],
+      },
+    }),
+    0,
+  );
+  const mergedTarget = await prisma.user.findUniqueOrThrow({
+    where: { id: mergeTargetId },
+    select: {
+      journalPublicationRestrictedAt: true,
+      journalPublicationRestrictionReason: true,
+    },
+  });
+  assert.equal(
+    mergedTarget.journalPublicationRestrictedAt?.toISOString(),
+    startedAt.toISOString(),
+  );
+  assert.equal(
+    mergedTarget.journalPublicationRestrictionReason,
+    "병합 승계 검증",
+  );
 
   await setJournalEntryPublication(ownerId, cleanEntryId, false);
   assert.equal(await getPublicJournalEntry(firstPublicId, viewerId), null);
@@ -226,6 +294,7 @@ try {
           "outdated_consent_rejected",
           "clean_entry_published",
           "blocked_author_hidden",
+          "account_merge_preserved_blocks_and_restriction",
           "unpublished_url_revoked",
           "republished_url_rotated",
           "moderation_hidden_and_restored",
@@ -246,7 +315,17 @@ try {
       OR: [
         { id: moderationLogId },
         { targetId: { in: [cleanEntryId, imageEntryId] } },
-        { actorUserId: { in: [ownerId, viewerId, deletionOwnerId] } },
+        {
+          actorUserId: {
+            in: [
+              ownerId,
+              viewerId,
+              deletionOwnerId,
+              mergeSourceId,
+              mergeTargetId,
+            ],
+          },
+        },
       ],
     },
   });
@@ -257,7 +336,17 @@ try {
     where: { id: { in: [cleanEntryId, imageEntryId] } },
   });
   await prisma.user.deleteMany({
-    where: { id: { in: [ownerId, viewerId, deletionOwnerId] } },
+    where: {
+      id: {
+        in: [
+          ownerId,
+          viewerId,
+          deletionOwnerId,
+          mergeSourceId,
+          mergeTargetId,
+        ],
+      },
+    },
   });
   await prisma.$disconnect();
 }

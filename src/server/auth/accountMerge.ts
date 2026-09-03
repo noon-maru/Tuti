@@ -26,11 +26,19 @@ export async function mergeUserIntoCurrentAccount({
   const [sourceUser, targetUser] = await Promise.all([
     prisma.user.findUnique({
       where: { id: sourceUserId },
-      select: { role: true },
+      select: {
+        role: true,
+        journalPublicationRestrictedAt: true,
+        journalPublicationRestrictionReason: true,
+        journalPublicationRestrictedByUserId: true,
+      },
     }),
     prisma.user.findUnique({
       where: { id: targetUserId },
-      select: { role: true },
+      select: {
+        role: true,
+        journalPublicationRestrictedAt: true,
+      },
     }),
   ]);
 
@@ -51,6 +59,26 @@ export async function mergeUserIntoCurrentAccount({
   }
 
   await prisma.$transaction(async (transaction) => {
+    if (
+      sourceUser.journalPublicationRestrictedAt &&
+      !targetUser.journalPublicationRestrictedAt
+    ) {
+      await transaction.user.updateMany({
+        where: {
+          id: targetUserId,
+          journalPublicationRestrictedAt: null,
+        },
+        data: {
+          journalPublicationRestrictedAt:
+            sourceUser.journalPublicationRestrictedAt,
+          journalPublicationRestrictionReason:
+            sourceUser.journalPublicationRestrictionReason,
+          journalPublicationRestrictedByUserId:
+            sourceUser.journalPublicationRestrictedByUserId,
+        },
+      });
+    }
+
     if (identityUpdate) {
       await transaction.authIdentity.update({
         where: { id: identityUpdate.identityId },
@@ -94,6 +122,49 @@ export async function mergeUserIntoCurrentAccount({
     await transaction.contentReport.updateMany({
       where: { reporterUserId: sourceUserId },
       data: { reporterUserId: targetUserId },
+    });
+    const sourceAuthorBlocks = await transaction.journalAuthorBlock.findMany({
+      where: {
+        OR: [
+          { blockerUserId: sourceUserId },
+          { blockedUserId: sourceUserId },
+        ],
+      },
+      select: {
+        blockerUserId: true,
+        blockedUserId: true,
+      },
+    });
+    for (const block of sourceAuthorBlocks) {
+      const blockerUserId =
+        block.blockerUserId === sourceUserId
+          ? targetUserId
+          : block.blockerUserId;
+      const blockedUserId =
+        block.blockedUserId === sourceUserId
+          ? targetUserId
+          : block.blockedUserId;
+
+      if (blockerUserId === blockedUserId) continue;
+
+      await transaction.journalAuthorBlock.upsert({
+        where: {
+          blockerUserId_blockedUserId: {
+            blockerUserId,
+            blockedUserId,
+          },
+        },
+        create: { blockerUserId, blockedUserId },
+        update: {},
+      });
+    }
+    await transaction.journalAuthorBlock.deleteMany({
+      where: {
+        OR: [
+          { blockerUserId: sourceUserId },
+          { blockedUserId: sourceUserId },
+        ],
+      },
     });
     await transaction.contentReport.updateMany({
       where: { targetOwnerId: sourceUserId },
