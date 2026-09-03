@@ -63,6 +63,9 @@ async function deleteUserRecord(
   );
   const journalEntryIds = user.journalEntries.map((entry) => entry.id);
   const failedImageDeletions: string[] = [];
+  const retainedModerationSubjectKey = createHash("sha256")
+    .update(`deleted-moderation-subject:${randomUUID()}`)
+    .digest("hex");
 
   for (const entry of user.journalEntries) {
     try {
@@ -107,18 +110,27 @@ async function deleteUserRecord(
         ],
       },
     });
-    await transaction.contentReport.deleteMany({
-      where: {
-        OR: [
-          { reporterUserId: userId },
-          { targetOwnerId: userId },
-          { reviewerUserId: userId },
-          ...(journalEntryIds.length > 0
-            ? [{ entryId: { in: journalEntryIds } }]
-            : []),
-        ],
+    await transaction.contentReport.updateMany({
+      where: { reporterUserId: userId },
+      data: { reporterUserId: retainedModerationSubjectKey },
+    });
+    await transaction.contentReport.updateMany({
+      where: { targetOwnerId: userId },
+      data: {
+        targetOwnerId: retainedModerationSubjectKey,
+        entryId: null,
       },
     });
+    await transaction.contentReport.updateMany({
+      where: { reviewerUserId: userId },
+      data: { reviewerUserId: null },
+    });
+    if (journalEntryIds.length > 0) {
+      await transaction.contentReport.updateMany({
+        where: { entryId: { in: journalEntryIds } },
+        data: { entryId: null },
+      });
+    }
     await transaction.customerInquiry.deleteMany({
       where: {
         OR: [
@@ -135,8 +147,24 @@ async function deleteUserRecord(
         where: { email: { in: accountEmails } },
       });
     }
+    await transaction.systemLog.updateMany({
+      where: {
+        category: { in: ["moderation", "report"] },
+        actorUserId: userId,
+      },
+      data: { actorUserId: null },
+    });
+    await transaction.systemLog.updateMany({
+      where: {
+        category: { in: ["moderation", "report"] },
+        targetType: "user",
+        targetId: userId,
+      },
+      data: { targetId: retainedModerationSubjectKey },
+    });
     await transaction.systemLog.deleteMany({
       where: {
+        category: { notIn: ["moderation", "report"] },
         OR: [
           { actorUserId: userId },
           { targetId: userId },

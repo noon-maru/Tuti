@@ -18,6 +18,7 @@ sudo -n /usr/local/sbin/tuti-prod-restore YYYYMMDD-HHMMSS --confirm-production-r
 sudo -n /usr/local/sbin/tuti-prod-health
 sudo -n /usr/local/sbin/tuti-dev-refresh
 sudo -n /usr/local/sbin/tuti-dev-restart
+sudo -n /usr/local/sbin/tuti-dev-verify
 sudo -n /usr/local/sbin/tuti-docker-status
 sudo -n /usr/local/sbin/tuti-android-debug-build
 sudo -n /usr/local/sbin/tuti-android-release-setup
@@ -32,6 +33,8 @@ sudo -n /usr/local/sbin/tuti-crowd-estimate-refresh
 sudo -n /usr/local/sbin/tuti-tourism-timeseries-refresh
 sudo -n /usr/local/sbin/tuti-llm-profile-refresh
 sudo -n /usr/local/sbin/tuti-auth-retention-purge
+sudo -n /usr/local/sbin/tuti-journal-publication-audit
+sudo -n /usr/local/sbin/tuti-journal-moderation-purge
 ```
 
 `tuti-prod-deploy`는 현재 Git 커밋으로 `tuti:prod-{커밋}`과
@@ -215,6 +218,16 @@ Synology DSM의 **제어판 → 작업 스케줄러**에는 아래 작업을 등
 
 ```sh
 /usr/local/sbin/tuti-auth-retention-purge
+```
+
+기록 웹 공개 기능의 상태·신고·검토 지연과 감사 이벤트는 아래 명령으로 개발·운영
+DB를 함께 점검한다. 처리 완료 후 3년이 지난 신고와 공개 운영 감사 로그는 전용
+파기 명령으로 매월 정리한다. 자세한 판단 기준과 DSM 일정은
+`docs/journal-publication-operations.md`를 따른다.
+
+```sh
+/usr/local/sbin/tuti-journal-publication-audit
+/usr/local/sbin/tuti-journal-moderation-purge
 ```
 
 설치 명령은 저장소 안의 스크립트를 `/usr/local/sbin`에 root 소유 파일로 복사한 뒤, 위 고정 경로만 sudoers에 허용한다. 저장소 파일을 수정해도 이미 설치된 root 스크립트는 자동으로 변경되지 않으므로, 운영 명령의 변경 후에는 설치 명령을 다시 실행해야 한다.

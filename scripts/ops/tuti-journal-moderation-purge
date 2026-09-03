@@ -1,0 +1,25 @@
+#!/bin/sh
+
+set -eu
+
+project_dir="/var/services/homes/Tutiadmin/source/Tuti"
+lock_dir="/tmp/tuti-journal-moderation-purge.lock"
+
+if ! mkdir "$lock_dir" 2>/dev/null; then
+  echo "기록 공개 운영자료 파기 작업이 이미 실행 중입니다." >&2
+  exit 1
+fi
+trap 'rmdir "$lock_dir" 2>/dev/null || true' EXIT HUP INT TERM
+
+cd "$project_dir"
+
+echo "개발 DB의 만료 기록 공개 운영자료 파기"
+docker compose -f docker-compose.dev.yml exec -T app \
+  su node -c "node_modules/.bin/tsx scripts/purge-journal-moderation-retention.ts"
+
+echo "운영 DB의 만료 기록 공개 운영자료 파기"
+docker compose --env-file .env.production -f docker-compose.prod.yml \
+  run --rm --no-deps -T ops \
+  node_modules/.bin/tsx scripts/purge-journal-moderation-retention.ts
+
+echo "개발·운영 만료 기록 공개 운영자료 파기를 완료했습니다."
