@@ -1,8 +1,9 @@
 "use client";
 
 import styled from "@emotion/styled";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
+import { ANDROID_BACK_EVENT } from "@/features/tuti/navigation/androidBack";
 import { JournalLocationLabel } from "@/features/tuti/components/JournalLocationLabel";
 import { fetchWithSession } from "@/lib/auth/session";
 import type { PublicJournalEntry } from "@/shared/api/journal";
@@ -24,6 +25,31 @@ export function PublicJournalScreen({
     "idle" | "submitting" | "submitted"
   >("idle");
   const [reportError, setReportError] = useState<string | null>(null);
+  const [blocking, setBlocking] = useState(false);
+
+  useEffect(() => {
+    if (!reportOpen) return;
+
+    const previousOverflow = document.body.style.overflow;
+    const closeReport = () => setReportOpen(false);
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") closeReport();
+    };
+    const closeOnAndroidBack = (event: Event) => {
+      event.preventDefault();
+      closeReport();
+    };
+
+    document.body.style.overflow = "hidden";
+    window.addEventListener("keydown", closeOnEscape);
+    window.addEventListener(ANDROID_BACK_EVENT, closeOnAndroidBack);
+
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener("keydown", closeOnEscape);
+      window.removeEventListener(ANDROID_BACK_EVENT, closeOnAndroidBack);
+    };
+  }, [reportOpen]);
 
   if (!entry) {
     return (
@@ -120,13 +146,18 @@ export function PublicJournalScreen({
           <FooterActions>
             <ReportButton
               type="button"
+              disabled={blocking}
               onClick={() => {
                 if (window.confirm("이 작성자의 공개 기록을 더 이상 보지 않을까요?")) {
-                  void onBlockAuthor();
+                  setBlocking(true);
+                  void onBlockAuthor().catch(() => {
+                    setBlocking(false);
+                    window.alert("작성자를 차단하지 못했어요. 잠시 후 다시 시도해주세요.");
+                  });
                 }
               }}
             >
-              작성자 차단
+              {blocking ? "차단 중" : "작성자 차단"}
             </ReportButton>
             <ReportButton type="button" onClick={() => setReportOpen(true)}>
               신고하기
