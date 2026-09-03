@@ -1,5 +1,16 @@
 export const JOURNAL_PUBLICATION_POLICY_VERSION =
   "journal-publication-2026-10-01";
+export const JOURNAL_PUBLICATION_POLICY_EFFECTIVE_AT =
+  "2026-10-01T00:00:00+09:00";
+
+export function isJournalPublicationPolicyEffective(
+  now: Date = new Date(),
+) {
+  return (
+    now.getTime() >=
+    new Date(JOURNAL_PUBLICATION_POLICY_EFFECTIVE_AT).getTime()
+  );
+}
 
 export function isCurrentJournalPublicationPolicy(
   version: unknown,

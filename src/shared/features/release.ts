@@ -1,3 +1,5 @@
+import { isJournalPublicationPolicyEffective } from "@/shared/legal/journalPublicationPolicy";
+
 export function isJournalPublicationEnabled(
   value = process.env.NEXT_PUBLIC_JOURNAL_PUBLICATION_ENABLED,
 ) {
@@ -20,7 +22,9 @@ export function canAccountPublishJournal(
   role: "user" | "admin" | undefined,
   enabled = journalPublicationEnabled,
   audience = journalPublicationAudience,
+  now: Date = new Date(),
 ) {
-  if (!enabled) return false;
-  return audience === "public" || role === "admin";
+  if (!enabled || !role) return false;
+  if (role === "admin") return true;
+  return audience === "public" && isJournalPublicationPolicyEffective(now);
 }
