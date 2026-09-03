@@ -81,7 +81,7 @@ export function JournalPublicationConsentDialog({
 
         <ScopeCard id="journal-publication-description">
           <ScopePlace>{placeName}</ScopePlace>
-          <strong>링크를 받은 로그인 사용자가 볼 수 있어요.</strong>
+          <strong>링크를 받은 사람이 Tuti에서 볼 수 있어요.</strong>
           <p>장소·방문일·제목·본문·사진과 태그가 공개됩니다.</p>
           <PrivateLine>
             <ShieldCheck aria-hidden="true" />
