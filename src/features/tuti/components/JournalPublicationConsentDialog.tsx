@@ -3,9 +3,10 @@
 import styled from "@emotion/styled";
 import Link from "next/link";
 import { Globe2, ShieldCheck } from "lucide-react";
-import { useEffect, useId, useState } from "react";
+import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { BaseButton, PrimaryButton } from "@/features/tuti/components/buttons";
+import { ANDROID_BACK_EVENT } from "@/features/tuti/navigation/androidBack";
 
 export function JournalPublicationConsentDialog({
   placeName,
@@ -18,33 +19,67 @@ export function JournalPublicationConsentDialog({
 }) {
   const agreementId = useId();
   const [agreed, setAgreed] = useState(false);
+  const [closing, setClosing] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const closeTimerRef = useRef<number | null>(null);
+  const closingRef = useRef(false);
+  const onCloseRef = useRef(onClose);
+  const returnFocusRef = useRef<HTMLElement | null>(null);
+  const submittingRef = useRef(false);
+
+  useEffect(() => {
+    onCloseRef.current = onClose;
+  }, [onClose]);
+
+  const requestClose = useCallback(() => {
+    if (submittingRef.current || closingRef.current) return;
+    closingRef.current = true;
+    setClosing(true);
+    closeTimerRef.current = window.setTimeout(
+      () => onCloseRef.current(),
+      180,
+    );
+  }, []);
 
   useEffect(() => {
     const previousOverflow = document.body.style.overflow;
+    returnFocusRef.current = document.activeElement as HTMLElement | null;
     const closeOnEscape = (event: KeyboardEvent) => {
-      if (event.key === "Escape" && !submitting) onClose();
+      if (event.key === "Escape") requestClose();
+    };
+    const closeOnAndroidBack = (event: Event) => {
+      event.preventDefault();
+      requestClose();
     };
 
     document.body.style.overflow = "hidden";
     window.addEventListener("keydown", closeOnEscape);
+    window.addEventListener(ANDROID_BACK_EVENT, closeOnAndroidBack);
 
     return () => {
       document.body.style.overflow = previousOverflow;
       window.removeEventListener("keydown", closeOnEscape);
+      window.removeEventListener(ANDROID_BACK_EVENT, closeOnAndroidBack);
+      if (closeTimerRef.current !== null) {
+        window.clearTimeout(closeTimerRef.current);
+      }
+      returnFocusRef.current?.focus();
     };
-  }, [onClose, submitting]);
+  }, [requestClose]);
 
   const confirmPublication = async () => {
     if (!agreed || submitting) return;
 
     setSubmitting(true);
+    submittingRef.current = true;
     setError(null);
 
     try {
       await onConfirm();
-      onClose();
+      setSubmitting(false);
+      submittingRef.current = false;
+      requestClose();
     } catch (publicationError) {
       setError(
         publicationError instanceof Error
@@ -52,16 +87,19 @@ export function JournalPublicationConsentDialog({
           : "기록을 공개하지 못했어요.",
       );
       setSubmitting(false);
+      submittingRef.current = false;
     }
   };
 
   return createPortal(
     <Backdrop
+      $closing={closing}
       onPointerDown={() => {
-        if (!submitting) onClose();
+        requestClose();
       }}
     >
       <Dialog
+        $closing={closing}
         role="dialog"
         aria-modal="true"
         aria-labelledby="journal-publication-title"
@@ -98,6 +136,7 @@ export function JournalPublicationConsentDialog({
           <input
             id={agreementId}
             type="checkbox"
+            autoFocus
             checked={agreed}
             disabled={submitting}
             onChange={(event) => setAgreed(event.target.checked)}
@@ -119,7 +158,11 @@ export function JournalPublicationConsentDialog({
           >
             {submitting ? "안전 확인 중" : "인터넷에 공개하기"}
           </PublishButton>
-          <CancelButton type="button" disabled={submitting} onClick={onClose}>
+          <CancelButton
+            type="button"
+            disabled={submitting}
+            onClick={requestClose}
+          >
             나만 볼게요
           </CancelButton>
         </Actions>
@@ -129,7 +172,7 @@ export function JournalPublicationConsentDialog({
   );
 }
 
-const Backdrop = styled.div`
+const Backdrop = styled.div<{ $closing: boolean }>`
   position: fixed;
   z-index: 2147483000;
   inset: 0;
@@ -141,9 +184,11 @@ const Backdrop = styled.div`
   background: rgb(var(--color-black-rgb) / 0.38);
   backdrop-filter: blur(5px);
   -webkit-backdrop-filter: blur(5px);
+  opacity: ${({ $closing }) => ($closing ? 0 : 1)};
+  transition: opacity 180ms ease;
 `;
 
-const Dialog = styled.section`
+const Dialog = styled.section<{ $closing: boolean }>`
   width: min(100%, 430px);
   max-height: calc(100dvh - var(--app-safe-area-top, 0px) - var(--space-5));
   display: flex;
@@ -158,6 +203,11 @@ const Dialog = styled.section`
   box-shadow: 0 -18px 52px rgb(var(--color-black-rgb) / 0.18);
   overscroll-behavior: contain;
   animation: publication-sheet-enter 280ms cubic-bezier(0.22, 1, 0.36, 1);
+  transform: translateY(${({ $closing }) => ($closing ? "28px" : "0")});
+  opacity: ${({ $closing }) => ($closing ? 0 : 1)};
+  transition:
+    transform 180ms ease-in,
+    opacity 160ms ease;
 
   @keyframes publication-sheet-enter {
     from {
@@ -176,6 +226,7 @@ const Dialog = styled.section`
 
   @media (prefers-reduced-motion: reduce) {
     animation: none;
+    transition: none;
   }
 `;
 

@@ -14,6 +14,10 @@ export type JournalPublicationSafetyInput = {
   title: string;
   content: string;
   image: string | null;
+  placeName?: string;
+  crowd?: string;
+  theme?: string;
+  difficulty?: string;
 };
 
 const EMAIL_PATTERN = /\b[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}\b/i;
@@ -32,8 +36,14 @@ export function assessJournalPublicationSafety({
   title,
   content,
   image,
+  placeName = "",
+  crowd = "",
+  theme = "",
+  difficulty = "",
 }: JournalPublicationSafetyInput) {
-  const text = `${title}\n${content}`.normalize("NFKC");
+  const text = [title, content, placeName, crowd, theme, difficulty]
+    .join("\n")
+    .normalize("NFKC");
   const reasons: JournalPublicationReviewReason[] = [];
 
   if (image) reasons.push("image_review_required");

@@ -71,3 +71,20 @@ test("legacy external images cannot pass publication automatically", () => {
     },
   );
 });
+
+test("all user-controlled public labels are included in safety checks", () => {
+  const assessment = assessJournalPublicationSafety({
+    title: "오늘의 기록",
+    content: "조용히 걷고 왔어요.",
+    image: null,
+    placeName: "문의 010-1234-5678",
+    crowd: "보통",
+    theme: "https://spam.example.com",
+    difficulty: "가벼움",
+  });
+
+  assert.deepEqual(assessment, {
+    decision: "review",
+    reasons: ["contact_information", "external_link"],
+  });
+});
