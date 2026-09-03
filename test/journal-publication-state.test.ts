@@ -3,6 +3,7 @@ import test from "node:test";
 
 import {
   canOwnerPublishJournalEntry,
+  canViewerAccessJournalEntry,
   getJournalModerationTransition,
   isJournalEntryPublic,
 } from "../src/server/journal/publicationState.ts";
@@ -32,6 +33,21 @@ test("only a complete published state is publicly readable", () => {
       publishedAt,
       publicationStatus: "published",
     }),
+    false,
+  );
+});
+
+test("a viewer cannot access a public entry after blocking its author", () => {
+  const entry = {
+    publicId: "a".repeat(32),
+    publishedAt: new Date("2026-09-03T00:00:00.000Z"),
+    publicationStatus: "published" as const,
+  };
+
+  assert.equal(canViewerAccessJournalEntry(entry, false), true);
+  assert.equal(canViewerAccessJournalEntry(entry, true), false);
+  assert.equal(
+    canViewerAccessJournalEntry({ ...entry, publicationStatus: "hidden" }, false),
     false,
   );
 });

@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { isRequestOriginAllowed } from "@/server/http/cors";
 import {
   consumeRateLimit,
+  getJournalPublicationIpRateLimitPolicy,
   selectApiRateLimitPolicy,
 } from "@/server/http/rateLimit";
 
@@ -14,7 +15,24 @@ export function proxy(request: NextRequest) {
 
   if (!policy) return NextResponse.next();
 
-  const result = consumeRateLimit(createRequestIdentity(request), policy);
+  const identities = createRequestIdentities(request);
+  const results = [
+    consumeRateLimit(
+      policy.id === "journal-publication"
+        ? identities.session
+        : identities.sessionAndIp,
+      policy,
+    ),
+    ...(policy.id === "journal-publication"
+      ? [
+          consumeRateLimit(
+            identities.ip,
+            getJournalPublicationIpRateLimitPolicy(),
+          ),
+        ]
+      : []),
+  ];
+  const result = mergeRateLimitResults(results);
   if (result.allowed) {
     const response = NextResponse.next();
     response.headers.set("X-RateLimit-Limit", String(result.limit));
@@ -45,7 +63,7 @@ export function proxy(request: NextRequest) {
   return response;
 }
 
-function createRequestIdentity(request: NextRequest) {
+function createRequestIdentities(request: NextRequest) {
   const ip = firstHeaderValue(
     request.headers.get("cf-connecting-ip") ??
       request.headers.get("x-forwarded-for") ??
@@ -57,7 +75,31 @@ function createRequestIdentity(request: NextRequest) {
     .digest("hex")
     .slice(0, 16);
 
-  return `${ip}:${sessionKey}`;
+  return {
+    ip: `ip:${ip}`,
+    session: `session:${sessionKey}`,
+    sessionAndIp: `session:${sessionKey}:ip:${ip}`,
+  };
+}
+
+function mergeRateLimitResults(
+  results: ReturnType<typeof consumeRateLimit>[],
+) {
+  const blockedResults = results.filter((result) => !result.allowed);
+  const limitingResult = [...results].sort(
+    (left, right) => left.remaining - right.remaining,
+  )[0]!;
+
+  return {
+    allowed: blockedResults.length === 0,
+    limit: limitingResult.limit,
+    remaining: limitingResult.remaining,
+    resetAt: limitingResult.resetAt,
+    retryAfterSeconds:
+      blockedResults.length > 0
+        ? Math.max(...blockedResults.map((result) => result.retryAfterSeconds))
+        : limitingResult.retryAfterSeconds,
+  };
 }
 
 function firstHeaderValue(value: string | null) {

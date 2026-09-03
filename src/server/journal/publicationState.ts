@@ -13,6 +13,13 @@ export function isJournalEntryPublic(
   );
 }
 
+export function canViewerAccessJournalEntry(
+  entry: JournalPublicationState,
+  authorBlocked: boolean,
+) {
+  return isJournalEntryPublic(entry) && !authorBlocked;
+}
+
 export function canOwnerPublishJournalEntry(
   status: JournalPublicationState["publicationStatus"],
 ) {

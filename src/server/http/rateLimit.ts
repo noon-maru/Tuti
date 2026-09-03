@@ -35,6 +35,11 @@ const policies = {
     limit: 6,
     windowMs: 60 * 60_000,
   },
+  journalPublicationIp: {
+    id: "journal-publication-ip",
+    limit: 24,
+    windowMs: 60 * 60_000,
+  },
   userSubmission: { id: "user-submission", limit: 10, windowMs: 60 * 60_000 },
   admin: { id: "admin", limit: 300, windowMs: 60_000 },
 } satisfies Record<string, RateLimitPolicy>;
@@ -107,6 +112,10 @@ export function consumeRateLimit(
     resetAt: entry.resetAt,
     retryAfterSeconds: Math.max(1, Math.ceil((entry.resetAt - now) / 1_000)),
   };
+}
+
+export function getJournalPublicationIpRateLimitPolicy() {
+  return policies.journalPublicationIp;
 }
 
 function cleanupExpiredWindows(now: number) {

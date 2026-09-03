@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   consumeRateLimit,
+  getJournalPublicationIpRateLimitPolicy,
   resetRateLimitsForTest,
   selectApiRateLimitPolicy,
 } from "../src/server/http/rateLimit";
@@ -31,6 +32,11 @@ test("비용이 큰 API에 별도 정책을 적용한다", () => {
     )?.id,
     "journal-publication",
   );
+  assert.deepEqual(getJournalPublicationIpRateLimitPolicy(), {
+    id: "journal-publication-ip",
+    limit: 24,
+    windowMs: 60 * 60_000,
+  });
   assert.equal(
     selectApiRateLimitPolicy("/api/journal-author-blocks", "POST")?.id,
     "user-submission",

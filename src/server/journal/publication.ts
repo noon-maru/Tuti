@@ -2,6 +2,7 @@ import { prisma } from "@/server/db/prisma";
 import { isStoredJournalImage } from "@/server/journal/imageStorage";
 import type { PublicJournalEntry } from "@/shared/api/journal";
 import { journalPublicationEnabled } from "@/shared/features/release";
+import { canViewerAccessJournalEntry } from "@/server/journal/publicationState";
 
 export async function isPublicJournalEntryAvailable(publicId: string) {
   if (!journalPublicationEnabled || !isValidPublicId(publicId)) return false;
@@ -40,12 +41,16 @@ export async function getPublicJournalEntry(
       visitedAt: true,
       publicId: true,
       publishedAt: true,
+      publicationStatus: true,
       ownerId: true,
     },
   });
 
   if (!entry?.publicId || !entry.publishedAt) return null;
-  if (viewerUserId && await isJournalAuthorBlocked(viewerUserId, entry.ownerId)) {
+  const authorBlocked = viewerUserId
+    ? await isJournalAuthorBlocked(viewerUserId, entry.ownerId)
+    : false;
+  if (!canViewerAccessJournalEntry(entry, authorBlocked)) {
     return null;
   }
 
@@ -76,14 +81,20 @@ export async function getPublicJournalImage(
       publishedAt: { not: null },
       publicationStatus: "published",
     },
-    select: { image: true, ownerId: true },
+    select: {
+      image: true,
+      ownerId: true,
+      publicId: true,
+      publishedAt: true,
+      publicationStatus: true,
+    },
   });
 
-  if (
-    entry &&
-    viewerUserId &&
-    await isJournalAuthorBlocked(viewerUserId, entry.ownerId)
-  ) {
+  if (!entry) return null;
+  const authorBlocked = viewerUserId
+    ? await isJournalAuthorBlocked(viewerUserId, entry.ownerId)
+    : false;
+  if (!canViewerAccessJournalEntry(entry, authorBlocked)) {
     return null;
   }
 
