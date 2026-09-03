@@ -1,6 +1,10 @@
 import type { JournalEntryInput } from "@/shared/api/journal";
 
 const MAX_IMAGE_INPUT_LENGTH = 7 * 1024 * 1024;
+const MAX_TITLE_LENGTH = 80;
+const MAX_CONTENT_LENGTH = 4_000;
+const MAX_PLACE_NAME_LENGTH = 120;
+const MAX_TAG_LENGTH = 40;
 
 export function parseJournalEntryInput(
   value: unknown,
@@ -34,6 +38,17 @@ export function parseJournalEntryInput(
   }
 
   if (image && image.length > MAX_IMAGE_INPUT_LENGTH) return null;
+
+  if (
+    title.trim().length > MAX_TITLE_LENGTH ||
+    content.trim().length > MAX_CONTENT_LENGTH ||
+    placeName.trim().length > MAX_PLACE_NAME_LENGTH ||
+    crowd.trim().length > MAX_TAG_LENGTH ||
+    theme.trim().length > MAX_TAG_LENGTH ||
+    difficulty.trim().length > MAX_TAG_LENGTH
+  ) {
+    return null;
+  }
 
   if (
     visitedAt !== undefined &&

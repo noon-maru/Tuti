@@ -1,5 +1,6 @@
 import { randomBytes } from "node:crypto";
 
+import { Prisma } from "@/generated/prisma/client";
 import { writeSystemLogSafely } from "@/server/admin/log";
 import { prisma } from "@/server/db/prisma";
 import {
@@ -11,6 +12,7 @@ import {
   canOwnerPublishJournalEntry,
   isJournalEntryPublic,
 } from "@/server/journal/publicationState";
+import { assessJournalPublicationSafety } from "@/server/journal/publicationSafety";
 import type {
   JournalEntryInput,
   TutiJournalEntry,
@@ -98,7 +100,10 @@ export async function updateJournalEntry(
 ): Promise<TutiJournalEntry | null> {
   const currentEntry = await prisma.journalEntry.findFirst({
     where: { id: entryId, ownerId },
-    select: { image: true },
+    select: {
+      image: true,
+      publicationStatus: true,
+    },
   });
 
   if (!currentEntry) return null;
@@ -125,6 +130,30 @@ export async function updateJournalEntry(
         placeName: selectedPlace.name,
         theme: input.theme,
         difficulty: input.difficulty,
+        ...(currentEntry.publicationStatus !== "private"
+          ? {
+              publicationStatus:
+                currentEntry.publicationStatus === "hidden"
+                  ? ("hidden" as const)
+                  : ("pending" as const),
+              ...(currentEntry.publicationStatus === "hidden"
+                ? {}
+                : {
+                    publishedAt: null,
+                    publicationStatusChangedAt: new Date(),
+                  }),
+              publicationReviewReasons: [
+                "content_changed_after_publication",
+                ...assessJournalPublicationSafety({
+                  title: input.title,
+                  content: input.content,
+                  image: preparedImage.image,
+                }).reasons,
+              ],
+              publicationReviewedAt: null,
+              publicationReviewerUserId: null,
+            }
+          : {}),
         ...(input.visitedAt
           ? { visitedAt: new Date(input.visitedAt) }
           : {}),
@@ -232,8 +261,10 @@ export async function setJournalEntryPublication(
   if (!currentEntry) return null;
 
   if (
-    published ===
-    isJournalEntryPublic(currentEntry)
+    (published &&
+      (isJournalEntryPublic(currentEntry) ||
+        currentEntry.publicationStatus === "pending")) ||
+    (!published && currentEntry.publicationStatus === "private")
   ) {
     return serializeJournalEntry(currentEntry);
   }
@@ -247,20 +278,34 @@ export async function setJournalEntryPublication(
     );
   }
 
+  const safety = published
+    ? assessJournalPublicationSafety(currentEntry)
+    : null;
+  const publicationStatus =
+    safety?.decision === "review" ? "pending" : "published";
+  const now = new Date();
+
   const result = await prisma.journalEntry.updateMany({
     where: { id: entryId, ownerId },
     data: published
       ? {
           publicId: randomBytes(24).toString("base64url"),
-          publishedAt: new Date(),
-          publicationStatus: "published",
-          publicationStatusChangedAt: new Date(),
+          publishedAt: publicationStatus === "published" ? now : null,
+          publicationStatus,
+          publicationStatusChangedAt: now,
+          publicationReviewReasons: safety?.reasons ?? [],
+          publicationReviewedAt:
+            publicationStatus === "published" ? now : null,
+          publicationReviewerUserId: null,
         }
       : {
           publicId: null,
           publishedAt: null,
           publicationStatus: "private",
-          publicationStatusChangedAt: new Date(),
+          publicationStatusChangedAt: now,
+          publicationReviewReasons: Prisma.DbNull,
+          publicationReviewedAt: null,
+          publicationReviewerUserId: null,
         },
   });
 

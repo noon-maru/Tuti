@@ -30,6 +30,11 @@ const policies = {
   recommendation: { id: "recommendation", limit: 30, windowMs: 60_000 },
   routePlanning: { id: "route-planning", limit: 40, windowMs: 60_000 },
   imageMutation: { id: "image-mutation", limit: 12, windowMs: 10 * 60_000 },
+  journalPublication: {
+    id: "journal-publication",
+    limit: 6,
+    windowMs: 60 * 60_000,
+  },
   userSubmission: { id: "user-submission", limit: 10, windowMs: 60 * 60_000 },
   admin: { id: "admin", limit: 300, windowMs: 60_000 },
 } satisfies Record<string, RateLimitPolicy>;
@@ -59,6 +64,12 @@ export function selectApiRateLimitPolicy(pathname: string, method: string) {
     normalizedMethod !== "GET"
   ) {
     return policies.imageMutation;
+  }
+  if (
+    pathname.endsWith("/publication") &&
+    normalizedMethod === "PATCH"
+  ) {
+    return policies.journalPublication;
   }
   if (
     normalizedMethod === "POST" &&

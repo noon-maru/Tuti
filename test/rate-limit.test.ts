@@ -24,6 +24,13 @@ test("비용이 큰 API에 별도 정책을 적용한다", () => {
     selectApiRateLimitPolicy("/api/journal-entry-images/example", "PATCH")?.id,
     "image-mutation",
   );
+  assert.equal(
+    selectApiRateLimitPolicy(
+      "/api/journal-entries/example/publication",
+      "PATCH",
+    )?.id,
+    "journal-publication",
+  );
 });
 
 test("고정 시간창의 허용량과 재시도 시간을 계산한다", () => {
