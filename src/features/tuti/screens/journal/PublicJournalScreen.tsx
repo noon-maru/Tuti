@@ -243,9 +243,17 @@ function formatPublicDate(value: string) {
 }
 
 const Page = styled.main`
-  min-height: 100vh;
-  min-height: 100dvh;
-  padding: clamp(24px, 6vw, 72px) 20px;
+  width: 100%;
+  height: 100vh;
+  height: 100dvh;
+  min-height: 0;
+  padding:
+    max(20px, env(safe-area-inset-top, 0px))
+    max(16px, env(safe-area-inset-right, 0px))
+    max(28px, env(safe-area-inset-bottom, 0px))
+    max(16px, env(safe-area-inset-left, 0px));
+  overflow-x: hidden;
+  overflow-y: auto;
   background:
     radial-gradient(
       circle at 92% 4%,
@@ -253,18 +261,22 @@ const Page = styled.main`
       transparent 34%
     ),
     linear-gradient(145deg, ${palette.brand[200]}, ${palette.neutral[200]} 62%);
+  overscroll-behavior-y: contain;
+  touch-action: pan-y;
+  -webkit-overflow-scrolling: touch;
 `;
 
 const Shell = styled.div`
-  width: min(100%, 680px);
+  width: min(100%, 640px);
   display: grid;
-  gap: 24px;
+  gap: clamp(16px, 4vw, 24px);
   margin: 0 auto;
 `;
 
 const Header = styled.header`
+  min-height: 32px;
   display: flex;
-  align-items: end;
+  align-items: center;
   justify-content: space-between;
   gap: 24px;
   padding: 0 8px;
@@ -273,7 +285,7 @@ const Header = styled.header`
 `;
 
 const Wordmark = styled.img`
-  width: 104px;
+  width: clamp(64px, 14vw, 76px);
   height: auto;
   display: block;
 `;
@@ -281,7 +293,7 @@ const Wordmark = styled.img`
 const Card = styled.article`
   overflow: hidden;
   border: 1px solid rgb(0 0 0 / 0.06);
-  border-radius: clamp(32px, 8vw, 56px);
+  border-radius: clamp(28px, 6vw, 40px);
   background: ${palette.neutral[100]};
   box-shadow: 0 28px 72px rgb(0 0 0 / 0.16);
 `;
@@ -303,8 +315,8 @@ const HeroImage = styled.img`
 
 const Content = styled.div`
   display: grid;
-  gap: 20px;
-  padding: clamp(28px, 7vw, 48px);
+  gap: clamp(14px, 4vw, 20px);
+  padding: clamp(24px, 6vw, 40px);
 
   h1 {
     font-size: clamp(26px, 6vw, 38px);
@@ -365,6 +377,7 @@ const Footer = styled.footer`
   @media (max-width: 520px) {
     align-items: stretch;
     flex-direction: column;
+    padding-bottom: 4px;
     text-align: center;
   }
 `;
@@ -399,6 +412,10 @@ const FooterActions = styled.div`
   @media (max-width: 520px) {
     align-items: stretch;
     flex-direction: column-reverse;
+
+    > * {
+      width: 100%;
+    }
   }
 `;
 
@@ -440,9 +457,11 @@ const ReportBackdrop = styled.div`
 
 const ReportDialog = styled.section`
   width: min(100%, 440px);
+  max-height: calc(100dvh - 40px);
   display: grid;
   gap: 16px;
   padding: 28px;
+  overflow-y: auto;
   border-radius: 28px;
   background: ${palette.neutral[100]};
   box-shadow: 0 24px 72px
