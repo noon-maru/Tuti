@@ -312,16 +312,18 @@ export function AccountScreen({
         </DeletionComplete>
       ) : providers.length > 0 ? (
         <AccountContent>
-          <AccountMark aria-hidden="true">T</AccountMark>
-          <AccountCopy>
-            <strong>{displayName ?? email ?? "연결된 Tuti 계정"}</strong>
-            {displayName && email && <AccountEmail>{email}</AccountEmail>}
-            <p>
-              이 계정으로 기록이 연결되어 있어요.
-              <br />
-              다른 기기에서도 같은 기록을 불러올 수 있어요.
-            </p>
-          </AccountCopy>
+          <AccountOverview>
+            <AccountMark aria-hidden="true">T</AccountMark>
+            <AccountCopy>
+              <strong>{displayName ?? email ?? "연결된 Tuti 계정"}</strong>
+              {displayName && email && <AccountEmail>{email}</AccountEmail>}
+              <p>
+                이 계정으로 기록이 연결되어 있어요.
+                <br />
+                다른 기기에서도 같은 기록을 불러올 수 있어요.
+              </p>
+            </AccountCopy>
+          </AccountOverview>
           <AccountNameEditor
             displayName={displayName}
             onSave={onDisplayNameUpdate}
@@ -796,9 +798,12 @@ function getIdentityLabel(identity: AccountIdentityProfile) {
 
 const Frame = styled(ScreenFrame)`
   z-index: 40;
+  width: 100%;
   overflow-y: auto;
+  overflow-x: hidden;
   background: var(--color-surface);
   overscroll-behavior-y: contain;
+  touch-action: pan-y;
 `;
 
 const Header = styled.header`
@@ -839,12 +844,14 @@ const HeaderSpacer = styled.span`
 `;
 
 const OAuthCompletionContent = styled.div`
+  width: 100%;
+  min-width: 0;
   flex: 1;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding-bottom: var(--space-20);
+  padding-bottom: var(--space-16);
   text-align: center;
 
   h2 {
@@ -873,10 +880,12 @@ const OAuthCompletionMark = styled.div`
 `;
 
 const JournalResolutionContent = styled.div`
+  width: 100%;
+  min-width: 0;
   flex: 1;
   display: flex;
   flex-direction: column;
-  padding-top: clamp(var(--space-12), 12cqh, var(--space-20));
+  padding-top: clamp(var(--space-12), 12cqh, var(--space-16));
 `;
 
 const JournalResolutionCopy = styled.div`
@@ -948,6 +957,8 @@ const ReturnToCodeButton = styled(BaseButton)`
 `;
 
 const LoginContent = styled.div`
+  width: 100%;
+  min-width: 0;
   flex: 1;
   display: flex;
   flex-direction: column;
@@ -1079,11 +1090,13 @@ const Divider = styled.div`
 `;
 
 const EmailForm = styled.form`
+  min-width: 0;
   display: grid;
   gap: var(--space-3);
 `;
 
 const Field = styled.label`
+  min-width: 0;
   display: grid;
   gap: var(--space-2);
 
@@ -1095,6 +1108,7 @@ const Field = styled.label`
 
   input {
     width: 100%;
+    min-width: 0;
     height: var(--space-14);
     padding: 0 var(--space-4);
     border: 1px solid var(--color-border);
@@ -1121,11 +1135,18 @@ const Field = styled.label`
 `;
 
 const EmailHint = styled.div`
+  min-width: 0;
   display: flex;
+  flex-wrap: wrap;
   justify-content: space-between;
   gap: var(--space-3);
   color: var(--color-text-muted);
   font-size: var(--font-size-100);
+
+  span {
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
 
   button {
     flex: none;
@@ -1139,8 +1160,10 @@ const EmailHint = styled.div`
 `;
 
 const ErrorMessage = styled.p`
+  max-width: 100%;
   color: var(--color-error);
   font-size: var(--font-size-100);
+  overflow-wrap: anywhere;
 `;
 
 const SubmitButton = styled(PrimaryButton)<{
@@ -1186,20 +1209,40 @@ const DisabledNotice = styled.p`
 `;
 
 const AccountContent = styled.div`
+  width: 100%;
+  min-width: 0;
   flex: 1;
   display: flex;
   flex-direction: column;
+  align-items: stretch;
+  padding: clamp(var(--space-5), 4cqh, var(--space-8)) 0 var(--space-4);
+  text-align: left;
+`;
+
+const AccountOverview = styled.section`
+  width: 100%;
+  min-width: 0;
+  display: grid;
+  grid-template-columns: 56px minmax(0, 1fr);
   align-items: center;
-  padding-top: clamp(var(--space-8), 8cqh, var(--space-14));
-  text-align: center;
+  gap: var(--space-4);
+  padding: var(--space-5);
+  border: 1px solid var(--color-brand-200);
+  border-radius: 20px;
+  background:
+    linear-gradient(
+      135deg,
+      var(--color-brand-100),
+      var(--color-surface) 72%
+    );
 `;
 
 const AccountMark = styled.div`
-  width: 72px;
-  height: 72px;
+  width: 56px;
+  height: 56px;
   display: grid;
   place-items: center;
-  border-radius: 24px;
+  border-radius: 18px;
   background: var(--color-brand-500);
   color: var(--color-white);
   font-size: var(--font-size-700);
@@ -1207,28 +1250,35 @@ const AccountMark = styled.div`
 `;
 
 const AccountCopy = styled.div`
+  min-width: 0;
   display: grid;
-  gap: var(--space-3);
-  margin-top: var(--space-6);
+  gap: var(--space-1);
 
   strong {
+    min-width: 0;
     font-size: var(--font-size-400);
     font-weight: 600;
+    overflow-wrap: anywhere;
   }
 
   p {
+    margin-top: var(--space-1);
     color: var(--color-text-muted);
-    font-size: var(--font-size-200);
+    font-size: var(--font-size-100);
+    line-height: 1.55;
   }
 `;
 
 const AccountEmail = styled.span`
+  min-width: 0;
   color: var(--color-text-muted);
   font-size: var(--font-size-100);
+  overflow-wrap: anywhere;
 `;
 
 const NameForm = styled.form`
   width: 100%;
+  min-width: 0;
   display: grid;
   gap: var(--space-2);
   margin-top: var(--space-6);
@@ -1242,12 +1292,17 @@ const NameForm = styled.form`
 `;
 
 const NameInputRow = styled.div`
-  display: flex;
+  width: 100%;
+  min-width: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: stretch;
   gap: var(--space-2);
 
   input {
+    width: 100%;
+    max-width: 100%;
     min-width: 0;
-    flex: 1;
     height: var(--space-12);
     padding: 0 var(--space-4);
     border: 1px solid var(--color-border);
@@ -1262,10 +1317,19 @@ const NameInputRow = styled.div`
       box-shadow: 0 0 0 3px var(--color-brand-100);
     }
   }
+
+  @container app-viewport (max-width: 360px) {
+    grid-template-columns: minmax(0, 1fr);
+
+    button {
+      width: 100%;
+    }
+  }
 `;
 
 const NameSaveButton = styled(BaseButton)`
-  min-width: 72px;
+  width: 68px;
+  min-width: 0;
   height: var(--space-12);
   padding: 0 var(--space-4);
   border-radius: 12px;
@@ -1287,18 +1351,26 @@ const NameSavedMessage = styled.span`
 
 const LoginMethodSection = styled.section`
   width: 100%;
+  min-width: 0;
   display: grid;
   gap: var(--space-3);
   margin-top: var(--space-7);
-  padding-top: var(--space-6);
-  border-top: 1px solid var(--color-border);
+  padding: var(--space-5);
+  border: 1px solid var(--color-border);
+  border-radius: 18px;
+  background: var(--color-neutral-100);
   text-align: left;
 `;
 
 const LoginMethodHeading = styled.div`
+  min-width: 0;
   display: flex;
   justify-content: space-between;
   gap: var(--space-3);
+
+  > div {
+    min-width: 0;
+  }
 
   strong {
     font-size: var(--font-size-300);
@@ -1314,15 +1386,19 @@ const LoginMethodHeading = styled.div`
 `;
 
 const AccountNotice = styled.p`
+  max-width: 100%;
   padding: var(--space-3);
   border: 1px solid var(--color-secondary-500);
   border-radius: 10px;
   background: var(--color-secondary-100);
   color: var(--color-neutral-1200);
   font-size: var(--font-size-100);
+  overflow-wrap: anywhere;
 `;
 
 const IdentityList = styled.div`
+  width: 100%;
+  min-width: 0;
   display: grid;
   border: 1px solid var(--color-border);
   border-radius: 12px;
@@ -1330,10 +1406,12 @@ const IdentityList = styled.div`
 `;
 
 const IdentityRow = styled.div`
+  width: 100%;
+  min-width: 0;
   min-height: var(--space-14);
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
-  justify-content: space-between;
   gap: var(--space-3);
   padding: var(--space-3) var(--space-4);
   background: var(--color-neutral-100);
@@ -1387,6 +1465,10 @@ const LinkProviderList = styled.div`
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: var(--space-2);
   margin-top: var(--space-2);
+
+  @container app-viewport (max-width: 340px) {
+    grid-template-columns: 1fr;
+  }
 `;
 
 const LinkProviderButton = styled(BaseButton)`
@@ -1427,7 +1509,7 @@ const LinkEmailButton = styled(BaseButton)`
 
 const LogoutButton = styled(PrimaryButton)`
   width: 100%;
-  margin-top: var(--space-10);
+  margin-top: var(--space-7);
   background: var(--color-neutral-1100);
 `;
 
@@ -1443,6 +1525,7 @@ const DeletionButton = styled(BaseButton)`
 `;
 
 const GuestDeletionSection = styled.section`
+  min-width: 0;
   display: grid;
   gap: var(--space-3);
   margin-top: var(--space-10);
@@ -1471,6 +1554,8 @@ const GuestDeletionSection = styled.section`
 `;
 
 const DeletionComplete = styled.div`
+  width: 100%;
+  min-width: 0;
   flex: 1;
   display: flex;
   flex-direction: column;
