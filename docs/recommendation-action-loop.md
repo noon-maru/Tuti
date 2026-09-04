@@ -21,6 +21,22 @@
 
 ## 수집 이벤트
 
+추천 전 진입 흐름은 `product_activity_events`에서 클라이언트 세션별로 한 번씩
+기록한다.
+
+- `session_started`: 새 브라우저 탭 또는 앱 WebView 실행
+- `entry_started`: 초기 질문 화면 도달
+- `entry_completed`: 초기 질문 응답 완료
+- `entry_skipped`: 질문 없이 둘러보기 선택
+- `main_viewed`: 유효한 초기 상태를 가진 메인 화면 도달
+
+제품 활동에는 무작위 클라이언트 세션 ID, 웹·Android·iOS 구분과 네이티브 앱
+버전만 저장한다. IP 주소, 전체 User-Agent, 현재 좌표, 화면 내용은 저장하지
+않는다. 같은 사용자·세션·이벤트 조합은 한 번만 저장하고 원본 이벤트는 180일
+후 자동 파기한다. 활동 기록 실패는 화면 이동과 추천 이용을 막지 않는다.
+
+추천 이후에는 다음 이벤트를 `recommendation_actions`에 기록한다.
+
 - `recommendation_shown`
 - `place_selected`
 - `departure_peek_opened`

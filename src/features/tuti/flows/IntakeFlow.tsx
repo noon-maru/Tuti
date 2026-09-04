@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { getIntakeSteps } from "@/features/tuti/data/intakeSteps";
 import { IntakeScreen } from "@/features/tuti/screens/intake/IntakeScreen";
+import { recordProductActivity } from "@/lib/productActivity";
 import { useTutiStore } from "@/store/tuti";
 
 export function IntakeFlow() {
@@ -31,10 +32,16 @@ export function IntakeFlow() {
       return;
     }
 
+    void recordProductActivity("entry_completed").catch(() => {
+      // 분석 기록 실패가 질문 완료를 막지 않도록 한다.
+    });
     finishIntake("answered");
   };
 
   const skipIntake = () => {
+    void recordProductActivity("entry_skipped").catch(() => {
+      // 분석 기록 실패가 둘러보기를 막지 않도록 한다.
+    });
     finishIntake("skipped");
   };
 

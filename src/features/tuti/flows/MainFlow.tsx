@@ -6,6 +6,7 @@ import { BrowserHistoryTransitionProvider } from "@/features/tuti/components/Bro
 import { JournalEntryTransitionProvider } from "@/features/tuti/components/JournalEntryTransition";
 import { AppLoadingScreen } from "@/features/tuti/components/LoadingIndicator";
 import { RecommendationsFlow } from "@/features/tuti/flows/RecommendationsFlow";
+import { recordProductActivity } from "@/lib/productActivity";
 import { useTutiStore } from "@/store/tuti";
 
 export function MainFlow({ children }: { children: React.ReactNode }) {
@@ -35,6 +36,14 @@ export function MainFlow({ children }: { children: React.ReactNode }) {
       router.replace("/entry");
     }
   }, [entryRecord, hasHydrated, router]);
+
+  useEffect(() => {
+    if (!hasHydrated || !entryRecord || pathname !== "/") return;
+
+    void recordProductActivity("main_viewed").catch(() => {
+      // 분석 기록 실패가 메인 추천 화면을 막지 않도록 한다.
+    });
+  }, [entryRecord, hasHydrated, pathname]);
 
   useEffect(
     () => () => {

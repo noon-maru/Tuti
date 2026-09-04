@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 import { RecommendationReadyFlow } from "@/features/tuti/flows/RecommendationReadyFlow";
 import { IntakeFlow } from "@/features/tuti/flows/IntakeFlow";
+import { recordProductActivity } from "@/lib/productActivity";
 import { useTutiStore } from "@/store/tuti";
 
 export function EntryFlow() {
@@ -22,6 +23,14 @@ export function EntryFlow() {
       router.replace("/");
     }
   }, [router, shouldRedirectToMain]);
+
+  useEffect(() => {
+    if (!hasHydrated || shouldRedirectToMain) return;
+
+    void recordProductActivity("entry_started").catch(() => {
+      // 분석 기록 실패가 질문 흐름을 막지 않도록 한다.
+    });
+  }, [hasHydrated, shouldRedirectToMain]);
 
   if (!hasHydrated || shouldRedirectToMain) return null;
 

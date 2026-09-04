@@ -128,6 +128,20 @@ enum RecommendationActionType {
   journal_created
 }
 
+enum ProductActivityType {
+  session_started
+  entry_started
+  entry_completed
+  entry_skipped
+  main_viewed
+}
+
+enum ProductActivityPlatform {
+  web
+  android
+  ios
+}
+
 enum LocationConsentStatus {
   accepted
   paused
@@ -686,6 +700,7 @@ model User {
   sessions              UserSession[]
   recommendationActions RecommendationAction[]
   recommendationRuns    RecommendationRun[]
+  productActivityEvents ProductActivityEvent[]
   signalProfile         UserSignalProfile?
   locationConsentEvents LocationConsentEvent[]
   locationUsageLogs     LocationUsageLog[]
@@ -893,6 +908,25 @@ model RecommendationAction {
   @@index([placeId, action, createdAt])
   @@index([action, createdAt])
   @@map("recommendation_actions")
+}
+
+model ProductActivityEvent {
+  id             String                  @id
+  userId         String                  @map("user_id")
+  clientSessionId String                 @map("client_session_id")
+  action         ProductActivityType
+  platform       ProductActivityPlatform
+  appVersion     String?                 @map("app_version")
+  createdAt      DateTime                @default(now()) @map("created_at")
+  retentionUntil DateTime                @map("retention_until")
+  user           User                    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, clientSessionId, action])
+  @@index([userId, createdAt])
+  @@index([action, createdAt])
+  @@index([clientSessionId, createdAt])
+  @@index([retentionUntil])
+  @@map("product_activity_events")
 }
 
 model SystemLog {
