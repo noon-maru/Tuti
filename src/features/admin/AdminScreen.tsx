@@ -16,6 +16,7 @@ import {
   fetchAdminJson,
 } from "@/lib/adminApi";
 import { AdminNotificationsPanel } from "@/features/admin/AdminNotificationsPanel";
+import { AdminUserActivityPanel } from "@/features/admin/AdminUserActivityPanel";
 import type {
   AdminInquiriesResponse,
   AdminInquiryItem,
@@ -36,11 +37,14 @@ import type {
   AdminSettingItem,
   AdminSettingsResponse,
   AdminUserItem,
+  AdminUserActivityItem,
+  AdminUserActivityResponse,
   AdminUsersResponse,
 } from "@/shared/api/admin";
 
 export type AdminTab =
   | "overview"
+  | "activity"
   | "notifications"
   | "funnel"
   | "logs"
@@ -53,6 +57,7 @@ export type AdminTab =
 
 const tabs: Array<{ id: AdminTab; label: string }> = [
   { id: "overview", label: "운영 현황" },
+  { id: "activity", label: "사용자 활동" },
   { id: "notifications", label: "알림 전달" },
   { id: "funnel", label: "추천 성과" },
   { id: "logs", label: "시스템 로그" },
@@ -77,7 +82,7 @@ const navigationGroups: Array<{
   {
     label: "관측",
     items: tabs.filter((item) =>
-      ["funnel", "notifications", "logs", "location"].includes(item.id),
+      ["activity", "funnel", "notifications", "logs", "location"].includes(item.id),
     ),
   },
   {
@@ -94,6 +99,7 @@ const mobilePrimaryTabs: Array<{ id: AdminTab; label: string }> = [
 ];
 
 const mobileMoreTabs: Array<{ id: AdminTab; label: string }> = [
+  { id: "activity", label: "사용자 활동" },
   { id: "funnel", label: "추천 행동 퍼널" },
   { id: "notifications", label: "알림 전달" },
   { id: "users", label: "사용자 및 권한" },
@@ -200,6 +206,9 @@ export function AdminScreen({
   const [funnel, setFunnel] =
     useState<AdminRecommendationFunnelResponse | null>(null);
   const [funnelDays, setFunnelDays] = useState(30);
+  const [userActivity, setUserActivity] =
+    useState<AdminUserActivityResponse | null>(null);
+  const [userActivityDays, setUserActivityDays] = useState(7);
   const [logs, setLogs] = useState<AdminLogItem[]>([]);
   const [locationLogs, setLocationLogs] = useState<AdminLocationUsageItem[]>([]);
   const [locationLogTotal, setLocationLogTotal] = useState(0);
@@ -408,6 +417,11 @@ export function AdminScreen({
           `recommendation-funnel?days=${funnelDays}`,
         );
       setFunnel(response);
+    } else if (tab === "activity") {
+      const response = await fetchAdminJson<AdminUserActivityResponse>(
+        `user-activity?days=${userActivityDays}`,
+      );
+      setUserActivity(response);
     } else if (tab === "logs") {
       const response = await fetchAdminJson<AdminLogsResponse>(
         `logs${suffix}`,
@@ -447,7 +461,15 @@ export function AdminScreen({
         await fetchAdminJson<AdminSettingsResponse>("settings");
       setSettings(response.settings);
     }
-  }, [appliedQuery, filter, funnelDays, placeFilters, placePage, tab]);
+  }, [
+    appliedQuery,
+    filter,
+    funnelDays,
+    placeFilters,
+    placePage,
+    tab,
+    userActivityDays,
+  ]);
 
   const refresh = useCallback(async (forceSignals = false) => {
     setLoading(true);
@@ -560,7 +582,8 @@ export function AdminScreen({
       | "places"
       | "reports"
       | "settings"
-      | "users",
+      | "users"
+      | "user-activity",
     id: string,
     init: RequestInit,
   ) => {
@@ -690,6 +713,7 @@ export function AdminScreen({
           />
         ) : tab !== "overview" &&
           tab !== "funnel" &&
+          tab !== "activity" &&
           tab !== "settings" ? (
           <Toolbar
             onSubmit={(event) => {
@@ -745,6 +769,33 @@ export function AdminScreen({
             funnel={funnel}
             days={funnelDays}
             onDaysChange={setFunnelDays}
+          />
+        ) : tab === "activity" ? (
+          <AdminUserActivityPanel
+            data={userActivity}
+            days={userActivityDays}
+            mutatingId={mutatingId}
+            onDaysChange={setUserActivityDays}
+            onToggleExcluded={(user: AdminUserActivityItem) => {
+              const nextExcluded = !user.excluded;
+              if (
+                !window.confirm(
+                  nextExcluded
+                    ? "이 계정을 내부·QA 계정으로 표시하고 실사용 통계에서 제외할까요? 원본 활동 기록은 유지됩니다."
+                    : "이 계정을 실사용 통계에 다시 포함할까요?",
+                )
+              ) {
+                return;
+              }
+              void mutate(
+                "user-activity",
+                user.userId,
+                adminJsonRequest("PATCH", {
+                  userId: user.userId,
+                  excluded: nextExcluded,
+                }),
+              );
+            }}
           />
         ) : tab === "logs" ? (
           <LogsPanel logs={logs} />
@@ -2605,6 +2656,7 @@ function getSearchPlaceholder(tab: AdminTab) {
 
 function getAdminHeaderContext(tab: AdminTab) {
   if (tab === "overview") return "지금 확인할 운영 신호";
+  if (tab === "activity") return "계정 생성 이후 실제 이용 흐름";
   if (tab === "notifications") return "앱 알림 전달과 기기 상태";
   if (tab === "funnel") return "추천 이후 행동 흐름";
   if (tab === "location") return "위치정보 이용·제공 확인";

@@ -31,6 +31,9 @@ export async function mergeUserIntoCurrentAccount({
         journalPublicationRestrictedAt: true,
         journalPublicationRestrictionReason: true,
         journalPublicationRestrictedByUserId: true,
+        analyticsExcludedAt: true,
+        analyticsExclusionReason: true,
+        analyticsExcludedByUserId: true,
       },
     }),
     prisma.user.findUnique({
@@ -39,6 +42,7 @@ export async function mergeUserIntoCurrentAccount({
         role: true,
         journalPublicationRestrictedAt: true,
         journalPublicationRestrictedByUserId: true,
+        analyticsExcludedAt: true,
       },
     }),
   ]);
@@ -84,6 +88,17 @@ export async function mergeUserIntoCurrentAccount({
             sourceUser.journalPublicationRestrictionReason,
           journalPublicationRestrictedByUserId:
             sourceUser.journalPublicationRestrictedByUserId,
+        },
+      });
+    }
+
+    if (sourceUser.analyticsExcludedAt && !targetUser.analyticsExcludedAt) {
+      await transaction.user.updateMany({
+        where: { id: targetUserId, analyticsExcludedAt: null },
+        data: {
+          analyticsExcludedAt: sourceUser.analyticsExcludedAt,
+          analyticsExclusionReason: sourceUser.analyticsExclusionReason,
+          analyticsExcludedByUserId: sourceUser.analyticsExcludedByUserId,
         },
       });
     }

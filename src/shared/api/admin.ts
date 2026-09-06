@@ -180,6 +180,54 @@ export type AdminUserItem = {
   createdAt: string;
 };
 
+export type AdminUserActivityStage =
+  | "created"
+  | "visited"
+  | "recommended"
+  | "engaged"
+  | "converted";
+
+export type AdminUserActivityItem = {
+  userId: string;
+  accountType: "anonymous" | "authenticated" | "admin";
+  stage: AdminUserActivityStage;
+  excluded: boolean;
+  exclusionReason: string | null;
+  platform: "web" | "android" | "ios" | null;
+  appVersion: string | null;
+  sessionCount: number;
+  recommendationRuns: number;
+  recommendationActions: number;
+  journalCount: number;
+  createdAt: string;
+  firstActivityAt: string;
+  lastActivityAt: string;
+};
+
+export type AdminUserActivityDay = {
+  date: string;
+  newUsers: number;
+  activeUsers: number;
+  meaningfulUsers: number;
+};
+
+export type AdminUserActivityResponse = {
+  periodDays: number;
+  generatedAt: string;
+  trackingStartedAt: string | null;
+  summary: {
+    observedUsers: number;
+    newUsers: number;
+    returningUsers: number;
+    meaningfulUsers: number;
+    convertedUsers: number;
+    authenticatedUsers: number;
+    excludedUsers: number;
+  };
+  daily: AdminUserActivityDay[];
+  users: AdminUserActivityItem[];
+};
+
 export type AdminInquiryItem = {
   id: string;
   requesterUserId: string | null;
