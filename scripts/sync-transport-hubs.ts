@@ -17,16 +17,42 @@ import {
   fetchExpressBusTerminals,
   fetchTrainCities,
   fetchTrainStations,
+  TagoTransportError,
 } from "../src/server/transport/dataGoTransportClient";
 
 const KAKAO_COORDINATE_SOURCE = "kakao_map" as const;
 
 async function main() {
   const syncedAt = new Date();
-  const train = await syncTrainHubs(syncedAt);
-  const expressBus = await syncExpressBusHubs(syncedAt);
+  const train = await syncWithStaleFallback("고속철도역", () =>
+    syncTrainHubs(syncedAt),
+  );
+  const expressBus = await syncWithStaleFallback("고속버스터미널", () =>
+    syncExpressBusHubs(syncedAt),
+  );
 
   console.log(JSON.stringify({ train, expressBus, syncedAt }, null, 2));
+}
+
+async function syncWithStaleFallback<T>(
+  label: string,
+  sync: () => Promise<T>,
+): Promise<T | { preserved: true; errorCode: string }> {
+  try {
+    return await sync();
+  } catch (error) {
+    if (
+      error instanceof TagoTransportError &&
+      (error.code === "tago_unavailable" ||
+        error.code === "tago_quota_exceeded")
+    ) {
+      console.warn(
+        `${label} 원천 API를 사용할 수 없어 기존 교통 허브 데이터를 보존합니다: ${error.message}`,
+      );
+      return { preserved: true, errorCode: error.code };
+    }
+    throw error;
+  }
 }
 
 async function syncTrainHubs(syncedAt: Date) {
