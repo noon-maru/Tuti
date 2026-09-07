@@ -55,6 +55,9 @@ export function selectApiRateLimitPolicy(pathname: string, method: string) {
   if (pathname === "/api/auth/email/request-code") return policies.emailCodeRequest;
   if (pathname === "/api/auth/email/verify-code") return policies.emailCodeVerify;
   if (pathname.startsWith("/api/auth/oauth/")) return policies.oauth;
+  if (pathname === "/api/journal-books/preview" && normalizedMethod === "POST") {
+    return { id: "journal-book-preview", limit: 6, windowMs: 60_000 };
+  }
   if (pathname === "/api/recommendations" && normalizedMethod === "POST") {
     return policies.recommendation;
   }

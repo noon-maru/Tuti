@@ -19,6 +19,7 @@ const eslintConfig = defineConfig([
     "ios/App/App/public/**",
     "out/**",
     "build/**",
+    "public/pdfjs/**",
     "next-env.d.ts",
   ]),
 ]);

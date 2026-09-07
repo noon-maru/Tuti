@@ -10,6 +10,7 @@ import {
 } from "@/features/tuti/components/BrowserHistoryTransition";
 import { ContextMenu } from "@/features/tuti/components/ContextMenu";
 import { LoadingIndicator } from "@/features/tuti/components/LoadingIndicator";
+import { JournalBookEntry } from "@/features/tuti/components/JournalBookEntry";
 import { useJournalEntryTransitionTarget } from "@/features/tuti/components/JournalEntryTransition";
 import { BaseButton } from "@/features/tuti/components/buttons";
 import { ScreenFrame } from "@/features/tuti/components/ScreenFrame";
@@ -198,6 +199,7 @@ export function JournalScreen({
     >
       <ListHeader>
         <h1>지나간 공간</h1>
+        <JournalBookEntry hasEntries={entries.length > 0} />
         <AddButton
           type="button"
           aria-label="새로운 공간 남기기"
@@ -414,6 +416,11 @@ const ListHeader = styled.header`
   h1 {
     font-size: var(--font-size-500);
     font-weight: 700;
+  }
+
+  @container app-viewport (max-width: 360px) {
+    gap: 8px;
+    h1 { font-size: 20px; }
   }
 `;
 

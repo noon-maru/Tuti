@@ -1,5 +1,6 @@
 import { apiUrl } from "@/lib/api/apiUrl";
 import { preferencesStorage } from "@/lib/storage/preferencesStorage";
+import { removeJournalBookDraft } from "@/lib/journalBookDraft";
 import type {
   AccountDeletionResponse,
   AccountIdentityUnlinkResponse,
@@ -219,7 +220,11 @@ export async function deleteAccount() {
     throw new Error("계정 삭제 응답을 확인하지 못했어요.");
   }
 
-  await clearStoredSession();
+  try {
+    await removeJournalBookDraft(currentSession.userId);
+  } finally {
+    await clearStoredSession();
+  }
   return data;
 }
 
