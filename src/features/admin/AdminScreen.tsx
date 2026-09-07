@@ -16,6 +16,7 @@ import {
   fetchAdminJson,
 } from "@/lib/adminApi";
 import { AdminNotificationsPanel } from "@/features/admin/AdminNotificationsPanel";
+import { AdminSecurityTrafficPanel } from "@/features/admin/AdminSecurityTrafficPanel";
 import { AdminUserActivityPanel } from "@/features/admin/AdminUserActivityPanel";
 import type {
   AdminInquiriesResponse,
@@ -32,6 +33,7 @@ import type {
   AdminPlacesMeta,
   AdminPlacesResponse,
   AdminRecommendationFunnelResponse,
+  AdminSecurityTrafficResponse,
   AdminReportItem,
   AdminReportsResponse,
   AdminSettingItem,
@@ -45,6 +47,7 @@ import type {
 export type AdminTab =
   | "overview"
   | "activity"
+  | "security"
   | "notifications"
   | "funnel"
   | "logs"
@@ -58,6 +61,7 @@ export type AdminTab =
 const tabs: Array<{ id: AdminTab; label: string }> = [
   { id: "overview", label: "운영 현황" },
   { id: "activity", label: "사용자 활동" },
+  { id: "security", label: "트래픽·보안" },
   { id: "notifications", label: "알림 전달" },
   { id: "funnel", label: "추천 성과" },
   { id: "logs", label: "시스템 로그" },
@@ -82,7 +86,7 @@ const navigationGroups: Array<{
   {
     label: "관측",
     items: tabs.filter((item) =>
-      ["activity", "funnel", "notifications", "logs", "location"].includes(item.id),
+      ["activity", "security", "funnel", "notifications", "logs", "location"].includes(item.id),
     ),
   },
   {
@@ -100,6 +104,7 @@ const mobilePrimaryTabs: Array<{ id: AdminTab; label: string }> = [
 
 const mobileMoreTabs: Array<{ id: AdminTab; label: string }> = [
   { id: "activity", label: "사용자 활동" },
+  { id: "security", label: "트래픽 및 보안 관제" },
   { id: "funnel", label: "추천 행동 퍼널" },
   { id: "notifications", label: "알림 전달" },
   { id: "users", label: "사용자 및 권한" },
@@ -185,6 +190,15 @@ function AdminSectionIcon({
     );
   }
 
+  if (section === "security") {
+    return (
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M12 3.5 19 6v5.4c0 4.3-2.8 7.5-7 9.1-4.2-1.6-7-4.8-7-9.1V6l7-2.5Z" />
+        <path d="m9 12 2 2 4-4" />
+      </svg>
+    );
+  }
+
   return (
     <svg viewBox="0 0 24 24" aria-hidden="true">
       <circle cx="5" cy="12" r="1.4" />
@@ -209,6 +223,9 @@ export function AdminScreen({
   const [userActivity, setUserActivity] =
     useState<AdminUserActivityResponse | null>(null);
   const [userActivityDays, setUserActivityDays] = useState(7);
+  const [securityTraffic, setSecurityTraffic] =
+    useState<AdminSecurityTrafficResponse | null>(null);
+  const [securityTrafficDays, setSecurityTrafficDays] = useState(7);
   const [logs, setLogs] = useState<AdminLogItem[]>([]);
   const [locationLogs, setLocationLogs] = useState<AdminLocationUsageItem[]>([]);
   const [locationLogTotal, setLocationLogTotal] = useState(0);
@@ -422,6 +439,11 @@ export function AdminScreen({
         `user-activity?days=${userActivityDays}`,
       );
       setUserActivity(response);
+    } else if (tab === "security") {
+      const response = await fetchAdminJson<AdminSecurityTrafficResponse>(
+        `security-traffic?days=${securityTrafficDays}`,
+      );
+      setSecurityTraffic(response);
     } else if (tab === "logs") {
       const response = await fetchAdminJson<AdminLogsResponse>(
         `logs${suffix}`,
@@ -467,6 +489,7 @@ export function AdminScreen({
     funnelDays,
     placeFilters,
     placePage,
+    securityTrafficDays,
     tab,
     userActivityDays,
   ]);
@@ -714,6 +737,7 @@ export function AdminScreen({
         ) : tab !== "overview" &&
           tab !== "funnel" &&
           tab !== "activity" &&
+          tab !== "security" &&
           tab !== "settings" ? (
           <Toolbar
             onSubmit={(event) => {
@@ -796,6 +820,12 @@ export function AdminScreen({
                 }),
               );
             }}
+          />
+        ) : tab === "security" ? (
+          <AdminSecurityTrafficPanel
+            data={securityTraffic}
+            days={securityTrafficDays}
+            onDaysChange={setSecurityTrafficDays}
           />
         ) : tab === "logs" ? (
           <LogsPanel logs={logs} />
@@ -2657,6 +2687,7 @@ function getSearchPlaceholder(tab: AdminTab) {
 function getAdminHeaderContext(tab: AdminTab) {
   if (tab === "overview") return "지금 확인할 운영 신호";
   if (tab === "activity") return "계정 생성 이후 실제 이용 흐름";
+  if (tab === "security") return "실사용 신호와 비정상 접근 관측";
   if (tab === "notifications") return "앱 알림 전달과 기기 상태";
   if (tab === "funnel") return "추천 이후 행동 흐름";
   if (tab === "location") return "위치정보 이용·제공 확인";

@@ -1,19 +1,23 @@
 import { createHash } from "node:crypto";
-import { NextRequest, NextResponse } from "next/server";
+import { NextFetchEvent, NextRequest, NextResponse } from "next/server";
 import { isRequestOriginAllowed } from "@/server/http/cors";
 import {
   consumeRateLimit,
   getJournalPublicationIpRateLimitPolicy,
   selectApiRateLimitPolicy,
 } from "@/server/http/rateLimit";
+import { recordTrafficObservationSafely } from "@/server/security/trafficObservation";
 
-export function proxy(request: NextRequest) {
+export function proxy(request: NextRequest, event: NextFetchEvent) {
   const policy = selectApiRateLimitPolicy(
     request.nextUrl.pathname,
     request.method,
   );
 
-  if (!policy) return NextResponse.next();
+  if (!policy) {
+    observeTraffic(event, request, false);
+    return NextResponse.next();
+  }
 
   const identities = createRequestIdentities(request);
   const results = [
@@ -34,12 +38,15 @@ export function proxy(request: NextRequest) {
   ];
   const result = mergeRateLimitResults(results);
   if (result.allowed) {
+    observeTraffic(event, request, false);
     const response = NextResponse.next();
     response.headers.set("X-RateLimit-Limit", String(result.limit));
     response.headers.set("X-RateLimit-Remaining", String(result.remaining));
     response.headers.set("X-RateLimit-Reset", String(Math.ceil(result.resetAt / 1_000)));
     return response;
   }
+
+  observeTraffic(event, request, true);
 
   const response = NextResponse.json(
     {
@@ -61,6 +68,23 @@ export function proxy(request: NextRequest) {
   }
 
   return response;
+}
+
+function observeTraffic(
+  event: NextFetchEvent,
+  request: NextRequest,
+  rateLimited: boolean,
+) {
+  const pathname = request.nextUrl.pathname;
+  if (
+    pathname === "/api/health" ||
+    pathname.startsWith("/api/admin/") ||
+    pathname === "/admin" ||
+    pathname.startsWith("/admin/")
+  ) {
+    return;
+  }
+  event.waitUntil(recordTrafficObservationSafely(request, { rateLimited }));
 }
 
 function createRequestIdentities(request: NextRequest) {
@@ -107,5 +131,7 @@ function firstHeaderValue(value: string | null) {
 }
 
 export const config = {
-  matcher: "/api/:path*",
+  matcher: [
+    "/((?!_next/static|_next/image|favicon.ico|manifest.webmanifest|icons/|images/|fonts/).*)",
+  ],
 };

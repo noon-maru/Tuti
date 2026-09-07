@@ -933,6 +933,30 @@ model ProductActivityEvent {
   @@map("product_activity_events")
 }
 
+model TrafficObservation {
+  id               String   @id
+  bucketStartedAt  DateTime @map("bucket_started_at")
+  visitorKey       String   @map("visitor_key")
+  kind             String
+  platform         String
+  riskLevel        String   @map("risk_level")
+  signal           String
+  pathGroup        String   @map("path_group")
+  method           String
+  requestCount     Int      @default(1) @map("request_count")
+  rateLimitedCount Int      @default(0) @map("rate_limited_count")
+  firstSeenAt      DateTime @default(now()) @map("first_seen_at")
+  lastSeenAt       DateTime @default(now()) @map("last_seen_at")
+  retentionUntil   DateTime @map("retention_until")
+
+  @@unique([bucketStartedAt, visitorKey, pathGroup, method, signal])
+  @@index([bucketStartedAt])
+  @@index([kind, bucketStartedAt])
+  @@index([riskLevel, bucketStartedAt])
+  @@index([retentionUntil])
+  @@map("traffic_observations")
+}
+
 model SystemLog {
   id          String   @id
   level       LogLevel @default(info)

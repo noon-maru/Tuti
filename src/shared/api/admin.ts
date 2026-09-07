@@ -228,6 +228,62 @@ export type AdminUserActivityResponse = {
   users: AdminUserActivityItem[];
 };
 
+export type AdminTrafficKind =
+  | "likely_human"
+  | "declared_bot"
+  | "automation"
+  | "unknown";
+
+export type AdminTrafficDay = {
+  date: string;
+  requests: number;
+  likelyHuman: number;
+  declaredBots: number;
+  automation: number;
+  unknown: number;
+  risky: number;
+  rateLimited: number;
+  dailyVisitors: number;
+};
+
+export type AdminTrafficFinding = {
+  signal: string;
+  pathGroup: string;
+  riskLevel: "low" | "medium" | "high";
+  requestCount: number;
+  rateLimitedCount: number;
+  dailyVisitors: number;
+  lastSeenAt: string;
+};
+
+export type AdminTrafficRoute = {
+  pathGroup: string;
+  likelyHuman: number;
+  declaredBots: number;
+  automation: number;
+  unknown: number;
+  total: number;
+};
+
+export type AdminSecurityTrafficResponse = {
+  periodDays: number;
+  generatedAt: string;
+  trackingStartedAt: string | null;
+  summary: {
+    requests: number;
+    dailyVisitors: number;
+    likelyHumanRequests: number;
+    botRequests: number;
+    unknownRequests: number;
+    riskyRequests: number;
+    rateLimitedRequests: number;
+    activityConfirmedUsers: number;
+  };
+  daily: AdminTrafficDay[];
+  findings: AdminTrafficFinding[];
+  routes: AdminTrafficRoute[];
+};
+
 export type AdminInquiryItem = {
   id: string;
   requesterUserId: string | null;

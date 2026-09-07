@@ -7,7 +7,13 @@ let nextPurgeAt = 0;
 
 export async function purgeExpiredAuthRecords(now = new Date()) {
   const consumedBefore = new Date(now.getTime() - CONSUMED_CODE_GRACE_MS);
-  const [sessions, emailCodes, oauthAuthorizations, productActivityEvents] =
+  const [
+    sessions,
+    emailCodes,
+    oauthAuthorizations,
+    productActivityEvents,
+    trafficObservations,
+  ] =
     await prisma.$transaction([
       prisma.userSession.deleteMany({
         where: { expiresAt: { lte: now } },
@@ -26,6 +32,9 @@ export async function purgeExpiredAuthRecords(now = new Date()) {
       prisma.productActivityEvent.deleteMany({
         where: { retentionUntil: { lte: now } },
       }),
+      prisma.trafficObservation.deleteMany({
+        where: { retentionUntil: { lte: now } },
+      }),
     ]);
 
   return {
@@ -33,6 +42,7 @@ export async function purgeExpiredAuthRecords(now = new Date()) {
     emailCodes: emailCodes.count,
     oauthAuthorizations: oauthAuthorizations.count,
     productActivityEvents: productActivityEvents.count,
+    trafficObservations: trafficObservations.count,
   };
 }
 
