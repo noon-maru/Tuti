@@ -2971,7 +2971,7 @@ const Main = styled.main`
   display: grid;
   align-content: start;
   gap: var(--space-5);
-  padding: var(--space-6);
+  padding: var(--space-6) var(--space-6) var(--space-10);
   margin: 0 auto;
 
   @media (max-width: 1024px) {
@@ -2980,7 +2980,10 @@ const Main = styled.main`
     padding:
       var(--space-5)
       max(var(--space-4), env(safe-area-inset-right))
-      max(var(--space-8), env(safe-area-inset-bottom))
+      max(
+        var(--space-10),
+        calc(var(--space-6) + env(safe-area-inset-bottom))
+      )
       max(var(--space-4), env(safe-area-inset-left));
   }
 `;
