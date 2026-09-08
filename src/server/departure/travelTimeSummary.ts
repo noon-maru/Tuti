@@ -1,16 +1,15 @@
 import type { DepartureRoute } from "@/shared/api/departurePlan";
 import type { TravelTimeSummary } from "@/shared/api/travelTime";
+import {
+  isUsableRoute,
+  type RouteEndpoints,
+} from "@/server/departure/routeValidity";
 
 export function toTravelTimeSummary(
   route: DepartureRoute | null,
+  endpoints?: RouteEndpoints,
 ): TravelTimeSummary | null {
-  if (
-    !route ||
-    route.status !== "available" ||
-    route.durationSeconds === null
-  ) {
-    return null;
-  }
+  if (!isUsableRoute(route, endpoints)) return null;
 
   return {
     mode: route.mode,

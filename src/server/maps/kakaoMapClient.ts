@@ -7,6 +7,10 @@ import type {
 import type { UserLocation } from "@/shared/tuti/types";
 import { recordExternalLocationTransfer } from "@/server/location/compliance";
 import { requireExternalLocationProcessingMode } from "@/server/location/externalProcessing";
+import {
+  isUsableRoute,
+  parseRouteMetric,
+} from "@/server/departure/routeValidity";
 
 const KAKAO_MAP_BASE_URL = "https://dapi.kakao.com/v2";
 const KAKAO_REQUEST_TIMEOUT_MS = 10_000;
@@ -120,8 +124,8 @@ export async function fetchKakaoMapRoute(
   });
 
   return mode === "publicTransit"
-    ? normalizeTransitRoute(payload as KakaoTransitResponse)
-    : normalizeSimpleRoute(mode, payload as KakaoSimpleRouteResponse);
+    ? normalizeTransitRoute(payload as KakaoTransitResponse, input)
+    : normalizeSimpleRoute(mode, payload as KakaoSimpleRouteResponse, input);
 }
 
 export async function fetchNearbyKakaoPlaces(
@@ -199,15 +203,16 @@ export async function searchKakaoPlaces(
 
 function normalizeTransitRoute(
   payload: KakaoTransitResponse,
+  endpoints: RouteInput,
 ): DepartureRoute {
   const route = payload.status === "OK" ? payload.routes?.[0] : undefined;
   if (!route?.properties) return unavailableRoute("publicTransit");
 
-  return {
+  const normalized: DepartureRoute = {
     mode: "publicTransit",
     status: "available",
-    durationSeconds: finiteNumber(route.properties.totalTime),
-    distanceMeters: finiteNumber(route.properties.totalDistance),
+    durationSeconds: parseRouteMetric(route.properties.totalTime),
+    distanceMeters: parseRouteMetric(route.properties.totalDistance),
     transfers: finiteNumber(route.properties.transfers),
     fareWon: finiteNumber(
       route.properties.fare?.value ?? route.properties.fare?.min,
@@ -217,20 +222,25 @@ function normalizeTransitRoute(
     externalUrl: normalizeUrl(payload.properties?.landingURL),
     steps: normalizeRouteSteps(route.steps),
   };
+
+  return isUsableRoute(normalized, endpoints)
+    ? normalized
+    : unavailableRoute("publicTransit");
 }
 
 function normalizeSimpleRoute(
   mode: "walking" | "bicycle",
   payload: KakaoSimpleRouteResponse,
+  endpoints: RouteInput,
 ): DepartureRoute {
   const route = payload.route;
   if (!route?.properties) return unavailableRoute(mode);
 
-  return {
+  const normalized: DepartureRoute = {
     mode,
     status: "available",
-    durationSeconds: finiteNumber(route.properties.totalTime),
-    distanceMeters: finiteNumber(route.properties.totalDistance),
+    durationSeconds: parseRouteMetric(route.properties.totalTime),
+    distanceMeters: parseRouteMetric(route.properties.totalDistance),
     transfers: null,
     fareWon: null,
     tollWon: null,
@@ -240,6 +250,10 @@ function normalizeSimpleRoute(
       route.legs?.flatMap((leg) => leg.steps ?? []),
     ),
   };
+
+  return isUsableRoute(normalized, endpoints)
+    ? normalized
+    : unavailableRoute(mode);
 }
 
 function normalizeRouteSteps(

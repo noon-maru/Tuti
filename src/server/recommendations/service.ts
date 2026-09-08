@@ -48,6 +48,8 @@ type PlaceRow = {
   movementLevel: "near" | "short" | "half";
   moodTags: string[];
   sourceContentType: string | null;
+  sourceSidoName: string | null;
+  sourceSigunguName: string | null;
   latitude: unknown;
   longitude: unknown;
   distanceMeters?: number | null;
@@ -290,6 +292,8 @@ async function findPlacesByBaseFatigue(
       movementLevel: true,
       moodTags: true,
       sourceContentType: true,
+      sourceSidoName: true,
+      sourceSigunguName: true,
       latitude: true,
       longitude: true,
     },
@@ -321,6 +325,8 @@ async function findPlacesNearLocation(
       "movement_level" AS "movementLevel",
       "mood_tags" AS "moodTags",
       "source_content_type" AS "sourceContentType",
+      "source_sido_name" AS "sourceSidoName",
+      "source_sigungu_name" AS "sourceSigunguName",
       "latitude",
       "longitude",
       ST_Distance(
@@ -366,6 +372,8 @@ function toTutiPlace(place: PlaceRow): TutiPlace {
     movementLevel: place.movementLevel,
     moodTags: place.moodTags,
     sourceContentType: place.sourceContentType ?? undefined,
+    sourceSidoName: place.sourceSidoName ?? undefined,
+    sourceSigunguName: place.sourceSigunguName ?? undefined,
     latitude: Number(place.latitude),
     longitude: Number(place.longitude),
     distanceMeters:
@@ -426,7 +434,10 @@ async function enrichWithTransitTimes(
       destination,
       destinationName: place.name,
     }).catch(() => null);
-    const travelTimeSummary = toTravelTimeSummary(route);
+    const travelTimeSummary = toTravelTimeSummary(route, {
+      origin,
+      destination,
+    });
 
     return travelTimeSummary
       ? { ...place, travelTimeSummary }

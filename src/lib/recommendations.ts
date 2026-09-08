@@ -22,6 +22,8 @@ export type TutiPlace = {
   movementLevel: "near" | "short" | "half";
   moodTags: string[];
   sourceContentType?: string;
+  sourceSidoName?: string;
+  sourceSigunguName?: string;
   admissionFee?: string;
   latitude?: number;
   longitude?: number;

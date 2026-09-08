@@ -2,6 +2,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useMemo } from "react";
+import { createRecommendationInputFingerprint } from "@/features/tuti/recommendationInputFingerprint";
 import { fetchRecommendations } from "@/lib/tutiApi";
 import {
   getKoreanDateKey,
@@ -36,11 +37,29 @@ export function useTutiRecommendations({ enabled = true } = {}) {
     [skippedToday, storedAnswers],
   );
   const feature = useMemo(() => interpretState(answers), [answers]);
+  const inputFingerprint = useMemo(
+    () =>
+      createRecommendationInputFingerprint({
+        answers,
+        userLocation,
+        preferredRegion,
+        excludedPlaceIds: recommendationExcludedPlaceIds,
+        entryStatus: entryRecord?.status,
+      }),
+    [
+      answers,
+      entryRecord?.status,
+      preferredRegion,
+      recommendationExcludedPlaceIds,
+      userLocation,
+    ],
+  );
   const cachedRecommendation =
     dailyRecommendation?.effectiveDate === recommendationDate &&
     dailyRecommendation.cycle === recommendationCycle &&
     dailyRecommendation.algorithmVersion ===
-      RECOMMENDATION_ALGORITHM_VERSION
+      RECOMMENDATION_ALGORITHM_VERSION &&
+    dailyRecommendation.inputFingerprint === inputFingerprint
       ? {
           recommendationId: dailyRecommendation.recommendationId,
           algorithmVersion: dailyRecommendation.algorithmVersion,
@@ -53,6 +72,7 @@ export function useTutiRecommendations({ enabled = true } = {}) {
       recommendationDate,
       recommendationCycle,
       RECOMMENDATION_ALGORITHM_VERSION,
+      inputFingerprint,
     ],
     queryFn: () =>
       fetchRecommendations(
@@ -73,7 +93,8 @@ export function useTutiRecommendations({ enabled = true } = {}) {
       (dailyRecommendation?.effectiveDate === recommendationDate &&
         dailyRecommendation.cycle === recommendationCycle &&
         dailyRecommendation.recommendationId === data.recommendationId &&
-        dailyRecommendation.algorithmVersion === data.algorithmVersion)
+        dailyRecommendation.algorithmVersion === data.algorithmVersion &&
+        dailyRecommendation.inputFingerprint === inputFingerprint)
     ) {
       return;
     }
@@ -82,11 +103,13 @@ export function useTutiRecommendations({ enabled = true } = {}) {
       data.recommendationId,
       data.algorithmVersion,
       data.places,
+      inputFingerprint,
     );
   }, [
     cacheDailyRecommendation,
     dailyRecommendation,
     data,
+    inputFingerprint,
     recommendationCycle,
     recommendationDate,
   ]);

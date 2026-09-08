@@ -31,37 +31,38 @@ export async function createTravelTimeSummary(
     longitude: Number(place.longitude),
   };
   const input = { origin, destination, destinationName: place.name };
+  const endpoints = { origin, destination };
   const walkingDistance = isWalkingDistance(origin, destination);
 
   if (walkingDistance) {
     const walking = await settleRoute(() =>
       fetchKakaoMapRoute("walking", input),
     );
-    const summary = toTravelTimeSummary(walking);
+    const summary = toTravelTimeSummary(walking, endpoints);
     if (summary) return summary;
   }
 
   const publicTransit = await settleRoute(() =>
     fetchKakaoMapRoute("publicTransit", input),
   );
-  const transitSummary = toTravelTimeSummary(publicTransit);
+  const transitSummary = toTravelTimeSummary(publicTransit, endpoints);
   if (transitSummary) return transitSummary;
 
   const driving = await settleRoute(() => fetchKakaoDrivingRoute(input));
-  const drivingSummary = toTravelTimeSummary(driving);
+  const drivingSummary = toTravelTimeSummary(driving, endpoints);
   if (drivingSummary) return drivingSummary;
 
   const bicycle = await settleRoute(() =>
     fetchKakaoMapRoute("bicycle", input),
   );
-  const bicycleSummary = toTravelTimeSummary(bicycle);
+  const bicycleSummary = toTravelTimeSummary(bicycle, endpoints);
   if (bicycleSummary) return bicycleSummary;
 
   if (!walkingDistance) {
     const walking = await settleRoute(() =>
       fetchKakaoMapRoute("walking", input),
     );
-    return toTravelTimeSummary(walking);
+    return toTravelTimeSummary(walking, endpoints);
   }
 
   return null;

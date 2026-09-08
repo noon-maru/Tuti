@@ -7,19 +7,17 @@ import {
   findSeoulRealtimeAreaContexts,
   resolveSeoulRealtimeCrowd,
 } from "@/server/recommendations/seoulRealtimeCrowd";
+import {
+  matchTouristSpotContexts,
+  type TouristSpotContext,
+} from "@/server/recommendations/crowdForecastIdentity";
 
 const FORECAST_MAX_AGE_MS = 8 * 24 * 60 * 60 * 1_000;
 const MIN_TYPICAL_SAMPLE_SIZE = 3;
 
-type TouristSpotContext = {
-  areaCode: string;
-  sigunguCode: string;
-  touristSpotName: string;
-};
-
 /**
- * 관광공사 중심 관광지 원천 데이터와 이름이 일치하는 장소에만 집중률을 연결한다.
- * TourAPI 지역코드와 데이터랩 법정 코드 체계가 다르므로 두 코드를 직접 조인하지 않는다.
+ * 관광공사 중심 관광지 원천 데이터와 이름·위치가 일치하는 장소에만 집중률을 연결한다.
+ * TourAPI 지역코드와 데이터랩 법정 코드 체계가 달라 좌표와 지역명을 식별에 사용한다.
  */
 export async function enrichPlacesWithCrowdForecast(
   places: TutiPlace[],
@@ -38,7 +36,7 @@ export async function enrichPlacesWithCrowdForecast(
         if (seoulForecast) return applyCrowdForecast(place, seoulForecast);
       }
 
-      const context = contexts.get(place.name);
+      const context = contexts.get(place.id);
       if (!context) {
         return applyEstimatedCrowd(place, estimates.get(place.id));
       }
@@ -114,21 +112,22 @@ async function findTouristSpotContexts(places: TutiPlace[]) {
     select: {
       touristSpotName: true,
       areaCode: true,
+      areaName: true,
       sigunguCode: true,
+      sigunguName: true,
+      longitude: true,
+      latitude: true,
     },
   });
-  const contexts = new Map<string, TouristSpotContext>();
 
-  for (const record of records) {
-    if (contexts.has(record.touristSpotName)) continue;
-    contexts.set(record.touristSpotName, {
-      areaCode: record.areaCode,
-      sigunguCode: record.sigunguCode,
-      touristSpotName: record.touristSpotName,
-    });
-  }
-
-  return contexts;
+  return matchTouristSpotContexts(
+    places,
+    records.map((record) => ({
+      ...record,
+      longitude: record.longitude === null ? null : Number(record.longitude),
+      latitude: record.latitude === null ? null : Number(record.latitude),
+    })),
+  );
 }
 
 async function resolveCrowdForecast(

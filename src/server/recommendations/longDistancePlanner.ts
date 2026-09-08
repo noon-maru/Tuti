@@ -299,8 +299,14 @@ async function planJourney(
     destinationRoute: destinationRoute.status,
   });
 
-  const originAccess = toTravelTimeSummary(originRoute);
-  const destinationAccess = toTravelTimeSummary(destinationRoute);
+  const originAccess = toTravelTimeSummary(originRoute, {
+    origin: userLocation,
+    destination: originHub,
+  });
+  const destinationAccess = toTravelTimeSummary(destinationRoute, {
+    origin: destinationHub,
+    destination: placeLocation,
+  });
   if (!originAccess || !destinationAccess) return null;
   if (originAccess.durationSeconds > 65 * 60) return null;
   if (destinationAccess.durationSeconds > 40 * 60) return null;

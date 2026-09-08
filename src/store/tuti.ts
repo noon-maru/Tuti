@@ -57,6 +57,7 @@ export type DailyRecommendationSnapshot = {
   cycle: number;
   recommendationId: string;
   algorithmVersion: string;
+  inputFingerprint: string;
   places: TutiPlace[];
 };
 
@@ -109,6 +110,7 @@ type TutiState = {
     recommendationId: string,
     algorithmVersion: string,
     places: TutiPlace[],
+    inputFingerprint: string,
   ) => void;
   refreshDailyRecommendation: () => void;
   setActivePlace: (index: number, placeId: string) => void;
@@ -259,6 +261,7 @@ export const useTutiStore = create<TutiState>()(
         recommendationId,
         algorithmVersion,
         places,
+        inputFingerprint,
       ) =>
         set((state) => ({
           dailyRecommendation: {
@@ -266,9 +269,9 @@ export const useTutiStore = create<TutiState>()(
             cycle: state.recommendationCycle,
             recommendationId,
             algorithmVersion,
+            inputFingerprint,
             places,
           },
-          recommendationExcludedPlaceIds: [],
         })),
       refreshDailyRecommendation: () =>
         set((state) => ({

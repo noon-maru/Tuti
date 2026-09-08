@@ -42,7 +42,6 @@ export function LocationAccessProvider({
   children: React.ReactNode;
 }) {
   const queryClient = useQueryClient();
-  const userLocation = useTutiStore((state) => state.userLocation);
   const locationConsent = useTutiStore((state) => state.locationConsent);
   const hasHydrated = useTutiStore((state) => state.hasHydrated);
   const setUserLocation = useTutiStore((state) => state.setUserLocation);
@@ -78,12 +77,7 @@ export function LocationAccessProvider({
     ((result: LocationRequestResult) => void) | null
   >(null);
   const pendingLocationResultRef = useRef<LocationRequestResult | null>(null);
-  const locationRef = useRef(userLocation);
   const consentRef = useRef(locationConsent);
-
-  useEffect(() => {
-    locationRef.current = userLocation;
-  }, [userLocation]);
 
   useEffect(() => {
     consentRef.current = locationConsent;
@@ -165,15 +159,6 @@ export function LocationAccessProvider({
   ]);
 
   const requestLocation = useCallback(() => {
-    const currentLocation = locationRef.current;
-
-    if (currentLocation) {
-      return Promise.resolve({
-        status: "ready" as const,
-        location: currentLocation,
-      });
-    }
-
     if (requestPromiseRef.current) return requestPromiseRef.current;
 
     const requestPromise = new Promise<LocationRequestResult>((resolve) => {
