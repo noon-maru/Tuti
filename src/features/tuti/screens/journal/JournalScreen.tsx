@@ -199,7 +199,6 @@ export function JournalScreen({
     >
       <ListHeader>
         <h1>지나간 공간</h1>
-        <JournalBookEntry hasEntries={entries.length > 0} />
         <AddButton
           type="button"
           aria-label="새로운 공간 남기기"
@@ -327,6 +326,7 @@ export function JournalScreen({
           <p>잠깐 머문 공간의 공기를 남겨보세요.</p>
         </EmptyState>
       )}
+      <JournalBookEntry hasEntries={entries.length > 0} />
     </Frame>
   );
 }
@@ -388,7 +388,7 @@ const Frame = styled(ScreenFrame)<{
   $isEntering?: boolean;
 }>`
   z-index: 1;
-  gap: var(--space-7);
+  gap: var(--space-5);
   background: var(--color-surface);
   opacity: ${({ $progress = 0 }) => 1 - $progress * 0.32};
   transform: translateY(${({ $dragY = 0 }) => $dragY}px)

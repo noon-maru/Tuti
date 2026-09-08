@@ -4,7 +4,7 @@ import styled from "@emotion/styled";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
-import { ArrowLeft, Check, BookOpen } from "lucide-react";
+import { ChevronLeft, Check, BookOpen } from "lucide-react";
 import { useSession } from "@/features/tuti/hooks/useSession";
 import { useQuery } from "@tanstack/react-query";
 import { fetchJournalEntries } from "@/lib/tutiApi";
@@ -26,6 +26,13 @@ import {
   JOURNAL_BOOK_LETTER_LIMIT,
   type JournalBookDraft,
 } from "@/shared/api/journalBook";
+import { LoadingIndicator } from "@/features/tuti/components/LoadingIndicator";
+
+const BOOK_STEPS = [
+  { value: "selection", label: "기록 고르기" },
+  { value: "details", label: "표지와 글" },
+  { value: "preview", label: "미리보기" },
+] as const;
 
 export function JournalBookFlow() {
   const session = useSession();
@@ -96,6 +103,9 @@ function BookEditor({ ownerId }: { ownerId: string }) {
     () => (draft && missing.length === 0 ? parseJournalBookInput(draft) : null),
     [draft, missing.length],
   );
+  const stepIndex = draft
+    ? BOOK_STEPS.findIndex(({ value }) => value === draft.step)
+    : 0;
 
   function update(next: JournalBookDraft) {
     setDraft(next);
@@ -184,16 +194,16 @@ function BookEditor({ ownerId }: { ownerId: string }) {
             draft?.step === "selection" ? "기록으로 돌아가기" : "이전 단계"
           }
         >
-          <ArrowLeft size={22} />
+          <ChevronLeft size={24} aria-hidden="true" />
         </IconButton>
-        <span>작은 기록집</span>
-        <SmallButton type="button" onClick={() => router.replace("/journal")}>
-          나가기
-        </SmallButton>
+        <h1>작은 기록집</h1>
+        <HeaderSpacer aria-hidden="true" />
       </Header>
       <Content ref={scroller}>
         {!draft || isPending ? (
-          <p role="status">남겨 둔 기록을 불러오고 있어요.</p>
+          <LoadingState>
+            <LoadingIndicator label="남겨 둔 기록을 불러오고 있어요." />
+          </LoadingState>
         ) : isError ? (
           <Notice role="alert">
             기록을 불러오지 못했어요.
@@ -203,32 +213,36 @@ function BookEditor({ ownerId }: { ownerId: string }) {
           </Notice>
         ) : (
           <>
-            <Steps aria-label="제작 단계">
-              {(["selection", "details", "preview"] as const).map(
-                (step, index) => (
+            <StepGuide aria-label={`제작 단계 ${stepIndex + 1}/3`}>
+              <StepLabel>
+                <span>{stepIndex + 1}/3</span>
+                {BOOK_STEPS[stepIndex].label}
+              </StepLabel>
+              <StepRail aria-hidden="true">
+                {BOOK_STEPS.map(({ value }, index) => (
                   <span
-                    key={step}
-                    aria-current={step === draft.step ? "step" : undefined}
-                  >
-                    {index + 1} {["기록", "표지와 글", "미리보기"][index]}
-                  </span>
-                ),
-              )}
-            </Steps>
-            <h1 ref={heading} tabIndex={-1}>
-              {draft.step === "selection"
-                ? "어떤 시간을 담아볼까요?"
-                : draft.step === "details"
-                  ? "이 시간에 이름을 붙여주세요."
-                  : "한 권으로 모인 시간"}
-            </h1>
-            <Intro>
-              {draft.step === "selection"
-                ? "간직하고 싶은 기록만 골라주세요. 날짜순으로 엮어드릴게요."
-                : draft.step === "details"
-                  ? "제목만 정해도 좋아요. 전하고 싶은 말은 천천히 남겨주세요."
-                  : "글과 사진이 잘 담겼는지 살펴보세요."}
-            </Intro>
+                    key={value}
+                    data-active={index <= stepIndex ? "true" : undefined}
+                  />
+                ))}
+              </StepRail>
+            </StepGuide>
+            <IntroBlock>
+              <h2 ref={heading} tabIndex={-1}>
+                {draft.step === "selection"
+                  ? "어떤 시간을 담아볼까요?"
+                  : draft.step === "details"
+                    ? "이 시간에 이름을 붙여주세요."
+                    : "한 권으로 모인 시간"}
+              </h2>
+              <Intro>
+                {draft.step === "selection"
+                  ? "간직하고 싶은 기록만 골라주세요. 날짜순으로 차분히 엮어드릴게요."
+                  : draft.step === "details"
+                    ? "제목만 정해도 좋아요. 남기고 싶은 말은 천천히 적어주세요."
+                    : "글과 사진이 잘 담겼는지 살펴보세요."}
+              </Intro>
+            </IntroBlock>
             {missing.length > 0 && (
               <Notice role="alert">
                 삭제되었거나 접근할 수 없는 기록이 {missing.length}개 있어요.
@@ -253,10 +267,6 @@ function BookEditor({ ownerId }: { ownerId: string }) {
 
             {draft.step === "selection" && (
               <>
-                <Hint>
-                  지금은 무료로 미리보기를 만들 수 있어요. 구매·파일 저장은 추후
-                  제공될 예정이에요.
-                </Hint>
                 {entries.length === 0 ? (
                   <Notice>
                     남긴 기록이 아직 없어요.
@@ -266,44 +276,45 @@ function BookEditor({ ownerId }: { ownerId: string }) {
                   </Notice>
                 ) : (
                   <>
-                    <Dates>
-                      <label>
-                        시작일
-                        <input
-                          type="date"
-                          value={draft.fromDate}
-                          max={draft.toDate || undefined}
-                          onChange={(event) =>
-                            update({ ...draft, fromDate: event.target.value })
+                    <FilterPanel>
+                      <Dates>
+                        <label>
+                          시작일
+                          <input
+                            type="date"
+                            value={draft.fromDate}
+                            max={draft.toDate || undefined}
+                            onChange={(event) =>
+                              update({ ...draft, fromDate: event.target.value })
+                            }
+                          />
+                        </label>
+                        <label>
+                          종료일
+                          <input
+                            type="date"
+                            value={draft.toDate}
+                            min={draft.fromDate || undefined}
+                            onChange={(event) =>
+                              update({ ...draft, toDate: event.target.value })
+                            }
+                          />
+                        </label>
+                      </Dates>
+                      {(draft.fromDate || draft.toDate) && (
+                        <ResetButton
+                          onClick={() =>
+                            update({ ...draft, fromDate: "", toDate: "" })
                           }
-                        />
-                      </label>
-                      <label>
-                        종료일
-                        <input
-                          type="date"
-                          value={draft.toDate}
-                          min={draft.fromDate || undefined}
-                          onChange={(event) =>
-                            update({ ...draft, toDate: event.target.value })
-                          }
-                        />
-                      </label>
-                    </Dates>
-                    {(draft.fromDate || draft.toDate) && (
-                      <SmallButton
-                        onClick={() =>
-                          update({ ...draft, fromDate: "", toDate: "" })
-                        }
-                      >
-                        모든 날짜 보기
-                      </SmallButton>
-                    )}
-                    <Hint>
-                      {draft.entryIds.length}개 선택 · 최대{" "}
-                      {JOURNAL_BOOK_MAX_ENTRIES}개 · 날짜를 바꿔도 선택은
-                      유지돼요.
-                    </Hint>
+                        >
+                          모든 날짜 보기
+                        </ResetButton>
+                      )}
+                    </FilterPanel>
+                    <SelectionSummary>
+                      <strong>{draft.entryIds.length}개 선택</strong>
+                      <span>한 권에 최대 {JOURNAL_BOOK_MAX_ENTRIES}개</span>
+                    </SelectionSummary>
                     <SelectionList>
                       {sorted
                         .filter(
@@ -499,18 +510,13 @@ function BookEditor({ ownerId }: { ownerId: string }) {
 const Frame = styled(ScreenFrame)`
   z-index: 2;
   background: var(--color-surface);
-  gap: 16px;
+  gap: var(--space-5);
   touch-action: auto;
-  h1 {
-    font-size: clamp(20px, 5cqw, 26px);
-    font-weight: 500;
-    line-height: 1.5;
-    margin: 18px 0 10px;
-    letter-spacing: -0.04em;
-  }
-  h1:focus {
+
+  h2:focus {
     outline: none;
   }
+
   button:focus-visible,
   input:focus-visible,
   textarea:focus-visible,
@@ -521,12 +527,16 @@ const Frame = styled(ScreenFrame)`
   fieldset {
     border: 0;
     padding: 0;
-    margin: 24px 0;
+    margin: var(--space-7) 0;
     min-width: 0;
   }
+
   legend {
-    font-size: 14px;
+    color: var(--color-text);
+    font-size: var(--font-size-200);
+    font-weight: 600;
   }
+
   input,
   textarea {
     font: inherit;
@@ -535,119 +545,256 @@ const Frame = styled(ScreenFrame)`
   }
 `;
 const Header = styled.header`
-  display: flex;
+  min-height: var(--space-11);
+  display: grid;
+  grid-template-columns: var(--space-11) 1fr var(--space-11);
   align-items: center;
-  justify-content: space-between;
-  gap: 12px;
+  gap: var(--space-2);
   flex-shrink: 0;
-  span {
-    font-size: 14px;
+
+  h1 {
+    margin: 0;
+    font-size: var(--font-size-400);
+    font-weight: 700;
+    line-height: var(--line-height-heading);
+    letter-spacing: var(--letter-spacing-heading);
+    text-align: center;
   }
 `;
+
 const SmallButton = styled.button`
   border: 0;
   background: transparent;
   color: var(--color-text-muted);
   min-height: 44px;
-  padding: 8px;
+  padding: var(--space-2);
   cursor: pointer;
-  font-size: 13px;
+  font-size: var(--font-size-100);
 `;
+
 const IconButton = styled(SmallButton)`
+  width: var(--space-11);
+  height: var(--space-11);
   display: grid;
   place-items: center;
-  width: 44px;
   padding: 0;
-  color: var(--color-text);
+  border-radius: 50%;
+  color: var(--color-text-muted);
+  transition: color 160ms ease, transform 160ms ease;
+
+  &:hover {
+    color: var(--color-text);
+  }
+
+  &:active {
+    transform: translateX(-2px);
+  }
 `;
+
+const HeaderSpacer = styled.span`
+  width: var(--space-11);
+  height: var(--space-11);
+`;
+
 const Content = styled.div`
   flex: 1;
   min-height: 0;
   overflow-y: auto;
   overscroll-behavior: contain;
-  padding: 0 3px 18px;
+  padding: var(--space-2) 2px var(--space-7);
+  touch-action: pan-y;
 `;
-const Steps = styled.div`
+
+const LoadingState = styled.div`
+  min-height: 100%;
+  display: grid;
+  place-items: center;
+  padding-bottom: 15%;
+`;
+
+const StepGuide = styled.div`
+  display: grid;
+  gap: var(--space-2);
+  margin-bottom: var(--space-8);
+`;
+
+const StepLabel = styled.p`
   display: flex;
-  gap: 16px;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0;
   color: var(--color-text-muted);
-  font-size: 12px;
-  [aria-current] {
-    color: var(--color-text);
+  font-size: var(--font-size-100);
+  font-weight: 500;
+
+  span {
+    color: var(--color-brand-700);
     font-weight: 700;
   }
 `;
+
+const StepRail = styled.div`
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--space-2);
+
+  span {
+    height: 3px;
+    border-radius: 999px;
+    background: var(--color-neutral-300);
+    transition: background 200ms ease;
+  }
+
+  span[data-active="true"] {
+    background: var(--color-accent-bridge);
+  }
+`;
+
+const IntroBlock = styled.div`
+  display: grid;
+  gap: var(--space-2);
+  margin-bottom: var(--space-7);
+
+  h2 {
+    margin: 0;
+    color: var(--color-text);
+    font-size: var(--font-size-500);
+    font-weight: 700;
+    line-height: var(--line-height-heading);
+    letter-spacing: var(--letter-spacing-heading);
+  }
+`;
+
 const Intro = styled.p`
-  font-size: 14px;
+  margin: 0;
   color: var(--color-text-muted);
-  line-height: 1.8;
-  margin-bottom: 22px;
+  font-size: var(--font-size-200);
+  line-height: var(--line-height-body);
+  letter-spacing: var(--letter-spacing-body);
 `;
+
 const Hint = styled.p`
-  font-size: 12px;
+  margin: var(--space-3) 0;
   color: var(--color-text-muted);
-  line-height: 1.8;
-  margin: 12px 0;
+  font-size: var(--font-size-100);
+  line-height: var(--line-height-body);
 `;
+
 const Notice = styled.div`
-  padding: 16px;
-  border: 1px solid var(--color-border);
-  border-radius: 12px;
-  font-size: 14px;
-  line-height: 1.8;
-  margin: 12px 0;
+  margin: var(--space-4) 0;
+  padding: var(--space-4);
+  border: 1px solid var(--color-neutral-300);
+  border-radius: 16px;
+  background: var(--color-neutral-200);
+  color: var(--color-text);
+  font-size: var(--font-size-200);
+  line-height: var(--line-height-body);
+
   button {
     display: block;
   }
 `;
+
+const FilterPanel = styled.div`
+  display: grid;
+  gap: var(--space-2);
+  margin-bottom: var(--space-5);
+  padding: var(--space-4);
+  border-radius: 18px;
+  background: var(--color-neutral-200);
+`;
+
 const Dates = styled.div`
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 12px;
+  gap: var(--space-3);
+
   label {
     min-width: 0;
-    font-size: 12px;
     color: var(--color-text-muted);
+    font-size: var(--font-size-100);
+    font-weight: 500;
   }
+
   input {
     display: block;
     min-width: 0;
     width: 100%;
-    margin-top: 8px;
-    padding: 10px 6px;
-    border: 1px solid var(--color-border);
-    border-radius: 8px;
-    background: transparent;
+    min-height: 44px;
+    margin-top: var(--space-2);
+    padding: var(--space-2) var(--space-3);
+    border: 1px solid transparent;
+    border-radius: 12px;
+    background: var(--color-surface);
     box-sizing: border-box;
+    color-scheme: light;
+
+    &:focus-visible {
+      border-color: var(--color-brand-500);
+    }
   }
 `;
+
+const ResetButton = styled(SmallButton)`
+  width: fit-content;
+  min-height: 36px;
+  justify-self: end;
+  padding: var(--space-1) var(--space-2);
+  color: var(--color-brand-800);
+  font-weight: 600;
+`;
+
+const SelectionSummary = styled.p`
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin: 0 0 var(--space-3);
+  color: var(--color-text-muted);
+  font-size: var(--font-size-100);
+
+  strong {
+    color: var(--color-brand-800);
+    font-weight: 700;
+  }
+`;
+
 const SelectionList = styled.div`
   display: grid;
-  gap: 8px;
+  gap: 0;
 `;
+
 const EntryButton = styled.button`
   display: flex;
   align-items: center;
   text-align: left;
-  gap: 12px;
-  padding: 10px 0;
+  gap: var(--space-3);
+  min-height: 82px;
+  padding: var(--space-2) 0;
   width: 100%;
   border: 0;
-  border-bottom: 1px solid var(--color-border);
+  border-bottom: 1px solid var(--color-neutral-300);
   background: transparent;
   color: var(--color-text);
   cursor: pointer;
+  transition: opacity 160ms ease;
+
+  &:active {
+    opacity: 0.72;
+  }
 `;
+
 const Thumb = styled.span`
-  width: 58px;
-  height: 66px;
+  width: 60px;
+  height: 68px;
   flex-shrink: 0;
-  border-radius: 5px;
-  background: #e1effb;
-  color: #245a8e;
+  border-radius: 14px;
+  background: var(--color-brand-200);
+  color: var(--color-brand-900);
   display: grid;
   place-items: center;
   overflow: hidden;
+
   img {
     width: 100%;
     height: 100%;
@@ -656,73 +803,98 @@ const Thumb = styled.span`
 `;
 const EntryCopy = styled.span`
   display: grid;
-  gap: 4px;
+  gap: 2px;
   flex: 1;
   min-width: 0;
+
   span {
     color: var(--color-text-muted);
-    font-size: 11px;
+    font-size: var(--font-size-100);
+    line-height: 1.4;
   }
+
   strong {
-    font-size: 14px;
-    font-weight: 500;
+    font-size: var(--font-size-200);
+    font-weight: 600;
+    line-height: 1.5;
     overflow-wrap: anywhere;
   }
 `;
+
 const CheckMark = styled.span<{ $selected: boolean }>`
   width: 24px;
   height: 24px;
   flex-shrink: 0;
-  border: 1px solid var(--color-border);
+  border: 1px solid
+    ${({ $selected }) =>
+      $selected ? "var(--color-brand-500)" : "var(--color-neutral-400)"};
   border-radius: 50%;
   display: grid;
   place-items: center;
-  background: ${({ $selected }) => ($selected ? "var(--color-accent-primary)" : "transparent")};
-  color: white;
+  background: ${({ $selected }) =>
+    $selected ? "var(--color-brand-500)" : "transparent"};
+  color: var(--color-white);
 `;
+
 const Field = styled.label`
   display: block;
-  margin: 22px 0;
-  font-size: 14px;
+  margin: var(--space-7) 0;
+  color: var(--color-text);
+  font-size: var(--font-size-200);
+  font-weight: 600;
+
   span {
     color: var(--color-text-muted);
-    font-size: 12px;
+    font-size: var(--font-size-100);
+    font-weight: 400;
   }
+
   input,
   textarea {
     display: block;
     width: 100%;
-    margin-top: 10px;
-    border: 1px solid var(--color-border);
-    border-radius: 10px;
-    padding: 14px;
-    background: transparent;
+    margin-top: var(--space-3);
+    border: 1px solid transparent;
+    border-radius: 16px;
+    padding: var(--space-4);
+    background: var(--color-neutral-200);
     box-sizing: border-box;
-    line-height: 1.6;
+    font-weight: 400;
+    line-height: var(--line-height-body);
+
+    &:focus-visible {
+      border-color: var(--color-brand-500);
+    }
   }
+
   textarea {
     resize: vertical;
   }
 `;
+
 const Covers = styled.div`
   display: flex;
-  gap: 12px;
+  gap: var(--space-3);
   overflow-x: auto;
-  padding: 4px;
+  padding: var(--space-2) 2px;
 `;
+
 const CoverButton = styled.button<{ $active: boolean }>`
-  width: 72px;
-  height: 92px;
+  width: 76px;
+  height: 98px;
   flex-shrink: 0;
   padding: 0;
   border: 2px solid
-    ${({ $active }) => ($active ? "var(--color-accent-primary)" : "transparent")};
-  border-radius: 4px;
-  background: #e1effb;
-  color: #245a8e;
-  font-size: 12px;
+    ${({ $active }) =>
+      $active ? "var(--color-brand-500)" : "transparent"};
+  border-radius: 14px;
+  background: var(--color-brand-200);
+  color: var(--color-brand-900);
+  font-size: var(--font-size-100);
+  font-weight: 500;
   cursor: pointer;
   overflow: hidden;
+
   img {
     width: 100%;
     height: 100%;
@@ -731,12 +903,18 @@ const CoverButton = styled.button<{ $active: boolean }>`
 `;
 const Footer = styled.footer`
   display: grid;
-  gap: 10px;
+  gap: var(--space-2);
   flex-shrink: 0;
+
+  > button {
+    width: 100%;
+    font-size: var(--font-size-200);
+  }
 `;
+
 const SaveStatus = styled.div`
   color: var(--color-text-muted);
-  font-size: 11px;
+  font-size: var(--font-size-100);
   text-align: center;
-  min-height: 18px;
+  min-height: var(--space-5);
 `;

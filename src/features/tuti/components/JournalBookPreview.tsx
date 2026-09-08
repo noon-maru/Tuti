@@ -6,6 +6,7 @@ import type { PDFDocumentProxy, RenderTask } from "pdfjs-dist";
 import { fetchWithSession } from "@/lib/auth/session";
 import { getSessionSnapshot } from "@/lib/auth/session";
 import type { JournalBookInput } from "@/shared/api/journalBook";
+import { LoadingIndicator } from "@/features/tuti/components/LoadingIndicator";
 
 export function JournalBookPreview({
   input,
@@ -80,17 +81,15 @@ export function JournalBookPreview({
     );
   if (!document)
     return (
-      <Notice role="status">
-        기록을 한 권으로 엮고 있어요.
-        <br />
-        잠시만 기다려주세요.
-      </Notice>
+      <PreviewLoading role="status">
+        <LoadingIndicator label="기록을 한 권으로 엮고 있어요." />
+      </PreviewLoading>
     );
   return (
     <div>
-      <Notice role="status">
+      <PreviewMeta role="status">
         표지 포함 {document.numPages}쪽 · 디지털 PDF 미리보기
-      </Notice>
+      </PreviewMeta>
       <Pages aria-label="기록집 전체 미리보기">
         {Array.from({ length: document.numPages }, (_, index) => (
           <PdfPage key={index} document={document} number={index + 1} />
@@ -198,41 +197,74 @@ function PdfPage({
 
 const Pages = styled.div`
   display: grid;
-  gap: 28px;
+  gap: var(--space-7);
 `;
+
 const Notice = styled.div`
-  padding: 18px 0;
+  margin: var(--space-4) 0;
+  padding: var(--space-4);
+  border-radius: 16px;
+  background: var(--color-neutral-200);
   color: var(--color-text-muted);
-  font-size: 13px;
-  line-height: 1.7;
+  font-size: var(--font-size-200);
+  line-height: var(--line-height-body);
+
+  p {
+    margin: 0;
+  }
+
   button {
-    margin-top: 12px;
-    padding: 10px 16px;
-    border: 1px solid var(--color-border);
-    border-radius: 20px;
-    background: var(--color-surface);
-    color: var(--color-text);
+    min-height: 40px;
+    margin-top: var(--space-3);
+    padding: var(--space-2) var(--space-4);
+    border: 0;
+    border-radius: 999px;
+    background: var(--color-secondary-500);
+    color: var(--color-secondary-1000);
+    font: inherit;
+    font-weight: 600;
   }
 `;
+
+const PreviewLoading = styled.div`
+  min-height: 240px;
+  display: grid;
+  place-items: center;
+`;
+
+const PreviewMeta = styled.p`
+  margin: 0 0 var(--space-4);
+  color: var(--color-text-muted);
+  font-size: var(--font-size-100);
+  text-align: center;
+`;
+
 const Figure = styled.figure`
   margin: 0;
   min-width: 0;
+
   figcaption,
   summary {
-    font-size: 12px;
+    margin-top: var(--space-2);
     color: var(--color-text-muted);
-    margin-top: 8px;
+    font-size: var(--font-size-100);
   }
+
   details p {
     white-space: pre-wrap;
-    font-size: 14px;
-    line-height: 1.8;
+    font-size: var(--font-size-200);
+    line-height: var(--line-height-body);
   }
 `;
+
 const Sheet = styled.div`
+  overflow: hidden;
   background: white;
   aspect-ratio: 148 / 210;
-  box-shadow: 0 3px 18px #18181812;
+  border: 1px solid var(--color-neutral-300);
+  border-radius: 14px;
+  box-shadow: 0 8px 24px rgb(var(--color-black-rgb) / 0.08);
+
   canvas {
     display: block;
     width: 100%;

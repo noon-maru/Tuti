@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { BookOpen } from "lucide-react";
+import { BookOpen, ChevronRight } from "lucide-react";
 import { useRouter } from "next/navigation";
 import styled from "@emotion/styled";
 import { useSession } from "@/features/tuti/hooks/useSession";
@@ -27,26 +27,82 @@ export function JournalBookEntry({ hasEntries }: { hasEntries: boolean }) {
   if (!hasEntries && !hasDraft) return null;
   return (
     <Button type="button" onClick={() => router.push("/journal/book")}>
-      <BookOpen size={16} aria-hidden="true" />
-      {hasDraft ? "만들던 기록집" : "기록집 만들기"}
+      <Icon aria-hidden="true">
+        <BookOpen size={18} />
+      </Icon>
+      <Copy>
+        <strong>{hasDraft ? "만들던 기록집 이어가기" : "기록집 만들기"}</strong>
+        <span>남긴 공간을 한 권으로 엮어보세요.</span>
+      </Copy>
+      <ChevronRight size={18} aria-hidden="true" />
     </Button>
   );
 }
 
 const Button = styled.button`
-  display: inline-flex;
+  width: 100%;
+  min-height: 60px;
+  display: flex;
   align-items: center;
-  gap: 6px;
-  min-height: 44px;
-  padding: 4px 0;
-  background: transparent;
-  border: 0;
-  color: var(--color-text-muted);
-  font-size: 12px;
-  white-space: nowrap;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--color-secondary-300);
+  border-radius: 18px;
+  background: var(--color-secondary-100);
+  color: var(--color-text);
+  text-align: left;
   cursor: pointer;
+  transition: background 160ms ease, transform 160ms ease;
+
+  &:hover {
+    background: var(--color-secondary-200);
+  }
+
+  &:active {
+    transform: scale(0.985);
+  }
+
   &:focus-visible {
     outline: 2px solid var(--color-accent-primary);
     outline-offset: 3px;
+  }
+`;
+
+const Icon = styled.span`
+  width: var(--space-9);
+  height: var(--space-9);
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--color-secondary-300);
+  color: var(--color-secondary-1000);
+`;
+
+const Copy = styled.span`
+  min-width: 0;
+  flex: 1;
+  display: grid;
+  gap: 2px;
+
+  strong {
+    font-size: var(--font-size-200);
+    font-weight: 600;
+    line-height: 1.4;
+  }
+
+  span {
+    overflow: hidden;
+    color: var(--color-text-muted);
+    font-size: var(--font-size-100);
+    line-height: 1.4;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  @container app-viewport (max-width: 340px) {
+    span {
+      display: none;
+    }
   }
 `;
