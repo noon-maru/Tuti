@@ -393,7 +393,8 @@ export function DeparturePlanScreen({
                         </StayStatus>
                       )}
                       <JourneyNotice>
-                        숙소 정보는 관광공사 기준이며, 실제 객실과 가격은 예약처에서 확인해주세요.
+                        숙소 정보 출처: ⓒ한국관광공사. 실제 객실과 가격은
+                        예약처에서 확인해주세요.
                       </JourneyNotice>
                     </StaySection>
                   )}

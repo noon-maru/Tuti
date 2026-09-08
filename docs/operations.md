@@ -163,6 +163,14 @@ Apple Developer Team 및 프로비저닝 정책이 확정된 뒤 구성한다.
 sudo -n /usr/local/sbin/tuti-tourism-backup
 ```
 
+공모전 기능설명서에 기재할 관광 공공데이터 건수와 최근 30일 OpenAPI 동기화
+이력은 다음 읽기 전용 명령으로 개발·운영 DB에서 함께 확인한다. 데이터별 집계
+기준과 활용표는 `docs/contest-2026-submission-readiness.md`를 따른다.
+
+```sh
+sudo -n /usr/local/sbin/tuti-contest-data-report
+```
+
 `tuti-place-candidate-refresh`는 개발 DB에서 하루 최대 950곳의 공통·소개정보를 한 번만 수집한다. 추천·보강 후보, 판단 보류, 저부담 부적합, 유효성 문제 순서로 처리한다. 개발 DB의 관광지 중 운영에 없는 장소만 증분 생성하고, 기존 운영 장소의 편집·검수·수동 포함/제외 상태는 보존한다. 소개정보도 운영 DB에 증분 반영하되 운영의 지연 수집 이미지·반복정보는 덮어쓰지 않는다. 이후 개발·운영 DB에서 동일한 후보 판정식을 실행해 상태·점수·판정 근거를 각각 저장한다. 중복 실행은 호스트 잠금과 PostgreSQL advisory lock으로 차단한다.
 
 후보 갱신 명령은 일일 작업 중 의존성을 다시 설치하거나 마이그레이션하지 않는다. 최초 실행 전과 후보 관련 코드를 배포한 날에는 `tuti-dev-refresh`, `tuti-prod-deploy`를 먼저 실행해야 한다. 코드나 DB 스키마가 준비되지 않았으면 후보 갱신은 API 호출 전에 중단하고 필요한 명령을 안내한다.

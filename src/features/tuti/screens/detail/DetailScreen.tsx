@@ -303,6 +303,12 @@ export function DetailScreen({
                 <span>운영 정보는 최근 저장된 내용을 보여드리고 있어요.</span>
               )}
             </DataNotice>
+
+            <SourceAttribution>
+              <span>장소·사진 정보 출처</span>
+              <strong>ⓒ한국관광공사</strong>
+              <p>운영 정보와 현장 상황은 달라질 수 있어요.</p>
+            </SourceAttribution>
           </Description>
         </Content>
       </Sheet>
@@ -1289,5 +1295,31 @@ const DataNotice = styled.aside`
   strong {
     color: var(--color-brand-900);
     font-weight: 600;
+  }
+`;
+
+const SourceAttribution = styled.footer`
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 2px var(--space-2);
+  padding: 0 var(--space-1);
+  color: var(--color-text-muted);
+  font-size: var(--font-size-100);
+  line-height: var(--line-height-body);
+  letter-spacing: var(--letter-spacing-body);
+
+  span {
+    color: var(--color-neutral-800);
+  }
+
+  strong {
+    color: var(--color-text-muted);
+    font-weight: 600;
+  }
+
+  p {
+    flex-basis: 100%;
+    color: var(--color-neutral-700);
   }
 `;

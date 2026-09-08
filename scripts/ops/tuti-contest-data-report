@@ -1,0 +1,82 @@
+#!/bin/sh
+
+set -eu
+
+project_dir="/var/services/homes/Tutiadmin/source/Tuti"
+
+cd "$project_dir"
+
+dataset_query="
+WITH dataset_counts(sort_order, dataset, row_count, first_synced_at, last_synced_at) AS (
+  SELECT 1, '국문 관광정보', count(*), min(synced_at), max(synced_at) FROM public.tourism_place_source_records
+  UNION ALL
+  SELECT 2, '웰니스 관광정보', count(*), min(synced_at), max(synced_at) FROM public.wellness_tourism_source_records
+  UNION ALL
+  SELECT 3, '기초지자체 중심 관광지', count(*), min(synced_at), max(synced_at) FROM public.municipal_core_tourism_source_records
+  UNION ALL
+  SELECT 4, '관광지별 연관 관광지', count(*), min(synced_at), max(synced_at) FROM public.related_tourism_source_records
+  UNION ALL
+  SELECT 5, '관광지 집중률', count(*), min(synced_at), max(synced_at) FROM public.tourist_spot_concentration_rate_records
+  UNION ALL
+  SELECT 6, '지역 방문자 수', count(*), min(synced_at), max(synced_at) FROM public.regional_visitor_count_records
+  UNION ALL
+  SELECT 7, '관광사진 갤러리', count(*), min(synced_at), max(synced_at) FROM public.tourism_photo_gallery_source_records
+  UNION ALL
+  SELECT 8, '지역 관광자원 수요', count(*), min(synced_at), max(synced_at)
+    FROM public.tourism_region_metrics WHERE dataset = 'ktoRegionalResourceDemand'
+  UNION ALL
+  SELECT 9, '지역 관광수요 밀집도', count(*), min(synced_at), max(synced_at)
+    FROM public.tourism_region_metrics WHERE dataset = 'ktoRegionalDemandIntensity'
+)
+SELECT dataset, row_count, first_synced_at, last_synced_at
+FROM dataset_counts
+UNION ALL
+SELECT '한국관광공사 원천 레코드 합계', sum(row_count), min(first_synced_at), max(last_synced_at)
+FROM dataset_counts
+UNION ALL
+SELECT '국문 관광정보 상세·소개 보강', count(*), min(synced_at), max(synced_at)
+FROM public.tourism_place_detail_records
+ORDER BY 1;
+"
+
+run_query="
+SELECT source, operation, status, count(*) AS run_count,
+       sum(received_count) AS received_count,
+       min(started_at) AS first_started_at,
+       max(started_at) AS last_started_at
+FROM public.external_data_sync_runs
+WHERE started_at >= now() - interval '30 days'
+GROUP BY source, operation, status
+ORDER BY source, operation, status;
+"
+
+report_environment() {
+  environment="$1"
+
+  printf '\n=== %s DB 관광 공공데이터 집계 ===\n' "$environment"
+
+  if [ "$environment" = "production" ]; then
+    compose_args="--env-file .env.production -f docker-compose.prod.yml"
+  else
+    compose_args="-f docker-compose.dev.yml"
+  fi
+
+  # shellcheck disable=SC2086
+  docker compose $compose_args exec -T db sh -lc \
+    'exec psql --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" --pset=pager=off --field-separator=" | " --command "$1"' \
+    sh "$dataset_query"
+
+  printf '\n=== %s DB 최근 30일 OpenAPI 동기화 실행 ===\n' "$environment"
+
+  # shellcheck disable=SC2086
+  docker compose $compose_args exec -T db sh -lc \
+    'exec psql --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" --pset=pager=off --field-separator=" | " --command "$1"' \
+    sh "$run_query"
+}
+
+report_environment development
+report_environment production
+
+printf '\n집계 기준 시각: %s\n' "$(TZ=Asia/Seoul date -Iseconds)"
+printf '%s\n' '참고: OpenAPI는 개발 DB에서 한 번 호출한 뒤 원천 레코드만 운영 DB에 증분 반영합니다.'
+printf '%s\n' '따라서 운영 DB의 external_data_sync_runs가 0건이어도 원천 건수가 일치하면 이관 상태는 정상입니다.'
