@@ -91,6 +91,8 @@ export function RecommendationsScreen({
   onDeparturePlanExpanded,
   onNavigationStart,
   onRestartIntake,
+  onReplayInitialHelp,
+  onSkipInitialHelp,
   onLogout,
   accountConnected,
   adminAccess,
@@ -131,6 +133,8 @@ export function RecommendationsScreen({
   onDeparturePlanExpanded: (place: TutiPlace) => void;
   onNavigationStart: (place: TutiPlace, route: DepartureRoute) => void;
   onRestartIntake: () => void;
+  onReplayInitialHelp: () => void;
+  onSkipInitialHelp: () => void;
   onLogout: () => void | Promise<void>;
   accountConnected: boolean;
   adminAccess: boolean;
@@ -209,6 +213,20 @@ export function RecommendationsScreen({
     onInitialHelpShown(kind);
     setCurrentHelp(null);
   }, [currentHelp, onInitialHelpShown]);
+
+  const skipInitialHelp = () => {
+    resetDrag();
+    setCurrentHelp(null);
+    setDisplayedHelp(null);
+    onSkipInitialHelp();
+  };
+
+  const replayInitialHelp = () => {
+    resetDrag();
+    setCurrentHelp(null);
+    setDisplayedHelp(null);
+    onReplayInitialHelp();
+  };
 
   useEffect(() => {
     if (!initialHelp || currentHelp || dragStart || committing || verticalProgress > 0) {
@@ -619,6 +637,10 @@ export function RecommendationsScreen({
                       onSelect: onRestartIntake,
                     },
                     {
+                      label: "튜토리얼 다시보기",
+                      onSelect: replayInitialHelp,
+                    },
+                    {
                       label: savedPlacesCount
                         ? `다음에 갈 공간 (${savedPlacesCount})`
                         : "다음에 갈 공간",
@@ -658,6 +680,10 @@ export function RecommendationsScreen({
                     {
                       label: "오늘 다시 고르기",
                       onSelect: onRestartIntake,
+                    },
+                    {
+                      label: "튜토리얼 다시보기",
+                      onSelect: replayInitialHelp,
                     },
                     {
                       label: savedPlacesCount
@@ -863,6 +889,13 @@ export function RecommendationsScreen({
                     ? "아래로 내려 지나간 공간을 기록해보세요"
                     : "카드를 눌러 출발 준비를 열어보세요"}
             </HelpMessage>
+            <HelpSkipButton
+              type="button"
+              onPointerDown={(event) => event.stopPropagation()}
+              onClick={skipInitialHelp}
+            >
+              바로 둘러보기
+            </HelpSkipButton>
           </HelpContent>
         )}
       </HelpOverlay>
@@ -1281,6 +1314,25 @@ const HelpMessage = styled.p<{ $kind: HelpKind }>`
   text-align: center;
   text-shadow: 0 1px 8px
     color-mix(in srgb, var(--color-neutral-1300) 42%, transparent);
+`;
+
+const HelpSkipButton = styled(BaseButton)`
+  position: absolute;
+  left: 50%;
+  bottom: calc(var(--space-8) + var(--app-safe-area-bottom, 0px));
+  z-index: 1;
+  min-height: 44px;
+  padding: var(--space-2) var(--space-5);
+  border: 1px solid rgb(var(--color-white-rgb) / 0.5);
+  border-radius: 999px;
+  background: rgb(var(--color-black-rgb) / 0.52);
+  color: var(--color-white);
+  font-size: var(--font-size-200);
+  font-weight: 700;
+  pointer-events: auto;
+  transform: translateX(-50%);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
 `;
 
 const GestureCue = styled.div<{ $kind: HelpKind }>`

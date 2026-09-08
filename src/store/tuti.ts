@@ -123,6 +123,7 @@ type TutiState = {
   markJournalHelpSeen: () => void;
   markDepartureHelpSeen: () => void;
   skipInitialHelp: () => void;
+  replayInitialHelp: () => void;
   finishIntake: (status: "answered" | "skipped") => void;
   requestDailyCheckIn: () => void;
   cancelDailyCheckIn: () => void;
@@ -324,6 +325,13 @@ export const useTutiStore = create<TutiState>()(
           hasSeenSwipeHelp: true,
           hasSeenJournalHelp: true,
           hasSeenDepartureHelp: true,
+        }),
+      replayInitialHelp: () =>
+        set({
+          hasSeenCardHelp: false,
+          hasSeenSwipeHelp: false,
+          hasSeenJournalHelp: false,
+          hasSeenDepartureHelp: false,
         }),
       finishIntake: (status) =>
         set((state) => ({

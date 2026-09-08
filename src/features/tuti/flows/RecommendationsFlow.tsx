@@ -151,6 +151,8 @@ export function RecommendationsFlow({ interactive }: { interactive: boolean }) {
   const markDepartureHelpSeen = useTutiStore(
     (state) => state.markDepartureHelpSeen,
   );
+  const skipInitialHelp = useTutiStore((state) => state.skipInitialHelp);
+  const replayInitialHelp = useTutiStore((state) => state.replayInitialHelp);
 
   const detailPlaceIndex =
     detailOverlay.placeId
@@ -456,6 +458,8 @@ export function RecommendationsFlow({ interactive }: { interactive: boolean }) {
         }}
         onNavigationStart={startNavigation}
         onRestartIntake={requestDailyCheckIn}
+        onReplayInitialHelp={replayInitialHelp}
+        onSkipInitialHelp={skipInitialHelp}
         onLogout={async () => {
           await logoutAccount();
           queryClient.setQueryData(["journal-entries"], []);
