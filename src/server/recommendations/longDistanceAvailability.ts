@@ -1,3 +1,5 @@
+import type { UserLocation } from "@/shared/tuti/types";
+
 export const LONG_DISTANCE_UNAVAILABLE_CODE =
   "long_distance_unavailable" as const;
 
@@ -16,6 +18,15 @@ export function requireLongDistanceRecommendations<T>(places: T[]) {
   }
 
   return places;
+}
+
+export function requireLocationForLongDistance(
+  movement: "near" | "short" | "half" | "far",
+  location?: UserLocation,
+) {
+  if (movement === "far" && !location) {
+    throw new LongDistanceRecommendationsUnavailableError();
+  }
 }
 
 export function requireNearbyMovement(

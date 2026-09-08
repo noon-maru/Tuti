@@ -132,3 +132,56 @@ test("동행자와 무료 입장 조건이 맞는 장소를 먼저 정렬한다"
   assert.equal(ranked[0].id, "free-family");
   assert.ok(ranked[0].fatigueScore! < ranked[1].fatigueScore!);
 });
+
+test("장거리 후보도 공기와 밀도 답변에 따라 순서가 달라진다", () => {
+  const quietPlace = createPlace({
+    id: "quiet-place",
+    moodTags: ["quiet"],
+    crowd: "한산",
+  });
+  const livelyOpenPlace = createPlace({
+    id: "lively-open-place",
+    moodTags: ["open"],
+    crowd: "혼잡",
+  });
+  const candidates = [livelyOpenPlace, quietPlace];
+  const quietAnswers: IntakeAnswers = {
+    movement: "far",
+    air: "quiet",
+    density: "quiet",
+  };
+  const livelyAnswers: IntakeAnswers = {
+    movement: "far",
+    air: "open",
+    density: "lively",
+  };
+
+  assert.equal(
+    rankByMovementFatigue(
+      candidates,
+      quietAnswers,
+      {
+        ...feature,
+        movement: "far",
+        goal: "quiet_reset",
+        crowdTolerance: "low",
+      },
+      2,
+    )[0].id,
+    "quiet-place",
+  );
+  assert.equal(
+    rankByMovementFatigue(
+      candidates,
+      livelyAnswers,
+      {
+        ...feature,
+        movement: "far",
+        goal: "clear_air",
+        crowdTolerance: "high",
+      },
+      2,
+    )[0].id,
+    "lively-open-place",
+  );
+});

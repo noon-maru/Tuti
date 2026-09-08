@@ -15,6 +15,7 @@ import { enrichPlacesWithCrowdForecast } from "@/server/recommendations/crowdFor
 import { recommendablePlaceWhere } from "@/server/recommendations/recommendablePlaceWhere";
 import { createLongDistanceRecommendations } from "@/server/recommendations/longDistancePlanner";
 import {
+  requireLocationForLongDistance,
   requireLongDistanceRecommendations,
   requireNearbyMovement,
 } from "@/server/recommendations/longDistanceAvailability";
@@ -26,9 +27,11 @@ import {
   enrichPlacesWithAdmissionFees,
   enrichPlacesWithExecutionFeasibility,
 } from "@/server/recommendations/executionFeasibility";
+import { filterPlacesByAdmissionBudget } from "@/server/recommendations/admissionFee";
 import { enrichPlacesWithWeatherForecast } from "@/server/weather/kmaVilageForecast";
 import { selectRecommendationCandidatePool } from "@/server/recommendations/candidateFallback";
 import { getPreferredRegionWhere } from "@/server/recommendations/regionFallback";
+import { excludeExplicitlyInfeasiblePlaces } from "@/server/recommendations/executionEligibility";
 import type {
   IntakeAnswers,
   PreferredRegion,
@@ -143,6 +146,8 @@ async function evaluateRecommendations(
   // 오늘 사용자가 명시적으로 고른 값은 항상 결정론적으로 해석한다.
   // LLM 프로필은 아래의 후보 순위 보정 단계에서만 비동기로 활용된다.
   const feature = interpretState(answers);
+  requireLocationForLongDistance(feature.movement, location);
+
   if (
     feature.movement === "far" &&
     location &&
@@ -160,14 +165,16 @@ async function evaluateRecommendations(
       await enrichPlacesWithAdmissionFees(longDistancePlaces);
     const weatherEnrichedPlaces =
       await enrichPlacesWithWeatherForecast(admissionEnrichedPlaces);
-    const conditionedPlaces = answers.companion || answers.budget
-      ? rankByMovementFatigue(
-          weatherEnrichedPlaces,
-          answers,
-          feature,
-          weatherEnrichedPlaces.length,
-        )
-      : weatherEnrichedPlaces;
+    const budgetEligiblePlaces = filterPlacesByAdmissionBudget(
+      weatherEnrichedPlaces,
+      answers.budget,
+    );
+    const conditionedPlaces = rankByMovementFatigue(
+      budgetEligiblePlaces,
+      answers,
+      feature,
+      budgetEligiblePlaces.length,
+    );
     const personalization = await personalizeRecommendationRanking(
       conditionedPlaces,
       answers,
@@ -176,7 +183,7 @@ async function evaluateRecommendations(
     return {
       feature,
       sourceCandidateCount: longDistancePlaces.length,
-      eligibleCandidateCount: longDistancePlaces.length,
+      eligibleCandidateCount: budgetEligiblePlaces.length,
       initialRanking: conditionedPlaces,
       finalRanking: personalization.places,
       recommendedPlaces: personalization.places.slice(0, 6),
@@ -227,9 +234,14 @@ async function evaluateRecommendations(
     feature,
     12,
   );
+  const executableRanking = excludeExplicitlyInfeasiblePlaces(finalRanking);
+  const budgetEligibleRanking = filterPlacesByAdmissionBudget(
+    executableRanking,
+    answers.budget,
+  );
 
   const personalization = await personalizeRecommendationRanking(
-    finalRanking,
+    budgetEligibleRanking,
     answers,
     userId,
   );

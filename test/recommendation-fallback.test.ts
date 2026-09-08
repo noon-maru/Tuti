@@ -5,6 +5,7 @@ import { selectRecommendationCandidatePool } from "@/server/recommendations/cand
 import { getPreferredRegionWhere } from "@/server/recommendations/regionFallback";
 import {
   LongDistanceRecommendationsUnavailableError,
+  requireLocationForLongDistance,
   requireLongDistanceRecommendations,
   requireNearbyMovement,
 } from "@/server/recommendations/longDistanceAvailability";
@@ -99,6 +100,24 @@ test("장거리 여정이 없으면 근거리 후보로 대체하지 않고 재�
     LongDistanceRecommendationsUnavailableError,
   );
   assert.equal(requireNearbyMovement("half"), "half");
+});
+
+test("장거리 선택에는 선호 지역과 별개로 현재 위치가 필요하다", () => {
+  assert.throws(
+    () => requireLocationForLongDistance("far", undefined),
+    (error) =>
+      error instanceof LongDistanceRecommendationsUnavailableError &&
+      error.code === "long_distance_unavailable",
+  );
+  assert.doesNotThrow(() =>
+    requireLocationForLongDistance("far", {
+      latitude: 37.5665,
+      longitude: 126.978,
+    }),
+  );
+  assert.doesNotThrow(() =>
+    requireLocationForLongDistance("half", undefined),
+  );
 });
 
 test("로딩·오류·정상 결과 상태가 빈 결과보다 우선한다", () => {
