@@ -134,7 +134,11 @@ async function resolveApiBaseUrl() {
 }
 
 async function readPublicEnvValue(key: string) {
-  const envFiles = [".env.production.local", ".env.production"];
+  const envFiles = [
+    ".env.app.local",
+    ".env.production.local",
+    ".env.production",
+  ];
 
   for (const filename of envFiles) {
     try {
