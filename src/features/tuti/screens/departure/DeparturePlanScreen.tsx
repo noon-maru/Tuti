@@ -6,6 +6,8 @@ import { Capacitor } from "@capacitor/core";
 import {
   ArrowRight,
   BedDouble,
+  Copy,
+  ExternalLink,
   MapPin,
   Navigation,
   TrainFront,
@@ -17,7 +19,9 @@ import { useLocationAccess } from "@/features/tuti/location/LocationAccessProvid
 import type { LocationRequestResult } from "@/features/tuti/location/locationAccess";
 import { useDeparturePlan } from "@/features/tuti/hooks/useDeparturePlan";
 import { useNearbyAccommodations } from "@/features/tuti/hooks/useNearbyAccommodations";
+import { usePlaceDetail } from "@/features/tuti/hooks/usePlaceDetail";
 import { useVerticalSwipeBack } from "@/features/tuti/hooks/useVerticalSwipeBack";
+import { createDestinationGuidanceUrl } from "@/features/tuti/lib/departureDestination";
 import type { TutiPlace } from "@/lib/recommendations";
 import type {
   DeparturePlan,
@@ -38,7 +42,13 @@ const ROUTE_MODES: DepartureRouteMode[] = [
 
 export type DeparturePlace = Pick<
   TutiPlace,
-  "id" | "name" | "image" | "phrase" | "longDistanceJourney"
+  | "id"
+  | "name"
+  | "image"
+  | "phrase"
+  | "latitude"
+  | "longitude"
+  | "longDistanceJourney"
 >;
 
 export function DeparturePlanScreen({
@@ -61,6 +71,9 @@ export function DeparturePlanScreen({
   const [locationStatus, setLocationStatus] = useState<
     "idle" | "loading" | Exclude<LocationRequestResult["status"], "ready">
   >("idle");
+  const [copyStatus, setCopyStatus] = useState<"idle" | "copied" | "failed">(
+    "idle",
+  );
   const ownsHistoryEntry = useRef(false);
   const closingFromHistory = useRef(false);
   const ignoreNextPopState = useRef(false);
@@ -69,6 +82,7 @@ export function DeparturePlanScreen({
     () => Promise.resolve(),
   );
   const departureQuery = useDeparturePlan(place.id, userLocation);
+  const placeDetailQuery = usePlaceDetail(place.id, !userLocation);
   const overnight = place.longDistanceJourney?.timing === "overnight_trip";
   const accommodationsQuery = useNearbyAccommodations(place.id, overnight);
   const plan = departureQuery.data;
@@ -83,6 +97,13 @@ export function DeparturePlanScreen({
     plan && selectedRoute
       ? resolveRouteGuidanceUrl(selectedRoute, plan)
       : null;
+  const destination = placeDetailQuery.data?.place;
+  const destinationAddress = plan?.place.address ?? destination?.address ?? null;
+  const destinationGuidanceUrl = createDestinationGuidanceUrl({
+    name: destination?.name ?? place.name,
+    latitude: destination?.latitude ?? place.latitude,
+    longitude: destination?.longitude ?? place.longitude,
+  });
 
   const finishClose = () => {
     const shouldRemoveHistoryEntry =
@@ -157,6 +178,17 @@ export function DeparturePlanScreen({
     setLocationStatus(result.status === "ready" ? "idle" : result.status);
   };
 
+  const copyDestinationAddress = async () => {
+    if (!destinationAddress) return;
+
+    try {
+      await copyText(destinationAddress);
+      setCopyStatus("copied");
+    } catch {
+      setCopyStatus("failed");
+    }
+  };
+
   const startRouteGuidance = (
     event: React.MouseEvent<HTMLAnchorElement>,
     route: DepartureRoute,
@@ -218,7 +250,7 @@ export function DeparturePlanScreen({
               <strong>{place.phrase}</strong>
               <p>
                 <MapPin aria-hidden="true" />
-                {plan?.place.address ?? "선택한 오늘의 장소"}
+                {destinationAddress ?? "선택한 오늘의 장소"}
               </p>
             </div>
           </PlaceSummary>
@@ -226,20 +258,59 @@ export function DeparturePlanScreen({
           {!userLocation ? (
             <LocationRequest>
               <Navigation aria-hidden="true" />
-              <h2>지금 있는 곳에서 출발할까요?</h2>
+              <h2>위치 없이도 길을 찾을 수 있어요.</h2>
               <p>
-                현재 위치는 이동 경로를 계산할 때만 사용하고 계정이나
-                기록에는 남기지 않아요.
+                목적지만 지도에 전달해요. 출발지는 지도에서 직접 정할 수
+                있어요.
               </p>
-              <LocationButton
-                type="button"
-                disabled={locationStatus === "loading"}
-                onClick={() => void requestCurrentLocation()}
-              >
-                {locationStatus === "loading"
-                  ? "위치 확인 중..."
-                  : "현재 위치 확인하기"}
-              </LocationButton>
+              {destinationGuidanceUrl ? (
+                <DestinationLink
+                  href={destinationGuidanceUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  data-swipe-back-ignore
+                >
+                  지도 앱에서 길찾기
+                  <ExternalLink aria-hidden="true" />
+                </DestinationLink>
+              ) : (
+                <DestinationButtonDisabled type="button" disabled>
+                  목적지 확인 중...
+                </DestinationButtonDisabled>
+              )}
+              <SecondaryActions>
+                <LocationButton
+                  type="button"
+                  disabled={locationStatus === "loading"}
+                  onClick={() => void requestCurrentLocation()}
+                >
+                  {locationStatus === "loading"
+                    ? "위치 확인 중..."
+                    : "현재 위치 확인"}
+                </LocationButton>
+                <AddressCopyButton
+                  type="button"
+                  disabled={!destinationAddress}
+                  onClick={() => void copyDestinationAddress()}
+                >
+                  <Copy aria-hidden="true" />
+                  {copyStatus === "copied"
+                    ? "주소 복사됨"
+                    : placeDetailQuery.isPending
+                      ? "주소 확인 중"
+                      : destinationAddress
+                        ? "주소 복사"
+                        : "주소 정보 없음"}
+                </AddressCopyButton>
+              </SecondaryActions>
+              {copyStatus === "copied" && (
+                <ActionStatus role="status">주소를 복사했어요.</ActionStatus>
+              )}
+              {copyStatus === "failed" && (
+                <StatusMessage role="alert">
+                  주소를 복사하지 못했어요. 다시 시도해주세요.
+                </StatusMessage>
+              )}
               {locationStatus !== "idle" &&
                 locationStatus !== "loading" && (
                 <StatusMessage role="alert">
@@ -779,6 +850,28 @@ function getHistoryState(state: unknown = window.history.state) {
     : {};
 }
 
+async function copyText(value: string) {
+  if (navigator.clipboard?.writeText) {
+    try {
+      await navigator.clipboard.writeText(value);
+      return;
+    } catch {
+      // 브라우저가 Clipboard API를 막으면 아래의 선택 영역 복사로 이어간다.
+    }
+  }
+
+  const textArea = document.createElement("textarea");
+  textArea.value = value;
+  textArea.style.position = "fixed";
+  textArea.style.opacity = "0";
+  document.body.append(textArea);
+  textArea.select();
+  const copied = document.execCommand("copy");
+  textArea.remove();
+
+  if (!copied) throw new Error("Clipboard is unavailable");
+}
+
 const sheetEnter = keyframes`
   from {
     opacity: 0.7;
@@ -1012,10 +1105,65 @@ const LocationRequest = styled.section`
   }
 `;
 
-const LocationButton = styled(PrimaryButton)`
+const DestinationLink = styled.a`
+  width: min(100%, 280px);
+  min-height: var(--space-12);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+  padding: 0 var(--space-5);
+  border-radius: 999px;
+  background: var(--color-brand-600);
+  color: var(--color-text);
+  font-size: var(--font-size-200);
+  font-weight: 700;
+
+  svg {
+    width: 17px;
+    height: 17px;
+  }
+`;
+
+const DestinationButtonDisabled = styled(PrimaryButton)`
   width: min(100%, 280px);
   margin-top: var(--space-2);
   font-size: var(--font-size-200);
+`;
+
+const SecondaryActions = styled.div`
+  width: min(100%, 280px);
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-2);
+`;
+
+const LocationButton = styled(BaseButton)`
+  min-height: var(--space-11);
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  background: var(--color-surface);
+  color: var(--color-text-muted);
+  font-size: var(--font-size-100);
+  font-weight: 600;
+`;
+
+const AddressCopyButton = styled(LocationButton)`
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-1);
+
+  svg {
+    width: 15px;
+    height: 15px;
+  }
+`;
+
+const ActionStatus = styled.p`
+  color: var(--color-success) !important;
 `;
 
 const StatusMessage = styled.p`

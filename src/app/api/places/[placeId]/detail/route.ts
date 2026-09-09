@@ -38,6 +38,8 @@ export async function GET(
         sourceAddress: true,
         sourceSidoName: true,
         sourceSigunguName: true,
+        latitude: true,
+        longitude: true,
       },
     });
 
@@ -53,6 +55,8 @@ export async function GET(
           [place.sourceSidoName, place.sourceSigunguName]
             .filter(Boolean)
             .join(" ") || null,
+        latitude: Number(place.latitude),
+        longitude: Number(place.longitude),
       },
       detail,
     };

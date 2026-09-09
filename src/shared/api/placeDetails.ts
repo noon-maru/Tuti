@@ -35,6 +35,8 @@ export type PlaceDetailSummary = {
   name: string;
   address: string | null;
   region: string | null;
+  latitude: number;
+  longitude: number;
 };
 
 export type PlaceDetailResponse = {
