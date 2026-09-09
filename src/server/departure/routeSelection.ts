@@ -1,6 +1,6 @@
 import type { UserLocation } from "@/shared/tuti/types";
 
-export const WALKING_DISTANCE_LIMIT_METERS = 1_800;
+export const WALKING_DISTANCE_LIMIT_METERS = 1_500;
 
 export function isWalkingDistance(
   origin: UserLocation,

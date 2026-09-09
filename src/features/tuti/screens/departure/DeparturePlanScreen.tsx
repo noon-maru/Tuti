@@ -22,6 +22,10 @@ import { useNearbyAccommodations } from "@/features/tuti/hooks/useNearbyAccommod
 import { usePlaceDetail } from "@/features/tuti/hooks/usePlaceDetail";
 import { useVerticalSwipeBack } from "@/features/tuti/hooks/useVerticalSwipeBack";
 import { createDestinationGuidanceUrl } from "@/features/tuti/lib/departureDestination";
+import {
+  DEPARTURE_ROUTE_MODES,
+  getVisibleDepartureRouteModes,
+} from "@/features/tuti/lib/departureRouteModes";
 import type { TutiPlace } from "@/lib/recommendations";
 import type {
   DeparturePlan,
@@ -33,13 +37,6 @@ import { useTutiStore } from "@/store/tuti";
 const DEPARTURE_EXIT_DURATION = 420;
 const DEPARTURE_EXIT_FRAME_BUFFER = 34;
 const DEPARTURE_HISTORY_STATE_KEY = "__tutiDeparturePlan";
-const ROUTE_MODES: DepartureRouteMode[] = [
-  "publicTransit",
-  "driving",
-  "bicycle",
-  "walking",
-];
-
 export type DeparturePlace = Pick<
   TutiPlace,
   | "id"
@@ -483,7 +480,7 @@ export function DeparturePlanScreen({
                 </SectionHeading>
 
                 <ModeTabs aria-label="이동수단 선택">
-                  {ROUTE_MODES.map((mode) => {
+                  {getVisibleDepartureRouteModes(plan.routes).map((mode) => {
                     const route = plan.routes[mode];
                     return (
                       <ModeButton
@@ -678,7 +675,9 @@ function resolveSelectedMode(
   }
   if (plan.recommendedMode) return plan.recommendedMode;
   return (
-    ROUTE_MODES.find((mode) => plan.routes[mode].status === "available") ??
+    DEPARTURE_ROUTE_MODES.find(
+      (mode) => plan.routes[mode].status === "available",
+    ) ??
     null
   );
 }

@@ -64,13 +64,13 @@ test("유효한 경로와 같은 위치의 0 이동 경로를 구분한다", () 
   );
 });
 
-test("직선거리 1.8km를 넘는 목적지는 도보 경로 조회 대상에서 제외한다", () => {
+test("직선거리 1.5km를 넘는 목적지는 도보 경로 조회 대상에서 제외한다", () => {
   const nearbyDestination = {
-    latitude: origin.latitude + 0.015,
+    latitude: origin.latitude + 0.013,
     longitude: origin.longitude,
   };
   const distantDestination = {
-    latitude: origin.latitude + 0.018,
+    latitude: origin.latitude + 0.014,
     longitude: origin.longitude,
   };
 
