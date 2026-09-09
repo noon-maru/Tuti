@@ -1,7 +1,15 @@
 "use client";
 
 import styled from "@emotion/styled";
-import { ArrowLeft, MapPin, Play, Route, TimerReset } from "lucide-react";
+import {
+  Activity,
+  ArrowLeft,
+  LocateFixed,
+  MapPin,
+  Play,
+  Route,
+  TimerReset,
+} from "lucide-react";
 import Link from "next/link";
 import { type FormEvent, useEffect, useMemo, useState } from "react";
 import {
@@ -22,17 +30,41 @@ import type {
   BudgetAnswer,
   CompanionAnswer,
   DensityAnswer,
+  LongDistanceTimingAnswer,
   MovementAnswer,
 } from "@/shared/tuti/types";
+import { movementTimeBudget } from "@/shared/tuti/movementTimeBudget";
 
 type LocationMode = "location" | "region" | "none";
 type SimulationCandidate =
   AdminRecommendationSimulationResponse["candidates"][number];
 
-const movementOptions: Array<{ value: MovementAnswer; label: string; hint: string }> = [
-  { value: "near", label: "집 근처", hint: "대중교통 20분 안쪽" },
-  { value: "short", label: "조금만", hint: "대중교통 20~50분" },
-  { value: "half", label: "반나절 정도", hint: "대중교통 45~100분" },
+const movementOptions = (
+  ["near", "short", "half", "far"] as const
+).map((value) => ({ value, ...movementTimeBudget[value] }));
+
+const locationPresets = [
+  { label: "서울", latitude: "37.5665", longitude: "126.9780" },
+  { label: "대구", latitude: "35.8714", longitude: "128.6014" },
+  { label: "강릉", latitude: "37.7519", longitude: "128.8761" },
+  { label: "제주", latitude: "33.4996", longitude: "126.5312" },
+] as const;
+
+const longDistanceTimingOptions: Array<{
+  value: LongDistanceTimingAnswer;
+  label: string;
+  hint: string;
+}> = [
+  {
+    value: "tomorrow_day_trip",
+    label: "내일 당일치기",
+    hint: "내일 출발해 같은 날 돌아오기",
+  },
+  {
+    value: "overnight_trip",
+    label: "오늘 1박",
+    hint: "오늘 떠나 내일 돌아오기",
+  },
 ];
 
 const airOptions: Array<{ value: AirAnswer; label: string }> = [
@@ -75,9 +107,12 @@ export function RecommendationSimulatorScreen() {
   const [density, setDensity] = useState<DensityAnswer>("balanced");
   const [companion, setCompanion] = useState<CompanionAnswer | undefined>();
   const [budget, setBudget] = useState<BudgetAnswer | undefined>();
+  const [longDistanceTiming, setLongDistanceTiming] =
+    useState<LongDistanceTimingAnswer>("tomorrow_day_trip");
   const [latitude, setLatitude] = useState("37.5665");
   const [longitude, setLongitude] = useState("126.9780");
   const [areaCode, setAreaCode] = useState("1");
+  const [excludedPlaceIds, setExcludedPlaceIds] = useState("");
   const [result, setResult] =
     useState<AdminRecommendationSimulationResponse | null>(null);
   const [resultLocationMode, setResultLocationMode] =
@@ -125,7 +160,18 @@ export function RecommendationSimulatorScreen() {
     setError(null);
 
     const request: AdminRecommendationSimulationRequest = {
-      answers: { movement, air, density, companion, budget },
+      answers: {
+        movement,
+        air,
+        density,
+        companion,
+        budget,
+        ...(movement === "far" ? { longDistanceTiming } : {}),
+      },
+      excludePlaceIds: excludedPlaceIds
+        .split(/[\s,]+/)
+        .map((placeId) => placeId.trim())
+        .filter(Boolean),
     };
 
     if (locationMode === "location") {
@@ -197,11 +243,32 @@ export function RecommendationSimulatorScreen() {
             <ArrowLeft aria-hidden="true" />
             관리자 콘솔
           </BackLink>
-          <HeaderCopy>
-            <span>추천 품질 검증</span>
-            <h1>추천 시뮬레이터</h1>
-            <p>사용자 조건을 재현하고 장소별 점수와 선정 근거를 확인합니다.</p>
-          </HeaderCopy>
+          <HeaderMain>
+            <HeaderCopy>
+              <span>RECOMMENDATION CONTROL</span>
+              <h1>추천이 좁혀지는<br />과정을 추적합니다.</h1>
+              <p>
+                사용자 조건을 그대로 입력하고, 후보 탐색부터 최종 선정까지
+                장소별 점수와 탈락 근거를 확인하세요.
+              </p>
+            </HeaderCopy>
+            <EngineTrace aria-label="추천 처리 과정">
+              <TraceNode>
+                <small>INPUT</small>
+                <strong>사용자 답변</strong>
+              </TraceNode>
+              <TraceLine aria-hidden="true" />
+              <TraceNode>
+                <small>FILTER</small>
+                <strong>거리·실행 조건</strong>
+              </TraceNode>
+              <TraceLine aria-hidden="true" />
+              <TraceNode $active>
+                <small>OUTPUT</small>
+                <strong>최종 6곳</strong>
+              </TraceNode>
+            </EngineTrace>
+          </HeaderMain>
         </HeaderInner>
       </Header>
 
@@ -214,8 +281,8 @@ export function RecommendationSimulatorScreen() {
         >
           <PanelHeading>
             <div>
-              <span>테스트 조건</span>
-              <h2>사용자 상태 재현</h2>
+              <span>TEST VECTOR</span>
+              <h2>사용자 조건</h2>
             </div>
             <ResetButton
               type="button"
@@ -226,18 +293,24 @@ export function RecommendationSimulatorScreen() {
                 setDensity("balanced");
                 setCompanion(undefined);
                 setBudget(undefined);
+                setLongDistanceTiming("tomorrow_day_trip");
                 setLatitude("37.5665");
                 setLongitude("126.9780");
                 setAreaCode("1");
+                setExcludedPlaceIds("");
               }}
             >
               <TimerReset aria-hidden="true" />
               초기화
             </ResetButton>
           </PanelHeading>
+          <ScopeNote>
+            명시적 답변만 비교합니다. 개인화 신호는 제외해 같은 조건을 반복
+            검증할 수 있습니다.
+          </ScopeNote>
 
           <FieldGroup>
-            <FieldLabel>추천 기준</FieldLabel>
+            <FieldLabel><span>01</span> 탐색 기준</FieldLabel>
             <SegmentedGrid $columns={3}>
               {([
                 ["location", "현재 위치", "실제 경로 계산"],
@@ -249,6 +322,7 @@ export function RecommendationSimulatorScreen() {
                   type="button"
                   $active={locationMode === value}
                   aria-pressed={locationMode === value}
+                  disabled={movement === "far" && value !== "location"}
                   onClick={() => setLocationMode(value)}
                 >
                   <strong>{label}</strong>
@@ -259,32 +333,49 @@ export function RecommendationSimulatorScreen() {
           </FieldGroup>
 
           {locationMode === "location" ? (
-            <CoordinateGrid>
-              <LabeledInput>
-                <span>위도</span>
-                <input
-                  type="number"
-                  step="any"
-                  min="-90"
-                  max="90"
-                  value={latitude}
-                  onChange={(event) => setLatitude(event.target.value)}
-                  required
-                />
-              </LabeledInput>
-              <LabeledInput>
-                <span>경도</span>
-                <input
-                  type="number"
-                  step="any"
-                  min="-180"
-                  max="180"
-                  value={longitude}
-                  onChange={(event) => setLongitude(event.target.value)}
-                  required
-                />
-              </LabeledInput>
-            </CoordinateGrid>
+            <LocationEditor>
+              <CoordinateGrid>
+                <LabeledInput>
+                  <span>위도</span>
+                  <input
+                    type="number"
+                    step="any"
+                    min="-90"
+                    max="90"
+                    value={latitude}
+                    onChange={(event) => setLatitude(event.target.value)}
+                    required
+                  />
+                </LabeledInput>
+                <LabeledInput>
+                  <span>경도</span>
+                  <input
+                    type="number"
+                    step="any"
+                    min="-180"
+                    max="180"
+                    value={longitude}
+                    onChange={(event) => setLongitude(event.target.value)}
+                    required
+                  />
+                </LabeledInput>
+              </CoordinateGrid>
+              <PresetRail aria-label="테스트 지역 바로 선택">
+                <LocateFixed aria-hidden="true" />
+                {locationPresets.map((preset) => (
+                  <PresetButton
+                    key={preset.label}
+                    type="button"
+                    onClick={() => {
+                      setLatitude(preset.latitude);
+                      setLongitude(preset.longitude);
+                    }}
+                  >
+                    {preset.label}
+                  </PresetButton>
+                ))}
+              </PresetRail>
+            </LocationEditor>
           ) : locationMode === "region" ? (
             <LabeledInput>
               <span>추천 지역</span>
@@ -299,15 +390,18 @@ export function RecommendationSimulatorScreen() {
           )}
 
           <FieldGroup>
-            <FieldLabel>오늘 닿을 수 있는 거리</FieldLabel>
-            <SegmentedGrid $columns={3}>
+            <FieldLabel><span>02</span> 낼 수 있는 시간</FieldLabel>
+            <SegmentedGrid $columns={2}>
               {movementOptions.map((option) => (
                 <OptionButton
                   key={option.value}
                   type="button"
                   $active={movement === option.value}
                   aria-pressed={movement === option.value}
-                  onClick={() => setMovement(option.value)}
+                  onClick={() => {
+                    setMovement(option.value);
+                    if (option.value === "far") setLocationMode("location");
+                  }}
                 >
                   <strong>{option.label}</strong>
                   <span>{option.hint}</span>
@@ -316,8 +410,28 @@ export function RecommendationSimulatorScreen() {
             </SegmentedGrid>
           </FieldGroup>
 
+          {movement === "far" && (
+            <FieldGroup>
+              <FieldLabel><span>03</span> 장거리 일정</FieldLabel>
+              <SegmentedGrid $columns={2}>
+                {longDistanceTimingOptions.map((option) => (
+                  <OptionButton
+                    key={option.value}
+                    type="button"
+                    $active={longDistanceTiming === option.value}
+                    aria-pressed={longDistanceTiming === option.value}
+                    onClick={() => setLongDistanceTiming(option.value)}
+                  >
+                    <strong>{option.label}</strong>
+                    <span>{option.hint}</span>
+                  </OptionButton>
+                ))}
+              </SegmentedGrid>
+            </FieldGroup>
+          )}
+
           <FieldGroup>
-            <FieldLabel>필요한 공기</FieldLabel>
+            <FieldLabel><span>{movement === "far" ? "04" : "03"}</span> 필요한 공기</FieldLabel>
             <CompactOptions>
               {airOptions.map((option) => (
                 <CompactButton
@@ -334,7 +448,7 @@ export function RecommendationSimulatorScreen() {
           </FieldGroup>
 
           <FieldGroup>
-            <FieldLabel>원하는 분위기</FieldLabel>
+            <FieldLabel><span>{movement === "far" ? "05" : "04"}</span> 원하는 분위기</FieldLabel>
             <CompactOptions>
               {densityOptions.map((option) => (
                 <CompactButton
@@ -351,7 +465,7 @@ export function RecommendationSimulatorScreen() {
           </FieldGroup>
 
           <FieldGroup>
-            <FieldLabel>보조 조건 · 선택</FieldLabel>
+            <FieldLabel><span>{movement === "far" ? "06" : "05"}</span> 보조 조건 <small>선택</small></FieldLabel>
             <OptionalOptions>
               {([
                 ["solo", "혼자"],
@@ -388,10 +502,18 @@ export function RecommendationSimulatorScreen() {
                 </CompactButton>
               ))}
             </OptionalOptions>
+            <LabeledInput>
+              <span>직전 추천에서 제외할 장소 ID · 최대 20개</span>
+              <textarea
+                value={excludedPlaceIds}
+                onChange={(event) => setExcludedPlaceIds(event.target.value)}
+                placeholder="쉼표 또는 줄바꿈으로 구분"
+              />
+            </LabeledInput>
           </FieldGroup>
 
           <RunButton type="submit" disabled={loading} aria-busy={loading}>
-            <Play aria-hidden="true" />
+            {loading ? <Activity aria-hidden="true" /> : <Play aria-hidden="true" />}
             {loading ? "실제 추천 경로를 계산하고 있어요" : "시뮬레이션 실행"}
           </RunButton>
           {error && (
@@ -419,8 +541,8 @@ export function RecommendationSimulatorScreen() {
             <>
               <ResultHeader>
                 <div>
-                  <span>{result.algorithmVersion}</span>
-                  <h2>추천 진단 결과</h2>
+                  <span>ENGINE / {result.algorithmVersion}</span>
+                  <h2>추천 경로 분석</h2>
                   <p>
                     <time dateTime={result.generatedAt}>
                       {dateFormatter.format(new Date(result.generatedAt))}
@@ -437,10 +559,10 @@ export function RecommendationSimulatorScreen() {
               </ResultHeader>
 
               <MetricGrid>
-                <MetricCard><span>원천 후보</span><strong>{result.sourceCandidateCount.toLocaleString()}</strong></MetricCard>
-                <MetricCard><span>제외 반영 후</span><strong>{result.eligibleCandidateCount.toLocaleString()}</strong></MetricCard>
-                <MetricCard><span>정밀 비교</span><strong>{result.shortlistCount.toLocaleString()}</strong></MetricCard>
-                <MetricCard $accent><span>최종 추천</span><strong>{result.candidates.filter((candidate) => candidate.selected).length}</strong></MetricCard>
+                <MetricCard><small>01</small><span>탐색 후보</span><strong>{result.sourceCandidateCount.toLocaleString()}</strong></MetricCard>
+                <MetricCard><small>02</small><span>조건 통과</span><strong>{result.eligibleCandidateCount.toLocaleString()}</strong></MetricCard>
+                <MetricCard><small>03</small><span>정밀 비교</span><strong>{result.shortlistCount.toLocaleString()}</strong></MetricCard>
+                <MetricCard $accent><small>04</small><span>최종 추천</span><strong>{result.candidates.filter((candidate) => candidate.selected).length}</strong></MetricCard>
               </MetricGrid>
 
               <CandidateComparison aria-labelledby="candidate-comparison-title">
@@ -678,7 +800,10 @@ function featureLabel(value: string) {
 }
 
 function movementLabel(value: string) {
-  return value === "near" ? "집 근처" : value === "half" ? "반나절" : "조금만";
+  if (value === "near") return "한 시간 안에";
+  if (value === "half") return "반나절";
+  if (value === "far") return "오늘 하루";
+  return "한두 시간";
 }
 
 function crowdToleranceLabel(value: string) {
@@ -686,32 +811,68 @@ function crowdToleranceLabel(value: string) {
 }
 
 const Page = styled.main`
+  --sim-ink: #102f2d;
+  --sim-deep: #174540;
+  --sim-route: #39a78e;
+  --sim-mint: #cce9df;
+  --sim-mist: #eef4f1;
+  --sim-paper: #f9fbfa;
+  --sim-signal: #f1a45d;
   height: 100vh;
   height: 100dvh;
   min-height: 0;
   overflow-x: hidden;
   overflow-y: auto;
   overscroll-behavior-y: auto;
-  background: var(--color-neutral-200);
+  background-color: var(--sim-mist);
+  background-image:
+    linear-gradient(rgb(16 47 45 / 0.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgb(16 47 45 / 0.035) 1px, transparent 1px);
+  background-size: 28px 28px;
   color: var(--color-text);
   touch-action: pan-y;
   -webkit-overflow-scrolling: touch;
 
   :where(button, a, input, select, textarea, summary, [tabindex]):focus-visible {
-    outline: 3px solid var(--color-brand-900);
+    outline: 3px solid var(--sim-signal);
     outline-offset: 2px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      scroll-behavior: auto !important;
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
   }
 `;
 
 const Header = styled.header`
-  border-bottom: 1px solid var(--color-neutral-400);
-  background: var(--color-neutral-100);
+  position: relative;
+  overflow: hidden;
+  border-bottom: 1px solid rgb(204 233 223 / 0.3);
+  background:
+    radial-gradient(circle at 82% 30%, rgb(57 167 142 / 0.2), transparent 32%),
+    var(--sim-ink);
+  color: #f4faf7;
+
+  &::after {
+    position: absolute;
+    inset: 0;
+    background-image: linear-gradient(90deg, transparent 49.8%, rgb(204 233 223 / 0.08) 50%, transparent 50.2%);
+    background-size: 160px 100%;
+    content: "";
+    pointer-events: none;
+  }
 `;
 
 const HeaderInner = styled.div`
-  width: min(1280px, calc(100% - 48px));
+  position: relative;
+  z-index: 1;
+  width: min(1360px, calc(100% - 64px));
   margin: 0 auto;
-  padding: var(--space-6) 0;
+  padding: var(--space-5) 0 var(--space-8);
   display: grid;
   gap: var(--space-5);
 
@@ -727,32 +888,112 @@ const BackLink = styled(Link)`
   display: inline-flex;
   align-items: center;
   gap: var(--space-2);
-  color: var(--color-text-muted);
+  color: rgb(244 250 247 / 0.7);
   font-size: var(--font-size-200);
   text-decoration: none;
 
   svg { width: 20px; height: 20px; }
 
   &:focus-visible {
-    outline: 3px solid var(--color-brand-900);
+    outline: 3px solid var(--sim-signal);
     outline-offset: 3px;
+  }
+`;
+
+const HeaderMain = styled.div`
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(440px, 0.86fr);
+  align-items: end;
+  gap: var(--space-10);
+
+  @media (max-width: 960px) {
+    grid-template-columns: 1fr;
+    gap: var(--space-6);
   }
 `;
 
 const HeaderCopy = styled.div`
   display: grid;
-  gap: var(--space-1);
-  span { color: var(--color-secondary-900); font-size: var(--font-size-100); font-weight: 700; }
-  h1 { font-size: var(--font-size-700); line-height: 1.2; }
-  p { color: var(--color-text-muted); font-size: var(--font-size-300); }
+  gap: var(--space-3);
+  span {
+    color: var(--sim-signal);
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+  }
+  h1 {
+    max-width: 680px;
+    font-size: clamp(36px, 5vw, 68px);
+    font-weight: 760;
+    letter-spacing: -0.055em;
+    line-height: 1.02;
+  }
+  p {
+    max-width: 610px;
+    color: rgb(244 250 247 / 0.7);
+    font-size: var(--font-size-300);
+    line-height: 1.65;
+  }
+`;
+
+const EngineTrace = styled.div`
+  display: grid;
+  grid-template-columns: auto minmax(28px, 1fr) auto minmax(28px, 1fr) auto;
+  align-items: center;
+  padding: var(--space-5);
+  border: 1px solid rgb(204 233 223 / 0.22);
+  background: rgb(4 28 27 / 0.36);
+  backdrop-filter: blur(10px);
+
+  @media (max-width: 520px) {
+    padding: var(--space-4) var(--space-3);
+  }
+`;
+
+const TraceNode = styled.div<{ $active?: boolean }>`
+  position: relative;
+  display: grid;
+  gap: 4px;
+  padding-top: var(--space-4);
+
+  &::before {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 9px;
+    height: 9px;
+    border: 2px solid ${({ $active }) => $active ? "var(--sim-signal)" : "var(--sim-route)"};
+    border-radius: 50%;
+    background: ${({ $active }) => $active ? "var(--sim-signal)" : "var(--sim-ink)"};
+    content: "";
+  }
+
+  small {
+    color: var(--sim-route);
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 9px;
+    letter-spacing: 0.12em;
+  }
+
+  strong {
+    font-size: 12px;
+    white-space: nowrap;
+  }
+`;
+
+const TraceLine = styled.span`
+  height: 1px;
+  margin: 0 var(--space-2);
+  background: linear-gradient(90deg, var(--sim-route), rgb(57 167 142 / 0.2));
 `;
 
 const Content = styled.div`
-  width: min(1280px, calc(100% - 48px));
+  width: min(1360px, calc(100% - 64px));
   margin: 0 auto;
   padding: var(--space-6) 0 var(--space-12);
   display: grid;
-  grid-template-columns: minmax(300px, 340px) minmax(0, 1fr);
+  grid-template-columns: minmax(350px, 390px) minmax(0, 1fr);
   align-items: start;
   gap: var(--space-6);
 
@@ -770,11 +1011,13 @@ const ConditionPanel = styled.section`
   position: sticky;
   top: var(--space-4);
   display: grid;
-  gap: var(--space-5);
-  padding: var(--space-5);
-  border: 1px solid var(--color-neutral-400);
-  border-radius: var(--space-2);
-  background: var(--color-surface);
+  gap: var(--space-6);
+  padding: var(--space-6);
+  border: 1px solid rgb(57 167 142 / 0.5);
+  border-radius: 20px 20px 20px 4px;
+  background: var(--sim-ink);
+  box-shadow: 0 22px 50px rgb(16 47 45 / 0.18);
+  color: #f4faf7;
 
   @media (max-width: 1240px) {
     position: static;
@@ -790,8 +1033,21 @@ const PanelHeading = styled.header`
   align-items: center;
   justify-content: space-between;
   gap: var(--space-3);
-  span { color: var(--color-secondary-900); font-size: var(--font-size-100); font-weight: 700; }
+  span {
+    color: var(--sim-signal);
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+  }
   h2 { margin-top: var(--space-1); font-size: var(--font-size-500); }
+`;
+
+const ScopeNote = styled.p`
+  margin-top: calc(var(--space-3) * -1);
+  color: rgb(244 250 247 / 0.52);
+  font-size: 11px;
+  line-height: 1.55;
 `;
 
 const ResetButton = styled.button`
@@ -802,15 +1058,16 @@ const ResetButton = styled.button`
   gap: var(--space-2);
   border: 0;
   border-radius: var(--space-1);
-  background: var(--color-neutral-200);
-  color: var(--color-text-muted);
+  border: 1px solid rgb(204 233 223 / 0.18);
+  background: rgb(255 255 255 / 0.05);
+  color: rgb(244 250 247 / 0.7);
   font: inherit;
   font-size: var(--font-size-100);
   cursor: pointer;
   svg { width: 16px; height: 16px; }
 
   &:focus-visible {
-    outline: 3px solid var(--color-brand-900);
+    outline: 3px solid var(--sim-signal);
     outline-offset: 2px;
   }
 `;
@@ -822,12 +1079,30 @@ const FieldGroup = styled.fieldset`
   margin: 0;
   padding: 0;
   border: 0;
+  padding-top: var(--space-5);
+  border-top: 1px solid rgb(204 233 223 / 0.13);
 `;
 
 const FieldLabel = styled.legend`
   margin-bottom: var(--space-2);
   font-size: var(--font-size-200);
-  font-weight: 600;
+  color: #f4faf7;
+  font-weight: 650;
+
+  > span {
+    margin-right: var(--space-2);
+    color: var(--sim-route);
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 10px;
+    letter-spacing: 0.08em;
+  }
+
+  small {
+    margin-left: var(--space-1);
+    color: rgb(244 250 247 / 0.45);
+    font-size: 10px;
+    font-weight: 500;
+  }
 `;
 
 const SegmentedGrid = styled.div<{ $columns: number }>`
@@ -842,18 +1117,28 @@ const OptionButton = styled.button<{ $active: boolean }>`
   display: grid;
   place-content: center;
   gap: var(--space-1);
-  border: 1px solid ${({ $active }) => $active ? "var(--color-secondary-900)" : "var(--color-neutral-800)"};
-  border-radius: var(--space-1);
-  background: ${({ $active }) => $active ? "var(--color-secondary-200)" : "var(--color-surface)"};
-  color: var(--color-text);
+  border: 1px solid ${({ $active }) => $active ? "var(--sim-route)" : "rgb(204 233 223 / 0.2)"};
+  border-radius: 10px 10px 10px 3px;
+  background: ${({ $active }) => $active ? "rgb(57 167 142 / 0.2)" : "rgb(255 255 255 / 0.035)"};
+  color: #f4faf7;
   font: inherit;
   text-align: center;
   cursor: pointer;
   strong { font-size: var(--font-size-100); }
-  span { color: var(--color-text-muted); font-size: var(--font-size-100); line-height: 1.35; }
+  span { color: rgb(244 250 247 / 0.56); font-size: var(--font-size-100); line-height: 1.35; }
+
+  &:disabled {
+    opacity: 0.32;
+    cursor: not-allowed;
+  }
+
+  &:not(:disabled):hover {
+    border-color: var(--sim-route);
+    transform: translateY(-1px);
+  }
 
   &:focus-visible {
-    outline: 3px solid var(--color-brand-900);
+    outline: 3px solid var(--sim-signal);
     outline-offset: 2px;
   }
 `;
@@ -864,19 +1149,24 @@ const CoordinateGrid = styled.div`
   gap: var(--space-3);
 `;
 
+const LocationEditor = styled.div`
+  display: grid;
+  gap: var(--space-3);
+`;
+
 const LabeledInput = styled.label`
   min-width: 0;
   display: grid;
   gap: var(--space-2);
-  > span { font-size: var(--font-size-200); font-weight: 600; }
+  > span { color: rgb(244 250 247 / 0.72); font-size: var(--font-size-100); font-weight: 600; }
   input, select, textarea {
     width: 100%;
     min-height: 46px;
     padding: var(--space-3);
-    border: 1px solid var(--color-neutral-800);
+    border: 1px solid rgb(204 233 223 / 0.25);
     border-radius: var(--space-1);
-    background: var(--color-surface);
-    color: var(--color-text);
+    background: rgb(255 255 255 / 0.06);
+    color: #f4faf7;
     font: inherit;
     font-size: var(--font-size-200);
   }
@@ -885,16 +1175,46 @@ const LabeledInput = styled.label`
   input:focus-visible,
   select:focus-visible,
   textarea:focus-visible {
-    outline: 3px solid var(--color-brand-900);
+    outline: 3px solid var(--sim-signal);
     outline-offset: 2px;
+  }
+`;
+
+const PresetRail = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 6px;
+
+  > svg {
+    width: 15px;
+    height: 15px;
+    margin-right: 2px;
+    color: var(--sim-route);
+  }
+`;
+
+const PresetButton = styled.button`
+  min-height: 32px;
+  padding: 0 10px;
+  border: 1px solid rgb(204 233 223 / 0.18);
+  border-radius: 999px;
+  background: transparent;
+  color: rgb(244 250 247 / 0.68);
+  font: inherit;
+  font-size: 11px;
+  cursor: pointer;
+
+  &:hover {
+    border-color: var(--sim-route);
+    color: #fff;
   }
 `;
 
 const ModeNotice = styled.p`
   padding: var(--space-3);
-  border-left: 3px solid var(--color-brand-800);
-  background: var(--color-neutral-200);
-  color: var(--color-text-muted);
+  border-left: 3px solid var(--sim-route);
+  background: rgb(57 167 142 / 0.1);
+  color: rgb(244 250 247 / 0.64);
   font-size: var(--font-size-100);
 `;
 
@@ -911,16 +1231,16 @@ const OptionalOptions = styled(CompactOptions)`
 const CompactButton = styled.button<{ $active: boolean }>`
   min-height: 44px;
   padding: var(--space-2);
-  border: 1px solid ${({ $active }) => $active ? "var(--color-secondary-900)" : "var(--color-neutral-800)"};
-  border-radius: var(--space-1);
-  background: ${({ $active }) => $active ? "var(--color-secondary-200)" : "var(--color-surface)"};
-  color: var(--color-text);
+  border: 1px solid ${({ $active }) => $active ? "var(--sim-route)" : "rgb(204 233 223 / 0.2)"};
+  border-radius: 8px 8px 8px 2px;
+  background: ${({ $active }) => $active ? "var(--sim-mint)" : "rgb(255 255 255 / 0.035)"};
+  color: ${({ $active }) => $active ? "var(--sim-ink)" : "#f4faf7"};
   font: inherit;
   font-size: var(--font-size-100);
   cursor: pointer;
 
   &:focus-visible {
-    outline: 3px solid var(--color-brand-900);
+    outline: 3px solid var(--sim-signal);
     outline-offset: 2px;
   }
 `;
@@ -932,28 +1252,41 @@ const RunButton = styled.button`
   justify-content: center;
   gap: var(--space-2);
   border: 0;
-  border-radius: var(--space-1);
-  background: var(--color-secondary-800);
-  color: var(--color-black);
+  border-radius: 12px 12px 12px 3px;
+  background: var(--sim-signal);
+  color: var(--sim-ink);
   font: inherit;
   font-weight: 700;
   cursor: pointer;
   transition: opacity 180ms ease, transform 180ms ease;
   &:disabled { opacity: 0.55; cursor: wait; }
   &:not(:disabled):active { transform: scale(0.985); }
-  svg { width: 18px; height: 18px; fill: currentColor; }
+  svg { width: 18px; height: 18px; }
+
+  &[aria-busy="true"] svg {
+    animation: simulator-spin 900ms linear infinite;
+  }
+
+  &:not(:disabled):hover {
+    box-shadow: 0 10px 26px rgb(241 164 93 / 0.24);
+    transform: translateY(-1px);
+  }
 
   &:focus-visible {
-    outline: 3px solid var(--color-brand-900);
+    outline: 3px solid var(--sim-signal);
     outline-offset: 2px;
+  }
+
+  @keyframes simulator-spin {
+    to { transform: rotate(360deg); }
   }
 `;
 
 const ErrorNotice = styled.p`
   padding: var(--space-3);
-  border-left: 3px solid var(--color-error);
-  background: var(--color-neutral-100);
-  color: var(--color-error);
+  border-left: 3px solid #ff8e7d;
+  background: rgb(255 142 125 / 0.1);
+  color: #ffc1b7;
   font-size: var(--font-size-100);
 `;
 
@@ -979,12 +1312,14 @@ const EmptyResult = styled.div`
   justify-items: center;
   gap: var(--space-3);
   padding: var(--space-6);
-  border: 1px dashed var(--color-neutral-800);
-  border-radius: var(--space-2);
-  background: var(--color-surface);
+  border: 1px dashed rgb(16 47 45 / 0.3);
+  border-radius: 4px 24px 24px 24px;
+  background:
+    radial-gradient(circle at 50% 42%, rgb(57 167 142 / 0.12), transparent 28%),
+    var(--sim-paper);
   color: var(--color-text-muted);
   text-align: center;
-  svg { width: 44px; height: 44px; color: var(--color-secondary-800); }
+  svg { width: 44px; height: 44px; color: var(--sim-route); }
   h2 { color: var(--color-text); font-size: var(--font-size-400); }
   p { font-size: var(--font-size-200); }
 `;
@@ -995,7 +1330,13 @@ const ResultHeader = styled.header`
   justify-content: space-between;
   gap: var(--space-4);
   > div:first-child { display: grid; gap: var(--space-1); }
-  > div:first-child > span { color: var(--color-brand-900); font-size: var(--font-size-100); font-weight: 700; }
+  > div:first-child > span {
+    color: var(--sim-route);
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+  }
   h2 { font-size: var(--font-size-600); }
   p { color: var(--color-text-muted); font-size: var(--font-size-100); }
   @media (max-width: 640px) { align-items: flex-start; flex-direction: column; }
@@ -1013,21 +1354,22 @@ const FeatureSummary = styled.div`
 
   span {
     padding: var(--space-2) var(--space-3);
-    border-left: 3px solid var(--color-secondary-900);
-    border-radius: 2px;
-    background: var(--color-secondary-100);
+    border: 1px solid rgb(57 167 142 / 0.28);
+    border-radius: 999px;
+    background: rgb(204 233 223 / 0.48);
     font-size: var(--font-size-100);
     font-weight: 600;
   }
 `;
 
 const MetricGrid = styled.div`
+  position: relative;
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   overflow: hidden;
-  border: 1px solid var(--color-neutral-400);
-  border-radius: var(--space-1);
-  background: var(--color-surface);
+  border: 1px solid rgb(16 47 45 / 0.16);
+  border-radius: 4px 18px 18px 18px;
+  background: var(--sim-paper);
 
   @media (max-width: 640px) {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1035,13 +1377,33 @@ const MetricGrid = styled.div`
 `;
 
 const MetricCard = styled.div<{ $accent?: boolean }>`
+  position: relative;
   display: grid;
-  gap: var(--space-2);
+  grid-template-columns: auto 1fr;
+  align-items: baseline;
+  gap: 5px var(--space-2);
   padding: var(--space-4);
-  border-right: 1px solid var(--color-neutral-400);
-  background: ${({ $accent }) => $accent ? "var(--color-secondary-100)" : "var(--color-surface)"};
-  span { color: var(--color-text-muted); font-size: var(--font-size-100); }
-  strong { font-size: var(--font-size-600); }
+  border-right: 1px solid rgb(16 47 45 / 0.12);
+  background: ${({ $accent }) => $accent ? "var(--sim-mint)" : "transparent"};
+
+  small {
+    color: var(--sim-route);
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 9px;
+  }
+
+  span {
+    color: var(--color-text-muted);
+    font-size: var(--font-size-100);
+  }
+
+  strong {
+    grid-column: 1 / -1;
+    color: var(--sim-ink);
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: var(--font-size-600);
+    font-variant-numeric: tabular-nums;
+  }
 
   &:last-of-type {
     border-right: 0;
@@ -1070,7 +1432,7 @@ const StatusPill = styled.span<{ $selected: boolean }>`
   width: fit-content;
   padding: 4px 9px;
   border-radius: 999px;
-  background: ${({ $selected }) => $selected ? "var(--color-secondary-400)" : "var(--color-neutral-300)"};
+  background: ${({ $selected }) => $selected ? "var(--sim-mint)" : "var(--color-neutral-300)"};
   color: var(--color-text) !important;
   font-size: var(--font-size-100);
   font-weight: 700;
@@ -1081,6 +1443,7 @@ const Score = styled.strong`
   flex: none;
   font-size: var(--font-size-500);
   font-variant-numeric: tabular-nums;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   line-height: 1;
   small { margin-left: 2px; color: var(--color-text-muted); font-size: var(--font-size-100); font-weight: 500; }
 `;
@@ -1088,9 +1451,9 @@ const Score = styled.strong`
 const CandidateComparison = styled.section`
   min-width: 0;
   overflow: hidden;
-  border: 1px solid var(--color-neutral-400);
-  border-radius: var(--space-1);
-  background: var(--color-surface);
+  border: 1px solid rgb(16 47 45 / 0.16);
+  border-radius: 4px 18px 18px 18px;
+  background: var(--sim-paper);
 `;
 
 const CandidateComparisonHeader = styled.header`
@@ -1099,7 +1462,7 @@ const CandidateComparisonHeader = styled.header`
   justify-content: space-between;
   gap: var(--space-4);
   padding: var(--space-4);
-  border-bottom: 1px solid var(--color-neutral-400);
+  border-bottom: 1px solid rgb(16 47 45 / 0.14);
 
   h3 {
     font-size: var(--font-size-300);
@@ -1157,7 +1520,7 @@ const CandidateTable = styled.table`
     position: sticky;
     z-index: 1;
     top: 0;
-    background: var(--color-neutral-200);
+    background: #e3ece8;
     color: var(--color-text-muted);
     font-size: var(--font-size-100);
     font-weight: 700;
@@ -1203,18 +1566,18 @@ const CandidateTable = styled.table`
 
 const CandidateTableRow = styled.tr<{ $selected: boolean }>`
   background: ${({ $selected }) =>
-    $selected ? "var(--color-secondary-100)" : "var(--color-surface)"};
+    $selected ? "rgb(204 233 223 / 0.56)" : "var(--sim-paper)"};
 
   td:first-of-type {
     box-shadow: ${({ $selected }) =>
       $selected
-        ? "inset 3px 0 var(--color-secondary-900)"
+        ? "inset 3px 0 var(--sim-route)"
         : "none"};
   }
 
   &:hover {
     background: ${({ $selected }) =>
-      $selected ? "var(--color-secondary-100)" : "var(--color-brand-100)"};
+      $selected ? "rgb(204 233 223 / 0.7)" : "#f0f6f3"};
   }
 `;
 
@@ -1225,6 +1588,8 @@ const RankCell = styled.div`
   font-variant-numeric: tabular-nums;
 
   strong {
+    color: var(--sim-ink);
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
     font-size: var(--font-size-500);
     line-height: 1;
   }
@@ -1263,7 +1628,7 @@ const CandidateThumbnail = styled.div<{ $image: string }>`
   width: 48px;
   height: 48px;
   flex: 0 0 auto;
-  border-radius: var(--space-1);
+  border-radius: 2px 10px 10px 10px;
   background: var(--color-neutral-300) url(${({ $image }) => JSON.stringify($image)}) center / cover no-repeat;
 `;
 
@@ -1386,7 +1751,7 @@ const ScoreDefinitionList = styled.dl`
   }
 
   dd[data-tone="bonus"] {
-    color: var(--color-secondary-900);
+    color: #14846f;
   }
 
   dd[data-tone="penalty"] {
@@ -1412,10 +1777,10 @@ const MobileCandidateRow = styled.li<{ $selected: boolean }>`
   padding: var(--space-4);
   border-bottom: 1px solid var(--color-neutral-400);
   background: ${({ $selected }) =>
-    $selected ? "var(--color-secondary-100)" : "var(--color-surface)"};
+    $selected ? "rgb(204 233 223 / 0.56)" : "var(--sim-paper)"};
   box-shadow: ${({ $selected }) =>
     $selected
-      ? "inset 3px 0 var(--color-secondary-900)"
+      ? "inset 3px 0 var(--sim-route)"
       : "none"};
 
   &:last-of-type {
@@ -1461,12 +1826,12 @@ const MobileCandidateHeader = styled.div`
 `;
 
 const RawDetails = styled.details`
-  border: 1px solid var(--color-neutral-400);
-  border-radius: var(--space-1);
-  background: var(--color-neutral-100);
+  border: 1px solid rgb(16 47 45 / 0.16);
+  border-radius: 4px 14px 14px 14px;
+  background: var(--sim-paper);
   summary { padding: var(--space-4); font-size: var(--font-size-200); font-weight: 600; cursor: pointer; }
   summary:focus-visible { outline: 3px solid var(--color-brand-900); outline-offset: 2px; }
-  pre { max-height: 520px; margin: 0; padding: var(--space-4); overflow: auto; border-top: 1px solid var(--color-neutral-400); font-size: 12px; line-height: 1.5; }
+  pre { max-height: 520px; margin: 0; padding: var(--space-4); overflow: auto; border-top: 1px solid rgb(16 47 45 / 0.14); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; line-height: 1.5; }
 `;
 
 const AccessPage = styled.main`

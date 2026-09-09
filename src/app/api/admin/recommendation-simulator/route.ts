@@ -5,6 +5,7 @@ import {
   withCors,
 } from "@/server/http/cors";
 import { simulateRecommendations } from "@/server/recommendations/service";
+import { LongDistanceRecommendationsUnavailableError } from "@/server/recommendations/longDistanceAvailability";
 import type { AdminRecommendationSimulationRequest } from "@/shared/api/admin";
 import { RECOMMENDATION_ALGORITHM_VERSION } from "@/shared/api/recommendations";
 import type {
@@ -12,6 +13,7 @@ import type {
   BudgetAnswer,
   CompanionAnswer,
   DensityAnswer,
+  LongDistanceTimingAnswer,
   MovementAnswer,
 } from "@/shared/tuti/types";
 
@@ -36,6 +38,10 @@ const companionAnswers = new Set<CompanionAnswer>([
   "family",
 ]);
 const budgetAnswers = new Set<BudgetAnswer>(["free", "under_20000"]);
+const longDistanceTimingAnswers = new Set<LongDistanceTimingAnswer>([
+  "tomorrow_day_trip",
+  "overnight_trip",
+]);
 
 export async function POST(request: Request) {
   if (!isRequestOriginAllowed(request)) {
@@ -58,26 +64,46 @@ export async function POST(request: Request) {
     );
   }
 
-  const startedAt = performance.now();
-  const simulation = await simulateRecommendations(
-    input.value.answers,
-    input.value.location,
-    input.value.preferredRegion,
-  );
+  try {
+    const startedAt = performance.now();
+    const simulation = await simulateRecommendations(
+      input.value.answers,
+      input.value.location,
+      input.value.preferredRegion,
+      input.value.excludePlaceIds,
+    );
 
-  return withCors(
-    request,
-    Response.json({
-      algorithmVersion: RECOMMENDATION_ALGORITHM_VERSION,
-      generatedAt: new Date().toISOString(),
-      elapsedMs: Math.round(performance.now() - startedAt),
-      feature: simulation.feature,
-      sourceCandidateCount: simulation.sourceCandidateCount,
-      eligibleCandidateCount: simulation.eligibleCandidateCount,
-      shortlistCount: simulation.shortlistCount,
-      candidates: simulation.candidates,
-    }),
-  );
+    return withCors(
+      request,
+      Response.json({
+        algorithmVersion: RECOMMENDATION_ALGORITHM_VERSION,
+        generatedAt: new Date().toISOString(),
+        elapsedMs: Math.round(performance.now() - startedAt),
+        feature: simulation.feature,
+        sourceCandidateCount: simulation.sourceCandidateCount,
+        eligibleCandidateCount: simulation.eligibleCandidateCount,
+        shortlistCount: simulation.shortlistCount,
+        candidates: simulation.candidates,
+      }),
+    );
+  } catch (error) {
+    const longDistanceUnavailable =
+      error instanceof LongDistanceRecommendationsUnavailableError;
+    if (!longDistanceUnavailable) {
+      console.error("추천 시뮬레이션 실행에 실패했습니다.", error);
+    }
+    return withCors(
+      request,
+      Response.json(
+        {
+          error: longDistanceUnavailable
+            ? "이 위치에서 이용 가능한 장거리 왕복 경로를 찾지 못했습니다. 다른 위치나 일정을 선택해주세요."
+            : "추천 시뮬레이션을 실행하지 못했습니다.",
+        },
+        { status: longDistanceUnavailable ? 503 : 500 },
+      ),
+    );
+  }
 }
 
 export function OPTIONS(request: Request) {
@@ -101,7 +127,14 @@ async function readInput(
     return { ok: false, error: "추천 응답을 입력해주세요." };
   }
 
-  const { movement, air, density, companion, budget } = body.answers;
+  const {
+    movement,
+    air,
+    density,
+    companion,
+    budget,
+    longDistanceTiming,
+  } = body.answers;
   if (
     typeof movement !== "string" ||
     !movementAnswers.has(movement as MovementAnswer) ||
@@ -126,6 +159,16 @@ async function readInput(
   ) {
     return { ok: false, error: "예산 조건을 확인해주세요." };
   }
+  if (
+    longDistanceTiming !== undefined &&
+    (movement !== "far" ||
+      typeof longDistanceTiming !== "string" ||
+      !longDistanceTimingAnswers.has(
+        longDistanceTiming as LongDistanceTimingAnswer,
+      ))
+  ) {
+    return { ok: false, error: "장거리 출발 시점을 확인해주세요." };
+  }
 
   const value: AdminRecommendationSimulationRequest = {
     answers: {
@@ -139,6 +182,16 @@ async function readInput(
       ...(typeof budget === "string" &&
       budgetAnswers.has(budget as BudgetAnswer)
         ? { budget: budget as BudgetAnswer }
+        : {}),
+      ...(movement === "far" &&
+      typeof longDistanceTiming === "string" &&
+      longDistanceTimingAnswers.has(
+        longDistanceTiming as LongDistanceTimingAnswer,
+      )
+        ? {
+            longDistanceTiming:
+              longDistanceTiming as LongDistanceTimingAnswer,
+          }
         : {}),
     },
   };
@@ -174,6 +227,22 @@ async function readInput(
       areaCode: body.preferredRegion.areaCode,
       name: body.preferredRegion.name,
     };
+  }
+
+  if (body.excludePlaceIds !== undefined) {
+    if (
+      !Array.isArray(body.excludePlaceIds) ||
+      body.excludePlaceIds.some((placeId) => typeof placeId !== "string")
+    ) {
+      return { ok: false, error: "제외 장소 목록을 확인해주세요." };
+    }
+    value.excludePlaceIds = Array.from(
+      new Set(
+        body.excludePlaceIds
+          .map((placeId) => placeId.trim())
+          .filter(Boolean),
+      ),
+    ).slice(0, 20);
   }
 
   return { ok: true, value };

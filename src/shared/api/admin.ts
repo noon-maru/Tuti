@@ -419,6 +419,7 @@ export type AdminRecommendationSimulationRequest = {
   answers: IntakeAnswers;
   location?: UserLocation;
   preferredRegion?: PreferredRegion;
+  excludePlaceIds?: string[];
 };
 
 export type AdminRecommendationScoreBreakdown = {
