@@ -58,13 +58,6 @@ export async function createTravelTimeSummary(
   const bicycleSummary = toTravelTimeSummary(bicycle, endpoints);
   if (bicycleSummary) return bicycleSummary;
 
-  if (!walkingDistance) {
-    const walking = await settleRoute(() =>
-      fetchKakaoMapRoute("walking", input),
-    );
-    return toTravelTimeSummary(walking, endpoints);
-  }
-
   return null;
 }
 

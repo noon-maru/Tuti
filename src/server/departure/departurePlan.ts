@@ -128,11 +128,14 @@ async function fetchRouteBundle(
   destinationName: string,
 ): Promise<RouteBundle> {
   const input = { origin, destination, destinationName };
+  const walkingRoute = isWalkingDistance(origin, destination)
+    ? settleRoute("walking", () => fetchKakaoMapRoute("walking", input))
+    : Promise.resolve(unavailableRoute("walking"));
   const [publicTransit, walking, bicycle, driving] = await Promise.all([
     settleRoute("publicTransit", () =>
       fetchKakaoMapRoute("publicTransit", input),
     ),
-    settleRoute("walking", () => fetchKakaoMapRoute("walking", input)),
+    walkingRoute,
     settleRoute("bicycle", () => fetchKakaoMapRoute("bicycle", input)),
     settleRoute("driving", () => fetchKakaoDrivingRoute(input)),
   ]);

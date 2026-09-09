@@ -4,6 +4,11 @@ import {
   isUsableRoute,
   parseRouteMetric,
 } from "../src/server/departure/routeValidity";
+import {
+  calculateDistanceMeters,
+  isWalkingDistance,
+  WALKING_DISTANCE_LIMIT_METERS,
+} from "../src/server/departure/routeSelection";
 import { toTravelTimeSummary } from "../src/server/departure/travelTimeSummary";
 import type { DepartureRoute } from "../src/shared/api/departurePlan";
 
@@ -57,4 +62,28 @@ test("유효한 경로와 같은 위치의 0 이동 경로를 구분한다", () 
     isUsableRoute(route(0, 0), { origin, destination: origin }),
     true,
   );
+});
+
+test("직선거리 1.8km를 넘는 목적지는 도보 경로 조회 대상에서 제외한다", () => {
+  const nearbyDestination = {
+    latitude: origin.latitude + 0.015,
+    longitude: origin.longitude,
+  };
+  const distantDestination = {
+    latitude: origin.latitude + 0.018,
+    longitude: origin.longitude,
+  };
+
+  assert.equal(
+    calculateDistanceMeters(origin, nearbyDestination) <
+      WALKING_DISTANCE_LIMIT_METERS,
+    true,
+  );
+  assert.equal(isWalkingDistance(origin, nearbyDestination), true);
+  assert.equal(
+    calculateDistanceMeters(origin, distantDestination) >
+      WALKING_DISTANCE_LIMIT_METERS,
+    true,
+  );
+  assert.equal(isWalkingDistance(origin, distantDestination), false);
 });
