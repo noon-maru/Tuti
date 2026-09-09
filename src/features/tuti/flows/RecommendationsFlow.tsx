@@ -7,6 +7,7 @@ import { DepartureReturnSheet } from "@/features/tuti/components/DepartureReturn
 import { useTutiRecommendations } from "@/features/tuti/hooks/useTutiRecommendations";
 import { useTravelTime } from "@/features/tuti/hooks/useTravelTime";
 import { useSession } from "@/features/tuti/hooks/useSession";
+import { useTutiJournalEntries } from "@/features/tuti/hooks/useTutiJournalEntries";
 import { useLocationAccess } from "@/features/tuti/location/LocationAccessProvider";
 import { DailyCheckInScreen } from "@/features/tuti/screens/intake/DailyCheckInScreen";
 import {
@@ -15,6 +16,7 @@ import {
 } from "@/features/tuti/screens/departure/DeparturePlanScreen";
 import { SavedDeparturePlacesSheet } from "@/features/tuti/screens/departure/SavedDeparturePlacesSheet";
 import { RecommendationsScreen } from "@/features/tuti/screens/recommendations/RecommendationsScreen";
+import { findSimilarVisitedPlaces } from "@/features/tuti/lib/similarVisitedPlaces";
 import {
   formatLongDistanceTravelTimeLabel,
   formatTravelTimeLabel,
@@ -49,6 +51,7 @@ export function RecommendationsFlow({ interactive }: { interactive: boolean }) {
   const [savedPlacesOpen, setSavedPlacesOpen] = useState(false);
   const [selectedSavedPlace, setSelectedSavedPlace] =
     useState<SavedDeparturePlace | null>(null);
+  const journalQuery = useTutiJournalEntries(savedPlacesOpen);
   const storedAnswers = useTutiStore((state) => state.answers);
   const userLocation = useTutiStore((state) => state.userLocation);
   const preferredRegion = useTutiStore((state) => state.preferredRegion);
@@ -78,6 +81,9 @@ export function RecommendationsFlow({ interactive }: { interactive: boolean }) {
   );
   const savedDeparturePlaces = useTutiStore(
     (state) => state.savedDeparturePlaces,
+  );
+  const addSavedDeparturePlace = useTutiStore(
+    (state) => state.addSavedDeparturePlace,
   );
   const removeSavedDeparturePlace = useTutiStore(
     (state) => state.removeSavedDeparturePlace,
@@ -130,6 +136,11 @@ export function RecommendationsFlow({ interactive }: { interactive: boolean }) {
     enabled:
       (dailyRecordCurrent || dailyCheckInSnoozed) &&
       !waitingForLocationRestore,
+  });
+  const similarVisitedPlaces = findSimilarVisitedPlaces({
+    journalEntries: journalQuery.entries,
+    recommendationPlaces: places,
+    savedPlaceIds: savedDeparturePlaces.map((place) => place.placeId),
   });
   const activeIndex = useTutiStore((state) => state.activeIndex);
   const activePlaceId = useTutiStore((state) => state.activePlaceId);
@@ -434,7 +445,25 @@ export function RecommendationsFlow({ interactive }: { interactive: boolean }) {
         onDownload={() => router.push("/download")}
         onSettings={() => router.push("/settings")}
         onSavedPlaces={() => setSavedPlacesOpen(true)}
-        savedPlacesCount={savedDeparturePlaces.length}
+        savedPlaceIds={savedDeparturePlaces.map((place) => place.placeId)}
+        onToggleSavedPlace={(place) => {
+          const saved = savedDeparturePlaces.some(
+            (savedPlace) => savedPlace.placeId === place.id,
+          );
+
+          if (saved) {
+            removeSavedDeparturePlace(place.id);
+            return;
+          }
+
+          addSavedDeparturePlace({
+            journeyId: recommendationId ?? crypto.randomUUID(),
+            placeId: place.id,
+            placeName: place.name,
+            placeImage: place.image,
+            placePhrase: place.phrase,
+          });
+        }}
         onDepartureOpen={(place, variant) => {
           if (!recommendationId) return;
           recordAction({
@@ -561,6 +590,10 @@ export function RecommendationsFlow({ interactive }: { interactive: boolean }) {
       {savedPlacesOpen && (
         <SavedDeparturePlacesSheet
           places={savedDeparturePlaces}
+          similarPlaces={similarVisitedPlaces}
+          similarPlacesLoading={journalQuery.isPending}
+          similarPlacesError={journalQuery.isError}
+          hasJournalEntries={journalQuery.entries.length > 0}
           onOpen={(place) => {
             const journeyId =
               place.journeyId || recommendationId || crypto.randomUUID();
@@ -573,6 +606,25 @@ export function RecommendationsFlow({ interactive }: { interactive: boolean }) {
             setSavedPlacesOpen(false);
             setSelectedSavedPlace({ ...place, journeyId });
           }}
+          onOpenSimilar={(place) => {
+            const journeyId = recommendationId ?? crypto.randomUUID();
+            recordAction({
+              journeyId,
+              action: "departure_plan_expanded",
+              placeId: place.id,
+              metadata: { source: "visited_similarity" },
+            });
+            setSavedPlacesOpen(false);
+            setSelectedSavedPlace({
+              journeyId,
+              placeId: place.id,
+              placeName: place.name,
+              placeImage: place.image,
+              placePhrase: place.phrase,
+              savedAt: new Date().toISOString(),
+            });
+          }}
+          onRetrySimilar={() => void journalQuery.refetch()}
           onRemove={removeSavedDeparturePlace}
           onClose={() => setSavedPlacesOpen(false)}
         />

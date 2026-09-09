@@ -86,7 +86,8 @@ export function RecommendationsScreen({
   onDownload,
   onSettings,
   onSavedPlaces,
-  savedPlacesCount,
+  savedPlaceIds,
+  onToggleSavedPlace,
   onDepartureOpen,
   onDeparturePlanExpanded,
   onNavigationStart,
@@ -121,7 +122,8 @@ export function RecommendationsScreen({
   onDownload: () => void;
   onSettings: () => void;
   onSavedPlaces: () => void;
-  savedPlacesCount: number;
+  savedPlaceIds: string[];
+  onToggleSavedPlace: (place: TutiPlace) => void;
   onDepartureOpen: (
     place: TutiPlace,
     variant: DeparturePresentation["variant"],
@@ -637,9 +639,7 @@ export function RecommendationsScreen({
                       onSelect: replayInitialHelp,
                     },
                     {
-                      label: savedPlacesCount
-                        ? `다음에 갈 공간 (${savedPlacesCount})`
-                        : "다음에 갈 공간",
+                      label: "다음에 갈 공간",
                       onSelect: onSavedPlaces,
                     },
                     ...(process.env.NEXT_PUBLIC_TUTI_TARGET === "web"
@@ -657,9 +657,7 @@ export function RecommendationsScreen({
                       onSelect: replayInitialHelp,
                     },
                     {
-                      label: savedPlacesCount
-                        ? `다음에 갈 공간 (${savedPlacesCount})`
-                        : "다음에 갈 공간",
+                      label: "다음에 갈 공간",
                       onSelect: onSavedPlaces,
                     },
                     ...(process.env.NEXT_PUBLIC_TUTI_TARGET === "web"
@@ -747,6 +745,10 @@ export function RecommendationsScreen({
               place={presentedDetailPlace}
               travelTimeLabel={activeTravelTimeLabel}
               onBack={onDetailClose}
+              savedForLater={savedPlaceIds.includes(presentedDetailPlace.id)}
+              onToggleSavedForLater={() =>
+                onToggleSavedPlace(presentedDetailPlace)
+              }
               onExitStart={onDetailExitStart}
               historyActive={detailVisible}
               revealProgress={detailVisible ? 1 : verticalProgress}

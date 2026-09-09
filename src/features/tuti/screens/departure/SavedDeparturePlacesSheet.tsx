@@ -8,6 +8,7 @@ import {
   PrimaryButton,
 } from "@/features/tuti/components/buttons";
 import { useDeferredAnimationStart } from "@/features/tuti/hooks/useDeferredAnimationStart";
+import type { TutiPlace } from "@/lib/recommendations";
 import type { SavedDeparturePlace } from "@/store/tuti";
 
 const TRANSITION_DURATION = 380;
@@ -15,12 +16,24 @@ const DISMISS_THRESHOLD = 72;
 
 export function SavedDeparturePlacesSheet({
   places,
+  similarPlaces,
+  similarPlacesLoading,
+  similarPlacesError,
+  hasJournalEntries,
   onOpen,
+  onOpenSimilar,
+  onRetrySimilar,
   onRemove,
   onClose,
 }: {
   places: SavedDeparturePlace[];
+  similarPlaces: TutiPlace[];
+  similarPlacesLoading: boolean;
+  similarPlacesError: boolean;
+  hasJournalEntries: boolean;
   onOpen: (place: SavedDeparturePlace) => void;
+  onOpenSimilar: (place: TutiPlace) => void;
+  onRetrySimilar: () => void;
   onRemove: (placeId: string) => void;
   onClose: () => void;
 }) {
@@ -123,55 +136,101 @@ export function SavedDeparturePlacesSheet({
         </DragHandle>
 
         <Header>
-          <div>
-            <small>부담 없이 남겨둔 공간</small>
-            <h2 id="saved-departure-title">다음에 갈 공간</h2>
-          </div>
+          <h2 id="saved-departure-title">다음에 갈 공간</h2>
         </Header>
 
-        {places.length ? (
-          <PlaceList data-scroll-region>
-            {places.map((place) => (
-              <PlaceItem key={place.placeId}>
-                <PlaceImage
-                  $image={place.placeImage}
-                  aria-hidden="true"
-                />
-                <PlaceCopy>
-                  <small>{formatSavedDate(place.savedAt)}</small>
-                  <strong>{place.placeName}</strong>
-                  <p>
-                    {place.placePhrase ||
-                      "다음에 가볍게 만나볼 수 있도록 남겨둔 공간"}
-                  </p>
-                </PlaceCopy>
-                <RemoveButton
-                  type="button"
-                  aria-label={`${place.placeName} 다음에 갈 공간에서 삭제`}
-                  onClick={() => onRemove(place.placeId)}
-                >
-                  <Trash2 aria-hidden="true" />
-                </RemoveButton>
-                <OpenButton
-                  type="button"
-                  onClick={() => closeWith(() => onOpen(place))}
-                >
-                  출발 준비
-                  <Navigation aria-hidden="true" />
-                </OpenButton>
-              </PlaceItem>
-            ))}
-          </PlaceList>
-        ) : (
-          <EmptyState>
-            <Bookmark aria-hidden="true" />
-            <strong>아직 남겨둔 공간이 없어요.</strong>
-            <p>
-              길찾기 후 `다음에 갈 공간으로 남겨두기`를 선택하면 여기에
-              모아둘게요.
-            </p>
-          </EmptyState>
-        )}
+        <SheetBody data-scroll-region>
+          <SectionHeader>
+            <h3>내가 남겨둔 공간</h3>
+          </SectionHeader>
+
+          {places.length ? (
+            <PlaceList>
+              {places.map((place) => (
+                <PlaceItem key={place.placeId}>
+                  <PlaceImage
+                    $image={place.placeImage}
+                    aria-hidden="true"
+                  />
+                  <PlaceCopy>
+                    <small>{formatSavedDate(place.savedAt)}</small>
+                    <strong>{place.placeName}</strong>
+                    <p>
+                      {place.placePhrase ||
+                        "다음에 가볍게 만나볼 수 있도록 남겨둔 공간"}
+                    </p>
+                  </PlaceCopy>
+                  <RemoveButton
+                    type="button"
+                    aria-label={`${place.placeName} 다음에 갈 공간에서 삭제`}
+                    onClick={() => onRemove(place.placeId)}
+                  >
+                    <Trash2 aria-hidden="true" />
+                  </RemoveButton>
+                  <OpenButton
+                    type="button"
+                    onClick={() => closeWith(() => onOpen(place))}
+                  >
+                    출발 준비
+                    <Navigation aria-hidden="true" />
+                  </OpenButton>
+                </PlaceItem>
+              ))}
+            </PlaceList>
+          ) : (
+            <EmptyState $compact>
+              <Bookmark aria-hidden="true" />
+              <strong>아직 남겨둔 공간이 없어요.</strong>
+              <p>
+                장소 소개 메뉴에서 다음에 갈 공간에 추가를 선택하면 여기에
+                모아둘게요.
+              </p>
+            </EmptyState>
+          )}
+
+          <SectionDivider />
+
+          <SectionHeader>
+            <h3>다녀온 공간과 닮은 곳</h3>
+          </SectionHeader>
+
+          {similarPlacesLoading ? (
+            <SimilarStatus>기록에서 닮은 공간을 찾고 있어요.</SimilarStatus>
+          ) : similarPlacesError ? (
+            <SimilarStatus>
+              기록을 불러오지 못했어요.
+              <RetryButton type="button" onClick={onRetrySimilar}>
+                다시 찾기
+              </RetryButton>
+            </SimilarStatus>
+          ) : similarPlaces.length ? (
+            <SimilarList>
+              {similarPlaces.map((place) => (
+                <SimilarItem key={place.id}>
+                  <PlaceImage $image={place.image} aria-hidden="true" />
+                  <PlaceCopy>
+                    <small>오늘 추천 중에서</small>
+                    <strong>{place.name}</strong>
+                    <p>{place.cardPhrase ?? place.phrase}</p>
+                  </PlaceCopy>
+                  <SimilarOpenButton
+                    type="button"
+                    onClick={() => closeWith(() => onOpenSimilar(place))}
+                  >
+                    출발 준비
+                    <Navigation aria-hidden="true" />
+                  </SimilarOpenButton>
+                </SimilarItem>
+              ))}
+            </SimilarList>
+          ) : (
+            <SimilarStatus>
+              {hasJournalEntries
+                ? "오늘 추천 중에는 기록과 닮은 공간이 없어요. 다음 추천에서 다시 찾아볼게요."
+                : "공간이 기록되면 그날의 테마와 닮은 오늘의 추천을 골라드릴게요."}
+            </SimilarStatus>
+          )}
+        </SheetBody>
       </Sheet>
     </Overlay>
   );
@@ -249,21 +308,7 @@ const DragHandle = styled(BaseButton)`
 `;
 
 const Header = styled.header`
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-4);
   padding: var(--space-1) var(--space-5) var(--space-5);
-
-  > div {
-    display: grid;
-    gap: 2px;
-  }
-
-  small {
-    color: var(--color-text-muted);
-    font-size: var(--font-size-100);
-  }
 
   h2 {
     font-size: var(--font-size-500);
@@ -271,14 +316,35 @@ const Header = styled.header`
   }
 `;
 
-const PlaceList = styled.div`
+const SheetBody = styled.div`
   min-height: 0;
   display: grid;
+  align-content: start;
   gap: var(--space-3);
   overflow-y: auto;
   padding: 0 var(--space-5)
     calc(var(--space-7) + var(--app-safe-area-bottom, 0px));
   overscroll-behavior: contain;
+`;
+
+const SectionHeader = styled.header`
+  h3 {
+    font-size: var(--font-size-300);
+    line-height: var(--line-height-heading);
+  }
+`;
+
+const SectionDivider = styled.hr`
+  width: 100%;
+  height: 1px;
+  margin: var(--space-3) 0;
+  border: 0;
+  background: var(--color-neutral-300);
+`;
+
+const PlaceList = styled.div`
+  display: grid;
+  gap: var(--space-3);
 `;
 
 const PlaceItem = styled.article`
@@ -299,6 +365,7 @@ const PlaceItem = styled.article`
 const PlaceImage = styled.div<{ $image?: string }>`
   width: var(--space-16);
   aspect-ratio: 1;
+  grid-row: 1 / span 2;
   align-self: start;
   border-radius: 18px;
   background-color: var(--color-accent-soft);
@@ -353,11 +420,16 @@ const RemoveButton = styled(BaseButton)`
 `;
 
 const OpenButton = styled(PrimaryButton)`
+  width: 100%;
   min-height: var(--space-10);
   grid-column: 2 / -1;
+  display: inline-flex;
+  align-items: center;
   justify-content: center;
   gap: var(--space-2);
+  padding: 0 var(--space-4);
   font-size: var(--font-size-100);
+  white-space: nowrap;
 
   svg {
     width: 16px;
@@ -365,8 +437,66 @@ const OpenButton = styled(PrimaryButton)`
   }
 `;
 
-const EmptyState = styled.div`
-  min-height: 320px;
+const SimilarList = styled.div`
+  display: grid;
+  gap: var(--space-3);
+`;
+
+const SimilarItem = styled.article`
+  display: grid;
+  grid-template-columns: var(--space-16) minmax(0, 1fr);
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3);
+  border: 1px solid var(--color-secondary-300);
+  border-radius: 22px;
+  background: var(--color-secondary-100);
+`;
+
+const SimilarOpenButton = styled(PrimaryButton)`
+  width: 100%;
+  min-height: var(--space-10);
+  grid-column: 2;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  padding: 0 var(--space-4);
+  font-size: var(--font-size-100);
+  white-space: nowrap;
+
+  svg {
+    width: 16px;
+    height: 16px;
+  }
+`;
+
+const SimilarStatus = styled.div`
+  display: grid;
+  justify-items: center;
+  gap: var(--space-3);
+  padding: var(--space-5);
+  border-radius: 20px;
+  background: var(--color-neutral-100);
+  color: var(--color-text-muted);
+  font-size: var(--font-size-100);
+  line-height: var(--line-height-body);
+  text-align: center;
+`;
+
+const RetryButton = styled(BaseButton)`
+  min-height: var(--space-9);
+  padding: 0 var(--space-4);
+  border: 1px solid var(--color-neutral-400);
+  border-radius: 999px;
+  background: var(--color-surface);
+  color: var(--color-text);
+  font-size: var(--font-size-100);
+  font-weight: 700;
+`;
+
+const EmptyState = styled.div<{ $compact?: boolean }>`
+  min-height: ${({ $compact }) => ($compact ? "190px" : "320px")};
   display: flex;
   flex-direction: column;
   align-items: center;

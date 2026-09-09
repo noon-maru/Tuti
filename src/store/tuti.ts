@@ -52,6 +52,8 @@ export type SavedDeparturePlace = {
   savedAt: string;
 };
 
+export type SavedDeparturePlaceInput = Omit<SavedDeparturePlace, "savedAt">;
+
 export type DailyRecommendationSnapshot = {
   effectiveDate: string;
   cycle: number;
@@ -136,6 +138,7 @@ type TutiState = {
   postponePendingDeparture: () => void;
   completePendingDeparture: () => void;
   deferPendingDeparture: () => void;
+  addSavedDeparturePlace: (place: SavedDeparturePlaceInput) => void;
   removeSavedDeparturePlace: (placeId: string) => void;
   setNotificationPreferences: (
     preferences: NotificationPreferences,
@@ -391,14 +394,22 @@ export const useTutiStore = create<TutiState>()(
 
           return {
             pendingDeparture: undefined,
-            savedDeparturePlaces: [
+            savedDeparturePlaces: prependSavedDeparturePlace(
+              state.savedDeparturePlaces,
               savedPlace,
-              ...state.savedDeparturePlaces.filter(
-                (place) => place.placeId !== savedPlace.placeId,
-              ),
-            ].slice(0, 20),
+            ),
           };
         }),
+      addSavedDeparturePlace: (place) =>
+        set((state) => ({
+          savedDeparturePlaces: prependSavedDeparturePlace(
+            state.savedDeparturePlaces,
+            {
+              ...place,
+              savedAt: new Date().toISOString(),
+            },
+          ),
+        })),
       removeSavedDeparturePlace: (placeId) =>
         set((state) => ({
           savedDeparturePlaces: state.savedDeparturePlaces.filter(
@@ -482,3 +493,13 @@ export const useTutiStore = create<TutiState>()(
     },
   ),
 );
+
+function prependSavedDeparturePlace(
+  places: SavedDeparturePlace[],
+  savedPlace: SavedDeparturePlace,
+) {
+  return [
+    savedPlace,
+    ...places.filter((place) => place.placeId !== savedPlace.placeId),
+  ].slice(0, 20);
+}

@@ -51,6 +51,9 @@ export function DetailScreen({
   travelTimeLabel,
   onBack,
   backLabel = "추천 화면으로 돌아가기",
+  showBackMenuItem = false,
+  savedForLater = false,
+  onToggleSavedForLater,
   onExitStart,
   historyActive = false,
   revealProgress = 1,
@@ -59,6 +62,9 @@ export function DetailScreen({
   travelTimeLabel: string;
   onBack: () => void;
   backLabel?: string;
+  showBackMenuItem?: boolean;
+  savedForLater?: boolean;
+  onToggleSavedForLater?: () => void;
   onExitStart?: () => void;
   historyActive?: boolean;
   revealProgress?: number;
@@ -194,6 +200,16 @@ export function DetailScreen({
             <ContextMenu
               label={`${place.name} 메뉴`}
               items={[
+                ...(onToggleSavedForLater
+                  ? [
+                      {
+                        label: savedForLater
+                          ? "다음에 갈 공간에서 빼기"
+                          : "다음에 갈 공간에 추가",
+                        onSelect: onToggleSavedForLater,
+                      },
+                    ]
+                  : []),
                 {
                   label: "장소 공유하기",
                   onSelect: () =>
@@ -203,10 +219,14 @@ export function DetailScreen({
                       url: getPublicPlaceUrl(place.id),
                     }),
                 },
-                {
-                  label: backLabel,
-                  onSelect: closeFromBackdrop,
-                },
+                ...(showBackMenuItem
+                  ? [
+                      {
+                        label: backLabel,
+                        onSelect: closeFromBackdrop,
+                      },
+                    ]
+                  : []),
               ]}
             />
           </TopLine>

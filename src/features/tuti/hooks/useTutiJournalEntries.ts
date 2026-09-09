@@ -20,11 +20,12 @@ import type {
 
 const journalEntriesQueryKey = ["journal-entries"] as const;
 
-export function useTutiJournalEntries() {
+export function useTutiJournalEntries(enabled = true) {
   const queryClient = useQueryClient();
   const { data: entries = [], ...query } = useQuery({
     queryKey: journalEntriesQueryKey,
     queryFn: fetchJournalEntries,
+    enabled,
     staleTime: Infinity,
   });
 
