@@ -19,10 +19,13 @@ const pendingOutputDirectory = resolve(projectRoot, ".app-out-next");
 const copiedDirectories = ["public", "src"] as const;
 const copiedFiles = ["next.config.ts", "package.json", "tsconfig.json"] as const;
 const excludedSourcePaths = [
+  join("public", "download"),
   join("src", "app", "admin"),
   join("src", "app", "api"),
+  join("src", "app", "download"),
   join("src", "app", "place"),
   join("src", "app", "shared"),
+  join("src", "features", "download"),
   join("src", "generated"),
   join("src", "proxy.ts"),
   join("src", "server"),

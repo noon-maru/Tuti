@@ -2,6 +2,8 @@
 
 import styled from "@emotion/styled";
 import Image from "next/image";
+import Link from "next/link";
+import { Download } from "lucide-react";
 import { AdaptiveOrientation } from "@/features/tuti/components/AdaptiveOrientation";
 import { TutiWordmark } from "@/features/tuti/components/TutiWordmark";
 import { breakpoints } from "@/styles/tokens";
@@ -36,6 +38,12 @@ export function AppFrame({ children }: { children: React.ReactNode }) {
           <i />
           <i />
         </BrandPalette>
+        {!nativeApp && (
+          <BrandDownloadLink href="/download">
+            <Download aria-hidden="true" />
+            Tuti 앱 다운로드
+          </BrandDownloadLink>
+        )}
       </DesktopBrand>
       <AppViewport
         $nativeApp={nativeApp}
@@ -163,6 +171,31 @@ const BrandPalette = styled.div`
 
   i:nth-of-type(3) {
     background: var(--color-accent-soft);
+  }
+`;
+
+const BrandDownloadLink = styled(Link)`
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding-inline: var(--space-5);
+  border: 1px solid var(--color-brand-300);
+  border-radius: 999px;
+  background: var(--color-brand-100);
+  color: var(--color-brand-900);
+  font-size: var(--font-size-100);
+  font-weight: 700;
+  transition: transform 180ms ease, background 180ms ease;
+
+  svg {
+    width: 17px;
+    height: 17px;
+  }
+
+  &:hover {
+    background: var(--color-brand-200);
+    transform: translateY(-2px);
   }
 `;
 

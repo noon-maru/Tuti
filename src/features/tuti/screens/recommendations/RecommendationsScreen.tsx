@@ -83,6 +83,7 @@ export function RecommendationsScreen({
   onDetailClose,
   onJournal,
   onAdmin,
+  onDownload,
   onSettings,
   onSavedPlaces,
   savedPlacesCount,
@@ -117,6 +118,7 @@ export function RecommendationsScreen({
   onDetailClose: () => void;
   onJournal: () => void;
   onAdmin: () => void;
+  onDownload: () => void;
   onSettings: () => void;
   onSavedPlaces: () => void;
   savedPlacesCount: number;
@@ -640,6 +642,9 @@ export function RecommendationsScreen({
                         : "다음에 갈 공간",
                       onSelect: onSavedPlaces,
                     },
+                    ...(process.env.NEXT_PUBLIC_TUTI_TARGET === "web"
+                      ? [{ label: "앱 다운로드", onSelect: onDownload }]
+                      : []),
                     { label: "설정", onSelect: onSettings },
                   ]
                 : [
@@ -657,6 +662,9 @@ export function RecommendationsScreen({
                         : "다음에 갈 공간",
                       onSelect: onSavedPlaces,
                     },
+                    ...(process.env.NEXT_PUBLIC_TUTI_TARGET === "web"
+                      ? [{ label: "앱 다운로드", onSelect: onDownload }]
+                      : []),
                     { label: "설정", onSelect: onSettings },
                   ]
             }

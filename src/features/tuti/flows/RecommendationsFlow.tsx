@@ -241,6 +241,9 @@ export function RecommendationsFlow({ interactive }: { interactive: boolean }) {
   useEffect(() => {
     router.prefetch("/journal");
     router.prefetch("/settings");
+    if (process.env.NEXT_PUBLIC_TUTI_TARGET === "web") {
+      router.prefetch("/download");
+    }
   }, [router]);
 
   useEffect(() => {
@@ -428,6 +431,7 @@ export function RecommendationsFlow({ interactive }: { interactive: boolean }) {
         onDetailClose={finishDetailClose}
         onJournal={() => router.push("/journal")}
         onAdmin={() => router.push("/admin")}
+        onDownload={() => router.push("/download")}
         onSettings={() => router.push("/settings")}
         onSavedPlaces={() => setSavedPlacesOpen(true)}
         savedPlacesCount={savedDeparturePlaces.length}
