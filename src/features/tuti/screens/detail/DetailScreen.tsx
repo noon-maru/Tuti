@@ -22,6 +22,7 @@ import { TutiPlaceIcon } from "@/features/tuti/components/TutiPlaceIcon";
 import { useDeferredAnimationStart } from "@/features/tuti/hooks/useDeferredAnimationStart";
 import { usePlaceDetail } from "@/features/tuti/hooks/usePlaceDetail";
 import { useVerticalSwipeBack } from "@/features/tuti/hooks/useVerticalSwipeBack";
+import { getPublicPlaceUrl } from "@/features/tuti/lib/placeShare";
 import {
   createOperationBadge,
   createVisitInformationFacts,
@@ -49,6 +50,7 @@ export function DetailScreen({
   place,
   travelTimeLabel,
   onBack,
+  backLabel = "추천 화면으로 돌아가기",
   onExitStart,
   historyActive = false,
   revealProgress = 1,
@@ -56,6 +58,7 @@ export function DetailScreen({
   place: TutiPlace;
   travelTimeLabel: string;
   onBack: () => void;
+  backLabel?: string;
   onExitStart?: () => void;
   historyActive?: boolean;
   revealProgress?: number;
@@ -165,7 +168,7 @@ export function DetailScreen({
     <Frame {...(selectedPhoto ? {} : swipeBack.gestureProps)}>
       <Backdrop
         type="button"
-        aria-label="추천 화면으로 돌아가기"
+        aria-label={backLabel}
         onClick={closeFromBackdrop}
         $revealProgress={revealProgress}
         $progress={swipeBack.dragProgress}
@@ -197,11 +200,11 @@ export function DetailScreen({
                     shareContent({
                       title: place.name,
                       text: `${place.phrase}\n${getFallbackDescription(place)}`,
-                      url: window.location.href,
+                      url: getPublicPlaceUrl(place.id),
                     }),
                 },
                 {
-                  label: "추천 화면으로 돌아가기",
+                  label: backLabel,
                   onSelect: closeFromBackdrop,
                 },
               ]}

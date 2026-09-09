@@ -21,6 +21,7 @@ const copiedFiles = ["next.config.ts", "package.json", "tsconfig.json"] as const
 const excludedSourcePaths = [
   join("src", "app", "admin"),
   join("src", "app", "api"),
+  join("src", "app", "place"),
   join("src", "app", "shared"),
   join("src", "generated"),
   join("src", "proxy.ts"),
