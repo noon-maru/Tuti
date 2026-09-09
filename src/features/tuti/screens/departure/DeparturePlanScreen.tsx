@@ -83,6 +83,9 @@ export function DeparturePlanScreen({
   const overnight = place.longDistanceJourney?.timing === "overnight_trip";
   const accommodationsQuery = useNearbyAccommodations(place.id, overnight);
   const plan = departureQuery.data;
+  const visibleRouteModes = plan
+    ? getVisibleDepartureRouteModes(plan.routes)
+    : [];
   const continuationPlaces =
     plan?.nearbyPlaces.filter((nearby) => nearby.kind === "continuation") ?? [];
   const restPlaces =
@@ -479,8 +482,11 @@ export function DeparturePlanScreen({
                   )}
                 </SectionHeading>
 
-                <ModeTabs aria-label="이동수단 선택">
-                  {getVisibleDepartureRouteModes(plan.routes).map((mode) => {
+                <ModeTabs
+                  aria-label="이동수단 선택"
+                  $columns={visibleRouteModes.length}
+                >
+                  {visibleRouteModes.map((mode) => {
                     const route = plan.routes[mode];
                     return (
                       <ModeButton
@@ -1453,13 +1459,19 @@ const RecommendedBadge = styled.span`
   font-weight: 600;
 `;
 
-const ModeTabs = styled.div`
+const ModeTabs = styled.div<{ $columns: number }>`
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(
+    ${({ $columns }) => Math.max(1, $columns)},
+    minmax(0, 1fr)
+  );
+  align-items: stretch;
+  justify-content: center;
   gap: var(--space-2);
 `;
 
 const ModeButton = styled(BaseButton)<{ $active: boolean }>`
+  width: 100%;
   min-width: 0;
   min-height: 58px;
   display: flex;
@@ -1468,6 +1480,7 @@ const ModeButton = styled(BaseButton)<{ $active: boolean }>`
   justify-content: center;
   gap: 2px;
   padding: var(--space-2) var(--space-1);
+  text-align: center;
   border: 1px solid
     ${({ $active }) =>
       $active ? "var(--color-brand-500)" : "var(--color-border)"};
