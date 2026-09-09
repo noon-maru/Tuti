@@ -2,6 +2,10 @@ import { cache } from "react";
 import type { TutiPlace } from "@/lib/recommendations";
 import { prisma } from "@/server/db/prisma";
 import { recommendablePlaceWhere } from "@/server/recommendations/recommendablePlaceWhere";
+import {
+  toPublicPlaceName,
+  toPublicSidoName,
+} from "@/server/places/publicPlaceLabels";
 
 export const findPublicPlace = cache(
   async (placeId: string): Promise<TutiPlace | null> => {
@@ -34,8 +38,15 @@ export const findPublicPlace = cache(
 
     return {
       ...place,
+      name: toPublicPlaceName(
+        place.name,
+        place.sourceSidoName,
+        place.sourceSigunguName,
+      ),
       sourceContentType: place.sourceContentType ?? undefined,
-      sourceSidoName: place.sourceSidoName ?? undefined,
+      sourceSidoName:
+        toPublicSidoName(place.sourceSidoName, place.sourceSigunguName) ??
+        undefined,
       sourceSigunguName: place.sourceSigunguName ?? undefined,
       latitude: Number(place.latitude),
       longitude: Number(place.longitude),

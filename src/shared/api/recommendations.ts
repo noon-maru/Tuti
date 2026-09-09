@@ -5,7 +5,7 @@ import type {
   UserLocation,
 } from "@/shared/tuti/types";
 
-export const RECOMMENDATION_ALGORITHM_VERSION = "verified-constraints-v13";
+export const RECOMMENDATION_ALGORITHM_VERSION = "verified-constraints-v14";
 
 export type RecommendationErrorCode =
   | "long_distance_unavailable"

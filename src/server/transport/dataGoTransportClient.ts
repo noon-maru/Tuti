@@ -87,24 +87,13 @@ export function fetchTrainSchedules(input: {
     {
       depPlaceId: input.departureStationId,
       arrPlaceId: input.arrivalStationId,
-      // TAGO 열차 API는 현재 요청일보다 하루 전의 운행편을 반환한다.
-      // 실제 응답의 운행일은 추천 엔진에서 다시 검증한다.
-      depPlandTime: addCalendarDays(input.departureDate, 1),
+      depPlandTime: input.departureDate,
       ...(input.trainGradeCode
         ? { trainGradeCode: input.trainGradeCode }
         : {}),
       numOfRows: "200",
     },
   );
-}
-
-function addCalendarDays(dateKey: string, days: number) {
-  if (!/^\d{8}$/.test(dateKey)) return dateKey;
-  const date = new Date(
-    `${dateKey.slice(0, 4)}-${dateKey.slice(4, 6)}-${dateKey.slice(6, 8)}T12:00:00Z`,
-  );
-  date.setUTCDate(date.getUTCDate() + days);
-  return date.toISOString().slice(0, 10).replaceAll("-", "");
 }
 
 export function fetchExpressBusCities() {

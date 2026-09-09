@@ -115,6 +115,19 @@ test("장소 유형과 공식 설명에 확인되는 특성만 태그로 분류�
   );
 });
 
+test("가족형 혼잡 시설과 레저 시설은 조용한 장소로 분류하지 않는다", () => {
+  for (const source of [
+    { name: "대전아쿠아리움", contentTypeId: "14", overview: "휴식하기 좋은 실내 관광지" },
+    { name: "부산 어린이대공원", contentTypeId: "12", overview: "산책과 쉼을 즐기는 공원" },
+    { name: "장생포 고래박물관", contentTypeId: "14", overview: "조용히 전시를 관람하는 박물관" },
+    { name: "서구어린이도서관", contentTypeId: "14", overview: "차분히 책을 읽는 도서관" },
+    { name: "해운대온천센터", contentTypeId: "12", overview: "휴식하기 좋은 온천" },
+    { name: "숲속 레저체험장", contentTypeId: "28", overview: "한적한 숲에서 휴식할 수 있다" },
+  ]) {
+    assert.equal(derivePlaceMoodTags(source).includes("quiet"), false);
+  }
+});
+
 test("장거리 경로 계산 전부터 공기와 밀도 답변으로 후보를 고른다", () => {
   const quiet = place({
     id: "quiet",

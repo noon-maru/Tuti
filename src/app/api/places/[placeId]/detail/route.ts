@@ -7,6 +7,11 @@ import {
 import { ensureTourismPlaceDetail } from "@/server/tourism/enrichTourismPlaceDetail";
 import type { PlaceDetailResponse } from "@/shared/api/placeDetails";
 import { recommendablePlaceWhere } from "@/server/recommendations/recommendablePlaceWhere";
+import {
+  toPublicPlaceAddress,
+  toPublicPlaceName,
+  toPublicRegionLabel,
+} from "@/server/places/publicPlaceLabels";
 
 export const runtime = "nodejs";
 
@@ -49,12 +54,20 @@ export async function GET(
     const response: PlaceDetailResponse = {
       place: {
         id: place.id,
-        name: place.name,
-        address: place.sourceAddress,
-        region:
-          [place.sourceSidoName, place.sourceSigunguName]
-            .filter(Boolean)
-            .join(" ") || null,
+        name: toPublicPlaceName(
+          place.name,
+          place.sourceSidoName,
+          place.sourceSigunguName,
+        ),
+        address: toPublicPlaceAddress(
+          place.sourceAddress,
+          place.sourceSidoName,
+          place.sourceSigunguName,
+        ),
+        region: toPublicRegionLabel(
+          place.sourceSidoName,
+          place.sourceSigunguName,
+        ),
         latitude: Number(place.latitude),
         longitude: Number(place.longitude),
       },

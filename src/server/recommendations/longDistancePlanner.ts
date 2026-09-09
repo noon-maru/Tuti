@@ -9,7 +9,14 @@ import { toTravelTimeSummary } from "@/server/departure/travelTimeSummary";
 import { enrichPlacesWithCrowdForecast } from "@/server/recommendations/crowdForecast";
 import { recommendablePlaceWhere } from "@/server/recommendations/recommendablePlaceWhere";
 import { rankLongDistanceCandidatePool } from "@/server/recommendations/longDistanceCandidateRanking";
-import { filterPlacesByRequestedMood } from "@/server/recommendations/moodEligibility";
+import {
+  filterPlacesByRequestedDensity,
+  filterPlacesByRequestedMood,
+} from "@/server/recommendations/moodEligibility";
+import {
+  toPublicPlaceName,
+  toPublicSidoName,
+} from "@/server/places/publicPlaceLabels";
 import { derivePlaceMoodTags } from "@/server/tourism/placeMoodTags";
 import {
   fetchExpressBusSchedules,
@@ -115,6 +122,8 @@ export async function createLongDistanceRecommendations(
       movementLevel: true,
       moodTags: true,
       sourceAddress: true,
+      sourceSidoName: true,
+      sourceSigunguName: true,
       visibilityOverride: true,
       sourceContentType: true,
       tourismSourceRecord: {
@@ -144,7 +153,11 @@ export async function createLongDistanceRecommendations(
 
     const place = {
       id: row.id,
-      name: row.name,
+      name: toPublicPlaceName(
+        row.name,
+        row.sourceSidoName,
+        row.sourceSigunguName,
+      ),
       phrase: row.phrase,
       note: row.note,
       image: row.image,
@@ -165,6 +178,9 @@ export async function createLongDistanceRecommendations(
             })
           : row.moodTags,
       sourceContentType: row.sourceContentType ?? undefined,
+      sourceSidoName:
+        toPublicSidoName(row.sourceSidoName, row.sourceSigunguName) ?? undefined,
+      sourceSigunguName: row.sourceSigunguName ?? undefined,
       admissionFee:
         row.tourismSourceRecord?.detailRecord?.admissionFee ?? undefined,
       latitude,
@@ -257,7 +273,10 @@ export async function createLongDistanceRecommendations(
     if (planned.length >= 6) break;
   }
 
-  return enrichPlacesWithCrowdForecast(planned);
+  return filterPlacesByRequestedDensity(
+    await enrichPlacesWithCrowdForecast(planned),
+    answers.density,
+  );
 }
 
 function sumKnownRouteValues(
@@ -314,33 +333,32 @@ async function planJourney(
         userLocation,
         originHub,
         originHub.name,
-      ),
+      ).catch(() => null),
       fetchCachedTransitRoute(
         `destination:${destinationHub.id}:${locationCell(placeLocation)}`,
         6 * 60 * 60_000,
         destinationHub,
         placeLocation,
         "추천 장소",
-      ),
+      ).catch(() => null),
     ]);
 
   debugLog("계획 시도", {
     route: `${originHub.name}->${destinationHub.name}`,
     outbound: outboundServices.length,
     returns: returnServices.length,
-    originRoute: originRoute.status,
-    destinationRoute: destinationRoute.status,
+    originRoute: originRoute?.status ?? "estimated",
+    destinationRoute: destinationRoute?.status ?? "estimated",
   });
 
   const originAccess = toTravelTimeSummary(originRoute, {
     origin: userLocation,
     destination: originHub,
-  });
+  }) ?? estimateAccessSummary(userLocation, originHub);
   const destinationAccess = toTravelTimeSummary(destinationRoute, {
     origin: destinationHub,
     destination: placeLocation,
-  });
-  if (!originAccess || !destinationAccess) return null;
+  }) ?? estimateAccessSummary(destinationHub, placeLocation);
   if (originAccess.durationSeconds > 65 * 60) return null;
   if (destinationAccess.durationSeconds > 40 * 60) return null;
 
@@ -391,6 +409,21 @@ async function planJourney(
       mode === "highSpeedRail"
         ? "https://www.korail.com/ticket/search"
         : "https://www.kobus.co.kr",
+  };
+}
+
+function estimateAccessSummary(origin: UserLocation, destination: UserLocation) {
+  const straightDistanceMeters = distanceMeters(origin, destination);
+  const estimatedDistanceMeters = Math.round(straightDistanceMeters * 1.25);
+  const durationSeconds = Math.round(
+    8 * 60 + (estimatedDistanceMeters / 25_000) * 60 * 60,
+  );
+  return {
+    mode: "publicTransit" as const,
+    durationSeconds,
+    distanceMeters: estimatedDistanceMeters,
+    transfers: null,
+    walkingDistanceMeters: null,
   };
 }
 

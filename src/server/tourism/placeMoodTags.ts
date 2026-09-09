@@ -11,7 +11,7 @@ export type PlaceMoodTagSource = {
 const quietPattern =
   /조용|고요|한적|호젓|고즈넉|평온|사색|명상|치유|휴식|쉼|도서관|서원|고택|사찰|암자|수목원|휴양림/u;
 const quietConflictPattern =
-  /시장|축제|공연|콘서트|놀이공원|테마파크|워터파크|경기장|쇼핑|번화가|유흥/u;
+  /시장|축제|공연|콘서트|놀이공원|테마파크|워터파크|경기장|쇼핑|번화가|유흥|아쿠아리움|수족관|동물원|유원지|키즈|어린이(?:대공원|박물관|체험|도서관)|공룡박물관|고래박물관|교통문화(?:연수원|체험관)|온천(?:센터|장|테마)|스파|찜질/u;
 const calmCulturePattern =
   /도서관|미술관|박물관|문학관|기념관|서원|고택|사찰|암자/u;
 const openPattern =
@@ -52,7 +52,11 @@ export function derivePlaceMoodTags(
   const explicitlyQuiet =
     quietPattern.test(searchable) ||
     (source.contentTypeId === "14" && calmCulturePattern.test(searchable));
-  if (explicitlyQuiet && !quietConflictPattern.test(searchable)) {
+  if (
+    explicitlyQuiet &&
+    source.contentTypeId !== "28" &&
+    !quietConflictPattern.test(searchable)
+  ) {
     tags.add("quiet");
   }
 

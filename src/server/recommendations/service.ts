@@ -38,7 +38,14 @@ import {
 } from "@/server/recommendations/executionEligibility";
 import { derivePlaceMoodTags } from "@/server/tourism/placeMoodTags";
 import { getNearbyDistancePolicy } from "@/server/recommendations/nearbyDistancePolicy";
-import { filterPlacesByRequestedMood } from "@/server/recommendations/moodEligibility";
+import {
+  filterPlacesByRequestedDensity,
+  filterPlacesByRequestedMood,
+} from "@/server/recommendations/moodEligibility";
+import {
+  toPublicPlaceName,
+  toPublicSidoName,
+} from "@/server/places/publicPlaceLabels";
 import type {
   IntakeAnswers,
   PreferredRegion,
@@ -276,7 +283,7 @@ async function evaluateRecommendations(
   const forecastedPlaces =
     await enrichPlacesWithCrowdForecast(weatherEnrichedPlaces);
   const finalRanking = rankByMovementFatigue(
-    forecastedPlaces,
+    filterPlacesByRequestedDensity(forecastedPlaces, answers.density),
     answers,
     feature,
     12,
@@ -447,7 +454,11 @@ function toTutiPlace(place: PlaceRow): TutiPlace {
     : place.moodTags;
   return {
     id: place.id,
-    name: place.name,
+    name: toPublicPlaceName(
+      place.name,
+      place.sourceSidoName,
+      place.sourceSigunguName,
+    ),
     phrase: place.phrase,
     note: place.note,
     image: place.image,
@@ -458,7 +469,9 @@ function toTutiPlace(place: PlaceRow): TutiPlace {
     movementLevel: place.movementLevel,
     moodTags,
     sourceContentType: place.sourceContentType ?? undefined,
-    sourceSidoName: place.sourceSidoName ?? undefined,
+    sourceSidoName:
+      toPublicSidoName(place.sourceSidoName, place.sourceSigunguName) ??
+      undefined,
     sourceSigunguName: place.sourceSigunguName ?? undefined,
     latitude: Number(place.latitude),
     longitude: Number(place.longitude),

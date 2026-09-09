@@ -15,6 +15,10 @@ import type {
   NearbyPlacesResponse,
 } from "@/shared/api/nearbyPlaces";
 import type { UserLocation } from "@/shared/tuti/types";
+import {
+  toPublicPlaceName,
+  toPublicRegionLabel,
+} from "@/server/places/publicPlaceLabels";
 
 export const runtime = "nodejs";
 
@@ -66,11 +70,15 @@ export async function POST(request: Request) {
     const response: NearbyPlacesResponse = {
       places: places.map((place) => ({
         id: place.id,
-        name: place.name,
-        region:
-          [place.sourceSidoName, place.sourceSigunguName]
-            .filter(Boolean)
-            .join(" ") || null,
+        name: toPublicPlaceName(
+          place.name,
+          place.sourceSidoName,
+          place.sourceSigunguName,
+        ),
+        region: toPublicRegionLabel(
+          place.sourceSidoName,
+          place.sourceSigunguName,
+        ),
         distanceMeters: Math.max(0, Math.round(place.distanceMeters)),
       })),
     };

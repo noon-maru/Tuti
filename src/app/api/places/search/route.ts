@@ -5,6 +5,10 @@ import {
   withCors,
 } from "@/server/http/cors";
 import type { PlaceSearchResponse } from "@/shared/api/placeSearch";
+import {
+  toPublicPlaceName,
+  toPublicRegionLabel,
+} from "@/server/places/publicPlaceLabels";
 
 export const runtime = "nodejs";
 
@@ -66,11 +70,15 @@ export async function GET(request: Request) {
     const response: PlaceSearchResponse = {
       places: places.map((place) => ({
         id: place.id,
-        name: place.name,
-        region:
-          [place.sourceSidoName, place.sourceSigunguName]
-            .filter(Boolean)
-            .join(" ") || null,
+        name: toPublicPlaceName(
+          place.name,
+          place.sourceSidoName,
+          place.sourceSigunguName,
+        ),
+        region: toPublicRegionLabel(
+          place.sourceSidoName,
+          place.sourceSigunguName,
+        ),
       })),
     };
 
