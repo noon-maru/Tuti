@@ -62,6 +62,7 @@ export type EmailCodeVerification = EmailCodeRequest & {
 export type EmailCodeRequestResponse = {
   expiresInSeconds: number;
   message: string;
+  verificationMethod: "code" | "password";
 };
 
 export type EmailCodeVerificationResult =

@@ -199,9 +199,7 @@ export function AccountFlow() {
         },
       }}
       onBack={() => router.replace("/")}
-      onEmailCodeRequest={async (email) => {
-        await requestEmailLoginCode(email);
-      }}
+      onEmailCodeRequest={(email) => requestEmailLoginCode(email)}
       onEmailCodeVerify={async (email, code, journalResolution) => {
         const result = await verifyEmailLoginCode({
           email,

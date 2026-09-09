@@ -11,6 +11,7 @@ import type {
   AccountIdentityProfile,
   AccountJournalResolution,
   AuthProvider,
+  EmailCodeRequestResponse,
   EmailCodeVerificationResult,
   OAuthProvider,
 } from "@/shared/api/session";
@@ -22,6 +23,7 @@ import {
 } from "@/shared/auth/config";
 
 type EmailStep = "email" | "code";
+type EmailVerificationMethod = EmailCodeRequestResponse["verificationMethod"];
 
 export function AccountScreen({
   authEnabled,
@@ -59,7 +61,7 @@ export function AccountScreen({
   };
   providers?: AuthProvider[];
   onBack: () => void;
-  onEmailCodeRequest: (email: string) => Promise<void>;
+  onEmailCodeRequest: (email: string) => Promise<EmailCodeRequestResponse>;
   onEmailCodeVerify: (
     email: string,
     code: string,
@@ -73,8 +75,10 @@ export function AccountScreen({
   onUnblockJournalAuthor: (blockedUserId: string) => Promise<void>;
 }) {
   const [emailStep, setEmailStep] = useState<EmailStep>("email");
+  const [emailVerificationMethod, setEmailVerificationMethod] =
+    useState<EmailVerificationMethod>("code");
   const [formEmail, setFormEmail] = useState("");
-  const [verificationCode, setVerificationCode] = useState("");
+  const [emailCredential, setEmailCredential] = useState("");
   const [journalResolutionRequest, setJournalResolutionRequest] =
     useState<{ currentJournalCount: number } | null>(null);
   const [pending, setPending] = useState(false);
@@ -89,7 +93,7 @@ export function AccountScreen({
   const hasEmailInput =
     emailStep === "email"
       ? formEmail.trim().length > 0
-      : verificationCode.length > 0;
+      : emailCredential.length > 0;
 
   const submitEmail = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -100,13 +104,15 @@ export function AccountScreen({
 
     try {
       if (emailStep === "email") {
-        await onEmailCodeRequest(formEmail);
+        const response = await onEmailCodeRequest(formEmail);
+        setEmailVerificationMethod(response.verificationMethod);
+        setEmailCredential("");
         setEmailStep("code");
         setPending(false);
         return;
       }
 
-      const result = await onEmailCodeVerify(formEmail, verificationCode);
+      const result = await onEmailCodeVerify(formEmail, emailCredential);
 
       if (result.status === "journal-resolution-required") {
         setJournalResolutionRequest({
@@ -117,8 +123,9 @@ export function AccountScreen({
       }
 
       setEmailStep("email");
+      setEmailVerificationMethod("code");
       setFormEmail("");
-      setVerificationCode("");
+      setEmailCredential("");
       setPending(false);
     } catch (submitError) {
       setError(
@@ -141,7 +148,7 @@ export function AccountScreen({
     try {
       const result = await onEmailCodeVerify(
         formEmail,
-        verificationCode,
+        emailCredential,
         journalResolution,
       );
 
@@ -306,9 +313,9 @@ export function AccountScreen({
           <DeletionReference>
             처리 번호 {deletionReference.slice(0, 8)}
           </DeletionReference>
-          <PrimaryButton type="button" onClick={onBack}>
+          <DeletionCompleteButton type="button" onClick={onBack}>
             처음부터 다시 시작하기
-          </PrimaryButton>
+          </DeletionCompleteButton>
         </DeletionComplete>
       ) : providers.length > 0 ? (
         <AccountContent>
@@ -406,7 +413,9 @@ export function AccountScreen({
                 <span>
                   {emailStep === "email"
                     ? "다른 이메일 연결"
-                    : "이메일 인증코드"}
+                    : emailVerificationMethod === "password"
+                      ? "비밀번호"
+                      : "이메일 인증코드"}
                 </span>
                 {emailStep === "email" ? (
                   <input
@@ -420,17 +429,41 @@ export function AccountScreen({
                   />
                 ) : (
                   <input
-                    type="text"
-                    inputMode="numeric"
-                    autoComplete="one-time-code"
-                    pattern="[0-9]{6}"
-                    maxLength={6}
-                    placeholder="6자리 코드"
+                    type={
+                      emailVerificationMethod === "password"
+                        ? "password"
+                        : "text"
+                    }
+                    inputMode={
+                      emailVerificationMethod === "password"
+                        ? "text"
+                        : "numeric"
+                    }
+                    autoComplete={
+                      emailVerificationMethod === "password"
+                        ? "current-password"
+                        : "one-time-code"
+                    }
+                    pattern={
+                      emailVerificationMethod === "password"
+                        ? undefined
+                        : "[0-9]{6}"
+                    }
+                    maxLength={
+                      emailVerificationMethod === "password" ? 128 : 6
+                    }
+                    placeholder={
+                      emailVerificationMethod === "password"
+                        ? "비밀번호"
+                        : "6자리 코드"
+                    }
                     required
-                    value={verificationCode}
+                    value={emailCredential}
                     onChange={(event) =>
-                      setVerificationCode(
-                        event.target.value.replace(/\D/g, "").slice(0, 6),
+                      setEmailCredential(
+                        emailVerificationMethod === "password"
+                          ? event.target.value.slice(0, 128)
+                          : event.target.value.replace(/\D/g, "").slice(0, 6),
                       )
                     }
                   />
@@ -438,12 +471,17 @@ export function AccountScreen({
               </Field>
               {emailStep === "code" && (
                 <EmailHint>
-                  <span>{formEmail}로 보낸 코드를 입력해주세요.</span>
+                  <span>
+                    {emailVerificationMethod === "password"
+                      ? "심사용 계정 비밀번호를 입력해주세요."
+                      : `${formEmail}로 보낸 코드를 입력해주세요.`}
+                  </span>
                   <button
                     type="button"
                     onClick={() => {
                       setEmailStep("email");
-                      setVerificationCode("");
+                      setEmailVerificationMethod("code");
+                      setEmailCredential("");
                       setError(null);
                     }}
                   >
@@ -458,8 +496,10 @@ export function AccountScreen({
                 {pending
                   ? "연결 중..."
                   : emailStep === "email"
-                    ? "인증코드 받기"
-                    : "이메일 연결"}
+                    ? "계속하기"
+                    : emailVerificationMethod === "password"
+                      ? "로그인하고 연결"
+                      : "이메일 연결"}
               </LinkEmailButton>
             </EmailLinkForm>
           </LoginMethodSection>
@@ -633,7 +673,11 @@ export function AccountScreen({
           <EmailForm onSubmit={submitEmail}>
             <Field>
               <span>
-                {emailStep === "email" ? "이메일" : "인증코드"}
+                {emailStep === "email"
+                  ? "이메일"
+                  : emailVerificationMethod === "password"
+                    ? "비밀번호"
+                    : "인증코드"}
               </span>
               {emailStep === "email" ? (
                 <input
@@ -648,17 +692,37 @@ export function AccountScreen({
                 />
               ) : (
                 <input
-                  type="text"
-                  inputMode="numeric"
-                  autoComplete="one-time-code"
-                  pattern="[0-9]{6}"
-                  maxLength={6}
-                  placeholder="6자리 코드"
+                  type={
+                    emailVerificationMethod === "password"
+                      ? "password"
+                      : "text"
+                  }
+                  inputMode={
+                    emailVerificationMethod === "password" ? "text" : "numeric"
+                  }
+                  autoComplete={
+                    emailVerificationMethod === "password"
+                      ? "current-password"
+                      : "one-time-code"
+                  }
+                  pattern={
+                    emailVerificationMethod === "password"
+                      ? undefined
+                      : "[0-9]{6}"
+                  }
+                  maxLength={emailVerificationMethod === "password" ? 128 : 6}
+                  placeholder={
+                    emailVerificationMethod === "password"
+                      ? "비밀번호"
+                      : "6자리 코드"
+                  }
                   required
-                  value={verificationCode}
+                  value={emailCredential}
                   onChange={(event) =>
-                    setVerificationCode(
-                      event.target.value.replace(/\D/g, "").slice(0, 6),
+                    setEmailCredential(
+                      emailVerificationMethod === "password"
+                        ? event.target.value.slice(0, 128)
+                        : event.target.value.replace(/\D/g, "").slice(0, 6),
                     )
                   }
                 />
@@ -666,12 +730,17 @@ export function AccountScreen({
             </Field>
             {emailStep === "code" && (
               <EmailHint>
-                <span>{formEmail}로 보낸 코드를 입력해주세요.</span>
+                <span>
+                  {emailVerificationMethod === "password"
+                    ? "심사용 계정 비밀번호를 입력해주세요."
+                    : `${formEmail}로 보낸 코드를 입력해주세요.`}
+                </span>
                 <button
                   type="button"
                   onClick={() => {
                     setEmailStep("email");
-                    setVerificationCode("");
+                    setEmailVerificationMethod("code");
+                    setEmailCredential("");
                     setError(null);
                   }}
                 >
@@ -688,8 +757,10 @@ export function AccountScreen({
               {pending
                 ? "잠시만요..."
                 : emailStep === "email"
-                  ? "인증코드 받기"
-                  : "인증하고 계속하기"}
+                  ? "계속하기"
+                  : emailVerificationMethod === "password"
+                    ? "로그인"
+                    : "인증하고 계속하기"}
             </SubmitButton>
           </EmailForm>
 
@@ -706,13 +777,13 @@ export function AccountScreen({
                 있어요.
               </p>
             </div>
-            <DeletionButton
+            <GuestDeletionButton
               type="button"
               disabled={deletionPending}
               onClick={() => void deleteCurrentAccount()}
             >
               {deletionPending ? "삭제하고 있어요..." : "내 데이터 삭제"}
-            </DeletionButton>
+            </GuestDeletionButton>
           </GuestDeletionSection>
         </LoginContent>
       )}
@@ -1524,6 +1595,11 @@ const DeletionButton = styled(BaseButton)`
   text-underline-offset: 3px;
 `;
 
+const GuestDeletionButton = styled(DeletionButton)`
+  margin-top: 0;
+  color: var(--color-error);
+`;
+
 const GuestDeletionSection = styled.section`
   min-width: 0;
   display: grid;
@@ -1546,11 +1622,11 @@ const GuestDeletionSection = styled.section`
     color: var(--color-text-muted);
     font-size: var(--font-size-100);
   }
+`;
 
-  ${DeletionButton} {
-    margin-top: 0;
-    color: var(--color-error);
-  }
+const DeletionCompleteButton = styled(PrimaryButton)`
+  width: 100%;
+  margin-top: var(--space-5);
 `;
 
 const DeletionComplete = styled.div`
@@ -1573,11 +1649,6 @@ const DeletionComplete = styled.div`
     max-width: 360px;
     color: var(--color-text-muted);
     font-size: var(--font-size-200);
-  }
-
-  ${PrimaryButton} {
-    width: 100%;
-    margin-top: var(--space-5);
   }
 `;
 

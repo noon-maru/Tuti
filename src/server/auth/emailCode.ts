@@ -48,7 +48,7 @@ export async function requestEmailCode(input: EmailCodeRequest) {
     const email = parseEmail(input);
     const appReviewConfig = readAppReviewAuthConfig();
     appReviewAccount = isAppReviewEmail(email, appReviewConfig);
-    deliveryMode = appReviewAccount ? "app_review_fixed_code" : "smtp";
+    deliveryMode = getDeliveryMode(appReviewConfig, appReviewAccount);
     const response = await createAndDeliverEmailCode(
       email,
       appReviewConfig,
@@ -102,7 +102,7 @@ async function createAndDeliverEmailCode(
 
   const id = randomUUID();
   const code = appReviewAccount
-    ? appReviewConfig!.verificationCode
+    ? appReviewConfig!.credential
     : randomInt(0, 1_000_000).toString().padStart(6, "0");
   const expiresAt = new Date();
   expiresAt.setMinutes(expiresAt.getMinutes() + CODE_LIFETIME_MINUTES);
@@ -138,7 +138,14 @@ async function createAndDeliverEmailCode(
 
   return {
     expiresInSeconds: CODE_LIFETIME_MINUTES * 60,
-    message: "인증코드를 보냈어요.",
+    message: appReviewAccount
+      ? appReviewConfig!.verificationMethod === "password"
+        ? "비밀번호를 입력해주세요."
+        : "심사용 인증코드를 입력해주세요."
+      : "인증코드를 보냈어요.",
+    verificationMethod: appReviewAccount
+      ? appReviewConfig!.verificationMethod
+      : "code",
   };
 }
 
@@ -155,8 +162,13 @@ export async function verifyEmailCode(
     const email = parseEmail(input);
     const appReviewConfig = readAppReviewAuthConfig();
     appReviewAccount = isAppReviewEmail(email, appReviewConfig);
-    deliveryMode = appReviewAccount ? "app_review_fixed_code" : "smtp";
-    const result = await verifyParsedEmailCode(currentUser, input, email);
+    deliveryMode = getDeliveryMode(appReviewConfig, appReviewAccount);
+    const result = await verifyParsedEmailCode(
+      currentUser,
+      input,
+      email,
+      appReviewAccount ? appReviewConfig : null,
+    );
 
     await writeEmailAuthAudit({
       operation: "verify",
@@ -185,8 +197,9 @@ async function verifyParsedEmailCode(
   currentUser: AuthenticatedUser,
   input: EmailCodeVerification,
   email: string,
+  appReviewConfig: AppReviewAuthConfig | null,
 ): Promise<EmailCodeVerificationResult> {
-  const code = parseCode(input);
+  const code = parseCredential(input, appReviewConfig);
   const journalResolution = parseJournalResolution(input);
   const challenge = await prisma.emailVerificationCode.findFirst({
     where: {
@@ -200,7 +213,9 @@ async function verifyParsedEmailCode(
 
   if (!challenge || challenge.expiresAt <= new Date()) {
     throw new AccountAuthError(
-      "인증코드가 만료됐어요. 새 코드를 요청해주세요.",
+      appReviewConfig?.verificationMethod === "password"
+        ? "로그인 요청이 만료됐어요. 이메일부터 다시 입력해주세요."
+        : "인증코드가 만료됐어요. 새 코드를 요청해주세요.",
       "email_code_expired",
       400,
     );
@@ -208,7 +223,9 @@ async function verifyParsedEmailCode(
 
   if (challenge.attempts >= MAX_VERIFICATION_ATTEMPTS) {
     throw new AccountAuthError(
-      "입력 횟수를 초과했어요. 새 코드를 요청해주세요.",
+      appReviewConfig?.verificationMethod === "password"
+        ? "입력 횟수를 초과했어요. 이메일부터 다시 입력해주세요."
+        : "입력 횟수를 초과했어요. 새 코드를 요청해주세요.",
       "email_code_attempts_exceeded",
       429,
     );
@@ -230,7 +247,9 @@ async function verifyParsedEmailCode(
     });
 
     throw new AccountAuthError(
-      "인증코드를 확인해주세요.",
+      appReviewConfig?.verificationMethod === "password"
+        ? "비밀번호를 확인해주세요."
+        : "인증코드를 확인해주세요.",
       "invalid_email_code",
       400,
     );
@@ -392,8 +411,23 @@ function parseEmail(input: EmailCodeRequest) {
   return email;
 }
 
-function parseCode(input: EmailCodeVerification) {
+function parseCredential(
+  input: EmailCodeVerification,
+  appReviewConfig: AppReviewAuthConfig | null,
+) {
   const code = typeof input?.code === "string" ? input.code.trim() : "";
+
+  if (appReviewConfig?.verificationMethod === "password") {
+    if (!code || code.length > 128) {
+      throw new AccountAuthError(
+        "비밀번호를 입력해주세요.",
+        "invalid_app_review_password_format",
+        400,
+      );
+    }
+
+    return code;
+  }
 
   if (!/^\d{6}$/.test(code)) {
     throw new AccountAuthError(
@@ -404,6 +438,16 @@ function parseCode(input: EmailCodeVerification) {
   }
 
   return code;
+}
+
+function getDeliveryMode(
+  appReviewConfig: AppReviewAuthConfig | null,
+  appReviewAccount: boolean,
+): EmailAuthDeliveryMode {
+  if (!appReviewAccount || !appReviewConfig) return "smtp";
+  return appReviewConfig.verificationMethod === "password"
+    ? "app_review_password"
+    : "app_review_fixed_code";
 }
 
 function parseJournalResolution(
