@@ -588,7 +588,7 @@ function createExecutionReason(
     factor: "schedule",
     score: 48 + Math.abs(breakdown.executionPenalty),
     headline: "왕복하고 잠시 머물러도 오늘 여유 안에 들어와요.",
-    detail: `왕복 이동과 최소 ${execution.minimumStayMinutes}분 체류를 합쳐 약 ${execution.totalMinutes}분으로 계산했어요.`,
+    detail: "오가는 시간과 잠시 머무를 여유까지 함께 살폈어요.",
     cardPhrase: "시간을 크게 비우지 않아도 다녀올 수 있는 곳",
   };
 }
@@ -733,7 +733,7 @@ function createDistanceReason(
             : feature.movement === "near" && preferred
               ? "지금 있는 곳에서 가볍게 닿을 수 있어요."
               : "오늘 정한 이동 범위 안에서 골랐어요.",
-      detail: `${getTravelModeLabel(place.travelTimeSummary!.mode)} 약 ${travelMinutes}분과 오늘 가능한 이동 범위를 함께 살폈어요.`,
+      detail: `${getTravelModeLabel(place.travelTimeSummary!.mode)}으로 오가는 부담과 오늘의 여유를 함께 살폈어요.`,
       cardPhrase:
         feature.movement === "far"
           ? "한 번의 이동으로 완전히 다른 공기를 만나는 날"

@@ -424,12 +424,13 @@ export function RecommendationsFlow({ interactive }: { interactive: boolean }) {
     <>
       <RecommendationsScreen
         places={places}
+        answers={storedAnswers}
         loading={isPending && !dailyCheckInVisible}
         recommendationError={isError}
-        longDistanceUnavailable={
-          error instanceof RecommendationRequestError &&
-          error.code === "long_distance_unavailable"
+        recommendationErrorCode={
+          error instanceof RecommendationRequestError ? error.code : undefined
         }
+        hideRecommendationStatus={dailyCheckInVisible}
         onRetryRecommendations={() => void refetch()}
         activeIndex={displayedActiveIndex}
         activePlace={activePlace}

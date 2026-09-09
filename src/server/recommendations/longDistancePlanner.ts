@@ -9,6 +9,8 @@ import { toTravelTimeSummary } from "@/server/departure/travelTimeSummary";
 import { enrichPlacesWithCrowdForecast } from "@/server/recommendations/crowdForecast";
 import { recommendablePlaceWhere } from "@/server/recommendations/recommendablePlaceWhere";
 import { rankLongDistanceCandidatePool } from "@/server/recommendations/longDistanceCandidateRanking";
+import { filterPlacesByRequestedMood } from "@/server/recommendations/moodEligibility";
+import { derivePlaceMoodTags } from "@/server/tourism/placeMoodTags";
 import {
   fetchExpressBusSchedules,
   fetchTrainSchedules,
@@ -112,10 +114,18 @@ export async function createLongDistanceRecommendations(
       fatigue: true,
       movementLevel: true,
       moodTags: true,
+      sourceAddress: true,
+      visibilityOverride: true,
       sourceContentType: true,
       tourismSourceRecord: {
         select: {
-          detailRecord: { select: { admissionFee: true } },
+          detailRecord: {
+            select: {
+              admissionFee: true,
+              overview: true,
+              experienceGuide: true,
+            },
+          },
         },
       },
       latitude: true,
@@ -143,7 +153,17 @@ export async function createLongDistanceRecommendations(
       today: row.today,
       fatigue: row.fatigue,
       movementLevel: row.movementLevel,
-      moodTags: row.moodTags,
+      moodTags:
+        row.visibilityOverride === "auto"
+          ? derivePlaceMoodTags({
+              name: row.name,
+              address: row.sourceAddress,
+              contentTypeId: row.sourceContentType,
+              overview: row.tourismSourceRecord?.detailRecord?.overview,
+              experienceGuide:
+                row.tourismSourceRecord?.detailRecord?.experienceGuide,
+            })
+          : row.moodTags,
       sourceContentType: row.sourceContentType ?? undefined,
       admissionFee:
         row.tourismSourceRecord?.detailRecord?.admissionFee ?? undefined,
@@ -173,7 +193,7 @@ export async function createLongDistanceRecommendations(
   });
 
   const answerRankedCandidates = rankLongDistanceCandidatePool(
-    candidates,
+    filterPlacesByRequestedMood(candidates, answers.air),
     answers,
     (left, right) =>
       getHubRoutePriority(left.destinationHub) -

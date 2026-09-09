@@ -7,3 +7,11 @@ export function excludeExplicitlyInfeasiblePlaces<
     (place) => place.executionFeasibility?.fitsAvailableTime !== false,
   );
 }
+
+export function keepVerifiedTimeFits<
+  Place extends Pick<TutiPlace, "executionFeasibility">,
+>(places: readonly Place[]): Place[] {
+  return places.filter(
+    (place) => place.executionFeasibility?.fitsAvailableTime === true,
+  );
+}

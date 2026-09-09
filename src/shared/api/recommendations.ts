@@ -5,9 +5,11 @@ import type {
   UserLocation,
 } from "@/shared/tuti/types";
 
-export const RECOMMENDATION_ALGORITHM_VERSION = "meaning-aware-v12";
+export const RECOMMENDATION_ALGORITHM_VERSION = "verified-constraints-v13";
 
-export type RecommendationErrorCode = "long_distance_unavailable";
+export type RecommendationErrorCode =
+  | "long_distance_unavailable"
+  | "long_distance_location_required";
 
 export type RecommendationErrorResponse = {
   error: string;

@@ -111,7 +111,7 @@ test("장거리 선택에는 선호 지역과 별개로 현재 위치가 필요�
     () => requireLocationForLongDistance("far", undefined),
     (error) =>
       error instanceof LongDistanceRecommendationsUnavailableError &&
-      error.code === "long_distance_unavailable",
+      error.code === "long_distance_location_required",
   );
   assert.doesNotThrow(() =>
     requireLocationForLongDistance("far", {

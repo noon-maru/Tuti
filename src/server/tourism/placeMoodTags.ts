@@ -17,7 +17,7 @@ const calmCulturePattern =
 const openPattern =
   /탁\s*트|트인|조망|전망|파노라마|광장|해변|해수욕장|바다|해안|호수|저수지|강변|하천|수변|습지|들판|초원|공원|정상|전망대/u;
 const indoorPattern =
-  /실내|박물관|미술관|도서관|전시관|문화관|기념관|과학관|공연장|극장|체험관|아쿠아리움/u;
+  /실내|박물관|미술관|도서관|전시관|문화관|문화회관|예술회관|기념관|과학관|공연장|극장|아트홀|콘서트홀|갤러리|화랑|체험관|아쿠아리움/u;
 const walkPattern =
   /걷|산책|산책로|둘레길|올레길|데크길|숲길|탐방로|보행|트레킹|등산로|오솔길|골목|정원|수목원|휴양림|강변|해변|해안길|공원/u;
 const walkConflictPattern =
@@ -32,6 +32,10 @@ const solitudePattern =
 export function derivePlaceMoodTags(
   source: PlaceMoodTagSource,
 ): PlaceMoodTag[] {
+  const normalizedName = source.name
+    .replace(/<[^>]*>/g, " ")
+    .replace(/\s+/g, " ")
+    .toLowerCase();
   const searchable = [
     source.name,
     source.address,
@@ -53,11 +57,24 @@ export function derivePlaceMoodTags(
   }
 
   const explicitlyOpen = openPattern.test(searchable);
-  if (explicitlyOpen && !indoorPattern.test(searchable)) {
+  const culturalOpenEvidenceMissing =
+    source.contentTypeId === "14" && !openPattern.test(normalizedName);
+  if (
+    explicitlyOpen &&
+    !indoorPattern.test(searchable) &&
+    !culturalOpenEvidenceMissing
+  ) {
     tags.add("open");
   }
 
-  if (walkPattern.test(searchable) && !walkConflictPattern.test(searchable)) {
+  const culturalWalkEvidenceMissing =
+    source.contentTypeId === "14" && !walkPattern.test(normalizedName);
+  if (
+    walkPattern.test(searchable) &&
+    !walkConflictPattern.test(searchable) &&
+    !indoorPattern.test(searchable) &&
+    !culturalWalkEvidenceMissing
+  ) {
     tags.add("walk");
   }
 

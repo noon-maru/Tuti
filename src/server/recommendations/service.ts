@@ -32,8 +32,13 @@ import { enrichPlacesWithWeatherForecast } from "@/server/weather/kmaVilageForec
 import { selectRecommendationCandidatePool } from "@/server/recommendations/candidateFallback";
 import { selectDiverseContentTypes } from "@/server/recommendations/diverseCandidateSelection";
 import { getPreferredRegionWhere } from "@/server/recommendations/regionFallback";
-import { excludeExplicitlyInfeasiblePlaces } from "@/server/recommendations/executionEligibility";
+import {
+  excludeExplicitlyInfeasiblePlaces,
+  keepVerifiedTimeFits,
+} from "@/server/recommendations/executionEligibility";
+import { derivePlaceMoodTags } from "@/server/tourism/placeMoodTags";
 import { getNearbyDistancePolicy } from "@/server/recommendations/nearbyDistancePolicy";
+import { filterPlacesByRequestedMood } from "@/server/recommendations/moodEligibility";
 import type {
   IntakeAnswers,
   PreferredRegion,
@@ -55,6 +60,16 @@ type PlaceRow = {
   sourceContentType: string | null;
   sourceSidoName: string | null;
   sourceSigunguName: string | null;
+  sourceAddress: string | null;
+  visibilityOverride: "auto" | "show" | "hide";
+  detailOverview?: string | null;
+  detailExperienceGuide?: string | null;
+  tourismSourceRecord?: {
+    detailRecord?: {
+      overview: string | null;
+      experienceGuide: string | null;
+    } | null;
+  } | null;
   latitude: unknown;
   longitude: unknown;
   distanceMeters?: number | null;
@@ -209,7 +224,10 @@ async function evaluateRecommendations(
   const { eligiblePlaces, candidatePlaces: recommendationPlaces } =
     selectRecommendationCandidatePool(places, excludePlaceIds);
   const rankedPlaces = rankByMovementFatigue(
-    recommendationPlaces.map(toTutiPlace),
+    filterPlacesByRequestedMood(
+      recommendationPlaces.map(toTutiPlace),
+      answers.air,
+    ),
     answers,
     feature,
     recommendationPlaces.length,
@@ -243,8 +261,9 @@ async function evaluateRecommendations(
         ...answers,
         movement: feature.movement,
       });
-    const executableBatch =
-      excludeExplicitlyInfeasiblePlaces(executionEnrichedBatch);
+    const executableBatch = location
+      ? keepVerifiedTimeFits(executionEnrichedBatch)
+      : excludeExplicitlyInfeasiblePlaces(executionEnrichedBatch);
     eligibleShortlist.push(
       ...filterPlacesByAdmissionBudget(executableBatch, answers.budget),
     );
@@ -332,6 +351,15 @@ async function findPlacesByBaseFatigue(
       sourceContentType: true,
       sourceSidoName: true,
       sourceSigunguName: true,
+      sourceAddress: true,
+      visibilityOverride: true,
+      tourismSourceRecord: {
+        select: {
+          detailRecord: {
+            select: { overview: true, experienceGuide: true },
+          },
+        },
+      },
       latitude: true,
       longitude: true,
     },
@@ -347,57 +375,76 @@ async function findPlacesNearLocation(
 
   return prisma.$queryRaw<PlaceRow[]>`
     SELECT
-      "id",
-      "name",
-      "phrase",
-      "note",
-      "image",
-      "travel_time" AS "travelTime",
-      "crowd",
-      "today",
-      "fatigue",
-      "movement_level" AS "movementLevel",
-      "mood_tags" AS "moodTags",
-      "source_content_type" AS "sourceContentType",
-      "source_sido_name" AS "sourceSidoName",
-      "source_sigungu_name" AS "sourceSigunguName",
-      "latitude",
-      "longitude",
+      p."id",
+      p."name",
+      p."phrase",
+      p."note",
+      p."image",
+      p."travel_time" AS "travelTime",
+      p."crowd",
+      p."today",
+      p."fatigue",
+      p."movement_level" AS "movementLevel",
+      p."mood_tags" AS "moodTags",
+      p."source_content_type" AS "sourceContentType",
+      p."source_sido_name" AS "sourceSidoName",
+      p."source_sigungu_name" AS "sourceSigunguName",
+      p."source_address" AS "sourceAddress",
+      p."visibility_override" AS "visibilityOverride",
+      d."overview" AS "detailOverview",
+      d."experience_guide" AS "detailExperienceGuide",
+      p."latitude",
+      p."longitude",
       ST_Distance(
-        "location"::geography,
+        p."location"::geography,
         ST_SetSRID(ST_MakePoint(${longitude}, ${latitude}), 4326)::geography
       ) AS "distanceMeters"
-    FROM "places"
+    FROM "places" p
+    LEFT JOIN "tourism_place_source_records" s
+      ON s."linked_place_id" = p."id"
+    LEFT JOIN "tourism_place_detail_records" d
+      ON d."content_id" = s."content_id"
     WHERE
-      "is_active" = true
-      AND "source" = 'tourapi'
-      AND "review_status" = 'approved'::"PlaceReviewStatus"
+      p."is_active" = true
+      AND p."source" = 'tourapi'
+      AND p."review_status" = 'approved'::"PlaceReviewStatus"
       AND (
-        "candidate_override" = 'include'::"PlaceCandidateOverride"
+        p."candidate_override" = 'include'::"PlaceCandidateOverride"
         OR (
-          "candidate_override" = 'auto'::"PlaceCandidateOverride"
-          AND "candidate_status" = 'selected'::"PlaceCandidateStatus"
+          p."candidate_override" = 'auto'::"PlaceCandidateOverride"
+          AND p."candidate_status" = 'selected'::"PlaceCandidateStatus"
         )
       )
       AND ST_DWithin(
-        "location"::geography,
+        p."location"::geography,
         ST_SetSRID(ST_MakePoint(${longitude}, ${latitude}), 4326)::geography,
         ${maximumMeters}
       )
     ORDER BY
       ABS(
         ST_Distance(
-          "location"::geography,
+          p."location"::geography,
           ST_SetSRID(ST_MakePoint(${longitude}, ${latitude}), 4326)::geography
         ) - ${targetMeters}
       ),
-      "fatigue" ASC,
-      "id" ASC
+      p."fatigue" ASC,
+      p."id" ASC
     LIMIT 180
   `;
 }
 
 function toTutiPlace(place: PlaceRow): TutiPlace {
+  const detail = place.tourismSourceRecord?.detailRecord;
+  const moodTags = place.visibilityOverride === "auto"
+    ? derivePlaceMoodTags({
+        name: place.name,
+        address: place.sourceAddress,
+        contentTypeId: place.sourceContentType,
+        overview: detail?.overview ?? place.detailOverview,
+        experienceGuide:
+          detail?.experienceGuide ?? place.detailExperienceGuide,
+      })
+    : place.moodTags;
   return {
     id: place.id,
     name: place.name,
@@ -409,7 +456,7 @@ function toTutiPlace(place: PlaceRow): TutiPlace {
     today: place.today,
     fatigue: place.fatigue,
     movementLevel: place.movementLevel,
-    moodTags: place.moodTags,
+    moodTags,
     sourceContentType: place.sourceContentType ?? undefined,
     sourceSidoName: place.sourceSidoName ?? undefined,
     sourceSigunguName: place.sourceSigunguName ?? undefined,

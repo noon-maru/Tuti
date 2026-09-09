@@ -24,7 +24,11 @@ import {
 } from "@/features/tuti/lib/recommendationStatus";
 import type { TutiPlace } from "@/lib/recommendations";
 import type { DepartureRoute } from "@/shared/api/departurePlan";
-import type { LocationPermissionStatus } from "@/shared/tuti/types";
+import type { RecommendationErrorCode } from "@/shared/api/recommendations";
+import type {
+  IntakeAnswers,
+  LocationPermissionStatus,
+} from "@/shared/tuti/types";
 import {
   fluidByCompactViewportHeight,
   fluidByViewportHeight,
@@ -68,9 +72,11 @@ const TOUCH_TAP_SLOP = 16;
 
 export function RecommendationsScreen({
   places,
+  answers,
   loading,
   recommendationError,
-  longDistanceUnavailable,
+  recommendationErrorCode,
+  hideRecommendationStatus,
   onRetryRecommendations,
   activeIndex,
   activePlace,
@@ -104,9 +110,11 @@ export function RecommendationsScreen({
   onInitialHelpShown,
 }: {
   places: TutiPlace[];
+  answers: IntakeAnswers;
   loading: boolean;
   recommendationError: boolean;
-  longDistanceUnavailable: boolean;
+  recommendationErrorCode?: RecommendationErrorCode;
+  hideRecommendationStatus?: boolean;
   onRetryRecommendations: () => void;
   activeIndex: number;
   activePlace?: TutiPlace;
@@ -169,12 +177,25 @@ export function RecommendationsScreen({
     placeCount: places.length,
   });
   const recommendationStatusVisible =
-    recommendationStatus === "error" || recommendationStatus === "empty";
+    !hideRecommendationStatus &&
+    (recommendationStatus === "error" || recommendationStatus === "empty");
   const limitedRecommendationResults = hasLimitedRecommendationResults({
     loading,
     recommendationError,
     placeCount: places.length,
   });
+  const longDistanceLocationRequired =
+    recommendationErrorCode === "long_distance_location_required";
+  const longDistanceUnavailable =
+    recommendationErrorCode === "long_distance_unavailable";
+  const emptyRecommendationTitle = answers.budget === "free"
+    ? "비용 걱정을 덜고 다녀올 공간을 아직 찾지 못했어요."
+    : answers.movement === "near"
+      ? "잠깐의 시간 동안 다녀올 만한 공간을 찾지 못했어요."
+      : "오늘의 여유에 맞는 공간을 찾지 못했어요.";
+  const emptyRecommendationMessage = answers.budget === "free"
+    ? "무료로 확인된 곳은 보이지 않네요. 오늘의 여유나 원하는 분위기를 조금 바꿔볼까요?"
+    : "다녀오는데 조금 더 시간을 내주거나, 원하는 분위기를 바꿔볼까요?";
   const presentedDetailPlace = detailVisible ? detailPlace : activePlace;
   const mainInteractive =
     interactive &&
@@ -685,9 +706,12 @@ export function RecommendationsScreen({
           )}
           {limitedRecommendationResults && (
             <LimitedResultsNotice role="status">
-              <span>선택한 조건에 맞는 {places.length}곳만 골랐어요.</span>
+              <span>
+                지금의 마음에 가까운 곳을 {places.length}곳 찾았어요. 조금 더
+                둘러보려면 오늘의 여유나 원하는 분위기를 다시 들려주세요.
+              </span>
               <LimitedResultsAction type="button" onClick={onRestartIntake}>
-                조건 넓히기
+                다시 들려주기
               </LimitedResultsAction>
             </LimitedResultsNotice>
           )}
@@ -882,44 +906,56 @@ export function RecommendationsScreen({
             </span>
             <div>
               <h2>
-                {longDistanceUnavailable
-                  ? "고속열차·고속버스 여정을 준비하지 못했어요."
+                {longDistanceLocationRequired
+                  ? "먼 길을 함께 살펴보려면 출발할 곳이 필요해요."
+                  : longDistanceUnavailable
+                    ? "오늘 다녀올 만한 먼 길을 찾지 못했어요."
                   : recommendationError
                     ? "오늘 가능한 곳을 불러오지 못했어요."
-                    : "선택한 조건에 맞는 장소가 없어요."}
+                    : emptyRecommendationTitle}
               </h2>
               <p>
-                {longDistanceUnavailable
-                  ? "교통편 조회가 잠시 원활하지 않아요. 조금 뒤 다시 불러오거나 오늘 가능한 정도를 바꿔보세요."
+                {longDistanceLocationRequired
+                  ? "지금 있는 곳을 알려주면, 오가는 길까지 살펴서 골라드릴게요."
+                  : longDistanceUnavailable
+                    ? "다녀오는데 조금 더 여유를 내주거나, 오늘은 가까운 곳부터 살펴볼까요?"
                   : recommendationError
-                    ? "잠시 후 다시 시도하거나 위치 설정을 확인해주세요."
-                    : "시간·비용·이동 조건을 조금 넓히면 다시 찾아볼 수 있어요."}
+                    ? "잠시 숨을 고른 뒤 다시 불러볼게요. 위치도 한 번 살펴봐주세요."
+                    : emptyRecommendationMessage}
               </p>
             </div>
             <RecommendationStatusActions>
               <StatusPrimaryButton
                 type="button"
                 onClick={
-                  recommendationError
-                    ? onRetryRecommendations
-                    : onRestartIntake
+                  longDistanceLocationRequired
+                    ? onSettings
+                    : recommendationError
+                      ? onRetryRecommendations
+                      : onRestartIntake
                 }
               >
-                {recommendationError ? "다시 불러오기" : "조건 다시 고르기"}
+                {longDistanceLocationRequired
+                  ? "출발할 곳 알려주기"
+                  : recommendationError
+                    ? "다시 찾아보기"
+                    : "다시 들려주기"}
               </StatusPrimaryButton>
               <StatusSecondaryButton
                 type="button"
                 onClick={
-                  longDistanceUnavailable
+                  longDistanceUnavailable || longDistanceLocationRequired
                     ? onRestartIntake
                     : onSettings
                 }
               >
                 {longDistanceUnavailable
                   ? "오늘 다시 고르기"
+                  : longDistanceLocationRequired
+                    ? "오늘의 여유 다시 고르기"
                   : recommendationError
-                    ? "위치 설정 확인하기"
-                    : "위치·지역 설정"}
+                    ? "위치 살펴보기"
+                    : "출발할 곳 바꾸기"}
               </StatusSecondaryButton>
             </RecommendationStatusActions>
           </RecommendationStatusCard>

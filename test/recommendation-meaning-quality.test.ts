@@ -59,6 +59,33 @@ test("근거가 없는 장소에 트인 곳 태그를 기본 부여하지 않는
     }),
     [],
   );
+  assert.deepEqual(
+    derivePlaceMoodTags({
+      name: "여행자의 책",
+      contentTypeId: "14",
+      overview: "공원과 걷기 좋은 거리 가까이에 있는 작은 문화공간",
+    }),
+    [],
+  );
+});
+
+test("실내 문화공간은 설명에 공원이 언급돼도 트인 곳으로 분류하지 않는다", () => {
+  assert.deepEqual(
+    derivePlaceMoodTags({
+      name: "대구문화예술회관",
+      contentTypeId: "14",
+      overview: "공원 곁에서 공연과 전시를 만나는 문화 공간",
+    }),
+    [],
+  );
+  assert.deepEqual(
+    derivePlaceMoodTags({
+      name: "동원화랑",
+      contentTypeId: "14",
+      overview: "도심 광장 가까이에 자리한 전시 공간",
+    }),
+    [],
+  );
 });
 
 test("장소 유형과 공식 설명에 확인되는 특성만 태그로 분류한다", () => {

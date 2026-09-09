@@ -1,7 +1,10 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import type { TutiPlace } from "../src/lib/recommendations";
-import { excludeExplicitlyInfeasiblePlaces } from "../src/server/recommendations/executionEligibility";
+import {
+  excludeExplicitlyInfeasiblePlaces,
+  keepVerifiedTimeFits,
+} from "../src/server/recommendations/executionEligibility";
 
 function place(
   id: string,
@@ -71,4 +74,18 @@ test("제외 후 후보가 부족해도 실행 불가능한 후보로 수를 채
 
   assert.equal(result.length, 2);
   assert.deepEqual(result.map(({ id }) => id), ["first", "unknown"]);
+});
+
+test("시간을 약속하는 추천에는 확인된 후보만 남긴다", () => {
+  const candidates = [
+    place("available", feasibility(true, "available")),
+    place("operation-unknown", feasibility(true, "unknown")),
+    place("time-over", feasibility(false, "unknown")),
+    place("route-unknown"),
+  ];
+
+  assert.deepEqual(
+    keepVerifiedTimeFits(candidates).map(({ id }) => id),
+    ["available", "operation-unknown"],
+  );
 });

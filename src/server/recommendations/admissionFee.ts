@@ -55,6 +55,6 @@ export function filterPlacesByAdmissionBudget(
   if (budget !== "free") return places;
 
   return places.filter(
-    (place) => classifyAdmissionFee(place.admissionFee) !== "paid",
+    (place) => classifyAdmissionFee(place.admissionFee) === "confirmed-free",
   );
 }

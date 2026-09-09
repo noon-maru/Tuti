@@ -104,7 +104,9 @@ export async function POST(request: Request) {
             : invalidRequest
               ? error.message
               : longDistanceUnavailable
-                ? "고속열차·고속버스 여정을 준비하지 못했어요. 잠시 후 다시 시도해주세요."
+                ? error.code === "long_distance_location_required"
+                  ? "조금 먼 곳까지 살펴보려면 지금 출발할 곳이 필요해요."
+                  : "오늘의 여유에 맞는 먼 길을 아직 찾지 못했어요."
                 : complianceError
                   ? complianceError.message
                   : "추천 데이터를 준비하지 못했어요.",
@@ -119,7 +121,9 @@ export async function POST(request: Request) {
             invalidJson || invalidRequest
               ? 400
               : longDistanceUnavailable
-                ? 503
+                ? error.code === "long_distance_location_required"
+                  ? 422
+                  : 503
                 : complianceError?.status ?? 500,
         },
       ),

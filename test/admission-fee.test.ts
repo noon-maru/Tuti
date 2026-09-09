@@ -37,7 +37,7 @@ test("공연별·시설별 요금과 정보 없음은 알 수 없음으로 유�
   assert.equal(classifyAdmissionFee("정보 없음"), "unknown");
 });
 
-test("무료 조건에서는 확실한 유료만 제외하고 요금 문구를 보존한다", () => {
+test("무료 조건에서는 무료가 확인된 장소만 남긴다", () => {
   const places = [
     createPlace("paid", sejongArboretumFee),
     createPlace("free", "입장료 무료"),
@@ -47,9 +47,9 @@ test("무료 조건에서는 확실한 유료만 제외하고 요금 문구를 �
   const filtered = filterPlacesByAdmissionBudget(places, "free");
   assert.deepEqual(
     filtered.map((place) => place.id),
-    ["free", "unknown"],
+    ["free"],
   );
-  assert.equal(filtered[1].admissionFee, "공연별 요금 상이");
+  assert.equal(filtered[0].admissionFee, "입장료 무료");
   assert.equal(filterPlacesByAdmissionBudget(places, "under_20000"), places);
 });
 
