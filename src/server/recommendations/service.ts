@@ -30,6 +30,7 @@ import {
 import { filterPlacesByAdmissionBudget } from "@/server/recommendations/admissionFee";
 import { enrichPlacesWithWeatherForecast } from "@/server/weather/kmaVilageForecast";
 import { selectRecommendationCandidatePool } from "@/server/recommendations/candidateFallback";
+import { selectDiverseContentTypes } from "@/server/recommendations/diverseCandidateSelection";
 import { getPreferredRegionWhere } from "@/server/recommendations/regionFallback";
 import { excludeExplicitlyInfeasiblePlaces } from "@/server/recommendations/executionEligibility";
 import type {
@@ -57,6 +58,10 @@ type PlaceRow = {
   longitude: unknown;
   distanceMeters?: number | null;
 };
+
+const RECOMMENDATION_LIMIT = 6;
+const CANDIDATE_EVALUATION_BATCH_SIZE = 12;
+const MAX_LOCATION_EVALUATION_BATCHES = 2;
 
 export async function createRecommendations(
   answers: IntakeAnswers,
@@ -186,7 +191,7 @@ async function evaluateRecommendations(
       eligibleCandidateCount: budgetEligiblePlaces.length,
       initialRanking: conditionedPlaces,
       finalRanking: personalization.places,
-      recommendedPlaces: personalization.places.slice(0, 6),
+      recommendedPlaces: personalization.places.slice(0, RECOMMENDATION_LIMIT),
       personalization: personalization.audit,
     };
   }
@@ -208,24 +213,46 @@ async function evaluateRecommendations(
     feature,
     recommendationPlaces.length,
   );
-  const shortlist = location
-    ? rankByMovementFatigue(
-        await enrichWithTransitTimes(
-          selectDiverseContentTypes(rankedPlaces, 12, 4),
-          location,
-        ),
-        answers,
-        feature,
-        12,
-      )
-    : selectDiverseContentTypes(rankedPlaces, 12, 3);
-  const executionEnrichedPlaces =
-    await enrichPlacesWithExecutionFeasibility(shortlist, {
-      ...answers,
-      movement: feature.movement,
-    });
+  const evaluatedPlaceIds = new Set<string>();
+  const eligibleShortlist: TutiPlace[] = [];
+  const evaluationBatchCount = location
+    ? MAX_LOCATION_EVALUATION_BATCHES
+    : 1;
+
+  for (let batchIndex = 0; batchIndex < evaluationBatchCount; batchIndex += 1) {
+    const candidateBatch = selectDiverseContentTypes(
+      rankedPlaces,
+      CANDIDATE_EVALUATION_BATCH_SIZE,
+      location ? 4 : 3,
+      evaluatedPlaceIds,
+    );
+    if (candidateBatch.length === 0) break;
+    candidateBatch.forEach((place) => evaluatedPlaceIds.add(place.id));
+
+    const routeEnrichedBatch = location
+      ? rankByMovementFatigue(
+          await enrichWithTransitTimes(candidateBatch, location),
+          answers,
+          feature,
+          CANDIDATE_EVALUATION_BATCH_SIZE,
+        )
+      : candidateBatch;
+    const executionEnrichedBatch =
+      await enrichPlacesWithExecutionFeasibility(routeEnrichedBatch, {
+        ...answers,
+        movement: feature.movement,
+      });
+    const executableBatch =
+      excludeExplicitlyInfeasiblePlaces(executionEnrichedBatch);
+    eligibleShortlist.push(
+      ...filterPlacesByAdmissionBudget(executableBatch, answers.budget),
+    );
+
+    if (eligibleShortlist.length >= RECOMMENDATION_LIMIT) break;
+  }
+
   const weatherEnrichedPlaces =
-    await enrichPlacesWithWeatherForecast(executionEnrichedPlaces);
+    await enrichPlacesWithWeatherForecast(eligibleShortlist);
   const forecastedPlaces =
     await enrichPlacesWithCrowdForecast(weatherEnrichedPlaces);
   const finalRanking = rankByMovementFatigue(
@@ -234,20 +261,18 @@ async function evaluateRecommendations(
     feature,
     12,
   );
-  const executableRanking = excludeExplicitlyInfeasiblePlaces(finalRanking);
-  const budgetEligibleRanking = filterPlacesByAdmissionBudget(
-    executableRanking,
-    answers.budget,
-  );
-
   const personalization = await personalizeRecommendationRanking(
-    budgetEligibleRanking,
+    finalRanking,
     answers,
     userId,
   );
   const recommendedPlaces = location
-    ? personalization.places.slice(0, 6)
-    : selectDiverseContentTypes(personalization.places, 6, 2);
+    ? personalization.places.slice(0, RECOMMENDATION_LIMIT)
+    : selectDiverseContentTypes(
+        personalization.places,
+        RECOMMENDATION_LIMIT,
+        2,
+      );
 
   return {
     feature,
@@ -391,35 +416,6 @@ function toTutiPlace(place: PlaceRow): TutiPlace {
     distanceMeters:
       typeof place.distanceMeters === "number" ? place.distanceMeters : undefined,
   };
-}
-
-function selectDiverseContentTypes(
-  places: TutiPlace[],
-  limit: number,
-  maxPerType: number,
-) {
-  const selected: TutiPlace[] = [];
-  const selectedIds = new Set<string>();
-  const typeCounts = new Map<string, number>();
-
-  for (const place of places) {
-    const contentType = place.sourceContentType ?? "unknown";
-    const count = typeCounts.get(contentType) ?? 0;
-    if (count >= maxPerType) continue;
-
-    selected.push(place);
-    selectedIds.add(place.id);
-    typeCounts.set(contentType, count + 1);
-    if (selected.length === limit) return selected;
-  }
-
-  for (const place of places) {
-    if (selectedIds.has(place.id)) continue;
-    selected.push(place);
-    if (selected.length === limit) break;
-  }
-
-  return selected;
 }
 
 async function enrichWithTransitTimes(

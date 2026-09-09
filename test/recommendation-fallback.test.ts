@@ -5,6 +5,7 @@ import {
   hasLimitedRecommendationResults,
 } from "@/features/tuti/lib/recommendationStatus";
 import { selectRecommendationCandidatePool } from "@/server/recommendations/candidateFallback";
+import { selectDiverseContentTypes } from "@/server/recommendations/diverseCandidateSelection";
 import { getPreferredRegionWhere } from "@/server/recommendations/regionFallback";
 import {
   LongDistanceRecommendationsUnavailableError,
@@ -176,4 +177,30 @@ test("정상 결과가 1~5곳일 때만 조건 부족 안내를 표시한다", (
   ]) {
     assert.equal(hasLimitedRecommendationResults(input), false);
   }
+});
+
+test("첫 후보에서 조건 충족 장소가 부족하면 평가하지 않은 다음 후보를 고른다", () => {
+  const places = Array.from({ length: 24 }, (_, index) => ({
+    id: `place-${index + 1}`,
+    sourceContentType: String(Math.floor(index / 4)),
+  }));
+  const firstBatch = selectDiverseContentTypes(places, 12, 4);
+  const evaluatedIds = new Set(firstBatch.map((place) => place.id));
+  const supplementalBatch = selectDiverseContentTypes(
+    places,
+    12,
+    4,
+    evaluatedIds,
+  );
+
+  assert.equal(firstBatch.length, 12);
+  assert.equal(supplementalBatch.length, 12);
+  assert.equal(
+    supplementalBatch.some((place) => evaluatedIds.has(place.id)),
+    false,
+  );
+  assert.deepEqual(
+    new Set([...firstBatch, ...supplementalBatch].map((place) => place.id)),
+    new Set(places.map((place) => place.id)),
+  );
 });

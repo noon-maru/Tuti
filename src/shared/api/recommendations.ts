@@ -5,7 +5,7 @@ import type {
   UserLocation,
 } from "@/shared/tuti/types";
 
-export const RECOMMENDATION_ALGORITHM_VERSION = "signal-profile-shadow-v10";
+export const RECOMMENDATION_ALGORITHM_VERSION = "signal-profile-shadow-v11";
 
 export type RecommendationErrorCode = "long_distance_unavailable";
 
