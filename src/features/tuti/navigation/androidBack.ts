@@ -8,6 +8,7 @@ const MAIN_CHILD_ROUTES = new Set([
   "/location",
   "/login",
   "/notifications",
+  "/settings",
 ]);
 
 export function resolveAndroidBackDestination(pathname: string) {
@@ -24,9 +25,21 @@ export function resolveAndroidBackDestination(pathname: string) {
 
   if (
     normalizedPathname === "/legal/privacy" ||
-    normalizedPathname === "/legal/location-terms"
+    normalizedPathname === "/legal/location-terms" ||
+    normalizedPathname === "/legal/community-guidelines"
   ) {
     return "/legal";
+  }
+
+  if (
+    normalizedPathname === "/account-deletion" ||
+    normalizedPathname === "/inquiry" ||
+    normalizedPathname === "/location" ||
+    normalizedPathname === "/login" ||
+    normalizedPathname === "/notifications" ||
+    normalizedPathname === "/legal"
+  ) {
+    return "/settings";
   }
 
   if (

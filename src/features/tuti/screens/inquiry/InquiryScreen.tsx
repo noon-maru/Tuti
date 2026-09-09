@@ -117,7 +117,7 @@ export function InquiryScreen({
   return (
     <Frame>
       <Header>
-        <BackButton type="button" aria-label="메인으로 돌아가기" onClick={onBack}>
+        <BackButton type="button" aria-label="설정으로 돌아가기" onClick={onBack}>
           ‹
         </BackButton>
         <h1>1:1 문의</h1>
@@ -170,7 +170,7 @@ export function InquiryScreen({
               문의 내역 보기
             </HistoryButton>
             <PrimaryButton type="button" onClick={onBack}>
-              메인으로 돌아가기
+              설정으로 돌아가기
             </PrimaryButton>
           </CompleteActions>
         </Complete>

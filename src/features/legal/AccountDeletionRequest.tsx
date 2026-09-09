@@ -102,8 +102,8 @@ export function AccountDeletionRequest() {
           <Steps>
             <h2>앱에서 바로 삭제하기</h2>
             <ol>
-              <li><i>1</i><span>메인 메뉴에서 계정 및 데이터 선택</span></li>
-              <li><i>2</i><span>계정 또는 내 데이터 삭제 선택</span></li>
+              <li><i>1</i><span>메인 메뉴에서 설정 선택</span></li>
+              <li><i>2</i><span>계정 관리 또는 계정 및 데이터 선택</span></li>
               <li><i>3</i><span>삭제 내용을 확인하면 즉시 처리 완료</span></li>
             </ol>
             <ImmediateLink href="/login">

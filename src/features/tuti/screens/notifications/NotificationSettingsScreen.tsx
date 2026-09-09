@@ -47,7 +47,7 @@ export function NotificationSettingsScreen({
   return (
     <Frame>
       <Header>
-        <BackButton type="button" aria-label="메인으로 돌아가기" onClick={onBack}>
+        <BackButton type="button" aria-label="설정으로 돌아가기" onClick={onBack}>
           <ChevronLeft aria-hidden="true" />
         </BackButton>
         <h1>알림 설정</h1>

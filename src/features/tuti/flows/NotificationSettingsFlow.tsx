@@ -268,7 +268,7 @@ export function NotificationSettingsFlow() {
       pushStatus={pushStatus}
       busy={busy}
       message={message}
-      onBack={() => router.replace("/")}
+      onBack={() => router.replace("/settings")}
       onEnabledChange={changeEnabled}
       onTimeChange={changeTime}
       onStyleChange={changeStyle}

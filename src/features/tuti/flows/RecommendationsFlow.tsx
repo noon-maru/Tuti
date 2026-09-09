@@ -19,7 +19,6 @@ import {
   formatLongDistanceTravelTimeLabel,
   formatTravelTimeLabel,
 } from "@/features/tuti/lib/travelTimeLabel";
-import { logoutAccount } from "@/lib/auth/session";
 import {
   RecommendationRequestError,
   recordRecommendationAction,
@@ -241,10 +240,7 @@ export function RecommendationsFlow({ interactive }: { interactive: boolean }) {
 
   useEffect(() => {
     router.prefetch("/journal");
-    router.prefetch("/location");
-    if (process.env.NEXT_PUBLIC_TUTI_TARGET === "app") {
-      router.prefetch("/notifications");
-    }
+    router.prefetch("/settings");
   }, [router]);
 
   useEffect(() => {
@@ -431,12 +427,8 @@ export function RecommendationsFlow({ interactive }: { interactive: boolean }) {
         onDetailExitStart={beginDetailClose}
         onDetailClose={finishDetailClose}
         onJournal={() => router.push("/journal")}
-        onAccount={() => router.push("/login")}
         onAdmin={() => router.push("/admin")}
-        onInquiry={() => router.push("/inquiry")}
-        onLocationSettings={() => router.push("/location")}
-        onNotificationSettings={() => router.push("/notifications")}
-        onLegal={() => router.push("/legal")}
+        onSettings={() => router.push("/settings")}
         onSavedPlaces={() => setSavedPlacesOpen(true)}
         savedPlacesCount={savedDeparturePlaces.length}
         onDepartureOpen={(place, variant) => {
@@ -460,10 +452,6 @@ export function RecommendationsFlow({ interactive }: { interactive: boolean }) {
         onRestartIntake={requestDailyCheckIn}
         onReplayInitialHelp={replayInitialHelp}
         onSkipInitialHelp={skipInitialHelp}
-        onLogout={async () => {
-          await logoutAccount();
-          queryClient.setQueryData(["journal-entries"], []);
-        }}
         accountConnected={Boolean(session?.account)}
         adminAccess={
           process.env.NEXT_PUBLIC_TUTI_TARGET !== "app" &&

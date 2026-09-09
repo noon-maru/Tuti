@@ -84,7 +84,7 @@ export function LocationSettingsScreen({
   return (
     <Frame>
       <Header>
-        <BackButton type="button" aria-label="메인으로 돌아가기" onClick={onBack}>
+        <BackButton type="button" aria-label="설정으로 돌아가기" onClick={onBack}>
           <ChevronLeft aria-hidden="true" />
         </BackButton>
         <h1>위치 설정</h1>

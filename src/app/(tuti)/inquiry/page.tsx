@@ -19,7 +19,7 @@ function InquiryPageContent() {
   return (
     <InquiryScreen
       initialView={searchParams.get("view") === "history" ? "history" : "write"}
-      onBack={() => router.replace("/")}
+      onBack={() => router.replace("/settings")}
     />
   );
 }

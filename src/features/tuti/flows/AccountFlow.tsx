@@ -17,7 +17,6 @@ import {
   createOAuthLoginUrl,
   deleteAccount,
   fetchJournalAuthorBlocks,
-  logoutAccount,
   refreshAccountProfile,
   requestEmailLoginCode,
   unlinkAccountIdentity,
@@ -198,7 +197,7 @@ export function AccountFlow() {
           router.replace("/login", { scroll: false });
         },
       }}
-      onBack={() => router.replace("/")}
+      onBack={() => router.replace("/settings")}
       onEmailCodeRequest={(email) => requestEmailLoginCode(email)}
       onEmailCodeVerify={async (email, code, journalResolution) => {
         const result = await verifyEmailLoginCode({
@@ -225,11 +224,6 @@ export function AccountFlow() {
         }
 
         window.location.assign(authorizationUrl);
-      }}
-      onLogout={async () => {
-        await logoutAccount();
-        queryClient.setQueryData(["journal-entries"], []);
-        router.replace("/");
       }}
       onDisplayNameUpdate={updateAccountDisplayName}
       onUnlinkIdentity={async (identityId) => {

@@ -39,7 +39,6 @@ export function AccountScreen({
   onEmailCodeVerify,
   onDeleteAccount,
   onDisplayNameUpdate,
-  onLogout,
   onOAuth,
   onUnlinkIdentity,
   onUnblockJournalAuthor,
@@ -69,7 +68,6 @@ export function AccountScreen({
   ) => Promise<EmailCodeVerificationResult>;
   onDeleteAccount: () => Promise<string>;
   onDisplayNameUpdate: (displayName: string) => Promise<string>;
-  onLogout: () => Promise<void>;
   onOAuth: (provider: OAuthProvider) => Promise<void>;
   onUnlinkIdentity: (identityId: string) => Promise<void>;
   onUnblockJournalAuthor: (blockedUserId: string) => Promise<void>;
@@ -186,24 +184,6 @@ export function AccountScreen({
     }
   };
 
-  const logout = async () => {
-    if (pending) return;
-
-    setPending(true);
-    setError(null);
-
-    try {
-      await onLogout();
-    } catch (logoutError) {
-      setError(
-        logoutError instanceof Error
-          ? logoutError.message
-          : "로그아웃하지 못했어요.",
-      );
-      setPending(false);
-    }
-  };
-
   const unlinkIdentity = async (identity: AccountIdentityProfile) => {
     if (pending || unlinkingIdentityId) return;
 
@@ -293,7 +273,7 @@ export function AccountScreen({
       <Header>
         <BackButton
           type="button"
-          aria-label="메인으로 돌아가기"
+          aria-label="설정으로 돌아가기"
           onClick={onBack}
         >
           ‹
@@ -530,13 +510,6 @@ export function AccountScreen({
             </LoginMethodSection>
           )}
           {error && <ErrorMessage role="alert">{error}</ErrorMessage>}
-          <LogoutButton
-            type="button"
-            disabled={pending}
-            onClick={() => void logout()}
-          >
-            {pending ? "로그아웃 중..." : "로그아웃"}
-          </LogoutButton>
           <DeletionButton
             type="button"
             disabled={deletionPending}
@@ -1576,12 +1549,6 @@ const LinkEmailButton = styled(BaseButton)`
     background: var(--color-neutral-300);
     color: var(--color-text-muted);
   }
-`;
-
-const LogoutButton = styled(PrimaryButton)`
-  width: 100%;
-  margin-top: var(--space-7);
-  background: var(--color-neutral-1100);
 `;
 
 const DeletionButton = styled(BaseButton)`

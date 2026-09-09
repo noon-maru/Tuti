@@ -82,12 +82,8 @@ export function RecommendationsScreen({
   onDetailExitStart,
   onDetailClose,
   onJournal,
-  onAccount,
   onAdmin,
-  onInquiry,
-  onLocationSettings,
-  onNotificationSettings,
-  onLegal,
+  onSettings,
   onSavedPlaces,
   savedPlacesCount,
   onDepartureOpen,
@@ -96,7 +92,6 @@ export function RecommendationsScreen({
   onRestartIntake,
   onReplayInitialHelp,
   onSkipInitialHelp,
-  onLogout,
   accountConnected,
   adminAccess,
   locationAvailable,
@@ -121,12 +116,8 @@ export function RecommendationsScreen({
   onDetailExitStart: () => void;
   onDetailClose: () => void;
   onJournal: () => void;
-  onAccount: () => void;
   onAdmin: () => void;
-  onInquiry: () => void;
-  onLocationSettings: () => void;
-  onNotificationSettings: () => void;
-  onLegal: () => void;
+  onSettings: () => void;
   onSavedPlaces: () => void;
   savedPlacesCount: number;
   onDepartureOpen: (
@@ -138,7 +129,6 @@ export function RecommendationsScreen({
   onRestartIntake: () => void;
   onReplayInitialHelp: () => void;
   onSkipInitialHelp: () => void;
-  onLogout: () => void | Promise<void>;
   accountConnected: boolean;
   adminAccess: boolean;
   locationAvailable: boolean;
@@ -628,10 +618,6 @@ export function RecommendationsScreen({
             items={
               accountConnected
                 ? [
-                    {
-                      label: "계정 관리",
-                      onSelect: onAccount,
-                    },
                     ...(adminAccess
                       ? [
                           {
@@ -654,37 +640,9 @@ export function RecommendationsScreen({
                         : "다음에 갈 공간",
                       onSelect: onSavedPlaces,
                     },
-                    {
-                      label: "위치 설정",
-                      onSelect: onLocationSettings,
-                    },
-                    ...(process.env.NEXT_PUBLIC_TUTI_TARGET === "app"
-                      ? [
-                          {
-                            label: "알림 설정",
-                            onSelect: onNotificationSettings,
-                          },
-                        ]
-                      : []),
-                    {
-                      label: "1:1 문의",
-                      onSelect: onInquiry,
-                    },
-                    {
-                      label: "약관 및 개인정보",
-                      onSelect: onLegal,
-                    },
-                    {
-                      label: "로그아웃",
-                      onSelect: onLogout,
-                      tone: "danger",
-                    },
+                    { label: "설정", onSelect: onSettings },
                   ]
                 : [
-                    {
-                      label: "계정 및 데이터",
-                      onSelect: onAccount,
-                    },
                     {
                       label: "오늘 다시 고르기",
                       onSelect: onRestartIntake,
@@ -699,26 +657,7 @@ export function RecommendationsScreen({
                         : "다음에 갈 공간",
                       onSelect: onSavedPlaces,
                     },
-                    {
-                      label: "위치 설정",
-                      onSelect: onLocationSettings,
-                    },
-                    ...(process.env.NEXT_PUBLIC_TUTI_TARGET === "app"
-                      ? [
-                          {
-                            label: "알림 설정",
-                            onSelect: onNotificationSettings,
-                          },
-                        ]
-                      : []),
-                    {
-                      label: "1:1 문의",
-                      onSelect: onInquiry,
-                    },
-                    {
-                      label: "약관 및 개인정보",
-                      onSelect: onLegal,
-                    },
+                    { label: "설정", onSelect: onSettings },
                   ]
             }
           />
@@ -731,8 +670,8 @@ export function RecommendationsScreen({
           {!locationAvailable && (
             <LocationModeButton
               type="button"
-              onClick={onLocationSettings}
-              aria-label={`${getLocationModeLabel(locationPermissionStatus)}. 위치 설정 열기`}
+              onClick={onSettings}
+              aria-label={`${getLocationModeLabel(locationPermissionStatus)}. 설정에서 위치 확인하기`}
             >
               <MapPinOff aria-hidden="true" />
               {getLocationModeLabel(locationPermissionStatus)}
@@ -963,7 +902,7 @@ export function RecommendationsScreen({
                 onClick={
                   longDistanceUnavailable
                     ? onRestartIntake
-                    : onLocationSettings
+                    : onSettings
                 }
               >
                 {longDistanceUnavailable

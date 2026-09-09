@@ -7,16 +7,21 @@ test("앱 최상위 화면에서만 종료 확인을 허용한다", () => {
   assert.equal(resolveAndroidBackDestination("/entry"), null);
 });
 
-test("메인에서 진입한 설정과 활동 화면은 메인으로 돌아간다", () => {
+test("설정 하위 화면은 설정으로 돌아간다", () => {
   for (const pathname of [
     "/inquiry",
-    "/journal",
     "/location",
     "/login",
     "/notifications",
     "/legal",
     "/account-deletion",
   ]) {
+    assert.equal(resolveAndroidBackDestination(pathname), "/settings");
+  }
+});
+
+test("메인의 설정과 활동 화면은 메인으로 돌아간다", () => {
+  for (const pathname of ["/settings", "/journal"]) {
     assert.equal(resolveAndroidBackDestination(pathname), "/");
   }
 });
@@ -35,6 +40,10 @@ test("법적 문서는 상위 법적 안내로 단계적으로 돌아간다", ()
   assert.equal(resolveAndroidBackDestination("/legal/privacy"), "/legal");
   assert.equal(
     resolveAndroidBackDestination("/legal/location-terms/"),
+    "/legal",
+  );
+  assert.equal(
+    resolveAndroidBackDestination("/legal/community-guidelines"),
     "/legal",
   );
   assert.equal(

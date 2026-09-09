@@ -31,7 +31,7 @@ export function LegalDocument({
   return (
     <Page>
       <Header>
-        <Link href="/" aria-label="Tuti로 돌아가기">‹</Link>
+        <Link href="/settings" aria-label="설정으로 돌아가기">‹</Link>
         <div>
           <span>Tuti 법적 안내</span>
           <h1>{title}</h1>

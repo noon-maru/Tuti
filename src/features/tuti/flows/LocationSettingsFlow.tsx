@@ -21,7 +21,7 @@ export function LocationSettingsFlow() {
       locationAvailable={Boolean(userLocation)}
       permissionStatus={locationPermissionStatus}
       requesting={requesting}
-      onBack={() => router.replace("/")}
+      onBack={() => router.replace("/settings")}
       onEnable={async () => {
         const result = await requestLocation();
         return result.status === "ready";
