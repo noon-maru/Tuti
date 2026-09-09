@@ -18,7 +18,10 @@ import {
 import { PeekDeparturePlanScreen } from "@/features/tuti/screens/departure/PeekDeparturePlanScreen";
 import { DetailScreen } from "@/features/tuti/screens/detail/DetailScreen";
 import { JournalScreen } from "@/features/tuti/screens/journal/JournalScreen";
-import { getRecommendationStatus } from "@/features/tuti/lib/recommendationStatus";
+import {
+  getRecommendationStatus,
+  hasLimitedRecommendationResults,
+} from "@/features/tuti/lib/recommendationStatus";
 import type { TutiPlace } from "@/lib/recommendations";
 import type { DepartureRoute } from "@/shared/api/departurePlan";
 import type { LocationPermissionStatus } from "@/shared/tuti/types";
@@ -173,6 +176,11 @@ export function RecommendationsScreen({
   });
   const recommendationStatusVisible =
     recommendationStatus === "error" || recommendationStatus === "empty";
+  const limitedRecommendationResults = hasLimitedRecommendationResults({
+    loading,
+    recommendationError,
+    placeCount: places.length,
+  });
   const presentedDetailPlace = detailVisible ? detailPlace : activePlace;
   const mainInteractive =
     interactive &&
@@ -730,6 +738,14 @@ export function RecommendationsScreen({
               {getLocationModeLabel(locationPermissionStatus)}
             </LocationModeButton>
           )}
+          {limitedRecommendationResults && (
+            <LimitedResultsNotice role="status">
+              <span>선택한 조건에 맞는 {places.length}곳만 골랐어요.</span>
+              <LimitedResultsAction type="button" onClick={onRestartIntake}>
+                조건 넓히기
+              </LimitedResultsAction>
+            </LimitedResultsNotice>
+          )}
         </Copy>
         <Carousel onWheel={scrollCard}>
           {places.map((place, index) => (
@@ -921,14 +937,14 @@ export function RecommendationsScreen({
                   ? "고속열차·고속버스 여정을 준비하지 못했어요."
                   : recommendationError
                     ? "오늘 가능한 곳을 불러오지 못했어요."
-                    : "지금 보여드릴 수 있는 곳을 찾지 못했어요."}
+                    : "선택한 조건에 맞는 장소가 없어요."}
               </h2>
               <p>
                 {longDistanceUnavailable
                   ? "교통편 조회가 잠시 원활하지 않아요. 조금 뒤 다시 불러오거나 오늘 가능한 정도를 바꿔보세요."
                   : recommendationError
                     ? "잠시 후 다시 시도하거나 위치 설정을 확인해주세요."
-                    : "위치나 오늘 가능한 정도를 바꾸면 다시 찾아볼 수 있어요."}
+                    : "시간·비용·이동 조건을 조금 넓히면 다시 찾아볼 수 있어요."}
               </p>
             </div>
             <RecommendationStatusActions>
@@ -937,26 +953,24 @@ export function RecommendationsScreen({
                 onClick={
                   recommendationError
                     ? onRetryRecommendations
-                    : onLocationSettings
+                    : onRestartIntake
                 }
               >
-                {recommendationError ? "다시 불러오기" : "위치 설정 확인하기"}
+                {recommendationError ? "다시 불러오기" : "조건 다시 고르기"}
               </StatusPrimaryButton>
               <StatusSecondaryButton
                 type="button"
                 onClick={
                   longDistanceUnavailable
                     ? onRestartIntake
-                    : recommendationError
-                      ? onLocationSettings
-                      : onRestartIntake
+                    : onLocationSettings
                 }
               >
                 {longDistanceUnavailable
                   ? "오늘 다시 고르기"
                   : recommendationError
                     ? "위치 설정 확인하기"
-                    : "오늘 다시 고르기"}
+                    : "위치·지역 설정"}
               </StatusSecondaryButton>
             </RecommendationStatusActions>
           </RecommendationStatusCard>
@@ -1515,6 +1529,37 @@ const LocationModeButton = styled(BaseButton)`
     width: 15px;
     height: 15px;
   }
+`;
+
+const LimitedResultsNotice = styled.div`
+  width: min(100%, 310px);
+  min-height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  padding: var(--space-1) var(--space-1) var(--space-1) var(--space-3);
+  border: 1px solid var(--color-secondary-300);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--color-surface) 88%, transparent);
+  color: var(--color-text-muted);
+  font-size: var(--font-size-100);
+  box-shadow: 0 8px 24px rgb(var(--color-black-rgb) / 0.06);
+
+  span {
+    min-width: 0;
+  }
+`;
+
+const LimitedResultsAction = styled(BaseButton)`
+  min-height: 28px;
+  flex: 0 0 auto;
+  padding: 0 var(--space-3);
+  border-radius: 999px;
+  background: var(--color-secondary-300);
+  color: var(--color-text);
+  font-size: var(--font-size-100);
+  font-weight: 700;
 `;
 
 const Carousel = styled.div`

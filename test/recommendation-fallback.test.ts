@@ -1,6 +1,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { getRecommendationStatus } from "@/features/tuti/lib/recommendationStatus";
+import {
+  getRecommendationStatus,
+  hasLimitedRecommendationResults,
+} from "@/features/tuti/lib/recommendationStatus";
 import { selectRecommendationCandidatePool } from "@/server/recommendations/candidateFallback";
 import { getPreferredRegionWhere } from "@/server/recommendations/regionFallback";
 import {
@@ -145,4 +148,32 @@ test("로딩·오류·정상 결과 상태가 빈 결과보다 우선한다", ()
     }),
     "ready",
   );
+});
+
+test("정상 결과가 1~5곳일 때만 조건 부족 안내를 표시한다", () => {
+  assert.equal(
+    hasLimitedRecommendationResults({
+      loading: false,
+      recommendationError: false,
+      placeCount: 1,
+    }),
+    true,
+  );
+  assert.equal(
+    hasLimitedRecommendationResults({
+      loading: false,
+      recommendationError: false,
+      placeCount: 5,
+    }),
+    true,
+  );
+
+  for (const input of [
+    { loading: false, recommendationError: false, placeCount: 0 },
+    { loading: false, recommendationError: false, placeCount: 6 },
+    { loading: true, recommendationError: false, placeCount: 3 },
+    { loading: false, recommendationError: true, placeCount: 3 },
+  ]) {
+    assert.equal(hasLimitedRecommendationResults(input), false);
+  }
 });
