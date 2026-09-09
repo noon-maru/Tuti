@@ -47,7 +47,7 @@ export type PlaceCandidateAssessment = {
   hardExclusions: string[];
 };
 
-export const PLACE_CANDIDATE_ALGORITHM_VERSION = "low-burden-v1";
+export const PLACE_CANDIDATE_ALGORITHM_VERSION = "low-burden-v2";
 
 const SELECTED_SCORE = 70;
 const ENRICH_SCORE = 55;

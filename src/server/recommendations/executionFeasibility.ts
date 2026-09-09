@@ -3,16 +3,10 @@ import type {
   TutiPlace,
 } from "@/lib/recommendations";
 import { prisma } from "@/server/db/prisma";
-import type { IntakeAnswers, MovementAnswer } from "@/shared/tuti/types";
+import { movementTimeBudget } from "@/shared/tuti/movementTimeBudget";
+import type { IntakeAnswers } from "@/shared/tuti/types";
 
 const KOREA_TIME_ZONE = "Asia/Seoul";
-const availableMinutesByMovement: Record<MovementAnswer, number> = {
-  near: 60,
-  short: 120,
-  half: 360,
-  far: 720,
-};
-
 type OperationDetail = {
   openingHours: string | null;
   restDate: string | null;
@@ -105,7 +99,7 @@ export function calculateExecutionFeasibility({
   if (!travelSeconds) return null;
 
   const movement = answers.movement ?? "short";
-  const availableMinutes = availableMinutesByMovement[movement];
+  const availableMinutes = movementTimeBudget[movement].minutes;
   const oneWayMinutes = Math.max(1, Math.ceil(travelSeconds / 60));
   const roundTripMinutes = oneWayMinutes * 2;
   const minimumStayMinutes = getMinimumStayMinutes(

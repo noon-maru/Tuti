@@ -8,6 +8,7 @@ import { fetchKakaoMapRoute } from "@/server/maps/kakaoMapClient";
 import { toTravelTimeSummary } from "@/server/departure/travelTimeSummary";
 import { enrichPlacesWithCrowdForecast } from "@/server/recommendations/crowdForecast";
 import { recommendablePlaceWhere } from "@/server/recommendations/recommendablePlaceWhere";
+import { rankLongDistanceCandidatePool } from "@/server/recommendations/longDistanceCandidateRanking";
 import {
   fetchExpressBusSchedules,
   fetchTrainSchedules,
@@ -112,6 +113,11 @@ export async function createLongDistanceRecommendations(
       movementLevel: true,
       moodTags: true,
       sourceContentType: true,
+      tourismSourceRecord: {
+        select: {
+          detailRecord: { select: { admissionFee: true } },
+        },
+      },
       latitude: true,
       longitude: true,
     },
@@ -139,6 +145,8 @@ export async function createLongDistanceRecommendations(
       movementLevel: row.movementLevel,
       moodTags: row.moodTags,
       sourceContentType: row.sourceContentType ?? undefined,
+      admissionFee:
+        row.tourismSourceRecord?.detailRecord?.admissionFee ?? undefined,
       latitude,
       longitude,
       distanceMeters: straightDistanceMeters,
@@ -164,7 +172,17 @@ export async function createLongDistanceRecommendations(
     });
   });
 
-  const diverseCandidates = selectCandidateDestinations(candidates, 36);
+  const answerRankedCandidates = rankLongDistanceCandidatePool(
+    candidates,
+    answers,
+    (left, right) =>
+      getHubRoutePriority(left.destinationHub) -
+      getHubRoutePriority(right.destinationHub),
+  );
+  const diverseCandidates = selectCandidateDestinations(
+    answerRankedCandidates,
+    36,
+  );
   debugLog("후보", {
     places: rows.length,
     linked: candidates.length,
@@ -244,12 +262,7 @@ function selectOriginHubs(hubs: Hub[], location: UserLocation) {
 function selectCandidateDestinations(candidates: CandidatePlace[], limit: number) {
   const selected: CandidatePlace[] = [];
   const perHub = new Map<string, number>();
-  for (const candidate of candidates.sort((left, right) => {
-    const priorityGap =
-      getHubRoutePriority(left.destinationHub) -
-      getHubRoutePriority(right.destinationHub);
-    return priorityGap || left.fatigue - right.fatigue;
-  })) {
+  for (const candidate of candidates) {
     const count = perHub.get(candidate.destinationHub.id) ?? 0;
     if (count >= 4) continue;
     perHub.set(candidate.destinationHub.id, count + 1);

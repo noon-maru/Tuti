@@ -11,6 +11,7 @@ import {
   type TourApiPlaceItem,
 } from "@/server/tourism/tourApiClient";
 import { resolveTourApiRegionLabels } from "@/shared/tourism/tourApiRegions";
+import { derivePlaceMoodTags } from "@/server/tourism/placeMoodTags";
 
 const TOUR_API_SOURCE = "tourapi";
 
@@ -362,29 +363,11 @@ function createEditorialDefaults(
   address: string,
   contentTypeId: string | null,
 ) {
-  const searchable = `${name} ${address}`.toLowerCase();
-  const moodTags = new Set<string>();
-
-  if (/숲|산|휴양림|수목원|사찰|정원/.test(searchable)) {
-    moodTags.add("quiet");
-    moodTags.add("walk");
-    moodTags.add("solitude");
-  }
-
-  if (/공원|바다|해변|호수|강|전망|광장/.test(searchable)) {
-    moodTags.add("open");
-    moodTags.add("walk");
-  }
-
-  if (/길|거리|골목|시장|둘레길|산책/.test(searchable)) {
-    moodTags.add("walk");
-  }
-
-  if (/박물관|미술관|도서관|문화관|전시/.test(searchable)) {
-    moodTags.add("quiet");
-  }
-
-  if (moodTags.size === 0) moodTags.add("open");
+  const moodTags = derivePlaceMoodTags({
+    name,
+    address,
+    contentTypeId,
+  });
 
   const isCourseOrLeisure =
     contentTypeId === "25" || contentTypeId === "28";
@@ -398,7 +381,7 @@ function createEditorialDefaults(
     movementLevel: isCourseOrLeisure
       ? ("half" as const)
       : ("short" as const),
-    moodTags: [...moodTags],
+    moodTags,
   };
 }
 

@@ -34,6 +34,9 @@ export async function persistPlaceCandidateAssessments(
             candidateExclusions: assessment.hardExclusions,
             candidateEvaluatedAt: evaluatedAt,
             candidateAlgorithmVersion: PLACE_CANDIDATE_ALGORITHM_VERSION,
+            ...(visibilityOverride === "auto"
+              ? { moodTags: place.moodTags }
+              : {}),
             ...(belongsToPool && reviewStatus === "pending"
               ? { reviewStatus: "approved" as const }
               : {}),

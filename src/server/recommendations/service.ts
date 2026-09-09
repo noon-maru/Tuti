@@ -33,6 +33,7 @@ import { selectRecommendationCandidatePool } from "@/server/recommendations/cand
 import { selectDiverseContentTypes } from "@/server/recommendations/diverseCandidateSelection";
 import { getPreferredRegionWhere } from "@/server/recommendations/regionFallback";
 import { excludeExplicitlyInfeasiblePlaces } from "@/server/recommendations/executionEligibility";
+import { getNearbyDistancePolicy } from "@/server/recommendations/nearbyDistancePolicy";
 import type {
   IntakeAnswers,
   PreferredRegion,
@@ -342,11 +343,7 @@ async function findPlacesNearLocation(
   movement: "near" | "short" | "half",
 ): Promise<PlaceRow[]> {
   const { latitude, longitude } = location;
-  const targetDistanceMeters = {
-    near: 1_500,
-    short: 7_000,
-    half: 25_000,
-  }[movement];
+  const { targetMeters, maximumMeters } = getNearbyDistancePolicy(movement);
 
   return prisma.$queryRaw<PlaceRow[]>`
     SELECT
@@ -382,12 +379,17 @@ async function findPlacesNearLocation(
           AND "candidate_status" = 'selected'::"PlaceCandidateStatus"
         )
       )
+      AND ST_DWithin(
+        "location"::geography,
+        ST_SetSRID(ST_MakePoint(${longitude}, ${latitude}), 4326)::geography,
+        ${maximumMeters}
+      )
     ORDER BY
       ABS(
         ST_Distance(
           "location"::geography,
           ST_SetSRID(ST_MakePoint(${longitude}, ${latitude}), 4326)::geography
-        ) - ${targetDistanceMeters}
+        ) - ${targetMeters}
       ),
       "fatigue" ASC,
       "id" ASC

@@ -4,6 +4,7 @@ import {
   type PlaceCandidateAssessment,
   type PlaceCandidateInput,
 } from "@/server/recommendations/placeCandidateSelection";
+import { derivePlaceMoodTags } from "@/server/tourism/placeMoodTags";
 
 export type AssessedPlace = {
   place: PlaceCandidateInput;
@@ -99,7 +100,15 @@ export async function loadPlaceCandidateAssessments(): Promise<AssessedPlace[]> 
       image: row.image,
       fatigue: row.fatigue,
       movementLevel: row.movementLevel,
-      moodTags: row.moodTags,
+      moodTags: row.visibilityOverride === "auto"
+        ? derivePlaceMoodTags({
+            name: row.name,
+            address: row.sourceAddress,
+            contentTypeId: row.sourceContentType,
+            overview: detail?.overview,
+            experienceGuide: detail?.experienceGuide,
+          })
+        : row.moodTags,
       latitude: Number(row.latitude),
       longitude: Number(row.longitude),
       contentTypeId: row.sourceContentType,

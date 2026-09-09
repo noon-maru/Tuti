@@ -4,6 +4,7 @@ import {
   toJsonValue,
 } from "@/server/tourism/enrichTourismPlaceDetail";
 import { fetchTourApiPlaceEditorial } from "@/server/tourism/tourApiDetailClient";
+import { derivePlaceMoodTags } from "@/server/tourism/placeMoodTags";
 
 const EDITORIAL_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1_000;
 const EDITORIAL_RETRY_DELAY_MS = 6 * 60 * 60 * 1_000;
@@ -20,7 +21,19 @@ export async function syncTourismPlaceEditorial(
 ): Promise<SyncTourismPlaceEditorialResult> {
   const source = await prisma.tourismPlaceSourceRecord.findUnique({
     where: { contentId },
-    include: { detailRecord: true },
+    include: {
+      detailRecord: true,
+      linkedPlace: {
+        select: {
+          id: true,
+          name: true,
+          sourceAddress: true,
+          sourceContentType: true,
+          moodTags: true,
+          visibilityOverride: true,
+        },
+      },
+    },
   });
 
   if (!source) {
@@ -38,6 +51,7 @@ export async function syncTourismPlaceEditorial(
       (cached.sourceModifiedAt !== null &&
         cached.sourceModifiedAt >= source.sourceModifiedAt))
   ) {
+    await refreshAutomaticMoodTags(source.linkedPlace, cached);
     return "fresh";
   }
 
@@ -99,6 +113,7 @@ export async function syncTourismPlaceEditorial(
         editorialLastError: null,
       },
     });
+    await refreshAutomaticMoodTags(source.linkedPlace, normalized);
 
     return "synced";
   } catch (error) {
@@ -124,6 +139,42 @@ export async function syncTourismPlaceEditorial(
 
     throw error;
   }
+}
+
+async function refreshAutomaticMoodTags(
+  place: {
+    id: string;
+    name: string;
+    sourceAddress: string | null;
+    sourceContentType: string | null;
+    moodTags: string[];
+    visibilityOverride: "auto" | "show" | "hide";
+  } | null,
+  detail: {
+    overview?: string | null;
+    experienceGuide?: string | null;
+  } | null,
+) {
+  if (!place || place.visibilityOverride !== "auto") return;
+
+  const moodTags = derivePlaceMoodTags({
+    name: place.name,
+    address: place.sourceAddress,
+    contentTypeId: place.sourceContentType,
+    overview: detail?.overview,
+    experienceGuide: detail?.experienceGuide,
+  });
+  if (
+    moodTags.length === place.moodTags.length &&
+    moodTags.every((tag, index) => tag === place.moodTags[index])
+  ) {
+    return;
+  }
+
+  await prisma.place.update({
+    where: { id: place.id },
+    data: { moodTags },
+  });
 }
 
 function getErrorMessage(error: unknown) {

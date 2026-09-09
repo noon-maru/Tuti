@@ -1,16 +1,30 @@
+import { movementTimeBudget } from "@/shared/tuti/movementTimeBudget";
+
 export const intakeSteps = [
   {
     key: "movement",
     question: "오늘,\n바깥에 시간을 낼 수 있을까요?",
     subtitle: "그 안에서 무리 없이 다녀올 곳을 찾아둘게요.",
     options: [
-      { value: "near", label: "잠깐", hint: "문밖에 나서는 정도" },
-      { value: "short", label: "한두 시간", hint: "가볍게 다녀오기" },
-      { value: "half", label: "반나절", hint: "서두르지 않아도 되게" },
+      {
+        value: "near",
+        label: movementTimeBudget.near.label,
+        hint: movementTimeBudget.near.hint,
+      },
+      {
+        value: "short",
+        label: movementTimeBudget.short.label,
+        hint: movementTimeBudget.short.hint,
+      },
+      {
+        value: "half",
+        label: movementTimeBudget.half.label,
+        hint: movementTimeBudget.half.hint,
+      },
       {
         value: "far",
-        label: "오늘 하루",
-        hint: "멀리, 하지만 가볍고 편하게",
+        label: movementTimeBudget.far.label,
+        hint: movementTimeBudget.far.hint,
       },
     ],
   },
