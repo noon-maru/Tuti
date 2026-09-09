@@ -251,10 +251,7 @@ export function DetailScreen({
             </ReasonCard>
 
             <Section>
-              <SectionTitle>
-                <small>공간 소개</small>
-                <h2>어떤 곳인가요?</h2>
-              </SectionTitle>
+              <SectionTitle>어떤 곳인가요?</SectionTitle>
               {detail?.overview ? (
                 <Overview>{detail.overview}</Overview>
               ) : detailQuery.isPending ? (
@@ -278,10 +275,7 @@ export function DetailScreen({
 
             {facts.length > 0 && (
               <Section>
-                <SectionTitle>
-                  <small>가기 전에</small>
-                  <h2>이 정도만 알고 가세요.</h2>
-                </SectionTitle>
+                <SectionTitle>이 정도만 알고 가세요.</SectionTitle>
                 <FactGrid>
                   {facts.map((fact) => {
                     const Icon = getVisitInformationIcon(fact.key);
@@ -304,10 +298,7 @@ export function DetailScreen({
 
             {detail && detail.images.length > 0 && (
               <Section>
-                <SectionTitle>
-                  <small>미리 보는 풍경</small>
-                  <h2>공간의 다른 모습이에요.</h2>
-                </SectionTitle>
+                <SectionTitle>미리 보는 풍경</SectionTitle>
                 <PhotoPreviewStrip
                   images={detail.images.slice(0, 4)}
                   placeName={place.name}
@@ -920,24 +911,11 @@ const Section = styled.section`
   gap: var(--space-4);
 `;
 
-const SectionTitle = styled.header`
-  display: grid;
-  gap: 2px;
-
-  small {
-    color: var(--color-brand-800);
-    font-size: var(--font-size-100);
-    font-weight: 600;
-    line-height: var(--line-height-body);
-    letter-spacing: var(--letter-spacing-body);
-  }
-
-  h2 {
-    font-size: var(--font-size-300);
-    font-weight: 650;
-    line-height: var(--line-height-subtitle);
-    letter-spacing: var(--letter-spacing-subtitle);
-  }
+const SectionTitle = styled.h2`
+  font-size: var(--font-size-300);
+  font-weight: 650;
+  line-height: var(--line-height-subtitle);
+  letter-spacing: var(--letter-spacing-subtitle);
 `;
 
 const Overview = styled.p`

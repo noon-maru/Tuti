@@ -238,7 +238,6 @@ export function DeparturePlanScreen({
         {!embedded && <Handle aria-hidden="true" />}
         <Header>
           <HeaderCopy>
-            <span>출발 준비</span>
             <h1>{place.name}</h1>
           </HeaderCopy>
         </Header>
@@ -339,7 +338,6 @@ export function DeparturePlanScreen({
                 <LongDistanceSection>
                   <SectionHeading>
                     <div>
-                      <small>더 멀리, 편하게</small>
                       <h2>갈아탈 고민은 여기까지 줄였어요.</h2>
                     </div>
                     <RecommendedBadge>추천</RecommendedBadge>
@@ -422,8 +420,7 @@ export function DeparturePlanScreen({
                     <StaySection>
                       <SectionHeading>
                         <div>
-                          <small>오늘 머물 곳</small>
-                          <h2>도착한 뒤 가까운 곳만 골랐어요.</h2>
+                          <h2>오늘 머물 곳</h2>
                         </div>
                       </SectionHeading>
                       {accommodationsQuery.isPending ? (
@@ -994,13 +991,6 @@ const Header = styled.header`
 
 const HeaderCopy = styled.div`
   min-width: 0;
-  display: grid;
-  gap: 2px;
-
-  span {
-    color: var(--color-text-muted);
-    font-size: var(--font-size-100);
-  }
 
   h1 {
     overflow: hidden;

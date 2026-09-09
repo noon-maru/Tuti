@@ -263,16 +263,13 @@ export function DailyCheckInScreen({
           {mode === "summary" ? (
             <>
               <SheetHeader>
-                <div>
-                  <Eyebrow>오늘의 상태</Eyebrow>
-                  <h2
-                    id="daily-check-in-title"
-                    ref={headingRef}
-                    tabIndex={-1}
-                  >
-                    오늘도 이 정도가 괜찮을까요?
-                  </h2>
-                </div>
+                <h2
+                  id="daily-check-in-title"
+                  ref={headingRef}
+                  tabIndex={-1}
+                >
+                  오늘도 이 정도가 괜찮을까요?
+                </h2>
               </SheetHeader>
               <SummaryCopy>
                 이전 선택을 그대로 쓰거나, 지금의 상태만 가볍게 바꿀 수
@@ -471,15 +468,8 @@ const SheetHeader = styled.header`
   gap: var(--space-4);
 
   h2 {
-    margin-top: var(--space-1);
     font-size: var(--font-size-500);
   }
-`;
-
-const Eyebrow = styled.p`
-  color: var(--color-brand-700);
-  font-size: var(--font-size-100);
-  font-weight: 700;
 `;
 
 const IconButton = styled(BaseButton)`

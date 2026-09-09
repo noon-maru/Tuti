@@ -112,7 +112,6 @@ export function JournalPublicationConsentDialog({
             <Globe2 />
           </Icon>
           <div>
-            <Eyebrow>기록 인터넷 공개</Eyebrow>
             <h2 id="journal-publication-title">이 기록을 링크로 나눌까요?</h2>
           </div>
         </Heading>
@@ -269,12 +268,6 @@ const Icon = styled.span`
     height: var(--space-5);
     stroke-width: 1.8;
   }
-`;
-
-const Eyebrow = styled.span`
-  color: var(--color-brand-700);
-  font-size: var(--font-size-100);
-  font-weight: 700;
 `;
 
 const ScopeCard = styled.div`
