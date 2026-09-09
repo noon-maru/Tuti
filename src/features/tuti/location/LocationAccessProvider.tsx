@@ -18,6 +18,10 @@ import {
   type LocationRequestResult,
 } from "@/features/tuti/location/locationAccess";
 import {
+  canUseLocationWithoutConsentPrompt,
+  isPausedLocationConsent,
+} from "@/features/tuti/location/locationConsentFlow";
+import {
   fetchLocationConsent,
   updateLocationConsent,
 } from "@/lib/tutiApi";
@@ -167,9 +171,9 @@ export function LocationAccessProvider({
     requestPromiseRef.current = requestPromise;
 
     const consent = consentRef.current;
-    const acceptedCurrentTerms =
-      consent?.status === "accepted" &&
-      consent.termsVersion === LOCATION_TERMS_VERSION;
+    const acceptedCurrentTerms = consent?.status === "accepted" &&
+      canUseLocationWithoutConsentPrompt(consent);
+    const pausedCurrentTerms = isPausedLocationConsent(consent);
 
     if (acceptedCurrentTerms) {
       setConsentError(null);
@@ -196,13 +200,25 @@ export function LocationAccessProvider({
               : "위치정보 동의를 기록하지 못했어요.",
           );
         });
+    } else if (pausedCurrentTerms) {
+      setConsentError(null);
+      setRequesting(true);
+      void updateLocationConsent("accepted", true)
+        .then(() => {
+          acceptLocationConsent();
+          return resolveDeviceLocation();
+        })
+        .catch(() => {
+          setRequesting(false);
+          finishRequest({ status: "unavailable" });
+        });
     } else {
       setConsentError(null);
       setConsentSheetOpen(true);
     }
 
     return requestPromise;
-  }, [resolveDeviceLocation]);
+  }, [acceptLocationConsent, finishRequest, resolveDeviceLocation]);
 
   const declineRequest = useCallback(() => {
     void updateLocationConsent("declined")
@@ -253,12 +269,16 @@ export function LocationAccessProvider({
     await updateLocationConsent("withdrawn");
     withdrawLocationConsent();
     clearLocationQueries();
+    pendingLocationResultRef.current = null;
+    setRegionSheetOpen(true);
   }, [clearLocationQueries, withdrawLocationConsent]);
 
   const pauseLocation = useCallback(async () => {
     await updateLocationConsent("paused");
     pauseLocationConsent();
     clearLocationQueries();
+    pendingLocationResultRef.current = null;
+    setRegionSheetOpen(true);
   }, [clearLocationQueries, pauseLocationConsent]);
 
   const value = useMemo(
