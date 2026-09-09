@@ -22,6 +22,11 @@ import { TutiPlaceIcon } from "@/features/tuti/components/TutiPlaceIcon";
 import { useDeferredAnimationStart } from "@/features/tuti/hooks/useDeferredAnimationStart";
 import { usePlaceDetail } from "@/features/tuti/hooks/usePlaceDetail";
 import { useVerticalSwipeBack } from "@/features/tuti/hooks/useVerticalSwipeBack";
+import {
+  createOperationBadge,
+  createVisitInformationFacts,
+  type VisitInformationFact,
+} from "@/features/tuti/lib/visitInformation";
 import { shareContent } from "@/lib/shareContent";
 import {
   getCrowdForecastBasisLabel,
@@ -30,10 +35,7 @@ import {
   getWeatherForecastLabel,
   type TutiPlace,
 } from "@/lib/recommendations";
-import type {
-  TourismPlaceDetail,
-  TourismPlaceDetailImage,
-} from "@/shared/api/placeDetails";
+import type { TourismPlaceDetailImage } from "@/shared/api/placeDetails";
 import { fluidByViewportHeight } from "@/styles/tokens";
 
 const DETAIL_EXIT_DURATION = 480;
@@ -63,9 +65,16 @@ export function DetailScreen({
   const detail = detailResponse?.detail ?? null;
   const locationLabel =
     detailResponse?.place.region ?? detailResponse?.place.address;
-  const facts = createDetailFacts(detail);
+  const facts = detailQuery.isPending
+    ? []
+    : createVisitInformationFacts(detail);
   const crowdBadge = createCrowdBadge(place);
-  const operationBadge = createOperationBadge(detail);
+  const operationBadge = detailQuery.isPending
+    ? null
+    : createOperationBadge(detail);
+  const hasUncertainVisitInformation = facts.some(
+    (fact) => fact.needsVerification,
+  );
   const weatherBadge = place.weatherForecast
     ? getWeatherForecastLabel(place.weatherForecast)
     : null;
@@ -252,11 +261,16 @@ export function DetailScreen({
                 </SectionTitle>
                 <FactGrid>
                   {facts.map((fact) => {
-                    const Icon = fact.icon;
+                    const Icon = getVisitInformationIcon(fact.key);
                     return (
-                      <FactCard key={fact.label} title={fact.value}>
+                      <FactCard
+                        key={fact.label}
+                        title={fact.value}
+                        $needsVerification={fact.needsVerification}
+                      >
                         <Icon aria-hidden="true" />
                         <span>{fact.label}</span>
+                        {fact.needsVerification && <em>확인 필요</em>}
                         <strong>{fact.value}</strong>
                       </FactCard>
                     );
@@ -280,6 +294,15 @@ export function DetailScreen({
             )}
 
             <DataNotice>
+              {hasUncertainVisitInformation && (
+                <>
+                  <strong>비용·운영 정보 확인 필요</strong>
+                  <span>
+                    확인 필요로 표시된 항목은 방문 전에 장소의 공식 안내를
+                    확인해주세요.
+                  </span>
+                </>
+              )}
               {place.crowdForecast ? (
                 <>
                   <strong>
@@ -300,7 +323,10 @@ export function DetailScreen({
                 </>
               )}
               {detail?.isStale && (
-                <span>운영 정보는 최근 저장된 내용을 보여드리고 있어요.</span>
+                <span>
+                  비용·운영 정보는 최근 저장된 내용이며 지금과 다를 수
+                  있어요.
+                </span>
               )}
             </DataNotice>
 
@@ -558,52 +584,11 @@ function PhotoViewer({
   );
 }
 
-function createDetailFacts(detail: TourismPlaceDetail | null) {
-  if (!detail) return [];
-
-  const facts: Array<{
-    label: string;
-    value: string;
-    icon: typeof Clock3;
-  }> = [];
-
-  if (detail.openingHours) {
-    facts.push({
-      label: "이용 시간",
-      value: detail.openingHours,
-      icon: Clock3,
-    });
-  }
-  if (detail.restDate) {
-    facts.push({
-      label: "쉬는 날",
-      value: detail.restDate,
-      icon: CalendarDays,
-    });
-  }
-  if (detail.usageDuration) {
-    facts.push({
-      label: "머무는 시간",
-      value: detail.usageDuration,
-      icon: Clock3,
-    });
-  }
-  if (detail.admissionFee) {
-    facts.push({
-      label: "이용 요금",
-      value: detail.admissionFee,
-      icon: Ticket,
-    });
-  }
-  if (detail.parking) {
-    facts.push({
-      label: "주차",
-      value: detail.parking,
-      icon: Car,
-    });
-  }
-
-  return facts.slice(0, 3);
+function getVisitInformationIcon(key: VisitInformationFact["key"]) {
+  if (key === "restDate") return CalendarDays;
+  if (key === "admissionFee") return Ticket;
+  if (key === "parking") return Car;
+  return Clock3;
 }
 
 function createCrowdBadge(place: TutiPlace) {
@@ -628,75 +613,6 @@ function getCrowdForecastDescription(
     return "지역 방문량과 장소 수요를 함께 살펴 계산한 예상값이에요.";
   }
   return "한국관광공사의 방문 패턴을 바탕으로 한 예상값이며 실제 현장과 다를 수 있어요.";
-}
-
-function createOperationBadge(detail: TourismPlaceDetail | null) {
-  if (!detail) return null;
-
-  const restDate = compactLabel(detail.restDate);
-  if (restDate && /연중\s*무휴|연중무휴/.test(restDate)) {
-    return "오늘 운영";
-  }
-
-  const openingHours = compactLabel(detail.openingHours);
-  if (!openingHours && !restDate) return null;
-
-  if (restDate && isRestDayToday(restDate)) return "오늘 휴무";
-  return "오늘 운영";
-}
-
-function isRestDayToday(restDate: string) {
-  const now = new Date();
-  const parts = new Intl.DateTimeFormat("en-US", {
-    timeZone: "Asia/Seoul",
-    month: "numeric",
-    day: "numeric",
-    weekday: "short",
-  }).formatToParts(now);
-  const value = (type: Intl.DateTimeFormatPartTypes) =>
-    parts.find((part) => part.type === type)?.value ?? "";
-  const month = Number(value("month"));
-  const day = Number(value("day"));
-  const weekday = value("weekday");
-
-  if (
-    Number.isFinite(month) &&
-    Number.isFinite(day) &&
-    new RegExp(`${month}\\s*월\\s*0?${day}\\s*일`).test(restDate)
-  ) {
-    return true;
-  }
-
-  const weekdayIndex = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].indexOf(
-    weekday,
-  );
-  const koreanWeekdays = ["일", "월", "화", "수", "목", "금", "토"];
-  const koreanWeekday = koreanWeekdays[weekdayIndex];
-  if (!koreanWeekday || !mentionsWeekday(restDate, koreanWeekday)) {
-    return false;
-  }
-
-  const weekOfMonth = Math.ceil(day / 7);
-  const ordinalWeeks = ["첫째", "둘째", "셋째", "넷째", "다섯째"];
-  const mentionedOrdinalWeeks = ordinalWeeks
-    .map((label, index) => (restDate.includes(label) ? index + 1 : null))
-    .filter((week): week is number => week !== null);
-
-  return (
-    mentionedOrdinalWeeks.length === 0 ||
-    mentionedOrdinalWeeks.includes(weekOfMonth)
-  );
-}
-
-function mentionsWeekday(text: string, weekday: string) {
-  return (
-    text.includes(`${weekday}요일`) ||
-    new RegExp(`(^|[\\s,·/()])${weekday}(?=$|[\\s,·/()])`).test(text)
-  );
-}
-
-function compactLabel(value: string | null) {
-  return value?.replace(/\s+/g, " ").trim() || null;
 }
 
 function createPlaceSubtitle(place: TutiPlace) {
@@ -1067,17 +983,20 @@ const FactGrid = styled.div`
   gap: var(--space-2);
 `;
 
-const FactCard = styled.div`
+const FactCard = styled.div<{ $needsVerification: boolean }>`
   min-width: 0;
   min-height: 92px;
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-columns: auto minmax(0, 1fr) auto;
   align-content: start;
   gap: var(--space-1) var(--space-2);
   padding: var(--space-3);
   border: 1px solid var(--color-neutral-300);
   border-radius: 16px;
-  background: var(--color-neutral-200);
+  background: ${({ $needsVerification }) =>
+    $needsVerification
+      ? "var(--color-secondary-100)"
+      : "var(--color-neutral-200)"};
 
   svg {
     width: var(--space-4);
@@ -1090,6 +1009,19 @@ const FactCard = styled.div`
     color: var(--color-text-muted);
     font-size: var(--font-size-100);
     line-height: var(--line-height-body);
+  }
+
+  em {
+    align-self: start;
+    padding: 1px var(--space-2);
+    border-radius: 999px;
+    background: var(--color-secondary-300);
+    color: var(--color-secondary-1000);
+    font-size: calc(var(--font-size-100) - 2px);
+    font-style: normal;
+    font-weight: 650;
+    line-height: var(--line-height-body);
+    white-space: nowrap;
   }
 
   strong {
