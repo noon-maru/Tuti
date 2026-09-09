@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import sharp from "sharp";
 import {
+  createJournalBookFilename,
   emptyJournalBookDraft,
   parseJournalBookDraft,
   parseJournalBookInput,
@@ -32,6 +33,14 @@ const request = (value: unknown = input) =>
     method: "POST",
     body: JSON.stringify(value),
   });
+
+test("기록집 제목을 기기에서 안전한 PDF 파일명으로 바꾼다", () => {
+  assert.equal(
+    createJournalBookFilename('  제주 / 봄: 기록?  '),
+    "Tuti_제주 봄 기록.pdf",
+  );
+  assert.equal(createJournalBookFilename("   "), "Tuti_작은 기록집.pdf");
+});
 
 test("기록집은 고른 기록에 속한 표지만 허용하고 입력 범위를 제한한다", () => {
   assert.deepEqual(
@@ -225,5 +234,6 @@ test("한글·긴 본문·사진·편지·지원하지 않는 이모지를 실�
     "□",
   ])
     assert.ok(contents.includes(expected), expected);
+  assert.ok(!contents.includes("미리보기"), "완성 PDF에는 미리보기 문구가 없어야 한다");
   await task.destroy();
 });

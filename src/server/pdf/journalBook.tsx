@@ -43,15 +43,6 @@ const styles = StyleSheet.create({
   image: { width: "100%", height: 220, objectFit: "contain", marginBottom: 22 },
   entryTitle: { fontWeight: 500, fontSize: 17, marginBottom: 12 },
   paragraph: { marginBottom: 10 },
-  footer: {
-    position: "absolute",
-    bottom: 20,
-    left: 34,
-    right: 34,
-    textAlign: "center",
-    fontSize: 8,
-    color: "#7F7F7F",
-  },
 });
 
 export async function renderJournalBook(
@@ -74,16 +65,6 @@ export async function renderJournalBook(
       )
       .join("");
   const cover = entries.find((entry) => entry.id === input.coverEntryId);
-  const footer = (
-    <Text
-      style={styles.footer}
-      fixed
-      render={({ pageNumber, totalPages }) =>
-        `Tuti · 미리보기    ${pageNumber} / ${totalPages}`
-      }
-    />
-  );
-
   return renderToBuffer(
     <Document title={printable(input.title)} author="Tuti" language="ko-KR">
       <Page size="A5" style={[styles.page, styles.cover]}>
@@ -99,7 +80,6 @@ export async function renderJournalBook(
           {journalBookDate(entries[0].visitedAt)} —{" "}
           {journalBookDate(entries[entries.length - 1].visitedAt)}
         </Text>
-        {footer}
       </Page>
       {input.letter.trim() && (
         <Page size="A5" style={styles.page}>
@@ -107,7 +87,6 @@ export async function renderJournalBook(
           <Text orphans={2} widows={2}>
             {printable(input.letter)}
           </Text>
-          {footer}
         </Page>
       )}
       {entries.map((entry) => (
@@ -127,7 +106,6 @@ export async function renderJournalBook(
           <Text style={styles.paragraph} orphans={2} widows={2}>
             {printable(entry.content)}
           </Text>
-          {footer}
         </Page>
       ))}
     </Document>,

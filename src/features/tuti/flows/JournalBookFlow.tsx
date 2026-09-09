@@ -1,13 +1,25 @@
 "use client";
 
 import styled from "@emotion/styled";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
-import { ChevronLeft, Check, BookOpen } from "lucide-react";
+import {
+  ChevronLeft,
+  ChevronRight,
+  Check,
+  BookOpen,
+  Download,
+  Trash2,
+} from "lucide-react";
 import { useSession } from "@/features/tuti/hooks/useSession";
-import { useQuery } from "@tanstack/react-query";
-import { fetchJournalEntries } from "@/lib/tutiApi";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  createJournalBook,
+  deleteJournalBook,
+  fetchJournalBooks,
+  fetchJournalEntries,
+} from "@/lib/tutiApi";
 import { getSessionSnapshot } from "@/lib/auth/session";
 import { ScreenFrame } from "@/features/tuti/components/ScreenFrame";
 import { PrimaryButton } from "@/features/tuti/components/buttons";
@@ -27,6 +39,8 @@ import {
   type JournalBookDraft,
 } from "@/shared/api/journalBook";
 import { LoadingIndicator } from "@/features/tuti/components/LoadingIndicator";
+import { exportJournalBookPdf } from "@/lib/journalBookExport";
+import type { StoredJournalBook } from "@/shared/api/journalBook";
 
 const BOOK_STEPS = [
   { value: "selection", label: "기록 고르기" },
@@ -50,6 +64,7 @@ export function JournalBookFlow() {
 
 function BookEditor({ ownerId }: { ownerId: string }) {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const {
     data: entries = [],
     isPending,
@@ -65,10 +80,25 @@ function BookEditor({ ownerId }: { ownerId: string }) {
       return result;
     },
   });
+  const {
+    data: books = [],
+    isPending: booksPending,
+    isError: booksError,
+    refetch: refetchBooks,
+  } = useQuery({
+    queryKey: ["journal-books", ownerId],
+    queryFn: fetchJournalBooks,
+  });
   const [draft, setDraft] = useState<JournalBookDraft | null>(null);
   const [loadError, setLoadError] = useState(false);
   const [saveStatus, setSaveStatus] = useState("이 기기에 자동으로 저장돼요.");
   const [message, setMessage] = useState("");
+  const [previewPdf, setPreviewPdf] = useState<{
+    bytes: Uint8Array;
+    pageCount: number;
+  } | null>(null);
+  const [completing, setCompleting] = useState(false);
+  const [openedBook, setOpenedBook] = useState<StoredJournalBook | null>(null);
   const latestSave = useRef(0);
   const heading = useRef<HTMLHeadingElement>(null);
   const scroller = useRef<HTMLDivElement>(null);
@@ -107,6 +137,12 @@ function BookEditor({ ownerId }: { ownerId: string }) {
     ? BOOK_STEPS.findIndex(({ value }) => value === draft.step)
     : 0;
 
+  const handlePreviewReady = useCallback(
+    (result: { bytes: Uint8Array; pageCount: number } | null) =>
+      setPreviewPdf(result),
+    [],
+  );
+
   function update(next: JournalBookDraft) {
     setDraft(next);
     setMessage("");
@@ -114,8 +150,7 @@ function BookEditor({ ownerId }: { ownerId: string }) {
     const serial = ++latestSave.current;
     void saveJournalBookDraft(ownerId, next)
       .then(() => {
-        if (serial === latestSave.current)
-          setSaveStatus("이 기기에 저장했어요.");
+        if (serial === latestSave.current) setSaveStatus("");
       })
       .catch(() => {
         if (serial === latestSave.current)
@@ -157,6 +192,35 @@ function BookEditor({ ownerId }: { ownerId: string }) {
     else changeStep(draft.step === "preview" ? "details" : "selection");
   };
 
+  async function completeBook() {
+    if (!input || !previewPdf || completing) return;
+    setCompleting(true);
+    setMessage("");
+    try {
+      const book = await createJournalBook(input, previewPdf.pageCount);
+      queryClient.setQueryData<StoredJournalBook[]>(
+        ["journal-books", ownerId],
+        (current = []) => [book, ...current.filter(({ id }) => id !== book.id)],
+      );
+      latestSave.current += 1;
+      try {
+        await removeJournalBookDraft(ownerId);
+      } catch {
+        // 완성본은 이미 서버에 안전하게 보관되었으므로 로컬 초안 정리만 생략한다.
+      }
+      setDraft(emptyJournalBookDraft());
+      setOpenedBook(book);
+    } catch (error) {
+      setMessage(
+        error instanceof Error
+          ? error.message
+          : "기록집을 완성하지 못했어요. 잠시 후 다시 시도해주세요.",
+      );
+    } finally {
+      setCompleting(false);
+    }
+  }
+
   if (loadError)
     return (
       <Frame>
@@ -183,6 +247,23 @@ function BookEditor({ ownerId }: { ownerId: string }) {
         </SmallButton>
       </Frame>
     );
+
+  if (openedBook) {
+    return (
+      <StoredBookViewer
+        ownerId={ownerId}
+        book={openedBook}
+        onBack={() => setOpenedBook(null)}
+        onDeleted={() => {
+          queryClient.setQueryData<StoredJournalBook[]>(
+            ["journal-books", ownerId],
+            (current = []) => current.filter(({ id }) => id !== openedBook.id),
+          );
+          setOpenedBook(null);
+        }}
+      />
+    );
+  }
 
   return (
     <Frame aria-label="기록집 만들기">
@@ -267,6 +348,46 @@ function BookEditor({ ownerId }: { ownerId: string }) {
 
             {draft.step === "selection" && (
               <>
+                <BookLibrary>
+                  <LibraryHeading>
+                    <h3>완성한 기록집</h3>
+                    {books.length > 0 && <span>{books.length}권</span>}
+                  </LibraryHeading>
+                  {booksPending ? (
+                    <LibraryStatus>기록집을 불러오고 있어요.</LibraryStatus>
+                  ) : booksError ? (
+                    <LibraryStatus role="alert">
+                      기록집을 불러오지 못했어요.
+                      <SmallButton onClick={() => void refetchBooks()}>
+                        다시 시도하기
+                      </SmallButton>
+                    </LibraryStatus>
+                  ) : books.length === 0 ? (
+                    <LibraryStatus>완성한 기록집이 아직 없어요.</LibraryStatus>
+                  ) : (
+                    <BookList>
+                      {books.map((book) => (
+                        <BookItem
+                          key={book.id}
+                          type="button"
+                          onClick={() => setOpenedBook(book)}
+                        >
+                          <BookGlyph aria-hidden="true">
+                            <BookOpen size={20} />
+                          </BookGlyph>
+                          <BookCopy>
+                            <strong>{book.title}</strong>
+                            <span>
+                              {formatBookDate(book.createdAt)} · 기록 {book.entryCount}
+                              개 · {book.pageCount}쪽
+                            </span>
+                          </BookCopy>
+                          <ChevronRight size={18} aria-hidden="true" />
+                        </BookItem>
+                      ))}
+                    </BookList>
+                  )}
+                </BookLibrary>
                 {entries.length === 0 ? (
                   <Notice>
                     남긴 기록이 아직 없어요.
@@ -459,6 +580,7 @@ function BookEditor({ ownerId }: { ownerId: string }) {
                     key={JSON.stringify(input) + JSON.stringify(chosen)}
                     input={input}
                     ownerId={ownerId}
+                    onReady={handlePreviewReady}
                   />
                 ) : (
                   <Notice>
@@ -476,12 +598,14 @@ function BookEditor({ ownerId }: { ownerId: string }) {
       </Content>
       {draft && !isPending && !isError && (
         <Footer>
-          <SaveStatus role="status">
-            {saveStatus}
-            {saveStatus.includes("못했") && (
-              <SmallButton onClick={() => update(draft)}>다시 저장</SmallButton>
-            )}
-          </SaveStatus>
+          {saveStatus && (
+            <SaveStatus role="status">
+              {saveStatus}
+              {saveStatus.includes("못했") && (
+                <SmallButton onClick={() => update(draft)}>다시 저장</SmallButton>
+              )}
+            </SaveStatus>
+          )}
           {draft.step === "selection" ? (
             <PrimaryButton
               disabled={chosen.length === 0 || missing.length > 0}
@@ -497,14 +621,140 @@ function BookEditor({ ownerId }: { ownerId: string }) {
               기록집 미리보기
             </PrimaryButton>
           ) : (
-            <PrimaryButton onClick={() => changeStep("details")}>
-              표지와 글 수정하기
-            </PrimaryButton>
+            <PreviewActions>
+              <EditButton
+                type="button"
+                disabled={completing}
+                onClick={() => changeStep("details")}
+              >
+                표지와 글 수정하기
+              </EditButton>
+              <PrimaryButton
+                disabled={!input || !previewPdf || completing}
+                onClick={() => void completeBook()}
+              >
+                {completing ? "안전하게 보관하는 중…" : "기록집 완성하기"}
+              </PrimaryButton>
+            </PreviewActions>
           )}
         </Footer>
       )}
     </Frame>
   );
+}
+
+function StoredBookViewer({
+  ownerId,
+  book,
+  onBack,
+  onDeleted,
+}: {
+  ownerId: string;
+  book: StoredJournalBook;
+  onBack: () => void;
+  onDeleted: () => void;
+}) {
+  const [pdf, setPdf] = useState<{
+    bytes: Uint8Array;
+    pageCount: number;
+  } | null>(null);
+  const [busy, setBusy] = useState<"download" | "delete" | null>(null);
+  const [message, setMessage] = useState("");
+  const handleReady = useCallback(
+    (result: { bytes: Uint8Array; pageCount: number } | null) => setPdf(result),
+    [],
+  );
+
+  async function download() {
+    if (!pdf || busy) return;
+    setBusy("download");
+    setMessage("");
+    try {
+      await exportJournalBookPdf(pdf.bytes, book.title);
+    } catch {
+      setMessage("기록집 파일을 준비하지 못했어요. 다시 시도해주세요.");
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function remove() {
+    if (
+      busy ||
+      !window.confirm(
+        "이 기록집을 삭제할까요? 삭제하면 다시 복구할 수 없어요.",
+      )
+    )
+      return;
+    setBusy("delete");
+    setMessage("");
+    try {
+      await deleteJournalBook(book.id);
+      onDeleted();
+    } catch (error) {
+      setMessage(
+        error instanceof Error ? error.message : "기록집을 삭제하지 못했어요.",
+      );
+      setBusy(null);
+    }
+  }
+
+  return (
+    <Frame aria-label="완성한 기록집">
+      <Header>
+        <IconButton
+          type="button"
+          onClick={onBack}
+          aria-label="기록집 목록으로 돌아가기"
+        >
+          <ChevronLeft size={24} aria-hidden="true" />
+        </IconButton>
+        <h1>작은 기록집</h1>
+        <HeaderSpacer aria-hidden="true" />
+      </Header>
+      <Content>
+        <CompletedHeading>
+          <h2>{book.title}</h2>
+          <p>
+            {formatBookDate(book.createdAt)} · 기록 {book.entryCount}개 · {book.pageCount}쪽
+          </p>
+        </CompletedHeading>
+        <JournalBookPreview
+          bookId={book.id}
+          ownerId={ownerId}
+          onReady={handleReady}
+        />
+        {message && <Notice role="alert">{message}</Notice>}
+        <DeleteButton
+          type="button"
+          disabled={busy !== null}
+          onClick={() => void remove()}
+        >
+          <Trash2 size={16} aria-hidden="true" />
+          {busy === "delete" ? "삭제하는 중…" : "기록집 삭제"}
+        </DeleteButton>
+      </Content>
+      <Footer>
+        <SaveStatus>계정에 안전하게 보관된 기록집이에요.</SaveStatus>
+        <PrimaryButton
+          disabled={!pdf || busy !== null}
+          onClick={() => void download()}
+        >
+          <Download size={18} aria-hidden="true" />
+          {busy === "download" ? "파일을 준비하는 중…" : "PDF 저장·공유하기"}
+        </PrimaryButton>
+      </Footer>
+    </Frame>
+  );
+}
+
+function formatBookDate(value: string) {
+  return new Intl.DateTimeFormat("ko-KR", {
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+    timeZone: "Asia/Seoul",
+  }).format(new Date(value));
 }
 
 const Frame = styled(ScreenFrame)`
@@ -764,6 +1014,96 @@ const SelectionList = styled.div`
   gap: 0;
 `;
 
+const BookLibrary = styled.section`
+  margin-bottom: var(--space-8);
+  padding-bottom: var(--space-7);
+  border-bottom: 1px solid var(--color-neutral-300);
+`;
+
+const LibraryHeading = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin-bottom: var(--space-3);
+
+  h3 {
+    margin: 0;
+    font-size: var(--font-size-300);
+    font-weight: 700;
+  }
+
+  span {
+    color: var(--color-text-muted);
+    font-size: var(--font-size-100);
+  }
+`;
+
+const LibraryStatus = styled.div`
+  min-height: 54px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  color: var(--color-text-muted);
+  font-size: var(--font-size-100);
+`;
+
+const BookList = styled.div`
+  display: grid;
+`;
+
+const BookItem = styled.button`
+  width: 100%;
+  min-height: 68px;
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-2) 0;
+  border: 0;
+  border-bottom: 1px solid var(--color-neutral-300);
+  background: transparent;
+  color: var(--color-text);
+  text-align: left;
+  cursor: pointer;
+
+  > svg {
+    flex-shrink: 0;
+    color: var(--color-text-muted);
+  }
+`;
+
+const BookGlyph = styled.span`
+  width: 44px;
+  height: 52px;
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  border-radius: 10px 6px 6px 10px;
+  background: var(--color-brand-200);
+  color: var(--color-brand-900);
+`;
+
+const BookCopy = styled.span`
+  min-width: 0;
+  flex: 1;
+  display: grid;
+  gap: 3px;
+
+  strong {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: var(--font-size-200);
+    font-weight: 600;
+  }
+
+  span {
+    color: var(--color-text-muted);
+    font-size: var(--font-size-100);
+  }
+`;
+
 const EntryButton = styled.button`
   display: flex;
   align-items: center;
@@ -901,6 +1241,58 @@ const CoverButton = styled.button<{ $active: boolean }>`
     object-fit: cover;
   }
 `;
+
+const PreviewActions = styled.div`
+  display: grid;
+  gap: var(--space-2);
+
+  button {
+    width: 100%;
+    font-size: var(--font-size-200);
+  }
+`;
+
+const EditButton = styled.button`
+  min-height: 42px;
+  border: 0;
+  background: transparent;
+  color: var(--color-text-muted);
+  cursor: pointer;
+`;
+
+const CompletedHeading = styled.div`
+  margin: var(--space-2) 0 var(--space-7);
+
+  h2 {
+    margin: 0;
+    font-size: var(--font-size-500);
+    font-weight: 700;
+    line-height: var(--line-height-heading);
+    overflow-wrap: anywhere;
+  }
+
+  p {
+    margin: var(--space-2) 0 0;
+    color: var(--color-text-muted);
+    font-size: var(--font-size-100);
+  }
+`;
+
+const DeleteButton = styled.button`
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  margin: var(--space-7) auto 0;
+  padding: var(--space-2) var(--space-4);
+  border: 0;
+  background: transparent;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-100);
+  cursor: pointer;
+`;
+
 const Footer = styled.footer`
   display: grid;
   gap: var(--space-2);
@@ -908,6 +1300,10 @@ const Footer = styled.footer`
 
   > button {
     width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-2);
     font-size: var(--font-size-200);
   }
 `;

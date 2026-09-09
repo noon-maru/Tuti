@@ -8,13 +8,20 @@ import { getSessionSnapshot } from "@/lib/auth/session";
 import type { JournalBookInput } from "@/shared/api/journalBook";
 import { LoadingIndicator } from "@/features/tuti/components/LoadingIndicator";
 
+type JournalBookPreviewProps = {
+  ownerId: string;
+  onReady?: (result: { bytes: Uint8Array; pageCount: number } | null) => void;
+} & (
+  | { input: JournalBookInput; bookId?: never }
+  | { input?: never; bookId: string }
+);
+
 export function JournalBookPreview({
   input,
+  bookId,
   ownerId,
-}: {
-  input: JournalBookInput;
-  ownerId: string;
-}) {
+  onReady,
+}: JournalBookPreviewProps) {
   const [document, setDocument] = useState<PDFDocumentProxy | null>(null);
   const [error, setError] = useState("");
   const [attempt, setAttempt] = useState(0);
@@ -24,14 +31,22 @@ export function JournalBookPreview({
     let active = true;
     let loadingTask:
       ReturnType<typeof import("pdfjs-dist").getDocument> | undefined;
+    onReady?.(null);
     void (async () => {
-      const response = await fetchWithSession("journal-books/preview", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(input),
-        signal: abort.signal,
-        cache: "no-store",
-      });
+      const response = await fetchWithSession(
+        bookId
+          ? `journal-books/${encodeURIComponent(bookId)}/file`
+          : "journal-books/preview",
+        bookId
+          ? { signal: abort.signal, cache: "no-store" }
+          : {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(input),
+              signal: abort.signal,
+              cache: "no-store",
+            },
+      );
       if (!response.ok) {
         const data = await response.json().catch(() => null);
         throw new Error(data?.error ?? "미리보기를 불러오지 못했어요.");
@@ -41,13 +56,17 @@ export function JournalBookPreview({
       const pdfjs = await import("pdfjs-dist/legacy/build/pdf.mjs");
       if (!active) return;
       pdfjs.GlobalWorkerOptions.workerSrc = `/pdfjs/${pdfjs.version}/pdf.worker.min.mjs`;
+      const bytes = new Uint8Array(buffer);
       loadingTask = pdfjs.getDocument({
-        data: new Uint8Array(buffer),
+        data: bytes.slice(),
         standardFontDataUrl: `/pdfjs/${pdfjs.version}/standard_fonts/`,
         wasmUrl: `/pdfjs/${pdfjs.version}/wasm/`,
       });
       const pdf = await loadingTask.promise;
-      if (active) setDocument(pdf);
+      if (active) {
+        setDocument(pdf);
+        onReady?.({ bytes, pageCount: pdf.numPages });
+      }
     })().catch((cause: unknown) => {
       if (active && !abort.signal.aborted)
         setError(
@@ -61,7 +80,7 @@ export function JournalBookPreview({
       abort.abort();
       void loadingTask?.destroy();
     };
-  }, [input, ownerId, attempt]);
+  }, [input, bookId, ownerId, attempt, onReady]);
 
   if (error)
     return (
@@ -87,9 +106,6 @@ export function JournalBookPreview({
     );
   return (
     <div>
-      <PreviewMeta role="status">
-        표지 포함 {document.numPages}쪽 · 디지털 PDF 미리보기
-      </PreviewMeta>
       <Pages aria-label="기록집 전체 미리보기">
         {Array.from({ length: document.numPages }, (_, index) => (
           <PdfPage key={index} document={document} number={index + 1} />
@@ -110,7 +126,6 @@ function PdfPage({
   const canvas = useRef<HTMLCanvasElement>(null);
   const [near, setNear] = useState(false);
   const [width, setWidth] = useState(0);
-  const [text, setText] = useState("");
   const [error, setError] = useState(false);
 
   useEffect(() => {
@@ -152,13 +167,6 @@ function PdfPage({
       target.height = Math.ceil(viewport.height);
       render = page.render({ canvas: target, viewport });
       await render.promise;
-      const contents = await page.getTextContent();
-      if (active)
-        setText(
-          contents.items
-            .map((item) => ("str" in item ? item.str : ""))
-            .join(" "),
-        );
     })().catch((cause: unknown) => {
       if (
         active &&
@@ -175,7 +183,7 @@ function PdfPage({
   }, [document, number, near, width]);
 
   return (
-    <Figure ref={frame}>
+    <Figure ref={frame} aria-label={`${number}번째 기록집 페이지`}>
       <Sheet>
         <canvas ref={canvas} aria-hidden="true" />
         {error && (
@@ -184,13 +192,9 @@ function PdfPage({
           </p>
         )}
       </Sheet>
-      <figcaption>{number}쪽</figcaption>
-      {text && (
-        <details>
-          <summary>이 페이지 글로 읽기</summary>
-          <p>{text}</p>
-        </details>
-      )}
+      <PageFolio aria-hidden="true">
+        {String(number).padStart(2, "0")}
+      </PageFolio>
     </Figure>
   );
 }
@@ -232,29 +236,9 @@ const PreviewLoading = styled.div`
   place-items: center;
 `;
 
-const PreviewMeta = styled.p`
-  margin: 0 0 var(--space-4);
-  color: var(--color-text-muted);
-  font-size: var(--font-size-100);
-  text-align: center;
-`;
-
 const Figure = styled.figure`
   margin: 0;
   min-width: 0;
-
-  figcaption,
-  summary {
-    margin-top: var(--space-2);
-    color: var(--color-text-muted);
-    font-size: var(--font-size-100);
-  }
-
-  details p {
-    white-space: pre-wrap;
-    font-size: var(--font-size-200);
-    line-height: var(--line-height-body);
-  }
 `;
 
 const Sheet = styled.div`
@@ -270,4 +254,17 @@ const Sheet = styled.div`
     width: 100%;
     height: 100%;
   }
+`;
+
+const PageFolio = styled.span`
+  display: block;
+  width: fit-content;
+  margin: var(--space-2) auto 0;
+  color: var(--color-text-muted);
+  font-size: 10px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.12em;
+  line-height: 1;
+  opacity: 0.72;
 `;

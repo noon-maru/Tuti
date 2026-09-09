@@ -1,5 +1,6 @@
 import { createHash, randomUUID } from "node:crypto";
 import { deleteStoredJournalImage } from "@/server/journal/imageStorage";
+import { deleteStoredJournalBook } from "@/server/journal/bookStorage";
 import { prisma } from "@/server/db/prisma";
 import type { LocationSecurityAuditData } from "@/server/location/securityAudit";
 import { getRequiredAuthEnv } from "@/server/auth/config";
@@ -49,6 +50,9 @@ async function deleteUserRecord(
           image: true,
         },
       },
+      journalBooks: {
+        select: { objectKey: true },
+      },
     },
   });
 
@@ -72,6 +76,14 @@ async function deleteUserRecord(
       await deleteStoredJournalImage(entry.image);
     } catch {
       if (entry.image) failedImageDeletions.push(entry.image);
+    }
+  }
+
+  for (const book of user.journalBooks) {
+    try {
+      await deleteStoredJournalBook(book.objectKey);
+    } catch {
+      failedImageDeletions.push(book.objectKey);
     }
   }
 

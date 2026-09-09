@@ -22,6 +22,12 @@ import type {
   TutiJournalEntry,
 } from "@/shared/api/journal";
 import type {
+  JournalBookInput,
+  JournalBookResponse,
+  JournalBooksResponse,
+  StoredJournalBook,
+} from "@/shared/api/journalBook";
+import type {
   PlaceDetailResponse,
 } from "@/shared/api/placeDetails";
 import type {
@@ -254,6 +260,45 @@ export async function fetchNearbyPlaces(
 
   const data = (await response.json()) as NearbyPlacesResponse;
   return data.places;
+}
+
+export async function fetchJournalBooks(): Promise<StoredJournalBook[]> {
+  const response = await fetchWithSession("journal-books");
+  if (!response.ok) {
+    throw new Error(
+      await readApiError(response, "완성한 기록집을 불러오지 못했어요."),
+    );
+  }
+  return ((await response.json()) as JournalBooksResponse).books;
+}
+
+export async function createJournalBook(
+  input: JournalBookInput,
+  pageCount: number,
+): Promise<StoredJournalBook> {
+  const response = await fetchWithSession("journal-books", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ input, pageCount }),
+  });
+  if (!response.ok) {
+    throw new Error(
+      await readApiError(response, "기록집을 완성하지 못했어요."),
+    );
+  }
+  return ((await response.json()) as JournalBookResponse).book;
+}
+
+export async function deleteJournalBook(bookId: string) {
+  const response = await fetchWithSession(
+    `journal-books/${encodeURIComponent(bookId)}`,
+    { method: "DELETE" },
+  );
+  if (!response.ok) {
+    throw new Error(
+      await readApiError(response, "기록집을 삭제하지 못했어요."),
+    );
+  }
 }
 
 export async function fetchJournalEntries(): Promise<TutiJournalEntry[]> {

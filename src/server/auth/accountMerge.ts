@@ -248,6 +248,10 @@ export async function mergeUserIntoCurrentAccount({
       where: { userId: sourceUserId },
       data: { userId: targetUserId },
     });
+    await transaction.journalBook.updateMany({
+      where: { ownerId: sourceUserId },
+      data: { ownerId: targetUserId },
+    });
     await transaction.authIdentity.updateMany({
       where: { userId: sourceUserId },
       data: { userId: targetUserId },

@@ -665,6 +665,21 @@ model JournalEntry {
   @@map("journal_entries")
 }
 
+model JournalBook {
+  id           String   @id
+  ownerId      String   @map("owner_id")
+  title        String
+  entryIds     String[] @map("entry_ids")
+  objectKey    String   @unique @map("object_key")
+  pageCount    Int      @map("page_count")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+  owner        User     @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+
+  @@index([ownerId, createdAt])
+  @@map("journal_books")
+}
+
 model JournalShareTrace {
   traceId        String    @id @map("trace_id")
   shortCode      String    @unique @map("short_code")
@@ -699,6 +714,7 @@ model User {
   updatedAt             DateTime               @updatedAt @map("updated_at")
   authIdentities        AuthIdentity[]
   journalEntries        JournalEntry[]
+  journalBooks          JournalBook[]
   oauthAuthorizations   OAuthAuthorization[]
   sessions              UserSession[]
   recommendationActions RecommendationAction[]

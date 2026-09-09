@@ -9,6 +9,22 @@ export type JournalBookInput = {
   coverEntryId: string | null;
 };
 
+export type StoredJournalBook = {
+  id: string;
+  title: string;
+  entryCount: number;
+  pageCount: number;
+  createdAt: string;
+};
+
+export type JournalBooksResponse = {
+  books: StoredJournalBook[];
+};
+
+export type JournalBookResponse = {
+  book: StoredJournalBook;
+};
+
 export type JournalBookDraft = JournalBookInput & {
   version: 1;
   step: "selection" | "details" | "preview";
@@ -103,4 +119,14 @@ export function journalBookDate(value: string | Date) {
   return new Date(value).toLocaleDateString("sv-SE", {
     timeZone: "Asia/Seoul",
   });
+}
+
+export function createJournalBookFilename(title: string) {
+  const safeTitle = title
+    .normalize("NFC")
+    .replace(/[\\/:*?"<>|\u0000-\u001f]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 60) || "작은 기록집";
+  return `Tuti_${safeTitle}.pdf`;
 }
