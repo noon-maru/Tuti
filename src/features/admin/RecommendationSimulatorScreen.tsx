@@ -239,36 +239,13 @@ export function RecommendationSimulatorScreen() {
     <Page>
       <Header>
         <HeaderInner>
-          <BackLink href="/admin?section=funnel">
+          <BackLink
+            href="/admin?section=funnel"
+            aria-label="관리자 콘솔로 돌아가기"
+          >
             <ArrowLeft aria-hidden="true" />
-            관리자 콘솔
           </BackLink>
-          <HeaderMain>
-            <HeaderCopy>
-              <span>RECOMMENDATION CONTROL</span>
-              <h1>추천이 좁혀지는<br />과정을 추적합니다.</h1>
-              <p>
-                사용자 조건을 그대로 입력하고, 후보 탐색부터 최종 선정까지
-                장소별 점수와 탈락 근거를 확인하세요.
-              </p>
-            </HeaderCopy>
-            <EngineTrace aria-label="추천 처리 과정">
-              <TraceNode>
-                <small>INPUT</small>
-                <strong>사용자 답변</strong>
-              </TraceNode>
-              <TraceLine aria-hidden="true" />
-              <TraceNode>
-                <small>FILTER</small>
-                <strong>거리·실행 조건</strong>
-              </TraceNode>
-              <TraceLine aria-hidden="true" />
-              <TraceNode $active>
-                <small>OUTPUT</small>
-                <strong>최종 6곳</strong>
-              </TraceNode>
-            </EngineTrace>
-          </HeaderMain>
+          <h1>추천 시뮬레이터</h1>
         </HeaderInner>
       </Header>
 
@@ -280,10 +257,7 @@ export function RecommendationSimulatorScreen() {
           onSubmit={submit}
         >
           <PanelHeading>
-            <div>
-              <span>TEST VECTOR</span>
-              <h2>사용자 조건</h2>
-            </div>
+            <h2>사용자 조건</h2>
             <ResetButton
               type="button"
               onClick={() => {
@@ -541,13 +515,12 @@ export function RecommendationSimulatorScreen() {
             <>
               <ResultHeader>
                 <div>
-                  <span>ENGINE / {result.algorithmVersion}</span>
                   <h2>추천 경로 분석</h2>
                   <p>
                     <time dateTime={result.generatedAt}>
                       {dateFormatter.format(new Date(result.generatedAt))}
                     </time>{" "}
-                    · {result.elapsedMs.toLocaleString()}ms
+                    · {result.algorithmVersion} · {result.elapsedMs.toLocaleString()}ms
                   </p>
                   <ScoreGuide>총점은 낮을수록 부담이 낮고, 음수 항목은 추천 보너스예요.</ScoreGuide>
                 </div>
@@ -811,30 +784,19 @@ function crowdToleranceLabel(value: string) {
 }
 
 const Page = styled.main`
-  --sim-ink: #102f2d;
-  --sim-deep: #174540;
-  --sim-route: #39a78e;
-  --sim-mint: #cce9df;
-  --sim-mist: #eef4f1;
-  --sim-paper: #f9fbfa;
-  --sim-signal: #f1a45d;
   height: 100vh;
   height: 100dvh;
   min-height: 0;
   overflow-x: hidden;
   overflow-y: auto;
   overscroll-behavior-y: auto;
-  background-color: var(--sim-mist);
-  background-image:
-    linear-gradient(rgb(16 47 45 / 0.035) 1px, transparent 1px),
-    linear-gradient(90deg, rgb(16 47 45 / 0.035) 1px, transparent 1px);
-  background-size: 28px 28px;
+  background: var(--color-neutral-200);
   color: var(--color-text);
   touch-action: pan-y;
   -webkit-overflow-scrolling: touch;
 
   :where(button, a, input, select, textarea, summary, [tabindex]):focus-visible {
-    outline: 3px solid var(--sim-signal);
+    outline: 3px solid var(--color-brand-300);
     outline-offset: 2px;
   }
 
@@ -849,151 +811,66 @@ const Page = styled.main`
 `;
 
 const Header = styled.header`
-  position: relative;
-  overflow: hidden;
-  border-bottom: 1px solid rgb(204 233 223 / 0.3);
-  background:
-    radial-gradient(circle at 82% 30%, rgb(57 167 142 / 0.2), transparent 32%),
-    var(--sim-ink);
-  color: #f4faf7;
-
-  &::after {
-    position: absolute;
-    inset: 0;
-    background-image: linear-gradient(90deg, transparent 49.8%, rgb(204 233 223 / 0.08) 50%, transparent 50.2%);
-    background-size: 160px 100%;
-    content: "";
-    pointer-events: none;
-  }
+  border-bottom: 1px solid var(--color-border);
+  background: rgb(var(--color-white-rgb) / 0.92);
+  backdrop-filter: blur(16px);
 `;
 
 const HeaderInner = styled.div`
-  position: relative;
-  z-index: 1;
   width: min(1360px, calc(100% - 64px));
+  min-height: 72px;
   margin: 0 auto;
-  padding: var(--space-5) 0 var(--space-8);
-  display: grid;
-  gap: var(--space-5);
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+
+  h1 {
+    padding-left: var(--space-4);
+    border-left: 1px solid var(--color-border);
+    font-size: var(--font-size-600);
+    font-weight: 700;
+    line-height: var(--line-height-heading);
+    letter-spacing: var(--letter-spacing-heading);
+  }
 
   @media (max-width: 768px) {
     width: calc(100% - 32px);
-    padding: var(--space-4) 0;
+    min-height: 64px;
+
+    h1 {
+      font-size: var(--font-size-500);
+    }
   }
 `;
 
 const BackLink = styled(Link)`
-  width: fit-content;
+  width: 44px;
+  flex: 0 0 auto;
   min-height: 44px;
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: var(--space-2);
-  color: rgb(244 250 247 / 0.7);
-  font-size: var(--font-size-200);
+  border-radius: 50%;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-100);
+  font-weight: 600;
   text-decoration: none;
 
-  svg { width: 20px; height: 20px; }
+  svg { width: 18px; height: 18px; }
 
-  &:focus-visible {
-    outline: 3px solid var(--sim-signal);
-    outline-offset: 3px;
+  &:hover {
+    background: var(--color-brand-100);
+    color: var(--color-brand-900);
   }
-`;
-
-const HeaderMain = styled.div`
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(440px, 0.86fr);
-  align-items: end;
-  gap: var(--space-10);
-
-  @media (max-width: 960px) {
-    grid-template-columns: 1fr;
-    gap: var(--space-6);
-  }
-`;
-
-const HeaderCopy = styled.div`
-  display: grid;
-  gap: var(--space-3);
-  span {
-    color: var(--sim-signal);
-    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-    font-size: 11px;
-    font-weight: 700;
-    letter-spacing: 0.14em;
-  }
-  h1 {
-    max-width: 680px;
-    font-size: clamp(36px, 5vw, 68px);
-    font-weight: 760;
-    letter-spacing: -0.055em;
-    line-height: 1.02;
-  }
-  p {
-    max-width: 610px;
-    color: rgb(244 250 247 / 0.7);
-    font-size: var(--font-size-300);
-    line-height: 1.65;
-  }
-`;
-
-const EngineTrace = styled.div`
-  display: grid;
-  grid-template-columns: auto minmax(28px, 1fr) auto minmax(28px, 1fr) auto;
-  align-items: center;
-  padding: var(--space-5);
-  border: 1px solid rgb(204 233 223 / 0.22);
-  background: rgb(4 28 27 / 0.36);
-  backdrop-filter: blur(10px);
-
-  @media (max-width: 520px) {
-    padding: var(--space-4) var(--space-3);
-  }
-`;
-
-const TraceNode = styled.div<{ $active?: boolean }>`
-  position: relative;
-  display: grid;
-  gap: 4px;
-  padding-top: var(--space-4);
-
-  &::before {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 9px;
-    height: 9px;
-    border: 2px solid ${({ $active }) => $active ? "var(--sim-signal)" : "var(--sim-route)"};
-    border-radius: 50%;
-    background: ${({ $active }) => $active ? "var(--sim-signal)" : "var(--sim-ink)"};
-    content: "";
-  }
-
-  small {
-    color: var(--sim-route);
-    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-    font-size: 9px;
-    letter-spacing: 0.12em;
-  }
-
-  strong {
-    font-size: 12px;
-    white-space: nowrap;
-  }
-`;
-
-const TraceLine = styled.span`
-  height: 1px;
-  margin: 0 var(--space-2);
-  background: linear-gradient(90deg, var(--sim-route), rgb(57 167 142 / 0.2));
 `;
 
 const Content = styled.div`
   width: min(1360px, calc(100% - 64px));
   margin: 0 auto;
-  padding: var(--space-6) 0 var(--space-12);
+  padding: var(--space-6) 0 var(--space-16);
   display: grid;
-  grid-template-columns: minmax(350px, 390px) minmax(0, 1fr);
+  grid-template-columns: minmax(360px, 400px) minmax(0, 1fr);
   align-items: start;
   gap: var(--space-6);
 
@@ -1004,6 +881,7 @@ const Content = styled.div`
   @media (max-width: 768px) {
     width: calc(100% - 24px);
     padding-top: var(--space-4);
+    padding-bottom: max(var(--space-12), env(safe-area-inset-bottom));
   }
 `;
 
@@ -1011,13 +889,13 @@ const ConditionPanel = styled.section`
   position: sticky;
   top: var(--space-4);
   display: grid;
-  gap: var(--space-6);
-  padding: var(--space-6);
-  border: 1px solid rgb(57 167 142 / 0.5);
-  border-radius: 20px 20px 20px 4px;
-  background: var(--sim-ink);
-  box-shadow: 0 22px 50px rgb(16 47 45 / 0.18);
-  color: #f4faf7;
+  gap: var(--space-5);
+  padding: var(--space-5);
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  background: var(--color-white);
+  box-shadow: 0 8px 24px rgb(var(--color-black-rgb) / 0.05);
+  color: var(--color-text);
 
   @media (max-width: 1240px) {
     position: static;
@@ -1033,21 +911,22 @@ const PanelHeading = styled.header`
   align-items: center;
   justify-content: space-between;
   gap: var(--space-3);
-  span {
-    color: var(--sim-signal);
-    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-    font-size: 10px;
+
+  h2 {
+    font-size: var(--font-size-400);
     font-weight: 700;
-    letter-spacing: 0.14em;
+    line-height: var(--line-height-heading);
   }
-  h2 { margin-top: var(--space-1); font-size: var(--font-size-500); }
 `;
 
 const ScopeNote = styled.p`
-  margin-top: calc(var(--space-3) * -1);
-  color: rgb(244 250 247 / 0.52);
-  font-size: 11px;
-  line-height: 1.55;
+  margin-top: calc(var(--space-2) * -1);
+  padding: var(--space-3);
+  border-radius: 6px;
+  background: var(--color-neutral-200);
+  color: var(--color-text-muted);
+  font-size: var(--font-size-100);
+  line-height: var(--line-height-body);
 `;
 
 const ResetButton = styled.button`
@@ -1056,19 +935,19 @@ const ResetButton = styled.button`
   display: inline-flex;
   align-items: center;
   gap: var(--space-2);
-  border: 0;
-  border-radius: var(--space-1);
-  border: 1px solid rgb(204 233 223 / 0.18);
-  background: rgb(255 255 255 / 0.05);
-  color: rgb(244 250 247 / 0.7);
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  background: var(--color-white);
+  color: var(--color-text-muted);
   font: inherit;
   font-size: var(--font-size-100);
   cursor: pointer;
   svg { width: 16px; height: 16px; }
 
-  &:focus-visible {
-    outline: 3px solid var(--sim-signal);
-    outline-offset: 2px;
+  &:hover {
+    border-color: var(--color-brand-300);
+    color: var(--color-brand-900);
+    background: var(--color-brand-100);
   }
 `;
 
@@ -1079,27 +958,26 @@ const FieldGroup = styled.fieldset`
   margin: 0;
   padding: 0;
   border: 0;
-  padding-top: var(--space-5);
-  border-top: 1px solid rgb(204 233 223 / 0.13);
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--color-border);
 `;
 
 const FieldLabel = styled.legend`
   margin-bottom: var(--space-2);
   font-size: var(--font-size-200);
-  color: #f4faf7;
-  font-weight: 650;
+  color: var(--color-text);
+  font-weight: 700;
 
   > span {
     margin-right: var(--space-2);
-    color: var(--sim-route);
-    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-    font-size: 10px;
-    letter-spacing: 0.08em;
+    color: var(--color-brand-700);
+    font-size: var(--font-size-100);
+    font-variant-numeric: tabular-nums;
   }
 
   small {
     margin-left: var(--space-1);
-    color: rgb(244 250 247 / 0.45);
+    color: var(--color-text-muted);
     font-size: 10px;
     font-weight: 500;
   }
@@ -1109,23 +987,31 @@ const SegmentedGrid = styled.div<{ $columns: number }>`
   display: grid;
   grid-template-columns: repeat(${({ $columns }) => $columns}, minmax(0, 1fr));
   gap: var(--space-2);
+
+  @media (max-width: 420px) {
+    grid-template-columns: ${({ $columns }) =>
+      $columns === 3 ? "1fr" : "repeat(2, minmax(0, 1fr))"};
+  }
 `;
 
 const OptionButton = styled.button<{ $active: boolean }>`
-  min-height: 68px;
+  min-height: 64px;
   padding: var(--space-3) var(--space-2);
   display: grid;
   place-content: center;
   gap: var(--space-1);
-  border: 1px solid ${({ $active }) => $active ? "var(--sim-route)" : "rgb(204 233 223 / 0.2)"};
-  border-radius: 10px 10px 10px 3px;
-  background: ${({ $active }) => $active ? "rgb(57 167 142 / 0.2)" : "rgb(255 255 255 / 0.035)"};
-  color: #f4faf7;
+  border: 1px solid ${({ $active }) =>
+    $active ? "var(--color-brand-600)" : "var(--color-border)"};
+  border-radius: 8px;
+  background: ${({ $active }) =>
+    $active ? "var(--color-brand-100)" : "var(--color-white)"};
+  color: ${({ $active }) =>
+    $active ? "var(--color-brand-1000)" : "var(--color-text)"};
   font: inherit;
   text-align: center;
   cursor: pointer;
-  strong { font-size: var(--font-size-100); }
-  span { color: rgb(244 250 247 / 0.56); font-size: var(--font-size-100); line-height: 1.35; }
+  strong { font-size: var(--font-size-100); font-weight: 700; }
+  span { color: var(--color-text-muted); font-size: 11px; line-height: 1.35; }
 
   &:disabled {
     opacity: 0.32;
@@ -1133,13 +1019,8 @@ const OptionButton = styled.button<{ $active: boolean }>`
   }
 
   &:not(:disabled):hover {
-    border-color: var(--sim-route);
-    transform: translateY(-1px);
-  }
-
-  &:focus-visible {
-    outline: 3px solid var(--sim-signal);
-    outline-offset: 2px;
+    border-color: var(--color-brand-400);
+    background: var(--color-brand-100);
   }
 `;
 
@@ -1147,6 +1028,10 @@ const CoordinateGrid = styled.div`
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: var(--space-3);
+
+  @media (max-width: 360px) {
+    grid-template-columns: 1fr;
+  }
 `;
 
 const LocationEditor = styled.div`
@@ -1158,25 +1043,24 @@ const LabeledInput = styled.label`
   min-width: 0;
   display: grid;
   gap: var(--space-2);
-  > span { color: rgb(244 250 247 / 0.72); font-size: var(--font-size-100); font-weight: 600; }
+  > span { color: var(--color-text-muted); font-size: var(--font-size-100); font-weight: 600; }
   input, select, textarea {
     width: 100%;
     min-height: 46px;
     padding: var(--space-3);
-    border: 1px solid rgb(204 233 223 / 0.25);
-    border-radius: var(--space-1);
-    background: rgb(255 255 255 / 0.06);
-    color: #f4faf7;
+    border: 1px solid var(--color-border);
+    border-radius: 6px;
+    background: var(--color-white);
+    color: var(--color-text);
     font: inherit;
     font-size: var(--font-size-200);
   }
   textarea { min-height: 82px; resize: vertical; }
 
-  input:focus-visible,
-  select:focus-visible,
-  textarea:focus-visible {
-    outline: 3px solid var(--sim-signal);
-    outline-offset: 2px;
+  input:hover,
+  select:hover,
+  textarea:hover {
+    border-color: var(--color-brand-300);
   }
 `;
 
@@ -1189,32 +1073,33 @@ const PresetRail = styled.div`
     width: 15px;
     height: 15px;
     margin-right: 2px;
-    color: var(--sim-route);
+    color: var(--color-brand-700);
   }
 `;
 
 const PresetButton = styled.button`
   min-height: 32px;
   padding: 0 10px;
-  border: 1px solid rgb(204 233 223 / 0.18);
+  border: 1px solid var(--color-border);
   border-radius: 999px;
-  background: transparent;
-  color: rgb(244 250 247 / 0.68);
+  background: var(--color-white);
+  color: var(--color-text-muted);
   font: inherit;
   font-size: 11px;
   cursor: pointer;
 
   &:hover {
-    border-color: var(--sim-route);
-    color: #fff;
+    border-color: var(--color-brand-400);
+    background: var(--color-brand-100);
+    color: var(--color-brand-1000);
   }
 `;
 
 const ModeNotice = styled.p`
   padding: var(--space-3);
-  border-left: 3px solid var(--sim-route);
-  background: rgb(57 167 142 / 0.1);
-  color: rgb(244 250 247 / 0.64);
+  border-left: 3px solid var(--color-brand-500);
+  background: var(--color-brand-100);
+  color: var(--color-text-muted);
   font-size: var(--font-size-100);
 `;
 
@@ -1231,17 +1116,21 @@ const OptionalOptions = styled(CompactOptions)`
 const CompactButton = styled.button<{ $active: boolean }>`
   min-height: 44px;
   padding: var(--space-2);
-  border: 1px solid ${({ $active }) => $active ? "var(--sim-route)" : "rgb(204 233 223 / 0.2)"};
-  border-radius: 8px 8px 8px 2px;
-  background: ${({ $active }) => $active ? "var(--sim-mint)" : "rgb(255 255 255 / 0.035)"};
-  color: ${({ $active }) => $active ? "var(--sim-ink)" : "#f4faf7"};
+  border: 1px solid ${({ $active }) =>
+    $active ? "var(--color-secondary-700)" : "var(--color-border)"};
+  border-radius: 8px;
+  background: ${({ $active }) =>
+    $active ? "var(--color-secondary-200)" : "var(--color-white)"};
+  color: var(--color-text);
   font: inherit;
   font-size: var(--font-size-100);
   cursor: pointer;
 
-  &:focus-visible {
-    outline: 3px solid var(--sim-signal);
-    outline-offset: 2px;
+  font-weight: ${({ $active }) => ($active ? 700 : 500)};
+
+  &:hover {
+    border-color: var(--color-secondary-600);
+    background: var(--color-secondary-100);
   }
 `;
 
@@ -1252,9 +1141,9 @@ const RunButton = styled.button`
   justify-content: center;
   gap: var(--space-2);
   border: 0;
-  border-radius: 12px 12px 12px 3px;
-  background: var(--sim-signal);
-  color: var(--sim-ink);
+  border-radius: 8px;
+  background: var(--color-brand-700);
+  color: var(--color-white);
   font: inherit;
   font-weight: 700;
   cursor: pointer;
@@ -1268,13 +1157,9 @@ const RunButton = styled.button`
   }
 
   &:not(:disabled):hover {
-    box-shadow: 0 10px 26px rgb(241 164 93 / 0.24);
+    background: var(--color-brand-800);
+    box-shadow: 0 8px 20px rgb(var(--color-black-rgb) / 0.08);
     transform: translateY(-1px);
-  }
-
-  &:focus-visible {
-    outline: 3px solid var(--sim-signal);
-    outline-offset: 2px;
   }
 
   @keyframes simulator-spin {
@@ -1284,9 +1169,10 @@ const RunButton = styled.button`
 
 const ErrorNotice = styled.p`
   padding: var(--space-3);
-  border-left: 3px solid #ff8e7d;
-  background: rgb(255 142 125 / 0.1);
-  color: #ffc1b7;
+  border-left: 3px solid var(--color-error);
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--color-error) 8%, var(--color-white));
+  color: var(--color-text);
   font-size: var(--font-size-100);
 `;
 
@@ -1312,14 +1198,12 @@ const EmptyResult = styled.div`
   justify-items: center;
   gap: var(--space-3);
   padding: var(--space-6);
-  border: 1px dashed rgb(16 47 45 / 0.3);
-  border-radius: 4px 24px 24px 24px;
-  background:
-    radial-gradient(circle at 50% 42%, rgb(57 167 142 / 0.12), transparent 28%),
-    var(--sim-paper);
+  border: 1px dashed var(--color-brand-300);
+  border-radius: 10px;
+  background: var(--color-white);
   color: var(--color-text-muted);
   text-align: center;
-  svg { width: 44px; height: 44px; color: var(--sim-route); }
+  svg { width: 40px; height: 40px; color: var(--color-brand-600); }
   h2 { color: var(--color-text); font-size: var(--font-size-400); }
   p { font-size: var(--font-size-200); }
 `;
@@ -1330,14 +1214,11 @@ const ResultHeader = styled.header`
   justify-content: space-between;
   gap: var(--space-4);
   > div:first-child { display: grid; gap: var(--space-1); }
-  > div:first-child > span {
-    color: var(--sim-route);
-    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-    font-size: 10px;
+  h2 {
+    font-size: var(--font-size-500);
     font-weight: 700;
-    letter-spacing: 0.1em;
+    line-height: var(--line-height-heading);
   }
-  h2 { font-size: var(--font-size-600); }
   p { color: var(--color-text-muted); font-size: var(--font-size-100); }
   @media (max-width: 640px) { align-items: flex-start; flex-direction: column; }
 `;
@@ -1354,22 +1235,22 @@ const FeatureSummary = styled.div`
 
   span {
     padding: var(--space-2) var(--space-3);
-    border: 1px solid rgb(57 167 142 / 0.28);
+    border: 1px solid var(--color-secondary-400);
     border-radius: 999px;
-    background: rgb(204 233 223 / 0.48);
+    background: var(--color-secondary-200);
+    color: var(--color-text);
     font-size: var(--font-size-100);
     font-weight: 600;
   }
 `;
 
 const MetricGrid = styled.div`
-  position: relative;
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   overflow: hidden;
-  border: 1px solid rgb(16 47 45 / 0.16);
-  border-radius: 4px 18px 18px 18px;
-  background: var(--sim-paper);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: var(--color-white);
 
   @media (max-width: 640px) {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1383,12 +1264,12 @@ const MetricCard = styled.div<{ $accent?: boolean }>`
   align-items: baseline;
   gap: 5px var(--space-2);
   padding: var(--space-4);
-  border-right: 1px solid rgb(16 47 45 / 0.12);
-  background: ${({ $accent }) => $accent ? "var(--sim-mint)" : "transparent"};
+  border-right: 1px solid var(--color-border);
+  background: ${({ $accent }) =>
+    $accent ? "var(--color-secondary-100)" : "transparent"};
 
   small {
-    color: var(--sim-route);
-    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    color: var(--color-brand-700);
     font-size: 9px;
   }
 
@@ -1399,8 +1280,7 @@ const MetricCard = styled.div<{ $accent?: boolean }>`
 
   strong {
     grid-column: 1 / -1;
-    color: var(--sim-ink);
-    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    color: var(--color-text);
     font-size: var(--font-size-600);
     font-variant-numeric: tabular-nums;
   }
@@ -1432,7 +1312,8 @@ const StatusPill = styled.span<{ $selected: boolean }>`
   width: fit-content;
   padding: 4px 9px;
   border-radius: 999px;
-  background: ${({ $selected }) => $selected ? "var(--sim-mint)" : "var(--color-neutral-300)"};
+  background: ${({ $selected }) =>
+    $selected ? "var(--color-secondary-200)" : "var(--color-neutral-300)"};
   color: var(--color-text) !important;
   font-size: var(--font-size-100);
   font-weight: 700;
@@ -1451,9 +1332,9 @@ const Score = styled.strong`
 const CandidateComparison = styled.section`
   min-width: 0;
   overflow: hidden;
-  border: 1px solid rgb(16 47 45 / 0.16);
-  border-radius: 4px 18px 18px 18px;
-  background: var(--sim-paper);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: var(--color-white);
 `;
 
 const CandidateComparisonHeader = styled.header`
@@ -1462,7 +1343,7 @@ const CandidateComparisonHeader = styled.header`
   justify-content: space-between;
   gap: var(--space-4);
   padding: var(--space-4);
-  border-bottom: 1px solid rgb(16 47 45 / 0.14);
+  border-bottom: 1px solid var(--color-border);
 
   h3 {
     font-size: var(--font-size-300);
@@ -1520,7 +1401,7 @@ const CandidateTable = styled.table`
     position: sticky;
     z-index: 1;
     top: 0;
-    background: #e3ece8;
+    background: var(--color-neutral-200);
     color: var(--color-text-muted);
     font-size: var(--font-size-100);
     font-weight: 700;
@@ -1566,18 +1447,18 @@ const CandidateTable = styled.table`
 
 const CandidateTableRow = styled.tr<{ $selected: boolean }>`
   background: ${({ $selected }) =>
-    $selected ? "rgb(204 233 223 / 0.56)" : "var(--sim-paper)"};
+    $selected ? "var(--color-brand-100)" : "var(--color-white)"};
 
   td:first-of-type {
     box-shadow: ${({ $selected }) =>
       $selected
-        ? "inset 3px 0 var(--sim-route)"
+        ? "inset 3px 0 var(--color-brand-600)"
         : "none"};
   }
 
   &:hover {
     background: ${({ $selected }) =>
-      $selected ? "rgb(204 233 223 / 0.7)" : "#f0f6f3"};
+      $selected ? "var(--color-brand-200)" : "var(--color-neutral-200)"};
   }
 `;
 
@@ -1588,8 +1469,7 @@ const RankCell = styled.div`
   font-variant-numeric: tabular-nums;
 
   strong {
-    color: var(--sim-ink);
-    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    color: var(--color-text);
     font-size: var(--font-size-500);
     line-height: 1;
   }
@@ -1777,10 +1657,10 @@ const MobileCandidateRow = styled.li<{ $selected: boolean }>`
   padding: var(--space-4);
   border-bottom: 1px solid var(--color-neutral-400);
   background: ${({ $selected }) =>
-    $selected ? "rgb(204 233 223 / 0.56)" : "var(--sim-paper)"};
+    $selected ? "var(--color-brand-100)" : "var(--color-white)"};
   box-shadow: ${({ $selected }) =>
     $selected
-      ? "inset 3px 0 var(--sim-route)"
+      ? "inset 3px 0 var(--color-brand-600)"
       : "none"};
 
   &:last-of-type {
@@ -1826,12 +1706,12 @@ const MobileCandidateHeader = styled.div`
 `;
 
 const RawDetails = styled.details`
-  border: 1px solid rgb(16 47 45 / 0.16);
-  border-radius: 4px 14px 14px 14px;
-  background: var(--sim-paper);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: var(--color-white);
   summary { padding: var(--space-4); font-size: var(--font-size-200); font-weight: 600; cursor: pointer; }
   summary:focus-visible { outline: 3px solid var(--color-brand-900); outline-offset: 2px; }
-  pre { max-height: 520px; margin: 0; padding: var(--space-4); overflow: auto; border-top: 1px solid rgb(16 47 45 / 0.14); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; line-height: 1.5; }
+  pre { max-height: 520px; margin: 0; padding: var(--space-4); overflow: auto; border-top: 1px solid var(--color-border); background: var(--color-neutral-200); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; line-height: 1.5; }
 `;
 
 const AccessPage = styled.main`
