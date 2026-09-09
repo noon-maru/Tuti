@@ -121,7 +121,7 @@ SHA-256 출력을 순서대로 수행한다. 완성된 파일은 아래에 생�
 android/app/build/outputs/bundle/release/app-release.aab
 ```
 
-현재 정식 출시 준비 버전은 `versionCode 5`, `versionName 1.0.0`이다. Play
+현재 정식 출시 준비 버전은 `versionCode 6`, `versionName 1.1.0`이다. Play
 Console에 AAB를 한 번이라도 올린 뒤에는 매 업로드마다 `versionCode`를
 증가시켜야 한다. 표시 버전이 같더라도 새 AAB를 업로드할 때는 versionCode를
 반드시 올린다.
