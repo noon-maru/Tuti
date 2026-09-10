@@ -17,7 +17,13 @@ import { LoadingIndicator } from "@/features/tuti/components/LoadingIndicator";
 
 type JournalBookPreviewProps = {
   ownerId: string;
-  onReady?: (result: { bytes: Uint8Array; pageCount: number } | null) => void;
+  onReady?: (
+    result: {
+      bytes: Uint8Array;
+      pageCount: number;
+      approvalToken?: string;
+    } | null,
+  ) => void;
 } & (
   | { input: JournalBookInput; bookId?: never }
   | { input?: never; bookId: string }
@@ -64,6 +70,12 @@ export function JournalBookPreview({
       }
       const buffer = await response.arrayBuffer();
       if (!active || getSessionSnapshot()?.userId !== ownerId) return;
+      const approvalToken = bookId
+        ? undefined
+        : response.headers.get("X-Tuti-Journal-Book-Approval") || undefined;
+      if (!bookId && !approvalToken) {
+        throw new Error("미리보기 승인 정보를 받지 못했어요. 다시 시도해주세요.");
+      }
       const pdfjs = await import("pdfjs-dist/legacy/build/pdf.mjs");
       if (!active) return;
       pdfjs.GlobalWorkerOptions.workerSrc = `/pdfjs/${pdfjs.version}/pdf.worker.min.mjs`;
@@ -76,7 +88,7 @@ export function JournalBookPreview({
       const pdf = await loadingTask.promise;
       if (active) {
         setPdfDocument(pdf);
-        onReady?.({ bytes, pageCount: pdf.numPages });
+        onReady?.({ bytes, pageCount: pdf.numPages, approvalToken });
       }
     })().catch((cause: unknown) => {
       if (active && !abort.signal.aborted)

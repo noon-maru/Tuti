@@ -10,6 +10,10 @@ import {
 import { createJournalBookDraftStorage } from "../src/lib/journalBookDraft";
 import { createBookPreviewHandler } from "../src/server/journal/bookPreview";
 import {
+  createJournalBookApproval,
+  verifyJournalBookApproval,
+} from "../src/server/journal/bookApproval";
+import {
   renderJournalBook,
   type BookEntry,
 } from "../src/server/pdf/journalBook";
@@ -133,6 +137,7 @@ test("인증 및 소유권 확인 전에는 PDF를 생성하지 않는다", asyn
   let authenticated = false;
   const handler = createBookPreviewHandler({
     authenticate: async () => (authenticated ? { id: "owner-a" } : null),
+    approve: async () => "approved-preview",
     findEntries: async (ownerId, ids) => {
       assert.equal(ownerId, "owner-a");
       return ids.includes("entry-1") ? [entry] : [];
@@ -162,6 +167,10 @@ test("인증 및 소유권 확인 전에는 PDF를 생성하지 않는다", asyn
   assert.equal(response.status, 200);
   assert.equal(response.headers.get("Cache-Control"), "private, no-store");
   assert.equal(response.headers.get("Content-Type"), "application/pdf");
+  assert.equal(
+    response.headers.get("X-Tuti-Journal-Book-Approval"),
+    "approved-preview",
+  );
 });
 
 test("생성 실패 후 재시도 가능하고 동시에 여러 PDF를 만들지 않는다", async () => {
@@ -169,6 +178,7 @@ test("생성 실패 후 재시도 가능하고 동시에 여러 PDF를 만들지
   let fail = true;
   const handler = createBookPreviewHandler({
     authenticate: async () => ({ id: "owner-a" }),
+    approve: async () => "approved-preview",
     findEntries: async () => [entry],
     render: async () => {
       await new Promise<void>((resolve) => {
@@ -188,6 +198,31 @@ test("생성 실패 후 재시도 가능하고 동시에 여러 PDF를 만들지
   await new Promise((resolve) => setTimeout(resolve, 5));
   release();
   assert.equal((await retry).status, 200);
+});
+
+test("서버가 승인한 미리보기 PDF만 같은 쪽 수로 완성할 수 있다", async () => {
+  process.env.AUTH_EMAIL_CODE_SECRET =
+    "journal-book-test-secret-at-least-32-characters";
+  const pdf = await renderJournalBook(input, [{ ...entry, image: null }]);
+  const token = await createJournalBookApproval("owner-a", input, pdf);
+  const approved = verifyJournalBookApproval("owner-a", token, pdf);
+  assert.equal(approved.title, input.title);
+  assert.deepEqual(approved.entryIds, input.entryIds);
+  assert.ok(approved.pageCount >= 2);
+  assert.match(approved.bookId, /^[0-9a-f-]{36}$/i);
+  assert.throws(
+    () =>
+      verifyJournalBookApproval(
+        "owner-a",
+        token,
+        new Uint8Array([...pdf.slice(0, -1), pdf.at(-1)! ^ 1]),
+      ),
+    /확인한 미리보기와 파일이 달라요/,
+  );
+  assert.throws(
+    () => verifyJournalBookApproval("owner-b", token, pdf),
+    /승인 정보를 확인할 수 없어요/,
+  );
 });
 
 test("한글·긴 본문·사진·편지·지원하지 않는 이모지를 실제 PDF로 만든다", async () => {

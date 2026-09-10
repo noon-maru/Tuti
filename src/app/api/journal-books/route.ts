@@ -1,5 +1,3 @@
-import { randomUUID } from "node:crypto";
-
 import { authenticateUser } from "@/server/auth/session";
 import { prisma } from "@/server/db/prisma";
 import {
@@ -11,15 +9,15 @@ import {
   deleteStoredJournalBook,
   storeJournalBookPdf,
 } from "@/server/journal/bookStorage";
-import {
-  JournalBookRenderError,
-  renderOwnedJournalBook,
-} from "@/server/journal/renderBook";
-import {
-  parseJournalBookInput,
-  type JournalBookResponse,
-  type JournalBooksResponse,
+import type {
+  JournalBookResponse,
+  JournalBooksResponse,
 } from "@/shared/api/journalBook";
+import {
+  JournalBookApprovalError,
+  readJournalBookPdf,
+  verifyJournalBookApproval,
+} from "@/server/journal/bookApproval";
 
 export const runtime = "nodejs";
 
@@ -66,14 +64,48 @@ export async function POST(request: Request) {
   try {
     const user = await authenticateUser(request);
     if (!user) return withCors(request, unauthorized());
-    const body = (await request.json()) as { input?: unknown; pageCount?: unknown };
-    const input = parseJournalBookInput(body.input);
-    const pageCount = Number(body.pageCount);
-    if (!input || !Number.isInteger(pageCount) || pageCount < 1 || pageCount > 100) {
+    const approvalToken = request.headers.get(
+      "X-Tuti-Journal-Book-Approval",
+    );
+    if (
+      !approvalToken ||
+      !request.headers.get("Content-Type")?.startsWith("application/pdf")
+    ) {
       return withCors(
         request,
-        Response.json({ error: "기록집 내용을 확인해주세요." }, { status: 400 }),
+        Response.json({ error: "미리보기 승인 정보를 확인해주세요." }, { status: 400 }),
       );
+    }
+    const pdf = await readJournalBookPdf(request);
+    const approved = verifyJournalBookApproval(user.id, approvalToken, pdf);
+    const existing = await prisma.journalBook.findUnique({
+      where: { id: approved.bookId },
+      select: {
+        id: true,
+        ownerId: true,
+        title: true,
+        entryIds: true,
+        pageCount: true,
+        createdAt: true,
+      },
+    });
+    if (existing) {
+      if (existing.ownerId !== user.id) {
+        throw new JournalBookApprovalError(
+          "미리보기 승인 정보를 확인할 수 없어요. 다시 미리보기 해주세요.",
+          409,
+        );
+      }
+      const response: JournalBookResponse = {
+        book: {
+          id: existing.id,
+          title: existing.title,
+          entryCount: existing.entryIds.length,
+          pageCount: existing.pageCount,
+          createdAt: existing.createdAt.toISOString(),
+        },
+      };
+      return withCors(request, Response.json(response));
     }
     if (creating) {
       return withCors(
@@ -86,17 +118,16 @@ export async function POST(request: Request) {
     }
     creating = true;
     try {
-      const id = randomUUID();
-      const pdf = await renderOwnedJournalBook(user.id, input);
+      const id = approved.bookId;
       objectKey = await storeJournalBookPdf(user.id, id, pdf);
       const created = await prisma.journalBook.create({
         data: {
           id,
           ownerId: user.id,
-          title: input.title,
-          entryIds: input.entryIds,
+          title: approved.title,
+          entryIds: approved.entryIds,
           objectKey,
-          pageCount,
+          pageCount: approved.pageCount,
         },
         select: {
           id: true,
@@ -127,21 +158,18 @@ export async function POST(request: Request) {
         console.error("DB 저장에 실패한 기록집 PDF를 정리하지 못했습니다.", cleanupError);
       }
     }
-    const invalidJson = error instanceof SyntaxError;
-    const renderError = error instanceof JournalBookRenderError;
-    if (!invalidJson && !renderError)
+    const approvalError = error instanceof JournalBookApprovalError;
+    if (!approvalError)
       console.error("기록집을 완성하지 못했습니다.", error);
     return withCors(
       request,
       Response.json(
         {
-          error: invalidJson
-            ? "요청 내용을 확인해주세요."
-            : renderError
-              ? error.message
-              : "기록집을 완성하지 못했어요. 잠시 후 다시 시도해주세요.",
+          error: approvalError
+            ? error.message
+            : "기록집을 완성하지 못했어요. 잠시 후 다시 시도해주세요.",
         },
-        { status: invalidJson ? 400 : renderError ? error.status : 500 },
+        { status: approvalError ? error.status : 500 },
       ),
     );
   }

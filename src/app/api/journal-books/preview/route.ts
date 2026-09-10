@@ -7,6 +7,7 @@ import {
   withCors,
 } from "@/server/http/cors";
 import { createBookPreviewHandler } from "@/server/journal/bookPreview";
+import { createJournalBookApproval } from "@/server/journal/bookApproval";
 import { isStoredJournalImage } from "@/server/journal/imageStorage";
 import {
   renderJournalBook,
@@ -18,6 +19,7 @@ export const runtime = "nodejs";
 
 const preview = createBookPreviewHandler({
   authenticate: authenticateUser,
+  approve: createJournalBookApproval,
   findEntries: (ownerId, ids) =>
     prisma.journalEntry.findMany({
       where: { ownerId, id: { in: ids } },

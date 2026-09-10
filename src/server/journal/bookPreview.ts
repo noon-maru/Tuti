@@ -11,6 +11,11 @@ type Dependencies = {
     input: JournalBookInput,
     entries: BookEntry[],
   ) => Promise<Uint8Array>;
+  approve: (
+    ownerId: string,
+    input: JournalBookInput,
+    pdf: Uint8Array,
+  ) => Promise<string>;
 };
 
 export function createBookPreviewHandler(dependencies: Dependencies) {
@@ -85,11 +90,13 @@ export function createBookPreviewHandler(dependencies: Dependencies) {
             a.id.localeCompare(b.id),
         );
         const pdf = await dependencies.render(input, entries);
+        const approval = await dependencies.approve(user.id, input, pdf);
         return new Response(new Uint8Array(pdf).buffer, {
           headers: {
             ...headers,
             "Content-Type": "application/pdf",
             "Content-Disposition": "inline; filename=tuti-preview.pdf",
+            "X-Tuti-Journal-Book-Approval": approval,
           },
         });
       } finally {

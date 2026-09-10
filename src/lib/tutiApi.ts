@@ -22,7 +22,6 @@ import type {
   TutiJournalEntry,
 } from "@/shared/api/journal";
 import type {
-  JournalBookInput,
   JournalBookResponse,
   JournalBooksResponse,
   StoredJournalBook,
@@ -273,13 +272,16 @@ export async function fetchJournalBooks(): Promise<StoredJournalBook[]> {
 }
 
 export async function createJournalBook(
-  input: JournalBookInput,
-  pageCount: number,
+  pdf: Uint8Array,
+  approvalToken: string,
 ): Promise<StoredJournalBook> {
   const response = await fetchWithSession("journal-books", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ input, pageCount }),
+    headers: {
+      "Content-Type": "application/pdf",
+      "X-Tuti-Journal-Book-Approval": approvalToken,
+    },
+    body: pdf.slice().buffer,
   });
   if (!response.ok) {
     throw new Error(

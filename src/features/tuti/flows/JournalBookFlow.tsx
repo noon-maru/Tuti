@@ -96,6 +96,7 @@ function BookEditor({ ownerId }: { ownerId: string }) {
   const [previewPdf, setPreviewPdf] = useState<{
     bytes: Uint8Array;
     pageCount: number;
+    approvalToken?: string;
   } | null>(null);
   const [completing, setCompleting] = useState(false);
   const [openedBook, setOpenedBook] = useState<StoredJournalBook | null>(null);
@@ -138,7 +139,11 @@ function BookEditor({ ownerId }: { ownerId: string }) {
     : 0;
 
   const handlePreviewReady = useCallback(
-    (result: { bytes: Uint8Array; pageCount: number } | null) =>
+    (result: {
+      bytes: Uint8Array;
+      pageCount: number;
+      approvalToken?: string;
+    } | null) =>
       setPreviewPdf(result),
     [],
   );
@@ -193,11 +198,14 @@ function BookEditor({ ownerId }: { ownerId: string }) {
   };
 
   async function completeBook() {
-    if (!input || !previewPdf || completing) return;
+    if (!input || !previewPdf?.approvalToken || completing) return;
     setCompleting(true);
     setMessage("");
     try {
-      const book = await createJournalBook(input, previewPdf.pageCount);
+      const book = await createJournalBook(
+        previewPdf.bytes,
+        previewPdf.approvalToken,
+      );
       queryClient.setQueryData<StoredJournalBook[]>(
         ["journal-books", ownerId],
         (current = []) => [book, ...current.filter(({ id }) => id !== book.id)],
@@ -630,7 +638,7 @@ function BookEditor({ ownerId }: { ownerId: string }) {
                 표지와 글 수정하기
               </EditButton>
               <PrimaryButton
-                disabled={!input || !previewPdf || completing}
+                disabled={!input || !previewPdf?.approvalToken || completing}
                 onClick={() => void completeBook()}
               >
                 {completing ? "안전하게 보관하는 중…" : "기록집 완성하기"}
@@ -657,11 +665,16 @@ function StoredBookViewer({
   const [pdf, setPdf] = useState<{
     bytes: Uint8Array;
     pageCount: number;
+    approvalToken?: string;
   } | null>(null);
   const [busy, setBusy] = useState<"download" | "delete" | null>(null);
   const [message, setMessage] = useState("");
   const handleReady = useCallback(
-    (result: { bytes: Uint8Array; pageCount: number } | null) => setPdf(result),
+    (result: {
+      bytes: Uint8Array;
+      pageCount: number;
+      approvalToken?: string;
+    } | null) => setPdf(result),
     [],
   );
 
