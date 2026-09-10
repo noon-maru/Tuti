@@ -3,6 +3,13 @@
 import { useEffect, useRef, useState } from "react";
 import styled from "@emotion/styled";
 import type { PDFDocumentProxy, RenderTask } from "pdfjs-dist";
+import {
+  FileText,
+  Maximize2,
+  Minimize2,
+  ZoomIn,
+  ZoomOut,
+} from "lucide-react";
 import { fetchWithSession } from "@/lib/auth/session";
 import { getSessionSnapshot } from "@/lib/auth/session";
 import type { JournalBookInput } from "@/shared/api/journalBook";
@@ -22,9 +29,13 @@ export function JournalBookPreview({
   ownerId,
   onReady,
 }: JournalBookPreviewProps) {
-  const [document, setDocument] = useState<PDFDocumentProxy | null>(null);
+  const [pdfDocument, setPdfDocument] = useState<PDFDocumentProxy | null>(null);
   const [error, setError] = useState("");
   const [attempt, setAttempt] = useState(0);
+  const [zoom, setZoom] = useState(1);
+  const [expanded, setExpanded] = useState(false);
+  const [showText, setShowText] = useState(false);
+  const [pageTexts, setPageTexts] = useState<string[]>([]);
   // Parent keys this component by the selected input/content version.
   useEffect(() => {
     const abort = new AbortController();
@@ -64,7 +75,7 @@ export function JournalBookPreview({
       });
       const pdf = await loadingTask.promise;
       if (active) {
-        setDocument(pdf);
+        setPdfDocument(pdf);
         onReady?.({ bytes, pageCount: pdf.numPages });
       }
     })().catch((cause: unknown) => {
@@ -82,6 +93,48 @@ export function JournalBookPreview({
     };
   }, [input, bookId, ownerId, attempt, onReady]);
 
+  useEffect(() => {
+    if (!pdfDocument) return;
+    let active = true;
+    void Promise.all(
+      Array.from({ length: pdfDocument.numPages }, async (_, index) => {
+        const page = await pdfDocument.getPage(index + 1);
+        const content = await page.getTextContent();
+        return content.items
+          .map((item) =>
+            "str" in item ? `${item.str}${item.hasEOL ? "\n" : " "}` : "",
+          )
+          .join("")
+          .replace(/ +\n/g, "\n")
+          .replace(/ {2,}/g, " ")
+          .trim();
+      }),
+    )
+      .then((texts) => {
+        if (active) setPageTexts(texts);
+      })
+      .catch(() => {
+        if (active) setPageTexts([]);
+      });
+    return () => {
+      active = false;
+    };
+  }, [pdfDocument]);
+
+  useEffect(() => {
+    if (!expanded) return;
+    const previousOverflow = globalThis.document.documentElement.style.overflow;
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setExpanded(false);
+    };
+    globalThis.document.documentElement.style.overflow = "hidden";
+    globalThis.addEventListener("keydown", closeOnEscape);
+    return () => {
+      globalThis.document.documentElement.style.overflow = previousOverflow;
+      globalThis.removeEventListener("keydown", closeOnEscape);
+    };
+  }, [expanded]);
+
   if (error)
     return (
       <Notice role="alert">
@@ -89,7 +142,7 @@ export function JournalBookPreview({
         <button
           type="button"
           onClick={() => {
-            setDocument(null);
+            setPdfDocument(null);
             setError("");
             setAttempt(attempt + 1);
           }}
@@ -98,20 +151,94 @@ export function JournalBookPreview({
         </button>
       </Notice>
     );
-  if (!document)
+  if (!pdfDocument)
     return (
       <PreviewLoading role="status">
         <LoadingIndicator label="기록을 한 권으로 엮고 있어요." />
       </PreviewLoading>
     );
   return (
-    <div>
-      <Pages aria-label="기록집 전체 미리보기">
-        {Array.from({ length: document.numPages }, (_, index) => (
-          <PdfPage key={index} document={document} number={index + 1} />
-        ))}
-      </Pages>
-    </div>
+    <PreviewDesk
+      $expanded={expanded}
+      role={expanded ? "dialog" : undefined}
+      aria-modal={expanded ? "true" : undefined}
+      aria-label={expanded ? "기록집 전체 화면 미리보기" : undefined}
+    >
+      <PreviewToolbar aria-label="미리보기 보기 설정">
+        <ToolGroup>
+          <ToolButton
+            type="button"
+            onClick={() => setZoom((value) => Math.max(1, value - 0.25))}
+            disabled={showText || zoom <= 1}
+            aria-label="미리보기 축소"
+          >
+            <ZoomOut size={17} aria-hidden="true" />
+          </ToolButton>
+          <ZoomValue aria-live="polite">{Math.round(zoom * 100)}%</ZoomValue>
+          <ToolButton
+            type="button"
+            onClick={() => setZoom((value) => Math.min(2, value + 0.25))}
+            disabled={showText || zoom >= 2}
+            aria-label="미리보기 확대"
+          >
+            <ZoomIn size={17} aria-hidden="true" />
+          </ToolButton>
+        </ToolGroup>
+        <ToolGroup>
+          <ToolButton
+            type="button"
+            onClick={() => setShowText((value) => !value)}
+            aria-pressed={showText}
+            aria-label={showText ? "페이지 미리보기 보기" : "텍스트로 보기"}
+          >
+            <FileText size={17} aria-hidden="true" />
+            <ToolLabel>{showText ? "페이지" : "텍스트"}</ToolLabel>
+          </ToolButton>
+          <ToolButton
+            type="button"
+            onClick={() => setExpanded((value) => !value)}
+            aria-pressed={expanded}
+            aria-label={expanded ? "전체 화면 닫기" : "전체 화면으로 보기"}
+          >
+            {expanded ? (
+              <Minimize2 size={17} aria-hidden="true" />
+            ) : (
+              <Maximize2 size={17} aria-hidden="true" />
+            )}
+            <ToolLabel>{expanded ? "닫기" : "전체"}</ToolLabel>
+          </ToolButton>
+        </ToolGroup>
+      </PreviewToolbar>
+      <PreviewViewport $expanded={expanded}>
+        {showText ? (
+          <TextPages aria-label="기록집 페이지별 텍스트">
+            {pageTexts.length === 0 ? (
+              <TextStatus role="status">페이지의 글을 불러오고 있어요.</TextStatus>
+            ) : (
+              pageTexts.map((text, index) => (
+                <TextPage key={index}>
+                  <span>{String(index + 1).padStart(2, "0")}</span>
+                  <p>{text || "이 페이지에는 글이 없어요."}</p>
+                </TextPage>
+              ))
+            )}
+          </TextPages>
+        ) : (
+          <Pages
+            $zoom={zoom}
+            aria-label={`기록집 전체 미리보기, ${pdfDocument.numPages}쪽`}
+          >
+            {Array.from({ length: pdfDocument.numPages }, (_, index) => (
+              <PdfPage
+                key={index}
+                document={pdfDocument}
+                number={index + 1}
+              />
+            ))}
+          </Pages>
+        )}
+      </PreviewViewport>
+    </PreviewDesk>
   );
 }
 
@@ -199,9 +326,146 @@ function PdfPage({
   );
 }
 
-const Pages = styled.div`
+const PreviewDesk = styled.div<{ $expanded: boolean }>`
+  min-width: 0;
+
+  ${({ $expanded }) =>
+    $expanded &&
+    `
+      position: fixed;
+      inset: 0;
+      z-index: 1000;
+      display: flex;
+      flex-direction: column;
+      padding: max(var(--space-3), env(safe-area-inset-top)) var(--space-3)
+        max(var(--space-3), env(safe-area-inset-bottom));
+      background: var(--color-surface);
+    `}
+`;
+
+const PreviewToolbar = styled.div`
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  min-height: 48px;
+  margin-bottom: var(--space-4);
+  padding: 4px;
+  border: 1px solid var(--color-neutral-300);
+  border-radius: 999px;
+  background: var(--color-surface);
+  box-shadow: 0 8px 24px rgb(var(--color-black-rgb) / 0.06);
+  backdrop-filter: blur(12px);
+`;
+
+const ToolGroup = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 2px;
+`;
+
+const ToolButton = styled.button`
+  min-width: 40px;
+  min-height: 40px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  padding: 0 var(--space-2);
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--color-text-muted);
+  font: inherit;
+  font-size: var(--font-size-100);
+  font-weight: 600;
+  cursor: pointer;
+
+  &[aria-pressed="true"] {
+    background: var(--color-secondary-200);
+    color: var(--color-secondary-900);
+  }
+
+  &:disabled {
+    opacity: 0.36;
+    cursor: default;
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--color-accent-primary);
+    outline-offset: 2px;
+  }
+`;
+
+const ToolLabel = styled.span`
+  @media (max-width: 360px) {
+    display: none;
+  }
+`;
+
+const ZoomValue = styled.span`
+  min-width: 43px;
+  color: var(--color-text-muted);
+  font-size: 11px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+`;
+
+const PreviewViewport = styled.div<{ $expanded: boolean }>`
+  min-width: 0;
+  overflow: auto;
+  overscroll-behavior: contain;
+  ${({ $expanded }) => $expanded && "flex: 1;"}
+`;
+
+const Pages = styled.div<{ $zoom: number }>`
   display: grid;
   gap: var(--space-7);
+  width: ${({ $zoom }) => `${$zoom * 100}%`};
+  max-width: ${({ $zoom }) => `${520 * $zoom}px`};
+  margin: 0 auto;
+`;
+
+const TextPages = styled.div`
+  display: grid;
+  gap: var(--space-3);
+  width: min(100%, 680px);
+  margin: 0 auto;
+`;
+
+const TextPage = styled.section`
+  display: grid;
+  grid-template-columns: 30px minmax(0, 1fr);
+  gap: var(--space-3);
+  padding: var(--space-5) var(--space-4);
+  border-top: 1px solid var(--color-neutral-300);
+
+  > span {
+    color: var(--color-text-muted);
+    font-size: 10px;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 0.08em;
+  }
+
+  p {
+    margin: 0;
+    color: var(--color-text);
+    font-size: var(--font-size-200);
+    line-height: 1.8;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+  }
+`;
+
+const TextStatus = styled.p`
+  margin: var(--space-6) 0;
+  color: var(--color-text-muted);
+  text-align: center;
 `;
 
 const Notice = styled.div`
