@@ -39,14 +39,7 @@ export function AdminUserActivityPanel({
 
   return (
     <Layout>
-      <Introduction>
-        <div>
-          <h2>계정이 아니라 행동을 봅니다.</h2>
-          <p>
-            추천까지 도달한 사용자를 실사용 신호로 집계합니다. 관리자와
-            내부·QA 계정은 원본 기록을 지우지 않고 통계에서만 제외합니다.
-          </p>
-        </div>
+      <PeriodControls>
         <PeriodSelect
           value={days}
           onChange={(event) => onDaysChange(Number(event.target.value))}
@@ -56,7 +49,7 @@ export function AdminUserActivityPanel({
           <option value={30}>최근 30일</option>
           <option value={90}>최근 90일</option>
         </PeriodSelect>
-      </Introduction>
+      </PeriodControls>
 
       <Summary aria-label="사용자 활동 요약">
         <SummaryPrimary>
@@ -92,10 +85,7 @@ export function AdminUserActivityPanel({
 
       <ActivitySection>
         <SectionHeading>
-          <div>
-            <h3>날짜별 활동</h3>
-            <p>파란색은 방문, 연두색은 추천 이상 도달 사용자입니다.</p>
-          </div>
+          <h3>날짜별 활동</h3>
           {data.trackingStartedAt && (
             <TrackingStart>
               세션 관측 시작 {formatDate(data.trackingStartedAt)}
@@ -127,10 +117,7 @@ export function AdminUserActivityPanel({
 
       <UserSection>
         <SectionHeading>
-          <div>
-            <h3>사용자별 이용 단계</h3>
-            <p>짧은 식별자와 최소 실행 환경만 표시합니다.</p>
-          </div>
+          <h3>사용자별 이용 단계</h3>
           <StageLegend>생성 → 방문 → 추천 → 탐색 → 전환</StageLegend>
         </SectionHeading>
         {data.users.length === 0 ? (
@@ -250,10 +237,10 @@ const Layout = styled.section`
   gap: var(--space-5);
 `;
 
-const Introduction = styled.header`
+const PeriodControls = styled.header`
   display: flex;
   align-items: end;
-  justify-content: space-between;
+  justify-content: flex-end;
   gap: var(--space-5);
   padding-bottom: var(--space-4);
   border-bottom: 1px solid var(--color-border);

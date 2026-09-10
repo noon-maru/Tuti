@@ -35,10 +35,6 @@ export function AdminNotificationsPanel({
         <PulseCopy>
           <StatusKicker>알림 전달 상태</StatusKicker>
           <h2>{getNotificationHeadline(data)}</h2>
-          <p>
-            최근 24시간 전송 결과와 앱별 등록 상태를 한곳에서 확인합니다.
-            토큰 원문은 운영 화면에 표시하지 않습니다.
-          </p>
         </PulseCopy>
         <HeroMetrics>
           <HeroMetric>
@@ -84,10 +80,7 @@ export function AdminNotificationsPanel({
 
       <OperationsSection>
         <SectionHeading>
-          <div>
-            <h3>플랫폼 비교</h3>
-            <p>발송 설정과 등록 기기, 최근 전달 결과를 같은 기준으로 비교합니다.</p>
-          </div>
+          <h3>플랫폼 비교</h3>
         </SectionHeading>
         <TableViewport>
           <NotificationTable>
@@ -155,10 +148,7 @@ export function AdminNotificationsPanel({
       <ContentGrid>
         <OperationsSection>
           <SectionHeading>
-            <div>
-              <h3>최근 공급자 오류</h3>
-              <p>최근 7일 동안 반복된 오류부터 확인합니다.</p>
-            </div>
+            <h3>최근 공급자 오류</h3>
             <CountBadge>{data.errors.length}</CountBadge>
           </SectionHeading>
           {data.errors.length === 0 ? (
@@ -194,10 +184,7 @@ export function AdminNotificationsPanel({
 
         <OperationsSection>
           <SectionHeading>
-            <div>
-              <h3>등록 상태</h3>
-              <p>검색 조건에 맞는 최근 기기 최대 60개입니다.</p>
-            </div>
+            <h3>등록 상태</h3>
             <CountBadge>{data.devices.length}</CountBadge>
           </SectionHeading>
           <DeviceTableViewport
@@ -255,10 +242,7 @@ export function AdminNotificationsPanel({
 
       <OperationsSection>
         <SectionHeading>
-          <div>
-            <h3>최근 전송 기록</h3>
-            <p>검색·필터 조건에 맞는 기록 최대 60개입니다.</p>
-          </div>
+          <h3>최근 전송 기록</h3>
           <CountBadge>{data.recent.length}</CountBadge>
         </SectionHeading>
         {data.recent.length === 0 ? (

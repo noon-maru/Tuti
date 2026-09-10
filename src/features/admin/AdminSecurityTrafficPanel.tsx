@@ -34,14 +34,7 @@ export function AdminSecurityTrafficPanel({
 
   return (
     <Layout>
-      <Introduction>
-        <div>
-          <h2>요청의 모양과 실제 행동을 나눠 봅니다.</h2>
-          <p>
-            HTTP 특성은 추정 신호로, 추천 화면까지 도달한 앱 활동은 확인된
-            이용 신호로 표시합니다. 원본 IP와 User-Agent는 저장하지 않습니다.
-          </p>
-        </div>
+      <PeriodControls>
         <PeriodSelect
           value={days}
           onChange={(event) => onDaysChange(Number(event.target.value))}
@@ -51,7 +44,7 @@ export function AdminSecurityTrafficPanel({
           <option value={30}>최근 30일</option>
           <option value={90}>최근 90일</option>
         </PeriodSelect>
-      </Introduction>
+      </PeriodControls>
 
       <SignalBoard>
         <SignalLead>
@@ -79,10 +72,7 @@ export function AdminSecurityTrafficPanel({
 
       <CompositionSection>
         <SectionHeading>
-          <div>
-            <h3>트래픽 구성</h3>
-            <p>브라우저 신호만으로 실제 사람을 확정하지 않는 추정 분류입니다.</p>
-          </div>
+          <h3>트래픽 구성</h3>
           <TrackingLabel>
             {data.trackingStartedAt
               ? `관측 시작 ${formatDate(data.trackingStartedAt)}`
@@ -121,10 +111,7 @@ export function AdminSecurityTrafficPanel({
 
       <DailySection>
         <SectionHeading>
-          <div>
-            <h3>날짜별 요청 흐름</h3>
-            <p>전체 높이 안에서 파랑은 사람 추정, 연두는 봇·자동화 요청입니다.</p>
-          </div>
+          <h3>날짜별 요청 흐름</h3>
         </SectionHeading>
         <DailyRail>
           {data.daily.map((day, index) => {
@@ -160,10 +147,7 @@ export function AdminSecurityTrafficPanel({
       <DataGrid>
         <TableSection>
           <SectionHeading>
-            <div>
-              <h3>확인할 공격 징후</h3>
-              <p>스캐너 경로, 주입 시도, 비정상 메서드와 요청 제한 기록입니다.</p>
-            </div>
+            <h3>확인할 공격 징후</h3>
           </SectionHeading>
           {data.findings.length === 0 ? (
             <CalmState>조회 기간에 분류된 공격 징후가 없습니다.</CalmState>
@@ -208,10 +192,7 @@ export function AdminSecurityTrafficPanel({
 
         <TableSection>
           <SectionHeading>
-            <div>
-              <h3>요청이 모인 경로</h3>
-              <p>개별 ID와 공개 링크 식별자는 묶어서 표시합니다.</p>
-            </div>
+            <h3>요청이 모인 경로</h3>
           </SectionHeading>
           {data.routes.length === 0 ? (
             <Empty>아직 관측된 요청이 없습니다.</Empty>
@@ -280,10 +261,10 @@ const Layout = styled.section`
   gap: var(--space-5);
 `;
 
-const Introduction = styled.header`
+const PeriodControls = styled.header`
   display: flex;
   align-items: end;
-  justify-content: space-between;
+  justify-content: flex-end;
   gap: var(--space-5);
   padding-bottom: var(--space-4);
   border-bottom: 1px solid var(--color-border);

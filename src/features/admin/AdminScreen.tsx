@@ -698,10 +698,7 @@ export function AdminScreen({
 
       <Main aria-busy={loading}>
         <Header>
-          <div>
-            <h1>{tabs.find((item) => item.id === tab)?.label}</h1>
-            <HeaderContext>{getAdminHeaderContext(tab)}</HeaderContext>
-          </div>
+          <h1>{tabs.find((item) => item.id === tab)?.label}</h1>
           <RefreshButton
             type="button"
             disabled={loading}
@@ -1137,10 +1134,6 @@ function OverviewPanel({
                 ? `처리할 일이 ${pendingTotal}건 남아 있어요.`
                 : "지금은 조용히 운영되고 있어요."}
           </h2>
-          <p>
-            문의·신고·장소 검수와 알림 전달 상태를 최근 운영 신호 순서로
-            보여드립니다.
-          </p>
         </HeroCopy>
         <HeroStatusSummary aria-label="운영 신호 요약">
           <div>
@@ -1265,10 +1258,7 @@ function RecommendationFunnelPanel({
   return (
     <FunnelContent>
       <FunnelHeader>
-        <div>
-          <h2>추천 이후 행동 흐름</h2>
-          <p>각 단계는 중복 이벤트를 제외한 추천 여정 수로 계산합니다.</p>
-        </div>
+        <h2>추천 이후 행동 흐름</h2>
         <PeriodSelect
           value={days}
           onChange={(event) => onDaysChange(Number(event.target.value))}
@@ -2684,21 +2674,6 @@ function getSearchPlaceholder(tab: AdminTab) {
   return "이메일 또는 사용자 ID 검색";
 }
 
-function getAdminHeaderContext(tab: AdminTab) {
-  if (tab === "overview") return "지금 확인할 운영 신호";
-  if (tab === "activity") return "계정 생성 이후 실제 이용 흐름";
-  if (tab === "security") return "실사용 신호와 비정상 접근 관측";
-  if (tab === "notifications") return "앱 알림 전달과 기기 상태";
-  if (tab === "funnel") return "추천 이후 행동 흐름";
-  if (tab === "location") return "위치정보 이용·제공 확인";
-  if (tab === "places") return "추천 장소 검수와 노출";
-  if (tab === "reports") return "신고 검토와 조치";
-  if (tab === "inquiries") return "사용자 문의와 답변";
-  if (tab === "users") return "계정과 관리자 권한";
-  if (tab === "settings") return "서비스 운영 기준";
-  return "서비스 기록과 이상 징후";
-}
-
 function formatRate(value: number) {
   return `${value.toLocaleString("ko-KR", { maximumFractionDigits: 1 })}%`;
 }
@@ -2826,7 +2801,6 @@ const AdminLayout = styled.div<{ $drawerOpen: boolean }>`
     align-content: start;
     overflow-y: ${({ $drawerOpen }) =>
       $drawerOpen ? "hidden" : "auto"};
-    padding-bottom: calc(76px + env(safe-area-inset-bottom));
     background: var(--color-white);
   }
 `;
@@ -2971,20 +2945,29 @@ const Main = styled.main`
   display: grid;
   align-content: start;
   gap: var(--space-5);
-  padding: var(--space-6) var(--space-6) var(--space-10);
+  padding: var(--space-6) var(--space-6) 0;
   margin: 0 auto;
 
+  &::after {
+    display: block;
+    min-height: var(--space-10);
+    content: "";
+  }
+
   @media (max-width: 1024px) {
-    min-height: calc(100dvh - 76px - env(safe-area-inset-bottom));
+    min-height: 100dvh;
     gap: var(--space-5);
     padding:
       var(--space-5)
       max(var(--space-4), env(safe-area-inset-right))
-      max(
-        var(--space-10),
-        calc(var(--space-6) + env(safe-area-inset-bottom))
-      )
+      0
       max(var(--space-4), env(safe-area-inset-left));
+
+    &::after {
+      min-height: calc(
+        72px + var(--space-2) + env(safe-area-inset-bottom)
+      );
+    }
   }
 `;
 
@@ -3021,19 +3004,6 @@ const Header = styled.header`
     h1 {
       font-size: var(--font-size-500);
     }
-  }
-`;
-
-const HeaderContext = styled.span`
-  display: block;
-  margin-top: var(--space-1);
-  color: var(--color-text-muted);
-  font-size: var(--font-size-100);
-  font-weight: 600;
-
-  @media (max-width: 480px) {
-    color: var(--color-text-muted);
-    font-size: 10px;
   }
 `;
 

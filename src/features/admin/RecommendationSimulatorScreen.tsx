@@ -278,11 +278,6 @@ export function RecommendationSimulatorScreen() {
               초기화
             </ResetButton>
           </PanelHeading>
-          <ScopeNote>
-            명시적 답변만 비교합니다. 개인화 신호는 제외해 같은 조건을 반복
-            검증할 수 있습니다.
-          </ScopeNote>
-
           <FieldGroup>
             <FieldLabel><span>01</span> 탐색 기준</FieldLabel>
             <SegmentedGrid $columns={3}>
@@ -540,10 +535,7 @@ export function RecommendationSimulatorScreen() {
 
               <CandidateComparison aria-labelledby="candidate-comparison-title">
                 <CandidateComparisonHeader>
-                  <div>
-                    <h3 id="candidate-comparison-title">후보 비교</h3>
-                    <p>순위, 이동 부담, 선정 근거를 같은 행에서 비교합니다.</p>
-                  </div>
+                  <h3 id="candidate-comparison-title">후보 비교</h3>
                   <span>{result.candidates.length}개 후보</span>
                 </CandidateComparisonHeader>
 
@@ -917,16 +909,6 @@ const PanelHeading = styled.header`
     font-weight: 700;
     line-height: var(--line-height-heading);
   }
-`;
-
-const ScopeNote = styled.p`
-  margin-top: calc(var(--space-2) * -1);
-  padding: var(--space-3);
-  border-radius: 6px;
-  background: var(--color-neutral-200);
-  color: var(--color-text-muted);
-  font-size: var(--font-size-100);
-  line-height: var(--line-height-body);
 `;
 
 const ResetButton = styled.button`

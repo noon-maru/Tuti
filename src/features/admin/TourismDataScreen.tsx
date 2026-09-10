@@ -460,7 +460,6 @@ export function TourismDataScreen({
               onClick={() => changeMode(item.id)}
             >
               <span>{item.label}</span>
-              <small>{item.description}</small>
             </WorkspaceNavButton>
           ))}
         </WorkspaceNav>
@@ -607,10 +606,7 @@ function Overview({
   return (
     <OverviewSection>
       <SectionHeading>
-        <div>
-          <h2>저장 데이터</h2>
-          <p>데이터셋별 누적 레코드와 실행 이력을 확인합니다.</p>
-        </div>
+        <h2>저장 데이터</h2>
         <ConnectionSummary $configured={connectionConfigured}>
           <span aria-hidden="true" />
           <div>
@@ -671,10 +667,6 @@ function CollectionDashboard({
         <div>
           <Eyebrow>수집 상태</Eyebrow>
           <h2>공공데이터 수집 현황</h2>
-          <p>
-            성공 체크포인트를 기준으로 완료 범위와 다음 이어받기 상태를
-            계산합니다.
-          </p>
         </div>
         <CollectionHeadline>
           <strong>
@@ -814,10 +806,6 @@ function CrowdCoverageDashboard({
         <div>
           <Eyebrow>혼잡도 적용</Eyebrow>
           <h2>추천풀 혼잡도 적용 현황</h2>
-          <p>
-            한 장소를 실시간, 관광공사 예상, Tuti 예상 순서로 한 계층에만
-            집계합니다.
-          </p>
         </div>
         <CrowdCoverageHeadline>
           <strong>{coverage.coveragePercent.toLocaleString("ko-KR")}%</strong>
@@ -912,7 +900,6 @@ function DatasetExplorerHeader({
     <DatasetHeader>
       <div>
         <h2>{metadata.title}</h2>
-        <p>{metadata.description}</p>
       </div>
       <DatasetHeaderSide>
         {tab === "metrics" && (
@@ -1009,10 +996,7 @@ function SyncPanel({
 
   return (
     <SyncSection>
-      <div>
-        <h2>공공데이터 동기화</h2>
-        <p>원본을 먼저 저장해 검수와 추천 데이터로 활용할 수 있게 합니다.</p>
-      </div>
+      <h2>공공데이터 동기화</h2>
       <SyncForm
         onSubmit={(event) => {
           event.preventDefault();
@@ -1907,10 +1891,7 @@ function PlaceRecords({
     return (
       <>
         <PlaceExplorerHeader>
-          <div>
-            <h2>관광지 원천 데이터</h2>
-            <p>시도와 시군구를 기준으로 저장된 원본을 빠르게 확인합니다.</p>
-          </div>
+          <h2>관광지 원천 데이터</h2>
           <PlaceFilterGroup>
             <PlaceFilterLabel>
               <span>시도</span>
@@ -1951,10 +1932,7 @@ function PlaceRecords({
   return (
     <>
       <PlaceExplorerHeader>
-        <div>
-          <h2>관광지 원천 데이터</h2>
-          <p>행을 선택하면 원본 필드와 연결 상태를 상세히 볼 수 있습니다.</p>
-        </div>
+        <h2>관광지 원천 데이터</h2>
         <PlaceFilterGroup>
           <PlaceFilterLabel>
             <span>시도</span>
