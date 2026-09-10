@@ -194,8 +194,8 @@ export function RecommendationsScreen({
       ? "잠깐의 시간 동안 다녀올 만한 공간을 찾지 못했어요."
       : "오늘의 여유에 맞는 공간을 찾지 못했어요.";
   const emptyRecommendationMessage = answers.budget === "free"
-    ? "무료로 확인된 곳은 보이지 않네요. 오늘의 여유나 원하는 분위기를 조금 바꿔볼까요?"
-    : "다녀오는데 조금 더 시간을 내주거나, 원하는 분위기를 바꿔볼까요?";
+    ? "지금 확인된 무료 공간이 없어요. 오늘의 여유나 원하는 분위기를 조금 바꿔볼까요?"
+    : "다녀오는 데 조금 더 여유를 내거나, 원하는 분위기를 바꿔볼까요?";
   const presentedDetailPlace = detailVisible ? detailPlace : activePlace;
   const mainInteractive =
     interactive &&
@@ -911,16 +911,16 @@ export function RecommendationsScreen({
                   : longDistanceUnavailable
                     ? "오늘 다녀올 만한 먼 길을 찾지 못했어요."
                   : recommendationError
-                    ? "오늘 가능한 곳을 불러오지 못했어요."
+                    ? "오늘의 공간을 불러오지 못했어요."
                     : emptyRecommendationTitle}
               </h2>
               <p>
                 {longDistanceLocationRequired
                   ? "지금 있는 곳을 알려주면, 오가는 길까지 살펴서 골라드릴게요."
                   : longDistanceUnavailable
-                    ? "다녀오는데 조금 더 여유를 내주거나, 오늘은 가까운 곳부터 살펴볼까요?"
+                    ? "다녀오는 데 조금 더 여유를 내거나, 오늘은 가까운 곳부터 살펴볼까요?"
                   : recommendationError
-                    ? "잠시 숨을 고른 뒤 다시 불러볼게요. 위치도 한 번 살펴봐주세요."
+                    ? "연결 상태를 확인한 뒤 다시 찾아볼까요?"
                     : emptyRecommendationMessage}
               </p>
             </div>

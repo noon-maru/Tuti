@@ -116,7 +116,7 @@ export function IntakeScreen({
       )}
       <QuestionActions>
         <NextButton disabled={!selectedValue} onClick={onNext}>
-          {step === total - 1 ? "장소 추천받기" : "다음"}
+          {step === total - 1 ? "오늘의 공간 보기" : "다음"}
         </NextButton>
         <BrowseButton onClick={onSkip}>질문 없이 바로 둘러보기</BrowseButton>
       </QuestionActions>
@@ -338,6 +338,8 @@ const QuestionSubtitle = styled.p`
   margin-top: var(--space-1);
   color: var(--color-text-muted);
   font-size: var(--font-size-200);
+  line-height: var(--line-height-body);
+  word-break: keep-all;
 `;
 
 const MovementScale = styled.div`
@@ -525,11 +527,14 @@ const ScaleOption = styled(BaseButton)<{ $active: boolean }>`
     font-weight: 700;
     line-height: var(--line-height-subtitle);
     letter-spacing: var(--letter-spacing-subtitle);
+    word-break: keep-all;
   }
 
   small {
     color: var(--color-text-muted);
     font-size: var(--font-size-100);
+    line-height: var(--line-height-body);
+    word-break: keep-all;
   }
 `;
 
@@ -594,11 +599,14 @@ const OptionCard = styled(BaseButton)<{
     font-weight: 700;
     line-height: var(--line-height-subtitle);
     letter-spacing: var(--letter-spacing-subtitle);
+    word-break: keep-all;
   }
 
   small {
     color: var(--color-text-muted);
     font-size: var(--font-size-100);
+    line-height: var(--line-height-body);
+    word-break: keep-all;
   }
 
   @container app-viewport (min-width: 600px) {

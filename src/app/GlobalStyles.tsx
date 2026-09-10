@@ -163,6 +163,8 @@ const globalStyles = css`
     font-synthesis: none;
     line-height: var(--line-height-body);
     letter-spacing: var(--letter-spacing-body);
+    overflow-wrap: break-word;
+    word-break: keep-all;
     text-rendering: optimizeLegibility;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
