@@ -5,11 +5,15 @@ import {
   timingSafeEqual,
 } from "node:crypto";
 
-import type { JournalBookInput } from "@/shared/api/journalBook";
+import {
+  parseJournalBookInput,
+  type JournalBookInput,
+} from "@/shared/api/journalBook";
 
 const APPROVAL_VERSION = 1;
 const APPROVAL_LIFETIME_MS = 30 * 60 * 1000;
 export const JOURNAL_BOOK_MAX_PDF_BYTES = 20 * 1024 * 1024;
+const JOURNAL_BOOK_MAX_JSON_BYTES = 16 * 1024;
 
 type JournalBookApprovalPayload = {
   version: typeof APPROVAL_VERSION;
@@ -27,13 +31,24 @@ export type ApprovedJournalBook = Pick<
   "bookId" | "title" | "entryIds" | "pageCount"
 >;
 
+export type JournalBookCompletionRequest =
+  | {
+      kind: "approved-pdf";
+      book: ApprovedJournalBook;
+      pdf: Uint8Array;
+    }
+  | {
+      kind: "legacy-json";
+      input: JournalBookInput;
+    };
+
 export async function createJournalBookApproval(
   ownerId: string,
   input: JournalBookInput,
   pdf: Uint8Array,
 ) {
   assertPdf(pdf);
-  const pageCount = await readPdfPageCount(pdf);
+  const pageCount = await readJournalBookPageCount(pdf);
   const payload: JournalBookApprovalPayload = {
     version: APPROVAL_VERSION,
     bookId: randomUUID(),
@@ -93,9 +108,80 @@ export function verifyJournalBookApproval(
 }
 
 export async function readJournalBookPdf(request: Request) {
+  const pdf = await readRequestBytes(
+    request,
+    JOURNAL_BOOK_MAX_PDF_BYTES,
+    "기록집 파일이 너무 커요.",
+  );
+  assertPdf(pdf);
+  return pdf;
+}
+
+export async function readJournalBookCompletionRequest(
+  request: Request,
+  ownerId: string,
+): Promise<JournalBookCompletionRequest> {
+  const contentType = request.headers
+    .get("Content-Type")
+    ?.split(";", 1)[0]
+    ?.trim()
+    .toLowerCase();
+
+  if (contentType === "application/pdf") {
+    const approvalToken = request.headers.get(
+      "X-Tuti-Journal-Book-Approval",
+    );
+    if (!approvalToken) {
+      throw new JournalBookApprovalError(
+        "미리보기 승인 정보를 확인해주세요.",
+        400,
+      );
+    }
+    const pdf = await readJournalBookPdf(request);
+    return {
+      kind: "approved-pdf",
+      book: verifyJournalBookApproval(ownerId, approvalToken, pdf),
+      pdf,
+    };
+  }
+
+  if (contentType === "application/json") {
+    const bytes = await readRequestBytes(
+      request,
+      JOURNAL_BOOK_MAX_JSON_BYTES,
+      "기록집 요청 내용이 너무 커요.",
+    );
+    let body: unknown;
+    try {
+      body = JSON.parse(Buffer.from(bytes).toString("utf8"));
+    } catch {
+      throw new JournalBookApprovalError("기록집 내용을 확인해주세요.", 400);
+    }
+    const input = parseJournalBookInput(
+      body && typeof body === "object"
+        ? (body as { input?: unknown }).input
+        : null,
+    );
+    if (!input) {
+      throw new JournalBookApprovalError("기록집 내용을 확인해주세요.", 400);
+    }
+    return { kind: "legacy-json", input };
+  }
+
+  throw new JournalBookApprovalError(
+    "기록집 완성 요청 형식을 확인해주세요.",
+    400,
+  );
+}
+
+async function readRequestBytes(
+  request: Request,
+  maxBytes: number,
+  tooLargeMessage: string,
+) {
   const reader = request.body?.getReader();
   if (!reader) {
-    throw new JournalBookApprovalError("기록집 파일을 확인해주세요.", 400);
+    throw new JournalBookApprovalError("기록집 내용을 확인해주세요.", 400);
   }
   const chunks: Uint8Array[] = [];
   let length = 0;
@@ -104,26 +190,25 @@ export async function readJournalBookPdf(request: Request) {
       const { value, done } = await reader.read();
       if (done) break;
       length += value.byteLength;
-      if (length > JOURNAL_BOOK_MAX_PDF_BYTES) {
+      if (length > maxBytes) {
         await reader.cancel();
-        throw new JournalBookApprovalError("기록집 파일이 너무 커요.", 413);
+        throw new JournalBookApprovalError(tooLargeMessage, 413);
       }
       chunks.push(value);
     }
   } finally {
     reader.releaseLock();
   }
-  const pdf = new Uint8Array(length);
+  const bytes = new Uint8Array(length);
   let offset = 0;
   for (const chunk of chunks) {
-    pdf.set(chunk, offset);
+    bytes.set(chunk, offset);
     offset += chunk.byteLength;
   }
-  assertPdf(pdf);
-  return pdf;
+  return bytes;
 }
 
-async function readPdfPageCount(pdf: Uint8Array) {
+export async function readJournalBookPageCount(pdf: Uint8Array) {
   const { getDocument } = await import("pdfjs-dist/legacy/build/pdf.mjs");
   const task = getDocument({ data: Uint8Array.from(pdf) });
   try {

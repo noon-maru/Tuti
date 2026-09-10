@@ -12,6 +12,7 @@ import { createJournalBookDraftStorage } from "../src/lib/journalBookDraft";
 import { createBookPreviewHandler } from "../src/server/journal/bookPreview";
 import {
   createJournalBookApproval,
+  readJournalBookCompletionRequest,
   verifyJournalBookApproval,
 } from "../src/server/journal/bookApproval";
 import {
@@ -247,6 +248,37 @@ test("서버가 승인한 미리보기 PDF만 같은 쪽 수로 완성할 수 �
     () => verifyJournalBookApproval("owner-b", token, pdf),
     /승인 정보를 확인할 수 없어요/,
   );
+
+  const completion = await readJournalBookCompletionRequest(
+    new Request("https://tuti.test/api/journal-books", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/pdf",
+        "X-Tuti-Journal-Book-Approval": token,
+      },
+      body: Buffer.from(pdf),
+    }),
+    "owner-a",
+  );
+  assert.equal(completion.kind, "approved-pdf");
+  if (completion.kind === "approved-pdf") {
+    assert.deepEqual(completion.pdf, pdf);
+    assert.equal(completion.book.pageCount, approved.pageCount);
+  }
+});
+
+test("기존 앱의 JSON 완성 요청을 받고 클라이언트 쪽 수는 무시한다", async () => {
+  const completion = await readJournalBookCompletionRequest(
+    new Request("https://tuti.test/api/journal-books", {
+      method: "POST",
+      headers: { "Content-Type": "application/json; charset=utf-8" },
+      body: JSON.stringify({ input, pageCount: 99 }),
+    }),
+    "owner-a",
+  );
+
+  assert.deepEqual(completion, { kind: "legacy-json", input });
+  assert.equal("pageCount" in completion, false);
 });
 
 test("한글·긴 본문·사진·편지·지원하지 않는 이모지를 실제 PDF로 만든다", async () => {
