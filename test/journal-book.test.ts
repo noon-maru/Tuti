@@ -277,6 +277,12 @@ test("한글·긴 본문·사진·편지·지원하지 않는 이모지를 실�
     "□",
   ])
     assert.ok(contents.includes(expected), expected);
+  assert.ok(
+    contents.split("공원에서").length - 1 >= 2,
+    "이어지는 페이지에는 기록 제목이 반복되어야 한다",
+  );
+  assert.ok(contents.includes("계속"), "이어지는 페이지를 표시해야 한다");
+  assert.match(contents, /1 \/ \d+/, "다운로드 PDF에 쪽 번호가 있어야 한다");
   assert.ok(!contents.includes("미리보기"), "완성 PDF에는 미리보기 문구가 없어야 한다");
   await task.destroy();
 });
