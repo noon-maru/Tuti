@@ -4,6 +4,15 @@ export const PRODUCT_ACTIVITY_TYPES = [
   "entry_completed",
   "entry_skipped",
   "main_viewed",
+  "journal_book_entered",
+  "journal_book_selection_viewed",
+  "journal_book_details_viewed",
+  "journal_book_preview_viewed",
+  "journal_book_selection_exited",
+  "journal_book_details_exited",
+  "journal_book_preview_exited",
+  "journal_book_completed",
+  "journal_book_saved",
 ] as const;
 
 export const PRODUCT_ACTIVITY_PLATFORMS = [

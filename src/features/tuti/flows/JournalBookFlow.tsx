@@ -42,12 +42,26 @@ import {
 import { LoadingIndicator } from "@/features/tuti/components/LoadingIndicator";
 import { exportJournalBookPdf } from "@/lib/journalBookExport";
 import type { StoredJournalBook } from "@/shared/api/journalBook";
+import { recordProductActivity } from "@/lib/productActivity";
+import type { ProductActivityType } from "@/shared/api/productActivity";
 
 const BOOK_STEPS = [
   { value: "selection", label: "기록 고르기" },
   { value: "details", label: "표지와 글" },
   { value: "preview", label: "미리보기" },
 ] as const;
+
+const BOOK_STEP_VIEW_ACTIVITY = {
+  selection: "journal_book_selection_viewed",
+  details: "journal_book_details_viewed",
+  preview: "journal_book_preview_viewed",
+} as const satisfies Record<JournalBookDraft["step"], ProductActivityType>;
+
+const BOOK_STEP_EXIT_ACTIVITY = {
+  selection: "journal_book_selection_exited",
+  details: "journal_book_details_exited",
+  preview: "journal_book_preview_exited",
+} as const satisfies Record<JournalBookDraft["step"], ProductActivityType>;
 
 export function JournalBookFlow() {
   const session = useSession();
@@ -106,6 +120,10 @@ function BookEditor({ ownerId }: { ownerId: string }) {
   const scroller = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    recordBookActivity("journal_book_entered");
+  }, []);
+
+  useEffect(() => {
     let active = true;
     void loadJournalBookDraft(ownerId)
       .then((saved) => {
@@ -158,6 +176,11 @@ function BookEditor({ ownerId }: { ownerId: string }) {
     ? BOOK_STEPS.findIndex(({ value }) => value === draft.step)
     : 0;
 
+  useEffect(() => {
+    if (!draft?.step) return;
+    recordBookActivity(BOOK_STEP_VIEW_ACTIVITY[draft.step]);
+  }, [draft?.step]);
+
   const handlePreviewReady = useCallback(
     (result: {
       bytes: Uint8Array;
@@ -185,6 +208,13 @@ function BookEditor({ ownerId }: { ownerId: string }) {
 
   function changeStep(step: JournalBookDraft["step"]) {
     if (!draft) return;
+    const currentIndex = BOOK_STEPS.findIndex(
+      ({ value }) => value === draft.step,
+    );
+    const nextIndex = BOOK_STEPS.findIndex(({ value }) => value === step);
+    if (nextIndex < currentIndex) {
+      recordBookActivity(BOOK_STEP_EXIT_ACTIVITY[draft.step]);
+    }
     if (step === "selection") void refetch();
     update({ ...draft, step });
     scroller.current?.scrollTo({ top: 0 });
@@ -213,7 +243,10 @@ function BookEditor({ ownerId }: { ownerId: string }) {
   }
 
   const back = () => {
-    if (!draft || draft.step === "selection") router.replace("/journal");
+    if (!draft || draft.step === "selection") {
+      if (draft) recordBookActivity(BOOK_STEP_EXIT_ACTIVITY.selection);
+      router.replace("/journal");
+    }
     else changeStep(draft.step === "preview" ? "details" : "selection");
   };
 
@@ -238,6 +271,7 @@ function BookEditor({ ownerId }: { ownerId: string }) {
       }
       setDraft(emptyJournalBookDraft());
       setOpenedBook(book);
+      recordBookActivity("journal_book_completed");
     } catch (error) {
       setMessage(
         error instanceof Error
@@ -750,6 +784,7 @@ function StoredBookViewer({
     setMessage("");
     try {
       await exportJournalBookPdf(pdf.bytes, book.title);
+      recordBookActivity("journal_book_saved");
     } catch {
       setMessage("기록집 파일을 준비하지 못했어요. 다시 시도해주세요.");
     } finally {
@@ -834,6 +869,12 @@ function formatBookDate(value: string) {
     day: "numeric",
     timeZone: "Asia/Seoul",
   }).format(new Date(value));
+}
+
+function recordBookActivity(action: ProductActivityType) {
+  void recordProductActivity(action).catch(() => {
+    // 분석 기록 실패가 기록집 제작·저장 흐름을 막지 않도록 한다.
+  });
 }
 
 const Frame = styled(ScreenFrame)`

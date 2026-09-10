@@ -1,0 +1,9 @@
+ALTER TYPE "ProductActivityType" ADD VALUE 'journal_book_entered';
+ALTER TYPE "ProductActivityType" ADD VALUE 'journal_book_selection_viewed';
+ALTER TYPE "ProductActivityType" ADD VALUE 'journal_book_details_viewed';
+ALTER TYPE "ProductActivityType" ADD VALUE 'journal_book_preview_viewed';
+ALTER TYPE "ProductActivityType" ADD VALUE 'journal_book_selection_exited';
+ALTER TYPE "ProductActivityType" ADD VALUE 'journal_book_details_exited';
+ALTER TYPE "ProductActivityType" ADD VALUE 'journal_book_preview_exited';
+ALTER TYPE "ProductActivityType" ADD VALUE 'journal_book_completed';
+ALTER TYPE "ProductActivityType" ADD VALUE 'journal_book_saved';
