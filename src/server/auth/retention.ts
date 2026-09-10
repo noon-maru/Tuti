@@ -7,12 +7,17 @@ let nextPurgeAt = 0;
 
 export async function purgeExpiredAuthRecords(now = new Date()) {
   const consumedBefore = new Date(now.getTime() - CONSUMED_CODE_GRACE_MS);
+  const securityRuleHistoryBefore = new Date(
+    now.getTime() - 90 * 24 * 60 * 60 * 1_000,
+  );
   const [
     sessions,
     emailCodes,
     oauthAuthorizations,
     productActivityEvents,
     trafficObservations,
+    trafficBlockRules,
+    trafficSecurityLogs,
   ] =
     await prisma.$transaction([
       prisma.userSession.deleteMany({
@@ -35,6 +40,24 @@ export async function purgeExpiredAuthRecords(now = new Date()) {
       prisma.trafficObservation.deleteMany({
         where: { retentionUntil: { lte: now } },
       }),
+      prisma.trafficBlockRule.deleteMany({
+        where: {
+          OR: [
+            { revokedAt: { lte: securityRuleHistoryBefore } },
+            {
+              revokedAt: null,
+              expiresAt: { lte: securityRuleHistoryBefore },
+            },
+          ],
+        },
+      }),
+      prisma.systemLog.deleteMany({
+        where: {
+          category: "security",
+          action: { in: ["traffic.block.created", "traffic.block.revoked"] },
+          createdAt: { lte: securityRuleHistoryBefore },
+        },
+      }),
     ]);
 
   return {
@@ -43,6 +66,8 @@ export async function purgeExpiredAuthRecords(now = new Date()) {
     oauthAuthorizations: oauthAuthorizations.count,
     productActivityEvents: productActivityEvents.count,
     trafficObservations: trafficObservations.count,
+    trafficBlockRules: trafficBlockRules.count,
+    trafficSecurityLogs: trafficSecurityLogs.count,
   };
 }
 

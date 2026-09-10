@@ -50,6 +50,10 @@ test("법적 문서는 상위 법적 안내로 단계적으로 돌아간다", ()
     resolveAndroidBackDestination("/legal/privacy/2026-10-01"),
     "/legal/privacy",
   );
+  assert.equal(
+    resolveAndroidBackDestination("/legal/privacy/2026-10-10"),
+    "/legal/privacy",
+  );
 });
 
 test("알 수 없는 하위 경로에서도 앱을 종료하지 않고 메인으로 돌아간다", () => {

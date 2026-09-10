@@ -19,7 +19,10 @@ export function resolveAndroidBackDestination(pathname: string) {
     return null;
   }
 
-  if (normalizedPathname === "/legal/privacy/2026-10-01") {
+  if (
+    normalizedPathname === "/legal/privacy/2026-10-01" ||
+    normalizedPathname === "/legal/privacy/2026-10-10"
+  ) {
     return "/legal/privacy";
   }
 

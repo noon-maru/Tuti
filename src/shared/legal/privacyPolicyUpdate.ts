@@ -87,3 +87,14 @@ export const upcomingPrivacyPolicy = {
     "시행 전까지는 2026-09-02 버전의 개인정보 처리방침이 적용됩니다.",
   ],
 } as const;
+
+export const privacyPolicyFrom20261001 = {
+  ...upcomingPrivacyPolicy,
+  title: "Tuti 개인정보 처리방침",
+  summary:
+    "눈마루는 Tuti 제공에 필요한 정보만 처리하고, 현재 위치의 원본 좌표를 계정이나 기록에 장기 저장하지 않습니다.",
+  appendix: [
+    "시행일: 2026년 10월 1일",
+    "개인정보 처리방침 버전: 2026-10-01",
+  ],
+} as const;

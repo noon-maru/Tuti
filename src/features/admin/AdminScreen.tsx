@@ -606,7 +606,8 @@ export function AdminScreen({
       | "reports"
       | "settings"
       | "users"
-      | "user-activity",
+      | "user-activity"
+      | "security-traffic",
     id: string,
     init: RequestInit,
   ) => {
@@ -822,7 +823,30 @@ export function AdminScreen({
           <AdminSecurityTrafficPanel
             data={securityTraffic}
             days={securityTrafficDays}
+            mutatingId={mutatingId}
             onDaysChange={setSecurityTrafficDays}
+            onBlock={(actorKey, scope, durationHours, reason) => {
+              void mutate(
+                "security-traffic",
+                actorKey,
+                adminJsonRequest("POST", {
+                  actorKey,
+                  scope,
+                  durationHours,
+                  reason,
+                }),
+              );
+            }}
+            onUnblock={(ruleId) => {
+              if (!window.confirm("이 차단을 해제할까요? 다음 요청부터 다시 허용됩니다.")) {
+                return;
+              }
+              void mutate(
+                "security-traffic",
+                ruleId,
+                adminJsonRequest("DELETE", { ruleId }),
+              );
+            }}
           />
         ) : tab === "logs" ? (
           <LogsPanel logs={logs} />

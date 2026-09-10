@@ -7,8 +7,23 @@ import {
   selectApiRateLimitPolicy,
 } from "@/server/http/rateLimit";
 import { recordTrafficObservationSafely } from "@/server/security/trafficObservation";
+import { findActiveTrafficBlock } from "@/server/security/trafficSecurity";
 
-export function proxy(request: NextRequest, event: NextFetchEvent) {
+export async function proxy(request: NextRequest, event: NextFetchEvent) {
+  if (!shouldBypassTrafficSecurity(request.nextUrl.pathname)) {
+    try {
+      const block = await findActiveTrafficBlock(request);
+      if (block) {
+        observeTraffic(event, request, false, true);
+        return createBlockedResponse(request);
+      }
+    } catch (error) {
+      console.error("트래픽 차단 규칙을 확인하지 못했습니다.", {
+        error: error instanceof Error ? error.name : "UnknownError",
+      });
+    }
+  }
+
   const policy = selectApiRateLimitPolicy(
     request.nextUrl.pathname,
     request.method,
@@ -74,6 +89,7 @@ function observeTraffic(
   event: NextFetchEvent,
   request: NextRequest,
   rateLimited: boolean,
+  blocked = false,
 ) {
   const pathname = request.nextUrl.pathname;
   if (
@@ -84,7 +100,36 @@ function observeTraffic(
   ) {
     return;
   }
-  event.waitUntil(recordTrafficObservationSafely(request, { rateLimited }));
+  event.waitUntil(
+    recordTrafficObservationSafely(request, { rateLimited, blocked }),
+  );
+}
+
+function createBlockedResponse(request: NextRequest) {
+  const response = NextResponse.json(
+    {
+      error: "이 요청은 서비스 보안 정책에 따라 제한되었어요.",
+      code: "security_blocked",
+    },
+    { status: 403 },
+  );
+  response.headers.set("Cache-Control", "no-store");
+
+  const origin = request.headers.get("origin");
+  if (origin && isRequestOriginAllowed(request)) {
+    response.headers.set("Access-Control-Allow-Origin", origin);
+    response.headers.set("Vary", "Origin");
+  }
+  return response;
+}
+
+function shouldBypassTrafficSecurity(pathname: string) {
+  return (
+    pathname === "/api/health" ||
+    pathname.startsWith("/api/admin/") ||
+    pathname === "/admin" ||
+    pathname.startsWith("/admin/")
+  );
 }
 
 function createRequestIdentities(request: NextRequest) {

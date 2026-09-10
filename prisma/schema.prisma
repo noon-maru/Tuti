@@ -953,6 +953,11 @@ model TrafficObservation {
   id               String   @id
   bucketStartedAt  DateTime @map("bucket_started_at")
   visitorKey       String   @map("visitor_key")
+  actorKey         String?  @map("actor_key")
+  addressKey       String?  @map("address_key")
+  agentKey         String?  @map("agent_key")
+  addressPreview   String?  @map("address_preview")
+  agentSummary     String?  @map("agent_summary")
   kind             String
   platform         String
   riskLevel        String   @map("risk_level")
@@ -961,6 +966,7 @@ model TrafficObservation {
   method           String
   requestCount     Int      @default(1) @map("request_count")
   rateLimitedCount Int      @default(0) @map("rate_limited_count")
+  blockedCount     Int      @default(0) @map("blocked_count")
   firstSeenAt      DateTime @default(now()) @map("first_seen_at")
   lastSeenAt       DateTime @default(now()) @map("last_seen_at")
   retentionUntil   DateTime @map("retention_until")
@@ -969,8 +975,31 @@ model TrafficObservation {
   @@index([bucketStartedAt])
   @@index([kind, bucketStartedAt])
   @@index([riskLevel, bucketStartedAt])
+  @@index([actorKey, bucketStartedAt])
+  @@index([addressKey, bucketStartedAt])
   @@index([retentionUntil])
   @@map("traffic_observations")
+}
+
+model TrafficBlockRule {
+  id              String    @id
+  scope           String
+  subjectKey      String    @map("subject_key")
+  subjectPreview  String    @map("subject_preview")
+  agentSummary    String?   @map("agent_summary")
+  reason          String
+  source          String    @default("manual")
+  createdByUserId String?   @map("created_by_user_id")
+  expiresAt       DateTime? @map("expires_at")
+  revokedAt       DateTime? @map("revoked_at")
+  revokedByUserId String?   @map("revoked_by_user_id")
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  @@index([scope, subjectKey, revokedAt])
+  @@index([expiresAt])
+  @@index([createdAt])
+  @@map("traffic_block_rules")
 }
 
 model SystemLog {

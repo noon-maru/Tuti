@@ -256,6 +256,37 @@ export type AdminTrafficFinding = {
   lastSeenAt: string;
 };
 
+export type AdminTrafficActor = {
+  actorKey: string;
+  addressKey: string | null;
+  shortId: string;
+  addressPreview: string;
+  agentSummary: string;
+  riskLevel: "low" | "medium" | "high";
+  requestCount: number;
+  rateLimitedCount: number;
+  blockedCount: number;
+  signals: string[];
+  pathGroups: string[];
+  firstSeenAt: string;
+  lastSeenAt: string;
+  actorBlocked: boolean;
+  addressBlocked: boolean;
+};
+
+export type AdminTrafficBlockRule = {
+  id: string;
+  scope: "actor" | "address";
+  subjectPreview: string;
+  agentSummary: string | null;
+  reason: string;
+  source: "manual" | "automatic";
+  active: boolean;
+  expiresAt: string | null;
+  revokedAt: string | null;
+  createdAt: string;
+};
+
 export type AdminTrafficRoute = {
   pathGroup: string;
   likelyHuman: number;
@@ -269,6 +300,11 @@ export type AdminSecurityTrafficResponse = {
   periodDays: number;
   generatedAt: string;
   trackingStartedAt: string | null;
+  controls: {
+    active: boolean;
+    activatesAt: string;
+    stableTrackingStartedAt: string | null;
+  };
   summary: {
     requests: number;
     dailyVisitors: number;
@@ -277,11 +313,14 @@ export type AdminSecurityTrafficResponse = {
     unknownRequests: number;
     riskyRequests: number;
     rateLimitedRequests: number;
+    blockedRequests: number;
     activityConfirmedUsers: number;
   };
   daily: AdminTrafficDay[];
   findings: AdminTrafficFinding[];
   routes: AdminTrafficRoute[];
+  actors: AdminTrafficActor[];
+  blockRules: AdminTrafficBlockRule[];
 };
 
 export type AdminInquiryItem = {

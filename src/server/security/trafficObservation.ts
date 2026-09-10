@@ -1,5 +1,10 @@
 import { createHmac, randomUUID } from "node:crypto";
 import { prisma } from "@/server/db/prisma";
+import {
+  createTrafficIdentity,
+  isTrafficSecurityActive,
+  TRAFFIC_SECURITY_RETENTION_DAYS,
+} from "@/server/security/trafficSecurity";
 
 export type TrafficKind =
   | "likely_human"
@@ -26,8 +31,6 @@ const INJECTION_PATTERN =
   /(?:\.\.\/|%2e%2e|%00|<script|%3cscript|union(?:\s|%20)+select|sleep\s*\(|benchmark\s*\()/i;
 const ID_SEGMENT_PATTERN =
   /^(?:[0-9a-f]{8}-[0-9a-f-]{20,}|[0-9]{5,}|[A-Za-z0-9_-]{20,})$/;
-
-const RETENTION_DAYS = 90;
 
 export function classifyTrafficRequest(
   request: Pick<Request, "method" | "url" | "headers">,
@@ -81,15 +84,20 @@ export function classifyTrafficRequest(
 
 export async function recordTrafficObservationSafely(
   request: Pick<Request, "method" | "url" | "headers">,
-  options: { rateLimited?: boolean } = {},
+  options: { rateLimited?: boolean; blocked?: boolean } = {},
 ) {
   try {
     const observedAt = new Date();
     const bucketStartedAt = startOfUtcHour(observedAt);
     const classification = classifyTrafficRequest(request, options);
     const visitorKey = createDailyVisitorKey(request, observedAt);
+    const stableIdentity = isTrafficSecurityActive(observedAt)
+      ? createTrafficIdentity(request)
+      : null;
     const retentionUntil = new Date(observedAt);
-    retentionUntil.setUTCDate(retentionUntil.getUTCDate() + RETENTION_DAYS);
+    retentionUntil.setUTCDate(
+      retentionUntil.getUTCDate() + TRAFFIC_SECURITY_RETENTION_DAYS,
+    );
 
     await prisma.trafficObservation.upsert({
       where: {
@@ -105,6 +113,11 @@ export async function recordTrafficObservationSafely(
         id: randomUUID(),
         bucketStartedAt,
         visitorKey,
+        actorKey: stableIdentity?.actorKey,
+        addressKey: stableIdentity?.addressKey,
+        agentKey: stableIdentity?.agentKey,
+        addressPreview: stableIdentity?.addressPreview,
+        agentSummary: stableIdentity?.agentSummary,
         kind: classification.kind,
         platform: classification.platform,
         riskLevel: classification.riskLevel,
@@ -112,6 +125,7 @@ export async function recordTrafficObservationSafely(
         pathGroup: classification.pathGroup,
         method: request.method.toUpperCase().slice(0, 12),
         rateLimitedCount: options.rateLimited ? 1 : 0,
+        blockedCount: options.blocked ? 1 : 0,
         firstSeenAt: observedAt,
         lastSeenAt: observedAt,
         retentionUntil,
@@ -119,6 +133,12 @@ export async function recordTrafficObservationSafely(
       update: {
         requestCount: { increment: 1 },
         rateLimitedCount: options.rateLimited ? { increment: 1 } : undefined,
+        blockedCount: options.blocked ? { increment: 1 } : undefined,
+        actorKey: stableIdentity?.actorKey,
+        addressKey: stableIdentity?.addressKey,
+        agentKey: stableIdentity?.agentKey,
+        addressPreview: stableIdentity?.addressPreview,
+        agentSummary: stableIdentity?.agentSummary,
         lastSeenAt: observedAt,
         retentionUntil,
       },

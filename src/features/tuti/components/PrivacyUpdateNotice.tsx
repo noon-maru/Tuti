@@ -7,13 +7,13 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { BaseButton } from "@/features/tuti/components/buttons";
 import {
-  PRIVACY_POLICY_UPDATE_EFFECTIVE_AT,
-  PRIVACY_POLICY_UPDATE_NOTICE_ID,
-  PRIVACY_POLICY_UPDATE_PATH,
-} from "@/shared/legal/privacyPolicyUpdate";
+  PRIVACY_SECURITY_UPDATE_EFFECTIVE_AT,
+  PRIVACY_SECURITY_UPDATE_NOTICE_ID,
+  PRIVACY_SECURITY_UPDATE_PATH,
+} from "@/shared/legal/privacyPolicySecurityUpdate";
 import { useTutiStore } from "@/store/tuti";
 
-const NOTICE_STORAGE_KEY = `tuti-legal-notice:${PRIVACY_POLICY_UPDATE_NOTICE_ID}`;
+const NOTICE_STORAGE_KEY = `tuti-legal-notice:${PRIVACY_SECURITY_UPDATE_NOTICE_ID}`;
 
 export function PrivacyUpdateNotice() {
   const router = useRouter();
@@ -43,7 +43,7 @@ export function PrivacyUpdateNotice() {
 
   const openUpdate = async () => {
     await acknowledge();
-    router.push(PRIVACY_POLICY_UPDATE_PATH);
+    router.push(PRIVACY_SECURITY_UPDATE_PATH);
   };
 
   if (!visible || !hasHydrated || pathname !== "/") return null;
@@ -56,8 +56,8 @@ export function PrivacyUpdateNotice() {
       <NoticeCopy>
         <strong>개인정보 처리방침이 바뀔 예정이에요.</strong>
         <p>
-          문의 답변 알림을 위한 처리 내용을 추가해요. 시행일은 {" "}
-          {PRIVACY_POLICY_UPDATE_EFFECTIVE_AT}이에요.
+          서비스 보호를 위한 가명 보안 식별정보 처리 내용을 추가해요. 시행일은 {" "}
+          {PRIVACY_SECURITY_UPDATE_EFFECTIVE_AT}이에요.
         </p>
         <DetailsButton type="button" onClick={() => void openUpdate()}>
           개정 내용 보기
