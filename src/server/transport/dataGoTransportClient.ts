@@ -96,6 +96,17 @@ export function fetchTrainSchedules(input: {
   );
 }
 
+export async function fetchHighSpeedRailSchedules(input: {
+  departureStationId: string;
+  arrivalStationId: string;
+  departureDate: string;
+}) {
+  const services = await fetchTrainSchedules(input);
+  return services.filter((service) =>
+    /(?:KTX|SRT)/i.test(String(service.traingradename ?? service.gradeNm ?? "")),
+  );
+}
+
 export function fetchExpressBusCities() {
   return fetchTagoItems<TagoCity>(EXPRESS_BUS_INFO_BASE_URL, "GetCtyCodeList");
 }

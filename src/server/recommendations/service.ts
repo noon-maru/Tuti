@@ -85,6 +85,14 @@ type PlaceRow = {
 const RECOMMENDATION_LIMIT = 6;
 const CANDIDATE_EVALUATION_BATCH_SIZE = 12;
 const MAX_LOCATION_EVALUATION_BATCHES = 2;
+const NEARBY_ROUTE_CACHE_TTL_MS = 15 * 60_000;
+const nearbyRouteCache = new Map<
+  string,
+  {
+    expiresAt: number;
+    route: Promise<Awaited<ReturnType<typeof fetchKakaoMapRoute>>>;
+  }
+>();
 
 export async function createRecommendations(
   answers: IntakeAnswers,
@@ -189,12 +197,16 @@ async function evaluateRecommendations(
       ),
     );
 
-    const admissionEnrichedPlaces =
-      await enrichPlacesWithAdmissionFees(longDistancePlaces);
-    const weatherEnrichedPlaces =
-      await enrichPlacesWithWeatherForecast(admissionEnrichedPlaces);
-    const budgetEligiblePlaces = filterPlacesByAdmissionBudget(
+    const [admissionEnrichedPlaces, weatherEnrichedPlaces] = await Promise.all([
+      enrichPlacesWithAdmissionFees(longDistancePlaces),
+      enrichPlacesWithWeatherForecast(longDistancePlaces),
+    ]);
+    const enrichedPlaces = mergePlaceEnrichments(
+      admissionEnrichedPlaces,
       weatherEnrichedPlaces,
+    );
+    const budgetEligiblePlaces = filterPlacesByAdmissionBudget(
+      enrichedPlaces,
       answers.budget,
     );
     const conditionedPlaces = rankByMovementFatigue(
@@ -278,10 +290,14 @@ async function evaluateRecommendations(
     if (eligibleShortlist.length >= RECOMMENDATION_LIMIT) break;
   }
 
-  const weatherEnrichedPlaces =
-    await enrichPlacesWithWeatherForecast(eligibleShortlist);
-  const forecastedPlaces =
-    await enrichPlacesWithCrowdForecast(weatherEnrichedPlaces);
+  const [weatherEnrichedPlaces, crowdEnrichedPlaces] = await Promise.all([
+    enrichPlacesWithWeatherForecast(eligibleShortlist),
+    enrichPlacesWithCrowdForecast(eligibleShortlist),
+  ]);
+  const forecastedPlaces = mergePlaceEnrichments(
+    weatherEnrichedPlaces,
+    crowdEnrichedPlaces,
+  );
   const finalRanking = rankByMovementFatigue(
     filterPlacesByRequestedDensity(forecastedPlaces, answers.density),
     answers,
@@ -499,11 +515,13 @@ async function enrichWithTransitTimes(
     const mode = isWalkingDistance(origin, destination)
       ? "walking"
       : "publicTransit";
-    const route = await fetchKakaoMapRoute(mode, {
+    const route = await fetchCachedNearbyRoute(
+      `${locationCell(origin)}:${place.id}:${mode}`,
+      mode,
       origin,
       destination,
-      destinationName: place.name,
-    }).catch(() => null);
+      place.name,
+    ).catch(() => null);
     const travelTimeSummary = toTravelTimeSummary(route, {
       origin,
       destination,
@@ -513,6 +531,52 @@ async function enrichWithTransitTimes(
       ? { ...place, travelTimeSummary }
       : place;
   });
+}
+
+function fetchCachedNearbyRoute(
+  key: string,
+  mode: "walking" | "publicTransit",
+  origin: UserLocation,
+  destination: UserLocation,
+  destinationName: string,
+) {
+  const cached = nearbyRouteCache.get(key);
+  if (cached && cached.expiresAt > Date.now()) return cached.route;
+  if (cached) nearbyRouteCache.delete(key);
+
+  const route = fetchKakaoMapRoute(mode, {
+    origin,
+    destination,
+    destinationName,
+  }).catch((error) => {
+    nearbyRouteCache.delete(key);
+    throw error;
+  });
+  const entry = {
+    expiresAt: Date.now() + NEARBY_ROUTE_CACHE_TTL_MS,
+    route,
+  };
+  nearbyRouteCache.set(key, entry);
+  const expiryTimer = setTimeout(() => {
+    if (nearbyRouteCache.get(key) === entry) nearbyRouteCache.delete(key);
+  }, NEARBY_ROUTE_CACHE_TTL_MS);
+  expiryTimer.unref?.();
+  return route;
+}
+
+function locationCell(location: UserLocation) {
+  return `${location.latitude.toFixed(3)}:${location.longitude.toFixed(3)}`;
+}
+
+function mergePlaceEnrichments(
+  primary: TutiPlace[],
+  secondary: TutiPlace[],
+) {
+  const secondaryById = new Map(secondary.map((place) => [place.id, place]));
+  return primary.map((place) => ({
+    ...place,
+    ...secondaryById.get(place.id),
+  }));
 }
 
 async function mapWithConcurrency<Input, Output>(

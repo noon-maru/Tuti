@@ -20,7 +20,7 @@ import {
 import { derivePlaceMoodTags } from "@/server/tourism/placeMoodTags";
 import {
   fetchExpressBusSchedules,
-  fetchTrainSchedules,
+  fetchHighSpeedRailSchedules,
   type TagoScheduledService,
 } from "@/server/transport/dataGoTransportClient";
 import type { IntakeAnswers, UserLocation } from "@/shared/tuti/types";
@@ -29,10 +29,13 @@ const KOREA_TIME_ZONE = "Asia/Seoul";
 const MINIMUM_LONG_DISTANCE_METERS = 60_000;
 const MAXIMUM_DESTINATION_ACCESS_METERS = 28_000;
 const MINIMUM_STAY_MS = 3 * 60 * 60 * 1_000;
+const JOURNEY_PLANNING_BATCH_SIZE = 6;
+const TRANSPORT_CACHE_TTL_MS = 30 * 60_000;
 const scheduleCache = new Map<
   string,
   { expiresAt: number; services: NormalizedService[] }
 >();
+const scheduleRequests = new Map<string, Promise<NormalizedService[]>>();
 const routeCache = new Map<
   string,
   {
@@ -228,55 +231,92 @@ export async function createLongDistanceRecommendations(
     ),
   });
   const planned: TutiPlace[] = [];
+  const plannedPlaceIds = new Set<string>();
 
-  for (const candidate of diverseCandidates) {
-    if (planned.some((place) => place.id === candidate.id)) continue;
-    const compatibleOrigins = originHubs.filter(
-      (origin) => origin.mode === candidate.destinationHub.mode,
+  for (
+    let offset = 0;
+    offset < diverseCandidates.length && planned.length < 6;
+    offset += JOURNEY_PLANNING_BATCH_SIZE
+  ) {
+    const batch = diverseCandidates.slice(
+      offset,
+      offset + JOURNEY_PLANNING_BATCH_SIZE,
     );
-    for (const originHub of compatibleOrigins) {
-      const journey = await planJourney(
-        originHub,
-        candidate.destinationHub,
-        location,
-        { latitude: candidate.latitude!, longitude: candidate.longitude! },
-        answers.longDistanceTiming ?? "tomorrow_day_trip",
-      ).catch(() => null);
-      if (!journey) continue;
+    const results = await Promise.all(
+      batch.map((candidate) =>
+        planCandidateJourney(
+          candidate,
+          originHubs,
+          location,
+          answers.longDistanceTiming ?? "tomorrow_day_trip",
+        ),
+      ),
+    );
 
-      const { destinationHub, straightDistanceMeters, ...place } = candidate;
-      void destinationHub;
-      planned.push({
-        ...place,
-        distanceMeters: straightDistanceMeters,
-        travelTimeSummary: {
-          mode: "publicTransit",
-          durationSeconds: journey.outboundDurationSeconds,
-          distanceMeters: straightDistanceMeters,
-          transfers: sumKnownRouteValues(
-            journey.originAccess.transfers,
-            journey.destinationAccess.transfers,
-          ),
-          walkingDistanceMeters: sumKnownRouteValues(
-            journey.originAccess.walkingDistanceMeters,
-            journey.destinationAccess.walkingDistanceMeters,
-          ),
-        },
-        longDistanceJourney: journey,
-        reason: "멀리 가도 갈아타는 수고가 적어요.",
-        reasonDetail: `${journey.originHub.name}에서 ${journey.destinationHub.name}까지 한 번에 이어지는 이동이에요.`,
-        reasonFactors: ["burden", "movement"],
-        cardPhrase: `${getModeLabel(journey.mode)} 한 번으로 다른 공기를 만나는 곳`,
-      });
-      break;
+    for (const result of results) {
+      if (!result || plannedPlaceIds.has(result.id)) continue;
+      plannedPlaceIds.add(result.id);
+      planned.push(result);
+      if (planned.length >= 6) break;
     }
-    if (planned.length >= 6) break;
   }
 
   return filterPlacesByRequestedDensity(
     await enrichPlacesWithCrowdForecast(planned),
     answers.density,
   );
+}
+
+async function planCandidateJourney(
+  candidate: CandidatePlace,
+  originHubs: Hub[],
+  location: UserLocation,
+  timing: "tomorrow_day_trip" | "overnight_trip",
+): Promise<TutiPlace | null> {
+  const compatibleOrigins = originHubs.filter(
+    (origin) => origin.mode === candidate.destinationHub.mode,
+  );
+  const journeys = await Promise.all(
+    compatibleOrigins.map((originHub) =>
+      planJourney(
+        originHub,
+        candidate.destinationHub,
+        location,
+        { latitude: candidate.latitude!, longitude: candidate.longitude! },
+        timing,
+      ).catch(() => null),
+    ),
+  );
+  const journey = journeys.find(
+    (candidateJourney): candidateJourney is LongDistanceJourney =>
+      candidateJourney !== null,
+  );
+  if (!journey) return null;
+
+  const { destinationHub, straightDistanceMeters, ...place } = candidate;
+  void destinationHub;
+  return {
+    ...place,
+    distanceMeters: straightDistanceMeters,
+    travelTimeSummary: {
+      mode: "publicTransit",
+      durationSeconds: journey.outboundDurationSeconds,
+      distanceMeters: straightDistanceMeters,
+      transfers: sumKnownRouteValues(
+        journey.originAccess.transfers,
+        journey.destinationAccess.transfers,
+      ),
+      walkingDistanceMeters: sumKnownRouteValues(
+        journey.originAccess.walkingDistanceMeters,
+        journey.destinationAccess.walkingDistanceMeters,
+      ),
+    },
+    longDistanceJourney: journey,
+    reason: "멀리 가도 갈아타는 수고가 적어요.",
+    reasonDetail: `${journey.originHub.name}에서 ${journey.destinationHub.name}까지 한 번에 이어지는 이동이에요.`,
+    reasonFactors: ["burden", "movement"],
+    cardPhrase: `${getModeLabel(journey.mode)} 한 번으로 다른 공기를 만나는 곳`,
+  };
 }
 
 function sumKnownRouteValues(
@@ -431,22 +471,37 @@ async function getSchedules(origin: Hub, destination: Hub, date: string) {
   const key = `${origin.mode}:${origin.externalId}:${destination.externalId}:${date}`;
   const cached = scheduleCache.get(key);
   if (cached && cached.expiresAt > Date.now()) return cached.services;
+  if (cached) scheduleCache.delete(key);
 
+  const existingRequest = scheduleRequests.get(key);
+  if (existingRequest) return existingRequest;
+
+  const request = fetchSchedules(origin, destination, date)
+    .then((services) => {
+      const entry = {
+        expiresAt: Date.now() + TRANSPORT_CACHE_TTL_MS,
+        services,
+      };
+      scheduleCache.set(key, entry);
+      const expiryTimer = setTimeout(() => {
+        if (scheduleCache.get(key) === entry) scheduleCache.delete(key);
+      }, TRANSPORT_CACHE_TTL_MS);
+      expiryTimer.unref?.();
+      return services;
+    })
+    .finally(() => scheduleRequests.delete(key));
+  scheduleRequests.set(key, request);
+  return request;
+}
+
+async function fetchSchedules(origin: Hub, destination: Hub, date: string) {
   let items: TagoScheduledService[];
   if (origin.mode === "rail") {
-    const settled = await Promise.allSettled(
-      ["00", "17"].map((trainGradeCode) =>
-        fetchTrainSchedules({
-          departureStationId: origin.externalId,
-          arrivalStationId: destination.externalId,
-          departureDate: date,
-          trainGradeCode,
-        }),
-      ),
-    );
-    items = settled.flatMap((result) =>
-      result.status === "fulfilled" ? result.value : [],
-    );
+    items = await fetchHighSpeedRailSchedules({
+      departureStationId: origin.externalId,
+      arrivalStationId: destination.externalId,
+      departureDate: date,
+    });
   } else {
     items = await fetchExpressBusSchedules({
       departureTerminalId: origin.externalId,
@@ -455,7 +510,7 @@ async function getSchedules(origin: Hub, destination: Hub, date: string) {
     });
   }
 
-  const services = items
+  return items
     .flatMap(normalizeService)
     .filter((service) => getDateKey(service.departureAt) === date)
     .filter(
@@ -464,8 +519,6 @@ async function getSchedules(origin: Hub, destination: Hub, date: string) {
         matchesServiceHub(service.arrivalPlaceName, destination.sourceName),
     )
     .sort((left, right) => left.departureAt.getTime() - right.departureAt.getTime());
-  scheduleCache.set(key, { expiresAt: Date.now() + 30 * 60_000, services });
-  return services;
 }
 
 function normalizeService(item: TagoScheduledService): NormalizedService[] {
