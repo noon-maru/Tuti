@@ -121,6 +121,15 @@ export function journalBookDate(value: string | Date) {
   });
 }
 
+export function isJournalBookDateInRange(
+  value: string | Date,
+  fromDate: string,
+  toDate: string,
+) {
+  const date = journalBookDate(value);
+  return (!fromDate || date >= fromDate) && (!toDate || date <= toDate);
+}
+
 export function createJournalBookFilename(title: string) {
   const safeTitle = title
     .normalize("NFC")

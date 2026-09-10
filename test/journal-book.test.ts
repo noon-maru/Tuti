@@ -4,6 +4,7 @@ import sharp from "sharp";
 import {
   createJournalBookFilename,
   emptyJournalBookDraft,
+  isJournalBookDateInRange,
   parseJournalBookDraft,
   parseJournalBookInput,
 } from "../src/shared/api/journalBook";
@@ -44,6 +45,13 @@ test("기록집 제목을 기기에서 안전한 PDF 파일명으로 바꾼다",
     "Tuti_제주 봄 기록.pdf",
   );
   assert.equal(createJournalBookFilename("   "), "Tuti_작은 기록집.pdf");
+});
+
+test("기록집 날짜 필터는 서울 날짜 경계를 포함해 판정한다", () => {
+  const lateUtc = new Date("2026-03-01T15:30:00Z");
+  assert.equal(isJournalBookDateInRange(lateUtc, "2026-03-02", "2026-03-02"), true);
+  assert.equal(isJournalBookDateInRange(lateUtc, "", "2026-03-01"), false);
+  assert.equal(isJournalBookDateInRange(lateUtc, "2026-03-03", ""), false);
 });
 
 test("기록집은 고른 기록에 속한 표지만 허용하고 입력 범위를 제한한다", () => {

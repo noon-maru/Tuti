@@ -31,6 +31,7 @@ import {
 } from "@/lib/journalBookDraft";
 import {
   emptyJournalBookDraft,
+  isJournalBookDateInRange,
   journalBookDate,
   parseJournalBookInput,
   JOURNAL_BOOK_MAX_ENTRIES,
@@ -127,6 +128,25 @@ function BookEditor({ ownerId }: { ownerId: string }) {
     [entries],
   );
   const chosen = sorted.filter((entry) => draft?.entryIds.includes(entry.id));
+  const visibleEntries = draft
+    ? sorted.filter((entry) =>
+        isJournalBookDateInRange(
+          entry.visitedAt,
+          draft.fromDate,
+          draft.toDate,
+        ),
+      )
+    : sorted;
+  const chosenOutsideFilter = draft
+    ? chosen.filter(
+        (entry) =>
+          !isJournalBookDateInRange(
+            entry.visitedAt,
+            draft.fromDate,
+            draft.toDate,
+          ),
+      )
+    : [];
   const missing = draft
     ? draft.entryIds.filter((id) => !entries.some((entry) => entry.id === id))
     : [];
@@ -440,21 +460,73 @@ function BookEditor({ ownerId }: { ownerId: string }) {
                         </ResetButton>
                       )}
                     </FilterPanel>
+                    {chosenOutsideFilter.length > 0 && (
+                      <FilterSelectionNotice role="status">
+                        <div>
+                          <strong>
+                            날짜 범위 밖의 기록 {chosenOutsideFilter.length}개도
+                            담겨요.
+                          </strong>
+                          <p>
+                            아래 선택 목록에서 확인하거나 뺄 수 있어요.
+                          </p>
+                        </div>
+                        <ResetButton
+                          type="button"
+                          onClick={() =>
+                            update({ ...draft, fromDate: "", toDate: "" })
+                          }
+                        >
+                          모두 보기
+                        </ResetButton>
+                      </FilterSelectionNotice>
+                    )}
+                    {chosen.length > 0 && (
+                      <SelectionReview aria-label="이 책에 담을 기록">
+                        <SelectionReviewHeading>
+                          <span>
+                            <strong>이 책에 담을 기록</strong>
+                            <small>{chosen.length}개 · 날짜순</small>
+                          </span>
+                          <span aria-hidden="true">담김</span>
+                        </SelectionReviewHeading>
+                        <SelectedRecords>
+                          {chosen.map((entry, index) => {
+                            const outside = chosenOutsideFilter.some(
+                              ({ id }) => id === entry.id,
+                            );
+                            return (
+                              <SelectedRecord key={entry.id}>
+                                <SelectedOrder aria-hidden="true">
+                                  {String(index + 1).padStart(2, "0")}
+                                </SelectedOrder>
+                                <SelectedCopy>
+                                  <strong>{entry.title}</strong>
+                                  <span>
+                                    {journalBookDate(entry.visitedAt)} ·{" "}
+                                    {entry.placeName}
+                                  </span>
+                                </SelectedCopy>
+                                {outside && <OutsideTag>범위 밖</OutsideTag>}
+                                <RemoveSelection
+                                  type="button"
+                                  onClick={() => select(entry.id)}
+                                  aria-label={`${entry.title} 기록을 책에서 빼기`}
+                                >
+                                  빼기
+                                </RemoveSelection>
+                              </SelectedRecord>
+                            );
+                          })}
+                        </SelectedRecords>
+                      </SelectionReview>
+                    )}
                     <SelectionSummary>
                       <strong>{draft.entryIds.length}개 선택</strong>
                       <span>한 권에 최대 {JOURNAL_BOOK_MAX_ENTRIES}개</span>
                     </SelectionSummary>
                     <SelectionList>
-                      {sorted
-                        .filter(
-                          (entry) =>
-                            (!draft.fromDate ||
-                              journalBookDate(entry.visitedAt) >=
-                                draft.fromDate) &&
-                            (!draft.toDate ||
-                              journalBookDate(entry.visitedAt) <= draft.toDate),
-                        )
-                        .map((entry) => (
+                      {visibleEntries.map((entry) => (
                           <EntryButton
                             key={entry.id}
                             type="button"
@@ -490,13 +562,7 @@ function BookEditor({ ownerId }: { ownerId: string }) {
                           </EntryButton>
                         ))}
                     </SelectionList>
-                    {!sorted.some(
-                      (entry) =>
-                        (!draft.fromDate ||
-                          journalBookDate(entry.visitedAt) >= draft.fromDate) &&
-                        (!draft.toDate ||
-                          journalBookDate(entry.visitedAt) <= draft.toDate),
-                    ) && (
+                    {visibleEntries.length === 0 && (
                       <Hint>
                         이 기간에 남긴 기록이 없어요. 날짜를 바꿔주세요.
                       </Hint>
@@ -619,7 +685,7 @@ function BookEditor({ ownerId }: { ownerId: string }) {
               disabled={chosen.length === 0 || missing.length > 0}
               onClick={() => changeStep("details")}
             >
-              선택한 {chosen.length}개로 계속하기
+              선택한 {chosen.length}개 확인하고 계속하기
             </PrimaryButton>
           ) : draft.step === "details" ? (
             <PrimaryButton
@@ -1020,6 +1086,148 @@ const SelectionSummary = styled.p`
     color: var(--color-brand-800);
     font-weight: 700;
   }
+`;
+
+const FilterSelectionNotice = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin: calc(var(--space-2) * -1) 0 var(--space-4);
+  padding: var(--space-3) var(--space-4);
+  border-left: 3px solid var(--color-accent-bridge);
+  border-radius: 4px 14px 14px 4px;
+  background: var(--color-brand-100);
+
+  strong {
+    display: block;
+    color: var(--color-text);
+    font-size: var(--font-size-100);
+    line-height: 1.5;
+  }
+
+  p {
+    margin: 2px 0 0;
+    color: var(--color-text-muted);
+    font-size: 11px;
+    line-height: 1.5;
+  }
+
+  button {
+    flex-shrink: 0;
+  }
+`;
+
+const SelectionReview = styled.section`
+  margin: 0 0 var(--space-5);
+  border: 1px solid var(--color-neutral-300);
+  border-radius: 18px;
+  background: var(--color-surface);
+  overflow: hidden;
+`;
+
+const SelectionReviewHeading = styled.div`
+  min-height: 54px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  color: var(--color-brand-800);
+
+  > span:first-of-type {
+    display: grid;
+    gap: 2px;
+  }
+
+  strong {
+    color: var(--color-text);
+    font-size: var(--font-size-200);
+    font-weight: 700;
+  }
+
+  small {
+    color: var(--color-text-muted);
+    font-size: 11px;
+    font-weight: 400;
+  }
+
+  > span:last-of-type {
+    font-size: var(--font-size-100);
+    font-weight: 600;
+  }
+`;
+
+const SelectedRecords = styled.ol`
+  margin: 0;
+  padding: 0 var(--space-4) var(--space-2);
+  list-style: none;
+`;
+
+const SelectedRecord = styled.li`
+  min-height: 54px;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  border-top: 1px solid var(--color-neutral-300);
+`;
+
+const SelectedOrder = styled.span`
+  width: 24px;
+  flex-shrink: 0;
+  color: var(--color-brand-700);
+  font-size: 10px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.08em;
+`;
+
+const SelectedCopy = styled.span`
+  min-width: 0;
+  flex: 1;
+  display: grid;
+  gap: 1px;
+
+  strong {
+    overflow: hidden;
+    color: var(--color-text);
+    font-size: var(--font-size-100);
+    font-weight: 600;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  span {
+    overflow: hidden;
+    color: var(--color-text-muted);
+    font-size: 10px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+`;
+
+const OutsideTag = styled.span`
+  flex-shrink: 0;
+  padding: 3px 6px;
+  border-radius: 999px;
+  background: var(--color-secondary-200);
+  color: var(--color-secondary-900);
+  font-size: 10px;
+  font-weight: 600;
+`;
+
+const RemoveSelection = styled.button`
+  min-width: 40px;
+  min-height: 40px;
+  flex-shrink: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--color-text-muted);
+  font: inherit;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
 `;
 
 const SelectionList = styled.div`
