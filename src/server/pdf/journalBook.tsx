@@ -32,6 +32,15 @@ export type PreparedBookEntry = Omit<BookEntry, "image"> & {
   image: Buffer | null;
 };
 
+export type JournalBookEntryLayout = "photo" | "short-text" | "long-text";
+
+export function getJournalBookEntryLayout(
+  entry: Pick<PreparedBookEntry, "image" | "content">,
+): JournalBookEntryLayout {
+  if (entry.image) return "photo";
+  return entry.content.trim().length <= 240 ? "short-text" : "long-text";
+}
+
 const styles = StyleSheet.create({
   page: {
     fontFamily: PDF_FONT_FAMILY,
@@ -48,6 +57,59 @@ const styles = StyleSheet.create({
   image: { width: "100%", height: 220, objectFit: "contain", marginBottom: 22 },
   entryTitle: { fontWeight: 500, fontSize: 17, marginBottom: 12 },
   paragraph: { marginBottom: 10 },
+  coverCount: {
+    width: 94,
+    marginTop: 12,
+    marginBottom: 28,
+    paddingTop: 14,
+    borderTopWidth: 2,
+    borderTopColor: "#ADD1F4",
+  },
+  coverCountNumber: {
+    color: "#386A93",
+    fontSize: 30,
+    fontWeight: 500,
+    lineHeight: 1.2,
+  },
+  coverCountLabel: { color: "#606060", fontSize: 9 },
+  shortTextPage: {
+    justifyContent: "center",
+    paddingTop: 72,
+    paddingBottom: 72,
+    backgroundColor: "#FBFCFE",
+  },
+  shortTextFrame: {
+    paddingLeft: 22,
+    paddingRight: 12,
+    borderLeftWidth: 2,
+    borderLeftColor: "#ADD1F4",
+  },
+  shortTextTitle: {
+    fontSize: 20,
+    fontWeight: 500,
+    lineHeight: 1.5,
+    marginBottom: 20,
+  },
+  shortTextParagraph: { fontSize: 13, lineHeight: 2 },
+  longTextLead: {
+    marginBottom: 22,
+    paddingBottom: 18,
+    borderBottomWidth: 1,
+    borderBottomColor: "#DCE7F1",
+  },
+  longTextTitle: { fontSize: 19, fontWeight: 500, lineHeight: 1.5 },
+  longTextParagraph: { fontSize: 12, lineHeight: 1.95, marginBottom: 10 },
+  shortLetterPage: {
+    justifyContent: "center",
+    paddingTop: 72,
+    paddingBottom: 72,
+    backgroundColor: "#FBFCFE",
+  },
+  shortLetterFrame: {
+    paddingTop: 18,
+    borderTopWidth: 2,
+    borderTopColor: "#ADD1F4",
+  },
   continuation: {
     position: "absolute",
     top: 16,
@@ -79,6 +141,8 @@ export async function renderJournalBook(
       )
       .join("");
   const cover = entries.find((entry) => entry.id === input.coverEntryId);
+  const letter = printable(input.letter);
+  const shortLetter = Boolean(letter.trim()) && letter.trim().length <= 240;
   const rendered = await renderToBuffer(
     <Document title={printable(input.title)} author="Tuti" language="ko-KR">
       <Page size="A5" style={[styles.page, styles.cover]}>
@@ -90,40 +154,82 @@ export async function renderJournalBook(
             style={styles.image}
           />
         )}
+        {!cover?.image && (
+          <View style={styles.coverCount}>
+            <Text style={styles.coverCountNumber}>{entries.length}</Text>
+            <Text style={styles.coverCountLabel}>개의 기록</Text>
+          </View>
+        )}
         <Text style={styles.caption}>
           {journalBookDate(entries[0].visitedAt)} —{" "}
           {journalBookDate(entries[entries.length - 1].visitedAt)}
         </Text>
       </Page>
-      {input.letter.trim() && (
-        <Page size="A5" style={styles.page}>
+      {letter.trim() && (
+        <Page
+          size="A5"
+          style={shortLetter ? [styles.page, styles.shortLetterPage] : styles.page}
+        >
           <ContinuationLabel label="이 시간에 남기는 말" />
-          <Text style={styles.caption}>이 시간에 남기는 말</Text>
-          <Text orphans={4} widows={4}>
-            {printable(input.letter)}
-          </Text>
+          <View style={shortLetter ? styles.shortLetterFrame : undefined}>
+            <Text style={styles.caption}>이 시간에 남기는 말</Text>
+            <Text orphans={4} widows={4}>
+              {letter}
+            </Text>
+          </View>
         </Page>
       )}
-      {entries.map((entry) => (
-        <Page key={entry.id} size="A5" style={styles.page} wrap>
-          <ContinuationLabel label={printable(entry.title)} />
-          <View wrap={false}>
-            <Text style={styles.caption}>
-              {journalBookDate(entry.visitedAt)} · {printable(entry.placeName)}
-            </Text>
-            <Text style={styles.entryTitle}>{printable(entry.title)}</Text>
-            {entry.image && (
+      {entries.map((entry) => {
+        const layout = getJournalBookEntryLayout(entry);
+        const title = printable(entry.title);
+        const content = printable(entry.content);
+        const meta = `${journalBookDate(entry.visitedAt)} · ${printable(entry.placeName)}`;
+        if (layout === "short-text") {
+          return (
+            <Page
+              key={entry.id}
+              size="A5"
+              style={[styles.page, styles.shortTextPage]}
+            >
+              <View style={styles.shortTextFrame} wrap={false}>
+                <Text style={styles.caption}>{meta}</Text>
+                <Text style={styles.shortTextTitle}>{title}</Text>
+                <Text style={styles.shortTextParagraph}>{content}</Text>
+              </View>
+            </Page>
+          );
+        }
+        if (layout === "long-text") {
+          return (
+            <Page key={entry.id} size="A5" style={styles.page} wrap>
+              <ContinuationLabel label={title} />
+              <View style={styles.longTextLead} wrap={false}>
+                <Text style={styles.caption}>{meta}</Text>
+                <Text style={styles.longTextTitle}>{title}</Text>
+              </View>
+              <Text style={styles.longTextParagraph} orphans={4} widows={4}>
+                {content}
+              </Text>
+            </Page>
+          );
+        }
+        return (
+          <Page key={entry.id} size="A5" style={styles.page} wrap>
+            <ContinuationLabel label={title} />
+            <View wrap={false}>
+              <Text style={styles.caption}>{meta}</Text>
+              <Text style={styles.entryTitle}>{title}</Text>
               <PdfImage
-                src={{ data: entry.image, format: "jpg" }}
+                src={{ data: entry.image!, format: "jpg" }}
                 style={styles.image}
               />
-            )}
-          </View>
-          <Text style={styles.paragraph} orphans={4} widows={4}>
-            {printable(entry.content)}
-          </Text>
-        </Page>
-      ))}
+            </View>
+            <Text style={styles.paragraph} orphans={4} widows={4}>
+              {content}
+            </Text>
+          </Page>
+        );
+      })}
     </Document>,
   );
   return addPageFolios(rendered);

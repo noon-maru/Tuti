@@ -15,6 +15,7 @@ import {
   verifyJournalBookApproval,
 } from "../src/server/journal/bookApproval";
 import {
+  getJournalBookEntryLayout,
   renderJournalBook,
   type BookEntry,
 } from "../src/server/pdf/journalBook";
@@ -52,6 +53,21 @@ test("기록집 날짜 필터는 서울 날짜 경계를 포함해 판정한다"
   assert.equal(isJournalBookDateInRange(lateUtc, "2026-03-02", "2026-03-02"), true);
   assert.equal(isJournalBookDateInRange(lateUtc, "", "2026-03-01"), false);
   assert.equal(isJournalBookDateInRange(lateUtc, "2026-03-03", ""), false);
+});
+
+test("사진과 글 길이에 따라 기록집 지면을 고른다", () => {
+  assert.equal(
+    getJournalBookEntryLayout({ image: null, content: "짧은 하루" }),
+    "short-text",
+  );
+  assert.equal(
+    getJournalBookEntryLayout({ image: null, content: "긴 하루 ".repeat(80) }),
+    "long-text",
+  );
+  assert.equal(
+    getJournalBookEntryLayout({ image: Buffer.from([1]), content: "짧은 하루" }),
+    "photo",
+  );
 });
 
 test("기록집은 고른 기록에 속한 표지만 허용하고 입력 범위를 제한한다", () => {
