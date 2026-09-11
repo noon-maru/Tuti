@@ -247,6 +247,7 @@ export type AdminBusinessMetricDay = {
   date: string;
   activeUsers: number;
   newUsers: number;
+  newAuthenticatedUsers: number;
   returningUsers: number;
 };
 
@@ -266,11 +267,35 @@ export type AdminBusinessMetricsResponse = {
     mau: number;
     dauMauRate: number;
     newUsers30d: number;
+    newAuthenticatedUsers30d: number;
+    newUserAuthenticationRate30d: number;
     returningUsers30d: number;
     returnRate30d: number;
     authenticatedMau: number;
     authenticatedMauRate: number;
   };
+  northStar: {
+    monthlyActionUsers: number;
+    monthlyActionUserRate: number;
+  };
+  activation: {
+    firstRecommendationUsers30d: number;
+    firstRecommendationRate30d: number;
+    medianMinutesToFirstRecommendation: number | null;
+  };
+  engagement: {
+    averageActiveDaysPerMau: number;
+    averageRecommendationsPerMau: number;
+    repeatRecommendationUsers30d: number;
+    repeatRecommendationRate30d: number;
+  };
+  comparison: Array<{
+    key: "active" | "new" | "authenticated" | "action";
+    label: string;
+    current: number;
+    previous: number;
+    changeRate: number | null;
+  }>;
   stages: AdminBusinessMetricStage[];
   daily: AdminBusinessMetricDay[];
   cohorts: AdminBusinessMetricCohort[];

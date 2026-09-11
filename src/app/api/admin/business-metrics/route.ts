@@ -25,8 +25,12 @@ export async function GET(request: Request) {
   const periodDays = normalizePeriodDays(
     new URL(request.url).searchParams.get("days"),
   );
-  const periodSince = new Date(now.getTime() - periodDays * DAY_MS);
-  const analysisSince = new Date(now.getTime() - 100 * DAY_MS);
+  const comparisonSince = new Date(
+    now.getTime() - (periodDays * 2 + 2) * DAY_MS,
+  );
+  const analysisSince = new Date(
+    now.getTime() - Math.max(100, periodDays * 2 + 2) * DAY_MS,
+  );
   const includedUserWhere = {
     role: "user" as const,
     analyticsExcludedAt: null,
@@ -38,6 +42,11 @@ export async function GET(request: Request) {
         ...includedUserWhere,
         OR: [
           { createdAt: { gte: analysisSince } },
+          {
+            authIdentities: {
+              some: { createdAt: { gte: analysisSince } },
+            },
+          },
           {
             productActivityEvents: {
               some: {
@@ -51,7 +60,11 @@ export async function GET(request: Request) {
       select: {
         id: true,
         createdAt: true,
-        authIdentities: { select: { id: true }, take: 1 },
+        authIdentities: {
+          select: { createdAt: true },
+          orderBy: { createdAt: "asc" },
+          take: 1,
+        },
       },
     }),
     prisma.productActivityEvent.aggregate({
@@ -88,23 +101,23 @@ export async function GET(request: Request) {
       }),
       prisma.productActivityEvent.findMany({
         where: {
-          userId: { in: userIds },
-          action: "entry_completed",
-          createdAt: { gte: periodSince },
+              userId: { in: userIds },
+              action: "entry_completed",
+              createdAt: { gte: comparisonSince },
         },
         select: { userId: true, action: true, createdAt: true },
       }),
       prisma.recommendationRun.findMany({
         where: {
-          userId: { in: userIds },
-          createdAt: { gte: periodSince },
+              userId: { in: userIds },
+              createdAt: { gte: comparisonSince },
         },
         select: { userId: true, createdAt: true },
       }),
       prisma.recommendationAction.findMany({
         where: {
-          userId: { in: userIds },
-          createdAt: { gte: periodSince },
+              userId: { in: userIds },
+              createdAt: { gte: comparisonSince },
           action: {
             in: [
               "place_selected",
@@ -128,6 +141,7 @@ export async function GET(request: Request) {
       id: user.id,
       createdAt: user.createdAt,
       authenticated: user.authIdentities.length > 0,
+      authenticatedAt: user.authIdentities[0]?.createdAt ?? null,
     })),
     sessions,
     firstSessions: firstSessionRows.flatMap((row) =>

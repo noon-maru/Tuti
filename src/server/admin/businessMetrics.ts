@@ -6,11 +6,18 @@ import type {
 
 const DAY_MS = 24 * 60 * 60 * 1_000;
 const PLATFORM_ORDER = ["web", "android", "ios"] as const;
+const ACTION_CONVERSION_EVENTS = new Set([
+  "departure_plan_expanded",
+  "navigation_started",
+  "return_confirmed",
+  "journal_created",
+]);
 
 type MetricUser = {
   id: string;
   createdAt: Date;
   authenticated: boolean;
+  authenticatedAt: Date | null;
 };
 
 type SessionEvent = {
@@ -93,10 +100,90 @@ export function calculateBusinessMetrics(
   const newUsers30d = input.users.filter((user) => {
     const day = toKoreanDay(user.createdAt);
     return day >= mauStart && day <= today;
+  });
+  const newAuthenticatedUsers30d = input.users.filter((user) => {
+    if (!user.authenticatedAt) return false;
+    const day = toKoreanDay(user.authenticatedAt);
+    return day >= mauStart && day <= today;
   }).length;
+  const authenticatedNewUsers30d = newUsers30d.filter(
+    (user) => user.authenticatedAt !== null,
+  ).length;
   const authenticatedMau = [...mau].filter(
     (userId) => userById.get(userId)?.authenticated,
   ).length;
+  const monthlyActionSignals = usersWithActionsBetween(
+    input.recommendationActions,
+    mauStart,
+    today,
+  );
+  const monthlyActionUsers = new Set(
+    [...monthlyActionSignals].filter((userId) => mau.has(userId)),
+  );
+  const monthlyRecommendationRuns = input.recommendationRuns.filter(
+    (run) => {
+      const day = toKoreanDay(run.createdAt);
+      return day >= mauStart && day <= today && mau.has(run.userId);
+    },
+  );
+  const recommendationCountByUser = countSignalsByUser(
+    monthlyRecommendationRuns,
+  );
+  const repeatRecommendationUsers30d = [...recommendationCountByUser.values()]
+    .filter((count) => count >= 2).length;
+  const firstRecommendationByUser = new Map<string, Date>();
+  for (const run of input.recommendationRuns) {
+    const user = userById.get(run.userId);
+    if (!user || run.createdAt < user.createdAt) continue;
+    const current = firstRecommendationByUser.get(run.userId);
+    if (!current || run.createdAt < current) {
+      firstRecommendationByUser.set(run.userId, run.createdAt);
+    }
+  }
+  const firstRecommendationDurations = newUsers30d.flatMap((user) => {
+    const firstRecommendation = firstRecommendationByUser.get(user.id);
+    return firstRecommendation
+      ? [(firstRecommendation.getTime() - user.createdAt.getTime()) / 60_000]
+      : [];
+  });
+  const firstRecommendationUsers30d = firstRecommendationDurations.length;
+  const previousEnd = periodStart - 1;
+  const previousStart = periodStart - input.periodDays;
+  const previousActive = usersActiveBetween(
+    activityDays,
+    previousStart,
+    previousEnd,
+  );
+  const currentNewUsers = countUsersCreatedBetween(
+    input.users,
+    periodStart,
+    today,
+  );
+  const previousNewUsers = countUsersCreatedBetween(
+    input.users,
+    previousStart,
+    previousEnd,
+  );
+  const currentAuthenticatedUsers = countUsersAuthenticatedBetween(
+    input.users,
+    periodStart,
+    today,
+  );
+  const previousAuthenticatedUsers = countUsersAuthenticatedBetween(
+    input.users,
+    previousStart,
+    previousEnd,
+  );
+  const currentActionUsers = usersWithActionsBetween(
+    input.recommendationActions,
+    periodStart,
+    today,
+  );
+  const previousActionUsers = usersWithActionsBetween(
+    input.recommendationActions,
+    previousStart,
+    previousEnd,
+  );
 
   const stageSignals = buildStageSignals(input, periodStart, today);
   const stages = [
@@ -134,12 +221,66 @@ export function calculateBusinessMetrics(
       wau: wau.size,
       mau: mau.size,
       dauMauRate: percentage(dau.size, mau.size),
-      newUsers30d,
+      newUsers30d: newUsers30d.length,
+      newAuthenticatedUsers30d,
+      newUserAuthenticationRate30d: percentage(
+        authenticatedNewUsers30d,
+        newUsers30d.length,
+      ),
       returningUsers30d: returningMau.size,
       returnRate30d: percentage(returningMau.size, mau.size),
       authenticatedMau,
       authenticatedMauRate: percentage(authenticatedMau, mau.size),
     },
+    northStar: {
+      monthlyActionUsers: monthlyActionUsers.size,
+      monthlyActionUserRate: percentage(monthlyActionUsers.size, mau.size),
+    },
+    activation: {
+      firstRecommendationUsers30d,
+      firstRecommendationRate30d: percentage(
+        firstRecommendationUsers30d,
+        newUsers30d.length,
+      ),
+      medianMinutesToFirstRecommendation: median(
+        firstRecommendationDurations,
+      ),
+    },
+    engagement: {
+      averageActiveDaysPerMau: average(
+        [...mau].map(
+          (userId) =>
+            [...(activityDays.get(userId) ?? [])].filter(
+              (day) => day >= mauStart && day <= today,
+            ).length,
+        ),
+      ),
+      averageRecommendationsPerMau: ratio(
+        monthlyRecommendationRuns.length,
+        mau.size,
+      ),
+      repeatRecommendationUsers30d,
+      repeatRecommendationRate30d: percentage(
+        repeatRecommendationUsers30d,
+        mau.size,
+      ),
+    },
+    comparison: [
+      comparisonItem("active", "활성 사용자", activeInRange.size, previousActive.size),
+      comparisonItem("new", "신규 사용자", currentNewUsers, previousNewUsers),
+      comparisonItem(
+        "authenticated",
+        "신규 로그인",
+        currentAuthenticatedUsers,
+        previousAuthenticatedUsers,
+      ),
+      comparisonItem(
+        "action",
+        "행동전환 사용자",
+        currentActionUsers.size,
+        previousActionUsers.size,
+      ),
+    ],
     stages: serializedStages,
     daily: buildDaily(input, activityDays, firstDayByUser, periodStart, today),
     cohorts: buildCohorts(input, activityDays, firstDayByUser, today),
@@ -202,9 +343,17 @@ function buildDaily(
   end: number,
 ) {
   const usersCreatedByDay = new Map<number, number>();
+  const usersAuthenticatedByDay = new Map<number, number>();
   for (const user of input.users) {
     const day = toKoreanDay(user.createdAt);
     usersCreatedByDay.set(day, (usersCreatedByDay.get(day) ?? 0) + 1);
+    if (user.authenticatedAt) {
+      const authenticatedDay = toKoreanDay(user.authenticatedAt);
+      usersAuthenticatedByDay.set(
+        authenticatedDay,
+        (usersAuthenticatedByDay.get(authenticatedDay) ?? 0) + 1,
+      );
+    }
   }
   const rows: AdminBusinessMetricDay[] = [];
   for (let day = start; day <= end; day += 1) {
@@ -213,6 +362,7 @@ function buildDaily(
       date: dayToDateKey(day),
       activeUsers: active.length,
       newUsers: usersCreatedByDay.get(day) ?? 0,
+      newAuthenticatedUsers: usersAuthenticatedByDay.get(day) ?? 0,
       returningUsers: active.filter(
         ([userId]) => (firstDayByUser.get(userId) ?? day) < day,
       ).length,
@@ -285,6 +435,101 @@ function countDaysBetween(
     if (day >= start && day <= end && ++count >= minimum) return true;
   }
   return false;
+}
+
+function usersWithActionsBetween(
+  actions: RecommendationActionSignal[],
+  start: number,
+  end: number,
+) {
+  return new Set(
+    actions
+      .filter((action) => {
+        const day = toKoreanDay(action.createdAt);
+        return (
+          ACTION_CONVERSION_EVENTS.has(action.action) &&
+          day >= start &&
+          day <= end
+        );
+      })
+      .map((action) => action.userId),
+  );
+}
+
+function countSignalsByUser(signals: RecommendationSignal[]) {
+  const counts = new Map<string, number>();
+  for (const signal of signals) {
+    counts.set(signal.userId, (counts.get(signal.userId) ?? 0) + 1);
+  }
+  return counts;
+}
+
+function countUsersCreatedBetween(
+  users: MetricUser[],
+  start: number,
+  end: number,
+) {
+  return users.filter((user) => {
+    const day = toKoreanDay(user.createdAt);
+    return day >= start && day <= end;
+  }).length;
+}
+
+function countUsersAuthenticatedBetween(
+  users: MetricUser[],
+  start: number,
+  end: number,
+) {
+  return users.filter((user) => {
+    if (!user.authenticatedAt) return false;
+    const day = toKoreanDay(user.authenticatedAt);
+    return day >= start && day <= end;
+  }).length;
+}
+
+function comparisonItem(
+  key: AdminBusinessMetricsResponse["comparison"][number]["key"],
+  label: string,
+  current: number,
+  previous: number,
+) {
+  return {
+    key,
+    label,
+    current,
+    previous,
+    changeRate: changeRate(current, previous),
+  };
+}
+
+function changeRate(current: number, previous: number) {
+  if (previous === 0) return current === 0 ? 0 : null;
+  return roundOne(((current - previous) / previous) * 100);
+}
+
+function average(values: number[]) {
+  return values.length > 0
+    ? roundOne(values.reduce((sum, value) => sum + value, 0) / values.length)
+    : 0;
+}
+
+function ratio(value: number, total: number) {
+  return total > 0 ? roundOne(value / total) : 0;
+}
+
+function median(values: number[]) {
+  if (values.length === 0) return null;
+  const sorted = [...values].sort((left, right) => left - right);
+  const middle = Math.floor(sorted.length / 2);
+  const value =
+    sorted.length % 2 === 0
+      ? (sorted[middle - 1] + sorted[middle]) / 2
+      : sorted[middle];
+  return roundOne(value);
+}
+
+function roundOne(value: number) {
+  return Math.round(value * 10) / 10;
 }
 
 function percentage(value: number, total: number) {

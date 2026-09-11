@@ -6,10 +6,11 @@ const at = (value: string) => new Date(value);
 
 test("사업 지표는 한국 날짜 기준 활성·재방문·단계 전환을 계산한다", () => {
   const users = [
-    { id: "u1", createdAt: at("2026-09-01T03:00:00Z"), authenticated: true },
-    { id: "u2", createdAt: at("2026-09-08T03:00:00Z"), authenticated: false },
-    { id: "u3", createdAt: at("2026-08-20T03:00:00Z"), authenticated: true },
-    { id: "u4", createdAt: at("2026-09-10T03:00:00Z"), authenticated: false },
+    { id: "u1", createdAt: at("2026-09-01T03:00:00Z"), authenticated: true, authenticatedAt: at("2026-09-01T04:00:00Z") },
+    { id: "u2", createdAt: at("2026-09-08T03:00:00Z"), authenticated: false, authenticatedAt: null },
+    { id: "u3", createdAt: at("2026-08-20T03:00:00Z"), authenticated: true, authenticatedAt: at("2026-08-21T03:00:00Z") },
+    { id: "u4", createdAt: at("2026-09-10T03:00:00Z"), authenticated: false, authenticatedAt: null },
+    { id: "u5", createdAt: at("2026-07-10T03:00:00Z"), authenticated: true, authenticatedAt: at("2026-09-05T03:00:00Z") },
   ];
   const sessions = [
     { userId: "u1", platform: "ios" as const, createdAt: at("2026-09-10T15:30:00Z") },
@@ -51,11 +52,42 @@ test("사업 지표는 한국 날짜 기준 활성·재방문·단계 전환을 
     mau: 3,
     dauMauRate: 66.7,
     newUsers30d: 4,
+    newAuthenticatedUsers30d: 3,
+    newUserAuthenticationRate30d: 50,
     returningUsers30d: 1,
     returnRate30d: 33.3,
     authenticatedMau: 2,
     authenticatedMauRate: 66.7,
   });
+  assert.deepEqual(response.northStar, {
+    monthlyActionUsers: 1,
+    monthlyActionUserRate: 33.3,
+  });
+  assert.deepEqual(response.activation, {
+    firstRecommendationUsers30d: 2,
+    firstRecommendationRate30d: 50,
+    medianMinutesToFirstRecommendation: 8955,
+  });
+  assert.deepEqual(response.engagement, {
+    averageActiveDaysPerMau: 1.3,
+    averageRecommendationsPerMau: 0.7,
+    repeatRecommendationUsers30d: 0,
+    repeatRecommendationRate30d: 0,
+  });
+  assert.deepEqual(
+    response.comparison.map((item) => [
+      item.key,
+      item.current,
+      item.previous,
+      item.changeRate,
+    ]),
+    [
+      ["active", 3, 0, null],
+      ["new", 4, 0, null],
+      ["authenticated", 3, 0, null],
+      ["action", 1, 0, null],
+    ],
+  );
   assert.deepEqual(
     response.stages.map((stage) => [stage.key, stage.users]),
     [
@@ -76,6 +108,7 @@ test("사업 지표는 한국 날짜 기준 활성·재방문·단계 전환을 
     date: "2026-09-11",
     activeUsers: 2,
     newUsers: 0,
+    newAuthenticatedUsers: 0,
     returningUsers: 1,
   });
 });
@@ -86,8 +119,8 @@ test("재방문 코호트는 완료된 주차만 확정 비율을 낸다", () =>
     periodDays: 30,
     trackingStartedAt: at("2026-08-24T03:00:00Z"),
     users: [
-      { id: "returner", createdAt: at("2026-08-24T03:00:00Z"), authenticated: false },
-      { id: "current", createdAt: at("2026-09-08T03:00:00Z"), authenticated: false },
+      { id: "returner", createdAt: at("2026-08-24T03:00:00Z"), authenticated: false, authenticatedAt: null },
+      { id: "current", createdAt: at("2026-09-08T03:00:00Z"), authenticated: false, authenticatedAt: null },
     ],
     sessions: [
       { userId: "returner", platform: "web", createdAt: at("2026-08-24T03:00:00Z") },
