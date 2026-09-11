@@ -18,7 +18,9 @@ import {
 import { AdminNotificationsPanel } from "@/features/admin/AdminNotificationsPanel";
 import { AdminSecurityTrafficPanel } from "@/features/admin/AdminSecurityTrafficPanel";
 import { AdminUserActivityPanel } from "@/features/admin/AdminUserActivityPanel";
+import { AdminBusinessMetricsPanel } from "@/features/admin/AdminBusinessMetricsPanel";
 import type {
+  AdminBusinessMetricsResponse,
   AdminInquiriesResponse,
   AdminInquiryItem,
   AdminLogItem,
@@ -46,6 +48,7 @@ import type {
 
 export type AdminTab =
   | "overview"
+  | "business"
   | "activity"
   | "security"
   | "notifications"
@@ -60,6 +63,7 @@ export type AdminTab =
 
 const tabs: Array<{ id: AdminTab; label: string }> = [
   { id: "overview", label: "운영 현황" },
+  { id: "business", label: "사업 지표" },
   { id: "activity", label: "사용자 활동" },
   { id: "security", label: "트래픽·보안" },
   { id: "notifications", label: "알림 전달" },
@@ -84,9 +88,15 @@ const navigationGroups: Array<{
     ),
   },
   {
+    label: "분석",
+    items: tabs.filter((item) =>
+      ["business", "funnel", "activity"].includes(item.id),
+    ),
+  },
+  {
     label: "관측",
     items: tabs.filter((item) =>
-      ["activity", "security", "funnel", "notifications", "logs", "location"].includes(item.id),
+      ["security", "notifications", "logs", "location"].includes(item.id),
     ),
   },
   {
@@ -103,6 +113,7 @@ const mobilePrimaryTabs: Array<{ id: AdminTab; label: string }> = [
 ];
 
 const mobileMoreTabs: Array<{ id: AdminTab; label: string }> = [
+  { id: "business", label: "사업 지표" },
   { id: "activity", label: "사용자 활동" },
   { id: "security", label: "트래픽 및 보안 관제" },
   { id: "funnel", label: "추천 행동 퍼널" },
@@ -150,6 +161,15 @@ function AdminSectionIcon({
       <svg viewBox="0 0 24 24" aria-hidden="true">
         <path d="M4 10.5 12 4l8 6.5V20H4v-9.5Z" />
         <path d="M9.5 20v-6h5v6" />
+      </svg>
+    );
+  }
+
+  if (section === "business") {
+    return (
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M4 19V5M4 19h16" />
+        <path d="m7 15 4-4 3 2 5-6" />
       </svg>
     );
   }
@@ -220,6 +240,9 @@ export function AdminScreen({
   const [funnel, setFunnel] =
     useState<AdminRecommendationFunnelResponse | null>(null);
   const [funnelDays, setFunnelDays] = useState(30);
+  const [businessMetrics, setBusinessMetrics] =
+    useState<AdminBusinessMetricsResponse | null>(null);
+  const [businessMetricDays, setBusinessMetricDays] = useState(30);
   const [userActivity, setUserActivity] =
     useState<AdminUserActivityResponse | null>(null);
   const [userActivityDays, setUserActivityDays] = useState(7);
@@ -428,6 +451,11 @@ export function AdminScreen({
       );
       setNotifications(response);
       notificationsLoadedRef.current = true;
+    } else if (tab === "business") {
+      const response = await fetchAdminJson<AdminBusinessMetricsResponse>(
+        `business-metrics?days=${businessMetricDays}`,
+      );
+      setBusinessMetrics(response);
     } else if (tab === "funnel") {
       const response =
         await fetchAdminJson<AdminRecommendationFunnelResponse>(
@@ -485,6 +513,7 @@ export function AdminScreen({
     }
   }, [
     appliedQuery,
+    businessMetricDays,
     filter,
     funnelDays,
     placeFilters,
@@ -733,6 +762,7 @@ export function AdminScreen({
             }}
           />
         ) : tab !== "overview" &&
+          tab !== "business" &&
           tab !== "funnel" &&
           tab !== "activity" &&
           tab !== "security" &&
@@ -786,6 +816,12 @@ export function AdminScreen({
           />
         ) : tab === "notifications" ? (
           <AdminNotificationsPanel data={notifications} />
+        ) : tab === "business" ? (
+          <AdminBusinessMetricsPanel
+            data={businessMetrics}
+            days={businessMetricDays}
+            onDaysChange={setBusinessMetricDays}
+          />
         ) : tab === "funnel" ? (
           <RecommendationFunnelPanel
             funnel={funnel}
