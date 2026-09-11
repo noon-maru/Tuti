@@ -115,13 +115,23 @@ sudo -n /usr/local/sbin/tuti-android-release-build
 ```
 
 명령은 운영 웹 빌드, Capacitor 동기화, Gradle `bundleRelease`, JAR 서명 검증과
-SHA-256 출력을 순서대로 수행한다. 완성된 파일은 아래에 생성된다.
+SHA-256 출력을 순서대로 수행한다. 릴리스 빌드에는 R8 코드 최적화·난독화와
+미사용 리소스 축소가 적용된다. 완성된 작업 파일은 아래에 생성된다.
 
 ```text
 android/app/build/outputs/bundle/release/app-release.aab
 ```
 
-현재 정식 출시 준비 버전은 `versionCode 6`, `versionName 1.1.0`이다. Play
+빌드가 성공하면 AAB, 같은 빌드에서 생성된 R8 `mapping.txt`, 두 파일의 체크섬을
+저장소 밖의 아래 폴더에 함께 영구 보관한다. `mapping.txt`는 해당 버전의 난독화된
+충돌·ANR 스택을 원래 코드 이름으로 복원할 때 사용하므로 다른 빌드의 파일로
+덮어쓰면 안 된다.
+
+```text
+/var/services/homes/Tutiadmin/.tuti-releases/android/<versionName>-<versionCode>/
+```
+
+현재 정식 출시 준비 버전은 `versionCode 7`, `versionName 1.1.1`이다. Play
 Console에 AAB를 한 번이라도 올린 뒤에는 매 업로드마다 `versionCode`를
 증가시켜야 한다. 표시 버전이 같더라도 새 AAB를 업로드할 때는 versionCode를
 반드시 올린다.
