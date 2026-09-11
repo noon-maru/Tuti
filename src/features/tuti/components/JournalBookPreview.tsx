@@ -429,9 +429,19 @@ const ZoomValue = styled.span`
 
 const PreviewViewport = styled.div<{ $expanded: boolean }>`
   min-width: 0;
-  overflow: auto;
-  overscroll-behavior: contain;
-  ${({ $expanded }) => $expanded && "flex: 1;"}
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  overscroll-behavior-y: auto;
+  -webkit-overflow-scrolling: touch;
+
+  ${({ $expanded }) =>
+    $expanded &&
+    `
+      flex: 1;
+      min-height: 0;
+      overflow: auto;
+      overscroll-behavior: contain;
+    `}
 `;
 
 const Pages = styled.div<{ $zoom: number }>`
