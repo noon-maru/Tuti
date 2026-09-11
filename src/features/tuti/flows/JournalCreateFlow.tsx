@@ -1,6 +1,7 @@
 "use client";
 
 import { useRouter, useSearchParams } from "next/navigation";
+import { requestLoginNudge } from "@/features/tuti/auth/loginNudge";
 import { useJournalEntryTransition } from "@/features/tuti/components/JournalEntryTransition";
 import { useTutiJournalEntries } from "@/features/tuti/hooks/useTutiJournalEntries";
 import { JournalEditorScreen } from "@/features/tuti/screens/journal/JournalEditorScreen";
@@ -30,6 +31,7 @@ export function JournalCreateFlow() {
       onBack={returnToJournal}
       onSubmit={async (draft, sourceElement) => {
         const entry = await addEntry(draft);
+        requestLoginNudge("journal_created");
 
         if (recommendationId) {
           void recordRecommendationAction({

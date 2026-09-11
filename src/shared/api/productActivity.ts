@@ -13,6 +13,8 @@ export const PRODUCT_ACTIVITY_TYPES = [
   "journal_book_preview_exited",
   "journal_book_completed",
   "journal_book_saved",
+  "login_nudge_shown",
+  "login_nudge_opened",
 ] as const;
 
 export const PRODUCT_ACTIVITY_PLATFORMS = [

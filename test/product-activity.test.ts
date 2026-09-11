@@ -54,3 +54,16 @@ test("기록집 단계 도달과 이탈·완성·저장 활동을 허용한다",
     );
   }
 });
+
+test("가벼운 로그인 권유의 노출과 선택 활동을 허용한다", () => {
+  for (const action of ["login_nudge_shown", "login_nudge_opened"]) {
+    assert.equal(
+      normalizeProductActivityInput({
+        clientSessionId: "bb17e0d4-d207-4d0e-9bf0-d00604d60e8a",
+        action,
+        platform: "ios",
+      })?.action,
+      action,
+    );
+  }
+});

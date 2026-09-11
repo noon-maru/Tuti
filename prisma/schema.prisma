@@ -143,6 +143,8 @@ enum ProductActivityType {
   journal_book_preview_exited
   journal_book_completed
   journal_book_saved
+  login_nudge_shown
+  login_nudge_opened
 }
 
 enum ProductActivityPlatform {

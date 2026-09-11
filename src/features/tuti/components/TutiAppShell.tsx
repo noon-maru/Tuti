@@ -7,6 +7,7 @@ import { LocationAccessProvider } from "@/features/tuti/location/LocationAccessP
 import { LocalNotificationHandler } from "@/features/tuti/components/LocalNotificationHandler";
 import { PushNotificationHandler } from "@/features/tuti/components/PushNotificationHandler";
 import { PrivacyUpdateNotice } from "@/features/tuti/components/PrivacyUpdateNotice";
+import { GentleLoginNudge } from "@/features/tuti/components/GentleLoginNudge";
 
 export function TutiAppShell({ children }: { children: React.ReactNode }) {
   return (
@@ -16,6 +17,7 @@ export function TutiAppShell({ children }: { children: React.ReactNode }) {
         <LocalNotificationHandler />
         <PushNotificationHandler />
         <PrivacyUpdateNotice />
+        <GentleLoginNudge />
         <LocationAccessProvider>{children}</LocationAccessProvider>
       </AppFrame>
     </Providers>

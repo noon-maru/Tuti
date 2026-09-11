@@ -3,6 +3,7 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { requestLoginNudge } from "@/features/tuti/auth/loginNudge";
 import { DepartureReturnSheet } from "@/features/tuti/components/DepartureReturnSheet";
 import { useTutiRecommendations } from "@/features/tuti/hooks/useTutiRecommendations";
 import { useTravelTime } from "@/features/tuti/hooks/useTravelTime";
@@ -464,6 +465,7 @@ export function RecommendationsFlow({ interactive }: { interactive: boolean }) {
             placeImage: place.image,
             placePhrase: place.phrase,
           });
+          requestLoginNudge("place_saved");
         }}
         onDepartureOpen={(place, variant) => {
           if (!recommendationId) return;
