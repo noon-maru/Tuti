@@ -228,6 +228,59 @@ export type AdminUserActivityResponse = {
   users: AdminUserActivityItem[];
 };
 
+export type AdminBusinessMetricStage = {
+  key:
+    | "active"
+    | "intake"
+    | "recommended"
+    | "selected"
+    | "departure"
+    | "navigation"
+    | "converted";
+  label: string;
+  users: number;
+  rateFromActive: number;
+  rateFromPrevious: number;
+};
+
+export type AdminBusinessMetricDay = {
+  date: string;
+  activeUsers: number;
+  newUsers: number;
+  returningUsers: number;
+};
+
+export type AdminBusinessMetricCohort = {
+  cohortWeek: string;
+  newUsers: number;
+  retention: Array<number | null>;
+};
+
+export type AdminBusinessMetricsResponse = {
+  generatedAt: string;
+  trackingStartedAt: string | null;
+  periodDays: 30 | 90;
+  audience: {
+    dau: number;
+    wau: number;
+    mau: number;
+    dauMauRate: number;
+    newUsers30d: number;
+    returningUsers30d: number;
+    returnRate30d: number;
+    authenticatedMau: number;
+    authenticatedMauRate: number;
+  };
+  stages: AdminBusinessMetricStage[];
+  daily: AdminBusinessMetricDay[];
+  cohorts: AdminBusinessMetricCohort[];
+  platforms: Array<{
+    platform: "web" | "android" | "ios";
+    users: number;
+    rate: number;
+  }>;
+};
+
 export type AdminTrafficKind =
   | "likely_human"
   | "declared_bot"
