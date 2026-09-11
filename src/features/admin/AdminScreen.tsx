@@ -2498,6 +2498,15 @@ function UsersPanel({
   onRoleChange: (user: AdminUserItem, role: "user" | "admin") => void;
   onForceDelete: (user: AdminUserItem) => void;
 }) {
+  const [sort, setSort] = useState<UserTableSort>({
+    key: "lastAccessedAt",
+    direction: "desc",
+  });
+  const sortedUsers = useMemo(
+    () => [...users].sort((left, right) => compareUsers(left, right, sort)),
+    [sort, users],
+  );
+
   if (users.length === 0) {
     return (
       <StatePanel>
@@ -2508,21 +2517,60 @@ function UsersPanel({
     );
   }
 
+  const toggleSort = (key: UserTableSortKey) => {
+    setSort((current) => ({
+      key,
+      direction:
+        current.key === key
+          ? current.direction === "asc"
+            ? "desc"
+            : "asc"
+          : key === "account" || key === "providers"
+            ? "asc"
+            : "desc",
+    }));
+  };
+
   return (
     <TableCard>
       <Table>
         <thead>
           <tr>
-            <th scope="col">계정</th>
-            <th scope="col">공급자</th>
-            <th scope="col">기록</th>
-            <th scope="col">최종 접속</th>
-            <th scope="col">가입일</th>
+            <SortableUserHeader
+              label="계정"
+              sortKey="account"
+              sort={sort}
+              onSort={toggleSort}
+            />
+            <SortableUserHeader
+              label="공급자"
+              sortKey="providers"
+              sort={sort}
+              onSort={toggleSort}
+            />
+            <SortableUserHeader
+              label="기록"
+              sortKey="journalCount"
+              sort={sort}
+              onSort={toggleSort}
+            />
+            <SortableUserHeader
+              label="최종 접속"
+              sortKey="lastAccessedAt"
+              sort={sort}
+              onSort={toggleSort}
+            />
+            <SortableUserHeader
+              label="가입일"
+              sortKey="createdAt"
+              sort={sort}
+              onSort={toggleSort}
+            />
             <th scope="col">관리</th>
           </tr>
         </thead>
         <tbody>
-          {users.map((user) => (
+          {sortedUsers.map((user) => (
             <tr key={user.id}>
               <td data-label="계정">
                 <strong>{user.displayName ?? "이름 미등록"}</strong>
@@ -2565,6 +2613,87 @@ function UsersPanel({
       </Table>
     </TableCard>
   );
+}
+
+type UserTableSortKey =
+  | "account"
+  | "providers"
+  | "journalCount"
+  | "lastAccessedAt"
+  | "createdAt";
+
+type UserTableSort = {
+  key: UserTableSortKey;
+  direction: "asc" | "desc";
+};
+
+function SortableUserHeader({
+  label,
+  sortKey,
+  sort,
+  onSort,
+}: {
+  label: string;
+  sortKey: UserTableSortKey;
+  sort: UserTableSort;
+  onSort: (key: UserTableSortKey) => void;
+}) {
+  const active = sort.key === sortKey;
+
+  return (
+    <th
+      scope="col"
+      aria-sort={
+        active
+          ? sort.direction === "asc"
+            ? "ascending"
+            : "descending"
+          : "none"
+      }
+    >
+      <UserTableSortButton
+        type="button"
+        onClick={() => onSort(sortKey)}
+        aria-label={`${label} 기준 ${active && sort.direction === "asc" ? "내림차순" : "오름차순"} 정렬`}
+      >
+        {label}
+        <SortMark $active={active} aria-hidden="true">
+          {active ? (sort.direction === "asc" ? "↑" : "↓") : "↕"}
+        </SortMark>
+      </UserTableSortButton>
+    </th>
+  );
+}
+
+function compareUsers(
+  left: AdminUserItem,
+  right: AdminUserItem,
+  sort: UserTableSort,
+) {
+  const direction = sort.direction === "asc" ? 1 : -1;
+  let result = 0;
+
+  if (sort.key === "journalCount") {
+    result = left.journalCount - right.journalCount;
+  } else if (sort.key === "lastAccessedAt" || sort.key === "createdAt") {
+    result =
+      new Date(left[sort.key]).getTime() - new Date(right[sort.key]).getTime();
+  } else {
+    const leftValue =
+      sort.key === "providers"
+        ? left.providers.join(", ")
+        : left.displayName ?? left.email ?? left.id;
+    const rightValue =
+      sort.key === "providers"
+        ? right.providers.join(", ")
+        : right.displayName ?? right.email ?? right.id;
+    result = leftValue.localeCompare(rightValue, "ko-KR", {
+      sensitivity: "base",
+    });
+  }
+
+  if (result === 0) result = left.id.localeCompare(right.id);
+  return result * direction;
 }
 
 function SettingsPanel({
@@ -4375,6 +4504,39 @@ const Small = styled.small`
   color: var(--color-text-muted);
   font-size: 11px;
   overflow-wrap: anywhere;
+`;
+
+const UserTableSortButton = styled.button`
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin: -6px -8px;
+  padding: 6px 8px;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-weight: inherit;
+  cursor: pointer;
+
+  &:hover {
+    background: var(--color-neutral-200);
+    color: var(--color-text);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--color-brand-700);
+    outline-offset: 1px;
+  }
+`;
+
+const SortMark = styled.span<{ $active: boolean }>`
+  min-width: 10px;
+  color: ${({ $active }) =>
+    $active ? "var(--color-brand-800)" : "var(--color-neutral-500)"};
+  font-size: 10px;
+  line-height: 1;
 `;
 
 const InlineSelect = styled.select`
