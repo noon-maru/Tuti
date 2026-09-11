@@ -429,10 +429,7 @@ const ZoomValue = styled.span`
 
 const PreviewViewport = styled.div<{ $expanded: boolean }>`
   min-width: 0;
-  overflow-x: auto;
-  overscroll-behavior-x: contain;
-  overscroll-behavior-y: auto;
-  -webkit-overflow-scrolling: touch;
+  overflow: visible;
 
   ${({ $expanded }) =>
     $expanded &&
@@ -441,6 +438,7 @@ const PreviewViewport = styled.div<{ $expanded: boolean }>`
       min-height: 0;
       overflow: auto;
       overscroll-behavior: contain;
+      -webkit-overflow-scrolling: touch;
     `}
 `;
 
