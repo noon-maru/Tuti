@@ -189,6 +189,7 @@ export type AdminUserActivityStage =
 
 export type AdminUserActivityItem = {
   userId: string;
+  displayName: string | null;
   accountType: "anonymous" | "authenticated" | "admin";
   stage: AdminUserActivityStage;
   excluded: boolean;

@@ -1,6 +1,7 @@
 "use client";
 
 import styled from "@emotion/styled";
+import { useState } from "react";
 import type {
   AdminUserActivityItem,
   AdminUserActivityResponse,
@@ -30,12 +31,20 @@ export function AdminUserActivityPanel({
   onDaysChange: (days: number) => void;
   onToggleExcluded: (user: AdminUserActivityItem) => void;
 }) {
+  const [userListTab, setUserListTab] = useState<"included" | "excluded">(
+    "included",
+  );
+
   if (!data) return <Empty>사용자 활동 데이터가 아직 없습니다.</Empty>;
 
   const maximumActivity = Math.max(
     1,
     ...data.daily.map((day) => day.activeUsers),
   );
+  const includedUsers = data.users.filter((user) => !user.excluded);
+  const excludedUsers = data.users.filter((user) => user.excluded);
+  const visibleUsers =
+    userListTab === "included" ? includedUsers : excludedUsers;
 
   return (
     <Layout>
@@ -120,10 +129,39 @@ export function AdminUserActivityPanel({
           <h3>사용자별 이용 단계</h3>
           <StageLegend>생성 → 방문 → 추천 → 탐색 → 전환</StageLegend>
         </SectionHeading>
-        {data.users.length === 0 ? (
-          <Empty>조회 기간에 관측된 사용자가 없습니다.</Empty>
+        <UserTabs role="tablist" aria-label="사용자 활동 집계 구분">
+          <UserTab
+            type="button"
+            role="tab"
+            aria-selected={userListTab === "included"}
+            aria-controls="included-user-activity"
+            data-active={userListTab === "included"}
+            onClick={() => setUserListTab("included")}
+          >
+            집계 대상 <span>{formatNumber(includedUsers.length)}</span>
+          </UserTab>
+          <UserTab
+            type="button"
+            role="tab"
+            aria-selected={userListTab === "excluded"}
+            aria-controls="excluded-user-activity"
+            data-active={userListTab === "excluded"}
+            onClick={() => setUserListTab("excluded")}
+          >
+            분석 제외 <span>{formatNumber(excludedUsers.length)}</span>
+          </UserTab>
+        </UserTabs>
+        {visibleUsers.length === 0 ? (
+          <Empty>
+            {userListTab === "included"
+              ? "조회 기간에 집계할 사용자가 없습니다."
+              : "조회 기간에 제외된 사용자가 없습니다."}
+          </Empty>
         ) : (
-          <TableViewport>
+          <TableViewport
+            id={`${userListTab}-user-activity`}
+            role="tabpanel"
+          >
             <Table>
               <thead>
                 <tr>
@@ -138,12 +176,14 @@ export function AdminUserActivityPanel({
                 </tr>
               </thead>
               <tbody>
-                {data.users.map((user) => (
+                {visibleUsers.map((user) => (
                   <tr key={user.userId} data-excluded={user.excluded}>
                     <td data-label="사용자">
                       <UserIdentity>
-                        <strong>{shortUserId(user.userId)}</strong>
-                        <small>{getAccountTypeLabel(user.accountType)}</small>
+                        <strong>{getUserLabel(user)}</strong>
+                        <small>
+                          {getAccountTypeLabel(user.accountType)} · {shortUserReference(user.userId)}
+                        </small>
                       </UserIdentity>
                     </td>
                     <td data-label="최종 단계">
@@ -216,8 +256,15 @@ function getPlatformLabel(platform: AdminUserActivityItem["platform"]) {
   return "수집 전";
 }
 
-function shortUserId(userId: string) {
-  return `익명 ${userId.slice(0, 8)}`;
+function getUserLabel(user: AdminUserActivityItem) {
+  if (user.displayName) return user.displayName;
+  if (user.accountType === "authenticated") return "이름 미등록";
+  if (user.accountType === "admin") return "관리자";
+  return `익명 ${user.userId.slice(0, 8)}`;
+}
+
+function shortUserReference(userId: string) {
+  return `ID ${userId.slice(0, 8)}`;
 }
 
 function formatNumber(value: number) {
@@ -347,6 +394,55 @@ const UserSection = styled.section`
   gap: var(--space-3);
 `;
 
+const UserTabs = styled.div`
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  width: fit-content;
+  padding: 3px;
+  border: 1px solid var(--color-border);
+  border-radius: 7px;
+  background: var(--color-neutral-100);
+`;
+
+const UserTab = styled.button`
+  min-height: 34px;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 0 var(--space-3);
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--color-text-muted);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+
+  span {
+    min-width: 20px;
+    padding: 2px 6px;
+    border-radius: 999px;
+    background: var(--color-neutral-200);
+    color: inherit;
+    font-size: 10px;
+    font-variant-numeric: tabular-nums;
+    text-align: center;
+  }
+
+  &[data-active="true"] {
+    background: var(--color-white);
+    color: var(--color-text);
+    box-shadow: 0 1px 3px rgb(31 45 61 / 8%);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--color-brand-500);
+    outline-offset: 2px;
+  }
+`;
+
 const SectionHeading = styled.header`
   display: flex;
   align-items: end;
@@ -456,10 +552,6 @@ const Table = styled.table`
     border-bottom: 0;
   }
 
-  tbody tr[data-excluded="true"] {
-    opacity: 0.48;
-  }
-
   @media (max-width: 700px) {
     min-width: 0;
 
@@ -501,7 +593,6 @@ const UserIdentity = styled.div`
   gap: 2px;
 
   strong {
-    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
     font-size: 12px;
   }
 

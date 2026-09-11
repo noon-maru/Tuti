@@ -53,6 +53,7 @@ export async function GET(request: Request) {
         },
         select: {
           id: true,
+          displayName: true,
           role: true,
           createdAt: true,
           lastAccessedAt: true,
@@ -126,6 +127,7 @@ export async function GET(request: Request) {
     const excluded = user.role === "admin" || Boolean(user.analyticsExcludedAt);
     const item: AdminUserActivityItem = {
       userId: user.id,
+      displayName: user.displayName,
       accountType:
         user.role === "admin"
           ? "admin"
