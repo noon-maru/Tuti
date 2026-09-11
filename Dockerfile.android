@@ -6,6 +6,7 @@ ARG DEV_UID=1000
 ARG DEV_GID=1000
 ARG ANDROID_COMMAND_LINE_TOOLS_VERSION=13114758
 ARG ANDROID_COMMAND_LINE_TOOLS_SHA256=7ec965280a073311c339e571cd5de778b9975026cfcbe79f2b1cdcb1e15317ee
+ARG ANDROID_NDK_VERSION=29.0.14206865
 
 ENV ANDROID_HOME=/opt/android-sdk
 ENV ANDROID_SDK_ROOT=/opt/android-sdk
@@ -40,7 +41,8 @@ RUN yes | sdkmanager --licenses >/dev/null \
     "platform-tools" \
     "platforms;android-36" \
     "build-tools;35.0.0" \
-    "build-tools;36.0.0"
+    "build-tools;36.0.0" \
+    "ndk;${ANDROID_NDK_VERSION}"
 
 RUN npm install -g pnpm@11.2.2
 

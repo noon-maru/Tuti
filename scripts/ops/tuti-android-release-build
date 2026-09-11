@@ -106,6 +106,22 @@ case "$verification_output" in
     ;;
 esac
 
+bundle_listing="$(
+  docker compose \
+    --env-file .env \
+    --env-file .env.production \
+    -f docker-compose.android.yml \
+    run --rm builder \
+    jar tf /workspace/android/app/build/outputs/bundle/release/app-release.aab
+)"
+native_library_count="$(printf '%s\n' "$bundle_listing" | grep -c '^base/lib/.*\.so$' || true)"
+native_symbol_count="$(printf '%s\n' "$bundle_listing" | grep -c '^BUNDLE-METADATA/com\.android\.tools\.build\.debugsymbols/.*\.sym$' || true)"
+
+if [ "$native_library_count" -gt 0 ] && [ "$native_symbol_count" -eq 0 ]; then
+  echo "AAB에 네이티브 라이브러리가 있지만 디버그 기호가 포함되지 않았습니다." >&2
+  exit 1
+fi
+
 aab_size="$(stat -c '%s' "$aab_file")"
 aab_sha256="$(sha256sum "$aab_file" | cut -d ' ' -f 1)"
 release_dir="$release_root/$version_name-$version_code"
@@ -124,8 +140,12 @@ install -m 0640 -o "$admin_user" -g "$admin_gid" "$aab_file" "$archived_aab"
 install -m 0640 -o "$admin_user" -g "$admin_gid" "$mapping_file" "$archived_mapping"
 (
   cd "$release_dir"
-  sha256sum "$(basename "$archived_aab")" "$(basename "$archived_mapping")" > "$(basename "$checksums_file")"
+  sha256sum \
+    "$(basename "$archived_aab")" \
+    "$(basename "$archived_mapping")" \
+    > "$(basename "$checksums_file")"
 )
+
 chown "$admin_uid:$admin_gid" "$checksums_file"
 chmod 0640 "$checksums_file"
 
@@ -137,3 +157,8 @@ echo "SHA-256: $aab_sha256"
 echo "버전: $version_name ($version_code)"
 echo "영구 보관: $release_dir"
 echo "R8 mapping: $archived_mapping"
+if [ "$native_library_count" -gt 0 ]; then
+  echo "네이티브 디버그 기호: AAB 내부에 $native_symbol_count개 포함"
+else
+  echo "네이티브 디버그 기호: 대상 네이티브 라이브러리 없음"
+fi
