@@ -9,6 +9,7 @@ import {
   parseJournalBookInput,
   type JournalBookInput,
 } from "@/shared/api/journalBook";
+import { PDFDocument } from "pdf-lib";
 
 const APPROVAL_VERSION = 1;
 const APPROVAL_LIFETIME_MS = 30 * 60 * 1000;
@@ -209,17 +210,12 @@ async function readRequestBytes(
 }
 
 export async function readJournalBookPageCount(pdf: Uint8Array) {
-  const { getDocument } = await import("pdfjs-dist/legacy/build/pdf.mjs");
-  const task = getDocument({ data: Uint8Array.from(pdf) });
-  try {
-    const document = await task.promise;
-    if (document.numPages < 1 || document.numPages > 100) {
-      throw new JournalBookApprovalError("기록집 쪽 수를 확인해주세요.", 400);
-    }
-    return document.numPages;
-  } finally {
-    await task.destroy();
+  const document = await PDFDocument.load(pdf, { updateMetadata: false });
+  const pageCount = document.getPageCount();
+  if (pageCount < 1 || pageCount > 100) {
+    throw new JournalBookApprovalError("기록집 쪽 수를 확인해주세요.", 400);
   }
+  return pageCount;
 }
 
 function assertPdf(pdf: Uint8Array) {
