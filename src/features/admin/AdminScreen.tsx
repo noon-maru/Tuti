@@ -59,6 +59,7 @@ export type AdminTab =
   | "reports"
   | "inquiries"
   | "users"
+  | "admins"
   | "settings";
 
 const tabs: Array<{ id: AdminTab; label: string }> = [
@@ -73,7 +74,8 @@ const tabs: Array<{ id: AdminTab; label: string }> = [
   { id: "places", label: "장소 운영" },
   { id: "reports", label: "신고" },
   { id: "inquiries", label: "문의" },
-  { id: "users", label: "계정·권한" },
+  { id: "users", label: "사용자 계정" },
+  { id: "admins", label: "관리자" },
   { id: "settings", label: "운영 설정" },
 ];
 
@@ -101,7 +103,9 @@ const navigationGroups: Array<{
   },
   {
     label: "관리",
-    items: tabs.filter((item) => ["users", "settings"].includes(item.id)),
+    items: tabs.filter((item) =>
+      ["users", "admins", "settings"].includes(item.id),
+    ),
   },
 ];
 
@@ -118,7 +122,8 @@ const mobileMoreTabs: Array<{ id: AdminTab; label: string }> = [
   { id: "security", label: "트래픽 및 보안 관제" },
   { id: "funnel", label: "추천 행동 퍼널" },
   { id: "notifications", label: "알림 전달" },
-  { id: "users", label: "사용자 및 권한" },
+  { id: "users", label: "사용자 계정" },
+  { id: "admins", label: "관리자" },
   { id: "logs", label: "시스템 로그" },
   { id: "location", label: "위치정보 확인자료" },
   { id: "settings", label: "운영 설정" },
@@ -501,9 +506,12 @@ export function AdminScreen({
         `inquiries${suffix}`,
       );
       setInquiries(response.inquiries);
-    } else if (tab === "users") {
+    } else if (tab === "users" || tab === "admins") {
+      const role = tab === "admins" ? "admin" : "user";
+      searchParams.set("role", role);
+      const userSuffix = `?${searchParams}`;
       const response = await fetchAdminJson<AdminUsersResponse>(
-        `users${suffix}`,
+        `users${userSuffix}`,
       );
       setUsers(response.users);
     } else if (tab === "settings") {
@@ -1003,17 +1011,26 @@ export function AdminScreen({
               )
             }
           />
-        ) : tab === "users" ? (
+        ) : tab === "users" || tab === "admins" ? (
           <UsersPanel
             users={users}
+            mode={tab === "admins" ? "admins" : "users"}
             mutatingId={mutatingId}
-            onRoleChange={(userId, role) =>
+            onRoleChange={(user, role) => {
+              const accountLabel = user.email ?? user.displayName ?? user.id;
+              const confirmed = window.confirm(
+                role === "admin"
+                  ? `"${accountLabel}" 계정에 관리자 권한을 부여할까요? 운영센터의 모든 관리 기능에 접근할 수 있게 됩니다.`
+                  : `"${accountLabel}" 계정의 관리자 권한을 해제할까요? 해제 즉시 운영센터에 접근할 수 없게 됩니다.`,
+              );
+              if (!confirmed) return;
+
               void mutate(
                 "users",
-                userId,
-                adminJsonRequest("PATCH", { userId, role }),
-              )
-            }
+                user.id,
+                adminJsonRequest("PATCH", { userId: user.id, role }),
+              );
+            }}
             onForceDelete={(user) => {
               if (
                 !window.confirm(
@@ -2470,16 +2487,26 @@ function InquiryEditor({
 
 function UsersPanel({
   users,
+  mode,
   mutatingId,
   onRoleChange,
   onForceDelete,
 }: {
   users: AdminUserItem[];
+  mode: "users" | "admins";
   mutatingId: string | null;
-  onRoleChange: (userId: string, role: string) => void;
+  onRoleChange: (user: AdminUserItem, role: "user" | "admin") => void;
   onForceDelete: (user: AdminUserItem) => void;
 }) {
-  if (users.length === 0) return <StatePanel>조건에 맞는 사용자가 없습니다.</StatePanel>;
+  if (users.length === 0) {
+    return (
+      <StatePanel>
+        {mode === "admins"
+          ? "조건에 맞는 관리자가 없습니다."
+          : "조건에 맞는 사용자가 없습니다."}
+      </StatePanel>
+    );
+  }
 
   return (
     <TableCard>
@@ -2491,7 +2518,6 @@ function UsersPanel({
             <th scope="col">기록</th>
             <th scope="col">최종 접속</th>
             <th scope="col">가입일</th>
-            <th scope="col">권한</th>
             <th scope="col">관리</th>
           </tr>
         </thead>
@@ -2507,61 +2533,37 @@ function UsersPanel({
               <td data-label="기록">{user.journalCount}</td>
               <td data-label="최종 접속">{formatDate(user.lastAccessedAt)}</td>
               <td data-label="가입일">{formatDate(user.createdAt)}</td>
-              <td data-label="권한">
-                <UserRoleEditor
-                  key={`${user.id}:${user.role}`}
-                  user={user}
-                  saving={mutatingId === user.id}
-                  onSave={onRoleChange}
-                />
-              </td>
               <td data-label="관리">
-                <DangerButton
-                  type="button"
-                  disabled={mutatingId === user.id}
-                  onClick={() => onForceDelete(user)}
-                >
-                  계정 강제 삭제
-                </DangerButton>
+                <AccountActions>
+                  <RoleActionButton
+                    type="button"
+                    disabled={mutatingId === user.id}
+                    $revoke={mode === "admins"}
+                    onClick={() =>
+                      onRoleChange(
+                        user,
+                        mode === "admins" ? "user" : "admin",
+                      )
+                    }
+                  >
+                    {mode === "admins"
+                      ? "관리자 권한 해제"
+                      : "관리자 권한 부여"}
+                  </RoleActionButton>
+                  <DangerButton
+                    type="button"
+                    disabled={mutatingId === user.id}
+                    onClick={() => onForceDelete(user)}
+                  >
+                    계정 강제 삭제
+                  </DangerButton>
+                </AccountActions>
               </td>
             </tr>
           ))}
         </tbody>
       </Table>
     </TableCard>
-  );
-}
-
-function UserRoleEditor({
-  user,
-  saving,
-  onSave,
-}: {
-  user: AdminUserItem;
-  saving: boolean;
-  onSave: (userId: string, role: string) => void;
-}) {
-  const [role, setRole] = useState(user.role);
-
-  return (
-    <InlineActionGroup>
-      <InlineSelect
-        value={role}
-        disabled={saving}
-        aria-label={`${user.email ?? user.id} 권한`}
-        onChange={(event) => setRole(event.target.value as typeof role)}
-      >
-        <option value="user">사용자</option>
-        <option value="admin">관리자</option>
-      </InlineSelect>
-      <CompactActionButton
-        type="button"
-        disabled={saving || role === user.role}
-        onClick={() => onSave(user.id, role)}
-      >
-        적용
-      </CompactActionButton>
-    </InlineActionGroup>
   );
 }
 
@@ -4551,6 +4553,52 @@ const DangerButton = styled.button`
   font-size: var(--font-size-100);
   font-weight: 700;
   cursor: pointer;
+
+  &:disabled {
+    cursor: default;
+    opacity: 0.4;
+  }
+`;
+
+const AccountActions = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-2);
+
+  @media (max-width: 768px) {
+    display: grid;
+
+    button {
+      width: 100%;
+    }
+  }
+`;
+
+const RoleActionButton = styled.button<{ $revoke: boolean }>`
+  min-height: 36px;
+  padding: 0 var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--space-2);
+  background: ${({ $revoke }) =>
+    $revoke ? "var(--color-neutral-100)" : "transparent"};
+  color: var(--color-text-muted);
+  font: inherit;
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+
+  &:hover:not(:disabled) {
+    border-color: var(--color-neutral-500);
+    background: var(--color-neutral-100);
+    color: var(--color-text);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--color-brand-700);
+    outline-offset: 2px;
+  }
 
   &:disabled {
     cursor: default;

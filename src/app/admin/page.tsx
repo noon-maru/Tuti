@@ -42,6 +42,7 @@ function normalizeAdminTab(value: unknown): AdminTab {
     value === "reports" ||
     value === "inquiries" ||
     value === "users" ||
+    value === "admins" ||
     value === "settings"
     ? value
     : "overview";

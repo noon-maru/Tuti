@@ -25,13 +25,17 @@ export async function GET(request: Request) {
     return withCors(request, authentication.response);
   }
 
-  const query = new URL(request.url).searchParams
+  const searchParams = new URL(request.url).searchParams;
+  const query = searchParams
     .get("q")
     ?.trim()
     .slice(0, 120);
+  const role = normalizeRole(searchParams.get("role"));
   const users = await prisma.user.findMany({
-    where: query
-      ? {
+    where: {
+      ...(role ? { role } : {}),
+      ...(query
+        ? {
           OR: [
             { id: { contains: query, mode: "insensitive" } },
             { displayName: { contains: query, mode: "insensitive" } },
@@ -44,7 +48,8 @@ export async function GET(request: Request) {
             },
           ],
         }
-      : undefined,
+        : {}),
+    },
     select: {
       id: true,
       displayName: true,
