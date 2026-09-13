@@ -134,7 +134,9 @@ android/app/build/outputs/bundle/release/app-release.aab
 /var/services/homes/Tutiadmin/.tuti-releases/android/<versionName>-<versionCode>/
 ```
 
-현재 정식 출시 준비 버전은 `versionCode 8`, `versionName 1.2.0`이다. Play
+현재 내부 테스트 버전은 `versionCode 9`, `versionName 1.2.1`이다. 위치 권한 직후
+종료 현상과 R8의 연관성을 확인하기 위해 이 버전에서는 코드·리소스 축소를 잠시
+비활성화한다. Play
 Console에 AAB를 한 번이라도 올린 뒤에는 매 업로드마다 `versionCode`를
 증가시켜야 한다. 표시 버전이 같더라도 새 AAB를 업로드할 때는 versionCode를
 반드시 올린다.

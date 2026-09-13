@@ -43,7 +43,8 @@ pnpm cap:open:ios
 target의 Team과 자동 서명을 확인하고 `Any iOS Device (arm64)` 대상으로
 `Product > Archive`를 실행한다.
 
-현재 App Store 준비 버전은 `1.2.0 (10)`이다. 이미 build 10을 App Store Connect에
+현재 프로젝트 버전은 `1.2.1 (11)`이다. 이번 1.2.1 변경은 Android 내부 진단용이며,
+iOS를 함께 출시할 필요는 없다. 이미 build 11을 App Store Connect에
 업로드했다면 `CURRENT_PROJECT_VERSION`을 더 큰 정수로 올린 뒤 다시 Archive한다.
 인증서와 프로비저닝 프로파일은 Git으로 옮기지 않고 Xcode의 자동 서명으로 새
 Mac에 발급한다.

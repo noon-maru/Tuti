@@ -52,10 +52,16 @@ export TUTI_ANDROID_KEYSTORE_PATH="/run/tuti-android-signing/tuti-upload.jks"
 
 version_code="$(sed -n 's/^[[:space:]]*versionCode[[:space:]]\+\([0-9][0-9]*\).*$/\1/p' "$project_dir/android/app/build.gradle" | head -n 1)"
 version_name="$(sed -n 's/^[[:space:]]*versionName[[:space:]]\+"\([^"]*\)".*$/\1/p' "$project_dir/android/app/build.gradle" | head -n 1)"
+minify_enabled="$(sed -n 's/^[[:space:]]*minifyEnabled[[:space:]]\+\(true\|false\).*$/\1/p' "$project_dir/android/app/build.gradle" | head -n 1)"
 
-if [ -z "$version_code" ] || [ -z "$version_name" ]; then
+if [ -z "$version_code" ] || [ -z "$version_name" ] || [ -z "$minify_enabled" ]; then
   echo "Android 버전 정보를 읽지 못했습니다." >&2
   exit 1
+fi
+
+# R8을 끈 빌드에서 직전 버전의 매핑 파일을 새 산출물로 오인하지 않는다.
+if [ "$minify_enabled" = "false" ]; then
+  rm -f "$mapping_file"
 fi
 
 cd "$project_dir"
@@ -82,7 +88,7 @@ if [ ! -s "$aab_file" ]; then
   exit 1
 fi
 
-if [ ! -s "$mapping_file" ]; then
+if [ "$minify_enabled" = "true" ] && [ ! -s "$mapping_file" ]; then
   echo "R8 mapping.txt가 생성되지 않았습니다: $mapping_file" >&2
   exit 1
 fi
@@ -137,13 +143,19 @@ fi
 
 install -d -m 0750 -o "$admin_user" -g "$admin_gid" "$release_dir"
 install -m 0640 -o "$admin_user" -g "$admin_gid" "$aab_file" "$archived_aab"
-install -m 0640 -o "$admin_user" -g "$admin_gid" "$mapping_file" "$archived_mapping"
+if [ "$minify_enabled" = "true" ]; then
+  install -m 0640 -o "$admin_user" -g "$admin_gid" "$mapping_file" "$archived_mapping"
+fi
 (
   cd "$release_dir"
-  sha256sum \
-    "$(basename "$archived_aab")" \
-    "$(basename "$archived_mapping")" \
-    > "$(basename "$checksums_file")"
+  if [ "$minify_enabled" = "true" ]; then
+    sha256sum \
+      "$(basename "$archived_aab")" \
+      "$(basename "$archived_mapping")" \
+      > "$(basename "$checksums_file")"
+  else
+    sha256sum "$(basename "$archived_aab")" > "$(basename "$checksums_file")"
+  fi
 )
 
 chown "$admin_uid:$admin_gid" "$checksums_file"
@@ -156,7 +168,11 @@ echo "크기: $aab_size bytes"
 echo "SHA-256: $aab_sha256"
 echo "버전: $version_name ($version_code)"
 echo "영구 보관: $release_dir"
-echo "R8 mapping: $archived_mapping"
+if [ "$minify_enabled" = "true" ]; then
+  echo "R8 mapping: $archived_mapping"
+else
+  echo "R8: 비활성화 (mapping.txt 없음)"
+fi
 if [ "$native_library_count" -gt 0 ]; then
   echo "네이티브 디버그 기호: AAB 내부에 $native_symbol_count개 포함"
 else

@@ -19,8 +19,8 @@ android {
         applicationId "com.noonmaru.tuti"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 8
-        versionName "1.2.0"
+        versionCode 9
+        versionName "1.2.1"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
@@ -43,8 +43,9 @@ android {
             if (hasReleaseSigning) {
                 signingConfig signingConfigs.release
             }
-            minifyEnabled true
-            shrinkResources true
+            // 1.2.1 내부 테스트: 위치 권한 직후 종료와 R8의 연관성을 확인한다.
+            minifyEnabled false
+            shrinkResources false
             ndk {
                 debugSymbolLevel 'SYMBOL_TABLE'
             }
