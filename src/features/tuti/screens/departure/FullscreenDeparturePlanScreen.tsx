@@ -3,6 +3,7 @@
 import styled from "@emotion/styled";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useDeferredAnimationStart } from "@/features/tuti/hooks/useDeferredAnimationStart";
+import { getPlaceDisplayPhrase } from "@/features/tuti/lib/placeDisplayCopy";
 import { DeparturePlanScreen } from "@/features/tuti/screens/departure/DeparturePlanScreen";
 import type { TutiPlace } from "@/lib/recommendations";
 import type { DepartureRoute } from "@/shared/api/departurePlan";
@@ -124,7 +125,7 @@ export function FullscreenDeparturePlanScreen({
         <FrontFace $image={place.image} aria-hidden="true">
           <FrontCopy>
             <small>{place.travelTime}</small>
-            <strong>{place.phrase}</strong>
+            <strong>{getPlaceDisplayPhrase(place)}</strong>
             <em>눌러서 출발 준비</em>
           </FrontCopy>
         </FrontFace>

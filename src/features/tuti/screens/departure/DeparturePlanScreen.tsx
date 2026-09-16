@@ -26,6 +26,7 @@ import {
   DEPARTURE_ROUTE_MODES,
   getVisibleDepartureRouteModes,
 } from "@/features/tuti/lib/departureRouteModes";
+import { getPlaceDisplayPhrase } from "@/features/tuti/lib/placeDisplayCopy";
 import type { TutiPlace } from "@/lib/recommendations";
 import type {
   DeparturePlan,
@@ -46,7 +47,10 @@ export type DeparturePlace = Pick<
   | "latitude"
   | "longitude"
   | "longDistanceJourney"
->;
+> &
+  Partial<
+    Pick<TutiPlace, "cardPhrase" | "reason" | "experienceType" | "moodTags">
+  >;
 
 export function DeparturePlanScreen({
   place,
@@ -246,7 +250,7 @@ export function DeparturePlanScreen({
           <PlaceSummary>
             <PlaceImage $image={place.image} aria-hidden="true" />
             <div>
-              <strong>{place.phrase}</strong>
+              <strong>{getPlaceDisplayPhrase(place)}</strong>
               <p>
                 <MapPin aria-hidden="true" />
                 {destinationAddress ?? "선택한 오늘의 장소"}

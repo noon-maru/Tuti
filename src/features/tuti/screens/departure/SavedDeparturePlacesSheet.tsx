@@ -8,6 +8,7 @@ import {
   PrimaryButton,
 } from "@/features/tuti/components/buttons";
 import { useDeferredAnimationStart } from "@/features/tuti/hooks/useDeferredAnimationStart";
+import { getPlaceDisplayPhrase } from "@/features/tuti/lib/placeDisplayCopy";
 import type { TutiPlace } from "@/lib/recommendations";
 import type { SavedDeparturePlace } from "@/store/tuti";
 
@@ -156,8 +157,9 @@ export function SavedDeparturePlacesSheet({
                     <small>{formatSavedDate(place.savedAt)}</small>
                     <strong>{place.placeName}</strong>
                     <p>
-                      {place.placePhrase ||
-                        "다음에 가볍게 만나볼 수 있도록 남겨둔 공간"}
+                      {getPlaceDisplayPhrase({
+                        phrase: place.placePhrase ?? "",
+                      })}
                     </p>
                   </PlaceCopy>
                   <RemoveButton
@@ -211,7 +213,7 @@ export function SavedDeparturePlacesSheet({
                   <PlaceCopy>
                     <small>오늘 추천 중에서</small>
                     <strong>{place.name}</strong>
-                    <p>{place.cardPhrase ?? place.phrase}</p>
+                    <p>{getPlaceDisplayPhrase(place)}</p>
                   </PlaceCopy>
                   <SimilarOpenButton
                     type="button"

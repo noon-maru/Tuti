@@ -10,6 +10,12 @@ import { useTravelTime } from "@/features/tuti/hooks/useTravelTime";
 import { useSession } from "@/features/tuti/hooks/useSession";
 import { useTutiJournalEntries } from "@/features/tuti/hooks/useTutiJournalEntries";
 import { useLocationAccess } from "@/features/tuti/location/LocationAccessProvider";
+import { getPlaceDisplayPhrase } from "@/features/tuti/lib/placeDisplayCopy";
+import { findSimilarVisitedPlaces } from "@/features/tuti/lib/similarVisitedPlaces";
+import {
+  formatLongDistanceTravelTimeLabel,
+  formatTravelTimeLabel,
+} from "@/features/tuti/lib/travelTimeLabel";
 import { DailyCheckInScreen } from "@/features/tuti/screens/intake/DailyCheckInScreen";
 import {
   DeparturePlanScreen,
@@ -17,11 +23,6 @@ import {
 } from "@/features/tuti/screens/departure/DeparturePlanScreen";
 import { SavedDeparturePlacesSheet } from "@/features/tuti/screens/departure/SavedDeparturePlacesSheet";
 import { RecommendationsScreen } from "@/features/tuti/screens/recommendations/RecommendationsScreen";
-import { findSimilarVisitedPlaces } from "@/features/tuti/lib/similarVisitedPlaces";
-import {
-  formatLongDistanceTravelTimeLabel,
-  formatTravelTimeLabel,
-} from "@/features/tuti/lib/travelTimeLabel";
 import {
   RecommendationRequestError,
   recordRecommendationAction,
@@ -388,7 +389,7 @@ export function RecommendationsFlow({ interactive }: { interactive: boolean }) {
       placeId: place.id,
       placeName: place.name,
       placeImage: place.image,
-      placePhrase: place.phrase,
+      placePhrase: getPlaceDisplayPhrase(place),
       routeMode: route.mode,
       startedAt: new Date(now).toISOString(),
       promptAfter: new Date(now + promptDelay).toISOString(),
@@ -465,7 +466,7 @@ export function RecommendationsFlow({ interactive }: { interactive: boolean }) {
             placeId: place.id,
             placeName: place.name,
             placeImage: place.image,
-            placePhrase: place.phrase,
+            placePhrase: getPlaceDisplayPhrase(place),
           });
           requestLoginNudge("place_saved");
         }}
@@ -625,7 +626,7 @@ export function RecommendationsFlow({ interactive }: { interactive: boolean }) {
               placeId: place.id,
               placeName: place.name,
               placeImage: place.image,
-              placePhrase: place.phrase,
+              placePhrase: getPlaceDisplayPhrase(place),
               savedAt: new Date().toISOString(),
             });
           }}

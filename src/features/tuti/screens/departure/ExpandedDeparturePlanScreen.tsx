@@ -9,6 +9,7 @@ import {
   useState,
 } from "react";
 import { useDeferredAnimationStart } from "@/features/tuti/hooks/useDeferredAnimationStart";
+import { getPlaceDisplayPhrase } from "@/features/tuti/lib/placeDisplayCopy";
 import { DeparturePlanScreen } from "@/features/tuti/screens/departure/DeparturePlanScreen";
 import type { CardTransitionRect } from "@/features/tuti/screens/departure/FullscreenDeparturePlanScreen";
 import type { TutiPlace } from "@/lib/recommendations";
@@ -151,7 +152,7 @@ export function ExpandedDeparturePlanScreen({
         >
           <CardCopy>
             <small>{place.travelTime}</small>
-            <strong>{place.phrase}</strong>
+            <strong>{getPlaceDisplayPhrase(place)}</strong>
             <em>눌러서 출발 준비</em>
           </CardCopy>
         </CardFace>

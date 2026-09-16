@@ -2,6 +2,7 @@
 
 import styled from "@emotion/styled";
 import type { TutiPlace } from "@/lib/recommendations";
+import { getPlaceDisplayPhrase } from "@/features/tuti/lib/placeDisplayCopy";
 import {
   fluidByCompactViewportHeight,
   fluidByViewportHeight,
@@ -55,7 +56,7 @@ export function SwipeCard({
       <small aria-live={active ? "polite" : undefined}>
         {travelTimeLabel}
       </small>
-      <span>{place.cardPhrase ?? place.phrase}</span>
+      <span>{getPlaceDisplayPhrase(place)}</span>
       {active && <em>눌러서 출발 준비</em>}
     </CardButton>
   );

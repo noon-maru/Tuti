@@ -24,6 +24,10 @@ import { usePlaceDetail } from "@/features/tuti/hooks/usePlaceDetail";
 import { useVerticalSwipeBack } from "@/features/tuti/hooks/useVerticalSwipeBack";
 import { getPublicPlaceUrl } from "@/features/tuti/lib/placeShare";
 import {
+  getPlaceDisplayPhrase,
+  getPlaceReasonHeadline,
+} from "@/features/tuti/lib/placeDisplayCopy";
+import {
   createOperationBadge,
   createVisitInformationFacts,
   type VisitInformationFact,
@@ -215,7 +219,7 @@ export function DetailScreen({
                   onSelect: () =>
                     shareContent({
                       title: place.name,
-                      text: `${place.phrase}\n${getFallbackDescription(place)}`,
+                      text: `${getPlaceDisplayPhrase(place)}\n${getFallbackDescription(place)}`,
                       url: getPublicPlaceUrl(place.id),
                     }),
                 },
@@ -246,7 +250,7 @@ export function DetailScreen({
           <Description data-scroll-region>
             <ReasonCard>
               <small>오늘 이곳을 고른 이유</small>
-              <strong>{place.reason ?? place.phrase}</strong>
+              <strong>{getPlaceReasonHeadline(place)}</strong>
               <p>{createBurdenCopy(place)}</p>
             </ReasonCard>
 
@@ -630,8 +634,7 @@ function getCrowdForecastDescription(
 }
 
 function createPlaceSubtitle(place: TutiPlace) {
-  const phrase = place.phrase.trim();
-  if (!phrase || phrase === "잠깐 다른 공기를 만나기 좋은 곳") return null;
+  const phrase = getPlaceDisplayPhrase(place);
   if (phrase === place.reason?.trim()) return null;
   return phrase;
 }
