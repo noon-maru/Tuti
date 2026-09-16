@@ -24,6 +24,7 @@ export type TutiPlace = {
   sourceContentType?: string;
   sourceSidoName?: string;
   sourceSigunguName?: string;
+  experienceType?: PlaceExperienceType;
   admissionFee?: string;
   latitude?: number;
   longitude?: number;
@@ -40,6 +41,17 @@ export type TutiPlace = {
   cardPhrase?: string;
   longDistanceJourney?: LongDistanceJourney;
 };
+
+export type PlaceExperienceType =
+  | "waterside"
+  | "forest_garden"
+  | "art_exhibition"
+  | "museum_story"
+  | "history_heritage"
+  | "viewpoint"
+  | "neighborhood"
+  | "activity"
+  | "other";
 
 export type LongDistanceMode = "highSpeedRail" | "expressBus";
 

@@ -38,6 +38,8 @@ import {
   keepVerifiedTimeFits,
 } from "@/server/recommendations/executionEligibility";
 import { derivePlaceMoodTags } from "@/server/tourism/placeMoodTags";
+import { derivePlaceExperienceType } from "@/server/recommendations/experienceType";
+import { selectDiverseRecommendations } from "@/server/recommendations/finalDiversity";
 import { getNearbyDistancePolicy } from "@/server/recommendations/nearbyDistancePolicy";
 import {
   filterPlacesByRequestedDensity,
@@ -84,6 +86,7 @@ type PlaceRow = {
 };
 
 const RECOMMENDATION_LIMIT = 6;
+const FINAL_RERANK_POOL_SIZE = 12;
 const CANDIDATE_EVALUATION_BATCH_SIZE = 12;
 const MAX_LOCATION_EVALUATION_BATCHES = 2;
 const MAX_NEAR_LOCATION_EVALUATION_BATCHES = 4;
@@ -233,7 +236,10 @@ async function evaluateRecommendations(
       eligibleCandidateCount: budgetEligiblePlaces.length,
       initialRanking: conditionedPlaces,
       finalRanking: personalization.places,
-      recommendedPlaces: personalization.places.slice(0, RECOMMENDATION_LIMIT),
+      recommendedPlaces: selectDiverseRecommendations(
+        personalization.places,
+        RECOMMENDATION_LIMIT,
+      ),
       personalization: personalization.audit,
     };
   }
@@ -296,7 +302,7 @@ async function evaluateRecommendations(
       ...filterPlacesByAdmissionBudget(executableBatch, answers.budget),
     );
 
-    if (eligibleShortlist.length >= RECOMMENDATION_LIMIT) break;
+    if (eligibleShortlist.length >= FINAL_RERANK_POOL_SIZE) break;
   }
 
   const [weatherEnrichedPlaces, crowdEnrichedPlaces] = await Promise.all([
@@ -315,19 +321,16 @@ async function evaluateRecommendations(
       forecastedPlaces.length,
     ),
     answers.air,
-  ).slice(0, 12);
+  ).slice(0, FINAL_RERANK_POOL_SIZE);
   const personalization = await personalizeRecommendationRanking(
     finalRanking,
     answers,
     userId,
   );
-  const recommendedPlaces = location
-    ? personalization.places.slice(0, RECOMMENDATION_LIMIT)
-    : selectDiverseContentTypes(
-        personalization.places,
-        RECOMMENDATION_LIMIT,
-        2,
-      );
+  const recommendedPlaces = selectDiverseRecommendations(
+    personalization.places,
+    RECOMMENDATION_LIMIT,
+  );
 
   return {
     feature,
@@ -501,6 +504,16 @@ function toTutiPlace(place: PlaceRow): TutiPlace {
       toPublicSidoName(place.sourceSidoName, place.sourceSigunguName) ??
       undefined,
     sourceSigunguName: place.sourceSigunguName ?? undefined,
+    experienceType: derivePlaceExperienceType({
+      name: place.name,
+      phrase: place.phrase,
+      note: place.note,
+      sourceContentType: place.sourceContentType ?? undefined,
+      moodTags,
+      overview: detail?.overview ?? place.detailOverview,
+      experienceGuide:
+        detail?.experienceGuide ?? place.detailExperienceGuide,
+    }),
     latitude: Number(place.latitude),
     longitude: Number(place.longitude),
     distanceMeters:

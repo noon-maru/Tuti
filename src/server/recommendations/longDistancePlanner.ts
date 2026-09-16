@@ -18,6 +18,7 @@ import {
   toPublicSidoName,
 } from "@/server/places/publicPlaceLabels";
 import { derivePlaceMoodTags } from "@/server/tourism/placeMoodTags";
+import { derivePlaceExperienceType } from "@/server/recommendations/experienceType";
 import {
   fetchExpressBusSchedules,
   fetchHighSpeedRailSchedules,
@@ -154,6 +155,17 @@ export async function createLongDistanceRecommendations(
     });
     if (straightDistanceMeters < MINIMUM_LONG_DISTANCE_METERS) return [];
 
+    const detail = row.tourismSourceRecord?.detailRecord;
+    const moodTags =
+      row.visibilityOverride === "auto"
+        ? derivePlaceMoodTags({
+            name: row.name,
+            address: row.sourceAddress,
+            contentTypeId: row.sourceContentType,
+            overview: detail?.overview,
+            experienceGuide: detail?.experienceGuide,
+          })
+        : row.moodTags;
     const place = {
       id: row.id,
       name: toPublicPlaceName(
@@ -169,23 +181,22 @@ export async function createLongDistanceRecommendations(
       today: row.today,
       fatigue: row.fatigue,
       movementLevel: row.movementLevel,
-      moodTags:
-        row.visibilityOverride === "auto"
-          ? derivePlaceMoodTags({
-              name: row.name,
-              address: row.sourceAddress,
-              contentTypeId: row.sourceContentType,
-              overview: row.tourismSourceRecord?.detailRecord?.overview,
-              experienceGuide:
-                row.tourismSourceRecord?.detailRecord?.experienceGuide,
-            })
-          : row.moodTags,
+      moodTags,
       sourceContentType: row.sourceContentType ?? undefined,
       sourceSidoName:
         toPublicSidoName(row.sourceSidoName, row.sourceSigunguName) ?? undefined,
       sourceSigunguName: row.sourceSigunguName ?? undefined,
       admissionFee:
-        row.tourismSourceRecord?.detailRecord?.admissionFee ?? undefined,
+        detail?.admissionFee ?? undefined,
+      experienceType: derivePlaceExperienceType({
+        name: row.name,
+        phrase: row.phrase,
+        note: row.note,
+        sourceContentType: row.sourceContentType ?? undefined,
+        moodTags,
+        overview: detail?.overview,
+        experienceGuide: detail?.experienceGuide,
+      }),
       latitude,
       longitude,
       distanceMeters: straightDistanceMeters,
