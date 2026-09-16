@@ -67,6 +67,7 @@ type PlaceRow = {
   fatigue: number;
   movementLevel: "near" | "short" | "half";
   moodTags: string[];
+  experienceType: string | null;
   sourceContentType: string | null;
   sourceSidoName: string | null;
   sourceSigunguName: string | null;
@@ -386,6 +387,7 @@ async function findPlacesByBaseFatigue(
       fatigue: true,
       movementLevel: true,
       moodTags: true,
+      experienceType: true,
       sourceContentType: true,
       sourceSidoName: true,
       sourceSigunguName: true,
@@ -424,6 +426,7 @@ async function findPlacesNearLocation(
       p."fatigue",
       p."movement_level" AS "movementLevel",
       p."mood_tags" AS "moodTags",
+      p."experience_type" AS "experienceType",
       p."source_content_type" AS "sourceContentType",
       p."source_sido_name" AS "sourceSidoName",
       p."source_sigungu_name" AS "sourceSigunguName",
@@ -504,21 +507,39 @@ function toTutiPlace(place: PlaceRow): TutiPlace {
       toPublicSidoName(place.sourceSidoName, place.sourceSigunguName) ??
       undefined,
     sourceSigunguName: place.sourceSigunguName ?? undefined,
-    experienceType: derivePlaceExperienceType({
-      name: place.name,
-      phrase: place.phrase,
-      note: place.note,
-      sourceContentType: place.sourceContentType ?? undefined,
-      moodTags,
-      overview: detail?.overview ?? place.detailOverview,
-      experienceGuide:
-        detail?.experienceGuide ?? place.detailExperienceGuide,
-    }),
+    experienceType: isPlaceExperienceType(place.experienceType)
+      ? place.experienceType
+      : derivePlaceExperienceType({
+          name: place.name,
+          phrase: place.phrase,
+          note: place.note,
+          sourceContentType: place.sourceContentType ?? undefined,
+          moodTags,
+          overview: detail?.overview ?? place.detailOverview,
+          experienceGuide:
+            detail?.experienceGuide ?? place.detailExperienceGuide,
+        }),
     latitude: Number(place.latitude),
     longitude: Number(place.longitude),
     distanceMeters:
       typeof place.distanceMeters === "number" ? place.distanceMeters : undefined,
   };
+}
+
+function isPlaceExperienceType(
+  value: string | null,
+): value is NonNullable<TutiPlace["experienceType"]> {
+  return value !== null && [
+    "waterside",
+    "forest_garden",
+    "art_exhibition",
+    "museum_story",
+    "history_heritage",
+    "viewpoint",
+    "neighborhood",
+    "activity",
+    "other",
+  ].includes(value);
 }
 
 async function enrichWithTransitTimes(

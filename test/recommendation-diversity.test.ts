@@ -54,6 +54,22 @@ test("상세 문구와 장소 성격을 경험 유형으로 분류한다", () =>
     derivePlaceExperienceType({ ...common, name: "마을 골목 시장" }),
     "neighborhood",
   );
+  assert.equal(
+    derivePlaceExperienceType({ ...common, name: "동화마을수목원" }),
+    "forest_garden",
+  );
+  assert.equal(
+    derivePlaceExperienceType({
+      ...common,
+      name: "장안근린공원",
+      overview: "지역 예술가의 작품도 만날 수 있는 공원이다.",
+    }),
+    "forest_garden",
+  );
+  assert.equal(
+    derivePlaceExperienceType({ ...common, name: "수월봉" }),
+    "viewpoint",
+  );
 });
 
 test("비슷한 품질 안에서는 같은 경험이 두 곳을 넘지 않게 재정렬한다", () => {

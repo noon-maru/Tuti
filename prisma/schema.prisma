@@ -203,6 +203,11 @@ model Place {
   fatigue                   Int
   movementLevel             MovementLevel                         @map("movement_level")
   moodTags                  String[]                              @map("mood_tags")
+  experienceType            String?                               @map("experience_type")
+  experienceTypeConfidence Int?                                  @map("experience_type_confidence")
+  experienceTypeEvidence   String[]                              @default([]) @map("experience_type_evidence")
+  recommendationFeatureVersion String?                            @map("recommendation_feature_version")
+  recommendationFeatureDerivedAt DateTime?                        @map("recommendation_feature_derived_at")
   latitude                  Decimal                               @db.Decimal(9, 6)
   longitude                 Decimal                               @db.Decimal(9, 6)
   location                  Unsupported("geometry(Point, 4326)")?
@@ -240,6 +245,7 @@ model Place {
   @@unique([source, sourceId])
   @@index([fatigue])
   @@index([movementLevel])
+  @@index([experienceType])
   @@index([source, reviewStatus, isActive])
   @@index([source, sourceContentType, reviewStatus])
   @@index([source, candidateStatus, candidateOverride])

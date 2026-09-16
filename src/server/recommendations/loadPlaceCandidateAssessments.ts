@@ -4,7 +4,7 @@ import {
   type PlaceCandidateAssessment,
   type PlaceCandidateInput,
 } from "@/server/recommendations/placeCandidateSelection";
-import { derivePlaceMoodTags } from "@/server/tourism/placeMoodTags";
+import { derivePlaceRecommendationFeatures } from "@/server/recommendations/placeRecommendationFeatures";
 
 export type AssessedPlace = {
   place: PlaceCandidateInput;
@@ -15,6 +15,7 @@ export type AssessedPlace = {
   candidateOverride: "auto" | "include" | "exclude";
   reviewStatus: "pending" | "approved" | "rejected";
   visibilityOverride: "auto" | "show" | "hide";
+  recommendationFeatures: ReturnType<typeof derivePlaceRecommendationFeatures>;
 };
 
 const EDITORIAL_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1_000;
@@ -94,20 +95,23 @@ export async function loadPlaceCandidateAssessments(): Promise<AssessedPlace[]> 
     const sourceRegion = row.sourceId
       ? sourceRegionByContentId.get(row.sourceId)
       : undefined;
+    const recommendationFeatures = derivePlaceRecommendationFeatures({
+      name: row.name,
+      address: row.sourceAddress,
+      contentTypeId: row.sourceContentType,
+      overview: detail?.overview,
+      experienceGuide: detail?.experienceGuide,
+      usageDuration: detail?.usageDuration,
+      reservation: detail?.reservation,
+    });
     const place: PlaceCandidateInput = {
       id: row.id,
       name: row.name,
       image: row.image,
-      fatigue: row.fatigue,
-      movementLevel: row.movementLevel,
+      fatigue: recommendationFeatures.fatigue,
+      movementLevel: recommendationFeatures.movementLevel,
       moodTags: row.visibilityOverride === "auto"
-        ? derivePlaceMoodTags({
-            name: row.name,
-            address: row.sourceAddress,
-            contentTypeId: row.sourceContentType,
-            overview: detail?.overview,
-            experienceGuide: detail?.experienceGuide,
-          })
+        ? recommendationFeatures.moodTags
         : row.moodTags,
       latitude: Number(row.latitude),
       longitude: Number(row.longitude),
@@ -156,6 +160,7 @@ export async function loadPlaceCandidateAssessments(): Promise<AssessedPlace[]> 
       candidateOverride: row.candidateOverride,
       reviewStatus: row.reviewStatus,
       visibilityOverride: row.visibilityOverride,
+      recommendationFeatures,
     };
   });
 }
