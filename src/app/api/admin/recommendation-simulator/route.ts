@@ -219,13 +219,20 @@ async function readInput(
     if (
       !isRecord(body.preferredRegion) ||
       typeof body.preferredRegion.areaCode !== "string" ||
-      typeof body.preferredRegion.name !== "string"
+      typeof body.preferredRegion.name !== "string" ||
+      typeof body.preferredRegion.sigunguName !== "string" ||
+      !body.preferredRegion.sigunguName.trim()
     ) {
       return { ok: false, error: "선호 지역을 확인해주세요." };
     }
     value.preferredRegion = {
       areaCode: body.preferredRegion.areaCode,
       name: body.preferredRegion.name,
+      sigunguCode:
+        typeof body.preferredRegion.sigunguCode === "string"
+          ? body.preferredRegion.sigunguCode
+          : undefined,
+      sigunguName: body.preferredRegion.sigunguName.trim(),
     };
   }
 

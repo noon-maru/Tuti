@@ -119,18 +119,12 @@ export function LocationAccessProvider({
       .catch(() => null);
   }, [hasHydrated, syncLocationConsent]);
 
-  useEffect(() => {
-    if (
-      !hasHydrated ||
-      !locationConsent ||
-      locationConsent?.status === "accepted" ||
-      preferredRegion?.sigunguName
-    ) {
-      return;
-    }
-
-    setRegionSheetOpen(true);
-  }, [hasHydrated, locationConsent, preferredRegion]);
+  const regionPreferenceRequired = Boolean(
+    hasHydrated &&
+      locationConsent &&
+      locationConsent.status !== "accepted" &&
+      !preferredRegion?.sigunguName,
+  );
 
   const clearLocationQueries = useCallback(() => {
     queryClient.removeQueries({ queryKey: ["departure-plan"] });
@@ -310,7 +304,7 @@ export function LocationAccessProvider({
           onDecline={declineRequest}
         />
       )}
-      {regionSheetOpen && (
+      {(regionSheetOpen || regionPreferenceRequired) && (
         <RegionPreferenceSheet
           initialRegion={preferredRegion}
           onComplete={completeRegionPreference}

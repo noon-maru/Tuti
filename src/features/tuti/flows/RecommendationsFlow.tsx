@@ -662,12 +662,3 @@ export function RecommendationsFlow({ interactive }: { interactive: boolean }) {
     </>
   );
 }
-
-function getShortRegionName(name: string) {
-  return name
-    .replace("특별자치도", "")
-    .replace("특별자치시", "")
-    .replace("특별시", "")
-    .replace("광역시", "")
-    .replace(/도$/, "");
-}

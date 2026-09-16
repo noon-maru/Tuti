@@ -43,7 +43,29 @@ export function RegionPreferenceSheet({
       .finally(() => setLoading(false));
   }, []);
 
-  useEffect(loadRegions, [loadRegions]);
+  useEffect(() => {
+    let active = true;
+
+    void fetchRecommendationRegions()
+      .then(({ regions: nextRegions }) => {
+        if (active) setRegions(nextRegions);
+      })
+      .catch((loadError) => {
+        if (!active) return;
+        setError(
+          loadError instanceof Error
+            ? loadError.message
+            : "추천받을 지역을 불러오지 못했어요.",
+        );
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, []);
 
   const selectedRegion = useMemo(
     () => regions.find((region) => region.areaCode === selectedAreaCode),

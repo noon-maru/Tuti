@@ -217,18 +217,21 @@ export function RecommendationsScreen({
     !committing;
 
   useEffect(() => {
-    if (!limitedResultsKey) {
-      setLimitedResultsToastVisible(false);
-      return;
-    }
-
-    setLimitedResultsToastVisible(true);
-    const timeout = window.setTimeout(
-      () => setLimitedResultsToastVisible(false),
-      LIMITED_RESULTS_TOAST_DURATION_MS,
+    const showTimer = window.setTimeout(
+      () => setLimitedResultsToastVisible(Boolean(limitedResultsKey)),
+      0,
     );
+    const hideTimer = limitedResultsKey
+      ? window.setTimeout(
+          () => setLimitedResultsToastVisible(false),
+          LIMITED_RESULTS_TOAST_DURATION_MS,
+        )
+      : undefined;
 
-    return () => window.clearTimeout(timeout);
+    return () => {
+      window.clearTimeout(showTimer);
+      if (hideTimer !== undefined) window.clearTimeout(hideTimer);
+    };
   }, [limitedResultsKey]);
 
   const resetDrag = useCallback(() => {
