@@ -195,7 +195,7 @@ export function RecommendationsFlow({ interactive }: { interactive: boolean }) {
     ? formatLongDistanceTravelTimeLabel(activePlace.longDistanceJourney)
     : !userLocation
     ? preferredRegion
-      ? `${getShortRegionName(preferredRegion.name)}에서 추천`
+      ? `${preferredRegion.sigunguName}에서 추천`
       : "위치 없이 추천"
     : travelTimeQuery.isPending
       ? "이동 시간 계산 중"

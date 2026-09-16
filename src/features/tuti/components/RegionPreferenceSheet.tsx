@@ -1,47 +1,58 @@
 "use client";
 
 import styled from "@emotion/styled";
-import { MapPinned } from "lucide-react";
-import { useState } from "react";
+import { ChevronLeft, MapPinned } from "lucide-react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { BaseButton, PrimaryButton } from "@/features/tuti/components/buttons";
+import { LoadingIndicator } from "@/features/tuti/components/LoadingIndicator";
 import { useDeferredAnimationStart } from "@/features/tuti/hooks/useDeferredAnimationStart";
-import { tourApiSidoOptions } from "@/shared/tourism/tourApiRegions";
+import { fetchRecommendationRegions } from "@/lib/tutiApi";
+import type { RecommendationRegionOption } from "@/shared/api/recommendationRegions";
 import type { PreferredRegion } from "@/shared/tuti/types";
-
-const regionLabels: Record<string, string> = {
-  "1": "서울",
-  "2": "인천",
-  "3": "대전",
-  "4": "대구",
-  "5": "광주",
-  "6": "부산",
-  "7": "울산",
-  "8": "세종",
-  "31": "경기",
-  "32": "강원",
-  "33": "충북",
-  "34": "충남",
-  "35": "경북",
-  "36": "경남",
-  "37": "전북",
-  "38": "전남",
-  "39": "제주",
-};
 
 export function RegionPreferenceSheet({
   initialRegion,
   onComplete,
 }: {
   initialRegion?: PreferredRegion;
-  onComplete: (region?: PreferredRegion) => void;
+  onComplete: (region: PreferredRegion) => void;
 }) {
   const animationReady = useDeferredAnimationStart();
+  const [regions, setRegions] = useState<RecommendationRegionOption[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [selectedAreaCode, setSelectedAreaCode] = useState(
     initialRegion?.areaCode,
   );
-  const selectedRegion = tourApiSidoOptions.find(
-    ([areaCode]) => areaCode === selectedAreaCode,
+  const [selectedDistrictName, setSelectedDistrictName] = useState(
+    initialRegion?.sigunguName,
   );
+
+  const loadRegions = useCallback(() => {
+    setLoading(true);
+    setError(null);
+    void fetchRecommendationRegions()
+      .then(({ regions: nextRegions }) => setRegions(nextRegions))
+      .catch((loadError) => {
+        setError(
+          loadError instanceof Error
+            ? loadError.message
+            : "추천받을 지역을 불러오지 못했어요.",
+        );
+      })
+      .finally(() => setLoading(false));
+  }, []);
+
+  useEffect(loadRegions, [loadRegions]);
+
+  const selectedRegion = useMemo(
+    () => regions.find((region) => region.areaCode === selectedAreaCode),
+    [regions, selectedAreaCode],
+  );
+  const selectedDistrict = selectedRegion?.districts.find(
+    (district) => district.name === selectedDistrictName,
+  );
+  const choosingDistrict = Boolean(selectedAreaCode);
 
   return (
     <Overlay $visible={animationReady}>
@@ -53,50 +64,90 @@ export function RegionPreferenceSheet({
       >
         <Handle aria-hidden="true"><i /></Handle>
         <Heading>
-          <LocationMark aria-hidden="true"><MapPinned /></LocationMark>
-          <div>
-            <h2 id="region-preference-title">어느 쪽의 공기를 만나볼까요?</h2>
-            <p>
-              현재 위치 대신 고른 지역 안에서 오늘 부담이 낮은 장소를
-              찾아볼게요.
-            </p>
-          </div>
+          {choosingDistrict ? (
+            <BackButton
+              type="button"
+              aria-label="시·도 다시 고르기"
+              onClick={() => {
+                setSelectedAreaCode(undefined);
+                setSelectedDistrictName(undefined);
+              }}
+            >
+              <ChevronLeft aria-hidden="true" />
+            </BackButton>
+          ) : (
+            <LocationMark aria-hidden="true"><MapPinned /></LocationMark>
+          )}
+          <h2 id="region-preference-title">
+            {choosingDistrict
+              ? `${selectedRegion?.shortName ?? "이 지역"} 어디쯤을 볼까요?`
+              : "어느 쪽의 공기를 만나볼까요?"}
+          </h2>
         </Heading>
 
-        <RegionList aria-label="추천받을 지역">
-          {tourApiSidoOptions.map(([areaCode, name]) => (
-            <RegionButton
-              key={areaCode}
-              type="button"
-              aria-pressed={selectedAreaCode === areaCode}
-              $selected={selectedAreaCode === areaCode}
-              onClick={() => setSelectedAreaCode(areaCode)}
-            >
-              {regionLabels[areaCode] ?? name}
-            </RegionButton>
-          ))}
-        </RegionList>
+        {loading ? (
+          <StateArea>
+            <LoadingIndicator label="고를 수 있는 지역을 살펴보고 있어요." compact />
+          </StateArea>
+        ) : error ? (
+          <StateArea role="alert">
+            <p>{error}</p>
+            <RetryButton type="button" onClick={loadRegions}>
+              다시 불러오기
+            </RetryButton>
+          </StateArea>
+        ) : choosingDistrict ? (
+          <DistrictList aria-label="추천받을 시·군·구">
+            {selectedRegion?.districts.map((district) => (
+              <RegionButton
+                key={`${selectedRegion.areaCode}-${district.name}`}
+                type="button"
+                aria-pressed={selectedDistrictName === district.name}
+                $selected={selectedDistrictName === district.name}
+                onClick={() => setSelectedDistrictName(district.name)}
+              >
+                {district.name}
+              </RegionButton>
+            ))}
+          </DistrictList>
+        ) : (
+          <RegionList aria-label="추천받을 시·도">
+            {regions.map((region) => (
+              <RegionButton
+                key={region.areaCode}
+                type="button"
+                aria-pressed={false}
+                $selected={false}
+                onClick={() => {
+                  setSelectedAreaCode(region.areaCode);
+                  setSelectedDistrictName(undefined);
+                }}
+              >
+                {region.shortName}
+              </RegionButton>
+            ))}
+          </RegionList>
+        )}
 
-        <Actions>
+        {choosingDistrict && !loading && !error && (
           <ConfirmButton
             type="button"
-            disabled={!selectedRegion}
+            disabled={!selectedRegion || !selectedDistrict}
             onClick={() => {
-              if (!selectedRegion) return;
+              if (!selectedRegion || !selectedDistrict) return;
               onComplete({
-                areaCode: selectedRegion[0],
-                name: selectedRegion[1],
+                areaCode: selectedRegion.areaCode,
+                name: selectedRegion.name,
+                sigunguCode: selectedDistrict.code,
+                sigunguName: selectedDistrict.name,
               });
             }}
           >
-            {selectedRegion
-              ? `${regionLabels[selectedRegion[0]] ?? selectedRegion[1]}에서 골라보기`
-              : "지역을 골라주세요"}
+            {selectedDistrict
+              ? `${selectedDistrict.name}에서 골라보기`
+              : "동네를 골라주세요"}
           </ConfirmButton>
-          <SkipButton type="button" onClick={() => onComplete()}>
-            지역 상관없이 둘러보기
-          </SkipButton>
-        </Actions>
+        )}
       </Sheet>
     </Overlay>
   );
@@ -151,23 +202,14 @@ const Handle = styled.div`
 `;
 
 const Heading = styled.header`
+  min-height: var(--space-12);
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   gap: var(--space-3);
 
-  > div:last-child {
-    min-width: 0;
-    display: grid;
-    gap: var(--space-2);
-  }
-
   h2 {
+    min-width: 0;
     font-size: var(--font-size-500);
-  }
-
-  p {
-    color: var(--color-text-muted);
-    font-size: var(--font-size-200);
   }
 `;
 
@@ -187,14 +229,35 @@ const LocationMark = styled.div`
   }
 `;
 
+const BackButton = styled(BaseButton)`
+  width: var(--space-12);
+  height: var(--space-12);
+  flex: none;
+  display: grid;
+  place-items: center;
+  border-radius: 16px;
+  background: var(--color-neutral-200);
+  color: var(--color-text);
+
+  svg {
+    width: 22px;
+    height: 22px;
+  }
+`;
+
 const RegionList = styled.div`
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: var(--space-2);
 `;
 
+const DistrictList = styled(RegionList)`
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+`;
+
 const RegionButton = styled(BaseButton)<{ $selected: boolean }>`
   min-height: 44px;
+  padding: var(--space-2);
   border: 1px solid
     ${({ $selected }) =>
       $selected ? "var(--color-secondary-700)" : "var(--color-border)"};
@@ -206,19 +269,27 @@ const RegionButton = styled(BaseButton)<{ $selected: boolean }>`
   font-weight: ${({ $selected }) => ($selected ? 600 : 500)};
 `;
 
-const Actions = styled.div`
-  display: grid;
-  gap: var(--space-2);
-`;
-
 const ConfirmButton = styled(PrimaryButton)`
   min-height: 52px;
   border-radius: 18px;
 `;
 
-const SkipButton = styled(BaseButton)`
-  min-height: 44px;
-  background: transparent;
+const StateArea = styled.div`
+  min-height: 180px;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: var(--space-3);
   color: var(--color-text-muted);
-  font-size: var(--font-size-100);
+  text-align: center;
+`;
+
+const RetryButton = styled(BaseButton)`
+  min-height: 42px;
+  padding-inline: var(--space-4);
+  border: 1px solid var(--color-secondary-500);
+  border-radius: 14px;
+  background: var(--color-secondary-100);
+  color: var(--color-secondary-1000);
+  font-weight: 600;
 `;

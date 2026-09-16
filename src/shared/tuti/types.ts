@@ -24,6 +24,8 @@ export type UserLocation = {
 export type PreferredRegion = {
   areaCode: string;
   name: string;
+  sigunguCode?: string;
+  sigunguName: string;
 };
 
 export type LocationConsentStatus =

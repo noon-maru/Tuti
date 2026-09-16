@@ -17,6 +17,7 @@ import {
   AdminApiError,
   fetchAdminJson,
 } from "@/lib/adminApi";
+import { fetchRecommendationRegions } from "@/lib/tutiApi";
 import type { TutiPlace } from "@/lib/recommendations";
 import type {
   AdminRecommendationScoreBreakdown,
@@ -24,7 +25,7 @@ import type {
   AdminRecommendationSimulationResponse,
   AdminOverviewResponse,
 } from "@/shared/api/admin";
-import { tourApiSidoOptions } from "@/shared/tourism/tourApiRegions";
+import type { RecommendationRegionOption } from "@/shared/api/recommendationRegions";
 import type {
   AirAnswer,
   BudgetAnswer,
@@ -112,6 +113,10 @@ export function RecommendationSimulatorScreen() {
   const [latitude, setLatitude] = useState("37.5665");
   const [longitude, setLongitude] = useState("126.9780");
   const [areaCode, setAreaCode] = useState("1");
+  const [sigunguName, setSigunguName] = useState("");
+  const [regionOptions, setRegionOptions] = useState<
+    RecommendationRegionOption[]
+  >([]);
   const [excludedPlaceIds, setExcludedPlaceIds] = useState("");
   const [result, setResult] =
     useState<AdminRecommendationSimulationResponse | null>(null);
@@ -123,8 +128,11 @@ export function RecommendationSimulatorScreen() {
   const [accessStatus, setAccessStatus] = useState<number | null>(null);
 
   const selectedRegion = useMemo(
-    () => tourApiSidoOptions.find(([code]) => code === areaCode),
-    [areaCode],
+    () => regionOptions.find((region) => region.areaCode === areaCode),
+    [areaCode, regionOptions],
+  );
+  const selectedDistrict = selectedRegion?.districts.find(
+    (district) => district.name === sigunguName,
   );
 
   useEffect(() => {
@@ -154,6 +162,18 @@ export function RecommendationSimulatorScreen() {
     };
   }, []);
 
+  useEffect(() => {
+    void fetchRecommendationRegions().then(({ regions }) => {
+      setRegionOptions(regions);
+      const initialRegion =
+        regions.find((region) => region.areaCode === "1") ?? regions[0];
+      if (initialRegion) {
+        setAreaCode(initialRegion.areaCode);
+        setSigunguName(initialRegion.districts[0]?.name ?? "");
+      }
+    }).catch(() => null);
+  }, []);
+
   const submit = async (event: FormEvent) => {
     event.preventDefault();
     setLoading(true);
@@ -179,10 +199,16 @@ export function RecommendationSimulatorScreen() {
         latitude: Number(latitude),
         longitude: Number(longitude),
       };
-    } else if (locationMode === "region" && selectedRegion) {
+    } else if (
+      locationMode === "region" &&
+      selectedRegion &&
+      selectedDistrict
+    ) {
       request.preferredRegion = {
-        areaCode: selectedRegion[0],
-        name: selectedRegion[1],
+        areaCode: selectedRegion.areaCode,
+        name: selectedRegion.name,
+        sigunguCode: selectedDistrict.code,
+        sigunguName: selectedDistrict.name,
       };
     }
 
@@ -270,7 +296,11 @@ export function RecommendationSimulatorScreen() {
                 setLongDistanceTiming("tomorrow_day_trip");
                 setLatitude("37.5665");
                 setLongitude("126.9780");
-                setAreaCode("1");
+                const initialRegion =
+                  regionOptions.find((region) => region.areaCode === "1") ??
+                  regionOptions[0];
+                setAreaCode(initialRegion?.areaCode ?? "1");
+                setSigunguName(initialRegion?.districts[0]?.name ?? "");
                 setExcludedPlaceIds("");
               }}
             >
@@ -346,14 +376,41 @@ export function RecommendationSimulatorScreen() {
               </PresetRail>
             </LocationEditor>
           ) : locationMode === "region" ? (
-            <LabeledInput>
-              <span>추천 지역</span>
-              <select value={areaCode} onChange={(event) => setAreaCode(event.target.value)}>
-                {tourApiSidoOptions.map(([code, name]) => (
-                  <option key={code} value={code}>{name}</option>
-                ))}
-              </select>
-            </LabeledInput>
+            <CoordinateGrid>
+              <LabeledInput>
+                <span>시·도</span>
+                <select
+                  value={areaCode}
+                  onChange={(event) => {
+                    const nextAreaCode = event.target.value;
+                    const nextRegion = regionOptions.find(
+                      (region) => region.areaCode === nextAreaCode,
+                    );
+                    setAreaCode(nextAreaCode);
+                    setSigunguName(nextRegion?.districts[0]?.name ?? "");
+                  }}
+                >
+                  {regionOptions.map((region) => (
+                    <option key={region.areaCode} value={region.areaCode}>
+                      {region.name}
+                    </option>
+                  ))}
+                </select>
+              </LabeledInput>
+              <LabeledInput>
+                <span>시·군·구</span>
+                <select
+                  value={sigunguName}
+                  onChange={(event) => setSigunguName(event.target.value)}
+                >
+                  {selectedRegion?.districts.map((district) => (
+                    <option key={district.name} value={district.name}>
+                      {district.name}
+                    </option>
+                  ))}
+                </select>
+              </LabeledInput>
+            </CoordinateGrid>
           ) : (
             <ModeNotice>위치와 지역 조건 없이 전체 추천 풀에서 계산합니다.</ModeNotice>
           )}
@@ -481,7 +538,14 @@ export function RecommendationSimulatorScreen() {
             </LabeledInput>
           </FieldGroup>
 
-          <RunButton type="submit" disabled={loading} aria-busy={loading}>
+          <RunButton
+            type="submit"
+            disabled={
+              loading ||
+              (locationMode === "region" && !selectedDistrict)
+            }
+            aria-busy={loading}
+          >
             {loading ? <Activity aria-hidden="true" /> : <Play aria-hidden="true" />}
             {loading ? "실제 추천 경로를 계산하고 있어요" : "시뮬레이션 실행"}
           </RunButton>

@@ -17,6 +17,7 @@ export function useTutiRecommendations({ enabled = true } = {}) {
   const entryRecord = useTutiStore((state) => state.entryRecord);
   const userLocation = useTutiStore((state) => state.userLocation);
   const preferredRegion = useTutiStore((state) => state.preferredRegion);
+  const locationConsent = useTutiStore((state) => state.locationConsent);
   const dailyRecommendation = useTutiStore(
     (state) => state.dailyRecommendation,
   );
@@ -66,6 +67,12 @@ export function useTutiRecommendations({ enabled = true } = {}) {
           places: dailyRecommendation.places,
         }
       : undefined;
+  const regionSelectionRequired = Boolean(
+    locationConsent &&
+      locationConsent.status !== "accepted" &&
+      !userLocation &&
+      !preferredRegion?.sigunguName,
+  );
   const { data, ...query } = useQuery({
     queryKey: [
       "recommendations",
@@ -82,7 +89,7 @@ export function useTutiRecommendations({ enabled = true } = {}) {
         preferredRegion,
         recommendationExcludedPlaceIds,
       ),
-    enabled,
+    enabled: enabled && !regionSelectionRequired,
     initialData: cachedRecommendation,
     staleTime: Infinity,
   });
@@ -121,6 +128,7 @@ export function useTutiRecommendations({ enabled = true } = {}) {
     recommendationId: data?.recommendationId,
     userLocation,
     preferredRegion,
+    regionSelectionRequired,
     ...query,
   };
 }

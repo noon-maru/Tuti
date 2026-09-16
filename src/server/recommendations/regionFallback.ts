@@ -1,23 +1,23 @@
 import type { PreferredRegion } from "@/shared/tuti/types";
 
-const integratedGwangjuDistricts = [
-  "광산구",
-  "남구",
-  "동구",
-  "북구",
-  "서구",
-];
-
 export function getPreferredRegionWhere(preferredRegion: PreferredRegion) {
   const integratedRegionName = "전남광주통합특별시";
+  const district = preferredRegion.sigunguName;
+
+  if (preferredRegion.name === "세종특별자치시") {
+    return { sourceSidoName: preferredRegion.name };
+  }
 
   if (preferredRegion.name === "광주광역시") {
     return {
       OR: [
-        { sourceSidoName: preferredRegion.name },
+        {
+          sourceSidoName: preferredRegion.name,
+          sourceSigunguName: district,
+        },
         {
           sourceSidoName: integratedRegionName,
-          sourceSigunguName: { in: integratedGwangjuDistricts },
+          sourceSigunguName: district,
         },
       ],
     };
@@ -26,16 +26,20 @@ export function getPreferredRegionWhere(preferredRegion: PreferredRegion) {
   if (preferredRegion.name === "전라남도") {
     return {
       OR: [
-        { sourceSidoName: preferredRegion.name },
+        {
+          sourceSidoName: preferredRegion.name,
+          sourceSigunguName: district,
+        },
         {
           sourceSidoName: integratedRegionName,
-          NOT: {
-            sourceSigunguName: { in: integratedGwangjuDistricts },
-          },
+          sourceSigunguName: district,
         },
       ],
     };
   }
 
-  return { sourceSidoName: preferredRegion.name };
+  return {
+    sourceSidoName: preferredRegion.name,
+    sourceSigunguName: district,
+  };
 }

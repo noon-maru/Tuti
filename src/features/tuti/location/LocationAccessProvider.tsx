@@ -119,6 +119,19 @@ export function LocationAccessProvider({
       .catch(() => null);
   }, [hasHydrated, syncLocationConsent]);
 
+  useEffect(() => {
+    if (
+      !hasHydrated ||
+      !locationConsent ||
+      locationConsent?.status === "accepted" ||
+      preferredRegion?.sigunguName
+    ) {
+      return;
+    }
+
+    setRegionSheetOpen(true);
+  }, [hasHydrated, locationConsent, preferredRegion]);
+
   const clearLocationQueries = useCallback(() => {
     queryClient.removeQueries({ queryKey: ["departure-plan"] });
     queryClient.removeQueries({ queryKey: ["travel-time"] });
@@ -233,7 +246,7 @@ export function LocationAccessProvider({
   }, [clearLocationQueries, declineLocationConsent]);
 
   const completeRegionPreference = useCallback(
-    (region?: PreferredRegion) => {
+    (region: PreferredRegion) => {
       setPreferredRegion(region);
       clearLocationQueries();
       setRegionSheetOpen(false);

@@ -10,7 +10,11 @@ const baseInput = {
     density: "balanced" as const,
   },
   userLocation: { latitude: 37.5665, longitude: 126.978 },
-  preferredRegion: { areaCode: "1", name: "서울특별시" },
+  preferredRegion: {
+    areaCode: "1",
+    name: "서울특별시",
+    sigunguName: "종로구",
+  },
   excludedPlaceIds: ["place-b", "place-a"],
   entryStatus: "answered" as const,
 };
@@ -43,7 +47,15 @@ test("추천 결과에 영향을 주는 입력이 바뀌면 fingerprint도 바�
     },
     {
       ...baseInput,
-      preferredRegion: { areaCode: "4", name: "대구광역시" },
+      preferredRegion: {
+        areaCode: "4",
+        name: "대구광역시",
+        sigunguName: "중구",
+      },
+    },
+    {
+      ...baseInput,
+      preferredRegion: { ...baseInput.preferredRegion, sigunguName: "마포구" },
     },
     { ...baseInput, excludedPlaceIds: ["place-c"] },
     { ...baseInput, entryStatus: "reused" as const },

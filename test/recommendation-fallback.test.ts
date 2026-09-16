@@ -14,51 +14,62 @@ import {
   requireNearbyMovement,
 } from "@/server/recommendations/longDistanceAvailability";
 
-test("일반 지역은 선택한 시도명으로 조회한다", () => {
+test("일반 지역은 선택한 시군구까지 좁혀 조회한다", () => {
   assert.deepEqual(
-    getPreferredRegionWhere({ areaCode: "1", name: "서울특별시" }),
-    { sourceSidoName: "서울특별시" },
+    getPreferredRegionWhere({
+      areaCode: "1",
+      name: "서울특별시",
+      sigunguName: "종로구",
+    }),
+    { sourceSidoName: "서울특별시", sourceSigunguName: "종로구" },
   );
 });
 
-test("광주는 통합 지역 중 5개 자치구를 대체 경로로 포함한다", () => {
+test("광주는 선택한 자치구만 통합 지역 대체 경로로 포함한다", () => {
   const where = getPreferredRegionWhere({
     areaCode: "5",
     name: "광주광역시",
+    sigunguName: "광산구",
   });
 
   assert.deepEqual(where, {
     OR: [
-      { sourceSidoName: "광주광역시" },
+      { sourceSidoName: "광주광역시", sourceSigunguName: "광산구" },
       {
         sourceSidoName: "전남광주통합특별시",
-        sourceSigunguName: {
-          in: ["광산구", "남구", "동구", "북구", "서구"],
-        },
+        sourceSigunguName: "광산구",
       },
     ],
   });
 });
 
-test("전남은 통합 지역에서 광주 5개 자치구를 제외한다", () => {
+test("전남도 선택한 시군만 통합 지역 대체 경로로 포함한다", () => {
   const where = getPreferredRegionWhere({
     areaCode: "38",
     name: "전라남도",
+    sigunguName: "순천시",
   });
 
   assert.deepEqual(where, {
     OR: [
-      { sourceSidoName: "전라남도" },
+      { sourceSidoName: "전라남도", sourceSigunguName: "순천시" },
       {
         sourceSidoName: "전남광주통합특별시",
-        NOT: {
-          sourceSigunguName: {
-            in: ["광산구", "남구", "동구", "북구", "서구"],
-          },
-        },
+        sourceSigunguName: "순천시",
       },
     ],
   });
+});
+
+test("세종은 단일 행정권역 전체를 조회한다", () => {
+  assert.deepEqual(
+    getPreferredRegionWhere({
+      areaCode: "8",
+      name: "세종특별자치시",
+      sigunguName: "세종특별자치시",
+    }),
+    { sourceSidoName: "세종특별자치시" },
+  );
 });
 
 test("제외 후 후보가 6개 미만이면 원래 후보를 복구한다", () => {

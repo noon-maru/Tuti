@@ -1,4 +1,4 @@
-const tourApiSidoNames: Record<string, string> = {
+export const tourApiSidoNames: Record<string, string> = {
   "1": "서울특별시",
   "2": "인천광역시",
   "3": "대전광역시",
@@ -82,6 +82,10 @@ const addressSidoAliases: Record<string, string> = {
 
 export const tourApiSidoOptions = Object.entries(tourApiSidoNames);
 
+export function getTourApiAreaCode(sidoName: string) {
+  return tourApiSidoOptions.find(([, name]) => name === sidoName)?.[0];
+}
+
 export function resolveTourApiRegionLabels(
   areaCode: string | null,
   address: string | null,
@@ -89,12 +93,14 @@ export function resolveTourApiRegionLabels(
 ) {
   const normalizedLegalDongRegionCode = legalDongRegionCode?.trim() || null;
   const normalizedAreaCode = areaCode?.trim() || null;
+  const addressSidoName = resolveSidoName(address);
   const sidoName =
+    addressSidoName ??
     (normalizedLegalDongRegionCode
       ? tourApiLegalDongSidoNames[normalizedLegalDongRegionCode]
       : null) ??
     (normalizedAreaCode ? tourApiSidoNames[normalizedAreaCode] : null) ??
-    resolveSidoName(address);
+    null;
   const sigunguName = resolveSigunguName(address, sidoName);
 
   return { sidoName, sigunguName };
@@ -115,8 +121,11 @@ function resolveSigunguName(address: string | null, sidoName: string | null) {
   const candidates = parts.slice(sidoIndex >= 0 ? sidoIndex + 1 : 0);
 
   for (const candidate of candidates) {
-    const match = candidate.match(/^(.+?(?:시|군|구))/);
-    if (match?.[1]) return match[1];
+    const malformedMetropolitanDistrict = candidate.match(/^(.+구)광역시$/u);
+    if (malformedMetropolitanDistrict?.[1]) {
+      return malformedMetropolitanDistrict[1];
+    }
+    if (/(?:시|군|구)$/u.test(candidate)) return candidate;
   }
 
   return null;

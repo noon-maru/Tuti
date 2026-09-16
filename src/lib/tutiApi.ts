@@ -43,6 +43,7 @@ import type {
   RecommendationRequest,
   RecommendationResponse,
 } from "@/shared/api/recommendations";
+import type { RecommendationRegionsResponse } from "@/shared/api/recommendationRegions";
 import type { NearbyAccommodationsResponse } from "@/shared/api/accommodations";
 import type {
   IntakeAnswers,
@@ -136,6 +137,16 @@ export async function fetchRecommendations(
   }
 
   return (await response.json()) as RecommendationResponse;
+}
+
+export async function fetchRecommendationRegions() {
+  const response = await fetch(apiUrl("recommendation-regions"));
+  if (!response.ok) {
+    throw new Error(
+      await readApiError(response, "추천받을 지역을 불러오지 못했어요."),
+    );
+  }
+  return (await response.json()) as RecommendationRegionsResponse;
 }
 
 export class RecommendationRequestError extends Error {

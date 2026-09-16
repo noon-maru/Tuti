@@ -247,13 +247,19 @@ function normalizePreferredRegion(
   if (
     !isRecord(region) ||
     typeof region.areaCode !== "string" ||
-    typeof region.name !== "string"
+    typeof region.name !== "string" ||
+    typeof region.sigunguName !== "string"
   ) {
     throw new InvalidRecommendationRequestError(
       "선택한 지역을 확인해주세요.",
     );
   }
-  assertOnlyKeys(region, ["areaCode", "name"]);
+  assertOnlyKeys(region, [
+    "areaCode",
+    "name",
+    "sigunguCode",
+    "sigunguName",
+  ]);
 
   const matched = tourApiSidoOptions.find(
     ([areaCode]) => areaCode === region.areaCode,
@@ -265,7 +271,25 @@ function normalizePreferredRegion(
     );
   }
 
-  return { areaCode: matched[0], name: matched[1] };
+  if (matched[1] !== region.name || !region.sigunguName.trim()) {
+    throw new InvalidRecommendationRequestError(
+      "선택한 시·군·구를 확인해주세요.",
+    );
+  }
+
+  const sigunguCode = region.sigunguCode;
+  if (sigunguCode !== undefined && typeof sigunguCode !== "string") {
+    throw new InvalidRecommendationRequestError(
+      "선택한 시·군·구를 확인해주세요.",
+    );
+  }
+
+  return {
+    areaCode: matched[0],
+    name: matched[1],
+    sigunguCode: sigunguCode?.trim() || undefined,
+    sigunguName: region.sigunguName.trim().slice(0, 40),
+  };
 }
 
 export function OPTIONS(request: Request) {

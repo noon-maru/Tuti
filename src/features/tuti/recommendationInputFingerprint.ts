@@ -38,13 +38,15 @@ export function createRecommendationInputFingerprint({
       ? {
           areaCode: preferredRegion.areaCode,
           name: preferredRegion.name,
+          sigunguCode: preferredRegion.sigunguCode ?? null,
+          sigunguName: preferredRegion.sigunguName,
         }
       : null,
     excludedPlaceIds: [...excludedPlaceIds].sort(),
     entryStatus: entryStatus ?? null,
   });
 
-  return `recommendation-input-v1:${fnv1a64(canonicalInput)}`;
+  return `recommendation-input-v2:${fnv1a64(canonicalInput)}`;
 }
 
 function fnv1a64(value: string) {
