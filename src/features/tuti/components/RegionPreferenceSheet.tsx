@@ -13,9 +13,11 @@ import type { PreferredRegion } from "@/shared/tuti/types";
 export function RegionPreferenceSheet({
   initialRegion,
   onComplete,
+  onDismiss,
 }: {
   initialRegion?: PreferredRegion;
   onComplete: (region: PreferredRegion) => void;
+  onDismiss?: () => void;
 }) {
   const animationReady = useDeferredAnimationStart();
   const [regions, setRegions] = useState<RecommendationRegionOption[]>([]);
@@ -77,12 +79,18 @@ export function RegionPreferenceSheet({
   const choosingDistrict = Boolean(selectedAreaCode);
 
   return (
-    <Overlay $visible={animationReady}>
+    <Overlay
+      $visible={animationReady}
+      onClick={(event) => {
+        if (event.target === event.currentTarget) onDismiss?.();
+      }}
+    >
       <Sheet
         role="dialog"
         aria-modal="true"
         aria-labelledby="region-preference-title"
         $visible={animationReady}
+        onClick={(event) => event.stopPropagation()}
       >
         <Handle aria-hidden="true"><i /></Handle>
         <Heading>

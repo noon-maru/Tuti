@@ -25,18 +25,22 @@ export function LocationSettingsScreen({
   consent,
   locationAvailable,
   permissionStatus,
+  preferredRegionName,
   requesting,
   onBack,
   onEnable,
+  onChangeRegion,
   onPause,
   onWithdraw,
 }: {
   consent?: LocationConsentRecord;
   locationAvailable: boolean;
   permissionStatus: LocationPermissionStatus;
+  preferredRegionName?: string;
   requesting: boolean;
   onBack: () => void;
   onEnable: () => Promise<boolean>;
+  onChangeRegion: () => void;
   onPause: () => Promise<boolean>;
   onWithdraw: () => Promise<boolean | null>;
 }) {
@@ -45,6 +49,7 @@ export function LocationSettingsScreen({
     consent,
     locationAvailable,
     permissionStatus,
+    preferredRegionName,
   });
 
   const enableLocation = async () => {
@@ -106,13 +111,18 @@ export function LocationSettingsScreen({
 
         <Actions>
           {!locationAvailable && (
-            <EnableButton
-              type="button"
-              disabled={requesting}
-              onClick={() => void enableLocation()}
-            >
-              {requesting ? "현재 위치를 확인하고 있어요" : "현재 위치 사용하기"}
-            </EnableButton>
+            <>
+              <EnableButton
+                type="button"
+                disabled={requesting}
+                onClick={() => void enableLocation()}
+              >
+                {requesting ? "현재 위치를 확인하고 있어요" : "현재 위치 사용하기"}
+              </EnableButton>
+              <ChangeRegionButton type="button" onClick={onChangeRegion}>
+                위치 변경하기
+              </ChangeRegionButton>
+            </>
           )}
           {consent?.status === "accepted" && (
             <>
@@ -189,10 +199,12 @@ function resolveLocationState({
   consent,
   locationAvailable,
   permissionStatus,
+  preferredRegionName,
 }: {
   consent?: LocationConsentRecord;
   locationAvailable: boolean;
   permissionStatus: LocationPermissionStatus;
+  preferredRegionName?: string;
 }) {
   if (locationAvailable) {
     return {
@@ -203,8 +215,12 @@ function resolveLocationState({
 
   if (permissionStatus === "denied") {
     return {
-      title: "기기의 위치 권한이 꺼져 있어요.",
-      description: "위치 없이 추천하며, 정확한 거리와 이동 시간은 표시하지 않아요.",
+      title: preferredRegionName
+        ? `${preferredRegionName}에서 추천하고 있어요.`
+        : "기기의 위치 권한이 꺼져 있어요.",
+      description: preferredRegionName
+        ? "지역을 바꾸거나 현재 위치를 다시 사용할 수 있어요."
+        : "위치 없이 추천하며, 정확한 거리와 이동 시간은 표시하지 않아요.",
     };
   }
 
@@ -224,8 +240,10 @@ function resolveLocationState({
 
   if (consent?.status === "declined") {
     return {
-      title: "위치 없이 추천하고 있어요.",
-      description: "원할 때 언제든 현재 위치를 다시 사용할 수 있어요.",
+      title: preferredRegionName
+        ? `${preferredRegionName}에서 추천하고 있어요.`
+        : "위치 없이 추천하고 있어요.",
+      description: "지역을 바꾸거나 현재 위치를 다시 사용할 수 있어요.",
     };
   }
 
@@ -345,6 +363,16 @@ const EnableButton = styled(PrimaryButton)`
   &:not(:disabled):hover {
     background: var(--color-brand-800);
   }
+`;
+
+const ChangeRegionButton = styled(BaseButton)`
+  min-height: var(--space-12);
+  border: 1px solid var(--color-secondary-500);
+  border-radius: 999px;
+  background: var(--color-secondary-100);
+  color: var(--color-text-primary);
+  font-size: var(--font-size-100);
+  font-weight: 600;
 `;
 
 const PauseButton = styled(BaseButton)`

@@ -92,6 +92,7 @@ export function RecommendationsScreen({
   onAdmin,
   onDownload,
   onSettings,
+  onLocationSettings,
   onSavedPlaces,
   savedPlaceIds,
   onToggleSavedPlace,
@@ -130,6 +131,7 @@ export function RecommendationsScreen({
   onAdmin: () => void;
   onDownload: () => void;
   onSettings: () => void;
+  onLocationSettings: () => void;
   onSavedPlaces: () => void;
   savedPlaceIds: string[];
   onToggleSavedPlace: (place: TutiPlace) => void;
@@ -721,8 +723,8 @@ export function RecommendationsScreen({
           {!locationAvailable && (
             <LocationModeButton
               type="button"
-              onClick={onSettings}
-              aria-label={`${getLocationModeLabel(locationPermissionStatus)}. 설정에서 위치 확인하기`}
+              onClick={onLocationSettings}
+              aria-label={`${getLocationModeLabel(locationPermissionStatus)}. 위치 설정 열기`}
             >
               <MapPinOff aria-hidden="true" />
               {getLocationModeLabel(locationPermissionStatus)}
@@ -963,7 +965,7 @@ export function RecommendationsScreen({
                 type="button"
                 onClick={
                   longDistanceLocationRequired
-                    ? onSettings
+                    ? onLocationSettings
                     : recommendationError
                       ? onRetryRecommendations
                       : onRestartIntake
@@ -980,7 +982,7 @@ export function RecommendationsScreen({
                 onClick={
                   longDistanceUnavailable || longDistanceLocationRequired
                     ? onRestartIntake
-                    : onSettings
+                    : onLocationSettings
                 }
               >
                 {longDistanceUnavailable

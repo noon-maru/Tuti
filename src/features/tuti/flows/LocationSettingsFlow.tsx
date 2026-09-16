@@ -7,25 +7,33 @@ import { useTutiStore } from "@/store/tuti";
 
 export function LocationSettingsFlow() {
   const router = useRouter();
-  const { requestLocation, requesting, pauseLocation, withdrawLocation } =
-    useLocationAccess();
+  const {
+    requestLocation,
+    requestRegionPreference,
+    requesting,
+    pauseLocation,
+    withdrawLocation,
+  } = useLocationAccess();
   const userLocation = useTutiStore((state) => state.userLocation);
   const locationConsent = useTutiStore((state) => state.locationConsent);
   const locationPermissionStatus = useTutiStore(
     (state) => state.locationPermissionStatus,
   );
+  const preferredRegion = useTutiStore((state) => state.preferredRegion);
 
   return (
     <LocationSettingsScreen
       consent={locationConsent}
       locationAvailable={Boolean(userLocation)}
       permissionStatus={locationPermissionStatus}
+      preferredRegionName={preferredRegion?.sigunguName}
       requesting={requesting}
       onBack={() => router.replace("/settings")}
       onEnable={async () => {
         const result = await requestLocation();
         return result.status === "ready";
       }}
+      onChangeRegion={requestRegionPreference}
       onPause={async () => {
         try {
           await pauseLocation();
