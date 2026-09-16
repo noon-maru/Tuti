@@ -40,7 +40,7 @@ import { derivePlaceMoodTags } from "@/server/tourism/placeMoodTags";
 import { getNearbyDistancePolicy } from "@/server/recommendations/nearbyDistancePolicy";
 import {
   filterPlacesByRequestedDensity,
-  filterPlacesByRequestedMood,
+  prioritizePlacesByRequestedMood,
 } from "@/server/recommendations/moodEligibility";
 import {
   toPublicPlaceName,
@@ -85,6 +85,7 @@ type PlaceRow = {
 const RECOMMENDATION_LIMIT = 6;
 const CANDIDATE_EVALUATION_BATCH_SIZE = 12;
 const MAX_LOCATION_EVALUATION_BATCHES = 2;
+const MAX_NEAR_LOCATION_EVALUATION_BATCHES = 4;
 const NEARBY_ROUTE_CACHE_TTL_MS = 15 * 60_000;
 const nearbyRouteCache = new Map<
   string,
@@ -242,19 +243,21 @@ async function evaluateRecommendations(
 
   const { eligiblePlaces, candidatePlaces: recommendationPlaces } =
     selectRecommendationCandidatePool(places, excludePlaceIds);
-  const rankedPlaces = rankByMovementFatigue(
-    filterPlacesByRequestedMood(
+  const rankedPlaces = prioritizePlacesByRequestedMood(
+    rankByMovementFatigue(
       recommendationPlaces.map(toTutiPlace),
-      answers.air,
+      answers,
+      feature,
+      recommendationPlaces.length,
     ),
-    answers,
-    feature,
-    recommendationPlaces.length,
+    answers.air,
   );
   const evaluatedPlaceIds = new Set<string>();
   const eligibleShortlist: TutiPlace[] = [];
   const evaluationBatchCount = location
-    ? MAX_LOCATION_EVALUATION_BATCHES
+    ? feature.movement === "near"
+      ? MAX_NEAR_LOCATION_EVALUATION_BATCHES
+      : MAX_LOCATION_EVALUATION_BATCHES
     : 1;
 
   for (let batchIndex = 0; batchIndex < evaluationBatchCount; batchIndex += 1) {
@@ -298,12 +301,15 @@ async function evaluateRecommendations(
     weatherEnrichedPlaces,
     crowdEnrichedPlaces,
   );
-  const finalRanking = rankByMovementFatigue(
-    filterPlacesByRequestedDensity(forecastedPlaces, answers.density),
-    answers,
-    feature,
-    12,
-  );
+  const finalRanking = prioritizePlacesByRequestedMood(
+    rankByMovementFatigue(
+      filterPlacesByRequestedDensity(forecastedPlaces, answers.density),
+      answers,
+      feature,
+      forecastedPlaces.length,
+    ),
+    answers.air,
+  ).slice(0, 12);
   const personalization = await personalizeRecommendationRanking(
     finalRanking,
     answers,

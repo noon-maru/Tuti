@@ -37,7 +37,7 @@ test("한 시간 외출 계산과 선택 문구가 같은 기준을 사용한다
 
 test("근거리 이동 단계마다 후보의 절대 최대 반경을 둔다", () => {
   assert.deepEqual(getNearbyDistancePolicy("near"), {
-    targetMeters: 1_500,
+    targetMeters: 0,
     maximumMeters: 5_000,
   });
   assert.deepEqual(getNearbyDistancePolicy("short"), {

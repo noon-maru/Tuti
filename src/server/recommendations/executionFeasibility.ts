@@ -104,7 +104,8 @@ export function calculateExecutionFeasibility({
   const roundTripMinutes = oneWayMinutes * 2;
   const minimumStayMinutes = getMinimumStayMinutes(
     detail?.usageDuration,
-    place.sourceContentType,
+    place,
+    movement,
   );
   const initialArrival = new Date(now.getTime() + oneWayMinutes * 60_000);
   const operation = resolveOperationWindow(detail, initialArrival);
@@ -142,10 +143,20 @@ export function calculateExecutionFeasibility({
 
 function getMinimumStayMinutes(
   usageDuration: string | null | undefined,
-  contentTypeId: string | undefined,
+  place: Pick<TutiPlace, "name" | "sourceContentType">,
+  movement: IntakeAnswers["movement"],
 ) {
   const parsed = parseDurationMinutes(usageDuration);
-  if (parsed !== null) return clamp(parsed, 20, 180);
+  const flexibleNearVisit =
+    movement === "near" && isFlexibleNearVisit(place);
+
+  if (parsed !== null) {
+    // 공원·전시·박물관처럼 머무는 길이를 스스로 정할 수 있는 공간은
+    // 한 시간 추천에서 핵심만 20~25분 둘러보는 선택을 허용한다.
+    return flexibleNearVisit ? clamp(parsed, 20, 25) : clamp(parsed, 20, 180);
+  }
+
+  if (flexibleNearVisit) return 20;
 
   return {
     "12": 40,
@@ -155,7 +166,18 @@ function getMinimumStayMinutes(
     "28": 60,
     "38": 45,
     "39": 45,
-  }[contentTypeId ?? ""] ?? 40;
+  }[place.sourceContentType ?? ""] ?? 40;
+}
+
+function isFlexibleNearVisit(
+  place: Pick<TutiPlace, "name" | "sourceContentType">,
+) {
+  if (place.sourceContentType === "14") return true;
+  if (place.sourceContentType !== "12") return false;
+
+  return !/등산|둘레길|올레길|탐방로|트레킹|종주|코스|케이블카|유람선/u.test(
+    place.name,
+  );
 }
 
 function parseDurationMinutes(value: string | null | undefined) {

@@ -8,7 +8,9 @@ const nearbyDistancePolicy: Record<
   NearbyMovement,
   { targetMeters: number; maximumMeters: number }
 > = {
-  near: { targetMeters: 1_500, maximumMeters: 5_000 },
+  // 한 시간 안에는 특정 거리감보다 실제로 빨리 닿는지가 중요하다.
+  // 가장 가까운 후보부터 경로를 확인해 왕복·체류 60분 조건의 통과율을 높인다.
+  near: { targetMeters: 0, maximumMeters: 5_000 },
   short: { targetMeters: 7_000, maximumMeters: 20_000 },
   half: { targetMeters: 25_000, maximumMeters: 60_000 },
 };
