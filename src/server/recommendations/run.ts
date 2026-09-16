@@ -46,6 +46,7 @@ export async function recordRecommendationRunSafely({
             reasonFactors: place.reasonFactors ?? [],
             cardPhrase: place.cardPhrase ?? null,
             fatigueScore: place.fatigueScore ?? null,
+            rankingScore: place.rankingScore ?? null,
             distanceBand: toDistanceBand(place.distanceMeters),
             crowdForecast: place.crowdForecast ?? null,
           })),

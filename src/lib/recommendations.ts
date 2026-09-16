@@ -32,6 +32,7 @@ export type TutiPlace = {
   weatherForecast?: WeatherForecast;
   executionFeasibility?: ExecutionFeasibility;
   distanceMeters?: number;
+  rankingScore?: number;
   fatigueScore?: number;
   reason?: string;
   reasonDetail?: string;

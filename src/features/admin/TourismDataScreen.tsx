@@ -2301,12 +2301,16 @@ function PlaceReviewEditor({
           <Input value={today} disabled={saving} onChange={(event) => setToday(event.target.value)} />
         </ReviewField>
         <ReviewField>
-          <span>피로도</span>
-          <Select value={fatigue} disabled={saving} onChange={(event) => setFatigue(event.target.value)}>
-            {[1, 2, 3, 4, 5].map((value) => (
-              <option key={value} value={value}>{value}</option>
-            ))}
-          </Select>
+          <span>피로도 · 0~100</span>
+          <Input
+            type="number"
+            min="0"
+            max="100"
+            step="1"
+            value={fatigue}
+            disabled={saving}
+            onChange={(event) => setFatigue(event.target.value)}
+          />
         </ReviewField>
         <ReviewField>
           <span>이동 거리</span>

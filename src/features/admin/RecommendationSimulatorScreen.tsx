@@ -785,6 +785,12 @@ function CandidateScoreDetails({
         세부 점수
       </summary>
       <ScoreDefinitionList>
+        <div>
+          <dt>정렬 원점수</dt>
+          <dd data-tone="zero">
+            {candidate.place.rankingScore ?? "—"}
+          </dd>
+        </div>
         {Object.entries(candidate.breakdown).map(([key, value]) => (
           <div key={key}>
             <dt>
@@ -806,7 +812,7 @@ function formatScoreValue(value: number) {
 
 function getExclusionReason(locationMode: LocationMode) {
   return locationMode === "location"
-    ? "최종 피로도 순위가 추천 6곳 밖이라 제외"
+    ? "최종 부담 원점수 순위가 추천 6곳 밖이라 제외"
     : "최종 순위와 장소 유형 다양성 제한에 따라 제외";
 }
 

@@ -82,9 +82,10 @@ export function rankByMovementFatigue(
   limit = 6,
 ): TutiPlace[] {
   return places
-    .map((place) => {
+    .map((place, sourceIndex) => {
       const breakdown = calculateMovementFatigue(place, answers, feature);
-      const fatigueScore = scoreBreakdown(breakdown);
+      const rankingScore = scoreBreakdown(breakdown);
+      const fatigueScore = toDisplayFatigueScore(rankingScore);
       const explanation = getRecommendationExplanation(
         place,
         answers,
@@ -93,16 +94,30 @@ export function rankByMovementFatigue(
       );
 
       return {
-        ...place,
-        fatigueScore,
-        reason: explanation.headline,
-        reasonDetail: explanation.detail,
-        reasonFactors: explanation.factors,
-        cardPhrase: preferEditorialPhrase(place.phrase, explanation.cardPhrase),
+        place: {
+          ...place,
+          rankingScore,
+          fatigueScore,
+          reason: explanation.headline,
+          reasonDetail: explanation.detail,
+          reasonFactors: explanation.factors,
+          cardPhrase: preferEditorialPhrase(
+            place.phrase,
+            explanation.cardPhrase,
+          ),
+        },
+        sourceIndex,
       };
     })
-    .sort((a, b) => a.fatigueScore - b.fatigueScore || a.fatigue - b.fatigue)
-    .slice(0, limit);
+    .sort(
+      (a, b) =>
+        a.place.rankingScore! - b.place.rankingScore! ||
+        a.place.fatigue - b.place.fatigue ||
+        a.sourceIndex - b.sourceIndex ||
+        a.place.id.localeCompare(b.place.id),
+    )
+    .slice(0, limit)
+    .map(({ place }) => place);
 }
 
 export function calculateMovementFatigue(
@@ -159,22 +174,26 @@ export function calculateMovementFatigue(
 }
 
 export function scoreBreakdown(breakdown: FatigueBreakdown) {
-  return Math.max(
-    0,
-      breakdown.base +
-      breakdown.physicalDistance +
-      breakdown.travelTime +
-      breakdown.movementPenalty +
-      breakdown.moodAdjustment +
-      breakdown.crowdPenalty +
-      breakdown.energyPenalty +
-      breakdown.executionPenalty +
-      breakdown.transferPenalty +
-      breakdown.walkingPenalty +
-      breakdown.weatherPenalty +
-      breakdown.companionPenalty +
-      breakdown.budgetPenalty,
+  return (
+    breakdown.base +
+    breakdown.physicalDistance +
+    breakdown.travelTime +
+    breakdown.movementPenalty +
+    breakdown.moodAdjustment +
+    breakdown.crowdPenalty +
+    breakdown.energyPenalty +
+    breakdown.executionPenalty +
+    breakdown.transferPenalty +
+    breakdown.walkingPenalty +
+    breakdown.weatherPenalty +
+    breakdown.companionPenalty +
+    breakdown.budgetPenalty
   );
+}
+
+export function toDisplayFatigueScore(rankingScore: number) {
+  const normalized = 100 / (1 + Math.exp(-(rankingScore - 30) / 15));
+  return Math.max(1, Math.min(99, Math.round(normalized)));
 }
 
 function getExecutionPenalty(

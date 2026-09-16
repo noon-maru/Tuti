@@ -9,6 +9,7 @@ import {
   calculateMovementFatigue,
   rankByMovementFatigue,
   scoreBreakdown,
+  toDisplayFatigueScore,
   type FatigueBreakdown,
 } from "@/server/recommendations/fatigue";
 import { enrichPlacesWithCrowdForecast } from "@/server/recommendations/crowdForecast";
@@ -161,9 +162,14 @@ export async function simulateRecommendations(
         answers,
         evaluation.feature,
       );
+      const rankingScore = scoreBreakdown(breakdown);
 
       return {
-        place: { ...place, fatigueScore: scoreBreakdown(breakdown) },
+        place: {
+          ...place,
+          rankingScore,
+          fatigueScore: toDisplayFatigueScore(rankingScore),
+        },
         selected: selectedIds.has(place.id),
         initialRank: initialRanks.get(place.id) ?? null,
         finalRank: index + 1,

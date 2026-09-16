@@ -15,17 +15,16 @@ export function rankLongDistanceCandidatePool<T extends TutiPlace>(
   return candidates
     .map((candidate) => ({
       candidate,
-      score: scoreBreakdown(
+      rankingScore: scoreBreakdown(
         calculateMovementFatigue(candidate, answers, feature),
       ),
     }))
     .sort(
       (left, right) =>
-        left.score - right.score ||
+        left.rankingScore - right.rankingScore ||
         tieBreaker(left.candidate, right.candidate) ||
         left.candidate.fatigue - right.candidate.fatigue ||
         left.candidate.id.localeCompare(right.candidate.id),
     )
     .map(({ candidate }) => candidate);
 }
-

@@ -5,6 +5,7 @@ import {
   calculateMovementFatigue,
   rankByMovementFatigue,
   scoreBreakdown,
+  toDisplayFatigueScore,
   type FatigueBreakdown,
 } from "@/server/recommendations/fatigue";
 import type { IntakeAnswers } from "@/shared/tuti/types";
@@ -41,7 +42,7 @@ function createPlace(overrides: Partial<TutiPlace> = {}): TutiPlace {
   };
 }
 
-test("추천 점수는 모든 가중치를 합산하고 0 미만을 자른다", () => {
+test("추천 정렬 원점수는 모든 가중치를 합산하고 음수도 보존한다", () => {
   const breakdown: FatigueBreakdown = {
     base: 50,
     physicalDistance: 3,
@@ -61,8 +62,25 @@ test("추천 점수는 모든 가중치를 합산하고 0 미만을 자른다", 
   assert.equal(scoreBreakdown(breakdown), 25);
   assert.equal(
     scoreBreakdown({ ...breakdown, base: -100 }),
-    0,
+    -125,
   );
+  assert.ok(toDisplayFatigueScore(-40) < toDisplayFatigueScore(-5));
+  assert.ok(toDisplayFatigueScore(-5) < toDisplayFatigueScore(25));
+});
+
+test("기존에 0점으로 합쳐지던 후보도 원점수 순서대로 정렬한다", () => {
+  const easier = createPlace({ id: "easier", fatigue: 28 });
+  const harder = createPlace({ id: "harder", fatigue: 38 });
+  const ranked = rankByMovementFatigue(
+    [harder, easier],
+    { ...answers, companion: "solo" },
+    feature,
+    2,
+  );
+
+  assert.deepEqual(ranked.map(({ id }) => id), ["easier", "harder"]);
+  assert.ok(ranked[0].rankingScore! < ranked[1].rankingScore!);
+  assert.ok(ranked[0].fatigueScore! < ranked[1].fatigueScore!);
 });
 
 test("실행 불가와 나쁜 야외 날씨는 추천 부담을 높인다", () => {

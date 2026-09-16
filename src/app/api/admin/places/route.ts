@@ -576,8 +576,13 @@ function normalizeRequiredText(value: unknown, label: string, maxLength: number)
 }
 
 function normalizeFatigue(value: unknown) {
-  if (typeof value !== "number" || !Number.isInteger(value) || value < 1 || value > 5) {
-    throw new Error("피로도는 1부터 5 사이의 정수여야 합니다.");
+  if (
+    typeof value !== "number" ||
+    !Number.isInteger(value) ||
+    value < 0 ||
+    value > 100
+  ) {
+    throw new Error("피로도는 0부터 100 사이의 정수여야 합니다.");
   }
   return value;
 }
