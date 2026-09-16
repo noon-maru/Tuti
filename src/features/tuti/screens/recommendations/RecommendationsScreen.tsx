@@ -3,7 +3,7 @@
 import { css, keyframes } from "@emotion/react";
 import styled from "@emotion/styled";
 import { MapPinOff } from "lucide-react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { BaseButton } from "@/features/tuti/components/buttons";
 import { ContextMenu } from "@/features/tuti/components/ContextMenu";
 import { LoadingIndicator } from "@/features/tuti/components/LoadingIndicator";
@@ -20,7 +20,8 @@ import { DetailScreen } from "@/features/tuti/screens/detail/DetailScreen";
 import { JournalScreen } from "@/features/tuti/screens/journal/JournalScreen";
 import {
   getRecommendationStatus,
-  hasLimitedRecommendationResults,
+  getRecommendationNoticeQueue,
+  type RecommendationNotice,
 } from "@/features/tuti/lib/recommendationStatus";
 import type { TutiPlace } from "@/lib/recommendations";
 import type { DepartureRoute } from "@/shared/api/departurePlan";
@@ -159,8 +160,8 @@ export function RecommendationsScreen({
   const [committing, setCommitting] = useState(false);
   const [currentHelp, setCurrentHelp] = useState<HelpKind | null>(null);
   const [displayedHelp, setDisplayedHelp] = useState<HelpKind | null>(null);
-  const [limitedResultsToastVisible, setLimitedResultsToastVisible] =
-    useState(false);
+  const [activeRecommendationNotice, setActiveRecommendationNotice] =
+    useState<RecommendationNotice | null>(null);
   const [departurePresentation, setDeparturePresentation] =
     useState<DeparturePresentation | null>(null);
   const frameRef = useRef<HTMLElement | null>(null);
@@ -184,14 +185,19 @@ export function RecommendationsScreen({
   const recommendationStatusVisible =
     !hideRecommendationStatus &&
     (recommendationStatus === "error" || recommendationStatus === "empty");
-  const limitedRecommendationResults = hasLimitedRecommendationResults({
-    loading,
-    recommendationError,
-    placeCount: places.length,
-  });
-  const limitedResultsKey = limitedRecommendationResults
-    ? places.map((place) => place.id).join(":")
-    : "";
+  const recommendationNoticeQueue = useMemo(
+    () => getRecommendationNoticeQueue({
+      loading,
+      recommendationError,
+      placeCount: places.length,
+      locationAvailable,
+    }),
+    [loading, locationAvailable, places.length, recommendationError],
+  );
+  const recommendationNoticeKey = [
+    places.map((place) => place.id).join(":"),
+    ...recommendationNoticeQueue,
+  ].join("|");
   const longDistanceLocationRequired =
     recommendationErrorCode === "long_distance_location_required";
   const longDistanceUnavailable =
@@ -219,22 +225,31 @@ export function RecommendationsScreen({
     !committing;
 
   useEffect(() => {
-    const showTimer = window.setTimeout(
-      () => setLimitedResultsToastVisible(Boolean(limitedResultsKey)),
-      0,
-    );
-    const hideTimer = limitedResultsKey
-      ? window.setTimeout(
-          () => setLimitedResultsToastVisible(false),
-          LIMITED_RESULTS_TOAST_DURATION_MS,
+    const timers = [
+      window.setTimeout(
+        () => setActiveRecommendationNotice(
+          recommendationNoticeQueue[0] ?? null,
+        ),
+        0,
+      ),
+      ...recommendationNoticeQueue.slice(1).map((notice, index) =>
+        window.setTimeout(
+          () => setActiveRecommendationNotice(notice),
+          LIMITED_RESULTS_TOAST_DURATION_MS * (index + 1),
         )
-      : undefined;
+      ),
+    ];
+    if (recommendationNoticeQueue.length > 0) {
+      timers.push(window.setTimeout(
+        () => setActiveRecommendationNotice(null),
+        LIMITED_RESULTS_TOAST_DURATION_MS * recommendationNoticeQueue.length,
+      ));
+    }
 
     return () => {
-      window.clearTimeout(showTimer);
-      if (hideTimer !== undefined) window.clearTimeout(hideTimer);
+      timers.forEach((timer) => window.clearTimeout(timer));
     };
-  }, [limitedResultsKey]);
+  }, [recommendationNoticeKey, recommendationNoticeQueue]);
 
   const resetDrag = useCallback(() => {
     wheelDragY.current = 0;
@@ -769,24 +784,34 @@ export function RecommendationsScreen({
             />
           ))}
         </Dots>
-        {limitedRecommendationResults && (
+        {activeRecommendationNotice && (
           <LimitedResultsToast
-            $visible={limitedResultsToastVisible}
+            $visible
             role="status"
             aria-live="polite"
-            aria-hidden={!limitedResultsToastVisible}
-            inert={!limitedResultsToastVisible}
           >
             <span>
-              <strong>가까운 공간을 {places.length}곳 찾았어요.</strong>
-              더 보고 싶다면 오늘의 상태를 다시 골라보세요.
+              <strong>
+                {activeRecommendationNotice === "limited_results"
+                  ? `가까운 공간을 ${places.length}곳 찾았어요.`
+                  : "이동 시간까지 맞춰볼까요?"}
+              </strong>
+              {activeRecommendationNotice === "limited_results"
+                ? "더 보고 싶다면 오늘의 상태를 다시 골라보세요."
+                : "위치를 사용하면 지금 있는 곳에서 오가는 시간까지 살펴볼 수 있어요."}
             </span>
             <LimitedResultsAction
               type="button"
               onPointerDown={(event) => event.stopPropagation()}
-              onClick={onRestartIntake}
+              onClick={
+                activeRecommendationNotice === "limited_results"
+                  ? onRestartIntake
+                  : onLocationSettings
+              }
             >
-              다시 고르기
+              {activeRecommendationNotice === "limited_results"
+                ? "다시 고르기"
+                : "위치 사용하기"}
             </LimitedResultsAction>
           </LimitedResultsToast>
         )}

@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   getRecommendationStatus,
+  getRecommendationNoticeQueue,
   hasLimitedRecommendationResults,
 } from "@/features/tuti/lib/recommendationStatus";
 import { selectRecommendationCandidatePool } from "@/server/recommendations/candidateFallback";
@@ -188,6 +189,27 @@ test("정상 결과가 1~5곳일 때만 조건 부족 안내를 표시한다", (
   ]) {
     assert.equal(hasLimitedRecommendationResults(input), false);
   }
+});
+
+test("결과 부족과 위치 권유가 겹치면 결과 부족을 먼저 안내한다", () => {
+  assert.deepEqual(
+    getRecommendationNoticeQueue({
+      loading: false,
+      recommendationError: false,
+      placeCount: 4,
+      locationAvailable: false,
+    }),
+    ["limited_results", "location_precision"],
+  );
+  assert.deepEqual(
+    getRecommendationNoticeQueue({
+      loading: false,
+      recommendationError: false,
+      placeCount: 6,
+      locationAvailable: false,
+    }),
+    ["location_precision"],
+  );
 });
 
 test("첫 후보에서 조건 충족 장소가 부족하면 평가하지 않은 다음 후보를 고른다", () => {
