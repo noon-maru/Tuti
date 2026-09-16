@@ -1655,7 +1655,9 @@ const Dot = styled(BaseButton)<{ $active: boolean }>`
     height: 6px;
     border-radius: 999px;
     background: ${({ $active }) =>
-      $active ? "var(--color-text)" : "var(--color-border)"};
+      $active
+        ? "var(--color-accent-primary)"
+        : "var(--color-accent-secondary)"};
     transition: width 160ms ease, height 160ms ease, background 160ms ease;
   }
 `;
