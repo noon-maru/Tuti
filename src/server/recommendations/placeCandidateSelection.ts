@@ -61,6 +61,8 @@ const highBarrierPattern =
 const reservationPattern =
   /예약제|사전\s*예약|회원제|체험\s*예약|장비\s*대여|입장권\s*예매/u;
 const closedPattern = /폐업|영구\s*폐쇄|운영\s*종료|휴업\s*중/u;
+const passThroughFacilityPattern = /(?:대교|해안도로|일주도로|관광안내소|탐방안내소)$/u;
+const stayEvidencePattern = /전망대|전시관|홍보관|공원|산책|관람|체험|휴게\s*공간/u;
 
 export function assessPlaceCandidate(
   place: PlaceCandidateInput,
@@ -181,6 +183,13 @@ function scoreExecutionEase(
   }
   if (place.contentTypeId === "28") score -= 5;
   if (place.contentTypeId === "25") score -= 2;
+  if (
+    passThroughFacilityPattern.test(place.name) &&
+    !stayEvidencePattern.test(`${place.name} ${place.detail?.overview ?? ""}`)
+  ) {
+    score -= 14;
+    reasons.push("실행 부담: 머물 수 있는 지점이 불명확한 시설");
+  }
 
   if (score >= 20) reasons.push("실행 부담: 비교적 가벼운 이동·활동");
   return clamp(score, 0, 25);

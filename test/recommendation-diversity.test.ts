@@ -70,6 +70,22 @@ test("상세 문구와 장소 성격을 경험 유형으로 분류한다", () =>
     derivePlaceExperienceType({ ...common, name: "수월봉" }),
     "viewpoint",
   );
+  assert.equal(
+    derivePlaceExperienceType({ ...common, name: "건봉사" }),
+    "history_heritage",
+  );
+  assert.equal(
+    derivePlaceExperienceType({ ...common, name: "정관온천" }),
+    "wellness",
+  );
+  assert.equal(
+    derivePlaceExperienceType({ ...common, name: "올림픽대교" }),
+    "other",
+  );
+  assert.equal(
+    derivePlaceExperienceType({ ...common, name: "인천대교 전망대" }),
+    "viewpoint",
+  );
 });
 
 test("비슷한 품질 안에서는 같은 경험이 두 곳을 넘지 않게 재정렬한다", () => {

@@ -31,7 +31,7 @@ import {
 import { filterPlacesByAdmissionBudget } from "@/server/recommendations/admissionFee";
 import { enrichPlacesWithWeatherForecast } from "@/server/weather/kmaVilageForecast";
 import { selectRecommendationCandidatePool } from "@/server/recommendations/candidateFallback";
-import { selectDiverseContentTypes } from "@/server/recommendations/diverseCandidateSelection";
+import { selectDiverseExperienceTypes } from "@/server/recommendations/diverseCandidateSelection";
 import { getPreferredRegionWhere } from "@/server/recommendations/regionFallback";
 import {
   excludeExplicitlyInfeasiblePlaces,
@@ -274,7 +274,7 @@ async function evaluateRecommendations(
     : 1;
 
   for (let batchIndex = 0; batchIndex < evaluationBatchCount; batchIndex += 1) {
-    const candidateBatch = selectDiverseContentTypes(
+    const candidateBatch = selectDiverseExperienceTypes(
       rankedPlaces,
       CANDIDATE_EVALUATION_BATCH_SIZE,
       location ? 4 : 3,
@@ -538,6 +538,7 @@ function isPlaceExperienceType(
     "viewpoint",
     "neighborhood",
     "activity",
+    "wellness",
     "other",
   ].includes(value);
 }

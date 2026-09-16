@@ -51,6 +51,7 @@ export type PlaceExperienceType =
   | "viewpoint"
   | "neighborhood"
   | "activity"
+  | "wellness"
   | "other";
 
 export type LongDistanceMode = "highSpeedRail" | "expressBus";

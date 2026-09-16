@@ -2,7 +2,7 @@ import type { PlaceExperienceType } from "@/lib/recommendations";
 import { assessPlaceExperienceType } from "@/server/recommendations/experienceType";
 import { derivePlaceMoodTags } from "@/server/tourism/placeMoodTags";
 
-export const PLACE_RECOMMENDATION_FEATURE_VERSION = "place-features-v1";
+export const PLACE_RECOMMENDATION_FEATURE_VERSION = "place-features-v2";
 
 export type RecommendationFeatureSource = {
   name: string;
@@ -30,7 +30,9 @@ export function derivePlaceRecommendationFeatures(source: RecommendationFeatureS
   const movementLevel: "near" | "short" | "half" =
     (duration !== null && duration >= 150) || burden >= 3
       ? "half"
-      : duration !== null && duration <= 60 && burden === 0
+      : ((duration !== null && duration <= 60) ||
+          (duration === null && isFlexibleBriefVisit(source, experience.type))) &&
+          burden === 0
         ? "near"
         : "short";
   const durationBurden = duration === null
@@ -57,6 +59,16 @@ export function derivePlaceRecommendationFeatures(source: RecommendationFeatureS
   };
 }
 
+function isFlexibleBriefVisit(
+  source: RecommendationFeatureSource,
+  type: PlaceExperienceType,
+) {
+  if (/도서관|갤러리|작은\s*미술관|홍보관|전망대|기념관/u.test(source.name)) {
+    return true;
+  }
+  return type === "wellness" && /족욕|온천/u.test(source.name);
+}
+
 function getActivityBurden(source: RecommendationFeatureSource, type: PlaceExperienceType) {
   const text = `${source.name} ${source.overview ?? ""} ${source.experienceGuide ?? ""}`;
   if (/패러글라이딩|래프팅|스키|스노보드|클라이밍|ATV|번지|승마/u.test(text)) return 4;
@@ -69,14 +81,14 @@ function getActivityBurden(source: RecommendationFeatureSource, type: PlaceExper
 function parseDurationMinutes(value?: string | null) {
   if (!value) return null;
   const normalized = value.replace(/\s+/g, " ");
-  const hours = [...normalized.matchAll(/(\d+(?:\.\d+)?)\s*시간/g)]
-    .map((match) => Number(match[1]))
-    .filter(Number.isFinite);
-  const minutes = [...normalized.matchAll(/(\d+)\s*분/g)]
-    .map((match) => Number(match[1]))
-    .filter(Number.isFinite);
-  if (hours.length === 0 && minutes.length === 0) return null;
-  return Math.max(...hours.map((hour) => hour * 60), 0) + Math.max(...minutes, 0);
+  const values = [...normalized.matchAll(
+    /(\d+(?:\.\d+)?)\s*시간(?:\s*(\d+)\s*분)?|(\d+)\s*분/g,
+  )].map((match) =>
+    match[1]
+      ? Number(match[1]) * 60 + Number(match[2] ?? 0)
+      : Number(match[3]),
+  ).filter(Number.isFinite);
+  return values.length > 0 ? Math.max(...values) : null;
 }
 
 function clamp(value: number, min: number, max: number) {

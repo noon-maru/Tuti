@@ -1,6 +1,7 @@
-export function selectDiverseContentTypes<
+export function selectDiverseExperienceTypes<
   Place extends {
     id: string;
+    experienceType?: string | null;
     sourceContentType?: string | null;
   },
 >(
@@ -15,13 +16,14 @@ export function selectDiverseContentTypes<
 
   for (const place of places) {
     if (excludedPlaceIds.has(place.id)) continue;
-    const contentType = place.sourceContentType ?? "unknown";
-    const count = typeCounts.get(contentType) ?? 0;
+    const experienceType =
+      place.experienceType ?? place.sourceContentType ?? "unknown";
+    const count = typeCounts.get(experienceType) ?? 0;
     if (count >= maxPerType) continue;
 
     selected.push(place);
     selectedIds.add(place.id);
-    typeCounts.set(contentType, count + 1);
+    typeCounts.set(experienceType, count + 1);
     if (selected.length === limit) return selected;
   }
 

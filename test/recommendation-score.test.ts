@@ -83,6 +83,20 @@ test("기존에 0점으로 합쳐지던 후보도 원점수 순서대로 정렬�
   assert.ok(ranked[0].fatigueScore! < ranked[1].fatigueScore!);
 });
 
+test("반나절 선택은 짧은 공간보다 오래 머물 경험을 우선한다", () => {
+  const ranked = rankByMovementFatigue(
+    [
+      createPlace({ id: "brief", movementLevel: "near", fatigue: 30 }),
+      createPlace({ id: "half-day", movementLevel: "half", fatigue: 30 }),
+    ],
+    { ...answers, movement: "half" },
+    { ...feature, movement: "half" },
+    2,
+  );
+
+  assert.deepEqual(ranked.map(({ id }) => id), ["half-day", "brief"]);
+});
+
 test("같은 상태에서도 장소 경험 유형에 따라 소개와 추천 이유가 달라진다", () => {
   const ranked = rankByMovementFatigue(
     [

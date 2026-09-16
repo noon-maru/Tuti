@@ -145,10 +145,12 @@ export function calculateMovementFatigue(
     ),
     movementPenalty:
       movementGap > 0
-        ? movementGap * 18
+        ? movementGap * 20
         : requestedMovement === place.movementLevel
-          ? -6
-          : -2,
+          ? -12
+          : requestedMovement === "half"
+            ? Math.abs(movementGap) * 5
+            : -3,
     moodAdjustment: hasMoodMatch ? -12 : moodTag ? 6 : 0,
     crowdPenalty: getCrowdPenalty(
       place.crowd,
@@ -752,6 +754,11 @@ function createPlaceCharacterPhrase(place: MovementFatigueInput) {
       "작은 움직임으로 하루의 흐름을 바꾸는 날",
       "몸을 움직인 만큼 기분도 환기되는 시간",
     ],
+    wellness: [
+      "따뜻한 온기 속에서 몸의 긴장을 늦추는 시간",
+      "몸을 쉬게 두고 천천히 회복하는 날",
+      "따뜻하게 머물며 하루의 피로를 덜어내는 시간",
+    ],
     other: [
       "익숙한 하루에서 잠깐 벗어나 보는 시간",
       "오늘의 흐름을 가볍게 바꿔보는 곳",
@@ -969,6 +976,7 @@ function createMoodHeadline(
     viewpoint: "멀리 열리는 시야",
     neighborhood: "낯선 동네의 기척",
     activity: "가볍게 몸을 움직이는 흐름",
+    wellness: "몸의 긴장을 늦추는 따뜻한 쉼",
     other: "익숙한 하루와 다른 장면",
   }[place.experienceType ?? "other"];
   if (air === "open") return `${character}을 만나며 시야를 바꾸기 좋아요.`;
@@ -989,6 +997,7 @@ function createCrowdHeadline(
     viewpoint: "트인 풍경을",
     neighborhood: "동네 풍경을",
     activity: "가벼운 활동을",
+    wellness: "따뜻한 쉼을",
     other: "공간을",
   }[place.experienceType ?? "other"];
   if (density === "quiet") return `비교적 한적하게 ${activity} 만날 수 있어요.`;

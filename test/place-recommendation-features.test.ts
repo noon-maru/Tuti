@@ -29,3 +29,14 @@ test("오래 걸리는 체험은 반나절 움직임과 높은 피로도로 계�
   assert.equal(features.movementLevel, "half");
   assert.ok(features.fatigue >= 60);
 });
+
+test("이용시간 범위는 양 끝을 더하지 않고 긴 쪽을 사용한다", () => {
+  const features = derivePlaceRecommendationFeatures({
+    name: "작은 도서관",
+    contentTypeId: "14",
+    usageDuration: "30분~1시간",
+  });
+
+  assert.equal(features.movementLevel, "near");
+  assert.ok(features.fatigue < 40);
+});

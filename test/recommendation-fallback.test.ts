@@ -6,7 +6,7 @@ import {
   hasLimitedRecommendationResults,
 } from "@/features/tuti/lib/recommendationStatus";
 import { selectRecommendationCandidatePool } from "@/server/recommendations/candidateFallback";
-import { selectDiverseContentTypes } from "@/server/recommendations/diverseCandidateSelection";
+import { selectDiverseExperienceTypes } from "@/server/recommendations/diverseCandidateSelection";
 import { getPreferredRegionWhere } from "@/server/recommendations/regionFallback";
 import {
   LongDistanceRecommendationsUnavailableError,
@@ -215,11 +215,11 @@ test("결과 부족과 위치 권유가 겹치면 결과 부족을 먼저 안내
 test("첫 후보에서 조건 충족 장소가 부족하면 평가하지 않은 다음 후보를 고른다", () => {
   const places = Array.from({ length: 24 }, (_, index) => ({
     id: `place-${index + 1}`,
-    sourceContentType: String(Math.floor(index / 4)),
+    experienceType: String(Math.floor(index / 4)),
   }));
-  const firstBatch = selectDiverseContentTypes(places, 12, 4);
+  const firstBatch = selectDiverseExperienceTypes(places, 12, 4);
   const evaluatedIds = new Set(firstBatch.map((place) => place.id));
-  const supplementalBatch = selectDiverseContentTypes(
+  const supplementalBatch = selectDiverseExperienceTypes(
     places,
     12,
     4,
