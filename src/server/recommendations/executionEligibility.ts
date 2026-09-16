@@ -12,6 +12,8 @@ export function keepVerifiedTimeFits<
   Place extends Pick<TutiPlace, "executionFeasibility">,
 >(places: readonly Place[]): Place[] {
   return places.filter(
-    (place) => place.executionFeasibility?.fitsAvailableTime === true,
+    (place) =>
+      place.executionFeasibility?.travelTimeVerified === true &&
+      place.executionFeasibility.fitsAvailableTime === true,
   );
 }

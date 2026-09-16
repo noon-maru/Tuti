@@ -33,6 +33,7 @@ function feasibility(
   >["operationStatus"],
 ): NonNullable<TutiPlace["executionFeasibility"]> {
   return {
+    travelTimeVerified: true,
     availableMinutes: 60,
     oneWayMinutes: 20,
     roundTripMinutes: 40,
@@ -80,6 +81,10 @@ test("시간을 약속하는 추천에는 확인된 후보만 남긴다", () => 
   const candidates = [
     place("available", feasibility(true, "available")),
     place("operation-unknown", feasibility(true, "unknown")),
+    place("travel-time-unverified", {
+      ...feasibility(true, "available"),
+      travelTimeVerified: false,
+    }),
     place("time-over", feasibility(false, "unknown")),
     place("route-unknown"),
   ];
