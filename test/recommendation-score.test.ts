@@ -83,6 +83,37 @@ test("기존에 0점으로 합쳐지던 후보도 원점수 순서대로 정렬�
   assert.ok(ranked[0].fatigueScore! < ranked[1].fatigueScore!);
 });
 
+test("같은 상태에서도 장소 경험 유형에 따라 소개와 추천 이유가 달라진다", () => {
+  const ranked = rankByMovementFatigue(
+    [
+      createPlace({
+        id: "forest",
+        name: "초록 쉼터",
+        phrase: "잠깐 다른 공기를 만나기 좋은 곳",
+        experienceType: "forest_garden",
+      }),
+      createPlace({
+        id: "art",
+        name: "빛의 공간",
+        phrase: "잠깐 다른 공기를 만나기 좋은 곳",
+        experienceType: "art_exhibition",
+      }),
+      createPlace({
+        id: "water",
+        name: "잔잔한 자리",
+        phrase: "잠깐 다른 공기를 만나기 좋은 곳",
+        experienceType: "waterside",
+      }),
+    ],
+    answers,
+    feature,
+    3,
+  );
+
+  assert.equal(new Set(ranked.map(({ reason }) => reason)).size, 3);
+  assert.equal(new Set(ranked.map(({ cardPhrase }) => cardPhrase)).size, 3);
+});
+
 test("실행 불가와 나쁜 야외 날씨는 추천 부담을 높인다", () => {
   const place = createPlace({
     name: "테스트 공원",

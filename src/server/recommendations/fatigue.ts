@@ -27,6 +27,7 @@ type MovementFatigueInput = Pick<
   | "admissionFee"
   | "distanceMeters"
   | "travelTimeSummary"
+  | "experienceType"
 >;
 
 export type FatigueBreakdown = {
@@ -710,7 +711,55 @@ function createPlaceCharacterPhrase(place: MovementFatigueInput) {
     ]);
   }
 
-  return null;
+  const phrasesByExperience = {
+    waterside: [
+      "물가에 시선을 두고 천천히 숨을 고르는 시간",
+      "잔잔한 물빛 곁에서 하루의 속도를 늦추는 날",
+      "탁 트인 물가 쪽으로 잠시 마음을 옮기는 시간",
+    ],
+    forest_garden: [
+      "초록 사이를 천천히 걸으며 호흡을 고르는 시간",
+      "나무와 바람 곁에서 잠깐 속도를 늦추는 날",
+      "걷는 만큼 마음이 가벼워지는 바깥 시간",
+    ],
+    art_exhibition: [
+      "낯선 장면 앞에서 생각의 방향을 바꾸는 시간",
+      "작품 사이를 천천히 옮겨 다니고 싶은 날",
+      "익숙한 하루 밖의 감각을 만나보는 시간",
+    ],
+    museum_story: [
+      "한 가지 이야기를 느긋하게 따라가 보는 시간",
+      "천천히 들여다보며 다른 생각을 만나는 날",
+      "조용한 이야기 사이에 잠시 머무는 시간",
+    ],
+    history_heritage: [
+      "오래된 시간의 결을 따라 천천히 걷는 날",
+      "고요한 흔적 곁에서 잠시 호흡을 고르는 시간",
+      "익숙한 오늘과 다른 시간 속을 걷는 날",
+    ],
+    viewpoint: [
+      "시선을 멀리 두고 마음의 폭을 넓히는 시간",
+      "탁 트인 풍경 앞에서 잠깐 멈추는 날",
+      "높고 먼 쪽으로 시선을 옮겨보는 시간",
+    ],
+    neighborhood: [
+      "낯선 동네의 작은 장면을 따라 걷는 시간",
+      "사람 사는 풍경 속에서 다른 리듬을 만나는 날",
+      "골목의 기척을 느긋하게 따라가 보는 시간",
+    ],
+    activity: [
+      "가볍게 몸을 움직이며 생각을 비우는 시간",
+      "작은 움직임으로 하루의 흐름을 바꾸는 날",
+      "몸을 움직인 만큼 기분도 환기되는 시간",
+    ],
+    other: [
+      "익숙한 하루에서 잠깐 벗어나 보는 시간",
+      "오늘의 흐름을 가볍게 바꿔보는 곳",
+      "부담 없이 다른 장면을 만나보는 시간",
+    ],
+  } as const;
+  const type = place.experienceType ?? "other";
+  return pickPhrase(name, phrasesByExperience[type]);
 }
 
 function pickPhrase(seed: string, phrases: readonly string[]) {
@@ -846,12 +895,7 @@ function createCrowdReason(
   return {
     factor: "crowd",
     score: 28 + Math.abs(breakdown.crowdPenalty) + sourceBonus,
-    headline:
-      answers.density === "quiet"
-        ? "지금은 비교적 한적하게 머물 수 있는 쪽이에요."
-        : answers.density === "lively"
-          ? "사람들의 기척이 적당히 느껴지는 곳이에요."
-          : "너무 조용하거나 붐비지 않는 쪽이에요.",
+    headline: createCrowdHeadline(place, answers.density),
     detail,
     cardPhrase:
       answers.density === "quiet"
@@ -901,12 +945,7 @@ function createMoodReason(
   return {
     factor: "mood",
     score: 30 + Math.abs(breakdown.moodAdjustment) / 2,
-    headline:
-      answers.air === "open"
-        ? "시야가 트인 공기를 만나기 좋은 쪽이에요."
-        : answers.air === "walk"
-          ? "천천히 걸으며 공기를 바꾸기 좋은 쪽이에요."
-          : "말이 적은 공기 속에 머물기 좋은 쪽이에요.",
+    headline: createMoodHeadline(place, answers.air!),
     detail: "오늘 원하는 공기와 장소의 성격이 맞는지를 먼저 살폈어요.",
     cardPhrase:
       answers.air === "open"
@@ -915,6 +954,46 @@ function createMoodReason(
           ? "천천히 걷다 보면 공기가 달라지는 곳"
           : "조용한 공기 쪽으로 마음이 가는 날",
   };
+}
+
+function createMoodHeadline(
+  place: MovementFatigueInput,
+  air: NonNullable<IntakeAnswers["air"]>,
+) {
+  const character = {
+    waterside: "물가의 잔잔한 흐름",
+    forest_garden: "나무와 산책길의 호흡",
+    art_exhibition: "작품 사이의 조용한 여백",
+    museum_story: "천천히 따라갈 이야기",
+    history_heritage: "오래된 공간의 고요함",
+    viewpoint: "멀리 열리는 시야",
+    neighborhood: "낯선 동네의 기척",
+    activity: "가볍게 몸을 움직이는 흐름",
+    other: "익숙한 하루와 다른 장면",
+  }[place.experienceType ?? "other"];
+  if (air === "open") return `${character}을 만나며 시야를 바꾸기 좋아요.`;
+  if (air === "walk") return `${character}을 따라 천천히 움직이기 좋아요.`;
+  return `${character} 속에 조용히 머물기 좋아요.`;
+}
+
+function createCrowdHeadline(
+  place: MovementFatigueInput,
+  density: IntakeAnswers["density"],
+) {
+  const activity = {
+    waterside: "물가 풍경을",
+    forest_garden: "산책과 초록을",
+    art_exhibition: "작품을",
+    museum_story: "이야기를",
+    history_heritage: "오래된 공간을",
+    viewpoint: "트인 풍경을",
+    neighborhood: "동네 풍경을",
+    activity: "가벼운 활동을",
+    other: "공간을",
+  }[place.experienceType ?? "other"];
+  if (density === "quiet") return `비교적 한적하게 ${activity} 만날 수 있어요.`;
+  if (density === "lively") return `사람들의 기척 속에서 ${activity} 즐기기 좋아요.`;
+  return `지나치게 붐비지 않게 ${activity} 만나기 좋아요.`;
 }
 
 function createMovementReason(
