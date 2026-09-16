@@ -206,6 +206,7 @@ function getExecutionPenalty(
   ) {
     return 36;
   }
+  if (!execution.travelTimeVerified) return 0;
   if (!execution.fitsAvailableTime) {
     return execution.totalMinutes <= execution.availableMinutes * 1.15
       ? 12
@@ -602,7 +603,11 @@ function createExecutionReason(
   breakdown: FatigueBreakdown,
 ): ReasonCandidate | null {
   const execution = place.executionFeasibility;
-  if (!execution || breakdown.executionPenalty >= 0) return null;
+  if (
+    !execution ||
+    !execution.travelTimeVerified ||
+    breakdown.executionPenalty >= 0
+  ) return null;
   return {
     factor: "schedule",
     score: 48 + Math.abs(breakdown.executionPenalty),

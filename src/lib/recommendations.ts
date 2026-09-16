@@ -99,6 +99,7 @@ export type RecommendationReasonFactor =
   | "burden";
 
 export type ExecutionFeasibility = {
+  travelTimeVerified?: boolean;
   availableMinutes: number;
   oneWayMinutes: number;
   roundTripMinutes: number;

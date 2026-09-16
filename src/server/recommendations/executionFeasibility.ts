@@ -96,11 +96,12 @@ export function calculateExecutionFeasibility({
   now?: Date;
 }): ExecutionFeasibility | null {
   const travelSeconds = place.travelTimeSummary?.durationSeconds;
-  if (!travelSeconds) return null;
-
   const movement = answers.movement ?? "short";
   const availableMinutes = movementTimeBudget[movement].minutes;
-  const oneWayMinutes = Math.max(1, Math.ceil(travelSeconds / 60));
+  const travelTimeVerified = Boolean(travelSeconds);
+  const oneWayMinutes = travelSeconds
+    ? Math.max(1, Math.ceil(travelSeconds / 60))
+    : 0;
   const roundTripMinutes = oneWayMinutes * 2;
   const minimumStayMinutes = getMinimumStayMinutes(
     detail?.usageDuration,
@@ -124,6 +125,7 @@ export function calculateExecutionFeasibility({
   });
 
   return {
+    travelTimeVerified,
     availableMinutes,
     oneWayMinutes,
     roundTripMinutes,
@@ -131,7 +133,7 @@ export function calculateExecutionFeasibility({
     waitingMinutes,
     totalMinutes,
     fitsAvailableTime:
-      totalMinutes <= availableMinutes &&
+      (!travelTimeVerified || totalMinutes <= availableMinutes) &&
       operationStatus !== "closed_today" &&
       operationStatus !== "closes_too_soon",
     operationStatus,

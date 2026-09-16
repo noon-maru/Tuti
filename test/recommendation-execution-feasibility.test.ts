@@ -43,7 +43,45 @@ test("한 시간 추천은 머무는 시간을 조절할 수 있는 공간에 20
   });
 
   assert.equal(feasibility?.minimumStayMinutes, 20);
+  assert.equal(feasibility?.travelTimeVerified, true);
   assert.equal(feasibility?.totalMinutes, 56);
+  assert.equal(feasibility?.fitsAvailableTime, true);
+});
+
+test("위치가 없어도 오늘 휴무인 장소는 실행 불가로 판정한다", () => {
+  const feasibility = calculateExecutionFeasibility({
+    place: place({ travelTimeSummary: undefined }),
+    answers: nearAnswers,
+    detail: {
+      openingHours: "09:00~18:00",
+      restDate: "매주 수요일",
+      usageDuration: "약 40분",
+      admissionFee: null,
+    },
+    // 2026-09-16은 수요일이다.
+    now: new Date("2026-09-16T01:00:00.000Z"),
+  });
+
+  assert.equal(feasibility?.travelTimeVerified, false);
+  assert.equal(feasibility?.operationStatus, "closed_today");
+  assert.equal(feasibility?.fitsAvailableTime, false);
+});
+
+test("위치가 없고 운영 중이면 이동시간 적합성은 추정하지 않는다", () => {
+  const feasibility = calculateExecutionFeasibility({
+    place: place({ travelTimeSummary: undefined }),
+    answers: nearAnswers,
+    detail: {
+      openingHours: "09:00~18:00",
+      restDate: "연중무휴",
+      usageDuration: "약 40분",
+      admissionFee: null,
+    },
+    now: new Date("2026-09-16T01:00:00.000Z"),
+  });
+
+  assert.equal(feasibility?.travelTimeVerified, false);
+  assert.equal(feasibility?.operationStatus, "available");
   assert.equal(feasibility?.fitsAvailableTime, true);
 });
 
