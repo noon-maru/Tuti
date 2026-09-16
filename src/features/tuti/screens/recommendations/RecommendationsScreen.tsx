@@ -69,6 +69,7 @@ const WHEEL_TRIGGER_THRESHOLD = 24;
 const WHEEL_TRANSITION_DURATION = 260;
 const POINTER_TAP_SLOP = 8;
 const TOUCH_TAP_SLOP = 16;
+const LIMITED_RESULTS_TOAST_DURATION_MS = 10_000;
 
 export function RecommendationsScreen({
   places,
@@ -156,6 +157,8 @@ export function RecommendationsScreen({
   const [committing, setCommitting] = useState(false);
   const [currentHelp, setCurrentHelp] = useState<HelpKind | null>(null);
   const [displayedHelp, setDisplayedHelp] = useState<HelpKind | null>(null);
+  const [limitedResultsToastVisible, setLimitedResultsToastVisible] =
+    useState(false);
   const [departurePresentation, setDeparturePresentation] =
     useState<DeparturePresentation | null>(null);
   const frameRef = useRef<HTMLElement | null>(null);
@@ -184,6 +187,9 @@ export function RecommendationsScreen({
     recommendationError,
     placeCount: places.length,
   });
+  const limitedResultsKey = limitedRecommendationResults
+    ? places.map((place) => place.id).join(":")
+    : "";
   const longDistanceLocationRequired =
     recommendationErrorCode === "long_distance_location_required";
   const longDistanceUnavailable =
@@ -209,6 +215,21 @@ export function RecommendationsScreen({
     verticalProgress === 0 &&
     dragAxis === null &&
     !committing;
+
+  useEffect(() => {
+    if (!limitedResultsKey) {
+      setLimitedResultsToastVisible(false);
+      return;
+    }
+
+    setLimitedResultsToastVisible(true);
+    const timeout = window.setTimeout(
+      () => setLimitedResultsToastVisible(false),
+      LIMITED_RESULTS_TOAST_DURATION_MS,
+    );
+
+    return () => window.clearTimeout(timeout);
+  }, [limitedResultsKey]);
 
   const resetDrag = useCallback(() => {
     wheelDragY.current = 0;
@@ -704,17 +725,6 @@ export function RecommendationsScreen({
               {getLocationModeLabel(locationPermissionStatus)}
             </LocationModeButton>
           )}
-          {limitedRecommendationResults && (
-            <LimitedResultsNotice role="status">
-              <span>
-                지금의 마음에 가까운 곳을 {places.length}곳 찾았어요. 조금 더
-                둘러보려면 오늘의 여유나 원하는 분위기를 다시 들려주세요.
-              </span>
-              <LimitedResultsAction type="button" onClick={onRestartIntake}>
-                다시 들려주기
-              </LimitedResultsAction>
-            </LimitedResultsNotice>
-          )}
         </Copy>
         <Carousel onWheel={scrollCard}>
           {places.map((place, index) => (
@@ -754,6 +764,27 @@ export function RecommendationsScreen({
             />
           ))}
         </Dots>
+        {limitedRecommendationResults && (
+          <LimitedResultsToast
+            $visible={limitedResultsToastVisible}
+            role="status"
+            aria-live="polite"
+            aria-hidden={!limitedResultsToastVisible}
+            inert={!limitedResultsToastVisible}
+          >
+            <span>
+              <strong>가까운 공간을 {places.length}곳 찾았어요.</strong>
+              더 보고 싶다면 오늘의 상태를 다시 골라보세요.
+            </span>
+            <LimitedResultsAction
+              type="button"
+              onPointerDown={(event) => event.stopPropagation()}
+              onClick={onRestartIntake}
+            >
+              다시 고르기
+            </LimitedResultsAction>
+          </LimitedResultsToast>
+        )}
       </CurrentLayer>
 
       {presentedDetailPlace &&
@@ -1516,35 +1547,60 @@ const LocationModeButton = styled(BaseButton)`
   }
 `;
 
-const LimitedResultsNotice = styled.div`
-  width: min(100%, 310px);
-  min-height: 36px;
+const LimitedResultsToast = styled.aside<{ $visible: boolean }>`
+  position: absolute;
+  z-index: 12;
+  right: 0;
+  bottom: calc(var(--app-safe-area-bottom) + var(--space-10));
+  left: 0;
+  width: min(100%, 340px);
+  min-height: 56px;
+  margin: 0 auto;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: var(--space-2);
-  padding: var(--space-1) var(--space-1) var(--space-1) var(--space-3);
-  border: 1px solid var(--color-secondary-300);
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--color-surface) 88%, transparent);
+  gap: var(--space-3);
+  padding: var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: 14px;
+  background: rgb(var(--color-white-rgb) / 0.96);
   color: var(--color-text-muted);
   font-size: var(--font-size-100);
-  box-shadow: 0 8px 24px rgb(var(--color-black-rgb) / 0.06);
+  line-height: var(--line-height-body);
+  box-shadow: 0 12px 30px rgb(var(--color-black-rgb) / 0.12);
+  backdrop-filter: blur(14px);
+  opacity: ${({ $visible }) => ($visible ? 1 : 0)};
+  transform: translateY(${({ $visible }) => ($visible ? 0 : 8)}px);
+  pointer-events: none;
+  transition: opacity 180ms ease, transform 220ms cubic-bezier(0.2, 0.8, 0.2, 1);
 
   span {
     min-width: 0;
+    display: grid;
+    gap: 2px;
+  }
+
+  strong {
+    color: var(--color-text);
+    font-weight: 700;
+    letter-spacing: -0.02em;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    transition: none;
   }
 `;
 
 const LimitedResultsAction = styled(BaseButton)`
-  min-height: 28px;
+  min-height: 36px;
   flex: 0 0 auto;
   padding: 0 var(--space-3);
   border-radius: 999px;
-  background: var(--color-secondary-300);
-  color: var(--color-text);
+  background: var(--color-secondary-500);
+  color: var(--color-black);
   font-size: var(--font-size-100);
   font-weight: 700;
+  pointer-events: auto;
 `;
 
 const Carousel = styled.div`
