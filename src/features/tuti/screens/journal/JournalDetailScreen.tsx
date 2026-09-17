@@ -5,7 +5,6 @@ import { useRef, useState } from "react";
 import { BaseButton } from "@/features/tuti/components/buttons";
 import { ContextMenu } from "@/features/tuti/components/ContextMenu";
 import { JournalShareDialog } from "@/features/tuti/components/JournalShareDialog";
-import { JournalPublicationConsentDialog } from "@/features/tuti/components/JournalPublicationConsentDialog";
 import { JournalLocationLabel } from "@/features/tuti/components/JournalLocationLabel";
 import {
   useJournalEntryTransition,
@@ -39,7 +38,6 @@ export function JournalDetailScreen({
 }) {
   const imageRef = useRef<HTMLDivElement>(null);
   const [shareOpen, setShareOpen] = useState(false);
-  const [publicationConsentOpen, setPublicationConsentOpen] = useState(false);
   const { startTransition } = useJournalEntryTransition();
   const entryTransition = useJournalEntryTransitionTarget(
     entry.id,
@@ -79,40 +77,10 @@ export function JournalDetailScreen({
               label: "수정하기",
               onSelect: onEdit,
             },
-            ...(publicationEnabled && entry.publication
-              ? [
-                  {
-                    label: "PNG로 공유하기",
-                    onSelect: () => setShareOpen(true),
-                  },
-                  {
-                    label: "웹 링크로 공유",
-                    onSelect: onSharePublicLink,
-                  },
-                  {
-                    label: "공유 링크 복사",
-                    onSelect: onCopyPublicLink,
-                  },
-                  {
-                    label: "공개 중지",
-                    tone: "danger" as const,
-                    onSelect: onUnpublish,
-                  },
-                ]
-              : [
-                  {
-                    label: "PNG로 공유하기",
-                    onSelect: () => setShareOpen(true),
-                  },
-                  ...(publicationEnabled
-                    ? [
-                        {
-                          label: "인터넷에 공개",
-                          onSelect: () => setPublicationConsentOpen(true),
-                        },
-                      ]
-                    : []),
-                ]),
+            {
+              label: "기록 공유하기",
+              onSelect: () => setShareOpen(true),
+            },
             {
               label: "삭제하기",
               tone: "danger",
@@ -163,16 +131,12 @@ export function JournalDetailScreen({
       {shareOpen && (
         <JournalShareDialog
           entry={entry}
+          publicationEnabled={publicationEnabled}
           onClose={() => setShareOpen(false)}
-        />
-      )}
-      {publicationConsentOpen && (
-        <JournalPublicationConsentDialog
-          placeName={entry.placeName}
-          onClose={() => setPublicationConsentOpen(false)}
-          onConfirm={async () => {
-            await onPublish();
-          }}
+          onCopyPublicLink={onCopyPublicLink}
+          onPublish={onPublish}
+          onSharePublicLink={onSharePublicLink}
+          onUnpublish={onUnpublish}
         />
       )}
     </Frame>

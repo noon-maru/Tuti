@@ -11,12 +11,13 @@ import {
 import { ContextMenu } from "@/features/tuti/components/ContextMenu";
 import { LoadingIndicator } from "@/features/tuti/components/LoadingIndicator";
 import { JournalBookEntry } from "@/features/tuti/components/JournalBookEntry";
+import { JournalShareDialog } from "@/features/tuti/components/JournalShareDialog";
 import { useJournalEntryTransitionTarget } from "@/features/tuti/components/JournalEntryTransition";
 import { BaseButton } from "@/features/tuti/components/buttons";
 import { ScreenFrame } from "@/features/tuti/components/ScreenFrame";
 import { useTutiJournalEntries } from "@/features/tuti/hooks/useTutiJournalEntries";
+import { useJournalShareActions } from "@/features/tuti/hooks/useJournalShareActions";
 import { useVerticalSwipeBack } from "@/features/tuti/hooks/useVerticalSwipeBack";
-import { shareContent } from "@/lib/shareContent";
 import { useTutiStore } from "@/store/tuti";
 import {
   fluidByViewportHeight,
@@ -45,6 +46,7 @@ export function JournalScreen({
   ) => void;
 }) {
   const [stackDragY, setStackDragY] = useState(0);
+  const [shareEntryId, setShareEntryId] = useState<string | null>(null);
   const stackPointerStart = useRef<number | null>(null);
   const selectedCardRef = useRef<HTMLButtonElement>(null);
   const wheelLocked = useRef(false);
@@ -52,8 +54,14 @@ export function JournalScreen({
   const {
     entries,
     isPending,
+    changeEntryPublication,
     removeEntry,
   } = useTutiJournalEntries();
+  const shareEntry = entries.find((entry) => entry.id === shareEntryId);
+  const shareActions = useJournalShareActions({
+    entry: shareEntry,
+    changeEntryPublication,
+  });
   const activeJournalEntryId = useTutiStore(
     (state) => state.activeJournalEntryId,
   );
@@ -298,11 +306,7 @@ export function JournalScreen({
                         },
                         {
                           label: "기록 공유하기",
-                          onSelect: () =>
-                            shareContent({
-                              title: entry.title,
-                              text: entry.content,
-                            }),
+                          onSelect: () => setShareEntryId(entry.id),
                         },
                         {
                           label: "삭제하기",
@@ -327,6 +331,17 @@ export function JournalScreen({
         </EmptyState>
       )}
       <JournalBookEntry hasEntries={entries.length > 0} />
+      {shareEntry && (
+        <JournalShareDialog
+          entry={shareEntry}
+          publicationEnabled={shareActions.publicationEnabled}
+          onClose={() => setShareEntryId(null)}
+          onCopyPublicLink={shareActions.copyPublicLink}
+          onPublish={shareActions.publish}
+          onSharePublicLink={shareActions.sharePublicLink}
+          onUnpublish={shareActions.unpublish}
+        />
+      )}
     </Frame>
   );
 }

@@ -12,6 +12,7 @@ import { createPortal } from "react-dom";
 
 import { BaseButton, PrimaryButton } from "@/features/tuti/components/buttons";
 import { JournalLocationLabel } from "@/features/tuti/components/JournalLocationLabel";
+import { JournalPublicationConsentDialog } from "@/features/tuti/components/JournalPublicationConsentDialog";
 import {
   createJournalShareFilename,
   downloadJournalPng,
@@ -34,10 +35,20 @@ const SHARE_HEIGHT = 1350;
 
 export function JournalShareDialog({
   entry,
+  publicationEnabled,
   onClose,
+  onCopyPublicLink,
+  onPublish,
+  onSharePublicLink,
+  onUnpublish,
 }: {
   entry: TutiJournalEntry;
+  publicationEnabled: boolean;
   onClose: () => void;
+  onCopyPublicLink: () => void | Promise<void>;
+  onPublish: () => void | Promise<void>;
+  onSharePublicLink: () => void | Promise<void>;
+  onUnpublish: () => void | Promise<void>;
 }) {
   const cardRef = useRef<HTMLDivElement>(null);
   const previewRef = useRef<HTMLDivElement>(null);
@@ -63,6 +74,7 @@ export function JournalShareDialog({
   const [message, setMessage] = useState(
     "공유 이미지 추적 번호를 준비하고 있어요.",
   );
+  const [publicationConsentOpen, setPublicationConsentOpen] = useState(false);
   const nativePlatform = isNativeSharePlatform();
 
   useEffect(() => {
@@ -110,7 +122,7 @@ export function JournalShareDialog({
 
   useEffect(() => {
     const closeOnEscape = (event: KeyboardEvent) => {
-      if (event.key === "Escape") onClose();
+      if (event.key === "Escape" && !publicationConsentOpen) onClose();
     };
 
     const previousOverflow = document.body.style.overflow;
@@ -121,7 +133,7 @@ export function JournalShareDialog({
       document.body.style.overflow = previousOverflow;
       window.removeEventListener("keydown", closeOnEscape);
     };
-  }, [onClose]);
+  }, [onClose, publicationConsentOpen]);
 
   useEffect(() => {
     let cancelled = false;
@@ -260,72 +272,125 @@ export function JournalShareDialog({
   };
 
   return createPortal(
-    <Backdrop onPointerDown={onClose}>
-      <Dialog
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="journal-share-title"
-        onPointerDown={(event) => event.stopPropagation()}
-      >
-        <DialogHeader>
-          <HeaderSpacer />
-          <h2 id="journal-share-title">기록 공유하기</h2>
-          <CloseButton
-            type="button"
-            aria-label="공유 화면 닫기"
-            onClick={onClose}
-          >
-            ×
-          </CloseButton>
-        </DialogHeader>
-
-        <Preview ref={previewRef}>
-          <PreviewScale
-            style={{ transform: `scale(${previewScale})` }}
-          >
-            <JournalShareCard
-              cardRef={cardRef}
-              entry={entry}
-              imageUrl={shareImageUrl || null}
-              traceCode={trace?.shortCode}
-            />
-          </PreviewScale>
-        </Preview>
-
-        <ShareStatus
-          role={status === "error" ? "alert" : "status"}
-          $error={status === "error"}
+    <>
+      <Backdrop onPointerDown={onClose}>
+        <Dialog
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="journal-share-title"
+          onPointerDown={(event) => event.stopPropagation()}
         >
-          {message}
-        </ShareStatus>
-
-        <Actions $single={nativePlatform}>
-          <ShareButton
-            type="button"
-            disabled={!png || status === "sharing"}
-            onClick={() => void shareImage()}
-          >
-            {status === "sharing" ? "공유하는 중" : "PNG 공유하기"}
-          </ShareButton>
-          {!nativePlatform && (
-            <DownloadButton
+          <DialogHeader>
+            <HeaderSpacer />
+            <h2 id="journal-share-title">기록 공유하기</h2>
+            <CloseButton
               type="button"
-              disabled={!png}
-              onClick={() => {
-                if (!png) return;
-                downloadJournalPng(
-                  png,
-                  createJournalShareFilename(entry),
-                );
-                setMessage("PNG 이미지를 저장했어요.");
-              }}
+              aria-label="공유 화면 닫기"
+              onClick={onClose}
             >
-              PNG 저장하기
-            </DownloadButton>
+              ×
+            </CloseButton>
+          </DialogHeader>
+
+          <Preview ref={previewRef}>
+            <PreviewScale
+              style={{ transform: `scale(${previewScale})` }}
+            >
+              <JournalShareCard
+                cardRef={cardRef}
+                entry={entry}
+                imageUrl={shareImageUrl || null}
+                traceCode={trace?.shortCode}
+              />
+            </PreviewScale>
+          </Preview>
+
+          <ShareStatus
+            role={status === "error" ? "alert" : "status"}
+            $error={status === "error"}
+          >
+            {message}
+          </ShareStatus>
+
+          <Actions $single={nativePlatform}>
+            <ShareButton
+              type="button"
+              disabled={!png || status === "sharing"}
+              onClick={() => void shareImage()}
+            >
+              {status === "sharing" ? "공유하는 중" : "PNG 공유하기"}
+            </ShareButton>
+            {!nativePlatform && (
+              <DownloadButton
+                type="button"
+                disabled={!png}
+                onClick={() => {
+                  if (!png) return;
+                  downloadJournalPng(
+                    png,
+                    createJournalShareFilename(entry),
+                  );
+                  setMessage("PNG 이미지를 저장했어요.");
+                }}
+              >
+                PNG 저장하기
+              </DownloadButton>
+            )}
+          </Actions>
+
+          {publicationEnabled && (
+            <WebSharePanel>
+              <WebShareCopy>
+                <strong>웹 링크</strong>
+                <p>
+                  {entry.publication
+                    ? "링크를 받은 사람이 이 기록을 볼 수 있어요."
+                    : "기록을 공개하면 앱이 없어도 볼 수 있는 링크가 생겨요."}
+                </p>
+              </WebShareCopy>
+              {entry.publication ? (
+                <WebShareActions>
+                  <WebShareButton
+                    type="button"
+                    onClick={() => void onSharePublicLink()}
+                  >
+                    링크 공유하기
+                  </WebShareButton>
+                  <LinkUtilityButton
+                    type="button"
+                    onClick={() => void onCopyPublicLink()}
+                  >
+                    링크 복사
+                  </LinkUtilityButton>
+                  <UnpublishButton
+                    type="button"
+                    onClick={() => void onUnpublish()}
+                  >
+                    공개 중지
+                  </UnpublishButton>
+                </WebShareActions>
+              ) : (
+                <WebShareButton
+                  type="button"
+                  onClick={() => setPublicationConsentOpen(true)}
+                >
+                  웹 링크 만들기
+                </WebShareButton>
+              )}
+            </WebSharePanel>
           )}
-        </Actions>
-      </Dialog>
-    </Backdrop>,
+        </Dialog>
+      </Backdrop>
+      {publicationConsentOpen && (
+        <JournalPublicationConsentDialog
+          placeName={entry.placeName}
+          onClose={() => setPublicationConsentOpen(false)}
+          onConfirm={async () => {
+            await onPublish();
+          }}
+        />
+      )}
+    </>,
     document.body,
   );
 }
@@ -377,8 +442,8 @@ function JournalShareCard({
                 <TraceCode>Tuti trace · {traceCode}</TraceCode>
               )}
             </ShareFooterCopy>
-            <WordmarkImage
-              src="/brand/tuti-wordmark.svg"
+            <BrandLogo
+              src="/brand/tuti-symbol.svg"
               alt="Tuti"
             />
           </ShareFooter>
@@ -546,6 +611,65 @@ const DownloadButton = styled(BaseButton)`
 
   &:disabled {
     color: var(--color-neutral-700);
+  }
+`;
+
+const WebSharePanel = styled.section`
+  display: grid;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  border-radius: 20px;
+  background: var(--color-neutral-200);
+`;
+
+const WebShareCopy = styled.div`
+  display: grid;
+  gap: var(--space-1);
+
+  strong {
+    font-size: var(--font-size-200);
+    font-weight: 700;
+  }
+
+  p {
+    color: var(--color-text-muted);
+    font-size: var(--font-size-100);
+    line-height: var(--line-height-body);
+  }
+`;
+
+const WebShareActions = styled.div`
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  gap: var(--space-2);
+
+  @media (max-width: 359px) {
+    grid-template-columns: 1fr 1fr;
+  }
+`;
+
+const WebShareButton = styled(PrimaryButton)`
+  min-height: var(--space-11);
+  padding-inline: var(--space-4);
+  background: var(--color-secondary-500);
+  color: var(--color-black);
+`;
+
+const LinkUtilityButton = styled(BaseButton)`
+  min-height: var(--space-11);
+  padding-inline: var(--space-3);
+  border-radius: 999px;
+  background: var(--color-surface);
+  color: var(--color-text);
+  font-size: var(--font-size-100);
+  font-weight: 600;
+`;
+
+const UnpublishButton = styled(LinkUtilityButton)`
+  color: var(--color-error);
+
+  @media (max-width: 359px) {
+    grid-column: 1 / -1;
   }
 `;
 
@@ -717,8 +841,9 @@ const TraceCode = styled.span`
   letter-spacing: 0.04em;
 `;
 
-const WordmarkImage = styled.img`
-  width: 138px;
-  height: auto;
+const BrandLogo = styled.img`
+  width: 72px;
+  height: 72px;
   display: block;
+  flex: none;
 `;
