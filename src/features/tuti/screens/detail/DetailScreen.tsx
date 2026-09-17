@@ -18,11 +18,11 @@ import {
 } from "react";
 import { BaseButton } from "@/features/tuti/components/buttons";
 import { ContextMenu } from "@/features/tuti/components/ContextMenu";
+import { PlaceShareDialog } from "@/features/tuti/components/PlaceShareDialog";
 import { TutiPlaceIcon } from "@/features/tuti/components/TutiPlaceIcon";
 import { useDeferredAnimationStart } from "@/features/tuti/hooks/useDeferredAnimationStart";
 import { usePlaceDetail } from "@/features/tuti/hooks/usePlaceDetail";
 import { useVerticalSwipeBack } from "@/features/tuti/hooks/useVerticalSwipeBack";
-import { getPublicPlaceUrl } from "@/features/tuti/lib/placeShare";
 import {
   getPlaceDisplayPhrase,
   getPlaceReasonHeadline,
@@ -32,7 +32,6 @@ import {
   createVisitInformationFacts,
   type VisitInformationFact,
 } from "@/features/tuti/lib/visitInformation";
-import { shareContent } from "@/lib/shareContent";
 import {
   getCrowdForecastBasisLabel,
   getCrowdForecastKindLabel,
@@ -94,6 +93,7 @@ export function DetailScreen({
   const subtitle = createPlaceSubtitle(place);
   const [selectedPhoto, setSelectedPhoto] =
     useState<TourismPlaceDetailImage | null>(null);
+  const [shareOpen, setShareOpen] = useState(false);
   const ownsHistoryEntry = useRef(false);
   const closingFromHistory = useRef(false);
   const ignoreNextPopState = useRef(false);
@@ -216,12 +216,7 @@ export function DetailScreen({
                   : []),
                 {
                   label: "장소 공유하기",
-                  onSelect: () =>
-                    shareContent({
-                      title: place.name,
-                      text: `${getPlaceDisplayPhrase(place)}\n${getFallbackDescription(place)}`,
-                      url: getPublicPlaceUrl(place.id),
-                    }),
+                  onSelect: () => setShareOpen(true),
                 },
                 ...(showBackMenuItem
                   ? [
@@ -361,6 +356,12 @@ export function DetailScreen({
           photo={selectedPhoto}
           placeName={place.name}
           onClose={() => setSelectedPhoto(null)}
+        />
+      )}
+      {shareOpen && (
+        <PlaceShareDialog
+          place={place}
+          onClose={() => setShareOpen(false)}
         />
       )}
     </Frame>

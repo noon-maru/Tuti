@@ -8,10 +8,10 @@ export async function shareContent(content: ShareContent) {
   if (navigator.share) {
     try {
       await navigator.share(content);
-      return;
+      return "shared" as const;
     } catch (error) {
       if (error instanceof DOMException && error.name === "AbortError") {
-        return;
+        return "cancelled" as const;
       }
     }
   }
@@ -26,7 +26,7 @@ export async function shareContent(content: ShareContent) {
 
   if (navigator.clipboard?.writeText) {
     await navigator.clipboard.writeText(fallbackText);
-    return;
+    return "copied" as const;
   }
 
   const textArea = document.createElement("textarea");
@@ -37,4 +37,5 @@ export async function shareContent(content: ShareContent) {
   textArea.select();
   document.execCommand("copy");
   textArea.remove();
+  return "copied" as const;
 }

@@ -8,11 +8,11 @@ import {
   useState,
   type Ref,
 } from "react";
-import { createPortal } from "react-dom";
 
 import { BaseButton, PrimaryButton } from "@/features/tuti/components/buttons";
 import { JournalLocationLabel } from "@/features/tuti/components/JournalLocationLabel";
 import { JournalPublicationConsentDialog } from "@/features/tuti/components/JournalPublicationConsentDialog";
+import { ShareDialogFrame } from "@/features/tuti/components/ShareDialogFrame";
 import {
   createJournalShareFilename,
   downloadJournalPng,
@@ -119,21 +119,6 @@ export function JournalShareDialog({
     observer.observe(preview);
     return () => observer.disconnect();
   }, []);
-
-  useEffect(() => {
-    const closeOnEscape = (event: KeyboardEvent) => {
-      if (event.key === "Escape" && !publicationConsentOpen) onClose();
-    };
-
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    window.addEventListener("keydown", closeOnEscape);
-
-    return () => {
-      document.body.style.overflow = previousOverflow;
-      window.removeEventListener("keydown", closeOnEscape);
-    };
-  }, [onClose, publicationConsentOpen]);
 
   useEffect(() => {
     let cancelled = false;
@@ -271,27 +256,13 @@ export function JournalShareDialog({
     }
   };
 
-  return createPortal(
+  return (
     <>
-      <Backdrop onPointerDown={onClose}>
-        <Dialog
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="journal-share-title"
-          onPointerDown={(event) => event.stopPropagation()}
-        >
-          <DialogHeader>
-            <HeaderSpacer />
-            <h2 id="journal-share-title">기록 공유하기</h2>
-            <CloseButton
-              type="button"
-              aria-label="공유 화면 닫기"
-              onClick={onClose}
-            >
-              ×
-            </CloseButton>
-          </DialogHeader>
-
+      <ShareDialogFrame
+        title="기록 공유하기"
+        dismissEnabled={!publicationConsentOpen}
+        onClose={onClose}
+      >
           <Preview ref={previewRef}>
             <PreviewScale
               style={{ transform: `scale(${previewScale})` }}
@@ -379,8 +350,7 @@ export function JournalShareDialog({
               )}
             </WebSharePanel>
           )}
-        </Dialog>
-      </Backdrop>
+      </ShareDialogFrame>
       {publicationConsentOpen && (
         <JournalPublicationConsentDialog
           placeName={entry.placeName}
@@ -390,8 +360,7 @@ export function JournalShareDialog({
           }}
         />
       )}
-    </>,
-    document.body,
+    </>
   );
 }
 
@@ -503,63 +472,6 @@ function waitForPaint() {
     });
   });
 }
-
-const Backdrop = styled.div`
-  position: fixed;
-  z-index: 2147483000;
-  inset: 0;
-  display: grid;
-  place-items: center;
-  padding:
-    calc(var(--space-5) + var(--app-safe-area-top, 0px))
-    calc(var(--space-4) + var(--app-safe-area-right, 0px))
-    calc(var(--space-5) + var(--app-safe-area-bottom, 0px))
-    calc(var(--space-4) + var(--app-safe-area-left, 0px));
-  background: rgb(var(--color-black-rgb) / 0.48);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-`;
-
-const Dialog = styled.section`
-  width: min(100%, 390px);
-  max-height: 100%;
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-4);
-  padding: var(--space-4);
-  overflow-y: auto;
-  border-radius: 32px;
-  background: var(--color-surface);
-  box-shadow: 0 28px 72px rgb(var(--color-black-rgb) / 0.28);
-  overscroll-behavior: contain;
-`;
-
-const DialogHeader = styled.header`
-  display: grid;
-  grid-template-columns: var(--space-10) 1fr var(--space-10);
-  align-items: center;
-
-  h2 {
-    font-size: var(--font-size-400);
-    text-align: center;
-  }
-`;
-
-const HeaderSpacer = styled.span`
-  width: var(--space-10);
-  height: var(--space-10);
-`;
-
-const CloseButton = styled(BaseButton)`
-  width: var(--space-10);
-  height: var(--space-10);
-  padding: 0;
-  border-radius: 999px;
-  background: transparent;
-  color: var(--color-text-muted);
-  font-size: var(--font-size-600);
-  line-height: 1;
-`;
 
 const Preview = styled.div`
   position: relative;
