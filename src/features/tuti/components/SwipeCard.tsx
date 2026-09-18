@@ -53,10 +53,11 @@ export function SwipeCard({
         zIndex: 10 - Math.abs(offset),
       }}
     >
-      <small aria-live={active ? "polite" : undefined}>
-        {travelTimeLabel}
-      </small>
-      <span>{getPlaceDisplayPhrase(place)}</span>
+      <CardIdentity aria-live={active ? "polite" : undefined}>
+        <strong>{place.name}</strong>
+        <small>{travelTimeLabel}</small>
+      </CardIdentity>
+      <CardPhrase>{getPlaceDisplayPhrase(place)}</CardPhrase>
       {active && <em>눌러서 출발 준비</em>}
     </CardButton>
   );
@@ -168,14 +169,14 @@ const CardButton = styled(BaseButton)<{
     );
   }
 
-  span,
-  small,
+  > div,
+  > span,
   em {
     position: relative;
     z-index: 1;
   }
 
-  span {
+  > span {
     font-size: var(--font-size-300);
     font-weight: 600;
     line-height: var(--line-height-subtitle);
@@ -183,13 +184,6 @@ const CardButton = styled(BaseButton)<{
     word-break: keep-all;
     overflow-wrap: break-word;
     text-wrap: pretty;
-  }
-
-  small {
-    color: rgb(var(--color-white-rgb) / 0.88);
-    font-size: var(--font-size-100);
-    line-height: var(--line-height-body);
-    letter-spacing: var(--letter-spacing-body);
   }
 
   em {
@@ -209,3 +203,28 @@ const CardButton = styled(BaseButton)<{
     -webkit-backdrop-filter: blur(8px);
   }
 `;
+
+const CardIdentity = styled.div`
+  display: grid;
+  gap: 2px;
+
+  strong {
+    color: var(--color-white);
+    font-size: var(--font-size-200);
+    font-weight: 650;
+    line-height: var(--line-height-body);
+    letter-spacing: var(--letter-spacing-body);
+    word-break: keep-all;
+    overflow-wrap: break-word;
+    text-wrap: pretty;
+  }
+
+  small {
+    color: rgb(var(--color-white-rgb) / 0.82);
+    font-size: var(--font-size-100);
+    line-height: var(--line-height-body);
+    letter-spacing: var(--letter-spacing-body);
+  }
+`;
+
+const CardPhrase = styled.span``;
