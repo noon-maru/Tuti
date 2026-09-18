@@ -3,6 +3,7 @@
 import styled from "@emotion/styled";
 import { useState, type FormEvent } from "react";
 import {
+  BackButton,
   BaseButton,
   PrimaryButton,
 } from "@/features/tuti/components/buttons";
@@ -275,9 +276,7 @@ export function AccountScreen({
           type="button"
           aria-label="설정으로 돌아가기"
           onClick={onBack}
-        >
-          ‹
-        </BackButton>
+        />
         <h1>계정 및 데이터</h1>
         <HeaderSpacer aria-hidden="true" />
       </Header>
@@ -861,25 +860,6 @@ const Header = styled.header`
     font-size: var(--font-size-400);
     font-weight: 600;
     text-align: center;
-  }
-`;
-
-const BackButton = styled(BaseButton)`
-  width: var(--space-11);
-  height: var(--space-11);
-  display: grid;
-  place-items: center;
-  margin-left: calc(var(--space-3) * -1);
-  padding: 0;
-  border-radius: 999px;
-  background: transparent;
-  color: var(--color-text-muted);
-  font-size: 44px;
-  font-weight: 300;
-  line-height: 1;
-
-  &:active {
-    transform: scale(0.94);
   }
 `;
 

@@ -3,7 +3,6 @@
 import styled from "@emotion/styled";
 import {
   Activity,
-  ArrowLeft,
   LocateFixed,
   MapPin,
   Play,
@@ -35,7 +34,11 @@ import type {
   MovementAnswer,
 } from "@/shared/tuti/types";
 import { movementTimeBudget } from "@/shared/tuti/movementTimeBudget";
-import { BaseButton, baseControlStyles } from "@/shared/ui/buttons";
+import {
+  BackLink,
+  BaseButton,
+  baseControlStyles,
+} from "@/shared/ui/buttons";
 
 type LocationMode = "location" | "region" | "none";
 type SimulationCandidate =
@@ -269,9 +272,7 @@ export function RecommendationSimulatorScreen() {
           <BackLink
             href="/admin?section=funnel"
             aria-label="관리자 콘솔로 돌아가기"
-          >
-            <ArrowLeft aria-hidden="true" />
-          </BackLink>
+          />
           <h1>추천 시뮬레이터</h1>
         </HeaderInner>
       </Header>
@@ -903,29 +904,6 @@ const HeaderInner = styled.div`
     h1 {
       font-size: var(--font-size-500);
     }
-  }
-`;
-
-const BackLink = styled(Link)`
-  ${baseControlStyles}
-  width: 44px;
-  flex: 0 0 auto;
-  min-height: 44px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: var(--space-2);
-  border-radius: 50%;
-  color: var(--color-text-muted);
-  font-size: var(--font-size-100);
-  font-weight: 600;
-  text-decoration: none;
-
-  svg { width: 18px; height: 18px; }
-
-  &:hover {
-    background: var(--color-brand-100);
-    color: var(--color-brand-900);
   }
 `;
 

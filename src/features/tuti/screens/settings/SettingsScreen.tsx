@@ -3,7 +3,6 @@
 import styled from "@emotion/styled";
 import {
   BellRing,
-  ChevronLeft,
   ChevronRight,
   FileLock2,
   LogOut,
@@ -12,7 +11,7 @@ import {
   UserRound,
 } from "lucide-react";
 import { useState } from "react";
-import { BaseButton } from "@/features/tuti/components/buttons";
+import { BackButton, BaseButton } from "@/features/tuti/components/buttons";
 import { ScreenFrame } from "@/features/tuti/components/ScreenFrame";
 import type { CardDisplayPreferences } from "@/store/tuti";
 
@@ -67,9 +66,7 @@ export function SettingsScreen({
   return (
     <Frame>
       <Header>
-        <BackButton type="button" aria-label="메인으로 돌아가기" onClick={onBack}>
-          <ChevronLeft aria-hidden="true" />
-        </BackButton>
+        <BackButton aria-label="메인으로 돌아가기" onClick={onBack} />
         <h1>설정</h1>
         <HeaderSpacer aria-hidden="true" />
       </Header>
@@ -251,21 +248,6 @@ const Header = styled.header`
     font-size: var(--font-size-500);
     font-weight: 700;
     text-align: center;
-  }
-`;
-
-const BackButton = styled(BaseButton)`
-  width: var(--space-12);
-  height: var(--space-12);
-  display: grid;
-  place-items: center;
-  border-radius: 50%;
-  background: transparent;
-  color: var(--color-text-muted);
-
-  svg {
-    width: 30px;
-    height: 30px;
   }
 `;
 

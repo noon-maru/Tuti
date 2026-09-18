@@ -5,7 +5,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import {
-  ChevronLeft,
   ChevronRight,
   Check,
   BookOpen,
@@ -22,7 +21,11 @@ import {
 } from "@/lib/tutiApi";
 import { getSessionSnapshot } from "@/lib/auth/session";
 import { ScreenFrame } from "@/features/tuti/components/ScreenFrame";
-import { BaseButton, PrimaryButton } from "@/features/tuti/components/buttons";
+import {
+  BackButton,
+  BaseButton,
+  PrimaryButton,
+} from "@/features/tuti/components/buttons";
 import { JournalBookPreview } from "@/features/tuti/components/JournalBookPreview";
 import {
   loadJournalBookDraft,
@@ -330,15 +333,12 @@ function BookEditor({ ownerId }: { ownerId: string }) {
   return (
     <Frame aria-label="기록집 만들기">
       <Header>
-        <IconButton
-          type="button"
+        <BackButton
           onClick={back}
           aria-label={
             draft?.step === "selection" ? "기록으로 돌아가기" : "이전 단계"
           }
-        >
-          <ChevronLeft size={24} aria-hidden="true" />
-        </IconButton>
+        />
         <h1>작은 기록집</h1>
         <HeaderSpacer aria-hidden="true" />
       </Header>
@@ -816,13 +816,10 @@ function StoredBookViewer({
   return (
     <Frame aria-label="완성한 기록집">
       <Header>
-        <IconButton
-          type="button"
+        <BackButton
           onClick={onBack}
           aria-label="기록집 목록으로 돌아가기"
-        >
-          <ChevronLeft size={24} aria-hidden="true" />
-        </IconButton>
+        />
         <h1>작은 기록집</h1>
         <HeaderSpacer aria-hidden="true" />
       </Header>
@@ -940,25 +937,6 @@ const SmallButton = styled(BaseButton)`
   padding: var(--space-2);
   cursor: pointer;
   font-size: var(--font-size-100);
-`;
-
-const IconButton = styled(SmallButton)`
-  width: var(--space-11);
-  height: var(--space-11);
-  display: grid;
-  place-items: center;
-  padding: 0;
-  border-radius: 50%;
-  color: var(--color-text-muted);
-  transition: color 160ms ease, transform 160ms ease;
-
-  &:hover {
-    color: var(--color-text);
-  }
-
-  &:active {
-    transform: translateX(-2px);
-  }
 `;
 
 const HeaderSpacer = styled.span`

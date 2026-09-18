@@ -2,7 +2,7 @@
 
 import styled from "@emotion/styled";
 import { useRef, useState } from "react";
-import { BaseButton } from "@/features/tuti/components/buttons";
+import { BackButton } from "@/features/tuti/components/buttons";
 import { ContextMenu } from "@/features/tuti/components/ContextMenu";
 import { JournalShareDialog } from "@/features/tuti/components/JournalShareDialog";
 import { JournalLocationLabel } from "@/features/tuti/components/JournalLocationLabel";
@@ -66,9 +66,7 @@ export function JournalDetailScreen({
           type="button"
           aria-label="지난 공간으로 돌아가기"
           onClick={returnToJournal}
-        >
-          ‹
-        </BackButton>
+        />
         <h1>{formatJournalDateLong(entry.visitedAt)}</h1>
         <ContextMenu
           label={`${entry.title} 기록 메뉴`}
@@ -159,9 +157,7 @@ export function JournalDetailStatusScreen({
           type="button"
           aria-label="지난 공간으로 돌아가기"
           onClick={onBack}
-        >
-          ‹
-        </BackButton>
+        />
         <h1>지난 공간</h1>
         <HeaderSpacer />
       </Header>
@@ -214,29 +210,6 @@ const Header = styled.header<{ $hidden?: boolean }>`
     font-size: var(--font-size-400);
     font-weight: 700;
     text-align: center;
-  }
-`;
-
-const BackButton = styled(BaseButton)`
-  width: var(--space-11);
-  height: var(--space-11);
-  display: grid;
-  place-items: center;
-  padding: 0;
-  border-radius: 999px;
-  background: transparent;
-  color: var(--color-text-muted);
-  font-size: calc(var(--font-size-700) + var(--space-2));
-  font-weight: 400;
-  line-height: 0;
-  transition: color 160ms ease, transform 160ms ease;
-
-  &:hover {
-    color: var(--color-text);
-  }
-
-  &:active {
-    transform: translateX(-2px);
   }
 `;
 

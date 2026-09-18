@@ -29,7 +29,11 @@ import type {
   TourismPhotoGallerySourceItem,
 } from "@/shared/api/tourismAdmin";
 import { tourApiSidoOptions } from "@/shared/tourism/tourApiRegions";
-import { BaseButton, baseControlStyles } from "@/shared/ui/buttons";
+import {
+  BackLink,
+  BaseButton,
+  baseControlStyles,
+} from "@/shared/ui/buttons";
 
 type SyncSource =
   | "places"
@@ -438,9 +442,7 @@ export function TourismDataScreen({
     <Page>
       <Header>
         <HeaderInner>
-          <BackLink href="/admin?section=places" aria-label="관리자로 돌아가기">
-            ‹
-          </BackLink>
+          <BackLink href="/admin?section=places" aria-label="관리자로 돌아가기" />
           <div>
             <h1>관광 데이터</h1>
           </div>
@@ -2731,20 +2733,6 @@ const HeaderInner = styled.div`
       font-size: var(--font-size-500);
     }
   }
-`;
-
-const BackLink = styled(Link)`
-  ${baseControlStyles}
-  width: 40px;
-  height: 40px;
-  display: grid;
-  place-items: center;
-  border: 1px solid var(--color-neutral-400);
-  border-radius: 8px;
-  background: var(--color-white);
-  color: var(--color-brand-1000);
-  font-size: var(--font-size-700);
-  line-height: 1;
 `;
 
 const Eyebrow = styled.span`

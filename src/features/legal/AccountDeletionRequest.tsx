@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useState, type FormEvent } from "react";
 import { apiUrl } from "@/lib/api/apiUrl";
 import {
+  BackLink,
   BaseButton,
   baseControlStyles,
 } from "@/features/tuti/components/buttons";
@@ -63,7 +64,7 @@ export function AccountDeletionRequest() {
   return (
     <Page>
       <Header>
-        <Link href="/" aria-label="Tuti로 돌아가기">‹</Link>
+        <BackLink href="/" aria-label="Tuti로 돌아가기" />
         <div>
           <span>눈마루 · Tuti</span>
           <h1>계정 및 데이터 삭제</h1>
@@ -210,17 +211,9 @@ const Page = styled.main`
 
 const Header = styled.header`
   display: grid;
-  grid-template-columns: var(--space-10) minmax(0, 1fr);
+  grid-template-columns: var(--space-11) minmax(0, 1fr);
   align-items: start;
   gap: var(--space-3);
-
-  > a {
-    width: var(--space-10);
-    height: var(--space-10);
-    display: grid;
-    place-items: center;
-    font-size: var(--font-size-600);
-  }
 
   span,
   p {

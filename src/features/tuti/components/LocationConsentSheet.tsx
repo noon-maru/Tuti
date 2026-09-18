@@ -3,7 +3,6 @@
 import styled from "@emotion/styled";
 import {
   Check,
-  ChevronLeft,
   ChevronRight,
   LocateFixed,
   MapPin,
@@ -16,6 +15,7 @@ import {
   useState,
 } from "react";
 import {
+  BackButton,
   BaseButton,
   PrimaryButton,
   TextButton,
@@ -245,12 +245,9 @@ export function LocationConsentSheet({
           <TermsContent>
             <TermsHeader>
               <BackButton
-                type="button"
                 aria-label="위치 이용 안내로 돌아가기"
                 onClick={() => setView("summary")}
-              >
-                <ChevronLeft aria-hidden="true" />
-              </BackButton>
+              />
               <div>
                 <h2 id="location-consent-title">
                   위치기반서비스 이용약관
@@ -525,21 +522,6 @@ const TermsHeader = styled.header`
     margin-top: var(--space-1);
     color: var(--color-text-muted);
     font-size: var(--font-size-100);
-  }
-`;
-
-const BackButton = styled(BaseButton)`
-  width: var(--space-11);
-  height: var(--space-11);
-  flex: none;
-  display: grid;
-  place-items: center;
-  border-radius: 50%;
-  background: var(--color-neutral-200);
-
-  svg {
-    width: 25px;
-    height: 25px;
   }
 `;
 

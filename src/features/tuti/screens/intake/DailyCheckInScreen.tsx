@@ -1,7 +1,6 @@
 "use client";
 
 import styled from "@emotion/styled";
-import { ChevronLeft } from "lucide-react";
 import {
   useCallback,
   useEffect,
@@ -11,6 +10,7 @@ import {
   useState,
 } from "react";
 import {
+  BackButton,
   BaseButton,
   PrimaryButton,
   TextButton,
@@ -315,15 +315,12 @@ export function DailyCheckInScreen({
           ) : (
             <>
               <QuestionHeader>
-                <IconButton
-                  type="button"
+                <BackButton
                   aria-label={
                     step === 0 ? "상태 요약으로 돌아가기" : "이전 질문"
                   }
                   onClick={goBack}
-                >
-                  <ChevronLeft aria-hidden="true" />
-                </IconButton>
+                />
                 <StepCount>{step + 1} / {activeSteps.length}</StepCount>
               </QuestionHeader>
               <QuestionCopy>
@@ -469,22 +466,6 @@ const SheetHeader = styled.header`
 
   h2 {
     font-size: var(--font-size-500);
-  }
-`;
-
-const IconButton = styled(BaseButton)`
-  width: var(--space-11);
-  height: var(--space-11);
-  flex: none;
-  display: grid;
-  place-items: center;
-  border-radius: 50%;
-  background: transparent;
-  color: var(--color-text-muted);
-
-  svg {
-    width: 24px;
-    height: 24px;
   }
 `;
 

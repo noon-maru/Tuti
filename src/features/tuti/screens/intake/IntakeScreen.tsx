@@ -3,6 +3,7 @@
 import styled from "@emotion/styled";
 import { useRef, useState } from "react";
 import {
+  BackButton,
   BaseButton,
   PrimaryButton,
   TextButton,
@@ -64,13 +65,10 @@ export function IntakeScreen({
       <QuestionBlock>
         <QuestionNavigation>
           {step > 0 ? (
-            <CompactBackButton
-              type="button"
+            <BackButton
               aria-label="이전 질문"
               onClick={onBack}
-            >
-              <BackChevron aria-hidden="true" />
-            </CompactBackButton>
+            />
           ) : (
             <BackButtonPlaceholder aria-hidden="true" />
           )}
@@ -254,34 +252,6 @@ const SoftHeader = styled.div`
   gap: var(--space-4);
 `;
 
-const CompactBackButton = styled(BaseButton)`
-  width: var(--space-11);
-  height: var(--space-11);
-  display: grid;
-  place-items: center;
-  margin-left: calc(var(--space-3) * -1);
-  border-radius: 999px;
-  background: transparent;
-  color: var(--color-text-muted);
-  transition: color 180ms ease, transform 180ms ease;
-
-  &:hover {
-    color: var(--color-text);
-  }
-
-  &:active {
-    transform: scale(0.94);
-  }
-`;
-
-const BackChevron = styled.i`
-  width: 11px;
-  height: 11px;
-  border-bottom: 2px solid currentColor;
-  border-left: 2px solid currentColor;
-  transform: translateX(2px) rotate(45deg);
-`;
-
 const Brand = styled.div`
   display: flex;
   align-items: center;
@@ -325,7 +295,7 @@ const QuestionNavigation = styled.div`
 `;
 
 const BackButtonPlaceholder = styled.span`
-  width: 72px;
+  width: var(--space-11);
   height: var(--space-11);
 `;
 

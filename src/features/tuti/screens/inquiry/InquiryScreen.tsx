@@ -5,6 +5,7 @@ import { css } from "@emotion/react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import {
+  BackButton,
   BaseButton,
   PrimaryButton,
 } from "@/features/tuti/components/buttons";
@@ -117,9 +118,7 @@ export function InquiryScreen({
   return (
     <Frame>
       <Header>
-        <BackButton type="button" aria-label="설정으로 돌아가기" onClick={onBack}>
-          ‹
-        </BackButton>
+        <BackButton aria-label="설정으로 돌아가기" onClick={onBack} />
         <h1>1:1 문의</h1>
         <HeaderSpacer />
       </Header>
@@ -377,20 +376,6 @@ const Header = styled.header`
     font-weight: 700;
     text-align: center;
   }
-`;
-
-const BackButton = styled(BaseButton)`
-  width: var(--space-11);
-  height: var(--space-11);
-  display: grid;
-  place-items: center;
-  padding: 0;
-  border-radius: 999px;
-  background: transparent;
-  color: var(--color-text-muted);
-  font-size: calc(var(--font-size-700) + var(--space-2));
-  font-weight: 400;
-  line-height: 0;
 `;
 
 const HeaderSpacer = styled.span`

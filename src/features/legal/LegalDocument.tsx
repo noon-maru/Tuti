@@ -2,6 +2,7 @@
 
 import styled from "@emotion/styled";
 import Link from "next/link";
+import { BackLink } from "@/features/tuti/components/buttons";
 
 type LegalSection = {
   title: string;
@@ -31,7 +32,7 @@ export function LegalDocument({
   return (
     <Page>
       <Header>
-        <Link href="/settings" aria-label="설정으로 돌아가기">‹</Link>
+        <BackLink href="/settings" aria-label="설정으로 돌아가기" />
         <div>
           <span>Tuti 법적 안내</span>
           <h1>{title}</h1>
@@ -129,19 +130,9 @@ const Announcement = styled.aside`
 
 const Header = styled.header`
   display: grid;
-  grid-template-columns: var(--space-10) 1fr;
+  grid-template-columns: var(--space-11) 1fr;
   gap: var(--space-3);
   align-items: start;
-
-  > a {
-    display: grid;
-    place-items: center;
-    width: var(--space-10);
-    height: var(--space-10);
-    color: inherit;
-    font-size: var(--font-size-600);
-    text-decoration: none;
-  }
 
   span,
   p {

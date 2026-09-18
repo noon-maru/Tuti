@@ -1,9 +1,13 @@
 "use client";
 
 import styled from "@emotion/styled";
-import { ChevronLeft, MapPinned } from "lucide-react";
+import { MapPinned } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { BaseButton, PrimaryButton } from "@/features/tuti/components/buttons";
+import {
+  BackButton,
+  BaseButton,
+  PrimaryButton,
+} from "@/features/tuti/components/buttons";
 import { LoadingIndicator } from "@/features/tuti/components/LoadingIndicator";
 import { useDeferredAnimationStart } from "@/features/tuti/hooks/useDeferredAnimationStart";
 import { fetchRecommendationRegions } from "@/lib/tutiApi";
@@ -96,15 +100,12 @@ export function RegionPreferenceSheet({
         <Heading>
           {choosingDistrict ? (
             <BackButton
-              type="button"
               aria-label="시·도 다시 고르기"
               onClick={() => {
                 setSelectedAreaCode(undefined);
                 setSelectedDistrictName(undefined);
               }}
-            >
-              <ChevronLeft aria-hidden="true" />
-            </BackButton>
+            />
           ) : (
             <LocationMark aria-hidden="true"><MapPinned /></LocationMark>
           )}
@@ -256,22 +257,6 @@ const LocationMark = styled.div`
   svg {
     width: 24px;
     height: 24px;
-  }
-`;
-
-const BackButton = styled(BaseButton)`
-  width: var(--space-12);
-  height: var(--space-12);
-  flex: none;
-  display: grid;
-  place-items: center;
-  border-radius: 16px;
-  background: var(--color-neutral-200);
-  color: var(--color-text);
-
-  svg {
-    width: 22px;
-    height: 22px;
   }
 `;
 

@@ -1,11 +1,13 @@
 "use client";
 
 import styled from "@emotion/styled";
-import { Apple, ArrowLeft, ArrowUpRight, Play } from "lucide-react";
+import { Apple, ArrowUpRight, Play } from "lucide-react";
 import Image from "next/image";
-import Link from "next/link";
 import { breakpoints } from "@/styles/tokens";
-import { baseControlStyles } from "@/features/tuti/components/buttons";
+import {
+  BackLink,
+  baseControlStyles,
+} from "@/features/tuti/components/buttons";
 
 const IOS_URL = "https://apps.apple.com/kr/app/tuti/id6474651880";
 const ANDROID_URL =
@@ -15,10 +17,7 @@ export function DownloadPage() {
   return (
     <Page>
       <Header>
-        <HomeLink href="/" aria-label="Tuti 메인으로 돌아가기">
-          <ArrowLeft aria-hidden="true" />
-          <span>돌아가기</span>
-        </HomeLink>
+        <BackLink href="/" aria-label="Tuti 메인으로 돌아가기" />
         <Wordmark
           src="/brand/tuti-wordmark.svg"
           alt="Tuti"
@@ -134,28 +133,6 @@ const Header = styled.header`
   @media (max-width: ${breakpoints.tablet}px) {
     width: min(100% - 32px, 1120px);
     min-height: 72px;
-  }
-`;
-
-const HomeLink = styled(Link)`
-  ${baseControlStyles}
-  width: fit-content;
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-2);
-  color: var(--color-text-muted);
-  font-size: var(--font-size-100);
-  font-weight: 600;
-
-  svg {
-    width: 18px;
-    height: 18px;
-  }
-
-  @media (max-width: ${breakpoints.tablet}px) {
-    span {
-      display: none;
-    }
   }
 `;
 

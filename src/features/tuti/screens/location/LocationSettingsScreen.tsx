@@ -3,13 +3,13 @@
 import styled from "@emotion/styled";
 import Link from "next/link";
 import {
-  ChevronLeft,
   LocateFixed,
   MapPinOff,
   ShieldCheck,
 } from "lucide-react";
 import { useState } from "react";
 import {
+  BackButton,
   BaseButton,
   PrimaryButton,
 } from "@/features/tuti/components/buttons";
@@ -89,9 +89,7 @@ export function LocationSettingsScreen({
   return (
     <Frame>
       <Header>
-        <BackButton type="button" aria-label="설정으로 돌아가기" onClick={onBack}>
-          <ChevronLeft aria-hidden="true" />
-        </BackButton>
+        <BackButton aria-label="설정으로 돌아가기" onClick={onBack} />
         <h1>위치 설정</h1>
         <HeaderSpacer aria-hidden="true" />
       </Header>
@@ -271,21 +269,6 @@ const Header = styled.header`
   h1 {
     font-size: var(--font-size-500);
     text-align: center;
-  }
-`;
-
-const BackButton = styled(BaseButton)`
-  width: var(--space-12);
-  height: var(--space-12);
-  display: grid;
-  place-items: center;
-  border-radius: 50%;
-  background: transparent;
-  color: var(--color-text-muted);
-
-  svg {
-    width: 30px;
-    height: 30px;
   }
 `;
 

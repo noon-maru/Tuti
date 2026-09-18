@@ -2,6 +2,9 @@
 
 import { css } from "@emotion/react";
 import styled from "@emotion/styled";
+import { ChevronLeft } from "lucide-react";
+import Link from "next/link";
+import type { ComponentPropsWithoutRef } from "react";
 
 export type ButtonTone =
   | "primary"
@@ -249,7 +252,62 @@ export const SkipButton = styled(TextButton)`
   padding: 0;
 `;
 
-export const BackButton = styled(TextButton)`
-  justify-self: auto;
+const backControlStyles = css`
+  width: var(--space-11);
+  height: var(--space-11);
+  flex: 0 0 auto;
+  display: inline-grid;
+  place-items: center;
   padding: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--color-text-muted);
+  transition:
+    color 160ms ease,
+    background-color 160ms ease,
+    transform 160ms ease;
+
+  svg {
+    width: 24px;
+    height: 24px;
+    stroke-width: 2;
+  }
+
+  &:hover {
+    background: var(--color-neutral-200);
+    color: var(--color-text);
+  }
+
+  &:active {
+    transform: translateX(-2px);
+  }
 `;
+
+const BackButtonControl = styled(BaseButton)`
+  ${backControlStyles}
+`;
+
+const BackLinkControl = styled(Link)`
+  ${baseControlStyles}
+  ${backControlStyles}
+`;
+
+export function BackButton({
+  ...props
+}: Omit<ComponentPropsWithoutRef<"button">, "children">) {
+  return (
+    <BackButtonControl type="button" {...props}>
+      <ChevronLeft aria-hidden="true" />
+    </BackButtonControl>
+  );
+}
+
+export function BackLink({
+  ...props
+}: Omit<ComponentPropsWithoutRef<typeof Link>, "children">) {
+  return (
+    <BackLinkControl {...props}>
+      <ChevronLeft aria-hidden="true" />
+    </BackLinkControl>
+  );
+}

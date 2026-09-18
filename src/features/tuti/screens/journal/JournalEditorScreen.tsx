@@ -3,7 +3,7 @@
 import styled from "@emotion/styled";
 import { useEffect, useRef, useState } from "react";
 import {
-  BaseButton,
+  BackButton,
   PrimaryButton,
 } from "@/features/tuti/components/buttons";
 import { ContextMenu } from "@/features/tuti/components/ContextMenu";
@@ -291,9 +291,7 @@ export function JournalEditorScreen({
           type="button"
           aria-label="지난 공간으로 돌아가기"
           onClick={onBack}
-        >
-          ‹
-        </BackButton>
+        />
         <h1>{entry ? "고치는 공간" : "남기는 공간"}</h1>
         <ContextMenu
           label={entry ? "기록 수정 메뉴" : "기록 작성 메뉴"}
@@ -462,9 +460,7 @@ export function JournalEditorStatusScreen({
           type="button"
           aria-label="지난 공간으로 돌아가기"
           onClick={onBack}
-        >
-          ‹
-        </BackButton>
+        />
         <h1>고치는 공간</h1>
         <HeaderSpacer />
       </EditorHeader>
@@ -525,29 +521,6 @@ const EditorHeader = styled.header`
     font-size: var(--font-size-500);
     font-weight: 700;
     text-align: center;
-  }
-`;
-
-const BackButton = styled(BaseButton)`
-  width: var(--space-11);
-  height: var(--space-11);
-  display: grid;
-  place-items: center;
-  padding: 0;
-  border-radius: 999px;
-  background: transparent;
-  color: var(--color-text-muted);
-  font-size: calc(var(--font-size-700) + var(--space-2));
-  font-weight: 400;
-  line-height: 0;
-  transition: color 160ms ease, transform 160ms ease;
-
-  &:hover {
-    color: var(--color-text);
-  }
-
-  &:active {
-    transform: translateX(-2px);
   }
 `;
 

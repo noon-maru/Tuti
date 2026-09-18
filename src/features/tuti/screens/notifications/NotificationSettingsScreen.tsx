@@ -1,8 +1,8 @@
 "use client";
 
 import styled from "@emotion/styled";
-import { BellRing, ChevronLeft, Clock3, ShieldCheck } from "lucide-react";
-import { BaseButton, PrimaryButton } from "@/features/tuti/components/buttons";
+import { BellRing, Clock3, ShieldCheck } from "lucide-react";
+import { BackButton, PrimaryButton } from "@/features/tuti/components/buttons";
 import { ScreenFrame } from "@/features/tuti/components/ScreenFrame";
 import type {
   DailyNotificationStyle,
@@ -47,9 +47,7 @@ export function NotificationSettingsScreen({
   return (
     <Frame>
       <Header>
-        <BackButton type="button" aria-label="설정으로 돌아가기" onClick={onBack}>
-          <ChevronLeft aria-hidden="true" />
-        </BackButton>
+        <BackButton aria-label="설정으로 돌아가기" onClick={onBack} />
         <h1>알림 설정</h1>
         <HeaderSpacer aria-hidden="true" />
       </Header>
@@ -224,21 +222,6 @@ const Header = styled.header`
   h1 {
     font-size: var(--font-size-500);
     text-align: center;
-  }
-`;
-
-const BackButton = styled(BaseButton)`
-  width: var(--space-12);
-  height: var(--space-12);
-  display: grid;
-  place-items: center;
-  border-radius: 50%;
-  background: transparent;
-  color: var(--color-text-muted);
-
-  svg {
-    width: 30px;
-    height: 30px;
   }
 `;
 
