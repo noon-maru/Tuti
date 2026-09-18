@@ -263,7 +263,7 @@ export function InquiryScreen({
 
           <SubmitButton
             type="button"
-            disabled={submitting}
+            disabled={!canSubmit || submitting}
             onClick={() => void submitInquiry()}
           >
             {submitting ? "접수 중..." : "문의 보내기"}
