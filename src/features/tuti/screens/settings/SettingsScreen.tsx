@@ -14,6 +14,7 @@ import {
 import { useState } from "react";
 import { BaseButton } from "@/features/tuti/components/buttons";
 import { ScreenFrame } from "@/features/tuti/components/ScreenFrame";
+import type { CardDisplayPreferences } from "@/store/tuti";
 
 type SettingsDestination =
   | "account"
@@ -26,15 +27,22 @@ export function SettingsScreen({
   accountConnected,
   accountLabel,
   notificationsAvailable,
+  cardDisplayPreferences,
   onBack,
   onNavigate,
+  onCardDisplayPreferenceChange,
   onLogout,
 }: {
   accountConnected: boolean;
   accountLabel?: string;
   notificationsAvailable: boolean;
+  cardDisplayPreferences: CardDisplayPreferences;
   onBack: () => void;
   onNavigate: (destination: SettingsDestination) => void;
+  onCardDisplayPreferenceChange: (
+    key: keyof CardDisplayPreferences,
+    enabled: boolean,
+  ) => void;
   onLogout: () => Promise<void>;
 }) {
   const [logoutPending, setLogoutPending] = useState(false);
@@ -128,6 +136,52 @@ export function SettingsScreen({
               </SettingsRow>
             )}
           </SettingsList>
+        </SettingsSection>
+
+        <SettingsSection aria-labelledby="settings-card-heading">
+          <SectionLabel id="settings-card-heading">추천 카드에 표시</SectionLabel>
+          <ToggleList>
+            <ToggleRow>
+              <ToggleLabel htmlFor="settings-show-place-name">
+                장소명
+              </ToggleLabel>
+              <Switch>
+                <input
+                  id="settings-show-place-name"
+                  type="checkbox"
+                  role="switch"
+                  checked={cardDisplayPreferences.showPlaceName}
+                  onChange={(event) =>
+                    onCardDisplayPreferenceChange(
+                      "showPlaceName",
+                      event.currentTarget.checked,
+                    )
+                  }
+                />
+                <span aria-hidden="true" />
+              </Switch>
+            </ToggleRow>
+            <ToggleRow>
+              <ToggleLabel htmlFor="settings-show-transit-time">
+                대중교통 이동시간
+              </ToggleLabel>
+              <Switch>
+                <input
+                  id="settings-show-transit-time"
+                  type="checkbox"
+                  role="switch"
+                  checked={cardDisplayPreferences.showPublicTransitTime}
+                  onChange={(event) =>
+                    onCardDisplayPreferenceChange(
+                      "showPublicTransitTime",
+                      event.currentTarget.checked,
+                    )
+                  }
+                />
+                <span aria-hidden="true" />
+              </Switch>
+            </ToggleRow>
+          </ToggleList>
         </SettingsSection>
 
         <SettingsSection aria-labelledby="settings-help-heading">
@@ -294,6 +348,88 @@ const SettingsList = styled.div`
 
   > button + button {
     border-top: 1px solid var(--color-neutral-300);
+  }
+`;
+
+const ToggleList = styled.div`
+  overflow: hidden;
+  border-block: 1px solid var(--color-neutral-400);
+`;
+
+const ToggleRow = styled.div`
+  min-height: 60px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  padding: var(--space-3) var(--space-1);
+
+  & + & {
+    border-top: 1px solid var(--color-neutral-300);
+  }
+`;
+
+const ToggleLabel = styled.label`
+  color: var(--color-text);
+  font-size: var(--font-size-200);
+  font-weight: 650;
+  cursor: pointer;
+`;
+
+const Switch = styled.label`
+  position: relative;
+  width: 50px;
+  height: 29px;
+  flex: none;
+
+  input {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    opacity: 0;
+  }
+
+  span {
+    position: absolute;
+    inset: 0;
+    border-radius: 999px;
+    background: var(--color-neutral-500);
+    cursor: pointer;
+    transition: background 180ms ease;
+  }
+
+  span::after {
+    content: "";
+    position: absolute;
+    top: 3px;
+    left: 3px;
+    width: 23px;
+    height: 23px;
+    border-radius: 50%;
+    background: var(--color-white);
+    box-shadow: 0 2px 7px
+      color-mix(in srgb, var(--color-neutral-1300) 18%, transparent);
+    transition: transform 180ms cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  input:checked + span {
+    background: var(--color-secondary-600);
+  }
+
+  input:checked + span::after {
+    transform: translateX(21px);
+  }
+
+  input:focus-visible + span {
+    outline: 3px solid var(--color-brand-300);
+    outline-offset: 2px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    span,
+    span::after {
+      transition: none;
+    }
   }
 `;
 

@@ -6,6 +6,7 @@ import { useEffect } from "react";
 import { SettingsScreen } from "@/features/tuti/screens/settings/SettingsScreen";
 import { useSession } from "@/features/tuti/hooks/useSession";
 import { logoutAccount } from "@/lib/auth/session";
+import { useTutiStore } from "@/store/tuti";
 
 const settingsRoutes = {
   account: "/login",
@@ -20,6 +21,12 @@ export function SettingsFlow() {
   const queryClient = useQueryClient();
   const session = useSession();
   const account = session?.account;
+  const cardDisplayPreferences = useTutiStore(
+    (state) => state.cardDisplayPreferences,
+  );
+  const setCardDisplayPreferences = useTutiStore(
+    (state) => state.setCardDisplayPreferences,
+  );
 
   useEffect(() => {
     Object.values(settingsRoutes).forEach((route) => router.prefetch(route));
@@ -32,8 +39,15 @@ export function SettingsFlow() {
       notificationsAvailable={
         process.env.NEXT_PUBLIC_TUTI_TARGET === "app"
       }
+      cardDisplayPreferences={cardDisplayPreferences}
       onBack={() => router.replace("/")}
       onNavigate={(destination) => router.push(settingsRoutes[destination])}
+      onCardDisplayPreferenceChange={(key, enabled) =>
+        setCardDisplayPreferences({
+          ...cardDisplayPreferences,
+          [key]: enabled,
+        })
+      }
       onLogout={async () => {
         await logoutAccount();
         queryClient.setQueryData(["journal-entries"], []);

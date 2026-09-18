@@ -70,6 +70,11 @@ export type NotificationPreferences = {
   inquiryReplyEnabled: boolean;
 };
 
+export type CardDisplayPreferences = {
+  showPlaceName: boolean;
+  showPublicTransitTime: boolean;
+};
+
 type TutiState = {
   answers: IntakeAnswers;
   entryRecord?: EntryRecord;
@@ -95,6 +100,7 @@ type TutiState = {
   pendingDeparture?: PendingDeparture;
   savedDeparturePlaces: SavedDeparturePlace[];
   notificationPreferences: NotificationPreferences;
+  cardDisplayPreferences: CardDisplayPreferences;
   setAnswer: <Key extends keyof IntakeAnswers>(
     key: Key,
     value: IntakeAnswers[Key],
@@ -143,6 +149,9 @@ type TutiState = {
   setNotificationPreferences: (
     preferences: NotificationPreferences,
   ) => void;
+  setCardDisplayPreferences: (
+    preferences: CardDisplayPreferences,
+  ) => void;
   finishEntry: () => void;
   markHydrated: () => void;
   resetIntake: () => void;
@@ -180,6 +189,10 @@ export const useTutiStore = create<TutiState>()(
         dailyReminderTime: "10:00",
         dailyReminderStyle: "quiet",
         inquiryReplyEnabled: false,
+      },
+      cardDisplayPreferences: {
+        showPlaceName: true,
+        showPublicTransitTime: true,
       },
       setAnswer: (key, value) =>
         set((state) => ({
@@ -418,6 +431,8 @@ export const useTutiStore = create<TutiState>()(
         })),
       setNotificationPreferences: (notificationPreferences) =>
         set({ notificationPreferences }),
+      setCardDisplayPreferences: (cardDisplayPreferences) =>
+        set({ cardDisplayPreferences }),
       finishEntry: () => set({ entryStage: "complete" }),
       markHydrated: () => set({ hasHydrated: true }),
       resetIntake: () =>
@@ -460,6 +475,10 @@ export const useTutiStore = create<TutiState>()(
           dailyCheckInSnoozedUntil: undefined,
           pendingDeparture: undefined,
           savedDeparturePlaces: [],
+          cardDisplayPreferences: {
+            showPlaceName: true,
+            showPublicTransitTime: true,
+          },
         }),
     }),
     {
@@ -479,6 +498,7 @@ export const useTutiStore = create<TutiState>()(
         pendingDeparture: state.pendingDeparture,
         savedDeparturePlaces: state.savedDeparturePlaces,
         notificationPreferences: state.notificationPreferences,
+        cardDisplayPreferences: state.cardDisplayPreferences,
         activePlaceId: state.activePlaceId,
         activeJournalEntryId: state.activeJournalEntryId,
         detailOverlay:

@@ -15,6 +15,8 @@ export function SwipeCard({
   offset,
   active,
   travelTimeLabel,
+  showPlaceName = true,
+  showPublicTransitTime = true,
   onActivate,
   drag,
   nudging,
@@ -25,6 +27,8 @@ export function SwipeCard({
   offset: number;
   active: boolean;
   travelTimeLabel: string;
+  showPlaceName?: boolean;
+  showPublicTransitTime?: boolean;
   onActivate?: () => void;
   drag?: { x: number; y: number };
   nudging?: "up" | "down" | null;
@@ -53,10 +57,12 @@ export function SwipeCard({
         zIndex: 10 - Math.abs(offset),
       }}
     >
-      <CardIdentity aria-live={active ? "polite" : undefined}>
-        <strong>{place.name}</strong>
-        <small>{travelTimeLabel}</small>
-      </CardIdentity>
+      {(showPlaceName || showPublicTransitTime) && (
+        <CardIdentity aria-live={active ? "polite" : undefined}>
+          {showPlaceName && <strong>{place.name}</strong>}
+          {showPublicTransitTime && <small>{travelTimeLabel}</small>}
+        </CardIdentity>
+      )}
       <CardPhrase>{getPlaceDisplayPhrase(place)}</CardPhrase>
       {active && <em>눌러서 출발 준비</em>}
     </CardButton>

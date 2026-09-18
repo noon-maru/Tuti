@@ -108,6 +108,8 @@ export function RecommendationsScreen({
   locationAvailable,
   locationPermissionStatus,
   activeTravelTimeLabel,
+  showPlaceName,
+  showPublicTransitTime,
   interactive,
   initialHelp,
   onInitialHelpShown,
@@ -150,6 +152,8 @@ export function RecommendationsScreen({
   locationAvailable: boolean;
   locationPermissionStatus: LocationPermissionStatus;
   activeTravelTimeLabel: string;
+  showPlaceName: boolean;
+  showPublicTransitTime: boolean;
   interactive: boolean;
   initialHelp: HelpKind | null;
   onInitialHelpShown: (kind: HelpKind) => void;
@@ -761,6 +765,8 @@ export function RecommendationsScreen({
                     ? "이동 시간 확인"
                     : activeTravelTimeLabel
               }
+              showPlaceName={showPlaceName}
+              showPublicTransitTime={showPublicTransitTime}
               onActivate={() => activateCard(index)}
               drag={dragStart || committing ? dragOffset : undefined}
               detailProgress={

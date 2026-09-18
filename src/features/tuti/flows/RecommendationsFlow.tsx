@@ -165,6 +165,9 @@ export function RecommendationsFlow({ interactive }: { interactive: boolean }) {
   );
   const skipInitialHelp = useTutiStore((state) => state.skipInitialHelp);
   const replayInitialHelp = useTutiStore((state) => state.replayInitialHelp);
+  const cardDisplayPreferences = useTutiStore(
+    (state) => state.cardDisplayPreferences,
+  );
 
   const detailPlaceIndex =
     detailOverlay.placeId
@@ -499,6 +502,10 @@ export function RecommendationsFlow({ interactive }: { interactive: boolean }) {
         locationAvailable={Boolean(userLocation)}
         locationPermissionStatus={locationPermissionStatus}
         activeTravelTimeLabel={activeTravelTimeLabel}
+        showPlaceName={cardDisplayPreferences.showPlaceName}
+        showPublicTransitTime={
+          cardDisplayPreferences.showPublicTransitTime
+        }
         interactive={
           interactive &&
           !dailyCheckInVisible &&
