@@ -114,7 +114,6 @@ export function createJournalPublicShareData(
 
   return {
     title: `${subject} | Tuti`,
-    text: `${entry.placeName.trim() || "오늘의 공간"}에서 남긴 기록이에요.`,
     url,
   };
 }
