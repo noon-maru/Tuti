@@ -328,8 +328,8 @@ const Summary = styled.div`
   grid-template-columns: 1.45fr repeat(6, minmax(100px, 1fr));
   overflow: hidden;
   border: 1px solid var(--color-border);
-  border-radius: 8px;
-  background: var(--color-white);
+  border-radius: var(--admin-card-radius);
+  background: var(--admin-card-background);
 
   @media (max-width: 900px) {
     grid-template-columns: repeat(3, 1fr);
@@ -386,8 +386,8 @@ const ActivitySection = styled.section`
   gap: var(--space-3);
   padding: var(--space-5);
   border: 1px solid var(--color-border);
-  border-radius: 8px;
-  background: var(--color-white);
+  border-radius: var(--admin-card-radius);
+  background: var(--admin-card-background);
 `;
 
 const UserSection = styled.section`
@@ -525,7 +525,7 @@ const DayLabel = styled.span`
 const TableViewport = styled.div`
   overflow-x: auto;
   border: 1px solid var(--color-border);
-  border-radius: 8px;
+  border-radius: var(--admin-card-radius);
   background: var(--color-white);
 `;
 
@@ -673,7 +673,7 @@ const Empty = styled.div`
   place-items: center;
   padding: var(--space-5);
   border: 1px solid var(--color-border);
-  border-radius: 8px;
+  border-radius: var(--admin-card-radius);
   background: var(--color-white);
   color: var(--color-text-muted);
 `;

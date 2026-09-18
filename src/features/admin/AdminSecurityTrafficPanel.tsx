@@ -520,8 +520,8 @@ const SignalBoard = styled.div`
   grid-template-columns: 1.45fr repeat(5, 1fr);
   overflow: hidden;
   border: 1px solid var(--color-border);
-  border-radius: 8px;
-  background: var(--color-white);
+  border-radius: var(--admin-card-radius);
+  background: var(--admin-card-background);
   @media (max-width: 820px) { grid-template-columns: repeat(2, 1fr); }
 `;
 
@@ -549,8 +549,8 @@ const CompositionSection = styled.section`
   gap: var(--space-4);
   padding: var(--space-5);
   border: 1px solid var(--color-border);
-  border-radius: 8px;
-  background: var(--color-white);
+  border-radius: var(--admin-card-radius);
+  background: var(--admin-card-background);
 `;
 
 const DailySection = styled(CompositionSection)``;
@@ -562,8 +562,8 @@ const ControlStatus = styled.div`
   align-items: center;
   padding: var(--space-4) var(--space-5);
   border: 1px solid var(--color-border);
-  border-radius: 8px;
-  background: var(--color-white);
+  border-radius: var(--admin-card-radius);
+  background: var(--admin-card-background);
 
   &[data-active="true"] {
     border-color: var(--color-secondary-400);
@@ -717,8 +717,8 @@ const ActorSection = styled.section`
 const ScheduledState = styled.div`
   padding: var(--space-6);
   border: 1px dashed var(--color-border-strong, var(--color-neutral-400));
-  border-radius: 8px;
-  background: var(--color-white);
+  border-radius: var(--admin-card-radius);
+  background: var(--admin-card-background);
   color: var(--color-text-muted);
   font-size: var(--font-size-100);
   line-height: 1.65;
@@ -727,8 +727,8 @@ const ScheduledState = styled.div`
 const ActorWorkspace = styled.div`
   overflow: hidden;
   border: 1px solid var(--color-border);
-  border-radius: 8px;
-  background: var(--color-white);
+  border-radius: var(--admin-card-radius);
+  background: var(--admin-card-background);
 `;
 
 const ActorViewport = styled.div`
@@ -1033,8 +1033,8 @@ const BlockSection = styled.section`
 const BlockList = styled.div`
   overflow: hidden;
   border: 1px solid var(--color-border);
-  border-radius: 8px;
-  background: var(--color-white);
+  border-radius: var(--admin-card-radius);
+  background: var(--admin-card-background);
 `;
 
 const BlockRow = styled.div`
@@ -1109,8 +1109,8 @@ const TableSection = styled.section`
 const TableViewport = styled.div`
   overflow-x: auto;
   border: 1px solid var(--color-border);
-  border-radius: 8px;
-  background: var(--color-white);
+  border-radius: var(--admin-card-radius);
+  background: var(--admin-card-background);
 `;
 
 const Table = styled.table`
@@ -1160,7 +1160,7 @@ const Subtle = styled.small`
 const CalmState = styled.div`
   padding: var(--space-6);
   border: 1px solid var(--color-secondary-300);
-  border-radius: 8px;
+  border-radius: var(--admin-card-radius);
   background: var(--color-secondary-100);
   color: var(--color-text-muted);
   font-size: var(--font-size-100);
@@ -1169,8 +1169,8 @@ const CalmState = styled.div`
 const RouteList = styled.div`
   overflow: hidden;
   border: 1px solid var(--color-border);
-  border-radius: 8px;
-  background: var(--color-white);
+  border-radius: var(--admin-card-radius);
+  background: var(--admin-card-background);
 `;
 
 const RouteRow = styled.div`
@@ -1198,8 +1198,8 @@ const RouteMeter = styled.span`
 const Empty = styled.div`
   padding: var(--space-7);
   border: 1px solid var(--color-border);
-  border-radius: 8px;
-  background: var(--color-white);
+  border-radius: var(--admin-card-radius);
+  background: var(--admin-card-background);
   color: var(--color-text-muted);
   text-align: center;
 `;

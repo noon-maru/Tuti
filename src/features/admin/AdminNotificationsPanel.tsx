@@ -366,8 +366,8 @@ const PulseHero = styled.section`
   gap: var(--space-6);
   padding: var(--space-5);
   border: 1px solid var(--color-brand-200);
-  border-radius: 8px;
-  background: var(--color-white);
+  border-radius: var(--admin-card-radius);
+  background: var(--admin-card-background);
   box-shadow: none;
 
   &::before {
@@ -387,7 +387,7 @@ const PulseHero = styled.section`
     grid-template-columns: 1fr;
     gap: var(--space-5);
     padding: var(--space-5);
-    border-radius: 8px;
+    border-radius: var(--admin-card-radius);
   }
 `;
 
@@ -428,7 +428,7 @@ const HeroMetric = styled.div`
   align-content: center;
   gap: var(--space-1);
   padding: var(--space-4);
-  border-radius: 6px;
+  border-radius: var(--admin-card-radius);
   background: var(--color-neutral-100);
 
   span {
@@ -556,8 +556,8 @@ const OperationsSection = styled.section`
   min-width: 0;
   overflow: hidden;
   border: 1px solid var(--color-border);
-  border-radius: 8px;
-  background: var(--color-white);
+  border-radius: var(--admin-card-radius);
+  background: var(--admin-card-background);
   box-shadow: none;
 `;
 
@@ -793,7 +793,7 @@ const EmptyState = styled.div`
   place-items: center;
   padding: var(--space-6);
   border: 1px solid var(--color-border);
-  border-radius: 8px;
-  background: var(--color-white);
+  border-radius: var(--admin-card-radius);
+  background: var(--admin-card-background);
   color: var(--color-text-muted);
 `;

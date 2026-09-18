@@ -412,9 +412,9 @@ const AudienceLedger = styled.div`
   display: grid;
   grid-template-columns: 1.35fr repeat(4, minmax(120px, 1fr));
   border: 1px solid var(--color-border);
-  border-radius: 8px;
+  border-radius: var(--admin-card-radius);
   overflow: hidden;
-  background: var(--color-white);
+  background: var(--admin-card-background);
 
   @media (max-width: 980px) {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -429,7 +429,7 @@ const NorthStarPanel = styled.section`
   gap: var(--space-6);
   padding: var(--space-5) var(--space-6);
   border: 1px solid var(--color-border);
-  border-radius: 8px;
+  border-radius: var(--admin-card-radius);
   background: var(--color-brand-100);
 
   @media (max-width: 640px) {
@@ -626,8 +626,8 @@ const Panel = styled.section`
   gap: var(--space-4);
   padding: var(--space-5);
   border: 1px solid var(--color-border);
-  border-radius: 8px;
-  background: var(--color-white);
+  border-radius: var(--admin-card-radius);
+  background: var(--admin-card-background);
 `;
 
 const TwoColumn = styled.div`

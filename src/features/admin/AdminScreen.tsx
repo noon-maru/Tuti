@@ -19,6 +19,7 @@ import { AdminNotificationsPanel } from "@/features/admin/AdminNotificationsPane
 import { AdminSecurityTrafficPanel } from "@/features/admin/AdminSecurityTrafficPanel";
 import { AdminUserActivityPanel } from "@/features/admin/AdminUserActivityPanel";
 import { AdminBusinessMetricsPanel } from "@/features/admin/AdminBusinessMetricsPanel";
+import { TutiWordmark } from "@/features/tuti/components/TutiWordmark";
 import { BaseButton, baseControlStyles } from "@/shared/ui/buttons";
 import type {
   AdminBusinessMetricsResponse,
@@ -681,7 +682,7 @@ export function AdminScreen({
     return (
       <AccessPage>
         <AccessCard>
-          <Wordmark>Tuti Admin</Wordmark>
+          <AdminWordmark priority />
           <h1>
             {accessStatus === 401
               ? "관리자 로그인이 필요해요."
@@ -704,7 +705,7 @@ export function AdminScreen({
     >
       <Sidebar>
         <Brand>
-          <Wordmark>Tuti</Wordmark>
+          <AdminWordmark priority />
           <span>관리자 콘솔</span>
         </Brand>
         <Navigation aria-label="관리자 메뉴">
@@ -2971,6 +2972,10 @@ function toErrorMessage(error: unknown) {
 }
 
 const AdminLayout = styled.div<{ $drawerOpen: boolean }>`
+  --admin-page-background: var(--color-white);
+  --admin-card-background: var(--color-neutral-200);
+  --admin-card-radius: 8px;
+
   height: 100dvh;
   min-height: 0;
   display: grid;
@@ -2978,7 +2983,7 @@ const AdminLayout = styled.div<{ $drawerOpen: boolean }>`
   overflow-x: hidden;
   overflow-y: auto;
   overscroll-behavior-y: auto;
-  background: var(--color-neutral-200);
+  background: var(--admin-page-background);
   color: var(--color-text);
   touch-action: pan-y;
   -webkit-overflow-scrolling: touch;
@@ -2993,7 +2998,7 @@ const AdminLayout = styled.div<{ $drawerOpen: boolean }>`
     align-content: start;
     overflow-y: ${({ $drawerOpen }) =>
       $drawerOpen ? "hidden" : "auto"};
-    background: var(--color-white);
+    background: var(--admin-page-background);
   }
 `;
 
@@ -3016,7 +3021,7 @@ const Sidebar = styled.aside`
 
 const Brand = styled.div`
   display: flex;
-  align-items: baseline;
+  align-items: center;
   gap: var(--space-2);
 
   span {
@@ -3025,10 +3030,9 @@ const Brand = styled.div`
   }
 `;
 
-const Wordmark = styled.strong`
-  font-size: var(--font-size-600);
-  font-weight: 800;
-  letter-spacing: var(--letter-spacing-heading);
+const AdminWordmark = styled(TutiWordmark)`
+  width: 64px;
+  height: auto;
 `;
 
 const Navigation = styled.nav`
@@ -3258,7 +3262,8 @@ const Toolbar = styled.form`
   gap: var(--space-3);
   padding: var(--space-3);
   border: 1px solid var(--color-border);
-  background: var(--color-white);
+  border-radius: var(--admin-card-radius);
+  background: var(--admin-card-background);
 
   @media (max-width: 640px) {
     grid-template-columns: minmax(0, 1fr) auto;
@@ -3274,15 +3279,15 @@ const PlaceToolbarCard = styled.section`
   gap: var(--space-4);
   padding: var(--space-4);
   border: 1px solid var(--color-border);
-  border-radius: 8px;
-  background: var(--color-white);
+  border-radius: var(--admin-card-radius);
+  background: var(--admin-card-background);
 
   @media (max-width: 768px) {
     gap: var(--space-3);
     padding: var(--space-4);
     border: 0;
-    border-radius: 6px;
-    background: var(--color-white);
+    border-radius: var(--admin-card-radius);
+    background: var(--admin-card-background);
   }
 `;
 
@@ -3500,8 +3505,8 @@ const StatePanel = styled.div`
   place-items: center;
   padding: var(--space-6);
   border: 1px solid var(--color-border);
-  border-radius: 8px;
-  background: var(--color-white);
+  border-radius: var(--admin-card-radius);
+  background: var(--admin-card-background);
   color: var(--color-text-muted);
   box-shadow: none;
 `;
@@ -3525,8 +3530,8 @@ const OperationsHero = styled.section`
   gap: var(--space-6);
   padding: var(--space-5);
   border: 1px solid var(--color-brand-200);
-  border-radius: 8px;
-  background: var(--color-white);
+  border-radius: var(--admin-card-radius);
+  background: var(--admin-card-background);
   box-shadow: none;
 
   &::before {
@@ -3550,7 +3555,7 @@ const OperationsHero = styled.section`
   @media (max-width: 520px) {
     gap: var(--space-5);
     padding: var(--space-4);
-    border-radius: 8px;
+    border-radius: var(--admin-card-radius);
   }
 `;
 
@@ -3583,7 +3588,7 @@ const HeroStatusSummary = styled.div`
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   border: 1px solid var(--color-border);
-  border-radius: 6px;
+  border-radius: var(--admin-card-radius);
   background: var(--color-white);
 
   > div {
@@ -3654,8 +3659,8 @@ const SectionTitle = styled.h2`
 const QueueList = styled.div`
   overflow: hidden;
   border: 1px solid var(--color-border);
-  border-radius: 8px;
-  background: var(--color-white);
+  border-radius: var(--admin-card-radius);
+  background: var(--admin-card-background);
   box-shadow: none;
 `;
 
@@ -3669,7 +3674,7 @@ const QueueRow = styled(BaseButton)`
   padding: var(--space-4) var(--space-5);
   border: 0;
   border-bottom: 1px solid var(--color-border);
-  background: var(--color-white);
+  background: transparent;
   color: var(--color-text);
   font: inherit;
   text-align: left;
@@ -3701,7 +3706,7 @@ const QueueRow = styled(BaseButton)`
   }
 
   &:hover {
-    background: var(--color-neutral-100);
+    background: var(--color-white);
   }
 
   &:focus-visible {
@@ -3718,8 +3723,8 @@ const NotificationGlance = styled(BaseButton)`
   gap: var(--space-5);
   padding: var(--space-5);
   border: 1px solid var(--color-border);
-  border-radius: 8px;
-  background: var(--color-white);
+  border-radius: var(--admin-card-radius);
+  background: var(--admin-card-background);
   color: var(--color-text);
   font: inherit;
   text-align: left;
@@ -3782,8 +3787,8 @@ const MetricGrid = styled.section`
   gap: 0;
   overflow: hidden;
   border: 1px solid var(--color-border);
-  border-radius: 8px;
-  background: var(--color-white);
+  border-radius: var(--admin-card-radius);
+  background: var(--admin-card-background);
 
   @media (max-width: 900px) {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -3816,7 +3821,7 @@ const MetricCard = styled.article`
   border-right: 1px solid var(--color-border);
   border-bottom: 1px solid var(--color-border);
   border-radius: 0;
-  background: var(--color-white);
+  background: transparent;
   box-shadow: none;
 
   span {
@@ -3886,8 +3891,8 @@ const FunnelSummary = styled.div`
   gap: 0;
   overflow: hidden;
   border: 1px solid var(--color-border);
-  border-radius: 8px;
-  background: var(--color-white);
+  border-radius: var(--admin-card-radius);
+  background: var(--admin-card-background);
 
   @media (max-width: 640px) {
     grid-template-columns: 1fr;
@@ -3903,7 +3908,7 @@ const FunnelSummaryCard = styled.article`
   border: 0;
   border-right: 1px solid var(--color-border);
   border-radius: 0;
-  background: var(--color-white);
+  background: transparent;
   box-shadow: none;
 
   span {
@@ -3981,8 +3986,8 @@ const FunnelPanelCard = styled.section`
   gap: var(--space-4);
   padding: var(--space-4);
   border: 1px solid var(--color-border);
-  border-radius: 8px;
-  background: var(--color-surface);
+  border-radius: var(--admin-card-radius);
+  background: var(--admin-card-background);
   box-shadow: none;
 
   h3 {
@@ -4093,8 +4098,8 @@ const LocationLogSummary = styled.div`
   gap: var(--space-4);
   padding: var(--space-3) var(--space-4);
   border: 1px solid var(--color-border);
-  border-radius: 6px;
-  background: var(--color-white);
+  border-radius: var(--admin-card-radius);
+  background: var(--admin-card-background);
 
   strong {
     font-size: var(--font-size-300);
@@ -4151,8 +4156,8 @@ const InquiryTable = styled.div`
 
   overflow: hidden;
   border: 1px solid var(--color-border);
-  border-radius: 8px;
-  background: var(--color-white);
+  border-radius: var(--admin-card-radius);
+  background: var(--admin-card-background);
 `;
 
 const InquiryTableHead = styled.div`
@@ -4313,8 +4318,8 @@ const CompactDetails = styled.details`
 const TableCard = styled.div`
   overflow-x: auto;
   border: 1px solid var(--color-border);
-  border-radius: 8px;
-  background: var(--color-white);
+  border-radius: var(--admin-card-radius);
+  background: var(--admin-card-background);
   box-shadow: none;
 
   @media (max-width: 768px) {
@@ -4467,7 +4472,7 @@ const Table = styled.table`
       overflow: hidden;
       border-bottom: 1px solid var(--color-border);
       border-radius: 0;
-      background: var(--color-white);
+      background: transparent;
     }
 
     tr:last-child {
@@ -4776,8 +4781,8 @@ const SettingsGrid = styled.section`
   gap: 0;
   overflow: hidden;
   border: 1px solid var(--color-border);
-  border-radius: 8px;
-  background: var(--color-white);
+  border-radius: var(--admin-card-radius);
+  background: var(--admin-card-background);
 `;
 
 const SettingCard = styled.article`
@@ -4789,7 +4794,7 @@ const SettingCard = styled.article`
   border: 0;
   border-bottom: 1px solid var(--color-border);
   border-radius: 0;
-  background: var(--color-white);
+  background: transparent;
   box-shadow: none;
 
   &:last-child {
