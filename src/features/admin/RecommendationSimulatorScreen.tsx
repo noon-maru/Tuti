@@ -35,6 +35,7 @@ import type {
   MovementAnswer,
 } from "@/shared/tuti/types";
 import { movementTimeBudget } from "@/shared/tuti/movementTimeBudget";
+import { BaseButton, baseControlStyles } from "@/shared/ui/buttons";
 
 type LocationMode = "location" | "region" | "none";
 type SimulationCandidate =
@@ -906,6 +907,7 @@ const HeaderInner = styled.div`
 `;
 
 const BackLink = styled(Link)`
+  ${baseControlStyles}
   width: 44px;
   flex: 0 0 auto;
   min-height: 44px;
@@ -981,7 +983,7 @@ const PanelHeading = styled.header`
   }
 `;
 
-const ResetButton = styled.button`
+const ResetButton = styled(BaseButton)`
   min-height: 44px;
   padding: 0 var(--space-3);
   display: inline-flex;
@@ -1046,7 +1048,7 @@ const SegmentedGrid = styled.div<{ $columns: number }>`
   }
 `;
 
-const OptionButton = styled.button<{ $active: boolean }>`
+const OptionButton = styled(BaseButton)<{ $active: boolean }>`
   min-height: 64px;
   padding: var(--space-3) var(--space-2);
   display: grid;
@@ -1129,7 +1131,7 @@ const PresetRail = styled.div`
   }
 `;
 
-const PresetButton = styled.button`
+const PresetButton = styled(BaseButton)`
   min-height: 32px;
   padding: 0 10px;
   border: 1px solid var(--color-border);
@@ -1165,7 +1167,7 @@ const OptionalOptions = styled(CompactOptions)`
   grid-template-columns: repeat(2, minmax(0, 1fr));
 `;
 
-const CompactButton = styled.button<{ $active: boolean }>`
+const CompactButton = styled(BaseButton)<{ $active: boolean }>`
   min-height: 44px;
   padding: var(--space-2);
   border: 1px solid ${({ $active }) =>
@@ -1186,7 +1188,7 @@ const CompactButton = styled.button<{ $active: boolean }>`
   }
 `;
 
-const RunButton = styled.button`
+const RunButton = styled(BaseButton)`
   min-height: 52px;
   display: flex;
   align-items: center;
@@ -1795,6 +1797,7 @@ const AccessCard = styled.section`
 `;
 
 const PrimaryLink = styled(Link)`
+  ${baseControlStyles}
   min-height: 48px;
   display: grid;
   place-items: center;
@@ -1811,6 +1814,7 @@ const PrimaryLink = styled(Link)`
 `;
 
 const TextLink = styled(Link)`
+  ${baseControlStyles}
   min-height: 44px;
   display: grid;
   place-items: center;

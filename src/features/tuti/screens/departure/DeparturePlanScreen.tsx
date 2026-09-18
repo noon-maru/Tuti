@@ -13,7 +13,11 @@ import {
   TrainFront,
 } from "lucide-react";
 import { useLayoutEffect, useRef, useState } from "react";
-import { BaseButton, PrimaryButton } from "@/features/tuti/components/buttons";
+import {
+  BaseButton,
+  BaseButtonLink,
+  PrimaryButton,
+} from "@/features/tuti/components/buttons";
 import { LoadingIndicator } from "@/features/tuti/components/LoadingIndicator";
 import { useLocationAccess } from "@/features/tuti/location/LocationAccessProvider";
 import type { LocationRequestResult } from "@/features/tuti/location/locationAccess";
@@ -1104,7 +1108,7 @@ const LocationRequest = styled.section`
   }
 `;
 
-const DestinationLink = styled.a`
+const DestinationLink = styled(BaseButtonLink)`
   width: min(100%, 280px);
   min-height: var(--space-12);
   display: inline-flex;
@@ -1316,7 +1320,7 @@ const JourneyFacts = styled.div`
   }
 `;
 
-const BookingLink = styled.a`
+const BookingLink = styled(BaseButtonLink)`
   min-height: var(--space-12);
   display: flex;
   align-items: center;
@@ -1410,7 +1414,7 @@ const StayCopy = styled.div`
   }
 `;
 
-const StayLink = styled.a`
+const StayLink = styled(BaseButtonLink)`
   padding: var(--space-2) var(--space-3);
   border-radius: 999px;
   background: var(--color-secondary-300);
@@ -1629,7 +1633,7 @@ const RouteSteps = styled.ol`
   }
 `;
 
-const RouteLink = styled.a`
+const RouteLink = styled(BaseButtonLink)`
   min-height: var(--space-12);
   display: flex;
   align-items: center;

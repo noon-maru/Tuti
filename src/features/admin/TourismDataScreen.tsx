@@ -29,6 +29,7 @@ import type {
   TourismPhotoGallerySourceItem,
 } from "@/shared/api/tourismAdmin";
 import { tourApiSidoOptions } from "@/shared/tourism/tourApiRegions";
+import { BaseButton, baseControlStyles } from "@/shared/ui/buttons";
 
 type SyncSource =
   | "places"
@@ -2733,6 +2734,7 @@ const HeaderInner = styled.div`
 `;
 
 const BackLink = styled(Link)`
+  ${baseControlStyles}
   width: 40px;
   height: 40px;
   display: grid;
@@ -2753,7 +2755,7 @@ const Eyebrow = styled.span`
   letter-spacing: 0.02em;
 `;
 
-const RefreshButton = styled.button`
+const RefreshButton = styled(BaseButton)`
   min-height: 40px;
   padding: 0 var(--space-4);
   border: 1px solid var(--color-neutral-400);
@@ -2807,7 +2809,7 @@ const WorkspaceNav = styled.nav`
   }
 `;
 
-const WorkspaceNavButton = styled.button<{ $active: boolean }>`
+const WorkspaceNavButton = styled(BaseButton)<{ $active: boolean }>`
   position: relative;
   min-width: 0;
   min-height: 64px;
@@ -3661,7 +3663,7 @@ const Select = styled.select`
   font: inherit;
 `;
 
-const PrimaryButton = styled.button`
+const PrimaryButton = styled(BaseButton)`
   min-height: 44px;
   padding: 0 var(--space-5);
   border: 0;
@@ -3696,7 +3698,7 @@ const DatasetTabs = styled.nav`
   }
 `;
 
-const DatasetTabButton = styled.button<{ $active: boolean }>`
+const DatasetTabButton = styled(BaseButton)<{ $active: boolean }>`
   position: relative;
   min-width: max-content;
   min-height: 44px;
@@ -4007,7 +4009,7 @@ const PlaceReviewToolbar = styled.section`
   }
 `;
 
-const ToolbarButton = styled.button<{ $danger?: boolean }>`
+const ToolbarButton = styled(BaseButton)<{ $danger?: boolean }>`
   min-height: 40px;
   padding: 0 var(--space-3);
   border: 1px solid ${({ $danger }) =>
@@ -4112,7 +4114,7 @@ const PlaceSelectionControl = styled.label`
   }
 `;
 
-const PlaceRowDetailButton = styled.button`
+const PlaceRowDetailButton = styled(BaseButton)`
   width: 100%;
   display: grid;
   grid-template-columns: minmax(130px, 0.9fr) minmax(240px, 2fr) 100px 130px minmax(150px, 0.9fr);
@@ -4352,7 +4354,7 @@ const PlaceDrawerHeader = styled.div`
   }
 `;
 
-const DrawerCloseButton = styled.button`
+const DrawerCloseButton = styled(BaseButton)`
   width: 40px;
   height: 40px;
   display: grid;
@@ -4454,7 +4456,7 @@ const PaginationNumbers = styled.div`
   gap: var(--space-1);
 `;
 
-const PaginationButton = styled.button`
+const PaginationButton = styled(BaseButton)`
   min-width: 60px;
   height: 40px;
   padding: 0 var(--space-3);
@@ -4485,7 +4487,7 @@ const PaginationButton = styled.button`
   }
 `;
 
-const PaginationNumberButton = styled.button<{ $active: boolean }>`
+const PaginationNumberButton = styled(BaseButton)<{ $active: boolean }>`
   width: 40px;
   height: 40px;
   border: 0;
@@ -4658,7 +4660,7 @@ const RecordTable = styled.table`
   }
 `;
 
-const RowDetailButton = styled.button`
+const RowDetailButton = styled(BaseButton)`
   min-height: 32px;
   padding: 0 var(--space-2);
   border: 1px solid var(--color-neutral-400);
@@ -4678,7 +4680,7 @@ const RowDetailButton = styled.button`
   }
 `;
 
-const PrimaryCellButton = styled.button`
+const PrimaryCellButton = styled(BaseButton)`
   width: 100%;
   min-height: 36px;
   display: block;
@@ -4769,6 +4771,7 @@ const StatusBadge = styled.span<{ $tone: string }>`
 `;
 
 const PhotoLink = styled.a`
+  ${baseControlStyles}
   flex: 0 0 auto;
   min-height: 36px;
   display: inline-grid;
@@ -4862,6 +4865,7 @@ const AccessCard = styled.section`
 `;
 
 const PrimaryLink = styled(Link)`
+  ${baseControlStyles}
   min-height: 44px;
   display: grid;
   place-items: center;

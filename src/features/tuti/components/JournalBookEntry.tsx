@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import styled from "@emotion/styled";
 import { useQuery } from "@tanstack/react-query";
 import { useSession } from "@/features/tuti/hooks/useSession";
+import { PressableCard } from "@/features/tuti/components/buttons";
 import { loadJournalBookDraft } from "@/lib/journalBookDraft";
 import { fetchJournalBooks } from "@/lib/tutiApi";
 
@@ -56,7 +57,7 @@ export function JournalBookEntry({ hasEntries }: { hasEntries: boolean }) {
   );
 }
 
-const Button = styled.button`
+const Button = styled(PressableCard)`
   width: 100%;
   min-height: 60px;
   display: flex;
@@ -68,7 +69,6 @@ const Button = styled.button`
   background: var(--color-secondary-100);
   color: var(--color-text);
   text-align: left;
-  cursor: pointer;
   transition: background 160ms ease, transform 160ms ease;
 
   &:hover {
@@ -79,10 +79,6 @@ const Button = styled.button`
     transform: scale(0.985);
   }
 
-  &:focus-visible {
-    outline: 2px solid var(--color-accent-primary);
-    outline-offset: 3px;
-  }
 `;
 
 const Icon = styled.span`

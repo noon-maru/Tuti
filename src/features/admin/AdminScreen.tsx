@@ -19,6 +19,7 @@ import { AdminNotificationsPanel } from "@/features/admin/AdminNotificationsPane
 import { AdminSecurityTrafficPanel } from "@/features/admin/AdminSecurityTrafficPanel";
 import { AdminUserActivityPanel } from "@/features/admin/AdminUserActivityPanel";
 import { AdminBusinessMetricsPanel } from "@/features/admin/AdminBusinessMetricsPanel";
+import { BaseButton, baseControlStyles } from "@/shared/ui/buttons";
 import type {
   AdminBusinessMetricsResponse,
   AdminInquiriesResponse,
@@ -3047,7 +3048,7 @@ const NavGroupLabel = styled.span`
   font-weight: 700;
 `;
 
-const NavButton = styled.button<{ $active: boolean }>`
+const NavButton = styled(BaseButton)<{ $active: boolean }>`
   position: relative;
   min-height: 38px;
   padding: 0 var(--space-3);
@@ -3096,6 +3097,7 @@ const NavButton = styled.button<{ $active: boolean }>`
 `;
 
 const NavLink = styled(Link)`
+  ${baseControlStyles}
   min-height: 38px;
   display: flex;
   align-items: center;
@@ -3117,6 +3119,7 @@ const NavLink = styled(Link)`
 `;
 
 const HomeLink = styled(Link)`
+  ${baseControlStyles}
   margin-top: auto;
   color: var(--color-text-muted);
   font-size: var(--font-size-100);
@@ -3198,7 +3201,7 @@ const Header = styled.header`
   }
 `;
 
-const RefreshButton = styled.button`
+const RefreshButton = styled(BaseButton)`
   min-height: 44px;
   display: inline-flex;
   align-items: center;
@@ -3300,7 +3303,7 @@ const PlaceSavedViews = styled.div`
   }
 `;
 
-const PlaceViewButton = styled.button<{ $active: boolean }>`
+const PlaceViewButton = styled(BaseButton)<{ $active: boolean }>`
   min-height: 38px;
   flex: 0 0 auto;
   display: inline-flex;
@@ -3327,7 +3330,7 @@ const PlaceViewButton = styled.button<{ $active: boolean }>`
   }
 `;
 
-const PlaceFilterToggle = styled.button`
+const PlaceFilterToggle = styled(BaseButton)`
   display: none;
 
   @media (max-width: 640px) {
@@ -3398,7 +3401,7 @@ const FilterField = styled.label`
   }
 `;
 
-const FilterResetButton = styled.button`
+const FilterResetButton = styled(BaseButton)`
   min-height: var(--space-11);
   padding: 0 var(--space-4);
   border: 1px solid var(--color-border);
@@ -3443,7 +3446,7 @@ const Select = styled.select`
   font: inherit;
 `;
 
-const SearchButton = styled.button`
+const SearchButton = styled(BaseButton)`
   min-height: var(--space-11);
   padding: 0 var(--space-5);
   border: 0;
@@ -3656,7 +3659,7 @@ const QueueList = styled.div`
   box-shadow: none;
 `;
 
-const QueueRow = styled.button`
+const QueueRow = styled(BaseButton)`
   width: 100%;
   min-height: 66px;
   display: grid;
@@ -3708,7 +3711,7 @@ const QueueRow = styled.button`
   }
 `;
 
-const NotificationGlance = styled.button`
+const NotificationGlance = styled(BaseButton)`
   min-height: 198px;
   display: grid;
   align-content: center;
@@ -4108,7 +4111,7 @@ const LocationLogSummary = styled.div`
   }
 `;
 
-const InquirySummaryButton = styled.button`
+const InquirySummaryButton = styled(BaseButton)`
   width: 100%;
   min-width: 0;
   display: grid;
@@ -4506,7 +4509,7 @@ const Small = styled.small`
   overflow-wrap: anywhere;
 `;
 
-const UserTableSortButton = styled.button`
+const UserTableSortButton = styled(BaseButton)`
   display: inline-flex;
   align-items: center;
   gap: 5px;
@@ -4580,7 +4583,7 @@ const Pagination = styled.nav`
   }
 `;
 
-const PaginationButton = styled.button`
+const PaginationButton = styled(BaseButton)`
   min-width: 88px;
   min-height: var(--space-11);
   padding: 0 var(--space-4);
@@ -4704,7 +4707,7 @@ const AdminResponseInput = styled.textarea`
   }
 `;
 
-const DangerButton = styled.button`
+const DangerButton = styled(BaseButton)`
   min-height: 44px;
   padding: 0 var(--space-4);
   border: 1px solid var(--color-error);
@@ -4737,7 +4740,7 @@ const AccountActions = styled.div`
   }
 `;
 
-const RoleActionButton = styled.button<{ $revoke: boolean }>`
+const RoleActionButton = styled(BaseButton)<{ $revoke: boolean }>`
   min-height: 36px;
   padding: 0 var(--space-3);
   border: 1px solid var(--color-border);
@@ -4854,6 +4857,7 @@ const AccessActions = styled.div`
 `;
 
 const PrimaryLink = styled(Link)`
+  ${baseControlStyles}
   display: grid;
   min-height: var(--space-11);
   place-items: center;
@@ -4865,6 +4869,7 @@ const PrimaryLink = styled(Link)`
 `;
 
 const SecondaryLink = styled(Link)`
+  ${baseControlStyles}
   display: grid;
   min-height: var(--space-11);
   place-items: center;
@@ -4896,7 +4901,7 @@ const MobileNavigation = styled.nav`
   }
 `;
 
-const MobileNavButton = styled.button<{ $active: boolean }>`
+const MobileNavButton = styled(BaseButton)<{ $active: boolean }>`
   position: relative;
   min-width: 0;
   min-height: 48px;
@@ -5015,7 +5020,7 @@ const MobileMenu = styled.section<{
   will-change: transform;
 `;
 
-const MobileMenuHandle = styled.button`
+const MobileMenuHandle = styled(BaseButton)`
   width: 64px;
   height: 28px;
   display: grid;
@@ -5065,7 +5070,7 @@ const MobileMenuList = styled.div`
   background: var(--color-surface);
 `;
 
-const MobileMenuButton = styled.button<{ $active: boolean }>`
+const MobileMenuButton = styled(BaseButton)<{ $active: boolean }>`
   min-height: 52px;
   display: flex;
   align-items: center;
@@ -5084,6 +5089,7 @@ const MobileMenuButton = styled.button<{ $active: boolean }>`
 `;
 
 const MobileServiceLink = styled(Link)`
+  ${baseControlStyles}
   min-height: 52px;
   display: flex;
   align-items: center;

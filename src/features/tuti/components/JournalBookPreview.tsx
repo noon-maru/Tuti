@@ -14,6 +14,7 @@ import { fetchWithSession } from "@/lib/auth/session";
 import { getSessionSnapshot } from "@/lib/auth/session";
 import type { JournalBookInput } from "@/shared/api/journalBook";
 import { LoadingIndicator } from "@/features/tuti/components/LoadingIndicator";
+import { BaseButton } from "@/features/tuti/components/buttons";
 
 type JournalBookPreviewProps = {
   ownerId: string;
@@ -151,7 +152,7 @@ export function JournalBookPreview({
     return (
       <Notice role="alert">
         <p>{error}</p>
-        <button
+        <NoticeRetryButton
           type="button"
           onClick={() => {
             setPdfDocument(null);
@@ -160,7 +161,7 @@ export function JournalBookPreview({
           }}
         >
           다시 시도하기
-        </button>
+        </NoticeRetryButton>
       </Notice>
     );
   if (!pdfDocument)
@@ -379,7 +380,7 @@ const ToolGroup = styled.div`
   gap: 2px;
 `;
 
-const ToolButton = styled.button`
+const ToolButton = styled(BaseButton)`
   min-width: 40px;
   min-height: 40px;
   display: inline-flex;
@@ -387,14 +388,11 @@ const ToolButton = styled.button`
   justify-content: center;
   gap: 5px;
   padding: 0 var(--space-2);
-  border: 0;
   border-radius: 999px;
   background: transparent;
   color: var(--color-text-muted);
-  font: inherit;
   font-size: var(--font-size-100);
   font-weight: 600;
-  cursor: pointer;
 
   &[aria-pressed="true"] {
     background: var(--color-secondary-200);
@@ -403,12 +401,6 @@ const ToolButton = styled.button`
 
   &:disabled {
     opacity: 0.36;
-    cursor: default;
-  }
-
-  &:focus-visible {
-    outline: 2px solid var(--color-accent-primary);
-    outline-offset: 2px;
   }
 `;
 
@@ -501,17 +493,16 @@ const Notice = styled.div`
     margin: 0;
   }
 
-  button {
-    min-height: 40px;
-    margin-top: var(--space-3);
-    padding: var(--space-2) var(--space-4);
-    border: 0;
-    border-radius: 999px;
-    background: var(--color-secondary-500);
-    color: var(--color-secondary-1000);
-    font: inherit;
-    font-weight: 600;
-  }
+`;
+
+const NoticeRetryButton = styled(BaseButton)`
+  min-height: 40px;
+  margin-top: var(--space-3);
+  padding: var(--space-2) var(--space-4);
+  border-radius: 999px;
+  background: var(--color-secondary-500);
+  color: var(--color-secondary-1000);
+  font-weight: 600;
 `;
 
 const PreviewLoading = styled.div`

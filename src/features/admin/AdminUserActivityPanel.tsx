@@ -7,6 +7,7 @@ import type {
   AdminUserActivityResponse,
   AdminUserActivityStage,
 } from "@/shared/api/admin";
+import { BaseButton } from "@/shared/ui/buttons";
 
 const dateFormatter = new Intl.DateTimeFormat("ko-KR", {
   dateStyle: "medium",
@@ -405,7 +406,7 @@ const UserTabs = styled.div`
   background: var(--color-neutral-100);
 `;
 
-const UserTab = styled.button`
+const UserTab = styled(BaseButton)`
   min-height: 34px;
   display: inline-flex;
   align-items: center;
@@ -633,7 +634,7 @@ const Subtle = styled.small`
   font-size: 10px;
 `;
 
-const ExcludeButton = styled.button`
+const ExcludeButton = styled(BaseButton)`
   min-height: 34px;
   padding: 0 var(--space-3);
   border: 1px solid var(--color-border);

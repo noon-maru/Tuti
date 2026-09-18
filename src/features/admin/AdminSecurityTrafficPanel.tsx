@@ -7,6 +7,7 @@ import type {
   AdminTrafficActor,
   AdminTrafficFinding,
 } from "@/shared/api/admin";
+import { BaseButton } from "@/shared/ui/buttons";
 
 const dateFormatter = new Intl.DateTimeFormat("ko-KR", {
   dateStyle: "medium",
@@ -818,7 +819,7 @@ const ActorIdentity = styled.div`
   }
 `;
 
-const ReviewButton = styled.button`
+const ReviewButton = styled(BaseButton)`
   min-height: 30px;
   padding: 0 var(--space-3);
   border: 1px solid var(--color-brand-400);
@@ -867,7 +868,7 @@ const ComposerHeader = styled.header`
   }
 `;
 
-const TextButton = styled.button`
+const TextButton = styled(BaseButton)`
   flex: none;
   padding: var(--space-2);
   border: 0;
@@ -1005,7 +1006,7 @@ const ComposerActions = styled.div`
   }
 `;
 
-const DangerButton = styled.button`
+const DangerButton = styled(BaseButton)`
   min-height: 40px;
   padding: 0 var(--space-5);
   border: 1px solid #c84d4d;
@@ -1081,7 +1082,7 @@ const BlockExpiry = styled.span`
   white-space: nowrap;
 `;
 
-const UnblockButton = styled.button`
+const UnblockButton = styled(BaseButton)`
   min-height: 34px;
   padding: 0 var(--space-3);
   border: 1px solid var(--color-border);

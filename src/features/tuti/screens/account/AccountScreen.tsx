@@ -456,7 +456,7 @@ export function AccountScreen({
                       ? "심사용 계정 비밀번호를 입력해주세요."
                       : `${formEmail}로 보낸 코드를 입력해주세요.`}
                   </span>
-                  <button
+                  <EmailChangeButton
                     type="button"
                     onClick={() => {
                       setEmailStep("email");
@@ -466,7 +466,7 @@ export function AccountScreen({
                     }}
                   >
                     이메일 변경
-                  </button>
+                  </EmailChangeButton>
                 </EmailHint>
               )}
               <LinkEmailButton
@@ -708,7 +708,7 @@ export function AccountScreen({
                     ? "심사용 계정 비밀번호를 입력해주세요."
                     : `${formEmail}로 보낸 코드를 입력해주세요.`}
                 </span>
-                <button
+                <EmailChangeButton
                   type="button"
                   onClick={() => {
                     setEmailStep("email");
@@ -718,7 +718,7 @@ export function AccountScreen({
                   }}
                 >
                   이메일 변경
-                </button>
+                </EmailChangeButton>
               </EmailHint>
             )}
             {error && <ErrorMessage role="alert">{error}</ErrorMessage>}
@@ -1192,15 +1192,13 @@ const EmailHint = styled.div`
     overflow-wrap: anywhere;
   }
 
-  button {
-    flex: none;
-    padding: 0;
-    border: 0;
-    background: transparent;
-    color: var(--color-brand-800);
-    font: inherit;
-    cursor: pointer;
-  }
+`;
+
+const EmailChangeButton = styled(BaseButton)`
+  flex: none;
+  padding: 0;
+  background: transparent;
+  color: var(--color-brand-800);
 `;
 
 const ErrorMessage = styled.p`

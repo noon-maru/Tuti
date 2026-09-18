@@ -8,6 +8,10 @@ import { JournalLocationLabel } from "@/features/tuti/components/JournalLocation
 import { fetchWithSession } from "@/lib/auth/session";
 import type { PublicJournalEntry } from "@/shared/api/journal";
 import { palette } from "@/styles/tokens";
+import {
+  BaseButton,
+  BaseButtonLink,
+} from "@/features/tuti/components/buttons";
 
 export function PublicJournalScreen({
   entry,
@@ -419,18 +423,16 @@ const FooterActions = styled.div`
   }
 `;
 
-const ReportButton = styled.button`
+const ReportButton = styled(BaseButton)`
   min-height: 44px;
   padding: 0 16px;
   border: 1px solid ${palette.neutral[500]};
   border-radius: 999px;
   background: ${palette.neutral[100]};
   color: ${palette.neutral[900]};
-  font: inherit;
-  cursor: pointer;
 `;
 
-const HomeLink = styled.a`
+const HomeLink = styled(BaseButtonLink)`
   min-height: 44px;
   display: inline-grid;
   place-items: center;
@@ -510,28 +512,21 @@ const DialogActions = styled.div`
   gap: 8px;
 `;
 
-const CancelButton = styled.button`
+const CancelButton = styled(BaseButton)`
   min-height: 44px;
   border: 1px solid ${palette.neutral[500]};
   border-radius: 12px;
   background: ${palette.neutral[100]};
   color: ${palette.neutral[900]};
-  font: inherit;
-  cursor: pointer;
 `;
 
-const DialogButton = styled.button`
+const DialogButton = styled(BaseButton)`
   min-height: 44px;
-  border: 0;
   border-radius: 12px;
   background: ${palette.brand[700]};
   color: ${palette.neutral[100]};
-  font: inherit;
   font-weight: 700;
-  cursor: pointer;
-
   &:disabled {
-    cursor: default;
     opacity: 0.55;
   }
 `;

@@ -5,6 +5,7 @@ import { Apple, ArrowLeft, ArrowUpRight, Play } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { breakpoints } from "@/styles/tokens";
+import { baseControlStyles } from "@/features/tuti/components/buttons";
 
 const IOS_URL = "https://apps.apple.com/kr/app/tuti/id6474651880";
 const ANDROID_URL =
@@ -137,6 +138,7 @@ const Header = styled.header`
 `;
 
 const HomeLink = styled(Link)`
+  ${baseControlStyles}
   width: fit-content;
   display: inline-flex;
   align-items: center;
@@ -314,6 +316,7 @@ const QrFrame = styled.div`
 `;
 
 const StoreLink = styled.a`
+  ${baseControlStyles}
   min-height: 48px;
   display: flex;
   align-items: center;

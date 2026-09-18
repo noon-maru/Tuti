@@ -10,6 +10,7 @@ import {
 import { useSession } from "@/features/tuti/hooks/useSession";
 import { preferencesStorage } from "@/lib/storage/preferencesStorage";
 import { recordProductActivity } from "@/lib/productActivity";
+import { BaseButton } from "@/features/tuti/components/buttons";
 
 const STORAGE_KEY = "tuti-login-nudge-last-shown-at";
 const NUDGE_COOLDOWN_MS = 7 * 24 * 60 * 60 * 1_000;
@@ -166,36 +167,20 @@ const Actions = styled.div`
   gap: var(--space-2);
 `;
 
-const LaterButton = styled.button`
+const LaterButton = styled(BaseButton)`
   min-height: 36px;
   padding: 0 var(--space-3);
-  border: 0;
   background: transparent;
   color: var(--color-text-muted);
-  font: inherit;
   font-size: var(--font-size-100);
-  cursor: pointer;
-
-  &:focus-visible {
-    outline: 2px solid var(--color-brand-700);
-    outline-offset: 2px;
-  }
 `;
 
-const LoginButton = styled.button`
+const LoginButton = styled(BaseButton)`
   min-height: 36px;
   padding: 0 var(--space-4);
-  border: 0;
   border-radius: 999px;
   background: var(--color-secondary-500);
   color: var(--color-black);
-  font: inherit;
   font-size: var(--font-size-100);
   font-weight: 700;
-  cursor: pointer;
-
-  &:focus-visible {
-    outline: 2px solid var(--color-brand-700);
-    outline-offset: 2px;
-  }
 `;

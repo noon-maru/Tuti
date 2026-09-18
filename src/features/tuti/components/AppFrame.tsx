@@ -7,6 +7,7 @@ import { Download } from "lucide-react";
 import { AdaptiveOrientation } from "@/features/tuti/components/AdaptiveOrientation";
 import { TutiWordmark } from "@/features/tuti/components/TutiWordmark";
 import { breakpoints } from "@/styles/tokens";
+import { baseControlStyles } from "@/features/tuti/components/buttons";
 
 export function AppFrame({ children }: { children: React.ReactNode }) {
   const nativeApp = process.env.NEXT_PUBLIC_TUTI_TARGET === "app";
@@ -175,6 +176,7 @@ const BrandPalette = styled.div`
 `;
 
 const BrandDownloadLink = styled(Link)`
+  ${baseControlStyles}
   min-height: 44px;
   display: inline-flex;
   align-items: center;

@@ -4,6 +4,10 @@ import styled from "@emotion/styled";
 import Link from "next/link";
 import { useState, type FormEvent } from "react";
 import { apiUrl } from "@/lib/api/apiUrl";
+import {
+  BaseButton,
+  baseControlStyles,
+} from "@/features/tuti/components/buttons";
 
 type DeletionResponse = {
   request?: {
@@ -315,6 +319,7 @@ const FallbackCopy = styled.section`
 `;
 
 const ImmediateLink = styled(Link)`
+  ${baseControlStyles}
   min-height: var(--space-12);
   display: grid;
   place-items: center;
@@ -389,19 +394,16 @@ const Confirmation = styled.label`
   }
 `;
 
-const SubmitButton = styled.button`
+const SubmitButton = styled(BaseButton)`
   min-height: var(--space-14);
-  border: 0;
   border-radius: 999px;
   background: var(--color-secondary-600);
   color: var(--color-neutral-1300);
   font-weight: 600;
-  cursor: pointer;
 
   &:disabled {
     background: var(--color-neutral-300);
     color: var(--color-text-muted);
-    cursor: default;
   }
 `;
 

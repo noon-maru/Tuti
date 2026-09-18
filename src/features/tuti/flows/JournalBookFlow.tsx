@@ -22,7 +22,7 @@ import {
 } from "@/lib/tutiApi";
 import { getSessionSnapshot } from "@/lib/auth/session";
 import { ScreenFrame } from "@/features/tuti/components/ScreenFrame";
-import { PrimaryButton } from "@/features/tuti/components/buttons";
+import { BaseButton, PrimaryButton } from "@/features/tuti/components/buttons";
 import { JournalBookPreview } from "@/features/tuti/components/JournalBookPreview";
 import {
   loadJournalBookDraft,
@@ -932,7 +932,7 @@ const Header = styled.header`
   }
 `;
 
-const SmallButton = styled.button`
+const SmallButton = styled(BaseButton)`
   border: 0;
   background: transparent;
   color: var(--color-text-muted);
@@ -1257,7 +1257,7 @@ const OutsideTag = styled.span`
   font-weight: 600;
 `;
 
-const RemoveSelection = styled.button`
+const RemoveSelection = styled(BaseButton)`
   min-width: 40px;
   min-height: 40px;
   flex-shrink: 0;
@@ -1315,7 +1315,7 @@ const BookList = styled.div`
   display: grid;
 `;
 
-const BookItem = styled.button`
+const BookItem = styled(BaseButton)`
   width: 100%;
   min-height: 68px;
   display: flex;
@@ -1366,7 +1366,7 @@ const BookCopy = styled.span`
   }
 `;
 
-const EntryButton = styled.button`
+const EntryButton = styled(BaseButton)`
   display: flex;
   align-items: center;
   text-align: left;
@@ -1481,7 +1481,7 @@ const Covers = styled.div`
   padding: var(--space-2) 2px;
 `;
 
-const CoverButton = styled.button<{ $active: boolean }>`
+const CoverButton = styled(BaseButton)<{ $active: boolean }>`
   width: 76px;
   height: 98px;
   flex-shrink: 0;
@@ -1514,7 +1514,7 @@ const PreviewActions = styled.div`
   }
 `;
 
-const EditButton = styled.button`
+const EditButton = styled(BaseButton)`
   min-height: 42px;
   border: 0;
   background: transparent;
@@ -1540,7 +1540,7 @@ const CompletedHeading = styled.div`
   }
 `;
 
-const DeleteButton = styled.button`
+const DeleteButton = styled(BaseButton)`
   min-height: 44px;
   display: flex;
   align-items: center;
