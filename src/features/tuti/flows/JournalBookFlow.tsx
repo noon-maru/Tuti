@@ -34,12 +34,16 @@ import {
 } from "@/lib/journalBookDraft";
 import {
   emptyJournalBookDraft,
+  getJournalBookCoverPalette,
   isJournalBookDateInRange,
+  journalBookPhotoTextMayContinue,
+  journalBookCoverUsesImage,
   journalBookDate,
   parseJournalBookInput,
   JOURNAL_BOOK_MAX_ENTRIES,
   JOURNAL_BOOK_TITLE_LIMIT,
   JOURNAL_BOOK_LETTER_LIMIT,
+  type JournalBookCoverStyle,
   type JournalBookDraft,
 } from "@/shared/api/journalBook";
 import { LoadingIndicator } from "@/features/tuti/components/LoadingIndicator";
@@ -50,19 +54,39 @@ import type { ProductActivityType } from "@/shared/api/productActivity";
 
 const BOOK_STEPS = [
   { value: "selection", label: "기록 고르기" },
-  { value: "details", label: "표지와 글" },
+  { value: "details", label: "표지 고르기" },
+  { value: "letter", label: "남기는 말" },
   { value: "preview", label: "미리보기" },
 ] as const;
+
+const COVER_BACKGROUND_OPTIONS = [
+  { value: "white", label: "흰색", color: "#FFFFFF" },
+  { value: "green", label: "연두색", color: "#EBF5D5" },
+] as const;
+
+const COVER_IMAGE_OPTIONS = [
+  { value: false, label: "이미지 없이" },
+  { value: true, label: "이미지와 함께" },
+] as const;
+
+function makeCoverStyle(
+  background: "white" | "green",
+  usesImage: boolean,
+): JournalBookCoverStyle {
+  return `${background}-${usesImage ? "image" : "plain"}`;
+}
 
 const BOOK_STEP_VIEW_ACTIVITY = {
   selection: "journal_book_selection_viewed",
   details: "journal_book_details_viewed",
+  letter: "journal_book_details_viewed",
   preview: "journal_book_preview_viewed",
 } as const satisfies Record<JournalBookDraft["step"], ProductActivityType>;
 
 const BOOK_STEP_EXIT_ACTIVITY = {
   selection: "journal_book_selection_exited",
   details: "journal_book_details_exited",
+  letter: "journal_book_details_exited",
   preview: "journal_book_preview_exited",
 } as const satisfies Record<JournalBookDraft["step"], ProductActivityType>;
 
@@ -111,6 +135,7 @@ function BookEditor({ ownerId }: { ownerId: string }) {
   const [loadError, setLoadError] = useState(false);
   const [saveStatus, setSaveStatus] = useState("이 기기에 자동으로 저장돼요.");
   const [message, setMessage] = useState("");
+  const [selectionNotice, setSelectionNotice] = useState("");
   const [previewPdf, setPreviewPdf] = useState<{
     bytes: Uint8Array;
     pageCount: number;
@@ -149,6 +174,26 @@ function BookEditor({ ownerId }: { ownerId: string }) {
     [entries],
   );
   const chosen = sorted.filter((entry) => draft?.entryIds.includes(entry.id));
+  const coverPhotoEntries = chosen.filter((entry) => entry.image);
+  const coverPhoto =
+    coverPhotoEntries.find((entry) => entry.id === draft?.coverEntryId) ??
+    coverPhotoEntries[0] ??
+    null;
+  const coverFromDate = chosen[0]
+    ? compactBookDate(chosen[0].visitedAt)
+    : "2026.06.23";
+  const coverToDate = chosen.at(-1)
+    ? compactBookDate(chosen.at(-1)!.visitedAt)
+    : "2026.06.30";
+  const coverUsesImage = draft
+    ? journalBookCoverUsesImage(draft.coverStyle)
+    : false;
+  const coverBackground = draft?.coverStyle.startsWith("green-")
+    ? "green"
+    : "white";
+  const coverPalette = getJournalBookCoverPalette(
+    draft?.coverStyle ?? "white-plain",
+  );
   const visibleEntries = draft
     ? sorted.filter((entry) =>
         isJournalBookDateInRange(
@@ -219,6 +264,7 @@ function BookEditor({ ownerId }: { ownerId: string }) {
       recordBookActivity(BOOK_STEP_EXIT_ACTIVITY[draft.step]);
     }
     if (step === "selection") void refetch();
+    else setSelectionNotice("");
     update({ ...draft, step });
     scroller.current?.scrollTo({ top: 0 });
     heading.current?.focus();
@@ -236,6 +282,7 @@ function BookEditor({ ownerId }: { ownerId: string }) {
     const entryIds = selected
       ? draft.entryIds.filter((entryId) => entryId !== id)
       : [...draft.entryIds, id];
+    const selectedEntry = sorted.find((entry) => entry.id === id);
     update({
       ...draft,
       entryIds,
@@ -243,6 +290,13 @@ function BookEditor({ ownerId }: { ownerId: string }) {
         ? draft.coverEntryId
         : null,
     });
+    setSelectionNotice(
+      !selected &&
+        Boolean(selectedEntry?.image) &&
+        journalBookPhotoTextMayContinue(selectedEntry?.content ?? "")
+        ? "글이 길어 이 기록은 다음 쪽으로 이어질 수 있어요. 내용은 잘리지 않고 모두 담겨요."
+        : "",
+    );
   }
 
   const back = () => {
@@ -250,7 +304,9 @@ function BookEditor({ ownerId }: { ownerId: string }) {
       if (draft) recordBookActivity(BOOK_STEP_EXIT_ACTIVITY.selection);
       router.replace("/journal");
     }
-    else changeStep(draft.step === "preview" ? "details" : "selection");
+    else if (draft.step === "preview") changeStep("letter");
+    else if (draft.step === "letter") changeStep("details");
+    else changeStep("selection");
   };
 
   async function completeBook() {
@@ -356,9 +412,9 @@ function BookEditor({ ownerId }: { ownerId: string }) {
           </Notice>
         ) : (
           <>
-            <StepGuide aria-label={`제작 단계 ${stepIndex + 1}/3`}>
+            <StepGuide aria-label={`제작 단계 ${stepIndex + 1}/4`}>
               <StepLabel>
-                <span>{stepIndex + 1}/3</span>
+                <span>{stepIndex + 1}/4</span>
                 {BOOK_STEPS[stepIndex].label}
               </StepLabel>
               <StepRail aria-hidden="true">
@@ -376,14 +432,18 @@ function BookEditor({ ownerId }: { ownerId: string }) {
                   ? "어떤 시간을 담아볼까요?"
                   : draft.step === "details"
                     ? "이 시간에 이름을 붙여주세요."
-                    : "한 권으로 모인 시간"}
+                    : draft.step === "letter"
+                      ? "이 공간에 남기는 말"
+                      : "한 권으로 모인 시간"}
               </h2>
               <Intro>
                 {draft.step === "selection"
                   ? "간직하고 싶은 기록만 골라주세요. 날짜순으로 차분히 엮어드릴게요."
                   : draft.step === "details"
-                    ? "제목만 정해도 좋아요. 남기고 싶은 말은 천천히 적어주세요."
-                    : "글과 사진이 잘 담겼는지 살펴보세요."}
+                    ? "기록집의 제목과 표지 구성을 골라주세요."
+                    : draft.step === "letter"
+                      ? "특별한 문장이 아니어도 괜찮아요. 그곳에 남은 마음을 가볍게 적어보세요."
+                      : "표지부터 기록 본문까지 잘 담겼는지 살펴보세요."}
               </Intro>
             </IntroBlock>
             {missing.length > 0 && (
@@ -559,6 +619,11 @@ function BookEditor({ ownerId }: { ownerId: string }) {
                       <strong>{draft.entryIds.length}개 선택</strong>
                       <span>한 권에 최대 {JOURNAL_BOOK_MAX_ENTRIES}개</span>
                     </SelectionSummary>
+                    {selectionNotice && (
+                      <SelectionNotice role="status">
+                        {selectionNotice}
+                      </SelectionNotice>
+                    )}
                     <SelectionList>
                       {visibleEntries.map((entry) => (
                           <EntryButton
@@ -620,56 +685,129 @@ function BookEditor({ ownerId }: { ownerId: string }) {
                   />
                 </Field>
                 <fieldset>
-                  <legend>표지 사진</legend>
-                  <Hint>고른 기록의 사진을 사용할 수 있어요.</Hint>
-                  <Covers>
-                    <CoverButton
-                      type="button"
-                      $active={draft.coverEntryId === null}
-                      aria-pressed={draft.coverEntryId === null}
-                      onClick={() => update({ ...draft, coverEntryId: null })}
-                    >
-                      글로만
-                      <br />
-                      담기
-                    </CoverButton>
-                    {chosen
-                      .filter((entry) => entry.image)
-                      .map((entry) => (
-                        <CoverButton
-                          key={entry.id}
-                          type="button"
-                          $active={draft.coverEntryId === entry.id}
-                          aria-pressed={draft.coverEntryId === entry.id}
-                          aria-label={`${entry.title} 사진을 표지로 선택`}
-                          onClick={() =>
-                            update({ ...draft, coverEntryId: entry.id })
-                          }
-                        >
+                  <legend>표지</legend>
+                  <Hint>배경과 사진 구성을 골라주세요.</Hint>
+                  <CoverControls>
+                    <CoverControl>
+                      <CoverControlLabel>배경 색상</CoverControlLabel>
+                      <CoverChoices>
+                        {COVER_BACKGROUND_OPTIONS.map((option) => {
+                          const active = coverBackground === option.value;
+                          return (
+                            <CoverChoiceButton
+                              key={option.value}
+                              type="button"
+                              $active={active}
+                              aria-pressed={active}
+                              onClick={() =>
+                                update({
+                                  ...draft,
+                                  coverStyle: makeCoverStyle(
+                                    option.value,
+                                    coverUsesImage,
+                                  ),
+                                })
+                              }
+                            >
+                              <ColorSwatch $color={option.color} />
+                              {option.label}
+                            </CoverChoiceButton>
+                          );
+                        })}
+                      </CoverChoices>
+                    </CoverControl>
+                    <CoverControl>
+                      <CoverControlLabel>이미지</CoverControlLabel>
+                      <CoverChoices>
+                        {COVER_IMAGE_OPTIONS.map((option) => {
+                          const active = coverUsesImage === option.value;
+                          return (
+                            <CoverChoiceButton
+                              key={String(option.value)}
+                              type="button"
+                              $active={active}
+                              aria-pressed={active}
+                              onClick={() =>
+                                update({
+                                  ...draft,
+                                  coverStyle: makeCoverStyle(
+                                    coverBackground,
+                                    option.value,
+                                  ),
+                                  coverEntryId: option.value
+                                    ? coverPhoto?.id ?? null
+                                    : null,
+                                })
+                              }
+                            >
+                              {option.label}
+                            </CoverChoiceButton>
+                          );
+                        })}
+                      </CoverChoices>
+                    </CoverControl>
+                  </CoverControls>
+                  <CoverPreview $background={coverPalette.background}>
+                    <CoverOptionHeader $color={coverPalette.foreground}>
+                      <span>
+                        {coverFromDate}
+                        <br />- {coverToDate}
+                      </span>
+                      <span>{draft.title.trim() || "작은 기록집"}</span>
+                    </CoverOptionHeader>
+                    {coverUsesImage && (
+                      <CoverOptionArtwork
+                        $placeholder={coverPalette.placeholder}
+                      >
+                        {coverPhoto?.image && (
                           <Image
-                            src={entry.image!}
+                            src={coverPhoto.image}
                             alt=""
-                            width={72}
-                            height={92}
+                            width={132}
+                            height={106}
                             unoptimized
-                            loading="lazy"
                           />
-                        </CoverButton>
-                      ))}
-                  </Covers>
+                        )}
+                      </CoverOptionArtwork>
+                    )}
+                    <CoverOptionWordmark $color={coverPalette.foreground}>
+                      Tuti
+                    </CoverOptionWordmark>
+                  </CoverPreview>
+                  {coverUsesImage &&
+                    (coverPhotoEntries.length > 0 ? (
+                      <PhotoPicker>
+                        <span>표지에 담을 사진</span>
+                        <PhotoOptions>
+                          {coverPhotoEntries.map((entry) => (
+                            <PhotoButton
+                              key={entry.id}
+                              type="button"
+                              $active={draft.coverEntryId === entry.id}
+                              aria-pressed={draft.coverEntryId === entry.id}
+                              aria-label={`${entry.title} 사진을 표지로 선택`}
+                              onClick={() =>
+                                update({ ...draft, coverEntryId: entry.id })
+                              }
+                            >
+                              <Image
+                                src={entry.image!}
+                                alt=""
+                                width={72}
+                                height={72}
+                                unoptimized
+                                loading="lazy"
+                              />
+                            </PhotoButton>
+                          ))}
+                        </PhotoOptions>
+                      </PhotoPicker>
+                    ) : (
+                      <CoverFallbackNote>
+                        사진이 없어 선택한 배경에 어울리는 색 면을 담아요.
+                      </CoverFallbackNote>
+                    ))}
                 </fieldset>
-                <Field>
-                  첫 장에 남기는 글 <span>선택</span>
-                  <textarea
-                    rows={6}
-                    maxLength={JOURNAL_BOOK_LETTER_LIMIT}
-                    value={draft.letter}
-                    onChange={(event) =>
-                      update({ ...draft, letter: event.target.value })
-                    }
-                    placeholder="나에게 남기는 말이나, 함께한 사람에게 전하고 싶은 말을 적어보세요."
-                  />
-                </Field>
                 <Hint>
                   선택한 {chosen.length}개의 기록을 날짜순으로 담아요. 원래
                   기록은 바뀌지 않아요.
@@ -677,11 +815,37 @@ function BookEditor({ ownerId }: { ownerId: string }) {
               </>
             )}
 
+            {draft.step === "letter" && (
+              <LetterEditor>
+                <Field>
+                  이 공간에 남기는 말 <span>선택</span>
+                  <textarea
+                    rows={7}
+                    maxLength={JOURNAL_BOOK_LETTER_LIMIT}
+                    value={draft.letter}
+                    onChange={(event) =>
+                      update({ ...draft, letter: event.target.value })
+                    }
+                    placeholder={
+                      "그곳의 분위기나 함께했던 사람과의 시간을 자유롭게 적어보세요\n특별한 문장이 아니어도 괜찮습니다\n\n발길이 닿았던 자리와 그때 나눈 온기를 가볍게 정리해 보세요"
+                    }
+                  />
+                </Field>
+                <LetterPagePreview aria-label="이 공간에 남기는 말 페이지 미리보기">
+                  <LetterPageHeading>이 공간에 남기는 말</LetterPageHeading>
+                  <LetterPageBody $placeholder={!draft.letter.trim()}>
+                    {draft.letter.trim() ||
+                      "그곳의 분위기나 함께했던 사람과의 시간을 자유롭게 적어보세요\n특별한 문장이 아니어도 괜찮습니다\n\n발길이 닿았던 자리와 그때 나눈 온기를 가볍게 정리해 보세요"}
+                  </LetterPageBody>
+                  <LetterPageNumber aria-hidden="true">1</LetterPageNumber>
+                </LetterPagePreview>
+              </LetterEditor>
+            )}
+
             {draft.step === "preview" && (
               <>
                 <Hint>
-                  일부 이모지는 □로 표시될 수 있어요. 사진은 전체가 보이도록
-                  배치해요.
+                  일부 이모지는 □로 표시될 수 있어요.
                 </Hint>
                 {input ? (
                   <JournalBookPreview
@@ -723,6 +887,13 @@ function BookEditor({ ownerId }: { ownerId: string }) {
             </PrimaryButton>
           ) : draft.step === "details" ? (
             <PrimaryButton
+              disabled={!draft.title.trim() || missing.length > 0}
+              onClick={() => changeStep("letter")}
+            >
+              표지를 정하고 계속하기
+            </PrimaryButton>
+          ) : draft.step === "letter" ? (
+            <PrimaryButton
               disabled={!input}
               onClick={() => changeStep("preview")}
             >
@@ -733,9 +904,9 @@ function BookEditor({ ownerId }: { ownerId: string }) {
               <EditButton
                 type="button"
                 disabled={completing}
-                onClick={() => changeStep("details")}
+                onClick={() => changeStep("letter")}
               >
-                표지와 글 수정하기
+                남기는 말 수정하기
               </EditButton>
               <PrimaryButton
                 disabled={!input || !previewPdf?.approvalToken || completing}
@@ -868,6 +1039,10 @@ function formatBookDate(value: string) {
   }).format(new Date(value));
 }
 
+function compactBookDate(value: string) {
+  return journalBookDate(value).replaceAll("-", ".");
+}
+
 function recordBookActivity(action: ProductActivityType) {
   void recordProductActivity(action).catch(() => {
     // 분석 기록 실패가 기록집 제작·저장 흐름을 막지 않도록 한다.
@@ -983,7 +1158,7 @@ const StepLabel = styled.p`
 
 const StepRail = styled.div`
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(4, 1fr);
   gap: var(--space-2);
 
   span {
@@ -1105,6 +1280,16 @@ const SelectionSummary = styled.p`
     color: var(--color-brand-800);
     font-weight: 700;
   }
+`;
+
+const SelectionNotice = styled.p`
+  margin: 0 0 var(--space-4);
+  padding: var(--space-3) var(--space-4);
+  border-radius: 14px;
+  background: var(--color-brand-100);
+  color: var(--color-text-muted);
+  font-size: var(--font-size-100);
+  line-height: var(--line-height-body);
 `;
 
 const FilterSelectionNotice = styled.div`
@@ -1452,34 +1637,209 @@ const Field = styled.label`
   }
 `;
 
-const Covers = styled.div`
-  display: flex;
+const LetterEditor = styled.div`
+  display: grid;
   gap: var(--space-3);
-  overflow-x: auto;
-  padding: var(--space-2) 2px;
 `;
 
-const CoverButton = styled(BaseButton)<{ $active: boolean }>`
-  width: 76px;
-  height: 98px;
-  flex-shrink: 0;
-  padding: 0;
-  border: 2px solid
-    ${({ $active }) =>
-      $active ? "var(--color-brand-500)" : "transparent"};
-  border-radius: 14px;
-  background: var(--color-brand-200);
-  color: var(--color-brand-900);
+const LetterPagePreview = styled.div`
+  position: relative;
+  width: min(72%, 270px);
+  aspect-ratio: 148 / 210;
+  margin: 0 auto var(--space-5);
+  padding: 9.5% 9% 8%;
+  border: 1px solid var(--color-neutral-300);
+  border-radius: 12px;
+  background: var(--color-white);
+  box-sizing: border-box;
+  color: var(--color-text);
+`;
+
+const LetterPageHeading = styled.p`
+  margin: 0;
+  font-size: 10px;
+  font-weight: 500;
+  line-height: 1.4;
+`;
+
+const LetterPageBody = styled.p<{ $placeholder: boolean }>`
+  position: absolute;
+  top: 45%;
+  right: 9%;
+  left: 20%;
+  margin: 0;
+  max-height: 43%;
+  overflow: hidden;
+  color: ${({ $placeholder }) =>
+    $placeholder ? "var(--color-text-muted)" : "var(--color-text)"};
+  font-size: 9px;
+  font-weight: 400;
+  line-height: 1.8;
+  text-align: right;
+  white-space: pre-line;
+  transform: translateY(-50%);
+  overflow-wrap: anywhere;
+`;
+
+const LetterPageNumber = styled.span`
+  position: absolute;
+  right: 9%;
+  bottom: 6%;
+  font-size: 9px;
+  font-variant-numeric: tabular-nums;
+`;
+
+const CoverControls = styled.div`
+  display: grid;
+  gap: var(--space-4);
+  margin-top: var(--space-4);
+`;
+
+const CoverControl = styled.div`
+  display: grid;
+  gap: var(--space-2);
+`;
+
+const CoverControlLabel = styled.span`
+  color: var(--color-text-muted);
   font-size: var(--font-size-100);
   font-weight: 500;
-  cursor: pointer;
+`;
+
+const CoverChoices = styled.div`
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-2);
+`;
+
+const CoverChoiceButton = styled(BaseButton)<{ $active: boolean }>`
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  padding: 0 var(--space-3);
+  border: 1px solid
+    ${({ $active }) =>
+      $active ? "var(--color-brand-500)" : "var(--color-neutral-300)"};
+  border-radius: 12px;
+  background: ${({ $active }) =>
+    $active ? "var(--color-brand-100)" : "var(--color-white)"};
+  color: var(--color-text);
+  font-size: var(--font-size-100);
+  font-weight: ${({ $active }) => ($active ? 700 : 500)};
+`;
+
+const ColorSwatch = styled.span<{ $color: string }>`
+  width: 20px;
+  height: 20px;
+  flex: 0 0 auto;
+  border: 1px solid var(--color-neutral-300);
+  border-radius: 6px;
+  background: ${({ $color }) => $color};
+`;
+
+const CoverPreview = styled.div<{ $background: string }>`
+  position: relative;
+  width: min(42%, 148px);
+  aspect-ratio: 148 / 210;
   overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  margin: var(--space-5) auto 0;
+  padding: 14px 12px 10px;
+  border: 1px solid var(--color-neutral-300);
+  border-radius: 12px;
+  background: ${({ $background }) => $background};
+`;
+
+const CoverOptionHeader = styled.span<{ $color: string }>`
+  display: flex;
+  justify-content: space-between;
+  gap: 4px;
+  color: ${({ $color }) => $color};
+  font-size: 7px;
+  font-weight: 500;
+  line-height: 1.3;
+
+  span:last-child {
+    overflow: hidden;
+    text-align: right;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+`;
+
+const CoverOptionArtwork = styled.span<{ $placeholder: string }>`
+  width: 72%;
+  aspect-ratio: 1.25 / 1;
+  align-self: center;
+  overflow: hidden;
+  border-radius: 5px;
+  background: ${({ $placeholder }) => $placeholder};
 
   img {
     width: 100%;
     height: 100%;
     object-fit: cover;
   }
+`;
+
+const CoverOptionWordmark = styled.span<{ $color: string }>`
+  align-self: flex-end;
+  color: ${({ $color }) => $color};
+  font-size: 8px;
+  font-weight: 600;
+`;
+
+const PhotoPicker = styled.div`
+  display: grid;
+  gap: var(--space-2);
+  margin-top: var(--space-4);
+
+  > span {
+    color: var(--color-text-muted);
+    font-size: var(--font-size-100);
+  }
+`;
+
+const PhotoOptions = styled.div`
+  display: flex;
+  gap: var(--space-2);
+  overflow-x: auto;
+  padding: 2px;
+  scrollbar-width: none;
+
+  &::-webkit-scrollbar {
+    display: none;
+  }
+`;
+
+const PhotoButton = styled(BaseButton)<{ $active: boolean }>`
+  width: 58px;
+  height: 58px;
+  flex: 0 0 auto;
+  overflow: hidden;
+  padding: 0;
+  border: 2px solid
+    ${({ $active }) =>
+      $active ? "var(--color-brand-500)" : "transparent"};
+  border-radius: 12px;
+  background: var(--color-neutral-200);
+
+  img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+`;
+
+const CoverFallbackNote = styled.p`
+  margin-top: var(--space-3);
+  color: var(--color-text-muted);
+  font-size: var(--font-size-100);
+  line-height: var(--line-height-body);
 `;
 
 const PreviewActions = styled.div`

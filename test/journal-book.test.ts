@@ -4,7 +4,11 @@ import sharp from "sharp";
 import {
   createJournalBookFilename,
   emptyJournalBookDraft,
+  estimateJournalBookPhotoTextLines,
+  getJournalBookCoverPalette,
   isJournalBookDateInRange,
+  journalBookPhotoTextMayContinue,
+  journalBookCoverUsesImage,
   parseJournalBookDraft,
   parseJournalBookInput,
 } from "../src/shared/api/journalBook";
@@ -26,6 +30,7 @@ const input = {
   title: "함께 걸었던 봄",
   letter: "고마워요.",
   coverEntryId: null,
+  coverStyle: "white-plain" as const,
 };
 const entry: BookEntry = {
   id: "entry-1",
@@ -66,9 +71,27 @@ test("사진과 글 길이에 따라 기록집 지면을 고른다", () => {
     "long-text",
   );
   assert.equal(
-    getJournalBookEntryLayout({ image: Buffer.from([1]), content: "짧은 하루" }),
-    "photo",
+    getJournalBookEntryLayout({ image: Buffer.from([1]), content: "" }),
+    "photo-only",
   );
+  assert.equal(
+    getJournalBookEntryLayout({ image: Buffer.from([1]), content: "짧은 하루" }),
+    "photo-text",
+  );
+  assert.equal(
+    getJournalBookEntryLayout({
+      image: Buffer.from([1]),
+      content: "긴 하루 ".repeat(80),
+    }),
+    "photo-long-text",
+  );
+});
+
+test("A5 사진 지면의 본문 줄 수와 다음 쪽 연결 가능성을 계산한다", () => {
+  assert.equal(estimateJournalBookPhotoTextLines("짧은 기록이에요."), 1);
+  assert.ok(estimateJournalBookPhotoTextLines("한글 본문 ".repeat(32)) > 7);
+  assert.equal(journalBookPhotoTextMayContinue("한글 본문 ".repeat(8)), false);
+  assert.equal(journalBookPhotoTextMayContinue("한글 본문 ".repeat(48)), true);
 });
 
 test("기록집은 고른 기록에 속한 표지만 허용하고 입력 범위를 제한한다", () => {
@@ -112,6 +135,33 @@ test("기록집은 고른 기록에 속한 표지만 허용하고 입력 범위�
     parseJournalBookDraft({ ...emptyJournalBookDraft(), version: 2 }),
     null,
   );
+  assert.equal(
+    parseJournalBookDraft({ ...emptyJournalBookDraft(), step: "letter" })?.step,
+    "letter",
+  );
+  assert.equal(
+    parseJournalBookInput({ ...input, coverStyle: "unknown" }),
+    null,
+  );
+  assert.equal(
+    parseJournalBookInput({ ...input, coverStyle: undefined })?.coverStyle,
+    "white-plain",
+  );
+});
+
+test("기록집 표지 네 가지 조합의 배경과 이미지 대체색을 구분한다", () => {
+  assert.deepEqual(getJournalBookCoverPalette("white-image"), {
+    background: "#FFFFFF",
+    foreground: "#202020",
+    placeholder: "#EBF5D5",
+  });
+  assert.deepEqual(getJournalBookCoverPalette("green-image"), {
+    background: "#EBF5D5",
+    foreground: "#4098EE",
+    placeholder: "#8CBDEF",
+  });
+  assert.equal(journalBookCoverUsesImage("white-plain"), false);
+  assert.equal(journalBookCoverUsesImage("green-image"), true);
 });
 
 test("초안 저장 순서·사용자 분리·재진입·삭제와 저장 실패 복구", async () => {
@@ -309,17 +359,28 @@ test("한글·긴 본문·사진·편지·지원하지 않는 이모지를 실�
   });
   const document = await task.promise;
   assert.ok(document.numPages >= 5, "긴 글은 추가 페이지로 이어져야 한다");
+  const firstPage = await document.getPage(1);
+  const firstPageViewport = firstPage.getViewport({ scale: 1 });
+  assert.ok(
+    Math.abs(firstPageViewport.width - 419.53) < 0.1 &&
+      Math.abs(firstPageViewport.height - 595.28) < 0.1,
+    "기록집은 A5 세로 규격이어야 한다",
+  );
+  const pageContents: string[] = [];
   let contents = "";
   for (let n = 1; n <= document.numPages; n++) {
     const page = await document.getPage(n);
     const text = await page.getTextContent();
-    contents += text.items
+    const pageContent = text.items
       .map((item) => ("str" in item ? item.str : ""))
       .join("");
+    pageContents.push(pageContent);
+    contents += pageContent;
   }
   for (const expected of [
     input.title,
     "고마워요.",
+    "이 공간에 남기는 말",
     "마지막문장확인",
     "사진 없는 날",
     "□",
@@ -330,7 +391,15 @@ test("한글·긴 본문·사진·편지·지원하지 않는 이모지를 실�
     "이어지는 페이지에는 기록 제목이 반복되어야 한다",
   );
   assert.ok(contents.includes("계속"), "이어지는 페이지를 표시해야 한다");
-  assert.match(contents, /1 \/ \d+/, "다운로드 PDF에 쪽 번호가 있어야 한다");
+  assert.ok(
+    pageContents[1]?.includes("1"),
+    "다운로드 PDF에 단일 쪽 번호가 있어야 한다",
+  );
+  assert.equal(
+    pageContents.at(-1),
+    "오늘 가능한 만큼만,",
+    "뒷표지는 문구만 표시하고 쪽번호를 붙이지 않아야 한다",
+  );
   assert.ok(!contents.includes("미리보기"), "완성 PDF에는 미리보기 문구가 없어야 한다");
   await task.destroy();
 });

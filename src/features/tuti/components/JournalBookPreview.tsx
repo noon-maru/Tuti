@@ -370,7 +370,7 @@ const PreviewToolbar = styled.div`
   border: 1px solid var(--color-neutral-300);
   border-radius: 999px;
   background: var(--color-surface);
-  box-shadow: 0 8px 24px rgb(var(--color-black-rgb) / 0.06);
+  box-shadow: 0 3px 10px rgb(var(--color-black-rgb) / 0.035);
   backdrop-filter: blur(12px);
 `;
 
@@ -522,7 +522,6 @@ const Sheet = styled.div`
   aspect-ratio: 148 / 210;
   border: 1px solid var(--color-neutral-300);
   border-radius: 14px;
-  box-shadow: 0 8px 24px rgb(var(--color-black-rgb) / 0.08);
 
   canvas {
     display: block;

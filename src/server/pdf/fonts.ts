@@ -15,6 +15,10 @@ export function registerPdfFonts() {
       { src: path.join(fontDirectory, "Pretendard-Light.woff"), fontWeight: 300 },
       { src: path.join(fontDirectory, "Pretendard-Regular.woff"), fontWeight: 400 },
       { src: path.join(fontDirectory, "Pretendard-Medium.woff"), fontWeight: 500 },
+      {
+        src: path.join(fontDirectory, "Pretendard-SemiBold.woff"),
+        fontWeight: 600,
+      },
       { src: path.join(fontDirectory, "Pretendard-Bold.woff"), fontWeight: 700 },
     ],
   });
