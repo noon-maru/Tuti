@@ -27,6 +27,7 @@ export function IntakeScreen({
   onBack,
   onChoose,
   onNext,
+  resolvingLocation,
   onRestoreRecords,
   onSkip,
   auxiliaryConditions,
@@ -40,6 +41,7 @@ export function IntakeScreen({
   onBack: () => void;
   onChoose: (value: string) => void;
   onNext: () => void;
+  resolvingLocation?: boolean;
   onRestoreRecords: () => void;
   onSkip: () => void;
   auxiliaryConditions: {
@@ -113,10 +115,19 @@ export function IntakeScreen({
         />
       )}
       <QuestionActions>
-        <NextButton disabled={!selectedValue} onClick={onNext}>
-          {step === total - 1 ? "오늘의 공간 보기" : "다음"}
+        <NextButton
+          disabled={!selectedValue || resolvingLocation}
+          onClick={onNext}
+        >
+          {step === total - 1
+            ? resolvingLocation
+              ? "위치를 확인하고 있어요"
+              : "오늘의 공간 보기"
+            : "다음"}
         </NextButton>
-        <BrowseButton onClick={onSkip}>질문 없이 바로 둘러보기</BrowseButton>
+        <BrowseButton disabled={resolvingLocation} onClick={onSkip}>
+          질문 없이 바로 둘러보기
+        </BrowseButton>
       </QuestionActions>
     </Frame>
   );
