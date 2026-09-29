@@ -1,8 +1,9 @@
 # Android 빌드
 
 Tuti Android 앱은 Next.js 정적 산출물을 Capacitor 네이티브 프로젝트에 복사한 뒤
-Gradle로 APK 또는 AAB를 생성한다. NAS에는 Java와 Android SDK를 직접 설치하지
-않고 `Dockerfile.android`로 고정한 전용 빌더를 사용한다.
+Gradle로 APK 또는 AAB를 생성한다. 운영용 Release AAB는 NAS의 서비스 자원과
+분리하기 위해 GitHub Actions의 Linux runner에서 빌드한다. NAS의 전용 Docker
+빌더는 개발용 Debug APK와 비상시 로컬 검증에만 사용한다.
 
 ## 저장소에 포함하는 항목
 
@@ -106,7 +107,61 @@ sudo -n /usr/local/sbin/tuti-android-release-setup
 `tuti-upload-certificate.pem`은 Play Console에 업로드 키 등록 또는 재설정이 필요할
 때 사용한다. setup 명령은 기존 키를 발견하면 덮어쓰지 않고 중단한다.
 
-## Release AAB 빌드
+## GitHub Actions Release AAB 빌드
+
+운영용 서명 AAB는 `.github/workflows/android-release.yml`의 `Android Release`
+워크플로에서 생성한다. 워크플로는 자동 실행하지 않으며, GitHub 저장소의
+`Actions > Android Release > Run workflow`에서 빌드할 커밋 또는 태그를 선택해
+수동 실행한다.
+
+### GitHub Actions Secrets
+
+저장소의 `Settings > Secrets and variables > Actions`에 다음 Repository secret
+4개를 등록한다. 값은 로그나 저장소 파일에 기록하지 않는다.
+
+| Secret | 값 |
+| --- | --- |
+| `TUTI_ANDROID_KEYSTORE_BASE64` | `tuti-upload.jks`를 Base64 한 줄로 인코딩한 값 |
+| `TUTI_ANDROID_KEYSTORE_PASSWORD` | 기존 키스토어 비밀번호 |
+| `TUTI_ANDROID_KEY_ALIAS` | 기존 업로드 키 별칭 |
+| `TUTI_ANDROID_KEY_PASSWORD` | 기존 업로드 키 비밀번호 |
+
+NAS에 보관된 키스토어를 Secret 값으로 변환할 때는 원문을 터미널에 출력하지 않고
+권한이 제한된 임시 파일에 저장한 뒤 GitHub 입력란에 복사한다.
+
+```sh
+sudo sh -c 'umask 077; openssl base64 -A -in /var/services/homes/Tutiadmin/.tuti-secrets/android/tuti-upload.jks > /tmp/tuti-upload-jks.base64'
+```
+
+등록을 마친 뒤 임시 파일을 삭제한다.
+
+```sh
+sudo rm -f /tmp/tuti-upload-jks.base64
+```
+
+기존 `release.env`에 있는 나머지 세 값을 각 Secret에 동일하게 등록한다. 키스토어와
+비밀번호 원본은 기존 암호화 백업을 계속 유지한다.
+
+### 빌드 결과
+
+워크플로는 아래 작업을 수행한다.
+
+1. Node.js 24, pnpm 11.2.2, JDK 21과 Android API 36·NDK 29 설치
+2. 앱 버전 일치 여부 검증
+3. 운영 공개 설정으로 Next.js 정적 앱 및 Capacitor Android 프로젝트 생성
+4. 업로드 키로 Release AAB 서명
+5. JAR 서명 및 네이티브 디버그 기호 포함 여부 검증
+6. AAB, 선택적 `mapping.txt`, 빌드 정보와 SHA-256 체크섬을 Artifact로 보관
+
+성공한 실행의 `Artifacts`에서 `tuti-<versionName>-<versionCode>` 파일을
+내려받는다. GitHub Artifact 보관기간은 30일이므로 Play Console에 제출한 파일은
+기존 암호화 릴리스 보관소에도 영구 보관한다.
+
+## NAS 로컬 Release AAB 빌드
+
+GitHub Actions 장애 또는 워크플로 검증이 필요할 때만 기존 명령을 비상 수단으로
+사용한다. 운영 서비스와 동시에 실행하면 메모리·스왑 압박이 발생할 수 있으므로
+일상적인 릴리스 생성에는 사용하지 않는다.
 
 버전을 확인하고 서명된 AAB를 만드는 명령은 다음과 같다.
 
@@ -115,9 +170,9 @@ sudo -n /usr/local/sbin/tuti-android-release-build
 ```
 
 명령은 운영 웹 빌드, Capacitor 동기화, Gradle `bundleRelease`, JAR 서명 검증과
-SHA-256 출력을 순서대로 수행한다. 릴리스 빌드에는 R8 코드 최적화·난독화와
-미사용 리소스 축소를 적용하고, 네이티브 라이브러리에는 `SYMBOL_TABLE` 디버그
-기호 생성을 요청한다. 완성된 작업 파일은 아래에 생성된다.
+SHA-256 출력을 순서대로 수행한다. R8 코드 최적화·난독화와 미사용 리소스 축소는
+해당 버전의 `android/app/build.gradle` 설정을 따르며, 네이티브 라이브러리에는
+`SYMBOL_TABLE` 디버그 기호 생성을 요청한다. 완성된 작업 파일은 아래에 생성된다.
 
 ```text
 android/app/build/outputs/bundle/release/app-release.aab

@@ -1,0 +1,188 @@
+name: Android Release
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: android-release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Build signed AAB
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      CI: "true"
+      NEXT_TELEMETRY_DISABLED: "1"
+      NODE_OPTIONS: --max-old-space-size=4096
+      NEXT_PUBLIC_API_BASE_URL: https://tuti.today/api
+      NEXT_PUBLIC_ACCOUNT_AUTH_ENABLED: "true"
+      NEXT_PUBLIC_SOCIAL_OAUTH_ENABLED: "true"
+      NEXT_PUBLIC_APPLE_OAUTH_ENABLED: "true"
+      NEXT_PUBLIC_GOOGLE_OAUTH_ENABLED: "true"
+      NEXT_PUBLIC_KAKAO_OAUTH_ENABLED: "true"
+      NEXT_PUBLIC_JOURNAL_PUBLICATION_ENABLED: "true"
+      NEXT_PUBLIC_JOURNAL_PUBLICATION_AUDIENCE: public
+
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v5
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v6
+        with:
+          version: 11.2.2
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Set up Java
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Android build components
+        shell: bash
+        run: |
+          set -euo pipefail
+          yes | sdkmanager --licenses >/dev/null || true
+          sdkmanager \
+            "platform-tools" \
+            "platforms;android-36" \
+            "build-tools;35.0.0" \
+            "build-tools;36.0.0" \
+            "ndk;29.0.14206865"
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Restore Android signing key
+        shell: bash
+        env:
+          KEYSTORE_BASE64: ${{ secrets.TUTI_ANDROID_KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.TUTI_ANDROID_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.TUTI_ANDROID_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.TUTI_ANDROID_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+
+          for variable in \
+            KEYSTORE_BASE64 \
+            KEYSTORE_PASSWORD \
+            KEY_ALIAS \
+            KEY_PASSWORD
+          do
+            if [[ -z "${!variable:-}" ]]; then
+              echo "::error::Android release signing secret is missing: ${variable}"
+              exit 1
+            fi
+          done
+
+          keystore_path="${RUNNER_TEMP}/tuti-upload.jks"
+          printf '%s' "${KEYSTORE_BASE64}" | base64 --decode > "${keystore_path}"
+          chmod 600 "${keystore_path}"
+
+          keytool -list \
+            -keystore "${keystore_path}" \
+            -storepass "${KEYSTORE_PASSWORD}" \
+            -alias "${KEY_ALIAS}" \
+            >/dev/null
+
+          {
+            echo "TUTI_ANDROID_KEYSTORE_PATH=${keystore_path}"
+            echo "TUTI_ANDROID_KEYSTORE_PASSWORD=${KEYSTORE_PASSWORD}"
+            echo "TUTI_ANDROID_KEY_ALIAS=${KEY_ALIAS}"
+            echo "TUTI_ANDROID_KEY_PASSWORD=${KEY_PASSWORD}"
+          } >> "${GITHUB_ENV}"
+
+      - name: Verify native app versions
+        run: pnpm app:version:verify
+
+      - name: Build signed Android App Bundle
+        run: pnpm android:release
+
+      - name: Verify and collect release files
+        id: release
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          aab_path="android/app/build/outputs/bundle/release/app-release.aab"
+          if [[ ! -s "${aab_path}" ]]; then
+            echo "::error::Release AAB was not generated: ${aab_path}"
+            exit 1
+          fi
+
+          jarsigner -verify "${aab_path}" >/dev/null
+
+          bundle_listing="${RUNNER_TEMP}/tuti-aab-entries.txt"
+          jar tf "${aab_path}" > "${bundle_listing}"
+          native_library_count="$(grep -c '^base/lib/.*\.so$' "${bundle_listing}" || true)"
+          native_symbol_count="$(grep -c '^BUNDLE-METADATA/com\.android\.tools\.build\.debugsymbols/.*\.sym$' "${bundle_listing}" || true)"
+
+          if [[ "${native_library_count}" -gt 0 && "${native_symbol_count}" -eq 0 ]]; then
+            echo "::error::The AAB contains native libraries but no native debug symbols."
+            exit 1
+          fi
+
+          version_name="$(sed -n 's/^[[:space:]]*versionName[[:space:]]\+"\([^"]*\)".*$/\1/p' android/app/build.gradle | head -n 1)"
+          version_code="$(sed -n 's/^[[:space:]]*versionCode[[:space:]]\+\([0-9][0-9]*\).*$/\1/p' android/app/build.gradle | head -n 1)"
+          release_name="tuti-${version_name}-${version_code}"
+          release_directory="dist/android/${release_name}"
+
+          mkdir -p "${release_directory}"
+          cp "${aab_path}" "${release_directory}/${release_name}.aab"
+
+          mapping_path="android/app/build/outputs/mapping/release/mapping.txt"
+          if [[ -s "${mapping_path}" ]]; then
+            cp "${mapping_path}" "${release_directory}/mapping.txt"
+          fi
+
+          cat > "${release_directory}/build-info.txt" <<EOF
+          versionName=${version_name}
+          versionCode=${version_code}
+          commit=${GITHUB_SHA}
+          ref=${GITHUB_REF}
+          nativeLibraries=${native_library_count}
+          nativeDebugSymbols=${native_symbol_count}
+          EOF
+
+          (
+            cd "${release_directory}"
+            sha256sum ./* > checksums.sha256
+          )
+
+          echo "artifact_name=${release_name}" >> "${GITHUB_OUTPUT}"
+          echo "release_directory=${release_directory}" >> "${GITHUB_OUTPUT}"
+          echo "### Android ${version_name} (${version_code})" >> "${GITHUB_STEP_SUMMARY}"
+          echo "- Signed AAB verified" >> "${GITHUB_STEP_SUMMARY}"
+          echo "- Native libraries: ${native_library_count}" >> "${GITHUB_STEP_SUMMARY}"
+          echo "- Native debug symbols: ${native_symbol_count}" >> "${GITHUB_STEP_SUMMARY}"
+
+      - name: Upload Android release artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.release.outputs.artifact_name }}
+          path: ${{ steps.release.outputs.release_directory }}
+          if-no-files-found: error
+          retention-days: 30
+          compression-level: 0
+
+      - name: Remove signing key
+        if: always()
+        shell: bash
+        run: rm -f "${RUNNER_TEMP}/tuti-upload.jks"
