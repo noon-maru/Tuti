@@ -1,8 +1,9 @@
 # iOS 빌드
 
 Tuti iOS 앱은 Next.js 정적 산출물을 Capacitor 네이티브 프로젝트에 복사한 뒤
-Xcode로 빌드한다. Capacitor 8의 기본값인 Swift Package Manager를 사용하므로
-CocoaPods는 필요하지 않다.
+Xcode로 빌드한다. 운영용 Release Archive는 개인 Mac의 로그인 세션에 의존하지
+않도록 GitHub Actions의 macOS runner에서 생성한다. Capacitor 8의 기본값인
+Swift Package Manager를 사용하므로 CocoaPods는 필요하지 않다.
 
 ## 요구사항
 
@@ -20,7 +21,53 @@ sudo xcodebuild -runFirstLaunch
 xcodebuild -version
 ```
 
-## 새 Mac에서 App Store 빌드 준비
+## GitHub Actions Release Archive
+
+운영용 iOS Archive는 `.github/workflows/ios-release.yml`의 `iOS Release`
+워크플로에서 생성한다. 워크플로는 자동 실행하지 않으며, GitHub 저장소의
+`Actions > iOS Release > Run workflow`에서 빌드할 커밋 또는 태그를 선택해
+수동 실행한다.
+
+`upload_to_app_store`의 기본값은 `false`다. 이 모드는 자동 서명된 Archive와
+IPA만 생성하며 Apple에 빌드 번호를 등록하지 않는다. 서명 검증이 끝난 릴리스를
+App Store Connect에 올릴 때만 값을 `true`로 선택한다. 심사 제출은 자동화하지
+않고 App Store Connect에서 사람이 최종 확인한다.
+
+### GitHub Actions Secrets
+
+저장소의 `Settings > Secrets and variables > Actions`에 다음 Repository secret
+3개를 등록한다. Apple ID 비밀번호나 2단계 인증 코드는 사용하지 않는다.
+
+| Secret | 값 |
+| --- | --- |
+| `TUTI_ASC_KEY_ID` | App Store Connect API Key ID |
+| `TUTI_ASC_ISSUER_ID` | App Store Connect Issuer ID |
+| `TUTI_ASC_PRIVATE_KEY_BASE64` | `AuthKey_<KEY_ID>.p8`를 Base64 한 줄로 인코딩한 값 |
+
+`.p8` 파일은 App Store Connect에서 한 번만 내려받을 수 있다. 저장소에 커밋하거나
+로그에 출력하지 않고 별도 암호화 백업을 유지한다. 키를 잃어버렸거나 노출한 경우
+기존 키를 폐기하고 새 키와 Secret을 등록한다.
+
+### 빌드와 업로드 결과
+
+워크플로는 아래 작업을 수행한다.
+
+1. macOS 26과 Xcode 26.6, Node.js 24, pnpm 11.2.2 준비
+2. 앱 버전 일치 여부 검증과 운영 공개 설정 기반 Capacitor iOS 동기화
+3. App Store Connect API 키와 Xcode 자동 서명으로 Release Archive 생성
+4. 버전·빌드 번호·번들 ID와 앱 코드 서명 검증
+5. 기본 모드에서는 IPA 내보내기, 업로드 모드에서는 App Store Connect 전송
+6. Archive, 선택적 IPA, 빌드 로그, 빌드 정보와 SHA-256 체크섬을 Artifact로 보관
+
+성공한 실행의 `Artifacts`에서 `tuti-<version>-<buildNumber>` 파일을 내려받는다.
+GitHub Artifact 보관기간은 30일이므로 App Store에 제출한 Archive는 기존 암호화
+릴리스 보관소에도 영구 보관한다.
+
+동일한 빌드 번호를 App Store Connect에 두 번 업로드할 수 없다. 업로드 실행 전
+`CURRENT_PROJECT_VERSION`이 기존 업로드보다 큰지 확인한다. 워크플로는 저장소의
+버전과 빌드 번호를 그대로 사용하며 자동으로 증가시키지 않는다.
+
+## 새 Mac에서 로컬 App Store 빌드 준비
 
 저장소를 새로 내려받은 Mac에서는 서버 DB 비밀번호나 API 비밀키가 담긴
 `.env.production`을 복사하지 않는다. 앱 정적 번들에 공개되어도 되는 값만 별도
@@ -43,8 +90,7 @@ pnpm cap:open:ios
 target의 Team과 자동 서명을 확인하고 `Any iOS Device (arm64)` 대상으로
 `Product > Archive`를 실행한다.
 
-현재 프로젝트 버전은 `1.2.1 (11)`이다. 이번 1.2.1 변경은 Android 내부 진단용이며,
-iOS를 함께 출시할 필요는 없다. 이미 build 11을 App Store Connect에
+현재 프로젝트 버전은 `1.3.0 (11)`이다. 이미 build 11을 App Store Connect에
 업로드했다면 `CURRENT_PROJECT_VERSION`을 더 큰 정수로 올린 뒤 다시 Archive한다.
 인증서와 프로비저닝 프로파일은 Git으로 옮기지 않고 Xcode의 자동 서명으로 새
 Mac에 발급한다.
@@ -95,9 +141,10 @@ Capacitor CLI가 사용하는 `ios/App/App.xcodeproj`는 실제
 ## 실기기와 App Store 배포
 
 Simulator 빌드에는 Apple Developer 계정이나 코드 서명이 필요하지 않다. 실기기
-설치와 App Store 배포 전에는 Xcode의 Tuti target에서 Team을 선택하고 Signing &
-Capabilities를 설정해야 한다. App Store용 Archive 자동화는 배포 인증서와
-프로비저닝 방식이 확정된 뒤 추가한다.
+설치와 로컬 App Store 배포 전에는 Xcode의 Tuti target에서 Team을 선택하고
+Signing & Capabilities를 설정해야 한다. 일상적인 운영 Archive와 업로드는 GitHub
+Actions를 사용하고, 로컬 Xcode는 Actions 장애나 서명 문제를 진단하는 비상
+경로로 유지한다.
 
 첫 버전 출시와 정연한 팀으로의 앱 이전을 완료했다. 새 팀의 공급자 설정을
 사용해 Apple·Google·Kakao 로그인을 운영하며 서버의 `SOCIAL_OAUTH_ENABLED`와

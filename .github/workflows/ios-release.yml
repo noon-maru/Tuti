@@ -1,0 +1,256 @@
+name: iOS Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      upload_to_app_store:
+        description: Upload the validated archive to App Store Connect
+        required: true
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ios-release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Archive signed iOS app
+    runs-on: macos-26
+    timeout-minutes: 60
+    env:
+      CI: "true"
+      NEXT_TELEMETRY_DISABLED: "1"
+      NODE_OPTIONS: --max-old-space-size=4096
+      NEXT_PUBLIC_API_BASE_URL: https://tuti.today/api
+      NEXT_PUBLIC_ACCOUNT_AUTH_ENABLED: "true"
+      NEXT_PUBLIC_SOCIAL_OAUTH_ENABLED: "true"
+      NEXT_PUBLIC_APPLE_OAUTH_ENABLED: "true"
+      NEXT_PUBLIC_GOOGLE_OAUTH_ENABLED: "true"
+      NEXT_PUBLIC_KAKAO_OAUTH_ENABLED: "true"
+      NEXT_PUBLIC_JOURNAL_PUBLICATION_ENABLED: "true"
+      NEXT_PUBLIC_JOURNAL_PUBLICATION_AUDIENCE: public
+
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v5
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v6
+        with:
+          version: 11.2.2
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Select Xcode 26.6
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo xcode-select --switch /Applications/Xcode_26.6.app/Contents/Developer
+          xcodebuild -version
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Restore App Store Connect API key
+        shell: bash
+        env:
+          ASC_ISSUER_ID: ${{ secrets.TUTI_ASC_ISSUER_ID }}
+          ASC_KEY_ID: ${{ secrets.TUTI_ASC_KEY_ID }}
+          ASC_PRIVATE_KEY_BASE64: ${{ secrets.TUTI_ASC_PRIVATE_KEY_BASE64 }}
+        run: |
+          set -euo pipefail
+
+          for variable in ASC_ISSUER_ID ASC_KEY_ID ASC_PRIVATE_KEY_BASE64; do
+            if [[ -z "${!variable:-}" ]]; then
+              echo "::error::App Store Connect secret is missing: ${variable}"
+              exit 1
+            fi
+          done
+
+          key_directory="${RUNNER_TEMP}/app-store-connect-private-keys"
+          key_path="${key_directory}/AuthKey_${ASC_KEY_ID}.p8"
+          mkdir -p "${key_directory}"
+          printf '%s' "${ASC_PRIVATE_KEY_BASE64}" | base64 --decode > "${key_path}"
+          chmod 600 "${key_path}"
+
+          if ! grep -q -- 'BEGIN PRIVATE KEY' "${key_path}"; then
+            echo "::error::The App Store Connect private key is not a valid p8 key."
+            exit 1
+          fi
+
+          {
+            echo "TUTI_ASC_ISSUER_ID=${ASC_ISSUER_ID}"
+            echo "TUTI_ASC_KEY_ID=${ASC_KEY_ID}"
+            echo "TUTI_ASC_KEY_PATH=${key_path}"
+          } >> "${GITHUB_ENV}"
+
+      - name: Verify native app versions
+        run: pnpm app:version:verify
+
+      - name: Sync Capacitor iOS project
+        run: pnpm ios:sync
+
+      - name: Prepare release paths
+        id: release
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          version="$(node -p "require('./package.json').version")"
+          build_number="$(sed -n 's/^[[:space:]]*CURRENT_PROJECT_VERSION = \([^;]*\);/\1/p' ios/App/Tuti.xcodeproj/project.pbxproj | sort -u)"
+
+          if [[ ! "${build_number}" =~ ^[0-9]+$ ]]; then
+            echo "::error::Unable to determine a single numeric iOS build number: ${build_number}"
+            exit 1
+          fi
+
+          release_name="tuti-${version}-${build_number}"
+          release_directory="${GITHUB_WORKSPACE}/dist/ios/${release_name}"
+          archive_path="${RUNNER_TEMP}/${release_name}.xcarchive"
+          export_path="${RUNNER_TEMP}/${release_name}-export"
+
+          mkdir -p "${release_directory}"
+          {
+            echo "version=${version}"
+            echo "build_number=${build_number}"
+            echo "release_name=${release_name}"
+            echo "release_directory=${release_directory}"
+            echo "archive_path=${archive_path}"
+            echo "export_path=${export_path}"
+          } >> "${GITHUB_OUTPUT}"
+
+      - name: Archive signed iOS app
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          xcodebuild \
+            -project ios/App/Tuti.xcodeproj \
+            -scheme Tuti \
+            -configuration Release \
+            -destination 'generic/platform=iOS' \
+            -derivedDataPath "${RUNNER_TEMP}/DerivedData" \
+            -archivePath "${{ steps.release.outputs.archive_path }}" \
+            -allowProvisioningUpdates \
+            -authenticationKeyPath "${TUTI_ASC_KEY_PATH}" \
+            -authenticationKeyID "${TUTI_ASC_KEY_ID}" \
+            -authenticationKeyIssuerID "${TUTI_ASC_ISSUER_ID}" \
+            clean archive \
+            2>&1 | tee "${{ steps.release.outputs.release_directory }}/archive.log"
+
+      - name: Verify archive metadata and signature
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          archive_path="${{ steps.release.outputs.archive_path }}"
+          app_path="${archive_path}/Products/Applications/Tuti.app"
+          archive_version="$(/usr/libexec/PlistBuddy -c 'Print :ApplicationProperties:CFBundleShortVersionString' "${archive_path}/Info.plist")"
+          archive_build="$(/usr/libexec/PlistBuddy -c 'Print :ApplicationProperties:CFBundleVersion' "${archive_path}/Info.plist")"
+          archive_bundle_id="$(/usr/libexec/PlistBuddy -c 'Print :ApplicationProperties:CFBundleIdentifier' "${archive_path}/Info.plist")"
+
+          [[ "${archive_version}" == "${{ steps.release.outputs.version }}" ]]
+          [[ "${archive_build}" == "${{ steps.release.outputs.build_number }}" ]]
+          [[ "${archive_bundle_id}" == "com.noonmaru.tuti" ]]
+          codesign --verify --deep --strict --verbose=2 "${app_path}"
+
+      - name: Create export options
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if [[ "${{ inputs.upload_to_app_store }}" == "true" ]]; then
+            destination="upload"
+          else
+            destination="export"
+          fi
+
+          export_options="${RUNNER_TEMP}/ExportOptions.plist"
+          plutil -create xml1 "${export_options}"
+          plutil -insert destination -string "${destination}" "${export_options}"
+          plutil -insert distributionBundleIdentifier -string com.noonmaru.tuti "${export_options}"
+          plutil -insert manageAppVersionAndBuildNumber -bool NO "${export_options}"
+          plutil -insert method -string app-store-connect "${export_options}"
+          plutil -insert signingStyle -string automatic "${export_options}"
+          plutil -insert teamID -string HVVJ6BK8FY "${export_options}"
+          plutil -insert uploadSymbols -bool YES "${export_options}"
+          plutil -lint "${export_options}"
+          echo "TUTI_EXPORT_OPTIONS_PATH=${export_options}" >> "${GITHUB_ENV}"
+
+      - name: Export or upload App Store package
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          xcodebuild \
+            -exportArchive \
+            -archivePath "${{ steps.release.outputs.archive_path }}" \
+            -exportPath "${{ steps.release.outputs.export_path }}" \
+            -exportOptionsPlist "${TUTI_EXPORT_OPTIONS_PATH}" \
+            -allowProvisioningUpdates \
+            -authenticationKeyPath "${TUTI_ASC_KEY_PATH}" \
+            -authenticationKeyID "${TUTI_ASC_KEY_ID}" \
+            -authenticationKeyIssuerID "${TUTI_ASC_ISSUER_ID}" \
+            2>&1 | tee "${{ steps.release.outputs.release_directory }}/distribution.log"
+
+      - name: Collect release files
+        if: success()
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          release_directory="${{ steps.release.outputs.release_directory }}"
+          archive_path="${{ steps.release.outputs.archive_path }}"
+          export_path="${{ steps.release.outputs.export_path }}"
+
+          ditto -c -k --sequesterRsrc --keepParent \
+            "${archive_path}" \
+            "${release_directory}/${{ steps.release.outputs.release_name }}.xcarchive.zip"
+
+          find "${export_path}" -maxdepth 1 -type f \
+            \( -name '*.ipa' -o -name '*.plist' -o -name '*.log' \) \
+            -exec cp {} "${release_directory}/" \; 2>/dev/null || true
+
+          cat > "${release_directory}/build-info.txt" <<EOF
+          version=${{ steps.release.outputs.version }}
+          buildNumber=${{ steps.release.outputs.build_number }}
+          bundleIdentifier=com.noonmaru.tuti
+          commit=${GITHUB_SHA}
+          ref=${GITHUB_REF}
+          uploadedToAppStore=${{ inputs.upload_to_app_store }}
+          xcode=$(xcodebuild -version | tr '\n' ' ')
+          EOF
+
+          (
+            cd "${release_directory}"
+            shasum -a 256 ./* > checksums.sha256
+          )
+
+          echo "### iOS ${{ steps.release.outputs.version }} (${{ steps.release.outputs.build_number }})" >> "${GITHUB_STEP_SUMMARY}"
+          echo "- Signed archive verified" >> "${GITHUB_STEP_SUMMARY}"
+          echo "- App Store Connect upload: ${{ inputs.upload_to_app_store }}" >> "${GITHUB_STEP_SUMMARY}"
+
+      - name: Upload iOS release artifact
+        if: always() && steps.release.outputs.release_name != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.release.outputs.release_name }}
+          path: ${{ steps.release.outputs.release_directory }}
+          if-no-files-found: warn
+          retention-days: 30
+          compression-level: 0
+
+      - name: Remove App Store Connect credentials
+        if: always()
+        shell: bash
+        run: |
+          rm -f "${TUTI_ASC_KEY_PATH:-}" "${TUTI_EXPORT_OPTIONS_PATH:-}"
+          rm -rf "${RUNNER_TEMP}/app-store-connect-private-keys"
