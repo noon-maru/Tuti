@@ -78,10 +78,20 @@ jobs:
           key_directory="${RUNNER_TEMP}/app-store-connect-private-keys"
           key_path="${key_directory}/AuthKey_${ASC_KEY_ID}.p8"
           mkdir -p "${key_directory}"
-          printf '%s' "${ASC_PRIVATE_KEY_BASE64}" | base64 --decode > "${key_path}"
+
+          if [[ "${ASC_PRIVATE_KEY_BASE64}" == *"BEGIN PRIVATE KEY"* ]]; then
+            printf '%s\n' "${ASC_PRIVATE_KEY_BASE64}" > "${key_path}"
+          elif ! printf '%s' "${ASC_PRIVATE_KEY_BASE64}" \
+            | tr -d '[:space:]' \
+            | base64 --decode > "${key_path}"; then
+            echo "::error::The App Store Connect private key is neither PEM nor valid Base64."
+            exit 1
+          fi
+
           chmod 600 "${key_path}"
 
-          if ! grep -q -- 'BEGIN PRIVATE KEY' "${key_path}"; then
+          if ! grep -q -- 'BEGIN PRIVATE KEY' "${key_path}" \
+            || ! openssl pkey -in "${key_path}" -check -noout >/dev/null 2>&1; then
             echo "::error::The App Store Connect private key is not a valid p8 key."
             exit 1
           fi

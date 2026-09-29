@@ -42,7 +42,7 @@ App Store Connect에 올릴 때만 값을 `true`로 선택한다. 심사 제출�
 | --- | --- |
 | `TUTI_ASC_KEY_ID` | App Store Connect API Key ID |
 | `TUTI_ASC_ISSUER_ID` | App Store Connect Issuer ID |
-| `TUTI_ASC_PRIVATE_KEY_BASE64` | `AuthKey_<KEY_ID>.p8`를 Base64 한 줄로 인코딩한 값 |
+| `TUTI_ASC_PRIVATE_KEY_BASE64` | `AuthKey_<KEY_ID>.p8`를 Base64로 인코딩한 값(호환을 위해 PEM 원문도 허용) |
 
 `.p8` 파일은 App Store Connect에서 한 번만 내려받을 수 있다. 저장소에 커밋하거나
 로그에 출력하지 않고 별도 암호화 백업을 유지한다. 키를 잃어버렸거나 노출한 경우
