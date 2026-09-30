@@ -152,10 +152,18 @@ sudo rm -f /tmp/tuti-upload-jks.base64
 4. 업로드 키로 Release AAB 서명
 5. JAR 서명 및 네이티브 디버그 기호 포함 여부 검증
 6. AAB, 선택적 `mapping.txt`, 빌드 정보와 SHA-256 체크섬을 Artifact로 보관
+7. 실행 옵션이 켜져 있으면 Google Play 내부 테스트 트랙에 즉시 업로드
 
 성공한 실행의 `Artifacts`에서 `tuti-<versionName>-<versionCode>` 파일을
 내려받는다. GitHub Artifact 보관기간은 30일이므로 Play Console에 제출한 파일은
 기존 암호화 릴리스 보관소에도 영구 보관한다.
+
+워크플로 수동 실행 화면의 `Google Play 내부 테스트 트랙에 업로드`는 기본적으로
+활성화되어 있다. 단순히 AAB만 다시 만들고 싶을 때는 이 옵션을 해제한다. 자동
+업로드에는 `GOOGLE_PLAY_SERVICE_ACCOUNT_JSON` Repository Secret과 Play Console의
+Tuti 앱에 대한 테스트 트랙 출시 권한이 필요하다. Android 출시 노트는
+`distribution/google-play/whatsnew/whatsnew-ko-KR`에서 읽으므로 버전을 올릴 때
+`docs/release-notes.md`와 함께 갱신한다.
 
 ## NAS 로컬 Release AAB 빌드
 

@@ -2,6 +2,12 @@ name: Android Release
 
 on:
   workflow_dispatch:
+    inputs:
+      upload_to_play:
+        description: Google Play 내부 테스트 트랙에 업로드
+        required: true
+        type: boolean
+        default: true
 
 permissions:
   contents: read
@@ -31,6 +37,28 @@ jobs:
     steps:
       - name: Checkout source
         uses: actions/checkout@v5
+
+      - name: Verify Google Play credentials
+        if: ${{ inputs.upload_to_play }}
+        shell: bash
+        env:
+          GOOGLE_PLAY_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON }}
+        run: |
+          set -euo pipefail
+
+          if [[ -z "${GOOGLE_PLAY_SERVICE_ACCOUNT_JSON:-}" ]]; then
+            echo "::error::GitHub secret is missing: GOOGLE_PLAY_SERVICE_ACCOUNT_JSON"
+            exit 1
+          fi
+
+          if ! jq -e '
+            .type == "service_account" and
+            (.client_email | type == "string" and length > 0) and
+            (.private_key | type == "string" and length > 0)
+          ' >/dev/null <<< "${GOOGLE_PLAY_SERVICE_ACCOUNT_JSON}"; then
+            echo "::error::GOOGLE_PLAY_SERVICE_ACCOUNT_JSON is not a valid service-account key."
+            exit 1
+          fi
 
       - name: Set up pnpm
         uses: pnpm/action-setup@v6
@@ -170,6 +198,8 @@ jobs:
 
           echo "artifact_name=${release_name}" >> "${GITHUB_OUTPUT}"
           echo "release_directory=${release_directory}" >> "${GITHUB_OUTPUT}"
+          echo "version_name=${version_name}" >> "${GITHUB_OUTPUT}"
+          echo "version_code=${version_code}" >> "${GITHUB_OUTPUT}"
           echo "### Android ${version_name} (${version_code})" >> "${GITHUB_STEP_SUMMARY}"
           echo "- Signed AAB verified" >> "${GITHUB_STEP_SUMMARY}"
           echo "- Native libraries: ${native_library_count}" >> "${GITHUB_STEP_SUMMARY}"
@@ -183,6 +213,24 @@ jobs:
           if-no-files-found: error
           retention-days: 30
           compression-level: 0
+
+      - name: Upload to Google Play internal testing
+        if: ${{ inputs.upload_to_play }}
+        uses: r0adkll/upload-google-play@e738b9dd8f2476ea806d921b64aacd24f34515a5 # v1.1.5
+        with:
+          serviceAccountJsonPlainText: ${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON }}
+          packageName: com.noonmaru.tuti
+          releaseFiles: android/app/build/outputs/bundle/release/app-release.aab
+          tracks: internal
+          status: completed
+          releaseName: "Tuti ${{ steps.release.outputs.version_name }} (${{ steps.release.outputs.version_code }})"
+          whatsNewDirectory: distribution/google-play/whatsnew
+
+      - name: Record Google Play upload
+        if: ${{ inputs.upload_to_play }}
+        run: |
+          echo "- Google Play track: internal" >> "${GITHUB_STEP_SUMMARY}"
+          echo "- Release status: completed" >> "${GITHUB_STEP_SUMMARY}"
 
       - name: Remove signing key
         if: always()
