@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       upload_to_app_store:
-        description: Upload the validated archive to App Store Connect
+        description: 빌드한 앱을 App Store Connect에 업로드
         required: true
         default: false
         type: boolean
