@@ -1,0 +1,163 @@
+name: Web Production Deploy
+
+run-name: Web production ${{ github.sha }}${{ inputs.deploy_to_production && ' deploy' || ' build only' }}
+
+on:
+  workflow_dispatch:
+    inputs:
+      deploy_to_production:
+        description: 빌드한 이미지를 Tuti 운영 서버에 배포
+        required: true
+        type: boolean
+        default: false
+
+permissions:
+  contents: none
+
+concurrency:
+  group: web-production-deploy
+  cancel-in-progress: false
+
+env:
+  APP_IMAGE: ghcr.io/noon-maru/tuti-web
+  OPS_IMAGE: ghcr.io/noon-maru/tuti-ops
+
+jobs:
+  build:
+    name: Build production images
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Require the main branch
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ "${GITHUB_REF}" != "refs/heads/main" ]]; then
+            echo "::error::Production images can only be built from the main branch."
+            exit 1
+          fi
+
+      - name: Checkout source
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
+
+      - name: Sign in to GitHub Container Registry
+        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push web image
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
+        with:
+          context: .
+          target: runner
+          platforms: linux/amd64
+          push: true
+          provenance: false
+          tags: ${{ env.APP_IMAGE }}:${{ github.sha }}
+          labels: org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+          build-args: |
+            NEXT_PUBLIC_API_BASE_URL=https://tuti.today/api
+            NEXT_PUBLIC_ACCOUNT_AUTH_ENABLED=true
+            NEXT_PUBLIC_SOCIAL_OAUTH_ENABLED=true
+            NEXT_PUBLIC_APPLE_OAUTH_ENABLED=true
+            NEXT_PUBLIC_GOOGLE_OAUTH_ENABLED=true
+            NEXT_PUBLIC_KAKAO_OAUTH_ENABLED=true
+            NEXT_PUBLIC_JOURNAL_PUBLICATION_ENABLED=true
+            NEXT_PUBLIC_JOURNAL_PUBLICATION_AUDIENCE=public
+          cache-from: type=gha,scope=tuti-production-app
+          cache-to: type=gha,mode=max,scope=tuti-production-app
+
+      - name: Build and push operations image
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
+        with:
+          context: .
+          target: builder
+          platforms: linux/amd64
+          push: true
+          provenance: false
+          tags: ${{ env.OPS_IMAGE }}:${{ github.sha }}
+          labels: org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+          build-args: |
+            NEXT_PUBLIC_API_BASE_URL=https://tuti.today/api
+            NEXT_PUBLIC_ACCOUNT_AUTH_ENABLED=true
+            NEXT_PUBLIC_SOCIAL_OAUTH_ENABLED=true
+            NEXT_PUBLIC_APPLE_OAUTH_ENABLED=true
+            NEXT_PUBLIC_GOOGLE_OAUTH_ENABLED=true
+            NEXT_PUBLIC_KAKAO_OAUTH_ENABLED=true
+            NEXT_PUBLIC_JOURNAL_PUBLICATION_ENABLED=true
+            NEXT_PUBLIC_JOURNAL_PUBLICATION_AUDIENCE=public
+          cache-from: |
+            type=gha,scope=tuti-production-app
+            type=gha,scope=tuti-production-ops
+          cache-to: type=gha,mode=max,scope=tuti-production-ops
+
+      - name: Record image build
+        run: |
+          echo "### Web production image" >> "${GITHUB_STEP_SUMMARY}"
+          echo "- Commit: ${GITHUB_SHA}" >> "${GITHUB_STEP_SUMMARY}"
+          echo "- App: ${APP_IMAGE}:${GITHUB_SHA}" >> "${GITHUB_STEP_SUMMARY}"
+          echo "- Ops: ${OPS_IMAGE}:${GITHUB_SHA}" >> "${GITHUB_STEP_SUMMARY}"
+
+  deploy:
+    name: Deploy to Tuti production
+    if: ${{ inputs.deploy_to_production }}
+    needs: build
+    runs-on: [self-hosted, linux, x64, tuti-production]
+    timeout-minutes: 45
+    environment: production
+    permissions:
+      contents: read
+      packages: read
+    steps:
+      - name: Synchronize the production checkout
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          project_dir="/var/services/homes/Tutiadmin/source/Tuti"
+          if [[ "$(id -un)" != "Tutiadmin" ]]; then
+            echo "::error::The production runner must run as Tutiadmin."
+            exit 1
+          fi
+          if [[ -n "$(git -C "${project_dir}" status --porcelain)" ]]; then
+            echo "::error::The production checkout contains uncommitted changes."
+            exit 1
+          fi
+
+          git -C "${project_dir}" fetch --prune origin main
+          if ! git -C "${project_dir}" merge-base --is-ancestor "${GITHUB_SHA}" origin/main; then
+            echo "::error::The requested commit is not contained in origin/main."
+            exit 1
+          fi
+          git -C "${project_dir}" merge --ff-only "${GITHUB_SHA}"
+
+          deployed_revision="$(git -C "${project_dir}" rev-parse HEAD)"
+          if [[ "${deployed_revision}" != "${GITHUB_SHA}" ]]; then
+            echo "::error::The production checkout did not resolve to the requested commit."
+            exit 1
+          fi
+
+      - name: Pull and deploy the production images
+        shell: bash
+        env:
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          printf '%s' "${GHCR_TOKEN}" \
+            | sudo -n /usr/local/sbin/tuti-prod-deploy-remote \
+                "${GITHUB_SHA}" "${GITHUB_ACTOR}"
+
+      - name: Record production deployment
+        run: |
+          echo "### Web production deployment" >> "${GITHUB_STEP_SUMMARY}"
+          echo "- Commit: ${GITHUB_SHA}" >> "${GITHUB_STEP_SUMMARY}"
+          echo "- URL: https://tuti.today" >> "${GITHUB_STEP_SUMMARY}"
+          echo "- Backup, migration and readiness checks completed" >> "${GITHUB_STEP_SUMMARY}"

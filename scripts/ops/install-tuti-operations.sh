@@ -25,12 +25,20 @@ for operation in tuti-prod-deploy tuti-prod-rollback tuti-prod-backup tuti-prod-
     "/usr/local/sbin/$operation"
 done
 
+install -o root -g root -m 0750 \
+  "$source_dir/tuti-prod-deploy-remote" \
+  "/usr/local/sbin/tuti-prod-deploy-remote"
+
 sudoers_file="$(mktemp /etc/sudoers.d/tuti-operations.XXXXXX)"
 trap 'rm -f "$sudoers_file"' EXIT
 
 printf '%s\n' \
   "${admin_user} ALL=(root) NOPASSWD: /usr/local/sbin/tuti-prod-deploy, /usr/local/sbin/tuti-prod-rollback, /usr/local/sbin/tuti-prod-backup, /usr/local/sbin/tuti-prod-restore, /usr/local/sbin/tuti-prod-health, /usr/local/sbin/tuti-dev-refresh, /usr/local/sbin/tuti-dev-restart, /usr/local/sbin/tuti-dev-verify, /usr/local/sbin/tuti-docker-status, /usr/local/sbin/tuti-android-debug-build, /usr/local/sbin/tuti-android-release-setup, /usr/local/sbin/tuti-android-release-build, /usr/local/sbin/tuti-tourism-bootstrap, /usr/local/sbin/tuti-tourism-data-bootstrap, /usr/local/sbin/tuti-tourism-backup, /usr/local/sbin/tuti-contest-data-report, /usr/local/sbin/tuti-seoul-realtime-sync, /usr/local/sbin/tuti-place-candidate-refresh, /usr/local/sbin/tuti-crowd-forecast-refresh, /usr/local/sbin/tuti-crowd-estimate-refresh, /usr/local/sbin/tuti-tourism-timeseries-refresh, /usr/local/sbin/tuti-transport-hubs-sync, /usr/local/sbin/tuti-accommodations-sync, /usr/local/sbin/tuti-llm-profile-refresh, /usr/local/sbin/tuti-auth-retention-purge, /usr/local/sbin/tuti-location-commencement-evidence, /usr/local/sbin/tuti-location-compliance-purge, /usr/local/sbin/tuti-location-security-inspection, /usr/local/sbin/tuti-location-access-change, /usr/local/sbin/tuti-journal-publication-audit, /usr/local/sbin/tuti-journal-moderation-purge" \
   > "$sudoers_file"
+
+printf '%s\n' \
+  "${admin_user} ALL=(root) NOPASSWD: /usr/local/sbin/tuti-prod-deploy-remote" \
+  >> "$sudoers_file"
 
 chmod 0440 "$sudoers_file"
 sudoers_target="/etc/sudoers.d/tuti-operations"

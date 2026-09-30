@@ -47,6 +47,51 @@ sudo -n /usr/local/sbin/tuti-journal-moderation-purge
 호환되는 expand-contract 방식으로 작성한다.
 성공한 앱·ops 커밋 이미지는 각각 최근 5개까지 유지한다.
 
+## GitHub Actions 원격 운영 배포
+
+`.github/workflows/web-production-deploy.yml`은 수동 실행 전용이다. GitHub-hosted
+Linux runner가 `linux/amd64` 앱 이미지와 운영 작업 이미지를 만들고, 커밋 전체 SHA를
+태그로 사용해 GHCR의 `noon-maru/tuti-web`, `noon-maru/tuti-ops` 패키지에 저장한다.
+NAS에서는 빌드하지 않는다.
+
+`deploy_to_production`을 선택하지 않으면 이미지만 만들고 운영 서비스는 바꾸지 않는다.
+선택하면 `self-hosted`, `linux`, `x64`, `tuti-production` 라벨을 모두 가진 NAS
+runner가 정확히 같은 `main` 커밋으로 운영 체크아웃을 fast-forward한 뒤
+`tuti-prod-deploy-remote`를 호출한다. 이 명령은 임시 Docker 인증 폴더에서 GHCR
+이미지를 내려받고 기존 `tuti-prod-deploy`에 넘긴다. 따라서 이미지 내부 테스트,
+전체 백업, DB 마이그레이션, 교통 거점 동기화, 앱 교체, readiness 확인과 실패 시
+이전 앱 이미지 복귀 절차는 로컬 배포와 동일하다.
+
+최초 한 번 다음 준비가 필요하다.
+
+1. 저장소 `Settings → Actions → Runners → New self-hosted runner`에서 Linux x64
+   안내를 열고 NAS의 `Tutiadmin` 계정으로 전용 runner를 설치한다.
+2. runner 등록 시 이름은 `Tuti-production`, 사용자 지정 라벨은
+   `tuti-production`으로 지정한다. runner는 재부팅 후에도 시작되도록 서비스로
+   설치한다.
+3. 저장소 `Settings → Environments`에 `production` 환경을 만들고 배포 브랜치를
+   `main`으로 제한한다. 필요하면 승인 규칙도 여기에서 설정한다.
+4. 최신 운영 스크립트를 root 소유 명령으로 다시 설치한다.
+
+```sh
+sudo sh scripts/ops/install-tuti-operations.sh
+```
+
+GHCR 인증에는 실행마다 발급되는 저장소 `GITHUB_TOKEN`을 사용하므로 장기 PAT를 NAS나
+GitHub Secret에 추가하지 않는다. 인증 정보는 표준입력으로만 전달되고 배포가 끝나면
+임시 Docker 인증 폴더와 함께 제거된다. runner가 오프라인이면 이미지 빌드는 끝나도
+배포 job은 대기 상태로 남는다.
+
+이 저장소는 공개 저장소이므로 NAS runner를 일반 CI나 `pull_request` workflow에
+절대 배정하지 않는다. 운영 배포 job은 `workflow_dispatch`, `main`, `production`
+environment와 전용 `tuti-production` 라벨을 함께 유지한다. GitHub도 공개 저장소의
+self-hosted runner는 신뢰하지 않은 pull request가 호스트를 침해할 수 있어 주의를
+요구한다. 저장소를 비공개로 전환할 수 있다면 그 구성이 더 안전하다.
+
+실행 경로는 `Actions → Web Production Deploy → Run workflow`다. 반드시 `main`을
+선택하고 실제 운영 반영이 필요할 때만 `빌드한 이미지를 Tuti 운영 서버에 배포`를
+체크한다.
+
 `tuti-prod-rollback`은 마지막 성공 배포 직전의 앱 이미지로 되돌린다. DB 스키마는
 되돌리지 않으며 readiness 확인을 통과해야 성공한다. 롤백 가능한 이미지를 임의로
 정리하지 말고 적어도 직전 두 버전은 유지한다.

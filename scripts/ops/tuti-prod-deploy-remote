@@ -1,0 +1,65 @@
+#!/bin/sh
+
+set -eu
+
+PATH="/usr/local/bin:/usr/bin:/bin:/usr/local/sbin:/usr/sbin:/sbin:$PATH"
+export PATH
+
+project_dir="/var/services/homes/Tutiadmin/source/Tuti"
+revision="${1:-}"
+registry_user="${2:-}"
+
+case "$revision" in
+  *[!0-9a-f]* | "")
+    echo "배포할 Git 커밋 SHA가 올바르지 않습니다." >&2
+    exit 1
+    ;;
+esac
+
+if [ "${#revision}" -ne 40 ]; then
+  echo "배포할 Git 커밋은 전체 40자리 SHA여야 합니다." >&2
+  exit 1
+fi
+
+case "$registry_user" in
+  *[!A-Za-z0-9_-]* | "")
+    echo "GHCR 사용자 이름이 올바르지 않습니다." >&2
+    exit 1
+    ;;
+esac
+
+local_revision="$(git -C "$project_dir" rev-parse HEAD)"
+if [ "$local_revision" != "$revision" ]; then
+  echo "운영 저장소와 요청한 커밋이 일치하지 않습니다." >&2
+  echo "운영 저장소: $local_revision" >&2
+  echo "배포 요청: $revision" >&2
+  exit 1
+fi
+
+if [ -n "$(git -C "$project_dir" status --porcelain)" ]; then
+  echo "운영 저장소에 커밋되지 않은 변경사항이 있습니다." >&2
+  exit 1
+fi
+
+short_revision="$(printf '%s' "$revision" | cut -c1-12)"
+app_source_image="ghcr.io/noon-maru/tuti-web:$revision"
+ops_source_image="ghcr.io/noon-maru/tuti-ops:$revision"
+docker_config="$(mktemp -d /tmp/tuti-ghcr.XXXXXX)"
+
+cleanup() {
+  DOCKER_CONFIG="$docker_config" docker logout ghcr.io >/dev/null 2>&1 || true
+  rm -rf "$docker_config"
+}
+trap cleanup EXIT INT TERM
+
+export DOCKER_CONFIG="$docker_config"
+if ! docker login ghcr.io --username "$registry_user" --password-stdin; then
+  echo "GitHub Container Registry 인증에 실패했습니다." >&2
+  exit 1
+fi
+
+export TUTI_REMOTE_APP_IMAGE="ghcr.io/noon-maru/tuti-web:$revision"
+export TUTI_REMOTE_OPS_IMAGE="ghcr.io/noon-maru/tuti-ops:$revision"
+
+echo "원격 운영 배포 시작: $short_revision"
+/usr/local/sbin/tuti-prod-deploy
