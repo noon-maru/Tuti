@@ -52,6 +52,9 @@ const DETAIL_EXIT_FRAME_BUFFER = 34;
 const DETAIL_READING_DISTANCE = 180;
 const DETAIL_READING_SNAP_DURATION = 420;
 const DETAIL_READING_WHEEL_SETTLE = 120;
+const DETAIL_POINTER_INERTIA_FRICTION = 0.92;
+const DETAIL_POINTER_INERTIA_MIN_VELOCITY = 0.02;
+const DETAIL_POINTER_INERTIA_MAX_VELOCITY = 2.4;
 const DETAIL_HISTORY_STATE_KEY = "__tutiDetailOverlay";
 const PHOTO_VIEWER_DURATION = 560;
 const PHOTO_VIEWER_ZOOM = 1.65;
@@ -73,7 +76,10 @@ type DetailTouchGesture = {
 };
 
 type DetailPointerGesture = DetailTouchGesture & {
+  lastTimestamp: number;
+  lastY: number;
   pointerId: number;
+  velocity: number;
 };
 
 export function DetailScreen({
@@ -142,6 +148,7 @@ export function DetailScreen({
   const readingFrame = useRef<number | null>(null);
   const readingSnapFrame = useRef<number | null>(null);
   const readingWheelTimer = useRef<number | null>(null);
+  const pointerInertiaFrame = useRef<number | null>(null);
   const sheetRef = useRef<HTMLElement>(null);
   const heroRef = useRef<HTMLDivElement>(null);
   const summaryRef = useRef<HTMLDivElement>(null);
@@ -226,6 +233,9 @@ export function DetailScreen({
       if (readingWheelTimer.current !== null) {
         window.clearTimeout(readingWheelTimer.current);
       }
+      if (pointerInertiaFrame.current !== null) {
+        window.cancelAnimationFrame(pointerInertiaFrame.current);
+      }
     },
     [],
   );
@@ -309,9 +319,71 @@ export function DetailScreen({
     snapReadingProgress(targetProgress);
   };
 
+  const stopPointerInertia = () => {
+    if (pointerInertiaFrame.current === null) return;
+    window.cancelAnimationFrame(pointerInertiaFrame.current);
+    pointerInertiaFrame.current = null;
+  };
+
+  const startPointerInertia = (initialVelocity: number) => {
+    const description = descriptionRef.current;
+    if (
+      !description ||
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches
+    ) {
+      return;
+    }
+
+    stopPointerInertia();
+    let velocity = clamp(
+      initialVelocity,
+      -DETAIL_POINTER_INERTIA_MAX_VELOCITY,
+      DETAIL_POINTER_INERTIA_MAX_VELOCITY,
+    );
+    let previousTimestamp = performance.now();
+
+    const glide = (timestamp: number) => {
+      const elapsed = Math.min(32, Math.max(1, timestamp - previousTimestamp));
+      previousTimestamp = timestamp;
+
+      const previousScrollTop = description.scrollTop;
+      const maximumScrollTop = Math.max(
+        0,
+        description.scrollHeight - description.clientHeight,
+      );
+      const nextScrollTop = clamp(
+        previousScrollTop + velocity * elapsed,
+        0,
+        maximumScrollTop,
+      );
+      description.scrollTop = nextScrollTop;
+      velocity *= Math.pow(
+        DETAIL_POINTER_INERTIA_FRICTION,
+        elapsed / (1000 / 60),
+      );
+
+      const reachedBoundary =
+        (nextScrollTop <= 0 && velocity < 0) ||
+        (nextScrollTop >= maximumScrollTop && velocity > 0);
+      if (
+        reachedBoundary ||
+        Math.abs(velocity) < DETAIL_POINTER_INERTIA_MIN_VELOCITY
+      ) {
+        pointerInertiaFrame.current = null;
+        return;
+      }
+
+      pointerInertiaFrame.current = window.requestAnimationFrame(glide);
+    };
+
+    pointerInertiaFrame.current = window.requestAnimationFrame(glide);
+  };
+
   const handleSheetWheel = (event: WheelEvent<HTMLElement>) => {
     const description = descriptionRef.current;
     if (!description) return;
+
+    stopPointerInertia();
 
     const currentProgress = readingProgressRef.current;
     const shouldExpand = event.deltaY > 0 && currentProgress < 1;
@@ -321,7 +393,6 @@ export function DetailScreen({
       description.scrollTop <= 0;
 
     if (shouldExpand || shouldCollapse) {
-      event.preventDefault();
       description.scrollTop = 0;
       updateReadingProgress(
         currentProgress + event.deltaY / DETAIL_READING_DISTANCE,
@@ -343,12 +414,13 @@ export function DetailScreen({
       event.target instanceof Node &&
       !description.contains(event.target)
     ) {
-      event.preventDefault();
       description.scrollTop += event.deltaY;
     }
   };
 
   const handleSheetTouchStart = (event: TouchEvent<HTMLElement>) => {
+    stopPointerInertia();
+
     if (event.touches.length !== 1 || isDetailInteractiveTarget(event.target)) {
       detailTouchGesture.current = null;
       return;
@@ -383,7 +455,6 @@ export function DetailScreen({
         return;
       }
 
-      event.preventDefault();
       event.stopPropagation();
       description.scrollTop = 0;
       updateReadingProgress(
@@ -393,7 +464,6 @@ export function DetailScreen({
     }
 
     if (scrollDelta < 0 && gesture.descriptionScrollTop <= 0) {
-      event.preventDefault();
       event.stopPropagation();
       description.scrollTop = 0;
       updateReadingProgress(1 + scrollDelta / DETAIL_READING_DISTANCE);
@@ -401,7 +471,6 @@ export function DetailScreen({
     }
 
     if (!gesture.startedInDescription) {
-      event.preventDefault();
       event.stopPropagation();
       description.scrollTop = Math.max(
         0,
@@ -425,6 +494,8 @@ export function DetailScreen({
   };
 
   const handleSheetPointerDown = (event: PointerEvent<HTMLElement>) => {
+    stopPointerInertia();
+
     if (
       !event.isPrimary ||
       event.button !== 0 ||
@@ -443,11 +514,14 @@ export function DetailScreen({
     event.currentTarget.setPointerCapture(event.pointerId);
     detailPointerGesture.current = {
       descriptionScrollTop: description.scrollTop,
+      lastTimestamp: performance.now(),
+      lastY: event.clientY,
       pointerId: event.pointerId,
       readingProgress: readingProgressRef.current,
       startedInDescription:
         event.target instanceof Node && description.contains(event.target),
       startY: event.clientY,
+      velocity: 0,
     };
   };
 
@@ -460,6 +534,12 @@ export function DetailScreen({
 
     event.preventDefault();
     event.stopPropagation();
+    const timestamp = performance.now();
+    const elapsed = Math.max(1, timestamp - gesture.lastTimestamp);
+    const instantVelocity = (gesture.lastY - event.clientY) / elapsed;
+    gesture.velocity = lerp(gesture.velocity, instantVelocity, 0.45);
+    gesture.lastTimestamp = timestamp;
+    gesture.lastY = event.clientY;
     const scrollDelta = gesture.startY - event.clientY;
 
     if (gesture.readingProgress < 1) {
@@ -490,9 +570,7 @@ export function DetailScreen({
     if (!gesture || gesture.pointerId !== event.pointerId) return;
 
     event.stopPropagation();
-    const scrollDelta = event.clientY
-      ? gesture.startY - event.clientY
-      : 0;
+    const scrollDelta = gesture.startY - event.clientY;
     const currentProgress = readingProgressRef.current;
 
     if (
@@ -506,6 +584,23 @@ export function DetailScreen({
       settleReadingProgress(
         !cancelled && Math.abs(scrollDelta) >= 12 ? scrollDelta : 0,
       );
+    } else if (!cancelled && gesture.readingProgress >= 1) {
+      const idleDuration = Math.max(
+        0,
+        performance.now() - gesture.lastTimestamp,
+      );
+      const releaseVelocity =
+        gesture.velocity *
+        Math.pow(
+          DETAIL_POINTER_INERTIA_FRICTION,
+          idleDuration / (1000 / 60),
+        );
+      if (
+        Math.abs(releaseVelocity) >=
+        DETAIL_POINTER_INERTIA_MIN_VELOCITY
+      ) {
+        startPointerInertia(releaseVelocity);
+      }
     }
 
     if (event.currentTarget.hasPointerCapture(event.pointerId)) {
