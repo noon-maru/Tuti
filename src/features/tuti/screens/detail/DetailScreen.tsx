@@ -15,6 +15,9 @@ import {
   useLayoutEffect,
   useRef,
   useState,
+  type PointerEvent,
+  type TouchEvent,
+  type WheelEvent,
 } from "react";
 import { BaseButton } from "@/features/tuti/components/buttons";
 import { ContextMenu } from "@/features/tuti/components/ContextMenu";
@@ -44,10 +47,32 @@ import { fluidByViewportHeight } from "@/styles/tokens";
 
 const DETAIL_EXIT_DURATION = 480;
 const DETAIL_EXIT_FRAME_BUFFER = 34;
+const DETAIL_READING_DISTANCE = 180;
+const DETAIL_READING_SNAP_DURATION = 420;
+const DETAIL_READING_WHEEL_SETTLE = 120;
 const DETAIL_HISTORY_STATE_KEY = "__tutiDetailOverlay";
 const PHOTO_VIEWER_DURATION = 560;
 const PHOTO_VIEWER_ZOOM = 1.65;
 const PHOTO_DRAG_THRESHOLD = 4;
+
+type DetailLayoutMetrics = {
+  contentCollapseDistance: number;
+  heroHeight: number;
+  heroLeft: number;
+  heroTop: number;
+  heroWidth: number;
+};
+
+type DetailTouchGesture = {
+  descriptionScrollTop: number;
+  readingProgress: number;
+  startedInDescription: boolean;
+  startY: number;
+};
+
+type DetailPointerGesture = DetailTouchGesture & {
+  pointerId: number;
+};
 
 export function DetailScreen({
   place,
@@ -94,6 +119,20 @@ export function DetailScreen({
   const [selectedPhoto, setSelectedPhoto] =
     useState<TourismPlaceDetailImage | null>(null);
   const [shareOpen, setShareOpen] = useState(false);
+  const [readingProgress, setReadingProgress] = useState(0);
+  const [layoutMetrics, setLayoutMetrics] =
+    useState<DetailLayoutMetrics | null>(null);
+  const readingProgressRef = useRef(0);
+  const requestedReadingProgress = useRef(0);
+  const readingFrame = useRef<number | null>(null);
+  const readingSnapFrame = useRef<number | null>(null);
+  const readingWheelTimer = useRef<number | null>(null);
+  const sheetRef = useRef<HTMLElement>(null);
+  const heroRef = useRef<HTMLDivElement>(null);
+  const summaryRef = useRef<HTMLDivElement>(null);
+  const descriptionRef = useRef<HTMLDivElement>(null);
+  const detailTouchGesture = useRef<DetailTouchGesture | null>(null);
+  const detailPointerGesture = useRef<DetailPointerGesture | null>(null);
   const ownsHistoryEntry = useRef(false);
   const closingFromHistory = useRef(false);
   const ignoreNextPopState = useRef(false);
@@ -125,6 +164,340 @@ export function DetailScreen({
     finishCloseRef.current = finishClose;
     requestExitRef.current = swipeBack.requestExit;
   });
+
+  useLayoutEffect(() => {
+    const sheet = sheetRef.current;
+    const hero = heroRef.current;
+    const summary = summaryRef.current;
+    if (!sheet || !hero || !summary) return;
+
+    const measureCollapsedLayout = () => {
+      if (readingProgressRef.current > 0.001) return;
+
+      const sheetRect = sheet.getBoundingClientRect();
+      const heroRect = hero.getBoundingClientRect();
+      const summaryRect = summary.getBoundingClientRect();
+
+      setLayoutMetrics({
+        contentCollapseDistance: Math.max(
+          0,
+          summaryRect.top - sheetRect.top - 28,
+        ),
+        heroHeight: heroRect.height,
+        heroLeft: heroRect.left - sheetRect.left,
+        heroTop: heroRect.top - sheetRect.top,
+        heroWidth: heroRect.width,
+      });
+    };
+
+    const frame = window.requestAnimationFrame(measureCollapsedLayout);
+    const resizeObserver = new ResizeObserver(measureCollapsedLayout);
+    resizeObserver.observe(sheet);
+
+    return () => {
+      window.cancelAnimationFrame(frame);
+      resizeObserver.disconnect();
+    };
+  }, [place.id]);
+
+  useEffect(
+    () => () => {
+      if (readingFrame.current !== null) {
+        window.cancelAnimationFrame(readingFrame.current);
+      }
+      if (readingSnapFrame.current !== null) {
+        window.cancelAnimationFrame(readingSnapFrame.current);
+      }
+      if (readingWheelTimer.current !== null) {
+        window.clearTimeout(readingWheelTimer.current);
+      }
+    },
+    [],
+  );
+
+  const updateReadingProgress = (nextProgress: number) => {
+    if (readingSnapFrame.current !== null) {
+      window.cancelAnimationFrame(readingSnapFrame.current);
+      readingSnapFrame.current = null;
+    }
+
+    const clampedProgress = clamp(nextProgress, 0, 1);
+    readingProgressRef.current = clampedProgress;
+    requestedReadingProgress.current = clampedProgress;
+
+    if (readingFrame.current !== null) return;
+
+    readingFrame.current = window.requestAnimationFrame(() => {
+      const nextProgress = requestedReadingProgress.current;
+      setReadingProgress(nextProgress);
+      readingFrame.current = null;
+    });
+  };
+
+  const snapReadingProgress = (targetProgress: 0 | 1) => {
+    if (readingFrame.current !== null) {
+      window.cancelAnimationFrame(readingFrame.current);
+      readingFrame.current = null;
+    }
+    if (readingSnapFrame.current !== null) {
+      window.cancelAnimationFrame(readingSnapFrame.current);
+    }
+
+    const startProgress = readingProgressRef.current;
+    const distance = Math.abs(targetProgress - startProgress);
+    if (distance < 0.001) {
+      readingProgressRef.current = targetProgress;
+      requestedReadingProgress.current = targetProgress;
+      setReadingProgress(targetProgress);
+      readingSnapFrame.current = null;
+      return;
+    }
+
+    const reduceMotion = window.matchMedia(
+      "(prefers-reduced-motion: reduce)",
+    ).matches;
+    const duration = reduceMotion
+      ? 1
+      : Math.max(220, DETAIL_READING_SNAP_DURATION * distance);
+    const startedAt = performance.now();
+
+    const animate = (timestamp: number) => {
+      const elapsed = clamp((timestamp - startedAt) / duration, 0, 1);
+      const eased = 1 - Math.pow(1 - elapsed, 3);
+      const nextProgress = lerp(startProgress, targetProgress, eased);
+
+      readingProgressRef.current = nextProgress;
+      requestedReadingProgress.current = nextProgress;
+      setReadingProgress(nextProgress);
+
+      if (elapsed < 1) {
+        readingSnapFrame.current = window.requestAnimationFrame(animate);
+        return;
+      }
+
+      readingSnapFrame.current = null;
+    };
+
+    readingSnapFrame.current = window.requestAnimationFrame(animate);
+  };
+
+  const settleReadingProgress = (direction: number) => {
+    const currentProgress = readingProgressRef.current;
+    const targetProgress =
+      direction > 0
+        ? 1
+        : direction < 0
+          ? 0
+          : currentProgress >= 0.5
+            ? 1
+            : 0;
+    snapReadingProgress(targetProgress);
+  };
+
+  const handleSheetWheel = (event: WheelEvent<HTMLElement>) => {
+    const description = descriptionRef.current;
+    if (!description) return;
+
+    const currentProgress = readingProgressRef.current;
+    const shouldExpand = event.deltaY > 0 && currentProgress < 1;
+    const shouldCollapse =
+      event.deltaY < 0 &&
+      currentProgress > 0 &&
+      description.scrollTop <= 0;
+
+    if (shouldExpand || shouldCollapse) {
+      event.preventDefault();
+      description.scrollTop = 0;
+      updateReadingProgress(
+        currentProgress + event.deltaY / DETAIL_READING_DISTANCE,
+      );
+
+      if (readingWheelTimer.current !== null) {
+        window.clearTimeout(readingWheelTimer.current);
+      }
+      const direction = event.deltaY;
+      readingWheelTimer.current = window.setTimeout(() => {
+        settleReadingProgress(direction);
+        readingWheelTimer.current = null;
+      }, DETAIL_READING_WHEEL_SETTLE);
+      return;
+    }
+
+    if (
+      currentProgress >= 1 &&
+      event.target instanceof Node &&
+      !description.contains(event.target)
+    ) {
+      event.preventDefault();
+      description.scrollTop += event.deltaY;
+    }
+  };
+
+  const handleSheetTouchStart = (event: TouchEvent<HTMLElement>) => {
+    if (event.touches.length !== 1 || isDetailInteractiveTarget(event.target)) {
+      detailTouchGesture.current = null;
+      return;
+    }
+
+    const description = descriptionRef.current;
+    if (!description) return;
+
+    const progress = readingProgressRef.current;
+    detailTouchGesture.current = {
+      descriptionScrollTop: description.scrollTop,
+      readingProgress: progress,
+      startedInDescription:
+        event.target instanceof Node && description.contains(event.target),
+      startY: event.touches[0].clientY,
+    };
+
+    if (progress > 0) {
+      event.stopPropagation();
+    }
+  };
+
+  const handleSheetTouchMove = (event: TouchEvent<HTMLElement>) => {
+    const gesture = detailTouchGesture.current;
+    const description = descriptionRef.current;
+    if (!gesture || !description || event.touches.length !== 1) return;
+
+    const scrollDelta = gesture.startY - event.touches[0].clientY;
+
+    if (gesture.readingProgress < 1) {
+      if (gesture.readingProgress <= 0 && scrollDelta < 0) {
+        return;
+      }
+
+      event.preventDefault();
+      event.stopPropagation();
+      description.scrollTop = 0;
+      updateReadingProgress(
+        gesture.readingProgress + scrollDelta / DETAIL_READING_DISTANCE,
+      );
+      return;
+    }
+
+    if (scrollDelta < 0 && gesture.descriptionScrollTop <= 0) {
+      event.preventDefault();
+      event.stopPropagation();
+      description.scrollTop = 0;
+      updateReadingProgress(1 + scrollDelta / DETAIL_READING_DISTANCE);
+      return;
+    }
+
+    if (!gesture.startedInDescription) {
+      event.preventDefault();
+      event.stopPropagation();
+      description.scrollTop = Math.max(
+        0,
+        gesture.descriptionScrollTop + scrollDelta,
+      );
+    }
+  };
+
+  const handleSheetTouchEnd = (event: TouchEvent<HTMLElement>) => {
+    const gesture = detailTouchGesture.current;
+    if ((gesture?.readingProgress ?? 0) > 0) {
+      event.stopPropagation();
+    }
+
+    if (gesture && readingProgressRef.current < 1) {
+      const endY = event.changedTouches[0]?.clientY ?? gesture.startY;
+      const scrollDelta = gesture.startY - endY;
+      settleReadingProgress(Math.abs(scrollDelta) >= 12 ? scrollDelta : 0);
+    }
+    detailTouchGesture.current = null;
+  };
+
+  const handleSheetPointerDown = (event: PointerEvent<HTMLElement>) => {
+    if (
+      !event.isPrimary ||
+      event.button !== 0 ||
+      event.pointerType === "touch" ||
+      isDetailInteractiveTarget(event.target)
+    ) {
+      detailPointerGesture.current = null;
+      return;
+    }
+
+    const description = descriptionRef.current;
+    if (!description) return;
+
+    event.preventDefault();
+    event.stopPropagation();
+    event.currentTarget.setPointerCapture(event.pointerId);
+    detailPointerGesture.current = {
+      descriptionScrollTop: description.scrollTop,
+      pointerId: event.pointerId,
+      readingProgress: readingProgressRef.current,
+      startedInDescription:
+        event.target instanceof Node && description.contains(event.target),
+      startY: event.clientY,
+    };
+  };
+
+  const handleSheetPointerMove = (event: PointerEvent<HTMLElement>) => {
+    const gesture = detailPointerGesture.current;
+    const description = descriptionRef.current;
+    if (!gesture || gesture.pointerId !== event.pointerId || !description) {
+      return;
+    }
+
+    event.preventDefault();
+    event.stopPropagation();
+    const scrollDelta = gesture.startY - event.clientY;
+
+    if (gesture.readingProgress < 1) {
+      description.scrollTop = 0;
+      updateReadingProgress(
+        gesture.readingProgress + scrollDelta / DETAIL_READING_DISTANCE,
+      );
+      return;
+    }
+
+    if (scrollDelta < 0 && gesture.descriptionScrollTop <= 0) {
+      description.scrollTop = 0;
+      updateReadingProgress(1 + scrollDelta / DETAIL_READING_DISTANCE);
+      return;
+    }
+
+    description.scrollTop = Math.max(
+      0,
+      gesture.descriptionScrollTop + scrollDelta,
+    );
+  };
+
+  const finishSheetPointerGesture = (
+    event: PointerEvent<HTMLElement>,
+    cancelled = false,
+  ) => {
+    const gesture = detailPointerGesture.current;
+    if (!gesture || gesture.pointerId !== event.pointerId) return;
+
+    event.stopPropagation();
+    const scrollDelta = event.clientY
+      ? gesture.startY - event.clientY
+      : 0;
+    const currentProgress = readingProgressRef.current;
+
+    if (
+      !cancelled &&
+      gesture.readingProgress <= 0 &&
+      currentProgress <= 0 &&
+      scrollDelta <= -64
+    ) {
+      swipeBack.requestBack();
+    } else if (currentProgress < 1) {
+      settleReadingProgress(
+        !cancelled && Math.abs(scrollDelta) >= 12 ? scrollDelta : 0,
+      );
+    }
+
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    }
+    detailPointerGesture.current = null;
+  };
 
   useLayoutEffect(() => {
     if (!historyActive) return;
@@ -185,64 +558,89 @@ export function DetailScreen({
         $isDragging={swipeBack.isDragging}
       />
       <Sheet
+        ref={sheetRef}
+        data-scroll-region
         $revealProgress={revealProgress}
         $dragY={swipeBack.dragY}
         $isDragging={swipeBack.isDragging}
+        $readingProgress={readingProgress}
+        onPointerCancel={(event) => finishSheetPointerGesture(event, true)}
+        onPointerDown={handleSheetPointerDown}
+        onPointerMove={handleSheetPointerMove}
+        onPointerUp={finishSheetPointerGesture}
+        onTouchCancel={handleSheetTouchEnd}
+        onTouchEnd={handleSheetTouchEnd}
+        onTouchMove={handleSheetTouchMove}
+        onTouchStart={handleSheetTouchStart}
+        onWheel={handleSheetWheel}
       >
+        <SheetHandle aria-hidden="true" />
         <HeroImage
+          ref={heroRef}
           role="img"
           $image={place.image}
           $revealProgress={revealProgress}
+          $layoutMetrics={layoutMetrics}
+          $readingProgress={readingProgress}
           aria-label={`${place.name} 풍경`}
         />
-        <Content $revealProgress={revealProgress}>
-          <TopLine>
-            <LocationLabel>
-              <TutiPlaceIcon $size="small" aria-hidden="true" />
-              <span>{locationLabel ?? "오늘 고른 공간"}</span>
-            </LocationLabel>
-            <ContextMenu
-              label={`${place.name} 메뉴`}
-              items={[
-                ...(onToggleSavedForLater
-                  ? [
-                      {
-                        label: savedForLater
-                          ? "다음에 갈 공간에서 빼기"
-                          : "다음에 갈 공간에 추가",
-                        onSelect: onToggleSavedForLater,
-                      },
-                    ]
-                  : []),
-                {
-                  label: "장소 공유하기",
-                  onSelect: () => setShareOpen(true),
-                },
-                ...(showBackMenuItem
-                  ? [
-                      {
-                        label: backLabel,
-                        onSelect: closeFromBackdrop,
-                      },
-                    ]
-                  : []),
-              ]}
-            />
-          </TopLine>
+        <Content
+          $collapseDistance={layoutMetrics?.contentCollapseDistance ?? 0}
+          $revealProgress={revealProgress}
+          $readingProgress={readingProgress}
+        >
+          <Summary ref={summaryRef} $readingProgress={readingProgress}>
+            <TopLine>
+              <LocationLabel>
+                <TutiPlaceIcon $size="small" aria-hidden="true" />
+                <span>{locationLabel ?? "오늘 고른 공간"}</span>
+              </LocationLabel>
+              <ContextMenu
+                label={`${place.name} 메뉴`}
+                items={[
+                  ...(onToggleSavedForLater
+                    ? [
+                        {
+                          label: savedForLater
+                            ? "다음에 갈 공간에서 빼기"
+                            : "다음에 갈 공간에 추가",
+                          onSelect: onToggleSavedForLater,
+                        },
+                      ]
+                    : []),
+                  {
+                    label: "장소 공유하기",
+                    onSelect: () => setShareOpen(true),
+                  },
+                  ...(showBackMenuItem
+                    ? [
+                        {
+                          label: backLabel,
+                          onSelect: closeFromBackdrop,
+                        },
+                      ]
+                    : []),
+                ]}
+              />
+            </TopLine>
 
-          <Heading>
-            <h1>{place.name}</h1>
-            {subtitle && <p>{subtitle}</p>}
-          </Heading>
+            <Heading $readingProgress={readingProgress}>
+              <h1>{place.name}</h1>
+              {subtitle && <p>{subtitle}</p>}
+            </Heading>
 
-          <Tags aria-label="장소 정보">
-            <Tag $tone="brand">{travelTimeLabel}</Tag>
-            {crowdBadge && <Tag $tone="secondary">{crowdBadge}</Tag>}
-            {weatherBadge && <Tag $tone="secondary">{weatherBadge}</Tag>}
-            {operationBadge && <Tag $tone="neutral">{operationBadge}</Tag>}
-          </Tags>
+            <Tags aria-label="장소 정보">
+              <Tag $tone="brand">{travelTimeLabel}</Tag>
+              {crowdBadge && <Tag $tone="secondary">{crowdBadge}</Tag>}
+              {weatherBadge && <Tag $tone="secondary">{weatherBadge}</Tag>}
+              {operationBadge && <Tag $tone="neutral">{operationBadge}</Tag>}
+            </Tags>
+          </Summary>
 
-          <Description data-scroll-region>
+          <Description
+            ref={descriptionRef}
+            $readingProgress={readingProgress}
+          >
             <ReasonCard>
               <small>오늘 이곳을 고른 이유</small>
               <strong>{getPlaceReasonHeadline(place)}</strong>
@@ -666,6 +1064,17 @@ function clamp(value: number, minimum: number, maximum: number) {
   return Math.min(Math.max(value, minimum), maximum);
 }
 
+function lerp(start: number, end: number, progress: number) {
+  return start + (end - start) * progress;
+}
+
+function isDetailInteractiveTarget(target: EventTarget | null) {
+  return (
+    target instanceof Element &&
+    Boolean(target.closest("button, a, input, textarea, select"))
+  );
+}
+
 function getHistoryState(state: unknown = window.history.state) {
   return state && typeof state === "object"
     ? (state as Record<string, unknown>)
@@ -706,21 +1115,30 @@ const Sheet = styled.article<{
   $revealProgress: number;
   $dragY: number;
   $isDragging: boolean;
+  $readingProgress: number;
 }>`
   --detail-hero-width: ${fluidByViewportHeight(128, 160)};
+  --detail-hero-height: ${fluidByViewportHeight(213, 267)};
   --detail-content-start: ${fluidByViewportHeight(132, 172)};
 
   position: absolute;
-  inset: 24% 0 0;
+  top: ${({ $readingProgress }) =>
+    `max(${(1 - $readingProgress) * 20}%, calc(var(--app-safe-area-top, 0px) + var(--space-2)))`};
+  right: 0;
+  bottom: 0;
+  left: 0;
   min-width: 0;
   max-width: 100%;
   display: flex;
   flex-direction: column;
   padding: var(--detail-content-start) var(--space-5)
     calc(var(--space-7) + var(--app-safe-area-bottom, 0px));
-  border-radius: 32px 32px 0 0;
+  border-radius: ${({ $readingProgress }) =>
+    `${lerp(32, 26, $readingProgress)}px ${lerp(32, 26, $readingProgress)}px 0 0`};
   background: var(--color-surface);
-  box-shadow: 0 -12px 44px rgb(var(--color-black-rgb) / 0.1);
+  box-shadow: 0 -${({ $readingProgress }) => lerp(12, 4, $readingProgress)}px
+    ${({ $readingProgress }) => lerp(44, 24, $readingProgress)}px
+    rgb(var(--color-black-rgb) / 0.1);
   opacity: ${({ $revealProgress }) => $revealProgress};
   transform: translateY(
     ${({ $dragY, $revealProgress }) =>
@@ -732,19 +1150,69 @@ const Sheet = styled.article<{
       : `transform ${DETAIL_EXIT_DURATION}ms cubic-bezier(0.22, 1, 0.36, 1)`};
 
   @supports (corner-shape: squircle) {
-    border-radius: 44px 44px 0 0;
+    border-radius: ${({ $readingProgress }) =>
+      `${lerp(44, 36, $readingProgress)}px ${lerp(44, 36, $readingProgress)}px 0 0`};
     corner-shape: squircle;
+  }
+
+  @media (pointer: fine) {
+    cursor: grab;
+
+    &:active {
+      cursor: grabbing;
+    }
+
+    button,
+    a,
+    select {
+      cursor: pointer;
+    }
+
+    input,
+    textarea {
+      cursor: text;
+    }
   }
 `;
 
-const HeroImage = styled.div<{ $image: string; $revealProgress: number }>`
+const SheetHandle = styled.div`
   position: absolute;
-  z-index: 2;
-  top: ${fluidByViewportHeight(-92, -112)};
+  top: var(--space-3);
   left: 50%;
-  width: var(--detail-hero-width);
-  aspect-ratio: 3 / 5;
-  border-radius: 22px;
+  z-index: 4;
+  width: var(--space-9);
+  height: 4px;
+  border-radius: 999px;
+  background: var(--color-neutral-400);
+  transform: translateX(-50%);
+`;
+
+const HeroImage = styled.div<{
+  $image: string;
+  $revealProgress: number;
+  $layoutMetrics: DetailLayoutMetrics | null;
+  $readingProgress: number;
+}>`
+  position: absolute;
+  z-index: 5;
+  top: ${({ $layoutMetrics, $readingProgress }) =>
+    $layoutMetrics
+      ? `${lerp($layoutMetrics.heroTop, 28, $readingProgress)}px`
+      : fluidByViewportHeight(-92, -112)};
+  left: ${({ $layoutMetrics, $readingProgress }) =>
+    $layoutMetrics
+      ? `${lerp($layoutMetrics.heroLeft, 20, $readingProgress)}px`
+      : "50%"};
+  width: ${({ $layoutMetrics, $readingProgress }) =>
+    $layoutMetrics
+      ? `${lerp($layoutMetrics.heroWidth, 64, $readingProgress)}px`
+      : "var(--detail-hero-width)"};
+  height: ${({ $layoutMetrics, $readingProgress }) =>
+    $layoutMetrics
+      ? `${lerp($layoutMetrics.heroHeight, 64, $readingProgress)}px`
+      : "var(--detail-hero-height)"};
+  border-radius: ${({ $readingProgress }) =>
+    lerp(22, 16, $readingProgress)}px;
   background-color: var(--color-accent-soft);
   background-image:
     linear-gradient(
@@ -755,26 +1223,47 @@ const HeroImage = styled.div<{ $image: string; $revealProgress: number }>`
     ${({ $image }) => `url(${$image})`};
   background-position: center;
   background-size: cover;
-  box-shadow: 0 14px 30px rgb(var(--color-black-rgb) / 0.24);
+  box-shadow: 0 ${({ $readingProgress }) => lerp(14, 6, $readingProgress)}px
+    ${({ $readingProgress }) => lerp(30, 18, $readingProgress)}px
+    rgb(
+      var(--color-black-rgb) /
+        ${({ $readingProgress }) => lerp(0.24, 0.14, $readingProgress)}
+    );
   opacity: ${({ $revealProgress }) =>
     Math.max(0, Math.min(($revealProgress - 0.58) / 0.3, 1))};
-  transform: translateX(-50%);
+  transform: ${({ $layoutMetrics }) =>
+    $layoutMetrics ? "none" : "translateX(-50%)"};
+  will-change: top, left, width, height, transform;
 `;
 
-const Content = styled.div<{ $revealProgress: number }>`
+const Content = styled.div<{
+  $collapseDistance: number;
+  $revealProgress: number;
+  $readingProgress: number;
+}>`
   width: 100%;
   min-width: 0;
   min-height: 0;
   flex: 1;
   display: flex;
   flex-direction: column;
-  gap: var(--space-4);
+  gap: ${({ $readingProgress }) => lerp(16, 12, $readingProgress)}px;
+  margin-top: -${({ $collapseDistance, $readingProgress }) =>
+    $collapseDistance * $readingProgress}px;
   opacity: ${({ $revealProgress }) =>
     Math.max(0, Math.min(($revealProgress - 0.68) / 0.32, 1))};
   transform: translateY(
     ${({ $revealProgress }) =>
       (1 - Math.max(0, Math.min(($revealProgress - 0.68) / 0.32, 1))) * 12}px
   );
+`;
+
+const Summary = styled.div<{ $readingProgress: number }>`
+  min-width: 0;
+  display: grid;
+  gap: ${({ $readingProgress }) => lerp(16, 2, $readingProgress)}px;
+  padding-left: ${({ $readingProgress }) =>
+    lerp(0, 76, $readingProgress)}px;
 `;
 
 const TopLine = styled.div`
@@ -808,6 +1297,7 @@ const Tags = styled.div`
   flex-wrap: wrap;
   gap: var(--space-2);
   padding-block: 2px;
+  overflow: hidden;
 `;
 
 const Tag = styled.span<{ $tone: "brand" | "neutral" | "secondary" }>`
@@ -834,43 +1324,60 @@ const Tag = styled.span<{ $tone: "brand" | "neutral" | "secondary" }>`
   white-space: nowrap;
 `;
 
-const Heading = styled.header`
+const Heading = styled.header<{ $readingProgress: number }>`
   display: grid;
-  gap: var(--space-1);
+  gap: ${({ $readingProgress }) => lerp(4, 0, $readingProgress)}px;
 
   h1 {
     min-width: 0;
-    font-size: var(--font-size-600);
+    font-size: calc(
+      var(--font-size-600) -
+        ${({ $readingProgress }) => $readingProgress * 4}px
+    );
     font-weight: 700;
     line-height: var(--line-height-heading);
     letter-spacing: var(--letter-spacing-heading);
   }
 
   p {
+    display: -webkit-box;
     color: var(--color-text-muted);
     font-size: var(--font-size-100);
     line-height: var(--line-height-subtitle);
     letter-spacing: var(--letter-spacing-subtitle);
+    overflow: hidden;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 1;
   }
+
 `;
 
-const Description = styled.div`
+const Description = styled.div<{ $readingProgress: number }>`
   width: 100%;
   min-width: 0;
   min-height: 0;
   display: grid;
   align-content: start;
   gap: var(--space-8);
-  padding: var(--space-4) 1px var(--space-5);
-  overflow-y: auto;
+  padding: ${({ $readingProgress }) => lerp(16, 20, $readingProgress)}px 1px
+    var(--space-5);
+  border-top: 1px solid
+    rgb(
+      var(--color-black-rgb) /
+        ${({ $readingProgress }) => $readingProgress * 0.06}
+    );
+  overflow-y: ${({ $readingProgress }) =>
+    $readingProgress >= 1 ? "auto" : "hidden"};
   overscroll-behavior-y: contain;
-  touch-action: pan-y;
+  touch-action: ${({ $readingProgress }) =>
+    $readingProgress >= 1 ? "pan-y" : "none"};
 
   scrollbar-width: none;
 
   &::-webkit-scrollbar {
     display: none;
   }
+
 `;
 
 const ReasonCard = styled.section`
