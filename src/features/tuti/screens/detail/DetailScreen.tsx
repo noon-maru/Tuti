@@ -4,6 +4,7 @@ import styled from "@emotion/styled";
 import {
   CalendarDays,
   Car,
+  ChevronDown,
   ChevronLeft,
   ChevronRight,
   Clock3,
@@ -12,6 +13,7 @@ import {
 import {
   useCallback,
   useEffect,
+  useId,
   useLayoutEffect,
   useRef,
   useState,
@@ -116,9 +118,22 @@ export function DetailScreen({
     ? getWeatherForecastLabel(place.weatherForecast)
     : null;
   const subtitle = createPlaceSubtitle(place);
+  const overviewRegionId = useId();
+  const rawOverview = detail?.overview?.trim() ?? null;
+  const overviewSummary = createOverviewPreview(
+    rawOverview,
+    getFallbackDescription(place),
+  );
+  const canShowRawOverview =
+    Boolean(rawOverview) &&
+    rawOverview?.replace(/\s+/g, " ").trim() !== overviewSummary.trim();
   const [selectedPhoto, setSelectedPhoto] =
     useState<TourismPlaceDetailImage | null>(null);
   const [shareOpen, setShareOpen] = useState(false);
+  const [expandedOverviewPlaceId, setExpandedOverviewPlaceId] = useState<
+    string | null
+  >(null);
+  const rawOverviewExpanded = expandedOverviewPlaceId === place.id;
   const [readingProgress, setReadingProgress] = useState(0);
   const [layoutMetrics, setLayoutMetrics] =
     useState<DetailLayoutMetrics | null>(null);
@@ -649,16 +664,29 @@ export function DetailScreen({
 
             <Section>
               <SectionTitle>어떤 곳인가요?</SectionTitle>
-              {detail?.overview ? (
-                <Overview>{detail.overview}</Overview>
-              ) : detailQuery.isPending ? (
-                <DetailLoading aria-label="장소 상세정보 불러오는 중">
-                  <i />
-                  <i />
-                  <i />
-                </DetailLoading>
-              ) : (
-                <Overview>{getFallbackDescription(place)}</Overview>
+              <Overview>{overviewSummary}</Overview>
+              {canShowRawOverview && (
+                <OriginalDisclosure>
+                  <OriginalToggle
+                    type="button"
+                    aria-controls={overviewRegionId}
+                    aria-expanded={rawOverviewExpanded}
+                    $expanded={rawOverviewExpanded}
+                    onClick={() =>
+                      setExpandedOverviewPlaceId((expandedPlaceId) =>
+                        expandedPlaceId === place.id ? null : place.id,
+                      )
+                    }
+                  >
+                    {rawOverviewExpanded ? "원문 접기" : "원문 보기"}
+                    <ChevronDown aria-hidden="true" />
+                  </OriginalToggle>
+                  {rawOverviewExpanded && (
+                    <OriginalOverview id={overviewRegionId}>
+                      {rawOverview}
+                    </OriginalOverview>
+                  )}
+                </OriginalDisclosure>
               )}
               {detailQuery.isError && (
                 <InlineRetry
@@ -1046,6 +1074,26 @@ function getFallbackDescription(place: TutiPlace) {
   }
 
   return place.note;
+}
+
+function createOverviewPreview(
+  rawOverview: string | null,
+  fallbackDescription: string,
+) {
+  if (!rawOverview) return fallbackDescription;
+
+  const normalizedOverview = rawOverview.replace(/\s+/g, " ").trim();
+  if (normalizedOverview.length <= 180) return normalizedOverview;
+
+  const previewRange = normalizedOverview.slice(0, 181);
+  const sentenceEnd = Math.max(
+    previewRange.lastIndexOf("."),
+    previewRange.lastIndexOf("!"),
+    previewRange.lastIndexOf("?"),
+  );
+  const cutAt = sentenceEnd >= 90 ? sentenceEnd + 1 : 180;
+
+  return `${normalizedOverview.slice(0, cutAt).trim()}…`;
 }
 
 function createBurdenCopy(place: TutiPlace) {
@@ -1437,42 +1485,58 @@ const Overview = styled.p`
   white-space: pre-line;
 `;
 
-const DetailLoading = styled.div`
+const OriginalDisclosure = styled.div`
   display: grid;
-  gap: var(--space-2);
+  justify-items: start;
+  gap: var(--space-3);
+`;
 
-  i {
-    height: 10px;
-    border-radius: 999px;
-    background: linear-gradient(
-      90deg,
-      var(--color-neutral-300),
-      var(--color-neutral-200),
-      var(--color-neutral-300)
-    );
-    background-size: 220% 100%;
-    animation: detail-loading 1.4s ease-in-out infinite;
+const OriginalToggle = styled(BaseButton)<{ $expanded: boolean }>`
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 4px 0;
+  background: transparent;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-100);
+  font-weight: 550;
+  line-height: 1.2;
+
+  svg {
+    width: 14px;
+    height: 14px;
+    transform: rotate(${({ $expanded }) => ($expanded ? 180 : 0)}deg);
+    transition: transform 180ms ease;
   }
 
-  i:nth-of-type(2) {
-    width: 92%;
+  &:hover {
+    color: var(--color-text);
   }
+`;
 
-  i:nth-of-type(3) {
-    width: 68%;
-  }
+const OriginalOverview = styled.p`
+  padding-left: var(--space-3);
+  border-left: 2px solid var(--color-brand-300);
+  color: var(--color-text-muted);
+  font-size: var(--font-size-100);
+  line-height: var(--line-height-body);
+  letter-spacing: var(--letter-spacing-body);
+  white-space: pre-line;
+  animation: reveal-original-overview 180ms ease-out both;
 
-  @keyframes detail-loading {
+  @keyframes reveal-original-overview {
     from {
-      background-position: 100% 0;
+      opacity: 0;
+      transform: translateY(-4px);
     }
     to {
-      background-position: -120% 0;
+      opacity: 1;
+      transform: translateY(0);
     }
   }
 
   @media (prefers-reduced-motion: reduce) {
-    i {
+    & {
       animation: none;
     }
   }
