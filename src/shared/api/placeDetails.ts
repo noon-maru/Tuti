@@ -15,6 +15,7 @@ export type TourismPlaceDetail = {
   contentId: string;
   contentTypeId: string | null;
   overview: string | null;
+  overviewSummary: string | null;
   homepage: string | null;
   phone: string | null;
   openingHours: string | null;

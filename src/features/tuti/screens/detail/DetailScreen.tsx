@@ -32,6 +32,7 @@ import {
   getPlaceDisplayPhrase,
   getPlaceReasonHeadline,
 } from "@/features/tuti/lib/placeDisplayCopy";
+import { createOverviewPreview } from "@/features/tuti/lib/placeOverviewSummary";
 import {
   createOperationBadge,
   createVisitInformationFacts,
@@ -127,6 +128,7 @@ export function DetailScreen({
   const overviewRegionId = useId();
   const rawOverview = detail?.overview?.trim() ?? null;
   const overviewSummary = createOverviewPreview(
+    detail?.overviewSummary?.trim() ?? null,
     rawOverview,
     getFallbackDescription(place),
   );
@@ -1169,26 +1171,6 @@ function getFallbackDescription(place: TutiPlace) {
   }
 
   return place.note;
-}
-
-function createOverviewPreview(
-  rawOverview: string | null,
-  fallbackDescription: string,
-) {
-  if (!rawOverview) return fallbackDescription;
-
-  const normalizedOverview = rawOverview.replace(/\s+/g, " ").trim();
-  if (normalizedOverview.length <= 180) return normalizedOverview;
-
-  const previewRange = normalizedOverview.slice(0, 181);
-  const sentenceEnd = Math.max(
-    previewRange.lastIndexOf("."),
-    previewRange.lastIndexOf("!"),
-    previewRange.lastIndexOf("?"),
-  );
-  const cutAt = sentenceEnd >= 90 ? sentenceEnd + 1 : 180;
-
-  return `${normalizedOverview.slice(0, cutAt).trim()}…`;
 }
 
 function createBurdenCopy(place: TutiPlace) {

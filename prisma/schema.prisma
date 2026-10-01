@@ -354,6 +354,11 @@ model TourismPlaceDetailRecord {
   contentId           String                   @id @map("content_id")
   contentTypeId       String?                  @map("content_type_id")
   overview            String?
+  overviewSummary     String?                  @map("overview_summary")
+  summarySourceFingerprint String?             @map("summary_source_fingerprint")
+  summaryModel        String?                  @map("summary_model")
+  summaryVersion      String?                  @map("summary_version")
+  summaryGeneratedAt  DateTime?                @map("summary_generated_at")
   homepage            String?
   phone               String?
   openingHours        String?                  @map("opening_hours")
@@ -383,6 +388,7 @@ model TourismPlaceDetailRecord {
   @@index([retryAfter])
   @@index([editorialRetryAfter])
   @@index([editorialSyncedAt])
+  @@index([summaryVersion])
   @@index([syncedAt])
   @@map("tourism_place_detail_records")
 }

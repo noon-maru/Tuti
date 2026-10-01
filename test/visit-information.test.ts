@@ -13,6 +13,7 @@ function detail(
     contentId: "place-1",
     contentTypeId: "14",
     overview: null,
+    overviewSummary: null,
     homepage: null,
     phone: null,
     openingHours: "09:00~18:00",

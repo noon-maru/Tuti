@@ -10,6 +10,7 @@ import type {
   TourismPlaceDetailImage,
   TourismPlaceDetailSection,
 } from "@/shared/api/placeDetails";
+import { createPlaceOverviewSummaryFingerprint } from "@/server/tourism/placeOverviewSummary";
 
 const DETAIL_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1_000;
 const DETAIL_RETRY_DELAY_MS = 6 * 60 * 60 * 1_000;
@@ -224,6 +225,8 @@ function detailRecordToResult(
     contentId: string;
     contentTypeId: string | null;
     overview: string | null;
+    overviewSummary: string | null;
+    summarySourceFingerprint: string | null;
     homepage: string | null;
     phone: string | null;
     openingHours: string | null;
@@ -243,11 +246,15 @@ function detailRecordToResult(
 ): TourismPlaceDetail {
   const availableAt =
     record.syncedAt ?? record.editorialSyncedAt ?? record.updatedAt;
+  const summaryIsCurrent =
+    record.summarySourceFingerprint ===
+    createPlaceOverviewSummaryFingerprint(record);
 
   return {
     contentId: record.contentId,
     contentTypeId: record.contentTypeId,
     overview: record.overview,
+    overviewSummary: summaryIsCurrent ? record.overviewSummary : null,
     homepage: record.homepage,
     phone: record.phone,
     openingHours: record.openingHours,
