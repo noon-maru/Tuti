@@ -143,6 +143,8 @@ export function DetailScreen({
   >(null);
   const rawOverviewExpanded = expandedOverviewPlaceId === place.id;
   const [readingProgress, setReadingProgress] = useState(0);
+  const [pointerDismissY, setPointerDismissY] = useState(0);
+  const [pointerDismissDragging, setPointerDismissDragging] = useState(false);
   const [layoutMetrics, setLayoutMetrics] =
     useState<DetailLayoutMetrics | null>(null);
   const readingProgressRef = useRef(0);
@@ -151,6 +153,9 @@ export function DetailScreen({
   const readingSnapFrame = useRef<number | null>(null);
   const readingWheelTimer = useRef<number | null>(null);
   const pointerInertiaFrame = useRef<number | null>(null);
+  const pointerDismissFrame = useRef<number | null>(null);
+  const pointerDismissYRef = useRef(0);
+  const requestedPointerDismissY = useRef(0);
   const sheetRef = useRef<HTMLElement>(null);
   const heroRef = useRef<HTMLDivElement>(null);
   const summaryRef = useRef<HTMLDivElement>(null);
@@ -237,6 +242,9 @@ export function DetailScreen({
       }
       if (pointerInertiaFrame.current !== null) {
         window.cancelAnimationFrame(pointerInertiaFrame.current);
+      }
+      if (pointerDismissFrame.current !== null) {
+        window.cancelAnimationFrame(pointerDismissFrame.current);
       }
     },
     [],
@@ -379,6 +387,30 @@ export function DetailScreen({
     };
 
     pointerInertiaFrame.current = window.requestAnimationFrame(glide);
+  };
+
+  const updatePointerDismissY = (nextDragY: number) => {
+    const clampedDragY = Math.max(0, nextDragY);
+    pointerDismissYRef.current = clampedDragY;
+    requestedPointerDismissY.current = clampedDragY;
+
+    if (pointerDismissFrame.current !== null) return;
+
+    pointerDismissFrame.current = window.requestAnimationFrame(() => {
+      setPointerDismissY(requestedPointerDismissY.current);
+      pointerDismissFrame.current = null;
+    });
+  };
+
+  const resetPointerDismiss = () => {
+    if (pointerDismissFrame.current !== null) {
+      window.cancelAnimationFrame(pointerDismissFrame.current);
+      pointerDismissFrame.current = null;
+    }
+    pointerDismissYRef.current = 0;
+    requestedPointerDismissY.current = 0;
+    setPointerDismissY(0);
+    setPointerDismissDragging(false);
   };
 
   const handleSheetWheel = (event: WheelEvent<HTMLElement>) => {
@@ -544,6 +576,20 @@ export function DetailScreen({
     gesture.lastY = event.clientY;
     const scrollDelta = gesture.startY - event.clientY;
 
+    if (
+      gesture.readingProgress <= 0 &&
+      gesture.descriptionScrollTop <= 0 &&
+      scrollDelta < 0
+    ) {
+      setPointerDismissDragging(true);
+      updatePointerDismissY(-scrollDelta);
+      return;
+    }
+
+    if (pointerDismissYRef.current > 0) {
+      resetPointerDismiss();
+    }
+
     if (gesture.readingProgress < 1) {
       description.scrollTop = 0;
       updateReadingProgress(
@@ -574,8 +620,14 @@ export function DetailScreen({
     event.stopPropagation();
     const scrollDelta = gesture.startY - event.clientY;
     const currentProgress = readingProgressRef.current;
+    const dismissDragY = pointerDismissYRef.current;
 
-    if (
+    if (dismissDragY > 0) {
+      if (!cancelled && dismissDragY >= 64) {
+        swipeBack.requestBack();
+      }
+      resetPointerDismiss();
+    } else if (
       !cancelled &&
       gesture.readingProgress <= 0 &&
       currentProgress <= 0 &&
@@ -666,15 +718,18 @@ export function DetailScreen({
         aria-label={backLabel}
         onClick={closeFromBackdrop}
         $revealProgress={revealProgress}
-        $progress={swipeBack.dragProgress}
-        $isDragging={swipeBack.isDragging}
+        $progress={Math.max(
+          swipeBack.dragProgress,
+          Math.min(pointerDismissY / 160, 1),
+        )}
+        $isDragging={swipeBack.isDragging || pointerDismissDragging}
       />
       <Sheet
         ref={sheetRef}
         data-scroll-region
         $revealProgress={revealProgress}
-        $dragY={swipeBack.dragY}
-        $isDragging={swipeBack.isDragging}
+        $dragY={Math.max(swipeBack.dragY, pointerDismissY)}
+        $isDragging={swipeBack.isDragging || pointerDismissDragging}
         $readingProgress={readingProgress}
         onPointerCancel={(event) => finishSheetPointerGesture(event, true)}
         onPointerDown={handleSheetPointerDown}
