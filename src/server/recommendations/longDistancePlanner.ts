@@ -5,6 +5,7 @@ import type {
 } from "@/lib/recommendations";
 import { prisma } from "@/server/db/prisma";
 import { fetchKakaoMapRoute } from "@/server/maps/kakaoMapClient";
+import { fetchKakaoDrivingRoute } from "@/server/maps/kakaoNaviClient";
 import { toTravelTimeSummary } from "@/server/departure/travelTimeSummary";
 import { enrichPlacesWithCrowdForecast } from "@/server/recommendations/crowdForecast";
 import { recommendablePlaceWhere } from "@/server/recommendations/recommendablePlaceWhere";
@@ -260,6 +261,7 @@ export async function createLongDistanceRecommendations(
           originHubs,
           location,
           answers.longDistanceTiming ?? "tomorrow_day_trip",
+          answers.transport,
         ),
       ),
     );
@@ -283,6 +285,7 @@ async function planCandidateJourney(
   originHubs: Hub[],
   location: UserLocation,
   timing: "tomorrow_day_trip" | "overnight_trip",
+  transport: IntakeAnswers["transport"],
 ): Promise<TutiPlace | null> {
   const compatibleOrigins = originHubs.filter(
     (origin) => origin.mode === candidate.destinationHub.mode,
@@ -295,6 +298,7 @@ async function planCandidateJourney(
         location,
         { latitude: candidate.latitude!, longitude: candidate.longitude! },
         timing,
+        transport,
       ).catch(() => null),
     ),
   );
@@ -368,6 +372,7 @@ async function planJourney(
   userLocation: UserLocation,
   placeLocation: UserLocation,
   timing: "tomorrow_day_trip" | "overnight_trip",
+  transport: IntakeAnswers["transport"],
 ): Promise<LongDistanceJourney | null> {
   if (originHub.externalId === destinationHub.externalId) return null;
   const today = getKoreanDateKey();
@@ -378,12 +383,13 @@ async function planJourney(
     await Promise.all([
       getSchedules(originHub, destinationHub, outboundDate),
       getSchedules(destinationHub, originHub, returnDate),
-      fetchCachedTransitRoute(
-        `origin:${locationCell(userLocation)}:${originHub.id}`,
+      fetchCachedAccessRoute(
+        `origin:${locationCell(userLocation)}:${originHub.id}:${transport ?? "transit"}`,
         30 * 60_000,
         userLocation,
         originHub,
         originHub.name,
+        transport === "car" ? "driving" : "publicTransit",
       ).catch(() => null),
       fetchCachedTransitRoute(
         `destination:${destinationHub.id}:${locationCell(placeLocation)}`,
@@ -683,6 +689,34 @@ function fetchCachedTransitRoute(
     destination,
     destinationName,
   }).catch((error) => {
+    routeCache.delete(key);
+    throw error;
+  });
+  const entry = { expiresAt: Date.now() + ttlMs, route };
+  routeCache.set(key, entry);
+  const expiryTimer = setTimeout(() => {
+    if (routeCache.get(key) === entry) routeCache.delete(key);
+  }, ttlMs);
+  expiryTimer.unref?.();
+  return route;
+}
+
+function fetchCachedAccessRoute(
+  key: string,
+  ttlMs: number,
+  origin: UserLocation,
+  destination: UserLocation,
+  destinationName: string,
+  mode: "publicTransit" | "driving",
+) {
+  const cached = routeCache.get(key);
+  if (cached && cached.expiresAt > Date.now()) return cached.route;
+  if (cached) routeCache.delete(key);
+  const input = { origin, destination, destinationName };
+  const route = (mode === "driving"
+    ? fetchKakaoDrivingRoute(input)
+    : fetchKakaoMapRoute("publicTransit", input)
+  ).catch((error) => {
     routeCache.delete(key);
     throw error;
   });

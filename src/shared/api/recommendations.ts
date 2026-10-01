@@ -5,7 +5,7 @@ import type {
   UserLocation,
 } from "@/shared/tuti/types";
 
-export const RECOMMENDATION_ALGORITHM_VERSION = "experience-intent-v18";
+export const RECOMMENDATION_ALGORITHM_VERSION = "experience-intent-v19";
 
 export type RecommendationErrorCode =
   | "long_distance_unavailable"
@@ -21,6 +21,7 @@ export type RecommendationRequest = {
   location?: UserLocation;
   preferredRegion?: PreferredRegion;
   excludePlaceIds?: string[];
+  preferencePlaceIds?: string[];
   entryStatus?: "answered" | "reused" | "skipped";
 };
 

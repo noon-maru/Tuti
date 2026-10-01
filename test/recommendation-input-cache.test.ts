@@ -6,8 +6,7 @@ import { createRecommendationInputFingerprint } from "@/features/tuti/recommenda
 const baseInput = {
   answers: {
     movement: "short" as const,
-    air: "quiet" as const,
-    density: "balanced" as const,
+    transport: "transit" as const,
   },
   userLocation: { latitude: 37.5665, longitude: 126.978 },
   preferredRegion: {
@@ -23,8 +22,7 @@ test("추천 입력 fingerprint는 같은 의미의 입력에 안정적이다", 
   const reordered = {
     ...baseInput,
     answers: {
-      density: "balanced" as const,
-      air: "quiet" as const,
+      transport: "transit" as const,
       movement: "short" as const,
     },
     excludedPlaceIds: ["place-a", "place-b"],
@@ -40,7 +38,7 @@ test("추천 입력 fingerprint는 같은 의미의 입력에 안정적이다", 
 test("추천 결과에 영향을 주는 입력이 바뀌면 fingerprint도 바뀐다", () => {
   const fingerprint = createRecommendationInputFingerprint(baseInput);
   const changedInputs = [
-    { ...baseInput, answers: { ...baseInput.answers, air: "open" as const } },
+    { ...baseInput, answers: { ...baseInput.answers, transport: "car" as const } },
     {
       ...baseInput,
       userLocation: { latitude: 35.8714, longitude: 128.6014 },

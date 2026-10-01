@@ -51,8 +51,6 @@ export function IntakeScreen({
   onCompanionChange: (value?: CompanionAnswer) => void;
   onBudgetChange: (value?: BudgetAnswer) => void;
 }) {
-  const tintedQuestion =
-    activeStep.key === "air" || activeStep.key === "density";
 
   return (
     <Frame>
@@ -94,7 +92,7 @@ export function IntakeScreen({
           {activeStep.options.map((option) => (
             <OptionCard
               key={option.value}
-              $tinted={tintedQuestion}
+              $tinted={false}
               $active={option.value === selectedValue}
               type="button"
               aria-pressed={option.value === selectedValue}

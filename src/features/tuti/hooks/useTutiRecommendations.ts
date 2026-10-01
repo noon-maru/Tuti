@@ -10,6 +10,7 @@ import {
 } from "@/lib/date/koreanDate";
 import { interpretState } from "@/lib/recommendations";
 import { RECOMMENDATION_ALGORITHM_VERSION } from "@/shared/api/recommendations";
+import { toActiveIntakeAnswers } from "@/shared/tuti/types";
 import { useTutiStore } from "@/store/tuti";
 
 export function useTutiRecommendations({ enabled = true } = {}) {
@@ -27,6 +28,9 @@ export function useTutiRecommendations({ enabled = true } = {}) {
   const recommendationExcludedPlaceIds = useTutiStore(
     (state) => state.recommendationExcludedPlaceIds,
   );
+  const savedDeparturePlaces = useTutiStore(
+    (state) => state.savedDeparturePlaces,
+  );
   const cacheDailyRecommendation = useTutiStore(
     (state) => state.cacheDailyRecommendation,
   );
@@ -34,7 +38,7 @@ export function useTutiRecommendations({ enabled = true } = {}) {
   const skippedToday =
     isCurrentKoreanDate(entryRecord) && entryRecord?.status === "skipped";
   const answers = useMemo(
-    () => (skippedToday ? {} : storedAnswers),
+    () => (skippedToday ? {} : toActiveIntakeAnswers(storedAnswers)),
     [skippedToday, storedAnswers],
   );
   const feature = useMemo(() => interpretState(answers), [answers]);
@@ -88,6 +92,7 @@ export function useTutiRecommendations({ enabled = true } = {}) {
         entryRecord?.status,
         preferredRegion,
         recommendationExcludedPlaceIds,
+        savedDeparturePlaces.map((place) => place.placeId),
       ),
     enabled: enabled && !regionSelectionRequired,
     initialData: cachedRecommendation,

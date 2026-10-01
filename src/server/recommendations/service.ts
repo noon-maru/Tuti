@@ -21,6 +21,7 @@ import {
   requireNearbyMovement,
 } from "@/server/recommendations/longDistanceAvailability";
 import { fetchKakaoMapRoute } from "@/server/maps/kakaoMapClient";
+import { fetchKakaoDrivingRoute } from "@/server/maps/kakaoNaviClient";
 import { isWalkingDistance } from "@/server/departure/routeSelection";
 import { toTravelTimeSummary } from "@/server/departure/travelTimeSummary";
 import { getExternalLocationProcessingMode } from "@/server/location/externalProcessing";
@@ -106,6 +107,7 @@ export async function createRecommendations(
   preferredRegion?: PreferredRegion,
   excludePlaceIds: string[] = [],
   userId?: string,
+  preferencePlaceIds: string[] = [],
 ): Promise<TutiPlace[]> {
   const evaluation = await evaluateRecommendations(
     answers,
@@ -113,6 +115,7 @@ export async function createRecommendations(
     preferredRegion,
     excludePlaceIds,
     userId,
+    preferencePlaceIds,
   );
 
   return evaluation.recommendedPlaces;
@@ -189,10 +192,14 @@ async function evaluateRecommendations(
   preferredRegion?: PreferredRegion,
   excludePlaceIds: string[] = [],
   userId?: string,
+  preferencePlaceIds: string[] = [],
 ) {
   // 오늘 사용자가 명시적으로 고른 값은 항상 결정론적으로 해석한다.
   // LLM 프로필은 아래의 후보 순위 보정 단계에서만 비동기로 활용된다.
   const feature = interpretState(answers);
+  const effectiveExcludedPlaceIds = Array.from(
+    new Set([...excludePlaceIds, ...preferencePlaceIds]),
+  );
   requireLocationForLongDistance(feature.movement, location);
 
   if (
@@ -204,7 +211,7 @@ async function evaluateRecommendations(
       await createLongDistanceRecommendations(
         answers,
         location,
-        excludePlaceIds,
+        effectiveExcludedPlaceIds,
       ),
     );
 
@@ -230,6 +237,7 @@ async function evaluateRecommendations(
       conditionedPlaces,
       answers,
       userId,
+      preferencePlaceIds,
     );
     return {
       feature,
@@ -254,8 +262,12 @@ async function evaluateRecommendations(
       )
     : await findPlacesByBaseFatigue(preferredRegion);
 
-  const { eligiblePlaces, candidatePlaces: recommendationPlaces } =
+  const { eligiblePlaces, candidatePlaces } =
     selectRecommendationCandidatePool(places, excludePlaceIds);
+  const preferencePlaceIdSet = new Set(preferencePlaceIds);
+  const recommendationPlaces = candidatePlaces.filter(
+    (place) => !preferencePlaceIdSet.has(place.id),
+  );
   const rankedPlaces = prioritizePlacesByRequestedMood(
     rankByMovementFatigue(
       recommendationPlaces.map(toTutiPlace),
@@ -285,7 +297,11 @@ async function evaluateRecommendations(
 
     const routeEnrichedBatch = location
       ? rankByMovementFatigue(
-          await enrichWithTransitTimes(candidateBatch, location),
+          await enrichWithTravelTimes(
+            candidateBatch,
+            location,
+            answers.transport,
+          ),
           answers,
           feature,
           CANDIDATE_EVALUATION_BATCH_SIZE,
@@ -327,6 +343,7 @@ async function evaluateRecommendations(
     finalRanking,
     answers,
     userId,
+    preferencePlaceIds,
   );
   const recommendedPlaces = selectDiverseRecommendations(
     personalization.places,
@@ -350,6 +367,7 @@ export async function createRecommendationsWithAudit(
   preferredRegion?: PreferredRegion,
   excludePlaceIds: string[] = [],
   userId?: string,
+  preferencePlaceIds: string[] = [],
 ): Promise<{ places: TutiPlace[]; personalization: PersonalizationAudit }> {
   const evaluation = await evaluateRecommendations(
     answers,
@@ -357,6 +375,7 @@ export async function createRecommendationsWithAudit(
     preferredRegion,
     excludePlaceIds,
     userId,
+    preferencePlaceIds,
   );
   return {
     places: evaluation.recommendedPlaces,
@@ -543,9 +562,10 @@ function isPlaceExperienceType(
   ].includes(value);
 }
 
-async function enrichWithTransitTimes(
+async function enrichWithTravelTimes(
   places: TutiPlace[],
   origin: UserLocation,
+  transport: IntakeAnswers["transport"],
 ) {
   return mapWithConcurrency(places, 6, async (place) => {
     if (
@@ -561,7 +581,9 @@ async function enrichWithTransitTimes(
     };
     const mode = isWalkingDistance(origin, destination)
       ? "walking"
-      : "publicTransit";
+      : transport === "car"
+        ? "driving"
+        : "publicTransit";
     const route = await fetchCachedNearbyRoute(
       `${locationCell(origin)}:${place.id}:${mode}`,
       mode,
@@ -582,7 +604,7 @@ async function enrichWithTransitTimes(
 
 function fetchCachedNearbyRoute(
   key: string,
-  mode: "walking" | "publicTransit",
+  mode: "walking" | "publicTransit" | "driving",
   origin: UserLocation,
   destination: UserLocation,
   destinationName: string,
@@ -591,11 +613,11 @@ function fetchCachedNearbyRoute(
   if (cached && cached.expiresAt > Date.now()) return cached.route;
   if (cached) nearbyRouteCache.delete(key);
 
-  const route = fetchKakaoMapRoute(mode, {
-    origin,
-    destination,
-    destinationName,
-  }).catch((error) => {
+  const input = { origin, destination, destinationName };
+  const route = (mode === "driving"
+    ? fetchKakaoDrivingRoute(input)
+    : fetchKakaoMapRoute(mode, input)
+  ).catch((error) => {
     nearbyRouteCache.delete(key);
     throw error;
   });

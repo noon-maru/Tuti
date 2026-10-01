@@ -105,6 +105,7 @@ export async function fetchRecommendations(
   entryStatus?: RecommendationRequest["entryStatus"],
   preferredRegion?: PreferredRegion,
   excludePlaceIds?: string[],
+  preferencePlaceIds?: string[],
 ): Promise<RecommendationResponse> {
   const request: RecommendationRequest = {
     answers,
@@ -112,6 +113,7 @@ export async function fetchRecommendations(
     entryStatus,
     preferredRegion: location ? undefined : preferredRegion,
     excludePlaceIds,
+    preferencePlaceIds,
   };
   const response = await fetchWithSession("recommendations", {
     method: "POST",

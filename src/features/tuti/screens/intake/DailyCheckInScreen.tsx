@@ -20,7 +20,10 @@ import {
   getIntakeSteps,
 } from "@/features/tuti/data/intakeSteps";
 import { useDeferredAnimationStart } from "@/features/tuti/hooks/useDeferredAnimationStart";
-import type { IntakeAnswers } from "@/shared/tuti/types";
+import {
+  toActiveIntakeAnswers,
+  type IntakeAnswers,
+} from "@/shared/tuti/types";
 
 type CheckInMode = "summary" | "questions";
 const SHEET_TRANSITION_DURATION = 360;
@@ -48,7 +51,10 @@ export function DailyCheckInScreen({
   const [mode, setMode] = useState<CheckInMode>(initialMode);
   const [step, setStep] = useState(0);
   const [draftAnswers, setDraftAnswers] =
-    useState<IntakeAnswers>({ movement: "short", ...previousAnswers });
+    useState<IntakeAnswers>({
+      movement: "short",
+      ...toActiveIntakeAnswers(previousAnswers),
+    });
   const [dragY, setDragY] = useState(0);
   const [dragging, setDragging] = useState(false);
   const [closing, setClosing] = useState(false);
@@ -182,7 +188,7 @@ export function DailyCheckInScreen({
       return;
     }
 
-    closeWith(() => onSubmit(draftAnswers));
+    closeWith(() => onSubmit(toActiveIntakeAnswers(draftAnswers)));
   };
 
   const startSheetDrag = (event: React.PointerEvent<HTMLButtonElement>) => {
@@ -294,7 +300,10 @@ export function DailyCheckInScreen({
                 <ReviseButton
                   type="button"
                   onClick={() => {
-                    setDraftAnswers({ movement: "short", ...previousAnswers });
+                    setDraftAnswers({
+                      movement: "short",
+                      ...toActiveIntakeAnswers(previousAnswers),
+                    });
                     setStep(0);
                     setMode("questions");
                   }}

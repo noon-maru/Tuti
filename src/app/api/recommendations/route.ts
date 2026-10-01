@@ -40,6 +40,7 @@ export async function POST(request: Request) {
     const location = body.location;
     const preferredRegion = location ? undefined : body.preferredRegion;
     const excludePlaceIds = body.excludePlaceIds ?? [];
+    const preferencePlaceIds = body.preferencePlaceIds ?? [];
     const recommendationId = randomUUID();
     const createRecommendations = () =>
       createRecommendationsWithAudit(
@@ -48,6 +49,7 @@ export async function POST(request: Request) {
         preferredRegion,
         excludePlaceIds,
         user?.id,
+        preferencePlaceIds,
       );
     const { places, personalization } = location
       ? await runWithLocationUsage({
@@ -145,6 +147,7 @@ function parseRecommendationRequest(value: unknown): RecommendationRequest {
     "location",
     "preferredRegion",
     "excludePlaceIds",
+    "preferencePlaceIds",
     "entryStatus",
   ]);
 
@@ -153,6 +156,10 @@ function parseRecommendationRequest(value: unknown): RecommendationRequest {
     location: normalizeLocation(value.location),
     preferredRegion: normalizePreferredRegion(value.preferredRegion),
     excludePlaceIds: normalizeExcludedPlaceIds(value.excludePlaceIds),
+    preferencePlaceIds: normalizePlaceIds(
+      value.preferencePlaceIds,
+      "선호 장소 목록",
+    ),
     entryStatus: normalizeEntryStatus(value.entryStatus),
   };
 }
@@ -167,6 +174,7 @@ function normalizeAnswers(value: unknown): IntakeAnswers {
 
   assertOnlyKeys(value, [
     "movement",
+    "transport",
     "air",
     "density",
     "companion",
@@ -180,16 +188,14 @@ function normalizeAnswers(value: unknown): IntakeAnswers {
       ["near", "short", "half", "far"],
       "이동 가능 시간",
     ),
-    air: normalizeOptionalEnum(
-      value.air,
-      ["quiet", "open", "walk"],
-      "필요한 공기",
+    transport: normalizeOptionalEnum(
+      value.transport,
+      ["car", "transit"],
+      "이동 수단",
     ),
-    density: normalizeOptionalEnum(
-      value.density,
-      ["quiet", "balanced", "lively"],
-      "선호 분위기",
-    ),
+    // 이전 앱 요청은 거절하지 않되 더 이상 추천 조건으로 사용하지 않는다.
+    air: undefined,
+    density: undefined,
     companion: normalizeOptionalEnum(
       value.companion,
       ["solo", "friend", "partner", "family"],
@@ -207,6 +213,17 @@ function normalizeAnswers(value: unknown): IntakeAnswers {
     ),
   };
 
+  normalizeOptionalEnum(
+    value.air,
+    ["quiet", "open", "walk"],
+    "필요한 공기",
+  );
+  normalizeOptionalEnum(
+    value.density,
+    ["quiet", "balanced", "lively"],
+    "선호 분위기",
+  );
+
   if (
     answers.longDistanceTiming !== undefined &&
     answers.movement !== "far"
@@ -220,13 +237,17 @@ function normalizeAnswers(value: unknown): IntakeAnswers {
 }
 
 function normalizeExcludedPlaceIds(placeIds: unknown) {
+  return normalizePlaceIds(placeIds, "제외 장소 목록");
+}
+
+function normalizePlaceIds(placeIds: unknown, label: string) {
   if (placeIds === undefined) return [];
   if (
     !Array.isArray(placeIds) ||
     placeIds.some((placeId) => typeof placeId !== "string")
   ) {
     throw new InvalidRecommendationRequestError(
-      "제외 장소 목록을 확인해주세요.",
+      `${label}을 확인해주세요.`,
     );
   }
 

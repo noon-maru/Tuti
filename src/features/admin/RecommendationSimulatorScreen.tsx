@@ -26,12 +26,11 @@ import type {
 } from "@/shared/api/admin";
 import type { RecommendationRegionOption } from "@/shared/api/recommendationRegions";
 import type {
-  AirAnswer,
   BudgetAnswer,
   CompanionAnswer,
-  DensityAnswer,
   LongDistanceTimingAnswer,
   MovementAnswer,
+  TransportAnswer,
 } from "@/shared/tuti/types";
 import { movementTimeBudget } from "@/shared/tuti/movementTimeBudget";
 import {
@@ -72,16 +71,9 @@ const longDistanceTimingOptions: Array<{
   },
 ];
 
-const airOptions: Array<{ value: AirAnswer; label: string }> = [
-  { value: "quiet", label: "조용한 곳" },
-  { value: "open", label: "트인 곳" },
-  { value: "walk", label: "걷기 좋은 곳" },
-];
-
-const densityOptions: Array<{ value: DensityAnswer; label: string }> = [
-  { value: "quiet", label: "조금 한적하게" },
-  { value: "balanced", label: "적당히 북적여도" },
-  { value: "lively", label: "활기찬 곳도" },
+const transportOptions: Array<{ value: TransportAnswer; label: string }> = [
+  { value: "car", label: "자동차" },
+  { value: "transit", label: "대중교통·도보" },
 ];
 
 const scoreLabels: Record<keyof AdminRecommendationScoreBreakdown, string> = {
@@ -89,7 +81,7 @@ const scoreLabels: Record<keyof AdminRecommendationScoreBreakdown, string> = {
   physicalDistance: "직선거리",
   travelTime: "이동시간",
   movementPenalty: "이동 범위",
-  moodAdjustment: "공기 성향",
+  moodAdjustment: "분위기 보정",
   crowdPenalty: "혼잡도",
   energyPenalty: "에너지 부담",
   executionPenalty: "시간·운영 적합도",
@@ -108,8 +100,7 @@ const dateFormatter = new Intl.DateTimeFormat("ko-KR", {
 export function RecommendationSimulatorScreen() {
   const [locationMode, setLocationMode] = useState<LocationMode>("location");
   const [movement, setMovement] = useState<MovementAnswer>("short");
-  const [air, setAir] = useState<AirAnswer>("quiet");
-  const [density, setDensity] = useState<DensityAnswer>("balanced");
+  const [transport, setTransport] = useState<TransportAnswer>("transit");
   const [companion, setCompanion] = useState<CompanionAnswer | undefined>();
   const [budget, setBudget] = useState<BudgetAnswer | undefined>();
   const [longDistanceTiming, setLongDistanceTiming] =
@@ -186,8 +177,7 @@ export function RecommendationSimulatorScreen() {
     const request: AdminRecommendationSimulationRequest = {
       answers: {
         movement,
-        air,
-        density,
+        transport,
         companion,
         budget,
         ...(movement === "far" ? { longDistanceTiming } : {}),
@@ -291,8 +281,7 @@ export function RecommendationSimulatorScreen() {
               onClick={() => {
                 setLocationMode("location");
                 setMovement("short");
-                setAir("quiet");
-                setDensity("balanced");
+                setTransport("transit");
                 setCompanion(undefined);
                 setBudget(undefined);
                 setLongDistanceTiming("tomorrow_day_trip");
@@ -459,15 +448,15 @@ export function RecommendationSimulatorScreen() {
           )}
 
           <FieldGroup>
-            <FieldLabel><span>{movement === "far" ? "04" : "03"}</span> 필요한 공기</FieldLabel>
+            <FieldLabel><span>{movement === "far" ? "04" : "03"}</span> 이동 수단</FieldLabel>
             <CompactOptions>
-              {airOptions.map((option) => (
+              {transportOptions.map((option) => (
                 <CompactButton
                   key={option.value}
                   type="button"
-                  $active={air === option.value}
-                  aria-pressed={air === option.value}
-                  onClick={() => setAir(option.value)}
+                  $active={transport === option.value}
+                  aria-pressed={transport === option.value}
+                  onClick={() => setTransport(option.value)}
                 >
                   {option.label}
                 </CompactButton>
@@ -476,24 +465,7 @@ export function RecommendationSimulatorScreen() {
           </FieldGroup>
 
           <FieldGroup>
-            <FieldLabel><span>{movement === "far" ? "05" : "04"}</span> 원하는 분위기</FieldLabel>
-            <CompactOptions>
-              {densityOptions.map((option) => (
-                <CompactButton
-                  key={option.value}
-                  type="button"
-                  $active={density === option.value}
-                  aria-pressed={density === option.value}
-                  onClick={() => setDensity(option.value)}
-                >
-                  {option.label}
-                </CompactButton>
-              ))}
-            </CompactOptions>
-          </FieldGroup>
-
-          <FieldGroup>
-            <FieldLabel><span>{movement === "far" ? "06" : "05"}</span> 보조 조건 <small>선택</small></FieldLabel>
+            <FieldLabel><span>{movement === "far" ? "05" : "04"}</span> 보조 조건 <small>선택</small></FieldLabel>
             <OptionalOptions>
               {([
                 ["solo", "혼자"],

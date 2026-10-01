@@ -29,46 +29,19 @@ export const intakeSteps = [
     ],
   },
   {
-    key: "air",
-    question: "지금,\n어떤 공기가 필요하신가요?",
-    subtitle: "지금 필요한 공기에 가까운 곳을 골라둘게요.",
+    key: "transport",
+    question: "오늘,\n차로 움직일 수 있을까요?",
+    subtitle: "가는 길이 덜 힘든 쪽으로 골라둘게요.",
     options: [
       {
-        value: "quiet",
-        label: "조용한 곳",
-        hint: "말소리가 적어 혼자 머물기 좋은 곳",
+        value: "car",
+        label: "차로 갈 수 있어요",
+        hint: "자동차로 편하게 닿는 곳까지",
       },
       {
-        value: "open",
-        label: "트인 곳",
-        hint: "시야가 트여 잠깐 숨 돌리기 좋은 곳",
-      },
-      {
-        value: "walk",
-        label: "걷기 좋은 곳",
-        hint: "천천히 걸으며 생각을 비우기 좋은 곳",
-      },
-    ],
-  },
-  {
-    key: "density",
-    question: "오늘,\n사람은 어느 정도 곁에 있어도 괜찮을까요?",
-    subtitle: "편안하게 머물 수 있는 분위기에 맞춰볼게요.",
-    options: [
-      {
-        value: "quiet",
-        label: "조금 한적하면 좋겠어요",
-        hint: "말소리가 적어 혼자 머물기 좋은 곳",
-      },
-      {
-        value: "balanced",
-        label: "적당히 북적여도 괜찮아요",
-        hint: "사람들의 기척이 가볍게 느껴지는 곳",
-      },
-      {
-        value: "lively",
-        label: "활기찬 곳도 좋아요",
-        hint: "주변의 활기를 함께 느끼기 좋은 곳",
+        value: "transit",
+        label: "차 없이 갈게요",
+        hint: "대중교통과 도보가 편한 곳으로",
       },
     ],
   },

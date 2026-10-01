@@ -9,12 +9,13 @@ import { preferencesStorage } from "@/lib/storage/preferencesStorage";
 import type { TutiPlace } from "@/lib/recommendations";
 import type { DepartureRouteMode } from "@/shared/api/departurePlan";
 import { LOCATION_TERMS_VERSION } from "@/shared/location/terms";
-import type {
-  IntakeAnswers,
-  LocationConsentRecord,
-  LocationPermissionStatus,
-  PreferredRegion,
-  UserLocation,
+import {
+  toActiveIntakeAnswers,
+  type IntakeAnswers,
+  type LocationConsentRecord,
+  type LocationPermissionStatus,
+  type PreferredRegion,
+  type UserLocation,
 } from "@/shared/tuti/types";
 
 type EntryStage = "intake" | "recommendation-ready" | "complete";
@@ -351,7 +352,10 @@ export const useTutiStore = create<TutiState>()(
         }),
       finishIntake: (status) =>
         set((state) => ({
-          answers: status === "skipped" ? {} : state.answers,
+          answers:
+            status === "skipped"
+              ? {}
+              : toActiveIntakeAnswers(state.answers),
           entryRecord: {
             status,
             effectiveDate: getKoreanDateKey(),
@@ -370,7 +374,9 @@ export const useTutiStore = create<TutiState>()(
       completeDailyCheckIn: (status, answers) =>
         set((state) => ({
           answers:
-            status === "answered" && answers ? answers : state.answers,
+            status === "answered" && answers
+              ? toActiveIntakeAnswers(answers)
+              : toActiveIntakeAnswers(state.answers),
           entryRecord: {
             status,
             effectiveDate: getKoreanDateKey(),

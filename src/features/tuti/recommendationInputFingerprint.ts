@@ -22,8 +22,7 @@ export function createRecommendationInputFingerprint({
   const canonicalInput = JSON.stringify({
     answers: {
       movement: answers.movement ?? null,
-      air: answers.air ?? null,
-      density: answers.density ?? null,
+      transport: answers.transport ?? null,
       companion: answers.companion ?? null,
       budget: answers.budget ?? null,
       longDistanceTiming: answers.longDistanceTiming ?? null,

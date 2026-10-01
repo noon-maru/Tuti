@@ -9,12 +9,11 @@ import { LongDistanceRecommendationsUnavailableError } from "@/server/recommenda
 import type { AdminRecommendationSimulationRequest } from "@/shared/api/admin";
 import { RECOMMENDATION_ALGORITHM_VERSION } from "@/shared/api/recommendations";
 import type {
-  AirAnswer,
   BudgetAnswer,
   CompanionAnswer,
-  DensityAnswer,
   LongDistanceTimingAnswer,
   MovementAnswer,
+  TransportAnswer,
 } from "@/shared/tuti/types";
 
 export const runtime = "nodejs";
@@ -25,12 +24,7 @@ const movementAnswers = new Set<MovementAnswer>([
   "half",
   "far",
 ]);
-const airAnswers = new Set<AirAnswer>(["quiet", "open", "walk"]);
-const densityAnswers = new Set<DensityAnswer>([
-  "quiet",
-  "balanced",
-  "lively",
-]);
+const transportAnswers = new Set<TransportAnswer>(["car", "transit"]);
 const companionAnswers = new Set<CompanionAnswer>([
   "solo",
   "friend",
@@ -129,8 +123,7 @@ async function readInput(
 
   const {
     movement,
-    air,
-    density,
+    transport,
     companion,
     budget,
     longDistanceTiming,
@@ -138,10 +131,8 @@ async function readInput(
   if (
     typeof movement !== "string" ||
     !movementAnswers.has(movement as MovementAnswer) ||
-    typeof air !== "string" ||
-    !airAnswers.has(air as AirAnswer) ||
-    typeof density !== "string" ||
-    !densityAnswers.has(density as DensityAnswer)
+    typeof transport !== "string" ||
+    !transportAnswers.has(transport as TransportAnswer)
   ) {
     return { ok: false, error: "추천 응답 값이 올바르지 않아요." };
   }
@@ -173,8 +164,7 @@ async function readInput(
   const value: AdminRecommendationSimulationRequest = {
     answers: {
       movement: movement as MovementAnswer,
-      air: air as AirAnswer,
-      density: density as DensityAnswer,
+      transport: transport as TransportAnswer,
       ...(typeof companion === "string" &&
       companionAnswers.has(companion as CompanionAnswer)
         ? { companion: companion as CompanionAnswer }
