@@ -477,17 +477,9 @@ export function RecommendationsFlow({ interactive }: { interactive: boolean }) {
           if (!recommendationId) return;
           recordAction({
             journeyId: recommendationId,
-            action: "departure_peek_opened",
-            placeId: place.id,
-            metadata: { variant },
-          });
-        }}
-        onDeparturePlanExpanded={(place) => {
-          if (!recommendationId) return;
-          recordAction({
-            journeyId: recommendationId,
             action: "departure_plan_expanded",
             placeId: place.id,
+            metadata: { source: "recommendation_card", variant },
           });
         }}
         onNavigationStart={startNavigation}

@@ -15,7 +15,6 @@ import {
   FullscreenDeparturePlanScreen,
   type CardTransitionRect,
 } from "@/features/tuti/screens/departure/FullscreenDeparturePlanScreen";
-import { PeekDeparturePlanScreen } from "@/features/tuti/screens/departure/PeekDeparturePlanScreen";
 import { DetailScreen } from "@/features/tuti/screens/detail/DetailScreen";
 import { JournalScreen } from "@/features/tuti/screens/journal/JournalScreen";
 import { usePlaceDetail } from "@/features/tuti/hooks/usePlaceDetail";
@@ -57,11 +56,6 @@ type DeparturePresentation =
       sourceRect: CardTransitionRect;
     }
   | {
-      variant: "peek";
-      place: TutiPlace;
-      guideExpansion: boolean;
-    }
-  | {
       variant: "sheet";
       place: TutiPlace;
     };
@@ -100,7 +94,6 @@ export function RecommendationsScreen({
   savedPlaceIds,
   onToggleSavedPlace,
   onDepartureOpen,
-  onDeparturePlanExpanded,
   onNavigationStart,
   onRestartIntake,
   onReplayInitialHelp,
@@ -144,7 +137,6 @@ export function RecommendationsScreen({
     place: TutiPlace,
     variant: DeparturePresentation["variant"],
   ) => void;
-  onDeparturePlanExpanded: (place: TutiPlace) => void;
   onNavigationStart: (place: TutiPlace, route: DepartureRoute) => void;
   onRestartIntake: () => void;
   onReplayInitialHelp: () => void;
@@ -460,16 +452,14 @@ export function RecommendationsScreen({
           ? "flip"
           : departureUi === "expand"
             ? "expand"
-            : "peek";
+            : "sheet";
 
     setFlippedPlaceId(null);
     onDepartureOpen(place, variant);
     setDeparturePresentation(
-      variant === "peek"
-        ? { variant, place, guideExpansion: false }
-        : variant === "sheet"
-          ? { variant, place }
-          : { variant, place, sourceRect },
+      variant === "sheet"
+        ? { variant, place }
+        : { variant, place, sourceRect },
     );
   };
 
@@ -915,20 +905,6 @@ export function RecommendationsScreen({
           <DeparturePlanScreen
             key={departurePresentation.place.id}
             place={departurePresentation.place}
-            onNavigationStart={(route) =>
-              onNavigationStart(departurePresentation.place, route)
-            }
-            onClose={() => setDeparturePresentation(null)}
-          />
-        ) : departurePresentation.variant === "peek" ? (
-          <PeekDeparturePlanScreen
-            key={departurePresentation.place.id}
-            place={departurePresentation.place}
-            travelTimeLabel={activeTravelTimeLabel}
-            showExpansionGuide={departurePresentation.guideExpansion}
-            onExpanded={() =>
-              onDeparturePlanExpanded(departurePresentation.place)
-            }
             onNavigationStart={(route) =>
               onNavigationStart(departurePresentation.place, route)
             }
