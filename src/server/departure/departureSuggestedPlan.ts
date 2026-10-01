@@ -7,6 +7,7 @@ import type {
 type SuggestedPlanInput = {
   placeName: string;
   contentTypeId: string | null;
+  suggestedAction: string | null;
   detail: TourismPlaceDetail | null;
 };
 
@@ -61,6 +62,7 @@ const noticeOnlyPattern = /홈페이지|전화\s*문의|참조|상이하므로|�
 export function createDepartureSuggestedPlan({
   placeName,
   contentTypeId,
+  suggestedAction,
   detail,
 }: SuggestedPlanInput): DeparturePlanStep[] {
   const steps: DeparturePlanStep[] = [];
@@ -92,7 +94,12 @@ export function createDepartureSuggestedPlan({
     });
   }
 
-  return steps.slice(0, 2);
+  const result = steps.slice(0, 2);
+  const storedAction = normalizeText(suggestedAction);
+  if (storedAction && result[0]) {
+    result[0] = { ...result[0], title: storedAction };
+  }
+  return result;
 }
 
 function createExperienceStep(

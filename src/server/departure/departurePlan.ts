@@ -53,6 +53,7 @@ export async function createDeparturePlan(
       name: true,
       sourceAddress: true,
       sourceContentType: true,
+      suggestedAction: true,
       latitude: true,
       longitude: true,
     },
@@ -89,6 +90,7 @@ export async function createDeparturePlan(
     suggestedPlan: createDepartureSuggestedPlan({
       placeName: place.name,
       contentTypeId: place.sourceContentType,
+      suggestedAction: place.suggestedAction,
       detail,
     }),
     generatedAt: new Date().toISOString(),

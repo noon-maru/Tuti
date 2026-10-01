@@ -200,6 +200,7 @@ model Place {
   travelTime                String                                @map("travel_time")
   crowd                     String
   today                     String
+  suggestedAction           String?                               @map("suggested_action")
   fatigue                   Int
   movementLevel             MovementLevel                         @map("movement_level")
   moodTags                  String[]                              @map("mood_tags")

@@ -45,6 +45,7 @@ export async function GET(
         sourceContentType: true,
         sourceSidoName: true,
         sourceSigunguName: true,
+        suggestedAction: true,
         latitude: true,
         longitude: true,
       },
@@ -77,6 +78,7 @@ export async function GET(
       suggestedPlan: createDepartureSuggestedPlan({
         placeName: place.name,
         contentTypeId: place.sourceContentType,
+        suggestedAction: place.suggestedAction,
         detail,
       }),
     };
