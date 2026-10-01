@@ -1,4 +1,7 @@
-import type { TourismPlaceDetail } from "@/shared/api/placeDetails";
+import type {
+  PlaceSuggestedStep,
+  TourismPlaceDetail,
+} from "@/shared/api/placeDetails";
 import type { UserLocation } from "@/shared/tuti/types";
 
 export type DepartureRouteMode =
@@ -41,11 +44,7 @@ export type DepartureNearbyPlace = {
   externalUrl: string;
 };
 
-export type DeparturePlanStep = {
-  kind: "route" | "arrival" | "nearby";
-  title: string;
-  description: string | null;
-};
+export type DeparturePlanStep = PlaceSuggestedStep;
 
 export type DeparturePlanRequest = {
   origin: UserLocation;

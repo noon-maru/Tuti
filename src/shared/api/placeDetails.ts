@@ -40,7 +40,14 @@ export type PlaceDetailSummary = {
   longitude: number;
 };
 
+export type PlaceSuggestedStep = {
+  kind: "route" | "arrival" | "nearby";
+  title: string;
+  description: string | null;
+};
+
 export type PlaceDetailResponse = {
   place: PlaceDetailSummary;
   detail: TourismPlaceDetail | null;
+  suggestedPlan: PlaceSuggestedStep[];
 };

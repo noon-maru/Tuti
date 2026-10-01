@@ -7,6 +7,7 @@ import {
 import { ensureTourismPlaceDetail } from "@/server/tourism/enrichTourismPlaceDetail";
 import type { PlaceDetailResponse } from "@/shared/api/placeDetails";
 import { recommendablePlaceWhere } from "@/server/recommendations/recommendablePlaceWhere";
+import { createDepartureSuggestedPlan } from "@/server/departure/departureSuggestedPlan";
 import {
   toPublicPlaceAddress,
   toPublicPlaceName,
@@ -41,6 +42,7 @@ export async function GET(
         id: true,
         name: true,
         sourceAddress: true,
+        sourceContentType: true,
         sourceSidoName: true,
         sourceSigunguName: true,
         latitude: true,
@@ -72,6 +74,11 @@ export async function GET(
         longitude: Number(place.longitude),
       },
       detail,
+      suggestedPlan: createDepartureSuggestedPlan({
+        placeName: place.name,
+        contentTypeId: place.sourceContentType,
+        detail,
+      }),
     };
     return withCors(request, Response.json(response));
   } catch (error) {

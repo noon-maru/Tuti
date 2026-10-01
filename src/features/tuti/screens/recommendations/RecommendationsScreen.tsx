@@ -18,6 +18,7 @@ import {
 import { PeekDeparturePlanScreen } from "@/features/tuti/screens/departure/PeekDeparturePlanScreen";
 import { DetailScreen } from "@/features/tuti/screens/detail/DetailScreen";
 import { JournalScreen } from "@/features/tuti/screens/journal/JournalScreen";
+import { usePlaceDetail } from "@/features/tuti/hooks/usePlaceDetail";
 import {
   getRecommendationStatus,
   getRecommendationNoticeQueue,
@@ -68,6 +69,7 @@ type DeparturePresentation =
 const WHEEL_DELTA_LIMIT = 28;
 const WHEEL_TRIGGER_THRESHOLD = 24;
 const WHEEL_TRANSITION_DURATION = 260;
+const DETAIL_BUTTON_TRANSITION_DURATION = 340;
 const POINTER_TAP_SLOP = 8;
 const TOUCH_TAP_SLOP = 16;
 const LIMITED_RESULTS_TOAST_DURATION_MS = 10_000;
@@ -168,6 +170,7 @@ export function RecommendationsScreen({
     useState<RecommendationNotice | null>(null);
   const [departurePresentation, setDeparturePresentation] =
     useState<DeparturePresentation | null>(null);
+  const [flippedPlaceId, setFlippedPlaceId] = useState<string | null>(null);
   const frameRef = useRef<HTMLElement | null>(null);
   const dragSession = useRef<DragSession | null>(null);
   const suppressCardClickUntil = useRef(0);
@@ -178,6 +181,13 @@ export function RecommendationsScreen({
   const wheelLocked = useRef(false);
   const verticalProgress =
     dragAxis === "vertical" ? Math.min(Math.abs(dragOffset.y) / 140, 1) : 0;
+  const activeCardFlipped = Boolean(
+    activePlace && flippedPlaceId === activePlace.id,
+  );
+  const activeCardDetailQuery = usePlaceDetail(
+    activePlace?.id ?? "",
+    activeCardFlipped,
+  );
   const transitionTarget = dragOffset.y < 0 ? "detail" : "journal";
   const detailOpen = detailPhase === "open";
   const detailVisible = detailPhase !== "closed";
@@ -337,6 +347,7 @@ export function RecommendationsScreen({
 
   const commitVerticalTransition = (direction: -1 | 1) => {
     wheelDragY.current = 0;
+    setFlippedPlaceId(null);
 
     if (wheelResetTimer.current) {
       window.clearTimeout(wheelResetTimer.current);
@@ -359,11 +370,13 @@ export function RecommendationsScreen({
   const animateWheelTransition = (
     direction: -1 | 1,
     initialDragY: number,
+    duration = WHEEL_TRANSITION_DURATION,
   ) => {
     const targetDragY = direction * 160;
     const startedAt = window.performance.now();
 
     wheelDragY.current = 0;
+    setFlippedPlaceId(null);
 
     if (wheelResetTimer.current) {
       window.clearTimeout(wheelResetTimer.current);
@@ -381,7 +394,7 @@ export function RecommendationsScreen({
 
     const animate = (time: number) => {
       const progress = Math.min(
-        (time - startedAt) / WHEEL_TRANSITION_DURATION,
+        (time - startedAt) / duration,
         1,
       );
       const easedProgress = 1 - (1 - progress) ** 3;
@@ -413,6 +426,7 @@ export function RecommendationsScreen({
     if (window.performance.now() < suppressCardClickUntil.current) return;
 
     if (cardIndex !== activeIndex) {
+      setFlippedPlaceId(null);
       onSelect(cardIndex);
       return;
     }
@@ -421,6 +435,15 @@ export function RecommendationsScreen({
     const departureGuideActive = currentHelp === "departure";
     if ((currentHelp && !departureGuideActive) || !place) return;
 
+    setFlippedPlaceId((current) => current === place.id ? null : place.id);
+
+    if (departureGuideActive) {
+      setCurrentHelp(null);
+      onInitialHelpShown("departure");
+    }
+  };
+
+  const openDepartureCard = (place: TutiPlace, cardIndex: number) => {
     const sourceRect = getCardTransitionRect(
       frameRef.current,
       cardIndex,
@@ -431,28 +454,31 @@ export function RecommendationsScreen({
       window.location.href,
     ).searchParams.get("departure-ui");
     const variant =
-      departureGuideActive
-        ? "peek"
-        : departureUi === "sheet"
-          ? "sheet"
-          : departureUi === "flip" || departureUi === "fullscreen"
-            ? "flip"
-            : departureUi === "expand"
-              ? "expand"
-              : "peek";
+      departureUi === "sheet"
+        ? "sheet"
+        : departureUi === "flip" || departureUi === "fullscreen"
+          ? "flip"
+          : departureUi === "expand"
+            ? "expand"
+            : "peek";
 
-    if (departureGuideActive) {
-      setCurrentHelp(null);
-      onInitialHelpShown("departure");
-    }
+    setFlippedPlaceId(null);
     onDepartureOpen(place, variant);
     setDeparturePresentation(
       variant === "peek"
-        ? { variant, place, guideExpansion: departureGuideActive }
+        ? { variant, place, guideExpansion: false }
         : variant === "sheet"
           ? { variant, place }
           : { variant, place, sourceRect },
     );
+  };
+
+  const showCardDetail = () => {
+    if (!activePlace || committing) return;
+
+    setFlippedPlaceId(null);
+    completeHelp("detail");
+    animateWheelTransition(-1, 0, DETAIL_BUTTON_TRANSITION_DURATION);
   };
 
   const startDrag = (event: React.PointerEvent<HTMLElement>) => {
@@ -461,7 +487,10 @@ export function RecommendationsScreen({
     const cardElement = (event.target as HTMLElement).closest<HTMLElement>(
       "[data-swipe-card-index]",
     );
-    if (!cardElement) return;
+    if (!cardElement) {
+      if (activeCardFlipped) setFlippedPlaceId(null);
+      return;
+    }
 
     wheelDragY.current = 0;
 
@@ -556,6 +585,7 @@ export function RecommendationsScreen({
       }
 
       completeHelp("cards");
+      setFlippedPlaceId(null);
       onMove(dx < 0 ? 1 : -1);
       resetDrag();
       return;
@@ -758,6 +788,7 @@ export function RecommendationsScreen({
               place={place}
               offset={getOffset(index, activeIndex, places.length)}
               active={index === activeIndex}
+              flipped={index === activeIndex && activeCardFlipped}
               travelTimeLabel={
                 index === activeIndex
                   ? activeTravelTimeLabel
@@ -767,7 +798,27 @@ export function RecommendationsScreen({
               }
               showPlaceName={showPlaceName}
               showPublicTransitTime={showPublicTransitTime}
+              suggestedStep={
+                index === activeIndex
+                  ? activeCardDetailQuery.data?.suggestedPlan[0]
+                  : undefined
+              }
+              overviewSummary={
+                index === activeIndex
+                  ? activeCardDetailQuery.data?.detail?.overviewSummary
+                  : null
+              }
+              suggestionLoading={
+                index === activeIndex &&
+                activeCardFlipped &&
+                activeCardDetailQuery.isPending
+              }
+              savedForLater={savedPlaceIds.includes(place.id)}
               onActivate={() => activateCard(index)}
+              onShowFront={() => setFlippedPlaceId(null)}
+              onShowDetail={showCardDetail}
+              onOpenDeparture={() => openDepartureCard(place, index)}
+              onToggleSavedForLater={() => onToggleSavedPlace(place)}
               drag={dragStart || committing ? dragOffset : undefined}
               detailProgress={
                 index === activeIndex && transitionTarget === "detail"
@@ -786,7 +837,10 @@ export function RecommendationsScreen({
               aria-pressed={index === activeIndex}
               $active={index === activeIndex}
               onPointerDown={(event) => event.stopPropagation()}
-              onClick={() => onSelect(index)}
+              onClick={() => {
+                setFlippedPlaceId(null);
+                onSelect(index);
+              }}
             />
           ))}
         </Dots>
@@ -943,7 +997,7 @@ export function RecommendationsScreen({
                   ? "위로 올려 상세한 정보를 확인해보세요"
                   : displayedHelp === "journal"
                     ? "아래로 내려 지나간 공간을 기록해보세요"
-                    : "카드를 눌러 출발 준비를 열어보세요"}
+                    : "카드를 눌러 가볍게 살펴보세요"}
             </HelpMessage>
             <HelpSkipButton
               type="button"

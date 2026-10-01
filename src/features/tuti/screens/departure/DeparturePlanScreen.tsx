@@ -592,27 +592,6 @@ export function DeparturePlanScreen({
                 )}
               </Section>}
 
-              {(plan?.suggestedPlan.length ?? 0) > 0 && (
-                <Section>
-                <SectionHeading>
-                  <div>
-                    <h2>가서는 이만큼만 해도 충분해요.</h2>
-                  </div>
-                  </SectionHeading>
-                  <SuggestedSteps>
-                    {plan!.suggestedPlan.map((step, index) => (
-                      <li key={`${step.kind}-${index}`}>
-                        <i aria-hidden="true" />
-                        <span>
-                          <strong>{step.title}</strong>
-                          {step.description && <small>{step.description}</small>}
-                        </span>
-                      </li>
-                    ))}
-                  </SuggestedSteps>
-                </Section>
-              )}
-
               {(plan?.nearbyPlaces.length ?? 0) > 0 && (
                 <Section>
                 <SectionHeading>
@@ -1649,47 +1628,6 @@ const RouteLink = styled(BaseButtonLink)`
   svg {
     width: 17px;
     height: 17px;
-  }
-`;
-
-const SuggestedSteps = styled.ol`
-  display: grid;
-  gap: var(--space-3);
-
-  li {
-    display: flex;
-    align-items: flex-start;
-    gap: var(--space-3);
-    padding: var(--space-4);
-    border-radius: 20px;
-    background: var(--color-secondary-100);
-  }
-
-  i {
-    width: 10px;
-    height: 10px;
-    flex: 0 0 auto;
-    margin-top: 5px;
-    border-radius: 50%;
-    background: var(--color-secondary-500);
-  }
-
-  span {
-    min-width: 0;
-    display: grid;
-    gap: var(--space-1);
-  }
-
-  strong {
-    font-size: var(--font-size-100);
-    line-height: var(--line-height-subtitle);
-  }
-
-  small {
-    color: var(--color-text-muted);
-    font-size: calc(var(--font-size-100) - 1px);
-    line-height: var(--line-height-body);
-    white-space: pre-line;
   }
 `;
 
