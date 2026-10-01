@@ -40,7 +40,10 @@ import {
 } from "@/server/recommendations/executionEligibility";
 import { derivePlaceMoodTags } from "@/server/tourism/placeMoodTags";
 import { derivePlaceExperienceType } from "@/server/recommendations/experienceType";
-import { selectDiverseRecommendations } from "@/server/recommendations/finalDiversity";
+import {
+  selectDiverseRecommendations,
+  selectDiverseRecommendationsWithBackfill,
+} from "@/server/recommendations/finalDiversity";
 import { getNearbyDistancePolicy } from "@/server/recommendations/nearbyDistancePolicy";
 import {
   filterPlacesByRequestedDensity,
@@ -262,20 +265,28 @@ async function evaluateRecommendations(
       )
     : await findPlacesByBaseFatigue(preferredRegion);
 
-  const { eligiblePlaces, candidatePlaces } =
+  const { eligiblePlaces, candidatePlaces, fallbackPlaces } =
     selectRecommendationCandidatePool(places, excludePlaceIds);
   const preferencePlaceIdSet = new Set(preferencePlaceIds);
   const recommendationPlaces = candidatePlaces.filter(
     (place) => !preferencePlaceIdSet.has(place.id),
   );
-  const rankedPlaces = prioritizePlacesByRequestedMood(
-    rankByMovementFatigue(
-      recommendationPlaces.map(toTutiPlace),
-      answers,
-      feature,
-      recommendationPlaces.length,
-    ),
-    answers.air,
+  const fallbackRecommendationPlaces = fallbackPlaces.filter(
+    (place) => !preferencePlaceIdSet.has(place.id),
+  );
+  const rankCandidatePlaces = (candidateRows: PlaceRow[]) =>
+    prioritizePlacesByRequestedMood(
+      rankByMovementFatigue(
+        candidateRows.map(toTutiPlace),
+        answers,
+        feature,
+        candidateRows.length,
+      ),
+      answers.air,
+    );
+  const rankedPlaces = rankCandidatePlaces(recommendationPlaces);
+  const rankedFallbackPlaces = rankCandidatePlaces(
+    fallbackRecommendationPlaces,
   );
   const evaluatedPlaceIds = new Set<string>();
   const eligibleShortlist: TutiPlace[] = [];
@@ -285,41 +296,68 @@ async function evaluateRecommendations(
       : MAX_LOCATION_EVALUATION_BATCHES
     : 1;
 
-  for (let batchIndex = 0; batchIndex < evaluationBatchCount; batchIndex += 1) {
-    const candidateBatch = selectDiverseExperienceTypes(
-      rankedPlaces,
-      CANDIDATE_EVALUATION_BATCH_SIZE,
-      location ? 4 : 3,
-      evaluatedPlaceIds,
-    );
-    if (candidateBatch.length === 0) break;
-    candidateBatch.forEach((place) => evaluatedPlaceIds.add(place.id));
+  const evaluateCandidateRanking = async (
+    ranking: TutiPlace[],
+    maximumBatchCount: number,
+    targetCount: number,
+  ) => {
+    for (
+      let batchIndex = 0;
+      batchIndex < maximumBatchCount;
+      batchIndex += 1
+    ) {
+      const candidateBatch = selectDiverseExperienceTypes(
+        ranking,
+        CANDIDATE_EVALUATION_BATCH_SIZE,
+        location ? 4 : 3,
+        evaluatedPlaceIds,
+      );
+      if (candidateBatch.length === 0) break;
+      candidateBatch.forEach((place) => evaluatedPlaceIds.add(place.id));
 
-    const routeEnrichedBatch = location
-      ? rankByMovementFatigue(
-          await enrichWithTravelTimes(
-            candidateBatch,
-            location,
-            answers.transport,
-          ),
-          answers,
-          feature,
-          CANDIDATE_EVALUATION_BATCH_SIZE,
-        )
-      : candidateBatch;
-    const executionEnrichedBatch =
-      await enrichPlacesWithExecutionFeasibility(routeEnrichedBatch, {
-        ...answers,
-        movement: feature.movement,
-      });
-    const executableBatch = location
-      ? keepVerifiedTimeFits(executionEnrichedBatch)
-      : excludeExplicitlyInfeasiblePlaces(executionEnrichedBatch);
-    eligibleShortlist.push(
-      ...filterPlacesByAdmissionBudget(executableBatch, answers.budget),
-    );
+      const routeEnrichedBatch = location
+        ? rankByMovementFatigue(
+            await enrichWithTravelTimes(
+              candidateBatch,
+              location,
+              answers.transport,
+            ),
+            answers,
+            feature,
+            CANDIDATE_EVALUATION_BATCH_SIZE,
+          )
+        : candidateBatch;
+      const executionEnrichedBatch =
+        await enrichPlacesWithExecutionFeasibility(routeEnrichedBatch, {
+          ...answers,
+          movement: feature.movement,
+        });
+      const executableBatch = location
+        ? keepVerifiedTimeFits(executionEnrichedBatch)
+        : excludeExplicitlyInfeasiblePlaces(executionEnrichedBatch);
+      eligibleShortlist.push(
+        ...filterPlacesByAdmissionBudget(executableBatch, answers.budget),
+      );
 
-    if (eligibleShortlist.length >= FINAL_RERANK_POOL_SIZE) break;
+      if (eligibleShortlist.length >= targetCount) break;
+    }
+  };
+
+  await evaluateCandidateRanking(
+    rankedPlaces,
+    evaluationBatchCount,
+    FINAL_RERANK_POOL_SIZE,
+  );
+
+  if (
+    eligibleShortlist.length < RECOMMENDATION_LIMIT &&
+    rankedFallbackPlaces.length > 0
+  ) {
+    await evaluateCandidateRanking(
+      rankedFallbackPlaces,
+      evaluationBatchCount,
+      RECOMMENDATION_LIMIT,
+    );
   }
 
   const [weatherEnrichedPlaces, crowdEnrichedPlaces] = await Promise.all([
@@ -330,7 +368,7 @@ async function evaluateRecommendations(
     weatherEnrichedPlaces,
     crowdEnrichedPlaces,
   );
-  const finalRanking = prioritizePlacesByRequestedMood(
+  const rerankedPlaces = prioritizePlacesByRequestedMood(
     rankByMovementFatigue(
       filterPlacesByRequestedDensity(forecastedPlaces, answers.density),
       answers,
@@ -338,15 +376,25 @@ async function evaluateRecommendations(
       forecastedPlaces.length,
     ),
     answers.air,
-  ).slice(0, FINAL_RERANK_POOL_SIZE);
+  );
+  const previousPlaceIdSet = new Set(excludePlaceIds);
+  const finalRanking = [
+    ...rerankedPlaces
+      .filter((place) => !previousPlaceIdSet.has(place.id))
+      .slice(0, FINAL_RERANK_POOL_SIZE),
+    ...rerankedPlaces
+      .filter((place) => previousPlaceIdSet.has(place.id))
+      .slice(0, FINAL_RERANK_POOL_SIZE),
+  ];
   const personalization = await personalizeRecommendationRanking(
     finalRanking,
     answers,
     userId,
     preferencePlaceIds,
   );
-  const recommendedPlaces = selectDiverseRecommendations(
+  const recommendedPlaces = selectDiverseRecommendationsWithBackfill(
     personalization.places,
+    excludePlaceIds,
     RECOMMENDATION_LIMIT,
   );
 

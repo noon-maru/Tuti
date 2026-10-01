@@ -73,7 +73,7 @@ test("세종은 단일 행정권역 전체를 조회한다", () => {
   );
 });
 
-test("제외 후 후보가 6개 미만이면 원래 후보를 복구한다", () => {
+test("직전 추천은 새 후보와 분리해 실행 가능성 검증 뒤 보충한다", () => {
   const places = Array.from({ length: 6 }, (_, index) => ({
     id: `place-${index + 1}`,
   }));
@@ -83,7 +83,8 @@ test("제외 후 후보가 6개 미만이면 원래 후보를 복구한다", () 
   );
 
   assert.equal(selection.eligiblePlaces.length, 5);
-  assert.deepEqual(selection.candidatePlaces, places);
+  assert.deepEqual(selection.candidatePlaces, places.slice(1));
+  assert.deepEqual(selection.fallbackPlaces, [places[0]]);
 });
 
 test("원천 후보가 비어 있으면 빈 결과를 그대로 유지한다", () => {
@@ -91,6 +92,7 @@ test("원천 후보가 비어 있으면 빈 결과를 그대로 유지한다", (
 
   assert.deepEqual(selection.eligiblePlaces, []);
   assert.deepEqual(selection.candidatePlaces, []);
+  assert.deepEqual(selection.fallbackPlaces, []);
   assert.equal(
     getRecommendationStatus({
       loading: false,

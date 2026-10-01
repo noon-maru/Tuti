@@ -2,7 +2,10 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import type { PlaceExperienceType, TutiPlace } from "@/lib/recommendations";
 import { derivePlaceExperienceType } from "@/server/recommendations/experienceType";
-import { selectDiverseRecommendations } from "@/server/recommendations/finalDiversity";
+import {
+  selectDiverseRecommendations,
+  selectDiverseRecommendationsWithBackfill,
+} from "@/server/recommendations/finalDiversity";
 
 function createPlace(
   id: string,
@@ -125,4 +128,38 @@ test("품질 구간 밖의 장소는 유형만 다르다는 이유로 끌어올�
   );
 
   assert.equal(selected.some(({ id }) => id === "far-worse"), false);
+});
+
+test("새 추천이 부족하면 직전 추천으로 여섯 곳을 보충한다", () => {
+  const previousPlaces = Array.from({ length: 6 }, (_, index) =>
+    createPlace(`previous-${index + 1}`, "forest_garden", index + 2),
+  );
+  const selected = selectDiverseRecommendationsWithBackfill(
+    [createPlace("fresh", "history_heritage", 1), ...previousPlaces],
+    previousPlaces.map((place) => place.id),
+    6,
+  );
+
+  assert.equal(selected.length, 6);
+  assert.equal(selected[0].id, "fresh");
+  assert.equal(
+    selected.filter((place) => place.id.startsWith("previous-")).length,
+    5,
+  );
+});
+
+test("새 추천이 충분하면 직전 추천은 다시 노출하지 않는다", () => {
+  const freshPlaces = Array.from({ length: 6 }, (_, index) =>
+    createPlace(`fresh-${index + 1}`, "neighborhood", index + 1),
+  );
+  const selected = selectDiverseRecommendationsWithBackfill(
+    [...freshPlaces, createPlace("previous", "waterside", 0)],
+    ["previous"],
+    6,
+  );
+
+  assert.deepEqual(
+    new Set(selected.map((place) => place.id)),
+    new Set(freshPlaces.map((place) => place.id)),
+  );
 });

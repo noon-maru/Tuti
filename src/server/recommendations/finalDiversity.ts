@@ -49,6 +49,31 @@ export function selectDiverseRecommendations(
   return selected.map(({ place }) => place);
 }
 
+export function selectDiverseRecommendationsWithBackfill(
+  places: readonly TutiPlace[],
+  previousPlaceIds: readonly string[],
+  limit = 6,
+) {
+  const previousPlaceIdSet = new Set(previousPlaceIds);
+  const freshPlaces = places.filter(
+    (place) => !previousPlaceIdSet.has(place.id),
+  );
+  const previousPlaces = places.filter((place) =>
+    previousPlaceIdSet.has(place.id),
+  );
+  const freshSelection = selectDiverseRecommendations(freshPlaces, limit);
+
+  if (freshSelection.length >= limit) return freshSelection;
+
+  return [
+    ...freshSelection,
+    ...selectDiverseRecommendations(
+      previousPlaces,
+      limit - freshSelection.length,
+    ),
+  ];
+}
+
 function adjustedScore(place: TutiPlace, selected: TutiPlace[]) {
   const sameExperience = selected.filter(
     (selectedPlace) =>

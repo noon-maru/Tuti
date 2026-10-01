@@ -1,7 +1,6 @@
 export function selectRecommendationCandidatePool<Place extends { id: string }>(
   places: Place[],
   excludePlaceIds: string[],
-  minimumCandidateCount = 6,
 ) {
   const excludedPlaceIdSet = new Set(excludePlaceIds);
   const eligiblePlaces = places.filter(
@@ -10,9 +9,7 @@ export function selectRecommendationCandidatePool<Place extends { id: string }>(
 
   return {
     eligiblePlaces,
-    candidatePlaces:
-      eligiblePlaces.length >= minimumCandidateCount
-        ? eligiblePlaces
-        : places,
+    candidatePlaces: eligiblePlaces,
+    fallbackPlaces: places.filter((place) => excludedPlaceIdSet.has(place.id)),
   };
 }
