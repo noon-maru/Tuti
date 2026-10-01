@@ -1167,8 +1167,12 @@ const HeaderCopy = styled.div`
 `;
 
 const ScrollContent = styled.div<{ $pointerScrolling: boolean }>`
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
   min-height: 0;
   flex: 1;
+  overflow-x: hidden;
   overflow-y: auto;
   padding: 0 1px var(--space-6);
   overscroll-behavior: contain;
@@ -1378,9 +1382,17 @@ const RetryButton = styled(BaseButton)`
 `;
 
 const PlanContent = styled.div`
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
   display: grid;
   gap: var(--space-8);
   padding-top: var(--space-6);
+
+  > * {
+    min-width: 0;
+    max-width: 100%;
+  }
 `;
 
 const LongDistanceSection = styled.section`
@@ -1595,11 +1607,15 @@ const StayLink = styled(BaseButtonLink)`
 `;
 
 const Section = styled.section`
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
   display: grid;
   gap: var(--space-4);
 `;
 
 const SectionHeading = styled.div`
+  min-width: 0;
   display: flex;
   align-items: flex-end;
   justify-content: space-between;
@@ -1628,6 +1644,9 @@ const RecommendedBadge = styled.span`
 `;
 
 const ModeTabs = styled.div<{ $columns: number }>`
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
   display: grid;
   grid-template-columns: repeat(
     ${({ $columns }) => Math.max(1, $columns)},
@@ -1636,6 +1655,13 @@ const ModeTabs = styled.div<{ $columns: number }>`
   align-items: stretch;
   justify-content: center;
   gap: var(--space-2);
+
+  @container app-viewport (max-width: 479px) {
+    grid-template-columns: repeat(
+      ${({ $columns }) => ($columns >= 4 ? 2 : Math.max(1, $columns))},
+      minmax(0, 1fr)
+    );
+  }
 `;
 
 const ModeButton = styled(BaseButton)<{ $active: boolean }>`
@@ -1678,6 +1704,9 @@ const ModeButton = styled(BaseButton)<{ $active: boolean }>`
 `;
 
 const RouteCard = styled.div`
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
   display: grid;
   gap: var(--space-4);
   padding: var(--space-5);
@@ -1688,6 +1717,9 @@ const RouteCard = styled.div`
 `;
 
 const DirectRouteCard = styled.div`
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
   display: grid;
   gap: var(--space-4);
   padding: var(--space-5);
@@ -1792,18 +1824,25 @@ const RouteSteps = styled.ol`
   }
 
   strong {
+    min-width: 0;
     font-size: var(--font-size-100);
     font-weight: 500;
     line-height: var(--line-height-body);
+    overflow-wrap: anywhere;
+    word-break: break-word;
   }
 
   small {
     color: rgb(var(--color-white-rgb) / 0.58);
     font-size: calc(var(--font-size-100) - 2px);
+    overflow-wrap: anywhere;
+    word-break: break-word;
   }
 `;
 
 const RouteLink = styled(BaseButtonLink)`
+  width: 100%;
+  min-width: 0;
   min-height: var(--space-12);
   display: flex;
   align-items: center;
@@ -1814,6 +1853,8 @@ const RouteLink = styled(BaseButtonLink)`
   color: var(--color-text);
   font-size: var(--font-size-200);
   font-weight: 700;
+  text-align: center;
+  white-space: normal;
   text-decoration: none;
 
   svg {

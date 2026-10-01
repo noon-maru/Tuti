@@ -25,25 +25,30 @@ function route(
   };
 }
 
-function routes(walkingStatus: DepartureRoute["status"]): DeparturePlan["routes"] {
+function routes(
+  statuses: Partial<Record<DepartureRouteMode, DepartureRoute["status"]>>,
+): DeparturePlan["routes"] {
   return {
-    publicTransit: route("publicTransit", "available"),
-    driving: route("driving", "available"),
-    bicycle: route("bicycle", "available"),
-    walking: route("walking", walkingStatus),
+    publicTransit: route(
+      "publicTransit",
+      statuses.publicTransit ?? "available",
+    ),
+    driving: route("driving", statuses.driving ?? "available"),
+    bicycle: route("bicycle", statuses.bicycle ?? "available"),
+    walking: route("walking", statuses.walking ?? "available"),
   };
 }
 
-test("도보 경로가 없으면 이동수단 목록에서 도보를 숨긴다", () => {
-  assert.deepEqual(getVisibleDepartureRouteModes(routes("unavailable")), [
-    "publicTransit",
-    "driving",
-    "bicycle",
-  ]);
-  assert.deepEqual(getVisibleDepartureRouteModes(routes("available")), [
-    "publicTransit",
-    "driving",
-    "bicycle",
-    "walking",
-  ]);
+test("경로를 확인한 이동수단만 목록에 표시한다", () => {
+  assert.deepEqual(
+    getVisibleDepartureRouteModes(routes({ walking: "unavailable" })),
+    ["publicTransit", "driving", "bicycle"],
+  );
+  assert.deepEqual(
+    getVisibleDepartureRouteModes(routes({
+      driving: "unavailable",
+      bicycle: "unavailable",
+    })),
+    ["publicTransit", "walking"],
+  );
 });

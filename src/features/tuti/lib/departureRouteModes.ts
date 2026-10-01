@@ -14,6 +14,6 @@ export function getVisibleDepartureRouteModes(
   routes: DeparturePlan["routes"],
 ) {
   return DEPARTURE_ROUTE_MODES.filter(
-    (mode) => mode !== "walking" || routes.walking.status === "available",
+    (mode) => routes[mode].status === "available",
   );
 }
