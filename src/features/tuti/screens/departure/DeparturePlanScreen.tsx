@@ -12,7 +12,13 @@ import {
   Navigation,
   TrainFront,
 } from "lucide-react";
-import { useLayoutEffect, useRef, useState } from "react";
+import {
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type PointerEvent,
+} from "react";
 import {
   BaseButton,
   BaseButtonLink,
@@ -42,6 +48,18 @@ import { useTutiStore } from "@/store/tuti";
 const DEPARTURE_EXIT_DURATION = 420;
 const DEPARTURE_EXIT_FRAME_BUFFER = 34;
 const DEPARTURE_HISTORY_STATE_KEY = "__tutiDeparturePlan";
+const POINTER_SCROLL_FRICTION = 0.92;
+const POINTER_SCROLL_MIN_VELOCITY = 0.02;
+const POINTER_SCROLL_MAX_VELOCITY = 2.4;
+
+type PointerScrollGesture = {
+  pointerId: number;
+  startY: number;
+  startScrollTop: number;
+  lastY: number;
+  lastTimestamp: number;
+  velocity: number;
+};
 export type DeparturePlace = Pick<
   TutiPlace,
   | "id"
@@ -82,6 +100,10 @@ export function DeparturePlanScreen({
   const ownsHistoryEntry = useRef(false);
   const closingFromHistory = useRef(false);
   const ignoreNextPopState = useRef(false);
+  const scrollContentRef = useRef<HTMLDivElement | null>(null);
+  const pointerScrollGesture = useRef<PointerScrollGesture | null>(null);
+  const pointerScrollInertiaFrame = useRef<number | null>(null);
+  const [pointerScrolling, setPointerScrolling] = useState(false);
   const finishCloseRef = useRef<() => void>(() => undefined);
   const requestExitRef = useRef<() => Promise<void>>(
     () => Promise.resolve(),
@@ -178,6 +200,145 @@ export function DeparturePlanScreen({
     return () => window.removeEventListener("popstate", closeFromHistory);
   }, [embedded]);
 
+  useEffect(
+    () => () => {
+      if (pointerScrollInertiaFrame.current !== null) {
+        window.cancelAnimationFrame(pointerScrollInertiaFrame.current);
+      }
+    },
+    [],
+  );
+
+  const stopPointerScrollInertia = () => {
+    if (pointerScrollInertiaFrame.current === null) return;
+    window.cancelAnimationFrame(pointerScrollInertiaFrame.current);
+    pointerScrollInertiaFrame.current = null;
+  };
+
+  const startPointerScrollInertia = (initialVelocity: number) => {
+    const content = scrollContentRef.current;
+    if (
+      !content ||
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches
+    ) {
+      return;
+    }
+
+    stopPointerScrollInertia();
+    let velocity = Math.max(
+      -POINTER_SCROLL_MAX_VELOCITY,
+      Math.min(initialVelocity, POINTER_SCROLL_MAX_VELOCITY),
+    );
+    let previousTimestamp = performance.now();
+
+    const glide = (timestamp: number) => {
+      const elapsed = Math.min(32, Math.max(1, timestamp - previousTimestamp));
+      previousTimestamp = timestamp;
+      const maximumScrollTop = Math.max(
+        0,
+        content.scrollHeight - content.clientHeight,
+      );
+      const nextScrollTop = Math.max(
+        0,
+        Math.min(content.scrollTop + velocity * elapsed, maximumScrollTop),
+      );
+      content.scrollTop = nextScrollTop;
+      velocity *= Math.pow(
+        POINTER_SCROLL_FRICTION,
+        elapsed / (1000 / 60),
+      );
+
+      const reachedBoundary =
+        (nextScrollTop <= 0 && velocity < 0) ||
+        (nextScrollTop >= maximumScrollTop && velocity > 0);
+      if (
+        reachedBoundary ||
+        Math.abs(velocity) < POINTER_SCROLL_MIN_VELOCITY
+      ) {
+        pointerScrollInertiaFrame.current = null;
+        return;
+      }
+
+      pointerScrollInertiaFrame.current = window.requestAnimationFrame(glide);
+    };
+
+    pointerScrollInertiaFrame.current = window.requestAnimationFrame(glide);
+  };
+
+  const startPointerScroll = (event: PointerEvent<HTMLDivElement>) => {
+    if (
+      !event.isPrimary ||
+      event.pointerType !== "mouse" ||
+      event.button !== 0 ||
+      isDepartureInteractiveTarget(event.target)
+    ) {
+      return;
+    }
+
+    stopPointerScrollInertia();
+    event.preventDefault();
+    event.stopPropagation();
+    event.currentTarget.setPointerCapture(event.pointerId);
+    pointerScrollGesture.current = {
+      pointerId: event.pointerId,
+      startY: event.clientY,
+      startScrollTop: event.currentTarget.scrollTop,
+      lastY: event.clientY,
+      lastTimestamp: performance.now(),
+      velocity: 0,
+    };
+    setPointerScrolling(true);
+  };
+
+  const updatePointerScroll = (event: PointerEvent<HTMLDivElement>) => {
+    const gesture = pointerScrollGesture.current;
+    if (!gesture || gesture.pointerId !== event.pointerId) return;
+
+    event.preventDefault();
+    event.stopPropagation();
+    const timestamp = performance.now();
+    const elapsed = Math.max(1, timestamp - gesture.lastTimestamp);
+    const instantVelocity = (gesture.lastY - event.clientY) / elapsed;
+    gesture.velocity = gesture.velocity * 0.55 + instantVelocity * 0.45;
+    gesture.lastY = event.clientY;
+    gesture.lastTimestamp = timestamp;
+    event.currentTarget.scrollTop = Math.max(
+      0,
+      gesture.startScrollTop + gesture.startY - event.clientY,
+    );
+  };
+
+  const finishPointerScroll = (
+    event: PointerEvent<HTMLDivElement>,
+    cancelled = false,
+  ) => {
+    const gesture = pointerScrollGesture.current;
+    if (!gesture || gesture.pointerId !== event.pointerId) return;
+
+    event.stopPropagation();
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    }
+    pointerScrollGesture.current = null;
+    setPointerScrolling(false);
+
+    if (!cancelled) {
+      const idleDuration = Math.max(
+        0,
+        performance.now() - gesture.lastTimestamp,
+      );
+      const releaseVelocity =
+        gesture.velocity *
+        Math.pow(
+          POINTER_SCROLL_FRICTION,
+          idleDuration / (1000 / 60),
+        );
+      if (Math.abs(releaseVelocity) >= POINTER_SCROLL_MIN_VELOCITY) {
+        startPointerScrollInertia(releaseVelocity);
+      }
+    }
+  };
+
   const requestCurrentLocation = async () => {
     if (locationStatus === "loading") return;
 
@@ -250,7 +411,15 @@ export function DeparturePlanScreen({
           </HeaderCopy>
         </Header>
 
-        <ScrollContent data-scroll-region>
+        <ScrollContent
+          ref={scrollContentRef}
+          data-scroll-region
+          $pointerScrolling={pointerScrolling}
+          onPointerCancel={(event) => finishPointerScroll(event, true)}
+          onPointerDown={startPointerScroll}
+          onPointerMove={updatePointerScroll}
+          onPointerUp={finishPointerScroll}
+        >
           <PlaceSummary>
             <PlaceImage $image={place.image} aria-hidden="true" />
             <div>
@@ -833,6 +1002,13 @@ function getNearbyCategoryLabel(category: DeparturePlan["nearbyPlaces"][number][
   }[category];
 }
 
+function isDepartureInteractiveTarget(target: EventTarget | null) {
+  return (
+    target instanceof Element &&
+    Boolean(target.closest("button, a, input, textarea, select"))
+  );
+}
+
 function getHistoryState(state: unknown = window.history.state) {
   return state && typeof state === "object"
     ? (state as Record<string, unknown>)
@@ -990,7 +1166,7 @@ const HeaderCopy = styled.div`
   }
 `;
 
-const ScrollContent = styled.div`
+const ScrollContent = styled.div<{ $pointerScrolling: boolean }>`
   min-height: 0;
   flex: 1;
   overflow-y: auto;
@@ -1004,6 +1180,21 @@ const ScrollContent = styled.div`
     display: none;
     width: 0;
     height: 0;
+  }
+
+  @media (pointer: fine) {
+    cursor: ${({ $pointerScrolling }) =>
+      $pointerScrolling ? "grabbing" : "grab"};
+    user-select: ${({ $pointerScrolling }) =>
+      $pointerScrolling ? "none" : "auto"};
+
+    button,
+    a,
+    input,
+    textarea,
+    select {
+      cursor: pointer;
+    }
   }
 `;
 
