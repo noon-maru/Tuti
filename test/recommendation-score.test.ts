@@ -97,6 +97,24 @@ test("반나절 선택은 짧은 공간보다 오래 머물 경험을 우선한�
   assert.deepEqual(ranked.map(({ id }) => id), ["half-day", "brief"]);
 });
 
+test("반나절 여유가 있어도 가까운 장소에 거리 불이익을 주지 않는다", () => {
+  const halfDayAnswers: IntakeAnswers = { movement: "half", transport: "car" };
+  const halfDayFeature = { ...feature, movement: "half" as const };
+  const close = calculateMovementFatigue(
+    createPlace({ distanceMeters: 3_000, movementLevel: "short" }),
+    halfDayAnswers,
+    halfDayFeature,
+  );
+  const distant = calculateMovementFatigue(
+    createPlace({ distanceMeters: 40_000, movementLevel: "half" }),
+    halfDayAnswers,
+    halfDayFeature,
+  );
+
+  assert.ok(close.physicalDistance < distant.physicalDistance);
+  assert.ok(close.movementPenalty - distant.movementPenalty <= 2);
+});
+
 test("같은 상태에서도 장소 경험 유형에 따라 소개와 추천 이유가 달라진다", () => {
   const ranked = rankByMovementFatigue(
     [

@@ -35,17 +35,17 @@ test("한 시간 외출 계산과 선택 문구가 같은 기준을 사용한다
   assert.equal(nearOption?.hint, "왕복 이동과 머무는 시간까지");
 });
 
-test("근거리 이동 단계마다 후보의 절대 최대 반경을 둔다", () => {
+test("이동 가능 시간은 목표 거리가 아니라 후보의 최대 반경으로만 사용한다", () => {
   assert.deepEqual(getNearbyDistancePolicy("near"), {
     targetMeters: 0,
     maximumMeters: 5_000,
   });
   assert.deepEqual(getNearbyDistancePolicy("short"), {
-    targetMeters: 7_000,
+    targetMeters: 0,
     maximumMeters: 20_000,
   });
   assert.deepEqual(getNearbyDistancePolicy("half"), {
-    targetMeters: 25_000,
+    targetMeters: 0,
     maximumMeters: 60_000,
   });
 });

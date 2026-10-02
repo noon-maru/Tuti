@@ -147,10 +147,8 @@ export function calculateMovementFatigue(
       movementGap > 0
         ? movementGap * 20
         : requestedMovement === place.movementLevel
-          ? -12
-          : requestedMovement === "half"
-            ? Math.abs(movementGap) * 5
-            : -3,
+          ? -4
+          : -2,
     moodAdjustment: hasMoodMatch ? -12 : moodTag ? 6 : 0,
     crowdPenalty: getCrowdPenalty(
       place.crowd,
@@ -396,11 +394,11 @@ function getPhysicalDistanceScore(
   }
 
   if (movement === "short") {
-    if (km < 1.5) return 8;
-    if (km < 3) return 0;
-    if (km <= 15) return -6;
-    if (km <= 25) return 8;
-    return 20;
+    if (km <= 3) return -8;
+    if (km <= 10) return -6;
+    if (km <= 15) return 0;
+    if (km <= 20) return 8;
+    return 18;
   }
 
   if (movement === "far") {
@@ -410,11 +408,11 @@ function getPhysicalDistanceScore(
     return 14;
   }
 
-  if (km < 6) return 18;
-  if (km < 12) return 6;
-  if (km <= 45) return -8;
-  if (km <= 70) return 5;
-  return 18;
+  if (km <= 5) return -8;
+  if (km <= 15) return -6;
+  if (km <= 30) return -2;
+  if (km <= 45) return 4;
+  return 12;
 }
 
 function getTravelTimeScore(
@@ -432,12 +430,11 @@ function getTravelTimeScore(
   }
 
   if (movement === "short") {
-    if (minutes < 10) return 12;
-    if (minutes < 20) return 3;
-    if (minutes <= 50) return -12;
-    if (minutes <= 70) return 5;
-    if (minutes <= 100) return 14;
-    return 24;
+    if (minutes <= 20) return -10;
+    if (minutes <= 40) return -8;
+    if (minutes <= 60) return -2;
+    if (minutes <= 90) return 10;
+    return 20;
   }
 
   if (movement === "far") {
@@ -447,12 +444,12 @@ function getTravelTimeScore(
     return 18;
   }
 
-  if (minutes < 25) return 22;
-  if (minutes < 45) return 8;
-  if (minutes <= 100) return -16;
-  if (minutes <= 130) return 5;
-  if (minutes <= 180) return 14;
-  return 26;
+  if (minutes <= 30) return -10;
+  if (minutes <= 60) return -8;
+  if (minutes <= 90) return -4;
+  if (minutes <= 120) return 2;
+  if (minutes <= 150) return 10;
+  return 20;
 }
 
 function normalizeCrowd(
