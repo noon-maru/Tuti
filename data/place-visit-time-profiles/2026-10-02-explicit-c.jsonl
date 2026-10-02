@@ -32,3 +32,4 @@
 {"contentId":"2662902","minimumMinutes":120,"typicalMinutes":120,"maximumMinutes":120,"source":"llm_parsed","confidence":99,"evidence":"원문 '120분/회차당'에 고정 회차 시간이 명시되어 최소·일반·최대 체류를 모두 120분으로 구조화함"}
 {"contentId":"2795749","minimumMinutes":60,"typicalMinutes":90,"maximumMinutes":120,"source":"llm_parsed","confidence":99,"evidence":"원문에 제시된 1~2시간 범위를 최소 60분, 일반 90분, 최대 120분으로 구조화함"}
 {"contentId":"2782527","minimumMinutes":150,"typicalMinutes":180,"maximumMinutes":210,"source":"llm_parsed","confidence":97,"evidence":"원문 '약 3시간'을 일반 체류 180분으로 해석하고 전후 30분의 관람 편차를 반영함"}
+{"contentId":"2751339","minimumMinutes":45,"typicalMinutes":60,"maximumMinutes":75,"source":"llm_parsed","confidence":98,"evidence":"원문에 명시된 1시간을 일반 체류 60분으로 두고 방송전시관 관람 편차를 반영함"}
