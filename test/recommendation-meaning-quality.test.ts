@@ -2,7 +2,10 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import type { TutiPlace } from "@/lib/recommendations";
 import { rankLongDistanceCandidatePool } from "@/server/recommendations/longDistanceCandidateRanking";
-import { getNearbyDistancePolicy } from "@/server/recommendations/nearbyDistancePolicy";
+import {
+  getNearbyDistancePolicy,
+  getNearbyMinimumDistanceMeters,
+} from "@/server/recommendations/nearbyDistancePolicy";
 import { derivePlaceMoodTags } from "@/server/tourism/placeMoodTags";
 import { movementTimeBudget } from "@/shared/tuti/movementTimeBudget";
 import { intakeSteps } from "@/features/tuti/data/intakeSteps";
@@ -48,6 +51,12 @@ test("이동 가능 시간은 목표 거리가 아니라 후보의 최대 반경
     targetMeters: 0,
     maximumMeters: 60_000,
   });
+});
+
+test("자동차 추천은 도보로도 닿을 2km 안쪽 장소를 제외한다", () => {
+  assert.equal(getNearbyMinimumDistanceMeters("car"), 2_000);
+  assert.equal(getNearbyMinimumDistanceMeters("transit"), 0);
+  assert.equal(getNearbyMinimumDistanceMeters(undefined), 0);
 });
 
 test("근거가 없는 장소에 트인 곳 태그를 기본 부여하지 않는다", () => {

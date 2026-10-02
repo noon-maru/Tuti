@@ -37,7 +37,10 @@ import {
   selectDiverseRecommendations,
   selectDiverseRecommendationsWithBackfill,
 } from "@/server/recommendations/finalDiversity";
-import { getNearbyDistancePolicy } from "@/server/recommendations/nearbyDistancePolicy";
+import {
+  getNearbyDistancePolicy,
+  getNearbyMinimumDistanceMeters,
+} from "@/server/recommendations/nearbyDistancePolicy";
 import {
   filterPlacesByRequestedDensity,
   prioritizePlacesByRequestedMood,
@@ -249,6 +252,7 @@ async function evaluateRecommendations(
         feature.movement === "far"
           ? "half"
           : requireNearbyMovement(feature.movement),
+        answers.transport,
       )
     : await findPlacesByBaseFatigue(preferredRegion);
 
@@ -456,9 +460,11 @@ async function findPlacesByBaseFatigue(
 async function findPlacesNearLocation(
   location: UserLocation,
   movement: "near" | "short" | "half",
+  transport: IntakeAnswers["transport"],
 ): Promise<PlaceRow[]> {
   const { latitude, longitude } = location;
   const { targetMeters, maximumMeters } = getNearbyDistancePolicy(movement);
+  const minimumMeters = getNearbyMinimumDistanceMeters(transport);
 
   return prisma.$queryRaw<PlaceRow[]>`
     SELECT
@@ -508,6 +514,10 @@ async function findPlacesNearLocation(
         ST_SetSRID(ST_MakePoint(${longitude}, ${latitude}), 4326)::geography,
         ${maximumMeters}
       )
+      AND ST_Distance(
+        p."location"::geography,
+        ST_SetSRID(ST_MakePoint(${longitude}, ${latitude}), 4326)::geography
+      ) >= ${minimumMeters}
     ORDER BY
       ABS(
         ST_Distance(

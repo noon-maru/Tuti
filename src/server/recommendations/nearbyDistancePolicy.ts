@@ -18,3 +18,9 @@ const nearbyDistancePolicy: Record<
 export function getNearbyDistancePolicy(movement: NearbyMovement) {
   return nearbyDistancePolicy[movement];
 }
+
+export function getNearbyMinimumDistanceMeters(
+  transport: "transit" | "car" | undefined,
+) {
+  return transport === "car" ? 2_000 : 0;
+}
