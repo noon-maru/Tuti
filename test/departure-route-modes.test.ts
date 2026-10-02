@@ -52,3 +52,14 @@ test("경로를 확인한 이동수단만 목록에 표시한다", () => {
     ["publicTransit", "walking"],
   );
 });
+
+test("아직 확인하지 않은 이동수단은 탭에서 선택할 수 있다", () => {
+  assert.deepEqual(
+    getVisibleDepartureRouteModes(routes({
+      publicTransit: "pending",
+      bicycle: "pending",
+      walking: "unavailable",
+    })),
+    ["publicTransit", "driving", "bicycle"],
+  );
+});

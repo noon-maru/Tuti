@@ -28,6 +28,8 @@ import { LoadingIndicator } from "@/features/tuti/components/LoadingIndicator";
 import { useLocationAccess } from "@/features/tuti/location/LocationAccessProvider";
 import type { LocationRequestResult } from "@/features/tuti/location/locationAccess";
 import { useDeparturePlan } from "@/features/tuti/hooks/useDeparturePlan";
+import { useDepartureRoute } from "@/features/tuti/hooks/useDepartureRoute";
+import { useDepartureNearbyPlaces } from "@/features/tuti/hooks/useDepartureNearbyPlaces";
 import { useNearbyAccommodations } from "@/features/tuti/hooks/useNearbyAccommodations";
 import { usePlaceDetail } from "@/features/tuti/hooks/usePlaceDetail";
 import { useVerticalSwipeBack } from "@/features/tuti/hooks/useVerticalSwipeBack";
@@ -89,6 +91,7 @@ export function DeparturePlanScreen({
 }) {
   const { requestLocation } = useLocationAccess();
   const userLocation = useTutiStore((state) => state.userLocation);
+  const transport = useTutiStore((state) => state.answers.transport);
   const [preferredMode, setPreferredMode] =
     useState<DepartureRouteMode | null>(null);
   const [locationStatus, setLocationStatus] = useState<
@@ -104,11 +107,12 @@ export function DeparturePlanScreen({
   const pointerScrollGesture = useRef<PointerScrollGesture | null>(null);
   const pointerScrollInertiaFrame = useRef<number | null>(null);
   const [pointerScrolling, setPointerScrolling] = useState(false);
+  const [nearbyEnabled, setNearbyEnabled] = useState(false);
   const finishCloseRef = useRef<() => void>(() => undefined);
   const requestExitRef = useRef<() => Promise<void>>(
     () => Promise.resolve(),
   );
-  const departureQuery = useDeparturePlan(place.id, userLocation);
+  const departureQuery = useDeparturePlan(place.id, userLocation, transport);
   const placeDetailQuery = usePlaceDetail(place.id, !userLocation);
   const overnight = place.longDistanceJourney?.timing === "overnight_trip";
   const accommodationsQuery = useNearbyAccommodations(place.id, overnight);
@@ -116,13 +120,31 @@ export function DeparturePlanScreen({
   const visibleRouteModes = plan
     ? getVisibleDepartureRouteModes(plan.routes)
     : [];
-  const continuationPlaces =
-    plan?.nearbyPlaces.filter((nearby) => nearby.kind === "continuation") ?? [];
-  const restPlaces =
-    plan?.nearbyPlaces.filter((nearby) => nearby.kind === "rest") ?? [];
   const selectedMode = resolveSelectedMode(plan, preferredMode);
-  const selectedRoute =
+  const selectedPlanRoute =
     plan && selectedMode ? plan.routes[selectedMode] : null;
+  const departureRouteQuery = useDepartureRoute(
+    place.id,
+    userLocation,
+    selectedMode,
+    selectedPlanRoute?.status === "pending",
+  );
+  const selectedRoute = departureRouteQuery.data ??
+    (selectedPlanRoute?.status === "available" ? selectedPlanRoute : null);
+  const nearbyQuery = useDepartureNearbyPlaces(
+    place.id,
+    nearbyEnabled &&
+      !place.longDistanceJourney &&
+      Boolean(plan) &&
+      plan!.nearbyPlaces.length === 0,
+  );
+  const nearbyPlaces = plan?.nearbyPlaces.length
+    ? plan.nearbyPlaces
+    : nearbyQuery.data ?? [];
+  const continuationPlaces =
+    nearbyPlaces.filter((nearby) => nearby.kind === "continuation");
+  const restPlaces =
+    nearbyPlaces.filter((nearby) => nearby.kind === "rest");
   const routeGuidanceUrl =
     plan && selectedRoute
       ? resolveRouteGuidanceUrl(selectedRoute, plan)
@@ -134,6 +156,12 @@ export function DeparturePlanScreen({
     latitude: destination?.latitude ?? place.latitude,
     longitude: destination?.longitude ?? place.longitude,
   });
+
+  useEffect(() => {
+    if (!plan || place.longDistanceJourney || plan.nearbyPlaces.length > 0) return;
+    const timer = window.setTimeout(() => setNearbyEnabled(true), 1_500);
+    return () => window.clearTimeout(timer);
+  }, [plan, place.longDistanceJourney]);
 
   const finishClose = () => {
     const shouldRemoveHistoryEntry =
@@ -661,13 +689,17 @@ export function DeparturePlanScreen({
                   $columns={visibleRouteModes.length}
                 >
                   {visibleRouteModes.map((mode) => {
-                    const route = plan.routes[mode];
+                    const plannedRoute = plan.routes[mode];
+                    const route =
+                      mode === selectedMode && departureRouteQuery.data
+                        ? departureRouteQuery.data
+                        : plannedRoute;
                     return (
                       <ModeButton
                         key={mode}
                         type="button"
                         aria-pressed={mode === selectedMode}
-                        disabled={route.status !== "available"}
+                        disabled={route.status === "unavailable"}
                         $active={mode === selectedMode}
                         onClick={() => setPreferredMode(mode)}
                       >
@@ -675,12 +707,26 @@ export function DeparturePlanScreen({
                         <span>
                           {route.status === "available"
                             ? formatDuration(route.durationSeconds)
-                            : "경로 없음"}
+                            : mode === selectedMode &&
+                                departureRouteQuery.isPending
+                              ? "확인 중"
+                              : "확인하기"}
                         </span>
                       </ModeButton>
                     );
                   })}
                 </ModeTabs>
+
+                {selectedPlanRoute?.status === "pending" &&
+                  departureRouteQuery.isPending && (
+                    <StayStatus>선택한 이동 경로를 확인하고 있어요.</StayStatus>
+                  )}
+                {selectedPlanRoute?.status === "pending" &&
+                  departureRouteQuery.isError && (
+                    <StatusMessage role="alert">
+                      이 이동 경로를 확인하지 못했어요. 다시 눌러주세요.
+                    </StatusMessage>
+                  )}
 
                 {selectedRoute?.mode === "publicTransit" && (
                   <RouteCard>
@@ -761,7 +807,7 @@ export function DeparturePlanScreen({
                 )}
               </Section>}
 
-              {(plan?.nearbyPlaces.length ?? 0) > 0 && (
+              {nearbyPlaces.length > 0 && (
                 <Section>
                 <SectionHeading>
                   <div>
@@ -829,13 +875,13 @@ function resolveSelectedMode(
   preferredMode: DepartureRouteMode | null,
 ) {
   if (!plan) return null;
-  if (preferredMode && plan.routes[preferredMode].status === "available") {
+  if (preferredMode && plan.routes[preferredMode].status !== "unavailable") {
     return preferredMode;
   }
   if (plan.recommendedMode) return plan.recommendedMode;
   return (
     DEPARTURE_ROUTE_MODES.find(
-      (mode) => plan.routes[mode].status === "available",
+      (mode) => plan.routes[mode].status !== "unavailable",
     ) ??
     null
   );

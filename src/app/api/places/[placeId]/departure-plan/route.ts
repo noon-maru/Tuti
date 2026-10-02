@@ -43,6 +43,9 @@ export async function POST(
     const origin = normalizeLocation(
       (body as Partial<DeparturePlanRequest> | null)?.origin,
     );
+    const transport = normalizeTransport(
+      (body as Partial<DeparturePlanRequest> | null)?.transport,
+    );
 
     if (!origin) {
       return withCors(
@@ -60,7 +63,7 @@ export async function POST(
       acquisitionSource: "device",
       service: "departure_plan",
       method: "POST /api/places/:placeId/departure-plan",
-      operation: () => createDeparturePlan(placeId, origin),
+      operation: () => createDeparturePlan(placeId, origin, transport),
     });
     if (!plan) {
       return withCors(
@@ -100,6 +103,10 @@ export async function POST(
 
 export function OPTIONS(request: Request) {
   return createPreflightResponse(request);
+}
+
+function normalizeTransport(value: unknown) {
+  return value === "car" || value === "transit" ? value : undefined;
 }
 
 function normalizeLocation(location: unknown): UserLocation | null {

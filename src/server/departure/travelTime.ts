@@ -1,6 +1,5 @@
 import { prisma } from "@/server/db/prisma";
-import { fetchKakaoMapRoute } from "@/server/maps/kakaoMapClient";
-import { fetchKakaoDrivingRoute } from "@/server/maps/kakaoNaviClient";
+import { fetchCachedRoute } from "@/server/departure/cachedRoute";
 import { isWalkingDistance } from "@/server/departure/routeSelection";
 import { toTravelTimeSummary } from "@/server/departure/travelTimeSummary";
 import { getTravelTimeRoutePriority } from "@/server/departure/travelTimeRoutePriority";
@@ -44,9 +43,7 @@ export async function createTravelTimeSummary(
 
   for (const mode of routeModes) {
     const route = await settleRoute(() =>
-      mode === "driving"
-        ? fetchKakaoDrivingRoute(input)
-        : fetchKakaoMapRoute(mode, input),
+      fetchCachedRoute(mode, input),
     );
     const summary = toTravelTimeSummary(route, endpoints);
     if (summary) return summary;

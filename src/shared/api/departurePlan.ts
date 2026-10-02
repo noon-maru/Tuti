@@ -2,7 +2,7 @@ import type {
   PlaceSuggestedStep,
   TourismPlaceDetail,
 } from "@/shared/api/placeDetails";
-import type { UserLocation } from "@/shared/tuti/types";
+import type { TransportAnswer, UserLocation } from "@/shared/tuti/types";
 
 export type DepartureRouteMode =
   | "publicTransit"
@@ -19,7 +19,7 @@ export type DepartureRouteStep = {
 
 export type DepartureRoute = {
   mode: DepartureRouteMode;
-  status: "available" | "unavailable";
+  status: "pending" | "available" | "unavailable";
   durationSeconds: number | null;
   distanceMeters: number | null;
   transfers: number | null;
@@ -48,6 +48,20 @@ export type DeparturePlanStep = PlaceSuggestedStep;
 
 export type DeparturePlanRequest = {
   origin: UserLocation;
+  transport?: TransportAnswer;
+};
+
+export type DepartureRouteRequest = {
+  origin: UserLocation;
+  mode: DepartureRouteMode;
+};
+
+export type DepartureRouteResponse = {
+  route: DepartureRoute;
+};
+
+export type DepartureNearbyResponse = {
+  nearbyPlaces: DepartureNearbyPlace[];
 };
 
 export type DeparturePlan = {

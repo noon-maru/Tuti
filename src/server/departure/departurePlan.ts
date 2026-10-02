@@ -1,10 +1,7 @@
 import { createHash } from "node:crypto";
 import { prisma } from "@/server/db/prisma";
-import {
-  fetchKakaoMapRoute,
-  fetchNearbyKakaoPlaces,
-} from "@/server/maps/kakaoMapClient";
-import { fetchKakaoDrivingRoute } from "@/server/maps/kakaoNaviClient";
+import { fetchNearbyKakaoPlaces } from "@/server/maps/kakaoMapClient";
+import { fetchCachedRoute } from "@/server/departure/cachedRoute";
 import {
   calculateDistanceMeters,
   isWalkingDistance,
@@ -18,6 +15,7 @@ import type {
   DepartureRouteMode,
 } from "@/shared/api/departurePlan";
 import type { UserLocation } from "@/shared/tuti/types";
+import type { TransportAnswer } from "@/shared/tuti/types";
 
 const NEARBY_CACHE_TTL_MS = 6 * 60 * 60 * 1_000;
 const MAX_MEMORY_CACHE_ENTRIES = 500;
@@ -42,6 +40,7 @@ const nearbyRequests = new Map<
 export async function createDeparturePlan(
   placeId: string,
   origin: UserLocation,
+  transport?: TransportAnswer,
 ): Promise<DeparturePlan | null> {
   const place = await prisma.place.findFirst({
     where: {
@@ -65,15 +64,31 @@ export async function createDeparturePlan(
     latitude: Number(place.latitude),
     longitude: Number(place.longitude),
   };
-  const [detail, routes, nearbyPlaces] = await Promise.all([
-    getTourismDetail(place.id),
-    getRouteBundle(origin, destination, place.name),
-    getNearbyPlaces(destination, place.id, place.name),
-  ]);
+  const [detail, routes, nearbyPlaces]: [
+    Awaited<ReturnType<typeof getTourismDetail>>,
+    RouteBundle,
+    DeparturePlan["nearbyPlaces"],
+  ] = transport
+    ? [
+        null,
+        await getInitialRouteBundle(
+          transport,
+          origin,
+          destination,
+          place.name,
+        ),
+        [],
+      ]
+    : await Promise.all([
+        getTourismDetail(place.id),
+        getRouteBundle(origin, destination, place.name),
+        getNearbyPlaces(destination, place.id, place.name),
+      ]);
   const recommendedMode = selectRecommendedMode(
     routes,
     origin,
     destination,
+    transport,
   );
 
   return {
@@ -95,6 +110,38 @@ export async function createDeparturePlan(
     }),
     generatedAt: new Date().toISOString(),
   };
+}
+
+export async function createDepartureRoute(
+  placeId: string,
+  origin: UserLocation,
+  mode: DepartureRouteMode,
+) {
+  const place = await prisma.place.findFirst({
+    where: { ...recommendablePlaceWhere, id: placeId },
+    select: { name: true, latitude: true, longitude: true },
+  });
+  if (!place) return null;
+
+  const destination = {
+    latitude: Number(place.latitude),
+    longitude: Number(place.longitude),
+  };
+  return fetchSingleRoute(mode, origin, destination, place.name);
+}
+
+export async function createDepartureNearbyPlaces(placeId: string) {
+  const place = await prisma.place.findFirst({
+    where: { ...recommendablePlaceWhere, id: placeId },
+    select: { id: true, name: true, latitude: true, longitude: true },
+  });
+  if (!place) return null;
+
+  return getNearbyPlaces(
+    { latitude: Number(place.latitude), longitude: Number(place.longitude) },
+    place.id,
+    place.name,
+  );
 }
 
 async function getTourismDetail(placeId: string) {
@@ -131,18 +178,52 @@ async function fetchRouteBundle(
 ): Promise<RouteBundle> {
   const input = { origin, destination, destinationName };
   const walkingRoute = isWalkingDistance(origin, destination)
-    ? settleRoute("walking", () => fetchKakaoMapRoute("walking", input))
+    ? settleRoute("walking", () => fetchCachedRoute("walking", input))
     : Promise.resolve(unavailableRoute("walking"));
   const [publicTransit, walking, bicycle, driving] = await Promise.all([
     settleRoute("publicTransit", () =>
-      fetchKakaoMapRoute("publicTransit", input),
+      fetchCachedRoute("publicTransit", input),
     ),
     walkingRoute,
-    settleRoute("bicycle", () => fetchKakaoMapRoute("bicycle", input)),
-    settleRoute("driving", () => fetchKakaoDrivingRoute(input)),
+    settleRoute("bicycle", () => fetchCachedRoute("bicycle", input)),
+    settleRoute("driving", () => fetchCachedRoute("driving", input)),
   ]);
 
   return { publicTransit, walking, bicycle, driving };
+}
+
+async function getInitialRouteBundle(
+  transport: TransportAnswer,
+  origin: UserLocation,
+  destination: UserLocation,
+  destinationName: string,
+): Promise<RouteBundle> {
+  const initialMode = transport === "car"
+    ? "driving"
+    : isWalkingDistance(origin, destination)
+      ? "walking"
+      : "publicTransit";
+  const routes = pendingRouteBundle();
+  routes[initialMode] = await fetchSingleRoute(
+    initialMode,
+    origin,
+    destination,
+    destinationName,
+  );
+  return routes;
+}
+
+async function fetchSingleRoute(
+  mode: DepartureRouteMode,
+  origin: UserLocation,
+  destination: UserLocation,
+  destinationName: string,
+) {
+  if (mode === "walking" && !isWalkingDistance(origin, destination)) {
+    return unavailableRoute(mode);
+  }
+  const input = { origin, destination, destinationName };
+  return settleRoute(mode, () => fetchCachedRoute(mode, input));
 }
 
 async function settleRoute(
@@ -421,7 +502,11 @@ function selectRecommendedMode(
   routes: RouteBundle,
   origin: UserLocation,
   destination: UserLocation,
+  transport?: TransportAnswer,
 ) {
+  if (transport === "car" && isAvailableRoute(routes.driving)) {
+    return "driving";
+  }
   if (
     isWalkingDistance(origin, destination) &&
     isAvailableRoute(routes.walking)
@@ -451,6 +536,22 @@ function unavailableRoute(mode: DepartureRouteMode): DepartureRoute {
     taxiFareWon: null,
     externalUrl: null,
     steps: [],
+  };
+}
+
+function pendingRoute(mode: DepartureRouteMode): DepartureRoute {
+  return {
+    ...unavailableRoute(mode),
+    status: "pending",
+  };
+}
+
+function pendingRouteBundle(): RouteBundle {
+  return {
+    publicTransit: pendingRoute("publicTransit"),
+    walking: pendingRoute("walking"),
+    bicycle: pendingRoute("bicycle"),
+    driving: pendingRoute("driving"),
   };
 }
 

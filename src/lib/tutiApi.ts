@@ -4,6 +4,11 @@ import { Capacitor } from "@capacitor/core";
 import type {
   DeparturePlan,
   DeparturePlanResponse,
+  DepartureRoute,
+  DepartureRouteMode,
+  DepartureRouteResponse,
+  DepartureNearbyPlace,
+  DepartureNearbyResponse,
 } from "@/shared/api/departurePlan";
 import type {
   NearbyPlaceResult,
@@ -212,13 +217,14 @@ export async function fetchPlaceDetail(
 export async function fetchDeparturePlan(
   placeId: string,
   origin: UserLocation,
+  transport?: IntakeAnswers["transport"],
 ): Promise<DeparturePlan> {
   const response = await fetchWithSession(
     `places/${encodeURIComponent(placeId)}/departure-plan`,
     {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ origin }),
+      body: JSON.stringify({ origin, transport }),
     },
   );
 
@@ -230,6 +236,41 @@ export async function fetchDeparturePlan(
 
   const data = (await response.json()) as DeparturePlanResponse;
   return data.plan;
+}
+
+export async function fetchDepartureRoute(
+  placeId: string,
+  origin: UserLocation,
+  mode: DepartureRouteMode,
+): Promise<DepartureRoute> {
+  const response = await fetchWithSession(
+    `places/${encodeURIComponent(placeId)}/departure-route`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ origin, mode }),
+    },
+  );
+  if (!response.ok) {
+    throw new Error(
+      await readApiError(response, "이동 경로를 불러오지 못했어요."),
+    );
+  }
+  return ((await response.json()) as DepartureRouteResponse).route;
+}
+
+export async function fetchDepartureNearbyPlaces(
+  placeId: string,
+): Promise<DepartureNearbyPlace[]> {
+  const response = await fetch(
+    apiUrl(`places/${encodeURIComponent(placeId)}/departure-nearby`),
+  );
+  if (!response.ok) {
+    throw new Error(
+      await readApiError(response, "주변 장소를 불러오지 못했어요."),
+    );
+  }
+  return ((await response.json()) as DepartureNearbyResponse).nearbyPlaces;
 }
 
 export async function fetchTravelTime(
