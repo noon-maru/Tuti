@@ -59,6 +59,7 @@ export function SwipeCard({
   detailProgress = 0,
 }: SwipeCardProps) {
   const hidden = Math.abs(offset) > 2;
+  const imageReady = Math.abs(offset) <= 1;
   const dragX = active ? drag?.x ?? 0 : 0;
   const dragY = active ? drag?.y ?? 0 : 0;
   const baseX = offset * 78;
@@ -84,7 +85,7 @@ export function SwipeCard({
       <FlipBody $flipped={active && flipped}>
         <FrontFace
           type="button"
-          $image={place.image}
+          $image={imageReady ? place.image : null}
           $flipped={active && flipped}
           aria-label={`${place.name} 가볍게 살펴보기`}
           aria-hidden={active && flipped}
@@ -271,7 +272,7 @@ const CardFace = styled.div<{ $flipped: boolean }>`
   }
 `;
 
-const FrontFace = styled(BaseButton)<{ $image: string; $flipped: boolean }>`
+const FrontFace = styled(BaseButton)<{ $image: string | null; $flipped: boolean }>`
   position: absolute;
   inset: 0;
   width: 100%;
@@ -286,7 +287,7 @@ const FrontFace = styled(BaseButton)<{ $image: string; $flipped: boolean }>`
   backface-visibility: hidden;
   -webkit-backface-visibility: hidden;
   background-color: var(--color-accent-secondary);
-  background-image: ${({ $image }) => `url(${$image})`};
+  background-image: ${({ $image }) => $image ? `url(${$image})` : "none"};
   background-position: center;
   background-size: cover;
   color: var(--color-white);

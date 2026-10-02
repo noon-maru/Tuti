@@ -259,13 +259,19 @@ export function RecommendationsFlow({ interactive }: { interactive: boolean }) {
   ]);
 
   useEffect(() => {
-    router.prefetch("/journal");
-    router.prefetch("/settings");
-    router.prefetch("/location");
-    if (process.env.NEXT_PUBLIC_TUTI_TARGET === "web") {
-      router.prefetch("/download");
-    }
-  }, [router]);
+    if (!isSuccess) return;
+
+    const timer = window.setTimeout(() => {
+      router.prefetch("/journal");
+      router.prefetch("/settings");
+      router.prefetch("/location");
+      if (process.env.NEXT_PUBLIC_TUTI_TARGET === "web") {
+        router.prefetch("/download");
+      }
+    }, 3_000);
+
+    return () => window.clearTimeout(timer);
+  }, [isSuccess, router]);
 
   useEffect(() => {
     const canRestoreLocationWithoutPrompt =

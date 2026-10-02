@@ -7,6 +7,7 @@ import {
 } from "@/server/location/compliance";
 import { recordRecommendationRunSafely } from "@/server/recommendations/run";
 import { createRecommendationsWithAudit } from "@/server/recommendations/service";
+import { hasRecommendationArea } from "@/server/recommendations/recommendationArea";
 import {
   LongDistanceRecommendationsUnavailableError,
 } from "@/server/recommendations/longDistanceAvailability";
@@ -39,6 +40,11 @@ export async function POST(request: Request) {
     const body = parseRecommendationRequest(await request.json());
     const location = body.location;
     const preferredRegion = location ? undefined : body.preferredRegion;
+    if (!hasRecommendationArea(location, preferredRegion)) {
+      throw new InvalidRecommendationRequestError(
+        "현재 위치를 사용하지 않을 때는 추천받을 시·군·구를 골라주세요.",
+      );
+    }
     const excludePlaceIds = body.excludePlaceIds ?? [];
     const preferencePlaceIds = body.preferencePlaceIds ?? [];
     const recommendationId = randomUUID();

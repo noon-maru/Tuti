@@ -426,6 +426,7 @@ async function findPlacesByBaseFatigue(
         : {}),
     },
     orderBy: [{ fatigue: "asc" }, { id: "asc" }],
+    take: 180,
     select: {
       id: true,
       name: true,
