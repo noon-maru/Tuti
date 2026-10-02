@@ -3,14 +3,19 @@ import { fetchKakaoMapRoute } from "@/server/maps/kakaoMapClient";
 import { fetchKakaoDrivingRoute } from "@/server/maps/kakaoNaviClient";
 import { isWalkingDistance } from "@/server/departure/routeSelection";
 import { toTravelTimeSummary } from "@/server/departure/travelTimeSummary";
+import { getTravelTimeRoutePriority } from "@/server/departure/travelTimeRoutePriority";
 import { recommendablePlaceWhere } from "@/server/recommendations/recommendablePlaceWhere";
 import type { DepartureRoute } from "@/shared/api/departurePlan";
 import type { TravelTimeSummary } from "@/shared/api/travelTime";
-import type { UserLocation } from "@/shared/tuti/types";
+import type {
+  TransportAnswer,
+  UserLocation,
+} from "@/shared/tuti/types";
 
 export async function createTravelTimeSummary(
   placeId: string,
   origin: UserLocation,
+  transport?: TransportAnswer,
 ): Promise<TravelTimeSummary | null> {
   const place = await prisma.place.findFirst({
     where: {
@@ -32,31 +37,20 @@ export async function createTravelTimeSummary(
   };
   const input = { origin, destination, destinationName: place.name };
   const endpoints = { origin, destination };
-  const walkingDistance = isWalkingDistance(origin, destination);
+  const routeModes = getTravelTimeRoutePriority(
+    transport,
+    isWalkingDistance(origin, destination),
+  );
 
-  if (walkingDistance) {
-    const walking = await settleRoute(() =>
-      fetchKakaoMapRoute("walking", input),
+  for (const mode of routeModes) {
+    const route = await settleRoute(() =>
+      mode === "driving"
+        ? fetchKakaoDrivingRoute(input)
+        : fetchKakaoMapRoute(mode, input),
     );
-    const summary = toTravelTimeSummary(walking, endpoints);
+    const summary = toTravelTimeSummary(route, endpoints);
     if (summary) return summary;
   }
-
-  const publicTransit = await settleRoute(() =>
-    fetchKakaoMapRoute("publicTransit", input),
-  );
-  const transitSummary = toTravelTimeSummary(publicTransit, endpoints);
-  if (transitSummary) return transitSummary;
-
-  const driving = await settleRoute(() => fetchKakaoDrivingRoute(input));
-  const drivingSummary = toTravelTimeSummary(driving, endpoints);
-  if (drivingSummary) return drivingSummary;
-
-  const bicycle = await settleRoute(() =>
-    fetchKakaoMapRoute("bicycle", input),
-  );
-  const bicycleSummary = toTravelTimeSummary(bicycle, endpoints);
-  if (bicycleSummary) return bicycleSummary;
 
   return null;
 }

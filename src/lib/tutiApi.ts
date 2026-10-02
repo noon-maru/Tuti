@@ -235,13 +235,14 @@ export async function fetchDeparturePlan(
 export async function fetchTravelTime(
   placeId: string,
   origin: UserLocation,
+  transport?: IntakeAnswers["transport"],
 ): Promise<TravelTimeSummary | null> {
   const response = await fetchWithSession(
     `places/${encodeURIComponent(placeId)}/travel-time`,
     {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ origin }),
+      body: JSON.stringify({ origin, transport }),
     },
   );
 

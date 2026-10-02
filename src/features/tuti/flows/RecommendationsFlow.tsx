@@ -193,7 +193,11 @@ export function RecommendationsFlow({ interactive }: { interactive: boolean }) {
       !dailyCheckInVisible &&
       !returnCheckInVisible &&
       !activePlace?.longDistanceJourney,
-    activePlace?.travelTimeSummary,
+    storedAnswers.transport === "car" &&
+      activePlace?.travelTimeSummary?.mode !== "driving"
+      ? undefined
+      : activePlace?.travelTimeSummary,
+    storedAnswers.transport,
   );
   const activeTravelTimeLabel = activePlace?.longDistanceJourney
     ? formatLongDistanceTravelTimeLabel(activePlace.longDistanceJourney)

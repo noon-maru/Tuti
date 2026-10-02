@@ -43,6 +43,9 @@ export async function POST(
     const origin = normalizeLocation(
       (body as Partial<TravelTimeRequest> | null)?.origin,
     );
+    const transport = normalizeTransport(
+      (body as Partial<TravelTimeRequest> | null)?.transport,
+    );
 
     if (!origin) {
       return withCors(
@@ -61,7 +64,7 @@ export async function POST(
         acquisitionSource: "device",
         service: "travel_time",
         method: "POST /api/places/:placeId/travel-time",
-        operation: () => createTravelTimeSummary(placeId, origin),
+        operation: () => createTravelTimeSummary(placeId, origin, transport),
       }),
     };
     return withCors(request, Response.json(response));
@@ -91,6 +94,10 @@ export async function POST(
 
 export function OPTIONS(request: Request) {
   return createPreflightResponse(request);
+}
+
+function normalizeTransport(value: unknown) {
+  return value === "car" || value === "transit" ? value : undefined;
 }
 
 function normalizeLocation(location: unknown): UserLocation | null {

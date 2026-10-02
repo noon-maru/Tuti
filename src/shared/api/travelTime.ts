@@ -1,8 +1,9 @@
 import type { DepartureRouteMode } from "@/shared/api/departurePlan";
-import type { UserLocation } from "@/shared/tuti/types";
+import type { TransportAnswer, UserLocation } from "@/shared/tuti/types";
 
 export type TravelTimeRequest = {
   origin: UserLocation;
+  transport?: TransportAnswer;
 };
 
 export type TravelTimeSummary = {

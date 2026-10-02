@@ -3,13 +3,14 @@
 import { useQuery } from "@tanstack/react-query";
 import { fetchTravelTime } from "@/lib/tutiApi";
 import type { TravelTimeSummary } from "@/shared/api/travelTime";
-import type { UserLocation } from "@/shared/tuti/types";
+import type { TransportAnswer, UserLocation } from "@/shared/tuti/types";
 
 export function useTravelTime(
   placeId: string | undefined,
   userLocation: UserLocation | undefined,
   enabled = true,
   initialData?: TravelTimeSummary,
+  transport?: TransportAnswer,
 ) {
   return useQuery({
     queryKey: [
@@ -17,8 +18,9 @@ export function useTravelTime(
       placeId,
       userLocation?.latitude,
       userLocation?.longitude,
+      transport,
     ],
-    queryFn: () => fetchTravelTime(placeId!, userLocation!),
+    queryFn: () => fetchTravelTime(placeId!, userLocation!, transport),
     enabled: enabled && Boolean(placeId) && Boolean(userLocation),
     initialData,
     staleTime: 5 * 60 * 1_000,
