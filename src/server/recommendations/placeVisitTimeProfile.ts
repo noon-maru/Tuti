@@ -1,8 +1,9 @@
 import { createHash } from "node:crypto";
 import type { PlaceExperienceType } from "@/lib/recommendations";
 
-export const PLACE_VISIT_TIME_PROFILE_VERSION = "place-visit-time-v3";
+export const PLACE_VISIT_TIME_PROFILE_VERSION = "place-visit-time-v4";
 export const PLACE_VISIT_TIME_PROFILE_MODEL = "codex-direct";
+export const PLACE_VISIT_TIME_DEFAULT_MODEL = "rule-table-v2";
 
 export type StayDurationSource =
   | "llm_parsed"
@@ -34,25 +35,128 @@ export type ParsedStayDuration = StayDurationRange & {
   evidence: string;
 };
 
+export type DefaultStayDurationProfileId =
+  | "water_park"
+  | "amusement_park"
+  | "zoo_aquarium"
+  | "winter_sports"
+  | "golf_course"
+  | "active_leisure"
+  | "leisure_content"
+  | "large_museum_gallery"
+  | "botanical_garden"
+  | "mountain_trail"
+  | "palace_complex"
+  | `experience:${PlaceExperienceType}`
+  | `content:${string}`
+  | "other";
+
+type DefaultStayDurationSource = Partial<PlaceVisitTimeSource> &
+  Pick<PlaceVisitTimeSource, "contentTypeId" | "experienceType">;
+
+export type DefaultStayDurationProfile = StayDurationRange & {
+  id: DefaultStayDurationProfileId;
+  confidence: number;
+  evidence: string;
+};
+
 export function resolveStayDuration(
-  source: Pick<PlaceVisitTimeSource, "contentTypeId" | "experienceType">,
+  source: DefaultStayDurationSource,
   explicit?: ParsedStayDuration,
 ): ParsedStayDuration {
   if (explicit && explicit.source !== "type_default") return explicit;
 
+  const fallback = getDefaultStayDurationProfile(source);
+
   return {
-    ...getDefaultStayDuration(source),
+    minimumMinutes: fallback.minimumMinutes,
+    typicalMinutes: fallback.typicalMinutes,
+    maximumMinutes: fallback.maximumMinutes,
     source: "type_default",
-    confidence: explicit?.confidence ?? 55,
-    evidence:
-      explicit?.evidence ??
-      `기본 체류시간표: ${source.experienceType ?? source.contentTypeId ?? "other"}`,
+    confidence: explicit?.confidence ?? fallback.confidence,
+    evidence: explicit?.evidence ?? fallback.evidence,
   };
 }
 
 export function getDefaultStayDuration(
-  source: Pick<PlaceVisitTimeSource, "contentTypeId" | "experienceType">,
+  source: DefaultStayDurationSource,
 ): StayDurationRange {
+  const profile = getDefaultStayDurationProfile(source);
+  return range(
+    profile.minimumMinutes,
+    profile.typicalMinutes,
+    profile.maximumMinutes,
+  );
+}
+
+export function getDefaultStayDurationProfile(
+  source: DefaultStayDurationSource,
+): DefaultStayDurationProfile {
+  const name = normalize(source.name ?? "");
+  const description = normalize(
+    source.overviewSummary?.trim() || source.overview || "",
+  );
+  const identityText = normalize([
+    source.name,
+    firstSentence(description),
+  ].filter(Boolean).join(" "));
+  const facilityText = normalize([
+    source.name,
+    description,
+    source.experienceGuide,
+  ].filter(Boolean).join(" "));
+
+  // 장소별 목록이 아니라 시설 성격을 나타내는 공개 설명의 신호를 사용한다.
+  // 넓은 경험 유형보다 준비와 이용 시간이 분명한 시설 규칙을 먼저 적용한다.
+  if (
+    hasPairedSignals(
+      facilityText,
+      /워터\s*파크|워터월드|아쿠아월드/u,
+      /물놀이|수영장|파도풀|유수풀|슬라이드|온천|스파|사우나/u,
+    ) ||
+    hasPairedSignals(facilityText, /파도풀|유수풀/u, /워터\s*슬라이드|튜브\s*슬라이드|바디\s*슬라이드/u)
+  ) {
+    return profile("water_park", 120, 240, 420, 78, "워터파크·복합 물놀이 시설");
+  }
+  if (
+    hasPairedSignals(
+      facilityText,
+      /놀이공원|어뮤즈먼트\s*파크|테마파크/u,
+      /놀이기구|어트랙션|롤러코스터|회전목마|바이킹|대관람차/u,
+    )
+  ) {
+    return profile("amusement_park", 120, 240, 420, 75, "놀이공원·어트랙션 시설");
+  }
+  if (/동물원|아쿠아리움|수족관/u.test(identityText)) {
+    return profile("zoo_aquarium", 90, 150, 240, 75, "동물원·수족관 시설");
+  }
+  if (/스키장|스노(?:우)?보드|스노파크/u.test(identityText)) {
+    return profile("winter_sports", 120, 240, 420, 78, "스키·설상 레포츠 시설");
+  }
+  if (/골프장|컨트리\s*클럽|(?:^|\s)CC(?:\s|$)/iu.test(identityText)) {
+    return profile("golf_course", 180, 270, 360, 72, "골프 코스 시설");
+  }
+  if (
+    /래프팅|서핑|패러글라이딩|짚라인|집라인|번지점프|카트(?:장|체험)|\bATV\b|승마(?:장|체험)|카누|카약|요트|스쿠버|다이빙|클라이밍|(?:^|\s)루지(?:\s|$|체험|트랙|시설|장)|레일바이크/iu.test(facilityText)
+  ) {
+    return profile("active_leisure", 60, 120, 240, 72, "장비·코스형 레포츠 시설");
+  }
+  if (source.contentTypeId === "28") {
+    return profile("leisure_content", 60, 120, 240, 65, "관광정보 레포츠 콘텐츠 유형");
+  }
+  if (isLargeMuseumOrGallery(name, facilityText)) {
+    return profile("large_museum_gallery", 60, 120, 210, 70, "복수 전시공간을 갖춘 대형 박물관·미술관");
+  }
+  if (/수목원|식물원|국가정원|자연휴양림/u.test(name)) {
+    return profile("botanical_garden", 60, 120, 240, 70, "수목원·식물원·휴양림");
+  }
+  if (source.experienceType !== "activity" && isMountainOrTrail(name, facilityText)) {
+    return profile("mountain_trail", 90, 180, 360, 68, "정상·코스를 이동하는 산행 장소");
+  }
+  if (isPalaceComplex(name, facilityText)) {
+    return profile("palace_complex", 60, 120, 180, 68, "여러 전각을 둘러보는 궁궐 단지");
+  }
+
   const byExperienceType: Partial<Record<PlaceExperienceType, StayDurationRange>> = {
     waterside: range(20, 50, 90),
     forest_garden: range(20, 45, 90),
@@ -64,17 +168,33 @@ export function getDefaultStayDuration(
     activity: range(60, 100, 180),
     wellness: range(60, 90, 150),
   };
-  const byExperience = source.experienceType
-    ? byExperienceType[source.experienceType]
+  const experienceType = source.experienceType;
+  const byExperience = experienceType
+    ? byExperienceType[experienceType]
     : undefined;
-  if (byExperience) return byExperience;
+  if (byExperience) {
+    return {
+      ...byExperience,
+      id: `experience:${experienceType}` as DefaultStayDurationProfileId,
+      confidence: 55,
+      evidence: `경험 유형 기본 체류시간표: ${experienceType}`,
+    };
+  }
 
-  return {
+  const byContentType = {
     "14": range(40, 70, 100),
-    "28": range(60, 100, 180),
     "38": range(40, 70, 120),
     "39": range(40, 70, 120),
-  }[source.contentTypeId ?? ""] ?? range(30, 60, 100);
+  }[source.contentTypeId ?? ""];
+  if (byContentType) {
+    return {
+      ...byContentType,
+      id: `content:${source.contentTypeId}`,
+      confidence: 50,
+      evidence: `관광 콘텐츠 유형 기본 체류시간표: ${source.contentTypeId}`,
+    };
+  }
+  return profile("other", 30, 60, 100, 45, "일반 관광 장소 기본 체류시간표");
 }
 
 export function deriveVisitAccessProfile(source: PlaceVisitTimeSource) {
@@ -193,6 +313,55 @@ function getEntryBuffer(value: string): StayDurationRange {
   if (value === "ticket") return range(5, 10, 15);
   if (value === "checkin" || value === "equipment") return range(10, 20, 30);
   return range(0, 5, 10);
+}
+
+function profile(
+  id: DefaultStayDurationProfileId,
+  minimumMinutes: number,
+  typicalMinutes: number,
+  maximumMinutes: number,
+  confidence: number,
+  evidence: string,
+): DefaultStayDurationProfile {
+  return {
+    id,
+    minimumMinutes,
+    typicalMinutes,
+    maximumMinutes,
+    confidence,
+    evidence: `시설 성격 기본 체류시간표(${id}): ${evidence}`,
+  };
+}
+
+function hasPairedSignals(value: string, first: RegExp, second: RegExp) {
+  return first.test(value) && second.test(value);
+}
+
+function isLargeMuseumOrGallery(name: string, text: string) {
+  const museumSignal = /박물관|미술관|뮤지엄|과학관|전시관/u;
+  if (!museumSignal.test(text)) return false;
+  if (/국립.{0,20}(?:박물관|미술관|과학관)/u.test(name)) return true;
+
+  return /여러\s*(?:전시관|전시실)|복수의?\s*(?:전시관|전시실)|대형\s*(?:박물관|미술관|전시관|전시실)|상설\s*전시.{0,40}기획\s*전시|기획\s*전시.{0,40}상설\s*전시|(?:4|5|6|7|8|9|\d{2,})\s*개(?:의)?\s*(?:전시관|전시실)|(?:4|5|6|7|8|9|네|다섯|여섯|일곱|여덟|아홉)\s*층.{0,20}(?:전시관|전시실)/u.test(
+    text,
+  );
+}
+
+function isMountainOrTrail(name: string, text: string) {
+  if (/동산|모노레일|케이블카|전망대|공원|박물관|미술관|휴양림|수목원|생태숲|출렁다리|안내소/u.test(name)) {
+    return /둘레길|트레킹\s*코스|등산로/u.test(name);
+  }
+  const namedMountain = /(?:산|봉|오름)(?:\s|$|\()/u.test(name);
+  const routeSignal = /산행|등산(?:로|코스)?|종주|트레킹|탐방로|정상(?:까지|에)\s*(?:오르|걷)|(?:오르|걸).{0,15}정상/u.test(text);
+  return (namedMountain && routeSignal) || /둘레길|트레킹\s*코스|등산로/u.test(name);
+}
+
+function firstSentence(value: string) {
+  return value.split(/[.!?。]/u, 1)[0] ?? "";
+}
+
+function isPalaceComplex(name: string, text: string) {
+  return /(?:궁|궁궐)(?:\s|$|\()/u.test(name) && /전각|궁궐|정전|왕실/u.test(text);
 }
 
 function range(

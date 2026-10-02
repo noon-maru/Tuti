@@ -1,10 +1,13 @@
 import { readdirSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { prisma } from "../src/server/db/prisma";
+import { derivePlaceExperienceType } from "../src/server/recommendations/experienceType";
 import { recommendablePlaceWhere } from "../src/server/recommendations/recommendablePlaceWhere";
 import {
   createPlaceVisitTimeSourceFingerprint,
   deriveVisitAccessProfile,
+  getDefaultStayDurationProfile,
+  PLACE_VISIT_TIME_DEFAULT_MODEL,
   PLACE_VISIT_TIME_PROFILE_MODEL,
   PLACE_VISIT_TIME_PROFILE_VERSION,
   resolveStayDuration,
@@ -90,12 +93,19 @@ if (staleExplicit.length > 0) {
 const generatedAt = new Date();
 const updates = places.map((place) => {
   const detail = place.tourismSourceRecord?.detailRecord;
+  const experienceType = derivePlaceExperienceType({
+    name: place.name,
+    phrase: "",
+    note: "",
+    sourceContentType: place.sourceContentType ?? undefined,
+    moodTags: [],
+    overview: detail?.overview,
+    experienceGuide: detail?.experienceGuide,
+  });
   const source: PlaceVisitTimeSource = {
     name: place.name,
     contentTypeId: place.sourceContentType,
-    experienceType: isExperienceType(place.experienceType)
-      ? place.experienceType
-      : null,
+    experienceType,
     overview: detail?.overview,
     overviewSummary: detail?.overviewSummary,
     usageDuration: detail?.usageDuration,
@@ -108,6 +118,9 @@ const updates = places.map((place) => {
     ? explicitByContentId.get(place.sourceId)
     : undefined;
   const stay = resolveStayDuration(source, explicit);
+  const defaultProfile = stay.source === "type_default"
+    ? getDefaultStayDurationProfile(source)
+    : null;
   const access = deriveVisitAccessProfile(source);
   const fallbackFields = [
     ...(stay.source === "type_default" ? ["stayDuration"] : []),
@@ -117,12 +130,15 @@ const updates = places.map((place) => {
   return {
     placeId: place.id,
     stay,
+    defaultProfileId: defaultProfile?.id,
     access,
     confidence: stay.confidence,
     evidence: [stay.evidence],
     fallbackFields,
     sourceFingerprint: createPlaceVisitTimeSourceFingerprint(source),
-    model: explicit ? PLACE_VISIT_TIME_PROFILE_MODEL : "default-table-v1",
+    model: stay.source === "type_default"
+      ? PLACE_VISIT_TIME_DEFAULT_MODEL
+      : PLACE_VISIT_TIME_PROFILE_MODEL,
   };
 });
 
@@ -134,6 +150,12 @@ console.log(JSON.stringify({
   eligiblePlaces: places.length,
   llmParsed: updates.filter(({ stay }) => stay.source === "llm_parsed").length,
   defaulted: updates.filter(({ stay }) => stay.source === "type_default").length,
+  defaultProfiles: Object.fromEntries(
+    Array.from(Map.groupBy(
+      updates.filter(({ stay }) => stay.source === "type_default"),
+      ({ defaultProfileId }) => defaultProfileId ?? "unknown",
+    )).map(([profileId, items]) => [profileId, items.length]),
+  ),
   unknownParking: updates.filter(
     ({ access }) => access.parkingAvailability === "unknown",
   ).length,
@@ -300,14 +322,6 @@ function chunked<Value>(values: Value[], size: number) {
 
 function isStaySource(value: unknown): value is StayDurationSource {
   return value === "llm_parsed" || value === "type_default" || value === "manual_override";
-}
-
-function isExperienceType(value: string | null): value is NonNullable<PlaceVisitTimeSource["experienceType"]> {
-  return value !== null && [
-    "waterside", "forest_garden", "art_exhibition", "museum_story",
-    "history_heritage", "viewpoint", "neighborhood", "activity",
-    "wellness", "other",
-  ].includes(value);
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

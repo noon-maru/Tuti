@@ -3,7 +3,7 @@ import { assessPlaceExperienceType } from "@/server/recommendations/experienceTy
 import { getDefaultStayDuration } from "@/server/recommendations/placeVisitTimeProfile";
 import { derivePlaceMoodTags } from "@/server/tourism/placeMoodTags";
 
-export const PLACE_RECOMMENDATION_FEATURE_VERSION = "place-features-v3";
+export const PLACE_RECOMMENDATION_FEATURE_VERSION = "place-features-v4";
 
 export type RecommendationFeatureSource = {
   name: string;
@@ -27,8 +27,11 @@ export function derivePlaceRecommendationFeatures(source: RecommendationFeatureS
     experienceGuide: source.experienceGuide,
   });
   const duration = source.stayTypicalMinutes ?? getDefaultStayDuration({
+    name: source.name,
     contentTypeId: source.contentTypeId,
     experienceType: experience.type,
+    overview: source.overview,
+    experienceGuide: source.experienceGuide,
   }).typicalMinutes;
   const burden = getActivityBurden(source, experience.type);
   const movementLevel: "near" | "short" | "half" =

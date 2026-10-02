@@ -219,11 +219,16 @@ export function calculateExecutionFeasibility({
 }
 
 function createFallbackVisitProfile(
-  place: Pick<TutiPlace, "sourceContentType" | "experienceType">,
+  place: Pick<
+    TutiPlace,
+    "name" | "phrase" | "note" | "sourceContentType" | "experienceType"
+  >,
 ): PlaceVisitTimeProfile {
   const stay = getDefaultStayDuration({
+    name: place.name,
     contentTypeId: place.sourceContentType,
     experienceType: place.experienceType,
+    overviewSummary: `${place.phrase} ${place.note}`,
   });
   return {
     stayMinimumMinutes: stay.minimumMinutes,
@@ -243,7 +248,7 @@ function createFallbackVisitProfile(
     entryBufferTypicalMinutes: 5,
     entryBufferMaximumMinutes: 10,
     confidence: 40,
-    profileVersion: "runtime-fallback-v1",
+    profileVersion: "runtime-fallback-v2",
   };
 }
 

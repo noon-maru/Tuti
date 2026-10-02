@@ -155,6 +155,21 @@ test("활동형 장소는 기본 최소 체류시간을 임의로 줄이지 않�
   assert.equal(feasibility?.fitsAvailableTime, false);
 });
 
+test("프로필 반영 전에도 워터파크 소개에서 안전한 최소 체류시간을 사용한다", () => {
+  const feasibility = calculateExecutionFeasibility({
+    place: place({
+      name: "가족 워터파크",
+      phrase: "파도풀과 워터슬라이드를 갖춘 물놀이 시설",
+      experienceType: "waterside",
+    }),
+    answers: nearAnswers,
+    now: new Date("2026-09-16T01:00:00.000Z"),
+  });
+
+  assert.equal(feasibility?.minimumStayMinutes, 120);
+  assert.equal(feasibility?.fitsAvailableTime, false);
+});
+
 test("자동차 접근 불가 장소는 자동차 추천에서만 실행 불가로 판정한다", () => {
   const restrictedPlace = place({
     visitTimeProfile: {
