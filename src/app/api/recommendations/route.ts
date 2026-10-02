@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { after } from "next/server";
 import { authenticateUser } from "@/server/auth/session";
 import {
   LocationComplianceError,
@@ -77,16 +78,18 @@ export async function POST(request: Request) {
       places,
     };
 
-    const snapshotStartedAt = performance.now();
+    const snapshotScheduleStartedAt = performance.now();
     if (user) {
-      await recordRecommendationRunSafely({
-        id: recommendationId,
-        userId: user.id,
-        request: body,
-        places,
-        locationUsed: Boolean(location),
-        stateTextUsed: false,
-        personalization,
+      after(async () => {
+        await recordRecommendationRunSafely({
+          id: recommendationId,
+          userId: user.id,
+          request: body,
+          places,
+          locationUsed: Boolean(location),
+          stateTextUsed: false,
+          personalization,
+        });
       });
     }
     const responseCreatedAt = performance.now();
@@ -99,7 +102,7 @@ export async function POST(request: Request) {
             requestStartedAt,
             recommendationStartedAt,
             recommendationCompletedAt,
-            snapshotStartedAt,
+            snapshotScheduleStartedAt,
             responseCreatedAt,
           }),
         },
@@ -162,13 +165,13 @@ function createRecommendationServerTiming({
   requestStartedAt,
   recommendationStartedAt,
   recommendationCompletedAt,
-  snapshotStartedAt,
+  snapshotScheduleStartedAt,
   responseCreatedAt,
 }: {
   requestStartedAt: number;
   recommendationStartedAt: number;
   recommendationCompletedAt: number;
-  snapshotStartedAt: number;
+  snapshotScheduleStartedAt: number;
   responseCreatedAt: number;
 }) {
   const duration = (startedAt: number, completedAt: number) =>
@@ -176,7 +179,7 @@ function createRecommendationServerTiming({
 
   return [
     `recommendation;dur=${duration(recommendationStartedAt, recommendationCompletedAt)}`,
-    `snapshot;dur=${duration(snapshotStartedAt, responseCreatedAt)}`,
+    `snapshot_schedule;dur=${duration(snapshotScheduleStartedAt, responseCreatedAt)}`,
     `total;dur=${duration(requestStartedAt, responseCreatedAt)}`,
   ].join(", ");
 }
