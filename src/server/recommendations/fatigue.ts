@@ -207,9 +207,15 @@ function getExecutionPenalty(
   ) {
     return 36;
   }
-  if (!execution.travelTimeVerified) return 0;
+  if (!execution.travelTimeVerified && !execution.travelTimeEstimated) return 0;
+  if (execution.fitStatus === "comfortable") return -16;
+  if (execution.fitStatus === "possible") return -10;
+  if (execution.fitStatus === "tight") return 4;
+  if (execution.fitStatus === "unknown") return 0;
   if (!execution.fitsAvailableTime) {
-    return execution.totalMinutes <= execution.availableMinutes * 1.15
+    const minimumTotalMinutes =
+      execution.minimumTotalMinutes ?? execution.totalMinutes;
+    return minimumTotalMinutes <= execution.availableMinutes * 1.15
       ? 12
       : 30;
   }

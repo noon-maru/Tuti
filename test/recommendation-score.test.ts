@@ -180,6 +180,61 @@ test("실행 불가와 나쁜 야외 날씨는 추천 부담을 높인다", () =
   assert.equal(breakdown.weatherPenalty, 24);
 });
 
+test("일반 체류까지 가능한 장소를 최소 체류만 가능한 장소보다 우선한다", () => {
+  const possible = calculateMovementFatigue(
+    createPlace({
+      executionFeasibility: {
+        travelTimeEstimated: true,
+        availableMinutes: 120,
+        oneWayMinutes: 30,
+        roundTripMinutes: 60,
+        minimumStayMinutes: 20,
+        typicalStayMinutes: 55,
+        waitingMinutes: 0,
+        totalMinutes: 115,
+        minimumTotalMinutes: 80,
+        typicalTotalMinutes: 115,
+        fitStatus: "possible",
+        fitsAvailableTime: true,
+        operationStatus: "available",
+        arrivalAt: "2026-10-02T10:30:00+09:00",
+        leaveAt: "2026-10-02T11:25:00+09:00",
+        returnAt: "2026-10-02T11:55:00+09:00",
+      },
+    }),
+    answers,
+    feature,
+  );
+  const tight = calculateMovementFatigue(
+    createPlace({
+      executionFeasibility: {
+        travelTimeEstimated: true,
+        availableMinutes: 120,
+        oneWayMinutes: 30,
+        roundTripMinutes: 60,
+        minimumStayMinutes: 20,
+        typicalStayMinutes: 90,
+        waitingMinutes: 0,
+        totalMinutes: 80,
+        minimumTotalMinutes: 80,
+        typicalTotalMinutes: 150,
+        fitStatus: "tight",
+        fitsAvailableTime: true,
+        operationStatus: "available",
+        arrivalAt: "2026-10-02T10:30:00+09:00",
+        leaveAt: "2026-10-02T10:50:00+09:00",
+        returnAt: "2026-10-02T11:20:00+09:00",
+      },
+    }),
+    answers,
+    feature,
+  );
+
+  assert.equal(possible.executionPenalty, -10);
+  assert.equal(tight.executionPenalty, 4);
+  assert.ok(possible.executionPenalty < tight.executionPenalty);
+});
+
 test("동행자와 무료 입장 조건이 맞는 장소를 먼저 정렬한다", () => {
   const conditionedAnswers: IntakeAnswers = {
     ...answers,

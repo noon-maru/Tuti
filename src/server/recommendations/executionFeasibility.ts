@@ -1,8 +1,10 @@
 import type {
   ExecutionFeasibility,
+  PlaceVisitTimeProfile,
   TutiPlace,
 } from "@/lib/recommendations";
 import { prisma } from "@/server/db/prisma";
+import { getDefaultStayDuration } from "@/server/recommendations/placeVisitTimeProfile";
 import { movementTimeBudget } from "@/shared/tuti/movementTimeBudget";
 import type { IntakeAnswers } from "@/shared/tuti/types";
 
@@ -10,7 +12,6 @@ const KOREA_TIME_ZONE = "Asia/Seoul";
 export type OperationDetail = {
   openingHours: string | null;
   restDate: string | null;
-  usageDuration: string | null;
   admissionFee: string | null;
 };
 
@@ -53,7 +54,6 @@ export async function enrichPlacesWithExecutionFeasibility(
         select: {
           openingHours: true,
           restDate: true,
-          usageDuration: true,
           admissionFee: true,
         },
       },
@@ -113,45 +113,104 @@ export function calculateExecutionFeasibility({
   const movement = answers.movement ?? "short";
   const availableMinutes = movementTimeBudget[movement].minutes;
   const travelTimeVerified = Boolean(travelSeconds);
+  const estimatedOneWayMinutes = travelSeconds
+    ? null
+    : estimateOneWayMinutes(place.distanceMeters, answers.transport);
+  const travelTimeEstimated = estimatedOneWayMinutes !== null;
   const oneWayMinutes = travelSeconds
     ? Math.max(1, Math.ceil(travelSeconds / 60))
-    : 0;
+    : estimatedOneWayMinutes ?? 0;
   const roundTripMinutes = oneWayMinutes * 2;
-  const minimumStayMinutes = getMinimumStayMinutes(
-    detail?.usageDuration,
-    place,
-    movement,
+  const visitProfile = place.visitTimeProfile ?? createFallbackVisitProfile(place);
+  const minimumStayMinutes = visitProfile.stayMinimumMinutes;
+  const typicalStayMinutes = visitProfile.stayTypicalMinutes;
+  const maximumStayMinutes = visitProfile.stayMaximumMinutes;
+  const minimumBufferMinutes = getVisitBufferMinutes(
+    visitProfile,
+    answers.transport,
+    "minimum",
+  );
+  const typicalBufferMinutes = getVisitBufferMinutes(
+    visitProfile,
+    answers.transport,
+    "typical",
+  );
+  const maximumBufferMinutes = getVisitBufferMinutes(
+    visitProfile,
+    answers.transport,
+    "maximum",
   );
   const initialArrival = new Date(now.getTime() + oneWayMinutes * 60_000);
   const operation = resolveOperationWindow(detail, initialArrival);
   const waitingMinutes = operation.opensAt && initialArrival < operation.opensAt
     ? Math.ceil((operation.opensAt.getTime() - initialArrival.getTime()) / 60_000)
     : 0;
-  const arrivalAt = new Date(initialArrival.getTime() + waitingMinutes * 60_000);
-  const leaveAt = new Date(arrivalAt.getTime() + minimumStayMinutes * 60_000);
+  const minimumTotalMinutes =
+    roundTripMinutes + waitingMinutes + minimumBufferMinutes + minimumStayMinutes;
+  const typicalTotalMinutes =
+    roundTripMinutes + waitingMinutes + typicalBufferMinutes + typicalStayMinutes;
+  const maximumTotalMinutes =
+    roundTripMinutes + waitingMinutes + maximumBufferMinutes + maximumStayMinutes;
+  const typicalLeaveAt = new Date(
+    initialArrival.getTime() +
+      (waitingMinutes + typicalBufferMinutes + typicalStayMinutes) * 60_000,
+  );
+  const useTypicalVisit =
+    typicalTotalMinutes <= availableMinutes &&
+    (!operation.closesAt || typicalLeaveAt <= operation.closesAt);
+  const recommendedStayMinutes = useTypicalVisit
+    ? typicalStayMinutes
+    : minimumStayMinutes;
+  const selectedBufferMinutes = useTypicalVisit
+    ? typicalBufferMinutes
+    : minimumBufferMinutes;
+  const arrivalAt = new Date(
+    initialArrival.getTime() + (waitingMinutes + selectedBufferMinutes) * 60_000,
+  );
+  const leaveAt = new Date(arrivalAt.getTime() + recommendedStayMinutes * 60_000);
   const returnAt = new Date(leaveAt.getTime() + oneWayMinutes * 60_000);
-  const totalMinutes = roundTripMinutes + waitingMinutes + minimumStayMinutes;
+  const totalMinutes =
+    roundTripMinutes + waitingMinutes + selectedBufferMinutes + recommendedStayMinutes;
   const operationStatus = resolveOperationStatus({
     detail,
     operation,
     initialArrival,
     leaveAt,
   });
+  const explicitlyUnavailable =
+    answers.transport === "car" &&
+    visitProfile.carSuitability === "unavailable";
+  const fitStatus = resolveFitStatus({
+    availableMinutes,
+    minimumTotalMinutes,
+    typicalTotalMinutes,
+    hasTravelEstimate: travelTimeVerified || travelTimeEstimated,
+    explicitlyUnavailable:
+      explicitlyUnavailable ||
+      operationStatus === "closed_today" ||
+      operationStatus === "closes_too_soon",
+  });
 
   return {
     travelTimeVerified,
+    travelTimeEstimated,
     availableMinutes,
     oneWayMinutes,
     roundTripMinutes,
     minimumStayMinutes,
+    typicalStayMinutes,
+    maximumStayMinutes,
+    recommendedStayMinutes,
+    minimumBufferMinutes,
+    typicalBufferMinutes,
+    maximumBufferMinutes,
     waitingMinutes,
     totalMinutes,
-    fitsAvailableTime:
-      (travelTimeVerified
-        ? totalMinutes <= availableMinutes
-        : minimumStayMinutes < availableMinutes) &&
-      operationStatus !== "closed_today" &&
-      operationStatus !== "closes_too_soon",
+    minimumTotalMinutes,
+    typicalTotalMinutes,
+    maximumTotalMinutes,
+    fitStatus,
+    fitsAvailableTime: fitStatus !== "impossible",
     operationStatus,
     arrivalAt: arrivalAt.toISOString(),
     leaveAt: leaveAt.toISOString(),
@@ -159,54 +218,88 @@ export function calculateExecutionFeasibility({
   };
 }
 
-function getMinimumStayMinutes(
-  usageDuration: string | null | undefined,
-  place: Pick<TutiPlace, "name" | "sourceContentType">,
-  movement: IntakeAnswers["movement"],
-) {
-  const parsed = parseDurationMinutes(usageDuration);
-  const flexibleNearVisit =
-    movement === "near" && isFlexibleNearVisit(place);
-
-  if (parsed !== null) {
-    // 공원·전시·박물관처럼 머무는 길이를 스스로 정할 수 있는 공간은
-    // 한 시간 추천에서 핵심만 20~25분 둘러보는 선택을 허용한다.
-    return flexibleNearVisit ? clamp(parsed, 20, 25) : clamp(parsed, 20, 180);
-  }
-
-  if (flexibleNearVisit) return 20;
-
+function createFallbackVisitProfile(
+  place: Pick<TutiPlace, "sourceContentType" | "experienceType">,
+): PlaceVisitTimeProfile {
+  const stay = getDefaultStayDuration({
+    contentTypeId: place.sourceContentType,
+    experienceType: place.experienceType,
+  });
   return {
-    "12": 40,
-    "14": 45,
-    "15": 60,
-    "25": 90,
-    "28": 60,
-    "38": 45,
-    "39": 45,
-  }[place.sourceContentType ?? ""] ?? 40;
+    stayMinimumMinutes: stay.minimumMinutes,
+    stayTypicalMinutes: stay.typicalMinutes,
+    stayMaximumMinutes: stay.maximumMinutes,
+    staySource: "type_default",
+    stayFlexibility: "flexible",
+    parkingAvailability: "unknown",
+    carSuitability: "possible",
+    entryProcess: "open",
+    reservationRequirement: "none",
+    accessConstraint: "none",
+    parkingBufferMinimumMinutes: 10,
+    parkingBufferTypicalMinutes: 20,
+    parkingBufferMaximumMinutes: 30,
+    entryBufferMinimumMinutes: 0,
+    entryBufferTypicalMinutes: 5,
+    entryBufferMaximumMinutes: 10,
+    confidence: 40,
+    profileVersion: "runtime-fallback-v1",
+  };
 }
 
-function isFlexibleNearVisit(
-  place: Pick<TutiPlace, "name" | "sourceContentType">,
+function getVisitBufferMinutes(
+  profile: PlaceVisitTimeProfile,
+  transport: IntakeAnswers["transport"],
+  range: "minimum" | "typical" | "maximum",
 ) {
-  if (place.sourceContentType === "14") return true;
-  if (place.sourceContentType !== "12") return false;
-
-  return !/등산|둘레길|올레길|탐방로|트레킹|종주|코스|케이블카|유람선/u.test(
-    place.name,
-  );
+  const entry = range === "minimum"
+    ? profile.entryBufferMinimumMinutes
+    : range === "typical"
+      ? profile.entryBufferTypicalMinutes
+      : profile.entryBufferMaximumMinutes;
+  const parking = transport !== "car"
+    ? 0
+    : range === "minimum"
+      ? profile.parkingBufferMinimumMinutes
+      : range === "typical"
+        ? profile.parkingBufferTypicalMinutes
+        : profile.parkingBufferMaximumMinutes;
+  return entry + parking;
 }
 
-function parseDurationMinutes(value: string | null | undefined) {
-  if (!value) return null;
-  const normalized = value.replace(/,/g, " ");
-  const hourMatch = normalized.match(/(\d+(?:\.\d+)?)\s*시간/);
-  const minuteMatch = normalized.match(/(\d+)\s*분/);
-  const minutes =
-    (hourMatch ? Number(hourMatch[1]) * 60 : 0) +
-    (minuteMatch ? Number(minuteMatch[1]) : 0);
-  return minutes > 0 && Number.isFinite(minutes) ? Math.round(minutes) : null;
+function estimateOneWayMinutes(
+  distanceMeters: number | undefined,
+  transport: IntakeAnswers["transport"],
+) {
+  if (!distanceMeters || distanceMeters <= 0) return null;
+  if (transport === "car") {
+    const roadDistanceMeters = distanceMeters * 1.25;
+    return Math.max(3, Math.ceil(roadDistanceMeters / 580) + 2);
+  }
+  const routeDistanceMeters = distanceMeters * 1.35;
+  return Math.max(8, Math.ceil(routeDistanceMeters / 300) + 5);
+}
+
+function resolveFitStatus({
+  availableMinutes,
+  minimumTotalMinutes,
+  typicalTotalMinutes,
+  hasTravelEstimate,
+  explicitlyUnavailable,
+}: {
+  availableMinutes: number;
+  minimumTotalMinutes: number;
+  typicalTotalMinutes: number;
+  hasTravelEstimate: boolean;
+  explicitlyUnavailable: boolean;
+}): NonNullable<ExecutionFeasibility["fitStatus"]> {
+  if (explicitlyUnavailable || minimumTotalMinutes > availableMinutes) {
+    return "impossible";
+  }
+  if (!hasTravelEstimate) return "unknown";
+  if (typicalTotalMinutes <= availableMinutes * 0.85) return "comfortable";
+  if (typicalTotalMinutes <= availableMinutes) return "possible";
+  return "tight";
 }
 
 function resolveOperationWindow(
@@ -351,8 +444,4 @@ function startOfKoreanDate(date: Date) {
 
 function endOfKoreanDate(date: Date) {
   return new Date(startOfKoreanDate(date).getTime() + 24 * 60 * 60_000);
-}
-
-function clamp(value: number, minimum: number, maximum: number) {
-  return Math.min(Math.max(value, minimum), maximum);
 }

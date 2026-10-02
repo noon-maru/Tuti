@@ -1,8 +1,9 @@
 import type { PlaceExperienceType } from "@/lib/recommendations";
 import { assessPlaceExperienceType } from "@/server/recommendations/experienceType";
+import { getDefaultStayDuration } from "@/server/recommendations/placeVisitTimeProfile";
 import { derivePlaceMoodTags } from "@/server/tourism/placeMoodTags";
 
-export const PLACE_RECOMMENDATION_FEATURE_VERSION = "place-features-v2";
+export const PLACE_RECOMMENDATION_FEATURE_VERSION = "place-features-v3";
 
 export type RecommendationFeatureSource = {
   name: string;
@@ -10,8 +11,8 @@ export type RecommendationFeatureSource = {
   contentTypeId?: string | null;
   overview?: string | null;
   experienceGuide?: string | null;
-  usageDuration?: string | null;
   reservation?: string | null;
+  stayTypicalMinutes?: number | null;
 };
 
 export function derivePlaceRecommendationFeatures(source: RecommendationFeatureSource) {
@@ -25,19 +26,19 @@ export function derivePlaceRecommendationFeatures(source: RecommendationFeatureS
     overview: source.overview,
     experienceGuide: source.experienceGuide,
   });
-  const duration = parseDurationMinutes(source.usageDuration);
+  const duration = source.stayTypicalMinutes ?? getDefaultStayDuration({
+    contentTypeId: source.contentTypeId,
+    experienceType: experience.type,
+  }).typicalMinutes;
   const burden = getActivityBurden(source, experience.type);
   const movementLevel: "near" | "short" | "half" =
-    (duration !== null && duration >= 150) || burden >= 3
+    duration >= 150 || burden >= 3
       ? "half"
-      : ((duration !== null && duration <= 60) ||
-          (duration === null && isFlexibleBriefVisit(source, experience.type))) &&
+      : (duration <= 60 || isFlexibleBriefVisit(source, experience.type)) &&
           burden === 0
         ? "near"
         : "short";
-  const durationBurden = duration === null
-    ? 8
-    : duration <= 45
+  const durationBurden = duration <= 45
       ? 0
       : duration <= 90
         ? 7
@@ -76,19 +77,6 @@ function getActivityBurden(source: RecommendationFeatureSource, type: PlaceExper
   if (type === "activity") return 2;
   if (/둘레길|산책로|수목원|박물관|미술관|시장/u.test(text)) return 1;
   return 0;
-}
-
-function parseDurationMinutes(value?: string | null) {
-  if (!value) return null;
-  const normalized = value.replace(/\s+/g, " ");
-  const values = [...normalized.matchAll(
-    /(\d+(?:\.\d+)?)\s*시간(?:\s*(\d+)\s*분)?|(\d+)\s*분/g,
-  )].map((match) =>
-    match[1]
-      ? Number(match[1]) * 60 + Number(match[2] ?? 0)
-      : Number(match[3]),
-  ).filter(Number.isFinite);
-  return values.length > 0 ? Math.max(...values) : null;
 }
 
 function clamp(value: number, min: number, max: number) {

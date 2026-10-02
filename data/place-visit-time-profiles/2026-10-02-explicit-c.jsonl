@@ -1,0 +1,31 @@
+{"contentId":"2633908","minimumMinutes":30,"typicalMinutes":40,"maximumMinutes":50,"source":"llm_parsed","confidence":96,"evidence":"원문 '40분 내외'를 일반 체류 40분으로 해석하고 전후 10분의 관람 편차를 반영함"}
+{"contentId":"2639878","minimumMinutes":45,"typicalMinutes":60,"maximumMinutes":75,"source":"llm_parsed","confidence":98,"evidence":"원문에 명시된 1시간을 일반 체류 60분으로 두고 갤러리 관람 편차를 반영함"}
+{"contentId":"2650054","minimumMinutes":40,"typicalMinutes":70,"maximumMinutes":100,"source":"type_default","confidence":50,"evidence":"공연 및 전시마다 상이하여 일정한 수치로 구조화할 수 없어 문화시설 기본값을 적용함"}
+{"contentId":"2733119","minimumMinutes":90,"typicalMinutes":120,"maximumMinutes":150,"source":"llm_parsed","confidence":98,"evidence":"원문에 명시된 2시간을 일반 체류 120분으로 두고 문화공원과 전시관 관람 편차를 반영함"}
+{"contentId":"2733423","minimumMinutes":45,"typicalMinutes":60,"maximumMinutes":75,"source":"llm_parsed","confidence":97,"evidence":"원문 '약 1시간'을 일반 체류 60분으로 해석하고 전시 관람 편차를 반영함"}
+{"contentId":"2737274","minimumMinutes":20,"typicalMinutes":30,"maximumMinutes":45,"source":"llm_parsed","confidence":98,"evidence":"원문에 명시된 30분을 일반 체류시간으로 두고 박물관 관람 편차를 반영함"}
+{"contentId":"2742247","minimumMinutes":40,"typicalMinutes":70,"maximumMinutes":100,"source":"type_default","confidence":45,"evidence":"체류시간 필드에 10시부터 17시까지의 회차 운영시간표가 잘못 입력되어 문화시설 기본값을 적용함"}
+{"contentId":"2744491","minimumMinutes":45,"typicalMinutes":60,"maximumMinutes":75,"source":"llm_parsed","confidence":98,"evidence":"원문에 명시된 1시간을 일반 체류 60분으로 두고 전시관 관람 편차를 반영함"}
+{"contentId":"2751843","minimumMinutes":90,"typicalMinutes":120,"maximumMinutes":150,"source":"llm_parsed","confidence":96,"evidence":"원문 '약 2시간'을 일반 체류 120분으로 해석하고 박물관 관람 속도 차이를 반영함"}
+{"contentId":"2752466","minimumMinutes":20,"typicalMinutes":30,"maximumMinutes":40,"source":"llm_parsed","confidence":96,"evidence":"원문 '30분 내외'를 일반 체류 30분으로 해석하고 전후 10분의 관람 편차를 반영함"}
+{"contentId":"2752772","minimumMinutes":30,"typicalMinutes":45,"maximumMinutes":60,"source":"llm_parsed","confidence":99,"evidence":"원문에 제시된 약 30~60분 범위를 최소 30분, 일반 45분, 최대 60분으로 구조화함"}
+{"contentId":"2754294","minimumMinutes":20,"typicalMinutes":30,"maximumMinutes":45,"source":"llm_parsed","confidence":97,"evidence":"원문 '약 30분'을 일반 체류 30분으로 해석하고 기념관 관람 편차를 반영함"}
+{"contentId":"2756965","minimumMinutes":30,"typicalMinutes":35,"maximumMinutes":40,"source":"llm_parsed","confidence":99,"evidence":"원문에 제시된 약 30~40분 범위를 그대로 유지하고 일반 체류를 35분으로 구조화함"}
+{"contentId":"2758629","minimumMinutes":90,"typicalMinutes":120,"maximumMinutes":150,"source":"llm_parsed","confidence":96,"evidence":"원문 '약 2시간'을 일반 체류 120분으로 해석하고 아쿠아리움 관람 편차를 반영함"}
+{"contentId":"2782651","minimumMinutes":90,"typicalMinutes":120,"maximumMinutes":150,"source":"llm_parsed","confidence":96,"evidence":"원문 '약 2시간'을 일반 체류 120분으로 해석하고 문화관 관람 편차를 반영함"}
+{"contentId":"2806218","minimumMinutes":40,"typicalMinutes":70,"maximumMinutes":100,"source":"type_default","confidence":40,"evidence":"체류시간 필드의 '200명'은 수용 인원으로 잘못 입력된 값이므로 문화시설 기본값을 적용함"}
+{"contentId":"2822920","minimumMinutes":70,"typicalMinutes":90,"maximumMinutes":110,"source":"llm_parsed","confidence":97,"evidence":"원문 '약 1시간 30분'을 일반 체류 90분으로 해석하고 박물관 관람 편차를 반영함"}
+{"contentId":"2951844","minimumMinutes":45,"typicalMinutes":60,"maximumMinutes":75,"source":"llm_parsed","confidence":97,"evidence":"원문 '약 1시간'을 일반 체류 60분으로 해석하고 유물전시관 관람 편차를 반영함"}
+{"contentId":"3081851","minimumMinutes":20,"typicalMinutes":30,"maximumMinutes":45,"source":"llm_parsed","confidence":98,"evidence":"원문에 명시된 30분을 일반 체류시간으로 두고 미술관 관람 편차를 반영함"}
+{"contentId":"3410452","minimumMinutes":70,"typicalMinutes":90,"maximumMinutes":110,"source":"llm_parsed","confidence":98,"evidence":"원문에 명시된 1시간 30분을 일반 체류 90분으로 두고 박물관 관람 편차를 반영함"}
+{"contentId":"3412256","minimumMinutes":20,"typicalMinutes":30,"maximumMinutes":40,"source":"llm_parsed","confidence":96,"evidence":"원문 '30분 내외'를 일반 체류 30분으로 해석하고 전후 10분의 관람 편차를 반영함"}
+{"contentId":"3412973","minimumMinutes":60,"typicalMinutes":90,"maximumMinutes":120,"source":"llm_parsed","confidence":99,"evidence":"원문에 제시된 1~2시간 범위를 최소 60분, 일반 90분, 최대 120분으로 구조화함"}
+{"contentId":"3456336","minimumMinutes":40,"typicalMinutes":70,"maximumMinutes":100,"source":"type_default","confidence":45,"evidence":"체류시간 필드에 평일·주말 운영시간이 잘못 입력되어 문화시설 기본값을 적용함"}
+{"contentId":"3494779","minimumMinutes":35,"typicalMinutes":45,"maximumMinutes":60,"source":"llm_parsed","confidence":96,"evidence":"원문 '약 45분 소요'를 일반 체류 45분으로 해석하고 관람 속도 차이를 반영함"}
+{"contentId":"594065","minimumMinutes":30,"typicalMinutes":45,"maximumMinutes":60,"source":"llm_parsed","confidence":99,"evidence":"원문에 제시된 30분~1시간 범위를 최소 30분, 일반 45분, 최대 60분으로 구조화함"}
+{"contentId":"690984","minimumMinutes":45,"typicalMinutes":60,"maximumMinutes":75,"source":"llm_parsed","confidence":97,"evidence":"원문 '약 1시간'을 일반 체류 60분으로 해석하고 전시 관람 편차를 반영함"}
+{"contentId":"699241","minimumMinutes":70,"typicalMinutes":90,"maximumMinutes":110,"source":"llm_parsed","confidence":97,"evidence":"원문 '약 1시간 30분'을 일반 체류 90분으로 해석하고 도서관 전시 관람 편차를 반영함"}
+{"contentId":"705052","minimumMinutes":45,"typicalMinutes":60,"maximumMinutes":75,"source":"llm_parsed","confidence":97,"evidence":"원문 '약 1시간'을 일반 체류 60분으로 해석하고 박물관 관람 편차를 반영함"}
+{"contentId":"742820","minimumMinutes":50,"typicalMinutes":60,"maximumMinutes":75,"source":"llm_parsed","confidence":96,"evidence":"원문에 체험활동 기준 1시간이 명시되어 일반 체류 60분으로 두고 활동 편차를 반영함"}
+{"contentId":"778140","minimumMinutes":40,"typicalMinutes":65,"maximumMinutes":90,"source":"llm_parsed","confidence":99,"evidence":"원문에 제시된 40분~1시간 30분 범위를 최소 40분, 일반 65분, 최대 90분으로 구조화함"}
+{"contentId":"915509","minimumMinutes":30,"typicalMinutes":40,"maximumMinutes":50,"source":"llm_parsed","confidence":96,"evidence":"원문 '40분 내외'를 일반 체류 40분으로 해석하고 전후 10분의 관람 편차를 반영함"}

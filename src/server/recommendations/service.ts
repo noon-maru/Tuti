@@ -1,4 +1,4 @@
-import type { TutiPlace } from "@/lib/recommendations";
+import type { PlaceVisitTimeProfile, TutiPlace } from "@/lib/recommendations";
 import { prisma } from "@/server/db/prisma";
 import { interpretState } from "@/lib/recommendations";
 import {
@@ -74,6 +74,25 @@ type PlaceRow = {
   sourceSigunguName: string | null;
   sourceAddress: string | null;
   visibilityOverride: "auto" | "show" | "hide";
+  visitTimeProfile?: PlaceVisitTimeProfile | null;
+  visitStayMinimumMinutes?: number | null;
+  visitStayTypicalMinutes?: number | null;
+  visitStayMaximumMinutes?: number | null;
+  visitStaySource?: string | null;
+  visitStayFlexibility?: string | null;
+  visitParkingAvailability?: string | null;
+  visitCarSuitability?: string | null;
+  visitEntryProcess?: string | null;
+  visitReservationRequirement?: string | null;
+  visitAccessConstraint?: string | null;
+  visitParkingBufferMinimumMinutes?: number | null;
+  visitParkingBufferTypicalMinutes?: number | null;
+  visitParkingBufferMaximumMinutes?: number | null;
+  visitEntryBufferMinimumMinutes?: number | null;
+  visitEntryBufferTypicalMinutes?: number | null;
+  visitEntryBufferMaximumMinutes?: number | null;
+  visitConfidence?: number | null;
+  visitProfileVersion?: string | null;
   detailOverview?: string | null;
   detailExperienceGuide?: string | null;
   tourismSourceRecord?: {
@@ -82,13 +101,11 @@ type PlaceRow = {
       experienceGuide: string | null;
       openingHours: string | null;
       restDate: string | null;
-      usageDuration: string | null;
       admissionFee: string | null;
     } | null;
   } | null;
   detailOpeningHours?: string | null;
   detailRestDate?: string | null;
-  detailUsageDuration?: string | null;
   detailAdmissionFee?: string | null;
   latitude: unknown;
   longitude: unknown;
@@ -460,6 +477,28 @@ async function findPlacesByBaseFatigue(
       sourceSigunguName: true,
       sourceAddress: true,
       visibilityOverride: true,
+      visitTimeProfile: {
+        select: {
+          stayMinimumMinutes: true,
+          stayTypicalMinutes: true,
+          stayMaximumMinutes: true,
+          staySource: true,
+          stayFlexibility: true,
+          parkingAvailability: true,
+          carSuitability: true,
+          entryProcess: true,
+          reservationRequirement: true,
+          accessConstraint: true,
+          parkingBufferMinimumMinutes: true,
+          parkingBufferTypicalMinutes: true,
+          parkingBufferMaximumMinutes: true,
+          entryBufferMinimumMinutes: true,
+          entryBufferTypicalMinutes: true,
+          entryBufferMaximumMinutes: true,
+          confidence: true,
+          profileVersion: true,
+        },
+      },
       tourismSourceRecord: {
         select: {
           detailRecord: {
@@ -468,7 +507,6 @@ async function findPlacesByBaseFatigue(
               experienceGuide: true,
               openingHours: true,
               restDate: true,
-              usageDuration: true,
               admissionFee: true,
             },
           },
@@ -508,11 +546,28 @@ async function findPlacesNearLocation(
       p."source_sigungu_name" AS "sourceSigunguName",
       p."source_address" AS "sourceAddress",
       p."visibility_override" AS "visibilityOverride",
+      v."stay_minimum_minutes" AS "visitStayMinimumMinutes",
+      v."stay_typical_minutes" AS "visitStayTypicalMinutes",
+      v."stay_maximum_minutes" AS "visitStayMaximumMinutes",
+      v."stay_source" AS "visitStaySource",
+      v."stay_flexibility" AS "visitStayFlexibility",
+      v."parking_availability" AS "visitParkingAvailability",
+      v."car_suitability" AS "visitCarSuitability",
+      v."entry_process" AS "visitEntryProcess",
+      v."reservation_requirement" AS "visitReservationRequirement",
+      v."access_constraint" AS "visitAccessConstraint",
+      v."parking_buffer_minimum_minutes" AS "visitParkingBufferMinimumMinutes",
+      v."parking_buffer_typical_minutes" AS "visitParkingBufferTypicalMinutes",
+      v."parking_buffer_maximum_minutes" AS "visitParkingBufferMaximumMinutes",
+      v."entry_buffer_minimum_minutes" AS "visitEntryBufferMinimumMinutes",
+      v."entry_buffer_typical_minutes" AS "visitEntryBufferTypicalMinutes",
+      v."entry_buffer_maximum_minutes" AS "visitEntryBufferMaximumMinutes",
+      v."confidence" AS "visitConfidence",
+      v."profile_version" AS "visitProfileVersion",
       d."overview" AS "detailOverview",
       d."experience_guide" AS "detailExperienceGuide",
       d."opening_hours" AS "detailOpeningHours",
       d."rest_date" AS "detailRestDate",
-      d."usage_duration" AS "detailUsageDuration",
       d."admission_fee" AS "detailAdmissionFee",
       p."latitude",
       p."longitude",
@@ -522,6 +577,8 @@ async function findPlacesNearLocation(
       ON s."linked_place_id" = p."id"
     LEFT JOIN "tourism_place_detail_records" d
       ON d."content_id" = s."content_id"
+    LEFT JOIN "place_visit_time_profiles" v
+      ON v."place_id" = p."id"
     CROSS JOIN LATERAL (
       SELECT ST_Distance(
         p."location"::geography,
@@ -609,6 +666,52 @@ function toTutiPlace(place: PlaceRow): TutiPlace {
     longitude: Number(place.longitude),
     distanceMeters:
       typeof place.distanceMeters === "number" ? place.distanceMeters : undefined,
+    visitTimeProfile: toVisitTimeProfile(place) ?? undefined,
+  };
+}
+
+function toVisitTimeProfile(place: PlaceRow): PlaceVisitTimeProfile | null {
+  if (place.visitTimeProfile) return place.visitTimeProfile;
+  if (
+    place.visitStayMinimumMinutes == null ||
+    place.visitStayTypicalMinutes == null ||
+    place.visitStayMaximumMinutes == null ||
+    place.visitStaySource == null ||
+    place.visitStayFlexibility == null ||
+    place.visitParkingAvailability == null ||
+    place.visitCarSuitability == null ||
+    place.visitEntryProcess == null ||
+    place.visitReservationRequirement == null ||
+    place.visitAccessConstraint == null ||
+    place.visitParkingBufferMinimumMinutes == null ||
+    place.visitParkingBufferTypicalMinutes == null ||
+    place.visitParkingBufferMaximumMinutes == null ||
+    place.visitEntryBufferMinimumMinutes == null ||
+    place.visitEntryBufferTypicalMinutes == null ||
+    place.visitEntryBufferMaximumMinutes == null ||
+    place.visitConfidence == null ||
+    place.visitProfileVersion == null
+  ) return null;
+
+  return {
+    stayMinimumMinutes: place.visitStayMinimumMinutes,
+    stayTypicalMinutes: place.visitStayTypicalMinutes,
+    stayMaximumMinutes: place.visitStayMaximumMinutes,
+    staySource: place.visitStaySource,
+    stayFlexibility: place.visitStayFlexibility,
+    parkingAvailability: place.visitParkingAvailability,
+    carSuitability: place.visitCarSuitability,
+    entryProcess: place.visitEntryProcess,
+    reservationRequirement: place.visitReservationRequirement,
+    accessConstraint: place.visitAccessConstraint,
+    parkingBufferMinimumMinutes: place.visitParkingBufferMinimumMinutes,
+    parkingBufferTypicalMinutes: place.visitParkingBufferTypicalMinutes,
+    parkingBufferMaximumMinutes: place.visitParkingBufferMaximumMinutes,
+    entryBufferMinimumMinutes: place.visitEntryBufferMinimumMinutes,
+    entryBufferTypicalMinutes: place.visitEntryBufferTypicalMinutes,
+    entryBufferMaximumMinutes: place.visitEntryBufferMaximumMinutes,
+    confidence: place.visitConfidence,
+    profileVersion: place.visitProfileVersion,
   };
 }
 
@@ -617,7 +720,6 @@ function toOperationDetail(place: PlaceRow): OperationDetail {
   return {
     openingHours: detail?.openingHours ?? place.detailOpeningHours ?? null,
     restDate: detail?.restDate ?? place.detailRestDate ?? null,
-    usageDuration: detail?.usageDuration ?? place.detailUsageDuration ?? null,
     admissionFee: detail?.admissionFee ?? place.detailAdmissionFee ?? null,
   };
 }

@@ -43,6 +43,9 @@ export async function loadPlaceCandidateAssessments(): Promise<AssessedPlace[]> 
         candidateOverride: true,
         reviewStatus: true,
         visibilityOverride: true,
+        visitTimeProfile: {
+          select: { stayTypicalMinutes: true },
+        },
         seoulRealtimeAreaLink: { select: { areaCode: true } },
         tourismSourceRecord: {
           select: {
@@ -101,8 +104,8 @@ export async function loadPlaceCandidateAssessments(): Promise<AssessedPlace[]> 
       contentTypeId: row.sourceContentType,
       overview: detail?.overview,
       experienceGuide: detail?.experienceGuide,
-      usageDuration: detail?.usageDuration,
       reservation: detail?.reservation,
+      stayTypicalMinutes: row.visitTimeProfile?.stayTypicalMinutes,
     });
     const place: PlaceCandidateInput = {
       id: row.id,

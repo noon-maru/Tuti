@@ -1,0 +1,31 @@
+{"contentId":"1022196","minimumMinutes":40,"typicalMinutes":70,"maximumMinutes":100,"source":"type_default","confidence":50,"evidence":"원문이 '공연 별로 상이함'으로 수치화할 수 없어 문화시설 기본 체류시간을 적용함"}
+{"contentId":"1116566","minimumMinutes":40,"typicalMinutes":70,"maximumMinutes":100,"source":"type_default","confidence":50,"evidence":"공연·전시 일정마다 달라지는 비정형 값이므로 문화시설 기본 체류시간을 적용함"}
+{"contentId":"1257271","minimumMinutes":40,"typicalMinutes":70,"maximumMinutes":100,"source":"type_default","confidence":50,"evidence":"원문이 공연에 따라 상이하다고만 안내하여 문화시설 기본 체류시간을 적용함"}
+{"contentId":"129725","minimumMinutes":40,"typicalMinutes":70,"maximumMinutes":100,"source":"type_default","confidence":50,"evidence":"공연 및 전시별 상이로 수치 범위가 없어 문화시설 기본 체류시간을 적용함"}
+{"contentId":"129750","minimumMinutes":40,"typicalMinutes":70,"maximumMinutes":100,"source":"type_default","confidence":50,"evidence":"공연별 상이한 야외 공연시설로 수치화가 어려워 문화시설 기본 체류시간을 적용함"}
+{"contentId":"129758","minimumMinutes":40,"typicalMinutes":70,"maximumMinutes":100,"source":"type_default","confidence":50,"evidence":"공연마다 상이하다는 원문만 있어 문화시설 기본 체류시간을 적용함"}
+{"contentId":"129759","minimumMinutes":40,"typicalMinutes":70,"maximumMinutes":100,"source":"type_default","confidence":50,"evidence":"공연별 변동 값으로 일정한 체류시간을 산정할 수 없어 문화시설 기본값을 적용함"}
+{"contentId":"129774","minimumMinutes":90,"typicalMinutes":120,"maximumMinutes":150,"source":"llm_parsed","confidence":96,"evidence":"원문 '약 2시간'을 중심값 120분으로 해석하고 관람 속도 차이를 반영함"}
+{"contentId":"129794","minimumMinutes":45,"typicalMinutes":60,"maximumMinutes":75,"source":"llm_parsed","confidence":97,"evidence":"원문 '약 60분'을 일반 체류 60분으로 해석하고 짧고 긴 관람 범위를 부여함"}
+{"contentId":"129801","minimumMinutes":45,"typicalMinutes":60,"maximumMinutes":75,"source":"llm_parsed","confidence":98,"evidence":"원문에 명시된 1시간을 일반 체류 60분으로 두고 박물관 관람 편차를 반영함"}
+{"contentId":"129805","minimumMinutes":45,"typicalMinutes":60,"maximumMinutes":75,"source":"llm_parsed","confidence":97,"evidence":"원문 '약 1시간'을 일반 체류 60분으로 해석하고 관람 속도 차이를 반영함"}
+{"contentId":"130049","minimumMinutes":40,"typicalMinutes":70,"maximumMinutes":100,"source":"type_default","confidence":50,"evidence":"공연에 따라 달라지는 시설로 수치화할 근거가 없어 문화시설 기본 체류시간을 적용함"}
+{"contentId":"130062","minimumMinutes":45,"typicalMinutes":60,"maximumMinutes":75,"source":"llm_parsed","confidence":98,"evidence":"원문에 명시된 1시간을 일반 체류 60분으로 두고 박물관 관람 편차를 반영함"}
+{"contentId":"130084","minimumMinutes":70,"typicalMinutes":90,"maximumMinutes":110,"source":"llm_parsed","confidence":98,"evidence":"원문에 명시된 1시간 30분을 일반 체류 90분으로 두고 관람 편차를 반영함"}
+{"contentId":"130132","minimumMinutes":45,"typicalMinutes":60,"maximumMinutes":75,"source":"llm_parsed","confidence":97,"evidence":"원문 '약 1시간 내외'를 일반 체류 60분으로 해석함"}
+{"contentId":"130226","minimumMinutes":30,"typicalMinutes":45,"maximumMinutes":60,"source":"llm_parsed","confidence":99,"evidence":"원문에 제시된 약 30분~1시간 범위를 최소 30분, 일반 45분, 최대 60분으로 구조화함"}
+{"contentId":"130314","minimumMinutes":45,"typicalMinutes":60,"maximumMinutes":75,"source":"llm_parsed","confidence":98,"evidence":"원문에 명시된 1시간을 일반 체류 60분으로 두고 박물관 관람 편차를 반영함"}
+{"contentId":"130315","minimumMinutes":40,"typicalMinutes":70,"maximumMinutes":100,"source":"type_default","confidence":50,"evidence":"공연별 상이한 공연장으로 수치화할 수 없어 문화시설 기본 체류시간을 적용함"}
+{"contentId":"130317","minimumMinutes":45,"typicalMinutes":60,"maximumMinutes":75,"source":"llm_parsed","confidence":98,"evidence":"원문에 명시된 60분을 일반 체류시간으로 두고 관람 편차를 반영함"}
+{"contentId":"130351","minimumMinutes":40,"typicalMinutes":70,"maximumMinutes":100,"source":"type_default","confidence":50,"evidence":"공연별 상이한 극장으로 수치화할 근거가 없어 문화시설 기본 체류시간을 적용함"}
+{"contentId":"130420","minimumMinutes":45,"typicalMinutes":60,"maximumMinutes":75,"source":"llm_parsed","confidence":97,"evidence":"원문 '약 1시간'을 일반 체류 60분으로 해석하고 박물관 관람 편차를 반영함"}
+{"contentId":"130461","minimumMinutes":45,"typicalMinutes":60,"maximumMinutes":75,"source":"llm_parsed","confidence":97,"evidence":"원문 '약 1시간 내외'를 일반 체류 60분으로 해석함"}
+{"contentId":"130478","minimumMinutes":40,"typicalMinutes":70,"maximumMinutes":100,"source":"type_default","confidence":50,"evidence":"공연에 따라 달라지는 야외공연장으로 수치화가 어려워 문화시설 기본 체류시간을 적용함"}
+{"contentId":"130497","minimumMinutes":15,"typicalMinutes":20,"maximumMinutes":30,"source":"llm_parsed","confidence":96,"evidence":"원문 '약 20분'을 일반 체류 20분으로 해석하고 짧은 전시 관람 편차를 반영함"}
+{"contentId":"130508","minimumMinutes":40,"typicalMinutes":70,"maximumMinutes":100,"source":"type_default","confidence":50,"evidence":"공연에 따라 상이하다는 원문만 있어 문화시설 기본 체류시간을 적용함"}
+{"contentId":"130509","minimumMinutes":60,"typicalMinutes":90,"maximumMinutes":120,"source":"llm_parsed","confidence":99,"evidence":"원문에 제시된 약 1~2시간 범위를 최소 60분, 일반 90분, 최대 120분으로 구조화함"}
+{"contentId":"130552","minimumMinutes":45,"typicalMinutes":60,"maximumMinutes":75,"source":"llm_parsed","confidence":97,"evidence":"원문 '약 1시간'을 일반 체류 60분으로 해석하고 박물관 관람 편차를 반영함"}
+{"contentId":"130563","minimumMinutes":45,"typicalMinutes":60,"maximumMinutes":75,"source":"llm_parsed","confidence":97,"evidence":"원문 '약 1시간'을 일반 체류 60분으로 해석하고 박물관 관람 편차를 반영함"}
+{"contentId":"130628","minimumMinutes":45,"typicalMinutes":60,"maximumMinutes":75,"source":"llm_parsed","confidence":96,"evidence":"원문 '약 1시간'을 일반 체류 60분으로 해석하고 화랑 관람 편차를 반영함"}
+{"contentId":"130664","minimumMinutes":20,"typicalMinutes":30,"maximumMinutes":45,"source":"llm_parsed","confidence":97,"evidence":"원문 '약 30분'을 일반 체류 30분으로 해석하고 박물관 관람 편차를 반영함"}
+{"contentId":"130666","minimumMinutes":45,"typicalMinutes":60,"maximumMinutes":75,"source":"llm_parsed","confidence":98,"evidence":"원문에 명시된 1시간을 일반 체류 60분으로 두고 박물관 관람 편차를 반영함"}

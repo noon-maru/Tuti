@@ -24,6 +24,7 @@
     "places:editorials:enrich": "pnpm db:generate && tsx scripts/enrich-tourism-place-editorials.ts",
     "places:summaries:import": "pnpm db:generate && tsx scripts/import-place-overview-summaries.ts",
     "places:actions:import": "pnpm db:generate && tsx scripts/import-place-suggested-actions.ts",
+    "places:visit-times:import": "pnpm db:generate && tsx scripts/import-place-visit-time-profiles.ts",
     "places:sync:tourapi": "pnpm db:generate && tsx scripts/sync-tourism-places.ts",
     "tourism:bootstrap:data": "pnpm db:generate && tsx scripts/bootstrap-tourism-data.ts",
     "tourism:crowd:refresh": "pnpm db:generate && tsx scripts/refresh-tourist-spot-concentration.ts",

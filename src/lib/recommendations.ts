@@ -32,6 +32,7 @@ export type TutiPlace = {
   crowdForecast?: CrowdForecast;
   weatherForecast?: WeatherForecast;
   executionFeasibility?: ExecutionFeasibility;
+  visitTimeProfile?: PlaceVisitTimeProfile;
   distanceMeters?: number;
   rankingScore?: number;
   fatigueScore?: number;
@@ -40,6 +41,27 @@ export type TutiPlace = {
   reasonFactors?: RecommendationReasonFactor[];
   cardPhrase?: string;
   longDistanceJourney?: LongDistanceJourney;
+};
+
+export type PlaceVisitTimeProfile = {
+  stayMinimumMinutes: number;
+  stayTypicalMinutes: number;
+  stayMaximumMinutes: number;
+  staySource: string;
+  stayFlexibility: string;
+  parkingAvailability: string;
+  carSuitability: string;
+  entryProcess: string;
+  reservationRequirement: string;
+  accessConstraint: string;
+  parkingBufferMinimumMinutes: number;
+  parkingBufferTypicalMinutes: number;
+  parkingBufferMaximumMinutes: number;
+  entryBufferMinimumMinutes: number;
+  entryBufferTypicalMinutes: number;
+  entryBufferMaximumMinutes: number;
+  confidence: number;
+  profileVersion: string;
 };
 
 export type PlaceExperienceType =
@@ -101,12 +123,23 @@ export type RecommendationReasonFactor =
 
 export type ExecutionFeasibility = {
   travelTimeVerified?: boolean;
+  travelTimeEstimated?: boolean;
   availableMinutes: number;
   oneWayMinutes: number;
   roundTripMinutes: number;
   minimumStayMinutes: number;
+  typicalStayMinutes?: number;
+  maximumStayMinutes?: number;
+  recommendedStayMinutes?: number;
+  minimumBufferMinutes?: number;
+  typicalBufferMinutes?: number;
+  maximumBufferMinutes?: number;
   waitingMinutes: number;
   totalMinutes: number;
+  minimumTotalMinutes?: number;
+  typicalTotalMinutes?: number;
+  maximumTotalMinutes?: number;
+  fitStatus?: "comfortable" | "possible" | "tight" | "unknown" | "impossible";
   fitsAvailableTime: boolean;
   operationStatus:
     | "available"

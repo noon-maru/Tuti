@@ -242,6 +242,7 @@ model Place {
   journalEntries            JournalEntry[]
   recommendationActions     RecommendationAction[]
   meaningProfile            PlaceMeaningProfile?
+  visitTimeProfile          PlaceVisitTimeProfile?
 
   @@unique([source, sourceId])
   @@index([fatigue])
@@ -252,6 +253,40 @@ model Place {
   @@index([source, candidateStatus, candidateOverride])
   @@index([source, candidateStatus, visibilityOverride])
   @@map("places")
+}
+
+model PlaceVisitTimeProfile {
+  placeId                       String   @id @map("place_id")
+  stayMinimumMinutes            Int      @map("stay_minimum_minutes")
+  stayTypicalMinutes            Int      @map("stay_typical_minutes")
+  stayMaximumMinutes            Int      @map("stay_maximum_minutes")
+  staySource                    String   @map("stay_source")
+  stayFlexibility               String   @map("stay_flexibility")
+  parkingAvailability           String   @map("parking_availability")
+  carSuitability                String   @map("car_suitability")
+  entryProcess                  String   @map("entry_process")
+  reservationRequirement        String   @map("reservation_requirement")
+  accessConstraint              String   @map("access_constraint")
+  parkingBufferMinimumMinutes   Int      @map("parking_buffer_minimum_minutes")
+  parkingBufferTypicalMinutes   Int      @map("parking_buffer_typical_minutes")
+  parkingBufferMaximumMinutes   Int      @map("parking_buffer_maximum_minutes")
+  entryBufferMinimumMinutes     Int      @map("entry_buffer_minimum_minutes")
+  entryBufferTypicalMinutes     Int      @map("entry_buffer_typical_minutes")
+  entryBufferMaximumMinutes     Int      @map("entry_buffer_maximum_minutes")
+  confidence                    Int
+  evidence                      String[] @default([])
+  fallbackFields                String[] @default([]) @map("fallback_fields")
+  sourceFingerprint             String   @map("source_fingerprint")
+  model                         String
+  profileVersion                String   @map("profile_version")
+  generatedAt                   DateTime @map("generated_at")
+  createdAt                     DateTime @default(now()) @map("created_at")
+  updatedAt                     DateTime @updatedAt @map("updated_at")
+  place                         Place    @relation(fields: [placeId], references: [id], onDelete: Cascade)
+
+  @@index([profileVersion])
+  @@index([staySource])
+  @@map("place_visit_time_profiles")
 }
 
 model TransportHub {
