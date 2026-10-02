@@ -17,8 +17,10 @@ import { useDeferredAnimationStart } from "@/features/tuti/hooks/useDeferredAnim
 import { fluidByViewportHeight } from "@/styles/tokens";
 
 export function RecommendationReadyScreen({
+  onRecommendationIntent,
   onOpenRecommendations,
 }: {
+  onRecommendationIntent: () => void;
   onOpenRecommendations: () => void | Promise<void>;
 }) {
   const animationReady = useDeferredAnimationStart();
@@ -37,6 +39,7 @@ export function RecommendationReadyScreen({
     const reduceMotion = window.matchMedia(
       "(prefers-reduced-motion: reduce)",
     ).matches;
+    onRecommendationIntent();
     setDragging(false);
     setLeaving(true);
     setDragOffset(Math.max(minimumOffset, window.innerHeight + 80, 800));
@@ -44,7 +47,7 @@ export function RecommendationReadyScreen({
       () => void onOpenRecommendations(),
       reduceMotion ? 100 : 620,
     );
-  }, [leaving, onOpenRecommendations]);
+  }, [leaving, onOpenRecommendations, onRecommendationIntent]);
 
   useEffect(
     () => () => {

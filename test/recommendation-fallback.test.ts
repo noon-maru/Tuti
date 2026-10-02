@@ -6,6 +6,7 @@ import {
   hasLimitedRecommendationResults,
 } from "@/features/tuti/lib/recommendationStatus";
 import { selectRecommendationCandidatePool } from "@/server/recommendations/candidateFallback";
+import { collectEligibleCandidatesInBatches } from "@/server/recommendations/adaptiveCandidateEvaluation";
 import { selectDiverseExperienceTypes } from "@/server/recommendations/diverseCandidateSelection";
 import { getPreferredRegionWhere } from "@/server/recommendations/regionFallback";
 import {
@@ -238,4 +239,93 @@ test("첫 후보에서 조건 충족 장소가 부족하면 평가하지 않은 
     new Set([...firstBatch, ...supplementalBatch].map((place) => place.id)),
     new Set(places.map((place) => place.id)),
   );
+});
+
+test("첫 여섯 후보가 모두 실행 가능하면 경로 검증을 한 번만 수행한다", async () => {
+  const places = Array.from({ length: 18 }, (_, index) => ({
+    id: `place-${index + 1}`,
+  }));
+  let cursor = 0;
+  const evaluatedBatchSizes: number[] = [];
+  const eligible = await collectEligibleCandidatesInBatches({
+    maximumBatchCount: 4,
+    targetCount: 6,
+    initialBatchSize: 6,
+    supplementalBatchSize: 12,
+    selectBatch: (batchSize) => {
+      const batch = places.slice(cursor, cursor + batchSize);
+      cursor += batch.length;
+      return batch;
+    },
+    evaluateBatch: async (batch) => {
+      evaluatedBatchSizes.push(batch.length);
+      return batch;
+    },
+  });
+
+  assert.equal(eligible.length, 6);
+  assert.deepEqual(evaluatedBatchSizes, [6]);
+});
+
+test("최초 여섯 후보는 가능한 경우 세 가지 이상의 경험으로 구성한다", () => {
+  const places = [
+    ...Array.from({ length: 6 }, (_, index) => ({
+      id: `park-${index + 1}`,
+      experienceType: "park",
+    })),
+    ...Array.from({ length: 2 }, (_, index) => ({
+      id: `museum-${index + 1}`,
+      experienceType: "museum",
+    })),
+    ...Array.from({ length: 2 }, (_, index) => ({
+      id: `library-${index + 1}`,
+      experienceType: "library",
+    })),
+  ];
+  const selected = selectDiverseExperienceTypes(places, 6, 2);
+
+  assert.equal(selected.length, 6);
+  assert.equal(new Set(selected.map((place) => place.experienceType)).size, 3);
+  assert.equal(
+    Math.max(
+      ...Array.from(
+        selected.reduce((counts, place) => {
+          counts.set(
+            place.experienceType,
+            (counts.get(place.experienceType) ?? 0) + 1,
+          );
+          return counts;
+        }, new Map<string, number>()).values(),
+      ),
+    ),
+    2,
+  );
+});
+
+test("첫 후보가 부족할 때만 다음 열두 후보를 추가 검증한다", async () => {
+  const places = Array.from({ length: 18 }, (_, index) => ({
+    id: `place-${index + 1}`,
+  }));
+  let cursor = 0;
+  let evaluationCount = 0;
+  const evaluatedBatchSizes: number[] = [];
+  const eligible = await collectEligibleCandidatesInBatches({
+    maximumBatchCount: 4,
+    targetCount: 6,
+    initialBatchSize: 6,
+    supplementalBatchSize: 12,
+    selectBatch: (batchSize) => {
+      const batch = places.slice(cursor, cursor + batchSize);
+      cursor += batch.length;
+      return batch;
+    },
+    evaluateBatch: async (batch) => {
+      evaluatedBatchSizes.push(batch.length);
+      evaluationCount += 1;
+      return evaluationCount === 1 ? batch.slice(0, 2) : batch;
+    },
+  });
+
+  assert.equal(eligible.length, 14);
+  assert.deepEqual(evaluatedBatchSizes, [6, 12]);
 });

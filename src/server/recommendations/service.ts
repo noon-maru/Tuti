@@ -32,6 +32,7 @@ import {
 import { filterPlacesByAdmissionBudget } from "@/server/recommendations/admissionFee";
 import { enrichPlacesWithWeatherForecast } from "@/server/weather/kmaVilageForecast";
 import { selectRecommendationCandidatePool } from "@/server/recommendations/candidateFallback";
+import { collectEligibleCandidatesInBatches } from "@/server/recommendations/adaptiveCandidateEvaluation";
 import { selectDiverseExperienceTypes } from "@/server/recommendations/diverseCandidateSelection";
 import { getPreferredRegionWhere } from "@/server/recommendations/regionFallback";
 import {
@@ -92,7 +93,9 @@ type PlaceRow = {
 
 const RECOMMENDATION_LIMIT = 6;
 const FINAL_RERANK_POOL_SIZE = 12;
-const CANDIDATE_EVALUATION_BATCH_SIZE = 12;
+const INITIAL_LOCATION_EVALUATION_BATCH_SIZE = 6;
+const SUPPLEMENTAL_EVALUATION_BATCH_SIZE = 12;
+const INITIAL_LOCATION_EXPERIENCE_TYPE_CAP = 2;
 const MAX_LOCATION_EVALUATION_BATCHES = 2;
 const MAX_NEAR_LOCATION_EVALUATION_BATCHES = 4;
 const NEARBY_ROUTE_CACHE_TTL_MS = 15 * 60_000;
@@ -301,52 +304,65 @@ async function evaluateRecommendations(
     maximumBatchCount: number,
     targetCount: number,
   ) => {
-    for (
-      let batchIndex = 0;
-      batchIndex < maximumBatchCount;
-      batchIndex += 1
-    ) {
-      const candidateBatch = selectDiverseExperienceTypes(
-        ranking,
-        CANDIDATE_EVALUATION_BATCH_SIZE,
-        location ? 4 : 3,
-        evaluatedPlaceIds,
-      );
-      if (candidateBatch.length === 0) break;
-      candidateBatch.forEach((place) => evaluatedPlaceIds.add(place.id));
+    const remainingTargetCount = Math.max(
+      0,
+      targetCount - eligibleShortlist.length,
+    );
+    if (remainingTargetCount === 0) return;
 
-      const routeEnrichedBatch = location
-        ? rankByMovementFatigue(
-            await enrichWithTravelTimes(
-              candidateBatch,
-              location,
-              answers.transport,
-            ),
-            answers,
-            feature,
-            CANDIDATE_EVALUATION_BATCH_SIZE,
-          )
-        : candidateBatch;
-      const executionEnrichedBatch =
-        await enrichPlacesWithExecutionFeasibility(routeEnrichedBatch, {
-          ...answers,
-          movement: feature.movement,
-        });
-      const executableBatch = location
-        ? keepVerifiedTimeFits(executionEnrichedBatch)
-        : excludeExplicitlyInfeasiblePlaces(executionEnrichedBatch);
-      eligibleShortlist.push(
-        ...filterPlacesByAdmissionBudget(executableBatch, answers.budget),
-      );
-
-      if (eligibleShortlist.length >= targetCount) break;
-    }
+    const newlyEligiblePlaces = await collectEligibleCandidatesInBatches({
+      maximumBatchCount,
+      targetCount: remainingTargetCount,
+      initialBatchSize: location
+        ? INITIAL_LOCATION_EVALUATION_BATCH_SIZE
+        : FINAL_RERANK_POOL_SIZE,
+      supplementalBatchSize: SUPPLEMENTAL_EVALUATION_BATCH_SIZE,
+      selectBatch: (batchSize) => {
+        const maxPerExperienceType = location
+          ? batchSize === INITIAL_LOCATION_EVALUATION_BATCH_SIZE
+            ? INITIAL_LOCATION_EXPERIENCE_TYPE_CAP
+            : 4
+          : 3;
+        const candidateBatch = selectDiverseExperienceTypes(
+          ranking,
+          batchSize,
+          maxPerExperienceType,
+          evaluatedPlaceIds,
+        );
+        candidateBatch.forEach((place) => evaluatedPlaceIds.add(place.id));
+        return candidateBatch;
+      },
+      evaluateBatch: async (candidateBatch) => {
+        const routeEnrichedBatch = location
+          ? rankByMovementFatigue(
+              await enrichWithTravelTimes(
+                candidateBatch,
+                location,
+                answers.transport,
+              ),
+              answers,
+              feature,
+              candidateBatch.length,
+            )
+          : candidateBatch;
+        const executionEnrichedBatch =
+          await enrichPlacesWithExecutionFeasibility(routeEnrichedBatch, {
+            ...answers,
+            movement: feature.movement,
+          });
+        const executableBatch = location
+          ? keepVerifiedTimeFits(executionEnrichedBatch)
+          : excludeExplicitlyInfeasiblePlaces(executionEnrichedBatch);
+        return filterPlacesByAdmissionBudget(executableBatch, answers.budget);
+      },
+    });
+    eligibleShortlist.push(...newlyEligiblePlaces);
   };
 
   await evaluateCandidateRanking(
     rankedPlaces,
     evaluationBatchCount,
-    FINAL_RERANK_POOL_SIZE,
+    location ? RECOMMENDATION_LIMIT : FINAL_RERANK_POOL_SIZE,
   );
 
   if (
