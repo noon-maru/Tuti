@@ -31,6 +31,8 @@ import { tourApiSidoOptions } from "@/shared/tourism/tourApiRegions";
 export const runtime = "nodejs";
 
 export async function POST(request: Request) {
+  const requestStartedAt = performance.now();
+
   if (!isRequestOriginAllowed(request)) {
     return Response.json({ error: "허용되지 않은 요청 출처예요." }, { status: 403 });
   }
@@ -57,6 +59,7 @@ export async function POST(request: Request) {
         user?.id,
         preferencePlaceIds,
       );
+    const recommendationStartedAt = performance.now();
     const { places, personalization } = location
       ? await runWithLocationUsage({
           user: user!,
@@ -67,12 +70,14 @@ export async function POST(request: Request) {
           operation: createRecommendations,
         })
       : await createRecommendations();
+    const recommendationCompletedAt = performance.now();
     const response: RecommendationResponse = {
       recommendationId,
       algorithmVersion: RECOMMENDATION_ALGORITHM_VERSION,
       places,
     };
 
+    const snapshotStartedAt = performance.now();
     if (user) {
       await recordRecommendationRunSafely({
         id: recommendationId,
@@ -84,8 +89,22 @@ export async function POST(request: Request) {
         personalization,
       });
     }
+    const responseCreatedAt = performance.now();
 
-    return withCors(request, Response.json(response));
+    return withCors(
+      request,
+      Response.json(response, {
+        headers: {
+          "Server-Timing": createRecommendationServerTiming({
+            requestStartedAt,
+            recommendationStartedAt,
+            recommendationCompletedAt,
+            snapshotStartedAt,
+            responseCreatedAt,
+          }),
+        },
+      }),
+    );
   } catch (error) {
     const invalidJson = error instanceof SyntaxError;
     const invalidRequest = error instanceof InvalidRecommendationRequestError;
@@ -137,6 +156,29 @@ export async function POST(request: Request) {
       ),
     );
   }
+}
+
+function createRecommendationServerTiming({
+  requestStartedAt,
+  recommendationStartedAt,
+  recommendationCompletedAt,
+  snapshotStartedAt,
+  responseCreatedAt,
+}: {
+  requestStartedAt: number;
+  recommendationStartedAt: number;
+  recommendationCompletedAt: number;
+  snapshotStartedAt: number;
+  responseCreatedAt: number;
+}) {
+  const duration = (startedAt: number, completedAt: number) =>
+    Math.max(0, completedAt - startedAt).toFixed(1);
+
+  return [
+    `recommendation;dur=${duration(recommendationStartedAt, recommendationCompletedAt)}`,
+    `snapshot;dur=${duration(snapshotStartedAt, responseCreatedAt)}`,
+    `total;dur=${duration(requestStartedAt, responseCreatedAt)}`,
+  ].join(", ");
 }
 
 class InvalidRecommendationRequestError extends Error {}

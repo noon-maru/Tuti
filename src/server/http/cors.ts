@@ -30,7 +30,7 @@ export function withCors(request: Request, response: Response) {
   headers.set("Access-Control-Allow-Origin", origin);
   headers.set(
     "Access-Control-Expose-Headers",
-    "X-Tuti-Journal-Book-Approval",
+    "Server-Timing, X-Tuti-Journal-Book-Approval",
   );
 
   return new Response(response.body, {
