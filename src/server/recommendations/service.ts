@@ -22,7 +22,8 @@ import {
 import { getExternalLocationProcessingMode } from "@/server/location/externalProcessing";
 import {
   enrichPlacesWithAdmissionFees,
-  enrichPlacesWithExecutionFeasibility,
+  enrichPlacesWithKnownExecutionFeasibility,
+  type OperationDetail,
 } from "@/server/recommendations/executionFeasibility";
 import { filterPlacesByAdmissionBudget } from "@/server/recommendations/admissionFee";
 import { enrichPlacesWithWeatherForecast } from "@/server/weather/kmaVilageForecast";
@@ -79,8 +80,16 @@ type PlaceRow = {
     detailRecord?: {
       overview: string | null;
       experienceGuide: string | null;
+      openingHours: string | null;
+      restDate: string | null;
+      usageDuration: string | null;
+      admissionFee: string | null;
     } | null;
   } | null;
+  detailOpeningHours?: string | null;
+  detailRestDate?: string | null;
+  detailUsageDuration?: string | null;
+  detailAdmissionFee?: string | null;
   latitude: unknown;
   longitude: unknown;
   distanceMeters?: number | null;
@@ -258,6 +267,9 @@ async function evaluateRecommendations(
 
   const { eligiblePlaces, candidatePlaces, fallbackPlaces } =
     selectRecommendationCandidatePool(places, excludePlaceIds);
+  const operationDetailByPlaceId = new Map(
+    places.map((place) => [place.id, toOperationDetail(place)] as const),
+  );
   const preferencePlaceIdSet = new Set(preferencePlaceIds);
   const recommendationPlaces = candidatePlaces.filter(
     (place) => !preferencePlaceIdSet.has(place.id),
@@ -321,11 +333,14 @@ async function evaluateRecommendations(
         return candidateBatch;
       },
       evaluateBatch: async (candidateBatch) => {
-        const executionEnrichedBatch =
-          await enrichPlacesWithExecutionFeasibility(candidateBatch, {
+        const executionEnrichedBatch = enrichPlacesWithKnownExecutionFeasibility(
+          candidateBatch,
+          {
             ...answers,
             movement: feature.movement,
-          });
+          },
+          operationDetailByPlaceId,
+        );
         const executableBatch = excludeExplicitlyInfeasiblePlaces(
           executionEnrichedBatch,
         );
@@ -448,7 +463,14 @@ async function findPlacesByBaseFatigue(
       tourismSourceRecord: {
         select: {
           detailRecord: {
-            select: { overview: true, experienceGuide: true },
+            select: {
+              overview: true,
+              experienceGuide: true,
+              openingHours: true,
+              restDate: true,
+              usageDuration: true,
+              admissionFee: true,
+            },
           },
         },
       },
@@ -488,17 +510,24 @@ async function findPlacesNearLocation(
       p."visibility_override" AS "visibilityOverride",
       d."overview" AS "detailOverview",
       d."experience_guide" AS "detailExperienceGuide",
+      d."opening_hours" AS "detailOpeningHours",
+      d."rest_date" AS "detailRestDate",
+      d."usage_duration" AS "detailUsageDuration",
+      d."admission_fee" AS "detailAdmissionFee",
       p."latitude",
       p."longitude",
-      ST_Distance(
-        p."location"::geography,
-        ST_SetSRID(ST_MakePoint(${longitude}, ${latitude}), 4326)::geography
-      ) AS "distanceMeters"
+      distance."distanceMeters"
     FROM "places" p
     LEFT JOIN "tourism_place_source_records" s
       ON s."linked_place_id" = p."id"
     LEFT JOIN "tourism_place_detail_records" d
       ON d."content_id" = s."content_id"
+    CROSS JOIN LATERAL (
+      SELECT ST_Distance(
+        p."location"::geography,
+        ST_SetSRID(ST_MakePoint(${longitude}, ${latitude}), 4326)::geography
+      ) AS "distanceMeters"
+    ) distance
     WHERE
       p."is_active" = true
       AND p."source" = 'tourapi'
@@ -515,17 +544,16 @@ async function findPlacesNearLocation(
         ST_SetSRID(ST_MakePoint(${longitude}, ${latitude}), 4326)::geography,
         ${maximumMeters}
       )
-      AND ST_Distance(
-        p."location"::geography,
-        ST_SetSRID(ST_MakePoint(${longitude}, ${latitude}), 4326)::geography
-      ) >= ${minimumMeters}
-    ORDER BY
-      ABS(
-        ST_Distance(
+      AND (
+        ${minimumMeters} = 0
+        OR NOT ST_DWithin(
           p."location"::geography,
-          ST_SetSRID(ST_MakePoint(${longitude}, ${latitude}), 4326)::geography
-        ) - ${targetMeters}
-      ),
+          ST_SetSRID(ST_MakePoint(${longitude}, ${latitude}), 4326)::geography,
+          ${minimumMeters}
+        )
+      )
+    ORDER BY
+      ABS(distance."distanceMeters" - ${targetMeters}),
       p."fatigue" ASC,
       p."id" ASC
     LIMIT 180
@@ -581,6 +609,16 @@ function toTutiPlace(place: PlaceRow): TutiPlace {
     longitude: Number(place.longitude),
     distanceMeters:
       typeof place.distanceMeters === "number" ? place.distanceMeters : undefined,
+  };
+}
+
+function toOperationDetail(place: PlaceRow): OperationDetail {
+  const detail = place.tourismSourceRecord?.detailRecord;
+  return {
+    openingHours: detail?.openingHours ?? place.detailOpeningHours ?? null,
+    restDate: detail?.restDate ?? place.detailRestDate ?? null,
+    usageDuration: detail?.usageDuration ?? place.detailUsageDuration ?? null,
+    admissionFee: detail?.admissionFee ?? place.detailAdmissionFee ?? null,
   };
 }
 

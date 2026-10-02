@@ -7,7 +7,7 @@ import { movementTimeBudget } from "@/shared/tuti/movementTimeBudget";
 import type { IntakeAnswers } from "@/shared/tuti/types";
 
 const KOREA_TIME_ZONE = "Asia/Seoul";
-type OperationDetail = {
+export type OperationDetail = {
   openingHours: string | null;
   restDate: string | null;
   usageDuration: string | null;
@@ -67,6 +67,20 @@ export async function enrichPlacesWithExecutionFeasibility(
     ),
   );
 
+  return enrichPlacesWithKnownExecutionFeasibility(
+    places,
+    answers,
+    detailByPlaceId,
+    now,
+  );
+}
+
+export function enrichPlacesWithKnownExecutionFeasibility(
+  places: TutiPlace[],
+  answers: IntakeAnswers,
+  detailByPlaceId: ReadonlyMap<string, OperationDetail>,
+  now = new Date(),
+) {
   return places.map((place) => {
     const detail = detailByPlaceId.get(place.id);
     const executionFeasibility = calculateExecutionFeasibility({
@@ -133,7 +147,9 @@ export function calculateExecutionFeasibility({
     waitingMinutes,
     totalMinutes,
     fitsAvailableTime:
-      (!travelTimeVerified || totalMinutes <= availableMinutes) &&
+      (travelTimeVerified
+        ? totalMinutes <= availableMinutes
+        : minimumStayMinutes < availableMinutes) &&
       operationStatus !== "closed_today" &&
       operationStatus !== "closes_too_soon",
     operationStatus,

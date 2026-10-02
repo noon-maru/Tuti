@@ -77,5 +77,6 @@ test("출발 계획 query key는 출발 좌표를 구분한다", () => {
     "place-a",
     null,
     null,
+    null,
   ]);
 });
