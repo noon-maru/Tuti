@@ -185,9 +185,14 @@ jobs:
           cp "${apk_path}" "${release_directory}/${release_name}.apk"
 
           mapping_path="android/app/build/outputs/mapping/release/mapping.txt"
-          r8_verification="$(scripts/verify-android-r8-mapping.sh "${mapping_path}")"
+          r8_metadata_path="${release_directory}/r8.json"
+          r8_verification="$(scripts/verify-android-r8-artifacts.sh "${aab_path}" "${mapping_path}")"
           echo "${r8_verification}"
           cp "${mapping_path}" "${release_directory}/mapping.txt"
+          unzip -p \
+            "${aab_path}" \
+            BUNDLE-METADATA/com.android.tools/r8.json \
+            > "${r8_metadata_path}"
 
           cat > "${release_directory}/build-info.txt" <<EOF
           versionName=${version_name}
@@ -197,6 +202,7 @@ jobs:
           nativeLibraries=${native_library_count}
           nativeDebugSymbols=${native_symbol_count}
           r8Mapping=true
+          r8Metadata=true
           EOF
 
           (

@@ -94,7 +94,7 @@ if [ "$minify_enabled" = "true" ] && [ ! -s "$mapping_file" ]; then
 fi
 
 if [ "$minify_enabled" = "true" ]; then
-  "$project_dir/scripts/verify-android-r8-mapping.sh" "$mapping_file"
+  "$project_dir/scripts/verify-android-r8-artifacts.sh" "$aab_file" "$mapping_file"
 fi
 
 verification_output="$(

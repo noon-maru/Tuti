@@ -35,15 +35,21 @@ const iosBuildNumbers = readMatches(
 );
 
 const mismatches = [
-  androidVersionName === packageVersion
-    ? null
-    : `Android versionName ${androidVersionName} != package ${packageVersion}`,
   ...iosMarketingVersions.map((version) =>
     version === packageVersion
       ? null
       : `iOS MARKETING_VERSION ${version} != package ${packageVersion}`,
   ),
 ].filter((message): message is string => message !== null);
+
+for (const [label, version] of [
+  ["package", packageVersion],
+  ["Android versionName", androidVersionName],
+] as const) {
+  if (!/^\d+\.\d+\.\d+$/.test(version)) {
+    mismatches.push(`${label} 형식이 올바르지 않습니다: ${version}`);
+  }
+}
 
 if (new Set(iosBuildNumbers).size !== 1) {
   mismatches.push(
@@ -57,9 +63,9 @@ if (mismatches.length > 0) {
 
 console.info(
   [
-    `Tuti ${packageVersion}`,
-    `Android versionCode ${androidVersionCode}`,
-    `iOS build ${iosBuildNumbers[0]}`,
+    `Web/package ${packageVersion}`,
+    `Android ${androidVersionName} (${androidVersionCode})`,
+    `iOS ${iosMarketingVersions[0]} (${iosBuildNumbers[0]})`,
   ].join(" · "),
 );
 

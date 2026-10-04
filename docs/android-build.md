@@ -151,7 +151,7 @@ sudo rm -f /tmp/tuti-upload-jks.base64
 3. 운영 공개 설정으로 Next.js 정적 앱 및 Capacitor Android 프로젝트 생성
 4. 업로드 키로 Release AAB와 APK 서명
 5. AAB·APK 서명 및 네이티브 디버그 기호 포함 여부 검증
-6. AAB, APK, `mapping.txt`, 빌드 정보와 SHA-256 체크섬을 Artifact로 보관
+6. AAB, APK, `mapping.txt`, `r8.json`, 빌드 정보와 SHA-256 체크섬을 Artifact로 보관
 7. 실행 옵션이 켜져 있으면 Google Play 내부 테스트 트랙에 즉시 업로드
 
 성공한 실행의 `Artifacts`에서 `tuti-<versionName>-<versionCode>` 파일을
@@ -197,15 +197,22 @@ android/app/build/outputs/bundle/release/app-release.aab
 /var/services/homes/Tutiadmin/.tuti-releases/android/<versionName>-<versionCode>/
 ```
 
-현재 릴리스 버전은 `versionCode 10`, `versionName 1.3.0`이다. R8 코드 축소와
+현재 Android 릴리스 버전은 `versionCode 11`, `versionName 1.3.1`이다. Android
+전용 패치 버전이므로 웹/package와 iOS는 `1.3.0`을 유지한다. R8 코드 축소와
 난독화는 활성화하되, 위치 권한 회귀가 발생했던 Capacitor 코어 권한 브리지,
 Geolocation 플러그인과 `IONGeolocationLib` 경계는 `proguard-rules.pro`에서
 보존한다. 플러그인 경계만 보존한 1차 내부 테스트에서도 권한 요청 직후 종료가
 재현되어, `BridgeActivity` 클래스 병합과 브리지 콜백 이름 변경까지 막도록 보존
-범위를 넓혔다. 빌드 후 `scripts/verify-android-r8-mapping.sh`가 이 경계의 보존과
-나머지 클래스의 실제 이름 변경을 함께 검증한다. 이전 회귀에서 R8과 동시에 켰던
-리소스 축소는 원인을 분리하기 위해 현재 비활성화하며, 위치 권한 실기기 회귀가
-통과한 뒤 별도 버전에서 활성화한다.
+범위를 넓혔다. 빌드 후 `scripts/verify-android-r8-artifacts.sh`가 이 경계의 보존,
+나머지 클래스의 실제 이름 변경과 AAB 내부 R8 메타데이터를 함께 검증한다. 난독화,
+DEX 최적화, 코드 축소 중 하나라도 꺼졌거나 Play 기준점인 25% 미만이면 릴리스를
+실패 처리한다. 이전 회귀에서 R8과 동시에 켰던 리소스 축소는 원인을 분리하기 위해
+현재 비활성화하며, 위치 권한 실기기 회귀가 통과한 뒤 별도 버전에서 활성화한다.
+
+Android 빌드 도구는 AGP `9.0.1`과 Gradle `9.1.0`을 사용한다. AGP 9의 내장
+Kotlin과 충돌하지 않도록 공식 수정이 포함된 `@capacitor/filesystem 8.1.4` 이상을
+유지한다. AGP 8 전용 `android.r8.optimizedResourceShrinking` 속성은 제거했으며,
+리소스 축소를 활성화하는 후속 버전부터 AGP 9 기본 파이프라인을 사용한다.
 
 내부 테스트에서는 신규 설치 상태에서 위치 권한을 `앱 사용 중에만 허용`과
 `대략적인 위치만 허용`으로 각각 확인하고, 권한 승인 직후 엔트리 완료·추천 카드
