@@ -163,7 +163,13 @@ jobs:
           fi
 
           jarsigner -verify "${aab_path}" >/dev/null
-          apksigner verify --verbose --print-certs "${apk_path}" >/dev/null
+
+          apksigner_path="${ANDROID_HOME}/build-tools/36.0.0/apksigner"
+          if [[ ! -x "${apksigner_path}" ]]; then
+            echo "::error::APK signer was not found: ${apksigner_path}"
+            exit 1
+          fi
+          "${apksigner_path}" verify --verbose --print-certs "${apk_path}" >/dev/null
 
           bundle_listing="${RUNNER_TEMP}/tuti-aab-entries.txt"
           jar tf "${aab_path}" > "${bundle_listing}"
