@@ -107,9 +107,9 @@ sudo -n /usr/local/sbin/tuti-android-release-setup
 `tuti-upload-certificate.pem`은 Play Console에 업로드 키 등록 또는 재설정이 필요할
 때 사용한다. setup 명령은 기존 키를 발견하면 덮어쓰지 않고 중단한다.
 
-## GitHub Actions Release AAB 빌드
+## GitHub Actions Release 빌드
 
-운영용 서명 AAB는 `.github/workflows/android-release.yml`의 `Android Release`
+운영용 서명 AAB와 실기기 설치용 APK는 `.github/workflows/android-release.yml`의 `Android Release`
 워크플로에서 생성한다. 워크플로는 자동 실행하지 않으며, GitHub 저장소의
 `Actions > Android Release > Run workflow`에서 빌드할 커밋 또는 태그를 선택해
 수동 실행한다.
@@ -149,9 +149,9 @@ sudo rm -f /tmp/tuti-upload-jks.base64
 1. Node.js 24, pnpm 11.2.2, JDK 21과 Android API 36·NDK 29 설치
 2. 앱 버전 일치 여부 검증
 3. 운영 공개 설정으로 Next.js 정적 앱 및 Capacitor Android 프로젝트 생성
-4. 업로드 키로 Release AAB 서명
-5. JAR 서명 및 네이티브 디버그 기호 포함 여부 검증
-6. AAB, 선택적 `mapping.txt`, 빌드 정보와 SHA-256 체크섬을 Artifact로 보관
+4. 업로드 키로 Release AAB와 APK 서명
+5. AAB·APK 서명 및 네이티브 디버그 기호 포함 여부 검증
+6. AAB, APK, `mapping.txt`, 빌드 정보와 SHA-256 체크섬을 Artifact로 보관
 7. 실행 옵션이 켜져 있으면 Google Play 내부 테스트 트랙에 즉시 업로드
 
 성공한 실행의 `Artifacts`에서 `tuti-<versionName>-<versionCode>` 파일을
@@ -159,7 +159,7 @@ sudo rm -f /tmp/tuti-upload-jks.base64
 기존 암호화 릴리스 보관소에도 영구 보관한다.
 
 워크플로 수동 실행 화면의 `Google Play 내부 테스트 트랙에 업로드`는 기본적으로
-활성화되어 있다. 단순히 AAB만 다시 만들고 싶을 때는 이 옵션을 해제한다. 자동
+활성화되어 있다. 설치용 APK를 내부 검증할 때는 이 옵션을 해제한다. 자동
 업로드에는 `GOOGLE_PLAY_SERVICE_ACCOUNT_JSON` Repository Secret과 Play Console의
 Tuti 앱에 대한 테스트 트랙 출시 권한이 필요하다. Android 출시 노트는
 `distribution/google-play/whatsnew/whatsnew-ko-KR`에서 읽으므로 버전을 올릴 때
@@ -197,9 +197,20 @@ android/app/build/outputs/bundle/release/app-release.aab
 /var/services/homes/Tutiadmin/.tuti-releases/android/<versionName>-<versionCode>/
 ```
 
-현재 릴리스 버전은 `versionCode 10`, `versionName 1.3.0`이다. 위치 권한 직후
-종료 현상과 R8의 연관성을 확인하는 동안 코드·리소스 축소를 비활성화한다. Play
-Console에 AAB를 한 번이라도 올린 뒤에는 매 업로드마다 `versionCode`를
+현재 릴리스 버전은 `versionCode 10`, `versionName 1.3.0`이다. R8 코드 축소와
+난독화는 활성화하되, 위치 권한 회귀가 발생했던 Capacitor 코어 권한 브리지,
+Geolocation 플러그인과 `IONGeolocationLib` 경계는 `proguard-rules.pro`에서
+보존한다. 플러그인 경계만 보존한 1차 내부 테스트에서도 권한 요청 직후 종료가
+재현되어, `BridgeActivity` 클래스 병합과 브리지 콜백 이름 변경까지 막도록 보존
+범위를 넓혔다. 빌드 후 `scripts/verify-android-r8-mapping.sh`가 이 경계의 보존과
+나머지 클래스의 실제 이름 변경을 함께 검증한다. 이전 회귀에서 R8과 동시에 켰던
+리소스 축소는 원인을 분리하기 위해 현재 비활성화하며, 위치 권한 실기기 회귀가
+통과한 뒤 별도 버전에서 활성화한다.
+
+내부 테스트에서는 신규 설치 상태에서 위치 권한을 `앱 사용 중에만 허용`과
+`대략적인 위치만 허용`으로 각각 확인하고, 권한 승인 직후 엔트리 완료·추천 카드
+노출까지 진행한다. 이 검증을 통과하기 전에는 프로덕션 트랙으로 승격하지 않는다.
+Play Console에 AAB를 한 번이라도 올린 뒤에는 매 업로드마다 `versionCode`를
 증가시켜야 한다. 표시 버전이 같더라도 새 AAB를 업로드할 때는 versionCode를
 반드시 올린다.
 

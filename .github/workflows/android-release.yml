@@ -18,7 +18,7 @@ concurrency:
 
 jobs:
   build:
-    name: Build signed AAB
+    name: Build signed Android artifacts
     runs-on: ubuntu-24.04
     timeout-minutes: 45
     env:
@@ -142,8 +142,8 @@ jobs:
       - name: Verify native app versions
         run: pnpm app:version:verify
 
-      - name: Build signed Android App Bundle
-        run: pnpm android:release
+      - name: Build signed Android artifacts
+        run: pnpm android:release:artifacts
 
       - name: Verify and collect release files
         id: release
@@ -152,12 +152,18 @@ jobs:
           set -euo pipefail
 
           aab_path="android/app/build/outputs/bundle/release/app-release.aab"
+          apk_path="android/app/build/outputs/apk/release/app-release.apk"
           if [[ ! -s "${aab_path}" ]]; then
             echo "::error::Release AAB was not generated: ${aab_path}"
             exit 1
           fi
+          if [[ ! -s "${apk_path}" ]]; then
+            echo "::error::Release APK was not generated: ${apk_path}"
+            exit 1
+          fi
 
           jarsigner -verify "${aab_path}" >/dev/null
+          apksigner verify --verbose --print-certs "${apk_path}" >/dev/null
 
           bundle_listing="${RUNNER_TEMP}/tuti-aab-entries.txt"
           jar tf "${aab_path}" > "${bundle_listing}"
@@ -176,11 +182,12 @@ jobs:
 
           mkdir -p "${release_directory}"
           cp "${aab_path}" "${release_directory}/${release_name}.aab"
+          cp "${apk_path}" "${release_directory}/${release_name}.apk"
 
           mapping_path="android/app/build/outputs/mapping/release/mapping.txt"
-          if [[ -s "${mapping_path}" ]]; then
-            cp "${mapping_path}" "${release_directory}/mapping.txt"
-          fi
+          r8_verification="$(scripts/verify-android-r8-mapping.sh "${mapping_path}")"
+          echo "${r8_verification}"
+          cp "${mapping_path}" "${release_directory}/mapping.txt"
 
           cat > "${release_directory}/build-info.txt" <<EOF
           versionName=${version_name}
@@ -189,6 +196,7 @@ jobs:
           ref=${GITHUB_REF}
           nativeLibraries=${native_library_count}
           nativeDebugSymbols=${native_symbol_count}
+          r8Mapping=true
           EOF
 
           (
@@ -202,8 +210,10 @@ jobs:
           echo "version_code=${version_code}" >> "${GITHUB_OUTPUT}"
           echo "### Android ${version_name} (${version_code})" >> "${GITHUB_STEP_SUMMARY}"
           echo "- Signed AAB verified" >> "${GITHUB_STEP_SUMMARY}"
+          echo "- Signed APK verified" >> "${GITHUB_STEP_SUMMARY}"
           echo "- Native libraries: ${native_library_count}" >> "${GITHUB_STEP_SUMMARY}"
           echo "- Native debug symbols: ${native_symbol_count}" >> "${GITHUB_STEP_SUMMARY}"
+          echo "- ${r8_verification}" >> "${GITHUB_STEP_SUMMARY}"
 
       - name: Upload Android release artifact
         uses: actions/upload-artifact@v4

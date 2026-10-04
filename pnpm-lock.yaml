@@ -30,8 +30,8 @@ importers:
         specifier: 8.1.2
         version: 8.1.2(@capacitor/core@8.3.4)
       '@capacitor/geolocation':
-        specifier: 8.2.0
-        version: 8.2.0(@capacitor/core@8.3.4)
+        specifier: 8.2.2
+        version: 8.2.2(@capacitor/core@8.3.4)
       '@capacitor/ios':
         specifier: 8.3.4
         version: 8.3.4(@capacitor/core@8.3.4)
@@ -331,8 +331,8 @@ packages:
     peerDependencies:
       '@capacitor/core': '>=8.0.0'
 
-  '@capacitor/geolocation@8.2.0':
-    resolution: {integrity: sha512-N29QcoIPmme0xSxRkm7+3hjoHp6mBAOarxecvtCCZKyOBeKiJsFUq981cezg2XWBa6fhCXJMCCjQPngKK/dIag==}
+  '@capacitor/geolocation@8.2.2':
+    resolution: {integrity: sha512-X8ryw6CfL4LspJnnfVL4++DUKKZVfdUIA9JljWVRljEDIQxZQZtz6xf7qstht+ymc+le6oa5EaUChVA6KsCYlA==}
     peerDependencies:
       '@capacitor/core': '>=8.0.0'
 
@@ -4536,7 +4536,7 @@ snapshots:
       '@capacitor/core': 8.3.4
       '@capacitor/synapse': 1.0.4
 
-  '@capacitor/geolocation@8.2.0(@capacitor/core@8.3.4)':
+  '@capacitor/geolocation@8.2.2(@capacitor/core@8.3.4)':
     dependencies:
       '@capacitor/core': 8.3.4
       '@capacitor/synapse': 1.0.4
