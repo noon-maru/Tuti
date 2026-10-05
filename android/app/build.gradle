@@ -45,8 +45,8 @@ android {
             }
             // 위치 브리지 경계는 proguard-rules.pro에서 보존하고 나머지 네이티브 코드는 R8으로 축소한다.
             minifyEnabled true
-            // 이전 회귀에서 코드 축소와 리소스 축소를 동시에 켰으므로 우선 코드 난독화만 분리 검증한다.
-            shrinkResources false
+            // AGP 9의 최적화된 리소스 축소를 사용하며 위치 권한 회귀는 실기기에서 검증한다.
+            shrinkResources true
             ndk {
                 debugSymbolLevel 'SYMBOL_TABLE'
             }
