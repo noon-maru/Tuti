@@ -3,6 +3,11 @@ name: Android Release
 on:
   workflow_dispatch:
     inputs:
+      diagnostic_webview:
+        description: WebView 검사를 허용한 진단용 APK 생성 (Play 업로드 불가)
+        required: true
+        type: boolean
+        default: false
       upload_to_play:
         description: Google Play 내부 테스트 트랙에 업로드
         required: true
@@ -25,6 +30,7 @@ jobs:
       CI: "true"
       NEXT_TELEMETRY_DISABLED: "1"
       NODE_OPTIONS: --max-old-space-size=4096
+      TUTI_ANDROID_WEBVIEW_DEBUG: ${{ inputs.diagnostic_webview && 'true' || 'false' }}
       NEXT_PUBLIC_API_BASE_URL: https://tuti.today/api
       NEXT_PUBLIC_ACCOUNT_AUTH_ENABLED: "true"
       NEXT_PUBLIC_SOCIAL_OAUTH_ENABLED: "true"
@@ -35,6 +41,12 @@ jobs:
       NEXT_PUBLIC_JOURNAL_PUBLICATION_AUDIENCE: public
 
     steps:
+      - name: Validate diagnostic build mode
+        if: ${{ inputs.diagnostic_webview && inputs.upload_to_play }}
+        run: |
+          echo "::error::Diagnostic WebView builds must not be uploaded to Google Play. Disable upload_to_play."
+          exit 1
+
       - name: Checkout source
         uses: actions/checkout@v5
 
@@ -184,6 +196,9 @@ jobs:
           version_name="$(sed -n 's/^[[:space:]]*versionName[[:space:]]\+"\([^"]*\)".*$/\1/p' android/app/build.gradle | head -n 1)"
           version_code="$(sed -n 's/^[[:space:]]*versionCode[[:space:]]\+\([0-9][0-9]*\).*$/\1/p' android/app/build.gradle | head -n 1)"
           release_name="tuti-${version_name}-${version_code}"
+          if [[ "${TUTI_ANDROID_WEBVIEW_DEBUG}" == "true" ]]; then
+            release_name="${release_name}-webview-diagnostic"
+          fi
           release_directory="dist/android/${release_name}"
 
           mkdir -p "${release_directory}"
@@ -205,6 +220,7 @@ jobs:
           versionCode=${version_code}
           commit=${GITHUB_SHA}
           ref=${GITHUB_REF}
+          webViewDebugging=${TUTI_ANDROID_WEBVIEW_DEBUG}
           nativeLibraries=${native_library_count}
           nativeDebugSymbols=${native_symbol_count}
           r8Mapping=true

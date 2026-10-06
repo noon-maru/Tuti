@@ -6,6 +6,9 @@ const config: CapacitorConfig = {
   appId: "com.noonmaru.tuti",
   appName: "Tuti",
   webDir: "out",
+  ...(process.env.TUTI_ANDROID_WEBVIEW_DEBUG === "true"
+    ? { android: { webContentsDebuggingEnabled: true } }
+    : {}),
   ios: {
     scheme: "Tuti",
   },
