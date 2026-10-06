@@ -9,7 +9,15 @@ export const RECOMMENDATION_ALGORITHM_VERSION = "experience-intent-v25";
 
 export type RecommendationErrorCode =
   | "long_distance_unavailable"
-  | "long_distance_location_required";
+  | "long_distance_location_required"
+  | "recommendation_location_required"
+  | "recommendation_location_invalid"
+  | "recommendation_region_invalid"
+  | "location_auth_required"
+  | "location_consent_required"
+  | "location_consent_outdated"
+  | "location_consent_record_failed"
+  | "network_error";
 
 export type RecommendationErrorResponse = {
   error: string;

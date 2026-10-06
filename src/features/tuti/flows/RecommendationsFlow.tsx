@@ -10,6 +10,7 @@ import { useTravelTime } from "@/features/tuti/hooks/useTravelTime";
 import { useSession } from "@/features/tuti/hooks/useSession";
 import { useTutiJournalEntries } from "@/features/tuti/hooks/useTutiJournalEntries";
 import { useLocationAccess } from "@/features/tuti/location/LocationAccessProvider";
+import { getRecommendationErrorKind } from "@/lib/api/recommendationError";
 import { getPlaceDisplayPhrase } from "@/features/tuti/lib/placeDisplayCopy";
 import { findSimilarVisitedPlaces } from "@/features/tuti/lib/similarVisitedPlaces";
 import {
@@ -444,6 +445,7 @@ export function RecommendationsFlow({ interactive }: { interactive: boolean }) {
         answers={storedAnswers}
         loading={isPending && !dailyCheckInVisible}
         recommendationError={isError}
+        recommendationErrorKind={getRecommendationErrorKind(error)}
         recommendationErrorCode={
           error instanceof RecommendationRequestError ? error.code : undefined
         }

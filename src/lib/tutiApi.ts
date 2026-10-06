@@ -1,4 +1,6 @@
 import { apiUrl } from "@/lib/api/apiUrl";
+import { RecommendationRequestError, requestRecommendationResponse } from "@/lib/api/recommendationError";
+export { RecommendationRequestError } from "@/lib/api/recommendationError";
 import { fetchWithSession } from "@/lib/auth/session";
 import { Capacitor } from "@capacitor/core";
 import type {
@@ -43,7 +45,6 @@ import type {
   RecommendationActionResponse,
 } from "@/shared/api/recommendationActions";
 import type {
-  RecommendationErrorCode,
   RecommendationErrorResponse,
   RecommendationRequest,
   RecommendationResponse,
@@ -120,13 +121,13 @@ export async function fetchRecommendations(
     excludePlaceIds,
     preferencePlaceIds,
   };
-  const response = await fetchWithSession("recommendations", {
+  const response = await requestRecommendationResponse(() => fetchWithSession("recommendations", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
     },
     body: JSON.stringify(request),
-  });
+  }));
 
   if (!response.ok) {
     const fallbackMessage = "추천 데이터를 불러오지 못했어요.";
@@ -154,17 +155,6 @@ export async function fetchRecommendationRegions() {
     );
   }
   return (await response.json()) as RecommendationRegionsResponse;
-}
-
-export class RecommendationRequestError extends Error {
-  constructor(
-    message: string,
-    readonly status: number,
-    readonly code?: RecommendationErrorCode,
-  ) {
-    super(message);
-    this.name = "RecommendationRequestError";
-  }
 }
 
 export async function fetchNearbyAccommodations(

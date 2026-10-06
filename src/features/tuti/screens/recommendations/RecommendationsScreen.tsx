@@ -24,6 +24,8 @@ import {
   type RecommendationNotice,
 } from "@/features/tuti/lib/recommendationStatus";
 import type { TutiPlace } from "@/lib/recommendations";
+import { getRecommendationFailure, type RecommendationRecoveryAction } from "@/features/tuti/lib/recommendationFailure";
+import type { RecommendationErrorKind } from "@/lib/api/recommendationError";
 import type { DepartureRoute } from "@/shared/api/departurePlan";
 import type { RecommendationErrorCode } from "@/shared/api/recommendations";
 import type {
@@ -73,6 +75,7 @@ export function RecommendationsScreen({
   answers,
   loading,
   recommendationError,
+  recommendationErrorKind,
   recommendationErrorCode,
   hideRecommendationStatus,
   onRetryRecommendations,
@@ -113,6 +116,7 @@ export function RecommendationsScreen({
   answers: IntakeAnswers;
   loading: boolean;
   recommendationError: boolean;
+  recommendationErrorKind?: RecommendationErrorKind;
   recommendationErrorCode?: RecommendationErrorCode;
   hideRecommendationStatus?: boolean;
   onRetryRecommendations: () => void;
@@ -204,10 +208,10 @@ export function RecommendationsScreen({
     places.map((place) => place.id).join(":"),
     ...recommendationNoticeQueue,
   ].join("|");
-  const longDistanceLocationRequired =
-    recommendationErrorCode === "long_distance_location_required";
-  const longDistanceUnavailable =
-    recommendationErrorCode === "long_distance_unavailable";
+  const failure = getRecommendationFailure(recommendationErrorKind, recommendationErrorCode);
+  const recoveryAction = (action: RecommendationRecoveryAction) =>
+    action === "location" ? onLocationSettings :
+      action === "restart" ? onRestartIntake : onRetryRecommendations;
   const emptyRecommendationTitle = answers.budget === "free"
     ? "비용 걱정을 덜고 다녀올 공간을 아직 찾지 못했어요."
     : answers.movement === "near"
@@ -1003,57 +1007,33 @@ export function RecommendationsScreen({
             </span>
             <div>
               <h2>
-                {longDistanceLocationRequired
-                  ? "먼 길을 함께 살펴보려면 출발할 곳이 필요해요."
-                  : longDistanceUnavailable
-                    ? "오늘 다녀올 만한 먼 길을 찾지 못했어요."
-                  : recommendationError
-                    ? "오늘의 공간을 불러오지 못했어요."
-                    : emptyRecommendationTitle}
+                {recommendationError ? failure.title : emptyRecommendationTitle}
               </h2>
               <p>
-                {longDistanceLocationRequired
-                  ? "지금 있는 곳을 알려주면, 오가는 길까지 살펴서 골라드릴게요."
-                  : longDistanceUnavailable
-                    ? "다녀오는 데 조금 더 여유를 내거나, 오늘은 가까운 곳부터 살펴볼까요?"
-                  : recommendationError
-                    ? "연결 상태를 확인한 뒤 다시 찾아볼까요?"
-                    : emptyRecommendationMessage}
+                {recommendationError ? failure.message : emptyRecommendationMessage}
               </p>
             </div>
             <RecommendationStatusActions>
               <StatusPrimaryButton
                 type="button"
                 onClick={
-                  longDistanceLocationRequired
-                    ? onLocationSettings
-                    : recommendationError
-                      ? onRetryRecommendations
-                      : onRestartIntake
+                  recommendationError ? recoveryAction(failure.primary.action) : onRestartIntake
                 }
               >
-                {longDistanceLocationRequired
-                  ? "출발할 곳 알려주기"
-                  : recommendationError
-                    ? "다시 찾아보기"
-                    : "다시 들려주기"}
+                {recommendationError ? failure.primary.label : "다시 들려주기"}
               </StatusPrimaryButton>
-              <StatusSecondaryButton
-                type="button"
-                onClick={
-                  longDistanceUnavailable || longDistanceLocationRequired
-                    ? onRestartIntake
-                    : onLocationSettings
-                }
-              >
-                {longDistanceUnavailable
-                  ? "오늘 다시 고르기"
-                  : longDistanceLocationRequired
-                    ? "오늘의 여유 다시 고르기"
-                  : recommendationError
-                    ? "위치 살펴보기"
-                    : "출발할 곳 바꾸기"}
-              </StatusSecondaryButton>
+              {(!recommendationError || failure.secondary) && (
+                <StatusSecondaryButton
+                  type="button"
+                  onClick={
+                    recommendationError && failure.secondary
+                      ? recoveryAction(failure.secondary.action)
+                      : onLocationSettings
+                  }
+                >
+                  {recommendationError ? failure.secondary?.label : "출발할 곳 바꾸기"}
+                </StatusSecondaryButton>
+              )}
             </RecommendationStatusActions>
           </RecommendationStatusCard>
         )}

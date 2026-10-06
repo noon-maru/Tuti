@@ -18,6 +18,7 @@ import {
   withCors,
 } from "@/server/http/cors";
 import type {
+  RecommendationErrorCode,
   RecommendationRequest,
   RecommendationResponse,
 } from "@/shared/api/recommendations";
@@ -46,6 +47,7 @@ export async function POST(request: Request) {
     if (!hasRecommendationArea(location, preferredRegion)) {
       throw new InvalidRecommendationRequestError(
         "현재 위치를 사용하지 않을 때는 추천받을 시·군·구를 골라주세요.",
+        "recommendation_location_required",
       );
     }
     const excludePlaceIds = body.excludePlaceIds ?? [];
@@ -144,7 +146,9 @@ export async function POST(request: Request) {
             ? { code: error.code }
             : complianceError
               ? { code: complianceError.code }
-              : {}),
+              : invalidRequest && error.code
+                ? { code: error.code }
+                : {}),
         },
         {
           status:
@@ -184,7 +188,11 @@ function createRecommendationServerTiming({
   ].join(", ");
 }
 
-class InvalidRecommendationRequestError extends Error {}
+class InvalidRecommendationRequestError extends Error {
+  constructor(message: string, readonly code?: RecommendationErrorCode) {
+    super(message);
+  }
+}
 
 function parseRecommendationRequest(value: unknown): RecommendationRequest {
   if (!isRecord(value)) {
@@ -324,6 +332,7 @@ function normalizePreferredRegion(
   ) {
     throw new InvalidRecommendationRequestError(
       "선택한 지역을 확인해주세요.",
+      "recommendation_region_invalid",
     );
   }
   assertOnlyKeys(region, [
@@ -340,12 +349,14 @@ function normalizePreferredRegion(
   if (!matched) {
     throw new InvalidRecommendationRequestError(
       "선택한 지역을 확인해주세요.",
+      "recommendation_region_invalid",
     );
   }
 
   if (matched[1] !== region.name || !region.sigunguName.trim()) {
     throw new InvalidRecommendationRequestError(
       "선택한 시·군·구를 확인해주세요.",
+      "recommendation_region_invalid",
     );
   }
 
@@ -353,6 +364,7 @@ function normalizePreferredRegion(
   if (sigunguCode !== undefined && typeof sigunguCode !== "string") {
     throw new InvalidRecommendationRequestError(
       "선택한 시·군·구를 확인해주세요.",
+      "recommendation_region_invalid",
     );
   }
 
@@ -373,6 +385,7 @@ function normalizeLocation(location: unknown): UserLocation | undefined {
   if (!isRecord(location)) {
     throw new InvalidRecommendationRequestError(
       "현재 위치를 확인해주세요.",
+      "recommendation_location_invalid",
     );
   }
   assertOnlyKeys(location, ["latitude", "longitude"]);
@@ -392,6 +405,7 @@ function normalizeLocation(location: unknown): UserLocation | undefined {
   if (!isValidLatitude || !isValidLongitude) {
     throw new InvalidRecommendationRequestError(
       "현재 위치를 확인해주세요.",
+      "recommendation_location_invalid",
     );
   }
 
