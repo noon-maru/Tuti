@@ -192,9 +192,7 @@ const Scene = styled.section`
 const SceneBackdrop = styled.div<{ $expanded: boolean }>`
   position: absolute;
   inset: 0;
-  background: rgb(var(--color-white-rgb) / 0.44);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
+  background: rgb(var(--color-white-rgb) / 0.72);
   opacity: ${({ $expanded }) => ($expanded ? 1 : 0)};
   transition: opacity ${EXPAND_DURATION - 100}ms ease;
 `;
@@ -295,15 +293,13 @@ const CardCopy = styled.div`
     padding: var(--space-1) var(--space-3);
     border: 1px solid rgb(var(--color-white-rgb) / 0.34);
     border-radius: 999px;
-    background: rgb(var(--color-black-rgb) / 0.14);
+    background: rgb(var(--color-black-rgb) / 0.42);
     color: rgb(var(--color-white-rgb) / 0.9);
     font-size: calc(var(--font-size-100) - 1px);
     font-style: normal;
     font-weight: 500;
     line-height: var(--line-height-body);
     letter-spacing: var(--letter-spacing-body);
-    backdrop-filter: blur(8px);
-    -webkit-backdrop-filter: blur(8px);
   }
 `;
 

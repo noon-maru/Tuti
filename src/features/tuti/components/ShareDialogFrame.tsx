@@ -74,8 +74,6 @@ const Backdrop = styled.div`
     calc(var(--space-5) + var(--app-safe-area-bottom, 0px))
     calc(var(--space-4) + var(--app-safe-area-left, 0px));
   background: rgb(var(--color-black-rgb) / 0.48);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
 `;
 
 const Dialog = styled.section`

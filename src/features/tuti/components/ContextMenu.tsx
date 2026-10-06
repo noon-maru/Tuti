@@ -300,8 +300,6 @@ const Menu = styled.div`
   border-radius: 16px;
   background: rgb(var(--color-white-rgb) / 0.96);
   box-shadow: 0 16px 40px rgb(var(--color-black-rgb) / 0.18);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
   max-height: ${MENU_MAX_HEIGHT}px;
   overflow-y: auto;
   overscroll-behavior: contain;

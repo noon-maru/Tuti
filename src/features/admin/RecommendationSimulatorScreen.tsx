@@ -849,7 +849,6 @@ const Page = styled.main`
 const Header = styled.header`
   border-bottom: 1px solid var(--color-border);
   background: rgb(var(--color-white-rgb) / 0.92);
-  backdrop-filter: blur(16px);
 `;
 
 const HeaderInner = styled.div`

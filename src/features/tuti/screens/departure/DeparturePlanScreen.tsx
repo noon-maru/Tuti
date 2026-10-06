@@ -1117,8 +1117,6 @@ const Backdrop = styled(BaseButton)<{
   width: 100%;
   padding: 0;
   background: rgb(var(--color-black-rgb) / 0.24);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
   opacity: ${({ $progress }) => 1 - $progress};
   animation: ${backdropEnter} 320ms ease;
   transition: ${({ $isDragging }) =>

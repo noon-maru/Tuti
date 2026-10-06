@@ -191,8 +191,6 @@ const Overlay = styled.div<{ $visible: boolean }>`
   display: grid;
   align-items: end;
   background: rgb(var(--color-black-rgb) / 0.28);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
   opacity: ${({ $visible }) => ($visible ? 1 : 0)};
   transition: opacity 380ms ease;
 `;

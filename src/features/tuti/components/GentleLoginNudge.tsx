@@ -123,7 +123,6 @@ const Nudge = styled.aside`
   border-radius: 14px;
   background: rgb(var(--color-white-rgb) / 0.96);
   box-shadow: 0 12px 30px rgb(var(--color-black-rgb) / 0.12);
-  backdrop-filter: blur(14px);
   animation: nudge-in 220ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
 
   @keyframes nudge-in {

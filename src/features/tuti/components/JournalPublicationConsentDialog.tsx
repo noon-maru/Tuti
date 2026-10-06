@@ -181,8 +181,6 @@ const Backdrop = styled.div<{ $closing: boolean }>`
   padding: var(--app-safe-area-top, 0px) var(--app-safe-area-right, 0px)
     var(--app-safe-area-bottom, 0px) var(--app-safe-area-left, 0px);
   background: rgb(var(--color-black-rgb) / 0.38);
-  backdrop-filter: blur(5px);
-  -webkit-backdrop-filter: blur(5px);
   opacity: ${({ $closing }) => ($closing ? 0 : 1)};
   transition: opacity 180ms ease;
 `;

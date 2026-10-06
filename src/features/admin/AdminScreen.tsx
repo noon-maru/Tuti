@@ -3197,7 +3197,6 @@ const Header = styled.header`
     border-bottom: 1px solid var(--color-brand-200);
     background: rgb(var(--color-white-rgb) / 0.88);
     box-shadow: 0 8px 28px rgb(var(--color-black-rgb) / 0.05);
-    backdrop-filter: blur(16px);
 
     h1 {
       font-size: var(--font-size-500);
@@ -4902,7 +4901,6 @@ const MobileNavigation = styled.nav`
     border-top: 1px solid var(--color-border);
     background: rgb(var(--color-white-rgb) / 0.94);
     box-shadow: 0 -8px 28px rgb(var(--color-black-rgb) / 0.06);
-    backdrop-filter: blur(18px);
   }
 `;
 

@@ -58,7 +58,6 @@ const Backdrop = styled.div`
   place-items: center;
   padding: var(--space-6);
   background: color-mix(in srgb, var(--color-black) 34%, transparent);
-  backdrop-filter: blur(4px);
 `;
 
 const Dialog = styled.div`

@@ -2703,7 +2703,6 @@ const Header = styled.header`
   top: 0;
   border-bottom: 1px solid var(--color-neutral-400);
   background: rgb(var(--color-white-rgb) / 0.94);
-  backdrop-filter: blur(12px);
 `;
 
 const HeaderInner = styled.div`

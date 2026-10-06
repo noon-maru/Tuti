@@ -1280,9 +1280,7 @@ const Backdrop = styled(BaseButton)<{
   inset: 0;
   width: 100%;
   padding: 0;
-  background: rgb(var(--color-black-rgb) / 0.18);
-  backdrop-filter: blur(${({ $revealProgress }) => $revealProgress * 10}px);
-  -webkit-backdrop-filter: blur(${({ $revealProgress }) => $revealProgress * 10}px);
+  background: rgb(var(--color-black-rgb) / 0.28);
   opacity: ${({ $revealProgress, $progress }) =>
     $revealProgress * (1 - $progress)};
   transition: ${({ $isDragging, $revealProgress }) =>
@@ -1787,8 +1785,6 @@ const PhotoRailControl = styled(BaseButton)<{ $side: "left" | "right" }>`
   color: var(--color-neutral-1100);
   box-shadow: 0 4px 16px rgb(var(--color-black-rgb) / 0.18);
   transform: translateY(-50%);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
 
   svg {
     width: var(--space-5);
@@ -1828,8 +1824,6 @@ const PhotoViewerBackdrop = styled.div<{ $visible: boolean }>`
   padding: var(--space-4);
   overflow: hidden;
   background: rgb(var(--color-black-rgb) / 0.76);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
   opacity: ${({ $visible }) => ($visible ? 1 : 0)};
   transition: opacity 440ms cubic-bezier(0.22, 1, 0.36, 1);
   touch-action: none;

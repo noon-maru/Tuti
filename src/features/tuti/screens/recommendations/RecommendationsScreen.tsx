@@ -1127,8 +1127,6 @@ const LoadingOverlay = styled.div<{ $visible: boolean }>`
   display: grid;
   place-items: center;
   background: rgb(var(--color-white-rgb) / 0.88);
-  backdrop-filter: blur(6px);
-  -webkit-backdrop-filter: blur(6px);
   opacity: ${({ $visible }) => ($visible ? 1 : 0)};
   pointer-events: ${({ $visible }) => ($visible ? "auto" : "none")};
   transition: opacity 220ms ease;
@@ -1142,8 +1140,6 @@ const RecommendationStatusOverlay = styled.div<{ $visible: boolean }>`
   place-items: center;
   padding: var(--space-5);
   background: rgb(var(--color-white-rgb) / 0.92);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
   opacity: ${({ $visible }) => ($visible ? 1 : 0)};
   pointer-events: ${({ $visible }) => ($visible ? "auto" : "none")};
   transition: opacity 220ms ease;
@@ -1427,8 +1423,6 @@ const HelpSkipButton = styled(BaseButton)`
   font-weight: 700;
   pointer-events: auto;
   transform: translateX(-50%);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
 `;
 
 const GestureCue = styled.div<{ $kind: HelpKind }>`
@@ -1634,7 +1628,6 @@ const LimitedResultsToast = styled.aside<{ $visible: boolean }>`
   font-size: var(--font-size-100);
   line-height: var(--line-height-body);
   box-shadow: 0 12px 30px rgb(var(--color-black-rgb) / 0.12);
-  backdrop-filter: blur(14px);
   opacity: ${({ $visible }) => ($visible ? 1 : 0)};
   transform: translateY(${({ $visible }) => ($visible ? 0 : 8)}px);
   pointer-events: none;

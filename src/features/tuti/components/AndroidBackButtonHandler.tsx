@@ -116,8 +116,6 @@ const ExitMessage = styled.div<{ $visible: boolean }>`
     transparent
   );
   box-shadow: 0 10px 28px rgb(var(--color-black-rgb) / 0.12);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
   font-size: 0.875rem;
   font-weight: 500;
   line-height: 1.4;

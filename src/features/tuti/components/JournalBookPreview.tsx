@@ -371,7 +371,6 @@ const PreviewToolbar = styled.div`
   border-radius: 999px;
   background: var(--color-surface);
   box-shadow: 0 3px 10px rgb(var(--color-black-rgb) / 0.035);
-  backdrop-filter: blur(12px);
 `;
 
 const ToolGroup = styled.div`

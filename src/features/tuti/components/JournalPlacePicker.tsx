@@ -320,8 +320,6 @@ const Panel = styled.section`
   background: rgb(var(--color-white-rgb) / 0.98);
   box-shadow: 0 18px 48px rgb(var(--color-black-rgb) / 0.2);
   overflow: hidden;
-  backdrop-filter: blur(18px);
-  -webkit-backdrop-filter: blur(18px);
 `;
 
 const PanelHeader = styled.header`

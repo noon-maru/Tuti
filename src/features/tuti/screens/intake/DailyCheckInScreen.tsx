@@ -394,8 +394,6 @@ const Overlay = styled.div<{ $visible: boolean }>`
   display: grid;
   align-items: end;
   background: rgb(var(--color-black-rgb) / 0.24);
-  backdrop-filter: blur(7px);
-  -webkit-backdrop-filter: blur(7px);
   opacity: ${({ $visible }) => ($visible ? 1 : 0)};
   transition: opacity ${SHEET_TRANSITION_DURATION}ms ease;
 `;
