@@ -33,20 +33,20 @@ function faceStyles(flipped: boolean, active = true) {
   };
 }
 
-test("뒤집힌 카드 앞면은 회전 완료 후 명시적으로 숨긴다", () => {
+test("뒤집힌 카드 앞면은 회전 시작부터 즉시 숨긴다", () => {
   const styles = faceStyles(true);
   assert.match(styles("front"), /visibility:hidden/);
-  assert.match(styles("front"), /transition:visibility 0s 440ms/);
+  assert.match(styles("front"), /transition:none/);
   assert.match(styles("front"), /pointer-events:none/);
   assert.match(styles("back"), /visibility:visible/);
-  assert.match(styles("back"), /transition:visibility 0s 0ms/);
+  assert.match(styles("back"), /transition:none/);
 });
 
 test("앞면으로 돌아오거나 비활성화되면 앞면을 즉시 복원한다", () => {
   for (const styles of [faceStyles(false), faceStyles(true, false)]) {
     assert.match(styles("front"), /visibility:visible/);
-    assert.match(styles("front"), /transition:visibility 0s 0ms/);
+    assert.match(styles("front"), /transition:none/);
     assert.match(styles("back"), /visibility:hidden/);
-    assert.match(styles("back"), /transition:visibility 0s 440ms/);
+    assert.match(styles("back"), /transition:none/);
   }
 });

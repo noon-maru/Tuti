@@ -297,9 +297,9 @@ const FrontFace = styled(BaseButton)<{ $image: string | null; $flipped: boolean 
   background-size: cover;
   color: var(--color-white);
   text-align: left;
-  /* Hide the settled rear-facing plane even if WebKit leaks its text layer. */
+  /* Hide the outgoing face immediately, including during the rotation. */
   visibility: ${({ $flipped }) => ($flipped ? "hidden" : "visible")};
-  transition: visibility 0s ${({ $flipped }) => ($flipped ? FLIP_DURATION : 0)}ms;
+  transition: none;
   pointer-events: ${({ $flipped }) => ($flipped ? "none" : "auto")};
 
   &::before {
@@ -331,7 +331,7 @@ const BackFace = styled(CardFace)`
   background: var(--color-secondary-100);
   color: var(--color-text);
   visibility: ${({ $flipped }) => ($flipped ? "visible" : "hidden")};
-  transition: visibility 0s ${({ $flipped }) => ($flipped ? 0 : FLIP_DURATION)}ms;
+  transition: none;
   pointer-events: ${({ $flipped }) => ($flipped ? "auto" : "none")};
 
   @media (prefers-reduced-motion: reduce) {
