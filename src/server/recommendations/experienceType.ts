@@ -29,7 +29,7 @@ const identityRules: Rule[] = [
   { type: "activity", pattern: /워터파크|물놀이장|수영장|체험장|레포츠|레저|스포츠|체육|놀이공원|미로|승마|목장|캠핑|클라이밍/u, label: "활동 명칭" },
   { type: "art_exhibition", pattern: /미술관|갤러리|화랑(?:\s*\([^)]*\))?$|전시관|아트센터|예술회관|예술관|공연장|극장/u, label: "예술·전시 명칭" },
   { type: "museum_story", pattern: /문화원|책방|서점|박물관|뮤지엄|과학관|기념관|기념(?!품)[^()]{0,20}센터|역사관|홍보관|문학관|생태관|천문대|도서관/u, label: "문화·박물관 명칭" },
-  { type: "history_heritage", pattern: /감영|관아|궁\b|성곽|산성|유적|사적|고분|서원|향교|사찰|암자|성당|생가|고택|성지|기념비|노래비|사당(?:\s*\([^)]*\))?$|[가-힣]{2,}사(?:\s*\([^)]*\))?$/u, label: "역사·유산 명칭" },
+  { type: "history_heritage", pattern: /감영|관아|궁\b|성곽|산성|유적|사적|고분|왕릉|사지|석탑|석불|마애불|불상|석굴암|서원|향교|사찰|암자|성당|생가|고택|성지|기념비|노래비|사당$|[가-힣]{2,}사$/u, label: "역사·유산 명칭" },
   { type: "viewpoint", pattern: /전망대|스카이|타워|봉수대|일출|야경|전망|^[가-힣·-]{1,20}(?:(?<!동)산|봉)(?:\s*\([^)]*\))?$/u, label: "전망·산 명칭" },
   { type: "waterside", pattern: /해수욕장|해변|바다|해안|항구|포구|섬|한강|강변|수변|호수|저수지|계곡|폭포|습지/u, label: "수변 명칭" },
   { type: "forest_garden", pattern: /수목원|정원|휴양림|생태공원|근린공원|공원|숲|둘레길|산책로|오름/u, label: "자연·정원 명칭" },
@@ -50,7 +50,8 @@ const descriptionRules: Rule[] = [
 
 export function assessPlaceExperienceType(place: ExperienceTypeInput): PlaceExperienceTypeAssessment {
   const normalizedName = normalize(place.name);
-  const overridden = identityOverrides.find((rule) => rule.pattern.test(normalizedName));
+  const identityName = stripNameQualifiers(normalizedName);
+  const overridden = identityOverrides.find((rule) => rule.pattern.test(identityName));
   if (overridden) {
     return {
       type: overridden.type,
@@ -67,7 +68,7 @@ export function assessPlaceExperienceType(place: ExperienceTypeInput): PlaceExpe
       evidence: ["장소명: 체류 지점이 불분명한 이동·안내 시설"],
     };
   }
-  const identity = identityRules.find((rule) => rule.pattern.test(normalizedName));
+  const identity = identityRules.find((rule) => rule.pattern.test(identityName));
   if (identity) return { type: identity.type, confidence: 95, evidence: [`장소명: ${identity.label}`] };
 
   const contentType = fromContentType(place.sourceContentType);
@@ -101,4 +102,10 @@ function fromContentType(contentType?: string | null): PlaceExperienceType | nul
 
 function normalize(value: string) {
   return value.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim().toLowerCase();
+}
+
+function stripNameQualifiers(value: string) {
+  return value
+    .replace(/\s*(?:\[[^\]]+\]|\([^)]*\))\s*$/gu, "")
+    .trim();
 }

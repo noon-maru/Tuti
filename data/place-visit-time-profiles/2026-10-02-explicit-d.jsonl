@@ -1,1 +1,9 @@
 {"contentId":"130109","minimumMinutes":20,"typicalMinutes":20,"maximumMinutes":20,"source":"manual_override","confidence":90,"evidence":"2026-10-06 공공 관광정보 원문 '약 20분'을 확인해 안내시간 20분을 동일 범위로 보존한 수동 보정. 실제 체류 편차는 추정하지 않음"}
+{"contentId":"1934593","minimumMinutes":120,"typicalMinutes":120,"maximumMinutes":120,"source":"llm_parsed","confidence":100,"evidence":"공공 관광정보 원문 '2시간'을 분 단위로 변환"}
+{"contentId":"130113","minimumMinutes":20,"typicalMinutes":25,"maximumMinutes":30,"source":"llm_parsed","confidence":95,"evidence":"공공 관광정보 원문 '약 20~30분'의 범위를 보존"}
+{"contentId":"1753003","minimumMinutes":40,"typicalMinutes":70,"maximumMinutes":100,"source":"type_default","confidence":50,"evidence":"원문이 공연에 따라 상이하다고만 안내하여 문화시설 기본 체류시간을 적용함"}
+{"contentId":"2550763","minimumMinutes":40,"typicalMinutes":40,"maximumMinutes":40,"source":"llm_parsed","confidence":95,"evidence":"공공 관광정보 원문 '약 40분'을 분 단위로 변환"}
+{"contentId":"2553414","minimumMinutes":30,"typicalMinutes":30,"maximumMinutes":30,"source":"llm_parsed","confidence":95,"evidence":"공공 관광정보 원문 '약 30분'을 분 단위로 변환"}
+{"contentId":"3448385","minimumMinutes":40,"typicalMinutes":70,"maximumMinutes":100,"source":"type_default","confidence":40,"evidence":"체류시간 필드에 운영시간이 기록되어 방문시간으로 해석할 수 없어 문화시설 기본 체류시간을 적용함"}
+{"contentId":"4083051","minimumMinutes":60,"typicalMinutes":60,"maximumMinutes":60,"source":"llm_parsed","confidence":95,"evidence":"공공 관광정보 원문 '약 1시간'을 분 단위로 변환"}
+{"contentId":"705088","minimumMinutes":30,"typicalMinutes":30,"maximumMinutes":30,"source":"llm_parsed","confidence":95,"evidence":"공공 관광정보 원문 '약 30분'을 분 단위로 변환"}

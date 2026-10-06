@@ -47,10 +47,13 @@ export type PlaceCandidateAssessment = {
   hardExclusions: string[];
 };
 
-export const PLACE_CANDIDATE_ALGORITHM_VERSION = "low-burden-v3";
+export const PLACE_CANDIDATE_ALGORITHM_VERSION = "low-burden-v4";
 
 const SELECTED_SCORE = 70;
 const ENRICH_SCORE = 55;
+const FIT_LED_SELECTED_SCORE = 64;
+const FIT_LED_MINIMUM_TUTI_FIT = 21;
+const FIT_LED_MINIMUM_EXECUTION_EASE = 20;
 
 const restorativePattern =
   /숲|수목원|휴양림|정원|공원|생태|습지|호수|저수지|연못|강변|해변|바다|수변|산책|둘레길|올레길|데크길|숲길|치유|명상|전망|사찰|절|성당|교회|서원|고택|한옥|섬|계곡|폭포|동굴/u;
@@ -83,13 +86,17 @@ export function assessPlaceCandidate(
   const hasHighActivityBurden = reasons.includes(
     "실행 부담: 준비·활동 부담이 큰 경험",
   );
+  const isFitLedCandidate =
+    score >= FIT_LED_SELECTED_SCORE &&
+    tutiFit >= FIT_LED_MINIMUM_TUTI_FIT &&
+    executionEase >= FIT_LED_MINIMUM_EXECUTION_EASE;
 
   return {
     status: hardExclusions.length > 0
       ? "invalid"
       : hasHighActivityBurden && executionEase < 12
         ? "low_burden_mismatch"
-        : score >= SELECTED_SCORE
+        : score >= SELECTED_SCORE || isFitLedCandidate
           ? "selected"
           : score >= ENRICH_SCORE
             ? "enrich"
@@ -169,7 +176,7 @@ function scoreExecutionEase(
   else if (place.fatigue <= 40) score += 2;
   else if (place.fatigue > 55) score -= 4;
 
-  if (highBarrierPattern.test(searchable)) {
+  if (hasHighActivityBurden(place, searchable)) {
     score -= 16;
     reasons.push("실행 부담: 준비·활동 부담이 큰 경험");
   }
@@ -193,6 +200,19 @@ function scoreExecutionEase(
 
   if (score >= 20) reasons.push("실행 부담: 비교적 가벼운 이동·활동");
   return clamp(score, 0, 25);
+}
+
+function hasHighActivityBurden(
+  place: PlaceCandidateInput,
+  searchable: string,
+) {
+  // 소개문에는 주변 캠핑장·골프장이나 금지된 활동이 자주 함께 적힙니다.
+  // 장소명 자체가 고부담 활동을 가리키거나 레포츠 장소인 경우에만 소개문을
+  // 보조 근거로 사용해, 해변·호수·산책지가 단어 하나로 제외되지 않게 합니다.
+  return (
+    highBarrierPattern.test(place.name) ||
+    (place.contentTypeId === "28" && highBarrierPattern.test(searchable))
+  );
 }
 
 function scoreDataConfidence(

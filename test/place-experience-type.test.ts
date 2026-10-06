@@ -83,6 +83,19 @@ test("역사·문화 시설의 세부 명칭을 경험 유형으로 반영한다
     assessPlace("주정공장수용소 4·3역사관").type,
     "museum_story",
   );
+  assert.equal(
+    assessPlace("경주 불국사 [유네스코 세계유산]").type,
+    "history_heritage",
+  );
+  assert.equal(
+    assessPlace("경주 석굴암 [유네스코 세계유산]").type,
+    "history_heritage",
+  );
+  assert.equal(assessPlace("경주 성덕왕릉").type, "history_heritage");
+  assert.equal(
+    assessPlace("경주 남산 탑곡 마애불상군").type,
+    "history_heritage",
+  );
 });
 
 test("수변공원과 해수 목욕 시설을 경관 단어만으로 혼동하지 않는다", () => {
