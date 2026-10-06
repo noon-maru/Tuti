@@ -13,6 +13,8 @@ import {
 import { BaseButton, Button } from "./buttons";
 import { TutiPlaceIcon } from "./TutiPlaceIcon";
 
+const FLIP_DURATION = 440;
+
 type SwipeCardProps = {
   cardIndex: number;
   place: TutiPlace;
@@ -84,6 +86,7 @@ export function SwipeCard({
     >
       <FlipBody $flipped={active && flipped}>
         <FrontFace
+          data-card-face="front"
           type="button"
           $image={imageReady ? place.image : null}
           $flipped={active && flipped}
@@ -103,6 +106,7 @@ export function SwipeCard({
         </FrontFace>
 
         <BackFace
+          data-card-face="back"
           $flipped={active && flipped}
           aria-hidden={!active || !flipped}
           inert={!active || !flipped}
@@ -251,7 +255,8 @@ const FlipBody = styled.div<{ $flipped: boolean }>`
   border-radius: inherit;
   transform: rotateY(${({ $flipped }) => ($flipped ? 180 : 0)}deg);
   transform-style: preserve-3d;
-  transition: transform 440ms cubic-bezier(0.22, 0.72, 0.2, 1);
+  -webkit-transform-style: preserve-3d;
+  transition: transform ${FLIP_DURATION}ms cubic-bezier(0.22, 0.72, 0.2, 1);
   will-change: transform;
 
   @media (prefers-reduced-motion: reduce) {
@@ -292,6 +297,10 @@ const FrontFace = styled(BaseButton)<{ $image: string | null; $flipped: boolean 
   background-size: cover;
   color: var(--color-white);
   text-align: left;
+  /* Hide the settled rear-facing plane even if WebKit leaks its text layer. */
+  visibility: ${({ $flipped }) => ($flipped ? "hidden" : "visible")};
+  transition: visibility 0s ${({ $flipped }) => ($flipped ? FLIP_DURATION : 0)}ms;
+  pointer-events: ${({ $flipped }) => ($flipped ? "none" : "auto")};
 
   &::before {
     content: "";
@@ -306,6 +315,7 @@ const FrontFace = styled(BaseButton)<{ $image: string | null; $flipped: boolean 
   }
 
   @media (prefers-reduced-motion: reduce) {
+    transition-delay: 0ms;
     opacity: ${({ $flipped }) => ($flipped ? 0 : 1)};
     pointer-events: ${({ $flipped }) => ($flipped ? "none" : "auto")};
   }
@@ -320,8 +330,12 @@ const BackFace = styled(CardFace)`
   transform: rotateY(180deg);
   background: var(--color-secondary-100);
   color: var(--color-text);
+  visibility: ${({ $flipped }) => ($flipped ? "visible" : "hidden")};
+  transition: visibility 0s ${({ $flipped }) => ($flipped ? 0 : FLIP_DURATION)}ms;
+  pointer-events: ${({ $flipped }) => ($flipped ? "auto" : "none")};
 
   @media (prefers-reduced-motion: reduce) {
+    transition-delay: 0ms;
     transform: none;
     opacity: ${({ $flipped }) => ($flipped ? 1 : 0)};
     pointer-events: ${({ $flipped }) => ($flipped ? "auto" : "none")};
