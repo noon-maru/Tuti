@@ -44,7 +44,11 @@ const eligibleRecords = places.flatMap(
 
 const missing = eligibleRecords.filter(({ contentId }) => !itemById.has(contentId));
 if (missing.length > 0) {
-  throw new Error(`요약 입력에서 현재 추천 장소 ${missing.length}곳이 누락됐습니다.`);
+  throw new Error(
+    `요약 입력에서 현재 추천 장소 ${missing.length}곳이 누락됐습니다: ${missing
+      .map(({ contentId }) => contentId)
+      .join(", ")}`,
+  );
 }
 
 const updates = eligibleRecords.map((record) => {

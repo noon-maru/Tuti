@@ -12,7 +12,7 @@
     "app:version:verify": "tsx scripts/verify-native-app-version.ts",
     "pdf:assets": "tsx scripts/prepare-pdf-assets.ts",
     "db:deploy": "prisma migrate deploy && pnpm db:derived:sync",
-    "db:derived:sync": "tsx scripts/refresh-place-candidates.ts --skip-enrichment && tsx scripts/import-place-visit-time-profiles.ts --apply && tsx scripts/verify-recommendation-quality-regression.ts",
+    "db:derived:sync": "tsx scripts/refresh-place-candidates.ts --skip-enrichment && tsx scripts/import-place-overview-summaries.ts --apply && tsx scripts/import-place-suggested-actions.ts --apply && tsx scripts/import-place-visit-time-profiles.ts --apply && tsx scripts/verify-recommendation-quality-regression.ts",
     "db:generate": "prisma generate",
     "db:seed": "pnpm db:generate && prisma db seed",
     "db:studio": "prisma studio",

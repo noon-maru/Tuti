@@ -21,7 +21,11 @@ const missing = places.filter(
   ({ sourceId }) => !sourceId || !itemByContentId.has(sourceId),
 );
 if (missing.length > 0) {
-  throw new Error(`행동 문구 입력에서 현재 추천 장소 ${missing.length}곳이 누락됐습니다.`);
+  throw new Error(
+    `행동 문구 입력에서 현재 추천 장소 ${missing.length}곳이 누락됐습니다: ${missing
+      .map(({ sourceId, id }) => sourceId ?? id)
+      .join(", ")}`,
+  );
 }
 
 const updates = places.map(({ id, sourceId }) => {
