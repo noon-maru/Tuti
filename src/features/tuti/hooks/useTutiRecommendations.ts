@@ -9,6 +9,7 @@ import {
   isCurrentKoreanDate,
 } from "@/lib/date/koreanDate";
 import { interpretState } from "@/lib/recommendations";
+import { hasRecommendationArea } from "@/shared/location/recommendationArea";
 import { RECOMMENDATION_ALGORITHM_VERSION } from "@/shared/api/recommendations";
 import { toActiveIntakeAnswers } from "@/shared/tuti/types";
 import { useTutiStore } from "@/store/tuti";
@@ -18,7 +19,6 @@ export function useTutiRecommendations({ enabled = true } = {}) {
   const entryRecord = useTutiStore((state) => state.entryRecord);
   const userLocation = useTutiStore((state) => state.userLocation);
   const preferredRegion = useTutiStore((state) => state.preferredRegion);
-  const locationConsent = useTutiStore((state) => state.locationConsent);
   const dailyRecommendation = useTutiStore(
     (state) => state.dailyRecommendation,
   );
@@ -71,12 +71,7 @@ export function useTutiRecommendations({ enabled = true } = {}) {
           places: dailyRecommendation.places,
         }
       : undefined;
-  const regionSelectionRequired = Boolean(
-    locationConsent &&
-      locationConsent.status !== "accepted" &&
-      !userLocation &&
-      !preferredRegion?.sigunguName,
-  );
+  const regionSelectionRequired = !hasRecommendationArea(userLocation, preferredRegion);
   const { data, ...query } = useQuery({
     queryKey: [
       "recommendations",

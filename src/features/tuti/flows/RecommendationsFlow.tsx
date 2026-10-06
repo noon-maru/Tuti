@@ -120,6 +120,7 @@ export function RecommendationsFlow({ interactive }: { interactive: boolean }) {
     (dailyCheckInRequested || (!dailyRecordCurrent && !dailyCheckInSnoozed));
   const waitingForLocationRestore = Boolean(
     !userLocation &&
+      !preferredRegion?.sigunguName &&
       locationConsent?.status === "accepted" &&
       locationConsent.termsVersion === LOCATION_TERMS_VERSION &&
       (locationPermissionStatus === "unknown" ||
@@ -274,14 +275,14 @@ export function RecommendationsFlow({ interactive }: { interactive: boolean }) {
   }, [isSuccess, router]);
 
   useEffect(() => {
-    const canRestoreLocationWithoutPrompt =
+    const shouldRestoreLocation =
       interactive &&
       !userLocation &&
-      locationPermissionStatus === "granted" &&
+      !preferredRegion?.sigunguName &&
       locationConsent?.status === "accepted" &&
       locationConsent.termsVersion === LOCATION_TERMS_VERSION;
 
-    if (!canRestoreLocationWithoutPrompt) {
+    if (!shouldRestoreLocation) {
       automaticLocationRequest.current = false;
       return;
     }
@@ -295,7 +296,7 @@ export function RecommendationsFlow({ interactive }: { interactive: boolean }) {
   }, [
     interactive,
     locationConsent,
-    locationPermissionStatus,
+    preferredRegion,
     requestLocation,
     userLocation,
   ]);
