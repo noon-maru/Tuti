@@ -2,6 +2,11 @@
 
 작성일: 2026-07-21
 
+> 과거 전환 계획과 구현 판단의 기록이다. 앱은 이미 출시되었으며, 이 문서의
+> 미완료 체크박스를 현재 출시 상태로 해석하지 않는다. 현재 앱·API 구조는
+> [Capacitor API 구조](./capacitor-api-architecture.md), 빌드 절차는
+> [Android](./android-build.md)·[iOS](./ios-build.md) 문서를 따른다.
+
 ## 목표
 
 현재 Next.js App Router 기반의 화면별 라우트 구조를 유지하면서, Capacitor로 패키징한 iOS·Android 앱에서 다음 품질을 확보한다.

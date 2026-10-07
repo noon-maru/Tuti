@@ -48,7 +48,7 @@ flowchart LR
   android -->|CORS 허용 HTTPS| route
   route -->|검증된 입력| service
   service -->|장소 조회| postgres
-  service -->|선택적 상태 해석| openai
+  service -.->|공개 장소 정보의 비동기 구조화만| openai
   service -->|추천 장소 JSON| route
 ```
 
@@ -157,12 +157,9 @@ sequenceDiagram
   장소 한 곳의 이동시간만 계산한다. 직선거리 1.5km 이내는 도보를 먼저
   확인하고, 이후 대중교통·자동차·자전거 순서로 사용 가능한 경로를 찾는다.
   카드가 선택되기 전에는 호출하지 않는다.
-- 접힌 출발 준비 피크 시트는 메인 활성 카드의 React Query 결과와 표시
-  문자열을 그대로 이어받는다. 시트를 여는 동작만으로 이동시간이나 전체
-  출발 계획을 다시 요청하지 않는다.
-- 사용자가 피크 시트를 위로 펼칠 때만 전체 출발 계획 화면을 마운트하고
-  `POST /api/places/{placeId}/departure-plan`을 호출한다. 경량 이동시간과
-  전체 계획은 같은 이동수단 우선순위를 사용한다.
+- 현재 출발 준비는 카드 뒤집기의 짧은 안내에서 바로 전체 시트로 연다.
+  별도의 접힌 피크 시트나 확장 단계는 없다. 전체 시트를 열었을 때
+  `POST /api/places/{placeId}/departure-plan`을 요청한다.
 - `POST /api/places/{placeId}/departure-plan`은 현재 위치와 목적지 좌표를
   바탕으로 대중교통·자전거·자동차 이동 요약을 반환한다. 도보는 직선거리
   1.5km 이내에서만 조회하며, 경로가 없으면 화면에도 표시하지 않는다.
