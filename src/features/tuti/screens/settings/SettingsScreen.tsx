@@ -13,6 +13,7 @@ import {
 import { useState } from "react";
 import { BackButton, BaseButton } from "@/features/tuti/components/buttons";
 import { ScreenFrame } from "@/features/tuti/components/ScreenFrame";
+import { TutiWordmark } from "@/features/tuti/components/TutiWordmark";
 import type { CardDisplayPreferences } from "@/store/tuti";
 
 type SettingsDestination =
@@ -224,6 +225,10 @@ export function SettingsScreen({
             {logoutError && <Feedback role="alert">{logoutError}</Feedback>}
           </AccountActions>
         )}
+        <BrandFooter>
+          <FooterWordmark />
+          <p>Take Us Through It</p>
+        </BrandFooter>
       </ScrollContent>
     </Frame>
   );
@@ -265,6 +270,25 @@ const ScrollContent = styled.div`
   -webkit-overflow-scrolling: touch;
   padding: var(--space-5) var(--space-5)
     calc(var(--space-10) + var(--app-safe-area-bottom, 0px));
+`;
+
+const BrandFooter = styled.footer`
+  display: grid;
+  justify-items: center;
+  gap: var(--space-2);
+  margin-top: var(--space-10);
+  padding-top: var(--space-3);
+
+  p {
+    color: var(--color-text-muted);
+    font-size: var(--font-size-100);
+    font-weight: 400;
+  }
+`;
+
+const FooterWordmark = styled(TutiWordmark)`
+  width: 48px;
+  height: auto;
 `;
 
 const AccountSummary = styled.section`
