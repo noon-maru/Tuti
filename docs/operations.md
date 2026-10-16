@@ -116,6 +116,35 @@ self-hosted runner는 신뢰하지 않은 pull request가 호스트를 침해할
 선택하고 실제 운영 반영이 필요할 때만 `빌드한 이미지를 Tuti 운영 서버에 배포`를
 체크한다.
 
+### NAS 재부팅 후 배포 러너 자동 복구
+
+운영 러너 서비스가 `enabled`여도 부팅 시 `/volume1`이나 공유 폴더가 준비되기
+전에 시작되면 `200/CHDIR`로 실패할 수 있다. 다음 명령은 기존 등록·자격증명을
+유지하고 systemd drop-in만 설치한다. NAS의 비밀번호를 입력할 수 있는 터미널에서
+한 번 실행한다. 진행 중인 배포 작업이나 수동 실행 러너가 있으면 변경 전에 중단한다.
+
+```sh
+sudo sh scripts/ops/install-tuti-production-runner.sh
+```
+
+볼륨 마운트, Synology 볼륨 후처리와 네트워크 준비 뒤 시작하며, 프로세스가
+종료되거나 작업 폴더 접근에 실패하면 15초마다 재시도한다. 관리자가 명시적으로
+`systemctl stop`한 경우에는 재시작하지 않는다. DSM의 systemd 219에 맞춰
+`StartLimitInterval=0`을 `[Service]`에 두고, 기존 .NET 호환 실행 옵션도 유지한다.
+기존 설정 파일과 자격증명은 변경하지 않는다. 이전에 설치한 같은 drop-in이
+달라졌으면 `.backup.날짜-시간` 파일로 보관한다.
+
+적용 상태는 재부팅 없이 다음 명령으로 확인할 수 있다. 실제 재부팅 검증은
+다음 계획된 재부팅 후 서비스 `active`, GitHub 러너 `Idle` 상태로 확인한다.
+
+```sh
+sh scripts/ops/install-tuti-production-runner.sh --check
+```
+
+설정 파일: `scripts/ops/systemd/tuti-production-runner-recovery.conf`.
+호환성 근거는 [systemd 219 서비스 설정](https://github.com/systemd/systemd/blob/v219/man/systemd.service.xml)과
+[마운트 의존성 설정](https://github.com/systemd/systemd/blob/v219/man/systemd.unit.xml)을 참고한다.
+
 `tuti-prod-rollback`은 마지막 성공 배포 직전의 앱 이미지로 되돌린다. DB 스키마는
 되돌리지 않으며 readiness 확인을 통과해야 성공한다. 롤백 가능한 이미지를 임의로
 정리하지 말고 적어도 직전 두 버전은 유지한다.
