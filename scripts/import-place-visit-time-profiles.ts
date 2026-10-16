@@ -3,6 +3,7 @@ import { resolve } from "node:path";
 import { prisma } from "../src/server/db/prisma";
 import { derivePlaceExperienceType } from "../src/server/recommendations/experienceType";
 import { recommendablePlaceWhere } from "../src/server/recommendations/recommendablePlaceWhere";
+import { checkExplicitVisitTimeSource } from "../src/server/recommendations/visitTimeImportConsistency";
 import {
   createPlaceVisitTimeSourceFingerprint,
   deriveVisitAccessProfile,
@@ -80,13 +81,24 @@ if (missingExplicit.length > 0) {
 const staleExplicit = places.filter((place) => {
   if (!place.sourceId || !explicitByContentId.has(place.sourceId)) return false;
   const input = explicitInputByContentId.get(place.sourceId);
-  return !input || normalizeText(input.usageDuration) !== normalizeText(
+  return checkExplicitVisitTimeSource(
     place.tourismSourceRecord?.detailRecord?.usageDuration,
-  );
+    input,
+  ) === "stale";
 });
 if (staleExplicit.length > 0) {
   throw new Error(
     `구조화 이후 체류시간 원문이 바뀐 장소 ${staleExplicit.length}곳: ${staleExplicit[0].name}`,
+  );
+}
+
+const ignoredWithoutCurrentSource = places.filter((place) =>
+  place.sourceId && explicitByContentId.has(place.sourceId) &&
+  !place.tourismSourceRecord?.detailRecord?.usageDuration?.trim(),
+);
+if (ignoredWithoutCurrentSource.length > 0) {
+  console.warn(
+    `현재 체류시간 원문이 없는 ${ignoredWithoutCurrentSource.length}곳의 과거 구조화 결과를 무시하고 현재 장소 정보 기반 기본값을 사용합니다: ${ignoredWithoutCurrentSource.map((place) => place.name).join(", ")}`,
   );
 }
 
@@ -114,7 +126,7 @@ const updates = places.map((place) => {
     reservation: detail?.reservation,
     admissionFee: detail?.admissionFee,
   };
-  const explicit = place.sourceId
+  const explicit = place.sourceId && detail?.usageDuration?.trim()
     ? explicitByContentId.get(place.sourceId)
     : undefined;
   const stay = resolveStayDuration(source, explicit);
@@ -147,6 +159,7 @@ console.log(JSON.stringify({
   batch,
   suppliedExplicit: explicitItems.length,
   ignoredExplicit: extras.length,
+  ignoredExplicitWithoutCurrentSource: ignoredWithoutCurrentSource.length,
   eligiblePlaces: places.length,
   llmParsed: updates.filter(({ stay }) => stay.source === "llm_parsed").length,
   defaulted: updates.filter(({ stay }) => stay.source === "type_default").length,
@@ -326,10 +339,6 @@ function isStaySource(value: unknown): value is StayDurationSource {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value && typeof value === "object" && !Array.isArray(value));
-}
-
-function normalizeText(value: string | null | undefined) {
-  return value?.replace(/\s+/g, " ").trim() ?? "";
 }
 
 function escapeRegExp(value: string) {
