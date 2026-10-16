@@ -11,6 +11,7 @@ import {
   useState,
 } from "react";
 import { LocationConsentSheet } from "@/features/tuti/components/LocationConsentSheet";
+import { LocationFailureSheet } from "@/features/tuti/components/LocationFailureSheet";
 import { RegionPreferenceSheet } from "@/features/tuti/components/RegionPreferenceSheet";
 import { useSession } from "@/features/tuti/hooks/useSession";
 import {
@@ -82,6 +83,9 @@ export function LocationAccessProvider({
   const [regionSheetDismissible, setRegionSheetDismissible] = useState(false);
   const [requesting, setRequesting] = useState(false);
   const [consentError, setConsentError] = useState<string | null>(null);
+  const [locationFailure, setLocationFailure] = useState<
+    "denied" | "unavailable" | "timeout" | null
+  >(null);
   const requestPromiseRef = useRef<Promise<LocationRequestResult> | null>(null);
   const requestResolverRef = useRef<
     ((result: LocationRequestResult) => void) | null
@@ -141,6 +145,7 @@ export function LocationAccessProvider({
     hasHydrated &&
       !requesting &&
       !consentSheetOpen &&
+      !locationFailure &&
       locationConsent &&
       locationConsent.status !== "accepted" &&
       !preferredRegion?.sigunguName,
@@ -153,6 +158,8 @@ export function LocationAccessProvider({
   }, [queryClient]);
 
   const finishRequest = useCallback((result: LocationRequestResult) => {
+    setLocationFailure(null);
+    pendingLocationResultRef.current = null;
     requestResolverRef.current?.(result);
     requestResolverRef.current = null;
     requestPromiseRef.current = null;
@@ -176,8 +183,7 @@ export function LocationAccessProvider({
 
     if (result.status !== "ready") {
       pendingLocationResultRef.current = result;
-      setRegionSheetDismissible(false);
-      setRegionSheetOpen(true);
+      setLocationFailure(result.status);
       return;
     }
 
@@ -189,6 +195,13 @@ export function LocationAccessProvider({
     setLocationPermissionStatus,
     setUserLocation,
   ]);
+
+  const chooseRegionAfterFailure = useCallback(() => {
+    if (requesting) return;
+    setLocationFailure(null);
+    setRegionSheetDismissible(false);
+    setRegionSheetOpen(true);
+  }, [requesting]);
 
   const requestLocation = useCallback(() => {
     if (requestPromiseRef.current) return requestPromiseRef.current;
@@ -338,7 +351,15 @@ export function LocationAccessProvider({
           onDecline={declineRequest}
         />
       )}
-      {(regionSheetOpen || regionPreferenceRequired) && (
+      {locationFailure && (
+        <LocationFailureSheet
+          reason={locationFailure}
+          requesting={requesting}
+          onRetry={() => void resolveDeviceLocation()}
+          onChooseRegion={chooseRegionAfterFailure}
+        />
+      )}
+      {!locationFailure && (regionSheetOpen || regionPreferenceRequired) && (
         <RegionPreferenceSheet
           initialRegion={preferredRegion}
           onComplete={completeRegionPreference}
