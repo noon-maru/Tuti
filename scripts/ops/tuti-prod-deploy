@@ -82,6 +82,10 @@ echo "배포 이미지 테스트"
 docker compose --env-file .env.production -f docker-compose.prod.yml \
   run --rm --no-deps ops pnpm test
 
+echo "추천 파생 데이터 읽기 전용 사전 검사"
+docker compose --env-file .env.production -f docker-compose.prod.yml \
+  run --rm --no-deps ops pnpm db:derived:check
+
 echo "배포 직전 전체 백업"
 sh scripts/ops/tuti-prod-backup
 
