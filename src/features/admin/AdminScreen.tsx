@@ -577,12 +577,13 @@ export function AdminScreen({
       const nextTab = normalizeAdminTab(
         new URL(window.location.href).searchParams.get("section"),
       );
-      changeTab(nextTab, "none");
+      // 기록 조회처럼 같은 섹션 안에서 돌아올 때 검색·필터를 초기화하지 않는다.
+      if (nextTab !== tab) changeTab(nextTab, "none");
     };
 
     window.addEventListener("popstate", handlePopState);
     return () => window.removeEventListener("popstate", handlePopState);
-  }, [changeTab]);
+  }, [changeTab, tab]);
 
   useEffect(() => {
     if (!notice) return;
@@ -2502,8 +2503,13 @@ function UsersPanel({
   onRoleChange: (user: AdminUserItem, role: "user" | "admin") => void;
   onForceDelete: (user: AdminUserItem) => void;
 }) {
-  const [journalUserId, setJournalUserId] = useState<string | null>(null);
+  const [journalUserId, setJournalUserId] = useState<string | null>(() => {
+    if (typeof window === "undefined") return null;
+    const userId = window.history.state?.adminJournalUserId;
+    return typeof userId === "string" ? userId : null;
+  });
   const journalUser = users.find((user) => user.id === journalUserId);
+  const previousJournalUserId = useRef(journalUserId);
   const [sort, setSort] = useState<UserTableSort>({
     key: "lastAccessedAt",
     direction: "desc",
@@ -2512,6 +2518,42 @@ function UsersPanel({
     () => [...users].sort((left, right) => compareUsers(left, right, sort)),
     [sort, users],
   );
+
+  useEffect(() => {
+    const handlePopState = () => {
+      const userId = window.history.state?.adminJournalUserId;
+      setJournalUserId(typeof userId === "string" ? userId : null);
+    };
+    window.addEventListener("popstate", handlePopState);
+    return () => window.removeEventListener("popstate", handlePopState);
+  }, []);
+
+  useEffect(() => {
+    const previousId = previousJournalUserId.current;
+    previousJournalUserId.current = journalUserId;
+    if (previousId && !journalUserId) {
+      const button = document.getElementById(`journal-view-${previousId}`);
+      button?.focus({ preventScroll: true });
+      button?.scrollIntoView({ block: "nearest" });
+    }
+  }, [journalUserId]);
+
+  const openJournals = (userId: string) => {
+    window.history.pushState({
+      ...window.history.state,
+      adminTab: mode,
+      adminJournalUserId: userId,
+    }, "", window.location.href);
+    setJournalUserId(userId);
+  };
+
+  const returnToUsers = () => {
+    if (window.history.state?.adminJournalUserId === journalUserId) {
+      window.history.back();
+    } else {
+      setJournalUserId(null);
+    }
+  };
 
   if (users.length === 0) {
     return (
@@ -2543,13 +2585,11 @@ function UsersPanel({
       <AdminUserJournalsPanel
         key={journalUser.id}
         user={journalUser}
-        onClose={() => {
-          setJournalUserId(null);
-          document.getElementById(`journal-view-${journalUser.id}`)?.focus();
-        }}
+        onBack={returnToUsers}
+        backLabel={mode === "admins" ? "관리자 목록으로 돌아가기" : "사용자 목록으로 돌아가기"}
       />
     )}
-    <TableCard>
+    <TableCard hidden={Boolean(journalUser)}>
       <Table>
         <thead>
           <tr>
@@ -2602,7 +2642,7 @@ function UsersPanel({
                     type="button"
                     aria-label={`${user.displayName || user.email || user.id}의 기록 ${user.journalCount}개 보기`}
                     aria-expanded={journalUserId === user.id}
-                    onClick={() => setJournalUserId((current) => current === user.id ? null : user.id)}
+                    onClick={() => openJournals(user.id)}
                   >
                     {user.journalCount}개 보기
                   </JournalViewButton>

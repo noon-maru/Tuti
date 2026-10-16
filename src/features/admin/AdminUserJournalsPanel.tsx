@@ -4,7 +4,7 @@ import styled from "@emotion/styled";
 import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
 import { fetchAdminJson } from "@/lib/adminApi";
-import { Button } from "@/shared/ui/buttons";
+import { BackButton, Button } from "@/shared/ui/buttons";
 import type { AdminUserItem, AdminUserJournalsResponse } from "@/shared/api/admin";
 
 const dateFormatter = new Intl.DateTimeFormat("ko-KR", {
@@ -23,9 +23,10 @@ const statusLabels = {
   hidden: "숨김",
 };
 
-export function AdminUserJournalsPanel({ user, onClose }: {
+export function AdminUserJournalsPanel({ user, onBack, backLabel }: {
   user: AdminUserItem;
-  onClose: () => void;
+  onBack: () => void;
+  backLabel: string;
 }) {
   const [page, setPage] = useState(1);
   const [attempt, setAttempt] = useState(0);
@@ -60,13 +61,13 @@ export function AdminUserJournalsPanel({ user, onClose }: {
   return (
     <Panel aria-labelledby="admin-user-journals-heading">
       <Header>
+        <BackButton aria-label={backLabel} onClick={onBack} />
         <div>
           <h2 id="admin-user-journals-heading" tabIndex={-1} ref={headingRef}>
             {user.displayName || user.email || "익명 사용자"}의 기록
           </h2>
           <UserId>{user.id}</UserId>
         </div>
-        <Button $tone="text" $size="compact" onClick={onClose}>닫기</Button>
       </Header>
       {error ? (
         <State role="alert">
@@ -144,9 +145,9 @@ const Panel = styled.section`
 `;
 
 const Header = styled.header`
-  display: flex;
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr);
   align-items: start;
-  justify-content: space-between;
   gap: var(--space-3);
 
   > div { min-width: 0; }
