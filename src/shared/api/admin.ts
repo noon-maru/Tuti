@@ -180,6 +180,28 @@ export type AdminUserItem = {
   createdAt: string;
 };
 
+export type AdminUserJournalItem = {
+  id: string;
+  title: string;
+  content: string;
+  image: string | null;
+  placeName: string;
+  crowd: string;
+  difficulty: string;
+  theme: string;
+  publicationStatus: "private" | "pending" | "published" | "hidden";
+  visitedAt: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type AdminUserJournalsResponse = {
+  entries: AdminUserJournalItem[];
+  total: number;
+  page: number;
+  totalPages: number;
+};
+
 export type AdminUserActivityStage =
   | "created"
   | "visited"

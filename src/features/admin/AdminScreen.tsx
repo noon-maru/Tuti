@@ -18,6 +18,7 @@ import {
 import { AdminNotificationsPanel } from "@/features/admin/AdminNotificationsPanel";
 import { AdminSecurityTrafficPanel } from "@/features/admin/AdminSecurityTrafficPanel";
 import { AdminUserActivityPanel } from "@/features/admin/AdminUserActivityPanel";
+import { AdminUserJournalsPanel } from "@/features/admin/AdminUserJournalsPanel";
 import { AdminBusinessMetricsPanel } from "@/features/admin/AdminBusinessMetricsPanel";
 import { TutiWordmark } from "@/features/tuti/components/TutiWordmark";
 import { BaseButton, baseControlStyles } from "@/shared/ui/buttons";
@@ -1015,6 +1016,7 @@ export function AdminScreen({
           />
         ) : tab === "users" || tab === "admins" ? (
           <UsersPanel
+            key={tab}
             users={users}
             mode={tab === "admins" ? "admins" : "users"}
             mutatingId={mutatingId}
@@ -2500,6 +2502,8 @@ function UsersPanel({
   onRoleChange: (user: AdminUserItem, role: "user" | "admin") => void;
   onForceDelete: (user: AdminUserItem) => void;
 }) {
+  const [journalUserId, setJournalUserId] = useState<string | null>(null);
+  const journalUser = users.find((user) => user.id === journalUserId);
   const [sort, setSort] = useState<UserTableSort>({
     key: "lastAccessedAt",
     direction: "desc",
@@ -2534,6 +2538,17 @@ function UsersPanel({
   };
 
   return (
+    <>
+    {journalUser && (
+      <AdminUserJournalsPanel
+        key={journalUser.id}
+        user={journalUser}
+        onClose={() => {
+          setJournalUserId(null);
+          document.getElementById(`journal-view-${journalUser.id}`)?.focus();
+        }}
+      />
+    )}
     <TableCard>
       <Table>
         <thead>
@@ -2580,7 +2595,19 @@ function UsersPanel({
                 <Small>{user.id}</Small>
               </td>
               <td data-label="공급자">{user.providers.join(", ") || "-"}</td>
-              <td data-label="기록">{user.journalCount}</td>
+              <td data-label="기록">
+                {user.journalCount > 0 ? (
+                  <JournalViewButton
+                    id={`journal-view-${user.id}`}
+                    type="button"
+                    aria-label={`${user.displayName || user.email || user.id}의 기록 ${user.journalCount}개 보기`}
+                    aria-expanded={journalUserId === user.id}
+                    onClick={() => setJournalUserId((current) => current === user.id ? null : user.id)}
+                  >
+                    {user.journalCount}개 보기
+                  </JournalViewButton>
+                ) : "0"}
+              </td>
               <td data-label="최종 접속">{formatDate(user.lastAccessedAt)}</td>
               <td data-label="가입일">{formatDate(user.createdAt)}</td>
               <td data-label="관리">
@@ -2614,8 +2641,20 @@ function UsersPanel({
         </tbody>
       </Table>
     </TableCard>
+    </>
   );
 }
+
+const JournalViewButton = styled(BaseButton)`
+  min-height: 36px;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--space-2);
+  background: transparent;
+  color: var(--color-brand-800);
+  font-size: var(--font-size-100);
+  white-space: nowrap;
+`;
 
 type UserTableSortKey =
   | "account"
