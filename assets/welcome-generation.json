@@ -1,0 +1,30 @@
+{
+  "mode": "built-in image_gen",
+  "purpose": "이용 안내의 AI 예시 사진과 사용 종료된 포토북 목업의 생성 이력. 사용하지 않는 목업 WebP 2개는 삭제했으며 원본 생성 파일은 Codex 생성 이미지 폴더에 보관.",
+  "activeBookExample": {
+    "source": "src/features/tuti/screens/onboarding/WelcomeBookSample.tsx",
+    "rendering": "A5 PDF 레이아웃 비율을 따르는 HTML/CSS 컴포넌트. 페이지 WebP와 출력 스크립트는 사용 종료 후 삭제.",
+    "photo": "public/welcome/shared-afternoon-example.webp",
+    "content": "가상 예시 기록과 기존 AI 예시 사진. 실제 사용자 데이터나 실물 상품 사진이 아님."
+  },
+  "assets": [
+    {
+      "path": "public/welcome/memory-book-hero-v2.webp",
+      "status": "removed-unused",
+      "prompt": "Use case: product-mockup. Asset type: main image inside the fixed-height first screen of Tuti, a Korean personal memory journal app. Create a NEW photorealistic isolated product concept image, approximately square 1024x1024 composition with genuine transparent background. A small open A5 portrait photo book, viewed from a gentle almost overhead three-quarter angle, two facing pages and thin pale lime-green cover edges. Frame the complete book prominently: approximately 90 percent canvas width and 80 percent canvas height, only narrow clear margins, centered balanced silhouette, no cropped corners. Increase vertical presence by orienting the open book diagonally very slightly and using near-overhead perspective, not a wide flat banner. Two quiet white editorial pages: left has a large casual photo of two adult friends walking together on a leafy path seen from behind, right has a casual photo of two hands and two coffees on a sunny cafe table. No identifiable faces. Believable everyday shared memories, not staged fashion. Restrained true-to-life photography, white tactile paper, pale lime-green cover (#EBF5D5), subtle sky-blue detail in the photos (#8CBDEF), natural greens. Soft neutral daylight, crisp paper edges, very subtle contact shadow immediately under the book only. The image must sit naturally on a pure white app screen, without a visible rectangular photographic backdrop. No table, scenery, loose photos, flowers, decorative props, colored background, headline, readable text, lettering, logo, watermark, prices, UI, or badges. This is a concept mockup, not an available manufactured product.",
+      "packaging": "Built-in image_gen transparent PNG (1254×1254) resized to 1024×1024 WebP with sharp, quality 84 and alphaQuality 100. Full composition and transparency preserved.",
+      "purpose": "스크롤 없는 엔트리 화면의 이미지 영역에 맞춘 메인 이미지. 첫 화면과 이용 안내의 기록집 화면에서 공용."
+    },
+    {
+      "path": "public/welcome/memory-book-concept.webp",
+      "status": "removed-unused",
+      "prompt": "Use case: product-mockup. Asset type: photographic hero for Tuti, a Korean private memories / mini photo book app. Primary request: an editorial product concept photograph of a real small A5 portrait photo book lying open, photographed from a gentle overhead three-quarter angle on an uncluttered almost-white surface. The entire open book and its thin tactile paper edges must fit with generous space. Two facing pages, quiet minimalist personal editorial layout. On the left page one large natural candid photograph of two adult friends in their twenties walking together on a leafy afternoon path, seen from behind, no identifiable faces. On the right page a smaller candid photo of two hands and two coffee cups on a sunny cafe table with very tiny unobtrusive typeset caption lines below (no prominent readable text, no headlines). Convey attachment to everyday time together, anticipation of keeping memories in a physical book, understated giftability. Soft warm natural window daylight, gentle realistic paper shadows, restrained color: white paper, very pale lime-green cover peeking at the book edge, soft sky blue in photographs, natural muted greens. Clean high quality editorial photography, not an advertisement banner and not an app screenshot. Photographs should look like ordinary believable personal memories, not polished fashion models. Landscape composition around 3:2. No extra loose photos, no flowers, no decorative props, no UI, no badges, no logos, no price, no watermark. This is explicitly a concept mockup, not an available manufactured product. Save the generated image for use as a local web hero asset.",
+      "packaging": "Generated PNG converted to WebP quality 84 with sharp; composition unchanged."
+    },
+    {
+      "path": "public/welcome/shared-afternoon-example.webp",
+      "prompt": "Use case: photorealistic-natural. Asset type: sample personal memory photograph for a Korean memory journal app onboarding (will be labelled example, not real user content). A quiet candid photograph of two adult friends sitting side by side at a small outdoor cafe table, only their relaxed hands and sleeves and two simple coffee cups visible, leafy afternoon light and soft shadows on a pale wood table, glimpse of pale sky-blue clothing. A real ordinary small shared afternoon, intimate but not posed, understated film-like photography with true-to-life color. No identifiable faces, no extra props, no book, no smartphone, no UI, no text, no logos, no watermark. Landscape 4:3 crop, light and warm through sunlight, avoid beige monochrome aesthetic.",
+      "packaging": "Generated PNG converted to WebP quality 84 with sharp; composition unchanged."
+    }
+  ]
+}

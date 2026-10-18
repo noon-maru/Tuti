@@ -1,6 +1,7 @@
 import { authenticateAdmin } from "@/server/admin/auth";
 import { calculateBusinessMetrics } from "@/server/admin/businessMetrics";
 import { prisma } from "@/server/db/prisma";
+import { PRODUCT_INTERACTION_ACTIONS } from "@/shared/api/productInteraction";
 import {
   createPreflightResponse,
   isRequestOriginAllowed,
@@ -36,11 +37,29 @@ export async function GET(request: Request) {
     analyticsExcludedAt: null,
   };
 
+  const interactionLogs = await prisma.systemLog.findMany({
+    where: {
+      category: "product",
+      action: { in: [...PRODUCT_INTERACTION_ACTIONS] },
+      // Entry interactions are only displayed for the selected current period.
+      createdAt: { gte: new Date(now.getTime() - (periodDays + 1) * DAY_MS) },
+      actorUserId: { not: null },
+    },
+    select: { actorUserId: true, action: true, metadata: true, createdAt: true },
+  });
+
   const [users, trackingBoundary] = await Promise.all([
     prisma.user.findMany({
       where: {
         ...includedUserWhere,
         OR: [
+          {
+            id: {
+              in: [...new Set(interactionLogs.flatMap((row) =>
+                row.actorUserId ? [row.actorUserId] : [],
+              ))],
+            },
+          },
           { createdAt: { gte: analysisSince } },
           {
             authIdentities: {
@@ -134,6 +153,17 @@ export async function GET(request: Request) {
     ]);
 
   const response = calculateBusinessMetrics({
+    interactions: interactionLogs.flatMap((row) => {
+      if (!row.actorUserId) return [];
+      const metadata = row.metadata && typeof row.metadata === "object" && !Array.isArray(row.metadata)
+        ? row.metadata : {};
+      return [{
+        userId: row.actorUserId,
+        action: row.action,
+        surface: String(metadata.surface ?? ""),
+        createdAt: row.createdAt,
+      }];
+    }),
     now,
     periodDays,
     trackingStartedAt: trackingBoundary._min.createdAt,

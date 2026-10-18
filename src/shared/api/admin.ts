@@ -281,6 +281,18 @@ export type AdminBusinessMetricCohort = {
 };
 
 export type AdminBusinessMetricsResponse = {
+  entryExperience: {
+    welcomeViewAccounts: number;
+    recordStartAccounts: number;
+    exploreStartAccounts: number;
+    purchaseClickAccounts: number;
+    purchaseClicks: number;
+    purchaseBySurface: Array<{
+      surface: "welcome" | "completed_book";
+      accounts: number;
+      clicks: number;
+    }>;
+  };
   generatedAt: string;
   trackingStartedAt: string | null;
   periodDays: 30 | 90;

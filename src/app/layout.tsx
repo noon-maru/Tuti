@@ -7,25 +7,25 @@ import { AndroidBackButtonHandler } from "@/features/tuti/components/AndroidBack
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://tuti.today"),
-  title: "Tuti | 오늘 가능한 만큼만, 잠깐 다른 공기로",
+  title: "Tuti | 일상을 추억으로, 추억을 한 권으로",
   description:
-    "현재 위치와 낼 수 있는 시간, 이동 부담을 바탕으로 지금 실행하기 좋은 공간을 조용히 골라주는 저부담 상태 전환 서비스입니다.",
+    "친구와의 하루도, 연인과의 작은 여행도. 사진과 짧은 이야기로 함께한 순간을 기록하고 나만의 작은 기록집으로 모아보세요.",
   applicationName: "Tuti",
-  category: "travel",
+  category: "lifestyle",
   manifest: "/manifest.json",
   openGraph: {
     type: "website",
     locale: "ko_KR",
     siteName: "Tuti",
-    title: "Tuti | 오늘 가능한 만큼만, 잠깐 다른 공기로",
+    title: "Tuti | 일상을 추억으로, 추억을 한 권으로",
     description:
-      "현재 위치와 낼 수 있는 시간, 이동 부담을 바탕으로 지금 실행하기 좋은 공간을 조용히 골라드려요.",
+      "함께한 순간들이, 한 권의 추억이 되도록. 사진과 짧은 이야기로 소중한 하루를 남겨보세요.",
   },
   twitter: {
     card: "summary",
-    title: "Tuti | 오늘 가능한 만큼만, 잠깐 다른 공기로",
+    title: "Tuti | 일상을 추억으로, 추억을 한 권으로",
     description:
-      "현재 위치와 낼 수 있는 시간, 이동 부담을 바탕으로 지금 실행하기 좋은 공간을 조용히 골라드려요.",
+      "함께한 순간들이, 한 권의 추억이 되도록. 사진과 짧은 이야기로 소중한 하루를 남겨보세요.",
   },
   appleWebApp: {
     capable: true,

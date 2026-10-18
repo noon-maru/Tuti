@@ -27,6 +27,7 @@ import {
   PrimaryButton,
 } from "@/features/tuti/components/buttons";
 import { JournalBookPreview } from "@/features/tuti/components/JournalBookPreview";
+import { JournalBookPurchaseButton } from "@/features/tuti/components/JournalBookPurchaseButton";
 import {
   loadJournalBookDraft,
   saveJournalBookDraft,
@@ -1007,6 +1008,7 @@ function StoredBookViewer({
           onReady={handleReady}
         />
         {message && <Notice role="alert">{message}</Notice>}
+        <JournalBookPurchaseButton surface="completed_book" />
         <DeleteButton
           type="button"
           disabled={busy !== null}

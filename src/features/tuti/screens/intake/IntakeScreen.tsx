@@ -64,14 +64,10 @@ export function IntakeScreen({
       </SoftHeader>
       <QuestionBlock>
         <QuestionNavigation>
-          {step > 0 ? (
-            <BackButton
-              aria-label="이전 질문"
-              onClick={onBack}
-            />
-          ) : (
-            <BackButtonPlaceholder aria-hidden="true" />
-          )}
+          <BackButton
+            aria-label={step > 0 ? "이전 질문" : "첫 화면으로 돌아가기"}
+            onClick={onBack}
+          />
           <StepCount>
             {step + 1} / {total}
           </StepCount>
@@ -301,11 +297,6 @@ const QuestionNavigation = styled.div`
   display: flex;
   align-items: center;
   justify-content: space-between;
-`;
-
-const BackButtonPlaceholder = styled.span`
-  width: var(--space-11);
-  height: var(--space-11);
 `;
 
 const StepCount = styled.p`

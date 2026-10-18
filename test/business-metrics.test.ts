@@ -4,6 +4,31 @@ import { calculateBusinessMetrics } from "../src/server/admin/businessMetrics";
 
 const at = (value: string) => new Date(value);
 
+test("첫 진입점과 구매 관심 지표는 계정 수·반복 클릭을 분리하고 한국 날짜와 제외 대상을 반영한다", () => {
+  const createdAt = at("2026-10-16T01:00:00Z");
+  const response = calculateBusinessMetrics({
+    now: createdAt, periodDays: 30, trackingStartedAt: null,
+    users: ["u1", "u2"].map((id) => ({ id, createdAt, authenticated: false, authenticatedAt: null })),
+    sessions: [], firstSessions: [], productEvents: [], recommendationRuns: [], recommendationActions: [],
+    interactions: [
+      { userId: "u1", action: "welcome_viewed", surface: "welcome", createdAt },
+      { userId: "u1", action: "welcome_viewed", surface: "welcome", createdAt },
+      { userId: "u1", action: "welcome_record_started", surface: "welcome", createdAt },
+      { userId: "u2", action: "welcome_explore_started", surface: "welcome", createdAt },
+      { userId: "u1", action: "journal_book_purchase_clicked", surface: "welcome", createdAt },
+      { userId: "u1", action: "journal_book_purchase_clicked", surface: "completed_book", createdAt },
+      { userId: "u2", action: "journal_book_purchase_clicked", surface: "welcome", createdAt: at("2026-09-16T15:01:00Z") },
+      { userId: "u2", action: "journal_book_purchase_clicked", surface: "welcome", createdAt: at("2026-09-16T14:59:00Z") },
+      { userId: "excluded", action: "journal_book_purchase_clicked", surface: "welcome", createdAt },
+    ],
+  });
+  assert.deepEqual(response.entryExperience, {
+    welcomeViewAccounts: 1, recordStartAccounts: 1, exploreStartAccounts: 1,
+    purchaseClickAccounts: 2, purchaseClicks: 3,
+    purchaseBySurface: [{ surface: "welcome", accounts: 2, clicks: 2 }, { surface: "completed_book", accounts: 1, clicks: 1 }],
+  });
+});
+
 test("사업 지표는 한국 날짜 기준 활성·재방문·단계 전환을 계산한다", () => {
   const users = [
     { id: "u1", createdAt: at("2026-09-01T03:00:00Z"), authenticated: true, authenticatedAt: at("2026-09-01T04:00:00Z") },

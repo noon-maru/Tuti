@@ -5,6 +5,7 @@ import { requestLoginNudge } from "@/features/tuti/auth/loginNudge";
 import { useJournalEntryTransition } from "@/features/tuti/components/JournalEntryTransition";
 import { useTutiJournalEntries } from "@/features/tuti/hooks/useTutiJournalEntries";
 import { JournalEditorScreen } from "@/features/tuti/screens/journal/JournalEditorScreen";
+import { FirstMemoryScreen } from "@/features/tuti/screens/onboarding/FirstMemoryScreen";
 import { recordRecommendationAction } from "@/lib/tutiApi";
 import { useTutiStore } from "@/store/tuti";
 
@@ -16,10 +17,18 @@ export function JournalCreateFlow() {
   const setActiveJournalEntry = useTutiStore(
     (state) => state.setActiveJournalEntry,
   );
+  const fromWelcome = searchParams.get("from") === "welcome";
   const returnToJournal = () => router.back();
   const initialPlaceId = searchParams.get("placeId");
   const initialPlaceName = searchParams.get("placeName");
   const recommendationId = searchParams.get("journeyId");
+
+  if (fromWelcome) return <FirstMemoryScreen
+    onBack={() => router.replace("/entry")}
+    onSave={addEntry}
+    onSaved={(entry) => setActiveJournalEntry(entry.id)}
+    onCollection={() => router.replace("/journal")}
+  />;
 
   return (
     <JournalEditorScreen

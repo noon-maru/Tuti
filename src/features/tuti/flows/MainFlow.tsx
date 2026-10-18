@@ -14,6 +14,9 @@ export function MainFlow({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const hasHydrated = useTutiStore((state) => state.hasHydrated);
   const entryRecord = useTutiStore((state) => state.entryRecord);
+  const activeJournalEntryId = useTutiStore((state) => state.activeJournalEntryId);
+  // 기존 사진을 기록하는 사용자는 외출 질문이나 위치 권한이 필요하지 않다.
+  const journalRoute = pathname === "/journal" || pathname.startsWith("/journal/");
   const [revealedDestination, setRevealedDestination] =
     useState<string | null>(null);
   const revealResetTimer = useRef<number | null>(null);
@@ -32,10 +35,10 @@ export function MainFlow({ children }: { children: React.ReactNode }) {
   }, []);
 
   useEffect(() => {
-    if (hasHydrated && !entryRecord) {
-      router.replace("/entry");
+    if (hasHydrated && !entryRecord && !journalRoute) {
+      router.replace(pathname === "/" && activeJournalEntryId ? "/journal" : "/entry");
     }
-  }, [entryRecord, hasHydrated, router]);
+  }, [activeJournalEntryId, entryRecord, hasHydrated, journalRoute, pathname, router]);
 
   useEffect(() => {
     if (!hasHydrated || !entryRecord || pathname !== "/") return;
@@ -54,7 +57,7 @@ export function MainFlow({ children }: { children: React.ReactNode }) {
     [],
   );
 
-  if (!hasHydrated || !entryRecord) {
+  if (!hasHydrated || (!entryRecord && !journalRoute)) {
     return <AppLoadingScreen label="저장된 상태를 확인하고 있어요." />;
   }
 
@@ -63,11 +66,13 @@ export function MainFlow({ children }: { children: React.ReactNode }) {
       onDestinationReveal={revealDestination}
     >
       <JournalEntryTransitionProvider>
-        <RecommendationsFlow
-          interactive={
-            pathname === "/" || revealedDestination === "/"
-          }
-        />
+        {entryRecord && (
+          <RecommendationsFlow
+            interactive={
+              pathname === "/" || revealedDestination === "/"
+            }
+          />
+        )}
         {children}
       </JournalEntryTransitionProvider>
     </BrowserHistoryTransitionProvider>
