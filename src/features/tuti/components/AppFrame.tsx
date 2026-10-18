@@ -24,14 +24,14 @@ export function AppFrame({ children }: { children: React.ReactNode }) {
           priority
         />
         <BrandCopy>
-          <p>오늘 가능한 만큼만</p>
+          <p>일상을 추억으로, 추억을 한 권으로</p>
           <BrandTitle>
             <DesktopWordmark priority />
           </BrandTitle>
           <span>
-            잠깐 다른 공기로 나갈 수 있도록,
+            함께한 순간을 기록하고,
             <br />
-            지금의 상태에 맞는 장소를 준비해요.
+            나만의 작은 책으로 간직해요.
           </span>
         </BrandCopy>
         <BrandPalette aria-hidden="true">

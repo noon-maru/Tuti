@@ -11,6 +11,7 @@ export async function purgeExpiredAuthRecords(now = new Date()) {
   const securityRuleHistoryBefore = new Date(
     now.getTime() - 90 * 24 * 60 * 60 * 1_000,
   );
+  const productInteractionBefore = new Date(now.getTime() - 180 * 24 * 60 * 60 * 1_000);
   const [
     sessions,
     emailCodes,
@@ -21,6 +22,7 @@ export async function purgeExpiredAuthRecords(now = new Date()) {
     trafficSecurityLogs,
     adminJournalAccessAudits,
     legacyAdminJournalAccessLogs,
+    productInteractions,
   ] =
     await prisma.$transaction([
       prisma.userSession.deleteMany({
@@ -67,6 +69,9 @@ export async function purgeExpiredAuthRecords(now = new Date()) {
       prisma.systemLog.deleteMany({
         where: { ...LEGACY_ADMIN_JOURNAL_ACCESS_AUDIT, createdAt: { lt: adminJournalAccessAuditCutoff(now) } },
       }),
+      prisma.systemLog.deleteMany({
+        where: { category: "product", createdAt: { lte: productInteractionBefore } },
+      }),
     ]);
 
   return {
@@ -79,6 +84,7 @@ export async function purgeExpiredAuthRecords(now = new Date()) {
     trafficSecurityLogs: trafficSecurityLogs.count,
     adminJournalAccessAudits: adminJournalAccessAudits.count,
     legacyAdminJournalAccessLogs: legacyAdminJournalAccessLogs.count,
+    productInteractions: productInteractions.count,
   };
 }
 

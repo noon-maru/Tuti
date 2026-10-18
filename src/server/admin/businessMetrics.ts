@@ -42,6 +42,12 @@ type RecommendationActionSignal = RecommendationSignal & {
 };
 
 export type BusinessMetricInput = {
+  interactions?: Array<{
+    userId: string;
+    action: string;
+    surface: string;
+    createdAt: Date;
+  }>;
   now: Date;
   periodDays: 30 | 90;
   trackingStartedAt: Date | null;
@@ -213,6 +219,7 @@ export function calculateBusinessMetrics(
   });
 
   return {
+    entryExperience: calculateEntryExperience(input, periodStart, today),
     generatedAt: input.now.toISOString(),
     trackingStartedAt: input.trackingStartedAt?.toISOString() ?? null,
     periodDays: input.periodDays,
@@ -511,6 +518,37 @@ function average(values: number[]) {
   return values.length > 0
     ? roundOne(values.reduce((sum, value) => sum + value, 0) / values.length)
     : 0;
+}
+
+function calculateEntryExperience(
+  input: BusinessMetricInput,
+  since: number,
+  until: number,
+): AdminBusinessMetricsResponse["entryExperience"] {
+  const included = new Set(input.users.map((user) => user.id));
+  const events = (input.interactions ?? []).filter((event) => {
+    const day = toKoreanDay(event.createdAt);
+    return included.has(event.userId) && day >= since && day <= until;
+  });
+  const accounts = (action: string) => new Set(
+    events.filter((event) => event.action === action).map((event) => event.userId),
+  ).size;
+  const clicks = events.filter((event) => event.action === "journal_book_purchase_clicked");
+  return {
+    welcomeViewAccounts: accounts("welcome_viewed"),
+    recordStartAccounts: accounts("welcome_record_started"),
+    exploreStartAccounts: accounts("welcome_explore_started"),
+    purchaseClickAccounts: accounts("journal_book_purchase_clicked"),
+    purchaseClicks: clicks.length,
+    purchaseBySurface: (["welcome", "completed_book"] as const).map((surface) => {
+      const matched = clicks.filter((event) => event.surface === surface);
+      return {
+        surface,
+        accounts: new Set(matched.map((event) => event.userId)).size,
+        clicks: matched.length,
+      };
+    }),
+  };
 }
 
 function ratio(value: number, total: number) {

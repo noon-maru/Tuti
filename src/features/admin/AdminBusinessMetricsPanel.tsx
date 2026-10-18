@@ -36,6 +36,23 @@ export function AdminBusinessMetricsPanel({
         </PeriodSelect>
       </Controls>
 
+      <Panel>
+        <SectionHeading>
+          <h2>첫 화면과 실물 기록집 관심</h2>
+          <SectionMeta>최근 {days}일</SectionMeta>
+        </SectionHeading>
+        <EntryLedger>
+          <Metric><MetricLabel>첫 화면 확인</MetricLabel><MetricValue>{formatNumber(data.entryExperience.welcomeViewAccounts)}</MetricValue><MetricUnit>고유 계정</MetricUnit></Metric>
+          <Metric><MetricLabel>기록 시작 선택</MetricLabel><MetricValue>{formatNumber(data.entryExperience.recordStartAccounts)}</MetricValue><MetricUnit>고유 계정 · 저장 완료 아님</MetricUnit></Metric>
+          <Metric><MetricLabel>장소 둘러보기 선택</MetricLabel><MetricValue>{formatNumber(data.entryExperience.exploreStartAccounts)}</MetricValue><MetricUnit>고유 계정</MetricUnit></Metric>
+          <Metric><MetricLabel>구매 버튼 선택</MetricLabel><MetricValue>{formatNumber(data.entryExperience.purchaseClickAccounts)}</MetricValue><MetricUnit>고유 계정 · {formatNumber(data.entryExperience.purchaseClicks)}회</MetricUnit></Metric>
+        </EntryLedger>
+        <InterestNote>구매 버튼 선택은 준비 중 안내를 연 관심 신호이며, 실제 결제나 구매 의향의 확정값이 아닙니다. 익명 계정은 동일인이 여러 개일 수 있습니다.</InterestNote>
+        {data.entryExperience.purchaseBySurface.map((item) => <InterestNote key={item.surface}>
+          {item.surface === "welcome" ? "첫 화면 예시 · 과거 수집 이력" : "완성한 기록집"}: {formatNumber(item.accounts)}계정 · {formatNumber(item.clicks)}회
+        </InterestNote>)}
+      </Panel>
+
       <NorthStarPanel>
         <NorthStarIdentity>
           <MetricLabel>월간 행동전환 사용자</MetricLabel>
@@ -419,6 +436,21 @@ const AudienceLedger = styled.div`
   @media (max-width: 980px) {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+`;
+
+const EntryLedger = styled(AudienceLedger)`
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+
+  @media (max-width: 980px) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+`;
+
+const InterestNote = styled.p`
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: 12px;
+  line-height: 1.7;
 `;
 
 const NorthStarPanel = styled.section`
