@@ -11,6 +11,7 @@ import {
 import { ContextMenu } from "@/features/tuti/components/ContextMenu";
 import { LoadingIndicator } from "@/features/tuti/components/LoadingIndicator";
 import { JournalBookEntry } from "@/features/tuti/components/JournalBookEntry";
+import { TutiPlaceIcon } from "@/features/tuti/components/TutiPlaceIcon";
 import { JournalShareDialog } from "@/features/tuti/components/JournalShareDialog";
 import { useJournalEntryTransitionTarget } from "@/features/tuti/components/JournalEntryTransition";
 import { BaseButton } from "@/features/tuti/components/buttons";
@@ -19,6 +20,7 @@ import { useTutiJournalEntries } from "@/features/tuti/hooks/useTutiJournalEntri
 import { useJournalShareActions } from "@/features/tuti/hooks/useJournalShareActions";
 import { useVerticalSwipeBack } from "@/features/tuti/hooks/useVerticalSwipeBack";
 import { useTutiStore } from "@/store/tuti";
+import { journalCardPreview } from "@/shared/tuti/journalCard";
 import {
   fluidByViewportHeight,
   journalImageMaxWidth,
@@ -226,6 +228,7 @@ export function JournalScreen({
           onPointerCancel={cancelStackDrag}
         >
           {entries.map((entry, index) => {
+            const preview = journalCardPreview(entry);
             const relativePosition = getCircularOffset(
               index,
               selectedEntryIndex,
@@ -251,9 +254,9 @@ export function JournalScreen({
                   type="button"
                   $image={entry.image ?? undefined}
                   $active={index === selectedEntryIndex}
-                  $tone={[0, 1, 2, 1, 0][index] ?? 0}
+                  $tone={[0, 1, 2, 1, 0][index % 5] ?? 0}
                   aria-label={
-                    entry.title ||
+                    (!entry.image ? preview.heading || preview.excerpt : entry.title) ||
                     `${formatJournalDate(entry.visitedAt)} 기록`
                   }
                   aria-pressed={index === selectedEntryIndex}
@@ -276,17 +279,22 @@ export function JournalScreen({
                   }}
                 >
                   {index === selectedEntryIndex && (
-                    <CardHeader>
+                    <CardHeader $textOnly={!entry.image}>
                       <strong>{formatJournalDate(entry.visitedAt)}</strong>
                     </CardHeader>
                   )}
+                  {!entry.image && <TextCardContent>
+                    {preview.heading && <TextCardTitle>{preview.heading}</TextCardTitle>}
+                    {preview.excerpt && <TextCardExcerpt $lead={!preview.heading}>{preview.excerpt}</TextCardExcerpt>}
+                    {preview.place && <TextCardPlace><TutiPlaceIcon $size="small" aria-hidden="true" /><span>{preview.place}</span></TextCardPlace>}
+                  </TextCardContent>}
                 </MemoryCard>
 
                 {index === selectedEntryIndex && (
                   <CardMenuPosition>
                     <ContextMenu
-                      label={`${entry.title} 기록 메뉴`}
-                      tone="inverse"
+                      label={`${entry.title || preview.heading || "남겨둔 이야기"} 기록 메뉴`}
+                      tone={entry.image ? "inverse" : "default"}
                       items={[
                         {
                           label: "상세 보기",
@@ -530,8 +538,10 @@ const MemoryCard = styled(BaseButton)<{
   padding: var(--space-5);
   border: 0;
   border-radius: 28px;
-  background-color: ${({ $tone }) =>
-    $tone === 0
+  background-color: ${({ $image, $tone }) =>
+    !$image
+      ? $tone === 1 ? "var(--color-brand-100)" : "var(--color-secondary-100)"
+      : $tone === 0
       ? "var(--color-secondary-500)"
       : $tone === 1
         ? "var(--color-brand-500)"
@@ -539,20 +549,22 @@ const MemoryCard = styled(BaseButton)<{
   background-image: ${({ $image }) =>
     $image
       ? `linear-gradient(180deg, rgb(var(--color-black-rgb) / 0.42), transparent 38%), url(${$image})`
-      : "linear-gradient(180deg, rgb(var(--color-black-rgb) / 0.42), transparent 38%)"};
+      : "none"};
   background-position: center;
   background-size: cover;
-  color: var(--color-white);
+  color: ${({ $image }) => $image ? "var(--color-white)" : "var(--color-text)"};
   cursor: pointer;
   text-align: left;
-  box-shadow: ${({ $active }) =>
-    $active
+  box-shadow: ${({ $active, $image }) =>
+    !$image
+      ? $active ? "0 12px 30px rgb(28 66 104 / 0.12)" : "0 6px 16px rgb(28 66 104 / 0.08)"
+      : $active
       ? "0 18px 42px rgb(var(--color-black-rgb) / 0.24)"
       : "0 8px 20px rgb(var(--color-black-rgb) / 0.16)"};
   transition: box-shadow 240ms ease;
 `;
 
-const CardHeader = styled.header`
+const CardHeader = styled.header<{ $textOnly: boolean }>`
   position: absolute;
   top: var(--space-5);
   right: var(--space-5);
@@ -561,9 +573,37 @@ const CardHeader = styled.header`
   align-items: center;
 
   strong {
-    font-size: var(--font-size-300);
-    font-weight: 600;
+    font-size: ${({ $textOnly }) => $textOnly ? "12px" : "var(--font-size-300)"};
+    font-weight: ${({ $textOnly }) => $textOnly ? 500 : 600};
+    ${({ $textOnly }) => $textOnly && "color: var(--color-brand-800); letter-spacing: 0.06em;"}
   }
+`;
+
+const TextCardContent = styled.span`
+  position: absolute; top: 64px; left: var(--space-5); right: var(--space-5); bottom: var(--space-5);
+  display: flex; flex-direction: column; gap: 12px; min-width: 0; overflow: hidden;
+  text-align: left; word-break: keep-all; overflow-wrap: anywhere;
+  @container app-viewport (max-width: 340px) { gap: 8px; }
+`;
+const TextCardTitle = styled.span`
+  flex: none; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2;
+  overflow: hidden; font-size: 20px; font-weight: 600; line-height: 1.45; letter-spacing: -0.025em;
+  @container app-viewport (max-width: 340px) { font-size: 16px; }
+`;
+const TextCardExcerpt = styled.span<{ $lead: boolean }>`
+  flex: none; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2;
+  overflow: hidden; font-size: 13px; font-weight: 400; line-height: 1.8; color: var(--color-text-muted);
+  @container app-viewport (max-width: 340px) { font-size: 12px; -webkit-line-clamp: 2; }
+  ${({ $lead }) => $lead && css`
+    -webkit-line-clamp: 4; font-size: 19px; font-weight: 500; line-height: 1.65;
+    letter-spacing: -0.02em; color: var(--color-text);
+    @container app-viewport (max-width: 340px) { font-size: 16px; -webkit-line-clamp: 4; }
+  `}
+`;
+const TextCardPlace = styled.span`
+  flex: none; margin-top: auto; display: flex; align-items: center; gap: 6px; min-width: 0;
+  font-size: 11px; font-weight: 500; line-height: 1.5; color: var(--color-text-muted);
+  > span:last-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 `;
 
 const CardMenuPosition = styled.div`
