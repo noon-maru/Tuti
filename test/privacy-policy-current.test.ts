@@ -26,6 +26,18 @@ test("현재 방침에 시행 예정 부칙이 남지 않는다", () => {
   assert.doesNotMatch(JSON.stringify(privacyPolicyFrom20261010), /시행 예정일|개정안 버전/);
 });
 
+test("현행 방침은 카카오 경로 처리를 위탁으로 안내하고 차단 오안내를 제거한다", () => {
+  const html = renderToStaticMarkup(createElement(EffectivePrivacyPolicyDocument));
+  assert.doesNotMatch(html, /전달하는 기능은.*차단되어/);
+  assert.match(html, /수탁자: 주식회사 카카오\./);
+  assert.match(html, /수탁자: 주식회사 카카오모빌리티\./);
+  assert.match(html, /대중교통·도보·자전거 경로/);
+  assert.match(html, /자동차 경로/);
+  assert.match(html, /위도·경도/);
+  assert.match(html, /계정 식별값·이름·이메일·세션 토큰을 함께 전달하지/);
+  assert.match(html, /2026년 10월 19일 정정/);
+});
+
 test("현행 위치약관과 개인정보방침은 철회 시 확인자료 파기를 안내한다", () => {
   for (const document of [locationTerms, privacyPolicyFrom20261010]) {
     assert.match(JSON.stringify(document), /철회 대상.*계속 보관하지 않습니다/);

@@ -3,7 +3,7 @@
   "contact": "admin@tuti.today",
   "rightsRecipient": { "name": "정연한", "department": "운영", "position": "대표", "email": "admin@tuti.today", "fax": null, "faxUnavailabilityConfirmed": true, "publicNoticeRequirementsReviewed": false, "publicNoticeReviewReference": null },
   "backupRetentionDays": 30,
-  "externalLocationRelationship": { "separateConfirmation": "none", "confirmedAt": "2026-10-19", "classification": "unconfirmed" },
+  "externalLocationRelationship": { "separateConfirmation": "none", "confirmedAt": "2026-10-19", "classification": "processor", "classificationBasis": "운영자가 카카오·카카오모빌리티 경로 계산의 처리위탁 관계를 확인", "contractRetentionReviewed": false },
   "approvedDocumentHash": null,
   "checks": {
     "processingInventory": { "confirmed": false, "reference": null },
