@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { apiUrl } from "@/lib/api/apiUrl";
 import { preferencesStorage } from "@/lib/storage/preferencesStorage";
 import { ensureSession, fetchWithPinnedSession, getSessionSnapshot, logoutAccount } from "@/lib/auth/session";
 
@@ -19,7 +20,7 @@ test("위치 동의 요청을 다른 계정으로 자동 재전송하지 않는�
     });
     const response = await fetchWithPinnedSession("location-consent", { method: "POST" });
     assert.equal(response.status, 401);
-    assert.deepEqual(requests, ["/api/location-consent"]);
+    assert.deepEqual(requests, [apiUrl("location-consent")]);
     assert.equal(getSessionSnapshot()?.userId, original.userId);
   });
 

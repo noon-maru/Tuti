@@ -61,7 +61,7 @@
     "journal:publication:verify": "tsx scripts/verify-journal-publication.ts",
     "start": "next start",
     "lint": "pnpm db:generate && eslint",
-    "test": "node --import tsx --test test/*.test.ts",
+    "test": "node --import tsx --test --test-concurrency=1 test/*.test.ts",
     "assets:generate": "capacitor-assets generate --assetPath assets/capacitor && tsx scripts/normalize-capacitor-assets.ts",
     "cap:sync": "pnpm build:app && cap sync",
     "android:sync": "pnpm build:app && cap sync android",
