@@ -8,6 +8,7 @@
     "legal:rights:maintain": "tsx scripts/maintain-journal-rights.ts",
     "legal:privacy:replay": "tsx scripts/privacy-replay.ts",
     "legal:readiness": "tsx scripts/check-legal-readiness.ts",
+    "legal:operations:inspect": "tsx scripts/inspect-legal-operations.ts",
     "legal:backup:retention": "tsx scripts/prune-production-backups.ts",
     "test:legal:postgres": "node --import tsx --test test/integration/legal-postgres.test.ts",
     "dev": "pnpm pdf:assets && pnpm db:generate && next dev --webpack",

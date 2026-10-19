@@ -198,6 +198,34 @@ test("분리된 PostgreSQL에서 약관·권리 보호 마이그레이션의 실
       assert.equal(restoredQuery("SELECT count(*) FROM location_usage_logs WHERE id='old-restored'"), "0");
       assert.equal(restoredQuery("SELECT count(*) FROM location_usage_logs WHERE id='new-allowed'"), "1");
       assert.equal(restoredQuery("SELECT status FROM location_consent_events WHERE id='reaccepted'"), "accepted");
+
+      // 운영 점검 역시 실제 ORM/읽기 전용 트랜잭션으로 시험한다. 운영 DB는 사용하지 않는다.
+      restoredQuery(`
+        CREATE TYPE "ReportReason" AS ENUM ('inappropriate','copyright','privacy','spam','other');
+        CREATE TYPE "ReportStatus" AS ENUM ('pending','reviewing','resolved','dismissed');
+        CREATE TYPE "LogLevel" AS ENUM ('info','warning','error');
+        ALTER TABLE content_reports ADD COLUMN reason "ReportReason" DEFAULT 'privacy', ADD COLUMN status "ReportStatus" DEFAULT 'pending';
+        ALTER TABLE system_logs ADD COLUMN message text DEFAULT '', ADD COLUMN level "LogLevel" DEFAULT 'info';
+      `);
+      const { inspectLegalOperations, recordRightsMaintenanceSuccess } = await import("../../src/server/legal/operations");
+      const { hashServiceTerms } = await import("../../src/server/legal/serviceTerms");
+      const legalDocument = { title: "이용약관", summary: "시험 안내", importantTerms: ["중요 내용"], sections: [{ title: "범위", paragraphs: ["기록 보관"] }] };
+      await client.serviceTermsRelease.create({ data: {
+        version: "operational-test", document: legalDocument, documentHash: hashServiceTerms(legalDocument),
+        publishedAt: new Date("2026-11-01T00:00:00Z"), effectiveAt: new Date("2026-12-01T00:00:00Z"), noticeDays: 30, approvalReference: "TEST-123",
+      } });
+      const observedAt = new Date("2026-12-02T00:00:00Z");
+      await recordRightsMaintenanceSuccess(observedAt);
+      const observations = await inspectLegalOperations(observedAt, { SERVICE_TERMS_WORKFLOW_ENABLED: "true" });
+      assert.equal(observations.terms.status, "observed");
+      assert.equal(observations.terms.data?.stage, "effective_not_enforced");
+      assert.equal(observations.terms.data?.currentAcceptances, 0);
+      assert.equal(observations.terms.data?.documentIntegrity, true);
+      assert.equal(observations.rights.status, "observed");
+      assert.equal(observations.rights.data?.recentSuccessfulApplyObserved, true);
+      assert.equal(observations.rights.data?.schedulerInstallationVerified, false);
+      assert.equal(observations.operationalCompletionVerified, false);
+      assert.equal(query("SELECT count(*) FROM service_terms_releases"), "1", "조회 도구 시험은 원본 DB에 쓰지 않는다.");
     } finally {
       await client.$disconnect();
       delete (globalThis as { prisma?: unknown }).prisma;

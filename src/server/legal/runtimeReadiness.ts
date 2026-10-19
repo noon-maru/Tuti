@@ -1,6 +1,7 @@
 import { prisma } from "@/server/db/prisma";
 import { legalReadinessBlockers, legalRuntimeFacts, parseLegalReadinessEvidence } from "@/server/legal/readiness";
 import { readPrivacyReplaySnapshot } from "@/server/legal/privacyReplayLedger";
+import { assertLegalOperationsObserved, inspectLegalOperations } from "./operations";
 
 export async function assertServiceTermsOperationalReadiness(input: unknown, documentHash: string, approvalReference: string) {
   const evidence = parseLegalReadinessEvidence(input);
@@ -12,4 +13,5 @@ export async function assertServiceTermsOperationalReadiness(input: unknown, doc
   await Promise.all([prisma.serviceTermsRelease.count(), prisma.serviceTermsAcceptance.count(), prisma.journalRightsCase.count(), prisma.journalRightsNotice.count()]);
   const triggers = await prisma.$queryRaw<Array<{ tgname: string }>>`SELECT tgname FROM pg_trigger WHERE tgrelid = 'service_terms_releases'::regclass AND tgname = 'service_terms_releases_immutable' AND tgenabled = 'O'`;
   if (triggers.length !== 1) throw new Error("공고 문서 변경 방지 DB 트리거를 확인하지 못했습니다.");
+  assertLegalOperationsObserved(await inspectLegalOperations());
 }

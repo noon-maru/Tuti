@@ -1,0 +1,9 @@
+#!/bin/sh
+set -eu
+
+project_dir="/var/services/homes/Tutiadmin/source/Tuti"
+if [ "$#" -ne 0 ]; then echo "사용법: tuti-legal-operations-inspect (조회 전용)" >&2; exit 1; fi
+cd "$project_dir"
+# 운영에 배포된 ops 이미지에서만 실행한다. 빌드·마이그레이션·통지·동의 생성은 하지 않는다.
+docker compose --env-file .env.production -f docker-compose.prod.yml \
+  run --rm --no-deps -T ops node_modules/.bin/tsx scripts/inspect-legal-operations.ts

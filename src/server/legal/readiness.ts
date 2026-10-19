@@ -1,3 +1,5 @@
+import { pushTransferBlockers, readPushProviderEvidence, type PushProvider } from "./pushTransferReadiness";
+
 export function legalRuntimeFacts(env: Readonly<Record<string, string | undefined>> = process.env) {
   const on = (name: string) => env[name]?.trim().toLowerCase() === "true";
   const present = (name: string) => Boolean(env[name]?.trim());
@@ -18,7 +20,7 @@ export function legalRuntimeFacts(env: Readonly<Record<string, string | undefine
   };
 }
 export const LEGAL_MANUAL_CHECKS = ["processingInventory", "processorsAndTransfers", "backupRetentionAndRestoreTest", "rightsRecipientAndForms", "scheduledJobsAndAlerts", "minorProtection", "nativeClientRollout", "legalReview", "finalDocumentApproval", "noticePlan"] as const;
-export type LegalReadinessEvidence = { owner: string; contact: string; backupRetentionDays: number | null; approvedDocumentHash: string | null; rightsRecipientNoticeReviewed: boolean; checks: Record<string, { confirmed: boolean; reference: string | null }> };
+export type LegalReadinessEvidence = { owner: string; contact: string; backupRetentionDays: number | null; approvedDocumentHash: string | null; rightsRecipientNoticeReviewed: boolean; pushTransfers: Partial<Record<PushProvider, unknown>>; checks: Record<string, { confirmed: boolean; reference: string | null }> };
 export function parseLegalReadinessEvidence(value: unknown): LegalReadinessEvidence {
   if (!value || typeof value !== "object") throw new Error("운영 준비 확인 파일이 필요합니다.");
   const input = value as Record<string, unknown>;
@@ -35,7 +37,7 @@ export function parseLegalReadinessEvidence(value: unknown): LegalReadinessEvide
     if (item?.confirmed === true && (typeof item.reference !== "string" || !/^[A-Za-z0-9_-]{3,100}$/.test(item.reference))) throw new Error(`실제 확인 근거 번호가 필요합니다: ${key}`);
     confirmed[key] = { confirmed: item?.confirmed === true, reference: typeof item?.reference === "string" ? item.reference : null };
   }
-  return { owner: input.owner.trim(), contact: input.contact, backupRetentionDays: input.backupRetentionDays as number | null, approvedDocumentHash: input.approvedDocumentHash as string | null, rightsRecipientNoticeReviewed: recipientReviewed, checks: confirmed };
+  return { owner: input.owner.trim(), contact: input.contact, backupRetentionDays: input.backupRetentionDays as number | null, approvedDocumentHash: input.approvedDocumentHash as string | null, rightsRecipientNoticeReviewed: recipientReviewed, pushTransfers: readPushProviderEvidence(input.pushTransferReview), checks: confirmed };
 }
 export function legalReadinessBlockers(evidence: LegalReadinessEvidence, facts: ReturnType<typeof legalRuntimeFacts>) {
   const blockers: string[] = LEGAL_MANUAL_CHECKS.filter((key) => !evidence.checks[key]?.confirmed);
@@ -48,5 +50,9 @@ export function legalReadinessBlockers(evidence: LegalReadinessEvidence, facts: 
   if (!facts.privacyReplayLedger) blockers.push("privacyReplayLedgerDisabled");
   if (facts.userAiProfiling) blockers.push("userAiProfilingConflictsWithDraft");
   if (facts.externalCoordinates === "third_party") blockers.push("unsupportedThirdPartyLocationMode");
+  // Tuti의 기존 Android/iOS 앱은 푸시 SDK를 포함한다. 서버 발송 플래그가 false인 것만으로
+  // 기기 등록·SDK 국외 처리가 없다고 증명할 수 없으므로 두 플랫폼을 모두 확인한다.
+  blockers.push(...pushTransferBlockers("fcm", evidence.pushTransfers.fcm));
+  blockers.push(...pushTransferBlockers("apns", evidence.pushTransfers.apns));
   return blockers;
 }
