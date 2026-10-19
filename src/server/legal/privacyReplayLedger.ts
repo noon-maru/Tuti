@@ -35,7 +35,9 @@ async function withLedgerLock<T>(operation: () => Promise<T>) {
   await directoryCheck(directory);
   const lock = join(directory, ".lock");
   let acquired = false;
-  for (let attempt = 0; attempt < 50; attempt++) {
+  // NAS에서는 서명 파일과 디렉터리 fsync가 느릴 수 있다. 동시 요청이 정상
+  // 완료될 시간을 주되, 비정상 종료 잠금을 삭제하거나 무한 대기하지 않는다.
+  for (let attempt = 0; attempt < 300; attempt++) {
     try { await mkdir(lock, { mode: 0o700 }); acquired = true; break; }
     catch (error) { if (!(error && typeof error === "object" && "code" in error && error.code === "EEXIST")) throw error; }
     await delay(50);
