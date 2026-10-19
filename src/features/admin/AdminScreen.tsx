@@ -733,6 +733,7 @@ export function AdminScreen({
               추천 시뮬레이터
             </NavLink>
             <NavLink href="/admin/tourism-data">관광 데이터</NavLink>
+            <NavLink href="/admin/journal-rights">공개 기록 권리 보호</NavLink>
           </NavGroup>
         </Navigation>
         <HomeLink href="/">서비스로 돌아가기</HomeLink>

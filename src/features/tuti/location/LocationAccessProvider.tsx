@@ -28,6 +28,7 @@ import {
   updateLocationConsent,
 } from "@/lib/tutiApi";
 import { LOCATION_TERMS_VERSION } from "@/shared/location/terms";
+import { getSessionSnapshot, subscribeToSession } from "@/lib/auth/session";
 import type { PreferredRegion } from "@/shared/tuti/types";
 import { useTutiStore } from "@/store/tuti";
 
@@ -91,7 +92,9 @@ export function LocationAccessProvider({
     ((result: LocationRequestResult) => void) | null
   >(null);
   const pendingLocationResultRef = useRef<LocationRequestResult | null>(null);
+  const deviceRequestGeneration = useRef(0);
   const consentSyncGeneration = useRef(0);
+
 
   const refreshLocationConsent = useCallback(async () => {
     const generation = ++consentSyncGeneration.current;
@@ -152,6 +155,9 @@ export function LocationAccessProvider({
   );
 
   const clearLocationQueries = useCallback(() => {
+    void queryClient.cancelQueries({ queryKey: ["departure-plan"] });
+    void queryClient.cancelQueries({ queryKey: ["travel-time"] });
+    void queryClient.cancelQueries({ queryKey: ["recommendations"] });
     queryClient.removeQueries({ queryKey: ["departure-plan"] });
     queryClient.removeQueries({ queryKey: ["travel-time"] });
     queryClient.removeQueries({ queryKey: ["recommendations"] });
@@ -165,9 +171,37 @@ export function LocationAccessProvider({
     requestPromiseRef.current = null;
   }, []);
 
+  useEffect(() => {
+    let activeUserId = getSessionSnapshot()?.userId;
+    const unsubscribe = subscribeToSession(() => {
+      const nextUserId = getSessionSnapshot()?.userId;
+      const previousUserId = activeUserId;
+      activeUserId = nextUserId;
+      // 최초 익명 세션 준비는 계정 전환으로 취급하지 않는다.
+      if (!previousUserId || previousUserId === nextUserId) return;
+      deviceRequestGeneration.current += 1;
+      consentSyncGeneration.current += 1;
+      clearUserLocation();
+      clearLocationQueries();
+      finishRequest({ status: "declined" });
+      setRequesting(false);
+      setConsentSheetOpen(false);
+    });
+    return () => {
+      unsubscribe();
+      deviceRequestGeneration.current += 1;
+      consentSyncGeneration.current += 1;
+      requestResolverRef.current?.({ status: "declined" });
+      requestResolverRef.current = null;
+      requestPromiseRef.current = null;
+    };
+  }, [clearLocationQueries, clearUserLocation, finishRequest]);
+
   const resolveDeviceLocation = useCallback(async () => {
+    const generation = ++deviceRequestGeneration.current;
     setRequesting(true);
     const result = await requestDeviceLocation();
+    if (generation !== deviceRequestGeneration.current) return;
 
     if (result.status === "ready") {
       setUserLocation(result.location);
@@ -210,13 +244,14 @@ export function LocationAccessProvider({
       requestResolverRef.current = resolve;
     });
     requestPromiseRef.current = requestPromise;
-    consentSyncGeneration.current += 1;
+    const generation = ++consentSyncGeneration.current;
 
     setConsentError(null);
     setRequesting(true);
     // Read the authenticated user's consent, not the previous session's cache.
     void fetchLocationConsent()
         .then((serverConsent) => {
+          if (generation !== consentSyncGeneration.current) return;
           const consent = serverConsent ? {
             status: serverConsent.status,
             termsVersion: serverConsent.termsVersion,
@@ -230,6 +265,7 @@ export function LocationAccessProvider({
           if (acceptedOnServer) return resolveDeviceLocation();
           if (isPausedLocationConsent(consent) && serverConsent?.ageConfirmed) {
             return updateLocationConsent("accepted", true).then(() => {
+              if (generation !== consentSyncGeneration.current) return;
               acceptLocationConsent();
               return resolveDeviceLocation();
             });
@@ -238,6 +274,7 @@ export function LocationAccessProvider({
           setConsentSheetOpen(true);
         })
         .catch((error) => {
+          if (generation !== consentSyncGeneration.current) return;
           setRequesting(false);
           setConsentSheetOpen(true);
           setConsentError(
@@ -286,14 +323,17 @@ export function LocationAccessProvider({
   );
 
   const agreeAndRequest = useCallback(() => {
+    const generation = ++consentSyncGeneration.current;
     setConsentError(null);
     setRequesting(true);
     void updateLocationConsent("accepted", true)
       .then(() => {
+        if (generation !== consentSyncGeneration.current) return;
         acceptLocationConsent();
         return resolveDeviceLocation();
       })
       .catch((error) => {
+        if (generation !== consentSyncGeneration.current) return;
         setRequesting(false);
         setConsentError(
           error instanceof Error
@@ -304,22 +344,40 @@ export function LocationAccessProvider({
   }, [acceptLocationConsent, resolveDeviceLocation]);
 
   const withdrawLocation = useCallback(async () => {
-    await updateLocationConsent("withdrawn");
-    withdrawLocationConsent();
+    deviceRequestGeneration.current += 1;
+    consentSyncGeneration.current += 1;
+    clearUserLocation();
     clearLocationQueries();
-    pendingLocationResultRef.current = null;
+    finishRequest({ status: "declined" });
+    setRequesting(true);
+    setConsentSheetOpen(false);
+    try {
+      await updateLocationConsent("withdrawn");
+      withdrawLocationConsent();
+    } finally {
+      setRequesting(false);
+    }
     setRegionSheetDismissible(true);
     setRegionSheetOpen(true);
-  }, [clearLocationQueries, withdrawLocationConsent]);
+  }, [clearLocationQueries, clearUserLocation, finishRequest, withdrawLocationConsent]);
 
   const pauseLocation = useCallback(async () => {
-    await updateLocationConsent("paused");
-    pauseLocationConsent();
+    deviceRequestGeneration.current += 1;
+    consentSyncGeneration.current += 1;
+    clearUserLocation();
     clearLocationQueries();
-    pendingLocationResultRef.current = null;
+    finishRequest({ status: "declined" });
+    setRequesting(true);
+    setConsentSheetOpen(false);
+    try {
+      await updateLocationConsent("paused");
+      pauseLocationConsent();
+    } finally {
+      setRequesting(false);
+    }
     setRegionSheetDismissible(true);
     setRegionSheetOpen(true);
-  }, [clearLocationQueries, pauseLocationConsent]);
+  }, [clearLocationQueries, clearUserLocation, finishRequest, pauseLocationConsent]);
 
   const value = useMemo(
     () => ({

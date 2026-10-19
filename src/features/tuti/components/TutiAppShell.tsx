@@ -6,9 +6,9 @@ import { NativeOAuthCallbackHandler } from "@/features/tuti/components/NativeOAu
 import { LocationAccessProvider } from "@/features/tuti/location/LocationAccessProvider";
 import { LocalNotificationHandler } from "@/features/tuti/components/LocalNotificationHandler";
 import { PushNotificationHandler } from "@/features/tuti/components/PushNotificationHandler";
-import { PrivacyUpdateNotice } from "@/features/tuti/components/PrivacyUpdateNotice";
 import { GentleLoginNudge } from "@/features/tuti/components/GentleLoginNudge";
 import { NativeAppUpdateNotice } from "@/features/tuti/components/NativeAppUpdateNotice";
+import { ServiceTermsNotice } from "@/features/legal/ServiceTermsNotice";
 
 export function TutiAppShell({ children }: { children: React.ReactNode }) {
   return (
@@ -18,7 +18,7 @@ export function TutiAppShell({ children }: { children: React.ReactNode }) {
         <LocalNotificationHandler />
         <PushNotificationHandler />
         <NativeAppUpdateNotice />
-        <PrivacyUpdateNotice />
+        <ServiceTermsNotice />
         <GentleLoginNudge />
         <LocationAccessProvider>{children}</LocationAccessProvider>
       </AppFrame>

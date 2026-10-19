@@ -8,9 +8,10 @@ import {
 } from "@/server/http/rateLimit";
 import { recordTrafficObservationSafely } from "@/server/security/trafficObservation";
 import { findActiveTrafficBlock } from "@/server/security/trafficSecurity";
+import { guardServiceTerms, isLegalRightsRequest } from "@/server/legal/requestGuard";
 
 export async function proxy(request: NextRequest, event: NextFetchEvent) {
-  if (!shouldBypassTrafficSecurity(request.nextUrl.pathname)) {
+  if (!(await shouldBypassTrafficSecurity(request))) {
     try {
       const block = await findActiveTrafficBlock(request);
       if (block) {
@@ -23,6 +24,9 @@ export async function proxy(request: NextRequest, event: NextFetchEvent) {
       });
     }
   }
+
+  const termsResponse = await guardServiceTerms(request);
+  if (termsResponse) return termsResponse;
 
   const policy = selectApiRateLimitPolicy(
     request.nextUrl.pathname,
@@ -123,8 +127,10 @@ function createBlockedResponse(request: NextRequest) {
   return response;
 }
 
-function shouldBypassTrafficSecurity(pathname: string) {
+async function shouldBypassTrafficSecurity(request: NextRequest) {
+  const pathname = request.nextUrl.pathname;
   return (
+    await isLegalRightsRequest(request) ||
     pathname === "/api/health" ||
     pathname.startsWith("/api/admin/") ||
     pathname === "/admin" ||

@@ -1,0 +1,13 @@
+#!/bin/sh
+set -eu
+project_dir="/var/services/homes/Tutiadmin/source/Tuti"
+backup_root="${TUTI_FULL_BACKUP_ROOT:-/volume1/tuti/backups/full}"
+case "$#:$*" in 0:) ;; 1:--apply) ;; *) echo "사용법: tuti-prod-backup-prune [--apply]" >&2; exit 1 ;; esac
+case "$backup_root" in /volume1/tuti/backups/full | /volumeUSB*/*) ;; *) echo "허용되지 않은 백업 경로입니다." >&2; exit 1 ;; esac
+cd "$project_dir"
+install -d -o root -g root -m 0700 "$project_dir/.ops-state"
+exec 9>"$project_dir/.ops-state/maintenance.lock"
+/usr/bin/flock --exclusive --nonblock 9 || exit 0
+if [ -f "$project_dir/.ops-state/restore-privacy/pending.env" ]; then echo "복원 검토 중에는 백업을 파기하지 않습니다." >&2; exit 1; fi
+docker compose --env-file .env.production -f docker-compose.prod.yml run --rm --no-deps -T \
+  -v "$backup_root:/backup-retention" ops node_modules/.bin/tsx scripts/prune-production-backups.ts --days=30 "$@"

@@ -1,7 +1,7 @@
 import { apiUrl } from "@/lib/api/apiUrl";
 import { RecommendationRequestError, requestRecommendationResponse } from "@/lib/api/recommendationError";
 export { RecommendationRequestError } from "@/lib/api/recommendationError";
-import { fetchWithSession } from "@/lib/auth/session";
+import { fetchWithPinnedSession, fetchWithSession } from "@/lib/auth/session";
 import { Capacitor } from "@capacitor/core";
 import type {
   DeparturePlan,
@@ -66,7 +66,7 @@ export async function updateLocationConsent(
   ageConfirmed = false,
 ) {
   const platform = Capacitor.getPlatform();
-  const response = await fetchWithSession("location-consent", {
+  const response = await fetchWithPinnedSession("location-consent", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
@@ -86,7 +86,7 @@ export async function updateLocationConsent(
 }
 
 export async function fetchLocationConsent() {
-  const response = await fetchWithSession("location-consent");
+  const response = await fetchWithPinnedSession("location-consent", { cache: "no-store" });
   if (!response.ok) {
     throw new Error(
       await readApiError(response, "위치정보 동의 상태를 확인하지 못했어요."),
@@ -96,7 +96,7 @@ export async function fetchLocationConsent() {
 }
 
 export async function fetchLocationHistory() {
-  const response = await fetchWithSession("location-history");
+  const response = await fetchWithPinnedSession("location-history", { cache: "no-store" });
   if (!response.ok) {
     throw new Error(
       await readApiError(response, "위치정보 이용내역을 불러오지 못했어요."),

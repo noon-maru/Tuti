@@ -78,6 +78,13 @@ export const privacyPolicyFrom20261010 = {
   title: "Tuti 개인정보 처리방침",
   summary:
     "눈마루는 Tuti 제공과 서비스 보호에 필요한 정보만 처리하며, 원본 위치 좌표·IP 주소·전체 User-Agent를 계정이나 보안 기록에 장기 저장하지 않습니다.",
+  sections: upcomingPrivacySecurityPolicy.sections.map((section) => section.title === retention.title ? {
+    ...section,
+    paragraphs: [
+      ...section.paragraphs,
+      "위치정보 이용 동의를 전부 철회하면 위치정보법 제24조제4항에 따라 해당 개인위치정보와 수집·이용·제공사실 확인자료를 지체 없이 파기합니다. 통상 6개월 보존기간이 남아 있더라도 철회 대상 확인자료를 계속 보관하지 않습니다.",
+    ],
+  } : section),
   appendix: [
     "시행일: 2026년 10월 10일",
     "개인정보 처리방침 버전: 2026-10-10",

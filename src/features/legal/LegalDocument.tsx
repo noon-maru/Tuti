@@ -3,6 +3,7 @@
 import styled from "@emotion/styled";
 import Link from "next/link";
 import { BackLink } from "@/features/tuti/components/buttons";
+import { PublishedServiceTermsLink } from "@/features/legal/PublishedServiceTermsLink";
 
 type LegalSection = {
   title: string;
@@ -16,6 +17,7 @@ export function LegalDocument({
   announcement,
   sections,
   appendix,
+  documentNavigation,
 }: {
   title: string;
   effectiveDate: string;
@@ -28,6 +30,7 @@ export function LegalDocument({
   };
   sections: readonly LegalSection[];
   appendix: readonly string[];
+  documentNavigation?: React.ReactNode;
 }) {
   return (
     <Page>
@@ -39,6 +42,7 @@ export function LegalDocument({
           <p>시행일 {effectiveDate}</p>
         </div>
       </Header>
+      {documentNavigation && <Navigation aria-label="약관 시행 구분">{documentNavigation}</Navigation>}
       {announcement && (
         <Announcement>
           <strong>{announcement.title}</strong>
@@ -48,6 +52,7 @@ export function LegalDocument({
       )}
       {summary && <Summary>{summary}</Summary>}
       <Navigation aria-label="법적 문서">
+        <PublishedServiceTermsLink />
         <Link href="/legal/privacy">개인정보 처리방침</Link>
         <Link href="/legal/location-terms">위치기반서비스 이용약관</Link>
         <Link href="/legal/community-guidelines">기록 공개 운영정책</Link>

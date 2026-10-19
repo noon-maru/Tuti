@@ -8,6 +8,7 @@ import {
 } from "@/server/http/cors";
 import { serializeJournalImage } from "@/server/journal/imageStorage";
 import type { AdminUserJournalsResponse } from "@/shared/api/admin";
+import { parseAdminJournalAccess } from "@/shared/legal/adminJournalAccess";
 
 export const runtime = "nodejs";
 
@@ -15,6 +16,13 @@ const PAGE_SIZE = 20;
 const USER_ID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export async function GET(request: Request) {
+  return withCors(request, Response.json({ error: "조회 목적 확인 후 다시 요청해주세요." }, {
+    status: 405,
+    headers: { Allow: "POST, OPTIONS", "Cache-Control": "private, no-store" },
+  }));
+}
+
+export async function POST(request: Request) {
   const respond = (body: unknown, status = 200) => withCors(
     request,
     Response.json(body, { status, headers: { "Cache-Control": "private, no-store" } }),
@@ -35,6 +43,9 @@ export async function GET(request: Request) {
   if (!USER_ID_PATTERN.test(userId) || !Number.isSafeInteger(requestedPage) || requestedPage < 1) {
     return respond({ error: "사용자와 페이지 정보를 확인해주세요." }, 400);
   }
+  // 조회 사유를 URL·접속 로그에 노출하지 않고 요청 본문으로 받는다.
+  const access = parseAdminJournalAccess(await request.json().catch(() => null));
+  if (!access) return respond({ error: "조회 목적과 처리 번호를 확인해주세요. 번호에는 영문·숫자·밑줄·하이픈만 사용해주세요(3~80자)." }, 400);
 
   try {
     const user = await prisma.user.findUnique({ where: { id: userId }, select: { id: true } });
@@ -85,7 +96,7 @@ export async function GET(request: Request) {
       actorUserId: authentication.user.id,
       targetType: "user",
       targetId: userId,
-      metadata: { page, resultCount: entries.length, total, entryIds: entries.map((entry) => entry.id).join(",") },
+      metadata: { ...access, page, resultCount: entries.length, total, entryIds: entries.map((entry) => entry.id).join(",") },
     });
 
     return respond(response);

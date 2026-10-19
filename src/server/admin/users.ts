@@ -5,6 +5,8 @@ import { prisma } from "@/server/db/prisma";
 import type { LocationSecurityAuditData } from "@/server/location/securityAudit";
 import { getRequiredAuthEnv } from "@/server/auth/config";
 import { revokeAppleRefreshToken } from "@/server/auth/appleOAuth";
+import { lockLocationSubject } from "@/server/location/subjectLock";
+import { commitPrivacyReplayReceipt, preparePrivacyReplayReceipt, privacyReplayEnabled } from "@/server/legal/privacyReplayLedger";
 
 export async function forceDeleteUser(
   userId: string,
@@ -22,14 +24,22 @@ export async function deleteUserAccount(userId: string) {
   });
 }
 
+// 복원 후 앱이 중지된 상태에서만 사용하는 내부 정리 경로. 이미 철회한 Apple 토큰을
+// 외부로 다시 보내지 않고, 기존 원장 기록을 새 삭제 요청으로 복제하지 않는다.
+export async function replayDeletedUserAccount(userId: string) {
+  return deleteUserRecord(userId, { requireCompleteImageDeletion: true, replay: true });
+}
+
 async function deleteUserRecord(
   userId: string,
   {
     permissionAudit,
     requireCompleteImageDeletion,
+    replay = false,
   }: {
     permissionAudit?: LocationSecurityAuditData;
     requireCompleteImageDeletion: boolean;
+    replay?: boolean;
   },
 ) {
   const user = await prisma.user.findUnique({
@@ -57,6 +67,7 @@ async function deleteUserRecord(
   });
 
   if (!user) return null;
+  const replayReceipt = replay ? null : await preparePrivacyReplayReceipt("account_deleted", userId);
 
   const accountEmails = Array.from(
     new Set(
@@ -87,7 +98,7 @@ async function deleteUserRecord(
     }
   }
 
-  if (requireCompleteImageDeletion && failedImageDeletions.length > 0) {
+  if ((requireCompleteImageDeletion || privacyReplayEnabled()) && failedImageDeletions.length > 0) {
     throw new Error("계정 이미지 전체를 삭제하지 못했습니다.");
   }
 
@@ -97,7 +108,7 @@ async function deleteUserRecord(
       ? [identity.providerRefreshTokenEncrypted]
       : [],
   );
-  if (appleRefreshTokens.length > 0) {
+  if (!replay && appleRefreshTokens.length > 0) {
     const appleConfiguration = {
       clientId: getRequiredAuthEnv("APPLE_CLIENT_ID"),
       teamId: getRequiredAuthEnv("APPLE_TEAM_ID"),
@@ -111,6 +122,13 @@ async function deleteUserRecord(
   }
 
   await prisma.$transaction(async (transaction) => {
+    await lockLocationSubject(transaction, userId);
+    if (process.env.LEGAL_RIGHTS_WORKFLOW_ENABLED === "true") {
+      await transaction.journalRightsNotice.updateMany({
+        where: { recipientUserId: userId },
+        data: { recipientUserId: null, recipientEmail: null },
+      });
+    }
     await transaction.journalShareTrace.deleteMany({
       where: {
         OR: [
@@ -184,24 +202,12 @@ async function deleteUserRecord(
       },
     });
 
-    // 법정 보존 대상 위치 이용 기록은 원래 사용자 식별자와의 연결만 끊는다.
-    // 같은 삭제 건의 동의·이용 기록끼리만 연결되도록 임의 키로 교체한다.
-    const retainedLocationSubjectKey = createHash("sha256")
-      .update(`deleted-location-subject:${randomUUID()}`)
-      .digest("hex");
-    await transaction.locationUsageLog.updateMany({
+    // 계정 삭제는 위치 이용 종료·전부 철회로 처리한다.
+    await transaction.locationUsageLog.deleteMany({
       where: { userId },
-      data: {
-        userId: null,
-        subjectKey: retainedLocationSubjectKey,
-      },
     });
-    await transaction.locationConsentEvent.updateMany({
+    await transaction.locationConsentEvent.deleteMany({
       where: { userId },
-      data: {
-        userId: null,
-        subjectKey: retainedLocationSubjectKey,
-      },
     });
     await transaction.user.delete({ where: { id: userId } });
     if (permissionAudit) {
@@ -211,11 +217,13 @@ async function deleteUserRecord(
     }
   });
 
+  await commitPrivacyReplayReceipt(replayReceipt);
+
   return {
     id: user.id,
     role: user.role,
     deletedJournalCount: user.journalEntries.length,
     failedImageDeletionCount: failedImageDeletions.length,
-    revokedAppleIdentityCount: appleRefreshTokens.length,
+    revokedAppleIdentityCount: replay ? 0 : appleRefreshTokens.length,
   };
 }

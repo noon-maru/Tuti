@@ -9,6 +9,33 @@ permissions:
   contents: read
 
 jobs:
+  legal-postgres:
+    # 운영 NAS·self-hosted runner·운영 접속정보를 사용하지 않는 일회성 검증.
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      POSTGRES_BIN_DIR: /usr/lib/postgresql/17/bin
+      LEGAL_POSTGRES_REQUIRED: 'true'
+      LEGAL_POSTGRES_EXPECTED_MAJOR: '17'
+    steps:
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v6
+        with:
+          version: 11.2.2
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: pnpm
+      - name: PostgreSQL 17 시험용 실행 파일 설치
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y postgresql-common
+          sudo /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh -y
+          sudo apt-get update
+          sudo apt-get install -y postgresql-17
+      - run: pnpm install --frozen-lockfile
+      - name: 약관·권리 보호 SQL 제약과 백업 복원 검증
+        run: pnpm test:legal:postgres
   verify:
     runs-on: ubuntu-latest
     timeout-minutes: 20

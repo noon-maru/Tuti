@@ -12,6 +12,13 @@ fi
 trap 'rmdir "$lock_dir" 2>/dev/null || true' EXIT HUP INT TERM
 
 cd "$project_dir"
+install -d -o root -g root -m 0700 "$project_dir/.ops-state"
+exec 9>"$project_dir/.ops-state/maintenance.lock"
+/usr/bin/flock --shared --nonblock 9 || exit 0
+if [ -f "$project_dir/.ops-state/restore-privacy/pending.env" ]; then
+  echo "복원 확인 대기 중이므로 개인정보 정기 파기를 보류합니다."
+  exit 0
+fi
 
 echo "개발 DB의 만료 기록 공개 운영자료 파기"
 docker compose -f docker-compose.dev.yml exec -T app \

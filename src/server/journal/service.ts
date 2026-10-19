@@ -20,6 +20,7 @@ import type {
   TutiJournalEntry,
 } from "@/shared/api/journal";
 import { isCurrentJournalPublicationPolicy } from "@/shared/legal/journalPublicationPolicy";
+import { commitPrivacyReplayReceipt, preparePrivacyReplayReceipt, privacyReplayEnabled } from "@/server/legal/privacyReplayLedger";
 
 export async function getJournalEntries(
   ownerId: string,
@@ -190,6 +191,8 @@ export async function deleteJournalEntry(
   });
 
   if (!entry) return false;
+  const replayReceipt = await preparePrivacyReplayReceipt("journal_deleted", ownerId, new Date(), entryId);
+  if (privacyReplayEnabled()) await deleteStoredJournalImage(entry.image);
 
   const result = await prisma.$transaction(async (transaction) => {
     await transaction.journalShareTrace.deleteMany({ where: { entryId } });
@@ -202,9 +205,10 @@ export async function deleteJournalEntry(
       where: { id: entryId, ownerId },
     });
   });
+  await commitPrivacyReplayReceipt(replayReceipt);
 
   if (result.count > 0) {
-    await cleanupReplacedImage(entry.image);
+    if (!privacyReplayEnabled()) await cleanupReplacedImage(entry.image);
     await writeSystemLogSafely({
       category: "journal",
       action: "journal.deleted",
@@ -218,13 +222,15 @@ export async function deleteJournalEntry(
   return result.count > 0;
 }
 
-export async function forceDeleteJournalEntry(entryId: string) {
+export async function forceDeleteJournalEntry(entryId: string, replay = false) {
   const entry = await prisma.journalEntry.findUnique({
     where: { id: entryId },
-    select: { image: true },
+    select: { image: true, ownerId: true },
   });
 
   if (!entry) return false;
+  const replayReceipt = replay ? null : await preparePrivacyReplayReceipt("journal_deleted", entry.ownerId, new Date(), entryId);
+  if (replay || privacyReplayEnabled()) await deleteStoredJournalImage(entry.image);
 
   await prisma.$transaction(async (transaction) => {
     await transaction.journalShareTrace.deleteMany({ where: { entryId } });
@@ -234,7 +240,8 @@ export async function forceDeleteJournalEntry(entryId: string) {
     });
     await transaction.journalEntry.delete({ where: { id: entryId } });
   });
-  await cleanupReplacedImage(entry.image);
+  await commitPrivacyReplayReceipt(replayReceipt);
+  if (!replay && !privacyReplayEnabled()) await cleanupReplacedImage(entry.image);
   return true;
 }
 
@@ -257,11 +264,16 @@ export async function setJournalEntryPublication(
     );
   }
 
+  // 이미 비공개인 기록에 대한 재요청도 과거 백업의 공개 링크 복원을 막는다.
+  const replayReceipt = !published && currentEntry.publicationStatus !== "hidden"
+    ? await preparePrivacyReplayReceipt("journal_unpublished", ownerId, new Date(), entryId) : null;
+
   if (
     (published &&
       isJournalEntryPublic(currentEntry)) ||
     (!published && currentEntry.publicationStatus === "private")
   ) {
+    await commitPrivacyReplayReceipt(replayReceipt);
     return serializeJournalEntry(currentEntry);
   }
 
@@ -347,6 +359,8 @@ export async function setJournalEntryPublication(
   });
 
   if (!entry) return null;
+
+  await commitPrivacyReplayReceipt(replayReceipt);
 
   return serializeJournalEntry(entry);
 }

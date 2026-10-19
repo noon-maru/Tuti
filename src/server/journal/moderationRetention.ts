@@ -1,4 +1,5 @@
 import { prisma } from "@/server/db/prisma";
+import { journalRightsEnabled } from "@/server/legal/journalRights";
 
 export const JOURNAL_MODERATION_RETENTION_YEARS = 3;
 
@@ -18,6 +19,7 @@ export async function purgeExpiredJournalModerationRecords(now = new Date()) {
       where: {
         status: { in: ["resolved", "dismissed"] },
         reviewedAt: { lt: cutoff },
+        ...(journalRightsEnabled() ? { OR: [{ rightsCase: null }, { rightsCase: { state: { in: ["closed", "expired"] } } }] } : {}),
       },
     }),
     prisma.systemLog.deleteMany({

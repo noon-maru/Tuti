@@ -47,6 +47,10 @@ if [ "$parent_holds_maintenance_lock" != true ]; then
   fi
   /usr/bin/flock --exclusive 9
 fi
+if [ -f "$project_dir/.ops-state/restore-privacy/pending.env" ]; then
+  echo "DB 복원 후 개인정보 확인 대기 중입니다. 재정리 전 새 백업을 만들지 않습니다." >&2
+  exit 1
+fi
 printf 'backup\n' > "$maintenance_marker"
 chmod 0600 "$maintenance_marker"
 rm -rf "$temporary_dir"
@@ -58,7 +62,7 @@ app_release_before="$(docker inspect tuti-prod --format '{{range .Config.Env}}{{
 cleanup() {
   rm -rf "$temporary_dir"
   rm -f "$maintenance_marker"
-  if [ "$app_was_running" = true ]; then
+  if [ "$app_was_running" = true ] && [ ! -f "$project_dir/.ops-state/restore-privacy/pending.env" ]; then
     TUTI_APP_IMAGE="$app_image_before" TUTI_RELEASE="${app_release_before:-unknown}" \
       docker compose --env-file .env.production -f docker-compose.prod.yml \
       up -d --no-deps app >/dev/null 2>&1 || true
@@ -72,6 +76,11 @@ if [ "$app_was_running" = true ]; then
   echo "DB와 객체의 동일 시점 백업을 위해 운영 앱 쓰기를 잠시 중지합니다."
   docker compose --env-file .env.production -f docker-compose.prod.yml stop app
 fi
+
+echo "완료된 삭제 요청의 잔존 객체 점검·정리"
+docker compose --env-file .env.production -f docker-compose.prod.yml run --rm --no-deps -T \
+  --user 1000:1000 -e TUTI_PRIVACY_REPLAY_OFFLINE=true ops \
+  node_modules/.bin/tsx scripts/privacy-replay.ts --cleanup-objects --apply
 
 echo "운영 PostgreSQL 전체 백업"
 docker compose \

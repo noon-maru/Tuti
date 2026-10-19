@@ -13,6 +13,12 @@ disk_warning_percent="${TUTI_DISK_WARNING_PERCENT:-85}"
 install -d -o root -g root -m 0700 "$state_dir"
 cd "$project_dir"
 
+if [ -f "$project_dir/.ops-state/restore-privacy/pending.env" ]; then
+  printf 'checked_at=%s\nstatus=restore_privacy_review_required\n' "$(date -Iseconds)" > "$log_file"
+  cat "$log_file"
+  exit 0
+fi
+
 exec 9>"$maintenance_lock_file"
 if ! /usr/bin/flock --shared --nonblock 9; then
   printf 'checked_at=%s\nstatus=maintenance\n' "$(date -Iseconds)" > "$log_file"

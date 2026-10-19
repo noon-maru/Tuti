@@ -44,6 +44,14 @@ trap 'rm -f "$maintenance_marker"' EXIT INT TERM
 
 cd "$project_dir"
 echo "앱 이미지를 이전 버전으로 되돌립니다: $previous_image"
+if [ -f "$project_dir/.ops-state/restore-privacy/pending.env" ]; then
+  # 코드 롤백은 준비하되 확인 대기 중인 복원 데이터를 공개하지 않는다.
+  TUTI_APP_IMAGE="$previous_image" TUTI_RELEASE="${previous_release:-rollback}" \
+    docker compose --env-file .env.production -f docker-compose.prod.yml create --no-deps app
+  docker update --restart=no tuti-prod
+  echo "이전 앱 이미지로 교체 준비 완료. DB 복원 후 확인 대기 상태여서 서비스 시작만 보류합니다."
+  exit 0
+fi
 TUTI_APP_IMAGE="$previous_image" TUTI_RELEASE="${previous_release:-rollback}" \
   docker compose --env-file .env.production -f docker-compose.prod.yml \
   up -d --no-deps app

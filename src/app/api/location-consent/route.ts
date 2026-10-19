@@ -45,7 +45,7 @@ export async function GET(request: Request) {
         }
       : null,
   };
-  return withCors(request, Response.json(response));
+  return withCors(request, Response.json(response, { headers: { "Cache-Control": "private, no-store" } }));
 }
 
 export async function POST(request: Request) {
@@ -72,7 +72,7 @@ export async function POST(request: Request) {
         updatedAt: consent.createdAt.toISOString(),
       },
     };
-    return withCors(request, Response.json(response));
+    return withCors(request, Response.json(response, { headers: { "Cache-Control": "private, no-store" } }));
   } catch (error) {
     const complianceError =
       error instanceof LocationComplianceError ? error : null;
@@ -108,7 +108,7 @@ function parseConsentUpdate(value: unknown): LocationConsentUpdate {
   const clientPlatform = normalizePlatform(input.clientPlatform);
   const ageConfirmed = input.ageConfirmed === true;
 
-  if (termsVersion !== LOCATION_TERMS_VERSION) {
+  if (status === "accepted" && termsVersion !== LOCATION_TERMS_VERSION) {
     throw new LocationComplianceError(
       "현재 위치기반서비스 약관을 다시 확인해주세요.",
       "location_consent_outdated",

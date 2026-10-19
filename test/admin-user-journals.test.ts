@@ -57,10 +57,12 @@ const fakePrisma = {
   },
 };
 (globalThis as { prisma?: unknown }).prisma = fakePrisma;
-const { GET } = await import("@/app/api/admin/user-journals/route");
+const { POST, GET } = await import("@/app/api/admin/user-journals/route");
 
-function request(query = `userId=${userId}`, authenticated = true, origin?: string) {
+function request(query = `userId=${userId}`, authenticated = true, origin?: string, body: unknown = { purpose: "support", reference: "INQUIRY-123" }) {
   return new Request(`https://tuti.today/api/admin/user-journals?${query}`, {
+    method: "POST",
+    body: JSON.stringify(body),
     headers: {
       ...(authenticated ? { Authorization: `Bearer ${"a".repeat(40)}` } : {}),
       ...(origin ? { Origin: origin } : {}),
@@ -70,26 +72,34 @@ function request(query = `userId=${userId}`, authenticated = true, origin?: stri
 
 test("관리자 기록 조회의 접근 제어·페이지 이동·감사 기록", async (t) => {
   await t.test("비로그인·일반 사용자·다른 출처는 기록에 접근할 수 없다", async () => {
-    assert.equal((await GET(request("", false))).status, 401);
+    assert.equal((await POST(request("", false))).status, 401);
     role = "user";
-    assert.equal((await GET(request())).status, 403);
+    assert.equal((await POST(request())).status, 403);
     role = "admin";
-    assert.equal((await GET(request(undefined, true, "https://other.example"))).status, 403);
+    assert.equal((await POST(request(undefined, true, "https://other.example"))).status, 403);
     assert.equal(reads, 0);
   });
 
   await t.test("잘못된 입력과 존재하지 않는 사용자는 조회하지 않는다", async () => {
     for (const query of ["", "userId=bad-id", `userId=${userId}&page=0`, `userId=${userId}&page=1.5`]) {
-      assert.equal((await GET(request(query))).status, 400);
+      assert.equal((await POST(request(query))).status, 400);
     }
     targetExists = false;
-    assert.equal((await GET(request())).status, 404);
+    assert.equal((await POST(request())).status, 404);
     targetExists = true;
     assert.equal(reads, 0);
   });
 
+  await t.test("사유 없는 조회·임의 목적·개인정보가 든 처리 번호를 거절한다", async () => {
+    for (const body of [{}, { purpose: "curiosity", reference: "TEST-123" }, { purpose: "support", reference: "user@example.com" }, { purpose: "support", reference: "a" }]) {
+      assert.equal((await POST(request(undefined, true, undefined, body))).status, 400);
+    }
+    assert.equal((await GET(new Request(`https://tuti.today/api/admin/user-journals?userId=${userId}`))).status, 405);
+    assert.equal(reads, 0);
+  });
+
   await t.test("비공개·숨김 기록을 포함하고 이미지에는 서명된 URL을 사용한다", async () => {
-    const response = await GET(request());
+    const response = await POST(request());
     assert.equal(response.status, 200);
     assert.match(response.headers.get("cache-control") ?? "", /no-store/);
     const body = await response.json();
@@ -104,12 +114,14 @@ test("관리자 기록 조회의 접근 제어·페이지 이동·감사 기록"
     const audit = JSON.stringify(audits.at(-1));
     assert.match(audit, /journal.admin.viewed/);
     assert.match(audit, /test-operator/);
+    assert.match(audit, /INQUIRY-123/);
+    assert.match(audit, /support/);
     assert.match(audit, new RegExp(userId));
     assert.doesNotMatch(audit, /개인 기록 본문|비공개 기록 제목|signature|private-image/);
   });
 
   await t.test("페이지 범위를 제한해 마지막 기록까지 조회한다", async () => {
-    const body = await (await GET(request(`userId=${userId}&page=999`))).json();
+    const body = await (await POST(request(`userId=${userId}&page=999`))).json();
     assert.equal(body.page, 2);
     assert.equal(body.totalPages, 2);
     assert.equal(body.entries.length, 1);
@@ -120,7 +132,7 @@ test("관리자 기록 조회의 접근 제어·페이지 이동·감사 기록"
   await t.test("감사 로그를 저장하지 못하면 비공개 내용을 반환하지 않는다", async (t) => {
     auditFails = true;
     t.mock.method(console, "error", () => {});
-    const response = await GET(request());
+    const response = await POST(request());
     assert.equal(response.status, 500);
     const body = await response.json();
     assert.equal(body.entries, undefined);

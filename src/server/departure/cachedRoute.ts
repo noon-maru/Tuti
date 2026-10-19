@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { ExpiringCache } from "@/server/cache/expiringCache";
 import { fetchKakaoMapRoute } from "@/server/maps/kakaoMapClient";
 import { fetchKakaoDrivingRoute } from "@/server/maps/kakaoNaviClient";
 import type {
@@ -16,10 +17,7 @@ type RouteInput = {
   destinationName: string;
 };
 
-const routeCache = new Map<
-  string,
-  { expiresAt: number; route: Promise<DepartureRoute> }
->();
+const routeCache = new ExpiringCache<string, Promise<DepartureRoute>>(MAX_ROUTE_CACHE_ENTRIES);
 
 export function fetchCachedRoute(
   mode: DepartureRouteMode,
@@ -27,21 +25,17 @@ export function fetchCachedRoute(
 ) {
   const key = createRouteCacheKey(mode, input.origin, input.destination);
   const cached = routeCache.get(key);
-  if (cached && cached.expiresAt > Date.now()) return cached.route;
-  if (cached) routeCache.delete(key);
+  if (cached) return cached;
 
   const route = (mode === "driving"
     ? fetchKakaoDrivingRoute(input)
     : fetchKakaoMapRoute(mode, input)
   ).catch((error) => {
-    routeCache.delete(key);
+    // 과거 요청의 지연 실패가 같은 키의 새 요청까지 지우지 않도록 한다.
+    routeCache.deleteIfValue(key, route);
     throw error;
   });
-  routeCache.set(key, {
-    expiresAt: Date.now() + ROUTE_CACHE_TTL_MS,
-    route,
-  });
-  trimRouteCache();
+  routeCache.set(key, route, ROUTE_CACHE_TTL_MS);
   return route;
 }
 
@@ -55,16 +49,4 @@ function createRouteCacheKey(
       `${latitude.toFixed(4)},${longitude.toFixed(4)}`)
     .join("|");
   return createHash("sha256").update(`${mode}:${location}`).digest("hex");
-}
-
-function trimRouteCache() {
-  const now = Date.now();
-  for (const [key, value] of routeCache) {
-    if (value.expiresAt <= now) routeCache.delete(key);
-  }
-  while (routeCache.size > MAX_ROUTE_CACHE_ENTRIES) {
-    const oldestKey = routeCache.keys().next().value;
-    if (typeof oldestKey !== "string") break;
-    routeCache.delete(oldestKey);
-  }
 }

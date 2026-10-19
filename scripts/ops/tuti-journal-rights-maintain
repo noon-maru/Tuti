@@ -1,0 +1,23 @@
+#!/bin/sh
+set -eu
+
+# Root-owned installed copy only; arguments never select an arbitrary command/image/path.
+project_dir="/var/services/homes/Tutiadmin/source/Tuti"
+case "$#:$*" in
+  0:) ;;
+  1:--apply) ;;
+  *) echo "사용법: tuti-journal-rights-maintain [--apply]" >&2; exit 1 ;;
+esac
+cd "$project_dir"
+install -d -o root -g root -m 0700 "$project_dir/.ops-state"
+exec 9>"$project_dir/.ops-state/maintenance.lock"
+/usr/bin/flock --shared --nonblock 9 || exit 0
+exec 8>"$project_dir/.ops-state/journal-rights.lock"
+/usr/bin/flock --exclusive --nonblock 8 || exit 0
+if [ -f "$project_dir/.ops-state/restore-privacy/pending.env" ]; then
+  echo "복원 자료 권리 요청 재반영 확인 전에는 기한 점검을 실행할 수 없습니다." >&2
+  exit 1
+fi
+# Reuse the deployed ops image. Never build on the NAS or use development DB credentials.
+docker compose --env-file .env.production -f docker-compose.prod.yml \
+  run --rm --no-deps -T ops node_modules/.bin/tsx scripts/maintain-journal-rights.ts "$@"

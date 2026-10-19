@@ -21,12 +21,14 @@ services:
       - .env.production
     environment:
       TUTI_RELEASE: ${TUTI_RELEASE:-unknown}
+      PRIVACY_REPLAY_LEDGER_PATH: /run/tuti/privacy-ledger
       GOOGLE_APPLICATION_CREDENTIALS: /run/secrets/tuti-firebase-service-account.json
       APNS_PRIVATE_KEY_PATH: /run/secrets/tuti-apns-auth-key.p8
     restart: unless-stopped
     ports:
       - "5050:3000"
     volumes:
+      - ${TUTI_PRIVACY_LEDGER_HOST_PATH:-/var/services/homes/Tutiadmin/.tuti-secrets/privacy-ledger}:/run/tuti/privacy-ledger
       - ${FIREBASE_SERVICE_ACCOUNT_HOST_PATH:-/var/services/homes/Tutiadmin/.tuti-secrets/firebase/tuti-push-sender.json}:/run/secrets/tuti-firebase-service-account.json:ro
       - ${APNS_PRIVATE_KEY_HOST_PATH:-/var/services/homes/Tutiadmin/.tuti-secrets/apple/tuti-apns-auth-key.p8}:/run/secrets/tuti-apns-auth-key.p8:ro
     group_add:
@@ -65,6 +67,10 @@ services:
     env_file:
       - .env
       - .env.production
+    environment:
+      PRIVACY_REPLAY_LEDGER_PATH: /run/tuti/privacy-ledger
+    volumes:
+      - ${TUTI_PRIVACY_LEDGER_HOST_PATH:-/var/services/homes/Tutiadmin/.tuti-secrets/privacy-ledger}:/run/tuti/privacy-ledger
     depends_on:
       db:
         condition: service_healthy

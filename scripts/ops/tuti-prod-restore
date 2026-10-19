@@ -9,6 +9,113 @@ maintenance_lock_file="$project_dir/.ops-state/maintenance.lock"
 backup_root="${TUTI_FULL_BACKUP_ROOT:-/volume1/tuti/backups/full}"
 backup_id="${1:-}"
 confirmation="${2:-}"
+privacy_dir="$project_dir/.ops-state/restore-privacy"
+privacy_pending="$privacy_dir/pending.env"
+
+case "$backup_root" in
+  /volume1/tuti/backups/full | /volumeUSB*/*) ;;
+  *) echo "허용되지 않은 백업 경로입니다." >&2; exit 1 ;;
+esac
+
+# 별도 원장의 완료된 요청은 재개 직전에 재반영한다. 미수집 과거 범위·미완료 요청·
+# 스키마 호환성 확인은 자동으로 승인하지 않는다.
+if [ "$backup_id" = "--resume-reviewed" ]; then
+  reviewed_id="$confirmation"
+  review_reference="${3:-}"
+  legacy_ledger_review="${4:-}"
+  case "$legacy_ledger_review" in "" | --allow-legacy-ledger) ;; *) echo "허용되지 않은 재개 옵션입니다." >&2; exit 1 ;; esac
+  case "$review_reference" in
+    "" | *[!a-zA-Z0-9_-]*) echo "재정리 확인 근거 번호가 필요합니다." >&2; exit 1 ;;
+  esac
+  if [ "${#review_reference}" -lt 3 ] || [ "${#review_reference}" -gt 100 ]; then
+    echo "확인 근거 번호는 3~100자로 입력해주세요." >&2; exit 1
+  fi
+  install -d -o root -g root -m 0700 "$maintenance_dir" "$privacy_dir"
+  exec 9>"$maintenance_lock_file"
+  /usr/bin/flock --exclusive 9
+  if [ ! -f "$privacy_pending" ] || \
+     [ "$(sed -n 's/^backup_id=//p' "$privacy_pending")" != "$reviewed_id" ] || \
+     [ "$(sed -n 's/^status=//p' "$privacy_pending")" != "restored_pending_review" ]; then
+    echo "파일 복원이 완료된 동일 백업의 확인 대기 건이 필요합니다." >&2; exit 1
+  fi
+  cd "$project_dir"
+  docker compose --env-file .env.production -f docker-compose.prod.yml stop app
+  docker update --restart=no tuti-prod
+  ledger_required="$(sed -n 's/^privacy_ledger_required=//p' "$privacy_pending")"
+  ledger_mode="$(docker compose --env-file .env.production -f docker-compose.prod.yml run --rm --no-deps -T --user 1000:1000 ops node_modules/.bin/tsx scripts/privacy-replay.ts --mode)"
+  case "$ledger_mode" in enabled | disabled) ;; *) echo "복원 방지 원장 실행 환경을 확인해주세요." >&2; exit 1 ;; esac
+  if [ "$ledger_required" = true ] || [ "$ledger_mode" = enabled ]; then
+    restored_backup="$backup_root/$reviewed_id"
+    backup_created_at="$(sed -n 's/^created_at=//p' "$restored_backup/manifest.txt")"
+    if [ -z "$backup_created_at" ]; then echo "백업 manifest 생성 시각이 필요합니다." >&2; exit 1; fi
+    set -- "--backup-at=$backup_created_at" --apply
+    if [ "$legacy_ledger_review" = --allow-legacy-ledger ]; then set -- "$@" "--legacy-review=$review_reference"; fi
+    docker compose --env-file .env.production -f docker-compose.prod.yml run --rm --no-deps -T \
+      --user 1000:1000 -e TUTI_PRIVACY_REPLAY_OFFLINE=true ops \
+      node_modules/.bin/tsx scripts/privacy-replay.ts "$@"
+  fi
+  app_image="$(docker inspect tuti-prod --format '{{.Config.Image}}')"
+  app_release="$(docker inspect tuti-prod --format '{{range .Config.Env}}{{println .}}{{end}}' | sed -n 's/^TUTI_RELEASE=//p' | head -n 1)"
+  case "$app_image" in tuti:prod | tuti:prod-*) ;; *) echo "재개할 운영 이미지를 확인해주세요." >&2; exit 1 ;; esac
+  case "$app_release" in *[!a-zA-Z0-9_.-]* | "") app_release=restored ;; esac
+  review_file="$privacy_dir/review-$(date +%Y%m%d-%H%M%S)-$$.env"
+  printf 'backup_id=%s\nreview_reference=%s\nreviewed_at=%s\nimage=%s\nlegacy_ledger_review=%s\n' \
+    "$reviewed_id" "$review_reference" "$(date -Iseconds)" "$app_image" "$legacy_ledger_review" > "$review_file"
+  chmod 0600 "$review_file"
+  resume_ok=false
+  resume_cleanup() {
+    if [ "$resume_ok" != true ]; then
+      docker compose --env-file .env.production -f docker-compose.prod.yml stop app >/dev/null 2>&1 || true
+      docker update --restart=no tuti-prod >/dev/null 2>&1 || true
+    fi
+  }
+  trap resume_cleanup EXIT
+  trap 'exit 130' INT
+  trap 'exit 143' TERM
+  # 실패 시 컨테이너를 멈춘 채 pending을 유지한다. EXIT trap으로 재시작하지 않는다.
+  if ! TUTI_APP_IMAGE="$app_image" TUTI_RELEASE="$app_release" \
+    docker compose --env-file .env.production -f docker-compose.prod.yml up -d --no-deps app; then
+    docker compose --env-file .env.production -f docker-compose.prod.yml stop app || true
+    exit 1
+  fi
+  ready=false
+  attempt=1
+  while [ "$attempt" -le 12 ]; do
+    if docker compose --env-file .env.production -f docker-compose.prod.yml exec -T app node -e \
+      'fetch("http://127.0.0.1:3000/api/health").then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))'; then
+      ready=true
+      break
+    fi
+    sleep 5
+    attempt=$((attempt + 1))
+  done
+  if [ "$ready" != true ]; then
+    docker compose --env-file .env.production -f docker-compose.prod.yml stop app || true
+    echo "재개 점검에 실패했습니다. 확인 대기 상태를 유지합니다." >&2; exit 1
+  fi
+  docker update --restart=unless-stopped tuti-prod
+  state_file="$project_dir/.ops-state/deploy/releases.env"
+  if [ -f "$state_file" ]; then
+    old_image="$(sed -n 's/^current_image=//p' "$state_file" | head -n 1)"
+    old_release="$(sed -n 's/^current_release=//p' "$state_file" | head -n 1)"
+    if [ "$old_image" = "$app_image" ]; then
+      old_image="$(sed -n 's/^previous_image=//p' "$state_file" | head -n 1)"
+      old_release="$(sed -n 's/^previous_release=//p' "$state_file" | head -n 1)"
+    fi
+    printf 'current_image=%s\ncurrent_ops_image=\ncurrent_release=%s\nprevious_image=%s\nprevious_release=%s\ndeployed_at=%s\n' \
+      "$app_image" "$app_release" "$old_image" "$old_release" "$(date -Iseconds)" > "$state_file"
+    chmod 0600 "$state_file"
+  fi
+  mv "$privacy_pending" "$review_file.completed"
+  resume_ok=true
+  trap - EXIT INT TERM
+  echo "개인정보 재정리 확인 후 서비스 재개: $reviewed_id ($review_reference)"
+  exit 0
+fi
+
+case "$backup_id" in
+  *[!0-9-]*) echo "백업 ID는 YYYYMMDD-HHMMSS 형식이어야 합니다." >&2; exit 1 ;;
+esac
 
 case "$backup_id" in
   ????????-??????)
@@ -36,20 +143,37 @@ fi
 cd "$backup_dir"
 sha256sum -c checksums.sha256
 cd "$project_dir"
-install -d -o root -g root -m 0700 "$maintenance_dir"
+install -d -o root -g root -m 0700 "$maintenance_dir" "$privacy_dir"
 exec 9>"$maintenance_lock_file"
 /usr/bin/flock --exclusive 9
+if [ -f "$privacy_pending" ] && [ "$(sed -n 's/^backup_id=//p' "$privacy_pending")" != "$backup_id" ]; then
+  echo "다른 백업 복원의 확인 대기 건이 있습니다. 먼저 상태를 확인해주세요." >&2; exit 1
+fi
 printf 'restore\n' > "$maintenance_marker"
 chmod 0600 "$maintenance_marker"
 
-restart_app() {
+cleanup() {
   rm -f "$maintenance_marker"
-  docker compose --env-file .env.production -f docker-compose.prod.yml up -d --no-deps app >/dev/null 2>&1 || true
 }
-trap restart_app EXIT INT TERM
+trap cleanup EXIT
+trap 'exit 130' INT
+trap 'exit 143' TERM
 
 echo "운영 앱 중지"
 docker compose --env-file .env.production -f docker-compose.prod.yml stop app
+docker update --restart=no tuti-prod
+
+ledger_mode="$(docker compose --env-file .env.production -f docker-compose.prod.yml run --rm --no-deps -T --user 1000:1000 ops node_modules/.bin/tsx scripts/privacy-replay.ts --mode)"
+case "$ledger_mode" in enabled) ledger_required=true ;; disabled) ledger_required=false ;; *) echo "원장 실행 환경을 확인해주세요. 앱은 중지 상태입니다." >&2; exit 1 ;; esac
+printf 'backup_id=%s\nstatus=restoring\nstarted_at=%s\nprivacy_ledger_required=%s\n' "$backup_id" "$(date -Iseconds)" "$ledger_required" > "$privacy_pending"
+chmod 0600 "$privacy_pending"
+
+if [ "$ledger_required" = true ]; then
+  echo "DB 교체 전 미완료 원장의 실제 처리 결과 확인"
+  docker compose --env-file .env.production -f docker-compose.prod.yml run --rm --no-deps -T \
+    --user 1000:1000 -e TUTI_PRIVACY_REPLAY_OFFLINE=true ops \
+    node_modules/.bin/tsx scripts/privacy-replay.ts --settle-current
+fi
 
 echo "운영 PostgreSQL 복구"
 docker compose \
@@ -67,9 +191,11 @@ docker compose \
   -v "$backup_dir:/backup:ro" \
   ops pnpm ops:objects:restore -- /backup
 
-docker compose --env-file .env.production -f docker-compose.prod.yml up -d --no-deps app
+printf 'backup_id=%s\nstatus=restored_pending_review\nrestored_at=%s\nprivacy_ledger_required=%s\n' "$backup_id" "$(date -Iseconds)" "$ledger_required" > "$privacy_pending"
+chmod 0600 "$privacy_pending"
 rm -f "$maintenance_marker"
 trap - EXIT INT TERM
 
-echo "운영 복구 완료: $backup_id"
-echo "백업에 없던 Garage 객체는 자동 삭제하지 않았습니다. 복구 확인 후 별도 정리하세요."
+echo "DB·객체 파일 복원 완료: $backup_id. 서비스는 중지 상태입니다."
+echo "삭제·철회 요청 재반영, 객체 정리와 스키마 호환성 확인 후 별도 재개 승인이 필요합니다."
+echo "tuti-prod-restore --resume-reviewed $backup_id 확인근거번호"

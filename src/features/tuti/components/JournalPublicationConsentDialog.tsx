@@ -128,7 +128,8 @@ export function JournalPublicationConsentDialog({
 
         <Notice>
           링크는 다시 전달되거나 화면이 저장될 수 있어요. 연락처나 다른
-          사람의 개인정보가 없는지 한 번 확인해주세요.
+          사람의 개인정보가 없는지 한 번 확인해주세요. 건강·정치적 견해 같은
+          민감한 정보와 주민등록번호 등 고유식별정보도 공개되지 않도록 살펴주세요.
         </Notice>
 
         <Agreement htmlFor={agreementId}>

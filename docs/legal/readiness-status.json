@@ -1,0 +1,20 @@
+{
+  "owner": "정연한",
+  "contact": "admin@tuti.today",
+  "rightsRecipient": { "name": "정연한", "department": "운영", "position": "대표", "email": "admin@tuti.today", "fax": null, "faxUnavailabilityConfirmed": true, "publicNoticeRequirementsReviewed": false, "publicNoticeReviewReference": null },
+  "backupRetentionDays": 30,
+  "externalLocationRelationship": { "separateConfirmation": "none", "confirmedAt": "2026-10-19", "classification": "unconfirmed" },
+  "approvedDocumentHash": null,
+  "checks": {
+    "processingInventory": { "confirmed": false, "reference": null },
+    "processorsAndTransfers": { "confirmed": false, "reference": null },
+    "backupRetentionAndRestoreTest": { "confirmed": false, "reference": null },
+    "rightsRecipientAndForms": { "confirmed": false, "reference": null },
+    "scheduledJobsAndAlerts": { "confirmed": false, "reference": null },
+    "minorProtection": { "confirmed": false, "reference": null },
+    "nativeClientRollout": { "confirmed": false, "reference": null },
+    "legalReview": { "confirmed": false, "reference": null },
+    "finalDocumentApproval": { "confirmed": false, "reference": null },
+    "noticePlan": { "confirmed": false, "reference": null }
+  }
+}

@@ -4,11 +4,16 @@ import type { PublicJournalEntry } from "@/shared/api/journal";
 import { journalPublicationEnabled } from "@/shared/features/release";
 import { canViewerAccessJournalEntry } from "@/server/journal/publicationState";
 import { JOURNAL_PUBLICATION_POLICY_VERSION } from "@/shared/legal/journalPublicationPolicy";
+import { isJournalLegallyBlocked } from "@/server/legal/journalRights";
 
 export async function isPublicJournalEntryAvailable(publicId: string) {
-  if (!journalPublicationEnabled || !isValidPublicId(publicId)) return false;
+  return (await getPublicJournalAccessState(publicId)) === "available";
+}
 
-  return Boolean(await prisma.journalEntry.findFirst({
+export async function getPublicJournalAccessState(publicId: string): Promise<"available" | "unavailable" | "rights_blocked"> {
+  if (!journalPublicationEnabled || !isValidPublicId(publicId)) return "unavailable";
+
+  const entry = await prisma.journalEntry.findFirst({
     where: {
       publicId,
       publicationStatus: "published",
@@ -17,7 +22,9 @@ export async function isPublicJournalEntryAvailable(publicId: string) {
       publicationConsentedAt: { not: null },
     },
     select: { id: true },
-  }));
+  });
+  if (!entry) return "unavailable";
+  return await isJournalLegallyBlocked(entry.id) ? "rights_blocked" : "available";
 }
 
 export async function getPublicJournalEntry(
@@ -36,6 +43,7 @@ export async function getPublicJournalEntry(
       publicationConsentedAt: { not: null },
     },
     select: {
+      id: true,
       title: true,
       content: true,
       image: true,
@@ -52,6 +60,7 @@ export async function getPublicJournalEntry(
   });
 
   if (!entry?.publicId || !entry.publishedAt) return null;
+  if (await isJournalLegallyBlocked(entry.id)) return null;
   const authorBlocked = viewerUserId
     ? await isJournalAuthorBlocked(viewerUserId, entry.ownerId)
     : false;
@@ -89,6 +98,7 @@ export async function getPublicJournalImage(
       publicationConsentedAt: { not: null },
     },
     select: {
+      id: true,
       image: true,
       ownerId: true,
       publicId: true,
@@ -98,6 +108,7 @@ export async function getPublicJournalImage(
   });
 
   if (!entry) return null;
+  if (await isJournalLegallyBlocked(entry.id)) return null;
   const authorBlocked = viewerUserId
     ? await isJournalAuthorBlocked(viewerUserId, entry.ownerId)
     : false;

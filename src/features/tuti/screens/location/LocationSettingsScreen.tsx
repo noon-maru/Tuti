@@ -122,13 +122,14 @@ export function LocationSettingsScreen({
               </ChangeRegionButton>
             </>
           )}
-          {consent?.status === "accepted" && (
+          {(consent?.status === "accepted" || consent?.status === "paused") && (
             <>
-              <PauseButton type="button" onClick={() => void pauseLocation()}>
+              {consent.status === "accepted" && <PauseButton type="button" disabled={requesting} onClick={() => void pauseLocation()}>
                 위치 사용 잠시 멈추기
-              </PauseButton>
+              </PauseButton>}
               <WithdrawButton
                 type="button"
+                disabled={requesting}
                 onClick={() => void withdrawLocation()}
               >
                 위치정보 이용 동의 철회
@@ -148,7 +149,7 @@ export function LocationSettingsScreen({
           </div>
         </PrivacySummary>
 
-        <LocationHistorySection />
+        <LocationHistorySection key={`${consent?.status}-${consent?.updatedAt}`} />
 
         <LegalLinks aria-label="법적 문서">
           <Link href="/legal/privacy">개인정보 처리방침</Link>

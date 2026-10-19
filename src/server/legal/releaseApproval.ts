@@ -1,0 +1,23 @@
+import { hashServiceTerms } from "@/server/legal/serviceTerms";
+import { parseServiceTermsDocument } from "@/shared/legal/serviceTerms";
+
+export const RELEASE_READINESS_CHECKS = [
+  "processingInventory", "processorsAndTransfers", "backupDeletion", "rightsWorkflow",
+  "minorProtection", "legalReview", "nativeClientRollout", "noticePlan",
+] as const;
+
+export function prepareServiceTermsRelease(input: unknown, now = new Date()) {
+  if (!input || typeof input !== "object") throw new Error("승인된 문서가 필요합니다.");
+  const data = input as Record<string, unknown>;
+  if (typeof data.version !== "string" || !/^\d{4}-\d{2}-\d{2}(?:-\d+)?$/.test(data.version)) throw new Error("약관 버전을 확인해주세요.");
+  if (typeof data.approvalReference !== "string" || !/^[a-zA-Z0-9_-]{3,100}$/.test(data.approvalReference)) throw new Error("최종 승인 근거 번호가 필요합니다.");
+  const checks = data.readiness as Record<string, unknown> | undefined;
+  const missing = RELEASE_READINESS_CHECKS.filter((key) => checks?.[key] !== true);
+  if (missing.length) throw new Error(`시행 전 확인이 완료되지 않았습니다: ${missing.join(", ")}`);
+  // 30일은 이번 전면 개편의 보수적 운영 기준이며 모든 변경의 일률적 법정 기간은 아니다.
+  const effectiveAt = new Date(typeof data.effectiveAt === "string" ? data.effectiveAt : "");
+  const noticeDays = 30;
+  if (!Number.isFinite(effectiveAt.getTime()) || effectiveAt.getTime() < now.getTime() + noticeDays * 86400000) throw new Error("공고 시점부터 최소 30일 이후의 시행일을 지정해주세요.");
+  const document = parseServiceTermsDocument(data.document);
+  return { version: data.version, document, documentHash: hashServiceTerms(document), publishedAt: now, effectiveAt, approvalReference: data.approvalReference, noticeDays };
+}

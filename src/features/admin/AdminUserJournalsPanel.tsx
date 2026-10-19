@@ -3,9 +3,10 @@
 import styled from "@emotion/styled";
 import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
-import { fetchAdminJson } from "@/lib/adminApi";
+import { adminJsonRequest, fetchAdminJson } from "@/lib/adminApi";
 import { BackButton, Button } from "@/shared/ui/buttons";
 import type { AdminUserItem, AdminUserJournalsResponse } from "@/shared/api/admin";
+import { ADMIN_JOURNAL_ACCESS_PURPOSES, parseAdminJournalAccess, type AdminJournalAccessPurpose } from "@/shared/legal/adminJournalAccess";
 
 const dateFormatter = new Intl.DateTimeFormat("ko-KR", {
   timeZone: "Asia/Seoul",
@@ -33,6 +34,10 @@ export function AdminUserJournalsPanel({ user, onBack, backLabel }: {
   const [data, setData] = useState<AdminUserJournalsResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const headingRef = useRef<HTMLHeadingElement>(null);
+  const [purpose, setPurpose] = useState<AdminJournalAccessPurpose>("support");
+  const [reference, setReference] = useState("");
+  const [authorization, setAuthorization] = useState<ReturnType<typeof parseAdminJournalAccess>>(null);
+  const access = parseAdminJournalAccess({ purpose, reference });
 
   useEffect(() => {
     headingRef.current?.focus({ preventScroll: true });
@@ -40,17 +45,18 @@ export function AdminUserJournalsPanel({ user, onBack, backLabel }: {
   }, []);
 
   useEffect(() => {
+    if (!authorization) return;
     let active = true;
     void fetchAdminJson<AdminUserJournalsResponse>(
       `user-journals?${new URLSearchParams({ userId: user.id, page: String(page) })}`,
-      { cache: "no-store" },
+      { ...adminJsonRequest("POST", authorization), cache: "no-store" },
     ).then((response) => {
       if (active) setData(response);
     }).catch((fetchError) => {
       if (active) setError(fetchError instanceof Error ? fetchError.message : "기록을 불러오지 못했습니다.");
     });
     return () => { active = false; };
-  }, [attempt, page, user.id]);
+  }, [attempt, authorization, page, user.id]);
 
   const changePage = (nextPage: number) => {
     setData(null);
@@ -69,7 +75,22 @@ export function AdminUserJournalsPanel({ user, onBack, backLabel }: {
           <UserId>{user.id}</UserId>
         </div>
       </Header>
-      {error ? (
+      {!authorization ? (
+        <AccessForm onSubmit={(event) => {
+          event.preventDefault();
+          if (access) setAuthorization(access);
+        }}>
+          <p>업무에 필요한 기록만 확인해주세요. 조회 목적과 처리 번호가 감사 기록에 남습니다.</p>
+          <label htmlFor="journal-access-purpose">조회 목적</label>
+          <select id="journal-access-purpose" value={purpose} onChange={(event) => setPurpose(event.target.value as AdminJournalAccessPurpose)}>
+            {Object.entries(ADMIN_JOURNAL_ACCESS_PURPOSES).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+          </select>
+          <label htmlFor="journal-access-reference">문의·사고·법적 요청 처리 번호</label>
+          <input id="journal-access-reference" value={reference} onChange={(event) => setReference(event.target.value)} required minLength={3} maxLength={80} pattern="[a-zA-Z0-9_-]{3,80}" aria-describedby="journal-access-help" />
+          <Meta id="journal-access-help">등록된 처리 번호를 입력해주세요. 이름·이메일이나 기록 내용은 입력하지 마세요.</Meta>
+          <Button type="submit" $size="compact" disabled={!access}>목적 확인 후 기록 조회</Button>
+        </AccessForm>
+      ) : error ? (
         <State role="alert">
           <p>{error}</p>
           <Button $size="compact" onClick={() => {
@@ -175,6 +196,33 @@ const State = styled.div`
   justify-items: start;
   gap: var(--space-3);
   padding-block: var(--space-4);
+`;
+
+const AccessForm = styled.form`
+  display: grid;
+  justify-items: stretch;
+  gap: var(--space-3);
+  max-width: 520px;
+  min-width: 0;
+  font-size: var(--font-size-200);
+  line-height: 1.6;
+  label { font-weight: 600; }
+  input, select {
+    box-sizing: border-box;
+    width: 100%;
+    min-width: 0;
+    padding: var(--space-3);
+    border: 1px solid var(--color-border);
+    border-radius: var(--space-2);
+    background: var(--color-neutral-100);
+    color: var(--color-text);
+    font: inherit;
+  }
+  input:focus-visible, select:focus-visible {
+    outline: 2px solid var(--color-brand-600);
+    outline-offset: 2px;
+  }
+  button { justify-self: start; }
 `;
 
 const Entry = styled.details`

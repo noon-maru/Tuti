@@ -786,11 +786,41 @@ model User {
   pushDeliveries        PushDelivery[]
   journalAuthorBlocksMade JournalAuthorBlock[] @relation("JournalAuthorBlocker")
   journalAuthorBlocksReceived JournalAuthorBlock[] @relation("JournalAuthorBlocked")
+  serviceTermsAcceptances ServiceTermsAcceptance[]
 
   @@index([lastAccessedAt])
   @@index([analyticsExcludedAt])
   @@index([journalPublicationRestrictedAt])
   @@map("users")
+}
+
+model ServiceTermsRelease {
+  version       String   @id
+  document      Json
+  documentHash  String   @map("document_hash")
+  publishedAt   DateTime @map("published_at")
+  effectiveAt   DateTime @map("effective_at")
+  approvalReference String @map("approval_reference")
+  noticeDays    Int      @map("notice_days")
+  acceptances   ServiceTermsAcceptance[]
+
+  @@index([effectiveAt])
+  @@map("service_terms_releases")
+}
+
+model ServiceTermsAcceptance {
+  id            String   @id
+  userId        String   @map("user_id")
+  termsVersion  String   @map("terms_version")
+  documentHash  String   @map("document_hash")
+  ageConfirmed  Boolean  @map("age_confirmed")
+  importantTermsConfirmed Boolean @map("important_terms_confirmed")
+  acceptedAt    DateTime @default(now()) @map("accepted_at")
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  release       ServiceTermsRelease @relation(fields: [termsVersion], references: [version], onDelete: Restrict)
+
+  @@unique([userId, termsVersion])
+  @@map("service_terms_acceptances")
 }
 
 model JournalAuthorBlock {
@@ -1096,11 +1126,68 @@ model ContentReport {
   reviewedAt     DateTime?    @map("reviewed_at")
   createdAt      DateTime     @default(now()) @map("created_at")
   updatedAt      DateTime     @updatedAt @map("updated_at")
+  rightsCase     JournalRightsCase?
 
   @@index([status, createdAt])
   @@index([entryId])
   @@index([reporterUserId, createdAt])
   @@map("content_reports")
+}
+
+model JournalRightsCase {
+  id                   String   @id
+  reportId             String   @unique @map("report_id")
+  reference            String   @unique
+  kind                 String
+  state                String   @default("received")
+  proofReference       String   @map("proof_reference")
+  receivedAt           DateTime @map("received_at")
+  blockedAt            DateTime? @map("blocked_at")
+  expiresAt            DateTime? @map("expires_at")
+  counterRequestedAt   DateTime? @map("counter_requested_at")
+  decisionDueAt        DateTime? @map("decision_due_at")
+  resumeAt             DateTime? @map("resume_at")
+  litigationNotifiedAt  DateTime? @map("litigation_notified_at")
+  nextReviewAt         DateTime @map("next_review_at")
+  lastRemindedAt       DateTime? @map("last_reminded_at")
+  closedAt             DateTime? @map("closed_at")
+  revision             Int      @default(0)
+  createdAt            DateTime @default(now()) @map("created_at")
+  updatedAt            DateTime @updatedAt @map("updated_at")
+  report               ContentReport @relation(fields: [reportId], references: [id], onDelete: Cascade)
+  notices              JournalRightsNotice[]
+
+  @@index([state, nextReviewAt])
+  @@index([state, expiresAt])
+  @@index([state, resumeAt])
+  @@map("journal_rights_cases")
+}
+
+model JournalRightsNotice {
+  id                   String   @id
+  caseId               String   @map("case_id")
+  eventSequence        Int      @map("event_sequence")
+  recipientRole        String   @map("recipient_role")
+  recipientUserId      String?  @map("recipient_user_id")
+  recipientEmail       String?  @map("recipient_email")
+  kind                 String
+  message              String
+  requiresFormalNotice Boolean  @default(false) @map("requires_formal_notice")
+  status               String   @default("pending")
+  attempts             Int      @default(0)
+  nextAttemptAt        DateTime @default(now()) @map("next_attempt_at")
+  lockedUntil          DateTime? @map("locked_until")
+  sentAt               DateTime? @map("sent_at")
+  deliveryProofReference String? @map("delivery_proof_reference")
+  errorCode            String?  @map("error_code")
+  createdAt            DateTime @default(now()) @map("created_at")
+  updatedAt            DateTime @updatedAt @map("updated_at")
+  rightsCase           JournalRightsCase @relation(fields: [caseId], references: [id], onDelete: Cascade)
+
+  @@unique([caseId, eventSequence, recipientRole])
+  @@index([status, nextAttemptAt])
+  @@index([recipientUserId])
+  @@map("journal_rights_notices")
 }
 
 model AppSetting {

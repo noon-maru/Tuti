@@ -52,6 +52,16 @@ export function getSessionSnapshot() {
   return sessionSnapshot;
 }
 
+// 동의·철회는 401 응답 후 새 익명 계정으로 재전송하면 안 된다.
+export async function fetchWithPinnedSession(path: string, init?: RequestInit) {
+  const session = await ensureSession();
+  const response = await fetchWithToken(path, session.accessToken, init);
+  if (sessionSnapshot?.userId !== session.userId) {
+    throw new Error("계정이 변경되었어요. 현재 계정에서 다시 시도해주세요.");
+  }
+  return response;
+}
+
 export function subscribeToSession(listener: () => void) {
   sessionListeners.add(listener);
   return () => sessionListeners.delete(listener);
@@ -395,7 +405,7 @@ function updateSessionSnapshot(session: TutiSession | null) {
   sessionListeners.forEach((listener) => listener());
 }
 
-function fetchWithToken(
+async function fetchWithToken(
   path: string,
   accessToken: string,
   init?: RequestInit,
@@ -403,10 +413,14 @@ function fetchWithToken(
   const headers = new Headers(init?.headers);
   headers.set("Authorization", `Bearer ${accessToken}`);
 
-  return fetch(apiUrl(path), {
+  const response = await fetch(apiUrl(path), {
     ...init,
     headers,
   });
+  if (response.status === 428 && typeof window !== "undefined") {
+    window.dispatchEvent(new Event("tuti:service-terms-required"));
+  }
+  return response;
 }
 
 async function readApiError(response: Response, fallback: string) {

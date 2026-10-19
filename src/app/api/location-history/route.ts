@@ -73,10 +73,10 @@ export async function GET(request: Request) {
     })),
     usageLogTotal,
     notice:
-      "확인자료에는 실제 위도·경도가 포함되지 않으며 보존기간이 끝나면 자동으로 파기됩니다.",
+      "확인자료에는 실제 위도·경도가 포함되지 않으며 보존기간이 끝나면 파기됩니다. 동의를 전부 철회하면 해당 확인자료도 파기됩니다.",
   };
 
-  return withCors(request, Response.json(response));
+  return withCors(request, Response.json(response, { headers: { "Cache-Control": "private, no-store" } }));
 }
 
 export function OPTIONS(request: Request) {

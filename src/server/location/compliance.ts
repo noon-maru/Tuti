@@ -3,6 +3,8 @@ import { createHash, randomUUID } from "node:crypto";
 import type { AuthenticatedUser } from "@/server/auth/session";
 import { prisma } from "@/server/db/prisma";
 import type { ExternalLocationProcessingMode } from "@/server/location/externalProcessing";
+import { lockLocationSubject } from "@/server/location/subjectLock";
+import { commitPrivacyReplayReceipt, preparePrivacyReplayReceipt } from "@/server/legal/privacyReplayLedger";
 import { LOCATION_TERMS_VERSION } from "@/shared/location/terms";
 import type { LocationConsentStatus } from "@/shared/tuti/types";
 
@@ -60,7 +62,7 @@ export async function recordLocationConsent({
   ageConfirmed: boolean;
   clientPlatform: string;
 }) {
-  if (termsVersion !== LOCATION_TERMS_VERSION) {
+  if (status === "accepted" && termsVersion !== LOCATION_TERMS_VERSION) {
     throw new LocationComplianceError(
       "현재 위치기반서비스 약관을 다시 확인해주세요.",
       "location_consent_outdated",
@@ -76,32 +78,56 @@ export async function recordLocationConsent({
   }
 
   try {
-    const current = await getCurrentLocationConsent(user.id);
-    if (
-      current?.status === status &&
-      current.termsVersion === termsVersion &&
-      current.ageConfirmed === (status === "accepted" && ageConfirmed)
-    ) {
-      return current;
-    }
-    return await prisma.locationConsentEvent.create({
-      data: {
-        id: randomUUID(),
-        userId: user.id,
-        subjectKey: createSubjectKey(user.id),
-        status,
-        termsVersion,
-        ageConfirmed: status === "accepted" && ageConfirmed,
-        clientPlatform: normalizeClientPlatform(clientPlatform),
-      },
-      select: {
-        id: true,
-        status: true,
-        termsVersion: true,
-        ageConfirmed: true,
-        createdAt: true,
-      },
+    const replayReceipt = status === "withdrawn" ? await preparePrivacyReplayReceipt("location_withdrawn", user.id) : null;
+    const result = await prisma.$transaction(async (transaction) => {
+      await lockLocationSubject(transaction, user.id);
+      const current = await transaction.locationConsentEvent.findFirst({
+        where: { userId: user.id },
+        orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+      });
+      const recordedVersion = status === "accepted" ? termsVersion : LOCATION_TERMS_VERSION;
+      const confirmedAge = status === "accepted" ? ageConfirmed
+        : status === "paused" && current?.termsVersion === LOCATION_TERMS_VERSION
+          ? current.ageConfirmed : false;
+      if (status === "withdrawn") {
+        // 철회는 단순 일시 중지와 다르다. 6개월 보존을 철회의 예외로 쓰지 않는다.
+        await transaction.locationUsageLog.deleteMany({
+          where: { OR: [{ userId: user.id }, { subjectKey: createSubjectKey(user.id) }] },
+        });
+        await transaction.locationConsentEvent.deleteMany({
+          where: { userId: user.id, ...(current?.status === "withdrawn" ? { id: { not: current.id } } : {}) },
+        });
+      }
+      if (
+        current?.status === status &&
+        current.termsVersion === recordedVersion &&
+        current.ageConfirmed === confirmedAge
+      ) {
+        return current;
+      }
+      return await transaction.locationConsentEvent.create({
+        data: {
+          id: randomUUID(),
+          userId: user.id,
+          subjectKey: createSubjectKey(user.id),
+          status,
+          termsVersion: recordedVersion,
+          ageConfirmed: confirmedAge,
+          clientPlatform: normalizeClientPlatform(clientPlatform),
+          // 같은 밀리초의 연속 변경도 최신 상태가 뒤집히지 않게 한다.
+          createdAt: new Date(Math.max(Date.now(), (current?.createdAt.getTime() ?? 0) + 1)),
+        },
+        select: {
+          id: true,
+          status: true,
+          termsVersion: true,
+          ageConfirmed: true,
+          createdAt: true,
+        },
+      });
     });
+    await commitPrivacyReplayReceipt(replayReceipt, new Date(Math.max(Date.now(), result.createdAt.getTime())));
+    return result;
   } catch (error) {
     console.error("위치정보 동의 기록을 저장하지 못했습니다.", {
       error: error instanceof Error ? error.name : "UnknownError",
@@ -112,6 +138,23 @@ export async function recordLocationConsent({
       503,
     );
   }
+}
+
+export async function replayLocationWithdrawal(userId: string, effectiveAt: Date, apply: boolean) {
+  return prisma.$transaction(async (transaction) => {
+    await lockLocationSubject(transaction, userId);
+    const current = await transaction.locationConsentEvent.findFirst({ where: { userId }, orderBy: [{ createdAt: "desc" }, { id: "desc" }] });
+    // 복원본에 원장 철회보다 나중의 동의가 실제로 있으면 그 동의를 소급 취소하지 않는다.
+    if (current && current.status !== "withdrawn" && current.createdAt > effectiveAt) return { skipped: true };
+    if (!apply) return { skipped: false };
+    await transaction.locationUsageLog.deleteMany({ where: { OR: [{ userId }, { subjectKey: createSubjectKey(userId) }] } });
+    await transaction.locationConsentEvent.deleteMany({ where: { userId, ...(current?.status === "withdrawn" ? { id: { not: current.id } } : {}) } });
+    if (current?.status !== "withdrawn") await transaction.locationConsentEvent.create({ data: {
+      id: randomUUID(), userId, subjectKey: createSubjectKey(userId), status: "withdrawn", termsVersion: LOCATION_TERMS_VERSION,
+      ageConfirmed: false, clientPlatform: "unknown", createdAt: new Date(Math.max(Date.now(), (current?.createdAt.getTime() ?? 0) + 1)),
+    } });
+    return { skipped: false };
+  });
 }
 
 export async function getCurrentLocationConsent(userId: string) {
@@ -125,6 +168,29 @@ export async function getCurrentLocationConsent(userId: string) {
       ageConfirmed: true,
       createdAt: true,
     },
+  });
+}
+
+// 기존 철회자의 잔존 자료 정리. 실행 직전 상태를 잠금 아래 다시 확인한다.
+// 이후 재동의한 이용자의 자료를 예전 철회 이벤트만 보고 지우지 않는다.
+export async function purgeWithdrawnLocationSubject(userId: string, apply = false) {
+  return prisma.$transaction(async (transaction) => {
+    await lockLocationSubject(transaction, userId);
+    const current = await transaction.locationConsentEvent.findFirst({
+      where: { userId }, orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+    });
+    if (current?.status !== "withdrawn") return { skipped: true, usageLogs: 0, consentEvents: 0 };
+    const usageWhere = { OR: [{ userId }, { subjectKey: createSubjectKey(userId) }] };
+    const consentWhere = { userId, id: { not: current.id } };
+    const [usageLogs, consentEvents] = await Promise.all([
+      transaction.locationUsageLog.count({ where: usageWhere }),
+      transaction.locationConsentEvent.count({ where: consentWhere }),
+    ]);
+    if (apply) {
+      await transaction.locationUsageLog.deleteMany({ where: usageWhere });
+      await transaction.locationConsentEvent.deleteMany({ where: consentWhere });
+    }
+    return { skipped: false, usageLogs, consentEvents };
   });
 }
 
@@ -230,23 +296,37 @@ async function createUsageLog(
   const retentionUntil = new Date(occurredAt);
   retentionUntil.setUTCMonth(retentionUntil.getUTCMonth() + 6);
 
-  await prisma.locationUsageLog.create({
-    data: {
-      id: randomUUID(),
-      userId: context.userId,
-      subjectKey: context.subjectKey,
-      consentEventId: context.consentEventId,
-      termsVersion: context.termsVersion,
-      acquisitionSource: context.acquisitionSource,
-      service: context.service,
-      kind: input.kind,
-      method: input.method,
-      externalRecipient: input.externalRecipient,
-      externalPurpose: input.externalPurpose,
-      externalMode: input.externalMode,
-      occurredAt,
-      retentionUntil,
-    },
+  await prisma.$transaction(async (transaction) => {
+    await lockLocationSubject(transaction, context.userId);
+    const consent = await transaction.locationConsentEvent.findFirst({
+      where: { userId: context.userId },
+      orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+    });
+    if (consent?.id !== context.consentEventId || consent.status !== "accepted" ||
+        !consent.ageConfirmed || consent.termsVersion !== LOCATION_TERMS_VERSION) {
+      throw new LocationComplianceError(
+        "위치정보 이용이 중단되었어요. 위치 설정을 확인해주세요.",
+        "location_consent_required", 403,
+      );
+    }
+    await transaction.locationUsageLog.create({
+      data: {
+        id: randomUUID(),
+        userId: context.userId,
+        subjectKey: context.subjectKey,
+        consentEventId: context.consentEventId,
+        termsVersion: context.termsVersion,
+        acquisitionSource: context.acquisitionSource,
+        service: context.service,
+        kind: input.kind,
+        method: input.method,
+        externalRecipient: input.externalRecipient,
+        externalPurpose: input.externalPurpose,
+        externalMode: input.externalMode,
+        occurredAt,
+        retentionUntil,
+      },
+    });
   });
 }
 
