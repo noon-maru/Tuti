@@ -127,6 +127,7 @@ export async function createRecommendations(
   excludePlaceIds: string[] = [],
   userId?: string,
   preferencePlaceIds: string[] = [],
+  evaluationTime: Date = new Date(),
 ): Promise<TutiPlace[]> {
   const evaluation = await evaluateRecommendations(
     answers,
@@ -135,6 +136,7 @@ export async function createRecommendations(
     excludePlaceIds,
     userId,
     preferencePlaceIds,
+    evaluationTime,
   );
 
   return evaluation.recommendedPlaces;
@@ -212,6 +214,7 @@ async function evaluateRecommendations(
   excludePlaceIds: string[] = [],
   userId?: string,
   preferencePlaceIds: string[] = [],
+  evaluationTime: Date = new Date(),
 ) {
   // 오늘 사용자가 명시적으로 고른 값은 항상 결정론적으로 해석한다.
   // LLM 프로필은 아래의 후보 순위 보정 단계에서만 비동기로 활용된다.
@@ -357,6 +360,7 @@ async function evaluateRecommendations(
             movement: feature.movement,
           },
           operationDetailByPlaceId,
+          evaluationTime,
         );
         const executableBatch = excludeExplicitlyInfeasiblePlaces(
           executionEnrichedBatch,

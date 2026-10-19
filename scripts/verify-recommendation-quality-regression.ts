@@ -47,6 +47,9 @@ const locations: readonly RepresentativeLocation[] = [
 const movements = ["near", "short", "half"] as const satisfies readonly MovementAnswer[];
 const transports = ["car", "transit"] as const satisfies readonly TransportAnswer[];
 const recommendationLimit = 6;
+// 배포 시각의 휴관·폐관 여부가 기본 품질 검사의 결과를 바꾸면 안 된다.
+// 통상 영업 중인 평일 정오로 고정한다. 실제 사용자 추천의 현재 시각은 유지한다.
+const evaluationTime = new Date("2026-10-20T12:00:00+09:00");
 
 /**
  * 이름과 공식 설명만으로도 현재 저장 유형이 명백히 잘못된 장소들이다.
@@ -116,6 +119,11 @@ try {
             latitude: location.latitude,
             longitude: location.longitude,
           },
+          undefined,
+          [],
+          undefined,
+          [],
+          evaluationTime,
         );
 
         if (location.allowSparseResults) {
@@ -242,6 +250,7 @@ try {
 
   const result = {
     ok: errors.length === 0,
+    evaluationTime: evaluationTime.toISOString(),
     algorithmVersion: RECOMMENDATION_ALGORITHM_VERSION,
     acceptance: {
       representativeCases: reports.length,
