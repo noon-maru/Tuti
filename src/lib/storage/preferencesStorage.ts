@@ -1,7 +1,7 @@
 import { Preferences } from "@capacitor/preferences";
-import type { StateStorage } from "zustand/middleware";
+import { createOrderedStorage } from "./orderedStorage";
 
-export const preferencesStorage: StateStorage = {
+export const preferencesStorage = createOrderedStorage({
   async getItem(key) {
     const { value } = await Preferences.get({ key });
     return value;
@@ -14,4 +14,4 @@ export const preferencesStorage: StateStorage = {
   async removeItem(key) {
     await Preferences.remove({ key });
   },
-};
+});

@@ -145,6 +145,8 @@ function normalizeMetadata(value: unknown) {
   const metadata: Record<string, string | number | boolean | null> = {};
 
   for (const [key, item] of entries) {
+    // 원본 좌표·거리·이동시간 등의 임의 메타데이터가 지연 요청으로 재저장되지 않게 한다.
+    if (!["placeCount", "method", "source", "variant", "entryId"].includes(key)) continue;
     const normalizedKey = normalizeText(key, 40);
     if (!normalizedKey) continue;
     if (

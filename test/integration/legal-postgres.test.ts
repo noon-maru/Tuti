@@ -111,7 +111,20 @@ test("분리된 PostgreSQL에서 약관·권리 보호 마이그레이션의 실
     query("UPDATE journal_rights_notices SET status='manual_confirmed',sent_at=now(),delivery_proof_reference='DELIVERY-123' WHERE id='pending'");
     assert.equal(query("SELECT status FROM journal_rights_notices WHERE id='pending'"), "manual_confirmed");
   });
-  await t.test("백업을 별도 임시 DB로 복원해도 원문 변경 금지·통지 제약과 기존 증빙이 보존된다", () => {
+  query(`
+    CREATE TYPE "LocationConsentStatus" AS ENUM ('accepted','paused','declined','withdrawn');
+    CREATE TYPE "RecommendationActionType" AS ENUM ('navigation_started','place_selected');
+    CREATE TABLE location_consent_events(id text PRIMARY KEY,user_id text,subject_key text NOT NULL,status "LocationConsentStatus" NOT NULL,terms_version text NOT NULL,age_confirmed boolean NOT NULL,client_platform text NOT NULL,created_at timestamp(3) NOT NULL DEFAULT CURRENT_TIMESTAMP);
+    CREATE TABLE location_usage_logs(id text PRIMARY KEY,user_id text,subject_key text,occurred_at timestamp(3) DEFAULT CURRENT_TIMESTAMP);
+    CREATE TABLE recommendation_runs(id text PRIMARY KEY,user_id text NOT NULL,location_used boolean NOT NULL,created_at timestamp(3) DEFAULT CURRENT_TIMESTAMP,algorithm_version text NOT NULL DEFAULT 'test',answers jsonb NOT NULL DEFAULT '{}',state jsonb NOT NULL DEFAULT '{}',entry_status text,state_text_used boolean NOT NULL DEFAULT false,candidates jsonb NOT NULL DEFAULT '[]',personalization jsonb);
+    CREATE TABLE recommendation_actions(id text PRIMARY KEY,user_id text NOT NULL,action "RecommendationActionType" NOT NULL,metadata jsonb,created_at timestamp(3) DEFAULT CURRENT_TIMESTAMP);
+    INSERT INTO users VALUES ('location-user'),('location-other');
+    INSERT INTO location_consent_events VALUES ('location-old','location-user','key','accepted','old',true,'web','2026-01-01');
+    INSERT INTO location_usage_logs(id,user_id,subject_key) VALUES ('usage','location-user','key'),('usage-other','location-other','other');
+    INSERT INTO recommendation_runs(id,user_id,location_used) VALUES ('located','location-user',true),('region','location-user',false),('other','location-other',true);
+    INSERT INTO recommendation_actions(id,user_id,action,metadata) VALUES ('navigation','location-user','navigation_started','{"distanceMeters":1234}'),('selection','location-user','place_selected','{"method":"direct"}');
+  `);
+  await t.test("백업을 별도 임시 DB로 복원해도 원문 변경 금지·통지 제약과 기존 증빙이 보존된다", async () => {
     const connection = ["-h", socket, "-p", "15479", "-U", "tuti_legal_test"];
     const archive = join(root, "legal-test.dump");
     execFileSync(binary("pg_dump"), [...connection, "-d", "postgres", "--format=custom", "--file", archive], { env, stdio: "pipe" });
@@ -133,5 +146,63 @@ test("분리된 PostgreSQL에서 약관·권리 보호 마이그레이션의 실
       assert.match(result.stderr, error);
     }
     assert.equal(query("SELECT count(*) FROM service_terms_releases"), "1", "복원 시험이 원본 시험 DB를 변경하면 안 된다.");
+
+    const { PrismaClient } = await import("../../src/generated/prisma/client");
+    const { PrismaPg } = await import("@prisma/adapter-pg");
+    const client = new PrismaClient({ adapter: new PrismaPg({ host: socket, port: 15479, user: "tuti_legal_test", database: "legal_restore_test", ssl: false }) });
+    const originalUrl = process.env.DATABASE_URL;
+    const originalLedger = process.env.PRIVACY_REPLAY_LEDGER_ENABLED;
+    // 실제 연결은 위 Unix 소켓 adapter만 사용한다. 운영 DATABASE_URL은 참조하지 않는다.
+    process.env.DATABASE_URL = "postgresql://unused:unused@127.0.0.1:1/unused";
+    process.env.PRIVACY_REPLAY_LEDGER_ENABLED = "false";
+    (globalThis as { prisma?: unknown }).prisma = client;
+    try {
+      const { recordLocationConsent, purgeWithdrawnLocationSubject, replayLocationWithdrawal } = await import("../../src/server/location/compliance");
+      restoredQuery(`CREATE FUNCTION fail_location_purge() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RAISE EXCEPTION 'test purge failure'; END $$;
+        CREATE TRIGGER fail_location_purge BEFORE UPDATE ON recommendation_actions FOR EACH ROW EXECUTE FUNCTION fail_location_purge();`);
+      await assert.rejects(recordLocationConsent({ user: { id: "location-user", role: "user" }, status: "withdrawn", termsVersion: "old-client", ageConfirmed: false, clientPlatform: "web" }), { code: "location_consent_record_failed" });
+      assert.equal(restoredQuery("SELECT status FROM location_consent_events WHERE id='location-old'"), "accepted");
+      assert.equal(restoredQuery("SELECT count(*) FROM location_usage_logs WHERE user_id='location-user'"), "1");
+      assert.equal(restoredQuery("SELECT count(*) FROM recommendation_runs WHERE id='located'"), "1");
+      restoredQuery("DROP TRIGGER fail_location_purge ON recommendation_actions; DROP FUNCTION fail_location_purge()");
+      await recordLocationConsent({ user: { id: "location-user", role: "user" }, status: "withdrawn", termsVersion: "old-client", ageConfirmed: false, clientPlatform: "web" });
+      const residual = await purgeWithdrawnLocationSubject("location-user");
+      assert.deepEqual(residual, { skipped: false, usageLogs: 0, consentEvents: 0, recommendationRuns: 0, routeMetadata: 0 });
+      assert.equal(restoredQuery("SELECT string_agg(id,',' ORDER BY id) FROM recommendation_runs"), "other,region");
+      assert.equal(restoredQuery("SELECT count(*) FROM location_usage_logs WHERE user_id='location-other'"), "1");
+      assert.equal(restoredQuery("SELECT metadata IS NULL FROM recommendation_actions WHERE id='navigation'"), "t");
+      assert.equal(restoredQuery("SELECT metadata->>'method' FROM recommendation_actions WHERE id='selection'"), "direct");
+      assert.equal(query("SELECT count(*) FROM recommendation_runs"), "3", "원본 DB는 변경하지 않는다.");
+
+      const { LOCATION_TERMS_VERSION } = await import("../../src/shared/location/terms");
+      const { recordRecommendationRunSafely } = await import("../../src/server/recommendations/run");
+      const accepted = await recordLocationConsent({ user: { id: "location-user", role: "user" }, status: "accepted", termsVersion: LOCATION_TERMS_VERSION, ageConfirmed: true, clientPlatform: "web" });
+      const input = { id: "snapshot", userId: "location-user", request: {}, places: [], locationUsed: true, locationConsentId: accepted.id, stateTextUsed: false };
+      await recordRecommendationRunSafely(input);
+      assert.equal(restoredQuery("SELECT count(*) FROM recommendation_runs WHERE id='snapshot'"), "1");
+      await Promise.all([
+        recordRecommendationRunSafely({ ...input, id: "racing-snapshot" }),
+        recordLocationConsent({ user: { id: "location-user", role: "user" }, status: "withdrawn", termsVersion: LOCATION_TERMS_VERSION, ageConfirmed: false, clientPlatform: "web" }),
+      ]);
+      await recordRecommendationRunSafely({ ...input, id: "late-snapshot" });
+      assert.equal(restoredQuery("SELECT count(*) FROM recommendation_runs WHERE user_id='location-user' AND location_used"), "0");
+
+      // 철회 뒤 재동의가 있는 복원본에서도 철회 이전 잔존 자료만 제거한다.
+      restoredQuery(`DELETE FROM location_consent_events WHERE user_id='location-user';
+        INSERT INTO location_consent_events VALUES ('reaccepted','location-user','key','accepted','current',true,'web','2026-03-01');
+        INSERT INTO recommendation_runs(id,user_id,location_used,created_at) VALUES ('old-restored','location-user',true,'2026-01-01'),('new-allowed','location-user',true,'2026-03-01');
+        INSERT INTO location_usage_logs VALUES ('old-restored','location-user','key','2026-01-01'),('new-allowed','location-user','key','2026-03-01');`);
+      await replayLocationWithdrawal("location-user", new Date("2026-02-01T00:00:00Z"), true);
+      assert.equal(restoredQuery("SELECT count(*) FROM recommendation_runs WHERE id='old-restored'"), "0");
+      assert.equal(restoredQuery("SELECT count(*) FROM recommendation_runs WHERE id='new-allowed'"), "1");
+      assert.equal(restoredQuery("SELECT count(*) FROM location_usage_logs WHERE id='old-restored'"), "0");
+      assert.equal(restoredQuery("SELECT count(*) FROM location_usage_logs WHERE id='new-allowed'"), "1");
+      assert.equal(restoredQuery("SELECT status FROM location_consent_events WHERE id='reaccepted'"), "accepted");
+    } finally {
+      await client.$disconnect();
+      delete (globalThis as { prisma?: unknown }).prisma;
+      if (originalUrl === undefined) delete process.env.DATABASE_URL; else process.env.DATABASE_URL = originalUrl;
+      if (originalLedger === undefined) delete process.env.PRIVACY_REPLAY_LEDGER_ENABLED; else process.env.PRIVACY_REPLAY_LEDGER_ENABLED = originalLedger;
+    }
   });
 });

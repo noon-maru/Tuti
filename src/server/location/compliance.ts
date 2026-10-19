@@ -4,6 +4,8 @@ import type { AuthenticatedUser } from "@/server/auth/session";
 import { prisma } from "@/server/db/prisma";
 import type { ExternalLocationProcessingMode } from "@/server/location/externalProcessing";
 import { lockLocationSubject } from "@/server/location/subjectLock";
+import { cancelLocationRequests, withLocationRequestScope } from "@/server/location/requestScope";
+import { countLocationDerivedData, purgeLocationDerivedData } from "@/server/location/derivedData";
 import { commitPrivacyReplayReceipt, preparePrivacyReplayReceipt } from "@/server/legal/privacyReplayLedger";
 import { LOCATION_TERMS_VERSION } from "@/shared/location/terms";
 import type { LocationConsentStatus } from "@/shared/tuti/types";
@@ -79,6 +81,7 @@ export async function recordLocationConsent({
 
   try {
     const replayReceipt = status === "withdrawn" ? await preparePrivacyReplayReceipt("location_withdrawn", user.id) : null;
+    let withdrawalEffectiveAt: Date | undefined;
     const result = await prisma.$transaction(async (transaction) => {
       await lockLocationSubject(transaction, user.id);
       const current = await transaction.locationConsentEvent.findFirst({
@@ -90,6 +93,7 @@ export async function recordLocationConsent({
         : status === "paused" && current?.termsVersion === LOCATION_TERMS_VERSION
           ? current.ageConfirmed : false;
       if (status === "withdrawn") {
+        withdrawalEffectiveAt = new Date(Math.max(Date.now(), (current?.createdAt.getTime() ?? 0) + 1));
         // 철회는 단순 일시 중지와 다르다. 6개월 보존을 철회의 예외로 쓰지 않는다.
         await transaction.locationUsageLog.deleteMany({
           where: { OR: [{ userId: user.id }, { subjectKey: createSubjectKey(user.id) }] },
@@ -97,6 +101,7 @@ export async function recordLocationConsent({
         await transaction.locationConsentEvent.deleteMany({
           where: { userId: user.id, ...(current?.status === "withdrawn" ? { id: { not: current.id } } : {}) },
         });
+        await purgeLocationDerivedData(transaction, user.id);
       }
       if (
         current?.status === status &&
@@ -126,7 +131,9 @@ export async function recordLocationConsent({
         },
       });
     });
-    await commitPrivacyReplayReceipt(replayReceipt, new Date(Math.max(Date.now(), result.createdAt.getTime())));
+    if (status !== "accepted") cancelLocationRequests(user.id);
+    // 원장 저장 지연 사이의 새 동의까지 철회 대상으로 소급하지 않는다.
+    await commitPrivacyReplayReceipt(replayReceipt, new Date(Math.max(result.createdAt.getTime(), withdrawalEffectiveAt?.getTime() ?? 0)));
     return result;
   } catch (error) {
     console.error("위치정보 동의 기록을 저장하지 못했습니다.", {
@@ -144,10 +151,20 @@ export async function replayLocationWithdrawal(userId: string, effectiveAt: Date
   return prisma.$transaction(async (transaction) => {
     await lockLocationSubject(transaction, userId);
     const current = await transaction.locationConsentEvent.findFirst({ where: { userId }, orderBy: [{ createdAt: "desc" }, { id: "desc" }] });
-    // 복원본에 원장 철회보다 나중의 동의가 실제로 있으면 그 동의를 소급 취소하지 않는다.
-    if (current && current.status !== "withdrawn" && current.createdAt > effectiveAt) return { skipped: true };
+    // 새 동의는 유지하되, 철회 이전 자료가 백업에서 함께 복원되어도 되살리지 않는다.
+    if (current && current.status !== "withdrawn" && current.createdAt > effectiveAt) {
+      if (apply) {
+        await transaction.locationUsageLog.deleteMany({ where: {
+          OR: [{ userId }, { subjectKey: createSubjectKey(userId) }], occurredAt: { lte: effectiveAt },
+        } });
+        await transaction.locationConsentEvent.deleteMany({ where: { userId, createdAt: { lte: effectiveAt } } });
+        await purgeLocationDerivedData(transaction, userId, effectiveAt);
+      }
+      return { skipped: true };
+    }
     if (!apply) return { skipped: false };
     await transaction.locationUsageLog.deleteMany({ where: { OR: [{ userId }, { subjectKey: createSubjectKey(userId) }] } });
+    await purgeLocationDerivedData(transaction, userId);
     await transaction.locationConsentEvent.deleteMany({ where: { userId, ...(current?.status === "withdrawn" ? { id: { not: current.id } } : {}) } });
     if (current?.status !== "withdrawn") await transaction.locationConsentEvent.create({ data: {
       id: randomUUID(), userId, subjectKey: createSubjectKey(userId), status: "withdrawn", termsVersion: LOCATION_TERMS_VERSION,
@@ -179,18 +196,21 @@ export async function purgeWithdrawnLocationSubject(userId: string, apply = fals
     const current = await transaction.locationConsentEvent.findFirst({
       where: { userId }, orderBy: [{ createdAt: "desc" }, { id: "desc" }],
     });
-    if (current?.status !== "withdrawn") return { skipped: true, usageLogs: 0, consentEvents: 0 };
+    if (current?.status !== "withdrawn") return { skipped: true, usageLogs: 0, consentEvents: 0, recommendationRuns: 0, routeMetadata: 0 };
     const usageWhere = { OR: [{ userId }, { subjectKey: createSubjectKey(userId) }] };
     const consentWhere = { userId, id: { not: current.id } };
-    const [usageLogs, consentEvents] = await Promise.all([
+    const [usageLogs, consentEvents, derived] = await Promise.all([
       transaction.locationUsageLog.count({ where: usageWhere }),
       transaction.locationConsentEvent.count({ where: consentWhere }),
+      countLocationDerivedData(transaction, userId),
     ]);
     if (apply) {
       await transaction.locationUsageLog.deleteMany({ where: usageWhere });
       await transaction.locationConsentEvent.deleteMany({ where: consentWhere });
+      await purgeLocationDerivedData(transaction, userId);
+      cancelLocationRequests(userId);
     }
-    return { skipped: false, usageLogs, consentEvents };
+    return { skipped: false, usageLogs, consentEvents, ...derived };
   });
 }
 
@@ -251,7 +271,15 @@ export async function runWithLocationUsage<Result>({
     kind: "internal_use",
     method,
   });
-  return usageContext.run(context, operation);
+  return usageContext.run(context, () => withLocationRequestScope(user.id, async () => {
+    const result = await operation();
+    // 다른 워커에서의 철회도 DB 동의 세대로 확인한다. 재동의해도 예전 결과는 반환하지 않는다.
+    const current = await requireCurrentLocationConsent(user);
+    if (current.id !== consent.id) {
+      throw new LocationComplianceError("위치 이용 설정이 변경되었어요. 다시 확인해주세요.", "location_consent_required", 403);
+    }
+    return result;
+  }));
 }
 
 export async function recordExternalLocationTransfer({

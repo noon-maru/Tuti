@@ -7,6 +7,7 @@ import type {
 import type { UserLocation } from "@/shared/tuti/types";
 import { recordExternalLocationTransfer } from "@/server/location/compliance";
 import { requireExternalLocationProcessingMode } from "@/server/location/externalProcessing";
+import { locationRequestSignal } from "@/server/location/requestScope";
 import {
   isUsableRoute,
   parseRouteMetric,
@@ -342,7 +343,7 @@ async function fetchKakaoJson<T>(
   try {
     response = await fetch(url, {
       cache: "no-store",
-      signal: AbortSignal.timeout(KAKAO_REQUEST_TIMEOUT_MS),
+      signal: locationRequestSignal(KAKAO_REQUEST_TIMEOUT_MS),
       headers: {
         Accept: "application/json",
         Authorization: `KakaoAK ${apiKey}`,

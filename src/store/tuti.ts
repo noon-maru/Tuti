@@ -206,7 +206,15 @@ export const useTutiStore = create<TutiState>()(
           },
         })),
       setUserLocation: (userLocation) => set({ userLocation }),
-      clearUserLocation: () => set({ userLocation: undefined }),
+      clearUserLocation: () => set({
+        userLocation: undefined,
+        dailyRecommendation: undefined,
+        recommendationExcludedPlaceIds: [],
+        activeIndex: 0,
+        activePlaceId: undefined,
+        detailOverlay: { phase: "closed" },
+        pendingDeparture: undefined,
+      }),
       acceptLocationConsent: () =>
         set({
           locationConsent: {
@@ -216,8 +224,9 @@ export const useTutiStore = create<TutiState>()(
           },
         }),
       syncLocationConsent: (locationConsent) =>
-        set(
-          locationConsent?.status === "accepted"
+        set((state) =>
+          locationConsent?.status === "accepted" &&
+          (state.locationConsent?.status !== "accepted" || state.locationConsent.updatedAt === locationConsent.updatedAt)
             ? { locationConsent }
             : {
                 userLocation: undefined,

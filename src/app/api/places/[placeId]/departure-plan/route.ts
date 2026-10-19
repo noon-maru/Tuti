@@ -76,7 +76,7 @@ export async function POST(
     }
 
     const response: DeparturePlanResponse = { plan };
-    return withCors(request, Response.json(response));
+    return withCors(request, Response.json(response, { headers: { "Cache-Control": "no-store" } }));
   } catch (error) {
     const invalidJson = error instanceof SyntaxError;
     const complianceError =

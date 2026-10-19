@@ -129,6 +129,10 @@ export function JournalEditorScreen({
     selectionId: number,
     includePhotoLocation: boolean,
   ) => {
+    const photoConsent = useTutiStore.getState().locationConsent;
+    const canApplyPhotoLocation = () =>
+      photoConsent?.status === "accepted" &&
+      useTutiStore.getState().locationConsent === photoConsent;
     setCropSource((current) => {
       if (current) URL.revokeObjectURL(current);
       return URL.createObjectURL(file);
@@ -164,7 +168,7 @@ export function JournalEditorScreen({
           setVisitDate(metadata.captureDate);
         }
 
-        if (!metadata.location || hasEditedPlaceRef.current) return;
+        if (!metadata.location || hasEditedPlaceRef.current || !canApplyPhotoLocation()) return;
 
         setPhotoPlaceHint({
           status: "loading",
@@ -176,7 +180,7 @@ export function JournalEditorScreen({
 
           if (
             selectionId !== imageSelectionIdRef.current ||
-            hasEditedPlaceRef.current
+            hasEditedPlaceRef.current || !canApplyPhotoLocation()
           ) {
             return;
           }
@@ -199,7 +203,7 @@ export function JournalEditorScreen({
         } catch {
           if (
             selectionId !== imageSelectionIdRef.current ||
-            hasEditedPlaceRef.current
+            hasEditedPlaceRef.current || !canApplyPhotoLocation()
           ) {
             return;
           }

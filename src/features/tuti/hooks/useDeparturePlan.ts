@@ -11,7 +11,7 @@ export function useDeparturePlan(
 ) {
   return useQuery({
     queryKey: departurePlanQueryKey(placeId, userLocation, transport),
-    queryFn: () => fetchDeparturePlan(placeId, userLocation!, transport),
+    queryFn: ({ signal }) => fetchDeparturePlan(placeId, userLocation!, transport, signal),
     enabled: Boolean(userLocation),
     staleTime: 5 * 60 * 1_000,
     retry: 1,

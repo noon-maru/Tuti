@@ -1,6 +1,8 @@
 "use client";
 
 import { useQueryClient } from "@tanstack/react-query";
+import { App } from "@capacitor/app";
+import { Capacitor } from "@capacitor/core";
 import {
   createContext,
   useCallback,
@@ -31,6 +33,8 @@ import { LOCATION_TERMS_VERSION } from "@/shared/location/terms";
 import { getSessionSnapshot, subscribeToSession } from "@/lib/auth/session";
 import type { PreferredRegion } from "@/shared/tuti/types";
 import { useTutiStore } from "@/store/tuti";
+import { preferencesStorage } from "@/lib/storage/preferencesStorage";
+import { clearLocationQueryCache } from "./clearLocationQueries";
 
 type LocationAccessContextValue = {
   requestLocation: () => Promise<LocationRequestResult>;
@@ -94,6 +98,7 @@ export function LocationAccessProvider({
   const pendingLocationResultRef = useRef<LocationRequestResult | null>(null);
   const deviceRequestGeneration = useRef(0);
   const consentSyncGeneration = useRef(0);
+  const previousConsentStatus = useRef(locationConsent?.status);
 
 
   const refreshLocationConsent = useCallback(async () => {
@@ -155,13 +160,36 @@ export function LocationAccessProvider({
   );
 
   const clearLocationQueries = useCallback(() => {
-    void queryClient.cancelQueries({ queryKey: ["departure-plan"] });
-    void queryClient.cancelQueries({ queryKey: ["travel-time"] });
-    void queryClient.cancelQueries({ queryKey: ["recommendations"] });
-    queryClient.removeQueries({ queryKey: ["departure-plan"] });
-    queryClient.removeQueries({ queryKey: ["travel-time"] });
-    queryClient.removeQueries({ queryKey: ["recommendations"] });
+    clearLocationQueryCache(queryClient);
   }, [queryClient]);
+
+  useEffect(() => {
+    if (!hasHydrated || !sessionUserId) return;
+    const refresh = () => {
+      if (document.visibilityState === "visible") void refreshLocationConsent().catch(() => null);
+    };
+    window.addEventListener("focus", refresh);
+    document.addEventListener("visibilitychange", refresh);
+    const nativeListener = Capacitor.isNativePlatform()
+      ? App.addListener("appStateChange", ({ isActive }) => {
+          if (isActive) void refreshLocationConsent().catch(() => null);
+        })
+      : null;
+    return () => {
+      window.removeEventListener("focus", refresh);
+      document.removeEventListener("visibilitychange", refresh);
+      if (nativeListener) void nativeListener.then((listener) => listener.remove());
+    };
+  }, [hasHydrated, sessionUserId, refreshLocationConsent]);
+
+  useEffect(() => {
+    const previous = previousConsentStatus.current;
+    previousConsentStatus.current = locationConsent?.status;
+    if (hasHydrated && previous === "accepted" && locationConsent?.status !== "accepted") {
+      deviceRequestGeneration.current += 1;
+      clearLocationQueries();
+    }
+  }, [hasHydrated, locationConsent?.status, clearLocationQueries]);
 
   const finishRequest = useCallback((result: LocationRequestResult) => {
     setLocationFailure(null);
@@ -354,6 +382,7 @@ export function LocationAccessProvider({
     try {
       await updateLocationConsent("withdrawn");
       withdrawLocationConsent();
+      await preferencesStorage.flush();
     } finally {
       setRequesting(false);
     }

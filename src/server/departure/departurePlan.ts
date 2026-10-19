@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import { prisma } from "@/server/db/prisma";
 import { fetchNearbyKakaoPlaces } from "@/server/maps/kakaoMapClient";
 import { fetchCachedRoute } from "@/server/departure/cachedRoute";
+import { memoizeLocationRequest } from "@/server/location/requestScope";
 import {
   calculateDistanceMeters,
   isWalkingDistance,
@@ -31,7 +32,6 @@ const nearbyCache = new Map<
   string,
   CachedValue<DeparturePlan["nearbyPlaces"]>
 >();
-const routeRequests = new Map<string, Promise<RouteBundle>>();
 const nearbyRequests = new Map<
   string,
   Promise<DeparturePlan["nearbyPlaces"]>
@@ -162,13 +162,7 @@ async function getRouteBundle(
   destinationName: string,
 ): Promise<RouteBundle> {
   const key = createLocationCacheKey("routes", origin, destination);
-  const existingRequest = routeRequests.get(key);
-  if (existingRequest) return existingRequest;
-
-  const request = fetchRouteBundle(origin, destination, destinationName)
-    .finally(() => routeRequests.delete(key));
-  routeRequests.set(key, request);
-  return request;
+  return memoizeLocationRequest(key, () => fetchRouteBundle(origin, destination, destinationName));
 }
 
 async function fetchRouteBundle(

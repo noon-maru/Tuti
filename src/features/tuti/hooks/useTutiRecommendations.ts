@@ -80,7 +80,7 @@ export function useTutiRecommendations({ enabled = true } = {}) {
       RECOMMENDATION_ALGORITHM_VERSION,
       inputFingerprint,
     ],
-    queryFn: () =>
+    queryFn: ({ signal }) =>
       fetchRecommendations(
         answers,
         userLocation,
@@ -88,6 +88,7 @@ export function useTutiRecommendations({ enabled = true } = {}) {
         preferredRegion,
         recommendationExcludedPlaceIds,
         savedDeparturePlaces.map((place) => place.placeId),
+        signal,
       ),
     enabled: enabled && !regionSelectionRequired,
     initialData: cachedRecommendation,
@@ -95,6 +96,8 @@ export function useTutiRecommendations({ enabled = true } = {}) {
   });
 
   useEffect(() => {
+    const current = useTutiStore.getState();
+    if (userLocation && (current.userLocation !== userLocation || current.locationConsent?.status !== "accepted")) return;
     if (
       !data?.recommendationId ||
       (dailyRecommendation?.effectiveDate === recommendationDate &&
@@ -119,6 +122,7 @@ export function useTutiRecommendations({ enabled = true } = {}) {
     inputFingerprint,
     recommendationCycle,
     recommendationDate,
+    userLocation,
   ]);
 
   return {

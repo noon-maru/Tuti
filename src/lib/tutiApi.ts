@@ -112,6 +112,7 @@ export async function fetchRecommendations(
   preferredRegion?: PreferredRegion,
   excludePlaceIds?: string[],
   preferencePlaceIds?: string[],
+  signal?: AbortSignal,
 ): Promise<RecommendationResponse> {
   const request: RecommendationRequest = {
     answers,
@@ -127,6 +128,7 @@ export async function fetchRecommendations(
       "Content-Type": "application/json",
     },
     body: JSON.stringify(request),
+    signal,
   }));
 
   if (!response.ok) {
@@ -208,6 +210,7 @@ export async function fetchDeparturePlan(
   placeId: string,
   origin: UserLocation,
   transport?: IntakeAnswers["transport"],
+  signal?: AbortSignal,
 ): Promise<DeparturePlan> {
   const response = await fetchWithSession(
     `places/${encodeURIComponent(placeId)}/departure-plan`,
@@ -215,6 +218,7 @@ export async function fetchDeparturePlan(
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ origin, transport }),
+      signal,
     },
   );
 
@@ -232,6 +236,7 @@ export async function fetchDepartureRoute(
   placeId: string,
   origin: UserLocation,
   mode: DepartureRouteMode,
+  signal?: AbortSignal,
 ): Promise<DepartureRoute> {
   const response = await fetchWithSession(
     `places/${encodeURIComponent(placeId)}/departure-route`,
@@ -239,6 +244,7 @@ export async function fetchDepartureRoute(
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ origin, mode }),
+      signal,
     },
   );
   if (!response.ok) {
@@ -267,6 +273,7 @@ export async function fetchTravelTime(
   placeId: string,
   origin: UserLocation,
   transport?: IntakeAnswers["transport"],
+  signal?: AbortSignal,
 ): Promise<TravelTimeSummary | null> {
   const response = await fetchWithSession(
     `places/${encodeURIComponent(placeId)}/travel-time`,
@@ -274,6 +281,7 @@ export async function fetchTravelTime(
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ origin, transport }),
+      signal,
     },
   );
 

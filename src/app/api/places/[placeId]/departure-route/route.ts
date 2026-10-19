@@ -58,7 +58,7 @@ export async function POST(request: Request, context: RouteContext) {
       );
     }
     const response: DepartureRouteResponse = { route };
-    return withCors(request, Response.json(response));
+    return withCors(request, Response.json(response, { headers: { "Cache-Control": "no-store" } }));
   } catch (error) {
     const complianceError =
       error instanceof LocationComplianceError ? error : null;

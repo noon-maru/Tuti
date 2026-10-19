@@ -27,7 +27,7 @@ export async function settleCurrentPrivacyRequests() {
       const current = await getCurrentLocationConsent(userId);
       if (current?.status === "withdrawn") {
         const residual = await purgeWithdrawnLocationSubject(userId);
-        fulfilled = !residual.skipped && residual.usageLogs === 0 && residual.consentEvents === 0;
+        fulfilled = !residual.skipped && residual.usageLogs === 0 && residual.consentEvents === 0 && residual.recommendationRuns === 0 && residual.routeMetadata === 0;
       }
     }
     if (record.kind.startsWith("journal_") && userId) {

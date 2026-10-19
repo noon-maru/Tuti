@@ -5,6 +5,8 @@ process.env.DATABASE_URL = "postgresql://test:test@127.0.0.1:1/test";
 type Consent = { id: string; userId: string; subjectKey: string; status: string; termsVersion: string; ageConfirmed: boolean; createdAt: Date };
 let consents: Consent[] = [];
 let logs: Array<Record<string, unknown>> = [];
+let runs = [{ id: "located", locationUsed: true }, { id: "region", locationUsed: false }];
+let routeMetadata: unknown = { distanceMeters: 1234, durationSeconds: 300 };
 let failPurge = false;
 const calls: string[] = [];
 const database = {
@@ -29,13 +31,24 @@ const database = {
       logs = [];
     },
   },
+  recommendationRun: {
+    count: async () => runs.filter((run) => run.locationUsed).length,
+    deleteMany: async ({ where }: { where: { userId: string; locationUsed: boolean } }) => {
+      assert.deepEqual(where, { userId: user.id, locationUsed: true });
+      runs = runs.filter((run) => !run.locationUsed);
+    },
+  },
+  recommendationAction: {
+    count: async () => routeMetadata === null ? 0 : 1,
+    updateMany: async () => { routeMetadata = null; },
+  },
 };
 const fakePrisma = {
   ...database,
   $transaction: async (operation: (transaction: typeof database) => Promise<unknown>) => {
-    const before = { consents: [...consents], logs: [...logs] };
+    const before = { consents: [...consents], logs: [...logs], runs: [...runs], routeMetadata };
     try { return await operation(database); }
-    catch (error) { consents = before.consents; logs = before.logs; throw error; }
+    catch (error) { consents = before.consents; logs = before.logs; runs = before.runs; routeMetadata = before.routeMetadata; throw error; }
   },
 };
 (globalThis as { prisma?: unknown }).prisma = fakePrisma;
@@ -58,6 +71,8 @@ test("위치 동의 철회와 경쟁 요청을 안전하게 처리한다", async
     assert.equal(withdrawn.status, "withdrawn");
     assert.equal(logs.length, 0);
     assert.deepEqual(consents.map((entry) => entry.status), ["withdrawn"]);
+    assert.deepEqual(runs.map((run) => run.id), ["region"]);
+    assert.equal(routeMetadata, null);
     await consent("withdrawn", "old-version");
     assert.equal(consents.length, 1);
   });
@@ -71,10 +86,10 @@ test("위치 동의 철회와 경쟁 요청을 안전하게 처리한다", async
   });
   await t.test("작업 중 철회되면 후속 외부 전송 승인을 거절한다", async () => {
     const accepted = await consent("accepted");
-    await runWithLocationUsage({ user, consent: accepted, acquisitionSource: "device", service: "travel_time", method: "test", operation: async () => {
+    await assert.rejects(runWithLocationUsage({ user, consent: accepted, acquisitionSource: "device", service: "travel_time", method: "test", operation: async () => {
       await consent("withdrawn");
       await assert.rejects(recordExternalLocationTransfer({ recipient: "Kakao", purpose: "test", method: "test", mode: "processor" }), { code: "location_consent_required" });
-    } });
+    } }), { code: "location_consent_required" });
     assert.equal(logs.length, 0);
   });
   await t.test("일시 중지는 자료를 파기하지 않고 연령 확인을 유지한다", async () => {
@@ -101,7 +116,7 @@ test("위치 동의 철회와 경쟁 요청을 안전하게 처리한다", async
     consents.unshift({ ...accepted, userId: user.id, subjectKey: "legacy-key" });
     logs.push({ userId: user.id });
     const inspection = await purgeWithdrawnLocationSubject(user.id);
-    assert.deepEqual(inspection, { skipped: false, usageLogs: 1, consentEvents: 1 });
+    assert.deepEqual(inspection, { skipped: false, usageLogs: 1, consentEvents: 1, recommendationRuns: 0, routeMetadata: 0 });
     assert.equal(logs.length, 1);
     await purgeWithdrawnLocationSubject(user.id, true);
     assert.equal(logs.length, 0);

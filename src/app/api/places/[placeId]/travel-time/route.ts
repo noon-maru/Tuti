@@ -67,7 +67,7 @@ export async function POST(
         operation: () => createTravelTimeSummary(placeId, origin, transport),
       }),
     };
-    return withCors(request, Response.json(response));
+    return withCors(request, Response.json(response, { headers: { "Cache-Control": "no-store" } }));
   } catch (error) {
     const invalidJson = error instanceof SyntaxError;
     const complianceError =

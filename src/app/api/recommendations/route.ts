@@ -63,10 +63,11 @@ export async function POST(request: Request) {
         preferencePlaceIds,
       );
     const recommendationStartedAt = performance.now();
+    const locationConsent = location ? await requireCurrentLocationConsent(user) : null;
     const { places, personalization } = location
       ? await runWithLocationUsage({
           user: user!,
-          consent: await requireCurrentLocationConsent(user),
+          consent: locationConsent!,
           acquisitionSource: "device",
           service: "recommendation",
           method: "POST /api/recommendations",
@@ -89,6 +90,7 @@ export async function POST(request: Request) {
           request: body,
           places,
           locationUsed: Boolean(location),
+          locationConsentId: locationConsent?.id,
           stateTextUsed: false,
           personalization,
         });
@@ -100,6 +102,7 @@ export async function POST(request: Request) {
       request,
       Response.json(response, {
         headers: {
+          "Cache-Control": "no-store",
           "Server-Timing": createRecommendationServerTiming({
             requestStartedAt,
             recommendationStartedAt,

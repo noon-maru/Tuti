@@ -6,6 +6,7 @@ import type {
 import { prisma } from "@/server/db/prisma";
 import { fetchKakaoMapRoute } from "@/server/maps/kakaoMapClient";
 import { fetchKakaoDrivingRoute } from "@/server/maps/kakaoNaviClient";
+import { memoizeLocationRequest } from "@/server/location/requestScope";
 import { toTravelTimeSummary } from "@/server/departure/travelTimeSummary";
 import { enrichPlacesWithCrowdForecast } from "@/server/recommendations/crowdForecast";
 import { recommendablePlaceWhere } from "@/server/recommendations/recommendablePlaceWhere";
@@ -38,13 +39,6 @@ const scheduleCache = new Map<
   { expiresAt: number; services: NormalizedService[] }
 >();
 const scheduleRequests = new Map<string, Promise<NormalizedService[]>>();
-const routeCache = new Map<
-  string,
-  {
-    expiresAt: number;
-    route: Promise<Awaited<ReturnType<typeof fetchKakaoMapRoute>>>;
-  }
->();
 
 type Hub = {
   id: string;
@@ -385,7 +379,6 @@ async function planJourney(
       getSchedules(destinationHub, originHub, returnDate),
       fetchCachedAccessRoute(
         `origin:${locationCell(userLocation)}:${originHub.id}:${transport ?? "transit"}`,
-        30 * 60_000,
         userLocation,
         originHub,
         originHub.name,
@@ -393,7 +386,6 @@ async function planJourney(
       ).catch(() => null),
       fetchCachedTransitRoute(
         `destination:${destinationHub.id}:${locationCell(placeLocation)}`,
-        6 * 60 * 60_000,
         destinationHub,
         placeLocation,
         "추천 장소",
@@ -676,57 +668,29 @@ function getModeLabel(mode: LongDistanceMode) {
 
 function fetchCachedTransitRoute(
   key: string,
-  ttlMs: number,
   origin: UserLocation,
   destination: UserLocation,
   destinationName: string,
 ) {
-  const cached = routeCache.get(key);
-  if (cached && cached.expiresAt > Date.now()) return cached.route;
-  if (cached) routeCache.delete(key);
-  const route = fetchKakaoMapRoute("publicTransit", {
+  return memoizeLocationRequest(key, () => fetchKakaoMapRoute("publicTransit", {
     origin,
     destination,
     destinationName,
-  }).catch((error) => {
-    routeCache.delete(key);
-    throw error;
-  });
-  const entry = { expiresAt: Date.now() + ttlMs, route };
-  routeCache.set(key, entry);
-  const expiryTimer = setTimeout(() => {
-    if (routeCache.get(key) === entry) routeCache.delete(key);
-  }, ttlMs);
-  expiryTimer.unref?.();
-  return route;
+  }));
 }
 
 function fetchCachedAccessRoute(
   key: string,
-  ttlMs: number,
   origin: UserLocation,
   destination: UserLocation,
   destinationName: string,
   mode: "publicTransit" | "driving",
 ) {
-  const cached = routeCache.get(key);
-  if (cached && cached.expiresAt > Date.now()) return cached.route;
-  if (cached) routeCache.delete(key);
   const input = { origin, destination, destinationName };
-  const route = (mode === "driving"
+  return memoizeLocationRequest(key, () => mode === "driving"
     ? fetchKakaoDrivingRoute(input)
     : fetchKakaoMapRoute("publicTransit", input)
-  ).catch((error) => {
-    routeCache.delete(key);
-    throw error;
-  });
-  const entry = { expiresAt: Date.now() + ttlMs, route };
-  routeCache.set(key, entry);
-  const expiryTimer = setTimeout(() => {
-    if (routeCache.get(key) === entry) routeCache.delete(key);
-  }, ttlMs);
-  expiryTimer.unref?.();
-  return route;
+  );
 }
 
 function locationCell(location: UserLocation) {

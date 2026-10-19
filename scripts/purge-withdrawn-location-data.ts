@@ -16,13 +16,15 @@ async function main() {
     WHERE latest.status = 'withdrawn' ORDER BY latest.user_id LIMIT 501
   `;
   const page = candidates.slice(0, 500);
-  const summary = { users: 0, skipped: 0, usageLogs: 0, consentEvents: 0 };
+  const summary = { users: 0, skipped: 0, usageLogs: 0, consentEvents: 0, recommendationRuns: 0, routeMetadata: 0 };
   for (const candidate of page) {
     const result = await purgeWithdrawnLocationSubject(candidate.user_id, apply);
     summary.users += 1;
     summary.skipped += Number(result.skipped);
     summary.usageLogs += result.usageLogs;
     summary.consentEvents += result.consentEvents;
+    summary.recommendationRuns += result.recommendationRuns ?? 0;
+    summary.routeMetadata += result.routeMetadata ?? 0;
   }
   console.log(JSON.stringify({ mode: apply ? "applied" : "dry-run", ...summary, hasMore: candidates.length > 500, nextAfterUserId: candidates.length > 500 ? page.at(-1)?.user_id : null }));
 }

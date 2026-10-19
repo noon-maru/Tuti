@@ -20,7 +20,7 @@ export function useTravelTime(
       userLocation?.longitude,
       transport,
     ],
-    queryFn: () => fetchTravelTime(placeId!, userLocation!, transport),
+    queryFn: ({ signal }) => fetchTravelTime(placeId!, userLocation!, transport, signal),
     enabled: enabled && Boolean(placeId) && Boolean(userLocation),
     initialData,
     staleTime: 5 * 60 * 1_000,

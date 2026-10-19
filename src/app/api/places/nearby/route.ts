@@ -83,7 +83,7 @@ export async function POST(request: Request) {
       })),
     };
 
-    return withCors(request, Response.json(response));
+    return withCors(request, Response.json(response, { headers: { "Cache-Control": "no-store" } }));
   } catch (error) {
     const complianceError =
       error instanceof LocationComplianceError ? error : null;
