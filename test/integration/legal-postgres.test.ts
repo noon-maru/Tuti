@@ -56,7 +56,28 @@ test("분리된 PostgreSQL에서 약관·권리 보호 마이그레이션의 실
     assert.match(result.stderr, message);
   };
   query('CREATE TABLE users(id text PRIMARY KEY); CREATE TABLE content_reports(id text PRIMARY KEY);');
+  query("CREATE TABLE system_logs(id text PRIMARY KEY, actor_user_id text, target_type text, target_id text, category text, action text, metadata jsonb, created_at timestamp(3) DEFAULT CURRENT_TIMESTAMP)");
+  query(`INSERT INTO system_logs(id,actor_user_id,target_type,target_id,category,action,metadata) VALUES ('legacy-access','legacy-admin','user','legacy-owner','journal','journal.admin.viewed','{"purpose":"support","reference":"CASE-123","entryIds":"entry-1,entry-2","content":"DO-NOT-COPY"}'), ('ordinary','legacy-admin','user','legacy-owner','journal','journal.created','{}')`);
   for (const name of ["20261019120000_add_service_terms_consent", "20261019130000_add_journal_rights_workflow"]) query(readFileSync(join(process.cwd(), "prisma/migrations", name, "migration.sql"), "utf8"));
+  query(readFileSync(join(process.cwd(), "prisma/migrations/20261019140000_add_admin_journal_access_audits/migration.sql"), "utf8"));
+  await t.test("관리자 접근 증거를 별도 보존하고 계정 삭제·변조·조기 파기를 막는다", () => {
+    assert.equal(query("SELECT count(*) FROM admin_journal_access_audits"), "1");
+    assert.equal(query("SELECT case_reference || ':' || array_to_string(entry_ids, ',') FROM admin_journal_access_audits"), "CASE-123:entry-1,entry-2");
+    assert.doesNotMatch(query("SELECT row_to_json(a)::text FROM admin_journal_access_audits a"), /DO-NOT-COPY/);
+    query("INSERT INTO users VALUES ('legacy-admin'),('legacy-owner'); DELETE FROM users WHERE id IN ('legacy-admin','legacy-owner'); DELETE FROM system_logs");
+    assert.equal(query("SELECT actor_user_id || ':' || subject_user_id FROM admin_journal_access_audits"), "legacy-admin:legacy-owner");
+    rejected("UPDATE admin_journal_access_audits SET actor_user_id=NULL", /immutable/);
+    rejected("TRUNCATE admin_journal_access_audits", /immutable/);
+    rejected("DELETE FROM admin_journal_access_audits", /retention has not expired/);
+    query("INSERT INTO admin_journal_access_audits(id,entry_ids,occurred_at) VALUES ('expired','{}',CURRENT_TIMESTAMP - INTERVAL '2 years 1 second'); DELETE FROM admin_journal_access_audits WHERE id='expired'");
+    assert.equal(query("SELECT count(*) FROM admin_journal_access_audits"), "1");
+  });
+  await t.test("구버전 서버가 일반 로그에만 기록해도 DB가 접근 증거를 별도로 보존한다", () => {
+    query("INSERT INTO system_logs(id,actor_user_id,target_type,target_id,category,action,metadata) VALUES ('old-client-access','operator','user','owner','journal','journal.admin.viewed','{}'), ('not-an-access','operator','user','owner','journal','journal.created','{}')");
+    query("DELETE FROM system_logs WHERE target_id='owner'");
+    assert.equal(query("SELECT actor_user_id || ':' || subject_user_id FROM admin_journal_access_audits WHERE id='old-client-access'"), "operator:owner");
+    assert.equal(query("SELECT count(*) FROM admin_journal_access_audits WHERE id='not-an-access'"), "0");
+  });
   await t.test("공고일 30일 미만 시행을 DB도 거절한다", () => {
     rejected("INSERT INTO service_terms_releases VALUES ('invalid','{}','hash','2026-10-19','2026-11-17','APPROVAL-1',30)", /check constraint/);
     query("INSERT INTO service_terms_releases VALUES ('v1','{}','hash','2026-10-19','2026-11-18','APPROVAL-1',30)");

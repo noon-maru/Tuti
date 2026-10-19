@@ -9,6 +9,10 @@ const query = async (table: string, method: string, input: unknown) => {
     assert.deepEqual(input, { where: { userId: "subject" } });
     assert.equal(method, "deleteMany");
   }
+  if (table === "systemLog" && method === "deleteMany") {
+    assert.deepEqual((input as { where: { NOT: unknown } }).where.NOT, { category: "journal", action: "journal.admin.viewed" });
+  }
+  assert.notEqual(table, "adminJournalAccessAudit", "계정 삭제가 분리 보존하는 접근 증거를 변경하면 안 된다.");
   return { count: 1 };
 };
 const transaction = new Proxy({}, {

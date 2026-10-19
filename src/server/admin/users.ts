@@ -7,6 +7,7 @@ import { getRequiredAuthEnv } from "@/server/auth/config";
 import { revokeAppleRefreshToken } from "@/server/auth/appleOAuth";
 import { lockLocationSubject } from "@/server/location/subjectLock";
 import { commitPrivacyReplayReceipt, preparePrivacyReplayReceipt, privacyReplayEnabled } from "@/server/legal/privacyReplayLedger";
+import { LEGACY_ADMIN_JOURNAL_ACCESS_AUDIT } from "@/server/admin/journalAccessAudit";
 
 export async function forceDeleteUser(
   userId: string,
@@ -195,12 +196,16 @@ async function deleteUserRecord(
     await transaction.systemLog.deleteMany({
       where: {
         category: { notIn: ["moderation", "report"] },
+        // 법정 접근 증거는 계정 삭제와 분리한다. 구버전에서 남긴 원본도 보존한다.
+        NOT: LEGACY_ADMIN_JOURNAL_ACCESS_AUDIT,
         OR: [
           { actorUserId: userId },
           { targetId: userId },
         ],
       },
     });
+
+    // adminJournalAccessAudit는 User FK가 없으며 이 경로에서 삭제·대체하지 않는다.
 
     // 계정 삭제는 위치 이용 종료·전부 철회로 처리한다.
     await transaction.locationUsageLog.deleteMany({

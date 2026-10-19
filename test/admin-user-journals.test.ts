@@ -10,6 +10,8 @@ let targetExists = true;
 let auditFails = false;
 let reads = 0;
 const audits: unknown[] = [];
+const accessAudits: unknown[] = [];
+let dedicatedAuditFails = false;
 const queries: Array<{ where: unknown; skip: number; take: number }> = [];
 const entries = Array.from({ length: 21 }, (_, index) => ({
   id: `journal-${index}`,
@@ -29,6 +31,10 @@ const entries = Array.from({ length: 21 }, (_, index) => ({
 
 // 이 파일의 테스트 프로세스 안에서만 사용한다. 실제 DB에는 연결하지 않는다.
 const fakePrisma = {
+  adminJournalAccessAudit: { findUniqueOrThrow: async () => {
+    if (dedicatedAuditFails) throw new Error("dedicated audit unavailable");
+    return accessAudits.at(-1);
+  } },
   user: {
     findUnique: async ({ where }: { where: { tokenHash?: string; id?: string } }) => {
       if (where.tokenHash) return {
@@ -50,13 +56,22 @@ const fakePrisma = {
     },
   },
   systemLog: {
-    create: async (input: unknown) => {
+    create: async (input: { data: { id: string; actorUserId: string; targetId: string; metadata: { purpose: string; reference: string; entryIds: string } } }) => {
       if (auditFails) throw new Error("test audit unavailable");
       audits.push(input);
+      // DB 트리거 동작 자체는 별도 PostgreSQL 시험에서 검증한다.
+      accessAudits.push({ id: input.data.id, actorUserId: input.data.actorUserId, subjectUserId: input.data.targetId,
+        purpose: input.data.metadata.purpose, caseReference: input.data.metadata.reference, entryIds: input.data.metadata.entryIds.split(",") });
+      return { id: input.data.id };
     },
   },
 };
-(globalThis as { prisma?: unknown }).prisma = fakePrisma;
+const database = { ...fakePrisma, $transaction: async (operation: (client: typeof fakePrisma) => Promise<void>) => {
+  const before = [audits.length, accessAudits.length];
+  try { return await operation(fakePrisma); }
+  catch (error) { audits.length = before[0]; accessAudits.length = before[1]; throw error; }
+} };
+(globalThis as { prisma?: unknown }).prisma = database;
 const { POST, GET } = await import("@/app/api/admin/user-journals/route");
 
 function request(query = `userId=${userId}`, authenticated = true, origin?: string, body: unknown = { purpose: "support", reference: "INQUIRY-123" }) {
@@ -118,6 +133,11 @@ test("관리자 기록 조회의 접근 제어·페이지 이동·감사 기록"
     assert.match(audit, /support/);
     assert.match(audit, new RegExp(userId));
     assert.doesNotMatch(audit, /개인 기록 본문|비공개 기록 제목|signature|private-image/);
+    const canonical = JSON.stringify(accessAudits.at(-1));
+    assert.match(canonical, /subjectUserId/);
+    assert.match(canonical, new RegExp(userId));
+    assert.match(canonical, /test-operator|INQUIRY-123/);
+    assert.doesNotMatch(canonical, /개인 기록 본문|비공개 기록 제목|signature|private-image|email/);
   });
 
   await t.test("페이지 범위를 제한해 마지막 기록까지 조회한다", async () => {
@@ -131,11 +151,21 @@ test("관리자 기록 조회의 접근 제어·페이지 이동·감사 기록"
 
   await t.test("감사 로그를 저장하지 못하면 비공개 내용을 반환하지 않는다", async (t) => {
     auditFails = true;
+    const before = accessAudits.length;
     t.mock.method(console, "error", () => {});
     const response = await POST(request());
     assert.equal(response.status, 500);
     const body = await response.json();
     assert.equal(body.entries, undefined);
+    assert.equal(accessAudits.length, before, "일반 로그 기록 실패 시 전용 기록도 같은 트랜잭션으로 롤백한다.");
     auditFails = false;
+  });
+  await t.test("전용 접근 감사 기록 실패도 조회 성공으로 처리하지 않는다", async (t) => {
+    t.mock.method(console, "error", () => {});
+    dedicatedAuditFails = true;
+    const response = await POST(request());
+    assert.equal(response.status, 500);
+    assert.equal((await response.json()).entries, undefined);
+    dedicatedAuditFails = false;
   });
 });

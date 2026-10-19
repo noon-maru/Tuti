@@ -1,5 +1,5 @@
 import { authenticateAdmin } from "@/server/admin/auth";
-import { writeSystemLog } from "@/server/admin/log";
+import { writeAdminJournalAccessAudit } from "@/server/admin/journalAccessAudit";
 import { prisma } from "@/server/db/prisma";
 import {
   createPreflightResponse,
@@ -89,15 +89,8 @@ export async function POST(request: Request) {
     };
 
     // 감사 기록에 본문·사진 URL은 남기지 않는다. 기록 실패 시 내용도 반환하지 않는다.
-    await writeSystemLog({
-      category: "journal",
-      action: "journal.admin.viewed",
-      message: "관리자가 사용자의 기록을 조회했습니다.",
-      actorUserId: authentication.user.id,
-      targetType: "user",
-      targetId: userId,
-      metadata: { ...access, page, resultCount: entries.length, total, entryIds: entries.map((entry) => entry.id).join(",") },
-    });
+    await writeAdminJournalAccessAudit({ actorUserId: authentication.user.id, subjectUserId: userId,
+      ...access, page, resultCount: entries.length, total, entryIds: entries.map((entry) => entry.id) });
 
     return respond(response);
   } catch (error) {

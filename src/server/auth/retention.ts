@@ -1,4 +1,5 @@
 import { prisma } from "@/server/db/prisma";
+import { adminJournalAccessAuditCutoff, LEGACY_ADMIN_JOURNAL_ACCESS_AUDIT } from "@/server/admin/journalAccessAudit";
 
 const PURGE_INTERVAL_MS = 60 * 60 * 1_000;
 const CONSUMED_CODE_GRACE_MS = 60 * 60 * 1_000;
@@ -18,6 +19,8 @@ export async function purgeExpiredAuthRecords(now = new Date()) {
     trafficObservations,
     trafficBlockRules,
     trafficSecurityLogs,
+    adminJournalAccessAudits,
+    legacyAdminJournalAccessLogs,
   ] =
     await prisma.$transaction([
       prisma.userSession.deleteMany({
@@ -58,6 +61,12 @@ export async function purgeExpiredAuthRecords(now = new Date()) {
           createdAt: { lte: securityRuleHistoryBefore },
         },
       }),
+      prisma.adminJournalAccessAudit.deleteMany({
+        where: { occurredAt: { lt: adminJournalAccessAuditCutoff(now) } },
+      }),
+      prisma.systemLog.deleteMany({
+        where: { ...LEGACY_ADMIN_JOURNAL_ACCESS_AUDIT, createdAt: { lt: adminJournalAccessAuditCutoff(now) } },
+      }),
     ]);
 
   return {
@@ -68,6 +77,8 @@ export async function purgeExpiredAuthRecords(now = new Date()) {
     trafficObservations: trafficObservations.count,
     trafficBlockRules: trafficBlockRules.count,
     trafficSecurityLogs: trafficSecurityLogs.count,
+    adminJournalAccessAudits: adminJournalAccessAudits.count,
+    legacyAdminJournalAccessLogs: legacyAdminJournalAccessLogs.count,
   };
 }
 

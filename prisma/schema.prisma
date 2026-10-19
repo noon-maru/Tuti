@@ -1091,6 +1091,22 @@ model TrafficBlockRule {
   @@map("traffic_block_rules")
 }
 
+// 법정 접근 감사: 계정 삭제와 분리하여 보존. User/JournalEntry FK를 두지 않는다.
+model AdminJournalAccessAudit {
+  id               String   @id
+  actorUserId      String?  @map("actor_user_id")
+  subjectUserId    String?  @map("subject_user_id")
+  purpose          String?
+  caseReference    String?  @map("case_reference")
+  entryIds         String[] @map("entry_ids")
+  occurredAt       DateTime @default(now()) @map("occurred_at")
+
+  @@index([occurredAt])
+  @@index([actorUserId, occurredAt])
+  @@index([subjectUserId, occurredAt])
+  @@map("admin_journal_access_audits")
+}
+
 model SystemLog {
   id          String   @id
   level       LogLevel @default(info)
