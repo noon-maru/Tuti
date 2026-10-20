@@ -1,0 +1,34 @@
+#!/bin/sh
+set -eu
+PATH="/usr/local/bin:/usr/bin:/bin:/usr/local/sbin:/usr/sbin:/sbin:$PATH"
+export PATH
+if [ "$(id -u)" != 0 ] || [ "$#" -gt 1 ]; then echo "사용법: sudo sh scripts/ops/tuti-prod-backup-verify [YYYYMMDD-HHMMSS]" >&2; exit 1; fi
+project_dir="/var/services/homes/Tutiadmin/source/Tuti"
+backup_root="/volume1/tuti/backups/full"
+cd "$project_dir"
+for source in scripts/ops/tuti-prod-backup-verify scripts/verify-production-backup.ts src/server/legal/backupVerification.ts; do
+  git -c safe.directory="$project_dir" ls-files --error-unmatch "$source" >/dev/null 2>&1
+  git -c safe.directory="$project_dir" diff --quiet HEAD -- "$source"
+done
+exec 9>"$project_dir/.ops-state/maintenance.lock"
+/usr/bin/flock --shared --nonblock 9 || { echo "다른 유지보수 작업이 실행 중입니다." >&2; exit 1; }
+if [ -f .ops-state/restore-privacy/pending.env ] || [ -f .ops-state/privacy-activation/pending ]; then echo "복원·전환 대기를 먼저 확인해주세요." >&2; exit 1; fi
+backup_id="${1:-}"
+if [ -z "$backup_id" ]; then backup_id="$(find "$backup_root" -mindepth 1 -maxdepth 1 -type d -printf '%f\n' | LC_ALL=C grep -E '^[0-9]{8}-[0-9]{6}$' | sort | tail -n 1)"; fi
+if ! printf '%s\n' "$backup_id" | LC_ALL=C grep -Eq '^[0-9]{8}-[0-9]{6}$'; then echo "검증할 백업을 확인해주세요." >&2; exit 1; fi
+target="$backup_root/$backup_id"
+if [ ! -d "$target" ] || [ -L "$target" ] || [ -L "$backup_root" ]; then echo "정상 백업 디렉터리가 필요합니다." >&2; exit 1; fi
+docker image inspect tuti:ops >/dev/null
+docker image inspect postgis/postgis:17-3.5 >/dev/null
+docker run --rm --network none --read-only --memory 384m --cpus 0.5 --pids-limit 64 --cap-drop ALL --security-opt no-new-privileges:true \
+  --tmpfs /tmp:rw,noexec,nosuid,nodev,size=32m -e NODE_OPTIONS=--max-old-space-size=256 \
+  -v "$target:/backup:ro" \
+  -v "$project_dir/scripts/verify-production-backup.ts:/app/scripts/verify-production-backup.ts:ro" \
+  -v "$project_dir/src/server/legal/backupVerification.ts:/app/src/server/legal/backupVerification.ts:ro" \
+  --entrypoint node tuti:ops --import tsx scripts/verify-production-backup.ts
+# 실제 운영 DB나 새 DB를 열지 않고 PostgreSQL 17 도구로 archive TOC만 파싱한다.
+if ! docker run --rm -i --network none --read-only --memory 128m --cpus 0.5 --pids-limit 32 --cap-drop ALL --security-opt no-new-privileges:true \
+  --entrypoint pg_restore postgis/postgis:17-3.5 --list < "$target/postgres.dump" >/dev/null 2>/dev/null; then
+  echo "PostgreSQL 17 백업 목록 해독에 실패했습니다." >&2; exit 1
+fi
+printf '{"backupId":"%s","archiveCatalogReadable":true,"restorePerformed":false,"networkAccess":false}\n' "$backup_id"
