@@ -18,6 +18,7 @@ if [ -z "$backup_id" ]; then backup_id="$(find "$backup_root" -mindepth 1 -maxde
 if ! printf '%s\n' "$backup_id" | LC_ALL=C grep -Eq '^[0-9]{8}-[0-9]{6}$'; then echo "검증할 백업을 확인해주세요." >&2; exit 1; fi
 target="$backup_root/$backup_id"
 if [ ! -d "$target" ] || [ -L "$target" ] || [ -L "$backup_root" ]; then echo "정상 백업 디렉터리가 필요합니다." >&2; exit 1; fi
+printf '{"backupId":"%s","mode":"read-only-verification"}\n' "$backup_id"
 docker image inspect tuti:ops >/dev/null
 docker image inspect postgis/postgis:17-3.5 >/dev/null
 # NAS에서는 run --help에 옵션이 있어도 커널 CFS quota가 없는 경우가 있다.
