@@ -1,0 +1,109 @@
+#!/bin/sh
+set -eu
+PATH="/usr/local/bin:/usr/bin:/bin:/usr/local/sbin:/usr/sbin:/sbin:$PATH"
+export PATH
+if [ "$(id -u)" != 0 ] || [ "$#" != 1 ]; then
+  echo "사용법: sudo sh scripts/ops/tuti-prod-backup-restore-test YYYYMMDD-HHMMSS" >&2; exit 1
+fi
+backup_id="$1"
+if ! printf '%s\n' "$backup_id" | LC_ALL=C grep -Eq '^[0-9]{8}-[0-9]{6}$'; then exit 1; fi
+project_dir="/var/services/homes/Tutiadmin/source/Tuti"
+backup_root="/volume1/tuti/backups/full"
+backup_dir="$backup_root/$backup_id"
+cd "$project_dir"
+for source in scripts/ops/tuti-prod-backup-restore-test scripts/ops/isolated-restore-garage.toml scripts/ops/isolated-restore-observations.sql scripts/verify-isolated-production-restore.ts src/server/legal/isolatedRestoreVerification.ts; do
+  git -c safe.directory="$project_dir" ls-files --error-unmatch "$source" >/dev/null 2>&1
+  git -c safe.directory="$project_dir" diff --quiet HEAD -- "$source"
+done
+if [ ! -d "$backup_dir" ] || [ -L "$backup_dir" ] || [ -L "$backup_root" ]; then exit 1; fi
+# 유지보수와 겹치거나 복구 확인 대기 중이면 실행하지 않는다. 운영 서비스는 정지하지 않는다.
+exec 9>"$project_dir/.ops-state/maintenance.lock"
+/usr/bin/flock --shared --nonblock 9 || { echo "다른 유지보수 작업이 실행 중입니다." >&2; exit 1; }
+if [ -f .ops-state/restore-privacy/pending.env ] || [ -f .ops-state/privacy-activation/pending ]; then exit 1; fi
+command -v timeout >/dev/null
+available_kb="$(awk '/^MemAvailable:/ { print $2 }' /proc/meminfo)"
+if [ "${available_kb:-0}" -lt 4194304 ]; then echo "사용 가능 메모리 4GiB 이상에서만 실행합니다." >&2; exit 1; fi
+for image in tuti:ops postgis/postgis:17-3.5 dxflrs/garage:v2.3.0; do
+  docker image inspect "$image" >/dev/null
+  volumes="$(docker image inspect --format '{{range $key, $value := .Config.Volumes}}{{println $key}}{{end}}' "$image")"
+  for volume in $volumes; do
+    case "$image:$volume" in
+      postgis/postgis:17-3.5:/var/lib/postgresql/data | dxflrs/garage:v2.3.0:/var/lib/garage | dxflrs/garage:v2.3.0:/var/lib/garage/meta | dxflrs/garage:v2.3.0:/var/lib/garage/data) ;;
+      *) echo "예상하지 못한 이미지 볼륨 선언입니다. 시험을 시작하지 않습니다." >&2; exit 1 ;;
+    esac
+  done
+done
+if [ "$(docker info --format '{{.MemoryLimit}}')" != true ]; then echo "메모리 제한이 필요합니다." >&2; exit 1; fi
+cpu_quota="$(docker info --format '{{.CPUCfsQuota}}')"
+pids_limit="$(docker info --format '{{.PidsLimit}}')"
+limits() {
+  memory="$1"; shift
+  if [ "$cpu_quota" = true ]; then set -- --cpus 0.5 "$@"; fi
+  if [ "$pids_limit" = true ]; then set -- --pids-limit 128 "$@"; fi
+  timeout 240 docker run --read-only --memory "$memory" --cap-drop ALL --security-opt no-new-privileges:true --log-driver none "$@"
+}
+# 원본 파일 검증이 실패하면 사본을 복원하지 않는다.
+sh scripts/ops/tuti-prod-backup-verify "$backup_id"
+umask 077
+scratch="$(mktemp -d /dev/shm/tuti-restore-test.XXXXXXXX)"
+test_id="tuti-restore-test-$(date +%s)-$$"
+pg_name="$test_id-pg"
+garage_name="$test_id-garage"
+node_name="$test_id-node"
+stage="sandbox-start"
+cleanup() {
+  result="$?"
+  trap - EXIT INT TERM
+  cleanup_ok=true
+  for container in "$node_name" "$garage_name" "$pg_name"; do
+    if docker container inspect "$container" >/dev/null 2>&1; then
+      owner="$(docker container inspect --format '{{index .Config.Labels "tuti.restore-test"}}' "$container")"
+      if [ "$owner" != "$test_id" ] || ! docker rm --force --volumes "$container" >/dev/null 2>&1; then cleanup_ok=false; fi
+    fi
+  done
+  case "$scratch" in /dev/shm/tuti-restore-test.*) if [ ! -L "$scratch" ]; then if ! rm -r -- "$scratch"; then cleanup_ok=false; fi; else cleanup_ok=false; fi ;; *) cleanup_ok=false ;; esac
+  if [ "$cleanup_ok" != true ]; then echo "시험용 자원 정리 확인이 필요합니다: $test_id" >&2; exit 1; fi
+  printf '{"sandboxId":"%s","sandboxResourcesRemoved":true,"productionRestorePerformed":false}\n' "$test_id"
+  if [ "$result" != 0 ]; then printf '{"stage":"%s","status":"failed","privateDetailsSuppressed":true}\n' "$stage" >&2; fi
+  exit "$result"
+}
+trap cleanup EXIT
+trap 'exit 130' INT
+trap 'exit 143' TERM
+pg_uid="$(limits 128m --rm --network none --entrypoint id postgis/postgis:17-3.5 -u postgres)"
+pg_gid="$(limits 128m --rm --network none --entrypoint id postgis/postgis:17-3.5 -g postgres)"
+case "$pg_uid:$pg_gid" in *[!0-9:]* | :*) exit 1 ;; esac
+limits 768m --detach --name "$pg_name" --label "tuti.restore-test=$test_id" --network none --user postgres \
+  --tmpfs "/var/lib/postgresql/data:rw,nosuid,nodev,size=512m,uid=$pg_uid,gid=$pg_gid,mode=0700" \
+  --tmpfs "/var/run/postgresql:rw,nosuid,nodev,size=16m,uid=$pg_uid,gid=$pg_gid,mode=0775" \
+  --tmpfs /tmp:rw,nosuid,nodev,size=32m \
+  -e POSTGRES_DB=restore_test -e POSTGRES_HOST_AUTH_METHOD=trust \
+  postgis/postgis:17-3.5 postgres -c listen_addresses= -c shared_buffers=16MB -c max_connections=8 >/dev/null
+limits 384m --detach --name "$garage_name" --label "tuti.restore-test=$test_id" --network none \
+  --tmpfs /var/lib/garage:rw,nosuid,nodev,size=8m \
+  --tmpfs /var/lib/garage/meta:rw,nosuid,nodev,size=64m \
+  --tmpfs /var/lib/garage/data:rw,nosuid,nodev,size=256m --tmpfs /tmp:rw,nosuid,nodev,size=16m \
+  -v "$project_dir/scripts/ops/isolated-restore-garage.toml:/etc/garage.toml:ro" \
+  -e GARAGE_RPC_SECRET=1111111111111111111111111111111111111111111111111111111111111111 \
+  -e GARAGE_ADMIN_TOKEN=isolated-restore-test -e GARAGE_METRICS_TOKEN=isolated-restore-test \
+  -e GARAGE_DEFAULT_ACCESS_KEY=GK0123456789abcdef01234567 \
+  -e GARAGE_DEFAULT_SECRET_KEY=2222222222222222222222222222222222222222222222222222222222222222 \
+  -e GARAGE_DEFAULT_BUCKET=tuti-restore-test \
+  dxflrs/garage:v2.3.0 /garage server --single-node --default-bucket >/dev/null
+attempt=0
+until docker exec "$pg_name" pg_isready -U postgres -d restore_test >/dev/null 2>&1 && docker exec "$garage_name" /garage status >/dev/null 2>&1; do
+  attempt=$((attempt + 1)); if [ "$attempt" -ge 30 ]; then exit 1; fi; sleep 2
+done
+stage="isolated-postgres-restore"
+if ! timeout 240 docker exec -i "$pg_name" pg_restore --username postgres --dbname restore_test --no-owner --no-privileges --exit-on-error \
+  < "$backup_dir/postgres.dump" > "$scratch/restore.log" 2>&1; then exit 1; fi
+stage="isolated-database-observations"
+if ! timeout 30 docker exec -i "$pg_name" psql --no-psqlrc -U postgres -d restore_test -At -v ON_ERROR_STOP=1 \
+  < scripts/ops/isolated-restore-observations.sql > "$scratch/references.json" 2> "$scratch/query.log"; then exit 1; fi
+stage="isolated-objects-and-content"
+if ! limits 384m --rm --name "$node_name" --label "tuti.restore-test=$test_id" --network "container:$garage_name" \
+  --tmpfs /tmp:rw,noexec,nosuid,nodev,size=32m -e NODE_OPTIONS=--max-old-space-size=256 -e TUTI_ISOLATED_RESTORE=true \
+  -v "$backup_dir:/backup:ro" -v "$scratch:/evidence:ro" \
+  -v "$project_dir/scripts/verify-isolated-production-restore.ts:/app/scripts/verify-isolated-production-restore.ts:ro" \
+  -v "$project_dir/src/server/legal/isolatedRestoreVerification.ts:/app/src/server/legal/isolatedRestoreVerification.ts:ro" \
+  --entrypoint node tuti:ops --import tsx scripts/verify-isolated-production-restore.ts; then exit 1; fi
