@@ -6,7 +6,7 @@ import { setTimeout as delay } from "node:timers/promises";
 
 export type PrivacyReplayKind = "account_deleted" | "location_withdrawn" | "journal_deleted" | "journal_sensitive_withdrawn" | "journal_book_deleted" | "journal_unpublished";
 type Receipt = { version: 1; id: string; kind: PrivacyReplayKind; subject: string; target: string | null; phase: "prepared" | "committed"; preparedAt: string; effectiveAt: string | null };
-type Header = { version: 1; type: "privacy-replay"; coverageStart: string; keyCheck: string; receiptIds: string[]; retiringIds: string[] };
+type Header = { version: 1; type: "privacy-replay"; coverageStart: string; keyCheck: string; receiptIds: string[]; retiringIds: string[]; activatedAt?: string; activationReference?: string };
 export type PrivacyReplaySnapshot = { coverageStart: Date; committed: Receipt[]; unresolved: number; pending?: Receipt[] };
 const UUID = /^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/;
 const DIGEST = /^[a-f0-9]{64}$/;
@@ -81,7 +81,44 @@ async function readHeader() {
   await directoryCheck(directory);
   const value = await readSigned(join(directory, "ledger.json"), secret);
   if (value.version !== 1 || value.type !== "privacy-replay" || !iso(value.coverageStart) || value.keyCheck !== signature("key-check", secret) || !Array.isArray(value.receiptIds) || !Array.isArray(value.retiringIds) || [...value.receiptIds, ...value.retiringIds].some((id: unknown) => typeof id !== "string" || !UUID.test(id)) || new Set([...value.receiptIds, ...value.retiringIds]).size !== value.receiptIds.length + value.retiringIds.length) throw new PrivacyReplayError("원장 초기화 시점·키·처리 목록을 확인해주세요. 임의 키 교체는 허용되지 않습니다.");
+  if ((value.activatedAt !== undefined || value.activationReference !== undefined) &&
+      (!iso(value.activatedAt) || typeof value.activationReference !== "string" || !/^[A-Za-z0-9_-]{3,100}$/.test(value.activationReference) || Date.parse(value.activatedAt) > Date.parse(value.coverageStart as string))) throw new PrivacyReplayError("원장 운영 전환 근거를 확인해주세요.");
   return value as unknown as Header;
+}
+export async function privacyReplayCoverageActivated() {
+  return withLedgerLock(async () => Boolean((await readHeader()).activatedAt));
+}
+// 앱이 중지된 최초 전환에서만 미수집 구간을 잘라낸다. 기존 요청·키·원장을 지우지 않는다.
+export async function activatePrivacyReplayCoverage(reference: string, now = new Date()) {
+  if (process.env.TUTI_PRIVACY_REPLAY_OFFLINE !== "true" || !privacyReplayEnabled() || !/^[A-Za-z0-9_-]{3,100}$/.test(reference) || !Number.isFinite(now.getTime())) throw new PrivacyReplayError("오프라인 운영 전환과 근거 번호가 필요합니다.");
+  return withLedgerLock(async () => {
+    const header = await readHeader();
+    if (header.activatedAt) return { coverageStart: header.coverageStart, activatedAt: header.activatedAt, alreadyActivated: true };
+    const names = await readdir(config().directory);
+    if (header.receiptIds.length || header.retiringIds.length || names.some((name) => !["ledger.json", ".lock"].includes(name)) || now < new Date(header.coverageStart)) throw new PrivacyReplayError("비어 있는 최초 원장만 전환할 수 있습니다. 기존 요청·미확인 파일을 점검해주세요.");
+    const at = now.toISOString();
+    await replaceSigned("ledger.json", { ...header, coverageStart: at, activatedAt: at, activationReference: reference });
+    return { coverageStart: at, activatedAt: at, alreadyActivated: false };
+  });
+}
+
+// 비밀 키가 포함된 서버 내부 복구 자료다. 반환값을 응답·로그로 출력하지 않는다.
+export async function capturePrivacyReplayRecovery() {
+  return withLedgerLock(async () => {
+    const header = await readHeader();
+    const { directory, secret } = config();
+    if (header.retiringIds.length) throw new PrivacyReplayError("원장 파기 중에는 복구 사본을 만들지 않습니다.");
+    const allowed = new Set(["ledger.json", ".lock", ...header.receiptIds.map((id) => `${id}.json`)]);
+    for (const name of await readdir(directory)) if (!allowed.has(name)) throw new PrivacyReplayError("미확인 원장 파일을 점검해주세요.");
+    const files: Record<string, string> = {};
+    for (const name of ["ledger.json", ...header.receiptIds.map((id) => `${id}.json`)]) {
+      const value = await readSigned(join(directory, name), secret);
+      if (name !== "ledger.json") parseReceipt(value, name);
+      const handle = await open(join(directory, name), constants.O_RDONLY | constants.O_NOFOLLOW);
+      try { files[name] = await handle.readFile("utf8"); } finally { await handle.close(); }
+    }
+    return { version: 1 as const, capturedAt: new Date().toISOString(), secret, files };
+  });
 }
 export async function initializePrivacyReplayLedger(now = new Date()) {
   const { directory, secret } = config();

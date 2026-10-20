@@ -1,0 +1,15 @@
+#!/bin/sh
+set -eu
+case "$#:$*" in 0:) action=--verify ;; 1:--apply) action=--snapshot ;; *) echo "사용법: tuti-privacy-ledger-backup [--apply]" >&2; exit 1 ;; esac
+project_dir="/var/services/homes/Tutiadmin/source/Tuti"
+cd "$project_dir"
+exec 9>"$project_dir/.ops-state/maintenance.lock"
+/usr/bin/flock --shared --nonblock 9 || exit 0
+exec 8>"$project_dir/.ops-state/privacy-recovery.lock"
+/usr/bin/flock --exclusive --nonblock 8 || exit 0
+if [ -f "$project_dir/.ops-state/restore-privacy/pending.env" ] || [ -f "$project_dir/.ops-state/privacy-activation/pending" ]; then
+  echo "복원·운영 전환 대기 중에는 복구 사본을 교체하지 않습니다." >&2; exit 1
+fi
+install -d -o root -g root -m 0700 "$project_dir/.ops-state/privacy-recovery"
+docker compose --env-file .env.production -f docker-compose.prod.yml run --rm --no-deps -T --user 0:0 \
+  -v "$project_dir/.ops-state/privacy-recovery:/recovery" ops node_modules/.bin/tsx scripts/privacy-ledger-recovery.ts "$action"

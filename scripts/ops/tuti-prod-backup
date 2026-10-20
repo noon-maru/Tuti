@@ -47,7 +47,7 @@ if [ "$parent_holds_maintenance_lock" != true ]; then
   fi
   /usr/bin/flock --exclusive 9
 fi
-if [ -f "$project_dir/.ops-state/restore-privacy/pending.env" ]; then
+if [ -f "$project_dir/.ops-state/restore-privacy/pending.env" ] || [ -f "$project_dir/.ops-state/privacy-activation/pending" ]; then
   echo "DB 복원 후 개인정보 확인 대기 중입니다. 재정리 전 새 백업을 만들지 않습니다." >&2
   exit 1
 fi

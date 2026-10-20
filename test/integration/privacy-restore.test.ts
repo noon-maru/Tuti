@@ -37,6 +37,7 @@ test("전체 스키마와 실제 Garage의 사진·PDF를 복원한 뒤 원장�
     OBJECT_STORAGE_ACCESS_KEY_ID: "GK0123456789abcdef01234567",
     OBJECT_STORAGE_SECRET_ACCESS_KEY: "2".repeat(64),
     LEGAL_RIGHTS_WORKFLOW_ENABLED: "false", SERVICE_TERMS_WORKFLOW_ENABLED: "false",
+    TUTI_PRIVACY_REPLAY_OFFLINE: "true",
     SERVICE_TERMS_ENFORCEMENT_ENABLED: "false", SENSITIVE_JOURNAL_WORKFLOW_ENABLED: "false",
     ANDROID_PUSH_ENABLED: "false", IOS_PUSH_ENABLED: "false", LEGAL_RIGHTS_ALERT_WEBHOOK_URL: "",
   };
@@ -84,7 +85,8 @@ test("전체 스키마와 실제 Garage의 사진·PDF를 복원한 뒤 원장�
   cleanup.disconnect = () => client.$disconnect();
   (globalThis as { prisma?: unknown }).prisma = client;
   const { putObject, getObject, listObjects, verifyObjectStorageConnection } = await import("../../src/server/storage/objectStorage");
-  const { initializePrivacyReplayLedger, readPrivacyReplaySnapshot } = await import("../../src/server/legal/privacyReplayLedger");
+  const { activatePrivacyReplayCoverage, initializePrivacyReplayLedger, readPrivacyReplaySnapshot } = await import("../../src/server/legal/privacyReplayLedger");
+  const { savePrivacyReplayRecovery, verifyPrivacyReplayRecovery } = await import("../../src/server/legal/privacyReplayRecovery");
   const { forceDeleteJournalEntry } = await import("../../src/server/journal/service");
   const { deleteJournalBook } = await import("../../src/server/journal/bookDeletion");
   const { withdrawSensitiveJournal } = await import("../../src/server/journal/sensitiveWithdrawal");
@@ -94,6 +96,7 @@ test("전체 스키마와 실제 Garage의 사진·PDF를 복원한 뒤 원장�
   await verifyObjectStorageConnection();
   assert.equal((await listObjects()).objects.length, 0, "전용 검증 버킷은 비어 있어야 한다.");
   await initializePrivacyReplayLedger();
+  await activatePrivacyReplayCoverage("INTEGRATION-CUTOVER");
   for (const id of ["owner", "removed", "unrelated"]) {
     await client.user.create({ data: { id, tokenHash: `privacy-test-${id}` } });
     await client.pushDevice.create({ data: { id, userId: id, installationId: id, platform: "android", token: `synthetic-${id}` } });
@@ -130,6 +133,9 @@ test("전체 스키마와 실제 Garage의 사진·PDF를 복원한 뒤 원장�
   await recordLocationConsent({ user: { id: "owner", role: "user" }, status: "withdrawn", termsVersion: LOCATION_TERMS_VERSION, ageConfirmed: false, clientPlatform: "web" });
   assert.deepEqual((await client.journalEntry.findMany({ select: { id: true } })).map((entry) => entry.id), ["keep"]);
   assert.equal((await readPrivacyReplaySnapshot()).unresolved, 0);
+  const recovery = join(root, "recovery");
+  assert.equal((await savePrivacyReplayRecovery(recovery)).verified, true);
+  assert.equal((await verifyPrivacyReplayRecovery(recovery)).automaticRestoreAllowed, false);
   assert.equal((await listObjects()).objects.length, 2);
   t.diagnostic("테스트 자료로 기록·PDF·계정 삭제와 위치 철회를 실제 서비스 함수로 실행");
 
