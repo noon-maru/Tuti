@@ -197,7 +197,7 @@ docker compose \
   -f docker-compose.prod.yml \
   run --rm --no-deps \
   -v "$backup_dir:/backup:ro" \
-  ops pnpm ops:objects:restore -- /backup
+  ops node_modules/.bin/tsx scripts/restore-object-storage.ts /backup
 
 printf 'backup_id=%s\nstatus=restored_pending_review\nrestored_at=%s\nprivacy_ledger_required=%s\n' "$backup_id" "$(date -Iseconds)" "$ledger_required" > "$privacy_pending"
 chmod 0600 "$privacy_pending"

@@ -101,7 +101,13 @@ docker compose \
   -f docker-compose.prod.yml \
   run --rm --no-deps \
   -v "$temporary_dir:/backup" \
-  ops pnpm ops:objects:backup -- /backup
+  ops node_modules/.bin/tsx scripts/backup-object-storage.ts /backup
+
+# 명령이 성공해도 지정한 마운트에 결과물이 없으면 완전한 백업으로 확정하지 않는다.
+if [ ! -s "$temporary_dir/objects.manifest.json" ] || [ ! -d "$temporary_dir/objects" ]; then
+  echo "지정한 백업 경로에 객체 목록·디렉터리가 없습니다. 완전한 백업으로 확정하지 않습니다." >&2
+  exit 1
+fi
 
 schema_migrations="$temporary_dir/migrations.txt"
 find prisma/migrations -mindepth 1 -maxdepth 1 -type d -printf '%f\n' 2>/dev/null \
