@@ -13,6 +13,7 @@ const audits: unknown[] = [];
 const accessAudits: unknown[] = [];
 let dedicatedAuditFails = false;
 const queries: Array<{ where: unknown; skip: number; take: number }> = [];
+const countQueries: unknown[] = [];
 const entries = Array.from({ length: 21 }, (_, index) => ({
   id: `journal-${index}`,
   ownerId: userId,
@@ -27,7 +28,14 @@ const entries = Array.from({ length: 21 }, (_, index) => ({
   visitedAt: new Date("2026-10-12T03:00:00Z"),
   createdAt: new Date("2026-10-12T14:21:39Z"),
   updatedAt: new Date("2026-10-12T14:21:39Z"),
+  sensitiveWithdrawnAt: null as Date | null,
 }));
+const withdrawnEntry = { ...entries[0], id: "withdrawn-journal", title: "철회한 제목", content: "철회한 본문", sensitiveWithdrawnAt: new Date("2026-10-20T00:00:00Z") };
+type EntryWhere = { ownerId: string; sensitiveWithdrawnAt?: null };
+function filteredEntries(where: EntryWhere) {
+  return [withdrawnEntry, ...entries].filter((entry) => entry.ownerId === where.ownerId &&
+    (!("sensitiveWithdrawnAt" in where) || entry.sensitiveWithdrawnAt === where.sensitiveWithdrawnAt));
+}
 
 // 이 파일의 테스트 프로세스 안에서만 사용한다. 실제 DB에는 연결하지 않는다.
 const fakePrisma = {
@@ -48,11 +56,11 @@ const fakePrisma = {
     },
   },
   journalEntry: {
-    count: async () => { reads += 1; return entries.length; },
-    findMany: async (query: { where: unknown; skip: number; take: number }) => {
+    count: async ({ where }: { where: EntryWhere }) => { reads += 1; countQueries.push(where); return filteredEntries(where).length; },
+    findMany: async (query: { where: EntryWhere; skip: number; take: number }) => {
       reads += 1;
       queries.push(query);
-      return entries.slice(query.skip, query.skip + query.take);
+      return filteredEntries(query.where).slice(query.skip, query.skip + query.take);
     },
   },
   systemLog: {
@@ -125,7 +133,8 @@ test("관리자 기록 조회의 접근 제어·페이지 이동·감사 기록"
     assert.match(body.entries[0].image, /^\/api\/journal-entry-images\/journal-0\?signature=/);
     assert.equal(body.entries[0].ownerId, undefined);
     assert.equal(body.entries[0].createdAt, "2026-10-12T14:21:39.000Z");
-    assert.deepEqual(queries.at(-1)?.where, { ownerId: userId });
+    assert.deepEqual(queries.at(-1)?.where, { ownerId: userId, sensitiveWithdrawnAt: null });
+    assert.deepEqual(countQueries.at(-1), queries.at(-1)?.where);
     const audit = JSON.stringify(audits.at(-1));
     assert.match(audit, /journal.admin.viewed/);
     assert.match(audit, /test-operator/);
@@ -138,6 +147,15 @@ test("관리자 기록 조회의 접근 제어·페이지 이동·감사 기록"
     assert.match(canonical, new RegExp(userId));
     assert.match(canonical, /test-operator|INQUIRY-123/);
     assert.doesNotMatch(canonical, /개인 기록 본문|비공개 기록 제목|signature|private-image|email/);
+  });
+
+  await t.test("철회한 기록은 목록·전체 개수·접근 감사 대상에서 제외한다", async () => {
+    const body = await (await POST(request())).json();
+    assert.equal(body.total, 21);
+    assert.equal(body.totalPages, 2);
+    assert.ok(body.entries.every((entry: { id: string }) => entry.id !== withdrawnEntry.id));
+    assert.doesNotMatch(JSON.stringify(body), /철회한 제목|철회한 본문|withdrawn-journal/);
+    assert.doesNotMatch(JSON.stringify(accessAudits.at(-1)), /withdrawn-journal/);
   });
 
   await t.test("페이지 범위를 제한해 마지막 기록까지 조회한다", async () => {
