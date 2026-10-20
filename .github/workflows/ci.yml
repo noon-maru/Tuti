@@ -34,6 +34,10 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y postgresql-17
       - run: pnpm install --frozen-lockfile
+      - name: 분리 DB 시험용 Prisma 클라이언트 생성
+        run: pnpm db:generate
+        env:
+          DATABASE_URL: postgresql://unused:unused@127.0.0.1:1/unused
       - name: 약관·권리 보호 SQL 제약과 백업 복원 검증
         run: pnpm test:legal:postgres
   verify:
