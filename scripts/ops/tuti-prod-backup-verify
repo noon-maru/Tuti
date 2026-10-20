@@ -20,14 +20,28 @@ target="$backup_root/$backup_id"
 if [ ! -d "$target" ] || [ -L "$target" ] || [ -L "$backup_root" ]; then echo "정상 백업 디렉터리가 필요합니다." >&2; exit 1; fi
 docker image inspect tuti:ops >/dev/null
 docker image inspect postgis/postgis:17-3.5 >/dev/null
-docker run --rm --network none --read-only --memory 384m --cpus 0.5 --pids-limit 64 --cap-drop ALL --security-opt no-new-privileges:true \
+# NAS에서는 run --help에 옵션이 있어도 커널 CFS quota가 없는 경우가 있다.
+memory_limit="$(docker info --format '{{.MemoryLimit}}')"
+pids_limit="$(docker info --format '{{.PidsLimit}}')"
+cpu_quota="$(docker info --format '{{.CPUCfsQuota}}')"
+if [ "$memory_limit" != true ]; then echo "격리 검증에 필요한 메모리 제한을 지원하지 않습니다. 검증을 시작하지 않습니다." >&2; exit 1; fi
+if [ "$cpu_quota" != true ]; then echo "NAS CPU quota 미지원: CPU 제한만 생략하고 파일별 순차 검증을 수행합니다."; fi
+isolated_run() {
+  run_memory="$1"
+  run_pids="$2"
+  shift 2
+  if [ "$cpu_quota" = true ]; then set -- --cpus 0.5 "$@"; fi
+  if [ "$pids_limit" = true ]; then set -- --pids-limit "$run_pids" "$@"; fi
+  docker run --rm --network none --read-only --memory "$run_memory" --cap-drop ALL --security-opt no-new-privileges:true "$@"
+}
+isolated_run 384m 64 \
   --tmpfs /tmp:rw,noexec,nosuid,nodev,size=32m -e NODE_OPTIONS=--max-old-space-size=256 \
   -v "$target:/backup:ro" \
   -v "$project_dir/scripts/verify-production-backup.ts:/app/scripts/verify-production-backup.ts:ro" \
   -v "$project_dir/src/server/legal/backupVerification.ts:/app/src/server/legal/backupVerification.ts:ro" \
   --entrypoint node tuti:ops --import tsx scripts/verify-production-backup.ts
 # 실제 운영 DB나 새 DB를 열지 않고 PostgreSQL 17 도구로 archive TOC만 파싱한다.
-if ! docker run --rm -i --network none --read-only --memory 128m --cpus 0.5 --pids-limit 32 --cap-drop ALL --security-opt no-new-privileges:true \
+if ! isolated_run 128m 32 -i \
   --entrypoint pg_restore postgis/postgis:17-3.5 --list < "$target/postgres.dump" >/dev/null 2>/dev/null; then
   echo "PostgreSQL 17 백업 목록 해독에 실패했습니다." >&2; exit 1
 fi
