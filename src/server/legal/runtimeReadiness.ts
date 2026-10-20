@@ -1,11 +1,13 @@
 import { prisma } from "@/server/db/prisma";
-import { legalReadinessBlockers, legalRuntimeFacts, parseLegalReadinessEvidence } from "@/server/legal/readiness";
+import { legalReadinessReport, legalRuntimeFacts, parseLegalReadinessEvidence } from "@/server/legal/readiness";
 import { readPrivacyReplaySnapshot } from "@/server/legal/privacyReplayLedger";
 import { assertLegalOperationsObserved, inspectLegalOperations } from "./operations";
 
 export async function assertServiceTermsOperationalReadiness(input: unknown, documentHash: string, approvalReference: string) {
   const evidence = parseLegalReadinessEvidence(input);
-  const blockers = legalReadinessBlockers(evidence, legalRuntimeFacts());
+  // 일반약관 공고 검사이며 푸시 국외 이전까지 승인하는 처리가 아니다.
+  const report = legalReadinessReport(evidence, legalRuntimeFacts(), "service-terms");
+  const blockers = report.blockers;
   if (blockers.length) throw new Error(`시행 준비 미확인 항목: ${blockers.join(", ")}`);
   if (evidence.approvedDocumentHash !== documentHash || evidence.checks.finalDocumentApproval.reference !== approvalReference) throw new Error("최종 승인한 원문 해시·근거 번호가 공고하려는 문서와 다릅니다.");
   const snapshot = await readPrivacyReplaySnapshot();
@@ -14,4 +16,6 @@ export async function assertServiceTermsOperationalReadiness(input: unknown, doc
   const triggers = await prisma.$queryRaw<Array<{ tgname: string }>>`SELECT tgname FROM pg_trigger WHERE tgrelid = 'service_terms_releases'::regclass AND tgname = 'service_terms_releases_immutable' AND tgenabled = 'O'`;
   if (triggers.length !== 1) throw new Error("공고 문서 변경 방지 DB 트리거를 확인하지 못했습니다.");
   assertLegalOperationsObserved(await inspectLegalOperations());
+  // 공고 결과에서도 미확인 푸시 항목을 숨기지 않는다. 기능도 활성화하지 않는다.
+  return report;
 }

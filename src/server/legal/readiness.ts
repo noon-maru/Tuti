@@ -1,5 +1,14 @@
 import { pushTransferBlockers, readPushProviderEvidence, type PushProvider } from "./pushTransferReadiness";
 
+export const LEGAL_READINESS_SCOPES = ["all", "service-terms", "push"] as const;
+export type LegalReadinessScope = (typeof LEGAL_READINESS_SCOPES)[number];
+
+export function parseLegalReadinessScope(value: unknown): LegalReadinessScope {
+  if (value === undefined) return "all";
+  if (!LEGAL_READINESS_SCOPES.includes(value as LegalReadinessScope)) throw new Error("점검 범위는 all, service-terms, push 중 하나여야 합니다.");
+  return value as LegalReadinessScope;
+}
+
 export function legalRuntimeFacts(env: Readonly<Record<string, string | undefined>> = process.env) {
   const on = (name: string) => env[name]?.trim().toLowerCase() === "true";
   const present = (name: string) => Boolean(env[name]?.trim());
@@ -19,6 +28,8 @@ export function legalRuntimeFacts(env: Readonly<Record<string, string | undefine
     // Credentials, addresses, subjects, tokens and test-email allowlists must never be returned.
   };
 }
+// 일반약관 문서와 그에 필요한 운영·동의 전환의 확인 항목이다.
+// 푸시 국가·기간·이전 근거·기기 검증은 pushTransferReview에서 별도로 심사한다.
 export const LEGAL_MANUAL_CHECKS = ["processingInventory", "processorsAndTransfers", "backupRetentionAndRestoreTest", "rightsRecipientAndForms", "scheduledJobsAndAlerts", "minorProtection", "nativeClientRollout", "legalReview", "finalDocumentApproval", "noticePlan"] as const;
 export type LegalReadinessEvidence = { owner: string; contact: string; backupRetentionDays: number | null; approvedDocumentHash: string | null; rightsRecipientNoticeReviewed: boolean; pushTransfers: Partial<Record<PushProvider, unknown>>; checks: Record<string, { confirmed: boolean; reference: string | null }> };
 export function parseLegalReadinessEvidence(value: unknown): LegalReadinessEvidence {
@@ -39,7 +50,7 @@ export function parseLegalReadinessEvidence(value: unknown): LegalReadinessEvide
   }
   return { owner: input.owner.trim(), contact: input.contact, backupRetentionDays: input.backupRetentionDays as number | null, approvedDocumentHash: input.approvedDocumentHash as string | null, rightsRecipientNoticeReviewed: recipientReviewed, pushTransfers: readPushProviderEvidence(input.pushTransferReview), checks: confirmed };
 }
-export function legalReadinessBlockers(evidence: LegalReadinessEvidence, facts: ReturnType<typeof legalRuntimeFacts>) {
+export function serviceTermsReadinessBlockers(evidence: LegalReadinessEvidence, facts: ReturnType<typeof legalRuntimeFacts>) {
   const blockers: string[] = LEGAL_MANUAL_CHECKS.filter((key) => !evidence.checks[key]?.confirmed);
   if (evidence.backupRetentionDays === null) blockers.push("backupRetentionUnconfirmed");
   if (!evidence.approvedDocumentHash) blockers.push("approvedDocumentHashMissing");
@@ -50,9 +61,58 @@ export function legalReadinessBlockers(evidence: LegalReadinessEvidence, facts: 
   if (!facts.privacyReplayLedger) blockers.push("privacyReplayLedgerDisabled");
   if (facts.userAiProfiling) blockers.push("userAiProfilingConflictsWithDraft");
   if (facts.externalCoordinates === "third_party") blockers.push("unsupportedThirdPartyLocationMode");
-  // Tuti의 기존 Android/iOS 앱은 푸시 SDK를 포함한다. 서버 발송 플래그가 false인 것만으로
-  // 기기 등록·SDK 국외 처리가 없다고 증명할 수 없으므로 두 플랫폼을 모두 확인한다.
-  blockers.push(...pushTransferBlockers("fcm", evidence.pushTransfers.fcm));
-  blockers.push(...pushTransferBlockers("apns", evidence.pushTransfers.apns));
   return blockers;
+}
+
+export function pushReadinessBlockers(evidence: Pick<LegalReadinessEvidence, "pushTransfers">) {
+  // 서버 발송 플래그가 꺼져 있어도 기존 SDK의 처리가 없다고 증명되지 않는다.
+  return [
+    ...pushTransferBlockers("fcm", evidence.pushTransfers.fcm),
+    ...pushTransferBlockers("apns", evidence.pushTransfers.apns),
+  ];
+}
+
+export function legalReadinessBlockers(evidence: LegalReadinessEvidence, facts: ReturnType<typeof legalRuntimeFacts>, scope: LegalReadinessScope = "all") {
+  const selected = parseLegalReadinessScope(scope);
+  if (selected === "push") return pushReadinessBlockers(evidence);
+  const terms = serviceTermsReadinessBlockers(evidence, facts);
+  return selected === "service-terms" ? terms : [...terms, ...pushReadinessBlockers(evidence)];
+}
+
+export function legalReadinessReport(evidence: LegalReadinessEvidence, facts: ReturnType<typeof legalRuntimeFacts>, scope: LegalReadinessScope = "all") {
+  const selected = parseLegalReadinessScope(scope);
+  const terms = serviceTermsReadinessBlockers(evidence, facts);
+  const push = pushReadinessBlockers(evidence);
+  const all = [...terms, ...push];
+  const blockers = selected === "all" ? all : selected === "push" ? push : terms;
+  return {
+    readinessScope: selected,
+    ready: blockers.length === 0,
+    allReady: all.length === 0,
+    blockers,
+    scopes: {
+      "service-terms": { ready: terms.length === 0, blockers: terms },
+      push: { ready: push.length === 0, blockers: push },
+    },
+    unresolvedOutsideScope: selected === "all" ? [] : selected === "push" ? terms : push,
+    // 문서 승인과 개별 처리의 적법성·실제 운영 확인을 구분한다.
+    operationalCompletionVerified: false,
+  };
+}
+
+export function parseLegalReadinessArguments(args: string[]) {
+  let file = "docs/legal/readiness-status.json";
+  let scope: LegalReadinessScope = "all";
+  let strict = false;
+  const seen = new Set<string>();
+  for (const arg of args) {
+    const key = arg.split("=", 1)[0];
+    if (seen.has(key)) throw new Error("점검 옵션을 중복해서 지정할 수 없습니다.");
+    seen.add(key);
+    if (arg === "--strict") strict = true;
+    else if (arg.startsWith("--scope=")) scope = parseLegalReadinessScope(arg.slice(8));
+    else if (arg.startsWith("--file=") && arg.slice(7)) file = arg.slice(7);
+    else throw new Error("--file=확인파일.json [--scope=all|service-terms|push] [--strict] 형식으로 실행해주세요.");
+  }
+  return { file, scope, strict };
 }

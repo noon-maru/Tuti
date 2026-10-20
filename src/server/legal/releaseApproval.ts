@@ -1,6 +1,8 @@
 import { hashServiceTerms } from "@/server/legal/serviceTerms";
 import { parseServiceTermsDocument } from "@/shared/legal/serviceTerms";
 
+// 일반약관 원문과 적용 범위의 승인이다. 개인정보방침·푸시 이전 동의의 승인이 아니다.
+// 같은 이름의 processorsAndTransfers/nativeClientRollout도 이 문서의 검토·전환 범위를 뜻한다.
 export const RELEASE_READINESS_CHECKS = [
   "processingInventory", "processorsAndTransfers", "backupDeletion", "rightsWorkflow",
   "minorProtection", "legalReview", "nativeClientRollout", "noticePlan",
