@@ -124,7 +124,7 @@ test("분리된 PostgreSQL에서 약관·권리 보호 마이그레이션의 실
     INSERT INTO recommendation_runs(id,user_id,location_used) VALUES ('located','location-user',true),('region','location-user',false),('other','location-other',true);
     INSERT INTO recommendation_actions(id,user_id,action,metadata) VALUES ('navigation','location-user','navigation_started','{"distanceMeters":1234}'),('selection','location-user','place_selected','{"method":"direct"}');
   `);
-  await t.test("백업을 별도 임시 DB로 복원해도 원문 변경 금지·통지 제약과 기존 증빙이 보존된다", async () => {
+  await t.test("백업을 별도 임시 DB로 복원해도 원문 변경 금지·통지 제약과 기존 증빙이 보존된다", async (t) => {
     const connection = ["-h", socket, "-p", "15479", "-U", "tuti_legal_test"];
     const archive = join(root, "legal-test.dump");
     execFileSync(binary("pg_dump"), [...connection, "-d", "postgres", "--format=custom", "--file", archive], { env, stdio: "pipe" });
@@ -226,6 +226,37 @@ test("분리된 PostgreSQL에서 약관·권리 보호 마이그레이션의 실
       assert.equal(observations.rights.data?.schedulerInstallationVerified, false);
       assert.equal(observations.operationalCompletionVerified, false);
       assert.equal(query("SELECT count(*) FROM service_terms_releases"), "1", "조회 도구 시험은 원본 DB에 쓰지 않는다.");
+
+      await t.test("푸시 정리는 실제 DB에서 조회 무변경·30일 경계·참조 보존·실패 롤백을 지킨다", async () => {
+        for (const name of ["20260831150000_add_push_devices", "20260901130000_add_push_delivery_observability"]) {
+          restoredQuery(readFileSync(join(process.cwd(), "prisma/migrations", name, "migration.sql"), "utf8"));
+        }
+        restoredQuery(`
+          INSERT INTO push_devices(id,user_id,installation_id,platform,token,enabled,invalidated_at,updated_at) VALUES
+            ('active','location-other','active','android','test-active',true,NULL,now()),
+            ('disabled','location-other','disabled','android','test-disabled',false,NULL,now()),
+            ('invalid','location-other','invalid','ios','test-invalid',true,now(),now());
+          INSERT INTO push_deliveries(id,user_id,device_id,platform,provider,message_type,status,created_at,entity_id,error_message) VALUES
+            ('old',NULL,NULL,'android','fcm','test','sent','2026-09-19','old-reference','old-error'),
+            ('boundary','location-other','active','android','fcm','test','sent','2026-09-20',NULL,NULL),
+            ('recent','location-other','disabled','android','fcm','test','failed','2026-09-20 00:00:00.001','private-reference','private-error');
+        `);
+        const { purgePushRetention } = await import("../../src/server/notifications/retention");
+        const now = new Date("2026-10-20T00:00:00Z");
+        assert.deepEqual(await purgePushRetention(now), { mode: "dry-run", cutoff: new Date("2026-09-20T00:00:00Z"), invalidDevices: 2, expiredDeliveries: 2 });
+        assert.equal(restoredQuery("SELECT count(*) FROM push_devices"), "3");
+        assert.equal(restoredQuery("SELECT count(*) FROM push_deliveries WHERE error_message IS NOT NULL"), "2");
+        restoredQuery(`CREATE FUNCTION fail_push_cleanup() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RAISE EXCEPTION 'test cleanup failure'; END $$;
+          CREATE TRIGGER fail_push_cleanup BEFORE UPDATE ON push_deliveries FOR EACH ROW EXECUTE FUNCTION fail_push_cleanup();`);
+        await assert.rejects(purgePushRetention(now, true));
+        assert.equal(restoredQuery("SELECT count(*) FROM push_devices"), "3", "중간 실패 시 토큰 삭제도 롤백한다.");
+        assert.equal(restoredQuery("SELECT count(*) FROM push_deliveries"), "3");
+        restoredQuery("DROP TRIGGER fail_push_cleanup ON push_deliveries; DROP FUNCTION fail_push_cleanup()");
+        assert.deepEqual(await purgePushRetention(now, true), { mode: "applied", cutoff: new Date("2026-09-20T00:00:00Z"), invalidDevices: 2, expiredDeliveries: 2, minimized: 1 });
+        assert.equal(restoredQuery("SELECT string_agg(id,',') FROM push_devices"), "active");
+        assert.equal(restoredQuery("SELECT id || ':' || (device_id IS NULL)::text || ':' || (entity_id IS NULL AND error_message IS NULL)::text FROM push_deliveries"), "recent:true:true");
+        assert.equal((await purgePushRetention(now, true)).invalidDevices, 0, "재실행해도 보존한 활성 토큰은 삭제하지 않는다.");
+      });
     } finally {
       await client.$disconnect();
       delete (globalThis as { prisma?: unknown }).prisma;
