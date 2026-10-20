@@ -53,8 +53,13 @@ export function getSessionSnapshot() {
 }
 
 // 동의·철회는 401 응답 후 새 익명 계정으로 재전송하면 안 된다.
-export async function fetchWithPinnedSession(path: string, init?: RequestInit) {
-  const session = await ensureSession();
+export async function fetchWithPinnedSession(path: string, init?: RequestInit, expectedUserId?: string) {
+  // 푸시 정리·등록 등 이미 특정 계정에 묶인 요청은 새 익명 세션을 만들지 않는다.
+  const session = expectedUserId ? sessionSnapshot : await ensureSession();
+  if (!session || (expectedUserId && session.userId !== expectedUserId) ||
+      sessionSnapshot?.userId !== session.userId) {
+    throw new Error("계정이 변경되었어요. 현재 계정에서 다시 시도해주세요.");
+  }
   const response = await fetchWithToken(path, session.accessToken, init);
   if (sessionSnapshot?.userId !== session.userId) {
     throw new Error("계정이 변경되었어요. 현재 계정에서 다시 시도해주세요.");
@@ -207,6 +212,8 @@ export async function logoutAccount() {
 
 export async function deleteAccount() {
   const currentSession = await ensureSession();
+  const pushPrivacy = await import("@/features/tuti/notifications/pushNotifications");
+  await pushPrivacy.preparePushForAccountDeletion(currentSession.userId);
   const response = await fetchWithToken(
     "account",
     currentSession.accessToken,
@@ -230,12 +237,13 @@ export async function deleteAccount() {
     throw new Error("계정 삭제 응답을 확인하지 못했어요.");
   }
 
+  const pushCleanupComplete = await pushPrivacy.finishPushAfterAccountDeletion();
   try {
     await removeJournalBookDraft(currentSession.userId);
   } finally {
     await clearStoredSession();
   }
-  return data;
+  return { ...data, pushCleanupPending: !pushCleanupComplete };
 }
 
 export async function fetchJournalAuthorBlocks() {

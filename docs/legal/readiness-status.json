@@ -10,6 +10,7 @@
     "reviewedAt": "2026-10-20", "legalBasis": null, "countriesConfirmed": false,
     "sourceAudit": {
       "reference": "PUSH-SOURCE-AUDIT-20261020",
+      "codeBaselineCommit": "4f930b4",
       "scope": "공개 공식 자료와 현재 저장소·설치된 플러그인 소스의 정적 대조. 운영 서버·실기기·출시 바이너리 검증은 아님",
       "providerInquirySent": true,
       "providerInquirySentAt": "2026-10-20",
@@ -21,6 +22,19 @@
       "invalidatedTokenDeletedImmediately": false,
       "pushDeliveryTimedPurgeFound": false,
       "accountDeletionUnregistersNativePush": false
+    },
+    "clientPrivacyImplementation": {
+      "implementedAt": "2026-10-20",
+      "scope": "로컬 소스 구현. 앱 빌드·출시·실기기 및 기존 설치 업그레이드 통신 검증 전",
+      "androidManifestAutoInitDisabled": true,
+      "manualRegistrationKeepsAutoInitDisabled": true,
+      "androidTokenAndFidDeletionAwaited": true,
+      "accountDeletionNativeCleanupLinked": true,
+      "pendingCleanupBlocksRegistration": true,
+      "oldAndroidBridgeFailsClosed": true,
+      "nativeBuildVerified": false,
+      "nativeDeviceVerified": false,
+      "released": false
     },
     "providerRetentionFullyConfirmed": false, "fidDeletionVerified": false, "runtimeAndNativeVerified": false,
     "providers": {

@@ -67,7 +67,7 @@ export function AccountScreen({
     code: string,
     journalResolution?: AccountJournalResolution,
   ) => Promise<EmailCodeVerificationResult>;
-  onDeleteAccount: () => Promise<string>;
+  onDeleteAccount: () => Promise<{ deletionReference: string; pushCleanupPending: boolean }>;
   onDisplayNameUpdate: (displayName: string) => Promise<string>;
   onOAuth: (provider: OAuthProvider) => Promise<void>;
   onUnlinkIdentity: (identityId: string) => Promise<void>;
@@ -88,6 +88,7 @@ export function AccountScreen({
   const [deletionReference, setDeletionReference] = useState<string | null>(
     null,
   );
+  const [pushCleanupPending, setPushCleanupPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const hasEmailInput =
     emailStep === "email"
@@ -229,7 +230,9 @@ export function AccountScreen({
     setError(null);
 
     try {
-      setDeletionReference(await onDeleteAccount());
+      const result = await onDeleteAccount();
+      setDeletionReference(result.deletionReference);
+      setPushCleanupPending(result.pushCleanupPending);
     } catch (deletionError) {
       setError(
         deletionError instanceof Error
@@ -289,6 +292,9 @@ export function AccountScreen({
             기존 로그인 정보와 기록은 복구할 수 없어요. Tuti를 다시 시작하면
             새로운 익명 이용 정보가 만들어집니다.
           </p>
+          {pushCleanupPending && (
+            <p>이 기기의 알림 정보 정리는 아직 진행 중이에요. 인터넷 연결 후 앱을 다시 열면 재시도해요. 필요하면 기기 설정에서도 Tuti 알림을 꺼주세요.</p>
+          )}
           <DeletionReference>
             처리 번호 {deletionReference.slice(0, 8)}
           </DeletionReference>

@@ -8,6 +8,7 @@
 # 해석한다. 플러그인만 보존한 1차 회귀 테스트에서도 종료가 재현됐으므로 Capacitor
 # 코어 브리지 전체를 보존해 클래스 병합과 콜백 이름 변경을 함께 막는다.
 -keep class com.getcapacitor.** { *; }
+-keep class com.noonmaru.tuti.TutiPushPrivacyPlugin { *; }
 
 # 1.1.1/1.2.0에서 위치 권한을 허용한 직후 종료된 회귀의 나머지 경계다. 플러그인
 # 본체뿐 아니라 실제 위치 요청을 수행하는 IONGeolocationLib의 코루틴·콜백까지

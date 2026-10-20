@@ -289,6 +289,13 @@ Android 사전 초기화 제어, FCM 토큰 삭제 완료 확인과 FID 삭제, 
 무효 토큰/발송 로그의 보관·파기 기준, 해당 실제 동작에 맞는 고지 정정.
 사전 고지·별도 동의 등 이전 근거는 이 기술 사실과 구분하여 확정한다.
 
+2026-10-20에 초기화 제어·등록/해제 직렬화·토큰/FID 삭제 완료 대기·계정 삭제 연동을
+로컬 소스로 보강했다. 상세·실기기 점검은 [Android](../android-push-notifications.md)와
+[iOS](../ios-push-notifications.md) 문서에 있다. `sourceAudit`는 보완 전 커밋을 기준으로
+남기고 `clientPrivacyImplementation`은 로컬 구현 상태만 기록한다. 새 앱 빌드·출시,
+기존 설치의 첫 시작 네트워크 동작·OS 백그라운드 초기화 및 실제 제공자 삭제는
+미검증이며 완료 표시하지 않는다. 발송 로그·무효 토큰 보관과 현행 안내 정정은 후속 범위다.
+
 #### 코드·운영 관측·운영 승인 분리
 
 `pnpm legal:operations:inspect`는 현재 접속한 DB를 읽기 전용 Repeatable Read

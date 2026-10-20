@@ -101,8 +101,9 @@ export function NotificationSettingsFlow() {
 
     try {
       if (!enabled) {
-        await disableServerPushNotifications();
+        // 네트워크/네이티브 정리가 실패해도 UI의 재등록 의도는 먼저 철회한다.
         setPreferences({ ...preferences, inquiryReplyEnabled: false });
+        await disableServerPushNotifications();
         setMessage("문의 답변 알림을 껐어요.");
       } else {
         const result = await enableServerPushNotifications();

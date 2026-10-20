@@ -250,7 +250,7 @@ export function AccountFlow() {
         const result = await deleteAccount();
         queryClient.clear();
         resetAllData();
-        return result.deletionReference;
+        return { deletionReference: result.deletionReference, pushCleanupPending: result.pushCleanupPending };
       }}
     />
   );

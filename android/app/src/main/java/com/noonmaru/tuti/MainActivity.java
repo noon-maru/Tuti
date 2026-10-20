@@ -11,6 +11,7 @@ public class MainActivity extends BridgeActivity {
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+        registerPlugin(TutiPushPrivacyPlugin.class);
         super.onCreate(savedInstanceState);
         updateOrientationPolicy(getResources().getConfiguration());
     }
