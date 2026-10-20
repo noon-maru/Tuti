@@ -264,6 +264,24 @@ sudo sh scripts/ops/tuti-privacy-activate --apply
 `tuti-privacy-ledger-backup.timer`만 켠다. 권리 침해 사건 판단·실제 통지와 새 동의 절차는 별도이므로
 `tuti-journal-rights.timer`, 일반약관·민감정보 정책 플래그는 자동 활성화하지 않는다.
 
+#### 2026-10-20 전환 중단 및 호스트 도구 호환성 수정
+
+17:38:04.949 KST에 서명된 수집 시작점을 확정하고 환경변수·로컬 복구 사본을 갱신한 뒤,
+NAS Compose 2.20.1의 `create --no-deps` 미지원으로 앱 재생성 단계가 중단되었다.
+실패 안전장치가 앱을 정지 상태로 유지했으며, 정기 파기 작업과 타이머 활성화는 아직 실행하지 않았다.
+호환 명령인 `up --no-start --no-deps --no-build --pull never app`으로 수정했다.
+DB를 시작·재생성하지 않고 기존 로컬 앱 이미지만 준비하며, 서명 검증 전 자동 재시작은 계속 금지한다.
+
+호스트 도구 수정 커밋과 기존 앱 릴리스가 다른 경우에는 아래 명시적 재개를 사용한다.
+root 소유·0600의 전환 대기 기록, 정지된 앱, 기록과 일치하는 기존 릴리스·이미지가 필요하다.
+대기 시작 시각·원장 수집 시작점·키를 바꾸거나 새 앱 이미지를 빌드하지 않는다.
+
+```sh
+sudo sh scripts/ops/tuti-privacy-activate --resume-pending
+```
+
+재개 성공 출력과 운영 상태를 확인하기 전까지 전환 완료로 간주하지 않는다.
+
 ### 원장·키의 로컬 복구 사본
 
 - 사본 위치: `.ops-state/privacy-recovery/latest.json`. 원장과 전용 키가 **함께 들어 있으므로**
