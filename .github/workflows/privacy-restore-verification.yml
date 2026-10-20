@@ -1,0 +1,62 @@
+name: 개인정보 격리 복원 검증
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  isolated-restore:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      POSTGRES_BIN_DIR: /usr/lib/postgresql/17/bin
+      PRIVACY_RESTORE_INTEGRATION: 'true'
+      DATABASE_URL: postgresql://unused:unused@127.0.0.1:1/unused
+      # Public disposable fixture values, never production secrets.
+      GARAGE_RPC_SECRET: '1111111111111111111111111111111111111111111111111111111111111111'
+      GARAGE_ADMIN_TOKEN: privacy-ci-admin-only
+      GARAGE_METRICS_TOKEN: privacy-ci-metrics-only
+      GARAGE_DEFAULT_ACCESS_KEY: GK0123456789abcdef01234567
+      GARAGE_DEFAULT_SECRET_KEY: '2222222222222222222222222222222222222222222222222222222222222222'
+      GARAGE_DEFAULT_BUCKET: tuti-privacy-restore-ci
+    steps:
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v6
+        with:
+          version: 11.2.2
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: pnpm
+      - name: PostgreSQL 17·PostGIS 설치
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y postgresql-common
+          sudo /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh -y
+          sudo apt-get update
+          sudo apt-get install -y postgresql-17 postgresql-17-postgis-3
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm db:generate
+      - name: 운영과 분리된 일회성 Garage 2.3.0 시작
+        run: |
+          docker run --detach --name tuti-privacy-restore-garage \
+            --publish 127.0.0.1:49300:3900 \
+            --mount type=bind,src="$PWD/test/fixtures/privacy-restore-garage.toml",dst=/etc/garage.toml,readonly \
+            --env GARAGE_RPC_SECRET --env GARAGE_ADMIN_TOKEN --env GARAGE_METRICS_TOKEN \
+            --env GARAGE_DEFAULT_ACCESS_KEY --env GARAGE_DEFAULT_SECRET_KEY --env GARAGE_DEFAULT_BUCKET \
+            dxflrs/garage:v2.3.0 /garage server --single-node --default-bucket
+          for attempt in $(seq 1 30); do
+            if docker exec tuti-privacy-restore-garage /garage status; then break; fi
+            sleep 2
+          done
+          docker exec tuti-privacy-restore-garage /garage status
+      - name: 전체 스키마·사진·PDF 백업 복원 및 삭제·철회 재반영
+        run: node --import tsx --test test/integration/privacy-restore.test.ts
+      - name: 실패 시 격리 Garage 로그 확인
+        if: failure()
+        run: docker logs --tail 100 tuti-privacy-restore-garage
+      - name: 검증 전용 컨테이너 정리
+        if: always()
+        run: docker rm --force --volumes tuti-privacy-restore-garage || true
