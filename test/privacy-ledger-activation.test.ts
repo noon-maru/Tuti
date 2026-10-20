@@ -169,6 +169,10 @@ test("전환 대역 실행은 서명 검사 후 세 개인정보 작업만 시�
   const calls = healthy.calls();
   const signed = calls.findIndex((call) => call.args.some((arg) => arg.includes("app_ledger_signature=ok")));
   const enabled = calls.findIndex((call) => call.command === "systemctl" && call.args[0] === "enable");
+  const created = calls.findIndex((call) => call.args.includes("create"));
+  const restartDisabled = calls.findIndex((call, index) => index > created && call.args.includes("--restart=no"));
+  const started = calls.findIndex((call) => call.command === "docker" && call.args[0] === "start");
+  assert.ok(created >= 0 && restartDisabled > created && started > restartDisabled && signed > started);
   assert.ok(signed >= 0 && enabled > signed);
   assert.equal(calls.some((call) => call.command === "systemctl" && call.args.includes("tuti-journal-rights.timer")), false);
   assert.equal(existsSync(healthy.pending), false);
