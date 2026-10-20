@@ -5,7 +5,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { spawnSync } from "node:child_process";
 import test from "node:test";
-import { verifyBackupFiles } from "../src/server/legal/backupVerification";
+import { BackupVerificationError, verifyBackupFiles } from "../src/server/legal/backupVerification";
 
 async function fixture(t: test.TestContext) {
   const root = await mkdtemp(join(tmpdir(), "tuti-backup-verify-"));
@@ -49,6 +49,27 @@ test("변조·누락·목록 밖 자료·심볼릭 링크·경로 조작을 거�
     async (f: Awaited<ReturnType<typeof fixture>>) => { await rm(join(f.root, `objects/${f.file}`)); await symlink("/dev/null", join(f.root, `objects/${f.file}`)); },
     async (f: Awaited<ReturnType<typeof fixture>>) => writeFile(join(f.root, "checksums.sha256"), `${"a".repeat(64)}  ../outside\n`),
   ]) { const f = await fixture(t); await change(f); await assert.rejects(verifyBackupFiles(f.root)); }
+});
+
+test("실패 진단은 검사 단계·허용 오류 코드만 남기고 파일 경로와 객체 키를 숨긴다", async t => {
+  const f = await fixture(t);
+  await rm(join(f.root, "checksums.sha256"));
+  await assert.rejects(verifyBackupFiles(f.root), error => {
+    assert.ok(error instanceof BackupVerificationError);
+    assert.equal(error.stage, "checksum-list");
+    assert.equal(error.reason, "ENOENT");
+    assert.doesNotMatch(JSON.stringify(error), /synthetic|photo|checksums|\/tmp|tuti-backup/);
+    return true;
+  });
+  await f.save();
+  await writeFile(join(f.root, `objects/${f.file}`), "tampered");
+  await assert.rejects(verifyBackupFiles(f.root), error => {
+    assert.ok(error instanceof BackupVerificationError);
+    assert.equal(error.stage, "file-hashes-and-inventory");
+    assert.equal(error.reason, "VALIDATION_FAILED");
+    assert.doesNotMatch(error.message, /synthetic|photo|object$/);
+    return true;
+  });
 });
 
 test("모든 파일 해시가 맞아도 객체 manifest 불일치·중복과 잘못된 dump를 거절한다", async t => {
