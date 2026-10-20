@@ -109,3 +109,17 @@ test("목록·파일 형식 실패와 실제 해시 불일치를 구별하되 �
     });
   }
 });
+
+test("필수 파일 누락은 고정된 표준 파일명만 진단에 포함한다", async t => {
+  const f = await fixture(t);
+  delete f.files["objects.manifest.json"];
+  await rm(join(f.root, "objects.manifest.json"));
+  await f.save();
+  await assert.rejects(verifyBackupFiles(f.root), error => {
+    assert.ok(error instanceof BackupVerificationError);
+    assert.equal(error.reason, "REQUIRED_FILE_MISSING");
+    assert.deepEqual(error.missingRequiredFiles, ["objects.manifest.json"]);
+    assert.doesNotMatch(JSON.stringify(error), /synthetic|photo|\/tmp/);
+    return true;
+  });
+});

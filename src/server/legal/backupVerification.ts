@@ -7,7 +7,7 @@ const allowedFile = (name: string) => /^(manifest\.txt|migrations\.txt|postgres\
 const failure = () => new Error("백업 파일·목록·무결성 확인 실패");
 
 export class BackupVerificationError extends Error {
-  constructor(readonly stage: string, readonly reason: string) {
+  constructor(readonly stage: string, readonly reason: string, readonly missingRequiredFiles?: readonly string[]) {
     super(`백업 검증 실패: ${stage} / ${reason}`);
   }
 }
@@ -62,7 +62,8 @@ export async function verifyBackupFiles(root: string) {
   stage = "file-hashes-and-inventory";
   await inspectDirectory();
   if (seen.size !== expected.size) throw new BackupVerificationError(stage, "CHECKSUM_ENTRY_MISSING");
-  for (const required of ["manifest.txt", "postgres.dump", "migrations.txt", "objects.manifest.json"]) if (!seen.has(required)) throw new BackupVerificationError(stage, "REQUIRED_FILE_MISSING");
+  const missingRequiredFiles = ["manifest.txt", "postgres.dump", "migrations.txt", "objects.manifest.json"].filter(required => !seen.has(required));
+  if (missingRequiredFiles.length) throw new BackupVerificationError(stage, "REQUIRED_FILE_MISSING", missingRequiredFiles);
   stage = "backup-metadata";
   const metadata = new Map((await boundedText("manifest.txt", 16384)).trim().split("\n").map(line => {
     const at = line.indexOf("=");

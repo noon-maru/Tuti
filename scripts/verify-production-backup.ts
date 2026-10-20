@@ -7,7 +7,7 @@ if (process.argv.length !== 2) {
   verifyBackupFiles("/backup").then(result => console.log(JSON.stringify(result))).catch(error => {
     console.error("선택한 백업의 무결성 검증에 실패했습니다. 원문·객체 키를 출력하지 말고 점검해주세요.");
     console.error(JSON.stringify(error instanceof BackupVerificationError
-      ? { stage: error.stage, reason: error.reason }
+      ? { stage: error.stage, reason: error.reason, missingRequiredFiles: error.missingRequiredFiles }
       : { stage: "unknown", reason: "VERIFICATION_FAILED" }));
     process.exitCode = 1;
   });
