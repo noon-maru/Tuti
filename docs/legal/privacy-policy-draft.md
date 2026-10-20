@@ -237,6 +237,27 @@ HMAC 값이나 이용자 원문을 임의로 그 특례에 포함하지 않는�
 
 ### 문의 답변 푸시의 국외 처리 안내안
 
+Android 문의 답변 알림의 FCM 이용은 Google APIs Terms of Service와
+Firebase Data Processing and Security Terms를 기준으로 한다. 운영자는
+2026-10-20 Google과 별도 서면 계약을 체결한 사실이 없음을 확인했다.
+이 표준 계약의 확인은 이용자의 국외 이전 동의나 국내법상 이전 근거를
+대신하지 않으며, 실제 처리 국가와 데이터별 보관·삭제 조건은 아래와 같이 구분한다.
+
+편집·검토 근거: [Firebase 서비스별 적용 약관](https://firebase.google.com/terms),
+[Firebase 데이터 처리·보안 약관](https://firebase.google.com/terms/data-processing-terms).
+공개 표준 문서와 운영자 확인을 대조한 것으로, 당시 계정의 수락 버전은 미확인이다.
+운영자는 Android 계약 수락일을 연동 커밋과 같은 2026-08-31로 확인했다.
+Google 콘솔 화면에서도 Firebase 자동 생성 Android·Browser API 키 생성일이
+2026-08-31로 확인됐다. 서버 발송용 서비스 계정 비밀키의 생성일을 입증하는 자료와는 구분한다.
+
+iOS 문의 답변 알림은 Apple Developer Program License Agreement와 Attachment 1의
+APNs 추가 조건을 검토 기준으로 한다.
+[공식 계약](https://developer.apple.com/support/terms/apple-developer-program-license-agreement/).
+운영자는 계약 수락일을 2026-09-01로 확인했고, 제공한 Apple 콘솔 화면의 APNs 키
+생성일도 같은 날짜다. 키 생성일은 화면과 연동 커밋으로 보조 확인한 사실이며,
+계약 수락일은 운영자 진술에 따른다. 수락 기록은 날짜 단위로 관리하며 정확한 시각은
+추가 확인 요건으로 두지 않는다. 당시 계약 버전은 임의 추정하지 않는다.
+
 이용자가 선택한 문의 답변 알림을 전달하기 위해 아래 외부 처리가 이루어진다.
 아래 표의 미확정 칸을 실제 적용 계약·서비스 설정과 대조하여 채우기 전에는
 완성된 국외 이전 고지문으로 공개하거나 동의받지 않는다.
@@ -271,6 +292,34 @@ OS 알림 표시 권한만 끄는 것과 Tuti 서버 연결·FCM 등록·Firebas
 확인한다. 선택 기능이라는 이유만으로 반드시 동의 방식만 가능하다고 단정하거나,
 반대로 토글을 켰다는 이유만으로 계약 이행 예외가 자동 성립한다고 보지 않는다.
 국가 목록을 외부 링크나 ‘미국 등’이라는 표현으로만 대신해 최종 고지를 완료하지 않는다.
+
+#### 2026-10-20 원문·구현 대조 메모 — 공개 고지문이 아닌 편집 근거
+
+- Google 공식 안내는 FCM을 글로벌 서비스로 분류한다. 시설 목록이나 재수탁자의
+  본사 소재지를 Tuti의 실제 전체 처리 국가 목록으로 옮겨 적지 않는다.
+- Apple 일반 개인정보 처리방침은 전 세계에서 수집한 개인정보가 일반적으로 미국에
+  저장된다고 설명한다. APNs별 모든 처리·접근 국가가 미국 하나로 확정된다는 뜻은 아니다.
+- `push/devices`의 DELETE는 인증한 계정과 해당 설치의 Tuti 서버 등록을 삭제한다.
+  Android 플러그인의 unregister는 자동 초기화를 끄고 FCM 토큰 삭제를 요청하지만
+  삭제 Task 완료를 기다리지 않는다. Firebase 설치 ID 삭제 호출은 없다.
+  iOS는 OS 원격 알림 등록을 해제하며 Apple 보관자료 전체 삭제를 증명하지 않는다.
+- 현재 Android 앱 매니페스트에는 최초 자동 초기화 차단 설정이 없다. 동의 전 통신이
+  없다는 보장은 실기기 검증 전 할 수 없다. 앱 토글과 OS 표시 권한은 같은 동의가 아니다.
+- 계정 삭제 시 PushDevice는 DB 관계에 따라 삭제되지만, 현재 기기의 네이티브 등록·FID
+  삭제까지 수행하는 코드는 없다. 다른 기기·오프라인 기기까지 지웠다고 안내하지 않는다.
+- 무효 토큰은 `enabled=false`와 `invalidatedAt`을 기록하고 남긴다. PushDelivery는
+  사용자·기기·문의 참조와 상태·오류를 저장하며 계정/기기 삭제 시 외래키만 null로 남을 수 있다.
+  확인한 저장소에서 기간 기반 파기 작업을 찾지 못했다. 보관기간 확정·파기 구현이 필요하다.
+- 현행 `privacyPolicyUpdate.ts`의 무효화 시 토큰 삭제 및 등록 즉시 해제 표현과
+  이 구현 사이에 차이가 있다. 현행 고지 정정과 실제 파기·완료 확인을 다음 구현 대상으로 둔다.
+  이번 조사만으로 현행 방침 원문이나 실제 수집·삭제 동작이 바뀐 것은 아니다.
+
+근거: [Firebase 처리·보관 안내](https://firebase.google.com/support/privacy),
+[재수탁자](https://firebase.google.com/terms/subprocessors),
+[메시지 TTL](https://firebase.google.com/docs/cloud-messaging/customize-messages/setting-message-lifespan),
+[토큰과 FID 삭제 구분](https://firebase.google.com/docs/reference/android/com/google/firebase/messaging/FirebaseMessaging#deleteToken()),
+[Apple APNs 전송](https://developer.apple.com/documentation/usernotifications/sending-notification-requests-to-apns),
+[Apple 일반 개인정보 처리방침](https://www.apple.com/legal/privacy/en-ww/).
 
 [시행 전 이행: 적용 계약·정확한 수신자와 재수탁자·국가 목록·보관 조건·처리 근거를
 확정하고, 필요한 사전 고지·별도 동의·거부 절차와 실제 토큰 해제·설치 ID 삭제를
