@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { chmod, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
-import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { spawnSync } from "node:child_process";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -126,7 +126,8 @@ const fs=require('node:fs');
 const [command,...args]=process.argv.slice(2);
 fs.appendFileSync(process.env.TEST_CALLS,JSON.stringify({command,args})+'\\n');
 if(command==='id') console.log('0');
-if(command==='git'&&args.includes('rev-parse')) console.log('abcdef123456');
+if(command==='git'&&args.includes('rev-parse')) console.log(process.env.TEST_HEAD||'abcdef123456');
+if(command==='stat') console.log(process.env.TEST_BAD_PENDING==='true'?'1000:644':args.at(-1).endsWith('/pending')?'0:600':'0:700');
 if(command==='install') for(let i=0;i<args.length;i++) {
   if(['-o','-g','-m'].includes(args[i])){i++;continue;}
   if(args[i]!=='-d') fs.mkdirSync(args[i],{recursive:true});
@@ -134,16 +135,18 @@ if(command==='install') for(let i=0;i<args.length;i++) {
 if(command==='docker') {
   const all=args.join(' ');
   if(args[0]==='inspect') {
-    if(all.includes('Config.Image')) console.log('tuti:prod-abcdef123456');
-    else if(all.includes('State.Running')) console.log('true');
+    if(all.includes('Config.Image')) console.log(process.env.TEST_IMAGE||'tuti:prod-abcdef123456');
+    else if(all.includes('State.Running')) console.log(process.env.TEST_RUNNING||'true');
     else console.log('TUTI_RELEASE=abcdef123456\\nPRIVACY_REPLAY_LEDGER_ENABLED=false');
   }
   if(args.includes('--coverage-mode')) console.log(process.env.TEST_COVERAGE_MODE||'unactivated');
+  if(args.includes('create')&&args.includes('--no-deps')) { console.error('unknown flag: --no-deps'); process.exit(1); }
+  if(args.includes('up')&&!['--no-start','--no-deps','--no-build','--pull','never'].every(flag=>args.includes(flag))) process.exit(1);
   if(args.some(arg=>arg.startsWith('--activate-coverage='))&&process.env.TEST_FAIL_COVERAGE==='true')process.exit(1);
 }
 if(command==='systemctl'&&args.includes('tuti-privacy-maintenance.service')&&process.env.TEST_FAIL_SERVICE==='true')process.exit(1);
 `);
-  for (const command of ["id", "git", "install", "docker", "systemctl"]) {
+  for (const command of ["id", "git", "install", "docker", "systemctl", "stat"]) {
     const file = join(bin, command);
     writeFileSync(file, `#!/bin/sh\nexec ${JSON.stringify(process.execPath)} -- ${JSON.stringify(fake)} ${command} "$@"\n`);
     chmodSync(file, 0o700);
@@ -155,7 +158,7 @@ if(command==='systemctl'&&args.includes('tuti-privacy-maintenance.service')&&pro
     .replace("sh scripts/ops/install-legal-compliance-timers --apply", "true");
   const script = join(root, "activate.sh");
   writeFileSync(script, source);
-  const run = (extra: Record<string, string> = {}) => spawnSync("sh", [script, "--apply"], {
+  const run = (extra: Record<string, string> = {}, mode = "--apply") => spawnSync("sh", [script, mode], {
     env: { ...process.env, PATH: `${bin}:${process.env.PATH}`, TEST_CALLS: log, ...extra }, encoding: "utf8", timeout: 10000,
   });
   const calls = () => readFileSync(log, "utf8").trim().split("\n").map((line) => JSON.parse(line) as { command: string; args: string[] });
@@ -169,7 +172,7 @@ test("전환 대역 실행은 서명 검사 후 세 개인정보 작업만 시�
   const calls = healthy.calls();
   const signed = calls.findIndex((call) => call.args.some((arg) => arg.includes("app_ledger_signature=ok")));
   const enabled = calls.findIndex((call) => call.command === "systemctl" && call.args[0] === "enable");
-  const created = calls.findIndex((call) => call.args.includes("create"));
+  const created = calls.findIndex((call) => call.args.includes("up") && call.args.includes("--no-start"));
   const restartDisabled = calls.findIndex((call, index) => index > created && call.args.includes("--restart=no"));
   const started = calls.findIndex((call) => call.command === "docker" && call.args[0] === "start");
   assert.ok(created >= 0 && restartDisabled > created && started > restartDisabled && signed > started);
@@ -182,6 +185,35 @@ test("전환 대역 실행은 서명 검사 후 세 개인정보 작업만 시�
   assert.equal(broken.calls().some((call) => call.command === "systemctl"), false);
   assert.ok(broken.calls().some((call) => call.args.includes("--restart=no")));
   assert.equal(broken.calls().some((call) => call.args.includes("up")), false);
+});
+
+test("호스트 호환성 수정 뒤 재개는 root 대기 기록의 동일한 정지 이미지에만 허용한다", (t) => {
+  const extra = { TEST_HEAD: "999999999999", TEST_RUNNING: "false", TEST_COVERAGE_MODE: "active" };
+  const resumed = activationFixture(t);
+  mkdirSync(join(resumed.pending, ".."), { recursive: true });
+  writeFileSync(resumed.pending, "release=abcdef123456\nstarted_at=original\n");
+  assert.equal(resumed.run(extra, "--resume-pending").status, 0);
+  assert.equal(readFileSync(join(resumed.pending, "../completed-abcdef123456"), "utf8"), "release=abcdef123456\nstarted_at=original\n");
+  assert.ok(resumed.calls().some(call => call.args.includes("--activate-coverage=PRIVACY-CUTOVER-abcdef123456")));
+  for (const overrides of [{ TEST_RUNNING: "true" }, { TEST_IMAGE: "tuti:prod-other" }, { TEST_BAD_PENDING: "true" }]) {
+    const blocked = activationFixture(t);
+    mkdirSync(join(blocked.pending, ".."), { recursive: true });
+    writeFileSync(blocked.pending, "release=abcdef123456\n");
+    assert.notEqual(blocked.run({ ...extra, ...overrides }, "--resume-pending").status, 0);
+    assert.equal(blocked.calls().some(call => call.args.includes("up")), false);
+  }
+  for (const content of ["release=../../wrong\n", "release=abcdef123456\nrelease=999999999999\n"]) {
+    const invalid = activationFixture(t);
+    mkdirSync(join(invalid.pending, ".."), { recursive: true });
+    writeFileSync(invalid.pending, content);
+    assert.notEqual(invalid.run(extra, "--resume-pending").status, 0);
+  }
+  const linked = activationFixture(t);
+  mkdirSync(join(linked.pending, ".."), { recursive: true });
+  symlinkSync("/dev/null", linked.pending);
+  assert.notEqual(linked.run(extra, "--resume-pending").status, 0);
+  const missing = activationFixture(t);
+  assert.notEqual(missing.run(extra, "--resume-pending").status, 0);
 });
 
 test("운영 기록 기능이 중단된 이력이 있거나 첫 작업이 실패하면 예약 활성화를 승인하지 않는다", (t) => {

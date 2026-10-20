@@ -44,7 +44,8 @@ fs.appendFileSync(process.env.TEST_DOCKER_LOG, JSON.stringify({args, image: proc
 if (args[0] === 'inspect') {
   console.log(args.join(' ').includes('Config.Env') ? 'TUTI_RELEASE=previous' : (fs.existsSync(process.env.TEST_IMAGE_FILE) ? fs.readFileSync(process.env.TEST_IMAGE_FILE, 'utf8') : 'tuti:prod-current'));
 }
-if (args.includes('create') && process.env.TUTI_APP_IMAGE) fs.writeFileSync(process.env.TEST_IMAGE_FILE, process.env.TUTI_APP_IMAGE);
+if (args.includes('create') && args.includes('--no-deps')) process.exit(1);
+if (args.includes('up') && args.includes('--no-start') && process.env.TUTI_APP_IMAGE) fs.writeFileSync(process.env.TEST_IMAGE_FILE, process.env.TUTI_APP_IMAGE);
 if (args.includes('scripts/privacy-replay.ts') && args.includes('--mode')) console.log(process.env.TEST_LEDGER_MODE || 'disabled');
 if (args.includes('scripts/privacy-replay.ts') && args.includes('--apply') && process.env.TEST_LEDGER_REPLAY_FAIL === 'true') process.exit(1);
 if (args.join(' ').includes('pg_restore') && process.env.TEST_RESTORE_FAIL === 'true') process.exit(1);
@@ -85,8 +86,8 @@ test("DB 복원 뒤에는 앱을 자동 재시작하지 않고, 코드 롤백 �
   assert.equal(system.calls().some((call) => call.args.includes("up")), false);
   const staged = system.run("tuti-prod-rollback");
   assert.equal(staged.status, 0, staged.stderr);
-  assert.ok(system.calls().some((call) => call.args.includes("create") && call.image === "tuti:prod-previous"));
-  assert.equal(system.calls().some((call) => call.args.includes("up")), false);
+  assert.ok(system.calls().some((call) => call.args.includes("up") && call.args.includes("--no-start") && call.image === "tuti:prod-previous"));
+  assert.equal(system.calls().some((call) => call.args.includes("up") && !call.args.includes("--no-start")), false);
   const resumed = system.run("tuti-prod-restore", ["--resume-reviewed", backupId, "REVIEW-123"]);
   assert.equal(resumed.status, 0, resumed.stderr);
   assert.equal(existsSync(system.pending), false);
@@ -135,8 +136,8 @@ test("복원 확인 중 배포는 새 이미지만 준비하고 DB 마이그레�
   assert.equal(system.run("tuti-prod-restore", [backupId, "--confirm-production-restore"]).status, 0);
   const staged = system.run("tuti-prod-deploy");
   assert.equal(staged.status, 0, staged.stderr);
-  assert.ok(system.calls().some((call) => call.args.includes("create") && call.image === "tuti:prod-abcdef123456"));
-  assert.equal(system.calls().some((call) => call.args.includes("up") || call.args.includes("db:deploy")), false);
+  assert.ok(system.calls().some((call) => call.args.includes("up") && call.args.includes("--no-start") && call.image === "tuti:prod-abcdef123456"));
+  assert.equal(system.calls().some((call) => (call.args.includes("up") && !call.args.includes("--no-start")) || call.args.includes("db:deploy")), false);
 });
 
 test("재개 점검 실패 시 앱을 다시 멈추고 확인 대기를 유지한다", (t) => {
