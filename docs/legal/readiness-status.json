@@ -10,8 +10,27 @@
     "invalidTokensDeleted": true, "deliveryLogsMinimized": true,
     "sensitiveWithdrawalRetryImplemented": true, "backupRetentionTimerPrepared": true,
     "rightsMaintenanceTimerPrepared": true, "failureAlertPrepared": true,
-    "timersInstalled": false, "timersEnabled": false, "actualDeletionVerified": false,
-    "restoreTestVerified": false, "formalNoticeDeliveryVerified": false
+    "timersInstalled": true, "timersEnabled": false, "actualDeletionVerified": false,
+    "restoreTestVerified": false, "formalNoticeDeliveryVerified": false,
+    "operationalEvidence": {
+      "observedAt": "2026-10-20",
+      "installationSource": "운영자 설치 결과 및 로컬 systemctl disabled 조회",
+      "slackManualAlertReceived": true,
+      "slackManualAlertSource": "운영자 확인: tuti-운영-알림 / Tuti Operations, 2026-10-20 16:03 KST",
+      "ledgerSignatureReadVerified": true,
+      "ledgerSignatureReadSource": "운영자 UID 1000 ops --status 출력",
+      "ledgerInitializedAt": "2026-10-20T07:22:33.479Z",
+      "ledgerCommittedAtObservation": 0,
+      "ledgerUnresolvedAtObservation": 0,
+      "productionLedgerEnabled": false,
+      "coverageActivationGapResolved": false,
+      "ledgerAndKeyDisasterRecoveryVerified": false,
+      "postgres17ConstraintTestsPassed": true,
+      "postgres17ConstraintTestRun": "https://github.com/noon-maru/Tuti/actions/runs/39383520723",
+      "isolatedGarageRestorePassed": true,
+      "isolatedGarageRestoreRun": "https://github.com/noon-maru/Tuti/actions/runs/39388568846",
+      "restoreScope": "PostgreSQL 17·PostGIS 전체 마이그레이션 75개와 Garage 2.3.0, 합성 사용자·기록·사진·PDF의 별도 DB 및 객체 복원. 실제 NAS 운영 백업 검증은 아님"
+    }
   },
   "pushTransferReview": {
     "operatorSupportingDocuments": "none", "operatorConfirmedAt": "2026-10-19",
