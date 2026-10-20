@@ -53,7 +53,9 @@ docker update --restart=no tuti-prod
 ops "--activate-coverage=PRIVACY-CUTOVER-$release"
 compose run --rm --no-deps -T --user 0:0 -v "$project_dir:/runtime-config" ops node_modules/.bin/tsx scripts/enable-privacy-ledger-config.ts
 backup
-TUTI_APP_IMAGE="$image" TUTI_RELEASE="$release" docker compose --env-file .env.production -f docker-compose.prod.yml up -d --no-deps app
+TUTI_APP_IMAGE="$image" TUTI_RELEASE="$release" docker compose --env-file .env.production -f docker-compose.prod.yml create --no-deps app
+docker update --restart=no tuti-prod
+docker start tuti-prod
 ready=false
 attempt=1
 while [ "$attempt" -le 12 ]; do
