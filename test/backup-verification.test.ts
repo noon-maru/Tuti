@@ -66,7 +66,7 @@ test("실패 진단은 검사 단계·허용 오류 코드만 남기고 파일 �
   await assert.rejects(verifyBackupFiles(f.root), error => {
     assert.ok(error instanceof BackupVerificationError);
     assert.equal(error.stage, "file-hashes-and-inventory");
-    assert.equal(error.reason, "VALIDATION_FAILED");
+    assert.equal(error.reason, "SHA256_MISMATCH");
     assert.doesNotMatch(error.message, /synthetic|photo|object$/);
     return true;
   });
@@ -88,4 +88,24 @@ test("모든 파일 해시가 맞아도 객체 manifest 불일치·중복과 잘
     await assert.rejects(verifyBackupFiles(f.root));
   }
   assert.equal(spawnSync("sh", ["-n", "scripts/ops/tuti-prod-backup-verify"]).status, 0);
+});
+
+test("목록·파일 형식 실패와 실제 해시 불일치를 구별하되 이름은 노출하지 않는다", async t => {
+  const scenarios = [
+    { reason: "UNEXPECTED_DIRECTORY", change: async (f: Awaited<ReturnType<typeof fixture>>) => mkdir(join(f.root, "private-extra-directory")) },
+    { reason: "UNEXPECTED_FILE", change: async (f: Awaited<ReturnType<typeof fixture>>) => writeFile(join(f.root, "private-extra-file"), "test") },
+    { reason: "CHECKSUM_ENTRY_MISSING", change: async (f: Awaited<ReturnType<typeof fixture>>) => rm(join(f.root, `objects/${f.file}`)) },
+    { reason: "SYMLINK_NOT_ALLOWED", change: async (f: Awaited<ReturnType<typeof fixture>>) => symlink("/dev/null", join(f.root, "private-link")) },
+  ];
+  for (const scenario of scenarios) {
+    const f = await fixture(t);
+    await scenario.change(f);
+    await assert.rejects(verifyBackupFiles(f.root), error => {
+      assert.ok(error instanceof BackupVerificationError);
+      assert.equal(error.stage, "file-hashes-and-inventory");
+      assert.equal(error.reason, scenario.reason);
+      assert.doesNotMatch(JSON.stringify(error), /private|synthetic|photo|\/tmp/);
+      return true;
+    });
+  }
 });
