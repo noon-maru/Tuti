@@ -195,7 +195,8 @@ test("호스트 호환성 수정 뒤 재개는 root 대기 기록의 동일한 �
   assert.equal(resumed.run(extra, "--resume-pending").status, 0);
   assert.equal(readFileSync(join(resumed.pending, "../completed-abcdef123456"), "utf8"), "release=abcdef123456\nstarted_at=original\n");
   assert.ok(resumed.calls().some(call => call.args.includes("--activate-coverage=PRIVACY-CUTOVER-abcdef123456")));
-  for (const overrides of [{ TEST_RUNNING: "true" }, { TEST_IMAGE: "tuti:prod-other" }, { TEST_BAD_PENDING: "true" }]) {
+  const blockedVariants: Array<Record<string, string>> = [{ TEST_RUNNING: "true" }, { TEST_IMAGE: "tuti:prod-other" }, { TEST_BAD_PENDING: "true" }];
+  for (const overrides of blockedVariants) {
     const blocked = activationFixture(t);
     mkdirSync(join(blocked.pending, ".."), { recursive: true });
     writeFileSync(blocked.pending, "release=abcdef123456\n");
