@@ -165,6 +165,31 @@ DB가 가리키는 객체와 실제 객체의 시점을 맞추기 위해 백업 
 sudo -n /usr/local/sbin/tuti-prod-backup
 ```
 
+### 2026-10-20 객체 백업 누락 발견 및 수정
+
+`20261020-224729` 사본 검사에서 `objects.manifest.json` 누락을 확인했다.
+기존 명령의 `pnpm ops:objects:backup -- /backup`에서 `--`가 스크립트의 첫 인자로
+전달되는 동작을 설치된 pnpm 11.2.2로 재현했다. 객체 백업 스크립트는 첫 인자를
+대상 경로로 사용하므로, 마운트된 `/backup` 대신 임시 컨테이너 안의 `/app/--`에
+객체 목록과 파일을 기록할 수 있었다. 컨테이너 종료·삭제 뒤에는 호스트 사본에 남지 않는다.
+이는 운영 DB·Garage 원본 삭제를 뜻하지 않지만, 해당 사본은 완전한 복구 자료가 아니다.
+다른 과거 사본의 완전성도 개별 검사 없이 보장하지 않는다.
+
+백업·복원은 `node_modules/.bin/tsx scripts/backup-object-storage.ts /backup` 및
+`restore-object-storage.ts /backup`으로 직접 실행하도록 수정했다. 새 백업은 지정 경로에
+객체 목록·객체 디렉터리가 없으면 완료로 확정하지 않는다. 설치된 root 도구는 자동으로
+갱신되지 않으므로 커밋 후 재설치하고, 새 동일 시점 전체 백업을 생성해 오프라인 검사한다.
+
+```sh
+sudo sh scripts/ops/install-legal-compliance-tools --apply
+sudo /usr/local/sbin/tuti-prod-backup
+sudo sh scripts/ops/tuti-prod-backup-verify
+```
+
+백업 생성 중에는 앱을 잠시 중지하므로 운영 중단 시간을 고려한다. 기존 불완전 사본에
+현재 객체 목록만 덧붙여 과거 동일 시점 백업인 것처럼 만들지 않는다. 이번 수정은 기존
+사본을 삭제·수정하거나 운영 복원을 수행하지 않는다. 새 사본 검증 성공도 실제 복원 시험과는 다르다.
+
 동일 NAS의 백업은 디스크·화재·랜섬웨어 장애를 함께 겪을 수 있다. Synology Hyper
 Backup으로 `/volume1/tuti/backups/full`을 외장 장치나 원격 저장소에 한 번 더
 복제한다. 기존 관광·혼잡도 정기 작업보다 앞선 매일 오전 00:20 전체 백업,
