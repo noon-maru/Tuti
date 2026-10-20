@@ -39,20 +39,21 @@ export async function verifyBackupFiles(root: string) {
     const entries = await readdir(join(root, relative), { withFileTypes: true });
     for (const entry of entries) {
       const name = relative ? `${relative}/${entry.name}` : entry.name;
-      if (entry.isSymbolicLink()) throw failure();
+      if (entry.isSymbolicLink()) throw new BackupVerificationError(stage, "SYMLINK_NOT_ALLOWED");
       if (entry.isDirectory() && name === "objects") { await inspectDirectory(name); continue; }
-      if (!entry.isFile()) throw failure();
+      if (!entry.isFile()) throw new BackupVerificationError(stage, entry.isDirectory() ? "UNEXPECTED_DIRECTORY" : "NON_REGULAR_ENTRY");
       if (name === "checksums.sha256") continue;
-      if (!allowedFile(name) || !expected.has(name)) throw failure();
+      if (!allowedFile(name)) throw new BackupVerificationError(stage, "UNEXPECTED_FILE");
+      if (!expected.has(name)) throw new BackupVerificationError(stage, "FILE_NOT_IN_CHECKSUM_LIST");
       const file = await open(join(root, name), constants.O_RDONLY | constants.O_NOFOLLOW);
       try {
         const info = await file.stat();
-        if (!info.isFile()) throw failure();
+        if (!info.isFile()) throw new BackupVerificationError(stage, "NON_REGULAR_FILE");
         const hash = createHash("sha256");
         const stream = createReadStream("", { fd: file.fd, autoClose: false });
         for await (const chunk of stream) hash.update(chunk);
         const value = hash.digest("hex");
-        if (value !== expected.get(name)) throw failure();
+        if (value !== expected.get(name)) throw new BackupVerificationError(stage, "SHA256_MISMATCH");
         hashes.set(name, { size: info.size, hash: value });
         seen.add(name);
       } finally { await file.close(); }
@@ -60,8 +61,8 @@ export async function verifyBackupFiles(root: string) {
   }
   stage = "file-hashes-and-inventory";
   await inspectDirectory();
-  if (seen.size !== expected.size) throw failure();
-  for (const required of ["manifest.txt", "postgres.dump", "migrations.txt", "objects.manifest.json"]) if (!seen.has(required)) throw failure();
+  if (seen.size !== expected.size) throw new BackupVerificationError(stage, "CHECKSUM_ENTRY_MISSING");
+  for (const required of ["manifest.txt", "postgres.dump", "migrations.txt", "objects.manifest.json"]) if (!seen.has(required)) throw new BackupVerificationError(stage, "REQUIRED_FILE_MISSING");
   stage = "backup-metadata";
   const metadata = new Map((await boundedText("manifest.txt", 16384)).trim().split("\n").map(line => {
     const at = line.indexOf("=");
@@ -94,6 +95,7 @@ export async function verifyBackupFiles(root: string) {
   } finally { await dump.close(); }
   return { scope: "backup-file-integrity-only", filesVerified: seen.size, objectsVerified: objectFiles.size, objectBytesVerified: totalBytes, archiveHeaderVerified: true, liveDatabaseTouched: false, liveObjectStorageTouched: false, restorePerformed: false };
   } catch (error) {
+    if (error instanceof BackupVerificationError) throw error;
     const code = error && typeof error === "object" && "code" in error ? error.code : null;
     const reason = typeof code === "string" && ["EACCES", "EPERM", "ENOENT", "EIO", "ELOOP", "ENOTDIR", "EMFILE"].includes(code)
       ? code : error instanceof SyntaxError ? "INVALID_JSON" : "VALIDATION_FAILED";
