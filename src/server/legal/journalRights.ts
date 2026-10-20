@@ -86,7 +86,7 @@ export async function actOnRightsCase(input: Record<string, unknown>, actorUserI
     if (input.action === "resolve_hide" && record.report.entryId) {
       await tx.journalEntry.updateMany({ where: { id: record.report.entryId }, data: { publicationStatus: "hidden", publicationStatusChangedAt: now } });
     }
-    const updated = await tx.journalRightsCase.update({ where: { id }, data: { ...change, proofReference: reference(input.proofReference), revision: { increment: 1 } }, include: { report: true } });
+    const updated = await tx.journalRightsCase.update({ where: { id }, data: { ...change, proofReference: reference(input.proofReference), lastRemindedAt: null, revision: { increment: 1 } }, include: { report: true } });
     if (change.state === "closed") await tx.contentReport.update({ where: { id: record.reportId }, data: { status: "resolved", reviewedAt: now, reviewerUserId: actorUserId } });
     await queueNotices(tx, updated, String(input.action));
     await audit(tx, id, String(input.action), actorUserId);
@@ -123,7 +123,7 @@ export async function maintainRightsCases(apply = false, now = new Date()) {
       if (!temporaryExpired && !resumeReady) { result.needsReview++; return; }
       if (temporaryExpired) result.expired++; else result.resumed++;
       if (!apply) return;
-      const updated = await tx.journalRightsCase.update({ where: { id: record.id }, data: { state: temporaryExpired ? "expired" : "closed", closedAt: now, revision: { increment: 1 } }, include: { report: true } });
+      const updated = await tx.journalRightsCase.update({ where: { id: record.id }, data: { state: temporaryExpired ? "expired" : "closed", closedAt: now, lastRemindedAt: null, revision: { increment: 1 } }, include: { report: true } });
       await tx.contentReport.update({ where: { id: record.reportId }, data: { status: "resolved", reviewedAt: now } });
       await queueNotices(tx, updated, temporaryExpired ? "expired" : "resumed");
       await audit(tx, record.id, temporaryExpired ? "expired" : "resumed");
@@ -147,8 +147,8 @@ export async function sendRightsDeadlineAlert(now = new Date(), fetcher: typeof 
         { OR: [{ lastRemindedAt: null }, { lastRemindedAt: { lte: new Date(now.getTime() - 86400000) } }] },
         { OR: [
           { state: { notIn: closedStates }, nextReviewAt: { lte: now } },
-          { notices: { some: { status: "manual_required", requiresFormalNotice: false, createdAt: { lte: now } } } },
-          { notices: { some: { status: "manual_required", requiresFormalNotice: true, createdAt: { lte: new Date(now.getTime() - 3 * 86400000) } } } },
+          // 법정 최장 기한을 기다리지 않고 미완료 통지가 생긴 시점부터 알린다.
+          { notices: { some: { status: "manual_required", createdAt: { lte: now } } } },
         ] },
       ],
     }, select: { id: true }, orderBy: { id: "asc" }, take: 100 });

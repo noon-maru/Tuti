@@ -50,6 +50,7 @@ let records: Array<ReturnType<typeof sample>> = [];
 let writes = 0;
 let queries = 0;
 let alertUpdates = 0;
+let lastFindWhere: unknown;
 function sample() {
   return { ...fresh(), id: "case-1", reportId: "report-1", reference: "CASE-1", proofReference: "proof-1", revision: 0, nextReviewAt: now,
     report: { entryId: "entry-1", reporterUserId: "reporter", targetOwnerId: "author" },
@@ -65,9 +66,9 @@ const db = {
     return [];
   },
   journalRightsCase: {
-    findMany: async () => { queries++; return records; },
+    findMany: async ({ where }: { where: unknown }) => { lastFindWhere = where; queries++; return records; },
     findUnique: async () => records[0] ?? null,
-    update: async ({ data }: { data: Record<string, unknown> }) => { writes++; return { ...records[0], ...data, revision: records[0].revision + 1 }; },
+    update: async ({ data }: { data: Record<string, unknown> }) => { if (data.state) assert.equal(data.lastRemindedAt, null); writes++; return { ...records[0], ...data, revision: records[0].revision + 1 }; },
     updateMany: async () => { alertUpdates++; },
   },
   journalRightsNotice: { createMany: async () => { writes++; } },
@@ -118,6 +119,8 @@ test("권리 보호 서비스: 비활성·복수 사건·재시도 경계", asyn
     let sent = "";
     const failing: typeof fetch = async (_input, init) => { sent = String(init?.body); return new Response(null, { status: 503 }); };
     await assert.rejects(service.sendRightsDeadlineAlert(now, failing));
+    const pendingNotice = (lastFindWhere as { AND: Array<{ OR: unknown[] }> }).AND[1].OR[1];
+    assert.deepEqual(pendingNotice, { notices: { some: { status: "manual_required", createdAt: { lte: now } } } }, "법정 서식 통지도 3일 지연 없이 즉시 확인 대상이어야 한다.");
     assert.equal(alertUpdates, 0);
     assert.doesNotMatch(sent, /case-1|reporter|author|proof-1|CASE-1/);
     const success: typeof fetch = async () => new Response(null, { status: 204 });
@@ -125,6 +128,10 @@ test("권리 보호 서비스: 비활성·복수 사건·재시도 경계", asyn
     assert.equal(alertUpdates, 1);
     delete process.env.LEGAL_RIGHTS_ALERT_WEBHOOK_URL;
     assert.equal((await service.sendRightsDeadlineAlert(now, success)).enabled, false);
+  });
+  await t.test("새 조치의 통지는 이전 알림의 하루 중복 억제에 가려지지 않는다", async () => {
+    records = [Object.assign(sample(), { lastRemindedAt: now })];
+    await service.actOnRightsCase({ id: "case-1", revision: 0, action: "temporary_block", ...proof }, "admin", now);
   });
   delete process.env.LEGAL_RIGHTS_WORKFLOW_ENABLED;
 });

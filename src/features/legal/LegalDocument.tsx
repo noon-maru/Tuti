@@ -13,6 +13,7 @@ type LegalSection = {
 export function LegalDocument({
   title,
   effectiveDate,
+  dateLabel = "시행일",
   summary,
   announcement,
   sections,
@@ -21,6 +22,7 @@ export function LegalDocument({
 }: {
   title: string;
   effectiveDate: string;
+  dateLabel?: string;
   summary?: string;
   announcement?: {
     title: string;
@@ -39,7 +41,7 @@ export function LegalDocument({
         <div>
           <span>Tuti 법적 안내</span>
           <h1>{title}</h1>
-          <p>시행일 {effectiveDate}</p>
+          <p>{dateLabel} {effectiveDate}</p>
         </div>
       </Header>
       {documentNavigation && <Navigation aria-label="약관 시행 구분">{documentNavigation}</Navigation>}
@@ -56,6 +58,7 @@ export function LegalDocument({
         <Link href="/legal/privacy">개인정보 처리방침</Link>
         <Link href="/legal/location-terms">위치기반서비스 이용약관</Link>
         <Link href="/legal/community-guidelines">기록 공개 운영정책</Link>
+        <Link href="/legal/rights">권리 침해 신고 안내</Link>
       </Navigation>
       <Content>
         {sections.map((section) => (
