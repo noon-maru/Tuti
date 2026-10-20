@@ -83,7 +83,7 @@ docker compose --env-file .env.production -f docker-compose.prod.yml \
   run --rm --no-deps ops pnpm test
 
 echo "추천 파생 데이터 읽기 전용 사전 검사"
-if [ -f "$project_dir/.ops-state/restore-privacy/pending.env" ]; then
+if [ -f "$project_dir/.ops-state/restore-privacy/pending.env" ] || [ -f "$project_dir/.ops-state/privacy-activation/pending" ]; then
   docker compose --env-file .env.production -f docker-compose.prod.yml create --no-deps app
   docker update --restart=no tuti-prod
   echo "새 앱 이미지 준비 완료. DB 복원 후 확인 대기 중이므로 마이그레이션·서비스 시작은 보류합니다."

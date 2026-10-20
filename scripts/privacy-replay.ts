@@ -1,10 +1,17 @@
 import { prisma } from "../src/server/db/prisma";
-import { initializePrivacyReplayLedger, privacyReplayEnabled, readPrivacyReplaySnapshot } from "../src/server/legal/privacyReplayLedger";
+import { activatePrivacyReplayCoverage, initializePrivacyReplayLedger, privacyReplayCoverageActivated, privacyReplayEnabled, readPrivacyReplaySnapshot } from "../src/server/legal/privacyReplayLedger";
 import { replayPrivacyRequests, settleCurrentPrivacyRequests } from "../src/server/legal/privacyReplay";
 import { cleanupPrivacyReplayObjects } from "../src/server/legal/privacyReplayObjects";
 
 async function main() {
   const args = process.argv.slice(2);
+  if (args.length === 1 && args[0] === "--coverage-mode") {
+    console.log(await privacyReplayCoverageActivated() ? "active" : "unactivated"); return;
+  }
+  if (args.length === 1 && args[0].startsWith("--activate-coverage=")) {
+    console.log(JSON.stringify(await activatePrivacyReplayCoverage(args[0].slice("--activate-coverage=".length))));
+    return;
+  }
   if (args.includes("--cleanup-objects") && args.every((arg) => ["--cleanup-objects", "--apply"].includes(arg))) {
     if (!privacyReplayEnabled()) { console.log(JSON.stringify({ enabled: false })); return; }
     if (args.includes("--apply") && process.env.TUTI_PRIVACY_REPLAY_OFFLINE !== "true") throw new Error("유지보수 잠금과 앱 중지 확인이 필요합니다.");

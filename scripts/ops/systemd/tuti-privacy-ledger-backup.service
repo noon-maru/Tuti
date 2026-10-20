@@ -1,0 +1,12 @@
+[Unit]
+Description=Tuti private ledger and key local recovery snapshot
+After=network-online.target pkg-ContainerManager-dockerd.service
+OnFailure=tuti-legal-job-failure@%n.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/tuti-privacy-ledger-backup --apply
+TimeoutStartSec=300
+Nice=10
+IOSchedulingClass=best-effort
+IOSchedulingPriority=7

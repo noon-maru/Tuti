@@ -10,6 +10,8 @@
     "invalidTokensDeleted": true, "deliveryLogsMinimized": true,
     "sensitiveWithdrawalRetryImplemented": true, "backupRetentionTimerPrepared": true,
     "rightsMaintenanceTimerPrepared": true, "failureAlertPrepared": true,
+    "activationCutoverImplemented": true, "localRecoverySnapshotImplemented": true,
+    "productionActivationConfirmed": false,
     "timersInstalled": true, "timersEnabled": false, "actualDeletionVerified": false,
     "restoreTestVerified": false, "formalNoticeDeliveryVerified": false,
     "operationalEvidence": {
