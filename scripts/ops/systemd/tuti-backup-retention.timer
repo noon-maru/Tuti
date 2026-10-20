@@ -1,0 +1,11 @@
+[Unit]
+Description=Check Tuti backup retention hourly
+
+[Timer]
+OnBootSec=10min
+OnUnitInactiveSec=1h
+AccuracySec=1min
+Unit=tuti-backup-retention.service
+
+[Install]
+WantedBy=timers.target

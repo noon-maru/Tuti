@@ -4,7 +4,7 @@ import { lstat, mkdir, open, readdir, rename, rmdir, unlink } from "node:fs/prom
 import { isAbsolute, join } from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
 
-export type PrivacyReplayKind = "account_deleted" | "location_withdrawn" | "journal_deleted" | "journal_book_deleted" | "journal_unpublished";
+export type PrivacyReplayKind = "account_deleted" | "location_withdrawn" | "journal_deleted" | "journal_sensitive_withdrawn" | "journal_book_deleted" | "journal_unpublished";
 type Receipt = { version: 1; id: string; kind: PrivacyReplayKind; subject: string; target: string | null; phase: "prepared" | "committed"; preparedAt: string; effectiveAt: string | null };
 type Header = { version: 1; type: "privacy-replay"; coverageStart: string; keyCheck: string; receiptIds: string[]; retiringIds: string[] };
 export type PrivacyReplaySnapshot = { coverageStart: Date; committed: Receipt[]; unresolved: number; pending?: Receipt[] };
@@ -121,7 +121,9 @@ export async function commitPrivacyReplayReceipt(receipt: Receipt | null, effect
   });
 }
 function parseReceipt(value: Record<string, unknown>, filename: string): Receipt {
-  if (value.version !== 1 || typeof value.id !== "string" || !UUID.test(value.id) || filename !== `${value.id}.json` || typeof value.subject !== "string" || !DIGEST.test(value.subject) || !["account_deleted", "location_withdrawn", "journal_deleted", "journal_book_deleted", "journal_unpublished"].includes(String(value.kind)) || (String(value.kind).startsWith("journal_") ? typeof value.target !== "string" || !DIGEST.test(value.target) : value.target !== null) || !["prepared", "committed"].includes(String(value.phase)) || !iso(value.preparedAt) || (value.phase === "prepared" ? value.effectiveAt !== null : !iso(value.effectiveAt) || Date.parse(value.effectiveAt) < Date.parse(value.preparedAt))) throw new PrivacyReplayError("유효하지 않은 원장 기록이 있습니다. 자동 복원 재개를 중지합니다.");
+  // 새 철회 종류도 journal 대상의 서명·형식을 동일하게 검증한다.
+  const kindForValidation = value.kind === "journal_sensitive_withdrawn" ? "journal_deleted" : value.kind;
+  if (value.version !== 1 || typeof value.id !== "string" || !UUID.test(value.id) || filename !== `${value.id}.json` || typeof value.subject !== "string" || !DIGEST.test(value.subject) || !["account_deleted", "location_withdrawn", "journal_deleted", "journal_book_deleted", "journal_unpublished"].includes(String(kindForValidation)) || (String(value.kind).startsWith("journal_") ? typeof value.target !== "string" || !DIGEST.test(value.target) : value.target !== null) || !["prepared", "committed"].includes(String(value.phase)) || !iso(value.preparedAt) || (value.phase === "prepared" ? value.effectiveAt !== null : !iso(value.effectiveAt) || Date.parse(value.effectiveAt) < Date.parse(value.preparedAt))) throw new PrivacyReplayError("유효하지 않은 원장 기록이 있습니다. 자동 복원 재개를 중지합니다.");
   return value as unknown as Receipt;
 }
 export async function readPrivacyReplaySnapshot(): Promise<PrivacyReplaySnapshot> {

@@ -52,6 +52,7 @@ export function getJournalBookCoverPalette(style: JournalBookCoverStyle) {
 }
 
 export type JournalBookInput = {
+  freeformNonSensitiveConfirmed?: boolean;
   entryIds: string[];
   title: string;
   letter: string;
@@ -99,6 +100,7 @@ export function emptyJournalBookDraft(): JournalBookDraft {
 export function parseJournalBookInput(value: unknown): JournalBookInput | null {
   if (!value || typeof value !== "object") return null;
   const input = value as Record<string, unknown>;
+  if (input.freeformNonSensitiveConfirmed !== undefined && typeof input.freeformNonSensitiveConfirmed !== "boolean") return null;
   const coverStyle = JOURNAL_BOOK_COVER_STYLES.includes(
     input.coverStyle as JournalBookCoverStyle,
   )
@@ -135,6 +137,7 @@ export function parseJournalBookInput(value: unknown): JournalBookInput | null {
     letter: input.letter,
     coverEntryId: input.coverEntryId,
     coverStyle,
+    ...(typeof input.freeformNonSensitiveConfirmed === "boolean" ? { freeformNonSensitiveConfirmed: input.freeformNonSensitiveConfirmed } : {}),
   };
 }
 

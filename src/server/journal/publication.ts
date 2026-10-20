@@ -1,4 +1,5 @@
 import { prisma } from "@/server/db/prisma";
+import { publicSensitiveJournalFilter } from "@/server/journal/sensitivePolicy";
 import { isStoredJournalImage } from "@/server/journal/imageStorage";
 import type { PublicJournalEntry } from "@/shared/api/journal";
 import { journalPublicationEnabled } from "@/shared/features/release";
@@ -16,6 +17,7 @@ export async function getPublicJournalAccessState(publicId: string): Promise<"av
   const entry = await prisma.journalEntry.findFirst({
     where: {
       publicId,
+      ...publicSensitiveJournalFilter(),
       publicationStatus: "published",
       publishedAt: { not: null },
       publicationConsentVersion: JOURNAL_PUBLICATION_POLICY_VERSION,
@@ -37,6 +39,7 @@ export async function getPublicJournalEntry(
   const entry = await prisma.journalEntry.findFirst({
     where: {
       publicId,
+      ...publicSensitiveJournalFilter(),
       publishedAt: { not: null },
       publicationStatus: "published",
       publicationConsentVersion: JOURNAL_PUBLICATION_POLICY_VERSION,
@@ -92,6 +95,7 @@ export async function getPublicJournalImage(
   const entry = await prisma.journalEntry.findFirst({
     where: {
       publicId,
+      ...publicSensitiveJournalFilter(),
       publishedAt: { not: null },
       publicationStatus: "published",
       publicationConsentVersion: JOURNAL_PUBLICATION_POLICY_VERSION,

@@ -10,6 +10,8 @@ export function parseJournalEntryInput(
   value: unknown,
 ): JournalEntryInput | null {
   if (!isRecord(value)) return null;
+  if (value.sensitiveContent !== undefined && typeof value.sensitiveContent !== "boolean") return null;
+  if (value.sensitiveConsentVersion !== undefined && (typeof value.sensitiveConsentVersion !== "string" || value.sensitiveConsentVersion.length > 80)) return null;
 
   const {
     content,
@@ -70,6 +72,8 @@ export function parseJournalEntryInput(
     theme: theme.trim() || "미정",
     difficulty: difficulty.trim() || "미정",
     visitedAt,
+    ...(typeof value.sensitiveContent === "boolean" ? { sensitiveContent: value.sensitiveContent } : {}),
+    ...(typeof value.sensitiveConsentVersion === "string" ? { sensitiveConsentVersion: value.sensitiveConsentVersion } : {}),
   };
 }
 

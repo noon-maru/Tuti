@@ -51,11 +51,11 @@ export async function POST(request: Request) {
     const user = await prisma.user.findUnique({ where: { id: userId }, select: { id: true } });
     if (!user) return respond({ error: "사용자를 찾지 못했습니다." }, 404);
 
-    const total = await prisma.journalEntry.count({ where: { ownerId: userId } });
+    const total = await prisma.journalEntry.count({ where: { ownerId: userId, sensitiveWithdrawnAt: null } });
     const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
     const page = Math.min(requestedPage, totalPages);
     const entries = await prisma.journalEntry.findMany({
-      where: { ownerId: userId },
+      where: { ownerId: userId, sensitiveWithdrawnAt: null },
       orderBy: [{ createdAt: "desc" }, { id: "desc" }],
       skip: (page - 1) * PAGE_SIZE,
       take: PAGE_SIZE,

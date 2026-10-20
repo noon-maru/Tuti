@@ -1,6 +1,7 @@
 import { authenticateUser } from "@/server/auth/session";
 import { parseJournalEntryInput } from "@/server/journal/input";
 import { JournalImageError } from "@/server/journal/imageStorage";
+import { SensitiveJournalPolicyError } from "@/server/journal/sensitivePolicy";
 import {
   deleteJournalEntry,
   updateJournalEntry,
@@ -66,6 +67,7 @@ export async function PATCH(
     return withCors(request, Response.json(response));
   } catch (error) {
     const invalidJson = error instanceof SyntaxError;
+    if (error instanceof SensitiveJournalPolicyError) return withCors(request, Response.json({ error: error.message }, { status: error.status }));
     const invalidImage = error instanceof JournalImageError;
 
     if (!invalidJson && !invalidImage) {
@@ -117,6 +119,7 @@ export async function DELETE(
     const response: DeleteJournalEntryResponse = { entryId };
     return withCors(request, Response.json(response));
   } catch (error) {
+    if (error instanceof SensitiveJournalPolicyError) return withCors(request, Response.json({ error: error.message }, { status: error.status }));
     console.error("기록 삭제 중 오류가 발생했습니다.", error);
 
     return withCors(

@@ -1,0 +1,8 @@
+#!/bin/sh
+set -eu
+if [ "$#" -ne 0 ]; then echo "인자를 지원하지 않습니다." >&2; exit 1; fi
+/usr/bin/logger -p daemon.err -t tuti-legal-jobs "Tuti scheduled legal job failed. Inspect maintenance logs."
+cd /var/services/homes/Tutiadmin/source/Tuti
+# 작업명·사용자·주소·토큰을 외부로 내보내지 않는다. Docker 장애는 NAS 로그로 남는다.
+docker compose --env-file .env.production -f docker-compose.prod.yml \
+  run --rm --no-deps -T ops node_modules/.bin/tsx scripts/notify-legal-job-failure.ts

@@ -10,8 +10,9 @@ import {
   type JournalBookInput,
 } from "@/shared/api/journalBook";
 import { PDFDocument } from "pdf-lib";
+import { SENSITIVE_JOURNAL_CONSENT_VERSION } from "@/shared/legal/sensitiveJournalPolicy";
 
-const APPROVAL_VERSION = 1;
+const APPROVAL_VERSION = 2;
 const APPROVAL_LIFETIME_MS = 30 * 60 * 1000;
 export const JOURNAL_BOOK_MAX_PDF_BYTES = 20 * 1024 * 1024;
 const JOURNAL_BOOK_MAX_JSON_BYTES = 16 * 1024;
@@ -25,11 +26,13 @@ type JournalBookApprovalPayload = {
   pageCount: number;
   pdfHash: string;
   expiresAt: number;
+  issuedAt: number;
+  sensitivePolicyVersion: string | null;
 };
 
 export type ApprovedJournalBook = Pick<
   JournalBookApprovalPayload,
-  "bookId" | "title" | "entryIds" | "pageCount"
+  "bookId" | "title" | "entryIds" | "pageCount" | "issuedAt" | "sensitivePolicyVersion"
 >;
 
 export type JournalBookCompletionRequest =
@@ -47,6 +50,7 @@ export async function createJournalBookApproval(
   ownerId: string,
   input: JournalBookInput,
   pdf: Uint8Array,
+  issuedAt = Date.now(),
 ) {
   assertPdf(pdf);
   const pageCount = await readJournalBookPageCount(pdf);
@@ -59,6 +63,8 @@ export async function createJournalBookApproval(
     pageCount,
     pdfHash: hashPdf(pdf),
     expiresAt: Date.now() + APPROVAL_LIFETIME_MS,
+    issuedAt,
+    sensitivePolicyVersion: input.freeformNonSensitiveConfirmed === true ? SENSITIVE_JOURNAL_CONSENT_VERSION : null,
   };
   const encoded = Buffer.from(JSON.stringify(payload)).toString("base64url");
   return `${encoded}.${sign(encoded)}`;
@@ -105,6 +111,8 @@ export function verifyJournalBookApproval(
     title: payload.title,
     entryIds: [...payload.entryIds],
     pageCount: payload.pageCount,
+    issuedAt: payload.issuedAt,
+    sensitivePolicyVersion: payload.sensitivePolicyVersion,
   };
 }
 
@@ -233,6 +241,7 @@ function isApprovalPayload(value: unknown): value is JournalBookApprovalPayload 
   const payload = value as Partial<JournalBookApprovalPayload>;
   return (
     payload.version === APPROVAL_VERSION &&
+    (payload.sensitivePolicyVersion === null || payload.sensitivePolicyVersion === SENSITIVE_JOURNAL_CONSENT_VERSION) &&
     typeof payload.bookId === "string" &&
     /^[0-9a-f-]{36}$/i.test(payload.bookId) &&
     typeof payload.ownerId === "string" &&
@@ -253,7 +262,10 @@ function isApprovalPayload(value: unknown): value is JournalBookApprovalPayload 
     typeof payload.pdfHash === "string" &&
     /^[0-9a-f]{64}$/.test(payload.pdfHash) &&
     typeof payload.expiresAt === "number" &&
-    Number.isSafeInteger(payload.expiresAt)
+    Number.isSafeInteger(payload.expiresAt) &&
+    typeof payload.issuedAt === "number" && Number.isSafeInteger(payload.issuedAt) &&
+    payload.issuedAt > 0 && payload.issuedAt <= payload.expiresAt &&
+    payload.expiresAt - payload.issuedAt <= APPROVAL_LIFETIME_MS + 300_000
   );
 }
 

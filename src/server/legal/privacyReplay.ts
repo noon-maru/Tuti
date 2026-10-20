@@ -4,6 +4,7 @@ import { replayLocationWithdrawal, getCurrentLocationConsent, purgeWithdrawnLoca
 import { privacyReplayEnabled, PrivacyReplayError, privacyReplaySubject, privacyReplayTarget, readPrivacyReplaySnapshot, verifyPrivacyReplayCoverage, commitPrivacyReplayReceipt } from "@/server/legal/privacyReplayLedger";
 import { forceDeleteJournalEntry } from "@/server/journal/service";
 import { deleteJournalBook } from "@/server/journal/bookDeletion";
+import { purgeWithdrawnSensitiveJournal } from "@/server/journal/sensitiveWithdrawal";
 import { cleanupPrivacyReplayObjects } from "@/server/legal/privacyReplayObjects";
 
 // DB 파일을 교체하기 전, 앱 중지 상태의 현재 DB로 완료 여부가 입증되는 준비 기록만 확정한다.
@@ -35,9 +36,9 @@ export async function settleCurrentPrivacyRequests() {
         const books = await prisma.journalBook.findMany({ where: { ownerId: userId }, select: { id: true } });
         fulfilled = !books.some((book) => privacyReplayTarget("book", book.id) === record.target);
       } else {
-        const entries = await prisma.journalEntry.findMany({ where: { ownerId: userId }, select: { id: true, publicId: true, publicationStatus: true } });
+        const entries = await prisma.journalEntry.findMany({ where: { ownerId: userId }, select: { id: true, publicId: true, publicationStatus: true, sensitiveWithdrawnAt: true } });
         const entry = entries.find((entry) => privacyReplayTarget("journal", entry.id) === record.target);
-        fulfilled = !entry || record.kind === "journal_unpublished" && entry.publicId === null && entry.publicationStatus === "private";
+        fulfilled = !entry || record.kind === "journal_sensitive_withdrawn" && !!entry.sensitiveWithdrawnAt || record.kind === "journal_unpublished" && entry.publicId === null && entry.publicationStatus === "private";
       }
     }
     if (fulfilled) { await commitPrivacyReplayReceipt(record); settled++; }
@@ -85,6 +86,14 @@ export async function replayPrivacyRequests(backupAt: Date, apply = false, legac
       if (!entries.length) break;
       for (const entry of entries) {
         const matches = targetReceipts.filter((record) => record.subject === privacyReplaySubject(entry.ownerId) && record.target === privacyReplayTarget("journal", entry.id));
+        if (matches.some((record) => record.kind === "journal_sensitive_withdrawn")) {
+          if (apply) {
+            await prisma.journalEntry.update({ where: { id: entry.id }, data: { sensitiveWithdrawnAt: new Date(), publicId: null, publishedAt: null, publicationStatus: "private", sensitiveConsentVersion: null, sensitiveConsentedAt: null } });
+            await purgeWithdrawnSensitiveJournal(entry.ownerId, entry.id);
+          }
+          result.entries++;
+          continue;
+        }
         if (matches.some((record) => record.kind === "journal_deleted")) {
           if (apply) await forceDeleteJournalEntry(entry.id, true);
           result.entries++;

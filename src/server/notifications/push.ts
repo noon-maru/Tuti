@@ -12,10 +12,8 @@ export async function sendPushToUserSafely(
     await sendPushToUser(userId, message);
   } catch (error) {
     console.error("사용자 푸시 알림을 보내지 못했습니다.", {
-      error: error instanceof Error ? error.message : "UnknownError",
-      userId,
+      error: error instanceof Error ? error.name : "UnknownError",
       type: message.type,
-      entityId: message.entityId,
     });
   }
 }

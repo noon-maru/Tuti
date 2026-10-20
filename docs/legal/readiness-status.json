@@ -4,7 +4,15 @@
   "rightsRecipient": { "name": "정연한", "department": "운영", "position": "대표", "email": "admin@tuti.today", "fax": null, "faxUnavailabilityConfirmed": true, "publicNoticeRequirementsReviewed": false, "publicNoticeReviewReference": null },
   "backupRetentionDays": 30,
   "externalLocationRelationship": { "separateConfirmation": "none", "confirmedAt": "2026-10-19", "classification": "processor", "classificationBasis": "운영자가 카카오·카카오모빌리티 경로 계산의 처리위탁 관계를 확인", "contractRetentionReviewed": false },
-  "sensitiveContentPolicy": { "confirmedAt": "2026-10-19", "basis": "운영자 결정: 본인의 비공개 기록·개인용 기록집은 허용하고 민감정보가 포함된 웹 공개는 제한", "privateUse": "separate_optional_consent_required", "webPublication": "restricted", "consentWorkflowImplemented": false, "publicationRestrictionImplemented": false },
+  "sensitiveContentPolicy": { "confirmedAt": "2026-10-19", "basis": "운영자 결정: 본인의 비공개 기록·개인용 기록집은 허용하고 민감정보가 포함된 웹 공개는 제한", "privateUse": "separate_optional_consent_required", "webPublication": "restricted", "consentWorkflowImplemented": true, "publicationRestrictionImplemented": true, "withdrawalCleanupImplemented": true, "implementationScope": "로컬 소스. 사용자 분류·별도 선택 동의에 따른 통제이며 자동 완전 탐지가 아님. 기존 미확인 기록·PDF 전환 필요", "deployed": false, "runtimeVerified": false },
+  "privacyAutomationImplementation": {
+    "implementedAt": "2026-10-20", "pushDeliveryRetentionDays": 30,
+    "invalidTokensDeleted": true, "deliveryLogsMinimized": true,
+    "sensitiveWithdrawalRetryImplemented": true, "backupRetentionTimerPrepared": true,
+    "rightsMaintenanceTimerPrepared": true, "failureAlertPrepared": true,
+    "timersInstalled": false, "timersEnabled": false, "actualDeletionVerified": false,
+    "restoreTestVerified": false, "formalNoticeDeliveryVerified": false
+  },
   "pushTransferReview": {
     "operatorSupportingDocuments": "none", "operatorConfirmedAt": "2026-10-19",
     "reviewedAt": "2026-10-20", "legalBasis": null, "countriesConfirmed": false,

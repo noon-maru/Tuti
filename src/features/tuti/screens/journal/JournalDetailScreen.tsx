@@ -25,6 +25,7 @@ export function JournalDetailScreen({
   onSharePublicLink,
   onPublish,
   onUnpublish,
+  onWithdrawSensitive,
 }: {
   entry: TutiJournalEntry;
   publicationEnabled: boolean;
@@ -35,6 +36,7 @@ export function JournalDetailScreen({
   onEdit: () => void;
   onPublish: () => void | Promise<void>;
   onUnpublish: () => void | Promise<void>;
+  onWithdrawSensitive?: () => void | Promise<void>;
 }) {
   const imageRef = useRef<HTMLDivElement>(null);
   const [shareOpen, setShareOpen] = useState(false);
@@ -71,6 +73,10 @@ export function JournalDetailScreen({
         <ContextMenu
           label={`${entry.title} 기록 메뉴`}
           items={[
+            ...(entry.sensitiveContent && onWithdrawSensitive ? [{
+              label: entry.sensitiveWithdrawnAt ? "철회한 기록 정리 재시도" : "민감정보 동의 철회",
+              onSelect: onWithdrawSensitive,
+            }] : []),
             {
               label: "수정하기",
               onSelect: onEdit,
@@ -113,6 +119,9 @@ export function JournalDetailScreen({
               있으며, 재검토가 필요하면 1:1 문의로 알려주세요.
             </ModerationNotice>
           )}
+          {entry.sensitiveContent && <ModerationNotice role="status">{entry.sensitiveWithdrawnAt
+            ? "동의 철회로 기록과 기록집을 정리하고 있어요."
+            : "민감정보 처리에 별도로 동의한 나만의 기록이에요. 웹 링크로는 공개할 수 없어요."}</ModerationNotice>}
           <JournalLocationLabel placeName={entry.placeName} />
           <Tags aria-label="기록 정보">
             <Tag $tone="brand">{entry.crowd}</Tag>

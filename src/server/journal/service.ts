@@ -6,6 +6,7 @@ import {
   writeSystemLogSafely,
 } from "@/server/admin/log";
 import { prisma } from "@/server/db/prisma";
+import { sensitiveJournalData, sensitiveJournalPolicyEnabled, SensitiveJournalPolicyError } from "@/server/journal/sensitivePolicy";
 import {
   deleteStoredJournalImage,
   prepareJournalImage,
@@ -45,6 +46,9 @@ export async function getJournalEntries(
       publishedAt: true,
       publicationStatus: true,
       publicationStatusChangedAt: true,
+      sensitiveContent: true,
+      sensitiveConsentVersion: true,
+      sensitiveWithdrawnAt: true,
     },
   });
 
@@ -55,6 +59,7 @@ export async function createJournalEntry(
   ownerId: string,
   input: JournalEntryInput,
 ): Promise<TutiJournalEntry> {
+  const sensitiveData = sensitiveJournalData(input);
   const entryId = crypto.randomUUID();
   const selectedPlace = await resolveJournalPlace(input);
   const preparedImage = await prepareJournalImage({
@@ -68,6 +73,7 @@ export async function createJournalEntry(
       data: {
         id: entryId,
         ownerId,
+        ...sensitiveData,
         title: input.title,
         content: input.content,
         image: preparedImage.image,
@@ -102,15 +108,22 @@ export async function updateJournalEntry(
   entryId: string,
   input: JournalEntryInput,
 ): Promise<TutiJournalEntry | null> {
+  const sensitiveData = sensitiveJournalData(input);
   const currentEntry = await prisma.journalEntry.findFirst({
     where: { id: entryId, ownerId },
     select: {
       image: true,
       publicationStatus: true,
+      sensitiveWithdrawnAt: true,
+      sensitiveContent: true,
     },
   });
 
   if (!currentEntry) return null;
+  if (currentEntry.sensitiveWithdrawnAt) throw new SensitiveJournalPolicyError("동의 철회로 정리 중인 기록은 수정할 수 없어요.");
+  if (currentEntry.sensitiveContent === true && input.sensitiveContent !== true) {
+    throw new SensitiveJournalPolicyError("민감정보 기록을 일반 기록으로 바꾸려면 먼저 동의를 철회해 삭제한 뒤 새 기록으로 남겨주세요.");
+  }
 
   const selectedPlace = await resolveJournalPlace(input);
   const preparedImage = await prepareJournalImage({
@@ -124,8 +137,9 @@ export async function updateJournalEntry(
 
   try {
     result = await prisma.journalEntry.updateMany({
-      where: { id: entryId, ownerId },
+      where: { id: entryId, ownerId, sensitiveWithdrawnAt: null },
       data: {
+        ...sensitiveData,
         title: input.title,
         content: input.content,
         image: preparedImage.image,
@@ -148,6 +162,11 @@ export async function updateJournalEntry(
         ...(input.visitedAt
           ? { visitedAt: new Date(input.visitedAt) }
           : {}),
+        // 공개된 기록을 민감정보 포함 기록으로 바꾸면 같은 쓰기에서 공개도 해제한다.
+        ...(input.sensitiveContent === true ? {
+          publicId: null, publishedAt: null, publicationStatus: "private" as const,
+          publicationStatusChangedAt: new Date(),
+        } : {}),
       },
     });
   } catch (error) {
@@ -187,10 +206,16 @@ export async function deleteJournalEntry(
 ) {
   const entry = await prisma.journalEntry.findFirst({
     where: { id: entryId, ownerId },
-    select: { image: true },
+    select: { image: true, sensitiveContent: true, sensitiveWithdrawnAt: true },
   });
 
   if (!entry) return false;
+  if (entry.sensitiveContent === true || entry.sensitiveWithdrawnAt) {
+    const { withdrawSensitiveJournal } = await import("@/server/journal/sensitiveWithdrawal");
+    const result = await withdrawSensitiveJournal(ownerId, entryId);
+    if (result.pending) throw new SensitiveJournalPolicyError("동의 철회는 접수했어요. 기록과 기록집 정리를 재시도 중이에요.");
+    return result.found;
+  }
   const replayReceipt = await preparePrivacyReplayReceipt("journal_deleted", ownerId, new Date(), entryId);
   if (privacyReplayEnabled()) await deleteStoredJournalImage(entry.image);
 
@@ -258,6 +283,11 @@ export async function setJournalEntryPublication(
 
   if (!currentEntry) return null;
 
+  if (published && (currentEntry.sensitiveWithdrawnAt || currentEntry.sensitiveContent === true ||
+      (sensitiveJournalPolicyEnabled() && currentEntry.sensitiveContent !== false))) {
+    throw new JournalPublicationStateError("민감정보가 포함된 기록은 공개할 수 없어요. 기록 수정에서 사진과 글을 확인해주세요.");
+  }
+
   if (published && !isCurrentJournalPublicationPolicy(consentVersion)) {
     throw new JournalPublicationStateError(
       "최신 기록 공개 안내를 확인해주세요.",
@@ -310,7 +340,10 @@ export async function setJournalEntryPublication(
 
   const entry = await prisma.$transaction(async (transaction) => {
     const result = await transaction.journalEntry.updateMany({
-      where: { id: entryId, ownerId },
+      where: { id: entryId, ownerId, ...(published ? {
+        sensitiveWithdrawnAt: null,
+        ...(sensitiveJournalPolicyEnabled() ? { sensitiveContent: false } : { OR: [{ sensitiveContent: false }, { sensitiveContent: null }] }),
+      } : {}) },
       data: published
         ? {
             publicId: randomBytes(24).toString("base64url"),
@@ -367,6 +400,9 @@ export async function setJournalEntryPublication(
 
 const journalEntrySelect = {
   id: true,
+  sensitiveContent: true,
+  sensitiveConsentVersion: true,
+  sensitiveWithdrawnAt: true,
   title: true,
   content: true,
   image: true,
@@ -389,7 +425,7 @@ const journalEntrySelect = {
 function serializeJournalEntry(
   entry: Omit<
     TutiJournalEntry,
-    "visitedAt" | "publication" | "publicationStatus"
+    "visitedAt" | "publication" | "publicationStatus" | "sensitiveWithdrawnAt"
   > & {
     ownerId: string;
     publicId: string | null;
@@ -398,19 +434,23 @@ function serializeJournalEntry(
     publicationStatusChangedAt: Date;
     updatedAt: Date;
     visitedAt: Date;
+    sensitiveWithdrawnAt?: Date | null;
   },
 ): TutiJournalEntry {
   return {
     id: entry.id,
-    title: entry.title,
-    content: entry.content,
-    image: serializeJournalImage(entry),
-    crowd: entry.crowd,
-    placeId: entry.placeId,
-    placeName: entry.placeName,
-    theme: entry.theme,
-    difficulty: entry.difficulty,
-    visitedAt: entry.visitedAt.toISOString(),
+    sensitiveContent: entry.sensitiveContent,
+    sensitiveConsentVersion: entry.sensitiveConsentVersion,
+    sensitiveWithdrawnAt: entry.sensitiveWithdrawnAt?.toISOString() ?? null,
+    title: entry.sensitiveWithdrawnAt ? "정리 중인 기록" : entry.title,
+    content: entry.sensitiveWithdrawnAt ? "동의 철회로 기록과 기록집을 정리하고 있어요." : entry.content,
+    image: entry.sensitiveWithdrawnAt ? null : serializeJournalImage(entry),
+    crowd: entry.sensitiveWithdrawnAt ? "미정" : entry.crowd,
+    placeId: entry.sensitiveWithdrawnAt ? null : entry.placeId,
+    placeName: entry.sensitiveWithdrawnAt ? "남긴 공간" : entry.placeName,
+    theme: entry.sensitiveWithdrawnAt ? "미정" : entry.theme,
+    difficulty: entry.sensitiveWithdrawnAt ? "미정" : entry.difficulty,
+    visitedAt: (entry.sensitiveWithdrawnAt ?? entry.visitedAt).toISOString(),
     publicationStatus: entry.publicationStatus,
     publication:
       isJournalEntryPublic(entry)

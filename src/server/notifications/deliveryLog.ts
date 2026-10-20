@@ -7,7 +7,7 @@ type DeliveryStatus = "sent" | "failed" | "invalidated";
 
 export async function recordPushDeliverySafely(input: {
   userId: string;
-  deviceId: string;
+  deviceId: string | null;
   platform: PushPlatform;
   provider: "apns" | "fcm";
   message: ServerPushMessage;
@@ -26,17 +26,17 @@ export async function recordPushDeliverySafely(input: {
         platform: input.platform,
         provider: input.provider,
         messageType: input.message.type.slice(0, 80),
-        entityId: input.message.entityId?.slice(0, 160),
         status: input.status,
         errorCode: error.code,
-        errorMessage: error.message,
+        // 제공자 원문 오류에는 토큰·식별값이 섞일 수 있어 저장하지 않는다.
+        errorMessage: null,
       },
     });
   } catch (recordError) {
     console.error("푸시 발송 기록을 저장하지 못했습니다.", {
       error:
         recordError instanceof Error
-          ? recordError.message
+          ? recordError.name
           : "UnknownError",
       platform: input.platform,
       provider: input.provider,
@@ -46,24 +46,22 @@ export async function recordPushDeliverySafely(input: {
   }
 }
 
-function normalizePushError(error: unknown, explicitCode?: string) {
+export function normalizePushError(error: unknown, explicitCode?: string) {
   if (!error) {
     return {
-      code: explicitCode?.slice(0, 100) || null,
+      code: explicitCode === "UNREGISTERED_TOKEN" ? explicitCode : null,
       message: null,
     };
   }
 
   const message =
     error instanceof Error ? error.message : "알 수 없는 발송 오류";
-  const providerCode = message.match(/\(([^()]{1,100})\)/)?.[1];
   const httpStatus = message.match(/HTTP\s+(\d{3})/)?.[1];
 
   return {
     code:
-      explicitCode?.slice(0, 100) ??
-      providerCode ??
+      explicitCode === "UNREGISTERED_TOKEN" ? explicitCode :
       (httpStatus ? `HTTP_${httpStatus}` : "PROVIDER_ERROR"),
-    message: message.slice(0, 500),
+    message: null,
   };
 }

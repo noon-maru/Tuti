@@ -54,6 +54,11 @@ if [ "$backup_id" = "--resume-reviewed" ]; then
       --user 1000:1000 -e TUTI_PRIVACY_REPLAY_OFFLINE=true ops \
       node_modules/.bin/tsx scripts/privacy-replay.ts "$@"
   fi
+  # 서버 알림 등록을 과거 백업에서 되살리지 않는다. 새 스키마·ops가 없거나
+  # 정기 파기·철회 정리가 실패하면 앱을 멈춘 상태로 확인 대기를 유지한다.
+  docker compose --env-file .env.production -f docker-compose.prod.yml run --rm --no-deps -T \
+    --user 1000:1000 -e TUTI_PRIVACY_REPLAY_OFFLINE=true ops \
+    node_modules/.bin/tsx scripts/maintain-privacy-data.ts --restore --apply
   app_image="$(docker inspect tuti-prod --format '{{.Config.Image}}')"
   app_release="$(docker inspect tuti-prod --format '{{range .Config.Env}}{{println .}}{{end}}' | sed -n 's/^TUTI_RELEASE=//p' | head -n 1)"
   case "$app_image" in tuti:prod | tuti:prod-*) ;; *) echo "재개할 운영 이미지를 확인해주세요." >&2; exit 1 ;; esac

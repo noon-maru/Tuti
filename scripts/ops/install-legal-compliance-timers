@@ -1,0 +1,31 @@
+#!/bin/sh
+set -eu
+project_dir="/var/services/homes/Tutiadmin/source/Tuti"
+case "$#:$*" in 0:) apply=false ;; 1:--apply) apply=true ;; *) echo "사용법: install-legal-compliance-timers [--apply]" >&2; exit 1 ;; esac
+cd "$project_dir"
+units="tuti-privacy-maintenance.service tuti-privacy-maintenance.timer tuti-backup-retention.service tuti-backup-retention.timer tuti-journal-rights.service tuti-journal-rights.timer tuti-legal-job-failure@.service"
+for unit in $units; do
+  source="scripts/ops/systemd/$unit"
+  git -c safe.directory="$project_dir" ls-files --error-unmatch "$source" >/dev/null 2>&1 || { echo "먼저 예약 작업 원본을 검토·커밋해주세요." >&2; exit 1; }
+  git -c safe.directory="$project_dir" diff --quiet HEAD -- "$source" || { echo "예약 작업 원본에 미커밋 변경이 있습니다." >&2; exit 1; }
+  if [ -L "/etc/systemd/system/$unit" ]; then echo "심볼릭 링크 설치 대상은 교체하지 않습니다." >&2; exit 1; fi
+  printf '%s -> /etc/systemd/system/%s\n' "$source" "$unit"
+done
+if [ "$apply" != true ]; then echo "조회 전용입니다. 설치와 타이머 활성화는 별도입니다."; exit 0; fi
+if [ "$(id -u)" != 0 ]; then echo "root 권한이 필요합니다." >&2; exit 1; fi
+# 실행 중인 타이머 교체는 별도 운영 전환에서 수행한다.
+for unit in tuti-privacy-maintenance.timer tuti-backup-retention.timer tuti-journal-rights.timer; do
+  if systemctl is-active --quiet "$unit"; then echo "활성 타이머가 있습니다. 운영 전환 계획을 확인해주세요." >&2; exit 1; fi
+done
+for wrapper in tuti-privacy-data-maintain tuti-prod-backup-prune tuti-journal-rights-maintain tuti-legal-job-failure-notify; do
+  target="/usr/local/sbin/$wrapper"
+  if [ ! -f "$target" ] || [ -L "$target" ] || [ "$(stat -c %u "$target")" != 0 ]; then echo "root 소유 운영 도구가 먼저 필요합니다: $wrapper" >&2; exit 1; fi
+done
+snapshot="$project_dir/.ops-state/legal-timers/$(date +%Y%m%d-%H%M%S)-$$"
+install -d -o root -g root -m 0700 "$snapshot"
+for unit in $units; do
+  if [ -f "/etc/systemd/system/$unit" ]; then cp -p "/etc/systemd/system/$unit" "$snapshot/$unit"; fi
+  install -o root -g root -m 0644 "scripts/ops/systemd/$unit" "/etc/systemd/system/$unit"
+done
+systemctl daemon-reload
+echo "설치 완료. 예약 실행은 켜지 않았습니다. 실제 백업 대상·원장·권리 대응 절차 확인 후 타이머를 별도로 활성화해주세요."

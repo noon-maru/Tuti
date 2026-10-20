@@ -37,11 +37,13 @@ export async function GET(
         ownerId: true,
         image: true,
         updatedAt: true,
+        sensitiveWithdrawnAt: true,
       },
     });
 
     if (
       !entry ||
+      entry.sensitiveWithdrawnAt ||
       !entry.image ||
       !isStoredJournalImage(entry.image) ||
       !verifyJournalImageSignature(entry, signature)
@@ -54,8 +56,7 @@ export async function GET(
     const responseBody = new Uint8Array(body.byteLength);
     responseBody.set(body);
     const headers = new Headers({
-      "Cache-Control": image.cacheControl ??
-        "private, max-age=31536000, immutable",
+      "Cache-Control": "private, no-store",
       "Content-Type": image.contentType ?? "application/octet-stream",
       "X-Content-Type-Options": "nosniff",
     });

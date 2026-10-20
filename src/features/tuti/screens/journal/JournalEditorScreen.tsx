@@ -15,7 +15,8 @@ import {
   PhotoLocationConsentDialog,
 } from "@/features/tuti/components/PhotoLocationConsentDialog";
 import { readImageMetadata } from "@/features/tuti/lib/readImageMetadata";
-import { fetchLocationConsent, fetchNearbyPlaces } from "@/lib/tutiApi";
+import { fetchLocationConsent, fetchNearbyPlaces, fetchSensitiveJournalPolicy } from "@/lib/tutiApi";
+import { SENSITIVE_JOURNAL_CONSENT_VERSION, sensitiveJournalConsentNotice, type SensitiveJournalPolicyResponse } from "@/shared/legal/sensitiveJournalPolicy";
 import type {
   JournalEntryInput,
   TutiJournalEntry,
@@ -96,6 +97,19 @@ export function JournalEditorScreen({
   const [body, setBody] = useState(entry?.content ?? "");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [sensitivePolicy, setSensitivePolicy] = useState<SensitiveJournalPolicyResponse | null>(null);
+  const [policyError, setPolicyError] = useState<string | null>(null);
+  const [sensitiveContent, setSensitiveContent] = useState<boolean | null>(entry?.sensitiveContent ?? null);
+  const [sensitiveAgreed, setSensitiveAgreed] = useState(false);
+  useEffect(() => {
+    let disposed = false;
+    void fetchSensitiveJournalPolicy().then((policy) => {
+      if (!disposed) setSensitivePolicy(policy);
+    }).catch(() => { if (!disposed) setPolicyError("기록 보호 설정을 확인하지 못했어요. 화면을 다시 열어주세요."); });
+    return () => { disposed = true; };
+  }, []);
+  const sensitiveReady = !!sensitivePolicy && (!sensitivePolicy.enabled ||
+    (sensitivePolicy.version === SENSITIVE_JOURNAL_CONSENT_VERSION && sensitiveContent !== null && (!sensitiveContent || sensitiveAgreed)));
   const canSubmit = Boolean(
     title.trim() ||
       body.trim() ||
@@ -255,10 +269,12 @@ export function JournalEditorScreen({
     setTheme("");
     setDifficulty("");
     setSubmitError(null);
+    setSensitiveContent(null);
+    setSensitiveAgreed(false);
   };
 
   const submitEditor = async () => {
-    if (!canSubmit || isSubmitting || !imagePickerRef.current) return;
+    if (!canSubmit || !sensitiveReady || isSubmitting || !imagePickerRef.current) return;
 
     setIsSubmitting(true);
     setSubmitError(null);
@@ -275,6 +291,10 @@ export function JournalEditorScreen({
           theme: theme.trim() || "미정",
           difficulty: difficulty.trim() || "미정",
           visitedAt: toVisitedAt(visitDate),
+          ...(sensitivePolicy?.enabled && sensitiveContent !== null ? {
+            sensitiveContent,
+            ...(sensitiveContent && sensitiveAgreed ? { sensitiveConsentVersion: sensitivePolicy.version } : {}),
+          } : {}),
         },
         imagePickerRef.current,
       );
@@ -412,13 +432,37 @@ export function JournalEditorScreen({
             onChange={(event) => setBody(event.target.value)}
           />
         </EditorCopy>
+        {sensitivePolicy?.enabled && (
+          <SensitiveSection>
+            <legend>사진이나 글에 본인의 민감정보가 있나요?</legend>
+            <p>건강, 정치적 견해, 사상·신념, 성생활 등에 관한 정보를 뜻해요. 타인의 민감정보와 주민등록번호 등은 남기지 말아주세요.</p>
+            {entry?.sensitiveContent && <p>일반 기록으로 바꾸려면 먼저 동의를 철회해 삭제한 뒤 새 기록으로 남겨주세요.</p>}
+            <label><input type="radio" name="journal-sensitive-content" checked={sensitiveContent === false}
+              onChange={() => { setSensitiveContent(false); setSensitiveAgreed(false); }} /> 없어요</label>
+            <label><input type="radio" name="journal-sensitive-content" checked={sensitiveContent === true}
+              onChange={() => { setSensitiveContent(true); setSensitiveAgreed(false); }} /> 본인의 민감정보가 있어요</label>
+            {sensitiveContent && <>
+              <p>민감정보가 있는 기록은 나만 볼 수 있고, 웹 링크로 공개할 수 없어요.</p>
+              <dl>
+                <dt>처리 항목</dt><dd>{sensitiveJournalConsentNotice.items}</dd>
+                <dt>처리 목적</dt><dd>{sensitiveJournalConsentNotice.purpose}</dd>
+                <dt>보관기간</dt><dd>{sensitiveJournalConsentNotice.retention}</dd>
+              </dl>
+              <p>{sensitiveJournalConsentNotice.refusal}</p>
+              <p>{sensitiveJournalConsentNotice.withdrawal}</p>
+              <label><input type="checkbox" checked={sensitiveAgreed} onChange={(event) => setSensitiveAgreed(event.target.checked)} />
+                [선택] 이 기록의 민감정보 처리에 별도로 동의해요.</label>
+            </>}
+          </SensitiveSection>
+        )}
       </Editor>
 
       <EditorFooter>
+        {policyError && <EditorError role="alert">{policyError}</EditorError>}
         {submitError && <EditorError role="alert">{submitError}</EditorError>}
         <SubmitButton
           type="button"
-          disabled={!canSubmit || isSubmitting}
+          disabled={!canSubmit || !sensitiveReady || isSubmitting}
           onClick={() => void submitEditor()}
         >
           {isSubmitting
@@ -633,6 +677,24 @@ const Tags = styled.div`
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: var(--space-2);
+`;
+
+const SensitiveSection = styled.fieldset`
+  margin: 20px 0 0;
+  padding: 16px;
+  border: 1px solid #e1e7ef;
+  border-radius: 16px;
+  color: #475569;
+  font-size: 13px;
+  line-height: 1.65;
+  word-break: keep-all;
+  overflow-wrap: anywhere;
+  legend { padding: 0 4px; color: #111827; font-weight: 600; }
+  label { display: flex; align-items: flex-start; gap: 8px; padding: 8px 0; cursor: pointer; }
+  input { flex: none; margin-top: 4px; }
+  p { margin: 8px 0; }
+  dt { margin-top: 10px; font-weight: 600; }
+  dd { margin: 0; }
 `;
 
 const EditorCopy = styled.div`

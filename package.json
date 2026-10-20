@@ -5,6 +5,9 @@
   "type": "module",
   "packageManager": "pnpm@11.2.2",
   "scripts": {
+    "legal:privacy:maintain": "tsx scripts/maintain-privacy-data.ts",
+    "legal:sensitive:maintain": "tsx scripts/maintain-sensitive-withdrawals.ts",
+    "push:retention:purge": "tsx scripts/purge-push-retention.ts",
     "legal:rights:maintain": "tsx scripts/maintain-journal-rights.ts",
     "legal:privacy:replay": "tsx scripts/privacy-replay.ts",
     "legal:readiness": "tsx scripts/check-legal-readiness.ts",

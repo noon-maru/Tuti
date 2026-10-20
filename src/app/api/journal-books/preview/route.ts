@@ -1,4 +1,5 @@
 import sharp from "sharp";
+import { assertSensitiveJournalReadable, assertJournalBookFreeform } from "@/server/journal/sensitivePolicy";
 import { authenticateUser } from "@/server/auth/session";
 import { prisma } from "@/server/db/prisma";
 import {
@@ -18,10 +19,11 @@ import { getObject } from "@/server/storage/objectStorage";
 export const runtime = "nodejs";
 
 const preview = createBookPreviewHandler({
+  validate: assertJournalBookFreeform,
   authenticate: authenticateUser,
   approve: createJournalBookApproval,
-  findEntries: (ownerId, ids) =>
-    prisma.journalEntry.findMany({
+  findEntries: async (ownerId, ids) => {
+    const entries = await prisma.journalEntry.findMany({
       where: { ownerId, id: { in: ids } },
       select: {
         id: true,
@@ -30,8 +32,14 @@ const preview = createBookPreviewHandler({
         placeName: true,
         visitedAt: true,
         image: true,
+        sensitiveContent: true,
+        sensitiveConsentVersion: true,
+        sensitiveWithdrawnAt: true,
       },
-    }),
+    });
+    entries.forEach((entry) => assertSensitiveJournalReadable(entry));
+    return entries;
+  },
   async render(input, entries) {
     const prepared: PreparedBookEntry[] = [];
     for (const entry of entries) {

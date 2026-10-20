@@ -1,6 +1,7 @@
 import { authenticateUser } from "@/server/auth/session";
 import { parseJournalEntryInput } from "@/server/journal/input";
 import { JournalImageError } from "@/server/journal/imageStorage";
+import { SensitiveJournalPolicyError } from "@/server/journal/sensitivePolicy";
 import {
   createJournalEntry,
   getJournalEntries,
@@ -77,6 +78,7 @@ export async function POST(request: Request) {
     );
   } catch (error) {
     const invalidJson = error instanceof SyntaxError;
+    if (error instanceof SensitiveJournalPolicyError) return withCors(request, Response.json({ error: error.message }, { status: error.status }));
     const invalidImage = error instanceof JournalImageError;
 
     if (!invalidJson && !invalidImage) {

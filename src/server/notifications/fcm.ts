@@ -74,13 +74,12 @@ export async function sendAndroidPushToUser(
       }
       if (result === "invalid") {
         invalidated += 1;
-        await prisma.pushDevice.updateMany({
+        await prisma.pushDevice.deleteMany({
           where: { id: device.id, token: device.token },
-          data: { enabled: false, invalidatedAt: new Date() },
         });
         await recordPushDeliverySafely({
           userId,
-          deviceId: device.id,
+          deviceId: null,
           platform: "android",
           provider: "fcm",
           message,

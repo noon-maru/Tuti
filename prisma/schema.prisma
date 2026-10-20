@@ -694,6 +694,10 @@ model ExternalDataSyncCheckpoint {
 
 model JournalEntry {
   id          String    @id
+  sensitiveContent Boolean? @map("sensitive_content")
+  sensitiveConsentVersion String? @map("sensitive_consent_version")
+  sensitiveConsentedAt DateTime? @map("sensitive_consented_at")
+  sensitiveWithdrawnAt DateTime? @map("sensitive_withdrawn_at")
   ownerId     String    @map("owner_id")
   title       String
   content     String
@@ -721,11 +725,13 @@ model JournalEntry {
   @@index([ownerId, visitedAt])
   @@index([placeId])
   @@index([publicationStatus, publishedAt])
+  @@index([sensitiveWithdrawnAt])
   @@map("journal_entries")
 }
 
 model JournalBook {
   id           String   @id
+  sensitivePolicyVersion String? @map("sensitive_policy_version")
   ownerId      String   @map("owner_id")
   title        String
   entryIds     String[] @map("entry_ids")

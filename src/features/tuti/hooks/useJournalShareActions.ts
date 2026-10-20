@@ -26,7 +26,7 @@ export function useJournalShareActions({
 }) {
   const router = useRouter();
   const session = useSession();
-  const publicationEnabled = canAccountPublishJournal(
+  const publicationEnabled = !entry?.sensitiveContent && !entry?.sensitiveWithdrawnAt && canAccountPublishJournal(
     session?.account?.role,
   );
 

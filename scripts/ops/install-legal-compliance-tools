@@ -2,7 +2,7 @@
 set -eu
 
 project_dir="/var/services/homes/Tutiadmin/source/Tuti"
-tools="tuti-prod-backup tuti-prod-restore tuti-prod-deploy tuti-prod-rollback tuti-prod-health tuti-auth-retention-purge tuti-location-compliance-purge tuti-journal-moderation-purge tuti-journal-rights-maintain tuti-prod-backup-prune tuti-legal-operations-inspect"
+tools="tuti-prod-backup tuti-prod-restore tuti-prod-deploy tuti-prod-rollback tuti-prod-health tuti-auth-retention-purge tuti-location-compliance-purge tuti-journal-moderation-purge tuti-journal-rights-maintain tuti-prod-backup-prune tuti-legal-operations-inspect tuti-push-retention-purge tuti-privacy-data-maintain tuti-legal-job-failure-notify"
 case "$#:$*" in 0:) apply=false ;; 1:--apply) apply=true ;; *) echo "사용법: install-legal-compliance-tools [--apply]" >&2; exit 1 ;; esac
 cd "$project_dir"
 for name in $tools; do

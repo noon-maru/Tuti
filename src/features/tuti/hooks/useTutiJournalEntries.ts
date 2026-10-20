@@ -58,7 +58,13 @@ export function useTutiJournalEntries(enabled = true) {
   });
   const deleteMutation = useMutation({
     mutationFn: deleteJournalEntry,
+    onError: async () => {
+      // 철회가 접수됐지만 파일 정리가 남은 경우 예전 본문·사진을 계속 표시하지 않는다.
+      await queryClient.invalidateQueries({ queryKey: journalEntriesQueryKey });
+      await queryClient.invalidateQueries({ queryKey: ["journal-books"] });
+    },
     onSuccess: (entryId) => {
+      void queryClient.invalidateQueries({ queryKey: ["journal-books"] });
       queryClient.setQueryData<TutiJournalEntry[]>(
         journalEntriesQueryKey,
         (currentEntries = []) =>

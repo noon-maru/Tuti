@@ -1,10 +1,12 @@
 import type { BookEntry } from "../pdf/journalBook";
+import { SensitiveJournalPolicyError } from "./sensitivePolicy";
 import {
   parseJournalBookInput,
   type JournalBookInput,
 } from "../../shared/api/journalBook";
 
 type Dependencies = {
+  validate?: (input: JournalBookInput) => void;
   authenticate: (request: Request) => Promise<{ id: string } | null>;
   findEntries: (ownerId: string, ids: string[]) => Promise<BookEntry[]>;
   render: (
@@ -15,6 +17,7 @@ type Dependencies = {
     ownerId: string,
     input: JournalBookInput,
     pdf: Uint8Array,
+    issuedAt?: number,
   ) => Promise<string>;
 };
 
@@ -50,6 +53,7 @@ export function createBookPreviewHandler(dependencies: Dependencies) {
       }
       const input = parseJournalBookInput(JSON.parse(body));
       if (!input) return fail("선택한 기록과 제목을 확인해주세요.", 400);
+      dependencies.validate?.(input);
       if (rendering)
         return fail(
           "다른 기록집을 만들고 있어요. 잠시 후 다시 시도해주세요.",
@@ -57,6 +61,7 @@ export function createBookPreviewHandler(dependencies: Dependencies) {
         );
       rendering = true;
       try {
+        const issuedAt = Date.now();
         const entries = await dependencies.findEntries(user.id, input.entryIds);
         if (
           entries.length !== input.entryIds.length ||
@@ -90,7 +95,7 @@ export function createBookPreviewHandler(dependencies: Dependencies) {
             a.id.localeCompare(b.id),
         );
         const pdf = await dependencies.render(input, entries);
-        const approval = await dependencies.approve(user.id, input, pdf);
+        const approval = await dependencies.approve(user.id, input, pdf, issuedAt);
         return new Response(new Uint8Array(pdf).buffer, {
           headers: {
             ...headers,
@@ -103,6 +108,7 @@ export function createBookPreviewHandler(dependencies: Dependencies) {
         rendering = false;
       }
     } catch (error) {
+      if (error instanceof SensitiveJournalPolicyError) return fail(error.message, error.status);
       return fail(
         error instanceof SyntaxError
           ? "요청 내용을 확인해주세요."

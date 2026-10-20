@@ -1,0 +1,12 @@
+[Unit]
+Description=Tuti thirty-day backup retention
+After=network-online.target pkg-ContainerManager-dockerd.service
+OnFailure=tuti-legal-job-failure@%n.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/tuti-prod-backup-prune --apply
+TimeoutStartSec=1800
+Nice=10
+IOSchedulingClass=best-effort
+IOSchedulingPriority=7

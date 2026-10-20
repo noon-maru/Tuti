@@ -24,7 +24,7 @@ export async function issueJournalShareTrace(
   entryId: string,
 ): Promise<JournalShareTraceIssue | null> {
   const entry = await prisma.journalEntry.findFirst({
-    where: { id: entryId, ownerId },
+    where: { id: entryId, ownerId, sensitiveWithdrawnAt: null },
     select: { id: true },
   });
 
@@ -69,6 +69,8 @@ export async function finalizeJournalShareTrace({
   traceId: string;
   png: Uint8Array;
 }): Promise<JournalShareTraceFinalization | null> {
+  const entry = await prisma.journalEntry.findFirst({ where: { id: entryId, ownerId, sensitiveWithdrawnAt: null }, select: { id: true } });
+  if (!entry) return null;
   const trace = await prisma.journalShareTrace.findFirst({
     where: {
       traceId,

@@ -214,6 +214,7 @@ async function deleteUserRecord(
     await transaction.locationConsentEvent.deleteMany({
       where: { userId },
     });
+    await transaction.pushDelivery.deleteMany({ where: { userId } });
     await transaction.user.delete({ where: { id: userId } });
     if (permissionAudit) {
       await transaction.locationSecurityAuditEvent.create({

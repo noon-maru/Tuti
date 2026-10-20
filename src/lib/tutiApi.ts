@@ -1,4 +1,19 @@
 import { apiUrl } from "@/lib/api/apiUrl";
+import type { SensitiveJournalPolicyResponse } from "@/shared/legal/sensitiveJournalPolicy";
+
+export async function fetchSensitiveJournalPolicy(): Promise<SensitiveJournalPolicyResponse> {
+  const response = await fetch(apiUrl("journal-sensitive-policy"), { cache: "no-store" });
+  if (!response.ok) throw new Error("기록 보호 설정을 확인하지 못했어요. 잠시 후 다시 시도해주세요.");
+  const data = await response.json();
+  if (typeof data.enabled !== "boolean" || typeof data.version !== "string") throw new Error("기록 보호 설정을 확인하지 못했어요.");
+  return data;
+}
+
+export async function withdrawJournalSensitiveConsent(entryId: string) {
+  const response = await fetchWithPinnedSession(`journal-entries/${encodeURIComponent(entryId)}/sensitive-consent`, { method: "DELETE" });
+  if (!response.ok) throw new Error(await readApiError(response, "동의 철회를 처리하지 못했어요."));
+  return await response.json() as { found: boolean; pending: boolean };
+}
 import { RecommendationRequestError, requestRecommendationResponse } from "@/lib/api/recommendationError";
 export { RecommendationRequestError } from "@/lib/api/recommendationError";
 import { fetchWithPinnedSession, fetchWithSession } from "@/lib/auth/session";

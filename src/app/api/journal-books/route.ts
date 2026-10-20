@@ -2,6 +2,8 @@ import { randomUUID } from "node:crypto";
 
 import { authenticateUser } from "@/server/auth/session";
 import { prisma } from "@/server/db/prisma";
+import { assertSensitiveJournalReadable, sensitiveJournalPolicyEnabled, SensitiveJournalPolicyError } from "@/server/journal/sensitivePolicy";
+import { SENSITIVE_JOURNAL_CONSENT_VERSION } from "@/shared/legal/sensitiveJournalPolicy";
 import {
   createPreflightResponse,
   isRequestOriginAllowed,
@@ -35,8 +37,9 @@ export async function GET(request: Request) {
   try {
     const user = await authenticateUser(request);
     if (!user) return withCors(request, unauthorized());
+    const withdrawnEntries = await prisma.journalEntry.findMany({ where: { ownerId: user.id, sensitiveWithdrawnAt: { not: null } }, select: { id: true } });
     const books = await prisma.journalBook.findMany({
-      where: { ownerId: user.id },
+      where: { ownerId: user.id, ...(withdrawnEntries.length ? { NOT: { entryIds: { hasSome: withdrawnEntries.map((entry) => entry.id) } } } : {}) },
       orderBy: [{ createdAt: "desc" }, { id: "desc" }],
       select: {
         id: true,
@@ -120,13 +123,25 @@ export async function POST(request: Request) {
           : await prepareLegacyJournalBook(user.id, completion.input);
       const id = prepared.bookId;
       objectKey = await storeJournalBookPdf(user.id, id, prepared.pdf);
-      const created = await prisma.journalBook.create({
+      const storedObjectKey = objectKey;
+      const created = await prisma.$transaction(async (tx) => {
+        if (sensitiveJournalPolicyEnabled() && prepared.sensitivePolicyVersion !== SENSITIVE_JOURNAL_CONSENT_VERSION) throw new SensitiveJournalPolicyError("기록 보호 확인 후 다시 미리보기 해주세요.");
+        // 철회 표시와 직렬화한다. 렌더 중 철회·수정된 PDF의 재업로드도 거절한다.
+        await tx.$queryRaw`SELECT id FROM journal_entries WHERE owner_id = ${user.id} AND id = ANY(${prepared.entryIds}::text[]) ORDER BY id FOR UPDATE`;
+        const entries = await tx.journalEntry.findMany({ where: { ownerId: user.id, id: { in: prepared.entryIds } },
+          select: { sensitiveContent: true, sensitiveConsentVersion: true, sensitiveWithdrawnAt: true, updatedAt: true } });
+        if (entries.length !== prepared.entryIds.length || entries.some((entry) => entry.updatedAt.getTime() > prepared.issuedAt)) {
+          throw new JournalBookApprovalError("기록이 바뀌었어요. 최신 내용으로 다시 미리보기 해주세요.", 409);
+        }
+        entries.forEach((entry) => assertSensitiveJournalReadable(entry));
+        return tx.journalBook.create({
         data: {
           id,
+          sensitivePolicyVersion: prepared.sensitivePolicyVersion,
           ownerId: user.id,
           title: prepared.title,
           entryIds: prepared.entryIds,
-          objectKey,
+          objectKey: storedObjectKey,
           pageCount: prepared.pageCount,
         },
         select: {
@@ -136,6 +151,7 @@ export async function POST(request: Request) {
           pageCount: true,
           createdAt: true,
         },
+        });
       });
       const response: JournalBookResponse = {
         book: {
@@ -160,6 +176,7 @@ export async function POST(request: Request) {
     }
     const knownError =
       error instanceof JournalBookApprovalError ||
+      error instanceof SensitiveJournalPolicyError ||
       error instanceof JournalBookRenderError;
     if (!knownError)
       console.error("기록집을 완성하지 못했습니다.", error);
@@ -193,8 +210,11 @@ async function prepareLegacyJournalBook(
   ownerId: string,
   input: JournalBookInput,
 ) {
+  const issuedAt = Date.now();
   const pdf = await renderOwnedJournalBook(ownerId, input);
   return {
+    issuedAt,
+    sensitivePolicyVersion: input.freeformNonSensitiveConfirmed === true ? SENSITIVE_JOURNAL_CONSENT_VERSION : null,
     bookId: randomUUID(),
     title: input.title,
     entryIds: [...input.entryIds],

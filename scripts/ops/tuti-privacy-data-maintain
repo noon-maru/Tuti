@@ -1,0 +1,16 @@
+#!/bin/sh
+set -eu
+project_dir="/var/services/homes/Tutiadmin/source/Tuti"
+case "$#:$*" in 0:) ;; 1:--apply) ;; *) echo "사용법: tuti-privacy-data-maintain [--apply]" >&2; exit 1 ;; esac
+cd "$project_dir"
+install -d -o root -g root -m 0700 "$project_dir/.ops-state"
+exec 9>"$project_dir/.ops-state/maintenance.lock"
+/usr/bin/flock --shared --nonblock 9 || exit 0
+exec 8>"$project_dir/.ops-state/privacy-maintenance.lock"
+/usr/bin/flock --exclusive --nonblock 8 || exit 0
+if [ -f "$project_dir/.ops-state/restore-privacy/pending.env" ]; then
+  echo "복원 검토 중에는 개인정보 정기 파기를 실행하지 않습니다." >&2
+  exit 1
+fi
+docker compose --env-file .env.production -f docker-compose.prod.yml \
+  run --rm --no-deps -T ops node_modules/.bin/tsx scripts/maintain-privacy-data.ts "$@"

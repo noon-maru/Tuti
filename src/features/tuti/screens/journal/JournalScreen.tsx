@@ -95,7 +95,8 @@ export function JournalScreen({
   });
 
   const deleteEntry = async (entryId: string) => {
-    if (!window.confirm("이 기록을 삭제할까요?")) return;
+    const target = entries.find((entry) => entry.id === entryId);
+    if (!window.confirm(target?.sensitiveContent ? "이 기록과 사진, 이 기록을 포함한 서버 기록집을 함께 삭제할까요? 민감정보 처리 동의도 철회돼요." : "이 기록을 삭제할까요?")) return;
 
     const remainingEntries = entries.filter(
       (entry) => entry.id !== entryId,

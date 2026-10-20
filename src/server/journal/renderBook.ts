@@ -1,4 +1,5 @@
 import sharp from "sharp";
+import { assertSensitiveJournalReadable, assertJournalBookFreeform } from "@/server/journal/sensitivePolicy";
 
 import { prisma } from "@/server/db/prisma";
 import { isStoredJournalImage } from "@/server/journal/imageStorage";
@@ -13,6 +14,7 @@ export async function renderOwnedJournalBook(
   ownerId: string,
   input: JournalBookInput,
 ) {
+  assertJournalBookFreeform(input);
   const entries = await prisma.journalEntry.findMany({
     where: { ownerId, id: { in: input.entryIds } },
     select: {
@@ -22,6 +24,9 @@ export async function renderOwnedJournalBook(
       placeName: true,
       visitedAt: true,
       image: true,
+      sensitiveContent: true,
+      sensitiveConsentVersion: true,
+      sensitiveWithdrawnAt: true,
     },
   });
 
@@ -55,6 +60,7 @@ export async function renderOwnedJournalBook(
 
   const prepared: PreparedBookEntry[] = [];
   for (const entry of entries) {
+    assertSensitiveJournalReadable(entry);
     let image: Buffer | null = null;
     if (entry.image) {
       if (!isStoredJournalImage(entry.image))

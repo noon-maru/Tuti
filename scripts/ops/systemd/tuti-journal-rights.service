@@ -1,0 +1,10 @@
+[Unit]
+Description=Tuti journal rights deadlines and notices
+After=network-online.target pkg-ContainerManager-dockerd.service
+OnFailure=tuti-legal-job-failure@%n.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/tuti-journal-rights-maintain --apply
+TimeoutStartSec=300
+Nice=10

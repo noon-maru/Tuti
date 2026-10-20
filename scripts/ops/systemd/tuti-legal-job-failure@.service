@@ -1,0 +1,6 @@
+[Unit]
+Description=Record Tuti legal maintenance failure
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/tuti-legal-job-failure-notify

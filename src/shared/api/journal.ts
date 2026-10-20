@@ -1,5 +1,8 @@
 export type TutiJournalEntry = {
   id: string;
+  sensitiveContent?: boolean | null;
+  sensitiveConsentVersion?: string | null;
+  sensitiveWithdrawnAt?: string | null;
   title: string;
   content: string;
   image: string | null;
@@ -24,6 +27,8 @@ export type JournalEntryInput = Pick<
 > & {
   placeId?: string | null;
   visitedAt?: string;
+  sensitiveContent?: boolean;
+  sensitiveConsentVersion?: string;
 };
 
 export type JournalEntriesResponse = {

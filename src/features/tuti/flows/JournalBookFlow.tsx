@@ -18,6 +18,7 @@ import {
   deleteJournalBook,
   fetchJournalBooks,
   fetchJournalEntries,
+  fetchSensitiveJournalPolicy,
 } from "@/lib/tutiApi";
 import { getSessionSnapshot } from "@/lib/auth/session";
 import { ScreenFrame } from "@/features/tuti/components/ScreenFrame";
@@ -132,6 +133,8 @@ function BookEditor({ ownerId }: { ownerId: string }) {
     queryFn: fetchJournalBooks,
   });
   const [draft, setDraft] = useState<JournalBookDraft | null>(null);
+  const { data: sensitivePolicy } = useQuery({ queryKey: ["journal-sensitive-policy"], queryFn: fetchSensitiveJournalPolicy });
+  const [freeformConfirmed, setFreeformConfirmed] = useState(false);
   const [loadError, setLoadError] = useState(false);
   const [saveStatus, setSaveStatus] = useState("이 기기에 자동으로 저장돼요.");
   const [message, setMessage] = useState("");
@@ -155,7 +158,7 @@ function BookEditor({ ownerId }: { ownerId: string }) {
     let active = true;
     void loadJournalBookDraft(ownerId)
       .then((saved) => {
-        if (active) setDraft(saved ?? emptyJournalBookDraft());
+        if (active) setDraft(saved ? { ...saved, step: saved.step === "preview" ? "letter" : saved.step } : emptyJournalBookDraft());
       })
       .catch(() => {
         if (active) setLoadError(true);
@@ -217,8 +220,9 @@ function BookEditor({ ownerId }: { ownerId: string }) {
     ? draft.entryIds.filter((id) => !entries.some((entry) => entry.id === id))
     : [];
   const input = useMemo(
-    () => (draft && missing.length === 0 ? parseJournalBookInput(draft) : null),
-    [draft, missing.length],
+    () => (draft && missing.length === 0 && sensitivePolicy && (!sensitivePolicy.enabled || freeformConfirmed)
+      ? parseJournalBookInput({ ...draft, freeformNonSensitiveConfirmed: freeformConfirmed }) : null),
+    [draft, missing.length, sensitivePolicy, freeformConfirmed],
   );
   const stepIndex = draft
     ? BOOK_STEPS.findIndex(({ value }) => value === draft.step)
@@ -240,6 +244,7 @@ function BookEditor({ ownerId }: { ownerId: string }) {
   );
 
   function update(next: JournalBookDraft) {
+    if (next.title !== draft?.title || next.letter !== draft?.letter) setFreeformConfirmed(false);
     setDraft(next);
     setMessage("");
     setSaveStatus("저장하고 있어요…");
@@ -831,6 +836,11 @@ function BookEditor({ ownerId }: { ownerId: string }) {
                     }
                   />
                 </Field>
+                {sensitivePolicy?.enabled && <Field>
+                  <label><input type="checkbox" checked={freeformConfirmed} onChange={(event) => setFreeformConfirmed(event.target.checked)} />
+                    표지 제목과 이 공간에 남기는 말에는 민감정보가 없어요.</label>
+                  <Hint>건강·정치적 견해 등 본인의 민감정보는 별도 동의한 기록에서 가져올 수 있어요. 타인의 민감정보와 고유식별정보는 넣지 말아주세요.</Hint>
+                </Field>}
                 <LetterPagePreview aria-label="이 공간에 남기는 말 페이지 미리보기">
                   <LetterPageHeading>이 공간에 남기는 말</LetterPageHeading>
                   <LetterPageBody $placeholder={!draft.letter.trim()}>
