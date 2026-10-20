@@ -50,6 +50,23 @@ test("분리된 PostgreSQL에서 약관·권리 보호 마이그레이션의 실
     assert.equal(Math.floor(serverVersion / 10000), Number(expectedMajor), "요청한 PostgreSQL 주 버전으로 시험해야 한다.");
   }
   t.diagnostic(`isolated PostgreSQL server_version_num=${serverVersion}`);
+  await t.test("Prisma 실제 어댑터가 권리 알림·약관 공고 잠금의 반환값을 읽고 트랜잭션 잠금을 유지한다", async () => {
+    const { PrismaClient } = await import("../../src/generated/prisma/client");
+    const { PrismaPg } = await import("@prisma/adapter-pg");
+    // 운영 DATABASE_URL을 사용하지 않고 위에서 생성한 임시 Unix 소켓에만 접속한다.
+    const client = new PrismaClient({ adapter: new PrismaPg({ host: socket, port: 15479, user: "tuti_legal_test", database: "postgres", max: 2 }) });
+    try {
+      await assert.rejects(client.$queryRaw`SELECT pg_advisory_xact_lock(20261019, 1)`, /void/);
+      await client.$transaction(async (tx) => {
+        await tx.$queryRaw`SELECT pg_advisory_xact_lock(20261019, 1)::text AS lock_result`;
+        const held = await client.$queryRaw<Array<{ acquired: boolean }>>`SELECT pg_try_advisory_xact_lock(20261019, 1) AS acquired`;
+        assert.equal(held[0].acquired, false, "반환값 캐스팅이 잠금을 해제하거나 별도 연결로 옮겨서는 안 된다.");
+        await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtext('tuti-journal-rights-deadline-alert'))::text AS lock_result`;
+      });
+      const released = await client.$queryRaw<Array<{ acquired: boolean }>>`SELECT pg_try_advisory_xact_lock(20261019, 1) AS acquired`;
+      assert.equal(released[0].acquired, true);
+    } finally { await client.$disconnect(); }
+  });
   const rejected = (sql: string, message: RegExp) => {
     const result = spawnSync(binary("psql"), psqlArgs, { input: sql, env, encoding: "utf8" });
     assert.notEqual(result.status, 0);

@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { spawnSync } from "node:child_process";
+import { readFileSync } from "node:fs";
 import { planRightsTransition, rightsBlockActive, validRightsReference, type RightsCaseState } from "@/shared/legal/journalRights";
 
 const now = new Date("2026-10-19T00:00:00Z");
@@ -56,7 +57,13 @@ function sample() {
   };
 }
 const db = {
-  $queryRaw: async () => [],
+  $queryRaw: async (sql: TemplateStringsArray) => {
+    const statement = sql.join("?");
+    if (statement.includes("pg_advisory_xact_lock")) {
+      assert.match(statement, /pg_advisory_xact_lock\(hashtext\('tuti-journal-rights-deadline-alert'\)\)::text AS lock_result/);
+    }
+    return [];
+  },
   journalRightsCase: {
     findMany: async () => { queries++; return records; },
     findUnique: async () => records[0] ?? null,
@@ -123,4 +130,9 @@ test("권리 보호 서비스: 비활성·복수 사건·재시도 경계", asyn
 });
 test("권리 보호 정기 점검 래퍼의 셸 문법을 검증한다", () => {
   assert.equal(spawnSync("sh", ["-n", "scripts/ops/tuti-journal-rights-maintain"], { encoding: "utf8" }).status, 0);
+});
+
+test("약관 공고 잠금도 Prisma가 처리할 수 있는 반환 형식을 사용한다", () => {
+  const source = readFileSync("scripts/publish-service-terms.ts", "utf8");
+  assert.match(source, /pg_advisory_xact_lock\(20261019, 1\)::text AS lock_result/);
 });

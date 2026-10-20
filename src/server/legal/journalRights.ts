@@ -140,7 +140,8 @@ export async function sendRightsDeadlineAlert(now = new Date(), fetcher: typeof 
   const url = new URL(address);
   if (url.protocol !== "https:" || url.username || url.password) throw new RightsWorkflowError("운영 알림에는 HTTPS 웹훅 주소를 사용해주세요.");
   return prisma.$transaction(async (tx) => {
-    await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtext('tuti-journal-rights-deadline-alert'))`;
+    // 잠금의 void 반환값은 Prisma가 역직렬화할 수 없으므로 결과 형식만 바꾼다.
+    await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtext('tuti-journal-rights-deadline-alert'))::text AS lock_result`;
     const due = await tx.journalRightsCase.findMany({ where: {
       AND: [
         { OR: [{ lastRemindedAt: null }, { lastRemindedAt: { lte: new Date(now.getTime() - 86400000) } }] },
