@@ -17,7 +17,7 @@ async function main() {
     if (readinessIndex < 0 || !arguments_[readinessIndex + 1]) throw new Error("--readiness-file 운영확인.json 파일이 필요합니다. 문서 승인·운영 시험을 임의로 완료 처리하지 않습니다.");
     readiness = await assertServiceTermsOperationalReadiness(JSON.parse(await readFile(resolve(arguments_[readinessIndex + 1]), "utf8")), release.documentHash, release.approvalReference);
     await prisma.$transaction(async (transaction) => {
-      await transaction.$queryRaw`SELECT pg_advisory_xact_lock(20261019, 1)`;
+      await transaction.$queryRaw`SELECT pg_advisory_xact_lock(20261019, 1)::text AS lock_result`;
       const upcoming = await transaction.serviceTermsRelease.findFirst({ where: { effectiveAt: { gt: release.publishedAt } } });
       if (upcoming) throw new Error("시행 예정 문서가 이미 있습니다. 기존 공고를 덮어쓰지 않습니다.");
       await transaction.serviceTermsRelease.create({ data: release });
