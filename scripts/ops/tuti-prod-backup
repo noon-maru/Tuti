@@ -2,19 +2,22 @@
 
 set -eu
 
+backup_scope=full
+case "$#:$*" in 0:) ;; 1:--core) backup_scope=core ;; *) echo "사용법: tuti-prod-backup [--core]" >&2; exit 1 ;; esac
+
 project_dir="/var/services/homes/Tutiadmin/source/Tuti"
 maintenance_dir="$project_dir/.ops-state/maintenance"
 maintenance_marker="$maintenance_dir/$$"
 parent_maintenance_marker="$maintenance_dir/$PPID"
 maintenance_lock_file="$project_dir/.ops-state/maintenance.lock"
 backup_root="${TUTI_FULL_BACKUP_ROOT:-/volume1/tuti/backups/full}"
-retention_days="${TUTI_FULL_BACKUP_RETENTION_DAYS:-30}"
+if [ "$backup_scope" = core ]; then backup_root=/volume1/tuti/backups/core; fi
 timestamp="$(date +%Y%m%d-%H%M%S)"
 backup_dir="$backup_root/$timestamp"
 temporary_dir="$backup_root/.$timestamp.partial"
 
 case "$backup_root" in
-  /volume1/tuti/backups/full | /volumeUSB*/*)
+  /volume1/tuti/backups/full | /volume1/tuti/backups/core | /volumeUSB*/*)
     ;;
   *)
     echo "백업 경로는 /volume1/tuti/backups/full 또는 외장 볼륨 하위여야 합니다: $backup_root" >&2
@@ -22,15 +25,17 @@ case "$backup_root" in
     ;;
 esac
 
-case "$retention_days" in
-  *[!0-9]* | "")
-    echo "백업 보관 일수는 0 이상의 정수여야 합니다." >&2
-    exit 1
-    ;;
-esac
-
+umask 077
+if [ -L "$backup_root" ]; then echo "백업 경로에 심볼릭 링크를 사용할 수 없습니다." >&2; exit 1; fi
 install -d -o root -g root -m 0700 "$backup_root"
 install -d -o root -g root -m 0700 "$maintenance_dir"
+if [ "$backup_scope" = core ]; then
+  cd "$project_dir"
+  for source in scripts/ops/core-backup-production-guard.sql scripts/ops/core-backup-excluded-data-tables.txt; do
+    git -c safe.directory="$project_dir" ls-files --error-unmatch "$source" >/dev/null 2>&1
+    git -c safe.directory="$project_dir" diff --quiet HEAD -- "$source"
+  done
+fi
 
 # 배포 스크립트가 이미 유지보수 잠금을 잡은 상태에서 이 백업을 호출할 수 있습니다.
 # 일부 셸은 exec 시 9번 파일 디스크립터를 닫으므로 FD 경로만 비교하면 자가 교착이
@@ -51,9 +56,9 @@ if [ -f "$project_dir/.ops-state/restore-privacy/pending.env" ] || [ -f "$projec
   echo "DB 복원 후 개인정보 확인 대기 중입니다. 재정리 전 새 백업을 만들지 않습니다." >&2
   exit 1
 fi
+if [ -e "$temporary_dir" ] || [ -e "$backup_dir" ]; then echo "동일 시각의 백업이 이미 존재합니다." >&2; exit 1; fi
 printf 'backup\n' > "$maintenance_marker"
 chmod 0600 "$maintenance_marker"
-rm -rf "$temporary_dir"
 install -d -o root -g root -m 0700 "$temporary_dir"
 app_was_running="$(docker inspect tuti-prod --format '{{.State.Running}}' 2>/dev/null || printf false)"
 app_image_before="$(docker inspect tuti-prod --format '{{.Config.Image}}' 2>/dev/null || printf tuti:prod)"
@@ -69,6 +74,8 @@ cleanup() {
   fi
 }
 trap cleanup EXIT INT TERM
+trap 'exit 130' INT
+trap 'exit 143' TERM
 
 cd "$project_dir"
 
@@ -82,12 +89,26 @@ docker compose --env-file .env.production -f docker-compose.prod.yml run --rm --
   --user 1000:1000 -e TUTI_PRIVACY_REPLAY_OFFLINE=true ops \
   node_modules/.bin/tsx scripts/privacy-replay.ts --cleanup-objects --apply
 
-echo "운영 PostgreSQL 전체 백업"
+set --
+if [ "$backup_scope" = core ]; then
+  echo "핵심 백업 제외 정책·외래키 의존성 검사"
+  if ! docker compose --env-file .env.production -f docker-compose.prod.yml exec -T db \
+    sh -c 'exec psql --no-psqlrc -q -U "$POSTGRES_USER" -d "$POSTGRES_DB" -v ON_ERROR_STOP=1' \
+    < scripts/ops/core-backup-production-guard.sql >/dev/null 2>&1; then
+    echo "핵심 백업 정책 검증에 실패했습니다. 전체 백업은 기존 방식으로 유지합니다." >&2; exit 1
+  fi
+  while IFS= read -r table; do
+    case "$table" in "" | *[!a-z_]*) echo "잘못된 핵심 백업 정책입니다." >&2; exit 1 ;; esac
+    set -- "$@" "--exclude-table-data=public.$table"
+  done < scripts/ops/core-backup-excluded-data-tables.txt
+  cp scripts/ops/core-backup-excluded-data-tables.txt "$temporary_dir/excluded-data-tables.txt"
+fi
+echo "운영 PostgreSQL 백업: $backup_scope"
 docker compose \
   --env-file .env.production \
   -f docker-compose.prod.yml \
   exec -T db \
-  sh -lc 'exec pg_dump --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" --format=custom --compress=6 --no-owner --no-privileges' \
+  sh -c 'exec pg_dump --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" --format=custom --compress=6 --no-owner --no-privileges "$@"' sh "$@" \
   > "$temporary_dir/postgres.dump"
 
 if [ ! -s "$temporary_dir/postgres.dump" ]; then
@@ -117,7 +138,8 @@ cat > "$temporary_dir/manifest.txt" <<EOF
 backup_version=1
 created_at=$(date -Iseconds)
 git_revision=$(git rev-parse HEAD 2>/dev/null || printf unknown)
-database=production-full-custom-dump
+database=production-$backup_scope-custom-dump
+backup_scope=$backup_scope
 object_storage=logical-s3-object-copy
 secrets_included=false
 restore_scope=database-and-journal-objects
@@ -128,7 +150,9 @@ EOF
   find . -type f ! -name checksums.sha256 -print0 \
     | sort -z \
     | xargs -0 sha256sum > checksums.sha256
-  sha256sum -c checksums.sha256
+  if ! sha256sum -c checksums.sha256 >/dev/null 2>&1; then
+    echo "백업 파일 무결성 확인에 실패했습니다. 객체 키·본문은 출력하지 않습니다." >&2; exit 1
+  fi
 )
 
 mv "$temporary_dir" "$backup_dir"
@@ -141,10 +165,7 @@ fi
 rm -f "$maintenance_marker"
 trap - EXIT INT TERM
 
-if [ "$retention_days" -gt 0 ]; then
-  find "$backup_root" -mindepth 1 -maxdepth 1 -type d \
-    -name '????????-??????' -mtime "+$retention_days" -exec rm -rf -- {} \;
-fi
+# 파기는 두 백업 경로와 삭제 원장을 함께 검토하는 전용 예약 작업에서만 수행한다.
 
-echo "운영 전체 백업 완료: $backup_dir"
+echo "운영 $backup_scope 백업 완료: $backup_dir"
 echo "주의: 이 백업은 같은 NAS에 있습니다. Hyper Backup으로 원격지 또는 외장 장치에 다시 복제하세요."

@@ -1,0 +1,11 @@
+[Unit]
+Description=Tuti core backup at 04:20 Asia/Seoul daily
+
+[Timer]
+OnCalendar=*-*-* 04:20:00
+Persistent=true
+AccuracySec=1min
+Unit=tuti-core-backup.service
+
+[Install]
+WantedBy=timers.target

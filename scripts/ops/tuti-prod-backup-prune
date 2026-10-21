@@ -5,9 +5,18 @@ backup_root="${TUTI_FULL_BACKUP_ROOT:-/volume1/tuti/backups/full}"
 case "$#:$*" in 0:) ;; 1:--apply) ;; *) echo "사용법: tuti-prod-backup-prune [--apply]" >&2; exit 1 ;; esac
 case "$backup_root" in /volume1/tuti/backups/full | /volumeUSB*/*) ;; *) echo "허용되지 않은 백업 경로입니다." >&2; exit 1 ;; esac
 cd "$project_dir"
+if [ -L "$backup_root" ] || [ -L /volume1/tuti/backups/core ]; then echo "백업 루트에 심볼릭 링크를 사용할 수 없습니다." >&2; exit 1; fi
+install -d -o root -g root -m 0700 /volume1/tuti/backups/core
+for source in scripts/prune-production-backups.ts src/server/legal/backupRetention.ts; do
+  git -c safe.directory="$project_dir" ls-files --error-unmatch "$source" >/dev/null 2>&1
+  git -c safe.directory="$project_dir" diff --quiet HEAD -- "$source"
+done
 install -d -o root -g root -m 0700 "$project_dir/.ops-state"
 exec 9>"$project_dir/.ops-state/maintenance.lock"
 /usr/bin/flock --exclusive --nonblock 9 || exit 0
 if [ -f "$project_dir/.ops-state/restore-privacy/pending.env" ] || [ -f "$project_dir/.ops-state/privacy-activation/pending" ]; then echo "복원·운영 전환 검토 중에는 백업을 파기하지 않습니다." >&2; exit 1; fi
 docker compose --env-file .env.production -f docker-compose.prod.yml run --rm --no-deps -T \
-  -v "$backup_root:/backup-retention" ops node_modules/.bin/tsx scripts/prune-production-backups.ts --days=30 "$@"
+  -v "$backup_root:/backup-retention" -v /volume1/tuti/backups/core:/core-backup-retention \
+  -v "$project_dir/scripts/prune-production-backups.ts:/app/scripts/prune-production-backups.ts:ro" \
+  -v "$project_dir/src/server/legal/backupRetention.ts:/app/src/server/legal/backupRetention.ts:ro" \
+  ops node_modules/.bin/tsx scripts/prune-production-backups.ts --days=30 "$@"

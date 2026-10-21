@@ -1,0 +1,63 @@
+#!/bin/sh
+set -eu
+PATH="/usr/local/bin:/usr/bin:/bin:/usr/local/sbin:/usr/sbin:/sbin:$PATH"
+export PATH
+case "$#:$*" in 0:) apply=false ;; 1:--apply) apply=true ;; *) echo "사용법: sudo sh scripts/ops/install-core-backup [--apply]" >&2; exit 1 ;; esac
+project_dir=/var/services/homes/Tutiadmin/source/Tuti
+cd "$project_dir"
+sources="scripts/ops/install-core-backup scripts/ops/tuti-prod-backup scripts/ops/tuti-prod-backup-prune scripts/ops/tuti-prod-restore scripts/ops/tuti-prod-backup-verify scripts/verify-production-backup.ts src/server/legal/backupVerification.ts scripts/ops/core-backup-production-guard.sql scripts/ops/core-backup-excluded-data-tables.txt scripts/prune-production-backups.ts src/server/legal/backupRetention.ts scripts/ops/systemd/tuti-core-backup.service scripts/ops/systemd/tuti-core-backup.timer"
+for source in $sources; do
+  git -c safe.directory="$project_dir" ls-files --error-unmatch "$source" >/dev/null 2>&1
+  git -c safe.directory="$project_dir" diff --quiet HEAD -- "$source"
+done
+if [ "$apply" != true ]; then echo "핵심 백업 설치 원본 확인 완료. --apply에서만 설치·첫 백업·예약 활성화를 수행합니다."; exit 0; fi
+if [ "$(id -u)" != 0 ]; then echo "root 권한이 필요합니다." >&2; exit 1; fi
+if [ "$(date +%z)" != +0900 ]; then echo "일일 예약은 NAS 시간대가 한국 표준시(+0900)일 때만 활성화합니다." >&2; exit 1; fi
+if ! systemctl is-active --quiet tuti-backup-retention.timer || ! systemctl is-enabled --quiet tuti-backup-retention.timer; then
+  echo "기존 30일 백업 정리 타이머가 활성·부팅 예약 상태여야 합니다." >&2; exit 1
+fi
+# 기존 전체 백업 예약과 개인정보 타이머는 변경하지 않는다.
+for name in tuti-prod-backup tuti-prod-backup-prune tuti-prod-restore; do
+  if [ -L "/usr/local/sbin/$name" ]; then exit 1; fi
+done
+for unit in tuti-core-backup.service tuti-core-backup.timer; do
+  if [ -L "/etc/systemd/system/$unit" ]; then exit 1; fi
+done
+if [ -L /volume1/tuti/backups/core ]; then exit 1; fi
+install -d -o root -g root -m 0700 /volume1/tuti/backups/core "$project_dir/.ops-state"
+exec 9>"$project_dir/.ops-state/maintenance.lock"
+/usr/bin/flock --exclusive --nonblock 9 || { echo "유지보수 종료 후 다시 실행해주세요." >&2; exit 1; }
+if [ -f .ops-state/restore-privacy/pending.env ] || [ -f .ops-state/privacy-activation/pending ]; then exit 1; fi
+snapshot="$project_dir/.ops-state/core-tools/$(date +%Y%m%d-%H%M%S)-$$"
+install -d -o root -g root -m 0700 "$snapshot"
+systemctl stop tuti-core-backup.timer 2>/dev/null || true
+for name in tuti-prod-backup tuti-prod-backup-prune tuti-prod-restore; do
+  if [ -f "/usr/local/sbin/$name" ]; then cp -p "/usr/local/sbin/$name" "$snapshot/$name"; fi
+  install -o root -g root -m 0750 "scripts/ops/$name" "/usr/local/sbin/$name"
+done
+for unit in tuti-core-backup.service tuti-core-backup.timer; do
+  if [ -f "/etc/systemd/system/$unit" ]; then cp -p "/etc/systemd/system/$unit" "$snapshot/$unit"; fi
+  install -o root -g root -m 0644 "scripts/ops/systemd/$unit" "/etc/systemd/system/$unit"
+done
+systemctl daemon-reload
+/usr/bin/flock --unlock 9
+# 원장·두 경로를 실제 삭제 없이 검증한 뒤 첫 핵심 백업을 생성한다.
+/usr/local/sbin/tuti-prod-backup-prune
+systemctl start tuti-core-backup.service
+sh scripts/ops/tuti-prod-backup-verify --core
+ready=false
+attempt=1
+while [ "$attempt" -le 12 ]; do
+  if timeout 10 docker compose --env-file .env.production -f docker-compose.prod.yml exec -T app node -e \
+    'fetch("http://127.0.0.1:3000/api/health", {signal: AbortSignal.timeout(5000)}).then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))' >/dev/null 2>&1; then
+    ready=true; break
+  fi
+  sleep 5
+  attempt=$((attempt + 1))
+done
+if [ "$ready" != true ]; then echo "첫 백업 후 앱 readiness를 확인하지 못했습니다. 새 백업 예약은 켜지 않았습니다." >&2; exit 1; fi
+# 첫 사본 무결성 통과 후에만 예약을 켠다. 기존 systemd에는 --now가 없다.
+systemctl enable tuti-core-backup.timer
+systemctl start tuti-core-backup.timer
+systemctl is-active tuti-core-backup.timer
+echo "핵심 일일 백업 활성화 완료. 전체 백업 예약 유지, 두 종류 모두 30일 보관 정리 대상입니다."
