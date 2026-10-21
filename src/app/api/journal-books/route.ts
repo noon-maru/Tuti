@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { writeDiagnosticLogSafely } from "@/server/admin/log";
 
 import { authenticateUser } from "@/server/auth/session";
 import { prisma } from "@/server/db/prisma";
@@ -59,8 +60,9 @@ export async function GET(request: Request) {
       })),
     };
     return withCors(request, Response.json(response));
-  } catch (error) {
-    console.error("완성한 기록집 목록을 불러오지 못했습니다.", error);
+  } catch {
+    console.error("완성한 기록집 목록을 불러오지 못했습니다.");
+    await writeDiagnosticLogSafely({ code: "UNEXPECTED_FAILURE", component: "book" });
     return withCors(
       request,
       Response.json({ error: "완성한 기록집을 불러오지 못했어요." }, { status: 500 }),
@@ -170,16 +172,19 @@ export async function POST(request: Request) {
     if (objectKey) {
       try {
         await deleteStoredJournalBook(objectKey);
-      } catch (cleanupError) {
-        console.error("DB 저장에 실패한 기록집 PDF를 정리하지 못했습니다.", cleanupError);
+      } catch {
+        console.error("DB 저장에 실패한 기록집 PDF를 정리하지 못했습니다.");
+        await writeDiagnosticLogSafely({ code: "STORAGE_UNAVAILABLE", component: "book" });
       }
     }
     const knownError =
       error instanceof JournalBookApprovalError ||
       error instanceof SensitiveJournalPolicyError ||
       error instanceof JournalBookRenderError;
-    if (!knownError)
-      console.error("기록집을 완성하지 못했습니다.", error);
+    if (!knownError) {
+      console.error("기록집을 완성하지 못했습니다.");
+      await writeDiagnosticLogSafely({ code: "UNEXPECTED_FAILURE", component: "book" });
+    }
     return withCors(
       request,
       Response.json(

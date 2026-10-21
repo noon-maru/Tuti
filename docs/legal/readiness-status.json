@@ -1,10 +1,10 @@
 {
   "owner": "정연한",
   "contact": "admin@tuti.today",
-  "rightsRecipient": { "name": "정연한", "department": "운영", "position": "대표", "email": "admin@tuti.today", "fax": null, "faxUnavailabilityConfirmed": true, "publicNoticeRequirementsReviewed": false, "publicNoticeReviewReference": null, "preparedNoticePath": "/legal/rights", "noticeDeployed": false, "scope": "확인된 연락처·팩스 미운영의 사실 안내 구현. 팩스 미운영 시 공시 요건 충족 판단은 미승인" },
+  "rightsRecipient": { "name": "정연한", "department": "운영", "position": "대표", "email": "admin@tuti.today", "fax": null, "faxUnavailabilityConfirmed": true, "publicNoticeRequirementsReviewed": false, "publicNoticeReviewReference": null, "preparedNoticePath": "/legal/rights", "noticeDeployed": true, "deploymentObservedAt": "2026-10-21", "deploymentEvidence": "공개 /legal/rights 응답 200, 정연한·admin@tuti.today·팩스 미운영 안내 확인", "scope": "연락처 공시 배포 확인. 팩스 미운영 시 공시 요건 충족 판단은 미승인" },
   "backupRetentionDays": 30,
   "externalLocationRelationship": { "separateConfirmation": "none", "confirmedAt": "2026-10-19", "classification": "processor", "classificationBasis": "운영자가 카카오·카카오모빌리티 경로 계산의 처리위탁 관계를 확인", "contractRetentionReviewed": false },
-  "sensitiveContentPolicy": { "confirmedAt": "2026-10-19", "basis": "운영자 결정: 본인의 비공개 기록·개인용 기록집은 허용하고 민감정보가 포함된 웹 공개는 제한", "privateUse": "separate_optional_consent_required", "webPublication": "restricted", "consentWorkflowImplemented": true, "publicationRestrictionImplemented": true, "withdrawalCleanupImplemented": true, "implementationScope": "로컬 소스. 사용자 분류·별도 선택 동의에 따른 통제이며 자동 완전 탐지가 아님. 기존 미확인 기록·PDF 전환 필요", "deployed": false, "runtimeVerified": false },
+  "sensitiveContentPolicy": { "confirmedAt": "2026-10-19", "basis": "운영자 결정: 본인의 비공개 기록·개인용 기록집은 허용하고 민감정보가 포함된 웹 공개는 제한", "privateUse": "separate_optional_consent_required", "webPublication": "restricted", "consentWorkflowImplemented": true, "publicationRestrictionImplemented": true, "withdrawalCleanupImplemented": true, "implementationScope": "서버·웹 소스 구현 및 운영 배포. 사용자 분류·별도 선택 동의에 따른 통제이며 자동 완전 탐지가 아님. 기존 미확인 기록·PDF 전환 필요", "deployed": true, "deploymentScope": "c188381 서버·웹 기준 및 /api/journal-sensitive-policy 응답 확인. 네이티브 신규 바이너리 출시 확인은 아님", "workflowEnabledObserved": false, "observedAt": "2026-10-21", "runtimeVerified": false },
   "privacyAutomationImplementation": {
     "implementedAt": "2026-10-20", "pushDeliveryRetentionDays": 30,
     "invalidTokensDeleted": true, "deliveryLogsMinimized": true,
@@ -103,11 +103,11 @@
       "productionLedgerEnabled": true,
       "coverageActivationGapResolved": true,
       "coverageScope": "서명된 최초 전환 시각 이후. 초기화부터 전환 전의 미수집 구간·해당 구간 백업은 소급 보장하지 않음",
-      "legalOperationsObservedAt": "2026-10-20T13:30:31.230Z",
+      "legalOperationsObservedAt": "2026-10-21T07:11:09.313Z",
       "legalOperationsSource": "운영자가 제공한 tuti-legal-operations-inspect 출력",
       "rightsOperatorAlertConfigured": true,
       "rightsWorkflowEnabled": true,
-      "rightsLatestInspectionAt": "2026-10-20T14:02:05.867Z",
+      "rightsLatestInspectionAt": "2026-10-21T07:11:09.313Z",
       "rightsSchedulerEnabled": true,
       "rightsSchedulerSource": "운영자 별도 enable/start 실행 및 systemctl active/enabled 재조회. NAS systemctl은 --now 미지원",
       "rightsFirstApplyResult": "2026-10-20 22:37:16 KST systemd Result=exit-code, ExecMainStatus=1. 타이머는 inactive/disabled 유지. 환경 파일 권리 플래그 true·알림 HTTPS 형식 정상은 확인했으나 실패 원인은 미확정",
@@ -116,7 +116,36 @@
       "rightsDueCases": 0,
       "rightsPendingNotices": 0,
       "rightsPotentialReportsWithoutCase": 0,
-      "rightsLastSuccessfulApplyAt": "2026-10-20T14:01:34.220Z",
+      "rightsLastSuccessfulApplyAt": "2026-10-21T07:09:52.921Z",
+      "latestLegalOperationsObservation": {
+        "reference": "LEGAL-OPERATIONS-20261021-161109",
+        "observedAt": "2026-10-21T07:11:09.313Z",
+        "source": "운영자가 제공한 tuti-legal-operations-inspect 읽기 전용 결과",
+        "facts": {
+          "serviceTermsWorkflow": false, "serviceTermsEnforcement": false,
+          "rightsWorkflow": true, "rightsOperatorAlertConfigured": true,
+          "privacyReplayLedger": true, "externalCoordinates": "processor",
+          "userAiProfiling": false, "objectStorage": true,
+          "androidPush": true, "iosPush": true,
+          "authenticationEmailProvider": "daum-smartwork"
+        },
+        "terms": {
+          "status": "observed", "stage": "disabled", "documentIntegrity": true,
+          "currentReleasePresent": false, "upcomingReleasePresent": false,
+          "accounts": 208, "currentAcceptances": 0,
+          "accountsWithoutCurrentAcceptance": null, "clientRolloutVerified": false
+        },
+        "rights": {
+          "status": "observed", "workflowEnabled": true,
+          "activeCases": 0, "dueCases": 0, "pendingNotices": 0,
+          "potentialRightsReportsWithoutCase": 0,
+          "lastSuccessfulApplyAt": "2026-10-21T07:09:52.921Z",
+          "recentSuccessfulApplyObserved": true,
+          "schedulerInstallationVerified": false, "formalNoticeDeliveryVerified": false
+        },
+        "operationalCompletionVerified": false,
+        "scope": "운영 프로세스 설정·DB 정합성·최근 권리 점검 관측. schedulerInstallationVerified=false는 조회기가 예약 설치를 보증하지 않는다는 뜻이며 별도 systemctl 설치 근거를 부정하지 않음. 실제 사건의 법정 통지·앱 실기기·최종 문서 승인은 입증하지 않음"
+      },
       "rightsDryRunVerified": true,
       "rightsDryRunSource": "운영자 일회성 조회 0건 후 실제 적용·예약 활성화 확인. 실제 사건 당사자 통지 전달은 별도",
       "rightsDeliveryTransportVerification": {
@@ -256,6 +285,28 @@
     }
   },
   "approvedDocumentHash": null,
+  "noticePreparation": {
+    "preparedAt": "2026-10-21",
+    "state": "review_candidate_not_approved",
+    "scope": "일반 이용약관 후보와 4개 문서의 운영 근거 동기화. 모든 문서의 일괄 공고·시행 승인이 아님",
+    "candidateDocumentHash": "a2601a1937dd406d7e3947ff691ac95871a49f7cd4cd4d122c3cc828b4b742f3",
+    "candidateSource": "docs/legal/service-terms-draft.md",
+    "candidateCommand": "pnpm legal:terms:review --document",
+    "candidateSections": 22,
+    "noticeIntervalOperatorConfirmed": true,
+    "noticeDays": 30,
+    "intervalSource": "2026-10-21 운영자 답변: 30일 뒤",
+    "publishedAt": null,
+    "effectiveAt": null,
+    "dateRule": "실제 공고 시각부터 최소 30일 이후. 2026-10-21 공고 시 2026-11-20 같은 시각 이후이며 공고 지연 시 함께 조정",
+    "nextUpdateTransition": "다음 앱 업데이트에 동의 절차 반영. 유지할 기존 계정도 명시적 동의, 기존 이용 이력을 동의로 소급하지 않음",
+    "testAccountDeletion": "미동의 테스트 계정은 운영자가 별도 대상 목록 확인 후 수동 삭제 예정. 현재 삭제 지시·대상 확정·실제 삭제는 없음",
+    "publicStateObserved": { "currentReleasePresent": false, "upcomingReleasePresent": false, "required": false },
+    "operationalInspectionReference": "LEGAL-OPERATIONS-20261021-161109",
+    "processingInventoryReference": "PROCESSING-SOURCE-AUDIT-20261021",
+    "approvalReference": null,
+    "publicationApplied": false
+  },
   "rolloutDecision": {
     "recordedAt": "2026-10-20",
     "source": "운영자의 대화 지시",
@@ -267,9 +318,9 @@
     "scope": "일반 이용약관 준비를 계속하며 추가 전문가 검토·Apple 답신 대기를 그 일률적 전제로 두지 않음. 미확인 적법성·최종 원문·푸시 이전 동의를 승인된 것으로 대체하지 않음"
   },
   "checks": {
-    "processingInventory": { "confirmed": false, "reference": null },
-    "processorsAndTransfers": { "confirmed": false, "reference": null },
-    "backupRetentionAndRestoreTest": { "confirmed": false, "reference": null },
+    "processingInventory": { "confirmed": false, "reference": null, "sourceAudit": { "reference": "PROCESSING-SOURCE-AUDIT-20261021", "path": "docs/legal/processing-inventory.json", "prismaModelsClassified": 49, "groups": 13, "unclassifiedModels": 0, "scope": "모델 분류·보관/파기 코드 경로 확인. 모든 필드/JSON 값·수집 근거·실기기·운영 DB 전수 확인은 아님" }, "pending": "기능별 처리 근거·필수/선택·거부 경로. 문의 3년/미완료 PNG 30일/전용 일반 오류 1년 및 세 범주 보전/90일 검토 알림은 로컬 구현·기본 비활성. 운영 적용·검증, 완료일 누락 자료·다른 범주 사건 및 기존 자료 적용 범위는 별도" },
+    "processorsAndTransfers": { "confirmed": false, "reference": null, "sourceAudit": { "reference": "PROCESSING-SOURCE-AUDIT-20261021", "externalFlowGroups": 8, "cloudflarePathObserved": true, "scope": "NAS 자체 저장·SMTP·지도·소셜 인증·푸시·프록시·집계 운영 알림·공개 장소 AI 경로를 구분. 계약·처리 국가·기간·동의 완료와 구분" }, "pending": "제공자별 실제 적용 계약·역할·국외 처리와 수탁 법인. Daum SMTP를 카카오 법인으로 자동 확정하지 않음" },
+    "backupRetentionAndRestoreTest": { "confirmed": true, "reference": "BACKUP-RETENTION-RESTORE-20261021", "scope": "30일 정리 예약·전체/핵심 사본 무결성·격리 DB/객체 복원·시험 자원 정리 확인. 삭제 원장 재반영·키 재해 복구·운영 재개 시험과 실제 PDF는 별도 미검증" },
     "rightsRecipientAndForms": { "confirmed": false, "reference": null },
     "scheduledJobsAndAlerts": { "confirmed": true, "reference": "OPS-AUTOMATION-20261020" },
     "minorProtection": { "confirmed": false, "reference": null },
