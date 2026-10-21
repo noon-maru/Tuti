@@ -53,6 +53,28 @@ test("무료 플랜·Tunnel 구성 확인을 계약·국가·기간·공고 승�
   assert.equal(readiness.approvedDocumentHash, null);
 });
 
+test("외부 안내 대조는 일곱 서비스의 송수신·삭제 경계를 정리하되 최종 승인으로 치환하지 않는다", async () => {
+  const { inventory } = await fixture();
+  const readiness = JSON.parse(await readFile("docs/legal/readiness-status.json", "utf8"));
+  const review = readiness.externalNoticeReview;
+  assert.deepEqual(review.servicesReviewed, ["daum-smtp", "cloudflare", "google-login", "apple-login", "kakao-login", "fcm", "apns"]);
+  assert.equal(review.sourceReviewCompleted, true);
+  assert.equal(review.daumOfficialServiceEntity, "주식회사 다음");
+  assert.equal(review.googleKakaoProviderRevocationImplemented, false);
+  assert.equal(review.appleProviderRevocationCodeReviewed, true);
+  assert.equal(review.socialLoginDirectionsSeparated, true);
+  assert.equal(review.pushServerAndNativeSeparated, true);
+  for (const key of ["finalNoticeApproved", "publicationApplied", "runtimeFlagsChanged"]) assert.equal(review[key], false);
+  assert.ok(review.remaining.length > 0);
+  assert.equal(readiness.checks.processorsAndTransfers.noticeReviewReference, review.reference);
+  assert.equal(readiness.checks.processorsAndTransfers.confirmed, false);
+  assert.equal(readiness.approvedDocumentHash, null);
+  const policy = await readFile("docs/legal/privacy-policy-draft.md", "utf8");
+  for (const boundary of ["주식회사 다음", "회사 DB에 코드 검증값", "제공자 측의 앱 접근 권한까지 자동", "Self-Serve Subscription Agreement 제6.1항", "Kakao 앱의 국외 이전 정보 설정", "무효 토큰의 회사 DB 등록 삭제"]) assert.ok(policy.includes(boundary), boundary);
+  assert.match(inventory.externalFlows.find(flow => flow.id === "social-login")!.items, /로컬 연결 삭제/);
+  assert.match(inventory.externalFlows.find(flow => flow.id === "fcm-apns")!.items, /문의 ID\/본문/);
+});
+
 test("범위나 검토 과제를 지워 승인을 가장하거나 임의 파일을 읽도록 만들 수 없다", async () => {
   const { inventory, schema } = await fixture();
   assert.throws(() => auditProcessingInventory({ ...inventory, legalApproval: true } as unknown as ProcessingInventory, schema));
