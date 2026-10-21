@@ -19,10 +19,12 @@ if [ ! -d "$backup_dir" ] || [ -L "$backup_dir" ] || [ -L "$backup_root" ]; then
 # 유지보수와 겹치거나 복구 확인 대기 중이면 실행하지 않는다. 운영 서비스는 정지하지 않는다.
 exec 9>"$project_dir/.ops-state/maintenance.lock"
 /usr/bin/flock --shared --nonblock 9 || { echo "다른 유지보수 작업이 실행 중입니다." >&2; exit 1; }
+exec 8>"$project_dir/.ops-state/isolated-restore.lock"
+/usr/bin/flock --exclusive --nonblock 8 || { echo "다른 격리 복원 시험이 실행 중입니다." >&2; exit 1; }
 if [ -f .ops-state/restore-privacy/pending.env ] || [ -f .ops-state/privacy-activation/pending ]; then exit 1; fi
 command -v timeout >/dev/null
 available_kb="$(awk '/^MemAvailable:/ { print $2 }' /proc/meminfo)"
-if [ "${available_kb:-0}" -lt 4194304 ]; then echo "사용 가능 메모리 4GiB 이상에서만 실행합니다." >&2; exit 1; fi
+if [ "${available_kb:-0}" -lt 6291456 ]; then echo "사용 가능 메모리 6GiB 이상에서만 실행합니다." >&2; exit 1; fi
 for image in tuti:ops postgis/postgis:17-3.5 dxflrs/garage:v2.3.0; do
   docker image inspect "$image" >/dev/null
   volumes="$(docker image inspect --format '{{range $key, $value := .Config.Volumes}}{{println $key}}{{end}}' "$image")"
@@ -74,8 +76,8 @@ pg_uid="$(limits 128m --rm --network none --entrypoint id postgis/postgis:17-3.5
 pg_gid="$(limits 128m --rm --network none --entrypoint id postgis/postgis:17-3.5 -g postgres)"
 case "$pg_uid:$pg_gid" in *[!0-9:]* | :*) exit 1 ;; esac
 install -d -m 0700 -o "$pg_uid" -g "$pg_gid" "$scratch/pglogs"
-limits 768m --detach --name "$pg_name" --label "tuti.restore-test=$test_id" --network none --user postgres \
-  --tmpfs "/var/lib/postgresql/data:rw,nosuid,nodev,size=512m,uid=$pg_uid,gid=$pg_gid,mode=0700" \
+limits 3g --detach --name "$pg_name" --label "tuti.restore-test=$test_id" --network none --user postgres --shm-size 256m \
+  --tmpfs "/var/lib/postgresql/data:rw,nosuid,nodev,size=2g,uid=$pg_uid,gid=$pg_gid,mode=0700" \
   --tmpfs "/var/run/postgresql:rw,nosuid,nodev,size=16m,uid=$pg_uid,gid=$pg_gid,mode=0775" \
   --tmpfs /tmp:rw,nosuid,nodev,size=32m \
   -v "$scratch/pglogs:/sandbox-logs" \
@@ -107,12 +109,16 @@ if timeout 240 docker exec -i "$pg_name" pg_restore --host /var/run/postgresql -
   restore_status="$?"
   docker container inspect --format '{"stage":"isolated-postgres-status","running":{{.State.Running}},"oomKilled":{{.State.OOMKilled}},"exitCode":{{.State.ExitCode}}}' "$pg_name" > "$scratch/state.json" 2>/dev/null || true
   if [ -s "$scratch/state.json" ]; then cat "$scratch/state.json" >&2; fi
+  if docker exec "$pg_name" df -Pk /var/lib/postgresql/data /dev/shm > "$scratch/disk.tsv" 2>/dev/null; then
+    awk 'NR > 1 && $2 ~ /^[0-9]+$/ && $3 ~ /^[0-9]+$/ && $4 ~ /^[0-9]+$/ { printf "{\"stage\":\"isolated-postgres-capacity\",\"storageIndex\":%d,\"totalKiB\":%s,\"usedKiB\":%s,\"availableKiB\":%s}\n", NR-1, $2, $3, $4 }' "$scratch/disk.tsv" >&2
+  fi
   # 원문·테이블명·행 내용은 출력하지 않고 정적인 오류 분류만 남긴다.
   matches_restore_error() { LC_ALL=C grep -qi "$1" "$scratch/restore.log" "$scratch/pglogs/postgres.log" 2>/dev/null; }
   restore_reason=UNCLASSIFIED_RESTORE_ERROR
   if [ "$restore_status" = 124 ]; then restore_reason=RESTORE_TIMEOUT
   elif LC_ALL=C grep -q '"oomKilled":true' "$scratch/state.json" 2>/dev/null || matches_restore_error 'out of memory\|Cannot allocate memory'; then restore_reason=SANDBOX_MEMORY_EXHAUSTED
-  elif matches_restore_error 'No space left on device\|could not resize shared memory segment'; then restore_reason=SANDBOX_SPACE_EXHAUSTED
+  elif matches_restore_error 'could not resize shared memory segment'; then restore_reason=SANDBOX_SHARED_MEMORY_EXHAUSTED
+  elif matches_restore_error 'No space left on device'; then restore_reason=SANDBOX_SPACE_EXHAUSTED
   elif matches_restore_error 'already exists'; then restore_reason=DATABASE_OBJECT_ALREADY_EXISTS
   elif matches_restore_error 'database .* does not exist'; then restore_reason=SANDBOX_DATABASE_MISSING
   elif matches_restore_error 'password authentication failed\|no pg_hba.conf entry\|Peer authentication failed'; then restore_reason=SANDBOX_AUTHENTICATION_FAILED

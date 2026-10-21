@@ -55,7 +55,11 @@ test("실제 백업 시험은 운영 Compose·자격증명·포트 공개 없이
   assert.equal(spawnSync("sh", ["-n", path]).status, 0);
   assert.doesNotMatch(source, /docker compose|--env-file|--publish|--privileged|--network host|timeout 240 limits/);
   for (const value of ["--network none", '--network "container:$garage_name"', '--tmpfs "/var/lib/postgresql/data:', "--tmpfs /var/lib/garage:", '--label "tuti.restore-test=$test_id"', '"$backup_dir:/backup:ro"', "--log-driver none", "--cap-drop ALL", "--memory", '"$owner" != "$test_id"', "--no-owner --no-privileges --exit-on-error"]) assert.ok(source.includes(value), value);
-  assert.ok(source.indexOf('sh scripts/ops/tuti-prod-backup-verify "$backup_id"') < source.indexOf('limits 768m --detach'));
+  assert.ok(source.indexOf('sh scripts/ops/tuti-prod-backup-verify "$backup_id"') < source.indexOf('limits 3g --detach'));
+  assert.match(source, /--shm-size 256m/);
+  assert.match(source, /size=2g/);
+  assert.match(source, /-lt 6291456/);
+  assert.match(source, /isolated-restore\.lock/);
   assert.match(source, /MemAvailable/);
   assert.match(source, /CPUCfsQuota/);
   assert.match(source, /sandboxResourcesRemoved/);
