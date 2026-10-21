@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { spawnSync } from "node:child_process";
 import test from "node:test";
 import { diagnosticLogData } from "../src/server/admin/diagnosticLog";
@@ -154,7 +154,17 @@ test("기존 유지보수·복원 잠금과 알림을 재사용하고 신규 정
   assert.match(script, /reviewRequired/);
   const wrapper = readFileSync("scripts/ops/tuti-privacy-data-maintain", "utf8");
   assert.match(wrapper, /restore-privacy\/pending.env/);
-  for (const path of [".env.example", ".env.production.example"]) assert.match(readFileSync(path, "utf8"), /PRIVACY_EXTENDED_RETENTION_ENABLED=false/);
+});
+
+test("소스 환경 예제의 신규 정리 플래그는 비활성 기본값이다", t => {
+  const paths = [".env.example", ".env.production.example"];
+  // .env.*를 이미지에 넣지 않는 패키징 정책은 유지한다. 런타임 기본 비활성은 위 모의 DB 시험에서 별도 검사한다.
+  if (paths.every(path => !existsSync(path))) {
+    assert.match(readFileSync(".dockerignore", "utf8"), /^\.env\.\*$/m);
+    t.skip("환경 예제가 제외된 ops 이미지: 예제 기본값은 소스 체크아웃 CI에서 검증");
+    return;
+  }
+  for (const path of paths) assert.match(readFileSync(path, "utf8"), /PRIVACY_EXTENDED_RETENTION_ENABLED=false/);
 });
 
 test("관리 도구의 오타·중복 적용 옵션은 거부하고 입력 식별값을 출력하지 않는다", () => {
