@@ -6,6 +6,8 @@
   "packageManager": "pnpm@11.2.2",
   "scripts": {
     "legal:privacy:maintain": "tsx scripts/maintain-privacy-data.ts",
+    "legal:retention:inspect": "tsx scripts/maintain-operational-retention.ts",
+    "legal:retention:hold": "tsx scripts/manage-retention-hold.ts",
     "legal:sensitive:maintain": "tsx scripts/maintain-sensitive-withdrawals.ts",
     "push:retention:purge": "tsx scripts/purge-push-retention.ts",
     "legal:rights:maintain": "tsx scripts/maintain-journal-rights.ts",
@@ -49,6 +51,8 @@
     "llm:users:refresh": "pnpm db:generate && tsx scripts/refresh-user-signal-profiles.ts",
     "location:compliance:purge": "pnpm db:generate && tsx scripts/purge-location-compliance.ts",
     "legal:terms:publish": "tsx scripts/publish-service-terms.ts",
+    "legal:terms:review": "tsx scripts/prepare-service-terms-review.ts",
+    "legal:inventory": "tsx scripts/check-processing-inventory.ts",
     "legal:location:withdrawals": "tsx scripts/purge-withdrawn-location-data.ts",
     "location:security:inspect": "pnpm db:generate && tsx scripts/inspect-location-security.ts",
     "location:access:record": "pnpm db:generate && tsx scripts/record-location-access-change.ts",

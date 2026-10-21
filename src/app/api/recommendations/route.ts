@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { writeDiagnosticLogSafely } from "@/server/admin/log";
 import { after } from "next/server";
 import { authenticateUser } from "@/server/auth/session";
 import {
@@ -127,7 +128,8 @@ export async function POST(request: Request) {
       !longDistanceUnavailable &&
       !complianceError
     ) {
-      console.error("추천 API 처리 중 오류가 발생했습니다.", error);
+      console.error("추천 API 처리 중 오류가 발생했습니다.");
+      await writeDiagnosticLogSafely({ code: "UNEXPECTED_FAILURE", component: "recommendation" });
     }
 
     return withCors(

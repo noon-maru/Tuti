@@ -30,7 +30,7 @@ test("운영 핵심 백업도 실제 검증한 동일 제외 정책만 사용하
 
 test("예약 실행은 SUDO_UID 없이도 실제 저장소 경로만 Git 신뢰 대상으로 사용한다", async () => {
   const root = process.cwd();
-  const env = { PATH: "/usr/bin:/bin", GIT_TEST_ASSUME_DIFFERENT_OWNER: "true" };
+  const env = { PATH: "/usr/bin:/bin", GIT_TEST_ASSUME_DIFFERENT_OWNER: "true", NODE_ENV: "test" as const };
   const rejected = spawnSync("git", ["-c", "safe.directory=/a/different/path", "ls-files", "--error-unmatch", "scripts/ops/core-backup-production-guard.sql"], { cwd: root, env, encoding: "utf8" });
   assert.notEqual(rejected.status, 0);
   assert.match(rejected.stderr, /dubious ownership/);
