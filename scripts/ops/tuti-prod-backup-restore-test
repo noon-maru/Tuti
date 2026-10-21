@@ -3,10 +3,11 @@ set -eu
 PATH="/usr/local/bin:/usr/bin:/bin:/usr/local/sbin:/usr/sbin:/sbin:$PATH"
 export PATH
 if [ "$(id -u)" != 0 ] || [ "$#" -lt 1 ] || [ "$#" -gt 2 ]; then
-  echo "사용법: sudo sh scripts/ops/tuti-prod-backup-restore-test YYYYMMDD-HHMMSS [--profile]" >&2; exit 1
+  echo "사용법: sudo sh scripts/ops/tuti-prod-backup-restore-test YYYYMMDD-HHMMSS [--profile|--core-test]" >&2; exit 1
 fi
 profile=false
-case "${2:-}" in "") ;; --profile) profile=true ;; *) exit 1 ;; esac
+core_test=false
+case "${2:-}" in "") ;; --profile) profile=true ;; --core-test) core_test=true ;; *) exit 1 ;; esac
 backup_id="$1"
 if ! printf '%s\n' "$backup_id" | LC_ALL=C grep -Eq '^[0-9]{8}-[0-9]{6}$'; then exit 1; fi
 project_dir="/var/services/homes/Tutiadmin/source/Tuti"
@@ -18,6 +19,14 @@ for source in scripts/ops/tuti-prod-backup-restore-test scripts/ops/isolated-res
   git -c safe.directory="$project_dir" ls-files --error-unmatch "$source" >/dev/null 2>&1
   git -c safe.directory="$project_dir" diff --quiet HEAD -- "$source"
 done
+if [ "$core_test" = true ]; then
+  for source in scripts/ops/core-backup-excluded-data-tables.txt scripts/ops/core-backup-snapshot.sql scripts/compare-core-restore.ts src/server/legal/coreRestoreComparison.ts; do
+    git -c safe.directory="$project_dir" ls-files --error-unmatch "$source" >/dev/null 2>&1
+    git -c safe.directory="$project_dir" diff --quiet HEAD -- "$source"
+  done
+  if [ "$(wc -l < scripts/ops/core-backup-excluded-data-tables.txt | tr -d ' ')" != 12 ] || \
+    LC_ALL=C grep -qvE '^[a-z_]+$' scripts/ops/core-backup-excluded-data-tables.txt; then exit 1; fi
+fi
 if [ ! -d "$backup_dir" ] || [ -L "$backup_dir" ] || [ -L "$backup_root" ]; then exit 1; fi
 # 유지보수와 겹치거나 복구 확인 대기 중이면 실행하지 않는다. 운영 서비스는 정지하지 않는다.
 exec 9>"$project_dir/.ops-state/maintenance.lock"
@@ -87,6 +96,23 @@ stage="sandbox-start"
 cleanup() {
   result="$?"
   trap - EXIT INT TERM
+  case "$stage:$result" in
+    core-*:0) ;;
+    core-*:*)
+      core_failure_reason=CORE_STAGE_FAILED
+      for private_log in "$scratch/core-source.log" "$scratch/core-dump.log" "$scratch/core-create.log" "$scratch/core-restore.log" "$scratch/core-restored.log"; do
+        if [ ! -f "$private_log" ]; then continue; fi
+        if LC_ALL=C grep -q 'CORE_POLICY_TABLE_MISSING' "$private_log"; then core_failure_reason=CORE_POLICY_TABLE_MISSING; break
+        elif LC_ALL=C grep -q 'CORE_DEPENDENCY_BLOCKED' "$private_log"; then core_failure_reason=CORE_DEPENDENCY_BLOCKED; break
+        elif LC_ALL=C grep -qi 'syntax error' "$private_log"; then core_failure_reason=CORE_SQL_SYNTAX_ERROR; break
+        elif LC_ALL=C grep -qi 'permission denied' "$private_log"; then core_failure_reason=CORE_PERMISSION_ERROR; break
+        elif LC_ALL=C grep -qi 'statement timeout' "$private_log"; then core_failure_reason=CORE_QUERY_TIMEOUT; break
+        elif LC_ALL=C grep -qi 'does not exist' "$private_log"; then core_failure_reason=CORE_DB_OBJECT_MISSING; break
+        fi
+      done
+      printf '{"stage":"%s","reason":"%s","privateDetailsSuppressed":true}\n' "$stage" "$core_failure_reason" >&2
+      ;;
+  esac
   cleanup_ok=true
   if [ -n "$disk_monitor_pid" ]; then kill "$disk_monitor_pid" 2>/dev/null || true; wait "$disk_monitor_pid" 2>/dev/null || true; fi
   for container in "$node_name" "$garage_name" "$pg_name"; do
@@ -115,8 +141,13 @@ case "$pg_uid:$pg_gid" in *[!0-9:]* | :*) exit 1 ;; esac
 install -d -m 0700 -o "$pg_uid" -g "$pg_gid" "$scratch/pglogs"
 db_scratch="$(mktemp -d "$disk_root/run.XXXXXXXX")"
 install -d -m 0700 -o "$pg_uid" -g "$pg_gid" "$db_scratch/data"
+set --
+if [ "$core_test" = true ]; then
+  set -- -v "$db_scratch:/sandbox-work" -v "$project_dir/scripts/ops/core-backup-excluded-data-tables.txt:/sandbox-policy/excluded.txt:ro"
+fi
 limits 1536m --detach --name "$pg_name" --label "tuti.restore-test=$test_id" --network none --user postgres --shm-size 256m \
   -v "$db_scratch/data:/var/lib/postgresql/data" \
+  "$@" \
   -v "$backup_dir/postgres.dump:/backup/postgres.dump:ro" \
   --tmpfs "/var/run/postgresql:rw,nosuid,nodev,size=16m,uid=$pg_uid,gid=$pg_gid,mode=0775" \
   --tmpfs /tmp:rw,nosuid,nodev,size=32m \
@@ -142,7 +173,9 @@ limits 1536m --detach --name "$pg_name" --label "tuti.restore-test=$test_id" --n
     progress_tick=$((progress_tick + 1))
     if [ -f "$scratch/restore-active" ] && [ "$progress_tick" -ge 15 ]; then
       progress_tick=0
-      if timeout 10 docker exec -i "$pg_name" psql --host /var/run/postgresql --port 5432 --no-psqlrc -q -U postgres -d restore_test -At -v ON_ERROR_STOP=1 \
+      monitor_db=restore_test
+      if [ -f "$scratch/core-active" ]; then monitor_db=core_restore_test; fi
+      if timeout 10 docker exec -i "$pg_name" psql --host /var/run/postgresql --port 5432 --no-psqlrc -q -U postgres -d "$monitor_db" -At -v ON_ERROR_STOP=1 \
         < "$project_dir/scripts/ops/isolated-restore-progress.sql" > "$scratch/progress.json" 2>/dev/null; then
         cat "$scratch/progress.json"
       fi
@@ -226,12 +259,68 @@ fi
 done
 rm "$scratch/restore-active"
 printf '{"stage":"isolated-postgres-restore","status":"completed","elapsedSeconds":%s}\n' "$(( $(date +%s) - restore_started_at ))"
+restore_db=restore_test
+if [ "$core_test" = true ]; then
+  core_started_at="$(date +%s)"
+  stage="core-source-snapshot"
+  printf '{"stage":"core-source-snapshot","status":"started"}\n'
+  if ! timeout 150 docker exec -i --user 0:0 "$pg_name" psql --host /var/run/postgresql --port 5432 --no-psqlrc -q -U postgres -d restore_test -At -v ON_ERROR_STOP=1 \
+    < scripts/ops/core-backup-snapshot.sql > "$scratch/core-source.json" 2> "$scratch/core-source.log"; then exit 1; fi
+  stage="core-dump-create"
+  core_dump_started_at="$(date +%s)"
+  printf '{"stage":"core-dump-create","status":"started","source":"isolated-full-snapshot"}\n'
+  if ! timeout 300 docker exec --user 0:0 "$pg_name" sh -c '
+    set -eu
+    set --
+    while IFS= read -r table; do set -- "$@" "--exclude-table-data=public.$table"; done < /sandbox-policy/excluded.txt
+    exec pg_dump --host /var/run/postgresql --port 5432 --username postgres --dbname restore_test \
+      --format=custom --compress=6 --no-owner --no-privileges --file=/sandbox-work/core.dump "$@"
+  ' > "$scratch/core-dump.log" 2>&1; then exit 1; fi
+  core_archive_bytes="$(stat -c %s "$db_scratch/core.dump")"
+  printf '{"stage":"core-dump-create","status":"completed","archiveBytes":%s,"elapsedSeconds":%s}\n' "$core_archive_bytes" "$(( $(date +%s) - core_dump_started_at ))"
+  stage="core-database-create"
+  if ! timeout 30 docker exec "$pg_name" createdb --host /var/run/postgresql --port 5432 --username postgres --template template0 core_restore_test \
+    > "$scratch/core-create.log" 2>&1; then exit 1; fi
+  core_restore_started_at="$(date +%s)"
+  core_deadline=$((core_restore_started_at + 600))
+  : > "$scratch/core-active"
+  : > "$scratch/restore-active"
+  for core_section in pre-data data post-data; do
+    stage="core-database-restore-$core_section"
+    core_remaining=$((core_deadline - $(date +%s)))
+    if [ "$core_remaining" -le 0 ]; then exit 1; fi
+    core_jobs=2
+    if [ "$core_section" = pre-data ]; then core_jobs=1; fi
+    core_section_started_at="$(date +%s)"
+    printf '{"stage":"core-database-restore","section":"%s","status":"started"}\n' "$core_section"
+    if ! timeout "$core_remaining" docker exec --user 0:0 "$pg_name" pg_restore --host /var/run/postgresql --port 5432 --username postgres --dbname core_restore_test \
+      --no-owner --no-privileges --exit-on-error --section "$core_section" --jobs "$core_jobs" /sandbox-work/core.dump \
+      > "$scratch/core-restore.log" 2>&1; then exit 1; fi
+    printf '{"stage":"core-database-restore","section":"%s","status":"completed","elapsedSeconds":%s}\n' "$core_section" "$(( $(date +%s) - core_section_started_at ))"
+  done
+  rm "$scratch/restore-active"
+  rm "$scratch/core-active"
+  printf '{"stage":"core-database-restore","status":"completed","elapsedSeconds":%s}\n' "$(( $(date +%s) - core_restore_started_at ))"
+  stage="core-restored-snapshot"
+  printf '{"stage":"core-restored-snapshot","status":"started"}\n'
+  if ! timeout 150 docker exec -i --user 0:0 "$pg_name" psql --host /var/run/postgresql --port 5432 --no-psqlrc -q -U postgres -d core_restore_test -At -v ON_ERROR_STOP=1 \
+    < scripts/ops/core-backup-snapshot.sql > "$scratch/core-restored.json" 2> "$scratch/core-restored.log"; then exit 1; fi
+  stage="core-row-fingerprint-comparison"
+  if ! limits 384m --rm --name "$node_name" --label "tuti.restore-test=$test_id" --network none \
+    --tmpfs /tmp:rw,noexec,nosuid,nodev,size=32m -e NODE_OPTIONS=--max-old-space-size=256 \
+    -v "$scratch:/evidence:ro" -v "$project_dir/scripts/ops/core-backup-excluded-data-tables.txt:/sandbox-policy/excluded.txt:ro" \
+    -v "$project_dir/scripts/compare-core-restore.ts:/app/scripts/compare-core-restore.ts:ro" \
+    -v "$project_dir/src/server/legal/coreRestoreComparison.ts:/app/src/server/legal/coreRestoreComparison.ts:ro" \
+    --entrypoint node tuti:ops --import tsx scripts/compare-core-restore.ts; then exit 1; fi
+  printf '{"stage":"core-database-round-trip","status":"completed","elapsedSeconds":%s,"archiveBytes":%s,"artifactPolicy":"remove-during-sandbox-cleanup"}\n' "$(( $(date +%s) - core_started_at ))" "$core_archive_bytes"
+  restore_db=core_restore_test
+fi
 stage="isolated-database-observations"
-if ! timeout 30 docker exec -i "$pg_name" psql --host /var/run/postgresql --port 5432 --no-psqlrc -U postgres -d restore_test -At -v ON_ERROR_STOP=1 \
+if ! timeout 30 docker exec -i "$pg_name" psql --host /var/run/postgresql --port 5432 --no-psqlrc -U postgres -d "$restore_db" -At -v ON_ERROR_STOP=1 \
   < scripts/ops/isolated-restore-observations.sql > "$scratch/references.json" 2> "$scratch/query.log"; then exit 1; fi
 stage="isolated-objects-and-content"
 if ! limits 384m --rm --name "$node_name" --label "tuti.restore-test=$test_id" --network "container:$garage_name" \
-  --tmpfs /tmp:rw,noexec,nosuid,nodev,size=32m -e NODE_OPTIONS=--max-old-space-size=256 -e TUTI_ISOLATED_RESTORE=true \
+  --tmpfs /tmp:rw,noexec,nosuid,nodev,size=32m -e NODE_OPTIONS=--max-old-space-size=256 -e TUTI_ISOLATED_RESTORE=true -e TUTI_CORE_RESTORE_TEST="$core_test" \
   -v "$backup_dir:/backup:ro" -v "$scratch:/evidence:ro" \
   -v "$project_dir/scripts/verify-isolated-production-restore.ts:/app/scripts/verify-isolated-production-restore.ts:ro" \
   -v "$project_dir/src/server/legal/isolatedRestoreVerification.ts:/app/src/server/legal/isolatedRestoreVerification.ts:ro" \

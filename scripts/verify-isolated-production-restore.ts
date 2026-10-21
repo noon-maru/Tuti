@@ -1,4 +1,5 @@
 import { readFile } from "node:fs/promises";
+import { createHash } from "node:crypto";
 import { S3Client, PutObjectCommand, GetObjectCommand, ListObjectsV2Command } from "@aws-sdk/client-s3";
 import sharp from "sharp";
 import { PDFDocument } from "pdf-lib";
@@ -27,6 +28,20 @@ async function main() {
       pdf: async bytes => (await PDFDocument.load(bytes)).getPageCount(),
     });
     console.log(JSON.stringify(result));
+    if (process.env.TUTI_CORE_RESTORE_TEST === "true") {
+      const pdf = await PDFDocument.create();
+      pdf.addPage([420, 595]); pdf.addPage([420, 595]);
+      const bytes = Buffer.from(await pdf.save());
+      const Key = "__isolated-restore-fixture__/synthetic-two-page.pdf";
+      await client.send(new PutObjectCommand({ Bucket, Key, Body: bytes, ContentType: "application/pdf" }));
+      const response = await client.send(new GetObjectCommand({ Bucket, Key }));
+      if (!response.Body) throw new Error("SYNTHETIC_PDF_BODY_MISSING");
+      const returned = Buffer.from(await response.Body.transformToByteArray());
+      const hash = (value: Buffer) => createHash("sha256").update(value).digest("hex");
+      if (hash(bytes) !== hash(returned) || (await PDFDocument.load(returned)).getPageCount() !== 2) throw new Error("SYNTHETIC_PDF_ROUND_TRIP_FAILED");
+      console.log(JSON.stringify({ scope: "synthetic-pdf-storage-round-trip", pagesVerified: 2, sha256Matched: true,
+        actualUserPdfVerified: false, databaseBookBindingTested: false, artifactPolicy: "removed-with-isolated-garage" }));
+    }
   } finally { client.destroy(); }
 }
 main().catch(() => { console.error('{"stage":"isolated-object-restore-and-content-check","status":"failed","privateDetailsSuppressed":true}'); process.exitCode = 1; });
