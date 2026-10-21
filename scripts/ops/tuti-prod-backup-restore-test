@@ -12,6 +12,7 @@ case "${2:-}" in "") ;; --profile) profile=true ;; --core-test) core_test=true ;
 backup_id="$1"
 if ! printf '%s\n' "$backup_id" | LC_ALL=C grep -Eq '^[0-9]{8}-[0-9]{6}$'; then exit 1; fi
 project_dir="/var/services/homes/Tutiadmin/source/Tuti"
+project_dir="$(CDPATH= cd -- "$project_dir" && pwd -P)"
 backup_root="/volume1/tuti/backups/full"
 if [ "$from_core" = true ]; then backup_root=/volume1/tuti/backups/core; fi
 disk_root="/volume1/tuti/restore-tests"

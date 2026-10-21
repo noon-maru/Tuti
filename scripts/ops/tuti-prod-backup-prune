@@ -1,6 +1,7 @@
 #!/bin/sh
 set -eu
 project_dir="/var/services/homes/Tutiadmin/source/Tuti"
+project_dir="$(CDPATH= cd -- "$project_dir" && pwd -P)"
 backup_root="${TUTI_FULL_BACKUP_ROOT:-/volume1/tuti/backups/full}"
 case "$#:$*" in 0:) ;; 1:--apply) ;; *) echo "사용법: tuti-prod-backup-prune [--apply]" >&2; exit 1 ;; esac
 case "$backup_root" in /volume1/tuti/backups/full | /volumeUSB*/*) ;; *) echo "허용되지 않은 백업 경로입니다." >&2; exit 1 ;; esac

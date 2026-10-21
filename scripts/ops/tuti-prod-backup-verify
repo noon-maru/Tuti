@@ -6,6 +6,7 @@ backup_scope=full
 if [ "${1:-}" = --core ]; then backup_scope=core; shift; fi
 if [ "$(id -u)" != 0 ] || [ "$#" -gt 1 ]; then echo "사용법: sudo sh scripts/ops/tuti-prod-backup-verify [YYYYMMDD-HHMMSS]" >&2; exit 1; fi
 project_dir="/var/services/homes/Tutiadmin/source/Tuti"
+project_dir="$(CDPATH= cd -- "$project_dir" && pwd -P)"
 backup_root="/volume1/tuti/backups/full"
 if [ "$backup_scope" = core ]; then backup_root=/volume1/tuti/backups/core; fi
 cd "$project_dir"
