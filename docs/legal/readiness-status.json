@@ -338,9 +338,31 @@
     "transferBasisApproved": false,
     "publicationApplied": false
   },
+  "externalNoticeReview": {
+    "reviewedAt": "2026-10-22",
+    "reference": "EXTERNAL-NOTICE-SOURCE-REVIEW-20261022",
+    "scope": "메일·Cloudflare·Google/Apple/Kakao 로그인·FCM/APNs의 현재 소스와 공개 공식 자료 대조. 계정 전용 계약·실기기·실제 처리 국가 전체의 검증 아님",
+    "servicesReviewed": ["daum-smtp", "cloudflare", "google-login", "apple-login", "kakao-login", "fcm", "apns"],
+    "sourceReviewCompleted": true,
+    "daumOfficialServiceEntity": "주식회사 다음",
+    "cloudflareSelfServeDpaScopeQualified": true,
+    "socialLoginDirectionsSeparated": true,
+    "googleKakaoProviderRevocationImplemented": false,
+    "appleProviderRevocationCodeReviewed": true,
+    "pushServerAndNativeSeparated": true,
+    "remaining": [
+      "Daum 스마트워크 계정 적용 위탁 조건과 발송자료 보관·재위탁/국외 처리 범위",
+      "Cloudflare 한국 이용자 자료의 온라인 약정 적용 범위·처리 국가/기간 및 이전 고지 근거",
+      "소셜 인증의 제공자별 국외 처리 안내와 Kakao 정보의 Cloudflare 경유/앱 콘솔 이전 설정 정합성",
+      "기존 푸시 검토의 국가 고지·APNs 기간·선택 동의와 앱 출시/실기기 검증. 추가 답신 대기는 일반약관 공고의 일률적 전제가 아님"
+    ],
+    "finalNoticeApproved": false,
+    "publicationApplied": false,
+    "runtimeFlagsChanged": false
+  },
   "checks": {
     "processingInventory": { "confirmed": false, "reference": null, "sourceAudit": { "reference": "PROCESSING-SOURCE-AUDIT-20261021", "path": "docs/legal/processing-inventory.json", "prismaModelsClassified": 49, "groups": 13, "unclassifiedModels": 0, "scope": "모델 분류·보관/파기 코드 경로 확인. 모든 필드/JSON 값·수집 근거·실기기·운영 DB 전수 확인은 아님" }, "pending": "기능별 처리 근거·필수/선택·거부 경로. 문의 3년/미완료 PNG 30일/전용 일반 오류 1년 및 세 범주 보전/90일 검토 알림은 로컬 구현·기본 비활성. 운영 적용·검증, 완료일 누락 자료·다른 범주 사건 및 기존 자료 적용 범위는 별도" },
-    "processorsAndTransfers": { "confirmed": false, "reference": null, "sourceAudit": { "reference": "PROCESSING-SOURCE-AUDIT-20261021", "externalFlowGroups": 8, "cloudflarePathObserved": true, "scope": "NAS 자체 저장·SMTP·지도·소셜 인증·푸시·프록시·집계 운영 알림·공개 장소 AI 경로를 구분. 계약·처리 국가·기간·동의 완료와 구분" }, "pending": "제공자별 실제 적용 계약·역할·국외 처리와 수탁 법인. Daum SMTP를 카카오 법인으로 자동 확정하지 않음" },
+    "processorsAndTransfers": { "confirmed": false, "reference": null, "sourceAudit": { "reference": "PROCESSING-SOURCE-AUDIT-20261021", "externalFlowGroups": 8, "cloudflarePathObserved": true, "scope": "NAS 자체 저장·SMTP·지도·소셜 인증·푸시·프록시·집계 운영 알림·공개 장소 AI 경로를 구분. 계약·처리 국가·기간·동의 완료와 구분" }, "noticeReviewReference": "EXTERNAL-NOTICE-SOURCE-REVIEW-20261022", "pending": "메일/Cloudflare/로그인/푸시의 코드·공식 자료 대조와 문안 보완 완료. 실제 계정 적용 범위·항목별 국가/기간·Kakao 콘솔 이전 설정·필요한 동의와 실기기 검증은 별도. Daum 현재 공식 서비스 법인은 주식회사 다음으로 기재하며 계정별 위탁 약정 승인과 구분" },
     "backupRetentionAndRestoreTest": { "confirmed": true, "reference": "BACKUP-RETENTION-RESTORE-20261021", "scope": "30일 정리 예약·전체/핵심 사본 무결성·격리 DB/객체 복원·시험 자원 정리 확인. 삭제 원장 재반영·키 재해 복구·운영 재개 시험과 실제 PDF는 별도 미검증" },
     "rightsRecipientAndForms": { "confirmed": false, "reference": null },
     "scheduledJobsAndAlerts": { "confirmed": true, "reference": "OPS-AUTOMATION-20261020" },
