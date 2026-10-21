@@ -16,7 +16,7 @@ export function auditProcessingInventory(inventory: ProcessingInventory, schema:
   });
   for (const flow of inventory.externalFlows) if (!flow.id || !flow.role || !flow.items || !flow.openReview || !flow.sources?.length) throw new Error("INVENTORY_EXTERNAL_FLOW_INVALID");
   const sources = [...new Set([...inventory.groups, ...inventory.externalFlows].flatMap(item => item.sources))];
-  if (sources.some(source => !/^[\w./-]+$/.test(source) || !/^(?:src\/|scripts\/|prisma\/|docker-compose[\w.-]*\.ya?ml$)/.test(source) || source.split("/").includes(".."))) throw new Error("INVENTORY_SOURCE_PATH_INVALID");
+  if (sources.some(source => !/^[\w./\[\]-]+$/.test(source) || !/^(?:src\/|scripts\/|prisma\/|docker-compose[\w.-]*\.ya?ml$)/.test(source) || source.split("/").includes(".."))) throw new Error("INVENTORY_SOURCE_PATH_INVALID");
   const unclassifiedModels = schemaModels.filter(model => !assigned.includes(model));
   const staleModels = assigned.filter(model => !schemaModels.includes(model));
   const duplicateModels = [...new Set(assigned.filter((model, index) => assigned.indexOf(model) !== index))];

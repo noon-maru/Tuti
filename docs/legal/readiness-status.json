@@ -317,6 +317,27 @@
     "finalDocumentApproved": false,
     "scope": "일반 이용약관 준비를 계속하며 추가 전문가 검토·Apple 답신 대기를 그 일률적 전제로 두지 않음. 미확인 적법성·최종 원문·푸시 이전 동의를 승인된 것으로 대체하지 않음"
   },
+  "cloudflareReview": {
+    "recordedAt": "2026-10-21",
+    "reference": "CLOUDFLARE-FREE-TUNNEL-OPERATOR-20261021",
+    "source": "운영자 답변: 무료 플랜·Tunnel 사용, 터널만 연결하고 나머지는 기본 설정",
+    "plan": "free",
+    "tunnelUsed": true,
+    "scope": "공개 웹/API와 NAS 사이의 통신 중계 구성 확인. Cloudflare 호스팅·DB 복제 또는 원문 전체 로그 저장으로 간주하지 않음",
+    "configurationEvidence": "operator_statement_not_dashboard_audit",
+    "defaultSettingsOperatorConfirmed": true,
+    "customCacheRulesConfigured": false,
+    "customWorkersRoutesConfigured": false,
+    "customLogExportConfigured": false,
+    "cacheRulesReviewed": true,
+    "workersRoutesReviewed": true,
+    "logExportReviewed": true,
+    "accountContractVerified": false,
+    "countriesVerified": false,
+    "retentionVerified": false,
+    "transferBasisApproved": false,
+    "publicationApplied": false
+  },
   "checks": {
     "processingInventory": { "confirmed": false, "reference": null, "sourceAudit": { "reference": "PROCESSING-SOURCE-AUDIT-20261021", "path": "docs/legal/processing-inventory.json", "prismaModelsClassified": 49, "groups": 13, "unclassifiedModels": 0, "scope": "모델 분류·보관/파기 코드 경로 확인. 모든 필드/JSON 값·수집 근거·실기기·운영 DB 전수 확인은 아님" }, "pending": "기능별 처리 근거·필수/선택·거부 경로. 문의 3년/미완료 PNG 30일/전용 일반 오류 1년 및 세 범주 보전/90일 검토 알림은 로컬 구현·기본 비활성. 운영 적용·검증, 완료일 누락 자료·다른 범주 사건 및 기존 자료 적용 범위는 별도" },
     "processorsAndTransfers": { "confirmed": false, "reference": null, "sourceAudit": { "reference": "PROCESSING-SOURCE-AUDIT-20261021", "externalFlowGroups": 8, "cloudflarePathObserved": true, "scope": "NAS 자체 저장·SMTP·지도·소셜 인증·푸시·프록시·집계 운영 알림·공개 장소 AI 경로를 구분. 계약·처리 국가·기간·동의 완료와 구분" }, "pending": "제공자별 실제 적용 계약·역할·국외 처리와 수탁 법인. Daum SMTP를 카카오 법인으로 자동 확정하지 않음" },

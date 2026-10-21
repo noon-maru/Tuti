@@ -105,6 +105,27 @@ SMTP 브랜드는 Daum 스마트워크이고 현재 코드의 서버는 smtp.dau
 이번 단계는 검토용 방침·처리 목록·검사 도구의 로컬 수정이며 운영 보유기간 연장·자료 삭제·
 외부 문의 발송·새 약관 공고·동의 강제·운영 배포는 수행하지 않는다.
 
+### Cloudflare 구성 확인 — 2026-10-21
+
+운영자가 **무료 플랜과 Cloudflare Tunnel 사용**을 확인했다
+(`CLOUDFLARE-FREE-TUNNEL-OPERATOR-20261021`). 공개 웹/API를 NAS로 연결하는 통신 중계로
+반영했으며, 소스 빌드·DB 전체 호스팅이나 원문 전체의 로그 저장으로 해석하지 않는다.
+방침 초안의 처리업체 표와 처리 목록에 경유 요청·응답 및 기술정보를 추가했다.
+무료 플랜이라는 사실만으로 국외 처리·로그·캐시가 없다고 쓰지 않는다.
+
+추가로 운영자는 **Tunnel만 연결하고 나머지는 기본 설정**이라고 확인했다.
+별도 캐시 규칙·Workers 경로·로그 내보내기는 설정하지 않은 것으로 기록한다.
+이는 운영자 진술 근거이며 계정 대시보드를 직접 감사한 결과는 아니다.
+기본 제공되는 캐시·보안/운영 로그까지 없다는 뜻으로 해석하지 않는다.
+비공개 기록 이미지·기록집 파일의 private,no-store 응답 코드는 확인했지만,
+전체 실응답·기본 처리의 실제 기간을 검증 완료한 것으로 표시하지 않는다.
+국가·기간·계정 적용 계약과 이전 근거도 별도이며, 공개 자료로 임의 숫자를 채우지 않는다.
+구성 확인만으로 `processorsAndTransfers.confirmed`나 공고 승인을 true로 바꾸지 않는다.
+
+공식 자료: [Tunnel 구조](https://developers.cloudflare.com/cloudflare-one/networks/connectors/cloudflare-tunnel/),
+[처리 역할](https://www.cloudflare.com/policies/privacy/),
+[기본 캐시 동작과 규칙에 의한 재정의](https://developers.cloudflare.com/cache/concepts/default-cache-behavior/).
+
 ### 보관기간 운영자 결정 — 2026-10-21
 
 운영자는 텍스트 자료의 저장장치 부담이 작다는 점을 고려해 아래 기준을 선택했다.

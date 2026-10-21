@@ -35,6 +35,24 @@ test("새 모델·누락·중복·폐기된 모델은 분류 완료로 처리하
   assert.equal(duplicate.sourceCoverageComplete, false);
 });
 
+test("무료 플랜·Tunnel 구성 확인을 계약·국가·기간·공고 승인과 분리한다", async () => {
+  const { inventory, schema } = await fixture();
+  assert.equal(auditProcessingInventory(inventory, schema).sourceCoverageComplete, true);
+  const cloudflare = inventory.externalFlows.find(flow => flow.id === "cloudflare")!;
+  assert.match(cloudflare.role, /무료 플랜·Cloudflare Tunnel/);
+  assert.match(cloudflare.openReview, /캐시 규칙\/Workers\/로그 내보내기/);
+  assert.ok(cloudflare.sources.some(source => source.includes("[entryId]")));
+  const readiness = JSON.parse(await readFile("docs/legal/readiness-status.json", "utf8"));
+  assert.equal(readiness.cloudflareReview.plan, "free");
+  assert.equal(readiness.cloudflareReview.tunnelUsed, true);
+  assert.equal(readiness.cloudflareReview.configurationEvidence, "operator_statement_not_dashboard_audit");
+  assert.equal(readiness.cloudflareReview.defaultSettingsOperatorConfirmed, true);
+  for (const key of ["cacheRulesReviewed", "workersRoutesReviewed", "logExportReviewed"]) assert.equal(readiness.cloudflareReview[key], true);
+  for (const key of ["customCacheRulesConfigured", "customWorkersRoutesConfigured", "customLogExportConfigured", "accountContractVerified", "countriesVerified", "retentionVerified", "transferBasisApproved", "publicationApplied"]) assert.equal(readiness.cloudflareReview[key], false);
+  assert.equal(readiness.checks.processorsAndTransfers.confirmed, false);
+  assert.equal(readiness.approvedDocumentHash, null);
+});
+
 test("범위나 검토 과제를 지워 승인을 가장하거나 임의 파일을 읽도록 만들 수 없다", async () => {
   const { inventory, schema } = await fixture();
   assert.throws(() => auditProcessingInventory({ ...inventory, legalApproval: true } as unknown as ProcessingInventory, schema));
