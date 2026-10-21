@@ -7,6 +7,14 @@ import { spawnSync } from "node:child_process";
 import test from "node:test";
 import { BackupVerificationError, verifyBackupFiles } from "../src/server/legal/backupVerification";
 
+test("CPU quota 미지원 안내는 숨기되 지원 여부에 따른 제한과 메모리 제한은 유지한다", async () => {
+  const source = await readFile("scripts/ops/tuti-prod-backup-verify", "utf8");
+  assert.doesNotMatch(source, /NAS CPU quota 미지원/);
+  assert.match(source, /if \[ "\$cpu_quota" = true \]; then set -- --cpus 0\.5 "\$@"; fi/);
+  assert.match(source, /--memory "\$run_memory"/);
+  assert.equal(spawnSync("sh", ["-n", "scripts/ops/tuti-prod-backup-verify"]).status, 0);
+});
+
 async function fixture(t: test.TestContext) {
   const root = await mkdtemp(join(tmpdir(), "tuti-backup-verify-"));
   t.after(() => rm(root, { recursive: true, force: true }));
