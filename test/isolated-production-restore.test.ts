@@ -55,7 +55,13 @@ test("실제 백업 시험은 운영 Compose·자격증명·포트 공개 없이
   assert.equal(spawnSync("sh", ["-n", path]).status, 0);
   assert.doesNotMatch(source, /docker compose|--env-file|--publish|--privileged|--network host|timeout 240 limits/);
   for (const value of ["--network none", '--network "container:$garage_name"', '"$db_scratch/data:/var/lib/postgresql/data"', "--tmpfs /var/lib/garage:", '--label "tuti.restore-test=$test_id"', '"$backup_dir:/backup:ro"', "--log-driver none", "--cap-drop ALL", "--memory", '"$owner" != "$test_id"', "--no-owner --no-privileges --exit-on-error"]) assert.ok(source.includes(value), value);
-  assert.ok(source.indexOf('sh scripts/ops/tuti-prod-backup-verify "$backup_id"') < source.indexOf('limits 768m --detach'));
+  assert.ok(source.indexOf('sh scripts/ops/tuti-prod-backup-verify "$backup_id"') < source.indexOf('limits 1536m --detach'));
+  assert.match(source, /for restore_section in pre-data data post-data/);
+  assert.match(source, /--section "\$restore_section" --jobs "\$jobs" \/backup\/postgres.dump/);
+  assert.match(source, /restore_started_at \+ 1800/);
+  assert.match(source, /max_wal_size=1GB/);
+  assert.match(source, /isolated-restore-progress\.sql/);
+  assert.doesNotMatch(source, /--exclude-table|--table |--schema /);
   assert.match(source, /--shm-size 256m/);
   assert.match(source, /-lt 4194304/);
   assert.match(source, /-lt 67108864/);
@@ -78,6 +84,7 @@ test("래퍼 전체 대역 실행은 성공·복원 실패 모두 자기 시험 
   await writeFile(join(root, "backups/20261020-233213/postgres.dump"), "synthetic-dump");
   await writeFile(join(root, "scripts/ops/tuti-prod-backup-verify"), "#!/bin/sh\nexit 0\n");
   await writeFile(join(root, "scripts/ops/isolated-restore-observations.sql"), "SELECT 1;\n");
+  await writeFile(join(root, "scripts/ops/isolated-restore-progress.sql"), "SELECT 1;\n");
   await writeFile(join(root, "bin/git"), "#!/bin/sh\nexit 0\n", { mode: 0o700 });
   await writeFile(join(root, "bin/docker"), `#!${process.execPath}
 import fs from 'node:fs';
@@ -98,7 +105,7 @@ if (a[0] === 'run') {
   process.exit(0);
 }
 if (a[0] === 'exec') {
-  if (a.includes('pg_restore') && process.env.FAIL_RESTORE === 'true') {
+  if (a.includes('pg_restore') && process.env.FAIL_RESTORE === 'true' && a[a.indexOf('--section') + 1] === process.env.FAIL_SECTION) {
     if (process.env.FAIL_MODE === 'space') {
       const logDir = fs.readFileSync(path.join(root, 'pglogpath'), 'utf8');
       fs.writeFileSync(path.join(logDir, 'postgres.log'), 'PANIC: private-path No space left on device');
@@ -137,10 +144,11 @@ process.exit(1);
     .replace(/available_disk_kb="\$\(df[^\n]+/, 'available_disk_kb="83886080"');
   const wrapper = join(root, "wrapper.sh");
   await writeFile(wrapper, source);
-  const run = (fail: boolean, mode = "exists", profile = false) => spawnSync("sh", [wrapper, "20261020-233213", ...(profile ? ["--profile"] : [])], { env: { ...process.env, MOCK_RESTORE_ROOT: root, FAIL_RESTORE: String(fail), FAIL_MODE: mode }, encoding: "utf8", timeout: 15000 });
+  const run = (fail: boolean, mode = "exists", profile = false, section = "pre-data") => spawnSync("sh", [wrapper, "20261020-233213", ...(profile ? ["--profile"] : [])], { env: { ...process.env, MOCK_RESTORE_ROOT: root, FAIL_RESTORE: String(fail), FAIL_MODE: mode, FAIL_SECTION: section }, encoding: "utf8", timeout: 15000 });
   const success = run(false);
   assert.equal(success.status, 0, success.stdout + success.stderr);
   assert.match(success.stdout, /sandboxResourcesRemoved.*true/);
+  for (const section of ["pre-data", "data", "post-data"]) assert.ok(success.stdout.includes(`"section":"${section}","status":"completed"`));
   const failure = run(true);
   assert.equal(failure.status, 1, failure.stdout + failure.stderr);
   assert.match(failure.stderr, /isolated-postgres-restore/);
@@ -156,6 +164,14 @@ process.exit(1);
   assert.equal(oom.status, 1, oom.stdout + oom.stderr);
   assert.match(oom.stderr, /SANDBOX_MEMORY_EXHAUSTED/);
   assert.match(oom.stderr, /"oomKilled":true/);
+  for (const section of ["data", "post-data"]) {
+    const partial = run(true, "exists", false, section);
+    assert.equal(partial.status, 1, partial.stdout + partial.stderr);
+    assert.match(partial.stdout, /"section":"pre-data","status":"completed"/);
+    assert.ok(partial.stderr.includes(`"section":"${section}"`));
+    assert.doesNotMatch(partial.stdout, /testObjectsVerified/);
+    assert.match(partial.stdout, /sandboxResourcesRemoved.*true/);
+  }
   assert.deepEqual(await readdir(join(root, "restore-tests")), []);
   const beforeProfile = (await readFile(join(root, "calls"), "utf8")).trim().split("\n").length;
   const profile = run(false, "exists", true);
@@ -166,4 +182,7 @@ process.exit(1);
   assert.ok(calls.slice(beforeProfile).every(args => args[0] !== "exec" && !args.includes("--detach")));
   assert.ok(calls.some(args => args.includes("--network") && args.includes("none")));
   assert.ok(calls.filter(args => args[0] === "rm").every(args => args.at(-1)?.startsWith("tuti-restore-test-")));
+  const restoredSections = calls.filter(args => args[0] === "exec" && args.includes("pg_restore") && args.includes("--section"));
+  assert.ok(restoredSections.some(args => args.includes("data") && args[args.indexOf("--jobs") + 1] === "2"));
+  assert.ok(restoredSections.every(args => !args.includes("-i") && args.includes("/backup/postgres.dump")));
 });
