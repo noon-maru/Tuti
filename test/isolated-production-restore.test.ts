@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
-import { readFile, mkdtemp, mkdir, writeFile, rm } from "node:fs/promises";
+import { readFile, mkdtemp, mkdir, writeFile, rm, readdir } from "node:fs/promises";
 import { join } from "node:path";
 import { spawnSync } from "node:child_process";
 import test from "node:test";
@@ -49,16 +49,19 @@ test("손상·누락·잘못된 DB·쪽 수·메모리 한도 초과를 성공 �
   await assert.rejects(verifyIsolatedRestore(decoderFailure.manifest, decoderFailure.refs, decoderFailure.io), /DECODE_FAILED/);
 });
 
-test("실제 백업 시험은 운영 Compose·자격증명·포트 공개 없이 RAM 자원만 쓴다", async () => {
+test("실제 백업 시험은 운영 Compose·자격증명·포트 공개 없이 전용 자원만 쓴다", async () => {
   const path = "scripts/ops/tuti-prod-backup-restore-test";
   const source = await readFile(path, "utf8");
   assert.equal(spawnSync("sh", ["-n", path]).status, 0);
   assert.doesNotMatch(source, /docker compose|--env-file|--publish|--privileged|--network host|timeout 240 limits/);
-  for (const value of ["--network none", '--network "container:$garage_name"', '--tmpfs "/var/lib/postgresql/data:', "--tmpfs /var/lib/garage:", '--label "tuti.restore-test=$test_id"', '"$backup_dir:/backup:ro"', "--log-driver none", "--cap-drop ALL", "--memory", '"$owner" != "$test_id"', "--no-owner --no-privileges --exit-on-error"]) assert.ok(source.includes(value), value);
-  assert.ok(source.indexOf('sh scripts/ops/tuti-prod-backup-verify "$backup_id"') < source.indexOf('limits 3g --detach'));
+  for (const value of ["--network none", '--network "container:$garage_name"', '"$db_scratch/data:/var/lib/postgresql/data"', "--tmpfs /var/lib/garage:", '--label "tuti.restore-test=$test_id"', '"$backup_dir:/backup:ro"', "--log-driver none", "--cap-drop ALL", "--memory", '"$owner" != "$test_id"', "--no-owner --no-privileges --exit-on-error"]) assert.ok(source.includes(value), value);
+  assert.ok(source.indexOf('sh scripts/ops/tuti-prod-backup-verify "$backup_id"') < source.indexOf('limits 768m --detach'));
   assert.match(source, /--shm-size 256m/);
-  assert.match(source, /size=2g/);
-  assert.match(source, /-lt 6291456/);
+  assert.match(source, /-lt 4194304/);
+  assert.match(source, /-lt 67108864/);
+  assert.match(source, /-gt 33554432/);
+  assert.match(source, /disk-limit/);
+  assert.match(source, /kill "\$disk_monitor_pid"/);
   assert.match(source, /isolated-restore\.lock/);
   assert.match(source, /MemAvailable/);
   assert.match(source, /CPUCfsQuota/);
@@ -125,9 +128,12 @@ process.exit(1);
     .replace('"$(id -u)" != 0', '"0" != 0')
     .replace('project_dir="/var/services/homes/Tutiadmin/source/Tuti"', `project_dir=${JSON.stringify(root)}`)
     .replace('backup_root="/volume1/tuti/backups/full"', `backup_root=${JSON.stringify(join(root, "backups"))}`)
+    .replace('disk_root="/volume1/tuti/restore-tests"', `disk_root=${JSON.stringify(join(root, "restore-tests"))}`)
+    .replace('"0:700"', JSON.stringify(`${process.getuid?.() ?? 0}:700`))
     .replace('PATH="/usr/local/bin:', `PATH="${join(root, "bin")}:/usr/local/bin:`)
     .replaceAll('git -c safe.directory=', `${join(root, "bin/git")} -c safe.directory=`)
-    .replace(/available_kb="\$\(awk[^\n]+/, 'available_kb="8388608"');
+    .replace(/available_kb="\$\(awk[^\n]+/, 'available_kb="8388608"')
+    .replace(/available_disk_kb="\$\(df[^\n]+/, 'available_disk_kb="83886080"');
   const wrapper = join(root, "wrapper.sh");
   await writeFile(wrapper, source);
   const run = (fail: boolean, mode = "exists") => spawnSync("sh", [wrapper, "20261020-233213"], { env: { ...process.env, MOCK_RESTORE_ROOT: root, FAIL_RESTORE: String(fail), FAIL_MODE: mode }, encoding: "utf8", timeout: 15000 });
@@ -149,6 +155,7 @@ process.exit(1);
   assert.equal(oom.status, 1, oom.stdout + oom.stderr);
   assert.match(oom.stderr, /SANDBOX_MEMORY_EXHAUSTED/);
   assert.match(oom.stderr, /"oomKilled":true/);
+  assert.deepEqual(await readdir(join(root, "restore-tests")), []);
   const calls = (await readFile(join(root, "calls"), "utf8")).trim().split("\n").map(line => JSON.parse(line) as string[]);
   assert.ok(calls.some(args => args.includes("--network") && args.includes("none")));
   assert.ok(calls.filter(args => args[0] === "rm").every(args => args.at(-1)?.startsWith("tuti-restore-test-")));
