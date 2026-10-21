@@ -6,6 +6,7 @@ backup_scope=full
 case "$#:$*" in 0:) ;; 1:--core) backup_scope=core ;; *) echo "사용법: tuti-prod-backup [--core]" >&2; exit 1 ;; esac
 
 project_dir="/var/services/homes/Tutiadmin/source/Tuti"
+project_dir="$(CDPATH= cd -- "$project_dir" && pwd -P)"
 maintenance_dir="$project_dir/.ops-state/maintenance"
 maintenance_marker="$maintenance_dir/$$"
 parent_maintenance_marker="$maintenance_dir/$PPID"
@@ -137,7 +138,7 @@ find prisma/migrations -mindepth 1 -maxdepth 1 -type d -printf '%f\n' 2>/dev/nul
 cat > "$temporary_dir/manifest.txt" <<EOF
 backup_version=1
 created_at=$(date -Iseconds)
-git_revision=$(git rev-parse HEAD 2>/dev/null || printf unknown)
+git_revision=$(git -c safe.directory="$project_dir" rev-parse HEAD 2>/dev/null || printf unknown)
 database=production-$backup_scope-custom-dump
 backup_scope=$backup_scope
 object_storage=logical-s3-object-copy

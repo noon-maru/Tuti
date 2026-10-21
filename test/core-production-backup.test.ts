@@ -24,6 +24,21 @@ test("운영 핵심 백업도 실제 검증한 동일 제외 정책만 사용하
   }
 });
 
+test("예약 실행은 SUDO_UID 없이도 실제 저장소 경로만 Git 신뢰 대상으로 사용한다", async () => {
+  const root = process.cwd();
+  const env = { PATH: "/usr/bin:/bin", GIT_TEST_ASSUME_DIFFERENT_OWNER: "true" };
+  const rejected = spawnSync("git", ["-c", "safe.directory=/a/different/path", "ls-files", "--error-unmatch", "scripts/ops/core-backup-production-guard.sql"], { cwd: root, env, encoding: "utf8" });
+  assert.notEqual(rejected.status, 0);
+  assert.match(rejected.stderr, /dubious ownership/);
+  const accepted = spawnSync("sh", ["-c", 'canonical="$(pwd -P)"; git -c safe.directory="$canonical" ls-files --error-unmatch scripts/ops/core-backup-production-guard.sql'], { cwd: root, env, encoding: "utf8" });
+  assert.equal(accepted.status, 0, accepted.stderr);
+  for (const name of ["tuti-prod-backup", "tuti-prod-backup-prune", "tuti-prod-backup-verify", "tuti-prod-backup-restore-test", "install-core-backup"]) {
+    const source = await readFile(`scripts/ops/${name}`, "utf8");
+    assert.ok(source.indexOf('pwd -P') < source.indexOf('git -c safe.directory='), name);
+    assert.doesNotMatch(source, /safe.directory=\*/);
+  }
+});
+
 test("가짜 Docker로 전체·핵심 백업 경로·덤프 옵션·객체 동시점·실패 후 재시작을 검증한다", async t => {
   const base = await mkdtemp(join(process.cwd(), ".core-production-test-"));
   t.after(() => rm(base, { recursive: true, force: true }));

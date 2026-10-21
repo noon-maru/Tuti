@@ -4,6 +4,7 @@ PATH="/usr/local/bin:/usr/bin:/bin:/usr/local/sbin:/usr/sbin:/sbin:$PATH"
 export PATH
 case "$#:$*" in 0:) apply=false ;; 1:--apply) apply=true ;; *) echo "사용법: sudo sh scripts/ops/install-core-backup [--apply]" >&2; exit 1 ;; esac
 project_dir=/var/services/homes/Tutiadmin/source/Tuti
+project_dir="$(CDPATH= cd -- "$project_dir" && pwd -P)"
 cd "$project_dir"
 sources="scripts/ops/install-core-backup scripts/ops/tuti-prod-backup scripts/ops/tuti-prod-backup-prune scripts/ops/tuti-prod-restore scripts/ops/tuti-prod-backup-verify scripts/verify-production-backup.ts src/server/legal/backupVerification.ts scripts/ops/core-backup-production-guard.sql scripts/ops/core-backup-excluded-data-tables.txt scripts/prune-production-backups.ts src/server/legal/backupRetention.ts scripts/ops/systemd/tuti-core-backup.service scripts/ops/systemd/tuti-core-backup.timer"
 for source in $sources; do
