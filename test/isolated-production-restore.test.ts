@@ -59,6 +59,8 @@ test("실제 백업 시험은 운영 Compose·자격증명·포트 공개 없이
   assert.match(source, /MemAvailable/);
   assert.match(source, /CPUCfsQuota/);
   assert.match(source, /sandboxResourcesRemoved/);
+  assert.match(source, /cat \/proc\/1\/comm/);
+  assert.match(source, /createdb --username postgres --template template0 restore_test/);
 });
 
 test("래퍼 전체 대역 실행은 성공·복원 실패 모두 자기 시험 컨테이너만 정리한다", async t => {
@@ -86,7 +88,7 @@ if (a[0] === 'run') {
   process.exit(0);
 }
 if (a[0] === 'exec') {
-  if (a.includes('pg_restore') && process.env.FAIL_RESTORE === 'true') process.exit(1);
+  if (a.includes('pg_restore') && process.env.FAIL_RESTORE === 'true') { console.error('ERROR: private-row already exists'); process.exit(1); }
   if (a.includes('psql')) console.log('{}');
   process.exit(0);
 }
@@ -119,6 +121,8 @@ process.exit(1);
   const failure = run(true);
   assert.equal(failure.status, 1, failure.stdout + failure.stderr);
   assert.match(failure.stderr, /isolated-postgres-restore/);
+  assert.match(failure.stderr, /DATABASE_OBJECT_ALREADY_EXISTS/);
+  assert.doesNotMatch(failure.stderr + failure.stdout, /private-row/);
   assert.match(failure.stdout, /sandboxResourcesRemoved.*true/);
   const calls = (await readFile(join(root, "calls"), "utf8")).trim().split("\n").map(line => JSON.parse(line) as string[]);
   assert.ok(calls.some(args => args.includes("--network") && args.includes("none")));
