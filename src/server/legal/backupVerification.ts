@@ -3,7 +3,7 @@ import { lstat, open, readdir } from "node:fs/promises";
 import { createHash } from "node:crypto";
 import { join } from "node:path";
 
-const allowedFile = (name: string) => /^(manifest\.txt|migrations\.txt|postgres\.dump|objects\.manifest\.json|objects\/[A-Za-z0-9_-]+\.object)$/.test(name);
+const allowedFile = (name: string) => /^(manifest\.txt|migrations\.txt|postgres\.dump|objects\.manifest\.json|excluded-data-tables\.txt|objects\/[A-Za-z0-9_-]+\.object)$/.test(name);
 const failure = () => new Error("백업 파일·목록·무결성 확인 실패");
 
 export class BackupVerificationError extends Error {
@@ -72,6 +72,11 @@ export async function verifyBackupFiles(root: string) {
   }));
   if (metadata.get("backup_version") !== "1" || metadata.get("restore_scope") !== "database-and-journal-objects" ||
       metadata.get("secrets_included") !== "false" || !Number.isFinite(Date.parse(metadata.get("created_at") ?? ""))) throw failure();
+  if (metadata.get("database") === "production-core-custom-dump") {
+    if (metadata.get("backup_scope") !== "core" || !seen.has("excluded-data-tables.txt")) throw failure();
+    const excluded = (await boundedText("excluded-data-tables.txt", 16384)).trim().split("\n");
+    if (excluded.length !== 12 || new Set(excluded).size !== 12 || excluded.some(table => !/^[a-z_]+$/.test(table))) throw failure();
+  } else if (seen.has("excluded-data-tables.txt") || metadata.get("backup_scope") === "core") throw failure();
   stage = "object-manifest";
   const manifest = JSON.parse(await boundedText("objects.manifest.json", 16 * 1024 * 1024));
   if (manifest.version !== 1 || !Array.isArray(manifest.objects) || manifest.count !== manifest.objects.length) throw failure();

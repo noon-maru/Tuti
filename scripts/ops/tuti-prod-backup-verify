@@ -2,9 +2,12 @@
 set -eu
 PATH="/usr/local/bin:/usr/bin:/bin:/usr/local/sbin:/usr/sbin:/sbin:$PATH"
 export PATH
+backup_scope=full
+if [ "${1:-}" = --core ]; then backup_scope=core; shift; fi
 if [ "$(id -u)" != 0 ] || [ "$#" -gt 1 ]; then echo "사용법: sudo sh scripts/ops/tuti-prod-backup-verify [YYYYMMDD-HHMMSS]" >&2; exit 1; fi
 project_dir="/var/services/homes/Tutiadmin/source/Tuti"
 backup_root="/volume1/tuti/backups/full"
+if [ "$backup_scope" = core ]; then backup_root=/volume1/tuti/backups/core; fi
 cd "$project_dir"
 for source in scripts/ops/tuti-prod-backup-verify scripts/verify-production-backup.ts src/server/legal/backupVerification.ts; do
   git -c safe.directory="$project_dir" ls-files --error-unmatch "$source" >/dev/null 2>&1
@@ -18,6 +21,7 @@ if [ -z "$backup_id" ]; then backup_id="$(find "$backup_root" -mindepth 1 -maxde
 if ! printf '%s\n' "$backup_id" | LC_ALL=C grep -Eq '^[0-9]{8}-[0-9]{6}$'; then echo "검증할 백업을 확인해주세요." >&2; exit 1; fi
 target="$backup_root/$backup_id"
 if [ ! -d "$target" ] || [ -L "$target" ] || [ -L "$backup_root" ]; then echo "정상 백업 디렉터리가 필요합니다." >&2; exit 1; fi
+if [ "$(sed -n 's/^database=//p' "$target/manifest.txt")" != "production-$backup_scope-custom-dump" ]; then echo "백업 종류가 일치하지 않습니다." >&2; exit 1; fi
 printf '{"backupId":"%s","mode":"read-only-verification"}\n' "$backup_id"
 docker image inspect tuti:ops >/dev/null
 docker image inspect postgis/postgis:17-3.5 >/dev/null

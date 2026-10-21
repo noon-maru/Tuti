@@ -3,15 +3,17 @@ set -eu
 PATH="/usr/local/bin:/usr/bin:/bin:/usr/local/sbin:/usr/sbin:/sbin:$PATH"
 export PATH
 if [ "$(id -u)" != 0 ] || [ "$#" -lt 1 ] || [ "$#" -gt 2 ]; then
-  echo "사용법: sudo sh scripts/ops/tuti-prod-backup-restore-test YYYYMMDD-HHMMSS [--profile|--core-test]" >&2; exit 1
+  echo "사용법: sudo sh scripts/ops/tuti-prod-backup-restore-test YYYYMMDD-HHMMSS [--profile|--core-test|--from-core]" >&2; exit 1
 fi
 profile=false
 core_test=false
-case "${2:-}" in "") ;; --profile) profile=true ;; --core-test) core_test=true ;; *) exit 1 ;; esac
+from_core=false
+case "${2:-}" in "") ;; --profile) profile=true ;; --core-test) core_test=true ;; --from-core) from_core=true ;; *) exit 1 ;; esac
 backup_id="$1"
 if ! printf '%s\n' "$backup_id" | LC_ALL=C grep -Eq '^[0-9]{8}-[0-9]{6}$'; then exit 1; fi
 project_dir="/var/services/homes/Tutiadmin/source/Tuti"
 backup_root="/volume1/tuti/backups/full"
+if [ "$from_core" = true ]; then backup_root=/volume1/tuti/backups/core; fi
 disk_root="/volume1/tuti/restore-tests"
 backup_dir="$backup_root/$backup_id"
 cd "$project_dir"
@@ -83,7 +85,11 @@ if [ "$profile" = true ]; then
   exit 0
 fi
 # 원본 파일 검증이 실패하면 사본을 복원하지 않는다.
-sh scripts/ops/tuti-prod-backup-verify "$backup_id"
+if [ "$from_core" = true ]; then
+  sh scripts/ops/tuti-prod-backup-verify --core "$backup_id"
+else
+  sh scripts/ops/tuti-prod-backup-verify "$backup_id"
+fi
 umask 077
 scratch="$(mktemp -d /dev/shm/tuti-restore-test.XXXXXXXX)"
 db_scratch=""

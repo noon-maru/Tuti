@@ -30,3 +30,23 @@ test("임의 경로·심볼릭 링크·변경된 대상은 재귀 파기 대상�
   await assert.rejects(applyBackupRetention(root, { ...plan, candidates: [{ id: "../outside", createdAt: "2026-09-01T00:00:00Z" }] }));
   assert.ok(await stat(outside));
 });
+
+test("전체·핵심 종류를 구분하고 계획 뒤 종류가 바뀐 사본도 삭제하지 않는다", async t => {
+  const root = await mkdtemp(join(tmpdir(), "tuti-backup-scope-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const id = "20260901-000000";
+  await mkdir(join(root, id));
+  const metadata = "backup_version=1\nrestore_scope=database-and-journal-objects\ncreated_at=2026-09-01T00:00:00Z\ndatabase=production-core-custom-dump\nbackup_scope=core\n";
+  await writeFile(join(root, id, "manifest.txt"), metadata);
+  const now = new Date("2026-10-21T00:00:00Z");
+  const full = await planBackupRetention(root, 30, now, "full");
+  assert.equal(full.skipped, 1);
+  assert.equal(full.candidates.length, 0);
+  const core = await planBackupRetention(root, 30, now, "core");
+  assert.equal(core.candidates.length, 1);
+  await writeFile(join(root, id, "manifest.txt"), metadata.replace("production-core-custom-dump", "production-full-custom-dump"));
+  await assert.rejects(applyBackupRetention(root, core));
+  assert.ok(await stat(join(root, id)));
+  await writeFile(join(root, id, "manifest.txt"), metadata);
+  assert.equal(await applyBackupRetention(root, core), 1);
+});

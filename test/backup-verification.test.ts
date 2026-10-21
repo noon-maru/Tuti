@@ -123,3 +123,16 @@ test("필수 파일 누락은 고정된 표준 파일명만 진단에 포함한�
     return true;
   });
 });
+
+test("핵심 사본은 해시로 보호된 제외 목록과 종류 표식이 필요하고 전체 사본으로 오인하지 않는다", async t => {
+  const f = await fixture(t);
+  f.files["manifest.txt"] += "database=production-core-custom-dump\nbackup_scope=core\n";
+  await f.save();
+  await assert.rejects(verifyBackupFiles(f.root));
+  f.files["excluded-data-tables.txt"] = await readFile("scripts/ops/core-backup-excluded-data-tables.txt", "utf8");
+  await f.save();
+  assert.equal((await verifyBackupFiles(f.root)).filesVerified, 6);
+  f.files["manifest.txt"] = String(f.files["manifest.txt"]).replace("production-core-custom-dump", "production-full-custom-dump").replace("backup_scope=core", "backup_scope=full");
+  await f.save();
+  await assert.rejects(verifyBackupFiles(f.root));
+});

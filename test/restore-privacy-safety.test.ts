@@ -7,7 +7,7 @@ import test from "node:test";
 
 const backupId = "20261019-120000";
 
-function fixture(t: test.TestContext) {
+function fixture(t: test.TestContext, scope: "full" | "core" = "full") {
   // 일부 NAS의 /tmp는 noexec다. 실행 대역은 저장소 안의 고유 임시 폴더에 둔다.
   const root = mkdtempSync(join(process.cwd(), ".restore-privacy-test-"));
   t.after(() => rmSync(root, { recursive: true, force: true }));
@@ -23,7 +23,7 @@ function fixture(t: test.TestContext) {
   mkdirSync(backup, { recursive: true });
   mkdirSync(bin);
   writeFileSync(join(project, ".ops-state/deploy/releases.env"), "current_image=tuti:prod-current\ncurrent_release=current\nprevious_image=tuti:prod-previous\nprevious_release=previous\n");
-  const files = { "postgres.dump": "test dump", "objects.manifest.json": "{}", "manifest.txt": "created_at=2026-10-19T12:00:00+09:00\n" };
+  const files = { "postgres.dump": "test dump", "objects.manifest.json": "{}", "manifest.txt": `created_at=2026-10-19T12:00:00+09:00\ndatabase=production-${scope}-custom-dump\nbackup_scope=${scope}\n` };
   for (const [name, contents] of Object.entries(files)) writeFileSync(join(backup, name), contents);
   writeFileSync(join(backup, "checksums.sha256"), Object.entries(files).map(([name, contents]) => `${createHash("sha256").update(contents).digest("hex")}  ${name}`).join("\n") + "\n");
   const scripts = new Map<string, string>();
@@ -31,7 +31,8 @@ function fixture(t: test.TestContext) {
     const source = readFileSync(new URL(`../scripts/ops/${name}`, import.meta.url), "utf8")
       .replace('project_dir="/var/services/homes/Tutiadmin/source/Tuti"', `project_dir=${JSON.stringify(project)}`)
       .replace('PATH="/usr/local/bin:/usr/bin:/bin:/usr/local/sbin:/usr/sbin:/sbin:$PATH"', 'PATH="$PATH"')
-      .replace("/volume1/tuti/backups/full | /volumeUSB*/*", `${backups} | /volumeUSB*/*`);
+      .replaceAll("/volume1/tuti/backups/full", backups)
+      .replaceAll("/volume1/tuti/backups/core", backups);
     const target = join(root, name);
     writeFileSync(target, source);
     scripts.set(name, target);
@@ -154,4 +155,23 @@ test("복원 운영 스크립트의 셸 문법을 검증한다", () => {
   for (const name of ["tuti-prod-restore", "tuti-prod-rollback", "tuti-prod-deploy", "tuti-prod-backup", "tuti-prod-health"]) {
     execFileSync("sh", ["-n", new URL(`../scripts/ops/${name}`, import.meta.url).pathname]);
   }
+});
+
+test("핵심 운영 복원은 별도 확인과 종류가 맞는 재개를 요구하고 원장 보호를 유지한다", t => {
+  const system = fixture(t, "core");
+  assert.notEqual(system.run("tuti-prod-restore", [backupId, "--confirm-production-restore"]).status, 0);
+  assert.notEqual(system.run("tuti-prod-restore", ["--core", backupId, "--confirm-production-restore"]).status, 0);
+  assert.deepEqual(system.calls(), []);
+  const restored = system.run("tuti-prod-restore", ["--core", backupId, "--confirm-core-production-restore"], { TEST_LEDGER_MODE: "enabled" });
+  assert.equal(restored.status, 0, restored.stderr);
+  assert.match(readFileSync(system.pending, "utf8"), /backup_scope=core/);
+  assert.equal(system.calls().some(call => call.args.includes("up")), false);
+  assert.notEqual(system.run("tuti-prod-restore", ["--resume-reviewed", backupId, "CORE-REVIEW"]).status, 0);
+  assert.equal(system.calls().some(call => call.args.includes("up")), false);
+  const resumed = system.run("tuti-prod-restore", ["--core", "--resume-reviewed", backupId, "CORE-REVIEW"], { TEST_LEDGER_MODE: "enabled" });
+  assert.equal(resumed.status, 0, resumed.stderr);
+  assert.equal(existsSync(system.pending), false);
+  const replay = system.calls().findIndex(call => call.args.includes("scripts/privacy-replay.ts") && call.args.includes("--apply"));
+  const up = system.calls().findIndex(call => call.args.includes("up"));
+  assert.ok(replay >= 0 && up > replay);
 });

@@ -34,6 +34,8 @@ test("실제 격리 PostgreSQL에서 핵심 덤프·전체 스키마 복원·지
     INSERT INTO journal_entries VALUES ('fixture-entry', 'fixture', 'synthetic story');
     ${policy.map(name => `CREATE TABLE public.${name}(id int PRIMARY KEY, payload jsonb); INSERT INTO public.${name} VALUES (1, '{"synthetic":true}');`).join("\n")}`);
   const source = JSON.parse(sql("core_source", snapshotSql));
+  const productionGuard = await readFile("scripts/ops/core-backup-production-guard.sql", "utf8");
+  sql("core_source", productionGuard);
   const dump = join(root, "core.dump");
   execFileSync("/usr/bin/pg_dump", [...connection, "-d", "core_source", "--format=custom", "--no-owner", "--no-privileges", "--file", dump, ...policy.map(name => `--exclude-table-data=public.${name}`)], { env, stdio: "pipe" });
   sql("postgres", "CREATE DATABASE core_restored TEMPLATE template0;");
@@ -45,5 +47,6 @@ test("실제 격리 PostgreSQL에서 핵심 덤프·전체 스키마 복원·지
   sql("core_restored", "UPDATE journal_entries SET content = 'synthetic changed';");
   assert.throws(() => compareCoreRestore(source, JSON.parse(sql("core_restored", snapshotSql)), policy), /RETAINED_DATA_MISMATCH/);
   sql("core_source", "CREATE TABLE essential_reference(id int REFERENCES related_tourism_source_records(id));");
+  assert.throws(() => sql("core_source", productionGuard), /CORE_DEPENDENCY_BLOCKED/);
   assert.throws(() => sql("core_source", snapshotSql), /CORE_DEPENDENCY_BLOCKED/);
 });
