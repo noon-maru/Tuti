@@ -89,6 +89,7 @@ if (a[0] === 'image') process.exit(0);
 if (a[0] === 'info') { console.log(a.join(' ').includes('MemoryLimit') ? 'true' : 'false'); process.exit(0); }
 if (a[0] === 'run') {
   if (a.includes('id')) { console.log(a.includes('-u') ? process.getuid() : process.getgid()); process.exit(0); }
+  if (a.includes('bash')) { console.log('{"scope":"backup-archive-profile-only","archiveBytes":123,"restorePerformed":false}'); process.exit(0); }
   const name = a[a.indexOf('--name') + 1], label = a[a.indexOf('--label') + 1].split('=')[1];
   fs.writeFileSync(state(name), label);
   const logMount = a.find(value => value.endsWith(':/sandbox-logs'));
@@ -136,7 +137,7 @@ process.exit(1);
     .replace(/available_disk_kb="\$\(df[^\n]+/, 'available_disk_kb="83886080"');
   const wrapper = join(root, "wrapper.sh");
   await writeFile(wrapper, source);
-  const run = (fail: boolean, mode = "exists") => spawnSync("sh", [wrapper, "20261020-233213"], { env: { ...process.env, MOCK_RESTORE_ROOT: root, FAIL_RESTORE: String(fail), FAIL_MODE: mode }, encoding: "utf8", timeout: 15000 });
+  const run = (fail: boolean, mode = "exists", profile = false) => spawnSync("sh", [wrapper, "20261020-233213", ...(profile ? ["--profile"] : [])], { env: { ...process.env, MOCK_RESTORE_ROOT: root, FAIL_RESTORE: String(fail), FAIL_MODE: mode }, encoding: "utf8", timeout: 15000 });
   const success = run(false);
   assert.equal(success.status, 0, success.stdout + success.stderr);
   assert.match(success.stdout, /sandboxResourcesRemoved.*true/);
@@ -156,7 +157,13 @@ process.exit(1);
   assert.match(oom.stderr, /SANDBOX_MEMORY_EXHAUSTED/);
   assert.match(oom.stderr, /"oomKilled":true/);
   assert.deepEqual(await readdir(join(root, "restore-tests")), []);
+  const beforeProfile = (await readFile(join(root, "calls"), "utf8")).trim().split("\n").length;
+  const profile = run(false, "exists", true);
+  assert.equal(profile.status, 0, profile.stdout + profile.stderr);
+  assert.match(profile.stdout, /backup-archive-profile-only/);
+  assert.match(profile.stdout, /"restorePerformed":false/);
   const calls = (await readFile(join(root, "calls"), "utf8")).trim().split("\n").map(line => JSON.parse(line) as string[]);
+  assert.ok(calls.slice(beforeProfile).every(args => args[0] !== "exec" && !args.includes("--detach")));
   assert.ok(calls.some(args => args.includes("--network") && args.includes("none")));
   assert.ok(calls.filter(args => args[0] === "rm").every(args => args.at(-1)?.startsWith("tuti-restore-test-")));
 });

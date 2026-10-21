@@ -204,6 +204,15 @@ sudo sh scripts/ops/tuti-prod-backup-verify
 sudo sh scripts/ops/tuti-prod-backup-restore-test 20261020-233213
 ```
 
+복원 시간 초과를 조사할 때는 아래 조회 모드를 먼저 사용한다. DB·Garage를 생성하지 않고
+읽기 전용·네트워크 차단 컨테이너에서 압축 아카이브 바이트 크기와 TOC의 TABLE DATA·INDEX·
+FK CONSTRAINT 항목 수만 집계한다. 식별자·내용은 출력하지 않는다. 압축 크기를 실제 복원 DB
+크기나 예상 복원 시간과 동일하게 해석하지 않는다. 최대 240초 후 중단한다.
+
+```sh
+sudo sh scripts/ops/tuti-prod-backup-restore-test 20261020-233213 --profile
+```
+
 - 지정 사본의 무결성 검사를 먼저 통과해야 한다. 소스가 커밋되어 있고 수정되지 않은 경우만 실행한다.
 - 캐시된 PostgreSQL 17·PostGIS, Garage 2.3.0, ops 이미지만 사용한다. 이미지 다운로드나 빌드는 하지 않는다.
 - PostgreSQL·Garage는 각각 `--network none`으로 생성한다. 검사 프로세스만 격리 Garage의
@@ -257,6 +266,11 @@ sudo sh scripts/ops/tuti-prod-backup-restore-test 20261020-233213
 공유메모리는 262,144KiB 중 1,036KiB 사용으로 충분했다. RAM 기반 DB 영역의 부족으로 좁혀져
 메모리 한도를 더 늘리지 않고 위의 NAS 로컬 임시 DB 방식으로 변경했다. 시험 자원의
 성공·실패 정리와 원문 비노출은 대역 테스트했으며 실제 사본의 복원 성공은 재실행 결과로 확인한다.
+
+로컬 임시 DB 방식의 다음 실행은 컨테이너 실행 중·OOM 없음·충분한 디스크/공유메모리 상태에서
+600초 제한에 도달했다. 당시 출력의 storageIndex 1은 NAS 파일시스템 전체 용량이며 개별 시험
+DB 사용량이 아니다. 실제 진행량·병목을 측정하지 않은 상태에서 정상 진행이나 교착으로 단정하지
+않는다. 구조 조회 모드를 추가했고 실제 복원 성공은 계속 미확인으로 유지한다.
 
 동일 NAS의 백업은 디스크·화재·랜섬웨어 장애를 함께 겪을 수 있다. Synology Hyper
 Backup으로 `/volume1/tuti/backups/full`을 외장 장치나 원격 저장소에 한 번 더

@@ -2,9 +2,11 @@
 set -eu
 PATH="/usr/local/bin:/usr/bin:/bin:/usr/local/sbin:/usr/sbin:/sbin:$PATH"
 export PATH
-if [ "$(id -u)" != 0 ] || [ "$#" != 1 ]; then
-  echo "사용법: sudo sh scripts/ops/tuti-prod-backup-restore-test YYYYMMDD-HHMMSS" >&2; exit 1
+if [ "$(id -u)" != 0 ] || [ "$#" -lt 1 ] || [ "$#" -gt 2 ]; then
+  echo "사용법: sudo sh scripts/ops/tuti-prod-backup-restore-test YYYYMMDD-HHMMSS [--profile]" >&2; exit 1
 fi
+profile=false
+case "${2:-}" in "") ;; --profile) profile=true ;; *) exit 1 ;; esac
 backup_id="$1"
 if ! printf '%s\n' "$backup_id" | LC_ALL=C grep -Eq '^[0-9]{8}-[0-9]{6}$'; then exit 1; fi
 project_dir="/var/services/homes/Tutiadmin/source/Tuti"
@@ -25,13 +27,17 @@ exec 8>"$project_dir/.ops-state/isolated-restore.lock"
 if [ -f .ops-state/restore-privacy/pending.env ] || [ -f .ops-state/privacy-activation/pending ]; then exit 1; fi
 command -v timeout >/dev/null
 available_kb="$(awk '/^MemAvailable:/ { print $2 }' /proc/meminfo)"
-if [ "${available_kb:-0}" -lt 4194304 ]; then echo "사용 가능 메모리 4GiB 이상에서만 실행합니다." >&2; exit 1; fi
-if [ -L "$disk_root" ]; then exit 1; fi
-if [ -e "$disk_root" ]; then
-  if [ ! -d "$disk_root" ] || [ "$(stat -c '%u:%a' "$disk_root")" != "0:700" ]; then echo "시험 디렉터리의 root 전용 권한 확인이 필요합니다." >&2; exit 1; fi
-else mkdir -m 0700 "$disk_root"; fi
-available_disk_kb="$(df -Pk "$disk_root" | awk 'NR == 2 { print $4 }')"
-if [ "${available_disk_kb:-0}" -lt 67108864 ]; then echo "시험 볼륨의 여유 공간 64GiB 이상이 필요합니다." >&2; exit 1; fi
+if [ "$profile" = true ]; then
+  if [ "${available_kb:-0}" -lt 524288 ]; then echo "조회에 필요한 여유 메모리가 부족합니다." >&2; exit 1; fi
+else
+  if [ "${available_kb:-0}" -lt 4194304 ]; then echo "사용 가능 메모리 4GiB 이상에서만 실행합니다." >&2; exit 1; fi
+  if [ -L "$disk_root" ]; then exit 1; fi
+  if [ -e "$disk_root" ]; then
+    if [ ! -d "$disk_root" ] || [ "$(stat -c '%u:%a' "$disk_root")" != "0:700" ]; then echo "시험 디렉터리의 root 전용 권한 확인이 필요합니다." >&2; exit 1; fi
+  else mkdir -m 0700 "$disk_root"; fi
+  available_disk_kb="$(df -Pk "$disk_root" | awk 'NR == 2 { print $4 }')"
+  if [ "${available_disk_kb:-0}" -lt 67108864 ]; then echo "시험 볼륨의 여유 공간 64GiB 이상이 필요합니다." >&2; exit 1; fi
+fi
 for image in tuti:ops postgis/postgis:17-3.5 dxflrs/garage:v2.3.0; do
   docker image inspect "$image" >/dev/null
   volumes="$(docker image inspect --format '{{range $key, $value := .Config.Volumes}}{{println $key}}{{end}}' "$image")"
@@ -51,6 +57,22 @@ limits() {
   if [ "$pids_limit" = true ]; then set -- --pids-limit 128 "$@"; fi
   timeout 240 docker run --read-only --memory "$memory" --cap-drop ALL --security-opt no-new-privileges:true --log-driver none "$@"
 }
+if [ "$profile" = true ]; then
+  # TOC는 표준 출력 파이프 안에서 집계만 한다. 테이블명·본문·실제 데이터는 출력하지 않는다.
+  if ! limits 128m --rm --network none -v "$backup_dir:/backup:ro" \
+    --entrypoint bash postgis/postgis:17-3.5 -o pipefail -c '
+      set -eu
+      size=$(stat -c %s /backup/postgres.dump)
+      printf "{\"scope\":\"backup-archive-profile-only\",\"archiveBytes\":%s,\"restorePerformed\":false}\n" "$size"
+      pg_restore --list /backup/postgres.dump | awk '\''
+        / TABLE DATA / { data++ }
+        / INDEX / { indexes++ }
+        / FK CONSTRAINT / { foreign_keys++ }
+        END { printf "{\"tableDataEntries\":%d,\"indexEntries\":%d,\"foreignKeyEntries\":%d,\"identifiersSuppressed\":true}\n", data, indexes, foreign_keys }
+      '\''
+    ' 2>/dev/null; then echo "백업 구조 조회에 실패했습니다. 복원은 실행하지 않았습니다." >&2; exit 1; fi
+  exit 0
+fi
 # 원본 파일 검증이 실패하면 사본을 복원하지 않는다.
 sh scripts/ops/tuti-prod-backup-verify "$backup_id"
 umask 077
