@@ -61,7 +61,10 @@ test("실제 백업 시험은 운영 Compose·자격증명·포트 공개 없이
   assert.match(source, /restore_started_at \+ 1800/);
   assert.match(source, /max_wal_size=1GB/);
   assert.match(source, /isolated-restore-progress\.sql/);
-  assert.doesNotMatch(source, /--exclude-table|--table |--schema /);
+  const coreStageStart = source.indexOf('  core_started_at=');
+  assert.ok(coreStageStart > 0);
+  assert.doesNotMatch(source.slice(0, coreStageStart), /--exclude-table|--table |--schema /);
+  assert.match(source.slice(coreStageStart), /--exclude-table-data=public\.\$table/);
   assert.match(source, /--shm-size 256m/);
   assert.match(source, /-lt 4194304/);
   assert.match(source, /-lt 67108864/);
@@ -85,6 +88,8 @@ test("래퍼 전체 대역 실행은 성공·복원 실패 모두 자기 시험 
   await writeFile(join(root, "scripts/ops/tuti-prod-backup-verify"), "#!/bin/sh\nexit 0\n");
   await writeFile(join(root, "scripts/ops/isolated-restore-observations.sql"), "SELECT 1;\n");
   await writeFile(join(root, "scripts/ops/isolated-restore-progress.sql"), "SELECT 1;\n");
+  await writeFile(join(root, "scripts/ops/core-backup-excluded-data-tables.txt"), await readFile("scripts/ops/core-backup-excluded-data-tables.txt"));
+  await writeFile(join(root, "scripts/ops/core-backup-snapshot.sql"), "SELECT 1;\n");
   await writeFile(join(root, "bin/git"), "#!/bin/sh\nexit 0\n", { mode: 0o700 });
   await writeFile(join(root, "bin/docker"), `#!${process.execPath}
 import fs from 'node:fs';
@@ -101,10 +106,16 @@ if (a[0] === 'run') {
   fs.writeFileSync(state(name), label);
   const logMount = a.find(value => value.endsWith(':/sandbox-logs'));
   if (logMount) fs.writeFileSync(path.join(root, 'pglogpath'), logMount.slice(0, -':/sandbox-logs'.length));
+  const workMount = a.find(value => value.endsWith(':/sandbox-work'));
+  if (workMount) fs.writeFileSync(path.join(root, 'workpath'), workMount.slice(0, -':/sandbox-work'.length));
   if (name.endsWith('-node')) { fs.unlinkSync(state(name)); console.log('{"testObjectsVerified":true}'); }
   process.exit(0);
 }
 if (a[0] === 'exec') {
+  if (a.includes('sh') && a.some(value => value.includes('exec pg_dump'))) {
+    if (process.env.FAIL_MODE === 'core-dump') process.exit(1);
+    fs.writeFileSync(path.join(fs.readFileSync(path.join(root,'workpath'),'utf8'),'core.dump'), 'PGDMP synthetic core');
+  }
   if (a.includes('test') && a.includes('-r')) process.exit(a.includes('--user') && a.includes('0:0') ? 0 : 1);
   if (a.includes('pg_restore') && (!a.includes('--user') || !a.includes('0:0'))) { console.error('could not open input file: Permission denied'); process.exit(1); }
   if (a.includes('pg_restore') && process.env.FAIL_RESTORE === 'true' && a[a.indexOf('--section') + 1] === process.env.FAIL_SECTION) {
@@ -146,7 +157,7 @@ process.exit(1);
     .replace(/available_disk_kb="\$\(df[^\n]+/, 'available_disk_kb="83886080"');
   const wrapper = join(root, "wrapper.sh");
   await writeFile(wrapper, source);
-  const run = (fail: boolean, mode = "exists", profile = false, section = "pre-data") => spawnSync("sh", [wrapper, "20261020-233213", ...(profile ? ["--profile"] : [])], { env: { ...process.env, MOCK_RESTORE_ROOT: root, FAIL_RESTORE: String(fail), FAIL_MODE: mode, FAIL_SECTION: section }, encoding: "utf8", timeout: 15000 });
+  const run = (fail: boolean, mode = "exists", profile: boolean | "core" = false, section = "pre-data") => spawnSync("sh", [wrapper, "20261020-233213", ...(profile === "core" ? ["--core-test"] : profile ? ["--profile"] : [])], { env: { ...process.env, MOCK_RESTORE_ROOT: root, FAIL_RESTORE: String(fail), FAIL_MODE: mode, FAIL_SECTION: section }, encoding: "utf8", timeout: 15000 });
   const success = run(false);
   assert.equal(success.status, 0, success.stdout + success.stderr);
   assert.match(success.stdout, /sandboxResourcesRemoved.*true/);
@@ -190,4 +201,13 @@ process.exit(1);
   assert.ok(restoredSections.some(args => args.includes("data") && args[args.indexOf("--jobs") + 1] === "2"));
   assert.ok(restoredSections.every(args => !args.includes("-i") && args.includes("/backup/postgres.dump")));
   assert.ok(restoredSections.every(args => args[args.indexOf("--user") + 1] === "0:0" && args[args.indexOf("--username") + 1] === "postgres"));
+  const core = run(false, "exists", "core");
+  assert.equal(core.status, 0, core.stdout + core.stderr);
+  assert.match(core.stdout, /"stage":"core-database-round-trip","status":"completed"/);
+  assert.match(core.stdout, /sandboxResourcesRemoved.*true/);
+  const coreFailure = run(false, "core-dump", "core");
+  assert.equal(coreFailure.status, 1, coreFailure.stdout + coreFailure.stderr);
+  assert.match(coreFailure.stderr, /core-dump-create/);
+  assert.match(coreFailure.stdout, /sandboxResourcesRemoved.*true/);
+  assert.deepEqual(await readdir(join(root, "restore-tests")), []);
 });
