@@ -2,7 +2,16 @@
 set -eu
 PATH="/usr/local/bin:/usr/bin:/bin:/usr/local/sbin:/usr/sbin:/sbin:$PATH"
 export PATH
-case "$#:$*" in 0:) apply=false ;; 1:--apply) apply=true ;; *) echo "사용법: sudo sh scripts/ops/install-core-backup [--apply]" >&2; exit 1 ;; esac
+resume_id=""
+case "$#:$*" in
+  0:) apply=false ;;
+  1:--apply) apply=true ;;
+  2:--resume-verified\ *)
+    apply=true; resume_id="$2"
+    if ! printf '%s\n' "$resume_id" | LC_ALL=C grep -Eq '^[0-9]{8}-[0-9]{6}$'; then exit 1; fi
+    ;;
+  *) echo "사용법: sudo sh scripts/ops/install-core-backup [--apply | --resume-verified YYYYMMDD-HHMMSS]" >&2; exit 1 ;;
+esac
 project_dir=/var/services/homes/Tutiadmin/source/Tuti
 project_dir="$(CDPATH= cd -- "$project_dir" && pwd -P)"
 cd "$project_dir"
@@ -13,6 +22,7 @@ for source in $sources; do
 done
 if [ "$apply" != true ]; then echo "핵심 백업 설치 원본 확인 완료. --apply에서만 설치·첫 백업·예약 활성화를 수행합니다."; exit 0; fi
 if [ "$(id -u)" != 0 ]; then echo "root 권한이 필요합니다." >&2; exit 1; fi
+command -v curl >/dev/null
 if [ "$(date +%z)" != +0900 ]; then echo "일일 예약은 NAS 시간대가 한국 표준시(+0900)일 때만 활성화합니다." >&2; exit 1; fi
 if ! systemctl is-active --quiet tuti-backup-retention.timer || ! systemctl is-enabled --quiet tuti-backup-retention.timer; then
   echo "기존 30일 백업 정리 타이머가 활성·부팅 예약 상태여야 합니다." >&2; exit 1
@@ -44,13 +54,21 @@ systemctl daemon-reload
 /usr/bin/flock --unlock 9
 # 원장·두 경로를 실제 삭제 없이 검증한 뒤 첫 핵심 백업을 생성한다.
 /usr/local/sbin/tuti-prod-backup-prune
-systemctl start tuti-core-backup.service
-sh scripts/ops/tuti-prod-backup-verify --core
+set --
+if [ -z "$resume_id" ]; then
+  systemctl start tuti-core-backup.service
+else
+  # 이미 생성한 사본을 다시 검증하며 앱 중지·새 백업 생성은 하지 않는다.
+  set -- "$resume_id"
+fi
+sh scripts/ops/tuti-prod-backup-verify --core "$@"
 ready=false
 attempt=1
 while [ "$attempt" -le 12 ]; do
-  if timeout 10 docker compose --env-file .env.production -f docker-compose.prod.yml exec -T app node -e \
-    'fetch("http://127.0.0.1:3000/api/health", {signal: AbortSignal.timeout(5000)}).then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))' >/dev/null 2>&1; then
+  # Docker CLI를 별도 timeout 프로세스 그룹으로 옮기면 대화형 NAS 터미널에서
+  # SIGTTIN으로 정지할 수 있다. 공개 포트의 동일 readiness를 curl 자체 제한으로 검사한다.
+  if curl --fail --silent --show-error --connect-timeout 3 --max-time 8 \
+    http://127.0.0.1:5050/api/health </dev/null >/dev/null 2>&1; then
     ready=true; break
   fi
   sleep 5

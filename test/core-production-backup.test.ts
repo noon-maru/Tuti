@@ -19,6 +19,10 @@ test("운영 핵심 백업도 실제 검증한 동일 제외 정책만 사용하
   const installer = await readFile("scripts/ops/install-core-backup", "utf8");
   assert.ok(installer.indexOf('sh scripts/ops/tuti-prod-backup-verify --core') < installer.indexOf('systemctl enable tuti-core-backup.timer'));
   assert.doesNotMatch(installer, /systemctl[^\n]*--now|systemctl (?:stop|disable) tuti-backup-retention/);
+  assert.doesNotMatch(installer, /if timeout 10 docker/);
+  assert.match(installer, /curl --fail --silent --show-error --connect-timeout 3 --max-time 8/);
+  assert.match(installer, /if \[ -z "\$resume_id" \]; then\s+systemctl start tuti-core-backup.service/);
+  assert.match(installer, /tuti-prod-backup-verify --core "\$@"/);
   for (const file of ["tuti-prod-backup", "tuti-prod-backup-prune", "tuti-prod-restore", "tuti-prod-backup-verify", "tuti-prod-backup-restore-test", "install-core-backup"]) {
     assert.equal(spawnSync("sh", ["-n", `scripts/ops/${file}`]).status, 0, file);
   }
@@ -36,6 +40,48 @@ test("예약 실행은 SUDO_UID 없이도 실제 저장소 경로만 Git 신뢰 
     const source = await readFile(`scripts/ops/${name}`, "utf8");
     assert.ok(source.indexOf('pwd -P') < source.indexOf('git -c safe.directory='), name);
     assert.doesNotMatch(source, /safe.directory=\*/);
+  }
+});
+
+test("활성화 재개는 기존 사본만 재검증하고 readiness 실패 시 타이머를 켜지 않는다", async t => {
+  const base = await mkdtemp(join(process.cwd(), ".core-activation-test-"));
+  t.after(() => rm(base, { recursive: true, force: true }));
+  for (const healthy of [true, false]) {
+    const root = join(base, healthy ? "healthy" : "unhealthy");
+    const bin = join(root, "bin"), installed = join(root, "installed"), units = join(root, "units");
+    for (const dir of [bin, installed, units, join(root, "scripts/ops/systemd")]) await mkdir(dir, { recursive: true });
+    const executable = async (name: string, body: string) => writeFile(join(bin, name), `#!/bin/sh\n${body}\n`, { mode: 0o700 });
+    await executable("id", "echo 0");
+    await executable("git", "exit 0");
+    await executable("date", 'if [ "$1" = +%z ]; then echo +0900; else /bin/date "$@"; fi');
+    await executable("sleep", "exit 0");
+    await executable("systemctl", 'echo "systemctl $*" >> "$MOCK_LOG"; exit 0');
+    await executable("curl", `echo curl >> "$MOCK_LOG"; exit ${healthy ? 0 : 1}`);
+    for (const name of ["tuti-prod-backup", "tuti-prod-backup-prune", "tuti-prod-restore"]) await writeFile(join(root, "scripts/ops", name), '#!/bin/sh\necho wrapper >> "$MOCK_LOG"\n');
+    for (const name of ["tuti-core-backup.timer", "tuti-core-backup.service"]) await writeFile(join(root, "scripts/ops/systemd", name), "synthetic");
+    await writeFile(join(root, "scripts/ops/tuti-prod-backup-verify"), '#!/bin/sh\necho "verify $*" >> "$MOCK_LOG"\n');
+    const source = (await readFile("scripts/ops/install-core-backup", "utf8"))
+      .replace('PATH="/usr/local/bin:/usr/bin:/bin:/usr/local/sbin:/usr/sbin:/sbin:$PATH"', 'PATH="$PATH"')
+      .replaceAll("/var/services/homes/Tutiadmin/source/Tuti", root)
+      .replaceAll("/volume1/tuti/backups/core", join(root, "core"))
+      .replaceAll("/usr/local/sbin", installed)
+      .replaceAll("/etc/systemd/system", units)
+      .replaceAll("install -d -o root -g root", "install -d")
+      .replaceAll("install -o root -g root", "install");
+    const file = join(root, "installer.sh"); await writeFile(file, source);
+    const log = join(root, "calls");
+    const result = spawnSync("sh", [file, "--resume-verified", "20261021-150410"], { encoding: "utf8", env: { ...process.env, PATH: `${bin}:${process.env.PATH}`, MOCK_LOG: log }, timeout: 10000 });
+    const calls = await readFile(log, "utf8");
+    assert.match(calls, /verify --core 20261021-150410/);
+    assert.doesNotMatch(calls, /systemctl start tuti-core-backup.service/);
+    if (healthy) {
+      assert.equal(result.status, 0, result.stderr);
+      assert.match(calls, /systemctl enable tuti-core-backup.timer/);
+      assert.ok(calls.indexOf("curl") < calls.indexOf("systemctl enable tuti-core-backup.timer"));
+    } else {
+      assert.notEqual(result.status, 0);
+      assert.doesNotMatch(calls, /systemctl (?:enable|start) tuti-core-backup.timer/);
+    }
   }
 });
 
