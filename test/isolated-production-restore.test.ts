@@ -60,7 +60,7 @@ test("실제 백업 시험은 운영 Compose·자격증명·포트 공개 없이
   assert.match(source, /CPUCfsQuota/);
   assert.match(source, /sandboxResourcesRemoved/);
   assert.match(source, /cat \/proc\/1\/comm/);
-  assert.match(source, /createdb --username postgres --template template0 restore_test/);
+  assert.match(source, /createdb --host \/var\/run\/postgresql --port 5432 --username postgres --template template0 restore_test/);
 });
 
 test("래퍼 전체 대역 실행은 성공·복원 실패 모두 자기 시험 컨테이너만 정리한다", async t => {
@@ -81,21 +81,33 @@ const state = name => path.join(root, 'containers', name);
 if (a[0] === 'image') process.exit(0);
 if (a[0] === 'info') { console.log(a.join(' ').includes('MemoryLimit') ? 'true' : 'false'); process.exit(0); }
 if (a[0] === 'run') {
-  if (a.includes('id')) { console.log('999'); process.exit(0); }
+  if (a.includes('id')) { console.log(a.includes('-u') ? process.getuid() : process.getgid()); process.exit(0); }
   const name = a[a.indexOf('--name') + 1], label = a[a.indexOf('--label') + 1].split('=')[1];
   fs.writeFileSync(state(name), label);
+  const logMount = a.find(value => value.endsWith(':/sandbox-logs'));
+  if (logMount) fs.writeFileSync(path.join(root, 'pglogpath'), logMount.slice(0, -':/sandbox-logs'.length));
   if (name.endsWith('-node')) { fs.unlinkSync(state(name)); console.log('{"testObjectsVerified":true}'); }
   process.exit(0);
 }
 if (a[0] === 'exec') {
-  if (a.includes('pg_restore') && process.env.FAIL_RESTORE === 'true') { console.error('ERROR: private-row already exists'); process.exit(1); }
+  if (a.includes('pg_restore') && process.env.FAIL_RESTORE === 'true') {
+    if (process.env.FAIL_MODE === 'space') {
+      const logDir = fs.readFileSync(path.join(root, 'pglogpath'), 'utf8');
+      fs.writeFileSync(path.join(logDir, 'postgres.log'), 'PANIC: private-path No space left on device');
+      console.error('pg_restore: server closed the connection unexpectedly: private-row');
+    } else console.error('ERROR: private-row already exists');
+    process.exit(1);
+  }
   if (a.includes('psql')) console.log('{}');
   process.exit(0);
 }
 if (a[0] === 'container' && a[1] === 'inspect') {
   const name = a[a.length - 1];
   if (!fs.existsSync(state(name))) process.exit(1);
-  if (a.includes('--format')) console.log(fs.readFileSync(state(name), 'utf8'));
+  if (a.includes('--format')) {
+    if (a.join(' ').includes('.State.Running')) console.log(JSON.stringify({stage:'isolated-postgres-status',running:false,oomKilled:process.env.FAIL_MODE === 'oom',exitCode:1}));
+    else console.log(fs.readFileSync(state(name), 'utf8'));
+  }
   process.exit(0);
 }
 if (a[0] === 'rm') {
@@ -114,7 +126,7 @@ process.exit(1);
     .replace(/available_kb="\$\(awk[^\n]+/, 'available_kb="8388608"');
   const wrapper = join(root, "wrapper.sh");
   await writeFile(wrapper, source);
-  const run = (fail: boolean) => spawnSync("sh", [wrapper, "20261020-233213"], { env: { ...process.env, MOCK_RESTORE_ROOT: root, FAIL_RESTORE: String(fail) }, encoding: "utf8", timeout: 15000 });
+  const run = (fail: boolean, mode = "exists") => spawnSync("sh", [wrapper, "20261020-233213"], { env: { ...process.env, MOCK_RESTORE_ROOT: root, FAIL_RESTORE: String(fail), FAIL_MODE: mode }, encoding: "utf8", timeout: 15000 });
   const success = run(false);
   assert.equal(success.status, 0, success.stdout + success.stderr);
   assert.match(success.stdout, /sandboxResourcesRemoved.*true/);
@@ -124,6 +136,15 @@ process.exit(1);
   assert.match(failure.stderr, /DATABASE_OBJECT_ALREADY_EXISTS/);
   assert.doesNotMatch(failure.stderr + failure.stdout, /private-row/);
   assert.match(failure.stdout, /sandboxResourcesRemoved.*true/);
+  const space = run(true, "space");
+  assert.equal(space.status, 1, space.stdout + space.stderr);
+  assert.match(space.stderr, /SANDBOX_SPACE_EXHAUSTED/);
+  assert.doesNotMatch(space.stderr + space.stdout, /private-path|private-row/);
+  assert.match(space.stdout, /sandboxResourcesRemoved.*true/);
+  const oom = run(true, "oom");
+  assert.equal(oom.status, 1, oom.stdout + oom.stderr);
+  assert.match(oom.stderr, /SANDBOX_MEMORY_EXHAUSTED/);
+  assert.match(oom.stderr, /"oomKilled":true/);
   const calls = (await readFile(join(root, "calls"), "utf8")).trim().split("\n").map(line => JSON.parse(line) as string[]);
   assert.ok(calls.some(args => args.includes("--network") && args.includes("none")));
   assert.ok(calls.filter(args => args[0] === "rm").every(args => args.at(-1)?.startsWith("tuti-restore-test-")));
