@@ -105,6 +105,8 @@ if (a[0] === 'run') {
   process.exit(0);
 }
 if (a[0] === 'exec') {
+  if (a.includes('test') && a.includes('-r')) process.exit(a.includes('--user') && a.includes('0:0') ? 0 : 1);
+  if (a.includes('pg_restore') && (!a.includes('--user') || !a.includes('0:0'))) { console.error('could not open input file: Permission denied'); process.exit(1); }
   if (a.includes('pg_restore') && process.env.FAIL_RESTORE === 'true' && a[a.indexOf('--section') + 1] === process.env.FAIL_SECTION) {
     if (process.env.FAIL_MODE === 'space') {
       const logDir = fs.readFileSync(path.join(root, 'pglogpath'), 'utf8');
@@ -148,6 +150,8 @@ process.exit(1);
   const success = run(false);
   assert.equal(success.status, 0, success.stdout + success.stderr);
   assert.match(success.stdout, /sandboxResourcesRemoved.*true/);
+  assert.match(success.stdout, /"serverUserCanReadArchive":false/);
+  assert.match(success.stdout, /"restoreClientUser":"root"/);
   for (const section of ["pre-data", "data", "post-data"]) assert.ok(success.stdout.includes(`"section":"${section}","status":"completed"`));
   const failure = run(true);
   assert.equal(failure.status, 1, failure.stdout + failure.stderr);
@@ -185,4 +189,5 @@ process.exit(1);
   const restoredSections = calls.filter(args => args[0] === "exec" && args.includes("pg_restore") && args.includes("--section"));
   assert.ok(restoredSections.some(args => args.includes("data") && args[args.indexOf("--jobs") + 1] === "2"));
   assert.ok(restoredSections.every(args => !args.includes("-i") && args.includes("/backup/postgres.dump")));
+  assert.ok(restoredSections.every(args => args[args.indexOf("--user") + 1] === "0:0" && args[args.indexOf("--username") + 1] === "postgres"));
 });

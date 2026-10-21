@@ -166,6 +166,13 @@ attempt=0
 until docker exec "$pg_name" sh -c 'test "$(cat /proc/1/comm)" = postgres && pg_isready -h /var/run/postgresql -p 5432 -U postgres -d postgres' >/dev/null 2>&1 && docker exec "$garage_name" /garage status >/dev/null 2>&1; do
   attempt=$((attempt + 1)); if [ "$attempt" -ge 30 ]; then exit 1; fi; sleep 2
 done
+stage="isolated-archive-access"
+server_user_can_read=false
+if docker exec "$pg_name" test -r /backup/postgres.dump >/dev/null 2>&1; then server_user_can_read=true; fi
+if ! docker exec --user 0:0 "$pg_name" test -r /backup/postgres.dump >/dev/null 2>&1; then
+  echo '{"stage":"isolated-archive-access","reason":"ARCHIVE_READ_PERMISSION_DENIED"}' >&2; exit 1
+fi
+printf '{"stage":"isolated-archive-access","serverUserCanReadArchive":%s,"restoreClientUser":"root","databaseRole":"postgres","archiveAccessMode":"read-only-bind"}\n' "$server_user_can_read"
 stage="isolated-empty-database"
 if ! timeout 30 docker exec "$pg_name" createdb --host /var/run/postgresql --port 5432 --username postgres --template template0 restore_test > "$scratch/create.log" 2>&1; then exit 1; fi
 stage="isolated-postgres-restore"
@@ -179,7 +186,9 @@ for restore_section in pre-data data post-data; do
   if [ "$restore_section" = pre-data ]; then jobs=1; fi
   section_started_at="$(date +%s)"
   printf '{"stage":"isolated-postgres-restore","section":"%s","status":"started","jobs":%s}\n' "$restore_section" "$jobs"
-if timeout "$remaining_seconds" docker exec "$pg_name" pg_restore --host /var/run/postgresql --port 5432 --username postgres --dbname restore_test --no-owner --no-privileges --exit-on-error \
+# 원본은 root 전용이다. 권한을 풀거나 복사하지 않고 클라이언트만 컨테이너 root로 실행한다.
+# 서버 UID·접속 DB 역할은 postgres 그대로이며 cap-drop ALL·읽기 전용 마운트를 유지한다.
+if timeout "$remaining_seconds" docker exec --user 0:0 "$pg_name" pg_restore --host /var/run/postgresql --port 5432 --username postgres --dbname restore_test --no-owner --no-privileges --exit-on-error \
   --section "$restore_section" --jobs "$jobs" /backup/postgres.dump > "$scratch/restore.log" 2>&1; then
   section_elapsed=$(( $(date +%s) - section_started_at ))
   printf '{"stage":"isolated-postgres-restore","section":"%s","status":"completed","elapsedSeconds":%s}\n' "$restore_section" "$section_elapsed"
@@ -203,6 +212,7 @@ else
   elif matches_restore_error 'password authentication failed\|no pg_hba.conf entry\|Peer authentication failed'; then restore_reason=SANDBOX_AUTHENTICATION_FAILED
   elif matches_restore_error 'remaining connection slots\|too many clients'; then restore_reason=SANDBOX_CONNECTION_LIMIT
   elif matches_restore_error 'No such file or directory\|Connection refused'; then restore_reason=SANDBOX_SOCKET_UNAVAILABLE
+  elif matches_restore_error 'could not open input file.*[Pp]ermission denied'; then restore_reason=ARCHIVE_READ_PERMISSION_DENIED
   elif matches_restore_error 'permission denied\|must be owner\|must be superuser'; then restore_reason=DATABASE_PERMISSION_ERROR
   elif matches_restore_error 'extension.*not available\|could not open extension\|could not access file'; then restore_reason=EXTENSION_UNAVAILABLE
   elif matches_restore_error 'unsupported version\|invalid archive\|unexpected end of file'; then restore_reason=ARCHIVE_RESTORE_FORMAT_ERROR
