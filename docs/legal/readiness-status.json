@@ -13,7 +13,7 @@
     "activationCutoverImplemented": true, "localRecoverySnapshotImplemented": true,
     "productionActivationConfirmed": true,
     "timersInstalled": true, "timersEnabled": true, "actualDeletionVerified": false,
-    "restoreTestVerified": false, "formalNoticeDeliveryVerified": false,
+    "restoreTestVerified": true, "formalNoticeDeliveryVerified": false,
     "operationalEvidence": {
       "observedAt": "2026-10-20",
       "installationSource": "운영자 --resume-pending 실행 확인 및 2026-10-20 systemctl active/enabled, 세 service Result=success/ExecMainStatus=0 조회",
@@ -25,6 +25,22 @@
       "coverageActivatedAt": "2026-10-20T08:38:04.949Z",
       "actualDeletionVerificationScope": "2026-10-20 23:02~23:03 KST dry-run에서 무효 토큰·만료 전달 이력·민감정보 철회 대기·30일 초과 백업 후보 모두 0건. 과거 개별 삭제 이행·실제 운영 백업 복구의 완전한 증명은 아님",
       "configuredRetentionNoBacklogVerified": true,
+      "productionBackupRestoreVerification": {
+        "reference": "FULL-RESTORE-20261021-20261020-233213",
+        "observedAt": "2026-10-21",
+        "source": "운영자가 제공한 격리 복원 시험 성공 로그",
+        "backupId": "20261020-233213",
+        "schemaSeconds": 6, "dataSeconds": 161, "postDataSeconds": 436,
+        "databaseRestoreSeconds": 603,
+        "accounts": 207, "journals": 24, "books": 0, "migrations": 75,
+        "objectsRestoredAndReadBack": 24, "objectBytesVerified": 3011665,
+        "imagesDecoded": 21, "pdfsDecoded": 0,
+        "pdfCoverage": "사본에 기록집이 없어 실제 PDF 복원·해독 미검증",
+        "sandboxResourcesRemoved": true,
+        "productionDatabaseTouched": false, "productionObjectStorageTouched": false,
+        "privacyReplayPerformed": false,
+        "scope": "실제 전체 백업의 격리 DB·객체 복원 성공. 운영 로그인·서비스 재개·원장 재반영·키 재해 복구·실제 PDF 검증 완료를 뜻하지 않음"
+      },
       "productionBackupIntegrityVerification": {
         "backupId": "20261020-233213",
         "source": "2026-10-20 운영자 제공 오프라인 검증 출력",
