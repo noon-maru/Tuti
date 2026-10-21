@@ -1,0 +1,18 @@
+#!/bin/sh
+set -eu
+PATH="/usr/local/bin:/usr/bin:/bin:/usr/local/sbin:/usr/sbin:/sbin:$PATH"
+export PATH
+if [ "$(id -u)" != 0 ] || [ "$#" != 0 ]; then echo "사용법: sudo sh scripts/ops/tuti-core-backup-plan (조회 전용)" >&2; exit 1; fi
+project_dir="/var/services/homes/Tutiadmin/source/Tuti"
+cd "$project_dir"
+for source in scripts/ops/tuti-core-backup-plan scripts/ops/core-backup-scope.sql scripts/ops/core-backup-excluded-data-tables.txt; do
+  git -c safe.directory="$project_dir" ls-files --error-unmatch "$source" >/dev/null 2>&1
+  git -c safe.directory="$project_dir" diff --quiet HEAD -- "$source"
+done
+exec 9>"$project_dir/.ops-state/maintenance.lock"
+/usr/bin/flock --shared --nonblock 9 || { echo "다른 유지보수 작업이 실행 중입니다." >&2; exit 1; }
+if ! timeout 30 docker compose --env-file .env.production -f docker-compose.prod.yml exec -T db \
+  sh -c 'exec psql --no-psqlrc -q -U "$POSTGRES_USER" -d "$POSTGRES_DB" -At -v ON_ERROR_STOP=1' \
+  < scripts/ops/core-backup-scope.sql 2>/dev/null; then
+  echo "핵심 백업 범위 조회에 실패했습니다. 데이터·백업·설정은 변경하지 않았습니다." >&2; exit 1
+fi
