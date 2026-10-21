@@ -28,9 +28,21 @@ test("운영 핵심 백업도 실제 검증한 동일 제외 정책만 사용하
   }
 });
 
-test("예약 실행은 SUDO_UID 없이도 실제 저장소 경로만 Git 신뢰 대상으로 사용한다", async () => {
-  const root = process.cwd();
+test("예약 실행은 SUDO_UID 없이도 실제 저장소 경로만 Git 신뢰 대상으로 사용한다", async t => {
   const env = { PATH: "/usr/bin:/bin", GIT_TEST_ASSUME_DIFFERENT_OWNER: "true", NODE_ENV: "test" as const };
+  // 운영 ops 이미지에는 Git/.git이 없다. Git 동작은 NAS·CI에서 검사하고 이미지에서는 명시적으로 구분한다.
+  if (spawnSync("git", ["--version"], { env }).status !== 0) {
+    t.skip("Git 실행 파일이 없는 이미지: Git 신뢰 경계 시험은 NAS·CI에서 수행");
+    return;
+  }
+  // 빌드 컨텍스트에 .git이 없어도 Git이 있으면 독립된 저장소로 같은 경계를 검증한다.
+  const root = await mkdtemp(join(process.cwd(), ".core-git-test-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  assert.equal(spawnSync("git", ["init", "--quiet"], { cwd: root, env }).status, 0);
+  await mkdir(join(root, "scripts/ops"), { recursive: true });
+  await writeFile(join(root, "scripts/ops/core-backup-production-guard.sql"), "-- synthetic Git boundary fixture\n");
+  const staged = spawnSync("git", ["-c", `safe.directory=${root}`, "add", "scripts/ops/core-backup-production-guard.sql"], { cwd: root, env, encoding: "utf8" });
+  assert.equal(staged.status, 0, staged.stderr);
   const rejected = spawnSync("git", ["-c", "safe.directory=/a/different/path", "ls-files", "--error-unmatch", "scripts/ops/core-backup-production-guard.sql"], { cwd: root, env, encoding: "utf8" });
   assert.notEqual(rejected.status, 0);
   assert.match(rejected.stderr, /dubious ownership/);
