@@ -31,7 +31,6 @@ memory_limit="$(docker info --format '{{.MemoryLimit}}')"
 pids_limit="$(docker info --format '{{.PidsLimit}}')"
 cpu_quota="$(docker info --format '{{.CPUCfsQuota}}')"
 if [ "$memory_limit" != true ]; then echo "격리 검증에 필요한 메모리 제한을 지원하지 않습니다. 검증을 시작하지 않습니다." >&2; exit 1; fi
-if [ "$cpu_quota" != true ]; then echo "NAS CPU quota 미지원: CPU 제한만 생략하고 파일별 순차 검증을 수행합니다."; fi
 isolated_run() {
   run_memory="$1"
   run_pids="$2"
