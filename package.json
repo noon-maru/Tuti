@@ -1,6 +1,6 @@
 {
   "name": "tuti",
-  "version": "1.3.0",
+  "version": "1.4.0",
   "private": true,
   "type": "module",
   "packageManager": "pnpm@11.2.2",
@@ -19,7 +19,7 @@
     "dev": "pnpm pdf:assets && pnpm db:generate && next dev --webpack",
     "build": "pnpm build:web",
     "build:web": "pnpm pdf:assets && pnpm db:generate && TUTI_TARGET=web next build",
-    "build:app": "pnpm app:version:verify && pnpm pdf:assets && tsx scripts/build-capacitor-app.ts",
+    "build:app": "pnpm app:version:verify && tsx scripts/verify-bundled-legal-documents.ts && pnpm pdf:assets && tsx scripts/build-capacitor-app.ts",
     "app:version:verify": "tsx scripts/verify-native-app-version.ts",
     "pdf:assets": "tsx scripts/prepare-pdf-assets.ts",
     "db:deploy": "prisma migrate deploy && pnpm db:derived:sync",
