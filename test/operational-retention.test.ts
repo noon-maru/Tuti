@@ -179,3 +179,25 @@ test("관리 도구의 오타·중복 적용 옵션은 거부하고 입력 식�
     assert.doesNotMatch(result.stdout, /"mode":"applied"/);
   }
 });
+
+test("운영 대상 0건 조회와 예약 성공을 실제 파기·보전·공고 승인으로 바꾸지 않는다", () => {
+  const readiness = JSON.parse(readFileSync("docs/legal/readiness-status.json", "utf8"));
+  const observation = readiness.operationalRetentionVerification;
+  assert.equal(observation.mode, "dry-run");
+  assert.equal(observation.enabled, false);
+  assert.deepEqual(observation.completedTasks, ["push", "sensitive", "operational-retention"]);
+  assert.ok(Object.values(observation.counts).every(count => count === 0));
+  assert.equal(observation.reviewRequired, false);
+  assert.equal(observation.timerObservation.active, true);
+  assert.equal(observation.timerObservation.enabled, true);
+  assert.equal(observation.timerObservation.lastServiceResult, "success");
+  for (const key of ["applyVerified", "holdMutationVerified", "reviewAlertDeliveryVerified", "productionDataChanged", "runtimeFlagsChanged"]) assert.equal(observation[key], false);
+  assert.equal(readiness.checks.processingInventory.retentionVerificationReference, observation.reference);
+  assert.equal(readiness.checks.processingInventory.confirmed, false);
+  assert.equal(readiness.approvedDocumentHash, null);
+  const isolated = observation.isolatedTest;
+  assert.equal(isolated.actualPrisma, true);
+  assert.equal(isolated.integrationTestsPassed, 19);
+  assert.equal(isolated.temporaryResourcesRemoved, true);
+  for (const key of ["realSlackDeliveryVerified", "productionSystemdFailureTested", "postgres17CiVerified", "productionDataChanged", "runtimeFlagsChanged"]) assert.equal(isolated[key], false);
+});

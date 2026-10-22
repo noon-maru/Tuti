@@ -19,7 +19,9 @@ test("분리된 PostgreSQL에서 약관·권리 보호 마이그레이션의 실
   const data = join(root, "data");
   const socket = join(root, "socket");
   mkdirSync(socket, { mode: 0o700 });
-  const env = { ...process.env, LANG: "C", LC_ALL: "C", PGOPTIONS: "", PGSERVICE: undefined, PGSERVICEFILE: undefined, PGPASSWORD: undefined, PGPASSFILE: undefined, PGSSLMODE: "disable" };
+  const env = { ...process.env, LANG: "C", LC_ALL: "C", PGOPTIONS: "", PGSERVICE: undefined, PGSERVICEFILE: undefined,
+    PGHOSTADDR: undefined, PGHOST: undefined, PGPORT: undefined, PGDATABASE: undefined, PGUSER: undefined,
+    PGPASSWORD: undefined, PGPASSFILE: undefined, PGSSLMODE: "disable", PGCONNECT_TIMEOUT: "5" };
   let started = false;
   t.after(() => {
     // pg_ctl start가 시간 초과해도 postmaster 자체는 살아 있을 수 있다.
@@ -34,6 +36,8 @@ test("분리된 PostgreSQL에서 약관·권리 보호 마이그레이션의 실
       }
     }
     rmSync(root, { recursive: true, force: true });
+    assert.equal(existsSync(root), false);
+    t.diagnostic("격리 PostgreSQL 종료·임시 디렉터리 정리 완료. 운영 복원·자료 삭제·Slack 발송 없음");
   });
   execFileSync(binary("initdb"), ["-D", data, "-U", "tuti_legal_test", "--no-locale", "--encoding=UTF8", "--auth-local=trust", "--auth-host=reject"], { env, stdio: "pipe" });
   try {
@@ -44,6 +48,7 @@ test("분리된 PostgreSQL에서 약관·권리 보호 마이그레이션의 실
   const psqlArgs = ["--no-psqlrc", "-h", socket, "-p", "15479", "-U", "tuti_legal_test", "-d", "postgres", "-v", "ON_ERROR_STOP=1", "-A", "-t", "-f", "-"];
   const query = (sql: string) => execFileSync(binary("psql"), psqlArgs, { input: sql, env, encoding: "utf8", stdio: ["pipe", "pipe", "pipe"] }).trim();
   const serverVersion = Number(query("SHOW server_version_num"));
+  assert.equal(query("SHOW listen_addresses"), "", "시험 클러스터는 TCP 리스너를 열지 않는다.");
   const expectedMajor = process.env.LEGAL_POSTGRES_EXPECTED_MAJOR;
   if (expectedMajor) {
     assert.match(expectedMajor, /^[1-9][0-9]+$/);
@@ -273,6 +278,11 @@ test("분리된 PostgreSQL에서 약관·권리 보호 마이그레이션의 실
         assert.equal(restoredQuery("SELECT string_agg(id,',') FROM push_devices"), "active");
         assert.equal(restoredQuery("SELECT id || ':' || (device_id IS NULL)::text || ':' || (entity_id IS NULL AND error_message IS NULL)::text FROM push_deliveries"), "recent:true:true");
         assert.equal((await purgePushRetention(now, true)).invalidDevices, 0, "재실행해도 보존한 활성 토큰은 삭제하지 않는다.");
+      });
+      await t.test("신규 보관정책은 합성 자료만 있는 별도 복원 DB에서 실제 ORM으로 검증한다", async t => {
+        const { verifyOperationalRetention } = await import("./operational-retention-scenario");
+        await verifyOperationalRetention(t, client, restoredQuery, socket);
+        assert.equal(query("SELECT count(*) FROM service_terms_releases"), "1", "운영자료가 아닌 원본 시험 DB도 그대로 유지한다.");
       });
     } finally {
       await client.$disconnect();

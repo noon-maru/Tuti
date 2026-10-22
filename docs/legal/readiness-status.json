@@ -360,8 +360,59 @@
     "publicationApplied": false,
     "runtimeFlagsChanged": false
   },
+  "operationalRetentionVerification": {
+    "reference": "RETENTION-DRY-RUN-20261022-085302",
+    "observedAt": "2026-10-21T23:53:02.868Z",
+    "source": "운영자가 제공한 tuti-privacy-data-maintain 인자 없는 실행 결과",
+    "mode": "dry-run",
+    "enabled": false,
+    "completedTasks": ["push", "sensitive", "operational-retention"],
+    "counts": {
+      "invalidDevices": 0, "expiredDeliveries": 0,
+      "sensitiveInspected": 0, "sensitiveCompleted": 0, "sensitiveFailed": 0,
+      "inquiries": 0, "unfinishedShares": 0, "generalErrors": 0,
+      "evidenceHolds": 0, "dueEvidenceReviews": 0
+    },
+    "cutoffs": {
+      "inquiries": "2023-10-21T23:53:02.868Z",
+      "unfinishedShares": "2026-09-21T23:53:02.868Z",
+      "generalErrors": "2025-10-21T23:53:02.868Z"
+    },
+    "reviewRequired": false,
+    "timerObservation": {
+      "source": "별도 systemctl 조회",
+      "active": true, "enabled": true, "lastServiceResult": "success", "lastServiceExitStatus": 0,
+      "lastServiceStartedAt": "2026-10-22T08:48:58+09:00",
+      "lastServiceExitedAt": "2026-10-22T08:49:17+09:00"
+    },
+    "scope": "새 정리 코드의 운영 조회와 예약 실행 상태만 확인. 0건을 실제 삭제·보전 예외·재검토 알림·전체 개인정보 상태 검증으로 해석하지 않음",
+    "applyVerified": false,
+    "holdMutationVerified": false,
+    "reviewAlertDeliveryVerified": false,
+    "isolatedTest": {
+      "reference": "RETENTION-ISOLATED-POSTGRES11-20261022",
+      "testedOn": "2026-10-22",
+      "postgresVersion": "11.11",
+      "actualPrisma": true,
+      "newScenariosPassed": 7,
+      "integrationTestsPassed": 19,
+      "applyVerified": true,
+      "holdMutationVerified": true,
+      "rollbackAndConcurrencyVerified": true,
+      "reviewCliExitStatus": 2,
+      "notificationTransportMocked": true,
+      "realSlackDeliveryVerified": false,
+      "productionSystemdFailureTested": false,
+      "postgres17CiVerified": false,
+      "temporaryResourcesRemoved": true,
+      "productionDataChanged": false,
+      "runtimeFlagsChanged": false
+    },
+    "productionDataChanged": false,
+    "runtimeFlagsChanged": false
+  },
   "checks": {
-    "processingInventory": { "confirmed": false, "reference": null, "sourceAudit": { "reference": "PROCESSING-SOURCE-AUDIT-20261021", "path": "docs/legal/processing-inventory.json", "prismaModelsClassified": 49, "groups": 13, "unclassifiedModels": 0, "scope": "모델 분류·보관/파기 코드 경로 확인. 모든 필드/JSON 값·수집 근거·실기기·운영 DB 전수 확인은 아님" }, "pending": "기능별 처리 근거·필수/선택·거부 경로. 문의 3년/미완료 PNG 30일/전용 일반 오류 1년 및 세 범주 보전/90일 검토 알림은 로컬 구현·기본 비활성. 운영 적용·검증, 완료일 누락 자료·다른 범주 사건 및 기존 자료 적용 범위는 별도" },
+    "processingInventory": { "confirmed": false, "reference": null, "sourceAudit": { "reference": "PROCESSING-SOURCE-AUDIT-20261021", "path": "docs/legal/processing-inventory.json", "prismaModelsClassified": 49, "groups": 13, "unclassifiedModels": 0, "scope": "모델 분류·보관/파기 코드 경로 확인. 모든 필드/JSON 값·수집 근거·실기기·운영 DB 전수 확인은 아님" }, "retentionVerificationReference": "RETENTION-DRY-RUN-20261022-085302", "pending": "기능별 처리 근거·필수/선택·거부 경로. 신규 기한 정리는 배포·운영 dry-run 완료, enabled=false 및 대상 0건. 실제 파기·보전 예외·90일 검토 알림·활성화는 별도 검증. 완료일 누락 자료·다른 범주 사건 및 기존 자료 적용 범위도 별도" },
     "processorsAndTransfers": { "confirmed": false, "reference": null, "sourceAudit": { "reference": "PROCESSING-SOURCE-AUDIT-20261021", "externalFlowGroups": 8, "cloudflarePathObserved": true, "scope": "NAS 자체 저장·SMTP·지도·소셜 인증·푸시·프록시·집계 운영 알림·공개 장소 AI 경로를 구분. 계약·처리 국가·기간·동의 완료와 구분" }, "noticeReviewReference": "EXTERNAL-NOTICE-SOURCE-REVIEW-20261022", "pending": "메일/Cloudflare/로그인/푸시의 코드·공식 자료 대조와 문안 보완 완료. 실제 계정 적용 범위·항목별 국가/기간·Kakao 콘솔 이전 설정·필요한 동의와 실기기 검증은 별도. Daum 현재 공식 서비스 법인은 주식회사 다음으로 기재하며 계정별 위탁 약정 승인과 구분" },
     "backupRetentionAndRestoreTest": { "confirmed": true, "reference": "BACKUP-RETENTION-RESTORE-20261021", "scope": "30일 정리 예약·전체/핵심 사본 무결성·격리 DB/객체 복원·시험 자원 정리 확인. 삭제 원장 재반영·키 재해 복구·운영 재개 시험과 실제 PDF는 별도 미검증" },
     "rightsRecipientAndForms": { "confirmed": false, "reference": null },
