@@ -57,6 +57,7 @@ test("실제 프록시에서 차단된 주소의 권리 요청은 API로 넘기�
     const before = ruleQueries;
     for (const [path, method, body] of [
       ["/api/location-consent", "POST", { status: "withdrawn" }],
+      ["/api/public/legal-notices", "GET", undefined],
       ["/api/account", "DELETE", { confirmed: true }],
       ["/api/journal-entries/entry", "DELETE", undefined],
       ["/api/journal-books/book", "DELETE", undefined],

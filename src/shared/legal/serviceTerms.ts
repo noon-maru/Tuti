@@ -18,10 +18,12 @@ export type ServiceTermsStatus = {
   current: ServiceTermsOffer | null;
   upcoming: ServiceTermsOffer | null;
   required: boolean;
+  // 구서버 응답에는 없다. 문서/미동의 여부와 실제 진입 강제 전환을 구분한다.
+  enforcementEnabled?: boolean;
 };
 
 export const EMPTY_SERVICE_TERMS_STATUS: ServiceTermsStatus = {
-  current: null, upcoming: null, required: false,
+  current: null, upcoming: null, required: false, enforcementEnabled: false,
 };
 
 export function parseServiceTermsDocument(value: unknown): ServiceTermsDocument {

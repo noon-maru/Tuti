@@ -19,7 +19,7 @@ export class InitialTermsLoadError extends Error {
   }
 }
 
-// 계정을 발급하는 ensureSession은 명시적인 확인 버튼을 누른 뒤에만 호출한다.
+// 상태 조회는 계정을 발급하지 않는다. 전환 전 일반 서비스 부트스트랩은 기존 흐름을 따른다.
 export async function loadInitialServiceTerms(): Promise<InitialTermsState> {
   const session = getSessionSnapshot() ?? await readStoredSession();
   try {
@@ -31,6 +31,7 @@ export async function loadInitialServiceTerms(): Promise<InitialTermsState> {
     if (!response.ok) throw new Error("이용약관을 불러오지 못했어요.");
     const status = await response.json();
     if (!status || typeof status !== "object" || !("current" in status) || typeof status.required !== "boolean") throw new Error("이용약관 응답을 확인하지 못했어요.");
+    if ("enforcementEnabled" in status && typeof status.enforcementEnabled !== "boolean") throw new Error("이용약관 전환 상태를 확인하지 못했어요.");
     let offer: ServiceTermsOffer | null = null;
     if (status.current !== null) {
       const input = status.current;
@@ -41,8 +42,11 @@ export async function loadInitialServiceTerms(): Promise<InitialTermsState> {
           !Number.isFinite(Date.parse(input.effectiveAt))) throw new Error("이용약관 응답을 확인하지 못했어요.");
       offer = { ...input, document: parseServiceTermsDocument(input.document) };
     } else if (status.required) throw new Error("이용약관 응답을 확인하지 못했어요.");
-    // 공고 전의 기존 계정 이용은 소급 차단하지 않는다. 신규 이용자는 원문 없이 동의할 수 없다.
-    return { hasStoredSession: Boolean(session), offer, allowed: offer ? Boolean(session && offer.accepted) : Boolean(session && pending !== "true") };
+    // 서버의 명시적 비활성 응답은 기존 이용 흐름을 허용하는 것이지 동의 영수증이 아니다.
+    // 실제 운영 구서버의 빈 응답만 호환한다. 조회 장애·손상 응답을 비활성으로 추정하지 않는다.
+    const legacyInactive = !("enforcementEnabled" in status) && status.current === null && status.upcoming === null && status.required === false && pending !== "true";
+    const enforcementDisabled = status.enforcementEnabled === false || legacyInactive;
+    return { hasStoredSession: Boolean(session), offer, allowed: enforcementDisabled || Boolean(session && offer?.accepted) };
   } catch {
     // 실패해도 저장된 계정의 권리 행사 경로는 열어둘 수 있어야 한다.
     throw new InitialTermsLoadError(Boolean(session));
@@ -56,7 +60,7 @@ export async function acceptInitialServiceTerms(offer: ServiceTermsOffer, confir
   const session = await ensureSession();
   await submitServiceTerms(offer, confirmations);
   const state = await loadInitialServiceTerms();
-  if (getSessionSnapshot()?.userId !== session.userId || !state.allowed ||
+  if (getSessionSnapshot()?.userId !== session.userId || !state.allowed || !state.offer?.accepted ||
       state.offer?.documentHash !== offer.documentHash || state.offer.version !== offer.version) {
     throw new Error("동의 상태를 다시 확인해주세요. 약관이 변경되었다면 새 내용을 확인해주세요.");
   }

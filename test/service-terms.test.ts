@@ -40,6 +40,7 @@ test("일반약관의 공고·명시적 동의·미동의 접근 통제", async 
   await t.test("비활성 상태에서는 약관 테이블을 조회하거나 동의를 생성하지 않는다", async () => {
     delete process.env.SERVICE_TERMS_WORKFLOW_ENABLED;
     assert.equal((await getServiceTermsStatus("subject", now)).required, false);
+    assert.equal((await getServiceTermsStatus("subject", now)).enforcementEnabled, false);
     assert.equal(queries, 0);
     await assert.rejects(acceptServiceTerms("subject", body, now), { status: 409 });
     assert.equal(receipts.length, 0);
@@ -83,6 +84,7 @@ test("일반약관의 공고·명시적 동의·미동의 접근 통제", async 
   });
   await t.test("미동의 쓰기는 428, 공개 중지·삭제·기존 기록 읽기는 허용한다", async () => {
     process.env.SERVICE_TERMS_ENFORCEMENT_ENABLED = "true";
+    assert.equal((await getServiceTermsStatus("subject", now)).enforcementEnabled, true);
     const headers = { Authorization: `Bearer ${"a".repeat(40)}`, "Content-Type": "application/json" };
     const request = new Request("https://tuti.today/api/journal-entries", { method: "POST", headers });
     assert.equal((await guardServiceTerms(request))?.status, 428);
@@ -98,6 +100,7 @@ test("일반약관의 공고·명시적 동의·미동의 접근 통제", async 
   });
   await t.test("차단만 비활성화해도 공고 문서와 명시적 동의 저장은 유지한다", async () => {
     process.env.SERVICE_TERMS_ENFORCEMENT_ENABLED = "false";
+    assert.equal((await getServiceTermsStatus("subject", now)).enforcementEnabled, false);
     assert.equal((await getServiceTermsStatus("subject", now)).current?.version, body.version);
     const request = new Request("https://tuti.today/api/journal-entries", { method: "POST" });
     assert.equal(await guardServiceTerms(request), null);
@@ -135,7 +138,7 @@ test("일반약관의 공고·명시적 동의·미동의 접근 통제", async 
 });
 
 test("보안 차단 중에도 권리 행사 경로만 예외로 두고 새 공개·작성은 예외로 두지 않는다", async () => {
-  for (const path of ["/api/location-consent/", "/api/%6cocation-consent", "/api/reports", "/api/inquiries", "/legal/privacy"]) assert.equal(isLegalRightsPath(path, "POST"), true, path);
+  for (const path of ["/api/location-consent/", "/api/%6cocation-consent", "/api/reports", "/api/inquiries", "/api/public/legal-notices", "/legal/privacy"]) assert.equal(isLegalRightsPath(path, "POST"), true, path);
   for (const path of ["/api/account", "/api/journal-entries/entry", "/api/journal-books/book"]) {
     assert.equal(isLegalRightsPath(path, "DELETE"), true, path);
     assert.equal(isLegalRightsPath(path, "PATCH"), false, path);

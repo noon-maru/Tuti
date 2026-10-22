@@ -51,6 +51,7 @@
     "llm:users:refresh": "pnpm db:generate && tsx scripts/refresh-user-signal-profiles.ts",
     "location:compliance:purge": "pnpm db:generate && tsx scripts/purge-location-compliance.ts",
     "legal:terms:publish": "tsx scripts/publish-service-terms.ts",
+    "legal:notice:announce": "tsx scripts/announce-legal-document.ts",
     "legal:terms:review": "tsx scripts/prepare-service-terms-review.ts",
     "legal:inventory": "tsx scripts/check-processing-inventory.ts",
     "legal:location:withdrawals": "tsx scripts/purge-withdrawn-location-data.ts",

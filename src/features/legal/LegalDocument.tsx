@@ -55,6 +55,7 @@ export function LegalDocument({
       {summary && <Summary>{summary}</Summary>}
       <Navigation aria-label="법적 문서">
         <PublishedServiceTermsLink />
+        <Link href="/legal/notices">약관·정책 개정 공고</Link>
         <Link href="/legal/privacy">개인정보 처리방침</Link>
         <Link href="/legal/location-terms">위치기반서비스 이용약관</Link>
         <Link href="/legal/community-guidelines">기록 공개 운영정책</Link>

@@ -1,11 +1,11 @@
 import { pushTransferBlockers, readPushProviderEvidence, type PushProvider } from "./pushTransferReadiness";
 
-export const LEGAL_READINESS_SCOPES = ["all", "service-terms", "push"] as const;
+export const LEGAL_READINESS_SCOPES = ["all", "notice", "service-terms", "push"] as const;
 export type LegalReadinessScope = (typeof LEGAL_READINESS_SCOPES)[number];
 
 export function parseLegalReadinessScope(value: unknown): LegalReadinessScope {
   if (value === undefined) return "all";
-  if (!LEGAL_READINESS_SCOPES.includes(value as LegalReadinessScope)) throw new Error("점검 범위는 all, service-terms, push 중 하나여야 합니다.");
+  if (!LEGAL_READINESS_SCOPES.includes(value as LegalReadinessScope)) throw new Error("점검 범위는 all, notice, service-terms, push 중 하나여야 합니다.");
   return value as LegalReadinessScope;
 }
 
@@ -31,6 +31,7 @@ export function legalRuntimeFacts(env: Readonly<Record<string, string | undefine
 // 일반약관 문서와 그에 필요한 운영·동의 전환의 확인 항목이다.
 // 푸시 국가·기간·이전 근거·기기 검증은 pushTransferReview에서 별도로 심사한다.
 export const LEGAL_MANUAL_CHECKS = ["processingInventory", "processorsAndTransfers", "backupRetentionAndRestoreTest", "rightsRecipientAndForms", "scheduledJobsAndAlerts", "minorProtection", "nativeClientRollout", "legalReview", "finalDocumentApproval", "noticePlan"] as const;
+export const LEGAL_NOTICE_CHECKS = ["processingInventory", "processorsAndTransfers", "rightsRecipientAndForms", "legalReview", "finalDocumentApproval", "noticePlan"] as const;
 export type LegalReadinessEvidence = { owner: string; contact: string; backupRetentionDays: number | null; approvedDocumentHash: string | null; rightsRecipientNoticeReviewed: boolean; pushTransfers: Partial<Record<PushProvider, unknown>>; checks: Record<string, { confirmed: boolean; reference: string | null }> };
 export function parseLegalReadinessEvidence(value: unknown): LegalReadinessEvidence {
   if (!value || typeof value !== "object") throw new Error("운영 준비 확인 파일이 필요합니다.");
@@ -50,6 +51,12 @@ export function parseLegalReadinessEvidence(value: unknown): LegalReadinessEvide
   }
   return { owner: input.owner.trim(), contact: input.contact, backupRetentionDays: input.backupRetentionDays as number | null, approvedDocumentHash: input.approvedDocumentHash as string | null, rightsRecipientNoticeReviewed: recipientReviewed, pushTransfers: readPushProviderEvidence(input.pushTransferReview), checks: confirmed };
 }
+export function legalNoticeReadinessBlockers(evidence: LegalReadinessEvidence) {
+  const blockers: string[] = LEGAL_NOTICE_CHECKS.filter(key => !evidence.checks[key]?.confirmed);
+  if (!evidence.approvedDocumentHash) blockers.push("approvedDocumentHashMissing");
+  return blockers;
+}
+
 export function serviceTermsReadinessBlockers(evidence: LegalReadinessEvidence, facts: ReturnType<typeof legalRuntimeFacts>) {
   const blockers: string[] = LEGAL_MANUAL_CHECKS.filter((key) => !evidence.checks[key]?.confirmed);
   if (evidence.backupRetentionDays === null) blockers.push("backupRetentionUnconfirmed");
@@ -74,6 +81,7 @@ export function pushReadinessBlockers(evidence: Pick<LegalReadinessEvidence, "pu
 
 export function legalReadinessBlockers(evidence: LegalReadinessEvidence, facts: ReturnType<typeof legalRuntimeFacts>, scope: LegalReadinessScope = "all") {
   const selected = parseLegalReadinessScope(scope);
+  if (selected === "notice") return legalNoticeReadinessBlockers(evidence);
   if (selected === "push") return pushReadinessBlockers(evidence);
   const terms = serviceTermsReadinessBlockers(evidence, facts);
   return selected === "service-terms" ? terms : [...terms, ...pushReadinessBlockers(evidence)];
@@ -82,19 +90,21 @@ export function legalReadinessBlockers(evidence: LegalReadinessEvidence, facts: 
 export function legalReadinessReport(evidence: LegalReadinessEvidence, facts: ReturnType<typeof legalRuntimeFacts>, scope: LegalReadinessScope = "all") {
   const selected = parseLegalReadinessScope(scope);
   const terms = serviceTermsReadinessBlockers(evidence, facts);
+  const notice = legalNoticeReadinessBlockers(evidence);
   const push = pushReadinessBlockers(evidence);
   const all = [...terms, ...push];
-  const blockers = selected === "all" ? all : selected === "push" ? push : terms;
+  const blockers = selected === "all" ? all : selected === "push" ? push : selected === "notice" ? notice : terms;
   return {
     readinessScope: selected,
     ready: blockers.length === 0,
     allReady: all.length === 0,
     blockers,
     scopes: {
+      notice: { ready: notice.length === 0, blockers: notice },
       "service-terms": { ready: terms.length === 0, blockers: terms },
       push: { ready: push.length === 0, blockers: push },
     },
-    unresolvedOutsideScope: selected === "all" ? [] : selected === "push" ? terms : push,
+    unresolvedOutsideScope: selected === "all" ? [] : selected === "notice" ? all.filter(item => !notice.includes(item)) : selected === "push" ? terms : push,
     // 문서 승인과 개별 처리의 적법성·실제 운영 확인을 구분한다.
     operationalCompletionVerified: false,
   };
@@ -112,7 +122,7 @@ export function parseLegalReadinessArguments(args: string[]) {
     if (arg === "--strict") strict = true;
     else if (arg.startsWith("--scope=")) scope = parseLegalReadinessScope(arg.slice(8));
     else if (arg.startsWith("--file=") && arg.slice(7)) file = arg.slice(7);
-    else throw new Error("--file=확인파일.json [--scope=all|service-terms|push] [--strict] 형식으로 실행해주세요.");
+    else throw new Error("--file=확인파일.json [--scope=all|notice|service-terms|push] [--strict] 형식으로 실행해주세요.");
   }
   return { file, scope, strict };
 }

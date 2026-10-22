@@ -85,6 +85,7 @@ test("분리된 PostgreSQL에서 약관·권리 보호 마이그레이션의 실
   // 운영 users.role을 최소 스키마에 추가하고 후속 공고 마이그레이션까지 적용한다.
   query("ALTER TABLE users ADD COLUMN role text NOT NULL DEFAULT 'user'");
   query(readFileSync(join(process.cwd(), "prisma/migrations/20261022120000_add_initial_service_terms_release/migration.sql"), "utf8"));
+  query(readFileSync(join(process.cwd(), "prisma/migrations/20261022130000_separate_legal_notice_from_activation/migration.sql"), "utf8"));
   await t.test("관리자 접근 증거를 별도 보존하고 계정 삭제·변조·조기 파기를 막는다", () => {
     assert.equal(query("SELECT count(*) FROM admin_journal_access_audits"), "1");
     assert.equal(query("SELECT case_reference || ':' || array_to_string(entry_ids, ',') FROM admin_journal_access_audits"), "CASE-123:entry-1,entry-2");
@@ -102,6 +103,18 @@ test("분리된 PostgreSQL에서 약관·권리 보호 마이그레이션의 실
     query("DELETE FROM system_logs WHERE target_id='owner'");
     assert.equal(query("SELECT actor_user_id || ':' || subject_user_id FROM admin_journal_access_audits WHERE id='old-client-access'"), "operator:owner");
     assert.equal(query("SELECT count(*) FROM admin_journal_access_audits WHERE id='not-an-access'"), "0");
+  });
+  await t.test("공고는 일반 계정이 남아 있어도 가능하며 시행·동의는 생성하지 않고 원문 변경도 금지한다", () => {
+    const insert = "INSERT INTO legal_document_notices VALUES ('service-terms','notice-only','{}','" + "a".repeat(64) + "','2026-10-22','2026-10-22','initial','NOTICE-123','다음 앱·서버 전환 후 명시적 동의');";
+    assert.match(query(`BEGIN; INSERT INTO users(id) VALUES ('notice-user'); ${insert} SELECT (SELECT count(*) FROM legal_document_notices)||':'||(SELECT count(*) FROM service_terms_releases)||':'||(SELECT count(*) FROM service_terms_acceptances); ROLLBACK;`), /1:0:0/);
+    rejected(`BEGIN; ${insert} UPDATE legal_document_notices SET document='{"changed":true}'; ROLLBACK;`, /immutable/);
+    rejected(`BEGIN; ${insert} DELETE FROM legal_document_notices; ROLLBACK;`, /immutable/);
+    rejected(`BEGIN; ${insert} TRUNCATE legal_document_notices; ROLLBACK;`, /immutable/);
+    rejected(`BEGIN; INSERT INTO users(id) VALUES ('notice-user'); ${insert} INSERT INTO service_terms_acceptances VALUES ('not-accepted','notice-user','notice-only','hash',true,true,now()); ROLLBACK;`, /foreign key constraint/);
+    const activate = (hash: string, effective = "2026-10-22") => `INSERT INTO service_terms_releases VALUES ('notice-only','{}','${hash}','2026-10-22','${effective}','APPROVAL-123',0,'initial','CLOSURE-123');`;
+    query(`BEGIN; ${insert} ${activate("a".repeat(64))} ROLLBACK;`);
+    rejected(`BEGIN; ${insert} ${activate("different-hash")} ROLLBACK;`, /must match the announced/);
+    rejected(`BEGIN; ${insert} ${activate("a".repeat(64), "2026-10-21")} ROLLBACK;`, /cannot precede/);
   });
   await t.test("공고일 30일 미만 시행을 DB도 거절한다", () => {
     rejected("INSERT INTO service_terms_releases(version,document,document_hash,published_at,effective_at,approval_reference,notice_days) VALUES ('invalid','{}','hash','2026-10-19','2026-11-17','APPROVAL-1',30)", /check constraint/);

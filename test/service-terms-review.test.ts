@@ -56,6 +56,8 @@ test("최초 약관 화면에 맞춘 문서는 계정 준비와 동의 완료·�
   const review = prepareServiceTermsReview(await readFile("docs/legal/service-terms-draft.md", "utf8"));
   const admission = review.document.sections[2].paragraphs.join("\n");
   for (const text of ["앱을 처음 실행하거나 웹서비스에 처음 접속", "만 14세 이상 확인", "서버에 동의 기록이 저장되었음을 확인한 뒤", "계정 준비만으로 동의가 완료된 것으로 보지 않는다", "계정 복구·관리", "실제 나이를 검증한 것으로 표시하지 않는다"]) assert.ok(admission.includes(text), text);
+  assert.match(admission, /기존 이용자도 다음 앱 업데이트와 서버 동의 전환/);
+  assert.match(admission, /업데이트·앱 실행 자체를 동의로/);
   const privacy = await readFile("docs/legal/privacy-policy-draft.md", "utf8");
   for (const text of ["### 최초 접속과 일반 서비스 시작", "동의 전 모든 개인정보 처리가 없다는 뜻으로", "일괄 동의로 사용하지 않는다", "이 표시는 동의 영수증이 아니며", "일반 이용약관 동의 기록"]) assert.ok(privacy.includes(text), text);
   const location = await readFile("docs/legal/location-terms-draft.md", "utf8");

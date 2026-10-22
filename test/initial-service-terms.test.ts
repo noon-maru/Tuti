@@ -13,13 +13,15 @@ const offer: ServiceTermsOffer = {
     sections: [{ title: "기록", paragraphs: ["기록과 디지털 기록집을 제공합니다."] }] },
 };
 
-test("최초 약관 진입은 계정/활동 생성 없이 확인하고 명시적 동의 후에만 시작한다", async t => {
+test("최초 약관 진입은 서버 전환 전 기존 흐름을 허용하고 전환 후에는 실제 동의를 요구한다", async t => {
   const storage = new Map<string, string>();
   const requests: Array<{ path: string; method: string; authorization: string | null }> = [];
   let current: ServiceTermsOffer | null = offer;
   let accepted = false;
   let failSubmission = false;
   let failLookup = false;
+  let discardReceipt = false;
+  let enforcementEnabled: unknown = undefined;
   t.mock.method(preferencesStorage, "getItem", async (key: string) => storage.get(key) ?? null);
   t.mock.method(preferencesStorage, "setItem", async (key: string, value: string) => { storage.set(key, value); });
   t.mock.method(preferencesStorage, "removeItem", async (key: string) => { storage.delete(key); });
@@ -37,11 +39,11 @@ test("최초 약관 진입은 계정/활동 생성 없이 확인하고 명시적
       assert.equal(body.ageConfirmed, true);
       assert.equal(body.importantTermsConfirmed, true);
       assert.equal(body.documentHash, offer.documentHash);
-      accepted = true;
+      if (!discardReceipt) accepted = true;
       return Response.json({ receipt: { termsVersion: offer.version } });
     }
     if (failLookup) return Response.json({}, { status: 503 });
-    return Response.json({ current: current ? { ...current, accepted } : null, upcoming: null, required: Boolean(current && !accepted) });
+    return Response.json({ current: current ? { ...current, accepted } : null, upcoming: null, required: Boolean(current && !accepted), ...(enforcementEnabled === undefined ? {} : { enforcementEnabled }) });
   });
 
   await t.test("최초 조회는 저장소를 쓰거나 세션·분석을 생성하지 않는다", async () => {
@@ -56,12 +58,26 @@ test("최초 약관 진입은 계정/활동 생성 없이 확인하고 명시적
     assert.equal(requests[0].method, "GET");
     assert.equal(requests[0].authorization, null);
   });
-  await t.test("공고 전·조회 실패는 자동 통과나 계정 발급으로 이어지지 않는다", async () => {
+  await t.test("전환 전 구서버의 정확한 빈 응답은 기존 진입을 허용하되 동의·세션을 생성하지 않는다", async () => {
     current = null;
-    assert.equal((await loadInitialServiceTerms()).allowed, false);
+    assert.equal((await loadInitialServiceTerms()).allowed, true);
     failLookup = true;
     await assert.rejects(loadInitialServiceTerms);
     failLookup = false;
+    current = offer;
+    assert.equal(storage.size, 0);
+    assert.ok(requests.every(request => request.method === "GET"));
+  });
+  await t.test("새 서버는 강제 플래그가 꺼졌을 때만 통과하며 활성 상태의 문서 누락·잘못된 플래그는 통과하지 않는다", async () => {
+    enforcementEnabled = false;
+    assert.equal((await loadInitialServiceTerms()).allowed, true, "문서가 공개됐어도 서버 전환 전에는 첫 동의를 강제하지 않는다");
+    enforcementEnabled = true;
+    assert.equal((await loadInitialServiceTerms()).allowed, false);
+    current = null;
+    assert.equal((await loadInitialServiceTerms()).allowed, false, "명시적 활성 상태는 빈 문서여도 구서버 호환으로 통과하지 않는다");
+    enforcementEnabled = "false";
+    await assert.rejects(loadInitialServiceTerms);
+    enforcementEnabled = undefined;
     current = offer;
     assert.equal(storage.size, 0);
     assert.ok(requests.every(request => request.method === "GET"));
@@ -82,6 +98,14 @@ test("최초 약관 진입은 계정/활동 생성 없이 확인하고 명시적
     assert.equal((await loadInitialServiceTerms()).allowed, false, "동의 저장 중 생성한 계정은 공고가 사라져도 기존 계정으로 우회하지 않는다");
     current = offer;
     failSubmission = false;
+  });
+  await t.test("전환 비활성으로 진입이 허용돼도 실제 영수증 없이는 동의 저장 성공으로 처리하지 않는다", async () => {
+    enforcementEnabled = false;
+    discardReceipt = true;
+    await assert.rejects(acceptInitialServiceTerms(offer, { ageConfirmed: true, importantTermsConfirmed: true }));
+    assert.equal(storage.get("tuti-initial-terms-pending"), "true");
+    enforcementEnabled = true;
+    discardReceipt = false;
   });
   await t.test("동의 저장과 계정별 서버 확인이 모두 성공해야 시작하며 다음 접속은 재동의하지 않는다", async () => {
     assert.equal((await acceptInitialServiceTerms(offer, { ageConfirmed: true, importantTermsConfirmed: true })).allowed, true);

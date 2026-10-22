@@ -29,7 +29,7 @@ export function isLegalRightsPath(pathname: string, method?: string) {
   if (normalized === null) return false;
   pathname = normalized;
   if (method === "DELETE" && (pathname === "/api/account" || /^\/api\/journal-(entries|books)\/[^/]+$/.test(pathname))) return true;
-  return pathname === "/legal" || pathname.startsWith("/legal/") || pathname === "/account-deletion" ||
+  return pathname === "/legal" || pathname.startsWith("/legal/") || pathname === "/api/public/legal-notices" || pathname === "/account-deletion" ||
     pathname === "/api/account-deletion-requests" || pathname === "/api/location-consent" ||
     pathname === "/api/location-history" || pathname === "/api/service-terms" || pathname === "/api/inquiries" ||
     pathname === "/api/reports" || pathname === "/api/journal-author-blocks";
