@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { NextRequest, type NextFetchEvent } from "next/server";
+import { CLIENT_PROTOCOL } from "@/shared/api/clientProtocol";
 
 process.env.DATABASE_URL = "postgresql://test:test@127.0.0.1:1/test";
 process.env.TRAFFIC_SECURITY_HMAC_SECRET = "proxy-security-test-secret-with-32-characters";
@@ -17,7 +18,7 @@ let ruleQueries = 0;
 const { proxy } = await import("@/proxy");
 const { createTrafficIdentity, invalidateTrafficBlockCache } = await import("@/server/security/trafficSecurity");
 const { resetRateLimitsForTest } = await import("@/server/http/rateLimit");
-const headers = { "cf-connecting-ip": "203.0.113.42", "user-agent": "legal-proxy-test", Origin: "https://tuti.today", "Content-Type": "application/json" };
+const headers = { "cf-connecting-ip": "203.0.113.42", "user-agent": "legal-proxy-test", Origin: "https://tuti.today", "Content-Type": "application/json", "X-Tuti-Client-Protocol": CLIENT_PROTOCOL, "X-Tuti-Client-Platform": "web" };
 
 test("실제 프록시에서 차단된 주소의 권리 요청은 API로 넘기되 새 이용 차단·요청 제한은 유지한다", async (t) => {
   t.mock.timers.enable({ apis: ["Date"], now: new Date("2026-10-19T00:00:00Z").getTime() });
@@ -30,6 +31,16 @@ test("실제 프록시에서 차단된 주소의 권리 요청은 API로 넘기�
     await Promise.all(pending);
     return response;
   };
+  await t.test("구버전 요청은 일반 API 처리와 DB 차단 조회 전에 거절한다", async () => {
+    const oldHeaders = new Headers(headers);
+    oldHeaders.delete("X-Tuti-Client-Protocol");
+    const before = ruleQueries;
+    const request = new NextRequest("https://tuti.today/api/anonymous-session", { method: "POST", headers: oldHeaders });
+    const response = await proxy(request, { waitUntil: () => { throw new Error("구버전은 백그라운드 처리도 시작하지 않는다"); } } as unknown as NextFetchEvent);
+    assert.equal(response.status, 426);
+    assert.equal((await response.json()).code, "client_update_required");
+    assert.equal(ruleQueries, before);
+  });
   await t.test("차단이 실제로 일치하는 새 추천·공개 요청은 거절한다", async () => {
     for (const [path, method, body] of [
       ["/api/recommendations", "POST", {}],

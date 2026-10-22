@@ -17,10 +17,17 @@ export async function fetchNativeAppUpdatePolicy() {
     version: appInfo.version,
   });
   const response = await fetch(apiUrl(`app-update?${searchParams}`), {
-    cache: "no-store",
+    cache: "no-store", signal: AbortSignal.timeout(10_000),
   });
   if (!response.ok) throw new Error("app_update_policy_unavailable");
-  return (await response.json()) as AppUpdatePolicyResponse;
+  const policy = await response.json() as AppUpdatePolicyResponse;
+  if (policy.platform !== platform || policy.currentVersion !== appInfo.version ||
+      typeof policy.required !== "boolean" || typeof policy.updateAvailable !== "boolean" ||
+      (policy.required && !policy.updateAvailable) ||
+      (policy.updateAvailable && (typeof policy.latestVersion !== "string" || typeof policy.storeUrl !== "string" || !policy.storeUrl.startsWith("https://")))) {
+    throw new Error("app_update_policy_invalid");
+  }
+  return policy;
 }
 
 export async function openNativeAppStore(storeUrl: string) {

@@ -325,6 +325,23 @@
     "finalApprovalApplied": false,
     "publicationApplied": false
   },
+  "clientCompatibilityCutover": {
+    "recordedAt": "2026-10-22",
+    "state": "local_implementation_not_deployed",
+    "protocol": "2026-10-22",
+    "legacyBookJsonCompletionRemoved": true,
+    "legacySessionStorageMigrationRemoved": true,
+    "ordinaryApiRevisionRequired": true,
+    "nativeVersionCheckedByServer": true,
+    "headersProveAuthenticityOrConsent": false,
+    "nativeDeviceVerified": false,
+    "serverPreAccountAdmissionVerified": false,
+    "deploymentApplied": false,
+    "runtimeSettingsChanged": false,
+    "rolloutRequirement": "새 규약을 포함한 앱의 실제 스토어 이용 가능 여부 확인 후 서버·웹·버전 설정 전환. 기존 바이너리에 업데이트 UI를 소급 추가하는 것은 아님",
+    "accountResetDecision": "운영자 최신 답변: 지금은 코드만 수정하고 실제 삭제는 보류",
+    "accountDeletionApplied": false
+  },
   "rolloutDecision": {
     "recordedAt": "2026-10-20",
     "source": "운영자의 대화 지시",

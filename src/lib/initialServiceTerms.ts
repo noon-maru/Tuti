@@ -1,4 +1,5 @@
 import { apiUrl } from "@/lib/api/apiUrl";
+import { clientFetch } from "@/lib/api/clientFetch";
 import { ensureSession, getSessionSnapshot, readStoredSession } from "@/lib/auth/session";
 import { submitServiceTerms } from "@/lib/serviceTerms";
 import { preferencesStorage } from "@/lib/storage/preferencesStorage";
@@ -23,7 +24,7 @@ export async function loadInitialServiceTerms(): Promise<InitialTermsState> {
   const session = getSessionSnapshot() ?? await readStoredSession();
   try {
     const pending = await preferencesStorage.getItem(INITIAL_TERMS_PENDING_KEY);
-    const response = await fetch(apiUrl("service-terms"), {
+    const response = await clientFetch(apiUrl("service-terms"), {
       cache: "no-store", signal: AbortSignal.timeout(10_000),
       headers: session ? { Authorization: `Bearer ${session.accessToken}` } : undefined,
     });

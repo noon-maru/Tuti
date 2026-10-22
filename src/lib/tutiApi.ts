@@ -1,8 +1,9 @@
 import { apiUrl } from "@/lib/api/apiUrl";
+import { clientFetch } from "@/lib/api/clientFetch";
 import type { SensitiveJournalPolicyResponse } from "@/shared/legal/sensitiveJournalPolicy";
 
 export async function fetchSensitiveJournalPolicy(): Promise<SensitiveJournalPolicyResponse> {
-  const response = await fetch(apiUrl("journal-sensitive-policy"), { cache: "no-store" });
+  const response = await clientFetch(apiUrl("journal-sensitive-policy"), { cache: "no-store" });
   if (!response.ok) throw new Error("기록 보호 설정을 확인하지 못했어요. 잠시 후 다시 시도해주세요.");
   const data = await response.json();
   if (typeof data.enabled !== "boolean" || typeof data.version !== "string") throw new Error("기록 보호 설정을 확인하지 못했어요.");
@@ -165,7 +166,7 @@ export async function fetchRecommendations(
 }
 
 export async function fetchRecommendationRegions() {
-  const response = await fetch(apiUrl("recommendation-regions"));
+  const response = await clientFetch(apiUrl("recommendation-regions"));
   if (!response.ok) {
     throw new Error(
       await readApiError(response, "추천받을 지역을 불러오지 못했어요."),
@@ -177,7 +178,7 @@ export async function fetchRecommendationRegions() {
 export async function fetchNearbyAccommodations(
   placeId: string,
 ): Promise<NearbyAccommodationsResponse> {
-  const response = await fetch(
+  const response = await clientFetch(
     apiUrl(`places/${encodeURIComponent(placeId)}/accommodations`),
   );
   if (!response.ok) {
@@ -207,7 +208,7 @@ export async function recordRecommendationAction(
 export async function fetchPlaceDetail(
   placeId: string,
 ): Promise<PlaceDetailResponse> {
-  const response = await fetch(
+  const response = await clientFetch(
     apiUrl(`places/${encodeURIComponent(placeId)}/detail`),
   );
 
@@ -273,7 +274,7 @@ export async function fetchDepartureRoute(
 export async function fetchDepartureNearbyPlaces(
   placeId: string,
 ): Promise<DepartureNearbyPlace[]> {
-  const response = await fetch(
+  const response = await clientFetch(
     apiUrl(`places/${encodeURIComponent(placeId)}/departure-nearby`),
   );
   if (!response.ok) {

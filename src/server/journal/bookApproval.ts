@@ -5,17 +5,13 @@ import {
   timingSafeEqual,
 } from "node:crypto";
 
-import {
-  parseJournalBookInput,
-  type JournalBookInput,
-} from "@/shared/api/journalBook";
+import type { JournalBookInput } from "@/shared/api/journalBook";
 import { PDFDocument } from "pdf-lib";
 import { SENSITIVE_JOURNAL_CONSENT_VERSION } from "@/shared/legal/sensitiveJournalPolicy";
 
 const APPROVAL_VERSION = 2;
 const APPROVAL_LIFETIME_MS = 30 * 60 * 1000;
 export const JOURNAL_BOOK_MAX_PDF_BYTES = 20 * 1024 * 1024;
-const JOURNAL_BOOK_MAX_JSON_BYTES = 16 * 1024;
 
 type JournalBookApprovalPayload = {
   version: typeof APPROVAL_VERSION;
@@ -35,15 +31,10 @@ export type ApprovedJournalBook = Pick<
   "bookId" | "title" | "entryIds" | "pageCount" | "issuedAt" | "sensitivePolicyVersion"
 >;
 
-export type JournalBookCompletionRequest =
-  | {
+export type JournalBookCompletionRequest = {
       kind: "approved-pdf";
       book: ApprovedJournalBook;
       pdf: Uint8Array;
-    }
-  | {
-      kind: "legacy-json";
-      input: JournalBookInput;
     };
 
 export async function createJournalBookApproval(
@@ -154,32 +145,9 @@ export async function readJournalBookCompletionRequest(
     };
   }
 
-  if (contentType === "application/json") {
-    const bytes = await readRequestBytes(
-      request,
-      JOURNAL_BOOK_MAX_JSON_BYTES,
-      "기록집 요청 내용이 너무 커요.",
-    );
-    let body: unknown;
-    try {
-      body = JSON.parse(Buffer.from(bytes).toString("utf8"));
-    } catch {
-      throw new JournalBookApprovalError("기록집 내용을 확인해주세요.", 400);
-    }
-    const input = parseJournalBookInput(
-      body && typeof body === "object"
-        ? (body as { input?: unknown }).input
-        : null,
-    );
-    if (!input) {
-      throw new JournalBookApprovalError("기록집 내용을 확인해주세요.", 400);
-    }
-    return { kind: "legacy-json", input };
-  }
-
   throw new JournalBookApprovalError(
-    "기록집 완성 요청 형식을 확인해주세요.",
-    400,
+    "최신 버전에서 미리보기를 확인한 뒤 다시 완성해주세요.",
+    415,
   );
 }
 

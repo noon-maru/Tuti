@@ -14,22 +14,23 @@ import { InitialServiceTermsGate } from "@/features/legal/InitialServiceTermsGat
 export function TutiAppShell({ children }: { children: React.ReactNode }) {
   return (
     <AppFrame>
-      <InitialServiceTermsGate rightsChildren={
-        <Providers activityEnabled={false} rightsOnly>
-          <NativeOAuthCallbackHandler />
-          <LocationAccessProvider>{children}</LocationAccessProvider>
-        </Providers>
-      }>
-        <Providers>
-          <NativeOAuthCallbackHandler />
-          <LocalNotificationHandler />
-          <PushNotificationHandler />
-          <NativeAppUpdateNotice />
-          <ServiceTermsNotice />
-          <GentleLoginNudge />
-          <LocationAccessProvider>{children}</LocationAccessProvider>
-        </Providers>
-      </InitialServiceTermsGate>
+      <NativeAppUpdateNotice>
+        <InitialServiceTermsGate rightsChildren={
+          <Providers activityEnabled={false} rightsOnly>
+            <NativeOAuthCallbackHandler />
+            <LocationAccessProvider>{children}</LocationAccessProvider>
+          </Providers>
+        }>
+          <Providers>
+            <NativeOAuthCallbackHandler />
+            <LocalNotificationHandler />
+            <PushNotificationHandler />
+            <ServiceTermsNotice />
+            <GentleLoginNudge />
+            <LocationAccessProvider>{children}</LocationAccessProvider>
+          </Providers>
+        </InitialServiceTermsGate>
+      </NativeAppUpdateNotice>
     </AppFrame>
   );
 }
