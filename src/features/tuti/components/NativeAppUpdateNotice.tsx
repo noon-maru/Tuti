@@ -3,6 +3,7 @@
 import { Preferences } from "@capacitor/preferences";
 import styled from "@emotion/styled";
 import { ArrowUpRight } from "lucide-react";
+import { usePathname } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import {
   fetchNativeAppUpdatePolicy,
@@ -10,12 +11,19 @@ import {
 } from "@/lib/appUpdate";
 import type { AppUpdatePolicyResponse } from "@/shared/api/appUpdate";
 import { Button } from "@/features/tuti/components/buttons";
+import { CLIENT_UPDATE_REQUIRED_EVENT, type ClientUpdateRequired } from "@/shared/api/clientProtocol";
+import { isInitialTermsRightsPath } from "@/lib/initialServiceTerms";
 
 const UPDATE_SNOOZE_DURATION_MS = 24 * 60 * 60 * 1_000;
 
-export function NativeAppUpdateNotice() {
+export function NativeAppUpdateNotice({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname();
   const [policy, setPolicy] = useState<AppUpdatePolicyResponse | null>(null);
   const [openingStore, setOpeningStore] = useState(false);
+  const [checked, setChecked] = useState(false);
+  const [checkFailed, setCheckFailed] = useState(false);
+  const [attempt, setAttempt] = useState(0);
+  const [incompatible, setIncompatible] = useState<ClientUpdateRequired | null>(null);
 
   const dismiss = useCallback(
     async (currentPolicy: AppUpdatePolicyResponse) => {
@@ -33,9 +41,8 @@ export function NativeAppUpdateNotice() {
 
     void fetchNativeAppUpdatePolicy()
       .then(async (nextPolicy) => {
-        if (disposed || !nextPolicy?.updateAvailable || !nextPolicy.storeUrl) {
-          return;
-        }
+        if (disposed) return;
+        if (!nextPolicy?.updateAvailable || !nextPolicy.storeUrl) { setChecked(true); return; }
 
         if (!nextPolicy.required && nextPolicy.latestVersion) {
           const { value } = await Preferences.get({
@@ -43,19 +50,29 @@ export function NativeAppUpdateNotice() {
           });
           const snoozedUntil = Number(value);
           if (Number.isFinite(snoozedUntil) && snoozedUntil > Date.now()) {
+            if (!disposed) setChecked(true);
             return;
           }
         }
 
-        if (!disposed) setPolicy(nextPolicy);
+        if (!disposed) { setPolicy(nextPolicy); setChecked(true); }
       })
       .catch(() => {
-        // 업데이트 확인 장애가 앱 사용을 막지 않도록 조용히 건너뜁니다.
+        if (!disposed) setCheckFailed(true);
       });
 
     return () => {
       disposed = true;
     };
+  }, [attempt]);
+
+  useEffect(() => {
+    const required = (event: Event) => {
+      const data = (event as CustomEvent<ClientUpdateRequired>).detail;
+      if (data?.code === "client_update_required") setIncompatible(data);
+    };
+    window.addEventListener(CLIENT_UPDATE_REQUIRED_EVENT, required);
+    return () => window.removeEventListener(CLIENT_UPDATE_REQUIRED_EVENT, required);
   }, []);
 
   useEffect(() => {
@@ -87,9 +104,26 @@ export function NativeAppUpdateNotice() {
     }
   };
 
-  if (!policy?.updateAvailable || !policy.latestVersion || !policy.storeUrl) {
-    return null;
-  }
+  // 계정 복구·삭제·열람·철회·문의는 업데이트와 분리한다. API 쪽 기존 인증은 유지한다.
+  if (isInitialTermsRightsPath(pathname)) return children;
+
+  if (incompatible || checkFailed || !checked) return <Backdrop>
+    <Dialog role="dialog" aria-modal="true" aria-labelledby="client-version-title">
+      <Copy>
+        <h2 id="client-version-title">{incompatible ? "새 버전으로 이어서 사용할 수 있어요." : checkFailed ? "앱 버전을 확인하지 못했어요." : "사용할 버전을 확인하고 있어요."}</h2>
+        <p>{incompatible?.error ?? (checkFailed ? "연결을 확인한 뒤 다시 시도해주세요." : "잠시만 기다려주세요.")}</p>
+      </Copy>
+      {incompatible ? incompatible.storeUrl ? <Button type="button" $tone="primary" onClick={() => {
+        const url = incompatible.storeUrl;
+        if (url?.startsWith("https://")) void openNativeAppStore(url).catch(() => window.open(url, "_blank", "noopener,noreferrer"));
+      }}>지금 업데이트하기</Button> : <Button type="button" $tone="primary" onClick={() => window.location.reload()}>새로고침하기</Button> : checkFailed && <Button type="button" onClick={() => { setCheckFailed(false); setAttempt(value => value + 1); }}>다시 확인하기</Button>}
+      <a href="/login">계정·데이터 관리</a>
+      <a href="/account-deletion">데이터 삭제 안내</a>
+      <a href="mailto:admin@tuti.today">문의</a>
+    </Dialog>
+  </Backdrop>;
+
+  if (!policy?.updateAvailable || !policy.latestVersion || !policy.storeUrl) return children;
 
   const title = policy.required
     ? "새 버전으로 이어서 사용할 수 있어요."
@@ -99,6 +133,8 @@ export function NativeAppUpdateNotice() {
     : "지금의 기록은 그대로 두고, 더 안정적인 버전으로 가볍게 옮겨갈 수 있어요.";
 
   return (
+    <>
+    {!policy.required && children}
     <Backdrop>
       <Dialog
         role="dialog"
@@ -141,8 +177,10 @@ export function NativeAppUpdateNotice() {
             </LaterButton>
           )}
         </Actions>
+        {policy.required && <a href="/login">계정·데이터 관리</a>}
       </Dialog>
     </Backdrop>
+    </>
   );
 }
 

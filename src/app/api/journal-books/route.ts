@@ -1,4 +1,3 @@
-import { randomUUID } from "node:crypto";
 import { writeDiagnosticLogSafely } from "@/server/admin/log";
 
 import { authenticateUser } from "@/server/auth/session";
@@ -21,13 +20,7 @@ import type {
 import {
   JournalBookApprovalError,
   readJournalBookCompletionRequest,
-  readJournalBookPageCount,
 } from "@/server/journal/bookApproval";
-import {
-  JournalBookRenderError,
-  renderOwnedJournalBook,
-} from "@/server/journal/renderBook";
-import type { JournalBookInput } from "@/shared/api/journalBook";
 
 export const runtime = "nodejs";
 
@@ -119,10 +112,7 @@ export async function POST(request: Request) {
     }
     creating = true;
     try {
-      const prepared =
-        completion.kind === "approved-pdf"
-          ? { ...completion.book, pdf: completion.pdf }
-          : await prepareLegacyJournalBook(user.id, completion.input);
+      const prepared = { ...completion.book, pdf: completion.pdf };
       const id = prepared.bookId;
       objectKey = await storeJournalBookPdf(user.id, id, prepared.pdf);
       const storedObjectKey = objectKey;
@@ -179,8 +169,7 @@ export async function POST(request: Request) {
     }
     const knownError =
       error instanceof JournalBookApprovalError ||
-      error instanceof SensitiveJournalPolicyError ||
-      error instanceof JournalBookRenderError;
+      error instanceof SensitiveJournalPolicyError;
     if (!knownError) {
       console.error("기록집을 완성하지 못했습니다.");
       await writeDiagnosticLogSafely({ code: "UNEXPECTED_FAILURE", component: "book" });
@@ -209,21 +198,4 @@ function forbidden() {
 
 function unauthorized() {
   return Response.json({ error: "사용자 인증이 필요해요." }, { status: 401 });
-}
-
-async function prepareLegacyJournalBook(
-  ownerId: string,
-  input: JournalBookInput,
-) {
-  const issuedAt = Date.now();
-  const pdf = await renderOwnedJournalBook(ownerId, input);
-  return {
-    issuedAt,
-    sensitivePolicyVersion: input.freeformNonSensitiveConfirmed === true ? SENSITIVE_JOURNAL_CONSENT_VERSION : null,
-    bookId: randomUUID(),
-    title: input.title,
-    entryIds: [...input.entryIds],
-    pageCount: await readJournalBookPageCount(pdf),
-    pdf,
-  };
 }

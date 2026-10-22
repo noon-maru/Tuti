@@ -24,12 +24,15 @@ export function createAppUpdatePolicy(
   }
 
   const prefix = platform === "android" ? "ANDROID" : "IOS";
-  const latestVersion = normalizeConfiguredVersion(
+  const configuredLatestVersion = normalizeConfiguredVersion(
     environment[`APP_UPDATE_${prefix}_LATEST_VERSION`],
   );
-  const minimumVersion = normalizeConfiguredVersion(
+  const configuredMinimumVersion = normalizeConfiguredVersion(
     environment[`APP_UPDATE_${prefix}_MINIMUM_VERSION`],
   );
+  const latestVersion = configuredLatestVersion ?? configuredMinimumVersion;
+  const minimumVersion = configuredMinimumVersion ?? latestVersion;
+  if (latestVersion && minimumVersion && compareAppVersions(latestVersion, minimumVersion) < 0) throw new InvalidAppUpdateConfigurationError();
   const storeUrl = normalizeStoreUrl(
     environment[`APP_UPDATE_${prefix}_STORE_URL`],
     DEFAULT_STORE_URLS[platform],

@@ -9,8 +9,11 @@ import {
 import { recordTrafficObservationSafely } from "@/server/security/trafficObservation";
 import { findActiveTrafficBlock } from "@/server/security/trafficSecurity";
 import { guardServiceTerms, isLegalRightsRequest } from "@/server/legal/requestGuard";
+import { guardClientCompatibility } from "@/server/appUpdate/clientGuard";
 
 export async function proxy(request: NextRequest, event: NextFetchEvent) {
+  const compatibilityResponse = guardClientCompatibility(request, await isLegalRightsRequest(request));
+  if (compatibilityResponse) return compatibilityResponse;
   if (!(await shouldBypassTrafficSecurity(request))) {
     try {
       const block = await findActiveTrafficBlock(request);

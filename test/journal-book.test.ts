@@ -317,18 +317,15 @@ test("서버가 승인한 미리보기 PDF만 같은 쪽 수로 완성할 수 �
   }
 });
 
-test("기존 앱의 JSON 완성 요청을 받고 클라이언트 쪽 수는 무시한다", async () => {
-  const completion = await readJournalBookCompletionRequest(
+test("구버전 앱의 JSON 완성 요청은 더 이상 받지 않는다", async () => {
+  await assert.rejects(readJournalBookCompletionRequest(
     new Request("https://tuti.test/api/journal-books", {
       method: "POST",
       headers: { "Content-Type": "application/json; charset=utf-8" },
       body: JSON.stringify({ input, pageCount: 99 }),
     }),
     "owner-a",
-  );
-
-  assert.deepEqual(completion, { kind: "legacy-json", input });
-  assert.equal("pageCount" in completion, false);
+  ), { status: 415 });
 });
 
 test("한글·긴 본문·사진·편지·지원하지 않는 이모지를 실제 PDF로 만든다", async () => {
