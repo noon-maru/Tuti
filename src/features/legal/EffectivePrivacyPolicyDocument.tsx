@@ -1,8 +1,8 @@
-import { LegalDocument } from "@/features/legal/LegalDocument";
-import { privacyPolicyFrom20261010 } from "@/shared/legal/privacyPolicySecurityUpdate";
+import { PolicyDocument } from "@/features/legal/PolicyDocument";
+import { getLegalPolicyRelease } from "@/shared/legal/policyRelease";
 
-// 시행이 완료된 방침은 서버 HTML과 앱에서 동일하게 표시한다.
-// 과거 방침을 먼저 렌더링하거나 기기 시계에 따라 되돌리지 않는다.
+// 서버 렌더링의 초기 버전을 전달하고 앱에서는 운영 서버의 상태로 재확인한다.
+// 기기 시계로 시행 여부를 판단하지 않는다.
 export function EffectivePrivacyPolicyDocument() {
-  return <LegalDocument {...privacyPolicyFrom20261010} />;
+  return <PolicyDocument kind="privacy" initialRelease={getLegalPolicyRelease()} />;
 }

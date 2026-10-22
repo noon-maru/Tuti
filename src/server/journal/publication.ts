@@ -4,7 +4,7 @@ import { isStoredJournalImage } from "@/server/journal/imageStorage";
 import type { PublicJournalEntry } from "@/shared/api/journal";
 import { journalPublicationEnabled } from "@/shared/features/release";
 import { canViewerAccessJournalEntry } from "@/server/journal/publicationState";
-import { JOURNAL_PUBLICATION_POLICY_VERSION } from "@/shared/legal/journalPublicationPolicy";
+import { getJournalPublicationPolicyVersion } from "@/shared/legal/journalPublicationPolicy";
 import { isJournalLegallyBlocked } from "@/server/legal/journalRights";
 
 export async function isPublicJournalEntryAvailable(publicId: string) {
@@ -20,7 +20,7 @@ export async function getPublicJournalAccessState(publicId: string): Promise<"av
       ...publicSensitiveJournalFilter(),
       publicationStatus: "published",
       publishedAt: { not: null },
-      publicationConsentVersion: JOURNAL_PUBLICATION_POLICY_VERSION,
+      publicationConsentVersion: getJournalPublicationPolicyVersion(),
       publicationConsentedAt: { not: null },
     },
     select: { id: true },
@@ -42,7 +42,7 @@ export async function getPublicJournalEntry(
       ...publicSensitiveJournalFilter(),
       publishedAt: { not: null },
       publicationStatus: "published",
-      publicationConsentVersion: JOURNAL_PUBLICATION_POLICY_VERSION,
+      publicationConsentVersion: getJournalPublicationPolicyVersion(),
       publicationConsentedAt: { not: null },
     },
     select: {
@@ -98,7 +98,7 @@ export async function getPublicJournalImage(
       ...publicSensitiveJournalFilter(),
       publishedAt: { not: null },
       publicationStatus: "published",
-      publicationConsentVersion: JOURNAL_PUBLICATION_POLICY_VERSION,
+      publicationConsentVersion: getJournalPublicationPolicyVersion(),
       publicationConsentedAt: { not: null },
     },
     select: {

@@ -1,3 +1,9 @@
+import { getLegalPolicyRelease } from "@/shared/legal/policyRelease";
+
+export function getJournalPublicationPolicyVersion() {
+  return getLegalPolicyRelease() ? "journal-publication-2026-10-22" : JOURNAL_PUBLICATION_POLICY_VERSION;
+}
+
 export const JOURNAL_PUBLICATION_POLICY_VERSION =
   "journal-publication-2026-10-01";
 export const JOURNAL_PUBLICATION_POLICY_EFFECTIVE_AT =
@@ -15,7 +21,7 @@ export function isJournalPublicationPolicyEffective(
 export function isCurrentJournalPublicationPolicy(
   version: unknown,
 ) {
-  return version === JOURNAL_PUBLICATION_POLICY_VERSION;
+  return version === getJournalPublicationPolicyVersion();
 }
 
 export const journalPublicationPolicy = {

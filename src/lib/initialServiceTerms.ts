@@ -4,6 +4,8 @@ import { ensureSession, getSessionSnapshot, readStoredSession } from "@/lib/auth
 import { submitServiceTerms } from "@/lib/serviceTerms";
 import { preferencesStorage } from "@/lib/storage/preferencesStorage";
 import { parseServiceTermsDocument, type ServiceTermsOffer } from "@/shared/legal/serviceTerms";
+import { syncLegalPolicyRelease } from "@/shared/legal/policyRelease";
+import { validateFinalizedTerms } from "@/shared/legal/validateFinalizedTerms";
 
 export type InitialTermsState = {
   hasStoredSession: boolean;
@@ -30,6 +32,8 @@ export async function loadInitialServiceTerms(): Promise<InitialTermsState> {
     });
     if (!response.ok) throw new Error("이용약관을 불러오지 못했어요.");
     const status = await response.json();
+    validateFinalizedTerms(status);
+    syncLegalPolicyRelease(status?.legalPolicyRelease);
     if (!status || typeof status !== "object" || !("current" in status) || typeof status.required !== "boolean") throw new Error("이용약관 응답을 확인하지 못했어요.");
     if ("enforcementEnabled" in status && typeof status.enforcementEnabled !== "boolean") throw new Error("이용약관 전환 상태를 확인하지 못했어요.");
     let offer: ServiceTermsOffer | null = null;

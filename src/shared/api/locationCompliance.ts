@@ -1,4 +1,5 @@
 import type { LocationConsentStatus } from "@/shared/tuti/types";
+import type { LegalPolicyRelease } from "@/shared/legal/policyRelease";
 
 export type LocationConsentUpdate = {
   status: LocationConsentStatus;
@@ -16,6 +17,7 @@ export type LocationConsentServerRecord = {
 
 export type LocationConsentResponse = {
   consent: LocationConsentServerRecord | null;
+  legalPolicyRelease?: LegalPolicyRelease | null;
 };
 
 export type LocationComplianceErrorCode =

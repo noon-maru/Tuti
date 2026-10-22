@@ -7,7 +7,7 @@ import { lockLocationSubject } from "@/server/location/subjectLock";
 import { cancelLocationRequests, withLocationRequestScope } from "@/server/location/requestScope";
 import { countLocationDerivedData, purgeLocationDerivedData } from "@/server/location/derivedData";
 import { commitPrivacyReplayReceipt, preparePrivacyReplayReceipt } from "@/server/legal/privacyReplayLedger";
-import { LOCATION_TERMS_VERSION } from "@/shared/location/terms";
+import { getLocationTermsVersion } from "@/shared/location/terms";
 import type { LocationConsentStatus } from "@/shared/tuti/types";
 
 export type LocationAcquisitionSource = "device" | "photo_exif";
@@ -64,7 +64,7 @@ export async function recordLocationConsent({
   ageConfirmed: boolean;
   clientPlatform: string;
 }) {
-  if (status === "accepted" && termsVersion !== LOCATION_TERMS_VERSION) {
+  if (status === "accepted" && termsVersion !== getLocationTermsVersion()) {
     throw new LocationComplianceError(
       "현재 위치기반서비스 약관을 다시 확인해주세요.",
       "location_consent_outdated",
@@ -88,9 +88,9 @@ export async function recordLocationConsent({
         where: { userId: user.id },
         orderBy: [{ createdAt: "desc" }, { id: "desc" }],
       });
-      const recordedVersion = status === "accepted" ? termsVersion : LOCATION_TERMS_VERSION;
+      const recordedVersion = status === "accepted" ? termsVersion : getLocationTermsVersion();
       const confirmedAge = status === "accepted" ? ageConfirmed
-        : status === "paused" && current?.termsVersion === LOCATION_TERMS_VERSION
+        : status === "paused" && current?.termsVersion === getLocationTermsVersion()
           ? current.ageConfirmed : false;
       if (status === "withdrawn") {
         withdrawalEffectiveAt = new Date(Math.max(Date.now(), (current?.createdAt.getTime() ?? 0) + 1));
@@ -167,7 +167,7 @@ export async function replayLocationWithdrawal(userId: string, effectiveAt: Date
     await purgeLocationDerivedData(transaction, userId);
     await transaction.locationConsentEvent.deleteMany({ where: { userId, ...(current?.status === "withdrawn" ? { id: { not: current.id } } : {}) } });
     if (current?.status !== "withdrawn") await transaction.locationConsentEvent.create({ data: {
-      id: randomUUID(), userId, subjectKey: createSubjectKey(userId), status: "withdrawn", termsVersion: LOCATION_TERMS_VERSION,
+      id: randomUUID(), userId, subjectKey: createSubjectKey(userId), status: "withdrawn", termsVersion: getLocationTermsVersion(),
       ageConfirmed: false, clientPlatform: "unknown", createdAt: new Date(Math.max(Date.now(), (current?.createdAt.getTime() ?? 0) + 1)),
     } });
     return { skipped: false };
@@ -233,7 +233,7 @@ export async function requireCurrentLocationConsent(
       403,
     );
   }
-  if (consent.termsVersion !== LOCATION_TERMS_VERSION) {
+  if (consent.termsVersion !== getLocationTermsVersion()) {
     throw new LocationComplianceError(
       "위치기반서비스 약관이 변경되어 다시 동의가 필요해요.",
       "location_consent_outdated",
@@ -331,7 +331,7 @@ async function createUsageLog(
       orderBy: [{ createdAt: "desc" }, { id: "desc" }],
     });
     if (consent?.id !== context.consentEventId || consent.status !== "accepted" ||
-        !consent.ageConfirmed || consent.termsVersion !== LOCATION_TERMS_VERSION) {
+        !consent.ageConfirmed || consent.termsVersion !== getLocationTermsVersion()) {
       throw new LocationComplianceError(
         "위치정보 이용이 중단되었어요. 위치 설정을 확인해주세요.",
         "location_consent_required", 403,

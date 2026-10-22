@@ -76,19 +76,26 @@ import type {
 } from "@/shared/tuti/types";
 import type { LocationConsentResponse } from "@/shared/api/locationCompliance";
 import type { LocationHistoryResponse } from "@/shared/api/locationHistory";
-import { LOCATION_TERMS_VERSION } from "@/shared/location/terms";
+import { getLocationTermsVersion } from "@/shared/location/terms";
+import { syncLegalPolicyRelease } from "@/shared/legal/policyRelease";
+import { fetchServiceTerms } from "@/lib/serviceTerms";
 
 export async function updateLocationConsent(
   status: LocationConsentStatus,
   ageConfirmed = false,
+  termsVersion = getLocationTermsVersion(),
 ) {
+  if (status === "accepted") {
+    await fetchServiceTerms(false);
+    if (termsVersion !== getLocationTermsVersion()) throw new Error("위치 약관이 변경되었어요. 새 내용을 확인하고 다시 동의해주세요.");
+  }
   const platform = Capacitor.getPlatform();
   const response = await fetchWithPinnedSession("location-consent", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       status,
-      termsVersion: LOCATION_TERMS_VERSION,
+      termsVersion,
       ageConfirmed,
       clientPlatform:
         platform === "ios" || platform === "android" ? platform : "web",
@@ -109,7 +116,9 @@ export async function fetchLocationConsent() {
       await readApiError(response, "위치정보 동의 상태를 확인하지 못했어요."),
     );
   }
-  return ((await response.json()) as LocationConsentResponse).consent;
+  const result = (await response.json()) as LocationConsentResponse;
+  syncLegalPolicyRelease(result.legalPolicyRelease);
+  return result.consent;
 }
 
 export async function fetchLocationHistory() {

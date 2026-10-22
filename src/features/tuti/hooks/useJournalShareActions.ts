@@ -9,7 +9,8 @@ import {
 } from "@/lib/journalShare";
 import type { TutiJournalEntry } from "@/shared/api/journal";
 import { canAccountPublishJournal } from "@/shared/features/release";
-import { JOURNAL_PUBLICATION_POLICY_VERSION } from "@/shared/legal/journalPublicationPolicy";
+import { getJournalPublicationPolicyVersion } from "@/shared/legal/journalPublicationPolicy";
+import { fetchServiceTerms } from "@/lib/serviceTerms";
 
 type ChangeEntryPublication = (
   entryId: string,
@@ -44,10 +45,13 @@ export function useJournalShareActions({
       return;
     }
 
+    const consentVersion = getJournalPublicationPolicyVersion();
+    await fetchServiceTerms(false);
+    if (consentVersion !== getJournalPublicationPolicyVersion()) throw new Error("기록 공개 정책이 변경되었어요. 새 정책을 확인하고 다시 동의해주세요.");
     await changeEntryPublication(
       entry.id,
       true,
-      JOURNAL_PUBLICATION_POLICY_VERSION,
+      consentVersion,
     );
   }, [changeEntryPublication, entry, router, session?.account]);
 

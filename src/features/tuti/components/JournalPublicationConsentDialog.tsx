@@ -7,6 +7,8 @@ import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { BaseButton, PrimaryButton } from "@/features/tuti/components/buttons";
 import { ANDROID_BACK_EVENT } from "@/features/tuti/navigation/androidBack";
+import { useLegalPolicyRelease } from "@/features/legal/useLegalPolicyRelease";
+import { getJournalPublicationPolicyVersion } from "@/shared/legal/journalPublicationPolicy";
 
 export function JournalPublicationConsentDialog({
   placeName,
@@ -18,6 +20,9 @@ export function JournalPublicationConsentDialog({
   onConfirm: () => Promise<void>;
 }) {
   const agreementId = useId();
+  useLegalPolicyRelease();
+  const policyVersion = getJournalPublicationPolicyVersion();
+  const [agreedVersion, setAgreedVersion] = useState<string | null>(null);
   const [agreed, setAgreed] = useState(false);
   const [closing, setClosing] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -69,7 +74,7 @@ export function JournalPublicationConsentDialog({
   }, [requestClose]);
 
   const confirmPublication = async () => {
-    if (!agreed || submitting) return;
+    if (!agreed || submitting || agreedVersion !== policyVersion) return;
 
     setSubmitting(true);
     submittingRef.current = true;
@@ -137,9 +142,9 @@ export function JournalPublicationConsentDialog({
             id={agreementId}
             type="checkbox"
             autoFocus
-            checked={agreed}
+            checked={agreed && agreedVersion === policyVersion}
             disabled={submitting}
-            onChange={(event) => setAgreed(event.target.checked)}
+            onChange={(event) => { setAgreed(event.target.checked); setAgreedVersion(event.target.checked ? policyVersion : null); }}
           />
           <span>
             공개 범위와{" "}
@@ -153,7 +158,7 @@ export function JournalPublicationConsentDialog({
         <Actions>
           <PublishButton
             type="button"
-            disabled={!agreed || submitting}
+            disabled={!agreed || agreedVersion !== policyVersion || submitting}
             onClick={() => void confirmPublication()}
           >
             {submitting ? "공개하는 중" : "인터넷에 공개하기"}

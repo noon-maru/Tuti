@@ -19,7 +19,8 @@ import type {
   LocationConsentRecord,
   LocationPermissionStatus,
 } from "@/shared/tuti/types";
-import { locationTerms } from "@/shared/location/terms";
+import { getLocationTerms } from "@/shared/location/terms";
+import { useLegalPolicyRelease } from "@/features/legal/useLegalPolicyRelease";
 
 export function LocationSettingsScreen({
   consent,
@@ -44,6 +45,8 @@ export function LocationSettingsScreen({
   onPause: () => Promise<boolean>;
   onWithdraw: () => Promise<boolean | null>;
 }) {
+  useLegalPolicyRelease();
+  const locationTerms = getLocationTerms();
   const [message, setMessage] = useState<string | null>(null);
   const state = resolveLocationState({
     consent,

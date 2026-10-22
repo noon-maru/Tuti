@@ -1,3 +1,5 @@
+import type { LegalPolicyRelease } from "./policyRelease";
+
 export type ServiceTermsDocument = {
   title: string;
   summary: string;
@@ -20,6 +22,7 @@ export type ServiceTermsStatus = {
   required: boolean;
   // 구서버 응답에는 없다. 문서/미동의 여부와 실제 진입 강제 전환을 구분한다.
   enforcementEnabled?: boolean;
+  legalPolicyRelease?: LegalPolicyRelease | null;
 };
 
 export const EMPTY_SERVICE_TERMS_STATUS: ServiceTermsStatus = {
