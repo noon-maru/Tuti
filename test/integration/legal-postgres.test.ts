@@ -82,11 +82,14 @@ test("분리된 PostgreSQL에서 약관·권리 보호 마이그레이션의 실
   query(`INSERT INTO system_logs(id,actor_user_id,target_type,target_id,category,action,metadata) VALUES ('legacy-access','legacy-admin','user','legacy-owner','journal','journal.admin.viewed','{"purpose":"support","reference":"CASE-123","entryIds":"entry-1,entry-2","content":"DO-NOT-COPY"}'), ('ordinary','legacy-admin','user','legacy-owner','journal','journal.created','{}')`);
   for (const name of ["20261019120000_add_service_terms_consent", "20261019130000_add_journal_rights_workflow"]) query(readFileSync(join(process.cwd(), "prisma/migrations", name, "migration.sql"), "utf8"));
   query(readFileSync(join(process.cwd(), "prisma/migrations/20261019140000_add_admin_journal_access_audits/migration.sql"), "utf8"));
+  // 운영 users.role을 최소 스키마에 추가하고 후속 공고 마이그레이션까지 적용한다.
+  query("ALTER TABLE users ADD COLUMN role text NOT NULL DEFAULT 'user'");
+  query(readFileSync(join(process.cwd(), "prisma/migrations/20261022120000_add_initial_service_terms_release/migration.sql"), "utf8"));
   await t.test("관리자 접근 증거를 별도 보존하고 계정 삭제·변조·조기 파기를 막는다", () => {
     assert.equal(query("SELECT count(*) FROM admin_journal_access_audits"), "1");
     assert.equal(query("SELECT case_reference || ':' || array_to_string(entry_ids, ',') FROM admin_journal_access_audits"), "CASE-123:entry-1,entry-2");
     assert.doesNotMatch(query("SELECT row_to_json(a)::text FROM admin_journal_access_audits a"), /DO-NOT-COPY/);
-    query("INSERT INTO users VALUES ('legacy-admin'),('legacy-owner'); DELETE FROM users WHERE id IN ('legacy-admin','legacy-owner'); DELETE FROM system_logs");
+    query("INSERT INTO users(id) VALUES ('legacy-admin'),('legacy-owner'); DELETE FROM users WHERE id IN ('legacy-admin','legacy-owner'); DELETE FROM system_logs");
     assert.equal(query("SELECT actor_user_id || ':' || subject_user_id FROM admin_journal_access_audits"), "legacy-admin:legacy-owner");
     rejected("UPDATE admin_journal_access_audits SET actor_user_id=NULL", /immutable/);
     rejected("TRUNCATE admin_journal_access_audits", /immutable/);
@@ -101,15 +104,25 @@ test("분리된 PostgreSQL에서 약관·권리 보호 마이그레이션의 실
     assert.equal(query("SELECT count(*) FROM admin_journal_access_audits WHERE id='not-an-access'"), "0");
   });
   await t.test("공고일 30일 미만 시행을 DB도 거절한다", () => {
-    rejected("INSERT INTO service_terms_releases VALUES ('invalid','{}','hash','2026-10-19','2026-11-17','APPROVAL-1',30)", /check constraint/);
-    query("INSERT INTO service_terms_releases VALUES ('v1','{}','hash','2026-10-19','2026-11-18','APPROVAL-1',30)");
+    rejected("INSERT INTO service_terms_releases(version,document,document_hash,published_at,effective_at,approval_reference,notice_days) VALUES ('invalid','{}','hash','2026-10-19','2026-11-17','APPROVAL-1',30)", /check constraint/);
+  });
+  await t.test("최초 즉시 공고는 승인 근거·일반 계정 종료·빈 공고 이력을 DB에서도 요구한다", () => {
+    const insert = (version: string, reference = "'CLOSURE-123'") => `INSERT INTO service_terms_releases VALUES ('${version}','{}','hash','2026-10-22','2026-10-22','APPROVAL-1',0,'initial',${reference});`;
+    rejected(insert("missing-proof", "NULL"), /check constraint/);
+    rejected(`BEGIN; INSERT INTO users(id) VALUES ('ordinary'); ${insert("existing-user")} ROLLBACK;`, /closure of existing ordinary accounts/);
+    // 성공 사례도 롤백하여 이후 원문 불변성 시험의 상태를 오염시키지 않는다.
+    query(`BEGIN; INSERT INTO users(id,role) VALUES ('retained-admin','admin'); ${insert("initial")} ROLLBACK;`);
+    rejected(`BEGIN; ${insert("first")} ${insert("second")} ROLLBACK;`, /empty release history/);
+    query("INSERT INTO service_terms_releases(version,document,document_hash,published_at,effective_at,approval_reference,notice_days) VALUES ('v1','{}','hash','2026-10-19','2026-11-18','APPROVAL-1',30)");
+    rejected(insert("not-first"), /empty release history/);
+    rejected("UPDATE service_terms_releases SET publication_mode='initial',notice_days=0,initial_contract_reference='CLOSURE-123' WHERE version='v1'", /immutable/);
   });
   await t.test("공고 원문의 UPDATE·DELETE를 실제 트리거가 거절한다", () => {
     rejected("UPDATE service_terms_releases SET document='{}' WHERE version='v1'", /immutable/);
     rejected("DELETE FROM service_terms_releases WHERE version='v1'", /immutable/);
   });
   await t.test("연령·중요 내용 확인 누락과 중복 동의를 거절하고 계정 삭제 시 영수증을 지운다", () => {
-    query("INSERT INTO users VALUES ('subject')");
+    query("INSERT INTO users(id) VALUES ('subject')");
     rejected("INSERT INTO service_terms_acceptances VALUES ('bad','subject','v1','hash',false,true,now())", /check constraint/);
     query("INSERT INTO service_terms_acceptances VALUES ('receipt','subject','v1','hash',true,true,now())");
     rejected("INSERT INTO service_terms_acceptances VALUES ('duplicate','subject','v1','hash',true,true,now())", /unique constraint/);
@@ -140,7 +153,7 @@ test("분리된 PostgreSQL에서 약관·권리 보호 마이그레이션의 실
     CREATE TABLE location_usage_logs(id text PRIMARY KEY,user_id text,subject_key text,occurred_at timestamp(3) DEFAULT CURRENT_TIMESTAMP);
     CREATE TABLE recommendation_runs(id text PRIMARY KEY,user_id text NOT NULL,location_used boolean NOT NULL,created_at timestamp(3) DEFAULT CURRENT_TIMESTAMP,algorithm_version text NOT NULL DEFAULT 'test',answers jsonb NOT NULL DEFAULT '{}',state jsonb NOT NULL DEFAULT '{}',entry_status text,state_text_used boolean NOT NULL DEFAULT false,candidates jsonb NOT NULL DEFAULT '[]',personalization jsonb);
     CREATE TABLE recommendation_actions(id text PRIMARY KEY,user_id text NOT NULL,action "RecommendationActionType" NOT NULL,metadata jsonb,created_at timestamp(3) DEFAULT CURRENT_TIMESTAMP);
-    INSERT INTO users VALUES ('location-user'),('location-other');
+    INSERT INTO users(id) VALUES ('location-user'),('location-other');
     INSERT INTO location_consent_events VALUES ('location-old','location-user','key','accepted','old',true,'web','2026-01-01');
     INSERT INTO location_usage_logs(id,user_id,subject_key) VALUES ('usage','location-user','key'),('usage-other','location-other','other');
     INSERT INTO recommendation_runs(id,user_id,location_used) VALUES ('located','location-user',true),('region','location-user',false),('other','location-other',true);

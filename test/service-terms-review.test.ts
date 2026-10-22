@@ -16,6 +16,8 @@ test("승인 검토 후보는 21개 조항·부칙을 보존하고 검토 메모
   assert.equal(review.approved, false);
   assert.equal(review.published, false);
   assert.equal(review.noticeDays, 30);
+  assert.equal(review.publicationModes.initial.minimumNoticeDays, 0);
+  assert.equal(review.publicationModes.initial.requiresSeparateApprovalAndDatabaseEligibility, true);
   assert.equal(review.documentHash, createHash("sha256").update(JSON.stringify(parseServiceTermsDocument(review.document))).digest("hex"));
   assert.doesNotMatch(JSON.stringify(review.document), /검토 메모|초안|구현 전|공개 전 확정/);
   for (const text of ["법정 책임", "별도 선택 동의", "소급하지", "기록의 저작권", "이용자의 권리", "만 14세"]) assert.ok(JSON.stringify(review.document).includes(text), text);

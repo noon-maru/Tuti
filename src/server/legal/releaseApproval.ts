@@ -17,9 +17,20 @@ export function prepareServiceTermsRelease(input: unknown, now = new Date()) {
   const missing = RELEASE_READINESS_CHECKS.filter((key) => checks?.[key] !== true);
   if (missing.length) throw new Error(`시행 전 확인이 완료되지 않았습니다: ${missing.join(", ")}`);
   // 30일은 이번 전면 개편의 보수적 운영 기준이며 모든 변경의 일률적 법정 기간은 아니다.
-  const effectiveAt = new Date(typeof data.effectiveAt === "string" ? data.effectiveAt : "");
-  const noticeDays = 30;
-  if (!Number.isFinite(effectiveAt.getTime()) || effectiveAt.getTime() < now.getTime() + noticeDays * 86400000) throw new Error("공고 시점부터 최소 30일 이후의 시행일을 지정해주세요.");
+  const publicationMode = data.publicationMode ?? "amendment";
+  if (publicationMode !== "amendment" && publicationMode !== "initial") throw new Error("공고 유형을 확인해주세요.");
+  const effectiveAt = publicationMode === "initial" && data.effectiveAt === "immediate" ? now : new Date(typeof data.effectiveAt === "string" ? data.effectiveAt : "");
+  let initialContractReference: string | null = null;
+  if (publicationMode === "initial") {
+    const approval = data.initialContractApproval as Record<string, unknown> | undefined;
+    if (approval?.testUseEnded !== true || approval.priorObligationsReviewed !== true || approval.newContractsOnly !== true ||
+        typeof approval.reference !== "string" || !/^[a-zA-Z0-9_-]{3,100}$/.test(approval.reference)) {
+      throw new Error("최초 계약 적용에는 테스트 이용 종료·기존 의무 검토·신규 계약 한정의 별도 승인 근거가 필요합니다.");
+    }
+    initialContractReference = approval.reference;
+  }
+  const noticeDays = publicationMode === "initial" ? 0 : 30;
+  if (!Number.isFinite(effectiveAt.getTime()) || effectiveAt.getTime() < now.getTime() + noticeDays * 86400000) throw new Error(publicationMode === "initial" ? "최초 계약 시행일은 공고 시점보다 빠를 수 없습니다." : "공고 시점부터 최소 30일 이후의 시행일을 지정해주세요.");
   const document = parseServiceTermsDocument(data.document);
-  return { version: data.version, document, documentHash: hashServiceTerms(document), publishedAt: now, effectiveAt, approvalReference: data.approvalReference, noticeDays };
+  return { version: data.version, document, documentHash: hashServiceTerms(document), publishedAt: now, effectiveAt, approvalReference: data.approvalReference, noticeDays, publicationMode, initialContractReference };
 }

@@ -23,6 +23,6 @@ async function main() {
       await transaction.serviceTermsRelease.create({ data: release });
     });
   }
-  console.log(JSON.stringify({ mode: arguments_.includes("--apply") ? "published" : "dry-run", version: release.version, documentHash: release.documentHash, publishedAt: release.publishedAt, effectiveAt: release.effectiveAt, noticeDays: release.noticeDays, readinessScope: "service-terms", readiness }));
+  console.log(JSON.stringify({ mode: arguments_.includes("--apply") ? "published" : "dry-run", version: release.version, documentHash: release.documentHash, publishedAt: release.publishedAt, effectiveAt: release.effectiveAt, noticeDays: release.noticeDays, publicationMode: release.publicationMode, initialContractReference: release.initialContractReference, initialEligibilityVerified: arguments_.includes("--apply") && release.publicationMode === "initial", readinessScope: "service-terms", readiness }));
 }
 main().catch((error) => { console.error(error instanceof Error ? error.message : "약관 공고에 실패했습니다."); process.exitCode = 1; }).finally(async () => { await prisma.$disconnect(); });

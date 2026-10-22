@@ -35,6 +35,10 @@ export function prepareServiceTermsReview(markdown: string) {
     sourceMarkdownSha256: createHash("sha256").update(markdown).digest("hex"),
     documentHash, document, articleCount: sections.length,
     noticeDays: 30,
+    publicationModes: {
+      amendment: { minimumNoticeDays: 30 },
+      initial: { minimumNoticeDays: 0, requiresSeparateApprovalAndDatabaseEligibility: true },
+    },
     approved: false, published: false,
     scopeLimit: "일반약관 검토 후보만 생성. 개인정보·위치약관·공개 정책 승인·이전 동의·실기기 검증이나 법률 적정성 승인이 아님",
   };

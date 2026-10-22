@@ -25,12 +25,12 @@ export async function getServiceTermsStatus(userId?: string, now = new Date()): 
     prisma.serviceTermsRelease.findFirst({ where: { publishedAt: { lte: now }, effectiveAt: { lte: now } }, orderBy: { effectiveAt: "desc" } }),
     prisma.serviceTermsRelease.findFirst({ where: { publishedAt: { lte: now }, effectiveAt: { gt: now } }, orderBy: { effectiveAt: "asc" } }),
   ]);
-  const accepted = userId ? await prisma.serviceTermsAcceptance.findMany({ where: { userId, termsVersion: { in: [current?.version, upcoming?.version].filter((version): version is string => Boolean(version)) } }, select: { termsVersion: true, documentHash: true } }) : [];
+  const accepted = userId ? await prisma.serviceTermsAcceptance.findMany({ where: { userId, termsVersion: { in: [current?.version, upcoming?.version].filter((version): version is string => Boolean(version)) } }, select: { termsVersion: true, documentHash: true, ageConfirmed: true, importantTermsConfirmed: true } }) : [];
   const offer = (release: NonNullable<typeof current> | null): ServiceTermsOffer | null => {
     if (!release) return null;
     const document = parseServiceTermsDocument(release.document);
     if (hashServiceTerms(document) !== release.documentHash) throw new Error("Terms document integrity check failed");
-    return { version: release.version, documentHash: release.documentHash, document, publishedAt: release.publishedAt.toISOString(), effectiveAt: release.effectiveAt.toISOString(), accepted: accepted.some((receipt) => receipt.termsVersion === release.version && receipt.documentHash === release.documentHash) };
+    return { version: release.version, documentHash: release.documentHash, document, publishedAt: release.publishedAt.toISOString(), effectiveAt: release.effectiveAt.toISOString(), accepted: accepted.some((receipt) => receipt.termsVersion === release.version && receipt.documentHash === release.documentHash && receipt.ageConfirmed && receipt.importantTermsConfirmed) };
   };
   const currentOffer = offer(current);
   return { current: currentOffer, upcoming: offer(upcoming), required: Boolean(currentOffer && !currentOffer.accepted) };

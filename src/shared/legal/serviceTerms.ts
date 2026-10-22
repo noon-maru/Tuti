@@ -59,8 +59,7 @@ export function requiresServiceTerms(pathname: string, method: string) {
   if (normalized === null) return false;
   pathname = normalized;
   if (method === "OPTIONS" || method === "DELETE") return false;
-  if (pathname === "/api/recommendations" || pathname === "/api/places/nearby") return true;
-  if (/^\/api\/places\/[^/]+\/(departure-plan|departure-route|travel-time)$/.test(pathname)) return true;
+  if (pathname === "/api/recommendations" || pathname === "/api/recommendation-regions" || /^\/api\/places(?:\/|$)/.test(pathname)) return true;
   if (method === "GET" || method === "HEAD") return false;
   if (/^\/api\/journal-entries\/[^/]+\/share-traces(?:\/[^/]+\/finalize)?$/.test(pathname)) return false;
   return pathname === "/api/recommendation-actions" || pathname === "/api/product-activity" ||
