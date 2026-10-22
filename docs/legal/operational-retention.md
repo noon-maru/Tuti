@@ -127,8 +127,9 @@ release는 보전 메타데이터를 제거할 뿐 즉시 원본을 지우지 �
 
 시험 자료는 격리 DB의 합성 자료다. 실제 운영 systemd 실패나 Slack 수신을 시험한 것은
 아니며, 운영 데이터·환경변수를 변경하지 않았다. 새 시나리오는 기존
-`pnpm test:legal:postgres`에 연결되어 있으나 이 변경의 PostgreSQL 17 CI 실행은 아직 남아 있다.
-로컬 11.11 통과를 운영 17 검증 완료로 대체하지 않는다.
+`pnpm test:legal:postgres`에 연결했고, 후속
+[GitHub PostgreSQL 17 CI](https://github.com/noon-maru/Tuti/actions/runs/39698243484)에서도
+19개 시험이 통과했다. CI의 격리 DB 검증이며 운영 DB의 실제 삭제·활성화 시험은 아니다.
 
 단위·모의 DB 시험으로 경계일, 완료 자료 제외, 보전 제외, 조회의 무삭제, 별도 활성화,
 손상 시 중단, 90일 검토, 최소 수집과 기존 감사 범주 보존을 검증한다.

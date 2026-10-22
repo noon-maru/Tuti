@@ -5,16 +5,19 @@ import { useState } from "react";
 import { PersistedStateHydrator } from "@/app/PersistedStateHydrator";
 import { SessionBootstrap } from "@/features/tuti/components/SessionBootstrap";
 import { ProductActivityBootstrap } from "@/features/tuti/components/ProductActivityBootstrap";
+import { ServiceRightsOnlyContext } from "@/features/legal/ServiceAccessContext";
 
-export function Providers({ children }: { children: React.ReactNode }) {
+export function Providers({ children, activityEnabled = true, rightsOnly = false }: { children: React.ReactNode; activityEnabled?: boolean; rightsOnly?: boolean }) {
   const [queryClient] = useState(() => new QueryClient());
 
   return (
     <QueryClientProvider client={queryClient}>
+      <ServiceRightsOnlyContext value={rightsOnly}>
       <PersistedStateHydrator />
       <SessionBootstrap />
-      <ProductActivityBootstrap />
+      {activityEnabled && <ProductActivityBootstrap />}
       {children}
+      </ServiceRightsOnlyContext>
     </QueryClientProvider>
   );
 }

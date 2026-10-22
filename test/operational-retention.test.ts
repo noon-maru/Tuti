@@ -199,5 +199,8 @@ test("운영 대상 0건 조회와 예약 성공을 실제 파기·보전·공�
   assert.equal(isolated.actualPrisma, true);
   assert.equal(isolated.integrationTestsPassed, 19);
   assert.equal(isolated.temporaryResourcesRemoved, true);
-  for (const key of ["realSlackDeliveryVerified", "productionSystemdFailureTested", "postgres17CiVerified", "productionDataChanged", "runtimeFlagsChanged"]) assert.equal(isolated[key], false);
+  assert.equal(isolated.postgres17CiVerified, true);
+  assert.equal(isolated.postgres17CiEvidence.integrationTestsPassed, 19);
+  assert.match(isolated.postgres17CiEvidence.run, /actions\/runs\/39698243484$/);
+  for (const key of ["realSlackDeliveryVerified", "productionSystemdFailureTested", "productionDataChanged", "runtimeFlagsChanged"]) assert.equal(isolated[key], false);
 });
