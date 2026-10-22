@@ -33,7 +33,7 @@ export async function getServiceTermsStatus(userId?: string, now = new Date()): 
     return { version: release.version, documentHash: release.documentHash, document, publishedAt: release.publishedAt.toISOString(), effectiveAt: release.effectiveAt.toISOString(), accepted: accepted.some((receipt) => receipt.termsVersion === release.version && receipt.documentHash === release.documentHash && receipt.ageConfirmed && receipt.importantTermsConfirmed) };
   };
   const currentOffer = offer(current);
-  return { current: currentOffer, upcoming: offer(upcoming), required: Boolean(currentOffer && !currentOffer.accepted) };
+  return { current: currentOffer, upcoming: offer(upcoming), required: Boolean(currentOffer && !currentOffer.accepted), enforcementEnabled: serviceTermsEnforcementEnabled() };
 }
 
 export async function acceptServiceTerms(userId: string, input: unknown, now = new Date()) {

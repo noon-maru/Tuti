@@ -800,6 +800,23 @@ model User {
   @@map("users")
 }
 
+// 공고 원문은 시행/동의 대상과 별도로 보관한다. 사용자 식별정보를 포함하지 않는다.
+model LegalDocumentNotice {
+  documentType String @map("document_type")
+  version String
+  document Json
+  documentHash String @map("document_hash")
+  publishedAt DateTime @map("published_at")
+  plannedEffectiveAt DateTime @map("planned_effective_at")
+  publicationMode String @map("publication_mode")
+  approvalReference String @map("approval_reference")
+  applicationPolicy String @map("application_policy")
+
+  @@id([documentType, version])
+  @@index([documentType, publishedAt])
+  @@map("legal_document_notices")
+}
+
 model ServiceTermsRelease {
   version       String   @id
   document      Json

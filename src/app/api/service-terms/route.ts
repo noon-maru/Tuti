@@ -1,6 +1,7 @@
 import { authenticateUser } from "@/server/auth/session";
 import { acceptServiceTerms, getServiceTermsStatus, ServiceTermsError } from "@/server/legal/serviceTerms";
 import { createPreflightResponse, isRequestOriginAllowed, withCors } from "@/server/http/cors";
+import { CLIENT_PROTOCOL } from "@/shared/api/clientProtocol";
 
 export const runtime = "nodejs";
 function respond(request: Request, body: unknown, status = 200) {
@@ -11,7 +12,7 @@ export async function GET(request: Request) {
   if (!isRequestOriginAllowed(request)) return respond(request, { error: "허용되지 않은 요청 출처예요." }, 403);
   try {
     const user = await authenticateUser(request);
-    return respond(request, await getServiceTermsStatus(user?.id));
+    return respond(request, { ...await getServiceTermsStatus(user?.id), clientProtocol: CLIENT_PROTOCOL });
   } catch {
     return respond(request, { error: "이용약관을 불러오지 못했어요. 잠시 후 다시 시도해주세요." }, 503);
   }

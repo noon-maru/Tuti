@@ -8,7 +8,9 @@ export const RELEASE_READINESS_CHECKS = [
   "minorProtection", "legalReview", "nativeClientRollout", "noticePlan",
 ] as const;
 
-export function prepareServiceTermsRelease(input: unknown, now = new Date()) {
+export type ServiceTermsNoticeSource = { version: string; documentHash: string; publishedAt: Date; plannedEffectiveAt: Date; publicationMode: string };
+
+export function prepareServiceTermsRelease(input: unknown, now = new Date(), notice?: ServiceTermsNoticeSource) {
   if (!input || typeof input !== "object") throw new Error("승인된 문서가 필요합니다.");
   const data = input as Record<string, unknown>;
   if (typeof data.version !== "string" || !/^\d{4}-\d{2}-\d{2}(?:-\d+)?$/.test(data.version)) throw new Error("약관 버전을 확인해주세요.");
@@ -30,7 +32,10 @@ export function prepareServiceTermsRelease(input: unknown, now = new Date()) {
     initialContractReference = approval.reference;
   }
   const noticeDays = publicationMode === "initial" ? 0 : 30;
-  if (!Number.isFinite(effectiveAt.getTime()) || effectiveAt.getTime() < now.getTime() + noticeDays * 86400000) throw new Error(publicationMode === "initial" ? "최초 계약 시행일은 공고 시점보다 빠를 수 없습니다." : "공고 시점부터 최소 30일 이후의 시행일을 지정해주세요.");
+  const publishedAt = notice?.publishedAt ?? now;
+  if (!Number.isFinite(effectiveAt.getTime()) || effectiveAt.getTime() < publishedAt.getTime() + noticeDays * 86400000) throw new Error(publicationMode === "initial" ? "최초 계약 시행일은 공고 시점보다 빠를 수 없습니다." : "공고 시점부터 최소 30일 이후의 시행일을 지정해주세요.");
   const document = parseServiceTermsDocument(data.document);
-  return { version: data.version, document, documentHash: hashServiceTerms(document), publishedAt: now, effectiveAt, approvalReference: data.approvalReference, noticeDays, publicationMode, initialContractReference };
+  const documentHash = hashServiceTerms(document);
+  if (notice && (notice.version !== data.version || notice.documentHash !== documentHash || notice.publicationMode !== publicationMode || notice.publishedAt > now || effectiveAt < notice.plannedEffectiveAt)) throw new Error("공고된 버전·원문·적용 유형을 유지하고 시행 예정일을 앞당기지 않아야 합니다.");
+  return { version: data.version, document, documentHash, publishedAt, effectiveAt, approvalReference: data.approvalReference, noticeDays, publicationMode, initialContractReference };
 }

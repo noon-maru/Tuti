@@ -80,6 +80,21 @@ test("점검 범위는 기본 전체이며 오타·중복 옵션으로 범위를
   assert.deepEqual(parseLegalReadinessArguments([]), { file: "docs/legal/readiness-status.json", scope: "all", strict: false });
   assert.deepEqual(parseLegalReadinessArguments(["--scope=service-terms", "--strict", "--file=evidence.json"]), { file: "evidence.json", scope: "service-terms", strict: true });
   assert.equal(parseLegalReadinessScope("push"), "push");
+  assert.equal(parseLegalReadinessScope("notice"), "notice");
   for (const args of [["--scope=terms"], ["--scope="], ["--scope=push", "--scope=all"], ["--strict", "--strict"], ["--file="], ["--ignore-push"]]) assert.throws(() => parseLegalReadinessArguments(args));
   assert.throws(() => parseLegalReadinessScope(null));
+});
+
+test("공고 전용 점검은 문서 승인을 유지하되 앱 출시·계정 정리·강제 기능 활성화를 요구하지 않는다", () => {
+  const evidence = termsEvidence();
+  evidence.checks.nativeClientRollout = { confirmed: false, reference: null };
+  evidence.checks.scheduledJobsAndAlerts = { confirmed: false, reference: null };
+  evidence.checks.backupRetentionAndRestoreTest = { confirmed: false, reference: null };
+  const report = legalReadinessReport(evidence, legalRuntimeFacts({}), "notice");
+  assert.equal(report.ready, true);
+  assert.equal(report.scopes["service-terms"].ready, false);
+  assert.ok(report.unresolvedOutsideScope.includes("nativeClientRollout"));
+  assert.ok(report.unresolvedOutsideScope.includes("serviceTermsWorkflowDisabled"));
+  evidence.checks.finalDocumentApproval = { confirmed: false, reference: null };
+  assert.ok(legalReadinessBlockers(evidence, legalRuntimeFacts({}), "notice").includes("finalDocumentApproval"));
 });
