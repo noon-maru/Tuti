@@ -16,7 +16,7 @@ import {
 } from "@/features/tuti/components/PhotoLocationConsentDialog";
 import { readImageMetadata } from "@/features/tuti/lib/readImageMetadata";
 import { fetchLocationConsent, fetchNearbyPlaces, fetchSensitiveJournalPolicy } from "@/lib/tutiApi";
-import { SENSITIVE_JOURNAL_CONSENT_VERSION, sensitiveJournalConsentNotice, type SensitiveJournalPolicyResponse } from "@/shared/legal/sensitiveJournalPolicy";
+import { canStoreSensitiveJournal, canSubmitJournalClassification, sensitiveJournalConsentNotice, type SensitiveJournalPolicyResponse } from "@/shared/legal/sensitiveJournalPolicy";
 import type {
   JournalEntryInput,
   TutiJournalEntry,
@@ -108,8 +108,8 @@ export function JournalEditorScreen({
     }).catch(() => { if (!disposed) setPolicyError("기록 보호 설정을 확인하지 못했어요. 화면을 다시 열어주세요."); });
     return () => { disposed = true; };
   }, []);
-  const sensitiveReady = !!sensitivePolicy && (!sensitivePolicy.enabled ||
-    (sensitivePolicy.version === SENSITIVE_JOURNAL_CONSENT_VERSION && sensitiveContent !== null && (!sensitiveContent || sensitiveAgreed)));
+  const sensitiveReady = canSubmitJournalClassification(sensitivePolicy, sensitiveContent, sensitiveAgreed);
+  const privateStorageAvailable = !!sensitivePolicy && canStoreSensitiveJournal(sensitivePolicy);
   const canSubmit = Boolean(
     title.trim() ||
       body.trim() ||
@@ -291,7 +291,7 @@ export function JournalEditorScreen({
           theme: theme.trim() || "미정",
           difficulty: difficulty.trim() || "미정",
           visitedAt: toVisitedAt(visitDate),
-          ...(sensitivePolicy?.enabled && sensitiveContent !== null ? {
+          ...(sensitivePolicy && sensitiveContent !== null ? {
             sensitiveContent,
             ...(sensitiveContent && sensitiveAgreed ? { sensitiveConsentVersion: sensitivePolicy.version } : {}),
           } : {}),
@@ -432,16 +432,20 @@ export function JournalEditorScreen({
             onChange={(event) => setBody(event.target.value)}
           />
         </EditorCopy>
-        {sensitivePolicy?.enabled && (
+        {sensitivePolicy && (
           <SensitiveSection>
             <legend>사진이나 글에 본인의 민감정보가 있나요?</legend>
             <p>건강, 정치적 견해, 사상·신념, 성생활 등에 관한 정보를 뜻해요. 타인의 민감정보와 주민등록번호 등은 남기지 말아주세요.</p>
             {entry?.sensitiveContent && <p>일반 기록으로 바꾸려면 먼저 동의를 철회해 삭제한 뒤 새 기록으로 남겨주세요.</p>}
             <label><input type="radio" name="journal-sensitive-content" checked={sensitiveContent === false}
+              disabled={entry?.sensitiveContent === true}
               onChange={() => { setSensitiveContent(false); setSensitiveAgreed(false); }} /> 없어요</label>
             <label><input type="radio" name="journal-sensitive-content" checked={sensitiveContent === true}
               onChange={() => { setSensitiveContent(true); setSensitiveAgreed(false); }} /> 본인의 민감정보가 있어요</label>
-            {sensitiveContent && <>
+            {sensitiveContent && !privateStorageAvailable && <p role="status">{entry?.sensitiveContent
+              ? "민감정보 보관 기능을 이용할 수 없어 이 기록은 수정할 수 없어요. 상세 메뉴에서 동의를 철회할 수 있어요."
+              : "민감정보를 안전하게 보관하는 기능을 준비 중이에요. 지금은 해당 내용을 빼고 ‘없어요’를 선택해주세요."}</p>}
+            {sensitiveContent && privateStorageAvailable && <>
               <p>민감정보가 있는 기록은 나만 볼 수 있고, 웹 링크로 공개할 수 없어요.</p>
               <dl>
                 <dt>처리 항목</dt><dd>{sensitiveJournalConsentNotice.items}</dd>

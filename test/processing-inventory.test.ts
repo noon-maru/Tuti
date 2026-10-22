@@ -49,8 +49,8 @@ test("무료 플랜·Tunnel 구성 확인을 계약·국가·기간·공고 승�
   assert.equal(readiness.cloudflareReview.defaultSettingsOperatorConfirmed, true);
   for (const key of ["cacheRulesReviewed", "workersRoutesReviewed", "logExportReviewed"]) assert.equal(readiness.cloudflareReview[key], true);
   for (const key of ["customCacheRulesConfigured", "customWorkersRoutesConfigured", "customLogExportConfigured", "accountContractVerified", "countriesVerified", "retentionVerified", "transferBasisApproved", "publicationApplied"]) assert.equal(readiness.cloudflareReview[key], false);
-  assert.equal(readiness.checks.processorsAndTransfers.confirmed, false);
-  assert.equal(readiness.approvedDocumentHash, null);
+  assert.equal(readiness.checks.processorsAndTransfers.reference, "LEGAL-TEXT-DECISION-20261022");
+  assert.match(readiness.approvedDocumentHash, /^[a-f0-9]{64}$/);
 });
 
 test("외부 안내 대조는 일곱 서비스의 송수신·삭제 경계를 정리하되 최종 승인으로 치환하지 않는다", async () => {
@@ -67,8 +67,8 @@ test("외부 안내 대조는 일곱 서비스의 송수신·삭제 경계를 �
   for (const key of ["finalNoticeApproved", "publicationApplied", "runtimeFlagsChanged"]) assert.equal(review[key], false);
   assert.ok(review.remaining.length > 0);
   assert.equal(readiness.checks.processorsAndTransfers.noticeReviewReference, review.reference);
-  assert.equal(readiness.checks.processorsAndTransfers.confirmed, false);
-  assert.equal(readiness.approvedDocumentHash, null);
+  assert.equal(readiness.checks.processorsAndTransfers.reference, "LEGAL-TEXT-DECISION-20261022");
+  assert.match(readiness.approvedDocumentHash, /^[a-f0-9]{64}$/);
   const policy = await readFile("docs/legal/privacy-policy-draft.md", "utf8");
   for (const boundary of ["주식회사 다음", "회사 DB에 코드 검증값", "제공자 측의 앱 접근 권한까지 자동", "Self-Serve Subscription Agreement 제6.1항", "Kakao 앱의 국외 이전 정보 설정", "무효 토큰의 회사 DB 등록 삭제"]) assert.ok(policy.includes(boundary), boundary);
   assert.match(inventory.externalFlows.find(flow => flow.id === "social-login")!.items, /로컬 연결 삭제/);
@@ -92,9 +92,11 @@ test("시행 대장은 소스 대조와 계약·처리 근거 승인을 분리�
   assert.equal(evidence.checks.processingInventory.sourceAudit.prismaModelsClassified, report.models);
   assert.equal(evidence.checks.processingInventory.sourceAudit.groups, report.groups);
   assert.equal(evidence.checks.processorsAndTransfers.sourceAudit.externalFlowGroups, report.externalFlows);
-  assert.equal(evidence.checks.processingInventory.confirmed, false);
-  assert.equal(evidence.checks.processorsAndTransfers.confirmed, false);
-  assert.equal(evidence.approvedDocumentHash, null);
+  assert.equal(evidence.checks.processingInventory.reference, "LEGAL-TEXT-DECISION-20261022");
+  assert.equal(evidence.checks.processorsAndTransfers.reference, "LEGAL-TEXT-DECISION-20261022");
+  assert.match(evidence.approvedDocumentHash, /^[a-f0-9]{64}$/);
+  assert.equal(evidence.noticePreparation.publicationApplied, false);
+  assert.equal(evidence.checks.nativeClientRollout.confirmed, false);
   const rejected = spawnSync(process.execPath, ["--import", "tsx", "scripts/check-processing-inventory.ts", "--apply"], { encoding: "utf8" });
   assert.notEqual(rejected.status, 0);
   assert.doesNotMatch(rejected.stdout, /publicationReady.*true|legalApproval.*true/);

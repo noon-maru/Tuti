@@ -33,19 +33,20 @@ test("새 미확정 메모·조항 누락·순서 변경을 조용히 지우거�
   assert.notEqual(changed.documentHash, prepareServiceTermsReview(source).documentHash);
 });
 
-test("완료 근거 동기화는 최종 승인·공고·푸시 심사를 통과시킨 것으로 취급하지 않는다", async () => {
+test("위임한 문안 확정은 공고 준비에만 반영하고 운영·푸시 시험을 자동 승인하지 않는다", async () => {
   const recorded = JSON.parse(await readFile("docs/legal/readiness-status.json", "utf8"));
   const review = prepareServiceTermsReview(await readFile("docs/legal/service-terms-draft.md", "utf8"));
   assert.equal(recorded.noticePreparation.candidateDocumentHash, review.documentHash);
   assert.equal(recorded.noticePreparation.noticeDays, 30);
-  assert.equal(recorded.approvedDocumentHash, null);
-  assert.equal(recorded.noticePreparation.approvalReference, null);
+  assert.equal(recorded.approvedDocumentHash, review.documentHash);
+  assert.equal(recorded.noticePreparation.approvalReference, "LEGAL-TEXT-DECISION-20261022");
   assert.equal(recorded.noticePreparation.publicationApplied, false);
   const evidence = parseLegalReadinessEvidence(recorded);
   const report = legalReadinessReport(evidence, legalRuntimeFacts({}), "service-terms");
   assert.equal(report.ready, false);
   assert.ok(!report.blockers.includes("backupRetentionAndRestoreTest"));
-  for (const blocker of ["finalDocumentApproval", "approvedDocumentHashMissing", "nativeClientRollout", "noticePlan", "rightsRecipientPublicNoticeUnconfirmed"]) assert.ok(report.blockers.includes(blocker), blocker);
+  assert.equal(report.scopes.notice.ready, true);
+  for (const blocker of ["nativeClientRollout", "minorProtection", "rightsRecipientPublicNoticeUnconfirmed"]) assert.ok(report.blockers.includes(blocker), blocker);
   assert.equal(report.scopes.push.ready, false);
   const rejected = spawnSync(process.execPath, ["--import", "tsx", "scripts/prepare-service-terms-review.ts", "--apply"], { encoding: "utf8" });
   assert.notEqual(rejected.status, 0);
@@ -69,5 +70,5 @@ test("최초 약관 화면에 맞춘 문서는 계정 준비와 동의 완료·�
   for (const key of ["draftAcceptanceAllowed", "deployed", "nativeDeviceVerified", "serverPreAccountAdmissionVerified", "finalApprovalApplied", "publicationApplied"]) assert.equal(flow[key], false);
   assert.equal(recorded.checks.minorProtection.confirmed, false);
   assert.equal(recorded.checks.nativeClientRollout.confirmed, false);
-  assert.equal(recorded.approvedDocumentHash, null);
+  assert.equal(recorded.approvedDocumentHash, review.documentHash);
 });

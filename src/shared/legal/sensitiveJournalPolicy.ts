@@ -7,4 +7,18 @@ export const sensitiveJournalConsentNotice = {
   withdrawal: "기록 메뉴의 ‘민감정보 동의 철회’로 철회할 수 있어요. 해당 기록·사진과 이를 포함한 서버 기록집을 삭제합니다. 이미 내려받거나 외부에 전달한 사본은 직접 정리해주세요.",
 } as const;
 
-export type SensitiveJournalPolicyResponse = { enabled: boolean; version: string };
+export type SensitiveJournalPolicyResponse = { enabled: boolean; version: string; privateStorageAvailable?: boolean };
+
+/** Older servers expose only enabled; their consent-aware write path remains authoritative. */
+export function canStoreSensitiveJournal(policy: SensitiveJournalPolicyResponse) {
+  return policy.enabled && policy.privateStorageAvailable !== false;
+}
+
+export function canSubmitJournalClassification(
+  policy: SensitiveJournalPolicyResponse | null,
+  sensitiveContent: boolean | null,
+  agreed: boolean,
+) {
+  return !!policy && policy.version === SENSITIVE_JOURNAL_CONSENT_VERSION &&
+    sensitiveContent !== null && (!sensitiveContent || (canStoreSensitiveJournal(policy) && agreed));
+}
