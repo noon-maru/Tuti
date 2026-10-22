@@ -352,23 +352,30 @@ export async function unlinkAccountIdentity(identityId: string) {
   return data.account;
 }
 
-async function loadOrCreateSession() {
+// 최초 약관 화면에서는 계정을 생성하거나 세션을 발급하지 않고 저장 여부만 확인한다.
+export async function readStoredSession() {
+  return (await loadStoredSession()).session;
+}
+
+async function loadStoredSession() {
   const [storedValue, legacyStoredValue] = await Promise.all([
     preferencesStorage.getItem(SESSION_STORAGE_KEY),
     preferencesStorage.getItem(LEGACY_SESSION_STORAGE_KEY),
   ]);
-  const storedSession =
-    parseStoredSession(storedValue) ??
-    parseStoredSession(legacyStoredValue);
+  const session = parseStoredSession(storedValue) ?? parseStoredSession(legacyStoredValue);
+  return { session, legacyOnly: !storedValue };
+}
+
+async function loadOrCreateSession() {
+  const { session: storedSession, legacyOnly } = await loadStoredSession();
 
   if (storedSession) {
-    if (!storedValue) {
+    if (legacyOnly) {
       await storeSession(storedSession);
       await preferencesStorage.removeItem(LEGACY_SESSION_STORAGE_KEY);
     } else {
       updateSessionSnapshot(storedSession);
     }
-
     return storedSession;
   }
 

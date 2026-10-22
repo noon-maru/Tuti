@@ -9,19 +9,27 @@ import { PushNotificationHandler } from "@/features/tuti/components/PushNotifica
 import { GentleLoginNudge } from "@/features/tuti/components/GentleLoginNudge";
 import { NativeAppUpdateNotice } from "@/features/tuti/components/NativeAppUpdateNotice";
 import { ServiceTermsNotice } from "@/features/legal/ServiceTermsNotice";
+import { InitialServiceTermsGate } from "@/features/legal/InitialServiceTermsGate";
 
 export function TutiAppShell({ children }: { children: React.ReactNode }) {
   return (
-    <Providers>
-      <AppFrame>
-        <NativeOAuthCallbackHandler />
-        <LocalNotificationHandler />
-        <PushNotificationHandler />
-        <NativeAppUpdateNotice />
-        <ServiceTermsNotice />
-        <GentleLoginNudge />
-        <LocationAccessProvider>{children}</LocationAccessProvider>
-      </AppFrame>
-    </Providers>
+    <AppFrame>
+      <InitialServiceTermsGate rightsChildren={
+        <Providers activityEnabled={false} rightsOnly>
+          <NativeOAuthCallbackHandler />
+          <LocationAccessProvider>{children}</LocationAccessProvider>
+        </Providers>
+      }>
+        <Providers>
+          <NativeOAuthCallbackHandler />
+          <LocalNotificationHandler />
+          <PushNotificationHandler />
+          <NativeAppUpdateNotice />
+          <ServiceTermsNotice />
+          <GentleLoginNudge />
+          <LocationAccessProvider>{children}</LocationAccessProvider>
+        </Providers>
+      </InitialServiceTermsGate>
+    </AppFrame>
   );
 }
