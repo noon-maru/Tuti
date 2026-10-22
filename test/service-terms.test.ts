@@ -7,7 +7,7 @@ const now = new Date("2026-10-19T00:00:00Z");
 const document = { title: "Tuti 서비스 이용약관", summary: "서비스 이용 범위와 책임을 확인해주세요.", importantTerms: ["기록의 권리는 이용자에게 남습니다."], sections: [{ title: "이용 범위", paragraphs: ["기록·기록집 기능을 제공합니다."] }] };
 type Release = { version: string; document: typeof document; documentHash: string; publishedAt: Date; effectiveAt: Date };
 let releases: Release[] = [];
-const receipts: Array<{ userId: string; termsVersion: string; documentHash: string; acceptedAt: Date }> = [];
+const receipts: Array<{ userId: string; termsVersion: string; documentHash: string; acceptedAt: Date; ageConfirmed: boolean; importantTermsConfirmed: boolean }> = [];
 let queries = 0;
 const database = {
   $queryRaw: async () => [{ id: "subject" }],
@@ -60,6 +60,19 @@ test("일반약관의 공고·명시적 동의·미동의 접근 통제", async 
     assert.equal(state.required, false);
     assert.equal(state.upcoming?.version, body.version);
   });
+  await t.test("최초 계약만 별도 승인으로 즉시 시행을 준비하며 변경 공고는 30일 기준을 유지한다", () => {
+    const input = { version: body.version, approvalReference: "APPROVAL-123", publicationMode: "initial", effectiveAt: "immediate", document, readiness: Object.fromEntries(RELEASE_READINESS_CHECKS.map(key => [key, true])) };
+    assert.throws(() => prepareServiceTermsRelease(input, now), /별도 승인/);
+    const approval = { reference: "CLOSURE-123", testUseEnded: true, priorObligationsReviewed: true, newContractsOnly: true };
+    for (const key of ["testUseEnded", "priorObligationsReviewed", "newContractsOnly"]) assert.throws(() => prepareServiceTermsRelease({ ...input, initialContractApproval: { ...approval, [key]: false } }, now), /별도 승인/);
+    const initial = prepareServiceTermsRelease({ ...input, initialContractApproval: approval }, now);
+    assert.equal(initial.noticeDays, 0);
+    assert.equal(initial.effectiveAt, now);
+    assert.equal(initial.initialContractReference, "CLOSURE-123");
+    assert.throws(() => prepareServiceTermsRelease({ ...input, publicationMode: "amendment" }, now), /30일/);
+    assert.throws(() => prepareServiceTermsRelease({ ...input, initialContractApproval: approval, effectiveAt: "2026-10-18" }, now), /빠를 수/);
+    assert.throws(() => prepareServiceTermsRelease({ ...input, publicationMode: "other" }, now), /유형/);
+  });
   await t.test("동의 전·문서 해시 불일치·연령 확인 누락은 동의로 취급하지 않는다", async () => {
     releases[0].effectiveAt = now;
     assert.equal((await getServiceTermsStatus("subject", now)).required, true);
@@ -93,6 +106,21 @@ test("일반약관의 공고·명시적 동의·미동의 접근 통제", async 
     assert.equal((await getServiceTermsStatus("subject", now)).current?.accepted, true);
     assert.equal(receipts.length, 1);
   });
+  await t.test("새 버전 헤더만으로 동의를 대신하지 못하며 익명·시행 문서 누락은 차단한다", async () => {
+    process.env.SERVICE_TERMS_ENFORCEMENT_ENABLED = "true";
+    const headers = { "X-Tuti-Client-Protocol": "2026-10-22", "X-Tuti-Client-Platform": "web" };
+    assert.equal((await guardServiceTerms(new Request("https://tuti.today/api/recommendations", { headers })))?.status, 401);
+    const saved = releases;
+    releases = [];
+    const authorized = { ...headers, Authorization: `Bearer ${"a".repeat(40)}` };
+    assert.equal((await guardServiceTerms(new Request("https://tuti.today/api/places/search", { headers: authorized })))?.status, 503);
+    releases = saved;
+    const receipt = receipts[0];
+    receipt.ageConfirmed = false;
+    assert.equal((await guardServiceTerms(new Request("https://tuti.today/api/places/search", { headers: authorized })))?.status, 428);
+    receipt.ageConfirmed = true;
+    assert.equal(await guardServiceTerms(new Request("https://tuti.today/api/places/search", { headers: authorized })), null);
+  });
   await t.test("명시적 동의 후에는 통과하며 재시도해도 최초 시각은 보존한다", async () => {
     const first = await acceptServiceTerms("subject", body, now);
     const second = await acceptServiceTerms("subject", body, new Date(now.getTime() + 1000));
@@ -125,4 +153,6 @@ test("보안 차단 중에도 권리 행사 경로만 예외로 두고 새 공�
 test("권리 행사 경로와 자료 내보내기는 약관 게이트에서 제외한다", () => {
   for (const path of ["/api/service-terms", "/api/inquiries", "/api/reports", "/api/account-deletion-requests", "/api/location-consent", "/api/auth/logout", "/api/auth/email/verify-code", "/api/journal-entries/entry/share-traces", "/api/journal-entries/entry/share-traces/trace/finalize"]) assert.equal(requiresServiceTerms(path, "POST"), false, path);
   for (const path of ["/api/journal-entries", "/api/journal-books/preview", "/api/product-activity", "/api/recommendation-actions", "/api/recommendations/", "/api/%6aournal-entries"]) assert.equal(requiresServiceTerms(path, "POST"), true, path);
+  for (const path of ["/api/places/search", "/api/places/id/detail", "/api/places/id/accommodations", "/api/places/id/departure-nearby", "/api/recommendation-regions"]) for (const method of ["GET", "HEAD"]) assert.equal(requiresServiceTerms(path, method), true, path);
+  assert.equal(requiresServiceTerms("/api/anonymous-session", "POST"), false, "동의 저장을 위한 준비 세션 발급은 허용하되 이 세션만으로 일반 API를 사용할 수 없다");
 });

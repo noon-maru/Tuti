@@ -13,9 +13,11 @@ export async function guardServiceTerms(request: Request): Promise<Response | nu
   }));
   try {
     const user = await authenticateUser(request);
-    if (!user) return null; // 각 API의 기존 인증 처리를 유지한다.
+    if (!user) return respond({ error: "이용약관을 확인한 뒤 시작해주세요.", code: "service_terms_session_required" }, 401);
     const state = await getServiceTermsStatus(user.id);
-    if (!state.required) return null;
+    // 시행 중인 문서가 없거나 조회가 실패하면 일반 이용을 허용하지 않는다.
+    if (!state.current) return respond({ error: "시행 중인 이용약관을 확인하지 못했어요.", code: "service_terms_unavailable" }, 503);
+    if (state.current.accepted) return null;
     return respond({ error: "새로운 이용을 이어가기 전에 이용약관을 확인해주세요. 안내가 보이지 않는 앱은 업데이트해주세요. 기존 기록 열람·삭제와 문의는 계속 가능해요.", code: "service_terms_required", version: state.current?.version, termsUrl: "https://tuti.today/legal/service-terms" }, 428);
   } catch {
     return respond({ error: "이용약관 동의 상태를 확인하지 못했어요. 잠시 후 다시 시도해주세요.", code: "service_terms_unavailable" }, 503);

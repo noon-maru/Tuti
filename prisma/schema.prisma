@@ -808,6 +808,8 @@ model ServiceTermsRelease {
   effectiveAt   DateTime @map("effective_at")
   approvalReference String @map("approval_reference")
   noticeDays    Int      @map("notice_days")
+  publicationMode String @default("amendment") @map("publication_mode")
+  initialContractReference String? @map("initial_contract_reference")
   acceptances   ServiceTermsAcceptance[]
 
   @@index([effectiveAt])
