@@ -1,7 +1,7 @@
 {
   "owner": "정연한",
   "contact": "admin@tuti.today",
-  "rightsRecipient": { "name": "정연한", "department": "운영", "position": "대표", "email": "admin@tuti.today", "fax": null, "faxUnavailabilityConfirmed": true, "publicNoticeRequirementsReviewed": false, "publicNoticeReviewReference": null, "preparedNoticePath": "/legal/rights", "noticeDeployed": true, "deploymentObservedAt": "2026-10-21", "deploymentEvidence": "공개 /legal/rights 응답 200, 정연한·admin@tuti.today·팩스 미운영 안내 확인", "scope": "연락처 공시 배포 확인. 팩스 미운영 시 공시 요건 충족 판단은 미승인" },
+  "rightsRecipient": { "name": "정연한", "department": "운영", "position": "대표", "email": "admin@tuti.today", "fax": "0504-008-4307", "faxUnavailabilityConfirmed": false, "faxConfirmedAt": "2026-10-22", "faxDeliveryVerified": false, "updatedContactDeployed": false, "publicNoticeRequirementsReviewed": false, "publicNoticeReviewReference": null, "preparedNoticePath": "/legal/rights", "noticeDeployed": true, "deploymentObservedAt": "2026-10-21", "deploymentEvidence": "기존 연락 안내 /legal/rights 응답 200 확인. 2026-10-22 제공받은 팩스번호는 로컬 반영이며 배포·송수신 검증 전", "scope": "연락처 공시와 실제 사건별 통지 이행·최종 법률 승인은 구분" },
   "backupRetentionDays": 30,
   "externalLocationRelationship": { "separateConfirmation": "none", "confirmedAt": "2026-10-19", "classification": "processor", "classificationBasis": "운영자가 카카오·카카오모빌리티 경로 계산의 처리위탁 관계를 확인", "contractRetentionReviewed": false },
   "sensitiveContentPolicy": { "confirmedAt": "2026-10-19", "basis": "운영자 결정: 본인의 비공개 기록·개인용 기록집은 허용하고 민감정보가 포함된 웹 공개는 제한", "privateUse": "separate_optional_consent_required", "webPublication": "restricted", "consentWorkflowImplemented": true, "publicationRestrictionImplemented": true, "withdrawalCleanupImplemented": true, "implementationScope": "서버·웹 소스 구현 및 운영 배포. 사용자 분류·별도 선택 동의에 따른 통제이며 자동 완전 탐지가 아님. 기존 미확인 기록·PDF 전환 필요", "deployed": true, "deploymentScope": "c188381 서버·웹 기준 및 /api/journal-sensitive-policy 응답 확인. 네이티브 신규 바이너리 출시 확인은 아님", "workflowEnabledObserved": false, "observedAt": "2026-10-21", "runtimeVerified": false },
@@ -172,7 +172,9 @@
   },
   "pushTransferReview": {
     "operatorSupportingDocuments": "none", "operatorConfirmedAt": "2026-10-19",
-    "reviewedAt": "2026-10-20", "legalBasis": null, "countriesConfirmed": false,
+    "reviewedAt": "2026-10-22", "legalBasis": "contract_necessary", "countriesConfirmed": false,
+    "textDecisionReference": "LEGAL-TEXT-DECISION-20261022",
+    "textDecisionScope": "미국 수령자와 공식 글로벌 처리시설 범위를 병기한 문안 판단. 개별 이용자의 전체 실제 국가 목록 확인·전문가 적법성 보증·실기기 검증·공고/시행 완료는 아님",
     "sourceAudit": {
       "reference": "PUSH-SOURCE-AUDIT-20261020",
       "codeBaselineCommit": "4f930b4",
@@ -247,9 +249,13 @@
         },
         "recipient": "Google LLC", "contact": "https://firebase.google.com/support/privacy/dpo",
         "items": "FCM 토큰, 일반화된 알림 제목·본문, 유형·내부 이동 경로 및 SDK 설치 식별정보",
-        "timingAndMethod": "등록·갱신·발송 시 암호화된 네트워크. SDK 초기화 시점은 확인 필요",
-        "purpose": "선택한 문의 답변 알림 전달", "countries": [], "legalBasis": "separate_consent",
-        "legalBasisStatus": "고지·별도 선택 동의의 설계 경로. 국가 고지 적정성·실제 동의 구현 및 영수증 승인 전",
+        "timingAndMethod": "알림 등록·갱신·발송 및 기기 SDK의 등록 통신 시 HTTPS/TLS. 새 앱의 자동 초기화·해제 동작은 별도 실기기 확인 기록으로 검증",
+        "purpose": "선택한 문의 답변 알림 전달", "countries": ["US"], "legalBasis": "contract_necessary",
+        "countryScope": "global_facilities",
+        "countryScopeDescription": "미국 및 Google·재수탁자의 처리시설 소재 국가. US는 수령자 소재국이며 전체 실제 처리 국가의 한정 목록이 아님",
+        "countryScopeReviewReference": "LEGAL-TEXT-DECISION-20261022",
+        "countryScopeSources": ["https://firebase.google.com/support/privacy", "https://cloud.google.com/about/locations"],
+        "legalBasisStatus": "요청한 문의 답변 알림의 계약 이행 위탁·보관과 처리방침 공개 근거로 문안 확정. 실기기·실제 공고/시행은 별도",
         "retention": "설치 ID는 삭제 API 호출 전까지 보관, 호출 후 운영·백업 시스템 제거 최대 180일. 연결 FCM 토큰도 삭제된다는 지원 답신. 알림 내용은 전달·만료 시 폐기하며 TTL 미지정 기본 최대 28일. 기술·보안 로그는 제한된 기간, 통상 수 주이며 확정 상한은 미제공",
         "refusal": "앱 문의 답변 알림 해제 또는 admin@tuti.today 요청. 앱 내 답변 확인은 유지",
         "contractReference": "FCM-ONLINE-STANDARD-20261020", "noticeReference": null, "nativeVerificationReference": null, "consentReference": null
@@ -278,33 +284,41 @@
         "recipient": "Apple Inc.", "contact": "https://www.apple.com/legal/privacy/contact/",
         "items": "APNs 기기 토큰, 일반화된 알림 제목·본문, 유형·내부 이동 경로, 번들 식별값·전달 설정",
         "timingAndMethod": "기기 등록·갱신·발송 시 암호화된 네트워크",
-        "purpose": "선택한 문의 답변 알림 전달", "countries": [], "legalBasis": null,
-        "retention": null, "refusal": "앱 문의 답변 알림 해제 또는 admin@tuti.today 요청. 앱 내 답변 확인은 유지",
+        "purpose": "선택한 문의 답변 알림 전달", "countries": ["US"], "legalBasis": "contract_necessary",
+        "countryScope": "global_facilities",
+        "countryScopeDescription": "미국 및 Apple 글로벌 처리시설 소재 국가. US는 수령자 소재국이며 전체 실제 처리 국가의 한정 목록이 아님",
+        "countryScopeReviewReference": "LEGAL-TEXT-DECISION-20261022",
+        "countryScopeSources": ["https://www.apple.com/legal/privacy/en-ww/"],
+        "retention": "등록·전달 목적이 유지되는 동안 및 등록 해제·삭제 요청 후 Apple의 서비스/개인정보 처리 조건에 따른 정리 절차. APNs 고정 상한을 임의 설정하지 않으며 미전달 메시지 최대 30일과 토큰·운영기록을 구분",
+        "refusal": "앱 문의 답변 알림 해제 또는 admin@tuti.today 요청. 앱 내 답변 확인은 유지",
         "contractReference": "APNS-ONLINE-STANDARD-20261020", "noticeReference": null, "nativeVerificationReference": null, "consentReference": null
       }
     }
   },
-  "approvedDocumentHash": null,
+  "approvedDocumentHash": "d5ab80dbc1d96112f31739f5f5baca0a3652326174051d2360782f6ddbef5485",
   "noticePreparation": {
     "preparedAt": "2026-10-22",
-    "state": "review_candidate_not_approved",
-    "scope": "최초 진입 일반 이용약관 후보·개인정보/위치약관·구현 및 검증 근거 동기화. 모든 문서의 일괄 공고·시행 승인이 아님",
-    "candidateDocumentHash": "f6a3130e7ff1a1cea9e90a2dca3fe53b93e92ef646edb79e1c98c5bb0859d2a4",
+    "state": "text_finalized_announcement_preparation_only",
+    "scope": "운영자가 위임한 네 문서의 문안 확정·공고 준비. 실제 공고·시행·실기기·운영 전환 승인은 아님",
+    "candidateDocumentHash": "d5ab80dbc1d96112f31739f5f5baca0a3652326174051d2360782f6ddbef5485",
+    "finalTextReview": { "reference": "LEGAL-TEXT-DECISION-20261022", "path": "docs/legal/release/README.md", "decision": "docs/legal/release/processing-decision.md", "manifest": "docs/legal/release/review-manifest.json", "publicDocumentsPrepared": 4, "legalComplianceCertified": false, "operatorFinalApprovalApplied": true, "scope": "네 문서의 공개용 본문·확보 자료 기반 국외 처리 및 이익형량 판단 확정. 전문가 적법성 보증·실기기/운영 전환 검증·실제 공고/시행은 아님" },
     "candidateSource": "docs/legal/service-terms-draft.md",
     "candidateCommand": "pnpm legal:terms:review --document",
+    "noticeBundleCommand": "pnpm legal:notice:prepare [--effective-at=ISO시각]",
+    "noticeBundleVerification": { "reference": "NOTICE-BUNDLE-TEST-20261022", "documents": 4, "actualNoticeValidatorPassed": true, "noticeReadinessPassed": true, "relatedTestsPassed": 57, "typecheckPassed": true, "lintPassed": true, "scope": "로컬 읽기 전용 준비와 실제 공고 검증 함수 확인. DB 등록·운영·실기기·공고/시행은 실행하지 않음" },
     "candidateSections": 22,
     "noticeIntervalOperatorConfirmed": true,
     "noticeDays": 30,
     "intervalSource": "2026-10-21 운영자 답변: 30일 뒤",
     "publishedAt": null,
     "effectiveAt": null,
-    "dateRule": "기존 약관 변경은 실제 공고 시각부터 최소 30일 이후. 별도 최초 계약 모드는 테스트 이용 종료·기존 의무 검토·신규 계약 한정 승인과 빈 공고 이력·일반 계정 없음 확인 후 즉시 시행 가능. 현재 어떤 모드도 승인·공고하지 않음",
+    "dateRule": "현재 준비 묶음은 변경 공고 기준으로 실제 공고 시각부터 최소 30일 이후. 별도 최초 계약 모드는 별도 승인과 DB 자격 확인이 필요하며 이번에 실행하지 않음. 구체적인 공고/시행 시각은 실제 등록 때 확정",
     "nextUpdateTransition": "다음 앱 업데이트와 서버 전환 후 신규·기존 이용자 모두 적용 버전에 명시적 동의. 전환 전 첫 화면 강제 없음. 업데이트·공고 열람·기존 이용 이력을 동의로 소급하지 않음",
     "testAccountDeletion": "미동의 테스트 계정은 운영자가 별도 대상 목록 확인 후 수동 삭제 예정. 현재 삭제 지시·대상 확정·실제 삭제는 없음",
     "publicStateObserved": { "currentReleasePresent": false, "upcomingReleasePresent": false, "required": false },
     "operationalInspectionReference": "LEGAL-OPERATIONS-20261021-161109",
     "processingInventoryReference": "PROCESSING-SOURCE-AUDIT-20261021",
-    "approvalReference": null,
+    "approvalReference": "LEGAL-TEXT-DECISION-20261022",
     "publicationApplied": false
   },
   "initialTermsFlow": {
@@ -516,15 +530,15 @@
     "runtimeFlagsChanged": false
   },
   "checks": {
-    "processingInventory": { "confirmed": false, "reference": null, "sourceAudit": { "reference": "PROCESSING-SOURCE-AUDIT-20261021", "path": "docs/legal/processing-inventory.json", "prismaModelsClassified": 50, "groups": 13, "unclassifiedModels": 0, "scope": "모델 분류·보관/파기 코드 경로 확인. 공고 전용 모델 추가분 포함. 모든 필드/JSON 값·수집 근거·실기기·운영 DB 전수 확인은 아님" }, "retentionVerificationReference": "RETENTION-DRY-RUN-20261022-085302", "pending": "기능별 처리 근거·필수/선택·거부 경로. 신규 기한 정리는 배포·운영 dry-run 완료, enabled=false 및 대상 0건. 실제 파기·보전 예외·90일 검토 알림·활성화는 별도 검증. 완료일 누락 자료·다른 범주 사건 및 기존 자료 적용 범위도 별도" },
-    "processorsAndTransfers": { "confirmed": false, "reference": null, "sourceAudit": { "reference": "PROCESSING-SOURCE-AUDIT-20261021", "externalFlowGroups": 8, "cloudflarePathObserved": true, "scope": "NAS 자체 저장·SMTP·지도·소셜 인증·푸시·프록시·집계 운영 알림·공개 장소 AI 경로를 구분. 계약·처리 국가·기간·동의 완료와 구분" }, "noticeReviewReference": "EXTERNAL-NOTICE-SOURCE-REVIEW-20261022", "pending": "메일/Cloudflare/로그인/푸시의 코드·공식 자료 대조와 문안 보완 완료. 실제 계정 적용 범위·항목별 국가/기간·Kakao 콘솔 이전 설정·필요한 동의와 실기기 검증은 별도. Daum 현재 공식 서비스 법인은 주식회사 다음으로 기재하며 계정별 위탁 약정 승인과 구분" },
+    "processingInventory": {"confirmed":true,"reference":"LEGAL-TEXT-DECISION-20261022","sourceAudit":{"reference":"PROCESSING-SOURCE-AUDIT-20261021","path":"docs/legal/processing-inventory.json","prismaModelsClassified":50,"groups":13,"unclassifiedModels":0,"scope":"모델 분류·보관/파기 코드 경로 확인. 공고 전용 모델 추가분 포함. 모든 필드/JSON 값·수집 근거·실기기·운영 DB 전수 확인은 아님"},"retentionVerificationReference":"RETENTION-DRY-RUN-20261022-085302","decisionScope":"항목별 계약 이행·별도 동의·최소 분석/보안/감사의 정당한 이익과 이익형량 문안 확정. 실제 운영 전환·정지 요청 이행 시험은 별도","followUp":"기능별 처리 근거·필수/선택·거부 경로. 신규 기한 정리는 배포·운영 dry-run 완료, enabled=false 및 대상 0건. 실제 파기·보전 예외·90일 검토 알림·활성화는 별도 검증. 완료일 누락 자료·다른 범주 사건 및 기존 자료 적용 범위도 별도"},
+    "processorsAndTransfers": {"confirmed":true,"reference":"LEGAL-TEXT-DECISION-20261022","sourceAudit":{"reference":"PROCESSING-SOURCE-AUDIT-20261021","externalFlowGroups":8,"cloudflarePathObserved":true,"scope":"NAS 자체 저장·SMTP·지도·소셜 인증·푸시·프록시·집계 운영 알림·공개 장소 AI 경로를 구분. 계약·처리 국가·기간·동의 완료와 구분"},"noticeReviewReference":"EXTERNAL-NOTICE-SOURCE-REVIEW-20261022","decisionScope":"답신·공식 자료·타사 직접 고지를 바탕으로 계약 이행 위탁/보관 및 방침 공개 근거와 글로벌 범위·목적형 기간 안내 확정. 제공자 미확인 사실·전문가 적법성 보증으로 확대하지 않음","followUp":"메일/Cloudflare/로그인/푸시의 코드·공식 자료 대조와 문안 보완 완료. 실제 계정 적용 범위·항목별 국가/기간·Kakao 콘솔 이전 설정·필요한 동의와 실기기 검증은 별도. Daum 현재 공식 서비스 법인은 주식회사 다음으로 기재하며 계정별 위탁 약정 승인과 구분"},
     "backupRetentionAndRestoreTest": { "confirmed": true, "reference": "BACKUP-RETENTION-RESTORE-20261021", "scope": "30일 정리 예약·전체/핵심 사본 무결성·격리 DB/객체 복원·시험 자원 정리 확인. 삭제 원장 재반영·키 재해 복구·운영 재개 시험과 실제 PDF는 별도 미검증" },
-    "rightsRecipientAndForms": { "confirmed": false, "reference": null },
+    "rightsRecipientAndForms": {"confirmed":true,"reference":"LEGAL-TEXT-DECISION-20261022","decisionScope":"정연한·운영·대표·이메일·전화·우편·팩스 연락처 소스 대조, 기존 메일 첨부 전달 시험 근거 확인. 새 팩스 배포·송수신 및 실제 사건 통지는 별도"},
     "scheduledJobsAndAlerts": { "confirmed": true, "reference": "OPS-AUTOMATION-20261020" },
     "minorProtection": { "confirmed": false, "reference": null },
     "nativeClientRollout": { "confirmed": false, "reference": null },
-    "legalReview": { "confirmed": false, "reference": null },
-    "finalDocumentApproval": { "confirmed": false, "reference": null },
-    "noticePlan": { "confirmed": false, "reference": null }
+    "legalReview": {"confirmed":true,"reference":"LEGAL-TEXT-DECISION-20261022","decisionScope":"운영자가 위임한 확보 자료 기반 AI 보조 문안 판단 완료. 법률전문가 자문·감독기관 확인을 받은 것은 아니며 후속 자문 계획 유지"},
+    "finalDocumentApproval": {"confirmed":true,"reference":"LEGAL-TEXT-DECISION-20261022","decisionScope":"운영자의 문안 판단 위임에 따른 원문 확정. release/review-manifest.json의 파일 해시를 검증하며 실제 공고/시행 승인은 구분"},
+    "noticePlan": {"confirmed":true,"reference":"LEGAL-TEXT-DECISION-20261022","decisionScope":"새 앱 출시 후 서버 전환 유지. 변경 공고는 실제 등록 시각부터 30일 이상, 공고는 동의/시행이 아님. 실행 시 정확한 시행 예정일을 검증"}
   }
 }

@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 import { sensitiveJournalData, assertSensitiveJournalReadable, assertJournalBookFreeform, publicSensitiveJournalFilter } from "../src/server/journal/sensitivePolicy";
-import { SENSITIVE_JOURNAL_CONSENT_VERSION } from "../src/shared/legal/sensitiveJournalPolicy";
+import { canStoreSensitiveJournal, canSubmitJournalClassification, SENSITIVE_JOURNAL_CONSENT_VERSION } from "../src/shared/legal/sensitiveJournalPolicy";
 import { parseJournalEntryInput } from "../src/server/journal/input";
 import { emptyJournalBookDraft, parseJournalBookInput } from "../src/shared/api/journalBook";
 
@@ -43,6 +43,33 @@ test("별도 선택 동의에는 버전·서버 시각을 남기고 원장 없�
     assert.deepEqual(sensitiveJournalData(sensitive, true, now), { sensitiveContent: true, sensitiveConsentVersion: SENSITIVE_JOURNAL_CONSENT_VERSION, sensitiveConsentedAt: now });
     assert.deepEqual(sensitiveJournalData({ ...input, sensitiveContent: false }, true, now), { sensitiveContent: false, sensitiveConsentVersion: null, sensitiveConsentedAt: null });
   } finally { if (before === undefined) delete process.env.PRIVACY_REPLAY_LEDGER_ENABLED; else process.env.PRIVACY_REPLAY_LEDGER_ENABLED = before; }
+});
+
+test("작성 화면은 보호 기능이 꺼져 있어도 분류를 생략하지 않는다", () => {
+  const policy = { enabled: false, version: SENSITIVE_JOURNAL_CONSENT_VERSION };
+  assert.equal(canSubmitJournalClassification(null, false, false), false);
+  assert.equal(canSubmitJournalClassification(policy, null, false), false);
+  assert.equal(canSubmitJournalClassification(policy, false, false), true);
+  assert.equal(canSubmitJournalClassification(policy, true, true), false);
+  assert.deepEqual(sensitiveJournalData({ ...input, sensitiveContent: false }, false), {
+    sensitiveContent: false, sensitiveConsentVersion: null, sensitiveConsentedAt: null,
+  });
+  assert.deepEqual(sensitiveJournalData(input, false), {});
+});
+
+test("민감정보 저장은 보관 기능·현재 동의 버전·별도 선택을 모두 확인한다", () => {
+  const policy = { enabled: true, version: SENSITIVE_JOURNAL_CONSENT_VERSION, privateStorageAvailable: true };
+  assert.equal(canStoreSensitiveJournal({ ...policy, privateStorageAvailable: false }), false);
+  assert.equal(canSubmitJournalClassification({ ...policy, privateStorageAvailable: false }, true, true), false);
+  assert.equal(canSubmitJournalClassification(policy, true, false), false);
+  assert.equal(canSubmitJournalClassification(policy, true, true), true);
+  assert.equal(canSubmitJournalClassification({ ...policy, version: "old" }, false, false), false);
+  assert.equal(canSubmitJournalClassification({ enabled: true, version: policy.version }, true, true), true);
+});
+
+test("권리 요청 수령인에 제공받은 팩스를 공시한다", async () => {
+  const { rightsContactNotice } = await import("../src/shared/legal/rightsContact");
+  assert.ok(rightsContactNotice.sections[0].paragraphs.includes("팩스: 0504-008-4307"));
 });
 
 test("철회된 기록과 미확인 기록은 기록집 재생성에 사용할 수 없다", () => {

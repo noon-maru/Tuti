@@ -193,8 +193,9 @@ test("운영 대상 0건 조회와 예약 성공을 실제 파기·보전·공�
   assert.equal(observation.timerObservation.lastServiceResult, "success");
   for (const key of ["applyVerified", "holdMutationVerified", "reviewAlertDeliveryVerified", "productionDataChanged", "runtimeFlagsChanged"]) assert.equal(observation[key], false);
   assert.equal(readiness.checks.processingInventory.retentionVerificationReference, observation.reference);
-  assert.equal(readiness.checks.processingInventory.confirmed, false);
-  assert.equal(readiness.approvedDocumentHash, null);
+  assert.equal(readiness.checks.processingInventory.reference, "LEGAL-TEXT-DECISION-20261022");
+  assert.match(readiness.approvedDocumentHash, /^[a-f0-9]{64}$/);
+  assert.equal(readiness.noticePreparation.publicationApplied, false);
   const isolated = observation.isolatedTest;
   assert.equal(isolated.actualPrisma, true);
   assert.equal(isolated.integrationTestsPassed, 19);

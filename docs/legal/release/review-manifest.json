@@ -1,0 +1,49 @@
+{
+  "reviewedAt": "2026-10-22",
+  "scope": "operator-delegated-text-finalization-not-publication-or-enforcement",
+  "operatorFinalApproval": true,
+  "legalComplianceCertified": false,
+  "publicationApplied": false,
+  "enforcementApplied": false,
+  "documents": [
+    {
+      "documentType": "service-terms",
+      "file": "service-terms.md",
+      "markdownSha256": "cad58a05a24acfbe5bee366eb00f36dea6577c843664dba9283ff99aed71cd8e",
+      "status": "text-finalized"
+    },
+    {
+      "documentType": "privacy",
+      "file": "privacy-policy.md",
+      "markdownSha256": "56d2efb24bee88c06bbd08261ab52860b51f7fb8d2efcb2cfe45cf1defce824f",
+      "status": "text-finalized"
+    },
+    {
+      "documentType": "location-terms",
+      "file": "location-terms.md",
+      "markdownSha256": "cabf997160e69f3604e9be8b6cb9242cc895e245316ea4c63c9729dba5abb64a",
+      "status": "text-finalized"
+    },
+    {
+      "documentType": "community-guidelines",
+      "file": "publication-policy.md",
+      "markdownSha256": "8f3c26638f812d177ec505aa0615dc9bf36dfcf0a382d7cd7192ba33a8e6e64b",
+      "status": "text-finalized"
+    }
+  ],
+  "remainingScope": [
+    "native-device-and-runtime-cutover-verification",
+    "actual-announcement-date-and-registration",
+    "app-release-before-enforcement"
+  ],
+  "textApprovalReference": "LEGAL-TEXT-DECISION-20261022",
+  "textApprovalBasis": "운영자의 답신·타사 사례 기반 문안 판단 위임 및 앱 출시 후 서버 전환 유지 확인",
+  "followUpLegalAdvice": {
+    "requiredBeforeTextPreparation": false,
+    "scope": [
+      "global-processing-scope-and-purpose-based-provider-retention",
+      "contract-necessity-and-legitimate-interest-assessment"
+    ],
+    "legalComplianceCertified": false
+  }
+}

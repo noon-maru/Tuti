@@ -19,7 +19,9 @@ export class SensitiveJournalPolicyError extends Error {
 export function sensitiveJournalData(input: JournalEntryInput, enabled = sensitiveJournalPolicyEnabled(), now = new Date()) {
   if (!enabled) {
     if (input.sensitiveContent === true) throw new SensitiveJournalPolicyError("민감정보를 포함한 기록 저장은 아직 준비 중이에요. 해당 내용을 빼고 저장해주세요.");
-    return {};
+    return input.sensitiveContent === false
+      ? { sensitiveContent: false, sensitiveConsentVersion: null, sensitiveConsentedAt: null }
+      : {};
   }
   if (typeof input.sensitiveContent !== "boolean") throw new SensitiveJournalPolicyError("기록에 민감정보가 있는지 확인해주세요. 앱이 오래된 경우 업데이트가 필요해요.");
   if (input.sensitiveContent && input.sensitiveConsentVersion !== SENSITIVE_JOURNAL_CONSENT_VERSION) {

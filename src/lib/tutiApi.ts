@@ -7,6 +7,7 @@ export async function fetchSensitiveJournalPolicy(): Promise<SensitiveJournalPol
   if (!response.ok) throw new Error("기록 보호 설정을 확인하지 못했어요. 잠시 후 다시 시도해주세요.");
   const data = await response.json();
   if (typeof data.enabled !== "boolean" || typeof data.version !== "string") throw new Error("기록 보호 설정을 확인하지 못했어요.");
+  if (data.privateStorageAvailable !== undefined && typeof data.privateStorageAvailable !== "boolean") throw new Error("기록 보호 설정을 확인하지 못했어요.");
   return data;
 }
 

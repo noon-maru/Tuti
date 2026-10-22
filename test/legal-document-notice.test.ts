@@ -35,6 +35,25 @@ test("공고 승인과 시행 조건을 분리하고 최종 승인 없는 원문
   assert.throws(() => prepareLegalDocumentNotice({ ...input, applicationPolicy: "미확정" }, evidence, now), /확정/);
 });
 
+test("확정한 네 문서 준비 묶음은 실제 공고 검증기를 통과하되 등록·동의를 생성하지 않는다", async () => {
+  const { FINAL_NOTICE_FILES, prepareFinalNoticeBundle } = await import("../src/server/legal/finalNoticeBundle");
+  const sources = Object.fromEntries(Object.entries(FINAL_NOTICE_FILES).map(([kind, file]) => [kind, readFileSync("docs/legal/release/" + file, "utf8")])) as Parameters<typeof prepareFinalNoticeBundle>[0]["sources"];
+  const bundle = prepareFinalNoticeBundle({ sources,
+    serviceTermsDraft: readFileSync("docs/legal/service-terms-draft.md", "utf8"),
+    manifest: JSON.parse(readFileSync("docs/legal/release/review-manifest.json", "utf8")),
+    readiness: JSON.parse(readFileSync("docs/legal/readiness-status.json", "utf8")),
+    now, effectiveAt: "2026-11-21T00:00:00Z",
+  });
+  for (const item of bundle.entries) {
+    const prepared = prepareLegalDocumentNotice(item.notice, item.readiness, now);
+    assert.equal(prepared.documentHash, item.documentHash);
+    assert.equal(prepared.documentType, item.documentType);
+    assert.equal(prepared.publishedAt.toISOString(), now.toISOString());
+  }
+  assert.equal(bundle.announcementApplied, false);
+  assert.equal(row, null);
+});
+
 test("공고 원문은 강제 기능·인증 없이 열람하되 동의·시행 데이터와 내부 승인번호는 노출하지 않는다", async () => {
   row = prepareLegalDocumentNotice(input, evidence, now);
   const response = await GET(new Request("https://tuti.today/api/public/legal-notices"));

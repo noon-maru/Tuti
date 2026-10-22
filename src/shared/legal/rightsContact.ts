@@ -1,6 +1,6 @@
 export const rightsContactNotice = {
   title: "권리 침해 신고 안내",
-  effectiveDate: "2026년 10월 20일",
+  effectiveDate: "2026년 10월 22일",
   dateLabel: "안내 확인일",
   summary: "공개된 기록으로 개인정보·저작권 등 권리가 침해되었다면 알려주세요. 필요한 내용을 확인하고 처리 결과를 안내합니다.",
   sections: [
@@ -12,7 +12,7 @@ export const rightsContactNotice = {
         "전자우편: admin@tuti.today",
         "전화번호: 010-2724-4307",
         "우편 수령 주소: 서울특별시 영등포구 선유서로34길 11-2, 604호",
-        "팩스: 미운영. 전자우편 또는 우편으로 접수해주세요.",
+        "팩스: 0504-008-4307",
       ],
     },
     {
