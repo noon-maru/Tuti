@@ -10,10 +10,11 @@ test("공개 접수 안내는 약관 시행일과 구분하고 사실인 수령�
   const html = renderToStaticMarkup(createElement(RightsContactPage));
   assert.match(html, /안내 확인일/);
   assert.doesNotMatch(html, />시행일 /);
-  for (const value of ["정연한", "운영", "대표", "admin@tuti.today", "010-2724-4307", "604호", "팩스: 미운영"]) assert.ok(html.includes(value));
+  for (const value of ["정연한", "운영", "대표", "admin@tuti.today", "010-2724-4307", "604호", "팩스: 0504-008-4307"]) assert.ok(html.includes(value), value);
   assert.match(html, /mailto:admin@tuti.today/);
   assert.match(html, /현행 법정 서식/);
   assert.match(html, /새 서비스 이용약관.*공고나 시행을 뜻하지 않습니다/);
   assert.equal(isLegalRightsPath("/legal/rights", "GET"), true);
-  assert.doesNotMatch(JSON.stringify(rightsContactNotice), /팩스.*[0-9]{2,3}-[0-9]+/);
+  assert.match(JSON.stringify(rightsContactNotice), /팩스: 0504-008-4307/);
+  assert.doesNotMatch(html, /팩스: 미운영/);
 });
