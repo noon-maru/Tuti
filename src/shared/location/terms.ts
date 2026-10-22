@@ -1,4 +1,19 @@
+import documents from "@/shared/legal/finalizedDocuments.json";
+import { getLegalPolicyRelease, legalPolicyDate } from "@/shared/legal/policyRelease";
+
 export const LOCATION_TERMS_VERSION = "2026-08-15";
+export function getLocationTermsVersion() {
+  return getLegalPolicyRelease()?.version ?? LOCATION_TERMS_VERSION;
+}
+export function getLocationTerms() {
+  const release = getLegalPolicyRelease();
+  return release ? {
+    ...documents["location-terms"].document,
+    effectiveDate: legalPolicyDate(release),
+    provider: locationTerms.provider,
+    appendix: [`약관 버전: ${release.version}`],
+  } : locationTerms;
+}
 
 export const locationTerms = {
   title: "Tuti 위치기반서비스 이용약관",

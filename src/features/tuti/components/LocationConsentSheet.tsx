@@ -22,7 +22,8 @@ import {
 } from "@/features/tuti/components/buttons";
 import { useDeferredAnimationStart } from "@/features/tuti/hooks/useDeferredAnimationStart";
 import { ANDROID_BACK_EVENT } from "@/features/tuti/navigation/androidBack";
-import { locationTerms } from "@/shared/location/terms";
+import { getLocationTerms } from "@/shared/location/terms";
+import { useLegalPolicyRelease } from "@/features/legal/useLegalPolicyRelease";
 
 const TRANSITION_DURATION = 380;
 const DISMISS_THRESHOLD = 72;
@@ -39,6 +40,8 @@ export function LocationConsentSheet({
   onDecline: () => void;
 }) {
   const animationReady = useDeferredAnimationStart();
+  useLegalPolicyRelease();
+  const locationTerms = getLocationTerms();
   const [view, setView] = useState<"summary" | "terms">("summary");
   const [ageAndTermsAccepted, setAgeAndTermsAccepted] = useState(false);
   const [dragY, setDragY] = useState(0);

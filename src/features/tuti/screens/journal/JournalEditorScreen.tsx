@@ -21,7 +21,7 @@ import type {
   JournalEntryInput,
   TutiJournalEntry,
 } from "@/shared/api/journal";
-import { LOCATION_TERMS_VERSION } from "@/shared/location/terms";
+import { getLocationTermsVersion } from "@/shared/location/terms";
 import { useTutiStore } from "@/store/tuti";
 import { journalImageMaxWidth } from "@/styles/tokens";
 
@@ -65,7 +65,7 @@ export function JournalEditorScreen({
   const locationTermsAccepted = useTutiStore(
     (state) =>
       state.locationConsent?.status === "accepted" &&
-      state.locationConsent.termsVersion === LOCATION_TERMS_VERSION,
+      state.locationConsent.termsVersion === getLocationTermsVersion(),
   );
   const imagePickerRef = useRef<HTMLLabelElement>(null);
   const hasEditedVisitDateRef = useRef(Boolean(entry));
@@ -164,7 +164,7 @@ export function JournalEditorScreen({
               readImageMetadata(file, {
                 includeLocation:
                   serverConsent?.status === "accepted" &&
-                  serverConsent.termsVersion === LOCATION_TERMS_VERSION &&
+                  serverConsent.termsVersion === getLocationTermsVersion() &&
                   serverConsent.ageConfirmed,
               }),
             )

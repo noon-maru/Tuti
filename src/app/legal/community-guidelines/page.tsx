@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
-import { LegalDocument } from "@/features/legal/LegalDocument";
-import { journalPublicationPolicy } from "@/shared/legal/journalPublicationPolicy";
+import { PolicyDocument } from "@/features/legal/PolicyDocument";
+import { getLegalPolicyRelease } from "@/shared/legal/policyRelease";
 
 export const metadata: Metadata = {
   title: "기록 공개 운영정책 | Tuti",
@@ -8,5 +8,5 @@ export const metadata: Metadata = {
 };
 
 export default function CommunityGuidelinesPage() {
-  return <LegalDocument {...journalPublicationPolicy} />;
+  return <PolicyDocument kind="community-guidelines" initialRelease={getLegalPolicyRelease()} />;
 }

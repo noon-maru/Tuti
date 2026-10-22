@@ -29,7 +29,8 @@ import {
   fetchLocationConsent,
   updateLocationConsent,
 } from "@/lib/tutiApi";
-import { LOCATION_TERMS_VERSION } from "@/shared/location/terms";
+import { getLocationTermsVersion } from "@/shared/location/terms";
+import { useLegalPolicyRelease } from "@/features/legal/useLegalPolicyRelease";
 import { getSessionSnapshot, subscribeToSession } from "@/lib/auth/session";
 import type { PreferredRegion } from "@/shared/tuti/types";
 import { useTutiStore } from "@/store/tuti";
@@ -55,6 +56,7 @@ export function LocationAccessProvider({
   children: React.ReactNode;
 }) {
   const queryClient = useQueryClient();
+  useLegalPolicyRelease();
   const session = useSession();
   const sessionUserId = session?.userId;
   const locationConsent = useTutiStore((state) => state.locationConsent);
@@ -115,7 +117,7 @@ export function LocationAccessProvider({
   useEffect(() => {
     if (
       locationConsent?.status !== "accepted" ||
-      locationConsent.termsVersion !== LOCATION_TERMS_VERSION
+      locationConsent.termsVersion !== getLocationTermsVersion()
     ) {
       return;
     }
@@ -432,6 +434,7 @@ export function LocationAccessProvider({
       {children}
       {consentSheetOpen && (
         <LocationConsentSheet
+          key={getLocationTermsVersion()}
           requesting={requesting}
           error={consentError}
           onAgree={agreeAndRequest}

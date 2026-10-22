@@ -2,7 +2,7 @@ import type { TutiPlace } from "@/lib/recommendations";
 import { interpretState } from "@/lib/recommendations";
 import { prisma } from "@/server/db/prisma";
 import { lockLocationSubject } from "@/server/location/subjectLock";
-import { LOCATION_TERMS_VERSION } from "@/shared/location/terms";
+import { getLocationTermsVersion } from "@/shared/location/terms";
 import { RECOMMENDATION_ALGORITHM_VERSION } from "@/shared/api/recommendations";
 import type { RecommendationRequest } from "@/shared/api/recommendations";
 import type { PersonalizationAudit } from "@/server/personalization/ranking";
@@ -39,7 +39,7 @@ export async function recordRecommendationRunSafely({
         });
         // after()는 응답 뒤 실행된다. 철회·재동의 이후 예전 위치 결과가 되살아나지 않게 한다.
         if (!locationConsentId || current?.id !== locationConsentId || current.status !== "accepted" ||
-            !current.ageConfirmed || current.termsVersion !== LOCATION_TERMS_VERSION) return;
+            !current.ageConfirmed || current.termsVersion !== getLocationTermsVersion()) return;
       }
       await transaction.recommendationRun.create({
         data: {

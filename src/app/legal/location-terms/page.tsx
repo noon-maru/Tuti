@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
-import { LegalDocument } from "@/features/legal/LegalDocument";
-import { locationTerms } from "@/shared/location/terms";
+import { PolicyDocument } from "@/features/legal/PolicyDocument";
+import { getLegalPolicyRelease } from "@/shared/legal/policyRelease";
 
 export const metadata: Metadata = {
   title: "위치기반서비스 이용약관 | Tuti",
@@ -8,5 +8,5 @@ export const metadata: Metadata = {
 };
 
 export default function LocationTermsPage() {
-  return <LegalDocument {...locationTerms} />;
+  return <PolicyDocument kind="location-terms" initialRelease={getLegalPolicyRelease()} />;
 }

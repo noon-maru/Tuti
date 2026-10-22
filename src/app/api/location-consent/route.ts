@@ -13,8 +13,9 @@ import type {
   LocationConsentResponse,
   LocationConsentUpdate,
 } from "@/shared/api/locationCompliance";
-import { LOCATION_TERMS_VERSION } from "@/shared/location/terms";
+import { getLocationTermsVersion } from "@/shared/location/terms";
 import type { LocationConsentStatus } from "@/shared/tuti/types";
+import { getLegalPolicyRelease } from "@/shared/legal/policyRelease";
 
 export const runtime = "nodejs";
 
@@ -36,6 +37,7 @@ export async function GET(request: Request) {
 
   const consent = await getCurrentLocationConsent(user.id);
   const response: LocationConsentResponse = {
+    legalPolicyRelease: getLegalPolicyRelease(),
     consent: consent
       ? {
           status: consent.status,
@@ -65,6 +67,7 @@ export async function POST(request: Request) {
     const body = parseConsentUpdate(await request.json());
     const consent = await recordLocationConsent({ user, ...body });
     const response: LocationConsentResponse = {
+      legalPolicyRelease: getLegalPolicyRelease(),
       consent: {
         status: consent.status,
         termsVersion: consent.termsVersion,
@@ -108,7 +111,7 @@ function parseConsentUpdate(value: unknown): LocationConsentUpdate {
   const clientPlatform = normalizePlatform(input.clientPlatform);
   const ageConfirmed = input.ageConfirmed === true;
 
-  if (status === "accepted" && termsVersion !== LOCATION_TERMS_VERSION) {
+  if (status === "accepted" && termsVersion !== getLocationTermsVersion()) {
     throw new LocationComplianceError(
       "현재 위치기반서비스 약관을 다시 확인해주세요.",
       "location_consent_outdated",

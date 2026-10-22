@@ -8,7 +8,7 @@ import type { DailyNotificationStyle } from "@/features/tuti/notifications/local
 import { preferencesStorage } from "@/lib/storage/preferencesStorage";
 import type { TutiPlace } from "@/lib/recommendations";
 import type { DepartureRouteMode } from "@/shared/api/departurePlan";
-import { LOCATION_TERMS_VERSION } from "@/shared/location/terms";
+import { getLocationTermsVersion } from "@/shared/location/terms";
 import {
   toActiveIntakeAnswers,
   type IntakeAnswers,
@@ -219,7 +219,7 @@ export const useTutiStore = create<TutiState>()(
         set({
           locationConsent: {
             status: "accepted",
-            termsVersion: LOCATION_TERMS_VERSION,
+            termsVersion: getLocationTermsVersion(),
             updatedAt: new Date().toISOString(),
           },
         }),
@@ -252,7 +252,7 @@ export const useTutiStore = create<TutiState>()(
           pendingDeparture: undefined,
           locationConsent: {
             status: "paused",
-            termsVersion: LOCATION_TERMS_VERSION,
+            termsVersion: getLocationTermsVersion(),
             updatedAt: new Date().toISOString(),
           },
         }),
@@ -261,7 +261,7 @@ export const useTutiStore = create<TutiState>()(
           userLocation: undefined,
           locationConsent: {
             status: "declined",
-            termsVersion: LOCATION_TERMS_VERSION,
+            termsVersion: getLocationTermsVersion(),
             updatedAt: new Date().toISOString(),
           },
         }),
@@ -277,7 +277,7 @@ export const useTutiStore = create<TutiState>()(
           pendingDeparture: undefined,
           locationConsent: {
             status: "withdrawn",
-            termsVersion: LOCATION_TERMS_VERSION,
+            termsVersion: getLocationTermsVersion(),
             updatedAt: new Date().toISOString(),
           },
         }),

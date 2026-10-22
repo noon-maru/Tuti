@@ -15,7 +15,7 @@ import {
 } from "@/shared/features/release";
 import {
   isCurrentJournalPublicationPolicy,
-  JOURNAL_PUBLICATION_POLICY_VERSION,
+  getJournalPublicationPolicyVersion,
 } from "@/shared/legal/journalPublicationPolicy";
 
 export const runtime = "nodejs";
@@ -114,7 +114,7 @@ export async function PATCH(
       user.id,
       entryId,
       input.published,
-      input.published ? JOURNAL_PUBLICATION_POLICY_VERSION : undefined,
+      input.published ? getJournalPublicationPolicyVersion() : undefined,
     );
 
     if (!entry) {

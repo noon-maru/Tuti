@@ -7,7 +7,7 @@ import {
 } from "@/server/http/cors";
 import type { AdminOverviewResponse } from "@/shared/api/admin";
 import { getExternalLocationProcessingMode } from "@/server/location/externalProcessing";
-import { LOCATION_TERMS_VERSION } from "@/shared/location/terms";
+import { getLocationTermsVersion } from "@/shared/location/terms";
 import {
   createRequestAuditIdentity,
   recordLocationSecurityAuditEvent,
@@ -76,7 +76,7 @@ export async function GET(request: Request) {
       ) AS latest
       WHERE
         latest."status" = 'accepted'::"LocationConsentStatus"
-        AND latest."terms_version" = ${LOCATION_TERMS_VERSION}
+        AND latest."terms_version" = ${getLocationTermsVersion()}
         AND latest."age_confirmed" = true
     `,
     prisma.locationUsageLog.count({

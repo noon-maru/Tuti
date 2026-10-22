@@ -9,7 +9,7 @@ import {
 import { forceDeleteJournalEntry } from "@/server/journal/service";
 import { getJournalModerationTransition } from "@/server/journal/publicationState";
 import type { AdminReportsResponse } from "@/shared/api/admin";
-import { JOURNAL_PUBLICATION_POLICY_VERSION } from "@/shared/legal/journalPublicationPolicy";
+import { getJournalPublicationPolicyVersion } from "@/shared/legal/journalPublicationPolicy";
 
 export const runtime = "nodejs";
 
@@ -424,7 +424,7 @@ async function moderateReportedJournalEntry({
   if (
     action === "restore" &&
     (entry?.publicationConsentVersion !==
-      JOURNAL_PUBLICATION_POLICY_VERSION ||
+      getJournalPublicationPolicyVersion() ||
       !entry.publicationConsentedAt)
   ) {
     return Response.json(
@@ -463,7 +463,7 @@ async function moderateReportedJournalEntry({
           ? {
               owner: { journalPublicationRestrictedAt: null },
               publicationConsentVersion:
-                JOURNAL_PUBLICATION_POLICY_VERSION,
+                getJournalPublicationPolicyVersion(),
               publicationConsentedAt: { not: null },
             }
           : {}),

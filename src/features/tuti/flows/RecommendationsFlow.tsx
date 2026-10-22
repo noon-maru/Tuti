@@ -33,7 +33,7 @@ import {
   isKoreanDateBefore,
   isCurrentKoreanDate,
 } from "@/lib/date/koreanDate";
-import { LOCATION_TERMS_VERSION } from "@/shared/location/terms";
+import { getLocationTermsVersion } from "@/shared/location/terms";
 import type { DepartureRoute } from "@/shared/api/departurePlan";
 import type { RecommendationActionInput } from "@/shared/api/recommendationActions";
 import type { IntakeAnswers } from "@/shared/tuti/types";
@@ -123,7 +123,7 @@ export function RecommendationsFlow({ interactive }: { interactive: boolean }) {
     !userLocation &&
       !preferredRegion?.sigunguName &&
       locationConsent?.status === "accepted" &&
-      locationConsent.termsVersion === LOCATION_TERMS_VERSION &&
+      locationConsent.termsVersion === getLocationTermsVersion() &&
       (locationPermissionStatus === "unknown" ||
         locationPermissionStatus === "prompt" ||
         locationPermissionStatus === "granted"),
@@ -281,7 +281,7 @@ export function RecommendationsFlow({ interactive }: { interactive: boolean }) {
       !userLocation &&
       !preferredRegion?.sigunguName &&
       locationConsent?.status === "accepted" &&
-      locationConsent.termsVersion === LOCATION_TERMS_VERSION;
+      locationConsent.termsVersion === getLocationTermsVersion();
 
     if (!shouldRestoreLocation) {
       automaticLocationRequest.current = false;
