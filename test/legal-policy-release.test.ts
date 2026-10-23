@@ -31,7 +31,7 @@ test("시행 시각만 설정해도 전환되지 않고 명시적 버전·실제
   assert.throws(() => parseLegalPolicyRelease({ ...release, version: "unknown" }));
 });
 
-test("구서버 앱은 기존 버전 유지, 서버 전환 후 문서와 위치·공개 동의 버전이 함께 전환된다", () => {
+test("시행 시각 메타데이터가 없어도 구약관으로 되돌아가지 않고 확정 문서·동의 버전만 사용한다", () => {
   const previous = Object.getOwnPropertyDescriptor(globalThis, "window");
   Object.defineProperty(globalThis, "window", { configurable: true, value: {} });
   let updates = 0;
@@ -41,13 +41,16 @@ test("구서버 앱은 기존 버전 유지, 서버 전환 후 문서와 위치�
     updates = 0;
     assert.equal(getLegalPolicyRelease(), null);
     assert.equal(getLocationTermsVersion(), LOCATION_TERMS_VERSION);
-    assert.equal(getJournalPublicationPolicyVersion(), JOURNAL_PUBLICATION_POLICY_VERSION);
+    assert.equal(getLocationTermsVersion(), documents["location-terms"].version);
+    assert.equal(getJournalPublicationPolicyVersion(), "journal-publication-2026-10-22");
+    assert.deepEqual(getLocationTerms().sections, documents["location-terms"].document.sections);
     syncLegalPolicyRelease(release);
     assert.equal(updates, 1);
     assert.equal(getLocationTermsVersion(), release.version);
     assert.deepEqual(getLocationTerms().sections, documents["location-terms"].document.sections);
     assert.equal(getLocationTerms().effectiveDate, "2026년 10월 22일");
-    assert.equal(isCurrentJournalPublicationPolicy(JOURNAL_PUBLICATION_POLICY_VERSION), false);
+    assert.equal(isCurrentJournalPublicationPolicy("journal-publication-2026-10-01"), false);
+    assert.equal(isCurrentJournalPublicationPolicy(JOURNAL_PUBLICATION_POLICY_VERSION), true);
     assert.equal(isCurrentJournalPublicationPolicy("journal-publication-2026-10-22"), true);
     syncLegalPolicyRelease(release);
     assert.equal(updates, 1);

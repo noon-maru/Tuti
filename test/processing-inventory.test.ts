@@ -96,7 +96,9 @@ test("시행 대장은 소스 대조와 계약·처리 근거 승인을 분리�
   assert.equal(evidence.checks.processorsAndTransfers.reference, "LEGAL-TEXT-DECISION-20261022");
   assert.match(evidence.approvedDocumentHash, /^[a-f0-9]{64}$/);
   assert.equal(evidence.noticePreparation.publicationApplied, false);
-  assert.equal(evidence.checks.nativeClientRollout.confirmed, false);
+  assert.equal(evidence.checks.nativeClientRollout.confirmed, true);
+  assert.equal(evidence.checks.nativeClientRollout.reference, "NATIVE-RELEASE-ENTRY-OPERATOR-20261023");
+  assert.equal(evidence.checks.nativeClientRollout.postCutoverConsentVerificationRequired, true);
   const rejected = spawnSync(process.execPath, ["--import", "tsx", "scripts/check-processing-inventory.ts", "--apply"], { encoding: "utf8" });
   assert.notEqual(rejected.status, 0);
   assert.doesNotMatch(rejected.stdout, /publicationReady.*true|legalApproval.*true/);

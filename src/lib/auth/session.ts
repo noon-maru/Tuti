@@ -2,6 +2,8 @@ import { apiUrl } from "@/lib/api/apiUrl";
 import { clientFetch } from "@/lib/api/clientFetch";
 import { preferencesStorage } from "@/lib/storage/preferencesStorage";
 import { removeJournalBookDraft } from "@/lib/journalBookDraft";
+import { Capacitor } from "@capacitor/core";
+import { createSessionReset } from "./sessionMigration";
 import type {
   AccountDeletionResponse,
   AccountIdentityUnlinkResponse,
@@ -20,6 +22,7 @@ import type {
 import type { JournalAuthorBlocksResponse } from "@/shared/api/journal";
 
 const SESSION_STORAGE_KEY = "tuti-session";
+const resetPre141Session = createSessionReset(preferencesStorage);
 
 let sessionPromise: Promise<TutiSession> | undefined;
 let sessionSnapshot: TutiSession | null = null;
@@ -50,6 +53,12 @@ export async function fetchWithSession(
 
 export function getSessionSnapshot() {
   return sessionSnapshot;
+}
+
+// 인증 거절을 받은 정확한 세션만 비운다. 계정 생성·동의 재전송은 하지 않는다.
+export async function discardInvalidSession(expected: TutiSession) {
+  if (sessionSnapshot?.userId !== expected.userId || sessionSnapshot.accessToken !== expected.accessToken) return;
+  await clearStoredSession(expected);
 }
 
 // 동의·철회는 401 응답 후 새 익명 계정으로 재전송하면 안 된다.
@@ -354,6 +363,7 @@ export async function unlinkAccountIdentity(identityId: string) {
 
 // 최초 약관 화면에서는 계정을 생성하거나 세션을 발급하지 않고 저장 여부만 확인한다.
 export async function readStoredSession() {
+  if (Capacitor.isNativePlatform()) await resetPre141Session();
   return parseStoredSession(await preferencesStorage.getItem(SESSION_STORAGE_KEY));
 }
 
@@ -383,12 +393,12 @@ async function loadOrCreateSession() {
   return data.session;
 }
 
-async function clearStoredSession() {
+async function clearStoredSession(expected?: TutiSession) {
   sessionPromise = undefined;
   await Promise.all([
     preferencesStorage.removeItem(SESSION_STORAGE_KEY),
   ]);
-  updateSessionSnapshot(null);
+  if (!expected || (sessionSnapshot?.userId === expected.userId && sessionSnapshot.accessToken === expected.accessToken)) updateSessionSnapshot(null);
 }
 
 async function storeSession(session: TutiSession) {

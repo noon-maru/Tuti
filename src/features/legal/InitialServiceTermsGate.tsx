@@ -7,6 +7,7 @@ import { useEffect, useRef, useState } from "react";
 import { TutiWordmark } from "@/features/tuti/components/TutiWordmark";
 import { acceptInitialServiceTerms, InitialTermsLoadError, isInitialTermsRightsPath, loadInitialServiceTerms, type InitialTermsState } from "@/lib/initialServiceTerms";
 import { Button, baseControlStyles } from "@/shared/ui/buttons";
+import { ServiceTermsSessionExpiredError } from "@/lib/serviceTerms";
 import type { ServiceTermsOffer } from "@/shared/legal/serviceTerms";
 
 // 오버레이가 아니라 진입 화면이다. 통과 전에는 children과 그 안의 effect를 마운트하지 않는다.
@@ -107,8 +108,14 @@ function ConsentForm({ offer, onRead, onAccepted, onRefresh }: {
     try {
       const state = await acceptInitialServiceTerms(offer, { ageConfirmed, importantTermsConfirmed: termsConfirmed });
       if (active.current) onAccepted(state);
-    } catch {
-      if (active.current) setError("동의를 저장하지 못했어요. 다시 시도하거나 최신 약관을 확인해주세요.");
+    } catch (failure) {
+      if (active.current) {
+        if (failure instanceof ServiceTermsSessionExpiredError) {
+          setAgeConfirmed(false);
+          setTermsConfirmed(false);
+          setError(failure.message);
+        } else setError("동의를 저장하지 못했어요. 다시 시도하거나 최신 약관을 확인해주세요.");
+      }
     } finally {
       submitting.current = false;
       if (active.current) setSaving(false);

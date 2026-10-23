@@ -13,7 +13,7 @@ const offer: ServiceTermsOffer = {
     sections: [{ title: "기록", paragraphs: ["기록과 디지털 기록집을 제공합니다."] }] },
 };
 
-test("최초 약관 진입은 서버 전환 전 기존 흐름을 허용하고 전환 후에는 실제 동의를 요구한다", async t => {
+test("최초 약관 진입은 시행 원문과 실제 동의만 허용하며 구서버 응답으로 통과하지 않는다", async t => {
   const storage = new Map<string, string>();
   const requests: Array<{ path: string; method: string; authorization: string | null }> = [];
   let current: ServiceTermsOffer | null = offer;
@@ -58,9 +58,9 @@ test("최초 약관 진입은 서버 전환 전 기존 흐름을 허용하고 �
     assert.equal(requests[0].method, "GET");
     assert.equal(requests[0].authorization, null);
   });
-  await t.test("전환 전 구서버의 정확한 빈 응답은 기존 진입을 허용하되 동의·세션을 생성하지 않는다", async () => {
+  await t.test("구서버의 빈 응답도 일반 이용을 허용하지 않으며 동의·세션을 생성하지 않는다", async () => {
     current = null;
-    assert.equal((await loadInitialServiceTerms()).allowed, true);
+    await assert.rejects(loadInitialServiceTerms);
     failLookup = true;
     await assert.rejects(loadInitialServiceTerms);
     failLookup = false;
@@ -68,13 +68,13 @@ test("최초 약관 진입은 서버 전환 전 기존 흐름을 허용하고 �
     assert.equal(storage.size, 0);
     assert.ok(requests.every(request => request.method === "GET"));
   });
-  await t.test("새 서버는 강제 플래그가 꺼졌을 때만 통과하며 활성 상태의 문서 누락·잘못된 플래그는 통과하지 않는다", async () => {
+  await t.test("서버 강제 플래그를 끄더라도 실제 영수증 없이는 진입하지 않는다", async () => {
     enforcementEnabled = false;
-    assert.equal((await loadInitialServiceTerms()).allowed, true, "문서가 공개됐어도 서버 전환 전에는 첫 동의를 강제하지 않는다");
+    assert.equal((await loadInitialServiceTerms()).allowed, false);
     enforcementEnabled = true;
     assert.equal((await loadInitialServiceTerms()).allowed, false);
     current = null;
-    assert.equal((await loadInitialServiceTerms()).allowed, false, "명시적 활성 상태는 빈 문서여도 구서버 호환으로 통과하지 않는다");
+    await assert.rejects(loadInitialServiceTerms);
     enforcementEnabled = "false";
     await assert.rejects(loadInitialServiceTerms);
     enforcementEnabled = undefined;
@@ -95,7 +95,7 @@ test("최초 약관 진입은 서버 전환 전 기존 흐름을 허용하고 �
     assert.equal(state.hasStoredSession, true);
     assert.equal(state.allowed, false);
     current = null;
-    assert.equal((await loadInitialServiceTerms()).allowed, false, "동의 저장 중 생성한 계정은 공고가 사라져도 기존 계정으로 우회하지 않는다");
+    await assert.rejects(loadInitialServiceTerms);
     current = offer;
     failSubmission = false;
   });
