@@ -46,7 +46,10 @@ test("위임한 문안 확정은 공고 준비에만 반영하고 운영·푸시
   assert.equal(report.ready, false);
   assert.ok(!report.blockers.includes("backupRetentionAndRestoreTest"));
   assert.equal(report.scopes.notice.ready, true);
-  for (const blocker of ["nativeClientRollout", "minorProtection", "rightsRecipientPublicNoticeUnconfirmed"]) assert.ok(report.blockers.includes(blocker), blocker);
+  for (const confirmed of ["nativeClientRollout", "minorProtection", "rightsRecipientPublicNoticeUnconfirmed"]) assert.ok(!report.blockers.includes(confirmed), confirmed);
+  assert.equal(recorded.checks.nativeClientRollout.postCutoverConsentVerificationRequired, true);
+  assert.equal(recorded.checks.minorProtection.legalComplianceCertified, false);
+  assert.equal(recorded.rightsRecipient.faxDeliveryVerified, false);
   assert.equal(report.scopes.push.ready, false);
   const rejected = spawnSync(process.execPath, ["--import", "tsx", "scripts/prepare-service-terms-review.ts", "--apply"], { encoding: "utf8" });
   assert.notEqual(rejected.status, 0);
@@ -68,7 +71,8 @@ test("최초 약관 화면에 맞춘 문서는 계정 준비와 동의 완료·�
   assert.equal(flow.noCurrentTermsBlocksNewGeneralUse, true);
   assert.equal(flow.selfDeclaredAgeOnly, true);
   for (const key of ["draftAcceptanceAllowed", "deployed", "nativeDeviceVerified", "serverPreAccountAdmissionVerified", "finalApprovalApplied", "publicationApplied"]) assert.equal(flow[key], false);
-  assert.equal(recorded.checks.minorProtection.confirmed, false);
-  assert.equal(recorded.checks.nativeClientRollout.confirmed, false);
+  assert.equal(recorded.checks.minorProtection.confirmed, true);
+  assert.equal(recorded.checks.nativeClientRollout.confirmed, true);
+  assert.equal(recorded.checks.nativeClientRollout.postCutoverConsentVerificationRequired, true);
   assert.equal(recorded.approvedDocumentHash, review.documentHash);
 });

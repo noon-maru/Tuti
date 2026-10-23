@@ -21,11 +21,10 @@ export class InitialTermsLoadError extends Error {
   }
 }
 
-// 상태 조회는 계정을 발급하지 않는다. 전환 전 일반 서비스 부트스트랩은 기존 흐름을 따른다.
+// 시행된 약관과 서버 영수증만 확인한다. 구서버·미시행 상태로 통과하는 분기는 없다.
 export async function loadInitialServiceTerms(): Promise<InitialTermsState> {
   const session = getSessionSnapshot() ?? await readStoredSession();
   try {
-    const pending = await preferencesStorage.getItem(INITIAL_TERMS_PENDING_KEY);
     const response = await clientFetch(apiUrl("service-terms"), {
       cache: "no-store", signal: AbortSignal.timeout(10_000),
       headers: session ? { Authorization: `Bearer ${session.accessToken}` } : undefined,
@@ -45,12 +44,9 @@ export async function loadInitialServiceTerms(): Promise<InitialTermsState> {
           typeof input.effectiveAt !== "string" || !Number.isFinite(Date.parse(input.publishedAt)) ||
           !Number.isFinite(Date.parse(input.effectiveAt))) throw new Error("이용약관 응답을 확인하지 못했어요.");
       offer = { ...input, document: parseServiceTermsDocument(input.document) };
-    } else if (status.required) throw new Error("이용약관 응답을 확인하지 못했어요.");
-    // 서버의 명시적 비활성 응답은 기존 이용 흐름을 허용하는 것이지 동의 영수증이 아니다.
-    // 실제 운영 구서버의 빈 응답만 호환한다. 조회 장애·손상 응답을 비활성으로 추정하지 않는다.
-    const legacyInactive = !("enforcementEnabled" in status) && status.current === null && status.upcoming === null && status.required === false && pending !== "true";
-    const enforcementDisabled = status.enforcementEnabled === false || legacyInactive;
-    return { hasStoredSession: Boolean(session), offer, allowed: enforcementDisabled || Boolean(session && offer?.accepted) };
+    } else throw new Error("시행 중인 이용약관을 확인하지 못했어요.");
+    if (!offer) throw new Error("시행 중인 이용약관을 확인하지 못했어요.");
+    return { hasStoredSession: Boolean(session), offer, allowed: Boolean(session && offer.accepted) };
   } catch {
     // 실패해도 저장된 계정의 권리 행사 경로는 열어둘 수 있어야 한다.
     throw new InitialTermsLoadError(Boolean(session));

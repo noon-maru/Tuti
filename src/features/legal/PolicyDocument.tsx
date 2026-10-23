@@ -4,17 +4,13 @@ import { LegalDocument } from "./LegalDocument";
 import { useLegalPolicyRelease } from "./useLegalPolicyRelease";
 import documents from "@/shared/legal/finalizedDocuments.json";
 import { legalPolicyDate, type LegalPolicyRelease } from "@/shared/legal/policyRelease";
-import { privacyPolicyFrom20261010 } from "@/shared/legal/privacyPolicySecurityUpdate";
-import { locationTerms } from "@/shared/location/terms";
-import { journalPublicationPolicy } from "@/shared/legal/journalPublicationPolicy";
 
 export function PolicyDocument({ kind, initialRelease = null }: { kind: "privacy" | "location-terms" | "community-guidelines"; initialRelease?: LegalPolicyRelease | null }) {
   const release = useLegalPolicyRelease(initialRelease);
-  const legacy = kind === "privacy" ? privacyPolicyFrom20261010 : kind === "location-terms" ? locationTerms : journalPublicationPolicy;
   const finalized = documents[kind];
-  return <LegalDocument {...(release ? {
+  return <LegalDocument {...{
     ...finalized.document,
-    effectiveDate: legalPolicyDate(release),
+    effectiveDate: release ? legalPolicyDate(release) : "시행일 확인 중",
     appendix: [`문서 버전: ${finalized.version}`, `문서 확인값: ${finalized.documentHash}`],
-  } : legacy)} />;
+  }} />;
 }
