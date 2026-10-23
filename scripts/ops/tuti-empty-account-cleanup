@@ -15,6 +15,30 @@ for source in scripts/ops/tuti-empty-account-cleanup scripts/cleanup-empty-accou
     exit 1
   fi
 done
+# NAS 공유폴더 ACL은 모드 비트가 777이어도 컨테이너 UID 1000의 읽기를 막을 수 있다.
+# 원본 ACL을 바꾸지 않고, 공개 소스 두 파일만 ACL을 상속하지 않는 /tmp에 복사한다.
+# 임시 폴더와 파일은 root 소유로 유지하여 실행 계정이 코드를 바꾸지 못하게 한다.
+code_dir="$(mktemp -d /tmp/tuti-empty-account-code.XXXXXX)"
+cleanup_code() {
+  rm -f "$code_dir/cleanup-empty-accounts.ts" "$code_dir/users.ts"
+  rmdir "$code_dir"
+}
+trap cleanup_code EXIT
+trap 'exit 130' INT
+trap 'exit 143' TERM
+chmod 0755 "$code_dir"
+install -m 0644 scripts/cleanup-empty-accounts.ts "$code_dir/cleanup-empty-accounts.ts"
+install -m 0644 src/server/admin/users.ts "$code_dir/users.ts"
+for mapping in scripts/cleanup-empty-accounts.ts:cleanup-empty-accounts.ts src/server/admin/users.ts:users.ts; do
+  source="${mapping%:*}"
+  staged="${mapping#*:}"
+  expected="$(git -c safe.directory="$project_dir" rev-parse "HEAD:$source")"
+  actual="$(git -c safe.directory="$project_dir" hash-object --no-filters "$code_dir/$staged")"
+  if [ "$expected" != "$actual" ]; then
+    echo "안전 검사 중단: 임시 실행 코드가 커밋된 원문과 다릅니다. 삭제하지 않았습니다." >&2
+    exit 1
+  fi
+done
 # 현재 배포된 이미지의 의존성을 쓰되, 검토한 정리 코드 두 파일만 읽기 전용으로 전달한다.
 # 운영 앱 이미지를 교체하거나 설정·약관 강제를 변경하지 않는다.
 exec 9>"$project_dir/.ops-state/maintenance.lock"
@@ -26,8 +50,8 @@ if [ -f "$project_dir/.ops-state/restore-privacy/pending.env" ] || [ -f "$projec
 fi
 echo "운영 DB 사전 점검을 실행합니다. --apply가 없으면 조회만 수행합니다."
 if docker compose --env-file .env.production -f docker-compose.prod.yml run --rm --no-deps -T --user 1000:1000 \
-  --volume "$project_dir/scripts/cleanup-empty-accounts.ts:/app/scripts/cleanup-empty-accounts.ts:ro" \
-  --volume "$project_dir/src/server/admin/users.ts:/app/src/server/admin/users.ts:ro" \
+  --volume "$code_dir/cleanup-empty-accounts.ts:/app/scripts/cleanup-empty-accounts.ts:ro" \
+  --volume "$code_dir/users.ts:/app/src/server/admin/users.ts:ro" \
   ops node_modules/.bin/tsx scripts/cleanup-empty-accounts.ts "$@"; then
   :
 else
