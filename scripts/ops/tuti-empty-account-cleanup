@@ -3,20 +3,35 @@ set -eu
 
 project_dir=/var/services/homes/Tutiadmin/source/Tuti
 cd "$project_dir"
+project_dir="$(pwd -P)"
 if [ "$(id -u)" -ne 0 ]; then echo "sudo sh scripts/ops/tuti-empty-account-cleanup ... 형식으로 실행해주세요." >&2; exit 1; fi
 for source in scripts/ops/tuti-empty-account-cleanup scripts/cleanup-empty-accounts.ts src/server/admin/users.ts; do
-  git -c safe.directory="$project_dir" ls-files --error-unmatch "$source" >/dev/null
-  git -c safe.directory="$project_dir" diff --quiet HEAD -- "$source"
+  if ! git -c safe.directory="$project_dir" ls-files --error-unmatch "$source" >/dev/null; then
+    echo "안전 검사 중단: 커밋에 포함되지 않은 정리 코드입니다: $source" >&2
+    exit 1
+  fi
+  if ! git -c safe.directory="$project_dir" diff --quiet HEAD -- "$source"; then
+    echo "안전 검사 중단: 커밋 후 변경된 정리 코드입니다: $source. 작업자에게 확인해주세요. 삭제하지 않았습니다." >&2
+    exit 1
+  fi
 done
 # 현재 배포된 이미지의 의존성을 쓰되, 검토한 정리 코드 두 파일만 읽기 전용으로 전달한다.
 # 운영 앱 이미지를 교체하거나 설정·약관 강제를 변경하지 않는다.
 exec 9>"$project_dir/.ops-state/maintenance.lock"
+echo "정리 코드 확인 완료. 배포·백업 유지보수 잠금을 확인합니다."
 /usr/bin/flock --exclusive 9
 if [ -f "$project_dir/.ops-state/restore-privacy/pending.env" ] || [ -f "$project_dir/.ops-state/privacy-activation/pending" ]; then
   echo "복원·원장 전환 확인 대기 중에는 정리하지 않습니다." >&2
   exit 1
 fi
-docker compose --env-file .env.production -f docker-compose.prod.yml run --rm --no-deps -T --user 1000:1000 \
+echo "운영 DB 사전 점검을 실행합니다. --apply가 없으면 조회만 수행합니다."
+if docker compose --env-file .env.production -f docker-compose.prod.yml run --rm --no-deps -T --user 1000:1000 \
   --volume "$project_dir/scripts/cleanup-empty-accounts.ts:/app/scripts/cleanup-empty-accounts.ts:ro" \
   --volume "$project_dir/src/server/admin/users.ts:/app/src/server/admin/users.ts:ro" \
-  ops node_modules/.bin/tsx scripts/cleanup-empty-accounts.ts "$@"
+  ops node_modules/.bin/tsx scripts/cleanup-empty-accounts.ts "$@"; then
+  :
+else
+  result=$?
+  echo "정리 도구가 종료 코드 $result 로 중단됐습니다. 위 단계와 오류를 확인해주세요." >&2
+  exit "$result"
+fi
