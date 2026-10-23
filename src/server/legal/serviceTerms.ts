@@ -19,11 +19,11 @@ export class ServiceTermsError extends Error {
   constructor(message: string, readonly status = 400) { super(message); }
 }
 
-export async function getServiceTermsStatus(userId?: string, now = new Date()): Promise<ServiceTermsStatus> {
+export async function getServiceTermsStatus(userId?: string, now = new Date(), options: { currentOnly?: boolean } = {}): Promise<ServiceTermsStatus> {
   if (!serviceTermsWorkflowEnabled()) return EMPTY_SERVICE_TERMS_STATUS;
   const [current, upcoming] = await Promise.all([
     prisma.serviceTermsRelease.findFirst({ where: { publishedAt: { lte: now }, effectiveAt: { lte: now } }, orderBy: { effectiveAt: "desc" } }),
-    prisma.serviceTermsRelease.findFirst({ where: { publishedAt: { lte: now }, effectiveAt: { gt: now } }, orderBy: { effectiveAt: "asc" } }),
+    options.currentOnly ? null : prisma.serviceTermsRelease.findFirst({ where: { publishedAt: { lte: now }, effectiveAt: { gt: now } }, orderBy: { effectiveAt: "asc" } }),
   ]);
   const accepted = userId ? await prisma.serviceTermsAcceptance.findMany({ where: { userId, termsVersion: { in: [current?.version, upcoming?.version].filter((version): version is string => Boolean(version)) } }, select: { termsVersion: true, documentHash: true, ageConfirmed: true, importantTermsConfirmed: true } }) : [];
   const offer = (release: NonNullable<typeof current> | null): ServiceTermsOffer | null => {

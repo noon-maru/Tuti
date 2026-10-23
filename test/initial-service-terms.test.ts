@@ -22,11 +22,13 @@ test("최초 약관 진입은 시행 원문과 실제 동의만 허용하며 구
   let failLookup = false;
   let discardReceipt = false;
   let enforcementEnabled: unknown = undefined;
+  let compactReceipt = true;
+  let corruptCompact = false;
   t.mock.method(preferencesStorage, "getItem", async (key: string) => storage.get(key) ?? null);
   t.mock.method(preferencesStorage, "setItem", async (key: string, value: string) => { storage.set(key, value); });
   t.mock.method(preferencesStorage, "removeItem", async (key: string) => { storage.delete(key); });
   t.mock.method(globalThis, "fetch", async (input: string | URL | Request, init?: RequestInit) => {
-    const path = String(input);
+    const path = new URL(String(input), "https://tuti.today").pathname;
     const method = init?.method ?? "GET";
     const authorization = new Headers(init?.headers).get("Authorization");
     requests.push({ path, method, authorization });
@@ -43,7 +45,13 @@ test("최초 약관 진입은 시행 원문과 실제 동의만 허용하며 구
       return Response.json({ receipt: { termsVersion: offer.version } });
     }
     if (failLookup) return Response.json({}, { status: 503 });
-    return Response.json({ current: current ? { ...current, accepted } : null, upcoming: null, required: Boolean(current && !accepted), ...(enforcementEnabled === undefined ? {} : { enforcementEnabled }) });
+    const currentOffer = current ? { ...current, accepted } : null;
+    if (compactReceipt && currentOffer?.accepted) {
+      const { document: omitted, ...reference } = currentOffer;
+      void omitted;
+      return Response.json({ current: corruptCompact ? { ...reference, documentHash: "invalid" } : reference, upcoming: null, required: false });
+    }
+    return Response.json({ current: currentOffer, upcoming: null, required: Boolean(current && !accepted), ...(enforcementEnabled === undefined ? {} : { enforcementEnabled }) });
   });
 
   await t.test("최초 조회는 저장소를 쓰거나 세션·분석을 생성하지 않는다", async () => {
@@ -114,6 +122,18 @@ test("최초 약관 진입은 시행 원문과 실제 동의만 허용하며 구
     const last = requests.at(-1)!;
     assert.equal(last.authorization, `Bearer ${"s".repeat(40)}`);
   });
+  await t.test("동의 완료 계정은 원문 없이 버전·해시를 확인하고 변조 응답은 거절한다", async () => {
+    const state = await loadInitialServiceTerms();
+    assert.equal(state.allowed, true);
+    assert.equal(state.offer, null);
+    assert.deepEqual(state.acceptedTerms, { version: offer.version, documentHash: offer.documentHash });
+    corruptCompact = true;
+    await assert.rejects(loadInitialServiceTerms);
+    corruptCompact = false;
+    compactReceipt = false;
+    assert.equal((await loadInitialServiceTerms()).offer?.accepted, true);
+    compactReceipt = true;
+  });
   await t.test("기존 계정의 조회 장애는 권리 행사에 필요한 저장 계정 여부만 유지한다", async () => {
     failLookup = true;
     await assert.rejects(loadInitialServiceTerms(), error => error instanceof Error && "hasStoredSession" in error && error.hasStoredSession === true);
@@ -126,11 +146,17 @@ test("최초 약관 화면은 Providers 바깥에서 자식 마운트를 제어�
   assert.ok(shell.indexOf("<InitialServiceTermsGate") < shell.indexOf("<Providers"));
   assert.match(shell, /activityEnabled=\{false\}/);
   assert.match(shell, /rightsOnly/);
+  assert.doesNotMatch(shell, /ServiceTermsNotice/);
+  assert.match(shell, /<NativeAppUpdateNotice>/);
+  assert.match(shell, /<InitialServiceTermsGate renderContent=\{content => <NativeAppUpdateNotice>/);
   const gate = readFileSync("src/features/legal/InitialServiceTermsGate.tsx", "utf8");
-  assert.match(gate, /state\?\.allowed\) return children/);
+  assert.match(gate, /state\?\.allowed\) return renderContent\(children\)/);
   assert.match(gate, /saving \|\| !ageConfirmed \|\| !termsConfirmed/);
   assert.match(gate, /offer\.document\.importantTerms\.map/);
   assert.doesNotMatch(gate, /localStorage\.setItem|accepted:\s*true/);
+  assert.match(gate, /addEventListener\(SERVICE_TERMS_REQUIRED_EVENT, requireTerms\)/);
+  assert.match(gate, /removeEventListener\(SERVICE_TERMS_REQUIRED_EVENT, requireTerms\)/);
+  assert.match(gate, /allowed: false, offer: null/);
   const main = readFileSync("src/features/tuti/flows/MainFlow.tsx", "utf8");
   assert.match(main, /!rightsOnly && <RecommendationsFlow/);
   assert.match(main, /!rightsOnly && hasHydrated && !entryRecord/);

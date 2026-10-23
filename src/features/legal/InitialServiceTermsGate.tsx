@@ -7,11 +7,14 @@ import { useEffect, useRef, useState } from "react";
 import { TutiWordmark } from "@/features/tuti/components/TutiWordmark";
 import { acceptInitialServiceTerms, InitialTermsLoadError, isInitialTermsRightsPath, loadInitialServiceTerms, type InitialTermsState } from "@/lib/initialServiceTerms";
 import { Button, baseControlStyles } from "@/shared/ui/buttons";
-import { ServiceTermsSessionExpiredError } from "@/lib/serviceTerms";
+import { SERVICE_TERMS_REQUIRED_EVENT, ServiceTermsSessionExpiredError } from "@/lib/serviceTerms";
 import type { ServiceTermsOffer } from "@/shared/legal/serviceTerms";
 
 // 오버레이가 아니라 진입 화면이다. 통과 전에는 children과 그 안의 effect를 마운트하지 않는다.
-export function InitialServiceTermsGate({ children, rightsChildren }: { children: React.ReactNode; rightsChildren: React.ReactNode }) {
+export function InitialServiceTermsGate({ children, rightsChildren, renderContent = content => content }: {
+  children: React.ReactNode; rightsChildren: React.ReactNode;
+  renderContent?: (content: React.ReactNode) => React.ReactNode;
+}) {
   const pathname = usePathname();
   const [state, setState] = useState<InitialTermsState | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -31,14 +34,27 @@ export function InitialServiceTermsGate({ children, rightsChildren }: { children
     return () => { active = false; };
   }, [retry]);
 
-  if (state?.allowed) return children;
+  useEffect(() => {
+    // 사용 중 실제 미동의 응답을 받아도 별도 개정 모달을 겹치지 않는다.
+    // 진입 화면에서 현재 원문과 명시적 동의 절차를 다시 제공한다.
+    const requireTerms = () => {
+      setDocumentOpen(false);
+      setError(null);
+      setState(previous => previous ? { ...previous, allowed: false, offer: null } : null);
+      setRetry(value => value + 1);
+    };
+    window.addEventListener(SERVICE_TERMS_REQUIRED_EVENT, requireTerms);
+    return () => window.removeEventListener(SERVICE_TERMS_REQUIRED_EVENT, requireTerms);
+  }, []);
+
+  if (state?.allowed) return renderContent(children);
   // 새 기기에서도 기존 계정을 복구하거나 문의할 수 있다. 이 경로에서는 분석/추천을 시작하지 않는다.
-  if (pathname === "/login" || pathname === "/inquiry" || (state?.hasStoredSession && isInitialTermsRightsPath(pathname))) return rightsChildren;
+  if (pathname === "/login" || pathname === "/inquiry" || (state?.hasStoredSession && isInitialTermsRightsPath(pathname))) return renderContent(rightsChildren);
 
   const offer = state?.offer ?? null;
   const reload = () => { setError(null); setState(null); setRetry(value => value + 1); };
 
-  return (
+  return renderContent(
     <Screen aria-labelledby="initial-terms-title" data-initial-terms-screen>
       {documentOpen && offer ? <>
         <DocumentHeader>

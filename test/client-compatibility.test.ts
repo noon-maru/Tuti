@@ -61,13 +61,17 @@ test("웹 API 요청은 인증·PDF 승인·취소 신호를 보존하고 새 �
   await assert.rejects(clientFetch("https://external.invalid/photo.jpg"), /Tuti API/);
 });
 
-test("옛 세션 자동 이관·JSON 완성 분기는 제거하고 업데이트 확인은 부트스트랩보다 먼저다", () => {
+test("옛 호환 분기는 제거하고 버전·약관 병렬 확인을 모두 통과해야 부트스트랩한다", () => {
   assert.doesNotMatch(readFileSync("src/lib/auth/session.ts", "utf8"), /LEGACY_SESSION_STORAGE_KEY|tuti-anonymous-session|legacyOnly/);
   assert.doesNotMatch(readFileSync("src/server/journal/bookApproval.ts", "utf8"), /legacy-json|JOURNAL_BOOK_MAX_JSON_BYTES/);
   assert.doesNotMatch(readFileSync("src/app/api/journal-books/route.ts", "utf8"), /prepareLegacyJournalBook|renderOwnedJournalBook/);
   const shell = readFileSync("src/features/tuti/components/TutiAppShell.tsx", "utf8");
-  assert.ok(shell.indexOf("<NativeAppUpdateNotice>") < shell.indexOf("<InitialServiceTermsGate"));
+  assert.match(shell, /<InitialServiceTermsGate renderContent=\{content => <NativeAppUpdateNotice>\{content\}<\/NativeAppUpdateNotice>\}/);
   assert.ok(shell.indexOf("<NativeAppUpdateNotice>") < shell.indexOf("<Providers"));
+  const gate = readFileSync("src/features/legal/InitialServiceTermsGate.tsx", "utf8");
+  assert.match(gate, /void loadInitialServiceTerms\(\)/);
+  assert.match(gate, /state\?\.allowed\) return renderContent\(children\)/);
+  assert.match(gate, /return renderContent\(\s*<Screen/);
   const notice = readFileSync("src/features/tuti/components/NativeAppUpdateNotice.tsx", "utf8");
   assert.match(notice, /incompatible \|\| checkFailed \|\| !checked/);
   assert.match(notice, /!policy.required && children/);
