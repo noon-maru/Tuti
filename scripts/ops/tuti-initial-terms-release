@@ -1,0 +1,36 @@
+#!/bin/sh
+set -eu
+project_dir=/var/services/homes/Tutiadmin/source/Tuti
+cd "$project_dir"
+project_dir="$(pwd -P)"
+if [ "$(id -u)" -ne 0 ]; then echo "sudo sh scripts/ops/tuti-initial-terms-release --check" >&2; exit 1; fi
+case "$*" in
+  --check) [ "$#" -eq 1 ] || exit 1 ;;
+  '--apply --approve-initial-contract') [ "$#" -eq 2 ] || exit 1 ;;
+  *) echo "--check 또는 --apply --approve-initial-contract만 지원합니다." >&2; exit 1 ;;
+esac
+for source in scripts/ops/tuti-initial-terms-release scripts/initial-service-terms-release.ts docs/legal/readiness-status.json; do
+  git -c safe.directory="$project_dir" ls-files --error-unmatch "$source" >/dev/null
+  if ! git -c safe.directory="$project_dir" diff --quiet HEAD -- "$source"; then echo "실행 코드·승인 기록을 먼저 검토·커밋해주세요." >&2; exit 1; fi
+done
+code_dir="$(mktemp -d /tmp/tuti-initial-terms.XXXXXX)"
+cleanup() { rm -f "$code_dir/initial-service-terms-release.ts" "$code_dir/readiness.json"; rmdir "$code_dir"; }
+trap cleanup EXIT
+trap 'exit 130' INT
+trap 'exit 143' TERM
+chmod 0755 "$code_dir"
+for mapping in scripts/initial-service-terms-release.ts:initial-service-terms-release.ts docs/legal/readiness-status.json:readiness.json; do
+  source="${mapping%:*}"
+  target="${mapping#*:}"
+  install -m 0644 "$source" "$code_dir/$target"
+  expected="$(git -c safe.directory="$project_dir" rev-parse "HEAD:$source")"
+  actual="$(git -c safe.directory="$project_dir" hash-object --no-filters "$code_dir/$target")"
+  if [ "$expected" != "$actual" ]; then echo "실행 사본이 커밋 원문과 다릅니다." >&2; exit 1; fi
+done
+exec 9>"$project_dir/.ops-state/maintenance.lock"
+/usr/bin/flock --exclusive 9
+if [ -f "$project_dir/.ops-state/restore-privacy/pending.env" ] || [ -f "$project_dir/.ops-state/privacy-activation/pending" ]; then echo "복원·원장 전환 확인 대기 중입니다." >&2; exit 1; fi
+docker compose --env-file .env.production -f docker-compose.prod.yml run --rm --no-deps -T --user 1000:1000 \
+  --volume "$code_dir/initial-service-terms-release.ts:/app/scripts/initial-service-terms-release.ts:ro" \
+  --volume "$code_dir/readiness.json:/initial-terms/readiness.json:ro" \
+  ops node_modules/.bin/tsx scripts/initial-service-terms-release.ts "$@"

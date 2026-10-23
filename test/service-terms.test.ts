@@ -77,7 +77,7 @@ test("일반약관의 공고·명시적 동의·미동의 접근 통제", async 
   await t.test("동의 전·문서 해시 불일치·연령 확인 누락은 동의로 취급하지 않는다", async () => {
     releases[0].effectiveAt = now;
     assert.equal((await getServiceTermsStatus("subject", now)).required, true);
-    for (const invalid of [{ ...body, accepted: false }, { ...body, ageConfirmed: false }, { ...body, importantTermsConfirmed: false }, { ...body, documentHash: "bad-hash" }]) {
+    for (const invalid of [{ ...body, accepted: false }, { ...body, ageConfirmed: false }, { ...body, ageConfirmed: undefined }, { ...body, ageConfirmed: "true" }, { ...body, ageConfirmed: 1 }, { ...body, importantTermsConfirmed: false }, { ...body, documentHash: "bad-hash" }]) {
       await assert.rejects(acceptServiceTerms("subject", invalid, now));
     }
     assert.equal(receipts.length, 0);
