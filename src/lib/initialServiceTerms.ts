@@ -5,12 +5,13 @@ import { submitServiceTerms } from "@/lib/serviceTerms";
 import { preferencesStorage } from "@/lib/storage/preferencesStorage";
 import { parseServiceTermsDocument, type ServiceTermsOffer } from "@/shared/legal/serviceTerms";
 import { syncLegalPolicyRelease } from "@/shared/legal/policyRelease";
-import { validateFinalizedTerms } from "@/shared/legal/validateFinalizedTerms";
+import { validateFinalizedTerms, validateFinalizedTermsReference } from "@/shared/legal/validateFinalizedTerms";
 
 export type InitialTermsState = {
   hasStoredSession: boolean;
   offer: ServiceTermsOffer | null;
   allowed: boolean;
+  acceptedTerms?: { version: string; documentHash: string };
 };
 
 const INITIAL_TERMS_PENDING_KEY = "tuti-initial-terms-pending";
@@ -25,13 +26,12 @@ export class InitialTermsLoadError extends Error {
 export async function loadInitialServiceTerms(): Promise<InitialTermsState> {
   const session = getSessionSnapshot() ?? await readStoredSession();
   try {
-    const response = await clientFetch(apiUrl("service-terms"), {
+    const response = await clientFetch(apiUrl("service-terms?scope=entry"), {
       cache: "no-store", signal: AbortSignal.timeout(10_000),
       headers: session ? { Authorization: `Bearer ${session.accessToken}` } : undefined,
     });
     if (!response.ok) throw new Error("이용약관을 불러오지 못했어요.");
     const status = await response.json();
-    validateFinalizedTerms(status);
     syncLegalPolicyRelease(status?.legalPolicyRelease);
     if (!status || typeof status !== "object" || !("current" in status) || typeof status.required !== "boolean") throw new Error("이용약관 응답을 확인하지 못했어요.");
     if ("enforcementEnabled" in status && typeof status.enforcementEnabled !== "boolean") throw new Error("이용약관 전환 상태를 확인하지 못했어요.");
@@ -43,10 +43,18 @@ export async function loadInitialServiceTerms(): Promise<InitialTermsState> {
           typeof input.accepted !== "boolean" || typeof input.publishedAt !== "string" ||
           typeof input.effectiveAt !== "string" || !Number.isFinite(Date.parse(input.publishedAt)) ||
           !Number.isFinite(Date.parse(input.effectiveAt))) throw new Error("이용약관 응답을 확인하지 못했어요.");
+      validateFinalizedTermsReference(input);
+      if (input.accepted && status.required) throw new Error("동의 상태가 일치하지 않아요.");
+      if (input.accepted && session && !("document" in input)) {
+        return { hasStoredSession: true, offer: null, allowed: true,
+          acceptedTerms: { version: input.version, documentHash: input.documentHash } };
+      }
+      validateFinalizedTerms(status);
       offer = { ...input, document: parseServiceTermsDocument(input.document) };
     } else throw new Error("시행 중인 이용약관을 확인하지 못했어요.");
     if (!offer) throw new Error("시행 중인 이용약관을 확인하지 못했어요.");
-    return { hasStoredSession: Boolean(session), offer, allowed: Boolean(session && offer.accepted) };
+    return { hasStoredSession: Boolean(session), offer, allowed: Boolean(session && offer.accepted),
+      ...(session && offer.accepted ? { acceptedTerms: { version: offer.version, documentHash: offer.documentHash } } : {}) };
   } catch {
     // 실패해도 저장된 계정의 권리 행사 경로는 열어둘 수 있어야 한다.
     throw new InitialTermsLoadError(Boolean(session));
@@ -60,8 +68,8 @@ export async function acceptInitialServiceTerms(offer: ServiceTermsOffer, confir
   const session = await ensureSession();
   await submitServiceTerms(offer, confirmations);
   const state = await loadInitialServiceTerms();
-  if (getSessionSnapshot()?.userId !== session.userId || !state.allowed || !state.offer?.accepted ||
-      state.offer?.documentHash !== offer.documentHash || state.offer.version !== offer.version) {
+  if (getSessionSnapshot()?.userId !== session.userId || !state.allowed ||
+      state.acceptedTerms?.documentHash !== offer.documentHash || state.acceptedTerms.version !== offer.version) {
     throw new Error("동의 상태를 다시 확인해주세요. 약관이 변경되었다면 새 내용을 확인해주세요.");
   }
   await preferencesStorage.removeItem(INITIAL_TERMS_PENDING_KEY);
