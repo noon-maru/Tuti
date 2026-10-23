@@ -12,6 +12,11 @@ export function isInitialNoticeApproval(args: string[]) {
   return args.length === 2 && args[0] === "--announce" && args[1] === "--approve-initial-contract";
 }
 
+export function preexistingOrdinaryAccountFilter(effectiveAt: Date) {
+  if (!Number.isFinite(effectiveAt.getTime())) throw new Error("최초 적용 시각이 올바르지 않습니다.");
+  return { role: { not: "admin" as const }, createdAt: { lte: effectiveAt } };
+}
+
 export function initialNotices(evidence: unknown, now: Date) {
   return Object.entries(documents).map(([documentType, bundled]) => prepareLegalDocumentNotice({
     documentType, version: bundled.version, document: bundled.document, publicationMode: "initial",
@@ -63,9 +68,15 @@ async function main() {
       const now = new Date();
       if (!current || current.publicationMode !== "initial" || current.documentHash !== candidate.documentHash ||
           current.effectiveAt > now || current.approvalReference !== candidate.approvalReference || hashServiceTerms(current.document) !== candidate.documentHash ||
-          await tx.serviceTermsRelease.count() !== 1 || await tx.legalDocumentNotice.count() || await tx.user.count({ where: { role: { not: "admin" } } })) {
-        throw new Error("등록된 최초 약관·기존 공고·일반 계정 조건이 맞지 않습니다. 공고하지 않습니다.");
+          current.initialContractReference !== candidate.initialContractReference ||
+          await tx.serviceTermsRelease.count() !== 1 || await tx.legalDocumentNotice.count()) {
+        throw new Error("등록된 최초 약관·승인 근거·기존 공고 조건이 맞지 않습니다. 공고하지 않습니다.");
       }
+      // 최초 릴리스 INSERT 때 DB가 일반 계정 0개를 이미 보장했다.
+      // 그 뒤 생긴 신규 계정은 삭제 대상이 아니며 이후 강제 동의에서 영수증을 확인한다.
+      // 반대로 최초 적용 이전 계정이 복원·유입됐다면 여전히 중단한다.
+      const preexistingAccounts = await tx.user.count({ where: preexistingOrdinaryAccountFilter(current.effectiveAt) });
+      if (preexistingAccounts) throw new Error(`최초 적용 시점 이전의 일반 계정이 ${preexistingAccounts}개 있습니다. 공고하지 않습니다. 계정을 자동 삭제하지 않습니다.`);
       const prepared = initialNotices(evidence, now);
       for (const notice of prepared) await tx.legalDocumentNotice.create({ data: notice });
       return prepared.map(({ documentType, version, documentHash, publishedAt, plannedEffectiveAt }) => ({ documentType, version, documentHash, publishedAt, plannedEffectiveAt }));
