@@ -1,0 +1,59 @@
+#!/bin/sh
+set -eu
+project_dir=/var/services/homes/Tutiadmin/source/Tuti
+cd "$project_dir"
+project_dir="$(pwd -P)"
+if [ "$(id -u)" -ne 0 ]; then echo "sudo sh scripts/ops/tuti-reviewer-records-archive export | verify 사본ID | verify-with-source 사본ID" >&2; exit 1; fi
+mode="${1:-}"
+case "$mode:$#" in export:1 | verify:2 | verify-with-source:2) ;; *) echo "지원 명령: export | verify 사본ID | verify-with-source 사본ID" >&2; exit 1 ;; esac
+for source in scripts/ops/tuti-reviewer-records-archive scripts/reviewer-records-archive.ts; do
+  if ! git -c safe.directory="$project_dir" ls-files --error-unmatch "$source" >/dev/null || ! git -c safe.directory="$project_dir" diff --quiet HEAD -- "$source"; then
+    echo "보관 코드가 커밋된 원문과 다릅니다. 작업자에게 확인해주세요." >&2; exit 1
+  fi
+done
+code_dir="$(mktemp -d /tmp/tuti-reviewer-archive-code.XXXXXX)"
+cleanup_code() {
+  rm -f "$code_dir/reviewer-records-archive.ts"
+  rmdir "$code_dir"
+}
+trap cleanup_code EXIT
+trap 'exit 130' INT
+trap 'exit 143' TERM
+chmod 0755 "$code_dir"
+install -m 0644 scripts/reviewer-records-archive.ts "$code_dir/reviewer-records-archive.ts"
+expected="$(git -c safe.directory="$project_dir" rev-parse HEAD:scripts/reviewer-records-archive.ts)"
+actual="$(git -c safe.directory="$project_dir" hash-object --no-filters "$code_dir/reviewer-records-archive.ts")"
+if [ "$expected" != "$actual" ]; then echo "보관 코드 사본의 해시가 다릅니다." >&2; exit 1; fi
+exec 9>"$project_dir/.ops-state/maintenance.lock"
+/usr/bin/flock --exclusive 9
+if [ -f "$project_dir/.ops-state/restore-privacy/pending.env" ] || [ -f "$project_dir/.ops-state/privacy-activation/pending" ]; then echo "복원·원장 전환 확인 대기 중입니다." >&2; exit 1; fi
+transfer_root=/volume1/tuti/backups/reviewer-transfer
+for directory in /volume1/tuti /volume1/tuti/backups "$transfer_root"; do
+  if [ -L "$directory" ]; then echo "보관 경로에 심볼릭 링크를 사용할 수 없습니다." >&2; exit 1; fi
+done
+if [ "$mode" = export ]; then
+  install -d -o root -g root -m 0700 "$transfer_root"
+  archive_id="$(date +%Y%m%d-%H%M%S)-$$"
+  destination="$transfer_root/$archive_id"
+  mkdir -m 0700 "$destination"
+  mount_mode=rw
+else
+  archive_id="$2"
+  if ! printf '%s\n' "$archive_id" | grep -Eq '^[0-9]{8}-[0-9]{6}-[0-9]+$'; then echo "사본 ID 형식이 올바르지 않습니다." >&2; exit 1; fi
+  destination="$transfer_root/$archive_id"
+  if [ ! -d "$destination" ] || [ -L "$destination" ]; then echo "해당 전용 보관 사본이 없습니다." >&2; exit 1; fi
+  mount_mode=ro
+fi
+printf '{"archiveId":"%s","mode":"%s","accountDeleted":false}\n' "$archive_id" "$mode"
+# 백업 도구와 같은 root 프로세스로 새 전용 0700 사본만 기록한다.
+# DB는 읽기 전용 트랜잭션, 코드는 ro 마운트, verify의 사본도 ro 마운트다.
+if docker compose --env-file .env.production -f docker-compose.prod.yml run --rm --no-deps -T --user 0:0 \
+  --volume "$code_dir/reviewer-records-archive.ts:/app/scripts/reviewer-records-archive.ts:ro" \
+  --volume "$destination:/reviewer-transfer:$mount_mode" \
+  ops node_modules/.bin/tsx scripts/reviewer-records-archive.ts "$mode"; then
+  echo "심사용 기록 사본 검증 완료. 계정 삭제·약관 시행·새 계정 생성은 실행하지 않았습니다."
+else
+  result=$?
+  echo "보관 실패 사본을 유지했습니다. 원인을 확인하고 기존 계정은 삭제하지 마세요." >&2
+  exit "$result"
+fi
