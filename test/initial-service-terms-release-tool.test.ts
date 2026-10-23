@@ -5,7 +5,7 @@ import test from "node:test";
 
 process.env.DATABASE_URL = "postgresql://test:test@127.0.0.1:1/test";
 (globalThis as { prisma?: unknown }).prisma = {};
-const { initialReleaseCandidate, parseInitialReleaseArguments, initialNotices, isInitialNoticeApproval, preexistingOrdinaryAccountFilter } = await import("../scripts/initial-service-terms-release");
+const { initialReleaseCandidate, parseInitialReleaseArguments, initialNotices, isInitialNoticeApproval, preexistingOrdinaryAccountFilter, initialReleaseFailure } = await import("../scripts/initial-service-terms-release");
 const evidence = JSON.parse(readFileSync("docs/legal/readiness-status.json", "utf8"));
 
 test("최초 등록 도구는 조회와 명시적 최초 계약 승인을 구분한다", () => {
@@ -31,21 +31,31 @@ test("후보는 승인 원문과 동일하며 실행 시각을 사용하고 과�
   assert.throws(() => initialReleaseCandidate(changed, now));
 });
 
-test("네 문서의 최초 공고는 별도 승인이 필요하며 승인 원문과 실제 공고 시각을 유지한다", () => {
+test("이미 시행된 일반약관의 사후 공고를 제외하고 나머지 세 문서의 승인 원문·공고 시각을 유지한다", () => {
   assert.equal(isInitialNoticeApproval(["--announce"]), false);
   assert.equal(isInitialNoticeApproval(["--announce", "--approve-initial-contract"]), true);
   assert.equal(isInitialNoticeApproval(["--announce", "--approve-initial-contract", "--apply"]), false);
   const now = new Date("2026-10-23T05:20:00Z");
   const notices = initialNotices(evidence, now);
-  assert.equal(notices.length, 4);
-  assert.equal(new Set(notices.map(n => n.documentType)).size, 4);
+  assert.equal(notices.length, 3);
+  assert.deepEqual(notices.map(n => n.documentType).sort(), ["community-guidelines", "location-terms", "privacy"]);
   for (const notice of notices) {
     assert.equal(notice.publicationMode, "initial");
     assert.equal(notice.publishedAt, now);
     assert.equal(notice.plannedEffectiveAt.toISOString(), now.toISOString());
     assert.equal(notice.version, "2026-10-22");
   }
-  assert.equal(notices.find(n => n.documentType === "service-terms")!.documentHash, evidence.approvedDocumentHash);
+  assert.equal(notices.some(n => n.documentType === "service-terms"), false);
+});
+
+test("실패 진단은 단계와 허용된 오류 코드만 출력하고 DB 원문·자격정보를 제외한다", () => {
+  const error = { code: "P2004", message: "secret-db-url", meta: { database_error: "private journal body and token" } };
+  const result = initialReleaseFailure(error, "notice-insert-privacy");
+  assert.equal(result.prismaCode, "P2004");
+  assert.equal(result.stage, "notice-insert-privacy");
+  assert.doesNotMatch(JSON.stringify(result), /secret-db-url|journal body|token/);
+  assert.equal(initialReleaseFailure({ code: "secret-value" }, "test").prismaCode, null);
+  assert.equal(initialReleaseFailure({ code: "P2028" }, "test").reason, "TRANSACTION_FAILED_OR_EXPIRED");
 });
 
 test("공고는 최초 적용 이전 계정을 차단하되 이후 신규 계정을 삭제하거나 차단 조건에 포함하지 않는다", () => {

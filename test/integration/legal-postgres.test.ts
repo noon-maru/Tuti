@@ -4,6 +4,7 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync } from "node:f
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
+import type { Prisma } from "../../src/generated/prisma/client";
 
 test("분리된 PostgreSQL에서 약관·권리 보호 마이그레이션의 실제 제약을 검증한다", { timeout: 60000 }, async (t) => {
   const unavailable = (reason: string) => {
@@ -115,6 +116,47 @@ test("분리된 PostgreSQL에서 약관·권리 보호 마이그레이션의 실
     query(`BEGIN; ${insert} ${activate("a".repeat(64))} ROLLBACK;`);
     rejected(`BEGIN; ${insert} ${activate("different-hash")} ROLLBACK;`, /must match the announced/);
     rejected(`BEGIN; ${insert} ${activate("a".repeat(64), "2026-10-21")} ROLLBACK;`, /cannot precede/);
+  });
+  await t.test("시행된 일반약관의 사후 공고 거부를 재현하고 실제 Prisma로 나머지 세 문서만 공고한다", async () => {
+    const hash = "a".repeat(64);
+    const insert = `INSERT INTO service_terms_releases VALUES ('2026-10-22','{}','${hash}','2026-10-23 05:11:40.612','2026-10-23 05:11:40.612','LEGAL-TEXT-DECISION-20261022',0,'initial','INITIAL-TEST-CLOSURE-20261023');`;
+    rejected(`BEGIN; ${insert} INSERT INTO legal_document_notices VALUES ('service-terms','2026-10-22','{}','${hash}',now(),now(),'initial','LEGAL-TEXT-DECISION-20261022','신규 계약 최초 적용'); ROLLBACK;`, /Cannot announce an already activated service terms version/);
+    assert.equal(query("SELECT count(*) FROM legal_document_notices"), "0", "실패한 공고는 부분 등록되지 않는다.");
+    const { PrismaClient } = await import("../../src/generated/prisma/client");
+    const { PrismaPg } = await import("@prisma/adapter-pg");
+    const client = new PrismaClient({ adapter: new PrismaPg({ host: socket, port: 15479, user: "tuti_legal_test", database: "postgres", max: 2 }) });
+    const documents = JSON.parse(readFileSync("src/shared/legal/finalizedDocuments.json", "utf8")) as Record<string, { version: string; documentHash: string; document: Prisma.InputJsonObject }>;
+    const rollback = new Error("isolated-notice-rollback");
+    try {
+      await assert.rejects(client.$transaction(async tx => {
+        const general = documents["service-terms"];
+        const release = await tx.serviceTermsRelease.create({ data: {
+          version: general.version, document: general.document, documentHash: general.documentHash,
+          publishedAt: new Date("2026-10-23T05:11:40.612Z"), effectiveAt: new Date("2026-10-23T05:11:40.612Z"),
+          noticeDays: 0, publicationMode: "initial", initialContractReference: "INITIAL-TEST-CLOSURE-20261023", approvalReference: "LEGAL-TEXT-DECISION-20261022",
+        } });
+        // 최초 등록 이후 신규 계정이 생겨도 과거 계정 삭제나 자동 동의를 만들지 않는다.
+        await tx.$executeRaw`INSERT INTO users(id,role) VALUES ('post-initial-new-user','user')`;
+        const now = new Date("2026-10-23T06:00:00Z");
+        for (const [documentType, bundled] of Object.entries(documents).filter(([kind]) => kind !== "service-terms")) {
+          await tx.legalDocumentNotice.create({ data: {
+            documentType, version: bundled.version, document: bundled.document, documentHash: bundled.documentHash,
+            publishedAt: now, plannedEffectiveAt: now, publicationMode: "initial", approvalReference: "LEGAL-TEXT-DECISION-20261022", applicationPolicy: "신규 계약 최초 적용·별도 동의 유지",
+          } });
+        }
+        assert.equal(await tx.legalDocumentNotice.count(), 3);
+        assert.equal(await tx.serviceTermsRelease.count(), 1);
+        assert.equal(await tx.serviceTermsAcceptance.count(), 0);
+        assert.equal(await tx.user.count({ where: { id: "post-initial-new-user" } }), 1);
+        const preserved = await tx.serviceTermsRelease.findUniqueOrThrow({ where: { version: release.version } });
+        assert.equal(preserved.documentHash, release.documentHash);
+        assert.equal(preserved.publishedAt.toISOString(), release.publishedAt.toISOString());
+        assert.equal(preserved.effectiveAt.toISOString(), release.effectiveAt.toISOString());
+        throw rollback;
+      }, { timeout: 30_000 }), error => error === rollback);
+      assert.equal(query("SELECT count(*) FROM legal_document_notices"), "0");
+      assert.equal(query("SELECT count(*) FROM service_terms_releases"), "0");
+    } finally { await client.$disconnect(); }
   });
   await t.test("공고일 30일 미만 시행을 DB도 거절한다", () => {
     rejected("INSERT INTO service_terms_releases(version,document,document_hash,published_at,effective_at,approval_reference,notice_days) VALUES ('invalid','{}','hash','2026-10-19','2026-11-17','APPROVAL-1',30)", /check constraint/);
