@@ -32,6 +32,11 @@ export async function deleteEmptyOrdinaryAccount(userId: string, createdBefore: 
   return deleteUserRecord(userId, { requireCompleteImageDeletion: true, emptyCreatedBefore: createdBefore });
 }
 
+export async function deleteOrdinaryTestAccount(userId: string, createdBefore: Date) {
+  if (!Number.isFinite(createdBefore.getTime())) throw new Error("정리 기준 시각이 필요합니다.");
+  return deleteUserRecord(userId, { requireCompleteImageDeletion: true, ordinaryCreatedBefore: createdBefore });
+}
+
 // 복원 후 앱이 중지된 상태에서만 사용하는 내부 정리 경로. 이미 철회한 Apple 토큰을
 // 외부로 다시 보내지 않고, 기존 원장 기록을 새 삭제 요청으로 복제하지 않는다.
 export async function replayDeletedUserAccount(userId: string) {
@@ -45,11 +50,13 @@ async function deleteUserRecord(
     requireCompleteImageDeletion,
     replay = false,
     emptyCreatedBefore,
+    ordinaryCreatedBefore,
   }: {
     permissionAudit?: LocationSecurityAuditData;
     requireCompleteImageDeletion: boolean;
     replay?: boolean;
     emptyCreatedBefore?: Date;
+    ordinaryCreatedBefore?: Date;
   },
 ) {
   const user = await prisma.user.findUnique({
@@ -78,8 +85,10 @@ async function deleteUserRecord(
   });
 
   if (!user) return null;
+  const scopedCreatedBefore = ordinaryCreatedBefore ?? emptyCreatedBefore;
+  if (scopedCreatedBefore && (user.role !== "user" || user.createdAt > scopedCreatedBefore)) return null;
   if (emptyCreatedBefore && (user.role !== "user" || user.createdAt > emptyCreatedBefore || user.journalEntries.length || user.journalBooks.length)) return null;
-  let replayReceipt = replay || emptyCreatedBefore ? null : await preparePrivacyReplayReceipt("account_deleted", userId);
+  let replayReceipt = replay || scopedCreatedBefore ? null : await preparePrivacyReplayReceipt("account_deleted", userId);
 
   const accountEmails = Array.from(
     new Set(
@@ -94,25 +103,28 @@ async function deleteUserRecord(
     .update(`deleted-moderation-subject:${randomUUID()}`)
     .digest("hex");
 
-  for (const entry of user.journalEntries) {
-    try {
-      await deleteStoredJournalImage(entry.image);
-    } catch {
-      if (entry.image) failedImageDeletions.push(entry.image);
+  const deleteAssets = async () => {
+    for (const entry of user.journalEntries) {
+      try {
+        await deleteStoredJournalImage(entry.image);
+      } catch {
+        if (entry.image) failedImageDeletions.push(entry.image);
+      }
     }
-  }
 
-  for (const book of user.journalBooks) {
-    try {
-      await deleteStoredJournalBook(book.objectKey);
-    } catch {
-      failedImageDeletions.push(book.objectKey);
+    for (const book of user.journalBooks) {
+      try {
+        await deleteStoredJournalBook(book.objectKey);
+      } catch {
+        failedImageDeletions.push(book.objectKey);
+      }
     }
-  }
 
-  if ((requireCompleteImageDeletion || privacyReplayEnabled()) && failedImageDeletions.length > 0) {
-    throw new Error("계정 이미지 전체를 삭제하지 못했습니다.");
-  }
+    if ((requireCompleteImageDeletion || privacyReplayEnabled()) && failedImageDeletions.length > 0) {
+      throw new Error("계정 이미지 전체를 삭제하지 못했습니다.");
+    }
+  };
+  if (!scopedCreatedBefore) await deleteAssets();
 
   const appleRefreshTokens = user.authIdentities.flatMap((identity) =>
     identity.provider === "apple" &&
@@ -133,19 +145,30 @@ async function deleteUserRecord(
       await revokeAppleRefreshToken(encryptedToken, appleConfiguration);
     }
   };
-  if (!emptyCreatedBefore) await revokeApple();
+  if (!scopedCreatedBefore) await revokeApple();
 
   const deleted = await prisma.$transaction(async (transaction) => {
     await lockLocationSubject(transaction, userId);
-    if (emptyCreatedBefore) {
+    if (ordinaryCreatedBefore) {
+      // 기존 기록의 수정도 자산 삭제와 경합하지 않게 부모 다음에 잠근다.
+      await transaction.$queryRaw`SELECT "id" FROM "journal_entries" WHERE "owner_id" = ${userId} ORDER BY "id" FOR UPDATE`;
+      await transaction.$queryRaw`SELECT "id" FROM "journal_books" WHERE "owner_id" = ${userId} ORDER BY "id" FOR UPDATE`;
+    }
+    if (scopedCreatedBefore) {
       const current = await transaction.user.findUnique({ where: { id: userId }, select: {
         role: true, createdAt: true, _count: { select: { journalEntries: true, journalBooks: true } },
+        ...(ordinaryCreatedBefore ? { journalEntries: { select: { id: true, image: true } }, journalBooks: { select: { objectKey: true } }, authIdentities: { select: { email: true, provider: true, providerRefreshTokenEncrypted: true } } } : {}),
       } });
-      if (!current || current.role !== "user" || current.createdAt > emptyCreatedBefore ||
-          current._count.journalEntries || current._count.journalBooks) return false;
+      if (!current || current.role !== "user" || current.createdAt > scopedCreatedBefore ||
+          (emptyCreatedBefore && (current._count.journalEntries || current._count.journalBooks))) return false;
+      if (ordinaryCreatedBefore) {
+        const snapshot = (value: unknown) => JSON.stringify(value, (_key, item) => Array.isArray(item) ? [...item].sort((a, b) => JSON.stringify(a).localeCompare(JSON.stringify(b))) : item);
+        if (snapshot(current.journalEntries) !== snapshot(user.journalEntries) || snapshot(current.journalBooks) !== snapshot(user.journalBooks) || snapshot(current.authIdentities) !== snapshot(user.authIdentities)) return false;
+      }
       // 사용자 행 잠금은 새 기록/기록집의 FK 삽입과도 경합한다. 재검사 후에만
       // 삭제 원장을 준비하고, DB 커밋이 끝난 뒤 완료 영수증을 남긴다.
       replayReceipt = await preparePrivacyReplayReceipt("account_deleted", userId);
+      await deleteAssets();
       await revokeApple();
     }
     if (process.env.LEGAL_RIGHTS_WORKFLOW_ENABLED === "true") {
@@ -191,7 +214,7 @@ async function deleteUserRecord(
         OR: [
           { requesterUserId: userId },
           { handledByUserId: userId },
-          ...(!emptyCreatedBefore && accountEmails.length > 0
+          ...(!scopedCreatedBefore && accountEmails.length > 0
             ? [{ requesterEmail: { in: accountEmails } }]
             : []),
         ],
@@ -199,7 +222,7 @@ async function deleteUserRecord(
     });
     // 일괄 빈 계정 정리는 이메일만 같은 다른 계정의 문의·인증 자료를 건드리지 않는다.
     // 계정 식별자로 연결되지 않은 자료는 기존 보존기간 정리 경로에 맡긴다.
-    if (!emptyCreatedBefore && accountEmails.length > 0) {
+    if (!scopedCreatedBefore && accountEmails.length > 0) {
       await transaction.emailVerificationCode.deleteMany({
         where: { email: { in: accountEmails } },
       });
@@ -248,7 +271,7 @@ async function deleteUserRecord(
       });
     }
     return true;
-  }, emptyCreatedBefore ? { timeout: 30_000 } : undefined);
+  }, scopedCreatedBefore ? { timeout: ordinaryCreatedBefore ? 120_000 : 30_000 } : undefined);
 
   if (!deleted) return null;
 
