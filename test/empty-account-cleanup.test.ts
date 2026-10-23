@@ -72,7 +72,7 @@ test("기록 포함 모드에서도 관리자·새 계정·스냅샷 변경은 �
   initial = { ...base(), role: "admin" };
   calls.length = 0;
   assert.equal(await deleteOrdinaryTestAccount("subject", cutoff), null);
-  assert.deepEqual(calls, []);
+  assert.equal(calls.length, 0);
   initial = { ...base(), createdAt: new Date("2026-10-23") };
   assert.equal(await deleteOrdinaryTestAccount("subject", cutoff), null);
   initial = base();
