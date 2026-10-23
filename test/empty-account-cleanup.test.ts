@@ -5,14 +5,16 @@ import { readFileSync } from "node:fs";
 process.env.DATABASE_URL = "postgresql://test:test@127.0.0.1:1/test";
 process.env.PRIVACY_REPLAY_LEDGER_ENABLED = "false";
 const cutoff = new Date("2026-10-22T07:51:55.612Z");
-const base = () => ({ id: "subject", role: "user", createdAt: new Date("2026-09-01"), authIdentities: [], journalEntries: [] as unknown[], journalBooks: [] as unknown[] });
+const base = () => ({ id: "subject", role: "user", createdAt: new Date("2026-09-01"), authIdentities: [] as { email: string; provider: string; providerRefreshTokenEncrypted: null }[], journalEntries: [] as unknown[], journalBooks: [] as unknown[] });
 let initial = base();
 let locked = { role: "user", createdAt: new Date("2026-09-01"), _count: { journalEntries: 0, journalBooks: 0 } };
 const calls: string[] = [];
+const inputs = new Map<string, unknown>();
 const transaction = new Proxy({}, { get(_target, table: string) {
   if (table === "$queryRaw") return async () => { calls.push("lock"); return [{ id: "subject" }]; };
-  return new Proxy({}, { get(_delegate, method: string) { return async () => {
+  return new Proxy({}, { get(_delegate, method: string) { return async (input: unknown) => {
     calls.push(`${table}.${method}`);
+    inputs.set(`${table}.${method}`, input);
     if (table === "user" && method === "findUnique") return locked;
     return { count: 1 };
   }; } });
@@ -48,6 +50,7 @@ test("준비 후 기록·기록집 생성 또는 승격이 생겨도 행 잠금 
 
 test("승인한 과거 빈 일반 계정은 기존 위치·인증·이력 삭제 경로를 사용한다", async () => {
   initial = base();
+  initial.authIdentities.push({ email: "shared@example.invalid", provider: "email", providerRefreshTokenEncrypted: null });
   locked = { role: "user", createdAt: new Date("2026-09-01"), _count: { journalEntries: 0, journalBooks: 0 } };
   calls.length = 0;
   const result = await deleteEmptyOrdinaryAccount("subject", cutoff);
@@ -55,6 +58,8 @@ test("승인한 과거 빈 일반 계정은 기존 위치·인증·이력 삭제
   assert.deepEqual(calls.slice(0, 2), ["lock", "user.findUnique"]);
   for (const call of ["locationUsageLog.deleteMany", "locationConsentEvent.deleteMany", "pushDelivery.deleteMany", "user.delete"]) assert.ok(calls.includes(call));
   assert.ok(!calls.some(call => call.startsWith("adminJournalAccessAudit.")));
+  assert.ok(!calls.some(call => call.startsWith("emailVerificationCode.")));
+  assert.deepEqual(inputs.get("customerInquiry.deleteMany"), { where: { OR: [{ requesterUserId: "subject" }, { handledByUserId: "subject" }] } });
   await assert.rejects(deleteEmptyOrdinaryAccount("subject", new Date("invalid")));
 });
 
