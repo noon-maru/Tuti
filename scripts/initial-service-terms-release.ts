@@ -7,6 +7,13 @@ import { hashServiceTerms, serviceTermsEnforcementEnabled, serviceTermsWorkflowE
 import { assertServiceTermsOperationalReadiness } from "../src/server/legal/runtimeReadiness";
 import { legalReadinessReport, legalRuntimeFacts, parseLegalReadinessEvidence } from "../src/server/legal/readiness";
 import { prepareLegalDocumentNotice } from "../src/server/legal/documentNotice";
+let stage = "arguments";
+
+export function initialReleaseFailure(error: unknown, at: string) {
+  const input = error as { code?: unknown } | null;
+  const code = typeof input?.code === "string" && /^P\d{4}$/.test(input.code) ? input.code : null;
+  return { stage: at, reason: code === "P2028" ? "TRANSACTION_FAILED_OR_EXPIRED" : code ? "DATABASE_OPERATION_FAILED" : "VALIDATION_OR_IO_FAILED", prismaCode: code, privateDetailsSuppressed: true };
+}
 
 export function isInitialNoticeApproval(args: string[]) {
   return args.length === 2 && args[0] === "--announce" && args[1] === "--approve-initial-contract";
@@ -18,7 +25,9 @@ export function preexistingOrdinaryAccountFilter(effectiveAt: Date) {
 }
 
 export function initialNotices(evidence: unknown, now: Date) {
-  return Object.entries(documents).map(([documentType, bundled]) => prepareLegalDocumentNotice({
+  // 일반약관은 이미 시행 릴리스로 공개되어 있다. DB는 같은 버전의 사후 공고를 금지한다.
+  // 시행 원문·공고 시각은 /legal/service-terms에서 유지하고 나머지 세 문서만 등록한다.
+  return Object.entries(documents).filter(([kind]) => kind !== "service-terms").map(([documentType, bundled]) => prepareLegalDocumentNotice({
     documentType, version: bundled.version, document: bundled.document, publicationMode: "initial",
     plannedEffectiveAt: now.toISOString(), approvalReference: parseLegalReadinessEvidence(evidence).checks.finalDocumentApproval.reference,
     applicationPolicy: "운영자가 테스트 이용 종료와 기존 의무를 검토한 뒤 신규 계약에 한정해 최초 적용합니다. 일반약관 최초 적용 릴리스는 별도로 등록되어 있으며 공고 자체가 이용자 동의는 아닙니다. 개인정보·위치·기록 공개 문서의 실제 서버 전환 시각은 별도로 표시하며 위치·민감정보·공개의 별도 확인 절차를 유지합니다.",
@@ -51,16 +60,19 @@ export function initialReleaseCandidate(input: unknown, now: Date) {
 async function main() {
   const announce = isInitialNoticeApproval(process.argv.slice(2));
   const apply = announce ? false : parseInitialReleaseArguments(process.argv.slice(2));
+  stage = "readiness-file";
   const evidence: unknown = JSON.parse(await readFile("/initial-terms/readiness.json", "utf8"));
   const report = legalReadinessReport(parseLegalReadinessEvidence(evidence), legalRuntimeFacts(), "service-terms");
   if (!report.ready) throw new Error(`준비 미확인: ${report.blockers.join(", ")}`);
   if (!serviceTermsWorkflowEnabled() || serviceTermsEnforcementEnabled()) throw new Error("공개 기능 ON·강제 동의 OFF 상태에서만 등록할 수 있습니다.");
   const candidate = initialReleaseCandidate(evidence, new Date());
   // 조회 모드에도 원장·최근 권리 작업·원문 불변성 등 기존 운영 검사를 수행한다.
+  stage = "operational-readiness";
   await assertServiceTermsOperationalReadiness(evidence, candidate.documentHash, candidate.approvalReference);
   const initialGuard = await prisma.$queryRaw<Array<{ tgname: string }>>`SELECT tgname FROM pg_trigger WHERE tgrelid = 'service_terms_releases'::regclass AND tgname = 'service_terms_releases_initial_guard' AND tgenabled = 'O'`;
   if (initialGuard.length !== 1) throw new Error("최초 적용 DB 보호 트리거가 없습니다.");
   if (announce) {
+    stage = "notice-transaction";
     const notices = await prisma.$transaction(async tx => {
       await tx.$queryRaw`SELECT pg_advisory_xact_lock(20261019, 1)::text AS lock_result`;
       await tx.$executeRaw`LOCK TABLE users IN SHARE MODE`;
@@ -78,10 +90,13 @@ async function main() {
       const preexistingAccounts = await tx.user.count({ where: preexistingOrdinaryAccountFilter(current.effectiveAt) });
       if (preexistingAccounts) throw new Error(`최초 적용 시점 이전의 일반 계정이 ${preexistingAccounts}개 있습니다. 공고하지 않습니다. 계정을 자동 삭제하지 않습니다.`);
       const prepared = initialNotices(evidence, now);
-      for (const notice of prepared) await tx.legalDocumentNotice.create({ data: notice });
+      for (const notice of prepared) {
+        stage = `notice-insert-${notice.documentType}`;
+        await tx.legalDocumentNotice.create({ data: notice });
+      }
       return prepared.map(({ documentType, version, documentHash, publishedAt, plannedEffectiveAt }) => ({ documentType, version, documentHash, publishedAt, plannedEffectiveAt }));
-    });
-    console.log(JSON.stringify({ mode: "announced", notices, enforcementChanged: false, policySettingsChanged: false, consentsCreated: false }));
+    }, { maxWait: 10_000, timeout: 30_000 });
+    console.log(JSON.stringify({ mode: "announced", notices, serviceTermsAlreadyRegistered: true, serviceTermsPublicPath: "/legal/service-terms", enforcementChanged: false, policySettingsChanged: false, consentsCreated: false }));
     return;
   }
   if (!apply) {
@@ -108,5 +123,5 @@ async function main() {
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
-  main().catch(error => { console.error(error instanceof Error && error.name === "Error" ? error.message : "최초 약관 등록 검사에 실패했습니다. DB·원장·실행 환경을 점검해주세요. 상세 원문은 출력하지 않습니다."); process.exitCode = 1; }).finally(() => prisma.$disconnect());
+  main().catch(error => { console.error(JSON.stringify(initialReleaseFailure(error, stage))); console.error(error instanceof Error && error.name === "Error" ? error.message : "최초 약관 등록 검사에 실패했습니다. DB·원장·실행 환경을 점검해주세요. 상세 원문은 출력하지 않습니다."); process.exitCode = 1; }).finally(() => prisma.$disconnect());
 }
