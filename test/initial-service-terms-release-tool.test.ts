@@ -5,7 +5,7 @@ import test from "node:test";
 
 process.env.DATABASE_URL = "postgresql://test:test@127.0.0.1:1/test";
 (globalThis as { prisma?: unknown }).prisma = {};
-const { initialReleaseCandidate, parseInitialReleaseArguments } = await import("../scripts/initial-service-terms-release");
+const { initialReleaseCandidate, parseInitialReleaseArguments, initialNotices, isInitialNoticeApproval } = await import("../scripts/initial-service-terms-release");
 const evidence = JSON.parse(readFileSync("docs/legal/readiness-status.json", "utf8"));
 
 test("최초 등록 도구는 조회와 명시적 최초 계약 승인을 구분한다", () => {
@@ -29,6 +29,23 @@ test("후보는 승인 원문과 동일하며 실행 시각을 사용하고 과�
   const changed = structuredClone(evidence);
   changed.checks.finalDocumentApproval.confirmed = false;
   assert.throws(() => initialReleaseCandidate(changed, now));
+});
+
+test("네 문서의 최초 공고는 별도 승인이 필요하며 승인 원문과 실제 공고 시각을 유지한다", () => {
+  assert.equal(isInitialNoticeApproval(["--announce"]), false);
+  assert.equal(isInitialNoticeApproval(["--announce", "--approve-initial-contract"]), true);
+  assert.equal(isInitialNoticeApproval(["--announce", "--approve-initial-contract", "--apply"]), false);
+  const now = new Date("2026-10-23T05:20:00Z");
+  const notices = initialNotices(evidence, now);
+  assert.equal(notices.length, 4);
+  assert.equal(new Set(notices.map(n => n.documentType)).size, 4);
+  for (const notice of notices) {
+    assert.equal(notice.publicationMode, "initial");
+    assert.equal(notice.publishedAt, now);
+    assert.equal(notice.plannedEffectiveAt.toISOString(), now.toISOString());
+    assert.equal(notice.version, "2026-10-22");
+  }
+  assert.equal(notices.find(n => n.documentType === "service-terms")!.documentHash, evidence.approvedDocumentHash);
 });
 
 test("래퍼는 검토된 코드·승인 기록만 읽기 전용 전달하고 강제 설정이나 앱을 변경하지 않는다", () => {

@@ -6,6 +6,19 @@ import { prepareServiceTermsRelease, RELEASE_READINESS_CHECKS } from "../src/ser
 import { hashServiceTerms, serviceTermsEnforcementEnabled, serviceTermsWorkflowEnabled } from "../src/server/legal/serviceTerms";
 import { assertServiceTermsOperationalReadiness } from "../src/server/legal/runtimeReadiness";
 import { legalReadinessReport, legalRuntimeFacts, parseLegalReadinessEvidence } from "../src/server/legal/readiness";
+import { prepareLegalDocumentNotice } from "../src/server/legal/documentNotice";
+
+export function isInitialNoticeApproval(args: string[]) {
+  return args.length === 2 && args[0] === "--announce" && args[1] === "--approve-initial-contract";
+}
+
+export function initialNotices(evidence: unknown, now: Date) {
+  return Object.entries(documents).map(([documentType, bundled]) => prepareLegalDocumentNotice({
+    documentType, version: bundled.version, document: bundled.document, publicationMode: "initial",
+    plannedEffectiveAt: now.toISOString(), approvalReference: parseLegalReadinessEvidence(evidence).checks.finalDocumentApproval.reference,
+    applicationPolicy: "운영자가 테스트 이용 종료와 기존 의무를 검토한 뒤 신규 계약에 한정해 최초 적용합니다. 일반약관 최초 적용 릴리스는 별도로 등록되어 있으며 공고 자체가 이용자 동의는 아닙니다. 개인정보·위치·기록 공개 문서의 실제 서버 전환 시각은 별도로 표시하며 위치·민감정보·공개의 별도 확인 절차를 유지합니다.",
+  }, { ...(evidence as Record<string, unknown>), approvedDocumentHash: bundled.documentHash }, now));
+}
 
 export function parseInitialReleaseArguments(args: string[]) {
   if (args.length === 1 && args[0] === "--check") return false;
@@ -31,7 +44,8 @@ export function initialReleaseCandidate(input: unknown, now: Date) {
 }
 
 async function main() {
-  const apply = parseInitialReleaseArguments(process.argv.slice(2));
+  const announce = isInitialNoticeApproval(process.argv.slice(2));
+  const apply = announce ? false : parseInitialReleaseArguments(process.argv.slice(2));
   const evidence: unknown = JSON.parse(await readFile("/initial-terms/readiness.json", "utf8"));
   const report = legalReadinessReport(parseLegalReadinessEvidence(evidence), legalRuntimeFacts(), "service-terms");
   if (!report.ready) throw new Error(`준비 미확인: ${report.blockers.join(", ")}`);
@@ -41,6 +55,24 @@ async function main() {
   await assertServiceTermsOperationalReadiness(evidence, candidate.documentHash, candidate.approvalReference);
   const initialGuard = await prisma.$queryRaw<Array<{ tgname: string }>>`SELECT tgname FROM pg_trigger WHERE tgrelid = 'service_terms_releases'::regclass AND tgname = 'service_terms_releases_initial_guard' AND tgenabled = 'O'`;
   if (initialGuard.length !== 1) throw new Error("최초 적용 DB 보호 트리거가 없습니다.");
+  if (announce) {
+    const notices = await prisma.$transaction(async tx => {
+      await tx.$queryRaw`SELECT pg_advisory_xact_lock(20261019, 1)::text AS lock_result`;
+      await tx.$executeRaw`LOCK TABLE users IN SHARE MODE`;
+      const current = await tx.serviceTermsRelease.findUnique({ where: { version: candidate.version } });
+      const now = new Date();
+      if (!current || current.publicationMode !== "initial" || current.documentHash !== candidate.documentHash ||
+          current.effectiveAt > now || current.approvalReference !== candidate.approvalReference || hashServiceTerms(current.document) !== candidate.documentHash ||
+          await tx.serviceTermsRelease.count() !== 1 || await tx.legalDocumentNotice.count() || await tx.user.count({ where: { role: { not: "admin" } } })) {
+        throw new Error("등록된 최초 약관·기존 공고·일반 계정 조건이 맞지 않습니다. 공고하지 않습니다.");
+      }
+      const prepared = initialNotices(evidence, now);
+      for (const notice of prepared) await tx.legalDocumentNotice.create({ data: notice });
+      return prepared.map(({ documentType, version, documentHash, publishedAt, plannedEffectiveAt }) => ({ documentType, version, documentHash, publishedAt, plannedEffectiveAt }));
+    });
+    console.log(JSON.stringify({ mode: "announced", notices, enforcementChanged: false, policySettingsChanged: false, consentsCreated: false }));
+    return;
+  }
   if (!apply) {
     const counts = await prisma.$transaction(async tx => {
       await tx.$executeRaw`SET TRANSACTION READ ONLY`;

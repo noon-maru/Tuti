@@ -7,6 +7,7 @@ if [ "$(id -u)" -ne 0 ]; then echo "sudo sh scripts/ops/tuti-initial-terms-relea
 case "$*" in
   --check) [ "$#" -eq 1 ] || exit 1 ;;
   '--apply --approve-initial-contract') [ "$#" -eq 2 ] || exit 1 ;;
+  '--announce --approve-initial-contract') [ "$#" -eq 2 ] || exit 1 ;;
   *) echo "--check 또는 --apply --approve-initial-contract만 지원합니다." >&2; exit 1 ;;
 esac
 for source in scripts/ops/tuti-initial-terms-release scripts/initial-service-terms-release.ts docs/legal/readiness-status.json; do
