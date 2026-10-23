@@ -1,15 +1,17 @@
 import { createHash } from "node:crypto";
 import { prisma } from "../src/server/db/prisma";
-import { deleteEmptyOrdinaryAccount } from "../src/server/admin/users";
+import { deleteEmptyOrdinaryAccount, deleteOrdinaryTestAccount } from "../src/server/admin/users";
 import { privacyReplayEnabled, readPrivacyReplaySnapshot } from "../src/server/legal/privacyReplayLedger";
 
 // 대상은 실제 조회가 끝난 과거 시점으로 고정한다. 새 계정은 자동 포함하지 않는다.
 async function main() {
   const args = process.argv.slice(2);
   const apply = args.includes("--apply");
+  const includeRecords = args.includes("--include-records");
   const options = new Map<string, string>();
   for (let i = 0; i < args.length; i++) {
     if (args[i] === "--apply" && args.filter(a => a === "--apply").length === 1) continue;
+    if (args[i] === "--include-records" && args.filter(a => a === "--include-records").length === 1) continue;
     if (!["--created-before", "--expected-count", "--plan-hash"].includes(args[i]) || options.has(args[i]) || !args[i + 1] || args[i + 1].startsWith("--")) throw new Error("옵션을 확인해주세요.");
     options.set(args[i], args[++i]);
   }
@@ -17,10 +19,12 @@ async function main() {
   const expected = Number(options.get("--expected-count"));
   if (!Number.isFinite(cutoff.getTime()) || cutoff > new Date() || !options.has("--expected-count") || !Number.isInteger(expected) || expected < 1) throw new Error("과거 기준 시각과 승인된 대상 수가 필요합니다.");
   const candidates = await prisma.user.findMany({ where: {
-    role: "user", createdAt: { lte: cutoff }, journalEntries: { none: {} }, journalBooks: { none: {} },
-  }, select: { id: true }, orderBy: { id: "asc" } });
-  const planHash = createHash("sha256").update(JSON.stringify({ cutoff: cutoff.toISOString(), ids: candidates.map(user => user.id) })).digest("hex");
-  console.log(JSON.stringify({ mode: apply ? "apply-preflight" : "dry-run", cutoff: cutoff.toISOString(), candidates: candidates.length, expected, planHash, administratorsIncluded: false, recordsIncluded: false }));
+    role: "user", createdAt: { lte: cutoff }, ...(!includeRecords ? { journalEntries: { none: {} }, journalBooks: { none: {} } } : {}),
+  }, select: { id: true, journalEntries: { select: { id: true, updatedAt: true }, orderBy: { id: "asc" } }, journalBooks: { select: { id: true, updatedAt: true }, orderBy: { id: "asc" } } }, orderBy: { id: "asc" } });
+  const planHash = createHash("sha256").update(JSON.stringify({ cutoff: cutoff.toISOString(), ids: candidates.map(user => user.id), ...(includeRecords ? { recordsIncluded: true, snapshots: candidates } : {}) })).digest("hex");
+  console.log(JSON.stringify({ mode: apply ? "apply-preflight" : "dry-run", cutoff: cutoff.toISOString(), candidates: candidates.length, expected, planHash, administratorsIncluded: false, recordsIncluded: includeRecords,
+    ...(includeRecords ? { journals: candidates.reduce((sum, user) => sum + user.journalEntries.length, 0), books: candidates.reduce((sum, user) => sum + user.journalBooks.length, 0), accounts: candidates.map(user => ({ id: user.id, journals: user.journalEntries.length, books: user.journalBooks.length })) } : {}),
+  }));
   if (candidates.length !== expected) throw new Error("승인한 대상 수와 다릅니다. 삭제하지 않았습니다. 목록을 다시 확인해주세요.");
   if (!apply) return;
   if (options.get("--plan-hash") !== planHash) throw new Error("먼저 dry-run 결과의 planHash를 확인하고 동일한 해시로 실행해주세요. 삭제하지 않았습니다.");
@@ -30,7 +34,7 @@ async function main() {
   let skipped = 0;
   for (const candidate of candidates) {
     try {
-      const result = await deleteEmptyOrdinaryAccount(candidate.id, cutoff);
+      const result = includeRecords ? await deleteOrdinaryTestAccount(candidate.id, cutoff) : await deleteEmptyOrdinaryAccount(candidate.id, cutoff);
       if (result) deleted++; else skipped++;
       if ((deleted + skipped) % 25 === 0) console.log(JSON.stringify({ stage: "progress", deleted, skipped }));
     } catch {
