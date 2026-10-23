@@ -191,13 +191,15 @@ async function deleteUserRecord(
         OR: [
           { requesterUserId: userId },
           { handledByUserId: userId },
-          ...(accountEmails.length > 0
+          ...(!emptyCreatedBefore && accountEmails.length > 0
             ? [{ requesterEmail: { in: accountEmails } }]
             : []),
         ],
       },
     });
-    if (accountEmails.length > 0) {
+    // 일괄 빈 계정 정리는 이메일만 같은 다른 계정의 문의·인증 자료를 건드리지 않는다.
+    // 계정 식별자로 연결되지 않은 자료는 기존 보존기간 정리 경로에 맡긴다.
+    if (!emptyCreatedBefore && accountEmails.length > 0) {
       await transaction.emailVerificationCode.deleteMany({
         where: { email: { in: accountEmails } },
       });
