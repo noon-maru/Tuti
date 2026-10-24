@@ -12,5 +12,4 @@ if [ -f "$project_dir/.ops-state/restore-privacy/pending.env" ] || [ -f "$projec
   echo "복원 검토 중에는 개인정보 정기 파기를 실행하지 않습니다." >&2
   exit 1
 fi
-docker compose --env-file .env.production -f docker-compose.prod.yml \
-  run --rm --no-deps -T ops node_modules/.bin/tsx scripts/maintain-privacy-data.ts "$@"
+exec /usr/local/sbin/tuti-ops-workers privacy "$@"

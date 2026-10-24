@@ -1,0 +1,38 @@
+# Only explicit installation starts these services. No ports, Docker socket or privileged mode.
+services:
+  ops-maintenance:
+    extends:
+      file: docker-compose.prod.yml
+      service: ops
+    container_name: tuti-ops-maintenance
+    user: "0:0"
+    command: ["node", "-e", "process.on('SIGTERM',()=>process.exit(0));setInterval(()=>{},2147483647)"]
+    restart: unless-stopped
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    mem_limit: 768m
+    tmpfs:
+      - /tmp:rw,nosuid,nodev,size=67108864
+    profiles: [ops-workers]
+    labels:
+      today.tuti.ops-config: ${TUTI_OPS_CONFIG_DIGEST:-unconfigured}
+    volumes:
+      - ./scripts/ops/run-maintenance-job.mjs:/app/scripts/run-maintenance-job.mjs:ro
+
+  ops-recovery:
+    extends:
+      service: ops-maintenance
+    container_name: tuti-ops-recovery
+    volumes:
+      - ./.ops-state/privacy-recovery:/recovery
+
+  ops-retention:
+    extends:
+      service: ops-maintenance
+    container_name: tuti-ops-retention
+    volumes:
+      - ${TUTI_FULL_BACKUP_ROOT:-/volume1/tuti/backups/full}:/backup-retention
+      - /volume1/tuti/backups/core:/core-backup-retention
+      - ./scripts/prune-production-backups.ts:/app/scripts/prune-production-backups.ts:ro
+      - ./src/server/legal/backupRetention.ts:/app/src/server/legal/backupRetention.ts:ro

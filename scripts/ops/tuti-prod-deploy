@@ -144,6 +144,11 @@ chmod 0600 "$state_file"
 docker tag "$app_image" tuti:prod
 docker tag "$ops_image" tuti:ops
 
+# Refresh opt-in persistent workers under the deployment maintenance lock.
+if [ -f "$project_dir/.ops-state/ops-workers/enabled" ]; then
+  /usr/local/sbin/tuti-ops-workers --refresh-locked
+fi
+
 prune_release_tags() {
   prefix="$1"
   docker image ls tuti --format '{{.Repository}}:{{.Tag}}' \

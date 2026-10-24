@@ -2,7 +2,7 @@
 set -eu
 
 project_dir="/var/services/homes/Tutiadmin/source/Tuti"
-tools="tuti-prod-backup tuti-prod-restore tuti-prod-deploy tuti-prod-rollback tuti-prod-health tuti-auth-retention-purge tuti-location-compliance-purge tuti-journal-moderation-purge tuti-journal-rights-maintain tuti-prod-backup-prune tuti-legal-operations-inspect tuti-push-retention-purge tuti-privacy-data-maintain tuti-legal-job-failure-notify tuti-privacy-ledger-backup tuti-privacy-activate"
+tools="tuti-prod-backup tuti-prod-restore tuti-prod-deploy tuti-prod-rollback tuti-prod-health tuti-auth-retention-purge tuti-location-compliance-purge tuti-journal-moderation-purge tuti-journal-rights-maintain tuti-prod-backup-prune tuti-legal-operations-inspect tuti-push-retention-purge tuti-privacy-data-maintain tuti-legal-job-failure-notify tuti-privacy-ledger-backup tuti-privacy-activate tuti-ops-workers"
 case "$#:$*" in 0:) apply=false ;; 1:--apply) apply=true ;; *) echo "사용법: install-legal-compliance-tools [--apply]" >&2; exit 1 ;; esac
 cd "$project_dir"
 for name in $tools; do
@@ -22,6 +22,11 @@ if [ "$(id -u)" != 0 ]; then echo "root 권한이 필요합니다." >&2; exit 1;
 install -d -o root -g root -m 0700 "$project_dir/.ops-state/legal-tools"
 exec 9>"$project_dir/.ops-state/maintenance.lock"
 /usr/bin/flock --exclusive 9
+# The new wrappers require installed workers; use the dedicated transition installer first.
+if [ ! -f "$project_dir/.ops-state/ops-workers/enabled" ]; then
+  echo "먼저 sudo sh scripts/ops/install-tuti-ops-workers --apply 로 작업 컨테이너를 준비해주세요." >&2
+  exit 1
+fi
 snapshot="$project_dir/.ops-state/legal-tools/$(date +%Y%m%d-%H%M%S)-$$"
 install -d -o root -g root -m 0700 "$snapshot"
 for name in $tools; do

@@ -1,0 +1,30 @@
+#!/bin/sh
+set -eu
+project_dir=/var/services/homes/Tutiadmin/source/Tuti
+cd "$project_dir"
+project_dir="$(pwd -P)"
+case "$#:$*" in 0:) apply=false ;; 1:--apply) apply=true ;; *) echo "사용법: install-tuti-ops-workers [--apply]" >&2; exit 1 ;; esac
+tools="tuti-ops-workers tuti-journal-rights-maintain tuti-privacy-data-maintain tuti-privacy-ledger-backup tuti-prod-backup-prune tuti-prod-deploy tuti-privacy-activate"
+for name in $tools; do
+  sh -n "scripts/ops/$name"
+  if [ -L "/usr/local/sbin/$name" ]; then echo "심볼릭 링크 설치 대상은 교체하지 않습니다." >&2; exit 1; fi
+done
+command -v jq >/dev/null
+docker compose --env-file .env.production -f docker-compose.prod.yml -f docker-compose.ops-workers.yml --profile ops-workers config --quiet
+if [ "$apply" != true ]; then echo "설정·셸 문법 확인 완료. --apply에서만 도구 설치와 작업 컨테이너 3개 시작을 수행합니다."; exit 0; fi
+if [ "$(id -u)" != 0 ]; then echo "sudo 권한이 필요합니다." >&2; exit 1; fi
+install -d -o root -g root -m 0700 "$project_dir/.ops-state"
+exec 9>"$project_dir/.ops-state/maintenance.lock"
+/usr/bin/flock --exclusive 9
+if [ -f .ops-state/restore-privacy/pending.env ] || [ -f .ops-state/privacy-activation/pending ]; then echo "복원·원장 전환 검토 종료 후 설치해주세요." >&2; exit 1; fi
+snapshot="$project_dir/.ops-state/ops-worker-tools/$(date +%Y%m%d-%H%M%S)-$$"
+install -d -o root -g root -m 0700 "$snapshot"
+for name in $tools; do
+  if [ -f "/usr/local/sbin/$name" ]; then cp -p "/usr/local/sbin/$name" "$snapshot/$name"; fi
+done
+# Prepare workers before replacing scheduled wrappers. Old wrappers still run if setup fails.
+install -o root -g root -m 0750 scripts/ops/tuti-ops-workers /usr/local/sbin/tuti-ops-workers
+/usr/local/sbin/tuti-ops-workers --refresh-locked
+for name in $tools; do install -o root -g root -m 0750 "scripts/ops/$name" "/usr/local/sbin/$name"; done
+echo "상시 작업 컨테이너 전환 완료. 기존 설치본은 $snapshot 에 보관했습니다."
+echo "예약 주기·systemd 실패 알림·웹/DB 중지 알림·약관 및 개인정보 설정은 변경하지 않았습니다."

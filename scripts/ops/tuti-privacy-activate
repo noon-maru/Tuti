@@ -91,7 +91,14 @@ if(s!==e.signature||!JSON.parse(e.payload).activatedAt)process.exit(1);
 console.log("app_ledger_signature=ok");'
 ops --status
 docker update --restart=unless-stopped tuti-prod
-mv "$pending" "$project_dir/.ops-state/privacy-activation/completed-$release"
+completed="$project_dir/.ops-state/privacy-activation/completed-$release"
+mv "$pending" "$completed"
+if [ -f "$project_dir/.ops-state/ops-workers/enabled" ]; then
+  if ! /usr/local/sbin/tuti-ops-workers --refresh-locked; then
+    mv "$completed" "$pending"
+    exit 1
+  fi
+fi
 complete=true
 trap - EXIT INT TERM
 # 잠금을 풀고 세 가지 개인정보 작업만 시작한다. 권리 침해·민감정보·약관 플래그는 켜지 않는다.

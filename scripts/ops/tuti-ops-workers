@@ -1,0 +1,123 @@
+#!/bin/sh
+set -eu
+project_dir=/var/services/homes/Tutiadmin/source/Tuti
+cd "$project_dir"
+project_dir="$(pwd -P)"
+if [ "$(id -u)" != 0 ]; then echo "NAS 관리자 권한이 필요합니다." >&2; exit 1; fi
+mode="${1:-}"
+[ "$#" -gt 0 ] || exit 1
+shift
+case "$mode:$#:${1:-}" in
+  --refresh:0: | --refresh-locked:0: | --check:0: | rights:0: | rights:1:--apply | privacy:0: | privacy:1:--apply | recovery:0: | recovery:1:--apply | retention:0: | retention:1:--apply) ;;
+  *) echo "지원 명령: --check | --refresh | rights|privacy|recovery|retention [--apply]" >&2; exit 1 ;;
+esac
+compose() { docker compose --env-file .env.production -f docker-compose.prod.yml -f docker-compose.ops-workers.yml --profile ops-workers "$@"; }
+state_dir="$project_dir/.ops-state/ops-workers"
+if [ -L "$project_dir/.ops-state" ] || [ -L "$state_dir" ]; then exit 1; fi
+if [ -f .ops-state/restore-privacy/pending.env ] || [ -f .ops-state/privacy-activation/pending ]; then
+  echo "복원·원장 전환 확인 전에는 작업 컨테이너를 사용하지 않습니다." >&2; exit 1
+fi
+
+case "$mode" in
+  --refresh | --refresh-locked)
+    install -d -o root -g root -m 0700 "$project_dir/.ops-state" "$state_dir"
+    if [ "$mode" = --refresh ]; then
+      exec 9>"$project_dir/.ops-state/maintenance.lock"
+      /usr/bin/flock --exclusive 9
+    else
+      # Deploy/installer already holds this inherited maintenance lock.
+      /usr/bin/flock --exclusive --nonblock 9 || exit 1
+    fi
+    if [ -f .ops-state/restore-privacy/pending.env ] || [ -f .ops-state/privacy-activation/pending ]; then exit 1; fi
+    ;;
+esac
+
+# Resolve the env-file interpolation in memory; never print resolved config or credentials.
+configuration="$(compose config --format json)"
+image="$(printf '%s' "$configuration" | jq -er '.services["ops-maintenance"].image')"
+backup_root="$(printf '%s' "$configuration" | jq -er '.services["ops-retention"].volumes[] | select(.target == "/backup-retention") | .source')"
+unset configuration
+case "$image" in '' | *'
+'*) echo "작업 이미지 참조를 확인하지 못했습니다." >&2; exit 1 ;; esac
+image_id="$(docker image inspect --format '{{.Id}}' "$image")"
+case "$backup_root" in /volume1/tuti/backups/full | /volumeUSB*/*) ;; *) echo "허용되지 않은 백업 경로입니다." >&2; exit 1 ;; esac
+for file in .env .env.production docker-compose.prod.yml docker-compose.ops-workers.yml scripts/ops/run-maintenance-job.mjs scripts/prune-production-backups.ts src/server/legal/backupRetention.ts; do
+  [ -f "$file" ] || exit 1
+done
+TUTI_OPS_CONFIG_DIGEST="$(
+  { sha256sum .env .env.production docker-compose.prod.yml docker-compose.ops-workers.yml scripts/ops/run-maintenance-job.mjs scripts/prune-production-backups.ts src/server/legal/backupRetention.ts;
+    printf '%s\n' "$image_id" "$backup_root";
+  } | sha256sum | cut -d ' ' -f 1
+)"
+export TUTI_OPS_CONFIG_DIGEST
+
+case "$mode" in
+  --refresh | --refresh-locked)
+    for directory in "$backup_root" /volume1/tuti/backups/core "$project_dir/.ops-state/privacy-recovery"; do
+      if [ -L "$directory" ]; then echo "작업 볼륨에 심볼릭 링크를 사용할 수 없습니다." >&2; exit 1; fi
+      install -d -o root -g root -m 0700 "$directory"
+    done
+    # No NAS build/pull and no app/DB restart. Changed env/image produces a new config digest.
+    compose up -d --no-deps --no-build --pull never ops-maintenance ops-recovery ops-retention
+    ;;
+  *)
+    if [ ! -f "$state_dir/enabled" ]; then echo "상시 작업 컨테이너를 먼저 설치해주세요." >&2; exit 1; fi
+    ;;
+esac
+
+check_worker() {
+  worker="$1"
+  expected="$image_id|$TUTI_OPS_CONFIG_DIGEST|true"
+  actual="$(docker inspect --format '{{.Image}}|{{index .Config.Labels "today.tuti.ops-config"}}|{{.State.Running}}' "$worker")"
+  if [ "$actual" != "$expected" ]; then
+    echo "작업 컨테이너가 중지됐거나 설정·이미지가 변경됐습니다. sudo /usr/local/sbin/tuti-ops-workers --refresh 로 점검해주세요." >&2
+    exit 1
+  fi
+  docker exec "$worker" sh -c 'test -f scripts/run-maintenance-job.mjs && test -x node_modules/.bin/tsx'
+}
+case "$mode" in
+  --check | --refresh | --refresh-locked)
+    for worker in tuti-ops-maintenance tuti-ops-recovery tuti-ops-retention; do check_worker "$worker"; done
+    if [ "$mode" != --check ]; then install -o root -g root -m 0600 /dev/null "$state_dir/enabled"; fi
+    echo '{"workers":3,"running":true,"configurationVerified":true,"ephemeralContainersCreated":false}'
+    exit 0
+    ;;
+  rights | privacy) container=tuti-ops-maintenance ;;
+  recovery) container=tuti-ops-recovery ;;
+  retention) container=tuti-ops-retention ;;
+esac
+check_worker "$container"
+# The task's exit status must reach systemd/OnFailure; never fall back to compose run.
+# Keep the inherited maintenance lock until the runner has stopped its process group.
+run_id="$(cat /proc/sys/kernel/random/uuid)"
+client_pid=""
+cancel() {
+  trap '' TERM INT HUP
+  if ! docker exec "$container" node -e '
+    const fs=require("node:fs");const id=process.argv[1];
+    if(!/^[a-f0-9-]{36}$/.test(id))process.exit(1);
+    const path=`/tmp/tuti-ops-${id}.json`;
+    try{fs.writeFileSync(`${path}.cancel`,"cancelled",{flag:"wx",mode:0o600});}catch(e){if(e.code!=="EEXIST")throw e;}
+    let job;try{job=JSON.parse(fs.readFileSync(path,"utf8"));}catch(e){if(e.code==="ENOENT")process.exit(0);throw e;}
+    if(job.runId!==id||!Number.isInteger(job.pid)||job.pid<=1)process.exit(1);
+    try{const env=fs.readFileSync(`/proc/${job.pid}/environ`,"utf8").split("\0");
+      if(!env.includes(`TUTI_OPS_RUN_ID=${id}`))process.exit(1);
+      process.kill(job.pid,"SIGTERM");
+    }catch(e){if(e.code==="ENOENT"||e.code==="ESRCH")process.exit(0);throw e;}
+    const deadline=Date.now()+15000;const timer=setInterval(()=>{
+      if(!fs.existsSync(path)){clearInterval(timer);process.exit(0);}
+      if(Date.now()>deadline){clearInterval(timer);process.exit(1);}
+    },100);
+  ' "$run_id"; then
+    echo "작업 취소 확인에 실패했습니다. 새 유지보수 전 작업 컨테이너 점검이 필요합니다." >&2
+  fi
+  if [ -n "$client_pid" ]; then wait "$client_pid" 2>/dev/null || true; fi
+  exit 143
+}
+trap cancel TERM INT HUP
+docker exec --env "TUTI_OPS_RUN_ID=$run_id" "$container" node scripts/run-maintenance-job.mjs "$mode" "$@" &
+client_pid=$!
+result=0
+wait "$client_pid" || result=$?
+trap - TERM INT HUP
+exit "$result"
