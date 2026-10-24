@@ -1,0 +1,83 @@
+#!/bin/sh
+set -eu
+project_dir=/var/services/homes/Tutiadmin/source/Tuti
+cd "$project_dir"
+project_dir="$(pwd -P)"
+case "$#:$*" in 0:) apply=false ;; 1:--apply) apply=true ;; *) echo "사용법: sudo sh scripts/ops/tuti-unused-images-cleanup [--apply]" >&2; exit 1 ;; esac
+if [ "$(id -u)" != 0 ]; then echo "Docker 이미지 조회에는 sudo 권한이 필요합니다." >&2; exit 1; fi
+command -v jq >/dev/null
+exec 9>"$project_dir/.ops-state/maintenance.lock"
+/usr/bin/flock --exclusive 9
+if [ -f .ops-state/restore-privacy/pending.env ] || [ -f .ops-state/privacy-activation/pending ]; then echo "복원·원장 전환 확인 대기 중에는 이미지를 정리하지 않습니다." >&2; exit 1; fi
+state=.ops-state/deploy/releases.env
+if [ ! -f "$state" ] || [ -L "$state" ]; then echo "배포·롤백 상태 확인이 필요합니다." >&2; exit 1; fi
+work_dir="$(mktemp -d /tmp/tuti-image-cleanup.XXXXXX)"
+cleanup() {
+  rm -f "$work_dir/protected" "$work_dir/containers" "$work_dir/images" "$work_dir/plan" "$work_dir/dangling"
+  rmdir "$work_dir"
+}
+trap cleanup EXIT
+trap 'exit 130' INT
+trap 'exit 143' TERM
+umask 077
+touch "$work_dir/protected"
+# Keep every running AND stopped container image, not just production containers.
+docker container ls -aq --no-trunc > "$work_dir/containers"
+while IFS= read -r container; do
+  [ -n "$container" ] || continue
+  docker container inspect --format '{{.Image}}' "$container" >> "$work_dir/protected"
+done < "$work_dir/containers"
+for field in current_image current_ops_image previous_image; do
+  image="$(sed -n "s/^$field=//p" "$state")"
+  if [ -z "$image" ]; then
+    if [ "$field" = current_ops_image ]; then image=tuti:ops; else echo "현재·롤백 이미지 정보가 누락됐습니다." >&2; exit 1; fi
+  fi
+  docker image inspect --format '{{.Id}}' "$image" >> "$work_dir/protected"
+  if ! docker image inspect --format '{{json .RepoTags}}' "$image" | jq -e 'length > 0' >/dev/null; then
+    echo "보존할 배포 이미지에 태그가 없어 정리를 중단합니다." >&2; exit 1
+  fi
+done
+previous_release="$(sed -n 's/^previous_release=//p' "$state")"
+case "$previous_release" in '' | *[!a-f0-9]*) echo "직전 배포 리비전을 확인해주세요." >&2; exit 1 ;; esac
+docker image ls --no-trunc --format '{{json .}}' > "$work_dir/images"
+# Also keep the prior ops image, even though rollback swaps only the web image.
+for image in "tuti:ops-$previous_release" tuti:ops tuti:prod tuti:dev tuti:android-builder; do
+  if jq -se --arg image "$image" 'any(.[]; (.Repository + ":" + .Tag) == $image)' "$work_dir/images" >/dev/null; then
+    docker image inspect --format '{{.Id}}' "$image" >> "$work_dir/protected"
+  fi
+done
+jq -sr --arg release "$previous_release" '
+  .[] | select(.Repository == "ghcr.io/noon-maru/tuti-ops" and (.Tag | startswith($release))) | .ID
+' "$work_dir/images" >> "$work_dir/protected"
+protected_ids="$(jq -R . "$work_dir/protected" | jq -s .)"
+jq -sr --argjson protected "$protected_ids" '
+  $protected as $keep |
+  .[] | select(.ID as $id | ($keep | index($id)) == null) |
+  select((.Repository == "tuti" and (.Tag | test("^(prod|ops)-[a-f0-9]{12,40}$"))) or
+    ((.Repository == "ghcr.io/noon-maru/tuti-web" or .Repository == "ghcr.io/noon-maru/tuti-ops") and (.Tag | test("^[a-f0-9]{40}$")))) |
+  [.ID, (.Repository + ":" + .Tag)] | @tsv
+' "$work_dir/images" > "$work_dir/plan"
+jq -sr --argjson protected "$protected_ids" '
+  $protected as $keep | .[] |
+  select(.Repository == "<none>" and .Tag == "<none>") |
+  select(.ID as $id | ($keep | index($id)) == null) | .ID
+' "$work_dir/images" > "$work_dir/dangling"
+printf '오래된 Tuti 태그 %s개, 미참조 이름 없는 이미지 %s개가 정리 후보입니다.\n' "$(wc -l < "$work_dir/plan" | tr -d ' ')" "$(wc -l < "$work_dir/dangling" | tr -d ' ')"
+if [ "$apply" != true ]; then
+  cut -f 2 "$work_dir/plan"
+  echo "조회 전용입니다. --apply에서만 위 태그와 Docker의 미참조 dangling 이미지를 정리합니다."
+  exit 0
+fi
+# No force: newly created containers or other image references must block deletion.
+failed=0
+while IFS="$(printf '\t')" read -r planned_id reference; do
+  [ -n "$reference" ] || continue
+  current_id="$(docker image inspect --format '{{.Id}}' "$reference")"
+  if [ "$current_id" != "$planned_id" ]; then echo "이미지 참조가 변경되어 중단합니다." >&2; exit 1; fi
+  if ! docker image rm -- "$reference"; then failed=1; fi
+done < "$work_dir/plan"
+# Deliberately NOT -a: tagged rollback images and any container-referenced images remain.
+docker image prune --force
+docker system df
+if [ "$failed" != 0 ]; then echo "일부 태그는 사용 중이어서 남았습니다. 강제로 삭제하지 않았습니다." >&2; exit 1; fi
+echo "미사용 이미지 정리 완료. 컨테이너·볼륨·백업 삭제나 별도 빌드 캐시 정리 명령은 실행하지 않았습니다."

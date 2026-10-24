@@ -19,7 +19,7 @@ esac
 
 install -d -o root -g root -m 0755 /usr/local/sbin
 
-for operation in tuti-prod-deploy tuti-prod-rollback tuti-prod-backup tuti-prod-restore tuti-prod-health tuti-dev-refresh tuti-dev-restart tuti-dev-verify tuti-docker-status tuti-android-debug-build tuti-android-release-setup tuti-android-release-build tuti-tourism-bootstrap tuti-tourism-data-bootstrap tuti-tourism-backup tuti-contest-data-report tuti-seoul-realtime-sync tuti-place-candidate-refresh tuti-crowd-forecast-refresh tuti-crowd-estimate-refresh tuti-tourism-timeseries-refresh tuti-transport-hubs-sync tuti-accommodations-sync tuti-llm-profile-refresh tuti-auth-retention-purge tuti-location-commencement-evidence tuti-location-compliance-purge tuti-location-security-inspection tuti-location-access-change tuti-journal-publication-audit tuti-journal-moderation-purge; do
+for operation in tuti-prod-deploy tuti-prod-rollback tuti-prod-backup tuti-prod-restore tuti-prod-health tuti-dev-refresh tuti-dev-restart tuti-dev-verify tuti-docker-status tuti-android-debug-build tuti-android-release-setup tuti-android-release-build tuti-tourism-bootstrap tuti-tourism-data-bootstrap tuti-tourism-backup tuti-contest-data-report tuti-seoul-realtime-sync tuti-place-candidate-refresh tuti-crowd-forecast-refresh tuti-crowd-estimate-refresh tuti-tourism-timeseries-refresh tuti-transport-hubs-sync tuti-accommodations-sync tuti-llm-profile-refresh tuti-auth-retention-purge tuti-location-commencement-evidence tuti-location-compliance-purge tuti-location-security-inspection tuti-location-access-change tuti-journal-publication-audit tuti-journal-moderation-purge tuti-ops-workers; do
   install -o root -g root -m 0750 \
     "$source_dir/$operation" \
     "/usr/local/sbin/$operation"

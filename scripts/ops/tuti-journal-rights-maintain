@@ -19,5 +19,4 @@ if [ -f "$project_dir/.ops-state/restore-privacy/pending.env" ]; then
   exit 1
 fi
 # Reuse the deployed ops image. Never build on the NAS or use development DB credentials.
-docker compose --env-file .env.production -f docker-compose.prod.yml \
-  run --rm --no-deps -T ops node_modules/.bin/tsx scripts/maintain-journal-rights.ts "$@"
+exec /usr/local/sbin/tuti-ops-workers rights "$@"

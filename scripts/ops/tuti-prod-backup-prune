@@ -16,8 +16,4 @@ install -d -o root -g root -m 0700 "$project_dir/.ops-state"
 exec 9>"$project_dir/.ops-state/maintenance.lock"
 /usr/bin/flock --exclusive --nonblock 9 || exit 0
 if [ -f "$project_dir/.ops-state/restore-privacy/pending.env" ] || [ -f "$project_dir/.ops-state/privacy-activation/pending" ]; then echo "복원·운영 전환 검토 중에는 백업을 파기하지 않습니다." >&2; exit 1; fi
-docker compose --env-file .env.production -f docker-compose.prod.yml run --rm --no-deps -T \
-  -v "$backup_root:/backup-retention" -v /volume1/tuti/backups/core:/core-backup-retention \
-  -v "$project_dir/scripts/prune-production-backups.ts:/app/scripts/prune-production-backups.ts:ro" \
-  -v "$project_dir/src/server/legal/backupRetention.ts:/app/src/server/legal/backupRetention.ts:ro" \
-  ops node_modules/.bin/tsx scripts/prune-production-backups.ts --days=30 "$@"
+exec /usr/local/sbin/tuti-ops-workers retention "$@"
