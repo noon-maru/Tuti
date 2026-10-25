@@ -90,7 +90,7 @@ services:
       - tuti_prod_postgres:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
-      interval: 10s
+      interval: 60s
       timeout: 5s
       retries: 5
       start_period: 10s
