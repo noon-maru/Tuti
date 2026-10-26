@@ -67,7 +67,7 @@ export function requiresServiceTerms(pathname: string, method: string) {
   if (pathname === "/api/recommendations" || pathname === "/api/recommendation-regions" || /^\/api\/places(?:\/|$)/.test(pathname)) return true;
   if (method === "GET" || method === "HEAD") return false;
   if (/^\/api\/journal-entries\/[^/]+\/share-traces(?:\/[^/]+\/finalize)?$/.test(pathname)) return false;
-  return pathname === "/api/recommendation-actions" || pathname === "/api/product-activity" ||
+  return pathname === "/api/recommendation-actions" || pathname === "/api/product-activity" || pathname === "/api/product-interactions" ||
     pathname === "/api/account" || pathname === "/api/push/devices" ||
     /^\/api\/journal-(entries|books)(\/|$)/.test(pathname);
 }

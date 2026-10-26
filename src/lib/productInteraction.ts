@@ -1,6 +1,5 @@
 import { Capacitor } from "@capacitor/core";
-import { apiUrl } from "@/lib/api/apiUrl";
-import { ensureSession } from "@/lib/auth/session";
+import { ensureSession, fetchWithPinnedSession } from "@/lib/auth/session";
 import { createProductInteractionQueue } from "@/lib/analytics/productInteractionQueue";
 import type { ProductInteractionAction, ProductInteractionSurface } from "@/shared/api/productInteraction";
 
@@ -16,11 +15,11 @@ const interactions = createProductInteractionQueue({
   },
   send: async (input, owner) => {
     // Do not use fetchWithSession: its 401 retry may create a different user.
-    const response = await fetch(apiUrl("product-interactions"), {
+    const response = await fetchWithPinnedSession("product-interactions", {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${owner.accessToken}` },
       body: JSON.stringify(input), keepalive: true,
-    });
+    }, owner.userId);
     if (!response.ok) throw new Error("선택 활동을 기록하지 못했어요.");
   },
 });

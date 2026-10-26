@@ -211,7 +211,7 @@ test("최초 약관 화면은 Providers 바깥에서 자식 마운트를 제어�
   assert.match(gate, /if \(!state && !error\) return renderContent\(<LoadingBrand/);
   assert.match(gate, /role=\{reconsent \? "dialog"/);
   const main = readFileSync("src/features/tuti/flows/MainFlow.tsx", "utf8");
-  assert.match(main, /!rightsOnly && <RecommendationsFlow/);
+  assert.match(main, /!rightsOnly && entryRecord && \(\s*<RecommendationsFlow/);
   assert.match(main, /!rightsOnly && hasHydrated && !entryRecord/);
   for (const path of ["/login", "/inquiry", "/journal", "/journal/detail", "/location", "/notifications"]) assert.equal(isInitialTermsRightsPath(path), true);
   for (const path of ["/", "/entry", "/journal/new", "/journal/edit"]) assert.equal(isInitialTermsRightsPath(path), false);

@@ -21,6 +21,9 @@ test("관리자 기록 접근 증거만 2년 기준으로 정리하며 일반 �
   assert.equal(result.legacyAdminJournalAccessLogs, 1);
   const security = queries.find((item) => item.table === "systemLog" && (item.where as { category: string }).category === "security");
   assert.equal((security?.where as { createdAt: { lte: Date } }).createdAt.lte.getTime(), now.getTime() - 90 * 86400000);
+  const interactions = queries.find(item => item.table === "systemLog" && (item.where as { category: string }).category === "product");
+  assert.equal((interactions?.where as { createdAt: { lte: Date } }).createdAt.lte.getTime(), now.getTime() - 180 * 86400000);
+  assert.equal(result.productInteractions, 1);
 });
 test("윤일 경계는 보존기간을 단축하지 않도록 보수적으로 계산한다", () => {
   assert.equal(adminJournalAccessAuditCutoff(new Date("2028-02-29T12:34:56Z")).toISOString(), "2026-02-28T12:34:56.000Z");
