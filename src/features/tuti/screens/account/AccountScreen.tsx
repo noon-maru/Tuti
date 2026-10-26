@@ -36,6 +36,7 @@ export function AccountScreen({
   oauthCompletion,
   providers = [],
   onBack,
+  onRestart,
   onEmailCodeRequest,
   onEmailCodeVerify,
   onDeleteAccount,
@@ -61,6 +62,7 @@ export function AccountScreen({
   };
   providers?: AuthProvider[];
   onBack: () => void;
+  onRestart: () => void;
   onEmailCodeRequest: (email: string) => Promise<EmailCodeRequestResponse>;
   onEmailCodeVerify: (
     email: string,
@@ -298,7 +300,7 @@ export function AccountScreen({
           <DeletionReference>
             처리 번호 {deletionReference.slice(0, 8)}
           </DeletionReference>
-          <DeletionCompleteButton type="button" onClick={onBack}>
+          <DeletionCompleteButton type="button" onClick={onRestart}>
             처음부터 다시 시작하기
           </DeletionCompleteButton>
         </DeletionComplete>

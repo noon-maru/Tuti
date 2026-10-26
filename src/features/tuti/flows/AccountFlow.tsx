@@ -207,6 +207,7 @@ export function AccountFlow() {
         },
       }}
       onBack={() => router.replace("/settings")}
+      onRestart={() => router.replace("/")}
       onEmailCodeRequest={(email) => requestEmailLoginCode(email)}
       onEmailCodeVerify={async (email, code, journalResolution) => {
         const result = await verifyEmailLoginCode({
