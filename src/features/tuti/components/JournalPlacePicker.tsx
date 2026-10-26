@@ -11,8 +11,7 @@ import {
 import { createPortal } from "react-dom";
 import { LoadingIndicator } from "@/features/tuti/components/LoadingIndicator";
 import { TutiPlaceIcon } from "@/features/tuti/components/TutiPlaceIcon";
-import { apiUrl } from "@/lib/api/apiUrl";
-import { clientFetch } from "@/lib/api/clientFetch";
+import { fetchWithSession } from "@/lib/auth/session";
 import type {
   PlaceSearchResponse,
   PlaceSearchResult,
@@ -103,8 +102,8 @@ export function JournalPlacePicker({
       setStatus("loading");
 
       try {
-        const response = await clientFetch(
-          `${apiUrl("places/search")}?q=${encodeURIComponent(query.trim())}`,
+        const response = await fetchWithSession(
+          `places/search?q=${encodeURIComponent(query.trim())}`,
           { signal: controller.signal },
         );
 

@@ -176,7 +176,8 @@ export async function fetchRecommendations(
 }
 
 export async function fetchRecommendationRegions() {
-  const response = await clientFetch(apiUrl("recommendation-regions"));
+  // 위치 동의와 무관하게 일반약관 가드는 세션을 요구한다. 공개 fetch로 바꾸지 않는다.
+  const response = await fetchWithSession("recommendation-regions");
   if (!response.ok) {
     throw new Error(
       await readApiError(response, "추천받을 지역을 불러오지 못했어요."),
@@ -188,8 +189,8 @@ export async function fetchRecommendationRegions() {
 export async function fetchNearbyAccommodations(
   placeId: string,
 ): Promise<NearbyAccommodationsResponse> {
-  const response = await clientFetch(
-    apiUrl(`places/${encodeURIComponent(placeId)}/accommodations`),
+  const response = await fetchWithSession(
+    `places/${encodeURIComponent(placeId)}/accommodations`,
   );
   if (!response.ok) {
     throw new Error("주변 숙박 정보를 불러오지 못했어요.");
@@ -218,8 +219,8 @@ export async function recordRecommendationAction(
 export async function fetchPlaceDetail(
   placeId: string,
 ): Promise<PlaceDetailResponse> {
-  const response = await clientFetch(
-    apiUrl(`places/${encodeURIComponent(placeId)}/detail`),
+  const response = await fetchWithSession(
+    `places/${encodeURIComponent(placeId)}/detail`,
   );
 
   if (!response.ok) {
@@ -284,8 +285,8 @@ export async function fetchDepartureRoute(
 export async function fetchDepartureNearbyPlaces(
   placeId: string,
 ): Promise<DepartureNearbyPlace[]> {
-  const response = await clientFetch(
-    apiUrl(`places/${encodeURIComponent(placeId)}/departure-nearby`),
+  const response = await fetchWithSession(
+    `places/${encodeURIComponent(placeId)}/departure-nearby`,
   );
   if (!response.ok) {
     throw new Error(
