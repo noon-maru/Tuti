@@ -15,10 +15,10 @@ test("일반 이용과 권리 행사 모드의 화면 키를 고정해 삭제 �
   assert.match(screen, /계정과 데이터를 삭제했어요/);
 });
 
-test("삭제 완료의 다시 시작은 루트로 이동하고 일반 뒤로가기는 설정으로 이동한다", () => {
+test("삭제 완료의 다시 시작은 entry로 이동하고 일반 뒤로가기는 설정으로 이동한다", () => {
   const flow = readFileSync("src/features/tuti/flows/AccountFlow.tsx", "utf8");
   const screen = readFileSync("src/features/tuti/screens/account/AccountScreen.tsx", "utf8");
-  assert.match(flow, /onRestart=\{\(\) => router.replace\("\/"\)\}/);
+  assert.match(flow, /onRestart=\{\(\) => router.replace\("\/entry"\)\}/);
   assert.match(flow, /onBack=\{\(\) => router.replace\("\/settings"\)\}/);
   assert.match(screen, /<DeletionCompleteButton type="button" onClick=\{onRestart\}>/);
 });

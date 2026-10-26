@@ -2,10 +2,10 @@
 
 import styled from "@emotion/styled";
 import { ChevronRight } from "lucide-react";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { TutiWordmark } from "@/features/tuti/components/TutiWordmark";
-import { InitialTermsLoadError, isInitialTermsRightsPath, startInitialServiceTerms, type InitialTermsState } from "@/lib/initialServiceTerms";
+import { InitialTermsLoadError, initialTermsEntryRedirect, isInitialTermsRightsPath, startInitialServiceTerms, type InitialTermsState } from "@/lib/initialServiceTerms";
 import { submitInitialConsents } from "@/lib/initialConsent";
 import { animateRequiredConsents } from "@/lib/requiredConsentAnimation";
 import { getSessionSnapshot, subscribeToSession } from "@/lib/auth/session";
@@ -21,6 +21,7 @@ export function InitialServiceTermsGate({ children, rightsChildren, renderConten
   renderContent?: (content: React.ReactNode) => React.ReactNode;
 }) {
   const pathname = usePathname();
+  const router = useRouter();
   const [state, setState] = useState<InitialTermsState | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [retry, setRetry] = useState(0);
@@ -31,6 +32,12 @@ export function InitialServiceTermsGate({ children, rightsChildren, renderConten
   const forceChecking = useRef(false);
   const screenRef = useRef<HTMLElement>(null);
   const submittingConsent = useRef(false);
+  const entryRedirect = initialTermsEntryRedirect(pathname, state);
+  const reconsentDialog = reconsent && pathname !== "/entry";
+
+  useEffect(() => {
+    if (entryRedirect) router.replace(entryRedirect);
+  }, [entryRedirect, router]);
 
   useEffect(() => {
     let active = true;
@@ -97,7 +104,7 @@ export function InitialServiceTermsGate({ children, rightsChildren, renderConten
   }, []);
 
   useEffect(() => {
-    if (!reconsent || state?.allowed) return;
+    if (!reconsentDialog || state?.allowed) return;
     const screen = screenRef.current;
     const previous = document.activeElement;
     screen?.focus();
@@ -116,13 +123,13 @@ export function InitialServiceTermsGate({ children, rightsChildren, renderConten
       window.removeEventListener("keydown", trapFocus);
       if (previous instanceof HTMLElement && previous.isConnected) previous.focus();
     };
-  }, [reconsent, state?.allowed, pathname]);
+  }, [reconsentDialog, state?.allowed, pathname]);
 
   if (state?.allowed) return renderContent(children);
   // 새 기기에서도 기존 계정을 복구하거나 문의할 수 있다. 이 경로에서는 분석/추천을 시작하지 않는다.
   if (pathname === "/login" || pathname === "/inquiry" || (state?.hasStoredSession && isInitialTermsRightsPath(pathname))) return renderContent(rightsChildren);
 
-  if (!state && !error) return renderContent(<LoadingBrand role="status" aria-label="튜티 시작 중"><TutiWordmark priority /></LoadingBrand>);
+  if (entryRedirect || (!state && !error)) return renderContent(<LoadingBrand role="status" aria-label="튜티 시작 중"><TutiWordmark priority /></LoadingBrand>);
 
   const offer = state?.offer ?? null;
   const locationTerms = getLocationTerms();
@@ -130,7 +137,7 @@ export function InitialServiceTermsGate({ children, rightsChildren, renderConten
   const reload = () => { setError(null); setState(null); setRetry(value => value + 1); };
 
   const screen = (
-    <Screen ref={screenRef} tabIndex={reconsent ? -1 : undefined} role={reconsent ? "dialog" : undefined} aria-modal={reconsent || undefined} aria-labelledby="initial-terms-title" data-initial-terms-screen>
+    <Screen ref={screenRef} tabIndex={reconsentDialog ? -1 : undefined} role={reconsentDialog ? "dialog" : undefined} aria-modal={reconsentDialog || undefined} aria-labelledby="initial-terms-title" data-initial-terms-screen>
       {documentOpen && offer && displayedDocument && <>
         <DocumentHeader>
           <Button type="button" $tone="text" $size="compact" onClick={() => setDocumentOpen(null)}>닫기</Button>
@@ -178,7 +185,7 @@ export function InitialServiceTermsGate({ children, rightsChildren, renderConten
       </MainPanel>
     </Screen>
   );
-  return renderContent(reconsent ? <ReconsentBackdrop>{screen}</ReconsentBackdrop> : screen);
+  return renderContent(reconsentDialog ? <ReconsentBackdrop>{screen}</ReconsentBackdrop> : screen);
 }
 
 function ConsentForm({ offer, onRead, onAccepted, onRefresh, onSubmittingChange }: {

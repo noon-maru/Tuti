@@ -209,8 +209,8 @@ test("최초 약관 화면은 Providers 바깥에서 자식 마운트를 제어�
   assert.match(gate, /removeEventListener\(SERVICE_TERMS_REQUIRED_EVENT, requireTerms\)/);
   assert.match(gate, /allowed: false, offer: null/);
   assert.match(gate, /active && !usedCache/);
-  assert.match(gate, /if \(!state && !error\) return renderContent\(<LoadingBrand/);
-  assert.match(gate, /role=\{reconsent \? "dialog"/);
+  assert.match(gate, /if \(entryRedirect \|\| \(!state && !error\)\) return renderContent\(<LoadingBrand/);
+  assert.match(gate, /role=\{reconsentDialog \? "dialog"/);
   const main = readFileSync("src/features/tuti/flows/MainFlow.tsx", "utf8");
   assert.doesNotMatch(main, /<RecommendationsFlow/);
   assert.match(main, /rightsOnly \|\| !hasHydrated \|\| !entryRecord \|\| pathname !== "\/explore"/);
