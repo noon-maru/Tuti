@@ -6,12 +6,14 @@ import { preferencesStorage } from "@/lib/storage/preferencesStorage";
 import { parseServiceTermsDocument, type ServiceTermsOffer } from "@/shared/legal/serviceTerms";
 import { syncLegalPolicyRelease } from "@/shared/legal/policyRelease";
 import { validateFinalizedTerms, validateFinalizedTermsReference } from "@/shared/legal/validateFinalizedTerms";
+import { serviceTermsAcceptanceCache } from "./serviceTermsAcceptanceCache";
 
 export type InitialTermsState = {
   hasStoredSession: boolean;
   offer: ServiceTermsOffer | null;
   allowed: boolean;
   acceptedTerms?: { version: string; documentHash: string };
+  userId?: string;
 };
 
 const INITIAL_TERMS_PENDING_KEY = "tuti-initial-terms-pending";
@@ -22,9 +24,26 @@ export class InitialTermsLoadError extends Error {
   }
 }
 
-// 시행된 약관과 서버 영수증만 확인한다. 구서버·미시행 상태로 통과하는 분기는 없다.
+export async function startInitialServiceTerms(onCached: (state: InitialTermsState) => void, useCache = true) {
+  const session = getSessionSnapshot() ?? await readStoredSession();
+  if (session && useCache) {
+    const cached = await serviceTermsAcceptanceCache.read(session.userId);
+    const activeSession = getSessionSnapshot() ?? await readStoredSession();
+    if (cached && activeSession?.userId === session.userId && activeSession.accessToken === session.accessToken) onCached({ hasStoredSession: true, userId: session.userId, offer: null, allowed: true,
+      acceptedTerms: { version: cached.version, documentHash: cached.documentHash } });
+  }
+  return loadInitialServiceTerms();
+}
+
+// 서버가 확인한 결과만 캐시한다. 시작 시 UX 캐시 참조와 실제 동의 조회는 분리한다.
 export async function loadInitialServiceTerms(): Promise<InitialTermsState> {
   const session = getSessionSnapshot() ?? await readStoredSession();
+  const checkSession = async () => {
+    const activeSession = getSessionSnapshot() ?? await readStoredSession();
+    if (activeSession?.userId !== session?.userId || activeSession?.accessToken !== session?.accessToken) {
+      throw new Error("확인 중 계정이 변경됐어요.");
+    }
+  };
   try {
     const response = await clientFetch(apiUrl("service-terms?scope=entry"), {
       cache: "no-store", signal: AbortSignal.timeout(10_000),
@@ -32,6 +51,7 @@ export async function loadInitialServiceTerms(): Promise<InitialTermsState> {
     });
     if (!response.ok) throw new Error("이용약관을 불러오지 못했어요.");
     const status = await response.json();
+    await checkSession();
     syncLegalPolicyRelease(status?.legalPolicyRelease);
     if (!status || typeof status !== "object" || !("current" in status) || typeof status.required !== "boolean") throw new Error("이용약관 응답을 확인하지 못했어요.");
     if ("enforcementEnabled" in status && typeof status.enforcementEnabled !== "boolean") throw new Error("이용약관 전환 상태를 확인하지 못했어요.");
@@ -46,14 +66,21 @@ export async function loadInitialServiceTerms(): Promise<InitialTermsState> {
       validateFinalizedTermsReference(input);
       if (input.accepted && status.required) throw new Error("동의 상태가 일치하지 않아요.");
       if (input.accepted && session && !("document" in input)) {
-        return { hasStoredSession: true, offer: null, allowed: true,
+        await serviceTermsAcceptanceCache.write({ userId: session.userId, version: input.version, documentHash: input.documentHash });
+        await checkSession();
+        return { hasStoredSession: true, userId: session.userId, offer: null, allowed: true,
           acceptedTerms: { version: input.version, documentHash: input.documentHash } };
       }
       validateFinalizedTerms(status);
       offer = { ...input, document: parseServiceTermsDocument(input.document) };
     } else throw new Error("시행 중인 이용약관을 확인하지 못했어요.");
     if (!offer) throw new Error("시행 중인 이용약관을 확인하지 못했어요.");
-    return { hasStoredSession: Boolean(session), offer, allowed: Boolean(session && offer.accepted),
+    if (session) {
+      if (offer.accepted) await serviceTermsAcceptanceCache.write({ userId: session.userId, version: offer.version, documentHash: offer.documentHash });
+      else await serviceTermsAcceptanceCache.clear(session.userId);
+      await checkSession();
+    }
+    return { hasStoredSession: Boolean(session), userId: session?.userId, offer, allowed: Boolean(session && offer.accepted),
       ...(session && offer.accepted ? { acceptedTerms: { version: offer.version, documentHash: offer.documentHash } } : {}) };
   } catch {
     // 실패해도 저장된 계정의 권리 행사 경로는 열어둘 수 있어야 한다.

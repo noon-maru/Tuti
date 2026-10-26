@@ -5,7 +5,9 @@ import { ChevronRight } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { TutiWordmark } from "@/features/tuti/components/TutiWordmark";
-import { acceptInitialServiceTerms, InitialTermsLoadError, isInitialTermsRightsPath, loadInitialServiceTerms, type InitialTermsState } from "@/lib/initialServiceTerms";
+import { acceptInitialServiceTerms, InitialTermsLoadError, isInitialTermsRightsPath, startInitialServiceTerms, type InitialTermsState } from "@/lib/initialServiceTerms";
+import { getSessionSnapshot, subscribeToSession } from "@/lib/auth/session";
+import { serviceTermsAcceptanceCache } from "@/lib/serviceTermsAcceptanceCache";
 import { Button, baseControlStyles } from "@/shared/ui/buttons";
 import { SERVICE_TERMS_REQUIRED_EVENT, ServiceTermsSessionExpiredError } from "@/lib/serviceTerms";
 import type { ServiceTermsOffer } from "@/shared/legal/serviceTerms";
@@ -20,42 +22,110 @@ export function InitialServiceTermsGate({ children, rightsChildren, renderConten
   const [error, setError] = useState<string | null>(null);
   const [retry, setRetry] = useState(0);
   const [documentOpen, setDocumentOpen] = useState(false);
+  const [reconsent, setReconsent] = useState(false);
+  const admitted = useRef(false);
+  const activeUserId = useRef<string | null>(null);
+  const forceChecking = useRef(false);
+  const screenRef = useRef<HTMLElement>(null);
+  const submittingConsent = useRef(false);
 
   useEffect(() => {
     let active = true;
-    void loadInitialServiceTerms().then(next => {
-      if (active) { setState(next); setError(null); }
-    }).catch(failure => {
+    let usedCache = false;
+    void startInitialServiceTerms(cached => {
+      if (!active) return;
+      usedCache = true;
+      admitted.current = true;
+      activeUserId.current = cached.userId ?? null;
+      setState(cached);
+      setError(null);
+    }, !forceChecking.current).then(next => {
       if (active) {
+        activeUserId.current = next.userId ?? null;
+        setReconsent(admitted.current && !next.allowed && Boolean(next.offer));
+        if (next.allowed) admitted.current = true;
+        setState(next); setError(null);
+      }
+    }).catch(failure => {
+      // 통신 실패만으로 캐시 진입을 취소하지 않는다. 실제 API는 계속 서버에서 검증한다.
+      if (active && !usedCache) {
         if (failure instanceof InitialTermsLoadError) setState({ hasStoredSession: failure.hasStoredSession, offer: null, allowed: false });
         setError("이용약관을 불러오지 못했어요. 연결을 확인하고 다시 시도해주세요.");
       }
-    });
+    }).finally(() => { if (active) forceChecking.current = false; });
     return () => { active = false; };
   }, [retry]);
 
   useEffect(() => {
-    // 사용 중 실제 미동의 응답을 받아도 별도 개정 모달을 겹치지 않는다.
-    // 진입 화면에서 현재 원문과 명시적 동의 절차를 다시 제공한다.
     const requireTerms = () => {
+      if (forceChecking.current) return;
+      forceChecking.current = true;
+      const userId = getSessionSnapshot()?.userId;
+      if (userId) void serviceTermsAcceptanceCache.clear(userId);
       setDocumentOpen(false);
       setError(null);
       setState(previous => previous ? { ...previous, allowed: false, offer: null } : null);
       setRetry(value => value + 1);
     };
     window.addEventListener(SERVICE_TERMS_REQUIRED_EVENT, requireTerms);
-    return () => window.removeEventListener(SERVICE_TERMS_REQUIRED_EVENT, requireTerms);
+    const unsubscribe = subscribeToSession(() => {
+      const userId = getSessionSnapshot()?.userId ?? null;
+      if (userId === activeUserId.current) return;
+      // 최초 명시적 동의 버튼이 만든 계정은 같은 양식에서 저장을 끝낸다.
+      if (!activeUserId.current && userId && submittingConsent.current && !admitted.current) {
+        activeUserId.current = userId;
+        return;
+      }
+      activeUserId.current = userId;
+      admitted.current = false;
+      forceChecking.current = false;
+      setState(null); setError(null); setReconsent(false); setDocumentOpen(false);
+      setRetry(value => value + 1);
+    });
+    const visible = () => {
+      if (document.visibilityState === "visible" && !forceChecking.current) setRetry(value => value + 1);
+    };
+    document.addEventListener("visibilitychange", visible);
+    return () => {
+      window.removeEventListener(SERVICE_TERMS_REQUIRED_EVENT, requireTerms);
+      document.removeEventListener("visibilitychange", visible);
+      unsubscribe();
+    };
   }, []);
+
+  useEffect(() => {
+    if (!reconsent || state?.allowed) return;
+    const screen = screenRef.current;
+    const previous = document.activeElement;
+    screen?.focus();
+    const trapFocus = (event: KeyboardEvent) => {
+      if (event.key !== "Tab" || !screen) return;
+      const controls = Array.from(screen.querySelectorAll<HTMLElement>("button:not(:disabled), input:not(:disabled), a[href], summary, [tabindex='0']"))
+        .filter(element => element.getClientRects().length > 0);
+      const first = controls[0], last = controls.at(-1);
+      if (!first) { event.preventDefault(); screen.focus(); }
+      else if (!screen.contains(document.activeElement)) { event.preventDefault(); (event.shiftKey ? last : first)?.focus(); }
+      else if (event.shiftKey && (document.activeElement === first || document.activeElement === screen)) { event.preventDefault(); last?.focus(); }
+      else if (!event.shiftKey && (document.activeElement === last || document.activeElement === screen)) { event.preventDefault(); first.focus(); }
+    };
+    window.addEventListener("keydown", trapFocus);
+    return () => {
+      window.removeEventListener("keydown", trapFocus);
+      if (previous instanceof HTMLElement && previous.isConnected) previous.focus();
+    };
+  }, [reconsent, state?.allowed, pathname]);
 
   if (state?.allowed) return renderContent(children);
   // 새 기기에서도 기존 계정을 복구하거나 문의할 수 있다. 이 경로에서는 분석/추천을 시작하지 않는다.
   if (pathname === "/login" || pathname === "/inquiry" || (state?.hasStoredSession && isInitialTermsRightsPath(pathname))) return renderContent(rightsChildren);
 
+  if (!state && !error) return renderContent(<LoadingBrand role="status" aria-label="튜티 시작 중"><TutiWordmark priority /></LoadingBrand>);
+
   const offer = state?.offer ?? null;
   const reload = () => { setError(null); setState(null); setRetry(value => value + 1); };
 
-  return renderContent(
-    <Screen aria-labelledby="initial-terms-title" data-initial-terms-screen>
+  const screen = (
+    <Screen ref={screenRef} tabIndex={reconsent ? -1 : undefined} role={reconsent ? "dialog" : undefined} aria-modal={reconsent || undefined} aria-labelledby="initial-terms-title" data-initial-terms-screen>
       {documentOpen && offer ? <>
         <DocumentHeader>
           <Button type="button" $tone="text" $size="compact" onClick={() => setDocumentOpen(false)}>닫기</Button>
@@ -76,13 +146,14 @@ export function InitialServiceTermsGate({ children, rightsChildren, renderConten
         <Heading>
           <TutiWordmark priority />
           <div>
-            <h1 id="initial-terms-title">우리의 첫 페이지를<br />열기 전에</h1>
-            <p>튜티와 함께하기 위한<br />작은 약속을 확인해주세요.</p>
+            <h1 id="initial-terms-title">{reconsent ? <>이용약관을<br />다시 확인해주세요</> : <>우리의 첫 페이지를<br />열기 전에</>}</h1>
+            <p>{reconsent ? <>현재 적용 중인 약관에<br />동의가 필요해요.</> : <>튜티와 함께하기 위한<br />작은 약속을 확인해주세요.</>}</p>
           </div>
         </Heading>
         <Content data-scroll-region>
           {offer ? <ConsentForm key={`${offer.version}:${offer.documentHash}`} offer={offer}
-            onRead={() => setDocumentOpen(true)} onAccepted={setState} onRefresh={reload} /> : <Unavailable role="status" aria-live="polite">
+            onRead={() => setDocumentOpen(true)} onAccepted={next => { admitted.current = next.allowed; setReconsent(false); setState(next); }} onRefresh={reload}
+            onSubmittingChange={value => { submittingConsent.current = value; }} /> : <Unavailable role="status" aria-live="polite">
             <p>{error ?? (state ? "서비스 이용약관을 준비하고 있어요." : "이용약관을 확인하고 있어요.")}</p>
             {(error || state) && <>
               <small>동의할 약관이 확인되면 시작할 수 있어요.<br />아직 계정을 만들거나 활동을 기록하지 않아요.</small>
@@ -102,10 +173,12 @@ export function InitialServiceTermsGate({ children, rightsChildren, renderConten
       </>}
     </Screen>
   );
+  return renderContent(reconsent ? <ReconsentBackdrop>{screen}</ReconsentBackdrop> : screen);
 }
 
-function ConsentForm({ offer, onRead, onAccepted, onRefresh }: {
+function ConsentForm({ offer, onRead, onAccepted, onRefresh, onSubmittingChange }: {
   offer: ServiceTermsOffer; onRead: () => void; onAccepted: (state: InitialTermsState) => void; onRefresh: () => void;
+  onSubmittingChange: (value: boolean) => void;
 }) {
   const [ageConfirmed, setAgeConfirmed] = useState(false);
   const [termsConfirmed, setTermsConfirmed] = useState(false);
@@ -119,6 +192,7 @@ function ConsentForm({ offer, onRead, onAccepted, onRefresh }: {
     event.preventDefault();
     if (submitting.current || !ageConfirmed || !termsConfirmed) return;
     submitting.current = true;
+    onSubmittingChange(true);
     setSaving(true);
     setError(null);
     try {
@@ -134,6 +208,7 @@ function ConsentForm({ offer, onRead, onAccepted, onRefresh }: {
       }
     } finally {
       submitting.current = false;
+      onSubmittingChange(false);
       if (active.current) setSaving(false);
     }
   };
@@ -154,6 +229,17 @@ const Screen = styled.section`
   display: flex; flex-direction: column; width: 100%; height: 100%; min-height: 0;
   padding: max(28px, env(safe-area-inset-top)) 24px max(20px, env(safe-area-inset-bottom));
   box-sizing: border-box; background: var(--color-surface); color: var(--color-text);
+`;
+const LoadingBrand = styled.div`
+  width: 100%; height: 100%; display: grid; place-items: center; background: var(--color-surface);
+  img { width: 76px; height: auto; }
+`;
+const ReconsentBackdrop = styled.div`
+  position: absolute; inset: 0; z-index: 330; display: grid; place-items: center;
+  padding: max(16px, env(safe-area-inset-top)) 16px max(16px, env(safe-area-inset-bottom));
+  background: rgb(var(--color-black-rgb) / 0.32);
+  > section { width: min(100%, 420px); height: 100%; max-height: 760px; border-radius: 24px; box-shadow: 0 20px 56px rgb(var(--color-black-rgb) / 0.18); }
+  @media (max-height: 600px) { padding: 8px; > section { border-radius: 16px; } }
 `;
 const Heading = styled.header`
   flex-shrink: 0;

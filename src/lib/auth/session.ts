@@ -4,6 +4,7 @@ import { preferencesStorage } from "@/lib/storage/preferencesStorage";
 import { removeJournalBookDraft } from "@/lib/journalBookDraft";
 import { Capacitor } from "@capacitor/core";
 import { createSessionReset } from "./sessionMigration";
+import { serviceTermsAcceptanceCache } from "@/lib/serviceTermsAcceptanceCache";
 import type {
   AccountDeletionResponse,
   AccountIdentityUnlinkResponse,
@@ -394,14 +395,18 @@ async function loadOrCreateSession() {
 }
 
 async function clearStoredSession(expected?: TutiSession) {
+  const previousUserId = sessionSnapshot?.userId;
   sessionPromise = undefined;
   await Promise.all([
     preferencesStorage.removeItem(SESSION_STORAGE_KEY),
+    ...(previousUserId ? [serviceTermsAcceptanceCache.clear(previousUserId)] : []),
   ]);
   if (!expected || (sessionSnapshot?.userId === expected.userId && sessionSnapshot.accessToken === expected.accessToken)) updateSessionSnapshot(null);
 }
 
 async function storeSession(session: TutiSession) {
+  const previousUserId = sessionSnapshot?.userId;
+  if (previousUserId && previousUserId !== session.userId) await serviceTermsAcceptanceCache.clear(previousUserId);
   sessionPromise = Promise.resolve(session);
   await preferencesStorage.setItem(
     SESSION_STORAGE_KEY,

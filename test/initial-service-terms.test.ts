@@ -2,8 +2,9 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { readFileSync } from "node:fs";
 import { preferencesStorage } from "@/lib/storage/preferencesStorage";
-import { getSessionSnapshot, readStoredSession } from "@/lib/auth/session";
-import { acceptInitialServiceTerms, isInitialTermsRightsPath, loadInitialServiceTerms } from "@/lib/initialServiceTerms";
+import { discardInvalidSession, getSessionSnapshot, readStoredSession } from "@/lib/auth/session";
+import { acceptInitialServiceTerms, isInitialTermsRightsPath, loadInitialServiceTerms, startInitialServiceTerms } from "@/lib/initialServiceTerms";
+import { serviceTermsAcceptanceCache, type CachedTermsAcceptance } from "@/lib/serviceTermsAcceptanceCache";
 import type { ServiceTermsOffer } from "@/shared/legal/serviceTerms";
 
 const offer: ServiceTermsOffer = {
@@ -15,6 +16,11 @@ const offer: ServiceTermsOffer = {
 
 test("최초 약관 진입은 시행 원문과 실제 동의만 허용하며 구서버 응답으로 통과하지 않는다", async t => {
   const storage = new Map<string, string>();
+  const cachedReceipts = new Map<string, CachedTermsAcceptance>();
+  t.mock.method(serviceTermsAcceptanceCache, "read", async (id: string) => cachedReceipts.get(id) ?? null);
+  t.mock.method(serviceTermsAcceptanceCache, "write", async (receipt: CachedTermsAcceptance) => { cachedReceipts.set(receipt.userId, receipt); });
+  t.mock.method(serviceTermsAcceptanceCache, "clear", async (id: string) => { cachedReceipts.delete(id); });
+  let lookupWait: Promise<void> | null = null;
   const requests: Array<{ path: string; method: string; authorization: string | null }> = [];
   let current: ServiceTermsOffer | null = offer;
   let accepted = false;
@@ -44,6 +50,7 @@ test("최초 약관 진입은 시행 원문과 실제 동의만 허용하며 구
       if (!discardReceipt) accepted = true;
       return Response.json({ receipt: { termsVersion: offer.version } });
     }
+    if (lookupWait) await lookupWait;
     if (failLookup) return Response.json({}, { status: 503 });
     const currentOffer = current ? { ...current, accepted } : null;
     if (compactReceipt && currentOffer?.accepted) {
@@ -62,6 +69,7 @@ test("최초 약관 진입은 시행 원문과 실제 동의만 허용하며 구
     assert.equal(state.offer?.version, offer.version);
     assert.equal(getSessionSnapshot(), null);
     assert.equal(storage.size, 0);
+    assert.equal(cachedReceipts.size, 0);
     assert.equal(requests.length, 1);
     assert.equal(requests[0].method, "GET");
     assert.equal(requests[0].authorization, null);
@@ -106,6 +114,7 @@ test("최초 약관 진입은 시행 원문과 실제 동의만 허용하며 구
     await assert.rejects(loadInitialServiceTerms);
     current = offer;
     failSubmission = false;
+    assert.equal(cachedReceipts.size, 0);
   });
   await t.test("전환 비활성으로 진입이 허용돼도 실제 영수증 없이는 동의 저장 성공으로 처리하지 않는다", async () => {
     enforcementEnabled = false;
@@ -134,10 +143,51 @@ test("최초 약관 진입은 시행 원문과 실제 동의만 허용하며 구
     assert.equal((await loadInitialServiceTerms()).offer?.accepted, true);
     compactReceipt = true;
   });
+  await t.test("저장된 동의는 네트워크 대기 전에 전달하고 통신 실패만으로 지우지 않는다", { timeout: 3000 }, async () => {
+    let release!: () => void;
+    lookupWait = new Promise<void>(resolve => { release = resolve; });
+    let cachedReady!: (state: Awaited<ReturnType<typeof loadInitialServiceTerms>>) => void;
+    const ready = new Promise<Awaited<ReturnType<typeof loadInitialServiceTerms>>>(resolve => { cachedReady = resolve; });
+    const pending = startInitialServiceTerms(cachedReady);
+    assert.equal((await ready).allowed, true);
+    release();
+    assert.equal((await pending).allowed, true);
+    lookupWait = null;
+    failLookup = true;
+    let admittedFromCache = false;
+    await assert.rejects(startInitialServiceTerms(state => { admittedFromCache = state.allowed; }));
+    assert.equal(admittedFromCache, true);
+    assert.equal(cachedReceipts.has("first-user"), true);
+    failLookup = false;
+  });
+  await t.test("서버가 미동의를 확인하면 캐시를 지우고 원문을 제공하며 강제 재확인은 캐시를 건너뛴다", async () => {
+    accepted = false;
+    let sawCache = false;
+    const state = await startInitialServiceTerms(() => { sawCache = true; });
+    assert.equal(sawCache, true);
+    assert.equal(state.allowed, false);
+    assert.ok(state.offer);
+    assert.equal(cachedReceipts.has("first-user"), false);
+    accepted = true;
+    await loadInitialServiceTerms();
+    sawCache = false;
+    await startInitialServiceTerms(() => { sawCache = true; }, false);
+    assert.equal(sawCache, false);
+  });
   await t.test("기존 계정의 조회 장애는 권리 행사에 필요한 저장 계정 여부만 유지한다", async () => {
     failLookup = true;
     await assert.rejects(loadInitialServiceTerms(), error => error instanceof Error && "hasStoredSession" in error && error.hasStoredSession === true);
     failLookup = false;
+  });
+  await t.test("조회 도중 세션을 지우면 이전 계정의 늦은 응답으로 진입을 허용하지 않는다", async () => {
+    let release!: () => void;
+    lookupWait = new Promise<void>(resolve => { release = resolve; });
+    const pending = loadInitialServiceTerms();
+    await discardInvalidSession(getSessionSnapshot()!);
+    release();
+    await assert.rejects(pending);
+    assert.equal(cachedReceipts.has("first-user"), false);
+    lookupWait = null;
   });
 });
 
@@ -157,6 +207,9 @@ test("최초 약관 화면은 Providers 바깥에서 자식 마운트를 제어�
   assert.match(gate, /addEventListener\(SERVICE_TERMS_REQUIRED_EVENT, requireTerms\)/);
   assert.match(gate, /removeEventListener\(SERVICE_TERMS_REQUIRED_EVENT, requireTerms\)/);
   assert.match(gate, /allowed: false, offer: null/);
+  assert.match(gate, /active && !usedCache/);
+  assert.match(gate, /if \(!state && !error\) return renderContent\(<LoadingBrand/);
+  assert.match(gate, /role=\{reconsent \? "dialog"/);
   const main = readFileSync("src/features/tuti/flows/MainFlow.tsx", "utf8");
   assert.match(main, /!rightsOnly && <RecommendationsFlow/);
   assert.match(main, /!rightsOnly && hasHydrated && !entryRecord/);

@@ -69,9 +69,9 @@ test("옛 호환 분기는 제거하고 버전·약관 병렬 확인을 모두 �
   assert.match(shell, /<InitialServiceTermsGate renderContent=\{content => <NativeAppUpdateNotice>\{content\}<\/NativeAppUpdateNotice>\}/);
   assert.ok(shell.indexOf("<NativeAppUpdateNotice>") < shell.indexOf("<Providers"));
   const gate = readFileSync("src/features/legal/InitialServiceTermsGate.tsx", "utf8");
-  assert.match(gate, /void loadInitialServiceTerms\(\)/);
+  assert.match(gate, /void startInitialServiceTerms\(/);
   assert.match(gate, /state\?\.allowed\) return renderContent\(children\)/);
-  assert.match(gate, /return renderContent\(\s*<Screen/);
+  assert.match(gate, /return renderContent\(reconsent \? <ReconsentBackdrop>/);
   const notice = readFileSync("src/features/tuti/components/NativeAppUpdateNotice.tsx", "utf8");
   assert.match(notice, /incompatible \|\| checkFailed \|\| !checked/);
   assert.match(notice, /!policy.required && children/);
