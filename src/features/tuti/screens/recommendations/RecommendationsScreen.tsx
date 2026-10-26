@@ -976,7 +976,7 @@ export function RecommendationsScreen({
                 : displayedHelp === "detail"
                   ? "위로 올려 상세한 정보를 확인해보세요"
                   : displayedHelp === "journal"
-                    ? "아래로 내려 지나간 공간을 기록해보세요"
+                    ? "아래로 내려 오늘의 마디를 남겨보세요"
                     : "카드를 눌러 가볍게 살펴보세요"}
             </HelpMessage>
             <HelpSkipButton

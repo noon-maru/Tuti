@@ -91,7 +91,7 @@ test("하루마디 서버는 빈 틀·소유권·낙관적 잠금·민감정보�
   assert.equal(harumadiPdf.revision, 1);
   await assert.rejects(readHarumadi("other", harumadiPdf.id), /찾지 못/);
   await assert.rejects(updateHarumadi("other", harumadiPdf.id, { ...settings, revision: 1, entryIds: ["mine"] }), /찾지 못/);
-  await assert.rejects(updateHarumadi("owner", harumadiPdf.id, { ...settings, revision: 1, entryIds: ["foreign"] }), /선택한 기록/);
+  await assert.rejects(updateHarumadi("owner", harumadiPdf.id, { ...settings, revision: 1, entryIds: ["foreign"] }), /선택한 마디/);
   assert.equal((await readHarumadi("owner", harumadiPdf.id)).revision, 1);
   const filled = await updateHarumadi("owner", harumadiPdf.id, { ...settings, revision: 1, entryIds: ["mine"] });
   assert.deepEqual(filled.entryIds, ["mine"]);

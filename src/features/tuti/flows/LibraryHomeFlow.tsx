@@ -46,7 +46,7 @@ function LibraryHome({ ownerId }: { ownerId: string }) {
     <Header><TutiWordmark priority /><IconButton type="button" onClick={() => router.push("/settings")} aria-label="설정"><Settings2 size={20} /></IconButton></Header>
     <Heading><h1 id="library-title">나의 작은 책장</h1><p>한 권을 준비하고, 하루씩 채워보세요.</p></Heading>
     <Toolbar><span>하루마디 <strong>{harumadiPdfs.length}{query.hasNextPage ? "+" : ""}</strong>권</span>
-      <TextAction type="button" onClick={() => router.push("/journal")}>모아둔 기록<ChevronRight size={14} /></TextAction></Toolbar>
+      <TextAction type="button" onClick={() => router.push("/journal")}>모아둔 마디<ChevronRight size={14} /></TextAction></Toolbar>
     {hasDraft && <DraftButton type="button" onClick={() => router.push("/harumadi/pdf/create")}><Download size={17} /><span>이전 PDF 작업 이어가기</span><ArrowUpRight size={16} /></DraftButton>}
     <ShelfScroll data-scroll-region aria-label="내 하루마디 가판대">
       {query.isPending ? <Status role="status"><LoadingIndicator /><p>책장에 하루마디를 놓고 있어요.</p></Status>
@@ -56,14 +56,14 @@ function LibraryHome({ ownerId }: { ownerId: string }) {
             <EmptyHarumadi aria-hidden="true"><span>Tuti</span><BookOpen size={30} strokeWidth={1} /><i>기억하고 싶은 하루</i></EmptyHarumadi>
             <ShelfEdge aria-hidden="true" />
             <h2>앞으로의 하루를 담을 한 권</h2>
-            <p>표지와 속지를 먼저 준비해요.<br />기록은 나중에 한 페이지씩 채워도 좋아요.</p>
+            <p>표지와 속지를 먼저 준비해요.<br />마디는 나중에 한 페이지씩 채워도 좋아요.</p>
             <PrimaryButton onClick={openEditor}>새 하루마디 만들기<ArrowUpRight size={16} /></PrimaryButton>
             <TextAction onClick={() => router.push("/entry?mode=harumadi&page=1")}>하루마디 예시 펼쳐보기<ChevronRight size={14} /></TextAction>
           </EmptyShelf> : <>
             {Array.from({ length: Math.ceil(harumadiPdfs.length / 2) }, (_, row) => <ShelfRow key={harumadiPdfs[row * 2].id}>
-              <HarumadiGrid>{harumadiPdfs.slice(row * 2, row * 2 + 2).map(harumadiPdf => <HarumadiButton type="button" key={harumadiPdf.id} aria-label={`${harumadiPdf.title}, 기록 ${harumadiPdf.entryIds.length}개 열기`} onClick={() => router.push(harumadiPath(harumadiPdf.id))}>
+              <HarumadiGrid>{harumadiPdfs.slice(row * 2, row * 2 + 2).map(harumadiPdf => <HarumadiButton type="button" key={harumadiPdf.id} aria-label={`${harumadiPdf.title}, 마디 ${harumadiPdf.entryIds.length}개 열기`} onClick={() => router.push(harumadiPath(harumadiPdf.id))}>
                 <HarumadiCover harumadiPdf={{ ...harumadiPdf, entryCount: harumadiPdf.entryIds.length, pageCount: 0, hasCover: harumadiPdf.coverStyle.endsWith("-image") && harumadiPdf.entryIds.length > 0 }} ownerId={ownerId} kind="harumadi" />
-                <HarumadiLabel><strong>{harumadiPdf.title}</strong><small>{harumadiPdf.entryIds.length ? `기록 ${harumadiPdf.entryIds.length}개` : "첫 페이지를 기다려요"} · {harumadiPdf.innerStyle === "photo" ? "사진 속지" : "글 속지"}</small></HarumadiLabel>
+                <HarumadiLabel><strong>{harumadiPdf.title}</strong><small>{harumadiPdf.entryIds.length ? `마디 ${harumadiPdf.entryIds.length}개` : "첫 마디를 기다려요"} · {harumadiPdf.innerStyle === "photo" ? "사진 속지" : "글 속지"}</small></HarumadiLabel>
               </HarumadiButton>)}</HarumadiGrid><ShelfEdge aria-hidden="true" />
             </ShelfRow>)}
             {query.isError && <InlineError role="alert">다음 하루마디를 불러오지 못했어요.</InlineError>}
@@ -73,7 +73,7 @@ function LibraryHome({ ownerId }: { ownerId: string }) {
           <ArchiveButton type="button" onClick={() => router.push("/harumadi/pdfs")}><Download size={15} />저장한 PDF 보기<ChevronRight size={14} /></ArchiveButton>
         </>}
     </ShelfScroll>
-    <Footer><PrimaryButton type="button" onClick={() => router.push("/journal/new?from=library")}><PenLine size={17} />기록 남기기</PrimaryButton>
+    <Footer><PrimaryButton type="button" onClick={() => router.push("/journal/new?from=library")}><PenLine size={17} />마디 남기기</PrimaryButton>
       <ExploreButton type="button" onClick={() => router.push("/explore")}><Compass size={19} /><span>둘러보기</span></ExploreButton></Footer>
   </Frame>;
 }

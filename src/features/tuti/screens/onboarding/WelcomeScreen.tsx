@@ -47,7 +47,7 @@ export function WelcomeScreen({ onRecord, onExplore, guideStep, onGuideOpen, onG
     </Header>
     <Copy>
       <h1 id="welcome-heading" ref={heading} tabIndex={-1}>{guide ? guide.title : "함께한 순간들이,\n한 권의 추억이 되도록."}</h1>
-      <p>{guide ? guide.description : "사진과 짧은 이야기로,\n함께한 하루를 간직해요."}</p>
+      <p>{guide ? guide.description : "사진 한 장, 짧은 이야기로\n우리의 첫 마디를 남겨보세요."}</p>
     </Copy>
     <Visual>
       {guideStep === 1 ? <StoryExample aria-label="사진과 짧은 이야기 예시">
@@ -70,11 +70,11 @@ export function WelcomeScreen({ onRecord, onExplore, guideStep, onGuideOpen, onG
     </Visual>
     <Actions>
       {guide ? <>
-        <NextButton type="button" onClick={guideStep === 2 ? onRecord : onGuideNext}>{guideStep === 2 ? "우리의 첫 페이지 만들기" : "다음"}</NextButton>
-        <SubButton type="button" onClick={guideStep === 2 ? onExplore : onRecord}>{guideStep === 2 ? "가까운 공간 둘러보기" : "바로 첫 페이지 만들기"}</SubButton>
+        <NextButton type="button" onClick={guideStep === 2 ? onRecord : onGuideNext}>{guideStep === 2 ? "첫 마디 남기기" : "다음"}</NextButton>
+        <SubButton type="button" onClick={guideStep === 2 ? onExplore : onRecord}>{guideStep === 2 ? "가까운 공간 둘러보기" : "바로 첫 마디 남기기"}</SubButton>
       </> : <>
-        <NextButton type="button" onClick={onRecord}>우리의 첫 페이지 만들기</NextButton>
-        <SubButton type="button" onClick={onGuideOpen}>기록은 어떻게 남기나요?</SubButton>
+        <NextButton type="button" onClick={onRecord}>첫 마디 남기기</NextButton>
+        <SubButton type="button" onClick={onGuideOpen}>마디는 어떻게 남기나요?</SubButton>
         <ExploreButton type="button" onClick={onExplore}>가까운 공간 둘러보기</ExploreButton>
       </>}
     </Actions>

@@ -120,9 +120,9 @@ export async function updateJournalEntry(
   });
 
   if (!currentEntry) return null;
-  if (currentEntry.sensitiveWithdrawnAt) throw new SensitiveJournalPolicyError("동의 철회로 정리 중인 기록은 수정할 수 없어요.");
+  if (currentEntry.sensitiveWithdrawnAt) throw new SensitiveJournalPolicyError("동의 철회로 정리 중인 마디는 수정할 수 없어요.");
   if (currentEntry.sensitiveContent === true && input.sensitiveContent !== true) {
-    throw new SensitiveJournalPolicyError("민감정보 기록을 일반 기록으로 바꾸려면 먼저 동의를 철회해 삭제한 뒤 새 기록으로 남겨주세요.");
+    throw new SensitiveJournalPolicyError("민감정보가 담긴 마디를 일반 마디로 바꾸려면 먼저 동의를 철회해 삭제한 뒤 새 마디로 남겨주세요.");
   }
 
   const selectedPlace = await resolveJournalPlace(input);
@@ -213,7 +213,7 @@ export async function deleteJournalEntry(
   if (entry.sensitiveContent === true || entry.sensitiveWithdrawnAt) {
     const { withdrawSensitiveJournal } = await import("@/server/journal/sensitiveWithdrawal");
     const result = await withdrawSensitiveJournal(ownerId, entryId);
-    if (result.pending) throw new SensitiveJournalPolicyError("동의 철회는 접수했어요. 기록과 하루마디 정리를 재시도 중이에요.");
+    if (result.pending) throw new SensitiveJournalPolicyError("동의 철회는 접수했어요. 마디와 하루마디 정리를 재시도 중이에요.");
     return result.found;
   }
   const replayReceipt = await preparePrivacyReplayReceipt("journal_deleted", ownerId, new Date(), entryId);
@@ -285,12 +285,12 @@ export async function setJournalEntryPublication(
 
   if (published && (currentEntry.sensitiveWithdrawnAt || currentEntry.sensitiveContent === true ||
       (sensitiveJournalPolicyEnabled() && currentEntry.sensitiveContent !== false))) {
-    throw new JournalPublicationStateError("민감정보가 포함된 기록은 공개할 수 없어요. 기록 수정에서 사진과 글을 확인해주세요.");
+    throw new JournalPublicationStateError("민감정보가 포함된 마디는 공개할 수 없어요. 마디 수정에서 사진과 글을 확인해주세요.");
   }
 
   if (published && !isCurrentJournalPublicationPolicy(consentVersion)) {
     throw new JournalPublicationStateError(
-      "최신 기록 공개 안내를 확인해주세요.",
+      "최신 마디 공개 안내를 확인해주세요.",
     );
   }
 
@@ -312,13 +312,13 @@ export async function setJournalEntryPublication(
     !canOwnerPublishJournalEntry(currentEntry.publicationStatus)
   ) {
     throw new JournalPublicationStateError(
-      "관리자 조치로 숨겨진 기록은 다시 공개할 수 없어요.",
+      "관리자 조치로 숨겨진 마디는 다시 공개할 수 없어요.",
     );
   }
 
   if (!published && currentEntry.publicationStatus === "hidden") {
     throw new JournalPublicationStateError(
-      "관리자가 숨긴 기록은 작성자가 공개 상태를 바꿀 수 없어요. 1:1 문의로 재검토를 요청해주세요.",
+      "관리자가 숨긴 마디는 작성자가 공개 상태를 바꿀 수 없어요. 1:1 문의로 재검토를 요청해주세요.",
     );
   }
 
@@ -330,7 +330,7 @@ export async function setJournalEntryPublication(
 
     if (owner?.journalPublicationRestrictedAt) {
       throw new JournalPublicationStateError(
-        "운영 정책에 따라 현재는 기록을 인터넷에 공개할 수 없어요.",
+        "운영 정책에 따라 현재는 마디를 인터넷에 공개할 수 없어요.",
       );
     }
   }
@@ -377,8 +377,8 @@ export async function setJournalEntryPublication(
         category: "journal",
         action: published ? "journal.published" : "journal.unpublished",
         message: published
-          ? "기록이 공개되었습니다."
-          : "기록 공개가 해제되었습니다.",
+          ? "마디가 공개되었습니다."
+          : "마디 공개가 해제되었습니다.",
         actorUserId: ownerId,
         targetType: "journalEntry",
         targetId: entryId,
@@ -442,8 +442,8 @@ function serializeJournalEntry(
     sensitiveContent: entry.sensitiveContent,
     sensitiveConsentVersion: entry.sensitiveConsentVersion,
     sensitiveWithdrawnAt: entry.sensitiveWithdrawnAt?.toISOString() ?? null,
-    title: entry.sensitiveWithdrawnAt ? "정리 중인 기록" : entry.title,
-    content: entry.sensitiveWithdrawnAt ? "동의 철회로 기록과 하루마디를 정리하고 있어요." : entry.content,
+    title: entry.sensitiveWithdrawnAt ? "정리 중인 마디" : entry.title,
+    content: entry.sensitiveWithdrawnAt ? "동의 철회로 마디와 하루마디를 정리하고 있어요." : entry.content,
     image: entry.sensitiveWithdrawnAt ? null : serializeJournalImage(entry),
     crowd: entry.sensitiveWithdrawnAt ? "미정" : entry.crowd,
     placeId: entry.sensitiveWithdrawnAt ? null : entry.placeId,

@@ -71,10 +71,10 @@ export function JournalDetailScreen({
         />
         <h1>{formatJournalDateLong(entry.visitedAt)}</h1>
         <ContextMenu
-          label={`${entry.title} 기록 메뉴`}
+          label={`${entry.title} 마디 메뉴`}
           items={[
             ...(entry.sensitiveContent && onWithdrawSensitive ? [{
-              label: entry.sensitiveWithdrawnAt ? "철회한 기록 정리 재시도" : "민감정보 동의 철회",
+              label: entry.sensitiveWithdrawnAt ? "철회한 마디 정리 재시도" : "민감정보 동의 철회",
               onSelect: onWithdrawSensitive,
             }] : []),
             {
@@ -82,7 +82,7 @@ export function JournalDetailScreen({
               onSelect: onEdit,
             },
             {
-              label: "기록 공유하기",
+              label: "마디 공유하기",
               onSelect: () => setShareOpen(true),
             },
             {
@@ -107,7 +107,7 @@ export function JournalDetailScreen({
           data-journal-transition-entry-id={entry.id}
           data-journal-transition-image={entry.image ?? undefined}
           data-journal-transition-surface="detail"
-          aria-label={`${entry.placeName} 기록 이미지`}
+          aria-label={`${entry.placeName} 마디 이미지`}
         />
 
         <DetailContent
@@ -115,15 +115,15 @@ export function JournalDetailScreen({
         >
           {entry.publicationStatus === "hidden" && (
             <ModerationNotice role="status">
-              운영 검토로 인터넷 공개가 중지된 기록이에요. 기록은 나만 볼 수
+              운영 검토로 인터넷 공개가 중지된 마디예요. 마디는 나만 볼 수
               있으며, 재검토가 필요하면 1:1 문의로 알려주세요.
             </ModerationNotice>
           )}
           {entry.sensitiveContent && <ModerationNotice role="status">{entry.sensitiveWithdrawnAt
-            ? "동의 철회로 기록과 하루마디를 정리하고 있어요."
-            : "민감정보 처리에 별도로 동의한 나만의 기록이에요. 웹 링크로는 공개할 수 없어요."}</ModerationNotice>}
+            ? "동의 철회로 마디와 하루마디를 정리하고 있어요."
+            : "민감정보 처리에 별도로 동의한 나만의 마디예요. 웹 링크로는 공개할 수 없어요."}</ModerationNotice>}
           <JournalLocationLabel placeName={entry.placeName} />
-          <Tags aria-label="기록 정보">
+          <Tags aria-label="마디 정보">
             <Tag $tone="brand">{entry.crowd}</Tag>
             <Tag $tone="neutral">{entry.theme}</Tag>
             <Tag $tone="secondary">{entry.difficulty}</Tag>

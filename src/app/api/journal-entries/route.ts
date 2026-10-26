@@ -39,7 +39,7 @@ export async function GET(request: Request) {
     return withCors(
       request,
       Response.json(
-        { error: "기록을 불러오지 못했어요." },
+        { error: "마디를 불러오지 못했어요." },
         { status: 500 },
       ),
     );
@@ -62,7 +62,7 @@ export async function POST(request: Request) {
       return withCors(
         request,
         Response.json(
-          { error: "기록 내용을 확인해주세요." },
+          { error: "마디 내용을 확인해주세요." },
           { status: 400 },
         ),
       );
@@ -93,7 +93,7 @@ export async function POST(request: Request) {
             ? "요청 본문을 확인해주세요."
             : invalidImage
               ? error.message
-              : "기록을 저장하지 못했어요.",
+              : "마디를 저장하지 못했어요.",
         },
         { status: invalidJson || invalidImage ? 400 : 500 },
       ),

@@ -87,7 +87,7 @@ export async function shareJournalPublicUrl(
     const { Share } = await import("@capacitor/share");
     await Share.share({
       ...shareData,
-      dialogTitle: "Tuti 기록 링크 공유하기",
+      dialogTitle: "Tuti 마디 링크 공유하기",
     });
     return "shared" as const;
   }
@@ -166,7 +166,7 @@ async function shareNativeFile(
   try {
     await Share.share({
       files: [result.uri],
-      dialogTitle: "기록 PNG 공유하기",
+      dialogTitle: "마디 PNG 공유하기",
     });
   } finally {
     try {

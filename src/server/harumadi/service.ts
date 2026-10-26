@@ -53,7 +53,7 @@ export async function updateHarumadi(ownerId: string, id: string, input: Harumad
     if (input.entryIds.length) await tx.$queryRaw`SELECT id FROM journal_entries WHERE owner_id = ${ownerId} AND id = ANY(${input.entryIds}::text[]) ORDER BY id FOR UPDATE`;
     const entries = await tx.journalEntry.findMany({ where: { ownerId, id: { in: input.entryIds } },
       select: { id: true, sensitiveContent: true, sensitiveConsentVersion: true, sensitiveWithdrawnAt: true } });
-    if (entries.length !== input.entryIds.length) throw new HarumadiError("선택한 기록이 없거나 삭제됐어요. 다시 골라주세요.", 409);
+    if (entries.length !== input.entryIds.length) throw new HarumadiError("선택한 마디가 없거나 삭제됐어요. 다시 골라주세요.", 409);
     entries.forEach(entry => assertSensitiveJournalReadable(entry));
     await tx.harumadiEntryLink.deleteMany({ where: { harumadiId: id } });
     if (input.entryIds.length) await tx.harumadiEntryLink.createMany({ data: input.entryIds.map(entryId => ({ harumadiId: id, entryId })) });

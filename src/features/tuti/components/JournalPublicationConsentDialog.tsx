@@ -89,7 +89,7 @@ export function JournalPublicationConsentDialog({
       setError(
         publicationError instanceof Error
           ? publicationError.message
-          : "기록을 공개하지 못했어요.",
+          : "마디를 공개하지 못했어요.",
       );
       setSubmitting(false);
       submittingRef.current = false;
@@ -117,7 +117,7 @@ export function JournalPublicationConsentDialog({
             <Globe2 />
           </Icon>
           <div>
-            <h2 id="journal-publication-title">이 기록을 링크로 나눌까요?</h2>
+            <h2 id="journal-publication-title">이 마디를 링크로 나눌까요?</h2>
           </div>
         </Heading>
 

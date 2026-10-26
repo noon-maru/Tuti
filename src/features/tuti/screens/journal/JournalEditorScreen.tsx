@@ -105,7 +105,7 @@ export function JournalEditorScreen({
     let disposed = false;
     void fetchSensitiveJournalPolicy().then((policy) => {
       if (!disposed) setSensitivePolicy(policy);
-    }).catch(() => { if (!disposed) setPolicyError("기록 보호 설정을 확인하지 못했어요. 화면을 다시 열어주세요."); });
+    }).catch(() => { if (!disposed) setPolicyError("마디 보호 설정을 확인하지 못했어요. 화면을 다시 열어주세요."); });
     return () => { disposed = true; };
   }, []);
   const sensitiveReady = canSubmitJournalClassification(sensitivePolicy, sensitiveContent, sensitiveAgreed);
@@ -302,7 +302,7 @@ export function JournalEditorScreen({
       setSubmitError(
         error instanceof Error
           ? error.message
-          : "기록을 저장하지 못했어요.",
+          : "마디를 저장하지 못했어요.",
       );
       setIsSubmitting(false);
     }
@@ -316,9 +316,9 @@ export function JournalEditorScreen({
           aria-label="지난 공간으로 돌아가기"
           onClick={onBack}
         />
-        <h1>{entry ? "고치는 공간" : "남기는 공간"}</h1>
+        <h1>{entry ? "마디 다듬기" : "오늘의 마디"}</h1>
         <ContextMenu
-          label={entry ? "기록 수정 메뉴" : "기록 작성 메뉴"}
+          label={entry ? "마디 수정 메뉴" : "마디 작성 메뉴"}
           items={[
             {
               label: entry ? "수정 내용 비우기" : "작성 내용 비우기",
@@ -341,7 +341,7 @@ export function JournalEditorScreen({
             <input type="file" accept="image/*" onChange={selectImage} />
             {!imageUrl && <span aria-hidden="true">+</span>}
             <span className="visually-hidden">
-              {imageUrl ? "기록 이미지 변경하기" : "기록 이미지 추가하기"}
+              {imageUrl ? "마디 이미지 변경하기" : "마디 이미지 추가하기"}
             </span>
           </ImagePicker>
           <VisitDateInput
@@ -374,7 +374,7 @@ export function JournalEditorScreen({
           }}
         />
 
-        <Tags aria-label="기록 정보">
+        <Tags aria-label="마디 정보">
           <ContextMenu
             label="혼잡도 선택"
             triggerContent={crowd || "혼잡도"}
@@ -420,13 +420,13 @@ export function JournalEditorScreen({
 
         <EditorCopy>
           <TitleInput
-            aria-label="기록 제목"
+            aria-label="마디 제목"
             placeholder="제목"
             value={title}
             onChange={(event) => setTitle(event.target.value)}
           />
           <BodyInput
-            aria-label="기록 내용"
+            aria-label="마디 내용"
             placeholder="내용"
             value={body}
             onChange={(event) => setBody(event.target.value)}
@@ -436,17 +436,17 @@ export function JournalEditorScreen({
           <SensitiveSection>
             <legend>사진이나 글에 본인의 민감정보가 있나요?</legend>
             <p>건강, 정치적 견해, 사상·신념, 성생활 등에 관한 정보를 뜻해요. 타인의 민감정보와 주민등록번호 등은 남기지 말아주세요.</p>
-            {entry?.sensitiveContent && <p>일반 기록으로 바꾸려면 먼저 동의를 철회해 삭제한 뒤 새 기록으로 남겨주세요.</p>}
+            {entry?.sensitiveContent && <p>일반 마디로 바꾸려면 먼저 동의를 철회해 삭제한 뒤 새 마디로 남겨주세요.</p>}
             <label><input type="radio" name="journal-sensitive-content" checked={sensitiveContent === false}
               disabled={entry?.sensitiveContent === true}
               onChange={() => { setSensitiveContent(false); setSensitiveAgreed(false); }} /> 없어요</label>
             <label><input type="radio" name="journal-sensitive-content" checked={sensitiveContent === true}
               onChange={() => { setSensitiveContent(true); setSensitiveAgreed(false); }} /> 본인의 민감정보가 있어요</label>
             {sensitiveContent && !privateStorageAvailable && <p role="status">{entry?.sensitiveContent
-              ? "민감정보 보관 기능을 이용할 수 없어 이 기록은 수정할 수 없어요. 상세 메뉴에서 동의를 철회할 수 있어요."
+              ? "민감정보 보관 기능을 이용할 수 없어 이 마디는 수정할 수 없어요. 상세 메뉴에서 동의를 철회할 수 있어요."
               : "민감정보를 안전하게 보관하는 기능을 준비 중이에요. 지금은 해당 내용을 빼고 ‘없어요’를 선택해주세요."}</p>}
             {sensitiveContent && privateStorageAvailable && <>
-              <p>민감정보가 있는 기록은 나만 볼 수 있고, 웹 링크로 공개할 수 없어요.</p>
+              <p>민감정보가 있는 마디는 나만 볼 수 있고, 웹 링크로 공개할 수 없어요.</p>
               <dl>
                 <dt>처리 항목</dt><dd>{sensitiveJournalConsentNotice.items}</dd>
                 <dt>처리 목적</dt><dd>{sensitiveJournalConsentNotice.purpose}</dd>
@@ -473,7 +473,7 @@ export function JournalEditorScreen({
             ? "저장 중..."
             : entry
               ? "수정하기"
-              : "작성하기"}
+              : "마디 남기기"}
         </SubmitButton>
       </EditorFooter>
       {cropSource && (

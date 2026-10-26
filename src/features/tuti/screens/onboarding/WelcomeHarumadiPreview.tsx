@@ -140,7 +140,7 @@ export function WelcomeHarumadiPreview({ page, origin, onPageChange, onRecord, o
       {next !== null ? <Button $size="compact" $tone="text" type="button" disabled={retainedPage !== null} onClick={() => turnTo(next)}>다음 쪽</Button>
         : <Button $size="compact" $tone="text" type="button" onClick={close}>덮기</Button>}
     </Navigation>
-    <Source>예시 기록 · 사진은 AI로 만든 이미지예요</Source>
+    <Source>예시 마디 · 사진은 AI로 만든 이미지예요</Source>
   </Frame>;
 }
 
@@ -148,11 +148,11 @@ function HarumadiPageContent({ page, onRecord }: { page: WelcomeHarumadiPage; on
   if (page !== WELCOME_HARUMADI_LAST_PAGE) return <WelcomeHarumadiSample page={page === 0 ? "cover" : page === 1 ? "page" : "text"} priority />;
   return <Ending>
     <EndingCopy>
-      <h2>다음 페이지는,<br />우리 이야기로.</h2>
+      <h2>이제 우리의<br />첫 마디를 남겨볼까요?</h2>
       <p>사진 한 장과 짧은 이야기로 시작해요.</p>
     </EndingCopy>
     <EndingActions>
-      <RecordButton type="button" onClick={onRecord}>우리의 첫 페이지 만들기</RecordButton>
+      <RecordButton type="button" onClick={onRecord}>첫 마디 남기기</RecordButton>
     </EndingActions>
   </Ending>;
 }

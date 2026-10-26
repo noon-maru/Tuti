@@ -197,10 +197,10 @@ export function SavedDeparturePlacesSheet({
           </SectionHeader>
 
           {similarPlacesLoading ? (
-            <SimilarStatus>기록에서 닮은 공간을 찾고 있어요.</SimilarStatus>
+            <SimilarStatus>마디에서 닮은 공간을 찾고 있어요.</SimilarStatus>
           ) : similarPlacesError ? (
             <SimilarStatus>
-              기록을 불러오지 못했어요.
+              마디를 불러오지 못했어요.
               <RetryButton type="button" onClick={onRetrySimilar}>
                 다시 찾기
               </RetryButton>
@@ -228,8 +228,8 @@ export function SavedDeparturePlacesSheet({
           ) : (
             <SimilarStatus>
               {hasJournalEntries
-                ? "오늘 추천 중에는 기록과 닮은 공간이 없어요. 다음 추천에서 다시 찾아볼게요."
-                : "공간이 기록되면 그날의 테마와 닮은 오늘의 추천을 골라드릴게요."}
+                ? "오늘 추천 중에는 남겨둔 마디와 닮은 공간이 없어요. 다음 추천에서 다시 찾아볼게요."
+                : "마디에 공간을 남기면 그날과 닮은 오늘의 추천을 골라드릴게요."}
             </SimilarStatus>
           )}
         </SheetBody>

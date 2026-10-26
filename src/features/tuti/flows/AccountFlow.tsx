@@ -183,7 +183,7 @@ export function AccountFlow() {
         error:
           error instanceof Error
             ? error.message
-            : "현재 기록을 처리하지 못했어요.",
+            : "현재 마디를 처리하지 못했어요.",
       }));
     }
   };
@@ -244,7 +244,7 @@ export function AccountFlow() {
         setJournalAuthorBlocks((current) =>
           current.filter((block) => block.blockedUserId !== blockedUserId),
         );
-        setAccountNotice("공개 기록 작성자 차단을 해제했어요.");
+        setAccountNotice("공개 마디 작성자 차단을 해제했어요.");
       }}
       onDeleteAccount={async () => {
         const result = await deleteAccount();

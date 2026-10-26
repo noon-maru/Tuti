@@ -39,7 +39,7 @@ export function DownloadPage() {
           <p>
             Tuti를 설치하면 알림을 받고,
             <br />
-            남겨둔 공간과 기록을 더 편하게 이어볼 수 있어요.
+            남겨둔 마디와 하루마디를 더 편하게 꺼내볼 수 있어요.
           </p>
         </Intro>
 

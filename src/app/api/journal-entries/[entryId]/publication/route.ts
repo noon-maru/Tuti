@@ -78,7 +78,7 @@ export async function PATCH(
         request,
         Response.json(
           {
-            error: "기록을 공개하려면 먼저 계정을 연결해주세요.",
+            error: "마디를 공개하려면 먼저 계정을 연결해주세요.",
             code: "account_required",
           },
           { status: 403 },
@@ -90,7 +90,7 @@ export async function PATCH(
       return withCors(
         request,
         Response.json(
-          { error: "기록 웹 공유를 내부에서 점검하고 있어요." },
+          { error: "마디 웹 공유를 내부에서 점검하고 있어요." },
           { status: 403 },
         ),
       );
@@ -103,7 +103,7 @@ export async function PATCH(
       return withCors(
         request,
         Response.json(
-          { error: "최신 기록 공개 안내를 확인해주세요." },
+          { error: "최신 마디 공개 안내를 확인해주세요." },
           { status: 400 },
         ),
       );
@@ -121,7 +121,7 @@ export async function PATCH(
       return withCors(
         request,
         Response.json(
-          { error: "공개 설정을 바꿀 기록을 찾지 못했어요." },
+          { error: "공개 설정을 바꿀 마디를 찾지 못했어요." },
           { status: 404 },
         ),
       );
@@ -145,7 +145,7 @@ export async function PATCH(
             ? "요청 본문을 확인해주세요."
             : invalidState
               ? error.message
-              : "기록 공개 설정을 변경하지 못했어요.",
+              : "마디 공개 설정을 변경하지 못했어요.",
         },
         { status: invalidJson ? 400 : invalidState ? 409 : 500 },
       ),

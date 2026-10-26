@@ -36,7 +36,7 @@ export async function POST(
       return withCors(
         request,
         Response.json(
-          { error: "공유할 기록을 찾지 못했어요." },
+          { error: "공유할 마디를 찾지 못했어요." },
           { status: 404 },
         ),
       );

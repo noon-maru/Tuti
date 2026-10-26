@@ -4,10 +4,10 @@ import type { SensitiveJournalPolicyResponse } from "@/shared/legal/sensitiveJou
 
 export async function fetchSensitiveJournalPolicy(): Promise<SensitiveJournalPolicyResponse> {
   const response = await clientFetch(apiUrl("journal-sensitive-policy"), { cache: "no-store" });
-  if (!response.ok) throw new Error("기록 보호 설정을 확인하지 못했어요. 잠시 후 다시 시도해주세요.");
+  if (!response.ok) throw new Error("마디 보호 설정을 확인하지 못했어요. 잠시 후 다시 시도해주세요.");
   const data = await response.json();
-  if (typeof data.enabled !== "boolean" || typeof data.version !== "string") throw new Error("기록 보호 설정을 확인하지 못했어요.");
-  if (data.privateStorageAvailable !== undefined && typeof data.privateStorageAvailable !== "boolean") throw new Error("기록 보호 설정을 확인하지 못했어요.");
+  if (typeof data.enabled !== "boolean" || typeof data.version !== "string") throw new Error("마디 보호 설정을 확인하지 못했어요.");
+  if (data.privateStorageAvailable !== undefined && typeof data.privateStorageAvailable !== "boolean") throw new Error("마디 보호 설정을 확인하지 못했어요.");
   return data;
 }
 
@@ -386,7 +386,7 @@ export async function fetchJournalEntries(): Promise<TutiJournalEntry[]> {
   const response = await fetchWithSession("journal-entries");
 
   if (!response.ok) {
-    throw new Error("기록을 불러오지 못했어요.");
+    throw new Error("마디를 불러오지 못했어요.");
   }
 
   const data = (await response.json()) as JournalEntriesResponse;
@@ -406,7 +406,7 @@ export async function createJournalEntry(
 
   if (!response.ok) {
     throw new Error(
-      await readApiError(response, "기록을 저장하지 못했어요."),
+      await readApiError(response, "마디를 저장하지 못했어요."),
     );
   }
 
@@ -431,7 +431,7 @@ export async function updateJournalEntry(
 
   if (!response.ok) {
     throw new Error(
-      await readApiError(response, "기록을 수정하지 못했어요."),
+      await readApiError(response, "마디를 수정하지 못했어요."),
     );
   }
 
@@ -447,7 +447,7 @@ export async function deleteJournalEntry(entryId: string) {
 
   if (!response.ok) {
     throw new Error(
-      await readApiError(response, "기록을 삭제하지 못했어요."),
+      await readApiError(response, "마디를 삭제하지 못했어요."),
     );
   }
 
@@ -475,7 +475,7 @@ export async function setJournalEntryPublication(
     throw new Error(
       await readApiError(
         response,
-        "기록 공개 설정을 변경하지 못했어요.",
+        "마디 공개 설정을 변경하지 못했어요.",
       ),
     );
   }

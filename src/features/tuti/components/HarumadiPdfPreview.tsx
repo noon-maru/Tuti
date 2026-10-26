@@ -172,7 +172,7 @@ export function HarumadiPdfPreview({
   if (!pdfDocument)
     return (
       <PreviewLoading role="status">
-        <LoadingIndicator label="기록을 한 권으로 엮고 있어요." />
+        <LoadingIndicator label="마디를 한 권으로 엮고 있어요." />
       </PreviewLoading>
     );
   return (

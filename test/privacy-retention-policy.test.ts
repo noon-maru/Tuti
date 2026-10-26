@@ -38,7 +38,7 @@ test("별도 선택 동의에는 버전·서버 시각을 남기고 원장 없�
   try {
     process.env.PRIVACY_REPLAY_LEDGER_ENABLED = "false";
     const sensitive = { ...input, sensitiveContent: true, sensitiveConsentVersion: SENSITIVE_JOURNAL_CONSENT_VERSION };
-    assert.throws(() => sensitiveJournalData(sensitive, true, now), /기록 보호/);
+    assert.throws(() => sensitiveJournalData(sensitive, true, now), /마디 보호/);
     process.env.PRIVACY_REPLAY_LEDGER_ENABLED = "true";
     assert.deepEqual(sensitiveJournalData(sensitive, true, now), { sensitiveContent: true, sensitiveConsentVersion: SENSITIVE_JOURNAL_CONSENT_VERSION, sensitiveConsentedAt: now });
     assert.deepEqual(sensitiveJournalData({ ...input, sensitiveContent: false }, true, now), { sensitiveContent: false, sensitiveConsentVersion: null, sensitiveConsentedAt: null });

@@ -79,8 +79,8 @@ export function SettingsScreen({
             <strong>{accountLabel ?? "기기에 저장된 Tuti"}</strong>
             <p>
               {accountConnected
-                ? "계정과 기록을 한곳에서 관리할 수 있어요."
-                : "로그인하면 다른 기기에서도 기록을 이어볼 수 있어요."}
+                ? "계정과 마디를 한곳에서 관리할 수 있어요."
+                : "로그인하면 다른 기기에서도 마디를 이어볼 수 있어요."}
             </p>
           </div>
         </AccountSummary>

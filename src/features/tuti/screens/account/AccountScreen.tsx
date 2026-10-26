@@ -162,7 +162,7 @@ export function AccountScreen({
       setError(
         resolutionError instanceof Error
           ? resolutionError.message
-          : "현재 기록을 처리하지 못했어요.",
+          : "현재 마디를 처리하지 못했어요.",
       );
       setPending(false);
     }
@@ -192,7 +192,7 @@ export function AccountScreen({
     const providerLabel = getIdentityLabel(identity);
     if (
       !window.confirm(
-        `${providerLabel} 연결을 해제할까요?\n\n현재 Tuti 계정의 기록과 데이터는 유지되지만, 분리된 로그인 수단에는 데이터가 남지 않으며 이 수단으로는 현재 계정에 다시 들어올 수 없어요.`,
+        `${providerLabel} 연결을 해제할까요?\n\n현재 Tuti 계정의 마디와 데이터는 유지되지만, 분리된 로그인 수단에는 데이터가 남지 않으며 이 수단으로는 현재 계정에 다시 들어올 수 없어요.`,
       )
     ) {
       return;
@@ -220,7 +220,7 @@ export function AccountScreen({
     const targetLabel = providers.length > 0 ? "계정" : "현재 이용 데이터";
     if (
       !window.confirm(
-        `${targetLabel}과 기록, 사진, 추천 이력을 모두 삭제할까요? 삭제한 데이터는 복구할 수 없어요.`,
+        `${targetLabel}과 마디, 사진, 추천 이력을 모두 삭제할까요? 삭제한 데이터는 복구할 수 없어요.`,
       )
     ) {
       return;
@@ -289,7 +289,7 @@ export function AccountScreen({
           <DeletionCompleteMark aria-hidden="true">✓</DeletionCompleteMark>
           <h2>계정과 데이터를 삭제했어요.</h2>
           <p>
-            기존 로그인 정보와 기록은 복구할 수 없어요. Tuti를 다시 시작하면
+            기존 로그인 정보와 마디는 복구할 수 없어요. Tuti를 다시 시작하면
             새로운 익명 이용 정보가 만들어집니다.
           </p>
           {pushCleanupPending && (
@@ -310,9 +310,9 @@ export function AccountScreen({
               <strong>{displayName ?? email ?? "연결된 Tuti 계정"}</strong>
               {displayName && email && <AccountEmail>{email}</AccountEmail>}
               <p>
-                이 계정으로 기록이 연결되어 있어요.
+                이 계정으로 마디가 연결되어 있어요.
                 <br />
-                다른 기기에서도 같은 기록을 불러올 수 있어요.
+                다른 기기에서도 같은 마디를 불러올 수 있어요.
               </p>
             </AccountCopy>
           </AccountOverview>
@@ -326,7 +326,7 @@ export function AccountScreen({
               <div>
                 <strong>로그인 수단 관리</strong>
                 <p>
-                  다른 로그인 수단에 기존 계정이 있으면 기록과 데이터를 현재
+                  다른 로그인 수단에 기존 계정이 있으면 마디와 데이터를 현재
                   계정으로 합쳐요.
                 </p>
               </div>
@@ -492,7 +492,7 @@ export function AccountScreen({
             <LoginMethodSection>
               <LoginMethodHeading>
                 <div>
-                  <strong>차단한 공개 기록 작성자</strong>
+                  <strong>차단한 공개 마디 작성자</strong>
                   <p>차단을 해제하면 해당 작성자의 공유 링크를 다시 볼 수 있어요.</p>
                 </div>
               </LoginMethodHeading>
@@ -533,13 +533,13 @@ export function AccountScreen({
       ) : displayedJournalResolution ? (
         <JournalResolutionContent>
           <JournalResolutionCopy>
-            <h2>현재 기록도 함께 가져올까요?</h2>
+            <h2>현재 마디도 함께 가져올까요?</h2>
             <p>
-              이 기기에 남긴 기록{" "}
+              이 기기에 남긴 마디{" "}
               <strong>
                 {displayedJournalResolution.currentJournalCount}개
               </strong>
-              를 계정 기록과 합칠 수 있어요.
+              를 계정 마디와 합칠 수 있어요.
             </p>
           </JournalResolutionCopy>
           <JournalResolutionActions>
@@ -550,18 +550,18 @@ export function AccountScreen({
             >
               {journalResolutionPending
                 ? "처리하는 중..."
-                : "현재 기록도 합치기"}
+                : "현재 마디도 합치기"}
             </MergeButton>
             <AccountOnlyButton
               type="button"
               disabled={journalResolutionPending}
               onClick={() => void chooseJournalResolution("discard")}
             >
-              계정 기록만 불러오기
+              계정 마디만 불러오기
             </AccountOnlyButton>
           </JournalResolutionActions>
           <JournalResolutionWarning>
-            계정 기록만 불러오면 현재 기기의 연결되지 않은 기록{" "}
+            계정 마디만 불러오면 현재 기기의 연결되지 않은 마디{" "}
             {displayedJournalResolution.currentJournalCount}개는 삭제돼요.
           </JournalResolutionWarning>
           {journalResolutionError && (
@@ -592,7 +592,7 @@ export function AccountScreen({
           <IntroCopy>
             <h2>남겨둔 공간을 다시 만나요.</h2>
             <p>
-              로그인한 뒤 현재 기기의 기록을 연결할지 선택할 수
+              로그인한 뒤 현재 기기의 마디를 연결할지 선택할 수
               있어요.
             </p>
           </IntroCopy>
@@ -751,7 +751,7 @@ export function AccountScreen({
             <div>
               <strong>현재 이용 데이터 삭제</strong>
               <p>
-                계정을 연결하지 않았어도 현재 기록과 추천 이력을 바로 삭제할 수
+                계정을 연결하지 않았어도 현재 마디와 추천 이력을 바로 삭제할 수
                 있어요.
               </p>
             </div>

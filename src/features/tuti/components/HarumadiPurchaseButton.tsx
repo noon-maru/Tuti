@@ -66,7 +66,7 @@ export function HarumadiPurchaseButton({ surface }: { surface: ProductInteractio
         <Dialog ref={dialog} role="dialog" aria-modal="true" aria-labelledby="purchase-preparing-title" aria-describedby="purchase-preparing-description">
           <h2 id="purchase-preparing-title">실물 하루마디를 준비하고 있어요</h2>
           <p id="purchase-preparing-description">남긴 하루를 손에 쥘 수 있도록 준비하고 있어요. 아직 주문하거나 결제할 수는 없어요.</p>
-          <p>그동안 기록과 디지털 하루마디는 무료로 만들어보세요.</p>
+          <p>그동안 마디와 디지털 하루마디는 무료로 만들어보세요.</p>
           {trackingFailed && <Notice role="status">관심 표시를 전송하지 못했어요. 연결되면 다시 전송할게요.
             <TextButton type="button" onClick={() => { if (latestEvent.current) track(latestEvent.current); }}>다시 전송</TextButton>
           </Notice>}

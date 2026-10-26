@@ -56,7 +56,7 @@ import type { ProductActivityType } from "@/shared/api/productActivity";
 import { saveLibraryCover } from "@/lib/harumadiPdfLibrary";
 
 const HARUMADI_PDF_STEPS = [
-  { value: "selection", label: "기록 고르기" },
+  { value: "selection", label: "마디 고르기" },
   { value: "details", label: "표지 고르기" },
   { value: "letter", label: "남기는 말" },
   { value: "preview", label: "미리보기" },
@@ -99,7 +99,7 @@ export function HarumadiPdfFlow() {
     <HarumadiPdfEditor key={session.userId} ownerId={session.userId} />
   ) : (
     <Frame>
-      <p role="status">기록을 준비하고 있어요.</p>
+      <p role="status">마디를 준비하고 있어요.</p>
       <SmallButton type="button" onClick={() => window.location.reload()}>
         다시 불러오기
       </SmallButton>
@@ -284,7 +284,7 @@ function HarumadiPdfEditor({ ownerId }: { ownerId: string }) {
     const selected = draft.entryIds.includes(id);
     if (!selected && draft.entryIds.length >= HARUMADI_PDF_MAX_ENTRIES) {
       setMessage(
-        `한 권에는 최대 ${HARUMADI_PDF_MAX_ENTRIES}개의 기록을 담을 수 있어요.`,
+        `한 권에는 최대 ${HARUMADI_PDF_MAX_ENTRIES}개의 마디를 담을 수 있어요.`,
       );
       return;
     }
@@ -303,7 +303,7 @@ function HarumadiPdfEditor({ ownerId }: { ownerId: string }) {
       !selected &&
         Boolean(selectedEntry?.image) &&
         harumadiPdfPhotoTextMayContinue(selectedEntry?.content ?? "")
-        ? "글이 길어 이 기록은 다음 쪽으로 이어질 수 있어요. 내용은 잘리지 않고 모두 담겨요."
+        ? "글이 길어 이 마디는 다음 쪽으로 이어질 수 있어요. 내용은 잘리지 않고 모두 담겨요."
         : "",
     );
   }
@@ -406,7 +406,7 @@ function HarumadiPdfEditor({ ownerId }: { ownerId: string }) {
         <BackButton
           onClick={back}
           aria-label={
-            draft?.step === "selection" ? "기록으로 돌아가기" : "이전 단계"
+            draft?.step === "selection" ? "마디로 돌아가기" : "이전 단계"
           }
         />
         <h1>하루마디</h1>
@@ -415,11 +415,11 @@ function HarumadiPdfEditor({ ownerId }: { ownerId: string }) {
       <Content ref={scroller}>
         {!draft || isPending ? (
           <LoadingState>
-            <LoadingIndicator label="남겨 둔 기록을 불러오고 있어요." />
+            <LoadingIndicator label="남겨 둔 마디를 불러오고 있어요." />
           </LoadingState>
         ) : isError ? (
           <Notice role="alert">
-            기록을 불러오지 못했어요.
+            마디를 불러오지 못했어요.
             <SmallButton onClick={() => void refetch()}>
               다시 시도하기
             </SmallButton>
@@ -452,17 +452,17 @@ function HarumadiPdfEditor({ ownerId }: { ownerId: string }) {
               </h2>
               <Intro>
                 {draft.step === "selection"
-                  ? "간직하고 싶은 기록만 골라주세요. 날짜순으로 차분히 엮어드릴게요."
+                  ? "간직하고 싶은 마디만 골라주세요. 날짜순으로 차분히 엮어드릴게요."
                   : draft.step === "details"
                     ? "하루마디의 제목과 표지 구성을 골라주세요."
                     : draft.step === "letter"
                       ? "특별한 문장이 아니어도 괜찮아요. 그곳에 남은 마음을 가볍게 적어보세요."
-                      : "표지부터 기록 본문까지 잘 담겼는지 살펴보세요."}
+                      : "표지부터 마디 본문까지 잘 담겼는지 살펴보세요."}
               </Intro>
             </IntroBlock>
             {missing.length > 0 && (
               <Notice role="alert">
-                삭제되었거나 접근할 수 없는 기록이 {missing.length}개 있어요.
+                삭제되었거나 접근할 수 없는 마디가 {missing.length}개 있어요.
                 <SmallButton
                   onClick={() =>
                     update({
@@ -477,7 +477,7 @@ function HarumadiPdfEditor({ ownerId }: { ownerId: string }) {
                     })
                   }
                 >
-                  해당 기록을 빼고 계속하기
+                  해당 마디를 빼고 계속하기
                 </SmallButton>
               </Notice>
             )}
@@ -514,7 +514,7 @@ function HarumadiPdfEditor({ ownerId }: { ownerId: string }) {
                           <HarumadiCopy>
                             <strong>{harumadiPdf.title}</strong>
                             <span>
-                              {formatHarumadiDate(harumadiPdf.createdAt)} · 기록 {harumadiPdf.entryCount}
+                              {formatHarumadiDate(harumadiPdf.createdAt)} · 마디 {harumadiPdf.entryCount}
                               개 · {harumadiPdf.pageCount}쪽
                             </span>
                           </HarumadiCopy>
@@ -526,9 +526,9 @@ function HarumadiPdfEditor({ ownerId }: { ownerId: string }) {
                 </HarumadiLibrary>
                 {entries.length === 0 ? (
                   <Notice>
-                    남긴 기록이 아직 없어요.
+                    남긴 마디가 아직 없어요.
                     <SmallButton onClick={() => router.push("/journal/new")}>
-                      첫 기록 남기기
+                      첫 마디 남기기
                     </SmallButton>
                   </Notice>
                 ) : (
@@ -572,7 +572,7 @@ function HarumadiPdfEditor({ ownerId }: { ownerId: string }) {
                       <FilterSelectionNotice role="status">
                         <div>
                           <strong>
-                            날짜 범위 밖의 기록 {chosenOutsideFilter.length}개도
+                            날짜 범위 밖의 마디 {chosenOutsideFilter.length}개도
                             담겨요.
                           </strong>
                           <p>
@@ -590,10 +590,10 @@ function HarumadiPdfEditor({ ownerId }: { ownerId: string }) {
                       </FilterSelectionNotice>
                     )}
                     {chosen.length > 0 && (
-                      <SelectionReview aria-label="이 책에 담을 기록">
+                      <SelectionReview aria-label="이 책에 담을 마디">
                         <SelectionReviewHeading>
                           <span>
-                            <strong>이 책에 담을 기록</strong>
+                            <strong>이 책에 담을 마디</strong>
                             <small>{chosen.length}개 · 날짜순</small>
                           </span>
                           <span aria-hidden="true">담김</span>
@@ -619,7 +619,7 @@ function HarumadiPdfEditor({ ownerId }: { ownerId: string }) {
                                 <RemoveSelection
                                   type="button"
                                   onClick={() => select(entry.id)}
-                                  aria-label={`${entry.title} 기록을 책에서 빼기`}
+                                  aria-label={`${entry.title} 마디를 책에서 빼기`}
                                 >
                                   빼기
                                 </RemoveSelection>
@@ -677,7 +677,7 @@ function HarumadiPdfEditor({ ownerId }: { ownerId: string }) {
                     </SelectionList>
                     {visibleEntries.length === 0 && (
                       <Hint>
-                        이 기간에 남긴 기록이 없어요. 날짜를 바꿔주세요.
+                        이 기간에 남긴 마디가 없어요. 날짜를 바꿔주세요.
                       </Hint>
                     )}
                   </>
@@ -823,8 +823,8 @@ function HarumadiPdfEditor({ ownerId }: { ownerId: string }) {
                     ))}
                 </fieldset>
                 <Hint>
-                  선택한 {chosen.length}개의 기록을 날짜순으로 담아요. 원래
-                  기록은 바뀌지 않아요.
+                  선택한 {chosen.length}개의 마디를 날짜순으로 담아요. 원래
+                  마디는 바뀌지 않아요.
                 </Hint>
               </>
             )}
@@ -848,7 +848,7 @@ function HarumadiPdfEditor({ ownerId }: { ownerId: string }) {
                 {sensitivePolicy?.enabled && <Field>
                   <label><input type="checkbox" checked={freeformConfirmed} onChange={(event) => setFreeformConfirmed(event.target.checked)} />
                     표지 제목과 이 공간에 남기는 말에는 민감정보가 없어요.</label>
-                  <Hint>건강·정치적 견해 등 본인의 민감정보는 별도 동의한 기록에서 가져올 수 있어요. 타인의 민감정보와 고유식별정보는 넣지 말아주세요.</Hint>
+                  <Hint>건강·정치적 견해 등 본인의 민감정보는 별도 동의한 마디에서 가져올 수 있어요. 타인의 민감정보와 고유식별정보는 넣지 말아주세요.</Hint>
                 </Field>}
                 <LetterPagePreview aria-label="이 공간에 남기는 말 페이지 미리보기">
                   <LetterPageHeading>이 공간에 남기는 말</LetterPageHeading>
@@ -875,9 +875,9 @@ function HarumadiPdfEditor({ ownerId }: { ownerId: string }) {
                   />
                 ) : (
                   <Notice>
-                    기록과 제목을 확인한 뒤 미리보기를 만들어주세요.
+                    마디와 제목을 확인한 뒤 미리보기를 만들어주세요.
                     <SmallButton onClick={() => changeStep("selection")}>
-                      기록 다시 고르기
+                      마디 다시 고르기
                     </SmallButton>
                   </Notice>
                 )}
@@ -1024,7 +1024,7 @@ export function StoredHarumadiPdfViewer({
         <CompletedHeading>
           <h2>{harumadiPdf.title}</h2>
           <p>
-            {formatHarumadiDate(harumadiPdf.createdAt)} · 기록 {harumadiPdf.entryCount}개 · {harumadiPdf.pageCount}쪽
+            {formatHarumadiDate(harumadiPdf.createdAt)} · 마디 {harumadiPdf.entryCount}개 · {harumadiPdf.pageCount}쪽
           </p>
         </CompletedHeading>
         <HarumadiPdfPreview

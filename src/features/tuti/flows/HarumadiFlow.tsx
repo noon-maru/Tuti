@@ -73,7 +73,7 @@ function HarumadiEditor({ owner, initial }: { owner: string; initial?: Harumadi 
     try {
       const saved = await updateHarumadi(owner, harumadi.id, { ...harumadi, revision: harumadi.revision, entryIds: selected });
       setHarumadi(saved); refreshLibrary(); setMode("pages");
-    } catch (cause) { setError(cause instanceof Error ? cause.message : "기록을 담지 못했어요."); }
+    } catch (cause) { setError(cause instanceof Error ? cause.message : "마디를 담지 못했어요."); }
     finally { setBusy(false); }
   }
   async function downloadPdf() {
@@ -87,7 +87,7 @@ function HarumadiEditor({ owner, initial }: { owner: string; initial?: Harumadi 
     finally { setBusy(false); }
   }
   async function remove() {
-    if (!harumadi || busy || !window.confirm("하루마디 틀을 삭제할까요? 담았던 원본 기록과 이미 저장한 PDF는 남아요.")) return;
+    if (!harumadi || busy || !window.confirm("하루마디 틀을 삭제할까요? 담았던 원본 마디와 이미 저장한 PDF는 남아요.")) return;
     setBusy(true); setError("");
     try { await deleteHarumadi(owner, harumadi.id); refreshLibrary(); router.replace("/"); }
     catch (cause) { setBusy(false); setError(cause instanceof Error ? cause.message : "삭제하지 못했어요."); }
@@ -116,7 +116,7 @@ function HarumadiEditor({ owner, initial }: { owner: string; initial?: Harumadi 
     try {
       const saved = await updateHarumadi(owner, harumadi.id, { ...harumadi, entryIds: [...harumadi.entryIds, addEntryId] });
       setHarumadi(saved); void client.invalidateQueries({ queryKey: ["library-harumadis", owner] }); router.replace(harumadiPath(harumadi.id));
-    } catch { setError("기록은 저장됐지만 하루마디에 담지 못했어요. ‘기존 기록에서 선택’으로 다시 담아주세요."); }
+    } catch { setError("마디는 저장됐지만 하루마디에 담지 못했어요. ‘마디 골라 담기’로 다시 담아주세요."); }
     finally { setBusy(false); }
   }, [harumadi, addEntryId, entries.data, owner, client, router]);
   // 사용자 저장 결과와 네트워크 조회 완료를 연결하는 외부 동기화다.
@@ -129,31 +129,31 @@ function HarumadiEditor({ owner, initial }: { owner: string; initial?: Harumadi 
       {mode === "settings" ? <>
         <Eyebrow>{harumadi ? "하루마디 설정" : "새 하루마디"}</Eyebrow><h1>{harumadi ? "표지와 속지" : "어떤 하루를 담을까요?"}</h1>
         <p>표지와 속지를 먼저 고르고,<br />기억하고 싶은 순간을 천천히 채워보세요.</p>
-        <CoverPreview $green={settings.coverStyle.startsWith("green")}><small>Tuti / 하루마디</small><strong>{settings.title || "하루마디 제목"}</strong>{settings.coverStyle.endsWith("-image") && <PhotoPlaceholder>기록을 담으면 첫 사진이 표지가 돼요.</PhotoPlaceholder>}<span>아직 쓰지 않은, 우리 이야기</span></CoverPreview>
+        <CoverPreview $green={settings.coverStyle.startsWith("green")}><small>Tuti / 하루마디</small><strong>{settings.title || "하루마디 제목"}</strong>{settings.coverStyle.endsWith("-image") && <PhotoPlaceholder>마디를 담으면 첫 사진이 표지가 돼요.</PhotoPlaceholder>}<span>아직 쓰지 않은, 우리 이야기</span></CoverPreview>
         <Label htmlFor="harumadi-title">하루마디 이름</Label><TitleInput id="harumadi-title" value={settings.title} maxLength={HARUMADI_PDF_TITLE_LIMIT} onChange={event => { setSettings({ ...settings, title: event.target.value }); setConfirmed(false); }} />
         <Fieldset><legend>표지</legend><Choices>{(["white-plain", "green-plain", "white-image", "green-image"] as const).map((style, index) => <Choice key={style} type="button" aria-pressed={settings.coverStyle === style} $selected={settings.coverStyle === style} onClick={() => setSettings({ ...settings, coverStyle: style })}><Swatch $green={style.startsWith("green")} $photo={style.endsWith("image")} />{["흰색", "연두색", "흰색 · 사진", "연두색 · 사진"][index]}{settings.coverStyle === style && <Check size={12} />}</Choice>)}</Choices></Fieldset>
         <Fieldset><legend>속지</legend><InnerChoices>{(["photo", "text"] as const).map(style => <InnerChoice key={style} type="button" aria-pressed={settings.innerStyle === style} $selected={settings.innerStyle === style} onClick={() => setSettings({ ...settings, innerStyle: style })}><PaperSample $photo={style === "photo"}><i /><span /><span /><span /></PaperSample><strong>{style === "photo" ? "사진과 이야기" : "이야기 중심"}</strong><small>{style === "photo" ? "사진 전체와 짧은 글" : "사진 없이 글과 날짜"}</small></InnerChoice>)}</InnerChoices></Fieldset>
-        <p className="hint">지금 기록이 없어도 만들 수 있어요. 표지와 속지는 나중에도 바꿀 수 있어요.</p>
+        <p className="hint">지금 마디가 없어도 만들 수 있어요. 표지와 속지는 나중에도 바꿀 수 있어요.</p>
         {titleNeedsConfirmation && <Confirmation><input type="checkbox" checked={confirmed} onChange={event => setConfirmed(event.target.checked)} />표지 제목에 건강·정치적 견해 등 민감정보가 없음을 확인해요.</Confirmation>}
         {harumadi && <Quiet type="button" onClick={() => void remove()} disabled={busy}><Trash2 size={15} />하루마디 틀 삭제</Quiet>}
       </> : mode === "selection" ? <>
-        <Eyebrow>기록 채우기</Eyebrow><h1>어떤 순간을 담을까요?</h1><p>원본 기록은 그대로 두고 이 하루마디에 담아요.<br />한 권에 최대 {HARUMADI_PDF_MAX_ENTRIES}개까지 담을 수 있어요.</p>
-        {entries.isPending ? <p role="status">기록을 불러오고 있어요.</p> : entries.isError ? <Quiet onClick={() => void entries.refetch()}>기록 다시 불러오기</Quiet> : !entries.data?.length ? <p>아직 남긴 기록이 없어요. 먼저 한 페이지를 써볼까요?</p> : <RecordList>{entries.data.map(entry => <RecordOption key={entry.id}><input type="checkbox" checked={selected.includes(entry.id)} disabled={busy || (!selected.includes(entry.id) && selected.length >= HARUMADI_PDF_MAX_ENTRIES)} onChange={() => setSelected(current => current.includes(entry.id) ? current.filter(id => id !== entry.id) : [...current, entry.id])} /><span><strong>{entry.title || entry.placeName || "남긴 하루"}</strong><small>{entry.visitedAt.slice(0, 10)} · {entry.content.slice(0, 45) || "사진으로 남긴 순간"}</small></span></RecordOption>)}</RecordList>}
+        <Eyebrow>마디 채우기</Eyebrow><h1>어떤 순간을 담을까요?</h1><p>원본 마디는 그대로 두고 이 하루마디에 담아요.<br />한 권에 최대 {HARUMADI_PDF_MAX_ENTRIES}개까지 담을 수 있어요.</p>
+        {entries.isPending ? <p role="status">마디를 불러오고 있어요.</p> : entries.isError ? <Quiet onClick={() => void entries.refetch()}>마디 다시 불러오기</Quiet> : !entries.data?.length ? <p>아직 남긴 마디가 없어요. 먼저 한 페이지를 써볼까요?</p> : <RecordList>{entries.data.map(entry => <RecordOption key={entry.id}><input type="checkbox" checked={selected.includes(entry.id)} disabled={busy || (!selected.includes(entry.id) && selected.length >= HARUMADI_PDF_MAX_ENTRIES)} onChange={() => setSelected(current => current.includes(entry.id) ? current.filter(id => id !== entry.id) : [...current, entry.id])} /><span><strong>{entry.title || entry.placeName || "남긴 하루"}</strong><small>{entry.visitedAt.slice(0, 10)} · {entry.content.slice(0, 45) || "사진으로 남긴 순간"}</small></span></RecordOption>)}</RecordList>}
       </> : mode === "pdf" ? <>
-        <Eyebrow>별도 파일로 소장하기</Eyebrow><h1>PDF로 저장하기</h1><p>지금 담긴 기록으로 PDF를 만들어요.<br />저장 후 하루마디를 바꿔도 이미 만든 PDF는 바뀌지 않아요.</p>
+        <Eyebrow>별도 파일로 소장하기</Eyebrow><h1>PDF로 저장하기</h1><p>지금 담긴 마디로 PDF를 만들어요.<br />저장 후 하루마디를 바꿔도 이미 만든 PDF는 바뀌지 않아요.</p>
         {sensitivePolicy?.enabled && <Confirmation><input type="checkbox" checked={confirmed} onChange={event => setConfirmed(event.target.checked)} />표지 제목에 민감정보가 없음을 확인해요.</Confirmation>}
         {pdfInput && sensitivePolicy && (!sensitivePolicy.enabled || confirmed) && <HarumadiPdfPreview key={`${harumadi!.revision}:${confirmed}`} ownerId={owner} input={pdfInput} onReady={handlePdf} />}
       </> : harumadi && <>
         <Eyebrow>{harumadi.innerStyle === "photo" ? "사진과 이야기" : "이야기 중심"} 하루마디</Eyebrow><h1>{harumadi.title}</h1>
-        <p>{chosen.length ? `지금까지 ${chosen.length}개의 순간을 담았어요.` : "표지와 속지가 준비됐어요.\n이제 첫 번째 순간을 담아보세요."}</p>
-        <HarumadiActions><PrimaryButton type="button" disabled={busy || chosen.length >= HARUMADI_PDF_MAX_ENTRIES} onClick={() => router.push(`/journal/new?from=library&harumadiId=${encodeURIComponent(harumadi.id)}`)}><PenLine size={16} />기록 남기기</PrimaryButton><Quiet type="button" onClick={selectRecords} disabled={busy}><Plus size={16} />기존 기록에서 선택</Quiet></HarumadiActions>
-        {entries.isError ? <Quiet onClick={() => void entries.refetch()}>기록 다시 불러오기</Quiet> : entries.isPending ? <p role="status">기록을 불러오고 있어요.</p> : chosen.length === 0 ? <BlankPage><BookOpen size={30} strokeWidth={1} /><strong>아직 비어 있는 첫 페이지</strong><span>사진 한 장, 짧은 이야기부터.</span></BlankPage> : <Pages>{chosen.map(entry => <Page key={entry.id}>{harumadi.innerStyle === "photo" && entry.image && <Image src={entry.image} alt="" width={320} height={240} unoptimized />}<small>{entry.visitedAt.slice(0, 10)} · {entry.placeName}</small><h2>{entry.title || "남긴 하루"}</h2><p>{entry.content}</p></Page>)}</Pages>}
+        <p>{chosen.length ? `지금까지 ${chosen.length}개의 마디를 담았어요.` : "표지와 속지가 준비됐어요.\n이제 하루의 이야기를 채워볼까요?"}</p>
+        <HarumadiActions><PrimaryButton type="button" disabled={busy || chosen.length >= HARUMADI_PDF_MAX_ENTRIES} onClick={() => router.push(`/journal/new?from=library&harumadiId=${encodeURIComponent(harumadi.id)}`)}><PenLine size={16} />{chosen.length ? "마디 남기기" : "첫 마디 남기기"}</PrimaryButton><Quiet type="button" onClick={selectRecords} disabled={busy}><Plus size={16} />마디 골라 담기</Quiet></HarumadiActions>
+        {entries.isError ? <Quiet onClick={() => void entries.refetch()}>마디 다시 불러오기</Quiet> : entries.isPending ? <p role="status">마디를 불러오고 있어요.</p> : chosen.length === 0 ? <BlankPage><BookOpen size={30} strokeWidth={1} /><strong>첫 마디를 채워보세요</strong><span>사진 한 장, 짧은 이야기부터.</span></BlankPage> : <Pages>{chosen.map(entry => <Page key={entry.id}>{harumadi.innerStyle === "photo" && entry.image && <Image src={entry.image} alt="" width={320} height={240} unoptimized />}<small>{entry.visitedAt.slice(0, 10)} · {entry.placeName}</small><h2>{entry.title || "남긴 하루"}</h2><p>{entry.content}</p></Page>)}</Pages>}
         <ExportButton type="button" disabled={!chosen.length || busy || entries.isPending || entries.isError} onClick={() => { setConfirmed(false); setPdf(null); setMode("pdf"); }}><Download size={17} /><span><strong>PDF로 저장하기</strong><small>지금까지 채운 페이지를 별도 파일로</small></span></ExportButton>
       </>}
-      {policyQuery.isError && <ErrorMessage role="alert">기록 보호 설정을 불러오지 못했어요.<Quiet onClick={() => void policyQuery.refetch()}>다시 불러오기</Quiet></ErrorMessage>}
+      {policyQuery.isError && <ErrorMessage role="alert">마디 보호 설정을 불러오지 못했어요.<Quiet onClick={() => void policyQuery.refetch()}>다시 불러오기</Quiet></ErrorMessage>}
       {error && <ErrorMessage role="alert">{error}<Quiet onClick={() => window.location.reload()}>다시 불러오기</Quiet></ErrorMessage>}
     </Body>
-    {mode !== "pages" && <Footer><PrimaryButton type="button" disabled={busy || (mode === "settings" && (!settings.title.trim() || !sensitivePolicy || (titleNeedsConfirmation && !confirmed))) || (mode === "selection" && !entries.data) || (mode === "pdf" && (!pdf?.approvalToken || Boolean(sensitivePolicy?.enabled && !confirmed)))} onClick={() => void (mode === "settings" ? saveSettings() : mode === "selection" ? saveEntries() : downloadPdf())}>{busy ? "저장하고 있어요." : mode === "settings" ? harumadi ? "설정 저장하기" : "빈 하루마디 만들기" : mode === "selection" ? `기록 ${selected.length}개 담기` : "PDF 파일 저장하기"}</PrimaryButton></Footer>}
+    {mode !== "pages" && <Footer><PrimaryButton type="button" disabled={busy || (mode === "settings" && (!settings.title.trim() || !sensitivePolicy || (titleNeedsConfirmation && !confirmed))) || (mode === "selection" && !entries.data) || (mode === "pdf" && (!pdf?.approvalToken || Boolean(sensitivePolicy?.enabled && !confirmed)))} onClick={() => void (mode === "settings" ? saveSettings() : mode === "selection" ? saveEntries() : downloadPdf())}>{busy ? "저장하고 있어요." : mode === "settings" ? harumadi ? "설정 저장하기" : "빈 하루마디 만들기" : mode === "selection" ? `마디 ${selected.length}개 담기` : "PDF 파일 저장하기"}</PrimaryButton></Footer>}
   </Frame>;
 }
 

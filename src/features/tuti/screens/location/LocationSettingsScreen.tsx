@@ -251,7 +251,7 @@ function resolveLocationState({
 
   return {
     title: "아직 현재 위치를 사용하지 않았어요.",
-    description: "위치 없이도 Tuti의 장소와 기록 기능을 이용할 수 있어요.",
+    description: "위치 없이도 장소를 둘러보고 마디를 남길 수 있어요.",
   };
 }
 

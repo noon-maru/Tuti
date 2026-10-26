@@ -52,7 +52,7 @@ export function createHarumadiPdfPreviewHandler(dependencies: Dependencies) {
         reader.releaseLock();
       }
       const input = parseHarumadiPdfInput(JSON.parse(body));
-      if (!input) return fail("선택한 기록과 제목을 확인해주세요.", 400);
+      if (!input) return fail("선택한 마디와 제목을 확인해주세요.", 400);
       dependencies.validate?.(input);
       if (rendering)
         return fail(
@@ -70,7 +70,7 @@ export function createHarumadiPdfPreviewHandler(dependencies: Dependencies) {
           )
         ) {
           return fail(
-            "선택한 기록을 찾지 못했어요. 기록을 다시 골라주세요.",
+            "선택한 마디를 찾지 못했어요. 마디를 다시 골라주세요.",
             404,
           );
         }
@@ -85,7 +85,7 @@ export function createHarumadiPdfPreviewHandler(dependencies: Dependencies) {
           ) > 60_000
         ) {
           return fail(
-            "글이 많아 한 번에 만들기 어려워요. 기록을 나누어 골라주세요.",
+            "글이 많아 한 번에 만들기 어려워요. 마디를 나누어 골라주세요.",
             413,
           );
         }

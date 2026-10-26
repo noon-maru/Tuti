@@ -60,7 +60,7 @@ export function PublicJournalScreen({
       <Page>
         <Shell>
           <Header><Wordmark src="/brand/tuti-wordmark.svg" alt="Tuti" /></Header>
-          <Card><Content><h1>{loading ? "공유된 기록을 불러오고 있어요." : "공개된 기록을 찾지 못했어요."}</h1></Content></Card>
+          <Card><Content><h1>{loading ? "공유된 마디를 불러오고 있어요." : "공개된 마디를 찾지 못했어요."}</h1></Content></Card>
         </Shell>
       </Page>
     );
@@ -119,7 +119,7 @@ export function PublicJournalScreen({
             {entry.image && (
               <HeroImage
                 src={entry.image}
-                alt={`${entry.placeName} 기록 이미지`}
+                alt={`${entry.placeName} 마디 이미지`}
               />
             )}
           </Hero>
@@ -128,7 +128,7 @@ export function PublicJournalScreen({
             <DateText>{formatPublicDate(entry.visitedAt)}</DateText>
             <h1>{entry.title || "남겨둔 공간"}</h1>
             <JournalLocationLabel placeName={entry.placeName} />
-            <Tags aria-label="기록 정보">
+            <Tags aria-label="마디 정보">
               <Tag $tone="brand">{entry.crowd}</Tag>
               <Tag $tone="neutral">{entry.theme}</Tag>
               <Tag $tone="secondary">{entry.difficulty}</Tag>
@@ -152,7 +152,7 @@ export function PublicJournalScreen({
               type="button"
               disabled={blocking}
               onClick={() => {
-                if (window.confirm("이 작성자의 공개 기록을 더 이상 보지 않을까요?")) {
+                if (window.confirm("이 작성자의 공개 마디를 더 이상 보지 않을까요?")) {
                   setBlocking(true);
                   void onBlockAuthor().catch(() => {
                     setBlocking(false);
@@ -194,7 +194,7 @@ export function PublicJournalScreen({
               </>
             ) : (
               <>
-                <h2 id="report-title">이 기록을 신고할까요?</h2>
+                <h2 id="report-title">이 마디를 신고할까요?</h2>
                 <ReportSelect
                   aria-label="신고 사유"
                   value={reportReason}

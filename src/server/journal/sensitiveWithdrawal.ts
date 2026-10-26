@@ -6,7 +6,7 @@ import { commitPrivacyReplayReceipt, preparePrivacyReplayReceipt } from "@/serve
 export async function withdrawSensitiveJournal(ownerId: string, entryId: string) {
   const entry = await prisma.journalEntry.findFirst({ where: { id: entryId, ownerId }, select: { sensitiveContent: true, sensitiveWithdrawnAt: true } });
   if (!entry) return { found: false, pending: false };
-  if (entry.sensitiveContent !== true && !entry.sensitiveWithdrawnAt) throw new Error("민감정보 처리 동의가 없는 기록입니다.");
+  if (entry.sensitiveContent !== true && !entry.sensitiveWithdrawnAt) throw new Error("민감정보 처리 동의가 없는 마디입니다.");
   // 복구 방지 근거를 먼저 준비한다. 준비 실패 시 철회 완료를 표시하지 않는다.
   const receipt = await preparePrivacyReplayReceipt("journal_sensitive_withdrawn", ownerId, new Date(), entryId);
   await prisma.journalEntry.updateMany({

@@ -85,7 +85,7 @@ export function JournalShareDialog({
     void fetch(entry.image, { cache: "no-store" })
       .then((response) => {
         if (!response.ok) {
-          throw new Error("기록 사진을 불러오지 못했어요.");
+          throw new Error("마디 사진을 불러오지 못했어요.");
         }
         return response.blob();
       })
@@ -97,7 +97,7 @@ export function JournalShareDialog({
       .catch(() => {
         if (!active) return;
         setStatus("error");
-        setMessage("기록 사진을 공유 이미지로 불러오지 못했어요.");
+        setMessage("마디 사진을 공유 이미지로 불러오지 못했어요.");
       });
 
     return () => {
@@ -259,7 +259,7 @@ export function JournalShareDialog({
   return (
     <>
       <ShareDialogFrame
-        title="기록 공유하기"
+        title="마디 공유하기"
         dismissEnabled={!publicationConsentOpen}
         onClose={onClose}
       >
@@ -315,8 +315,8 @@ export function JournalShareDialog({
                 <strong>웹 링크</strong>
                 <p>
                   {entry.publication
-                    ? "링크를 받은 사람이 이 기록을 볼 수 있어요."
-                    : "기록을 공개하면 앱이 없어도 볼 수 있는 링크가 생겨요."}
+                    ? "링크를 받은 사람이 이 마디를 볼 수 있어요."
+                    : "마디를 공개하면 앱이 없어도 볼 수 있는 링크가 생겨요."}
                 </p>
               </WebShareCopy>
               {entry.publication ? (
@@ -439,7 +439,7 @@ function waitForImages(node: HTMLElement) {
         await image.decode();
       } catch {
         if (image.hasAttribute("data-share-photo")) {
-          throw new Error("기록 사진을 공유 이미지로 준비하지 못했어요.");
+          throw new Error("마디 사진을 공유 이미지로 준비하지 못했어요.");
         }
         // 이미지가 없더라도 브랜드 배경으로 공유 카드를 생성한다.
       }
@@ -453,13 +453,13 @@ function readBlobAsDataUrl(blob: Blob) {
 
     reader.addEventListener("load", () => {
       if (typeof reader.result !== "string") {
-        reject(new Error("기록 사진을 변환하지 못했어요."));
+        reject(new Error("마디 사진을 변환하지 못했어요."));
         return;
       }
       resolve(reader.result);
     });
     reader.addEventListener("error", () => {
-      reject(new Error("기록 사진을 변환하지 못했어요."));
+      reject(new Error("마디 사진을 변환하지 못했어요."));
     });
     reader.readAsDataURL(blob);
   });

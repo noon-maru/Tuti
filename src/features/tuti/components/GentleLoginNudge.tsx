@@ -80,13 +80,13 @@ export function GentleLoginNudge() {
       <Copy>
         <strong>
           {reason === "journal_created"
-            ? "이 기록, 다음에도 이어볼까요?"
+            ? "이 마디, 다음에도 이어볼까요?"
             : "다음에 갈 공간을 담아뒀어요."}
         </strong>
         <span>
           {reason === "journal_created"
             ? "로그인해두면 기기를 바꿔도 다시 볼 수 있어요."
-            : "지금은 이 기기에 남아 있어요. 기록을 오래 이어보려면 로그인해둘 수 있어요."}
+            : "지금은 이 기기에 남아 있어요. 마디를 오래 이어보려면 로그인해둘 수 있어요."}
         </span>
       </Copy>
       <Actions>

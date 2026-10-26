@@ -59,7 +59,7 @@ export function IntakeScreen({
           <HeaderWordmark priority />
         </Brand>
         <RestoreButton onClick={onRestoreRecords}>
-          기록 불러오기
+          마디 불러오기
         </RestoreButton>
       </SoftHeader>
       <QuestionBlock>

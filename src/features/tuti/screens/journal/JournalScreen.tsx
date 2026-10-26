@@ -99,7 +99,7 @@ export function JournalScreen({
 
   const deleteEntry = async (entryId: string) => {
     const target = entries.find((entry) => entry.id === entryId);
-    if (!window.confirm(target?.sensitiveContent ? "이 기록과 사진, 이 기록을 포함한 서버 하루마디를 함께 삭제할까요? 민감정보 처리 동의도 철회돼요." : "이 기록을 삭제할까요?")) return;
+    if (!window.confirm(target?.sensitiveContent ? "이 마디와 사진, 이 마디를 포함한 서버 하루마디를 함께 삭제할까요? 민감정보 처리 동의도 철회돼요." : "이 마디를 삭제할까요?")) return;
 
     const remainingEntries = entries.filter(
       (entry) => entry.id !== entryId,
@@ -119,7 +119,7 @@ export function JournalScreen({
       window.alert(
         error instanceof Error
           ? error.message
-          : "기록을 삭제하지 못했어요.",
+          : "마디를 삭제하지 못했어요.",
       );
     }
   };
@@ -210,10 +210,10 @@ export function JournalScreen({
       }}
     >
       <ListHeader>
-        <h1>지나간 공간</h1>
+        <h1>나의 마디</h1>
         <AddButton
           type="button"
-          aria-label="새로운 공간 남기기"
+          aria-label="마디 남기기"
           onClick={onCreateEntry}
         >
           +
@@ -222,7 +222,7 @@ export function JournalScreen({
 
       {entries.length > 0 ? (
         <MemoryStack
-          aria-label="남긴 공간"
+          aria-label="남겨둔 마디"
           onWheel={scrollStack}
           onPointerDown={startStackDrag}
           onPointerMove={updateStackDrag}
@@ -259,7 +259,7 @@ export function JournalScreen({
                   $tone={[0, 1, 2, 1, 0][index % 5] ?? 0}
                   aria-label={
                     (!entry.image ? preview.heading || preview.excerpt : entry.title) ||
-                    `${formatJournalDate(entry.visitedAt)} 기록`
+                    `${formatJournalDate(entry.visitedAt)} 마디`
                   }
                   aria-pressed={index === selectedEntryIndex}
                   tabIndex={index === selectedEntryIndex ? 0 : -1}
@@ -295,7 +295,7 @@ export function JournalScreen({
                 {index === selectedEntryIndex && (
                   <CardMenuPosition>
                     <ContextMenu
-                      label={`${entry.title || preview.heading || "남겨둔 이야기"} 기록 메뉴`}
+                      label={`${entry.title || preview.heading || "남겨둔 이야기"} 마디 메뉴`}
                       tone={entry.image ? "inverse" : "default"}
                       items={[
                         {
@@ -315,7 +315,7 @@ export function JournalScreen({
                           onSelect: () => onEditEntry?.(entry.id),
                         },
                         {
-                          label: "기록 공유하기",
+                          label: "마디 공유하기",
                           onSelect: () => setShareEntryId(entry.id),
                         },
                         {
@@ -333,11 +333,11 @@ export function JournalScreen({
         </MemoryStack>
       ) : isPending ? (
         <EmptyState>
-          <LoadingIndicator label="지난 공간을 불러오고 있어요." />
+          <LoadingIndicator label="마디를 불러오고 있어요." />
         </EmptyState>
       ) : (
         <EmptyState>
-          <p>잠깐 머문 공간의 공기를 남겨보세요.</p>
+          <p>사진 한 장, 짧은 이야기로<br />첫 마디를 남겨보세요.</p>
         </EmptyState>
       )}
       {shareEntry && (

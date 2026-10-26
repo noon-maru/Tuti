@@ -33,7 +33,7 @@ export function JournalDetailFlow() {
     changeEntryPublication,
   });
   const deleteEntry = async () => {
-    if (!entry || !window.confirm(entry.sensitiveContent ? "이 기록과 사진, 이 기록을 포함한 서버 하루마디를 함께 삭제할까요? 민감정보 처리 동의도 철회돼요." : "이 기록을 삭제할까요?")) return;
+    if (!entry || !window.confirm(entry.sensitiveContent ? "이 마디와 사진, 이 마디를 포함한 서버 하루마디를 함께 삭제할까요? 민감정보 처리 동의도 철회돼요." : "이 마디를 삭제할까요?")) return;
 
     const deletedIndex = entries.findIndex(
       (candidate) => candidate.id === entry.id,
@@ -54,7 +54,7 @@ export function JournalDetailFlow() {
       window.alert(
         error instanceof Error
           ? error.message
-          : "기록을 삭제하지 못했어요.",
+          : "마디를 삭제하지 못했어요.",
       );
     }
   };
@@ -72,7 +72,7 @@ export function JournalDetailFlow() {
   if (!entry) {
     return (
       <JournalDetailStatusScreen
-        message="기록을 찾지 못했어요."
+        message="마디를 찾지 못했어요."
         onBack={returnToJournalFallback}
       />
     );
@@ -86,10 +86,10 @@ export function JournalDetailFlow() {
       onCopyPublicLink={shareActions.copyPublicLink}
       onDelete={deleteEntry}
       onWithdrawSensitive={async () => {
-        if (!window.confirm("민감정보 처리 동의를 철회할까요? 이 기록과 사진, 이 기록을 포함한 서버 하루마디를 함께 삭제해요. 이미 내려받은 사본은 직접 정리해주세요.")) return;
+        if (!window.confirm("민감정보 처리 동의를 철회할까요? 이 마디와 사진, 이 마디를 포함한 서버 하루마디를 함께 삭제해요. 이미 내려받은 사본은 직접 정리해주세요.")) return;
         try {
           const result = await withdrawJournalSensitiveConsent(entry.id);
-          if (result.pending) window.alert("철회는 접수했어요. 기록과 하루마디는 더 이상 조회할 수 없으며, 파일 정리를 재시도하고 있어요.");
+          if (result.pending) window.alert("철회는 접수했어요. 마디와 하루마디는 더 이상 조회할 수 없으며, 파일 정리를 재시도하고 있어요.");
           router.replace("/journal");
         } catch (error) {
           window.alert(error instanceof Error ? error.message : "철회 요청을 처리하지 못했어요.");

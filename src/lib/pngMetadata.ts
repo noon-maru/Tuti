@@ -22,10 +22,10 @@ export async function embedJournalShareMetadata({
   trace: JournalShareTraceFinalization;
 }) {
   const metadata = [
-    ["Title", entry.title || "Tuti 기록"],
+    ["Title", entry.title || "Tuti 마디"],
     ["Publisher", "Tuti"],
     ["Software", "Tuti"],
-    ["Description", "Tuti에서 생성된 기록 공유 이미지"],
+    ["Description", "Tuti에서 생성된 마디 공유 이미지"],
     ["Source", "https://tuti.today"],
     ["Tuti Trace ID", trace.traceId],
     ["Tuti Short Code", trace.shortCode],

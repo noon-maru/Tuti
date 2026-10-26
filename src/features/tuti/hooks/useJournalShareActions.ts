@@ -37,7 +37,7 @@ export function useJournalShareActions({
     if (!session?.account) {
       if (
         window.confirm(
-          "인터넷에 공개한 기록을 계속 관리하려면 계정 연결이 필요해요. 로그인 화면으로 이동할까요?",
+          "인터넷에 공개한 마디를 계속 관리하려면 계정 연결이 필요해요. 로그인 화면으로 이동할까요?",
         )
       ) {
         router.push("/login");
@@ -47,7 +47,7 @@ export function useJournalShareActions({
 
     const consentVersion = getJournalPublicationPolicyVersion();
     await fetchServiceTerms(false);
-    if (consentVersion !== getJournalPublicationPolicyVersion()) throw new Error("기록 공개 정책이 변경되었어요. 새 정책을 확인하고 다시 동의해주세요.");
+    if (consentVersion !== getJournalPublicationPolicyVersion()) throw new Error("마디 공개 정책이 변경되었어요. 새 정책을 확인하고 다시 동의해주세요.");
     await changeEntryPublication(
       entry.id,
       true,
@@ -72,7 +72,7 @@ export function useJournalShareActions({
       window.alert(
         error instanceof Error
           ? error.message
-          : "기록 공개를 중지하지 못했어요.",
+          : "마디 공개를 중지하지 못했어요.",
       );
     }
   }, [changeEntryPublication, entry]);

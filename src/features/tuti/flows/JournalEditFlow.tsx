@@ -34,7 +34,7 @@ export function JournalEditFlow() {
   if (isPending) {
     return (
       <JournalEditorStatusScreen
-        message="기록을 불러오고 있어요."
+        message="마디를 불러오고 있어요."
         onBack={returnToJournalFallback}
         loading
       />
@@ -44,7 +44,7 @@ export function JournalEditFlow() {
   if (!entry) {
     return (
       <JournalEditorStatusScreen
-        message="수정할 기록을 찾지 못했어요."
+        message="수정할 마디를 찾지 못했어요."
         onBack={returnToJournalFallback}
       />
     );

@@ -28,7 +28,7 @@ export async function GET(
     return withCors(
       request,
       Response.json(
-        { error: "공개 기록을 찾지 못했어요." },
+        { error: "공개 마디를 찾지 못했어요." },
         { status: 404, headers: privateNoStoreHeaders() },
       ),
     );

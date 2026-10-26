@@ -130,7 +130,7 @@ export function NativeAppUpdateNotice({ children }: { children: React.ReactNode 
     : "새로운 Tuti가 준비됐어요.";
   const description = policy.required
     ? "안정적인 이용을 위해 최신 버전으로 업데이트해주세요."
-    : "지금의 기록은 그대로 두고, 더 안정적인 버전으로 가볍게 옮겨갈 수 있어요.";
+    : "지금의 마디는 그대로 두고, 더 안정적인 버전으로 가볍게 옮겨갈 수 있어요.";
 
   return (
     <>

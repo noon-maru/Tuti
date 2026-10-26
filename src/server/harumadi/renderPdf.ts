@@ -35,7 +35,7 @@ export async function renderOwnedHarumadiPdf(
     !input.entryIds.every((id) => entries.some((entry) => entry.id === id))
   ) {
     throw new HarumadiPdfRenderError(
-      "선택한 기록을 찾지 못했어요. 기록을 다시 골라주세요.",
+      "선택한 마디를 찾지 못했어요. 마디를 다시 골라주세요.",
       404,
     );
   }
@@ -48,7 +48,7 @@ export async function renderOwnedHarumadiPdf(
     ) > 60_000
   ) {
     throw new HarumadiPdfRenderError(
-      "글이 많아 한 번에 만들기 어려워요. 기록을 나누어 골라주세요.",
+      "글이 많아 한 번에 만들기 어려워요. 마디를 나누어 골라주세요.",
       413,
     );
   }

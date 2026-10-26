@@ -45,7 +45,7 @@ export async function PATCH(
       return withCors(
         request,
         Response.json(
-          { error: "기록 내용을 확인해주세요." },
+          { error: "마디 내용을 확인해주세요." },
           { status: 400 },
         ),
       );
@@ -57,7 +57,7 @@ export async function PATCH(
       return withCors(
         request,
         Response.json(
-          { error: "수정할 기록을 찾지 못했어요." },
+          { error: "수정할 마디를 찾지 못했어요." },
           { status: 404 },
         ),
       );
@@ -82,7 +82,7 @@ export async function PATCH(
             ? "요청 본문을 확인해주세요."
             : invalidImage
               ? error.message
-              : "기록을 수정하지 못했어요.",
+              : "마디를 수정하지 못했어요.",
         },
         { status: invalidJson || invalidImage ? 400 : 500 },
       ),
@@ -110,7 +110,7 @@ export async function DELETE(
       return withCors(
         request,
         Response.json(
-          { error: "삭제할 기록을 찾지 못했어요." },
+          { error: "삭제할 마디를 찾지 못했어요." },
           { status: 404 },
         ),
       );
@@ -125,7 +125,7 @@ export async function DELETE(
     return withCors(
       request,
       Response.json(
-        { error: "기록을 삭제하지 못했어요." },
+        { error: "마디를 삭제하지 못했어요." },
         { status: 500 },
       ),
     );

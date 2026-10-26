@@ -41,7 +41,7 @@ export async function POST(request: Request) {
       return withCors(
         request,
         Response.json(
-          { error: "현재 신고할 수 있는 공개 기록이 없습니다." },
+          { error: "현재 신고할 수 있는 공개 마디가 없습니다." },
           { status: 404 },
         ),
       );
@@ -89,7 +89,7 @@ export async function POST(request: Request) {
       return withCors(
         request,
         Response.json(
-          { error: "신고할 공개 기록을 찾지 못했습니다." },
+          { error: "신고할 공개 마디를 찾지 못했습니다." },
           { status: 404 },
         ),
       );
