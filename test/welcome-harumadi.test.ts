@@ -1,6 +1,21 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { readFileSync } from "node:fs";
 import { parseWelcomeHarumadiPage, welcomeHarumadiPath, welcomeHarumadiTurn, welcomeHarumadiNeighbor, WELCOME_HARUMADI_LAST_PAGE, WELCOME_HARUMADI_PAGE_COUNT } from "../src/shared/tuti/welcomeHarumadi";
+
+test("예시 화면의 DOM 속성과 클릭·레이어 선택자는 소문자 data 속성을 공유한다", () => {
+  const read = (file: string) => readFileSync(`src/features/tuti/screens/onboarding/${file}.tsx`, "utf8");
+  const sample = read("WelcomeHarumadiSample");
+  const screen = read("WelcomeScreen");
+  const preview = read("WelcomeHarumadiPreview");
+  for (const source of [sample, screen, preview]) assert.doesNotMatch(source, /data-[a-z-]*[A-Z]/);
+  assert.match(sample, /data-harumadi-pdf-sample=/);
+  assert.match(screen, /querySelector\('\[data-harumadi-pdf-sample\]'\)/);
+  assert.match(preview, /data-harumadi-pdf-edge="previous"/);
+  assert.match(preview, /\[data-harumadi-pdf-edge="previous"\]/);
+  assert.match(preview, /data-harumadi-pdf-edge="next"/);
+  assert.match(preview, /\[data-harumadi-pdf-edge="next"\]/);
+});
 
 test("하루마디 예시는 별도 화면이며 기본 진입은 눌렀던 본문 페이지다", () => {
   assert.equal(parseWelcomeHarumadiPage(null, null), null);

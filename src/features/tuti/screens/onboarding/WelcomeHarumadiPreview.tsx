@@ -112,7 +112,7 @@ export function WelcomeHarumadiPreview({ page, origin, onPageChange, onRecord, o
     };
   }, [close]);
 
-  return <Frame aria-labelledby="welcome-harumadi-title" data-harumadiPdf-screen>
+  return <Frame aria-labelledby="welcome-harumadi-title" data-harumadi-pdf-screen>
     <Header>
       <BackButton aria-label="하루마디 예시에서 돌아가기" onClick={close} />
       <h1 id="welcome-harumadi-title" ref={heading} tabIndex={-1}>하루마디 예시</h1>
@@ -121,16 +121,16 @@ export function WelcomeHarumadiPreview({ page, origin, onPageChange, onRecord, o
     <Stage>
       <Page ref={sheet} $ending={page === WELCOME_HARUMADI_LAST_PAGE} $front={retainedPage !== null && page < retainedPage} aria-label={`${page + 1} / ${WELCOME_HARUMADI_PAGE_COUNT}쪽`}>
         <HarumadiPageContent page={page} onRecord={onRecord} />
-        <PageEdge type="button" data-harumadiPdf-edge="previous" aria-label="왼쪽 영역을 눌러 이전 쪽"
+        <PageEdge type="button" data-harumadi-pdf-edge="previous" aria-label="왼쪽 영역을 눌러 이전 쪽"
           disabled={previous === null || retainedPage !== null}
           onClick={() => turnTo(previous)} />
-        <PageEdge type="button" data-harumadiPdf-edge="next" aria-label="오른쪽 영역을 눌러 다음 쪽"
+        <PageEdge type="button" data-harumadi-pdf-edge="next" aria-label="오른쪽 영역을 눌러 다음 쪽"
           disabled={next === null || retainedPage !== null}
           onClick={() => turnTo(next)} />
       </Page>
       {retainedPage !== null && retainedPage !== page && <Page
         ref={retainedSheet} $ending={retainedPage === WELCOME_HARUMADI_LAST_PAGE} $front={retainedPage < page} $retained aria-hidden="true" inert
-        data-harumadiPdf-retained data-harumadiPdf-outgoing={retainedPage < page ? "" : undefined}>
+        data-harumadi-pdf-retained data-harumadi-pdf-outgoing={retainedPage < page ? "" : undefined}>
         <HarumadiPageContent page={retainedPage} onRecord={onRecord} />
       </Page>}
     </Stage>
@@ -185,14 +185,14 @@ const Page = styled.div<{ $ending: boolean; $front?: boolean; $retained?: boolea
   ${({ $retained }) => $retained && "pointer-events: none;"}
   border: ${({ $ending }) => $ending ? "0" : "1px solid var(--color-border)"};
   /* Actual content actions stay above the transparent page-turn targets. */
-  button:not([data-harumadiPdf-edge]), a { position: relative; z-index: 4; }
+  button:not([data-harumadi-pdf-edge]), a { position: relative; z-index: 4; }
 `;
 const PageEdge = styled(BaseButton)`
   position: absolute; top: 0; bottom: 0; z-index: 3;
   width: 22%; min-width: 0; min-height: 44px; padding: 0;
   border: 0; border-radius: 0; background: transparent;
-  &[data-harumadiPdf-edge="previous"] { left: 0; }
-  &[data-harumadiPdf-edge="next"] { right: 0; }
+  &[data-harumadi-pdf-edge="previous"] { left: 0; }
+  &[data-harumadi-pdf-edge="next"] { right: 0; }
   &:hover { background: transparent; }
   &:focus-visible { outline: 2px solid var(--color-brand-700); outline-offset: -2px; }
 `;

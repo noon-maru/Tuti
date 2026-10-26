@@ -56,7 +56,7 @@ export function WelcomeScreen({ onRecord, onExplore, guideStep, onGuideOpen, onG
         <Image src="/welcome/shared-afternoon-example.webp" alt="두 사람이 함께한 오후의 사진 예시" fill sizes="(max-width: 600px) 70vw, 280px" />
       </PhotoExample> : <HarumadiFigure>
         <HarumadiButton ref={harumadiPdf} type="button" aria-label="하루마디 예시 펼쳐보기" onClick={() => {
-          const sheet = harumadiPdf.current?.querySelector('[data-harumadiPdf-sample]');
+          const sheet = harumadiPdf.current?.querySelector('[data-harumadi-pdf-sample]');
           const rect = sheet?.getBoundingClientRect();
           onBookOpen(rect ? { left: rect.left, top: rect.top, width: rect.width, height: rect.height } : null);
         }}>

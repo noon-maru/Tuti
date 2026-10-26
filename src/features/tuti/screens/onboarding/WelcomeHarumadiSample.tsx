@@ -14,7 +14,7 @@ const coverPalette = getHarumadiPdfCoverPalette("green-image");
 /** HTML rendition of the A5 photo-text layout; all copy remains real text. */
 export function WelcomeHarumadiSample({ page, priority = false }: { page: "cover" | "page" | "text"; priority?: boolean }) {
   const cover = page === "cover";
-  if (page === "text") return <Sheet data-harumadiPdf-sample="text">
+  if (page === "text") return <Sheet data-harumadi-pdf-sample="text">
     <TextPaper $cover={false}>
       <TextFrame>
         <TextMeta>2026.06.28 · 동네 산책길</TextMeta>
@@ -24,7 +24,7 @@ export function WelcomeHarumadiSample({ page, priority = false }: { page: "cover
       <Folio>2</Folio>
     </TextPaper>
   </Sheet>;
-  return <Sheet data-harumadiPdf-sample={page}>
+  return <Sheet data-harumadi-pdf-sample={page}>
     <Paper $cover={cover}>
       {cover ? <>
         <CoverHeader><span>2026.06.23<br />- 2026.06.28</span><span>함께 남긴 하루</span></CoverHeader>
