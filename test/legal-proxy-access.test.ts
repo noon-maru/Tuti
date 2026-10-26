@@ -60,7 +60,7 @@ test("실제 프록시에서 차단된 주소의 권리 요청은 API로 넘기�
       ["/api/public/legal-notices", "GET", undefined],
       ["/api/account", "DELETE", { confirmed: true }],
       ["/api/journal-entries/entry", "DELETE", undefined],
-      ["/api/journal-books/book", "DELETE", undefined],
+      ["/api/harumadi-pdfs/harumadiPdf", "DELETE", undefined],
       ["/api/reports", "POST", {}],
       ["/api/journal-entries/entry/publication", "PATCH", { published: false }],
     ] as const) {

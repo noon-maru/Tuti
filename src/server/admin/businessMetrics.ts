@@ -533,14 +533,14 @@ function calculateEntryExperience(
   const accounts = (action: string) => new Set(
     events.filter((event) => event.action === action).map((event) => event.userId),
   ).size;
-  const clicks = events.filter((event) => event.action === "journal_book_purchase_clicked");
+  const clicks = events.filter((event) => event.action === "harumadi_purchase_clicked");
   return {
     welcomeViewAccounts: accounts("welcome_viewed"),
     recordStartAccounts: accounts("welcome_record_started"),
     exploreStartAccounts: accounts("welcome_explore_started"),
-    purchaseClickAccounts: accounts("journal_book_purchase_clicked"),
+    purchaseClickAccounts: accounts("harumadi_purchase_clicked"),
     purchaseClicks: clicks.length,
-    purchaseBySurface: (["welcome", "completed_book"] as const).map((surface) => {
+    purchaseBySurface: (["welcome", "completed_harumadi"] as const).map((surface) => {
       const matched = clicks.filter((event) => event.surface === surface);
       return {
         surface,

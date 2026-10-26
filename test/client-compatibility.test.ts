@@ -13,7 +13,7 @@ const modern = { [CLIENT_PROTOCOL_HEADER]: CLIENT_PROTOCOL, [CLIENT_PLATFORM_HEA
 const request = (path: string, method = "GET", headers: Record<string, string> = {}) => new Request(`https://tuti.today${path}`, { method, headers });
 
 test("규약 없는 구버전의 일반 API는 읽기/쓰기 모두 426으로 거절한다", async () => {
-  for (const [path, method] of [["/api/anonymous-session", "POST"], ["/api/recommendations", "POST"], ["/api/places/place/detail", "GET"], ["/api/recommendation-regions", "GET"], ["/api/product-activity", "POST"], ["/api/journal-books", "POST"]]) {
+  for (const [path, method] of [["/api/anonymous-session", "POST"], ["/api/recommendations", "POST"], ["/api/places/place/detail", "GET"], ["/api/recommendation-regions", "GET"], ["/api/product-activity", "POST"], ["/api/harumadi-pdfs", "POST"]]) {
     const response = guardClientCompatibility(request(path, method));
     assert.equal(response?.status, 426, path);
     assert.equal((await response!.json()).code, "client_update_required");
@@ -32,7 +32,7 @@ test("네이티브는 버전 헤더가 필요하고 서버가 최소/최신 버�
 });
 
 test("권리 행사·공개 공유·콜백·운영/헬스·CORS는 호환 헤더 없이도 기존 통제로 넘긴다", () => {
-  for (const path of ["/legal/privacy", "/api/health", "/api/app-update", "/api/admin/users", "/api/auth/oauth/google/callback", "/api/public/journal-entries/id", "/api/journal-books/book/file", "/api/journal-entries", "/api/account", "/api/journal-entry-images/id"]) {
+  for (const path of ["/legal/privacy", "/api/health", "/api/app-update", "/api/admin/users", "/api/auth/oauth/google/callback", "/api/public/journal-entries/id", "/api/harumadi-pdfs/harumadiPdf/file", "/api/journal-entries", "/api/account", "/api/journal-entry-images/id"]) {
     assert.equal(guardClientCompatibility(request(path)), null, path);
   }
   assert.equal(guardClientCompatibility(request("/api/push/devices", "DELETE")), null);
@@ -51,20 +51,20 @@ test("웹 API 요청은 인증·PDF 승인·취소 신호를 보존하고 새 �
     assert.equal(headers.get(CLIENT_PROTOCOL_HEADER), CLIENT_PROTOCOL);
     assert.equal(headers.get(CLIENT_PLATFORM_HEADER), "web");
     assert.equal(headers.get("Authorization"), "Bearer private-test");
-    assert.equal(headers.get("X-Tuti-Journal-Book-Approval"), "test-approval");
+    assert.equal(headers.get("X-Tuti-Journal-Harumadi-Approval"), "test-approval");
     assert.equal(init?.signal, controller.signal);
     inspected = true;
     return Response.json({ ok: true });
   });
-  await clientFetch(apiUrl("journal-books"), { method: "POST", headers: { Authorization: "Bearer private-test", "X-Tuti-Journal-Book-Approval": "test-approval" }, signal: controller.signal });
+  await clientFetch(apiUrl("harumadi-pdfs"), { method: "POST", headers: { Authorization: "Bearer private-test", "X-Tuti-Journal-Harumadi-Approval": "test-approval" }, signal: controller.signal });
   assert.equal(inspected, true);
   await assert.rejects(clientFetch("https://external.invalid/photo.jpg"), /Tuti API/);
 });
 
 test("옛 호환 분기는 제거하고 버전·약관 병렬 확인을 모두 통과해야 부트스트랩한다", () => {
   assert.doesNotMatch(readFileSync("src/lib/auth/session.ts", "utf8"), /LEGACY_SESSION_STORAGE_KEY|tuti-anonymous-session|legacyOnly/);
-  assert.doesNotMatch(readFileSync("src/server/journal/bookApproval.ts", "utf8"), /legacy-json|JOURNAL_BOOK_MAX_JSON_BYTES/);
-  assert.doesNotMatch(readFileSync("src/app/api/journal-books/route.ts", "utf8"), /prepareLegacyJournalBook|renderOwnedJournalBook/);
+  assert.doesNotMatch(readFileSync("src/server/harumadi/pdfApproval.ts", "utf8"), /legacy-json|HARUMADI_PDF_MAX_JSON_BYTES/);
+  assert.doesNotMatch(readFileSync("src/app/api/harumadi-pdfs/route.ts", "utf8"), /prepareLegacyHarumadiPdf|renderOwnedHarumadiPdf/);
   const shell = readFileSync("src/features/tuti/components/TutiAppShell.tsx", "utf8");
   assert.match(shell, /<InitialServiceTermsGate renderContent=\{content => <NativeAppUpdateNotice>\{content\}<\/NativeAppUpdateNotice>\}/);
   assert.ok(shell.indexOf("<NativeAppUpdateNotice>") < shell.indexOf("<Providers"));

@@ -5,12 +5,12 @@ import { useEffect, useState } from "react";
 import { RecommendationReadyFlow } from "@/features/tuti/flows/RecommendationReadyFlow";
 import { IntakeFlow } from "@/features/tuti/flows/IntakeFlow";
 import { WelcomeScreen } from "@/features/tuti/screens/onboarding/WelcomeScreen";
-import { WelcomeBookPreview } from "@/features/tuti/screens/onboarding/WelcomeBookPreview";
+import { WelcomeHarumadiPreview } from "@/features/tuti/screens/onboarding/WelcomeHarumadiPreview";
 import { recordProductInteraction } from "@/lib/productInteraction";
 import { recordProductActivity } from "@/lib/productActivity";
 import { useTutiStore } from "@/store/tuti";
 import { parseWelcomeGuideStep, welcomeGuidePath, type WelcomeGuideStep } from "@/shared/tuti/welcomeGuide";
-import { parseWelcomeBookPage, welcomeBookPath, type WelcomeBookOrigin } from "@/shared/tuti/welcomeBook";
+import { parseWelcomeHarumadiPage, welcomeHarumadiPath, type WelcomeHarumadiOrigin } from "@/shared/tuti/welcomeHarumadi";
 import { ensureSession } from "@/lib/auth/session";
 import { markLibraryWelcomeSeen } from "@/lib/libraryPreferences";
 
@@ -19,8 +19,8 @@ export function EntryFlow() {
   const params = useSearchParams();
   const questionsRequested = params.get("mode") === "questions";
   const guideStep = parseWelcomeGuideStep(params.get("mode"), params.get("step"));
-  const bookPage = parseWelcomeBookPage(params.get("mode"), params.get("page"));
-  const [bookOrigin, setBookOrigin] = useState<WelcomeBookOrigin | null>(null);
+  const harumadiPage = parseWelcomeHarumadiPage(params.get("mode"), params.get("page"));
+  const [harumadiOrigin, setHarumadiOrigin] = useState<WelcomeHarumadiOrigin | null>(null);
   const hasHydrated = useTutiStore((state) => state.hasHydrated);
   const entryRecord = useTutiStore((state) => state.entryRecord);
   const entryStage = useTutiStore((state) => state.entryStage);
@@ -32,7 +32,7 @@ export function EntryFlow() {
   const shouldRedirectToMain =
     hasHydrated &&
     Boolean(entryRecord) &&
-    guideStep === null && bookPage === null &&
+    guideStep === null && harumadiPage === null &&
     entryStage !== "recommendation-ready";
 
   useEffect(() => {
@@ -49,7 +49,7 @@ export function EntryFlow() {
     if (!hasHydrated || shouldRedirectToMain || entryStage === "recommendation-ready") return;
 
     if (!questionsRequested) {
-      if (guideStep === null && bookPage === null) {
+      if (guideStep === null && harumadiPage === null) {
         void ensureSession().then(session => markLibraryWelcomeSeen(session.userId)).catch(() => {});
         void recordProductInteraction("welcome_viewed", "welcome").catch(() => {});
       }
@@ -59,13 +59,13 @@ export function EntryFlow() {
     void recordProductActivity("entry_started").catch(() => {
       // 분석 기록 실패가 질문 흐름을 막지 않도록 한다.
     });
-  }, [bookPage, entryStage, guideStep, hasHydrated, questionsRequested, shouldRedirectToMain]);
+  }, [harumadiPage, entryStage, guideStep, hasHydrated, questionsRequested, shouldRedirectToMain]);
 
   if (!hasHydrated || shouldRedirectToMain) return null;
 
-  if (entryStage !== "recommendation-ready" && bookPage !== null) {
-    return <WelcomeBookPreview page={bookPage} origin={bookOrigin}
-      onPageChange={(page) => router.replace(welcomeBookPath(page, params.get("from") === "guide"))}
+  if (entryStage !== "recommendation-ready" && harumadiPage !== null) {
+    return <WelcomeHarumadiPreview page={harumadiPage} origin={harumadiOrigin}
+      onPageChange={(page) => router.replace(welcomeHarumadiPath(page, params.get("from") === "guide"))}
       onRecord={startRecord}
       onClose={() => router.replace(params.get("from") === "guide" ? welcomeGuidePath(2) : "/entry")} />;
   }
@@ -74,8 +74,8 @@ export function EntryFlow() {
     return <WelcomeScreen
       guideStep={guideStep}
       onBookOpen={(origin) => {
-        setBookOrigin(origin);
-        router.push(welcomeBookPath(1, guideStep !== null));
+        setHarumadiOrigin(origin);
+        router.push(welcomeHarumadiPath(1, guideStep !== null));
       }}
       onGuideOpen={() => router.push(welcomeGuidePath(0))}
       onGuideNext={() => {

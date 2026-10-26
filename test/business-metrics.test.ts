@@ -15,17 +15,17 @@ test("첫 진입점과 구매 관심 지표는 계정 수·반복 클릭을 분�
       { userId: "u1", action: "welcome_viewed", surface: "welcome", createdAt },
       { userId: "u1", action: "welcome_record_started", surface: "welcome", createdAt },
       { userId: "u2", action: "welcome_explore_started", surface: "welcome", createdAt },
-      { userId: "u1", action: "journal_book_purchase_clicked", surface: "welcome", createdAt },
-      { userId: "u1", action: "journal_book_purchase_clicked", surface: "completed_book", createdAt },
-      { userId: "u2", action: "journal_book_purchase_clicked", surface: "welcome", createdAt: at("2026-09-16T15:01:00Z") },
-      { userId: "u2", action: "journal_book_purchase_clicked", surface: "welcome", createdAt: at("2026-09-16T14:59:00Z") },
-      { userId: "excluded", action: "journal_book_purchase_clicked", surface: "welcome", createdAt },
+      { userId: "u1", action: "harumadi_purchase_clicked", surface: "welcome", createdAt },
+      { userId: "u1", action: "harumadi_purchase_clicked", surface: "completed_harumadi", createdAt },
+      { userId: "u2", action: "harumadi_purchase_clicked", surface: "welcome", createdAt: at("2026-09-16T15:01:00Z") },
+      { userId: "u2", action: "harumadi_purchase_clicked", surface: "welcome", createdAt: at("2026-09-16T14:59:00Z") },
+      { userId: "excluded", action: "harumadi_purchase_clicked", surface: "welcome", createdAt },
     ],
   });
   assert.deepEqual(response.entryExperience, {
     welcomeViewAccounts: 1, recordStartAccounts: 1, exploreStartAccounts: 1,
     purchaseClickAccounts: 2, purchaseClicks: 3,
-    purchaseBySurface: [{ surface: "welcome", accounts: 2, clicks: 2 }, { surface: "completed_book", accounts: 1, clicks: 1 }],
+    purchaseBySurface: [{ surface: "welcome", accounts: 2, clicks: 2 }, { surface: "completed_harumadi", accounts: 1, clicks: 1 }],
   });
 });
 

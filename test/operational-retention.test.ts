@@ -50,7 +50,7 @@ test("전용 일반 오류는 유한 코드·최소 진단정보만 남기고 �
     token: "SECRET", message: "private diary", actorUserId: "private-user" } as Parameters<typeof diagnosticLogData>[0]);
   assert.doesNotMatch(JSON.stringify(output), /SECRET|private diary|private-user/);
   assert.throws(() => diagnosticLogData({ code: "SECRET_TOKEN", component: "journal" } as unknown as Parameters<typeof diagnosticLogData>[0]));
-  assert.throws(() => diagnosticLogData({ code: "RENDER_FAILED", component: "book", durationMs: NaN }));
+  assert.throws(() => diagnosticLogData({ code: "RENDER_FAILED", component: "harumadiPdf", durationMs: NaN }));
 });
 
 const events: Array<{ operation: string; table?: string; where?: unknown }> = [];
@@ -81,13 +81,13 @@ test("기존 자유 입력 로그 경로로도 진단 원문·대상을 우회 �
   try {
     delete process.env.PRIVACY_EXTENDED_RETENTION_ENABLED;
     savedLog = null;
-    await writeDiagnosticLogSafely({ code: "UNEXPECTED_FAILURE", component: "book" });
+    await writeDiagnosticLogSafely({ code: "UNEXPECTED_FAILURE", component: "harumadiPdf" });
     assert.equal(savedLog, null);
     process.env.PRIVACY_EXTENDED_RETENTION_ENABLED = "true";
-    await writeDiagnosticLogSafely({ code: "UNEXPECTED_FAILURE", component: "book" });
+    await writeDiagnosticLogSafely({ code: "UNEXPECTED_FAILURE", component: "harumadiPdf" });
     assert.match(JSON.stringify(savedLog), /UNEXPECTED_FAILURE/);
     await writeSystemLog({ category: "diagnostic", action: "bypass", level: "info", message: "PRIVATE_BODY",
-      actorUserId: "PRIVATE_USER", targetId: "PRIVATE_RECORD", metadata: { code: "RENDER_FAILED", component: "book", secret: "SECRET" } });
+      actorUserId: "PRIVATE_USER", targetId: "PRIVATE_RECORD", metadata: { code: "RENDER_FAILED", component: "harumadiPdf", secret: "SECRET" } });
     assert.doesNotMatch(JSON.stringify(savedLog), /PRIVATE_|SECRET|bypass/);
     assert.match(JSON.stringify(savedLog), /diagnostic.error/);
     await writeSystemLog({ category: "security", action: "security.example", message: "보안 감사", actorUserId: "operator" });

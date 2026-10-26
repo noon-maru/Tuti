@@ -120,7 +120,7 @@ export function JournalDetailScreen({
             </ModerationNotice>
           )}
           {entry.sensitiveContent && <ModerationNotice role="status">{entry.sensitiveWithdrawnAt
-            ? "동의 철회로 기록과 기록집을 정리하고 있어요."
+            ? "동의 철회로 기록과 하루마디를 정리하고 있어요."
             : "민감정보 처리에 별도로 동의한 나만의 기록이에요. 웹 링크로는 공개할 수 없어요."}</ModerationNotice>}
           <JournalLocationLabel placeName={entry.placeName} />
           <Tags aria-label="기록 정보">

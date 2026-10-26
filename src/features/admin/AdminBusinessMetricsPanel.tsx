@@ -38,7 +38,7 @@ export function AdminBusinessMetricsPanel({
 
       <Panel>
         <SectionHeading>
-          <h2>첫 화면과 실물 기록집 관심</h2>
+          <h2>첫 화면과 실물 하루마디 관심</h2>
           <SectionMeta>최근 {days}일</SectionMeta>
         </SectionHeading>
         <EntryLedger>
@@ -49,7 +49,7 @@ export function AdminBusinessMetricsPanel({
         </EntryLedger>
         <InterestNote>구매 버튼 선택은 준비 중 안내를 연 관심 신호이며, 실제 결제나 구매 의향의 확정값이 아닙니다. 익명 계정은 동일인이 여러 개일 수 있습니다.</InterestNote>
         {data.entryExperience.purchaseBySurface.map((item) => <InterestNote key={item.surface}>
-          {item.surface === "welcome" ? "첫 화면 예시 · 과거 수집 이력" : "완성한 기록집"}: {formatNumber(item.accounts)}계정 · {formatNumber(item.clicks)}회
+          {item.surface === "welcome" ? "첫 화면 예시 · 과거 수집 이력" : "완성한 하루마디"}: {formatNumber(item.accounts)}계정 · {formatNumber(item.clicks)}회
         </InterestNote>)}
       </Panel>
 

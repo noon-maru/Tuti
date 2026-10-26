@@ -22,7 +22,7 @@ const transaction = new Proxy({}, {
   },
 });
 (globalThis as { prisma?: unknown }).prisma = {
-  user: { findUnique: async () => ({ id: "subject", role: "user", authIdentities: [], journalEntries: [], journalBooks: [] }) },
+  user: { findUnique: async () => ({ id: "subject", role: "user", authIdentities: [], journalEntries: [], harumadiPdfs: [] }) },
   $transaction: async (operation: (client: unknown) => Promise<unknown>) => operation(transaction),
 };
 const { deleteUserAccount } = await import("@/server/admin/users");

@@ -1,14 +1,16 @@
 \set ON_ERROR_STOP on
+-- 이전 백업은 이전 물리 테이블 이름 그대로 격리 복원될 수 있다.
+SELECT CASE WHEN to_regclass('harumadi_pdfs') IS NOT NULL THEN 'harumadi_pdfs' WHEN to_regclass('harugalpi_pdfs') IS NOT NULL THEN 'harugalpi_pdfs' ELSE 'journal_books' END AS harumadi_pdf_table \gset
 SELECT json_build_object(
   'accounts', (SELECT count(*) FROM users),
   'journals', (SELECT count(*) FROM journal_entries),
-  'books', (SELECT count(*) FROM journal_books),
+  'harumadiPdfs', (SELECT count(*) FROM :"harumadi_pdf_table"),
   'migrations', (SELECT count(*) FROM _prisma_migrations WHERE finished_at IS NOT NULL AND rolled_back_at IS NULL),
   'failedMigrations', (SELECT count(*) FROM _prisma_migrations WHERE finished_at IS NULL AND rolled_back_at IS NULL),
   'unvalidatedForeignKeys', (SELECT count(*) FROM pg_constraint WHERE contype = 'f' AND NOT convalidated),
   'postgresMajor', current_setting('server_version_num')::int / 10000,
   'images', COALESCE((SELECT json_agg(DISTINCT image) FROM journal_entries WHERE image LIKE 'journal-images/%'), '[]'::json),
-  'pdfs', COALESCE((SELECT json_agg(json_build_object('key', object_key, 'pageCount', page_count)) FROM journal_books), '[]'::json),
+  'pdfs', COALESCE((SELECT json_agg(json_build_object('key', object_key, 'pageCount', page_count)) FROM :"harumadi_pdf_table"), '[]'::json),
   'externalImages', (SELECT count(*) FROM journal_entries WHERE image ~ '^https?://'),
   'embeddedImages', (SELECT count(*) FROM journal_entries WHERE image LIKE 'data:%')
 );

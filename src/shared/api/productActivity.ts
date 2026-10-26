@@ -1,18 +1,20 @@
+import { canonicalHarumadiAction } from "../harumadi/legacy";
+
 export const PRODUCT_ACTIVITY_TYPES = [
   "session_started",
   "entry_started",
   "entry_completed",
   "entry_skipped",
   "main_viewed",
-  "journal_book_entered",
-  "journal_book_selection_viewed",
-  "journal_book_details_viewed",
-  "journal_book_preview_viewed",
-  "journal_book_selection_exited",
-  "journal_book_details_exited",
-  "journal_book_preview_exited",
-  "journal_book_completed",
-  "journal_book_saved",
+  "harumadi_entered",
+  "harumadi_selection_viewed",
+  "harumadi_details_viewed",
+  "harumadi_preview_viewed",
+  "harumadi_selection_exited",
+  "harumadi_details_exited",
+  "harumadi_preview_exited",
+  "harumadi_completed",
+  "harumadi_saved",
   "login_nudge_shown",
   "login_nudge_opened",
 ] as const;
@@ -50,7 +52,7 @@ export function normalizeProductActivityInput(
 
   const value = input as Partial<ProductActivityInput>;
   const clientSessionId = normalizeText(value.clientSessionId, 36);
-  const action = normalizeAction(value.action);
+  const action = normalizeAction(canonicalHarumadiAction(value.action));
   const platform = normalizePlatform(value.platform);
   const appVersion = normalizeText(value.appVersion, 40);
 

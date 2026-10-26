@@ -9,7 +9,7 @@ export const metadata: Metadata = {
   metadataBase: new URL("https://tuti.today"),
   title: "Tuti | 일상을 추억으로, 추억을 한 권으로",
   description:
-    "친구와의 하루도, 연인과의 작은 여행도. 사진과 짧은 이야기로 함께한 순간을 기록하고 나만의 작은 기록집으로 모아보세요.",
+    "친구와의 하루도, 연인과의 작은 여행도. 사진과 짧은 이야기로 함께한 순간을 기록하고 나만의 하루마디로 모아보세요.",
   applicationName: "Tuti",
   category: "lifestyle",
   manifest: "/manifest.json",

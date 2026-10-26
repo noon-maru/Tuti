@@ -9,7 +9,7 @@ import { readStoredSession } from "@/lib/auth/session";
 test("1.4.1은 이전 로그인·미완료 약관 표시만 한 번 지우고 기록·초안·푸시 설정은 보존한다", async () => {
   const data = new Map([
     ["tuti-session", "old-session"], ["tuti-initial-terms-pending", "true"],
-    ["tuti-journal-book-v1:old-owner", "private-draft"], ["tuti-push-privacy-v1", "private-push-state"], ["tuti-state", "preferences"],
+    ["tuti-harumadi-pdf-v1:old-owner", "private-draft"], ["tuti-push-privacy-v1", "private-push-state"], ["tuti-state", "preferences"],
   ]);
   const removed: string[] = [];
   const storage = { getItem: async (key: string) => data.get(key) ?? null, setItem: async (key: string, value: string) => { data.set(key, value); }, removeItem: async (key: string) => { removed.push(key); data.delete(key); } };
@@ -17,7 +17,7 @@ test("1.4.1은 이전 로그인·미완료 약관 표시만 한 번 지우고 �
   await Promise.all([reset(), reset(), reset()]);
   assert.deepEqual(removed, ["tuti-session", "tuti-initial-terms-pending"]);
   assert.equal(data.get(SESSION_RESET_MARKER), "done");
-  assert.equal(data.get("tuti-journal-book-v1:old-owner"), "private-draft");
+  assert.equal(data.get("tuti-harumadi-pdf-v1:old-owner"), "private-draft");
   assert.equal(data.get("tuti-push-privacy-v1"), "private-push-state");
   assert.equal(data.get("tuti-state"), "preferences");
   data.set("tuti-session", "new-session");

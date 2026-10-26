@@ -134,15 +134,15 @@ enum ProductActivityType {
   entry_completed
   entry_skipped
   main_viewed
-  journal_book_entered
-  journal_book_selection_viewed
-  journal_book_details_viewed
-  journal_book_preview_viewed
-  journal_book_selection_exited
-  journal_book_details_exited
-  journal_book_preview_exited
-  journal_book_completed
-  journal_book_saved
+  harumadi_entered
+  harumadi_selection_viewed
+  harumadi_details_viewed
+  harumadi_preview_viewed
+  harumadi_selection_exited
+  harumadi_details_exited
+  harumadi_preview_exited
+  harumadi_completed
+  harumadi_saved
   login_nudge_shown
   login_nudge_opened
 }
@@ -721,7 +721,7 @@ model JournalEntry {
   updatedAt   DateTime  @updatedAt @map("updated_at")
   owner       User      @relation(fields: [ownerId], references: [id], onDelete: Cascade)
   place       Place?    @relation(fields: [placeId], references: [id], onDelete: SetNull)
-  notebookEntries JournalNotebookEntry[]
+  harumadiEntries HarumadiEntryLink[]
 
   @@index([ownerId, visitedAt])
   @@index([placeId])
@@ -730,7 +730,7 @@ model JournalEntry {
   @@map("journal_entries")
 }
 
-model JournalNotebook {
+model Harumadi {
   id         String @id
   ownerId    String @map("owner_id")
   title      String
@@ -740,24 +740,24 @@ model JournalNotebook {
   createdAt  DateTime @default(now()) @map("created_at")
   updatedAt  DateTime @updatedAt @map("updated_at")
   owner      User @relation(fields: [ownerId], references: [id], onDelete: Cascade)
-  entries    JournalNotebookEntry[]
+  entries    HarumadiEntryLink[]
 
   @@index([ownerId, createdAt])
-  @@map("journal_notebooks")
+  @@map("harumadis")
 }
 
-model JournalNotebookEntry {
-  notebookId String @map("notebook_id")
+model HarumadiEntryLink {
+  harumadiId String @map("harumadi_id")
   entryId    String @map("entry_id")
-  notebook   JournalNotebook @relation(fields: [notebookId], references: [id], onDelete: Cascade)
+  harumadi   Harumadi @relation(fields: [harumadiId], references: [id], onDelete: Cascade)
   entry      JournalEntry @relation(fields: [entryId], references: [id], onDelete: Cascade)
 
-  @@id([notebookId, entryId])
+  @@id([harumadiId, entryId])
   @@index([entryId])
-  @@map("journal_notebook_entries")
+  @@map("harumadi_entry_links")
 }
 
-model JournalBook {
+model HarumadiPdf {
   id           String   @id
   coverStyle   String?  @map("cover_style")
   coverThumbnail Bytes? @map("cover_thumbnail")
@@ -773,7 +773,7 @@ model JournalBook {
   owner        User     @relation(fields: [ownerId], references: [id], onDelete: Cascade)
 
   @@index([ownerId, createdAt])
-  @@map("journal_books")
+  @@map("harumadi_pdfs")
 }
 
 model JournalShareTrace {
@@ -810,8 +810,8 @@ model User {
   updatedAt             DateTime               @updatedAt @map("updated_at")
   authIdentities        AuthIdentity[]
   journalEntries        JournalEntry[]
-  journalBooks          JournalBook[]
-  journalNotebooks      JournalNotebook[]
+  harumadiPdfs          HarumadiPdf[]
+  harumadis      Harumadi[]
   oauthAuthorizations   OAuthAuthorization[]
   sessions              UserSession[]
   recommendationActions RecommendationAction[]

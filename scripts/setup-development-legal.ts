@@ -8,6 +8,7 @@ import { parseServiceTermsDocument, type ServiceTermsOffer } from "../src/shared
 import { parseLegalPolicyRelease } from "../src/shared/legal/policyRelease";
 import type { LegalDocumentNotice } from "../src/shared/legal/documentNotice";
 import documents from "../src/shared/legal/finalizedDocuments.json";
+import { HISTORIC_HARUMADI_PDF_PREFIXES } from "../src/shared/harumadi/legacy";
 
 class SetupError extends Error {}
 function check(condition: unknown, code: string): asserts condition { if (!condition) throw new SetupError(code); }
@@ -62,15 +63,15 @@ async function main() {
   check(await prisma.legalDocumentNotice.count() === 0, "EXISTING_NOTICES_REQUIRE_REVIEW");
   const cutoff = new Date();
   const candidates = await prisma.user.findMany({ where: { role: "user", createdAt: { lte: cutoff } }, select: {
-    id: true, journalEntries: { select: { image: true } }, journalBooks: { select: { objectKey: true } },
+    id: true, journalEntries: { select: { image: true } }, harumadiPdfs: { select: { objectKey: true } },
     authIdentities: { select: { providerRefreshTokenEncrypted: true } },
   }, orderBy: { id: "asc" } });
   const before = await adminSnapshot();
   const journals = candidates.reduce((sum, user) => sum + user.journalEntries.length, 0);
-  const books = candidates.reduce((sum, user) => sum + user.journalBooks.length, 0);
+  const harumadiPdfs = candidates.reduce((sum, user) => sum + user.harumadiPdfs.length, 0);
   check(before.admins.length === 1 && before.count === 2 && [0, 61].includes(candidates.length), "APPROVED_ACCOUNT_SCOPE_CHANGED");
   check(candidates.length === 0 || digest(JSON.stringify(candidates.map(user => user.id))) === "7cf8493e6545aa195349bbea06acd8caca5c75a5c2141fe38e3b2a98b1a929e1", "APPROVED_ACCOUNT_LIST_CHANGED");
-  check(candidates.length === 0 || (journals === 5 && books === 1), "APPROVED_RECORD_SCOPE_CHANGED");
+  check(candidates.length === 0 || (journals === 5 && harumadiPdfs === 1), "APPROVED_RECORD_SCOPE_CHANGED");
   check(candidates.every(user => user.authIdentities.every(identity => !identity.providerRefreshTokenEncrypted)), "EXTERNAL_IDENTITY_REVOCATION_REQUIRES_REVIEW");
   const productionDigests: unknown = JSON.parse(await readFile("/dev-legal/production-assets.json", "utf8"));
   check(Array.isArray(productionDigests) && productionDigests.every(value => typeof value === "string" && /^[a-f0-9]{64}$/.test(value)), "PRODUCTION_ASSET_CHECK_MISSING");
@@ -81,11 +82,11 @@ async function main() {
       check(entry.image.startsWith(`journal-images/${user.id}/`) && !protectedAssets.has(digest(entry.image)), "IMAGE_SHARED_WITH_PRODUCTION_OR_NOT_OWNED");
       check(!await prisma.journalEntry.count({ where: { ownerId: { not: user.id }, image: entry.image } }), "IMAGE_SHARED_WITH_ANOTHER_ACCOUNT");
     }
-    for (const book of user.journalBooks) {
-      check(book.objectKey.startsWith(`journal-books/${user.id}/`) && !protectedAssets.has(digest(book.objectKey)), "BOOK_SHARED_WITH_PRODUCTION_OR_NOT_OWNED");
+    for (const harumadiPdf of user.harumadiPdfs) {
+      check(["harumadi-pdfs/", ...HISTORIC_HARUMADI_PDF_PREFIXES].some(prefix => harumadiPdf.objectKey.startsWith(`${prefix}${user.id}/`)) && !protectedAssets.has(digest(harumadiPdf.objectKey)), "HARUMADI_SHARED_WITH_PRODUCTION_OR_NOT_OWNED");
     }
   }
-  console.log(JSON.stringify({ scope: "development-only", mode: "approved-preflight", accounts: candidates.length, journals, books, productionAssetsProtected: true }));
+  console.log(JSON.stringify({ scope: "development-only", mode: "approved-preflight", accounts: candidates.length, journals, harumadiPdfs, productionAssetsProtected: true }));
   let deleted = 0;
   for (const user of candidates) {
     check(await deleteOrdinaryTestAccount(user.id, cutoff), "ACCOUNT_CHANGED_DURING_CLEANUP");
@@ -110,7 +111,7 @@ async function main() {
     } });
   }, { timeout: 30_000 });
   check(await prisma.serviceTermsAcceptance.count() === 0, "CONSENTS_MUST_NOT_BE_CREATED");
-  console.log(JSON.stringify({ scope: "development-only", deletedAccounts: deleted, deletedJournals: journals, deletedBooks: books,
+  console.log(JSON.stringify({ scope: "development-only", deletedAccounts: deleted, deletedJournals: journals, deletedHarumadis: harumadiPdfs,
     remainingAdmins: before.admins.length, preservedAdminJournals: before.count,
     version: current.version, documentHash: current.documentHash, noticesCopied: 3, consentsCreated: false, productionDatabaseChanged: false }));
 }

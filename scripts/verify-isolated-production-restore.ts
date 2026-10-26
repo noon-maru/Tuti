@@ -40,7 +40,7 @@ async function main() {
       const hash = (value: Buffer) => createHash("sha256").update(value).digest("hex");
       if (hash(bytes) !== hash(returned) || (await PDFDocument.load(returned)).getPageCount() !== 2) throw new Error("SYNTHETIC_PDF_ROUND_TRIP_FAILED");
       console.log(JSON.stringify({ scope: "synthetic-pdf-storage-round-trip", pagesVerified: 2, sha256Matched: true,
-        actualUserPdfVerified: false, databaseBookBindingTested: false, artifactPolicy: "removed-with-isolated-garage" }));
+        actualUserPdfVerified: false, databaseHarumadiBindingTested: false, artifactPolicy: "removed-with-isolated-garage" }));
     }
   } finally { client.destroy(); }
 }

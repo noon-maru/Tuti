@@ -1085,7 +1085,7 @@ sudo docker compose --env-file .env.production -f docker-compose.prod.yml run --
 - 신고·운영조치 3년: `src/server/journal/moderationRetention.ts`
 - 계정 삭제: `src/server/admin/users.ts`
 - 백업: [운영 문서](../operations.md#전체-백업과-복구)
-- 기록집: [디지털 기록집](../journal-books.md)
+- 하루마디: [디지털 하루마디](../harumadi.md)
 - AI: [LLM 개인화 운영 원칙](../llm-personalization.md)
 
 불공정 면책, 부당한 해지·급부 변경, 의사표시 의제와 관할 제한의 검토 기준은

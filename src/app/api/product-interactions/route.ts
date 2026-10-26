@@ -23,8 +23,8 @@ export async function POST(request: Request) {
         level: "info",
         category: "product",
         action: input.action,
-        message: input.action === "journal_book_purchase_clicked"
-          ? "실물 기록집 구매 준비 중 안내를 열었습니다. 결제·주문은 발생하지 않았습니다."
+        message: input.action === "harumadi_purchase_clicked"
+          ? "실물 하루마디 구매 준비 중 안내를 열었습니다. 결제·주문은 발생하지 않았습니다."
           : "첫 화면 이용 행동을 기록했습니다.",
         actorUserId: user.id,
         metadata: { surface: input.surface, platform: input.platform },

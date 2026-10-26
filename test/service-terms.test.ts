@@ -4,7 +4,7 @@ import { parseServiceTermsDocument, requiresServiceTerms } from "@/shared/legal/
 
 process.env.DATABASE_URL = "postgresql://test:test@127.0.0.1:1/test";
 const now = new Date("2026-10-19T00:00:00Z");
-const document = { title: "Tuti 서비스 이용약관", summary: "서비스 이용 범위와 책임을 확인해주세요.", importantTerms: ["기록의 권리는 이용자에게 남습니다."], sections: [{ title: "이용 범위", paragraphs: ["기록·기록집 기능을 제공합니다."] }] };
+const document = { title: "Tuti 서비스 이용약관", summary: "서비스 이용 범위와 책임을 확인해주세요.", importantTerms: ["기록의 권리는 이용자에게 남습니다."], sections: [{ title: "이용 범위", paragraphs: ["기록·하루마디 기능을 제공합니다."] }] };
 type Release = { version: string; document: typeof document; documentHash: string; publishedAt: Date; effectiveAt: Date };
 let releases: Release[] = [];
 const receipts: Array<{ userId: string; termsVersion: string; documentHash: string; acceptedAt: Date; ageConfirmed: boolean; importantTermsConfirmed: boolean }> = [];
@@ -139,7 +139,7 @@ test("일반약관의 공고·명시적 동의·미동의 접근 통제", async 
 
 test("보안 차단 중에도 권리 행사 경로만 예외로 두고 새 공개·작성은 예외로 두지 않는다", async () => {
   for (const path of ["/api/location-consent/", "/api/%6cocation-consent", "/api/reports", "/api/inquiries", "/api/public/legal-notices", "/legal/privacy"]) assert.equal(isLegalRightsPath(path, "POST"), true, path);
-  for (const path of ["/api/account", "/api/journal-entries/entry", "/api/journal-books/book"]) {
+  for (const path of ["/api/account", "/api/journal-entries/entry", "/api/harumadi-pdfs/harumadiPdf"]) {
     assert.equal(isLegalRightsPath(path, "DELETE"), true, path);
     assert.equal(isLegalRightsPath(path, "PATCH"), false, path);
   }
@@ -155,7 +155,7 @@ test("보안 차단 중에도 권리 행사 경로만 예외로 두고 새 공�
 
 test("권리 행사 경로와 자료 내보내기는 약관 게이트에서 제외한다", () => {
   for (const path of ["/api/service-terms", "/api/inquiries", "/api/reports", "/api/account-deletion-requests", "/api/location-consent", "/api/auth/logout", "/api/auth/email/verify-code", "/api/journal-entries/entry/share-traces", "/api/journal-entries/entry/share-traces/trace/finalize"]) assert.equal(requiresServiceTerms(path, "POST"), false, path);
-  for (const path of ["/api/journal-entries", "/api/journal-books/preview", "/api/product-activity", "/api/recommendation-actions", "/api/recommendations/", "/api/%6aournal-entries"]) assert.equal(requiresServiceTerms(path, "POST"), true, path);
+  for (const path of ["/api/journal-entries", "/api/harumadi-pdfs/preview", "/api/product-activity", "/api/recommendation-actions", "/api/recommendations/", "/api/%6aournal-entries"]) assert.equal(requiresServiceTerms(path, "POST"), true, path);
   for (const path of ["/api/places/search", "/api/places/id/detail", "/api/places/id/accommodations", "/api/places/id/departure-nearby", "/api/recommendation-regions"]) for (const method of ["GET", "HEAD"]) assert.equal(requiresServiceTerms(path, method), true, path);
   assert.equal(requiresServiceTerms("/api/anonymous-session", "POST"), false, "동의 저장을 위한 준비 세션 발급은 허용하되 이 세션만으로 일반 API를 사용할 수 없다");
 });

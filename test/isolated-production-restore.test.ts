@@ -7,9 +7,9 @@ import test from "node:test";
 import { verifyIsolatedRestore, type RestoreReferences } from "../src/server/legal/isolatedRestoreVerification";
 
 function fixture() {
-  const objects = [{ key: "journal-images/private/photo.webp", bytes: Buffer.from("synthetic-photo") }, { key: "journal-books/private/book.pdf", bytes: Buffer.from("synthetic-pdf") }];
+  const objects = [{ key: "journal-images/private/photo.webp", bytes: Buffer.from("synthetic-photo") }, { key: "harumadi-pdfs/private/harumadiPdf.pdf", bytes: Buffer.from("synthetic-pdf") }];
   const manifest = { objects: objects.map(item => ({ key: item.key, file: `${Buffer.from(item.key).toString("base64url")}.object`, size: item.bytes.length, sha256: createHash("sha256").update(item.bytes).digest("hex") })) };
-  const refs: RestoreReferences = { accounts: 1, journals: 1, books: 1, migrations: 75, failedMigrations: 0, unvalidatedForeignKeys: 0, postgresMajor: 17,
+  const refs: RestoreReferences = { accounts: 1, journals: 1, harumadiPdfs: 1, migrations: 75, failedMigrations: 0, unvalidatedForeignKeys: 0, postgresMajor: 17,
     images: [objects[0].key], pdfs: [{ key: objects[1].key, pageCount: 2 }], externalImages: 0, embeddedImages: 0 };
   const restored = new Map<string, Buffer>();
   const io = {
@@ -31,7 +31,7 @@ test("격리 저장소 쓰기·재조회·바이트 해시·기록 참조·이�
   assert.equal(result.productionDatabaseTouched, false);
   assert.equal(result.productionObjectStorageTouched, false);
   assert.equal(result.privacyReplayPerformed, false);
-  assert.doesNotMatch(JSON.stringify(result), /private|synthetic|photo\.webp|book\.pdf/);
+  assert.doesNotMatch(JSON.stringify(result), /private|synthetic|photo\.webp|harumadiPdf\.pdf/);
 });
 
 test("손상·누락·잘못된 DB·쪽 수·메모리 한도 초과를 성공 처리하지 않는다", async () => {

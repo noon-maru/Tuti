@@ -26,7 +26,7 @@ test("개발 초기화는 승인 계정·관리자 보존·운영 객체 대조�
   assert.match(source, /TUTI_INSPECTION_ENV === "development"/);
   assert.match(source, /APPROVED_ACCOUNT_LIST_CHANGED/);
   assert.match(source, /ADMIN_PRESERVATION_CHECK_FAILED/);
-  assert.match(source, /protectedAssets\.has\(digest\(book.objectKey\)\)/);
+  assert.match(source, /protectedAssets\.has\(digest\(harumadiPdf.objectKey\)\)/);
   assert.match(source, /EXTERNAL_IDENTITY_REVOCATION_REQUIRES_REVIEW/);
   assert.match(source, /deleteOrdinaryTestAccount\(user.id, cutoff\)/);
   assert.doesNotMatch(source, /DISABLE TRIGGER|session_replication_role|TRUNCATE|serviceTermsAcceptance\.create/);

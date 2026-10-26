@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 
 type Manifest = { objects: Array<{ key: string; file: string; size: number; sha256: string; contentType?: string | null; cacheControl?: string | null }> };
 export type RestoreReferences = {
-  accounts: number; journals: number; books: number; migrations: number;
+  accounts: number; journals: number; harumadiPdfs: number; migrations: number;
   failedMigrations: number; unvalidatedForeignKeys: number; postgresMajor: number;
   images: string[]; pdfs: Array<{ key: string; pageCount: number }>;
   externalImages: number; embeddedImages: number;
@@ -43,7 +43,7 @@ export async function verifyIsolatedRestore(manifest: Manifest, refs: RestoreRef
     const pdf = refs.pdfs.find(value => value.key === item.key);
     if (pdf) { if (await io.pdf(restored) !== pdf.pageCount) throw new Error("PDF_PAGE_COUNT_MISMATCH"); pdfsDecoded++; }
   }
-  return { scope: "isolated-production-backup-restore", databaseRestored: true, accounts: refs.accounts, journals: refs.journals, books: refs.books,
+  return { scope: "isolated-production-backup-restore", databaseRestored: true, accounts: refs.accounts, journals: refs.journals, harumadiPdfs: refs.harumadiPdfs,
     migrations: refs.migrations, objectsRestoredAndReadBack: keys.size, objectBytesVerified: total, imagesDecoded, pdfsDecoded,
     externalImagesNotFetched: refs.externalImages, embeddedImagesNotDecoded: refs.embeddedImages,
     productionDatabaseTouched: false, productionObjectStorageTouched: false, privacyReplayPerformed: false,

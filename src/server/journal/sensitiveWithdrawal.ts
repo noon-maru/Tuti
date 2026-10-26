@@ -1,5 +1,5 @@
 import { prisma } from "@/server/db/prisma";
-import { deleteStoredJournalBook } from "@/server/journal/bookStorage";
+import { deleteStoredHarumadiPdf } from "@/server/harumadi/pdfStorage";
 import { deleteStoredJournalImage } from "@/server/journal/imageStorage";
 import { commitPrivacyReplayReceipt, preparePrivacyReplayReceipt } from "@/server/legal/privacyReplayLedger";
 
@@ -33,12 +33,12 @@ export async function withdrawSensitiveJournal(ownerId: string, entryId: string)
 export async function purgeWithdrawnSensitiveJournal(ownerId: string, entryId: string) {
   const entry = await prisma.journalEntry.findFirst({ where: { id: entryId, ownerId, sensitiveWithdrawnAt: { not: null } }, select: { image: true } });
   if (!entry) return;
-  const books = await prisma.journalBook.findMany({ where: { ownerId, entryIds: { has: entryId } }, select: { id: true, objectKey: true } });
-  for (const book of books) {
-    const receipt = await preparePrivacyReplayReceipt("journal_book_deleted", ownerId, new Date(), book.id);
+  const harumadiPdfs = await prisma.harumadiPdf.findMany({ where: { ownerId, entryIds: { has: entryId } }, select: { id: true, objectKey: true } });
+  for (const harumadiPdf of harumadiPdfs) {
+    const receipt = await preparePrivacyReplayReceipt("harumadi_deleted", ownerId, new Date(), harumadiPdf.id);
     // 대상 파일 삭제가 실패하면 DB 키를 남겨 재시도할 수 있게 한다.
-    await deleteStoredJournalBook(book.objectKey);
-    await prisma.journalBook.deleteMany({ where: { id: book.id, ownerId } });
+    await deleteStoredHarumadiPdf(harumadiPdf.objectKey);
+    await prisma.harumadiPdf.deleteMany({ where: { id: harumadiPdf.id, ownerId } });
     await commitPrivacyReplayReceipt(receipt);
   }
   await deleteStoredJournalImage(entry.image);

@@ -8,13 +8,13 @@ import { JournalEditorScreen } from "@/features/tuti/screens/journal/JournalEdit
 import { FirstMemoryScreen } from "@/features/tuti/screens/onboarding/FirstMemoryScreen";
 import { recordRecommendationAction } from "@/lib/tutiApi";
 import { useTutiStore } from "@/store/tuti";
-import { notebookPath } from "@/lib/journalNotebooks";
+import { harumadiPath } from "@/lib/harumadis";
 import { useRef } from "react";
 
 export function JournalCreateFlow() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const notebookId = searchParams.get("notebookId");
+  const harumadiId = searchParams.get("harumadiId");
   const savedEntryId = useRef<string | null>(null);
   const { startTransition } = useJournalEntryTransition();
   const { addEntry } = useTutiJournalEntries();
@@ -28,11 +28,11 @@ export function JournalCreateFlow() {
   const recommendationId = searchParams.get("journeyId");
 
   if (fromWelcome) return <FirstMemoryScreen
-    inNotebook={Boolean(notebookId)}
-    onBack={() => router.replace(notebookId ? notebookPath(notebookId) : searchParams.get("from") === "library" ? "/" : "/entry")}
+    inHarumadi={Boolean(harumadiId)}
+    onBack={() => router.replace(harumadiId ? harumadiPath(harumadiId) : searchParams.get("from") === "library" ? "/" : "/entry")}
     onSave={addEntry}
     onSaved={(entry) => { savedEntryId.current = entry.id; setActiveJournalEntry(entry.id); }}
-    onCollection={() => router.replace(notebookId ? `${notebookPath(notebookId)}${savedEntryId.current ? `&addEntryId=${encodeURIComponent(savedEntryId.current)}` : ""}` : "/")}
+    onCollection={() => router.replace(harumadiId ? `${harumadiPath(harumadiId)}${savedEntryId.current ? `&addEntryId=${encodeURIComponent(savedEntryId.current)}` : ""}` : "/")}
   />;
 
   return (

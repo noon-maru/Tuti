@@ -30,7 +30,7 @@
 | 앱·API 경계 | [Capacitor API 구조](capacitor-api-architecture.md) |
 | 위치와 추천 | [추천 이후 행동 루프](recommendation-action-loop.md) · [추천 성능](recommendation-performance.md) · [장소 체류시간 전처리](place-visit-time-preprocessing.md) |
 | 개인화 제한 | [LLM 개인화 운영 원칙](llm-personalization.md) — 현재 사용자 AI 개인화는 비활성화 |
-| 기록과 기록집 | [기록 공유](journal-sharing.md) · [디지털 기록집](journal-books.md) · [PDF 폰트](pdf-fonts.md) |
+| 기록과 하루마디 | [기록 공유](journal-sharing.md) · [디지털 하루마디](harumadi.md) · [PDF 폰트](pdf-fonts.md) |
 | 화면 동작 | [크로스플랫폼 모션](cross-platform-motion.md) |
 
 ## 계획과 검증 기준
@@ -42,8 +42,8 @@
   정의, 작은 외출·기록·소장의 방향과 20~25세 여성·커플 고객 가설.
   현재 출시 기능과 구분한다.
 - [향후 검토 사양](future-product-specs.md): 아직 제공하지 않는 UI·안전 기능.
-- [기록집 BM 적용·검증 계획](journal-book-bm-validation-plan.md): 무료 디지털
-  기록집 이후 개인 실물 상품의 정상가 구매를 우선 검증하고 기관 프로그램은
+- [하루마디 BM 적용·검증 계획](harumadi-bm-validation-plan.md): 무료 디지털
+  하루마디 이후 개인 실물 상품의 정상가 구매를 우선 검증하고 기관 프로그램은
   후순위로 다룬다. 현재 결제 기능이 아니다.
 - [iOS 심사 점검표](ios-app-review.md): 제출할 때마다 콘솔·빌드·심사 계정을
   다시 확인하는 템플릿. 이전 버전을 그대로 제출하지 않는다.

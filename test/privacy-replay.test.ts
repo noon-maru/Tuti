@@ -14,18 +14,18 @@ let entries = [
   { id: "entry-hide", ownerId: "unrelated", image: null, publicationStatus: "published", publicId: "old-link" as string | null, publicationStatusChangedAt: at(0) },
   { id: "entry-republished", ownerId: "unrelated", image: null, publicationStatus: "published", publicId: "new-link" as string | null, publicationStatusChangedAt: at(20) },
 ];
-let books = [{ id: "book-delete", ownerId: "unrelated", objectKey: "" }];
-let notebooks = [{ id: "notebook-delete", ownerId: "unrelated" }];
+let harumadiPdfs = [{ id: "harumadiPdf-delete", ownerId: "unrelated", objectKey: "" }];
+let harumadis = [{ id: "harumadi-delete", ownerId: "unrelated" }];
 const entryModel = {
   findMany: async ({ where }: { where: { id?: { gt: string }; ownerId?: string } }) => entries.filter((entry) => (!where.id || entry.id > where.id.gt) && (!where.ownerId || entry.ownerId === where.ownerId)).sort((a, b) => a.id.localeCompare(b.id)),
   findUnique: async ({ where }: { where: { id: string } }) => entries.find((entry) => entry.id === where.id) ?? null,
   delete: async ({ where }: { where: { id: string } }) => { entries = entries.filter((entry) => entry.id !== where.id); },
   updateMany: async ({ where, data }: { where: { id: string }; data: Partial<typeof entries[number]> }) => { const entry = entries.find((entry) => entry.id === where.id); if (entry) Object.assign(entry, data); return { count: entry ? 1 : 0 }; },
 };
-const bookModel = {
-  findMany: async ({ where }: { where: { id?: { gt: string }; ownerId?: string } }) => books.filter((book) => (!where.id || book.id > where.id.gt) && (!where.ownerId || book.ownerId === where.ownerId)),
-  findFirst: async ({ where }: { where: { id: string; ownerId: string } }) => books.find((book) => book.id === where.id && book.ownerId === where.ownerId) ?? null,
-  delete: async ({ where }: { where: { id: string } }) => { books = books.filter((book) => book.id !== where.id); },
+const harumadiModel = {
+  findMany: async ({ where }: { where: { id?: { gt: string }; ownerId?: string } }) => harumadiPdfs.filter((harumadiPdf) => (!where.id || harumadiPdf.id > where.id.gt) && (!where.ownerId || harumadiPdf.ownerId === where.ownerId)),
+  findFirst: async ({ where }: { where: { id: string; ownerId: string } }) => harumadiPdfs.find((harumadiPdf) => harumadiPdf.id === where.id && harumadiPdf.ownerId === where.ownerId) ?? null,
+  delete: async ({ where }: { where: { id: string } }) => { harumadiPdfs = harumadiPdfs.filter((harumadiPdf) => harumadiPdf.id !== where.id); },
 };
 const deleted: string[] = [];
 const withdrawals: string[] = [];
@@ -42,15 +42,15 @@ const transaction = new Proxy({
 }, { get(target, key) { return Reflect.get(target, key) ?? { deleteMany: async () => ({ count: 0 }), updateMany: async () => ({ count: 0 }) }; } });
 (globalThis as { prisma?: unknown }).prisma = {
   journalEntry: entryModel,
-  journalBook: bookModel,
-  journalNotebook: {
-    findMany: async ({ where }: { where: { id?: { gt: string }; ownerId?: string } }) => notebooks.filter(book => (!where.id || book.id > where.id.gt) && (!where.ownerId || book.ownerId === where.ownerId)),
-    findFirst: async ({ where }: { where: { id: string; ownerId: string } }) => notebooks.find(book => book.id === where.id && book.ownerId === where.ownerId) ?? null,
-    deleteMany: async ({ where }: { where: { id: string; ownerId: string } }) => { const length = notebooks.length; notebooks = notebooks.filter(book => book.id !== where.id || book.ownerId !== where.ownerId); return { count: length - notebooks.length }; },
+  harumadiPdf: harumadiModel,
+  harumadi: {
+    findMany: async ({ where }: { where: { id?: { gt: string }; ownerId?: string } }) => harumadis.filter(harumadiPdf => (!where.id || harumadiPdf.id > where.id.gt) && (!where.ownerId || harumadiPdf.ownerId === where.ownerId)),
+    findFirst: async ({ where }: { where: { id: string; ownerId: string } }) => harumadis.find(harumadiPdf => harumadiPdf.id === where.id && harumadiPdf.ownerId === where.ownerId) ?? null,
+    deleteMany: async ({ where }: { where: { id: string; ownerId: string } }) => { const length = harumadis.length; harumadis = harumadis.filter(harumadiPdf => harumadiPdf.id !== where.id || harumadiPdf.ownerId !== where.ownerId); return { count: length - harumadis.length }; },
   },
   user: {
     findMany: async ({ where }: { where: { id?: { gt: string } } }) => users.filter((id) => !where.id || id > where.id.gt).sort().map((id) => ({ id })),
-    findUnique: async ({ where }: { where: { id: string } }) => users.includes(where.id) ? { id: where.id, role: "user", authIdentities: [], journalEntries: [], journalBooks: [] } : null,
+    findUnique: async ({ where }: { where: { id: string } }) => users.includes(where.id) ? { id: where.id, role: "user", authIdentities: [], journalEntries: [], harumadiPdfs: [] } : null,
   },
   $transaction: async (operation: (tx: typeof transaction) => Promise<unknown>) => operation(transaction),
 };
@@ -67,7 +67,7 @@ test("복원 재반영은 삭제 계정과 철회만 처리하고 새 동의·�
     await commitPrivacyReplayReceipt(receipt, at(10));
   }
   const dryRun = await replayPrivacyRequests(at(100));
-  assert.deepEqual(dryRun, { dryRun: true, scanned: 4, accounts: 1, withdrawals: 1, newerConsent: 1, entries: 0, books: 0, unpublished: 0, objects: 0 });
+  assert.deepEqual(dryRun, { dryRun: true, scanned: 4, accounts: 1, withdrawals: 1, newerConsent: 1, entries: 0, harumadiPdfs: 0, unpublished: 0, objects: 0 });
   assert.deepEqual(deleted, []);
   assert.deepEqual(withdrawals, []);
   const applied = await replayPrivacyRequests(at(100), true);
@@ -79,22 +79,22 @@ test("복원 재반영은 삭제 계정과 철회만 처리하고 새 동의·�
   await replayPrivacyRequests(at(100), true);
   assert.deepEqual(deleted, ["deleted"]);
   assert.deepEqual(withdrawals, ["withdrawn"]);
-  for (const [kind, id] of [["journal_deleted", "entry-delete"], ["journal_unpublished", "entry-hide"], ["journal_unpublished", "entry-republished"], ["journal_book_deleted", "book-delete"]] as const) {
+  for (const [kind, id] of [["journal_deleted", "entry-delete"], ["journal_unpublished", "entry-hide"], ["journal_unpublished", "entry-republished"], ["harumadi_deleted", "harumadiPdf-delete"]] as const) {
     const receipt = await preparePrivacyReplayReceipt(kind, "unrelated", at(1), id);
     await commitPrivacyReplayReceipt(receipt, at(10));
   }
   const targets = await replayPrivacyRequests(at(100), true);
   assert.equal(targets.entries, 1);
-  assert.equal(targets.books, 1);
+  assert.equal(targets.harumadiPdfs, 1);
   assert.equal(targets.unpublished, 1);
   assert.equal(entries.some((entry) => entry.id === "entry-delete"), false);
-  assert.equal(books.length, 0);
+  assert.equal(harumadiPdfs.length, 0);
   assert.equal(entries.find((entry) => entry.id === "entry-hide")?.publicId, null);
   assert.equal(entries.find((entry) => entry.id === "entry-republished")?.publicId, "new-link");
-  assert.equal(notebooks.length, 1);
-  const notebookReceipt = await preparePrivacyReplayReceipt("journal_book_deleted", "unrelated", at(1), "notebook-delete");
-  await commitPrivacyReplayReceipt(notebookReceipt, at(10));
-  const notebookReplay = await replayPrivacyRequests(at(100), true);
-  assert.equal(notebookReplay.books, 1);
-  assert.equal(notebooks.length, 0);
+  assert.equal(harumadis.length, 1);
+  const harumadiReceipt = await preparePrivacyReplayReceipt("harumadi_deleted", "unrelated", at(1), "harumadi-delete");
+  await commitPrivacyReplayReceipt(harumadiReceipt, at(10));
+  const harumadiReplay = await replayPrivacyRequests(at(100), true);
+  assert.equal(harumadiReplay.harumadiPdfs, 1);
+  assert.equal(harumadis.length, 0);
 });

@@ -1,6 +1,6 @@
 import { createHash, randomUUID } from "node:crypto";
 import { deleteStoredJournalImage } from "@/server/journal/imageStorage";
-import { deleteStoredJournalBook } from "@/server/journal/bookStorage";
+import { deleteStoredHarumadiPdf } from "@/server/harumadi/pdfStorage";
 import { prisma } from "@/server/db/prisma";
 import type { LocationSecurityAuditData } from "@/server/location/securityAudit";
 import { getRequiredAuthEnv } from "@/server/auth/config";
@@ -78,19 +78,19 @@ async function deleteUserRecord(
           image: true,
         },
       },
-      journalBooks: {
+      harumadiPdfs: {
         select: { objectKey: true },
       },
-      _count: { select: { journalNotebooks: true } },
+      _count: { select: { harumadis: true } },
     },
   });
 
   if (!user) return null;
   const scopedCreatedBefore = ordinaryCreatedBefore ?? emptyCreatedBefore;
-  // 구형 일괄 정리 도구의 승인 목록은 새 기록집을 포함하지 않는다.
-  if (scopedCreatedBefore && user._count?.journalNotebooks) return null;
+  // 구형 일괄 정리 도구의 승인 목록은 새 하루마디를 포함하지 않는다.
+  if (scopedCreatedBefore && user._count?.harumadis) return null;
   if (scopedCreatedBefore && (user.role !== "user" || user.createdAt > scopedCreatedBefore)) return null;
-  if (emptyCreatedBefore && (user.role !== "user" || user.createdAt > emptyCreatedBefore || user.journalEntries.length || user.journalBooks.length)) return null;
+  if (emptyCreatedBefore && (user.role !== "user" || user.createdAt > emptyCreatedBefore || user.journalEntries.length || user.harumadiPdfs.length)) return null;
   let replayReceipt = replay || scopedCreatedBefore ? null : await preparePrivacyReplayReceipt("account_deleted", userId);
 
   const accountEmails = Array.from(
@@ -115,11 +115,11 @@ async function deleteUserRecord(
       }
     }
 
-    for (const book of user.journalBooks) {
+    for (const harumadiPdf of user.harumadiPdfs) {
       try {
-        await deleteStoredJournalBook(book.objectKey);
+        await deleteStoredHarumadiPdf(harumadiPdf.objectKey);
       } catch {
-        failedImageDeletions.push(book.objectKey);
+        failedImageDeletions.push(harumadiPdf.objectKey);
       }
     }
 
@@ -155,20 +155,20 @@ async function deleteUserRecord(
     if (ordinaryCreatedBefore) {
       // 기존 기록의 수정도 자산 삭제와 경합하지 않게 부모 다음에 잠근다.
       await transaction.$queryRaw`SELECT "id" FROM "journal_entries" WHERE "owner_id" = ${userId} ORDER BY "id" FOR UPDATE`;
-      await transaction.$queryRaw`SELECT "id" FROM "journal_books" WHERE "owner_id" = ${userId} ORDER BY "id" FOR UPDATE`;
+      await transaction.$queryRaw`SELECT "id" FROM "harumadi_pdfs" WHERE "owner_id" = ${userId} ORDER BY "id" FOR UPDATE`;
     }
     if (scopedCreatedBefore) {
       const current = await transaction.user.findUnique({ where: { id: userId }, select: {
-        role: true, createdAt: true, _count: { select: { journalEntries: true, journalBooks: true, journalNotebooks: true } },
-        ...(ordinaryCreatedBefore ? { journalEntries: { select: { id: true, image: true } }, journalBooks: { select: { objectKey: true } }, authIdentities: { select: { email: true, provider: true, providerRefreshTokenEncrypted: true } } } : {}),
+        role: true, createdAt: true, _count: { select: { journalEntries: true, harumadiPdfs: true, harumadis: true } },
+        ...(ordinaryCreatedBefore ? { journalEntries: { select: { id: true, image: true } }, harumadiPdfs: { select: { objectKey: true } }, authIdentities: { select: { email: true, provider: true, providerRefreshTokenEncrypted: true } } } : {}),
       } });
-      if (!current || current.role !== "user" || current.createdAt > scopedCreatedBefore || current._count.journalNotebooks ||
-          (emptyCreatedBefore && (current._count.journalEntries || current._count.journalBooks))) return false;
+      if (!current || current.role !== "user" || current.createdAt > scopedCreatedBefore || current._count.harumadis ||
+          (emptyCreatedBefore && (current._count.journalEntries || current._count.harumadiPdfs))) return false;
       if (ordinaryCreatedBefore) {
         const snapshot = (value: unknown) => JSON.stringify(value, (_key, item) => Array.isArray(item) ? [...item].sort((a, b) => JSON.stringify(a).localeCompare(JSON.stringify(b))) : item);
-        if (snapshot(current.journalEntries) !== snapshot(user.journalEntries) || snapshot(current.journalBooks) !== snapshot(user.journalBooks) || snapshot(current.authIdentities) !== snapshot(user.authIdentities)) return false;
+        if (snapshot(current.journalEntries) !== snapshot(user.journalEntries) || snapshot(current.harumadiPdfs) !== snapshot(user.harumadiPdfs) || snapshot(current.authIdentities) !== snapshot(user.authIdentities)) return false;
       }
-      // 사용자 행 잠금은 새 기록/기록집의 FK 삽입과도 경합한다. 재검사 후에만
+      // 사용자 행 잠금은 새 기록/하루마디의 FK 삽입과도 경합한다. 재검사 후에만
       // 삭제 원장을 준비하고, DB 커밋이 끝난 뒤 완료 영수증을 남긴다.
       replayReceipt = await preparePrivacyReplayReceipt("account_deleted", userId);
       await deleteAssets();

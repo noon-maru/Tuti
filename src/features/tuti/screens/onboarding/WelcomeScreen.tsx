@@ -9,9 +9,9 @@ import { ScreenFrame } from "@/features/tuti/components/ScreenFrame";
 import { TutiWordmark } from "@/features/tuti/components/TutiWordmark";
 import { BackButton, BaseButton, ButtonLink, PrimaryButton, TextButton } from "@/features/tuti/components/buttons";
 import { ANDROID_BACK_EVENT } from "@/features/tuti/navigation/androidBack";
-import { WelcomeBookSample } from "./WelcomeBookSample";
+import { WelcomeHarumadiSample } from "./WelcomeHarumadiSample";
 import { WELCOME_GUIDE, type WelcomeGuideStep } from "@/shared/tuti/welcomeGuide";
-import type { WelcomeBookOrigin } from "@/shared/tuti/welcomeBook";
+import type { WelcomeHarumadiOrigin } from "@/shared/tuti/welcomeHarumadi";
 
 export function WelcomeScreen({ onRecord, onExplore, guideStep, onGuideOpen, onGuideNext, onGuideBack, onBookOpen }: {
   onRecord: () => void;
@@ -20,10 +20,10 @@ export function WelcomeScreen({ onRecord, onExplore, guideStep, onGuideOpen, onG
   onGuideOpen: () => void;
   onGuideNext: () => void;
   onGuideBack: () => void;
-  onBookOpen: (origin: WelcomeBookOrigin | null) => void;
+  onBookOpen: (origin: WelcomeHarumadiOrigin | null) => void;
 }) {
   const heading = useRef<HTMLHeadingElement>(null);
-  const book = useRef<HTMLButtonElement>(null);
+  const harumadiPdf = useRef<HTMLButtonElement>(null);
   const guide = guideStep === null ? null : WELCOME_GUIDE[guideStep];
 
   useEffect(() => {
@@ -55,18 +55,18 @@ export function WelcomeScreen({ onRecord, onExplore, guideStep, onGuideOpen, onG
         <p>별일 없던 오후도,<br />함께라서 좋았어.</p>
       </StoryExample> : guideStep === 0 ? <PhotoExample>
         <Image src="/welcome/shared-afternoon-example.webp" alt="두 사람이 함께한 오후의 사진 예시" fill sizes="(max-width: 600px) 70vw, 280px" />
-      </PhotoExample> : <BookFigure>
-        <BookButton ref={book} type="button" aria-label="기록집 예시 펼쳐보기" onClick={() => {
-          const sheet = book.current?.querySelector('[data-book-sample]');
+      </PhotoExample> : <HarumadiFigure>
+        <HarumadiButton ref={harumadiPdf} type="button" aria-label="하루마디 예시 펼쳐보기" onClick={() => {
+          const sheet = harumadiPdf.current?.querySelector('[data-harumadiPdf-sample]');
           const rect = sheet?.getBoundingClientRect();
           onBookOpen(rect ? { left: rect.left, top: rect.top, width: rect.width, height: rect.height } : null);
         }}>
           <SamplePulse>
-            <WelcomeBookSample page="page" priority />
+            <WelcomeHarumadiSample page="page" priority />
           </SamplePulse>
-        </BookButton>
+        </HarumadiButton>
         <OpenHint aria-hidden="true"><BookOpen size={14} />눌러서 펼쳐보기</OpenHint>
-      </BookFigure>}
+      </HarumadiFigure>}
     </Visual>
     <Actions>
       {guide ? <>
@@ -141,7 +141,7 @@ const Visual = styled.div`
   min-width: 0;
   overflow: hidden;
 `;
-const BookFigure = styled.figure`
+const HarumadiFigure = styled.figure`
   width: 100%; height: 100%;
   min-height: 0; margin: 0;
   container-type: size;
@@ -154,7 +154,7 @@ const invite = keyframes`
   28% { transform: translateY(0) rotate(0.4deg) scale(1); }
   36% { transform: translateY(-5px) rotate(-0.4deg) scale(1.01); }
 `;
-const BookButton = styled(BaseButton)`
+const HarumadiButton = styled(BaseButton)`
   position: relative; min-height: 0; min-width: 0;
   width: min(calc(100cqw - 40px), calc((100cqh - 64px) * 148 / 210), 250px);
   aspect-ratio: 148 / 210; padding: 0;

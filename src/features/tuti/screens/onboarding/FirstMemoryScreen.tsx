@@ -17,8 +17,8 @@ import { canStoreSensitiveJournal, canSubmitJournalClassification, sensitiveJour
 
 type Stage = "photo" | "write" | "preview";
 
-export function FirstMemoryScreen({ onBack, onSave, onCollection, onSaved, inNotebook = false }: {
-  inNotebook?: boolean;
+export function FirstMemoryScreen({ onBack, onSave, onCollection, onSaved, inHarumadi = false }: {
+  inHarumadi?: boolean;
   onBack: () => void;
   onSave: (input: JournalEntryInput) => Promise<TutiJournalEntry>;
   onCollection: () => void;
@@ -132,13 +132,13 @@ export function FirstMemoryScreen({ onBack, onSave, onCollection, onSaved, inNot
 
   return <Frame aria-labelledby="first-memory-heading">
     <Header>
-      <BackButton aria-label={saved ? inNotebook ? "기록집으로" : "내 기록 모음으로" : "이전으로"} onClick={back} disabled={saving} />
-      <span>{inNotebook ? "기록집에 남길 한 페이지" : saved ? "첫 페이지" : "우리의 첫 페이지"}</span>
+      <BackButton aria-label={saved ? inHarumadi ? "하루마디로" : "내 기록 모음으로" : "이전으로"} onClick={back} disabled={saving} />
+      <span>{inHarumadi ? "하루마디에 남길 한 페이지" : saved ? "첫 페이지" : "우리의 첫 페이지"}</span>
       <StepCount>{saved ? <Check size={18} aria-label="저장 완료" /> : `${stage === "photo" ? 1 : stage === "write" ? 2 : 3} / 3`}</StepCount>
     </Header>
     <Content ref={scroll} data-scroll-region>
       <Intro>
-        <h1 ref={heading} tabIndex={-1} id="first-memory-heading">{saved ? inNotebook ? <>기록집에 담을 페이지가<br />완성됐어요.</> : <>우리의 첫 페이지가<br />완성됐어요.</> : stage === "photo" ? <>어떤 순간을<br />오래 간직하고 싶나요?</> : stage === "write" ? <>그날의 이야기를<br />조금만 들려주세요.</> : <>{inNotebook ? "기록집에 담을 페이지를" : "우리의 첫 페이지를"}<br />살펴볼까요?</>}</h1>
+        <h1 ref={heading} tabIndex={-1} id="first-memory-heading">{saved ? inHarumadi ? <>하루마디에 담을 페이지가<br />완성됐어요.</> : <>우리의 첫 페이지가<br />완성됐어요.</> : stage === "photo" ? <>어떤 순간을<br />오래 간직하고 싶나요?</> : stage === "write" ? <>그날의 이야기를<br />조금만 들려주세요.</> : <>{inHarumadi ? "하루마디에 담을 페이지를" : "우리의 첫 페이지를"}<br />살펴볼까요?</>}</h1>
         <p>{saved ? "소중한 순간들이 하나씩 모이면 우리만의 이야기가 됩니다." : stage === "photo" ? "함께한 사진 한 장, 짧은 글 하나면 충분해요." : stage === "write" ? "길게 쓰지 않아도 괜찮아요. 사진만 남겨도 좋아요." : "이 모습으로 기록에 남겨둘게요."}</p>
       </Intro>
       {!saved && stage === "photo" && <PhotoChoices>
@@ -181,10 +181,10 @@ export function FirstMemoryScreen({ onBack, onSave, onCollection, onSaved, inNot
     </Content>
     <Footer>
       {saved ? <>
-        <PrimaryButton type="button" onClick={onCollection}>{inNotebook ? "기록집에 담기" : "내 기록 모음 보기"} <ArrowRight size={16} aria-hidden="true" /></PrimaryButton>
-        {!inNotebook && <TextButton type="button" onClick={startAnother}>새로운 추억 남기기</TextButton>}
+        <PrimaryButton type="button" onClick={onCollection}>{inHarumadi ? "하루마디에 담기" : "내 기록 모음 보기"} <ArrowRight size={16} aria-hidden="true" /></PrimaryButton>
+        {!inHarumadi && <TextButton type="button" onClick={startAnother}>새로운 추억 남기기</TextButton>}
       </> : stage === "photo" ? image && <PrimaryButton type="button" onClick={() => setStage("write")}>이 사진으로 계속하기</PrimaryButton>
-        : stage === "write" ? <PrimaryButton type="button" disabled={!draft || !sensitiveReady} onClick={() => { setError(""); setStage("preview"); }}>{inNotebook ? "페이지 미리보기" : "첫 페이지 미리보기"}</PrimaryButton>
+        : stage === "write" ? <PrimaryButton type="button" disabled={!draft || !sensitiveReady} onClick={() => { setError(""); setStage("preview"); }}>{inHarumadi ? "페이지 미리보기" : "첫 페이지 미리보기"}</PrimaryButton>
           : <><PrimaryButton type="button" disabled={!draft || !sensitiveReady || saving} onClick={() => void save()}>{saving ? "첫 페이지를 저장하고 있어요…" : "이대로 기록 저장하기"}</PrimaryButton><TextButton type="button" disabled={saving} onClick={() => setStage("write")}>조금 더 고치기</TextButton></>}
     </Footer>
     {cropSource && <ImageCropDialog source={cropSource} onCancel={cancelCrop} onConfirm={confirmCrop} />}
@@ -192,7 +192,7 @@ export function FirstMemoryScreen({ onBack, onSave, onCollection, onSaved, inNot
 }
 
 function MemoryPage({ image, content, date, place }: { image: string | null; content: string; date: string; place: string }) {
-  return <Page aria-label="나의 기록집 첫 페이지">
+  return <Page aria-label="나의 하루마디 첫 페이지">
     <PageMeta><span>{date.replaceAll("-", ".")}</span>{place && <span>{place}</span>}</PageMeta>
     {image && <PageImage><Image src={image} alt="기록에 담은 사진" fill unoptimized sizes="350px" /></PageImage>}
     {content && <PageText>{content}</PageText>}

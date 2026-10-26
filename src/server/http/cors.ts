@@ -30,7 +30,7 @@ export function withCors(request: Request, response: Response) {
   headers.set("Access-Control-Allow-Origin", origin);
   headers.set(
     "Access-Control-Expose-Headers",
-    "Server-Timing, X-Tuti-Journal-Book-Approval",
+    "Server-Timing, X-Tuti-Journal-Harumadi-Approval",
   );
 
   return new Response(response.body, {
@@ -49,7 +49,7 @@ export function createPreflightResponse(request: Request) {
     status: 204,
     headers: {
       "Access-Control-Allow-Headers":
-        "Authorization, Content-Type, X-Tuti-Journal-Book-Approval, X-Tuti-Client-Protocol, X-Tuti-Client-Platform, X-Tuti-Client-Version",
+        "Authorization, Content-Type, X-Tuti-Journal-Harumadi-Approval, X-Tuti-Client-Protocol, X-Tuti-Client-Platform, X-Tuti-Client-Version",
       "Access-Control-Allow-Methods": "GET, POST, PATCH, DELETE, OPTIONS",
       "Access-Control-Max-Age": "86400",
     },

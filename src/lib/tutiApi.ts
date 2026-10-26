@@ -46,10 +46,10 @@ import type {
   TutiJournalEntry,
 } from "@/shared/api/journal";
 import type {
-  JournalBookResponse,
-  JournalBooksResponse,
-  StoredJournalBook,
-} from "@/shared/api/journalBook";
+  HarumadiPdfResponse,
+  HarumadiPdfsResponse,
+  StoredHarumadiPdf,
+} from "@/shared/api/harumadiPdf";
 import type {
   PlaceDetailResponse,
 } from "@/shared/api/placeDetails";
@@ -340,44 +340,44 @@ export async function fetchNearbyPlaces(
   return data.places;
 }
 
-export async function fetchJournalBooks(): Promise<StoredJournalBook[]> {
-  const response = await fetchWithSession("journal-books");
+export async function fetchHarumadiPdfs(): Promise<StoredHarumadiPdf[]> {
+  const response = await fetchWithSession("harumadi-pdfs");
   if (!response.ok) {
     throw new Error(
-      await readApiError(response, "완성한 기록집을 불러오지 못했어요."),
+      await readApiError(response, "완성한 하루마디를 불러오지 못했어요."),
     );
   }
-  return ((await response.json()) as JournalBooksResponse).books;
+  return ((await response.json()) as HarumadiPdfsResponse).harumadiPdfs;
 }
 
-export async function createJournalBook(
+export async function createHarumadiPdf(
   pdf: Uint8Array,
   approvalToken: string,
-): Promise<StoredJournalBook> {
-  const response = await fetchWithSession("journal-books", {
+): Promise<StoredHarumadiPdf> {
+  const response = await fetchWithSession("harumadi-pdfs", {
     method: "POST",
     headers: {
       "Content-Type": "application/pdf",
-      "X-Tuti-Journal-Book-Approval": approvalToken,
+      "X-Tuti-Journal-Harumadi-Approval": approvalToken,
     },
     body: pdf.slice().buffer,
   });
   if (!response.ok) {
     throw new Error(
-      await readApiError(response, "기록집을 완성하지 못했어요."),
+      await readApiError(response, "하루마디를 완성하지 못했어요."),
     );
   }
-  return ((await response.json()) as JournalBookResponse).book;
+  return ((await response.json()) as HarumadiPdfResponse).harumadiPdf;
 }
 
-export async function deleteJournalBook(bookId: string) {
+export async function deleteHarumadiPdf(harumadiPdfId: string) {
   const response = await fetchWithSession(
-    `journal-books/${encodeURIComponent(bookId)}`,
+    `harumadi-pdfs/${encodeURIComponent(harumadiPdfId)}`,
     { method: "DELETE" },
   );
   if (!response.ok) {
     throw new Error(
-      await readApiError(response, "기록집을 삭제하지 못했어요."),
+      await readApiError(response, "하루마디를 삭제하지 못했어요."),
     );
   }
 }

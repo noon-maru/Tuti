@@ -1,7 +1,7 @@
 import { apiUrl } from "@/lib/api/apiUrl";
 import { clientFetch } from "@/lib/api/clientFetch";
 import { preferencesStorage } from "@/lib/storage/preferencesStorage";
-import { removeJournalBookDraft } from "@/lib/journalBookDraft";
+import { removeHarumadiPdfDraft } from "@/lib/harumadiPdfDraft";
 import { Capacitor } from "@capacitor/core";
 import { createSessionReset } from "./sessionMigration";
 import { serviceTermsAcceptanceCache } from "@/lib/serviceTermsAcceptanceCache";
@@ -249,7 +249,7 @@ export async function deleteAccount() {
 
   const pushCleanupComplete = await pushPrivacy.finishPushAfterAccountDeletion();
   try {
-    await removeJournalBookDraft(currentSession.userId);
+    await removeHarumadiPdfDraft(currentSession.userId);
   } finally {
     await clearStoredSession();
   }

@@ -1,5 +1,5 @@
 import type { JournalEntryInput } from "@/shared/api/journal";
-import type { JournalBookInput } from "@/shared/api/journalBook";
+import type { HarumadiPdfInput } from "@/shared/api/harumadiPdf";
 import { privacyReplayEnabled } from "@/server/legal/privacyReplayLedger";
 import { SENSITIVE_JOURNAL_CONSENT_VERSION } from "@/shared/legal/sensitiveJournalPolicy";
 
@@ -35,7 +35,7 @@ export function sensitiveJournalData(input: JournalEntryInput, enabled = sensiti
   };
 }
 
-export function assertJournalBookFreeform(input: JournalBookInput) {
+export function assertHarumadiPdfFreeform(input: HarumadiPdfInput) {
   if (sensitiveJournalPolicyEnabled() && input.freeformNonSensitiveConfirmed !== true) {
     throw new SensitiveJournalPolicyError("표지 제목과 남기는 말에 민감정보가 없는지 확인해주세요. 민감정보는 별도 동의한 기록에서만 가져올 수 있어요.");
   }

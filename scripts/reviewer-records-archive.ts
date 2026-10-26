@@ -23,7 +23,7 @@ export async function sourceSnapshot() {
     await tx.$executeRaw`SET TRANSACTION READ ONLY`;
     const users = await tx.user.findMany({ where: { id: SOURCE_USER_ID, role: "user", authIdentities: { some: { email: { equals: SOURCE_EMAIL, mode: "insensitive" } } } }, select: { id: true }, take: 2 });
     if (users.length !== 1) throw new Error("기존 심사용 일반 계정을 정확히 확인하지 못했습니다.");
-    if (await tx.journalBook.count({ where: { ownerId: SOURCE_USER_ID } })) throw new Error("기록집이 생겼습니다. 보관 범위를 다시 확인해주세요.");
+    if (await tx.harumadiPdf.count({ where: { ownerId: SOURCE_USER_ID } })) throw new Error("하루마디가 생겼습니다. 보관 범위를 다시 확인해주세요.");
     const records = await tx.journalEntry.findMany({ where: { ownerId: SOURCE_USER_ID }, orderBy: { id: "asc" }, select: {
       id: true, title: true, content: true, image: true, crowd: true, difficulty: true, theme: true,
       placeId: true, placeName: true, visitedAt: true, updatedAt: true, sensitiveContent: true, sensitiveWithdrawnAt: true,

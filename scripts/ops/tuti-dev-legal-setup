@@ -19,9 +19,10 @@ if [ -z "$dev_volume" ] || [ -z "$prod_volume" ] || [ "$dev_volume" = "$prod_vol
 # 운영 DB에서는 객체 키의 SHA-256 목록만 읽는다. 원문·사진·계정·동의는 복사하지 않는다.
 docker compose --env-file .env.production -f docker-compose.prod.yml exec -T db sh -c \
   'export PGOPTIONS="-c default_transaction_read_only=on"; exec psql -X -qAt -v ON_ERROR_STOP=1 -U "$POSTGRES_USER" -d "$POSTGRES_DB"' >"$stage_dir/production-assets.json" <<'SQL'
+SELECT CASE WHEN to_regclass('harumadi_pdfs') IS NOT NULL THEN 'harumadi_pdfs' WHEN to_regclass('harugalpi_pdfs') IS NOT NULL THEN 'harugalpi_pdfs' ELSE 'journal_books' END AS harumadi_pdf_table \gset
 SELECT COALESCE(json_agg(asset_hash), '[]'::json)::text FROM (
   SELECT encode(sha256(convert_to(image, 'UTF8')), 'hex') AS asset_hash FROM journal_entries WHERE image LIKE 'journal-images/%'
-  UNION SELECT encode(sha256(convert_to(object_key, 'UTF8')), 'hex') FROM journal_books
+  UNION SELECT encode(sha256(convert_to(object_key, 'UTF8')), 'hex') FROM :"harumadi_pdf_table"
 ) assets;
 SQL
 docker compose -f docker-compose.dev.yml run --rm --no-deps -T --user 0:0 \

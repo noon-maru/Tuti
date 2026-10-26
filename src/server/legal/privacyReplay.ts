@@ -1,10 +1,10 @@
 import { prisma } from "@/server/db/prisma";
 import { replayDeletedUserAccount } from "@/server/admin/users";
 import { replayLocationWithdrawal, getCurrentLocationConsent, purgeWithdrawnLocationSubject } from "@/server/location/compliance";
-import { privacyReplayEnabled, PrivacyReplayError, privacyReplaySubject, privacyReplayTarget, readPrivacyReplaySnapshot, verifyPrivacyReplayCoverage, commitPrivacyReplayReceipt } from "@/server/legal/privacyReplayLedger";
+import { privacyReplayEnabled, PrivacyReplayError, privacyReplaySubject, privacyReplayTarget, readPrivacyReplaySnapshot, verifyPrivacyReplayCoverage, commitPrivacyReplayReceipt, isHarumadiDeletion, matchesHarumadiReplayTarget } from "@/server/legal/privacyReplayLedger";
 import { forceDeleteJournalEntry } from "@/server/journal/service";
-import { deleteJournalBook } from "@/server/journal/bookDeletion";
-import { deleteNotebook } from "@/server/journal/notebooks";
+import { deleteHarumadiPdf } from "@/server/harumadi/pdfDeletion";
+import { deleteHarumadi } from "@/server/harumadi/service";
 import { purgeWithdrawnSensitiveJournal } from "@/server/journal/sensitiveWithdrawal";
 import { cleanupPrivacyReplayObjects } from "@/server/legal/privacyReplayObjects";
 
@@ -32,11 +32,11 @@ export async function settleCurrentPrivacyRequests() {
         fulfilled = !residual.skipped && residual.usageLogs === 0 && residual.consentEvents === 0 && residual.recommendationRuns === 0 && residual.routeMetadata === 0;
       }
     }
-    if (record.kind.startsWith("journal_") && userId) {
-      if (record.kind === "journal_book_deleted") {
-        const books = await prisma.journalBook.findMany({ where: { ownerId: userId }, select: { id: true } });
-        const notebooks = await prisma.journalNotebook.findMany({ where: { ownerId: userId }, select: { id: true } });
-        fulfilled = ![...books, ...notebooks].some((book) => privacyReplayTarget("book", book.id) === record.target);
+    if ((record.kind.startsWith("journal_") || isHarumadiDeletion(record.kind)) && userId) {
+      if (isHarumadiDeletion(record.kind)) {
+        const harumadiPdfs = await prisma.harumadiPdf.findMany({ where: { ownerId: userId }, select: { id: true } });
+        const harumadis = await prisma.harumadi.findMany({ where: { ownerId: userId }, select: { id: true } });
+        fulfilled = ![...harumadiPdfs, ...harumadis].some((harumadiPdf) => matchesHarumadiReplayTarget(record, harumadiPdf.id));
       } else {
         const entries = await prisma.journalEntry.findMany({ where: { ownerId: userId }, select: { id: true, publicId: true, publicationStatus: true, sensitiveWithdrawnAt: true } });
         const entry = entries.find((entry) => privacyReplayTarget("journal", entry.id) === record.target);
@@ -60,7 +60,7 @@ export async function replayPrivacyRequests(backupAt: Date, apply = false, legac
     const at = new Date(record.effectiveAt);
     if (!previous || previous < at) withdrawn.set(record.subject, at);
   }
-  const result = { dryRun: !apply, scanned: 0, accounts: 0, withdrawals: 0, newerConsent: 0, entries: 0, books: 0, unpublished: 0, objects: 0 };
+  const result = { dryRun: !apply, scanned: 0, accounts: 0, withdrawals: 0, newerConsent: 0, entries: 0, harumadiPdfs: 0, unpublished: 0, objects: 0 };
   let after: string | undefined;
   while (true) {
     const users = await prisma.user.findMany({ where: after ? { id: { gt: after } } : {}, select: { id: true }, orderBy: { id: "asc" }, take: 250 });
@@ -80,8 +80,8 @@ export async function replayPrivacyRequests(backupAt: Date, apply = false, legac
     }
     after = users.at(-1)!.id;
   }
-  const targetReceipts = snapshot.committed.filter((record) => record.kind.startsWith("journal_"));
-  if (targetReceipts.some((record) => record.kind !== "journal_book_deleted")) {
+  const targetReceipts = snapshot.committed.filter((record) => record.kind.startsWith("journal_") || isHarumadiDeletion(record.kind));
+  if (targetReceipts.some((record) => !isHarumadiDeletion(record.kind))) {
     let afterEntry: string | undefined;
     while (true) {
       const entries = await prisma.journalEntry.findMany({ where: afterEntry ? { id: { gt: afterEntry } } : {}, select: { id: true, ownerId: true, publicationStatus: true, publicationStatusChangedAt: true }, orderBy: { id: "asc" }, take: 250 });
@@ -110,26 +110,26 @@ export async function replayPrivacyRequests(backupAt: Date, apply = false, legac
       afterEntry = entries.at(-1)!.id;
     }
   }
-  if (targetReceipts.some((record) => record.kind === "journal_book_deleted")) {
-    let afterBook: string | undefined;
+  if (targetReceipts.some((record) => isHarumadiDeletion(record.kind))) {
+    let afterPdf: string | undefined;
     while (true) {
-      const books = await prisma.journalBook.findMany({ where: afterBook ? { id: { gt: afterBook } } : {}, select: { id: true, ownerId: true }, orderBy: { id: "asc" }, take: 250 });
-      if (!books.length) break;
-      for (const book of books) if (targetReceipts.some((record) => record.kind === "journal_book_deleted" && record.subject === privacyReplaySubject(book.ownerId) && record.target === privacyReplayTarget("book", book.id))) {
-        if (apply) await deleteJournalBook(book.ownerId, book.id, true);
-        result.books++;
+      const harumadiPdfs = await prisma.harumadiPdf.findMany({ where: afterPdf ? { id: { gt: afterPdf } } : {}, select: { id: true, ownerId: true }, orderBy: { id: "asc" }, take: 250 });
+      if (!harumadiPdfs.length) break;
+      for (const harumadiPdf of harumadiPdfs) if (targetReceipts.some((record) => record.subject === privacyReplaySubject(harumadiPdf.ownerId) && matchesHarumadiReplayTarget(record, harumadiPdf.id))) {
+        if (apply) await deleteHarumadiPdf(harumadiPdf.ownerId, harumadiPdf.id, true);
+        result.harumadiPdfs++;
       }
-      afterBook = books.at(-1)!.id;
+      afterPdf = harumadiPdfs.at(-1)!.id;
     }
-    let afterNotebook: string | undefined;
+    let afterHarumadi: string | undefined;
     while (true) {
-      const notebooks = await prisma.journalNotebook.findMany({ where: afterNotebook ? { id: { gt: afterNotebook } } : {}, select: { id: true, ownerId: true }, orderBy: { id: "asc" }, take: 250 });
-      if (!notebooks.length) break;
-      for (const notebook of notebooks) if (targetReceipts.some(record => record.kind === "journal_book_deleted" && record.subject === privacyReplaySubject(notebook.ownerId) && record.target === privacyReplayTarget("book", notebook.id))) {
-        if (apply) await deleteNotebook(notebook.ownerId, notebook.id, true);
-        result.books++;
+      const harumadis = await prisma.harumadi.findMany({ where: afterHarumadi ? { id: { gt: afterHarumadi } } : {}, select: { id: true, ownerId: true }, orderBy: { id: "asc" }, take: 250 });
+      if (!harumadis.length) break;
+      for (const harumadi of harumadis) if (targetReceipts.some(record => record.subject === privacyReplaySubject(harumadi.ownerId) && matchesHarumadiReplayTarget(record, harumadi.id))) {
+        if (apply) await deleteHarumadi(harumadi.ownerId, harumadi.id, true);
+        result.harumadiPdfs++;
       }
-      afterNotebook = notebooks.at(-1)!.id;
+      afterHarumadi = harumadis.at(-1)!.id;
     }
   }
   const objects = await cleanupPrivacyReplayObjects(apply, undefined, snapshot);

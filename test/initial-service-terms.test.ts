@@ -11,7 +11,7 @@ const offer: ServiceTermsOffer = {
   version: "test-effective-terms", documentHash: "a".repeat(64), accepted: false,
   publishedAt: "2026-09-01T00:00:00Z", effectiveAt: "2026-10-01T00:00:00Z",
   document: { title: "서비스 이용약관", summary: "기록과 계정의 이용 범위입니다.", importantTerms: ["기록의 권리는 이용자에게 남습니다."],
-    sections: [{ title: "기록", paragraphs: ["기록과 디지털 기록집을 제공합니다."] }] },
+    sections: [{ title: "기록", paragraphs: ["기록과 디지털 하루마디를 제공합니다."] }] },
 };
 
 test("최초 약관 진입은 시행 원문과 실제 동의만 허용하며 구서버 응답으로 통과하지 않는다", async t => {

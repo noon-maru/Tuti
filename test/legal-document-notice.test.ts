@@ -5,7 +5,7 @@ import test from "node:test";
 process.env.DATABASE_URL = "postgresql://test:test@127.0.0.1:1/test";
 process.env.SERVICE_TERMS_WORKFLOW_ENABLED = "false";
 process.env.SERVICE_TERMS_ENFORCEMENT_ENABLED = "false";
-const document = { title: "서비스 이용약관", summary: "다음 이용을 위한 안내", importantTerms: ["새 약관에 명시적으로 동의해주세요."], sections: [{ title: "이용", paragraphs: ["기록과 기록집 이용"] }] };
+const document = { title: "서비스 이용약관", summary: "다음 이용을 위한 안내", importantTerms: ["새 약관에 명시적으로 동의해주세요."], sections: [{ title: "이용", paragraphs: ["기록과 하루마디 이용"] }] };
 const now = new Date("2026-10-22T00:00:00Z");
 let row: Record<string, unknown> | null = null;
 (globalThis as { prisma?: unknown }).prisma = {

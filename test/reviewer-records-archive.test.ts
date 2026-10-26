@@ -10,7 +10,7 @@ import sharp from "sharp";
 
 process.env.DATABASE_URL = "postgresql://test:test@127.0.0.1:1/test";
 let users = 1;
-let books = 0;
+let harumadiPdfs = 0;
 let changed = false;
 let sensitive = false;
 const calls: string[] = [];
@@ -25,7 +25,7 @@ const rows = () => [1, 2, 3].map(i => ({ id: `test-${i}`, title: "테스트", co
       assert.equal(input.where.authIdentities.some.email.equals, "openapi@tuti.today");
       return users ? [{ id: input.where.id }] : [];
     } },
-    journalBook: { count: async () => books }, journalEntry: { findMany: async () => rows() },
+    harumadiPdf: { count: async () => harumadiPdfs }, journalEntry: { findMany: async () => rows() },
   });
 } };
 const { SOURCE_USER_ID, sourceSnapshot, validateArchive, verifyArchiveFiles, decodeImage, imageBytes } = await import("../scripts/reviewer-records-archive");
@@ -36,7 +36,7 @@ test("지정 계정의 테스트 기록만 읽기 전용 스냅샷으로 조회�
   assert.equal(initial.records.length, 3);
   assert.deepEqual(calls, ["read-only"]);
   users = 0; await assert.rejects(sourceSnapshot()); users = 1;
-  books = 1; await assert.rejects(sourceSnapshot()); books = 0;
+  harumadiPdfs = 1; await assert.rejects(sourceSnapshot()); harumadiPdfs = 0;
   sensitive = true; await assert.rejects(sourceSnapshot()); sensitive = false;
   changed = true; assert.notEqual((await sourceSnapshot()).fingerprint, initial.fingerprint); changed = false;
 });

@@ -288,7 +288,7 @@ export type AdminBusinessMetricsResponse = {
     purchaseClickAccounts: number;
     purchaseClicks: number;
     purchaseBySurface: Array<{
-      surface: "welcome" | "completed_book";
+      surface: "welcome" | "completed_harumadi";
       accounts: number;
       clicks: number;
     }>;

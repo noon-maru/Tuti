@@ -16,8 +16,8 @@ test("민감정보 철회는 파일 실패에도 원문·공개를 차단하고 
   const state = { id: "sensitive", ownerId: "owner", sensitiveContent: true, sensitiveWithdrawnAt: null as Date | null,
     title: "private-title", content: "private-body", publicId: "public-link", publicationStatus: "published", image: "journal-images/owner/sensitive/photo.webp" };
   let present = true;
-  const books = [{ id: "related", ownerId: "owner", entryIds: ["sensitive"], objectKey: "journal-books/owner/related.pdf" },
-    { id: "unrelated", ownerId: "owner", entryIds: ["other"], objectKey: "journal-books/owner/unrelated.pdf" }];
+  const harumadiPdfs = [{ id: "related", ownerId: "owner", entryIds: ["sensitive"], objectKey: "harumadi-pdfs/owner/related.pdf" },
+    { id: "unrelated", ownerId: "owner", entryIds: ["other"], objectKey: "harumadi-pdfs/owner/unrelated.pdf" }];
   let failStorage = true;
   const deleted: string[] = [];
   let traceDeleted = false;
@@ -29,9 +29,9 @@ test("민감정보 철회는 파일 실패에도 원문·공개를 차단하고 
       updateMany: async ({ data }: { data: Partial<typeof state> }) => { Object.assign(state, data); return { count: 1 }; },
       deleteMany: async () => { present = false; return { count: 1 }; },
     },
-    journalBook: {
-      findMany: async ({ where }: { where: { entryIds: { has: string } } }) => books.filter((book) => book.entryIds.includes(where.entryIds.has)),
-      deleteMany: async ({ where }: { where: { id: string } }) => { books.splice(books.findIndex((book) => book.id === where.id), 1); return { count: 1 }; },
+    harumadiPdf: {
+      findMany: async ({ where }: { where: { entryIds: { has: string } } }) => harumadiPdfs.filter((harumadiPdf) => harumadiPdf.entryIds.includes(where.entryIds.has)),
+      deleteMany: async ({ where }: { where: { id: string } }) => { harumadiPdfs.splice(harumadiPdfs.findIndex((harumadiPdf) => harumadiPdf.id === where.id), 1); return { count: 1 }; },
     },
     journalShareTrace: { deleteMany: async () => { traceDeleted = true; return { count: 1 }; } },
     contentReport: { updateMany: async () => { reportDetached = true; return { count: 1 }; } },
@@ -63,7 +63,7 @@ test("민감정보 철회는 파일 실패에도 원문·공개를 차단하고 
   assert.equal(state.publicationStatus, "private");
   assert.ok(state.sensitiveWithdrawnAt);
   assert.equal(present, true, "정리 키는 재시도를 위해 남긴다.");
-  assert.equal(books.length, 2);
+  assert.equal(harumadiPdfs.length, 2);
   assert.deepEqual(deleted, []);
   assert.ok((await readPrivacyReplaySnapshot()).committed.some((record) => record.kind === "journal_sensitive_withdrawn"));
   assert.deepEqual(await maintainSensitiveWithdrawals(), { mode: "dry-run", inspected: 1, completed: 0, failed: 0 });
@@ -72,8 +72,8 @@ test("민감정보 철회는 파일 실패에도 원문·공개를 차단하고 
   assert.deepEqual(await maintainSensitiveWithdrawals(true), { mode: "applied", inspected: 1, completed: 1, failed: 0 });
   assert.equal(present, false);
   assert.equal(traceDeleted && reportDetached, true);
-  assert.deepEqual(deleted, ["journal-books/owner/related.pdf", "journal-images/owner/sensitive/photo.webp"]);
-  assert.deepEqual(books.map((book) => book.id), ["unrelated"]);
+  assert.deepEqual(deleted, ["harumadi-pdfs/owner/related.pdf", "journal-images/owner/sensitive/photo.webp"]);
+  assert.deepEqual(harumadiPdfs.map((harumadiPdf) => harumadiPdf.id), ["unrelated"]);
   assert.deepEqual(await maintainSensitiveWithdrawals(true), { mode: "applied", inspected: 0, completed: 0, failed: 0 });
 });
 

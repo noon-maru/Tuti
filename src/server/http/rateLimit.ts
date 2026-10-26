@@ -56,11 +56,11 @@ export function selectApiRateLimitPolicy(pathname: string, method: string) {
   if (pathname === "/api/auth/email/verify-code") return policies.emailCodeVerify;
   if (pathname.startsWith("/api/auth/oauth/")) return policies.oauth;
   if (
-    (pathname === "/api/journal-books/preview" ||
-      pathname === "/api/journal-books") &&
+    (pathname === "/api/harumadi-pdfs/preview" ||
+      pathname === "/api/harumadi-pdfs") &&
     normalizedMethod === "POST"
   ) {
-    return { id: "journal-book-preview", limit: 6, windowMs: 60_000 };
+    return { id: "harumadi-pdf-preview", limit: 6, windowMs: 60_000 };
   }
   if (pathname === "/api/recommendations" && normalizedMethod === "POST") {
     return policies.recommendation;

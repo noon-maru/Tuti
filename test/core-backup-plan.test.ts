@@ -8,7 +8,7 @@ test("핵심 백업 제외 후보는 대용량 재수집 자료로 한정하고 
   assert.equal(new Set(excluded).size, excluded.length);
   assert.equal(excluded.length, 12);
   for (const name of excluded) assert.match(name, /^[a-z_]+$/);
-  for (const name of ["users", "auth_identities", "user_sessions", "journal_entries", "journal_books", "places", "tourism_place_source_records", "tourism_place_detail_records", "place_meaning_profiles", "place_visit_time_profiles", "service_terms_acceptances", "location_consent_events", "journal_rights_cases", "journal_rights_notices", "traffic_observations", "admin_journal_access_audits"]) assert.ok(!excluded.includes(name), name);
+  for (const name of ["users", "auth_identities", "user_sessions", "journal_entries", "harumadi_pdfs", "places", "tourism_place_source_records", "tourism_place_detail_records", "place_meaning_profiles", "place_visit_time_profiles", "service_terms_acceptances", "location_consent_events", "journal_rights_cases", "journal_rights_notices", "traffic_observations", "admin_journal_access_audits"]) assert.ok(!excluded.includes(name), name);
   const schema = await readFile("prisma/schema.prisma", "utf8");
   for (const name of excluded) assert.ok(schema.includes(`@@map("${name}")`), name);
   const sql = await readFile("scripts/ops/core-backup-scope.sql", "utf8");
@@ -25,7 +25,7 @@ test("범위 조회는 읽기 전용 트랜잭션·카탈로그만 사용하고 
   assert.match(sql, /dependencyBlockers/);
   assert.match(sql, /missingPolicyTables/);
   assert.doesNotMatch(sql, /\b(?:INSERT|UPDATE|DELETE|TRUNCATE|DROP|ALTER|CREATE)\b/i);
-  assert.doesNotMatch(sql, /SELECT\s+\*\s+FROM\s+(?:users|journal_entries|journal_books)\b/i);
+  assert.doesNotMatch(sql, /SELECT\s+\*\s+FROM\s+(?:users|journal_entries|harumadi_pdfs)\b/i);
   const wrapper = await readFile("scripts/ops/tuti-core-backup-plan", "utf8");
   assert.equal(spawnSync("sh", ["-n", "scripts/ops/tuti-core-backup-plan"]).status, 0);
   assert.match(wrapper, /exec -T db/);

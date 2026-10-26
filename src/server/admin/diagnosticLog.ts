@@ -1,7 +1,7 @@
 import { GENERAL_ERROR_ACTION, GENERAL_ERROR_CATEGORY } from "@/server/legal/retentionPolicy";
 
 const ERROR_CODES = ["UNEXPECTED_FAILURE", "DATABASE_UNAVAILABLE", "UPSTREAM_TIMEOUT", "UPSTREAM_FAILURE", "STORAGE_UNAVAILABLE", "RENDER_FAILED"] as const;
-const COMPONENTS = ["recommendation", "journal", "book", "maps", "authentication", "notification", "unknown"] as const;
+const COMPONENTS = ["recommendation", "journal", "harumadiPdf", "maps", "authentication", "notification", "unknown"] as const;
 export type DiagnosticInput = {
   code: typeof ERROR_CODES[number]; component: typeof COMPONENTS[number]; durationMs?: number;
 };

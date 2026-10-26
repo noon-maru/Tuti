@@ -32,17 +32,17 @@ test("임의 활동과 유효하지 않은 세션 식별자를 거부한다", ()
   );
 });
 
-test("기록집 단계 도달과 이탈·완성·저장 활동을 허용한다", () => {
+test("하루마디 단계 도달과 이탈·완성·저장 활동을 허용한다", () => {
   for (const action of [
-    "journal_book_entered",
-    "journal_book_selection_viewed",
-    "journal_book_details_viewed",
-    "journal_book_preview_viewed",
-    "journal_book_selection_exited",
-    "journal_book_details_exited",
-    "journal_book_preview_exited",
-    "journal_book_completed",
-    "journal_book_saved",
+    "harumadi_entered",
+    "harumadi_selection_viewed",
+    "harumadi_details_viewed",
+    "harumadi_preview_viewed",
+    "harumadi_selection_exited",
+    "harumadi_details_exited",
+    "harumadi_preview_exited",
+    "harumadi_completed",
+    "harumadi_saved",
   ]) {
     assert.equal(
       normalizeProductActivityInput({

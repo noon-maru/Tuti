@@ -19,11 +19,11 @@ async function main() {
   const expected = Number(options.get("--expected-count"));
   if (!Number.isFinite(cutoff.getTime()) || cutoff > new Date() || !options.has("--expected-count") || !Number.isInteger(expected) || expected < 1) throw new Error("과거 기준 시각과 승인된 대상 수가 필요합니다.");
   const candidates = await prisma.user.findMany({ where: {
-    role: "user", createdAt: { lte: cutoff }, journalNotebooks: { none: {} }, ...(!includeRecords ? { journalEntries: { none: {} }, journalBooks: { none: {} } } : {}),
-  }, select: { id: true, journalEntries: { select: { id: true, updatedAt: true }, orderBy: { id: "asc" } }, journalBooks: { select: { id: true, updatedAt: true }, orderBy: { id: "asc" } } }, orderBy: { id: "asc" } });
+    role: "user", createdAt: { lte: cutoff }, harumadis: { none: {} }, ...(!includeRecords ? { journalEntries: { none: {} }, harumadiPdfs: { none: {} } } : {}),
+  }, select: { id: true, journalEntries: { select: { id: true, updatedAt: true }, orderBy: { id: "asc" } }, harumadiPdfs: { select: { id: true, updatedAt: true }, orderBy: { id: "asc" } } }, orderBy: { id: "asc" } });
   const planHash = createHash("sha256").update(JSON.stringify({ cutoff: cutoff.toISOString(), ids: candidates.map(user => user.id), ...(includeRecords ? { recordsIncluded: true, snapshots: candidates } : {}) })).digest("hex");
   console.log(JSON.stringify({ mode: apply ? "apply-preflight" : "dry-run", cutoff: cutoff.toISOString(), candidates: candidates.length, expected, planHash, administratorsIncluded: false, recordsIncluded: includeRecords,
-    ...(includeRecords ? { journals: candidates.reduce((sum, user) => sum + user.journalEntries.length, 0), books: candidates.reduce((sum, user) => sum + user.journalBooks.length, 0), accounts: candidates.map(user => ({ id: user.id, journals: user.journalEntries.length, books: user.journalBooks.length })) } : {}),
+    ...(includeRecords ? { journals: candidates.reduce((sum, user) => sum + user.journalEntries.length, 0), harumadiPdfs: candidates.reduce((sum, user) => sum + user.harumadiPdfs.length, 0), accounts: candidates.map(user => ({ id: user.id, journals: user.journalEntries.length, harumadiPdfs: user.harumadiPdfs.length })) } : {}),
   }));
   if (candidates.length !== expected) throw new Error("승인한 대상 수와 다릅니다. 삭제하지 않았습니다. 목록을 다시 확인해주세요.");
   if (!apply) return;

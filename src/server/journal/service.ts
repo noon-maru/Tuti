@@ -213,7 +213,7 @@ export async function deleteJournalEntry(
   if (entry.sensitiveContent === true || entry.sensitiveWithdrawnAt) {
     const { withdrawSensitiveJournal } = await import("@/server/journal/sensitiveWithdrawal");
     const result = await withdrawSensitiveJournal(ownerId, entryId);
-    if (result.pending) throw new SensitiveJournalPolicyError("동의 철회는 접수했어요. 기록과 기록집 정리를 재시도 중이에요.");
+    if (result.pending) throw new SensitiveJournalPolicyError("동의 철회는 접수했어요. 기록과 하루마디 정리를 재시도 중이에요.");
     return result.found;
   }
   const replayReceipt = await preparePrivacyReplayReceipt("journal_deleted", ownerId, new Date(), entryId);
@@ -443,7 +443,7 @@ function serializeJournalEntry(
     sensitiveConsentVersion: entry.sensitiveConsentVersion,
     sensitiveWithdrawnAt: entry.sensitiveWithdrawnAt?.toISOString() ?? null,
     title: entry.sensitiveWithdrawnAt ? "정리 중인 기록" : entry.title,
-    content: entry.sensitiveWithdrawnAt ? "동의 철회로 기록과 기록집을 정리하고 있어요." : entry.content,
+    content: entry.sensitiveWithdrawnAt ? "동의 철회로 기록과 하루마디를 정리하고 있어요." : entry.content,
     image: entry.sensitiveWithdrawnAt ? null : serializeJournalImage(entry),
     crowd: entry.sensitiveWithdrawnAt ? "미정" : entry.crowd,
     placeId: entry.sensitiveWithdrawnAt ? null : entry.placeId,

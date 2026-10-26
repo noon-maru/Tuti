@@ -603,7 +603,7 @@ export function DeparturePlanScreen({
                         <span>왕복 운임 약 {formatWon(place.longDistanceJourney.totalFareWon)}</span>
                       )}
                     </JourneyFacts>
-                    <BookingLink
+                    <HarumadiingLink
                       href={place.longDistanceJourney.bookingUrl}
                       target="_blank"
                       rel="noreferrer"
@@ -616,7 +616,7 @@ export function DeparturePlanScreen({
                     >
                       좌석 및 시간 확인하기
                       <ArrowRight aria-hidden="true" />
-                    </BookingLink>
+                    </HarumadiingLink>
                     <JourneyNotice>
                       표시된 시각과 운임은 공공데이터 기준이며, 좌석 여부는 예매처에서 마지막으로 확인해주세요.
                     </JourneyNotice>
@@ -1546,7 +1546,7 @@ const JourneyFacts = styled.div`
   }
 `;
 
-const BookingLink = styled(BaseButtonLink)`
+const HarumadiingLink = styled(BaseButtonLink)`
   min-height: var(--space-12);
   display: flex;
   align-items: center;

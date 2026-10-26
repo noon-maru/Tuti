@@ -7,7 +7,7 @@ import documents from "@/shared/legal/finalizedDocuments.json";
 
 test("동의가 401이면 정확한 세션만 비우고 자동 계정 생성·동의 재전송 없이 직접 재확인을 요구한다", async t => {
   const original = { userId: "deleted-user", accessToken: "x".repeat(40) };
-  const data = new Map([["tuti-session", JSON.stringify(original)], ["tuti-journal-book-v1:deleted-user", "draft"]]);
+  const data = new Map([["tuti-session", JSON.stringify(original)], ["tuti-harumadi-pdf-v1:deleted-user", "draft"]]);
   t.mock.method(preferencesStorage, "getItem", async (key: string) => data.get(key) ?? null);
   t.mock.method(preferencesStorage, "setItem", async (key: string, value: string) => { data.set(key, value); });
   t.mock.method(preferencesStorage, "removeItem", async (key: string) => { data.delete(key); });
@@ -24,5 +24,5 @@ test("동의가 401이면 정확한 세션만 비우고 자동 계정 생성·�
   assert.ok(calls[0].endsWith("/service-terms"));
   assert.equal(data.has("tuti-session"), false);
   assert.equal(getSessionSnapshot(), null);
-  assert.equal(data.get("tuti-journal-book-v1:deleted-user"), "draft");
+  assert.equal(data.get("tuti-harumadi-pdf-v1:deleted-user"), "draft");
 });

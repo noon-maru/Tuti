@@ -23,8 +23,8 @@ test("객체 정리는 삭제 원장의 정확한 계정·대상만 골라 공�
   assert.equal(matches("journal-images/owner/entry/photo.webp"), true);
   assert.equal(matches("journal-images/owner/another/photo.webp"), false);
   assert.equal(matches("journal-images/another/entry/photo.webp"), false);
-  assert.equal(matches("journal-books/owner/entry.pdf"), false);
-  assert.equal(matches("journal-books/deleted-owner/book.pdf"), true);
+  assert.equal(matches("harumadi-pdfs/owner/entry.pdf"), false);
+  assert.equal(matches("harumadi-pdfs/deleted-owner/harumadiPdf.pdf"), true);
   assert.equal(matches("public-images/owner/entry/photo.webp"), false);
   assert.equal(matches("journal-images/owner/../photo.webp"), false);
   const deleted: string[] = [];

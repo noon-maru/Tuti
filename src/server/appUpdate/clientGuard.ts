@@ -13,8 +13,8 @@ export function guardClientCompatibility(request: Request, rightsRequest = false
   const rawPath = new URL(request.url).pathname;
   const path = normalizeLegalPathname(rawPath) ?? rawPath;
   const readRights = (request.method === "GET" || request.method === "HEAD") &&
-    (path === "/api/account" || path === "/api/journal-entries" || path === "/api/journal-books" || path === "/api/journal-notebooks" || /^\/api\/journal-notebooks\/[^/]+(?:\/cover)?$/.test(path) ||
-      /^\/api\/journal-entries\/[^/]+$/.test(path) || /^\/api\/journal-books\/[^/]+(?:\/file)?$/.test(path) ||
+    (path === "/api/account" || path === "/api/journal-entries" || path === "/api/harumadi-pdfs" || path === "/api/harumadis" || /^\/api\/harumadis\/[^/]+(?:\/cover)?$/.test(path) ||
+      /^\/api\/journal-entries\/[^/]+$/.test(path) || /^\/api\/harumadi-pdfs\/[^/]+(?:\/file)?$/.test(path) ||
       /^\/api\/journal-entry-images\/[^/]+$/.test(path));
   const withdrawal = request.method === "DELETE" && (path === "/api/push/devices" || /^\/api\/journal-entries\/[^/]+\/sensitive-consent$/.test(path));
   if (request.method === "OPTIONS" || rightsRequest || readRights || withdrawal || path === "/api/health" || path === "/api/app-update" ||

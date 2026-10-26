@@ -248,7 +248,11 @@ export async function mergeUserIntoCurrentAccount({
       where: { userId: sourceUserId },
       data: { userId: targetUserId },
     });
-    await transaction.journalBook.updateMany({
+    await transaction.harumadiPdf.updateMany({
+      where: { ownerId: sourceUserId },
+      data: { ownerId: targetUserId },
+    });
+    await transaction.harumadi.updateMany({
       where: { ownerId: sourceUserId },
       data: { ownerId: targetUserId },
     });

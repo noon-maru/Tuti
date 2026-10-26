@@ -16,9 +16,9 @@ test("교차 출처 요청은 처음부터 현행 규약을 사용하며 구서�
     assert.equal(headers.get(CLIENT_PROTOCOL_HEADER), CLIENT_PROTOCOL);
     assert.equal(headers.get(CLIENT_PLATFORM_HEADER), "web");
     assert.equal(headers.get(CLIENT_VERSION_HEADER), null);
-    if (String(input) === apiUrl("journal-books")) {
+    if (String(input) === apiUrl("harumadi-pdfs")) {
       assert.equal(headers.get("Authorization"), "Bearer test-session");
-      assert.equal(headers.get("X-Tuti-Journal-Book-Approval"), "test-approval");
+      assert.equal(headers.get("X-Tuti-Journal-Harumadi-Approval"), "test-approval");
       assert.equal(init?.body, "test-pdf-body");
       assert.equal(init?.signal, controller.signal);
     }
@@ -26,9 +26,9 @@ test("교차 출처 요청은 처음부터 현행 규약을 사용하며 구서�
   });
   await clientFetch(apiUrl("app-update"));
   await clientFetch(apiUrl("service-terms"));
-  const write = () => clientFetch(apiUrl("journal-books"), { method: "POST", headers: { Authorization: "Bearer test-session", "X-Tuti-Journal-Book-Approval": "test-approval" }, body: "test-pdf-body", signal: controller.signal });
+  const write = () => clientFetch(apiUrl("harumadi-pdfs"), { method: "POST", headers: { Authorization: "Bearer test-session", "X-Tuti-Journal-Harumadi-Approval": "test-approval" }, body: "test-pdf-body", signal: controller.signal });
   await write();
-  assert.deepEqual(calls, [apiUrl("app-update"), apiUrl("service-terms"), apiUrl("journal-books")]);
+  assert.deepEqual(calls, [apiUrl("app-update"), apiUrl("service-terms"), apiUrl("harumadi-pdfs")]);
   reject = true;
   assert.equal((await write()).status, 426);
   assert.equal(calls.length, 4, "거절된 요청을 구서버 협상이나 다른 계정으로 재전송하지 않는다");

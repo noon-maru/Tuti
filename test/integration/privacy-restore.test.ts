@@ -88,7 +88,7 @@ test("전체 스키마와 실제 Garage의 사진·PDF를 복원한 뒤 원장�
   const { activatePrivacyReplayCoverage, initializePrivacyReplayLedger, readPrivacyReplaySnapshot } = await import("../../src/server/legal/privacyReplayLedger");
   const { savePrivacyReplayRecovery, verifyPrivacyReplayRecovery } = await import("../../src/server/legal/privacyReplayRecovery");
   const { forceDeleteJournalEntry } = await import("../../src/server/journal/service");
-  const { deleteJournalBook } = await import("../../src/server/journal/bookDeletion");
+  const { deleteHarumadiPdf } = await import("../../src/server/harumadi/pdfDeletion");
   const { withdrawSensitiveJournal } = await import("../../src/server/journal/sensitiveWithdrawal");
   const { deleteUserAccount } = await import("../../src/server/admin/users");
   const { recordLocationConsent } = await import("../../src/server/location/compliance");
@@ -112,9 +112,9 @@ test("전체 스키마와 실제 Garage의 사진·PDF를 복원한 뒤 원장�
     } });
   }
   for (const [id, ownerId, entryId] of [["delete", "owner", "delete"], ["sensitive", "owner", "sensitive"], ["keep", "unrelated", "keep"], ["account", "removed", "account"]]) {
-    const objectKey = `journal-books/${ownerId}/${id}.pdf`;
+    const objectKey = `harumadi-pdfs/${ownerId}/${id}.pdf`;
     objects.set(objectKey, Buffer.from(`%PDF-1.4\nSYNTHETIC-${id}\n%%EOF`));
-    await client.journalBook.create({ data: { id, ownerId, title: `test-${id}`, entryIds: [entryId], objectKey, pageCount: 1 } });
+    await client.harumadiPdf.create({ data: { id, ownerId, title: `test-${id}`, entryIds: [entryId], objectKey, pageCount: 1 } });
   }
   for (const [key, body] of objects) await putObject({ key, body, contentType: key.endsWith(".pdf") ? "application/pdf" : "image/webp" });
   await recordLocationConsent({ user: { id: "owner", role: "user" }, status: "accepted", termsVersion: LOCATION_TERMS_VERSION, ageConfirmed: true, clientPlatform: "web" });
@@ -127,7 +127,7 @@ test("전체 스키마와 실제 Garage의 사진·PDF를 복원한 뒤 원장�
   assert.equal(objectBackup.status, 0, objectBackup.stderr);
   assert.equal(JSON.parse(readFileSync(join(backup, "objects.manifest.json"), "utf8")).count, 8);
   assert.equal(await forceDeleteJournalEntry("delete"), true);
-  assert.equal(await deleteJournalBook("owner", "delete"), true);
+  assert.equal(await deleteHarumadiPdf("owner", "delete"), true);
   assert.deepEqual(await withdrawSensitiveJournal("owner", "sensitive"), { found: true, pending: false });
   await deleteUserAccount("removed");
   await recordLocationConsent({ user: { id: "owner", role: "user" }, status: "withdrawn", termsVersion: LOCATION_TERMS_VERSION, ageConfirmed: false, clientPlatform: "web" });
@@ -157,14 +157,14 @@ test("전체 스키마와 실제 Garage의 사진·PDF를 복원한 뒤 원장�
   const replay = child("scripts/privacy-replay.ts", replayArgs);
   assert.equal(replay.status, 0, replay.stderr);
   assert.equal(query(restoredName, "SELECT string_agg(id,',' ORDER BY id) FROM journal_entries"), "keep");
-  assert.equal(query(restoredName, "SELECT string_agg(id,',' ORDER BY id) FROM journal_books"), "keep");
+  assert.equal(query(restoredName, "SELECT string_agg(id,',' ORDER BY id) FROM harumadi_pdfs"), "keep");
   assert.equal(query(restoredName, "SELECT count(*) FROM users WHERE id='removed'"), "0");
   assert.equal(query(restoredName, "SELECT string_agg(id,',' ORDER BY id) FROM recommendation_runs"), "region");
   assert.equal(query(restoredName, "SELECT status FROM location_consent_events WHERE user_id='owner' ORDER BY created_at DESC LIMIT 1"), "withdrawn");
   const maintenance = child("scripts/maintain-privacy-data.ts", ["--restore", "--apply"]);
   assert.equal(maintenance.status, 0, maintenance.stderr);
   assert.equal(query(restoredName, "SELECT count(*) FROM push_devices"), "0", "복원된 알림 등록은 재등록을 요구한다.");
-  const kept = ["journal-books/unrelated/keep.pdf", "journal-images/unrelated/keep/photo.webp"];
+  const kept = ["harumadi-pdfs/unrelated/keep.pdf", "journal-images/unrelated/keep/photo.webp"];
   assert.deepEqual((await listObjects()).objects.map((item) => item.key).sort(), kept);
   for (const key of kept) assert.deepEqual(Buffer.from(await (await getObject(key)).body.transformToByteArray()), objects.get(key));
   assert.equal(query(dbName, "SELECT count(*) FROM journal_entries"), "1", "원본 시험 DB를 복원으로 덮어쓰지 않는다.");

@@ -1,10 +1,10 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
-import { sensitiveJournalData, assertSensitiveJournalReadable, assertJournalBookFreeform, publicSensitiveJournalFilter } from "../src/server/journal/sensitivePolicy";
+import { sensitiveJournalData, assertSensitiveJournalReadable, assertHarumadiPdfFreeform, publicSensitiveJournalFilter } from "../src/server/journal/sensitivePolicy";
 import { canStoreSensitiveJournal, canSubmitJournalClassification, SENSITIVE_JOURNAL_CONSENT_VERSION } from "../src/shared/legal/sensitiveJournalPolicy";
 import { parseJournalEntryInput } from "../src/server/journal/input";
-import { emptyJournalBookDraft, parseJournalBookInput } from "../src/shared/api/journalBook";
+import { emptyHarumadiPdfDraft, parseHarumadiPdfInput } from "../src/shared/api/harumadiPdf";
 
 const input = { title: "작은 하루", content: "기록", image: null, crowd: "미정", difficulty: "미정", placeName: "남긴 공간", theme: "미정" };
 const now = new Date("2026-10-20T00:00:00Z");
@@ -72,7 +72,7 @@ test("권리 요청 수령인에 제공받은 팩스를 공시한다", async () 
   assert.ok(rightsContactNotice.sections[0].paragraphs.includes("팩스: 0504-008-4307"));
 });
 
-test("철회된 기록과 미확인 기록은 기록집 재생성에 사용할 수 없다", () => {
+test("철회된 기록과 미확인 기록은 하루마디 재생성에 사용할 수 없다", () => {
   assert.throws(() => assertSensitiveJournalReadable({ sensitiveContent: false, sensitiveConsentVersion: null, sensitiveWithdrawnAt: now }, false));
   assert.throws(() => assertSensitiveJournalReadable({ sensitiveContent: null, sensitiveConsentVersion: null, sensitiveWithdrawnAt: null }, true));
   assert.doesNotThrow(() => assertSensitiveJournalReadable({ sensitiveContent: false, sensitiveConsentVersion: null, sensitiveWithdrawnAt: null }, true));
@@ -90,10 +90,10 @@ test("웹 공개 조건은 민감정보와 미확인 기록을 승인하지 않�
   try {
     process.env.SENSITIVE_JOURNAL_WORKFLOW_ENABLED = "true";
     assert.deepEqual(publicSensitiveJournalFilter(), { sensitiveWithdrawnAt: null, sensitiveContent: false });
-    const book = { ...emptyJournalBookDraft(), entryIds: ["entry-1"] };
-    assert.throws(() => assertJournalBookFreeform(book), /표지 제목/);
-    assert.doesNotThrow(() => assertJournalBookFreeform({ ...book, freeformNonSensitiveConfirmed: true }));
-    assert.equal(parseJournalBookInput({ ...book, freeformNonSensitiveConfirmed: "true" }), null);
+    const harumadiPdf = { ...emptyHarumadiPdfDraft(), entryIds: ["entry-1"] };
+    assert.throws(() => assertHarumadiPdfFreeform(harumadiPdf), /표지 제목/);
+    assert.doesNotThrow(() => assertHarumadiPdfFreeform({ ...harumadiPdf, freeformNonSensitiveConfirmed: true }));
+    assert.equal(parseHarumadiPdfInput({ ...harumadiPdf, freeformNonSensitiveConfirmed: "true" }), null);
   } finally { if (before === undefined) delete process.env.SENSITIVE_JOURNAL_WORKFLOW_ENABLED; else process.env.SENSITIVE_JOURNAL_WORKFLOW_ENABLED = before; }
 });
 

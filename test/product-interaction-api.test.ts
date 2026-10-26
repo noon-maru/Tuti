@@ -15,7 +15,7 @@ let failWrite = false;
   },
 };
 const { POST } = await import("@/app/api/product-interactions/route");
-const input = { eventId: "bb17e0d4-d207-4d0e-9bf0-d00604d60e8a", action: "journal_book_purchase_clicked", platform: "web", surface: "welcome" };
+const input = { eventId: "bb17e0d4-d207-4d0e-9bf0-d00604d60e8a", action: "harumadi_purchase_clicked", platform: "web", surface: "welcome" };
 function request(body: unknown, authenticated = true, origin = "https://tuti.today") {
   return new Request("https://tuti.today/api/product-interactions", {
     method: "POST",
