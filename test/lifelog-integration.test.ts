@@ -33,6 +33,6 @@ test("새 첫 기록도 민감정보 확인·별도 동의를 거치며 미동�
   assert.match(first, /onSave\(\{ \.\.\.draft, sensitiveContent/);
   assert.match(first, /sensitiveConsentVersion: sensitivePolicy.version/);
   const main = readFileSync("src/features/tuti/flows/MainFlow.tsx", "utf8");
-  assert.match(main, /!rightsOnly && hasHydrated && !entryRecord && !journalRoute/);
-  assert.match(main, /!rightsOnly && entryRecord &&/);
+  assert.doesNotMatch(main, /<RecommendationsFlow|router\.replace/);
+  assert.match(main, /rightsOnly \|\| !hasHydrated \|\| !entryRecord \|\| pathname !== "\/explore"/);
 });

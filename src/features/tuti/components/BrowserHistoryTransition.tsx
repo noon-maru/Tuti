@@ -153,7 +153,7 @@ export function BrowserHistoryTransitionProvider({
 
       if (event.destination.index > currentIndex) {
         if (
-          sourceUrl.pathname === "/" &&
+          sourceUrl.pathname === "/explore" &&
           destinationUrl.pathname === "/journal"
         ) {
           beginHistoryEntry(destinationUrl.pathname);

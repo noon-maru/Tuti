@@ -5,7 +5,7 @@ import {
   timingSafeEqual,
 } from "node:crypto";
 
-import type { JournalBookInput } from "@/shared/api/journalBook";
+import { JOURNAL_BOOK_COVER_STYLES, type JournalBookCoverStyle, type JournalBookInput } from "@/shared/api/journalBook";
 import { PDFDocument } from "pdf-lib";
 import { SENSITIVE_JOURNAL_CONSENT_VERSION } from "@/shared/legal/sensitiveJournalPolicy";
 
@@ -24,11 +24,12 @@ type JournalBookApprovalPayload = {
   expiresAt: number;
   issuedAt: number;
   sensitivePolicyVersion: string | null;
+  coverStyle?: JournalBookCoverStyle;
 };
 
 export type ApprovedJournalBook = Pick<
   JournalBookApprovalPayload,
-  "bookId" | "title" | "entryIds" | "pageCount" | "issuedAt" | "sensitivePolicyVersion"
+  "bookId" | "title" | "entryIds" | "pageCount" | "issuedAt" | "sensitivePolicyVersion" | "coverStyle"
 >;
 
 export type JournalBookCompletionRequest = {
@@ -56,6 +57,7 @@ export async function createJournalBookApproval(
     expiresAt: Date.now() + APPROVAL_LIFETIME_MS,
     issuedAt,
     sensitivePolicyVersion: input.freeformNonSensitiveConfirmed === true ? SENSITIVE_JOURNAL_CONSENT_VERSION : null,
+    coverStyle: input.coverStyle,
   };
   const encoded = Buffer.from(JSON.stringify(payload)).toString("base64url");
   return `${encoded}.${sign(encoded)}`;
@@ -104,6 +106,7 @@ export function verifyJournalBookApproval(
     pageCount: payload.pageCount,
     issuedAt: payload.issuedAt,
     sensitivePolicyVersion: payload.sensitivePolicyVersion,
+    ...(payload.coverStyle ? { coverStyle: payload.coverStyle } : {}),
   };
 }
 
@@ -209,6 +212,7 @@ function isApprovalPayload(value: unknown): value is JournalBookApprovalPayload 
   const payload = value as Partial<JournalBookApprovalPayload>;
   return (
     payload.version === APPROVAL_VERSION &&
+    (payload.coverStyle === undefined || JOURNAL_BOOK_COVER_STYLES.includes(payload.coverStyle)) &&
     (payload.sensitivePolicyVersion === null || payload.sensitivePolicyVersion === SENSITIVE_JOURNAL_CONSENT_VERSION) &&
     typeof payload.bookId === "string" &&
     /^[0-9a-f-]{36}$/i.test(payload.bookId) &&

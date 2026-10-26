@@ -10,7 +10,6 @@ import {
 } from "@/features/tuti/components/BrowserHistoryTransition";
 import { ContextMenu } from "@/features/tuti/components/ContextMenu";
 import { LoadingIndicator } from "@/features/tuti/components/LoadingIndicator";
-import { JournalBookEntry } from "@/features/tuti/components/JournalBookEntry";
 import { TutiPlaceIcon } from "@/features/tuti/components/TutiPlaceIcon";
 import { JournalShareDialog } from "@/features/tuti/components/JournalShareDialog";
 import { useJournalEntryTransitionTarget } from "@/features/tuti/components/JournalEntryTransition";
@@ -37,8 +36,10 @@ export function JournalScreen({
   onCreateEntry,
   onEditEntry,
   onOpenEntry,
+  backPath = "/",
 }: {
   onBack: () => void;
+  backPath?: "/" | "/explore";
   onCreateEntry?: () => void;
   onEditEntry?: (entryId: string) => void;
   onOpenEntry?: (
@@ -82,7 +83,7 @@ export function JournalScreen({
     selectedCardRef,
     "journal",
   );
-  const revealMainScreen = useHistoryDestinationReveal("/");
+  const revealMainScreen = useHistoryDestinationReveal(backPath);
   const swipeBack = useVerticalSwipeBack({
     direction: "up",
     onBack,
@@ -92,7 +93,7 @@ export function JournalScreen({
 
   useBrowserHistoryExit({
     sourcePath: "/journal",
-    destinationPath: "/",
+    destinationPath: backPath,
     onExit: swipeBack.requestExit,
   });
 
@@ -339,7 +340,6 @@ export function JournalScreen({
           <p>잠깐 머문 공간의 공기를 남겨보세요.</p>
         </EmptyState>
       )}
-      <JournalBookEntry hasEntries={entries.length > 0} />
       {shareEntry && (
         <JournalShareDialog
           entry={shareEntry}

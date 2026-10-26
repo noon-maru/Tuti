@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { LibraryHomeFlow } from "@/features/tuti/flows/LibraryHomeFlow";
 
 export const metadata: Metadata = {
   alternates: { canonical: "/" },
@@ -6,5 +7,5 @@ export const metadata: Metadata = {
 };
 
 export default function MainPage() {
-  return null;
+  return <LibraryHomeFlow />;
 }

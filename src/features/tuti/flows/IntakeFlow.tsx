@@ -64,7 +64,7 @@ export function IntakeFlow() {
 
   const goToPreviousQuestion = () => {
     if (step === 0) {
-      router.replace("/entry");
+      router.replace("/");
       return;
     }
     setStep((current) => Math.max(0, current - 1));

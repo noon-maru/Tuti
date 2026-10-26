@@ -19,7 +19,7 @@ async function main() {
   const expected = Number(options.get("--expected-count"));
   if (!Number.isFinite(cutoff.getTime()) || cutoff > new Date() || !options.has("--expected-count") || !Number.isInteger(expected) || expected < 1) throw new Error("과거 기준 시각과 승인된 대상 수가 필요합니다.");
   const candidates = await prisma.user.findMany({ where: {
-    role: "user", createdAt: { lte: cutoff }, ...(!includeRecords ? { journalEntries: { none: {} }, journalBooks: { none: {} } } : {}),
+    role: "user", createdAt: { lte: cutoff }, journalNotebooks: { none: {} }, ...(!includeRecords ? { journalEntries: { none: {} }, journalBooks: { none: {} } } : {}),
   }, select: { id: true, journalEntries: { select: { id: true, updatedAt: true }, orderBy: { id: "asc" } }, journalBooks: { select: { id: true, updatedAt: true }, orderBy: { id: "asc" } } }, orderBy: { id: "asc" } });
   const planHash = createHash("sha256").update(JSON.stringify({ cutoff: cutoff.toISOString(), ids: candidates.map(user => user.id), ...(includeRecords ? { recordsIncluded: true, snapshots: candidates } : {}) })).digest("hex");
   console.log(JSON.stringify({ mode: apply ? "apply-preflight" : "dry-run", cutoff: cutoff.toISOString(), candidates: candidates.length, expected, planHash, administratorsIncluded: false, recordsIncluded: includeRecords,

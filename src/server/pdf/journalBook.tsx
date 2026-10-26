@@ -336,7 +336,8 @@ export async function renderJournalBook(
           </View>
         </Page>
       )}
-      {entries.map((entry) => {
+      {entries.map((sourceEntry) => {
+        const entry = input.innerStyle === "text" ? { ...sourceEntry, image: null } : sourceEntry;
         const layout = getJournalBookEntryLayout(entry);
         const title = printable(entry.title);
         const content = printable(entry.content);

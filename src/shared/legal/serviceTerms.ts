@@ -69,5 +69,5 @@ export function requiresServiceTerms(pathname: string, method: string) {
   if (/^\/api\/journal-entries\/[^/]+\/share-traces(?:\/[^/]+\/finalize)?$/.test(pathname)) return false;
   return pathname === "/api/recommendation-actions" || pathname === "/api/product-activity" || pathname === "/api/product-interactions" ||
     pathname === "/api/account" || pathname === "/api/push/devices" ||
-    /^\/api\/journal-(entries|books)(\/|$)/.test(pathname);
+    /^\/api\/journal-(entries|books|notebooks)(\/|$)/.test(pathname);
 }

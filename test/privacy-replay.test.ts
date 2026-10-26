@@ -15,6 +15,7 @@ let entries = [
   { id: "entry-republished", ownerId: "unrelated", image: null, publicationStatus: "published", publicId: "new-link" as string | null, publicationStatusChangedAt: at(20) },
 ];
 let books = [{ id: "book-delete", ownerId: "unrelated", objectKey: "" }];
+let notebooks = [{ id: "notebook-delete", ownerId: "unrelated" }];
 const entryModel = {
   findMany: async ({ where }: { where: { id?: { gt: string }; ownerId?: string } }) => entries.filter((entry) => (!where.id || entry.id > where.id.gt) && (!where.ownerId || entry.ownerId === where.ownerId)).sort((a, b) => a.id.localeCompare(b.id)),
   findUnique: async ({ where }: { where: { id: string } }) => entries.find((entry) => entry.id === where.id) ?? null,
@@ -42,6 +43,11 @@ const transaction = new Proxy({
 (globalThis as { prisma?: unknown }).prisma = {
   journalEntry: entryModel,
   journalBook: bookModel,
+  journalNotebook: {
+    findMany: async ({ where }: { where: { id?: { gt: string }; ownerId?: string } }) => notebooks.filter(book => (!where.id || book.id > where.id.gt) && (!where.ownerId || book.ownerId === where.ownerId)),
+    findFirst: async ({ where }: { where: { id: string; ownerId: string } }) => notebooks.find(book => book.id === where.id && book.ownerId === where.ownerId) ?? null,
+    deleteMany: async ({ where }: { where: { id: string; ownerId: string } }) => { const length = notebooks.length; notebooks = notebooks.filter(book => book.id !== where.id || book.ownerId !== where.ownerId); return { count: length - notebooks.length }; },
+  },
   user: {
     findMany: async ({ where }: { where: { id?: { gt: string } } }) => users.filter((id) => !where.id || id > where.id.gt).sort().map((id) => ({ id })),
     findUnique: async ({ where }: { where: { id: string } }) => users.includes(where.id) ? { id: where.id, role: "user", authIdentities: [], journalEntries: [], journalBooks: [] } : null,
@@ -85,4 +91,10 @@ test("복원 재반영은 삭제 계정과 철회만 처리하고 새 동의·�
   assert.equal(books.length, 0);
   assert.equal(entries.find((entry) => entry.id === "entry-hide")?.publicId, null);
   assert.equal(entries.find((entry) => entry.id === "entry-republished")?.publicId, "new-link");
+  assert.equal(notebooks.length, 1);
+  const notebookReceipt = await preparePrivacyReplayReceipt("journal_book_deleted", "unrelated", at(1), "notebook-delete");
+  await commitPrivacyReplayReceipt(notebookReceipt, at(10));
+  const notebookReplay = await replayPrivacyRequests(at(100), true);
+  assert.equal(notebookReplay.books, 1);
+  assert.equal(notebooks.length, 0);
 });

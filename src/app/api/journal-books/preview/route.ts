@@ -15,6 +15,7 @@ import {
   type PreparedBookEntry,
 } from "@/server/pdf/journalBook";
 import { getObject } from "@/server/storage/objectStorage";
+import { journalBookCoverUsesImage } from "@/shared/api/journalBook";
 
 export const runtime = "nodejs";
 
@@ -44,7 +45,7 @@ const preview = createBookPreviewHandler({
     const prepared: PreparedBookEntry[] = [];
     for (const entry of entries) {
       let image: Buffer | null = null;
-      if (entry.image) {
+      if (entry.image && (input.innerStyle !== "text" || (journalBookCoverUsesImage(input.coverStyle) && input.coverEntryId === entry.id))) {
         // Only trusted storage keys from the owner's records; never fetch input URLs.
         if (!isStoredJournalImage(entry.image))
           throw new Error("Unsupported image source");

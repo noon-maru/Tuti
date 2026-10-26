@@ -21,10 +21,10 @@
     },
     {
       "id": "private-journals-books",
-      "models": ["JournalEntry", "JournalBook"],
-      "items": "제목·본문·사진 참조·방문일·장소·혼잡도·난이도·공개 상태·민감정보 분류/동의/철회, 기록집 선택 기록·파일 키·페이지 수",
+      "models": ["JournalEntry", "JournalBook", "JournalNotebook", "JournalNotebookEntry"],
+      "items": "제목·본문·사진 참조·방문일·장소·혼잡도·난이도·공개 상태·민감정보 분류/동의/철회, 기록집 표지·속지 유형·선택 기록 연결·수정 번호, 별도 PDF 파일 키·페이지 수",
       "retention": "보관 요청·계정 유지 범위. 삭제·철회 시 DB·객체·연결 기록집 정리 경로와 별도 실패 재시도. 서버 외부로 내려받은 사본은 별개",
-      "sources": ["src/server/journal/service.ts", "src/server/journal/sensitiveWithdrawal.ts", "src/server/admin/users.ts", "src/server/storage/objectStorage.ts"]
+      "sources": ["src/server/journal/service.ts", "src/server/journal/notebooks.ts", "src/server/legal/privacyReplay.ts", "src/server/journal/sensitiveWithdrawal.ts", "src/server/admin/users.ts", "src/server/storage/objectStorage.ts", "prisma/schema.prisma"]
     },
     {
       "id": "png-share-traces",

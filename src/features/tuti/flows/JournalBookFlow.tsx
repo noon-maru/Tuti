@@ -53,6 +53,7 @@ import { exportJournalBookPdf } from "@/lib/journalBookExport";
 import type { StoredJournalBook } from "@/shared/api/journalBook";
 import { recordProductActivity } from "@/lib/productActivity";
 import type { ProductActivityType } from "@/shared/api/productActivity";
+import { saveLibraryCover } from "@/lib/journalBookLibrary";
 
 const BOOK_STEPS = [
   { value: "selection", label: "기록 고르기" },
@@ -144,6 +145,7 @@ function BookEditor({ ownerId }: { ownerId: string }) {
     bytes: Uint8Array;
     pageCount: number;
     approvalToken?: string;
+    coverThumbnail?: Uint8Array;
   } | null>(null);
   const [completing, setCompleting] = useState(false);
   const [openedBook, setOpenedBook] = useState<StoredJournalBook | null>(null);
@@ -239,6 +241,7 @@ function BookEditor({ ownerId }: { ownerId: string }) {
       bytes: Uint8Array;
       pageCount: number;
       approvalToken?: string;
+      coverThumbnail?: Uint8Array;
     } | null) =>
       setPreviewPdf(result),
     [],
@@ -308,7 +311,7 @@ function BookEditor({ ownerId }: { ownerId: string }) {
   const back = () => {
     if (!draft || draft.step === "selection") {
       if (draft) recordBookActivity(BOOK_STEP_EXIT_ACTIVITY.selection);
-      router.replace("/journal");
+      router.replace("/");
     }
     else if (draft.step === "preview") changeStep("letter");
     else if (draft.step === "letter") changeStep("details");
@@ -324,6 +327,10 @@ function BookEditor({ ownerId }: { ownerId: string }) {
         previewPdf.bytes,
         previewPdf.approvalToken,
       );
+      if (previewPdf.coverThumbnail && getSessionSnapshot()?.userId === ownerId) {
+        try { await saveLibraryCover(ownerId, book.id, previewPdf.coverThumbnail); book.hasCover = true; } catch {}
+      }
+      void queryClient.invalidateQueries({ queryKey: ["library-books", ownerId] });
       queryClient.setQueryData<StoredJournalBook[]>(
         ["journal-books", ownerId],
         (current = []) => [book, ...current.filter(({ id }) => id !== book.id)],
@@ -369,8 +376,8 @@ function BookEditor({ ownerId }: { ownerId: string }) {
           초안을 지우고 새로 만들기
         </SmallButton>
         {message && <p role="alert">{message}</p>}
-        <SmallButton onClick={() => router.replace("/journal")}>
-          기록으로 돌아가기
+        <SmallButton onClick={() => router.replace("/")}>
+          내 책장으로 돌아가기
         </SmallButton>
       </Frame>
     );
@@ -380,8 +387,9 @@ function BookEditor({ ownerId }: { ownerId: string }) {
       <StoredBookViewer
         ownerId={ownerId}
         book={openedBook}
-        onBack={() => setOpenedBook(null)}
+        onBack={() => router.replace("/")}
         onDeleted={() => {
+          void queryClient.invalidateQueries({ queryKey: ["library-books", ownerId] });
           queryClient.setQueryData<StoredJournalBook[]>(
             ["journal-books", ownerId],
             (current = []) => current.filter(({ id }) => id !== openedBook.id),
@@ -933,7 +941,7 @@ function BookEditor({ ownerId }: { ownerId: string }) {
   );
 }
 
-function StoredBookViewer({
+export function StoredBookViewer({
   ownerId,
   book,
   onBack,
@@ -948,6 +956,7 @@ function StoredBookViewer({
     bytes: Uint8Array;
     pageCount: number;
     approvalToken?: string;
+    coverThumbnail?: Uint8Array;
   } | null>(null);
   const [busy, setBusy] = useState<"download" | "delete" | null>(null);
   const [message, setMessage] = useState("");
@@ -956,8 +965,14 @@ function StoredBookViewer({
       bytes: Uint8Array;
       pageCount: number;
       approvalToken?: string;
-    } | null) => setPdf(result),
-    [],
+      coverThumbnail?: Uint8Array;
+    } | null) => {
+      setPdf(result);
+      if (!book.hasCover && result?.coverThumbnail && getSessionSnapshot()?.userId === ownerId) {
+        void saveLibraryCover(ownerId, book.id, result.coverThumbnail).catch(() => {});
+      }
+    },
+    [book.hasCover, book.id, ownerId],
   );
 
   async function download() {
@@ -1016,6 +1031,7 @@ function StoredBookViewer({
           bookId={book.id}
           ownerId={ownerId}
           onReady={handleReady}
+          captureCover={!book.hasCover}
         />
         {message && <Notice role="alert">{message}</Notice>}
         <JournalBookPurchaseButton surface="completed_book" />

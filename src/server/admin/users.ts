@@ -81,11 +81,14 @@ async function deleteUserRecord(
       journalBooks: {
         select: { objectKey: true },
       },
+      _count: { select: { journalNotebooks: true } },
     },
   });
 
   if (!user) return null;
   const scopedCreatedBefore = ordinaryCreatedBefore ?? emptyCreatedBefore;
+  // 구형 일괄 정리 도구의 승인 목록은 새 기록집을 포함하지 않는다.
+  if (scopedCreatedBefore && user._count?.journalNotebooks) return null;
   if (scopedCreatedBefore && (user.role !== "user" || user.createdAt > scopedCreatedBefore)) return null;
   if (emptyCreatedBefore && (user.role !== "user" || user.createdAt > emptyCreatedBefore || user.journalEntries.length || user.journalBooks.length)) return null;
   let replayReceipt = replay || scopedCreatedBefore ? null : await preparePrivacyReplayReceipt("account_deleted", userId);
@@ -156,10 +159,10 @@ async function deleteUserRecord(
     }
     if (scopedCreatedBefore) {
       const current = await transaction.user.findUnique({ where: { id: userId }, select: {
-        role: true, createdAt: true, _count: { select: { journalEntries: true, journalBooks: true } },
+        role: true, createdAt: true, _count: { select: { journalEntries: true, journalBooks: true, journalNotebooks: true } },
         ...(ordinaryCreatedBefore ? { journalEntries: { select: { id: true, image: true } }, journalBooks: { select: { objectKey: true } }, authIdentities: { select: { email: true, provider: true, providerRefreshTokenEncrypted: true } } } : {}),
       } });
-      if (!current || current.role !== "user" || current.createdAt > scopedCreatedBefore ||
+      if (!current || current.role !== "user" || current.createdAt > scopedCreatedBefore || current._count.journalNotebooks ||
           (emptyCreatedBefore && (current._count.journalEntries || current._count.journalBooks))) return false;
       if (ordinaryCreatedBefore) {
         const snapshot = (value: unknown) => JSON.stringify(value, (_key, item) => Array.isArray(item) ? [...item].sort((a, b) => JSON.stringify(a).localeCompare(JSON.stringify(b))) : item);

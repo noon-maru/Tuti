@@ -15,14 +15,17 @@ import { getSessionSnapshot } from "@/lib/auth/session";
 import type { JournalBookInput } from "@/shared/api/journalBook";
 import { LoadingIndicator } from "@/features/tuti/components/LoadingIndicator";
 import { BaseButton } from "@/features/tuti/components/buttons";
+import { renderJournalBookCover } from "@/lib/journalBookCover";
 
 type JournalBookPreviewProps = {
   ownerId: string;
+  captureCover?: boolean;
   onReady?: (
     result: {
       bytes: Uint8Array;
       pageCount: number;
       approvalToken?: string;
+      coverThumbnail?: Uint8Array;
     } | null,
   ) => void;
 } & (
@@ -35,6 +38,7 @@ export function JournalBookPreview({
   bookId,
   ownerId,
   onReady,
+  captureCover = true,
 }: JournalBookPreviewProps) {
   const [pdfDocument, setPdfDocument] = useState<PDFDocumentProxy | null>(null);
   const [error, setError] = useState("");
@@ -87,9 +91,10 @@ export function JournalBookPreview({
         wasmUrl: `/pdfjs/${pdfjs.version}/wasm/`,
       });
       const pdf = await loadingTask.promise;
+      const coverThumbnail = onReady && captureCover ? await renderJournalBookCover(pdf).catch(() => undefined) : undefined;
       if (active) {
         setPdfDocument(pdf);
-        onReady?.({ bytes, pageCount: pdf.numPages, approvalToken });
+        onReady?.({ bytes, pageCount: pdf.numPages, approvalToken, coverThumbnail });
       }
     })().catch((cause: unknown) => {
       if (active && !abort.signal.aborted)
@@ -104,7 +109,7 @@ export function JournalBookPreview({
       abort.abort();
       void loadingTask?.destroy();
     };
-  }, [input, bookId, ownerId, attempt, onReady]);
+  }, [input, bookId, ownerId, attempt, onReady, captureCover]);
 
   useEffect(() => {
     if (!pdfDocument) return;

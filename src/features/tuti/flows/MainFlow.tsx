@@ -1,82 +1,24 @@
 "use client";
 
-import { usePathname, useRouter } from "next/navigation";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { usePathname } from "next/navigation";
+import { useEffect } from "react";
 import { BrowserHistoryTransitionProvider } from "@/features/tuti/components/BrowserHistoryTransition";
 import { JournalEntryTransitionProvider } from "@/features/tuti/components/JournalEntryTransition";
 import { AppLoadingScreen } from "@/features/tuti/components/LoadingIndicator";
-import { RecommendationsFlow } from "@/features/tuti/flows/RecommendationsFlow";
 import { recordProductActivity } from "@/lib/productActivity";
 import { useTutiStore } from "@/store/tuti";
 import { useServiceRightsOnly } from "@/features/legal/ServiceAccessContext";
 
 export function MainFlow({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const router = useRouter();
   const rightsOnly = useServiceRightsOnly();
-  const hasHydrated = useTutiStore((state) => state.hasHydrated);
-  const entryRecord = useTutiStore((state) => state.entryRecord);
-  const activeJournalEntryId = useTutiStore((state) => state.activeJournalEntryId);
-  // 기존 사진을 기록하는 사용자는 외출 질문이나 위치 권한이 필요하지 않다.
-  const journalRoute = pathname === "/journal" || pathname.startsWith("/journal/");
-  const [revealedDestination, setRevealedDestination] =
-    useState<string | null>(null);
-  const revealResetTimer = useRef<number | null>(null);
-
-  const revealDestination = useCallback((destinationPath: string) => {
-    setRevealedDestination(destinationPath);
-
-    if (revealResetTimer.current) {
-      window.clearTimeout(revealResetTimer.current);
-    }
-
-    revealResetTimer.current = window.setTimeout(() => {
-      setRevealedDestination(null);
-      revealResetTimer.current = null;
-    }, 1200);
-  }, []);
-
+  const hasHydrated = useTutiStore(state => state.hasHydrated);
+  const entryRecord = useTutiStore(state => state.entryRecord);
   useEffect(() => {
-    if (!rightsOnly && hasHydrated && !entryRecord && !journalRoute) {
-      router.replace(pathname === "/" && activeJournalEntryId ? "/journal" : "/entry");
-    }
-  }, [activeJournalEntryId, entryRecord, hasHydrated, journalRoute, pathname, rightsOnly, router]);
-
-  useEffect(() => {
-    if (rightsOnly || !hasHydrated || !entryRecord || pathname !== "/") return;
-
-    void recordProductActivity("main_viewed").catch(() => {
-      // 분석 기록 실패가 메인 추천 화면을 막지 않도록 한다.
-    });
+    // 기존 추천 도달 이벤트의 의미를 홈 개편 이후에도 유지한다.
+    if (rightsOnly || !hasHydrated || !entryRecord || pathname !== "/explore") return;
+    void recordProductActivity("main_viewed").catch(() => {});
   }, [entryRecord, hasHydrated, pathname, rightsOnly]);
-
-  useEffect(
-    () => () => {
-      if (revealResetTimer.current) {
-        window.clearTimeout(revealResetTimer.current);
-      }
-    },
-    [],
-  );
-
-  if (!hasHydrated || (!rightsOnly && !entryRecord && !journalRoute)) {
-    return <AppLoadingScreen label="저장된 상태를 확인하고 있어요." />;
-  }
-
-  return (
-    <BrowserHistoryTransitionProvider
-      onDestinationReveal={revealDestination}
-    >
-      <JournalEntryTransitionProvider>
-        {!rightsOnly && entryRecord && (
-          <RecommendationsFlow
-            interactive={
-              pathname === "/" || revealedDestination === "/"
-            }
-          />
-        )}
-        {children}
-      </JournalEntryTransitionProvider>
-    </BrowserHistoryTransitionProvider>
-  );
+  if (!hasHydrated) return <AppLoadingScreen label="저장된 상태를 확인하고 있어요." />;
+  return <BrowserHistoryTransitionProvider><JournalEntryTransitionProvider>{children}</JournalEntryTransitionProvider></BrowserHistoryTransitionProvider>;
 }

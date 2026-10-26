@@ -460,7 +460,7 @@ export function RecommendationsFlow({ interactive }: { interactive: boolean }) {
         onDetail={openDetail}
         onDetailExitStart={beginDetailClose}
         onDetailClose={finishDetailClose}
-        onJournal={() => router.push("/journal")}
+        onJournal={() => router.push("/journal?from=explore")}
         onAdmin={() => router.push("/admin")}
         onDownload={() => router.push("/download")}
         onSettings={() => router.push("/settings")}

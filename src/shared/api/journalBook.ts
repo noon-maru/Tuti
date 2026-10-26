@@ -52,6 +52,7 @@ export function getJournalBookCoverPalette(style: JournalBookCoverStyle) {
 }
 
 export type JournalBookInput = {
+  innerStyle?: "photo" | "text";
   freeformNonSensitiveConfirmed?: boolean;
   entryIds: string[];
   title: string;
@@ -66,10 +67,14 @@ export type StoredJournalBook = {
   entryCount: number;
   pageCount: number;
   createdAt: string;
+  coverStyle?: JournalBookCoverStyle | null;
+  hasCover?: boolean;
 };
 
 export type JournalBooksResponse = {
   books: StoredJournalBook[];
+  nextCursor?: string | null;
+  recordCount?: number;
 };
 
 export type JournalBookResponse = {
@@ -100,6 +105,7 @@ export function emptyJournalBookDraft(): JournalBookDraft {
 export function parseJournalBookInput(value: unknown): JournalBookInput | null {
   if (!value || typeof value !== "object") return null;
   const input = value as Record<string, unknown>;
+  if (input.innerStyle !== undefined && input.innerStyle !== "photo" && input.innerStyle !== "text") return null;
   if (input.freeformNonSensitiveConfirmed !== undefined && typeof input.freeformNonSensitiveConfirmed !== "boolean") return null;
   const coverStyle = JOURNAL_BOOK_COVER_STYLES.includes(
     input.coverStyle as JournalBookCoverStyle,
@@ -137,6 +143,7 @@ export function parseJournalBookInput(value: unknown): JournalBookInput | null {
     letter: input.letter,
     coverEntryId: input.coverEntryId,
     coverStyle,
+    ...(input.innerStyle ? { innerStyle: input.innerStyle as "photo" | "text" } : {}),
     ...(typeof input.freeformNonSensitiveConfirmed === "boolean" ? { freeformNonSensitiveConfirmed: input.freeformNonSensitiveConfirmed } : {}),
   };
 }

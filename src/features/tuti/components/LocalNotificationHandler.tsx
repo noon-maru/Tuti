@@ -38,11 +38,11 @@ export function LocalNotificationHandler() {
 
         if (entryRecord) {
           requestDailyCheckIn();
-          router.replace("/");
+          router.replace("/explore");
           return;
         }
 
-        router.replace("/entry");
+        router.replace("/explore");
       },
     ).then((handle) => {
       if (disposed) {

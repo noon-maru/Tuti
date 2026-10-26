@@ -11,6 +11,8 @@ import { recordProductActivity } from "@/lib/productActivity";
 import { useTutiStore } from "@/store/tuti";
 import { parseWelcomeGuideStep, welcomeGuidePath, type WelcomeGuideStep } from "@/shared/tuti/welcomeGuide";
 import { parseWelcomeBookPage, welcomeBookPath, type WelcomeBookOrigin } from "@/shared/tuti/welcomeBook";
+import { ensureSession } from "@/lib/auth/session";
+import { markLibraryWelcomeSeen } from "@/lib/libraryPreferences";
 
 export function EntryFlow() {
   const router = useRouter();
@@ -30,19 +32,27 @@ export function EntryFlow() {
   const shouldRedirectToMain =
     hasHydrated &&
     Boolean(entryRecord) &&
+    guideStep === null && bookPage === null &&
     entryStage !== "recommendation-ready";
 
   useEffect(() => {
+    if (questionsRequested || entryStage === "recommendation-ready") {
+      router.replace(questionsRequested ? "/explore?mode=questions" : "/explore");
+      return;
+    }
     if (shouldRedirectToMain) {
       router.replace("/");
     }
-  }, [router, shouldRedirectToMain]);
+  }, [router, shouldRedirectToMain, questionsRequested, entryStage]);
 
   useEffect(() => {
     if (!hasHydrated || shouldRedirectToMain || entryStage === "recommendation-ready") return;
 
     if (!questionsRequested) {
-      if (guideStep === null && bookPage === null) void recordProductInteraction("welcome_viewed", "welcome").catch(() => {});
+      if (guideStep === null && bookPage === null) {
+        void ensureSession().then(session => markLibraryWelcomeSeen(session.userId)).catch(() => {});
+        void recordProductInteraction("welcome_viewed", "welcome").catch(() => {});
+      }
       return;
     }
 
@@ -75,7 +85,7 @@ export function EntryFlow() {
       onRecord={startRecord}
       onExplore={() => {
         void recordProductInteraction("welcome_explore_started", "welcome").catch(() => {});
-        router.push("/entry?mode=questions");
+        router.push("/explore");
       }}
     />;
   }

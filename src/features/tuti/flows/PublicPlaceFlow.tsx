@@ -13,7 +13,7 @@ export function PublicPlaceFlow({ place }: { place: TutiPlace }) {
       travelTimeLabel="공유된 공간"
       backLabel="Tuti에서 다른 공간 찾기"
       showBackMenuItem
-      onBack={() => router.push("/")}
+      onBack={() => router.push("/explore")}
     />
   );
 }

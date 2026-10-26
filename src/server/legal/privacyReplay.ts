@@ -4,6 +4,7 @@ import { replayLocationWithdrawal, getCurrentLocationConsent, purgeWithdrawnLoca
 import { privacyReplayEnabled, PrivacyReplayError, privacyReplaySubject, privacyReplayTarget, readPrivacyReplaySnapshot, verifyPrivacyReplayCoverage, commitPrivacyReplayReceipt } from "@/server/legal/privacyReplayLedger";
 import { forceDeleteJournalEntry } from "@/server/journal/service";
 import { deleteJournalBook } from "@/server/journal/bookDeletion";
+import { deleteNotebook } from "@/server/journal/notebooks";
 import { purgeWithdrawnSensitiveJournal } from "@/server/journal/sensitiveWithdrawal";
 import { cleanupPrivacyReplayObjects } from "@/server/legal/privacyReplayObjects";
 
@@ -34,7 +35,8 @@ export async function settleCurrentPrivacyRequests() {
     if (record.kind.startsWith("journal_") && userId) {
       if (record.kind === "journal_book_deleted") {
         const books = await prisma.journalBook.findMany({ where: { ownerId: userId }, select: { id: true } });
-        fulfilled = !books.some((book) => privacyReplayTarget("book", book.id) === record.target);
+        const notebooks = await prisma.journalNotebook.findMany({ where: { ownerId: userId }, select: { id: true } });
+        fulfilled = ![...books, ...notebooks].some((book) => privacyReplayTarget("book", book.id) === record.target);
       } else {
         const entries = await prisma.journalEntry.findMany({ where: { ownerId: userId }, select: { id: true, publicId: true, publicationStatus: true, sensitiveWithdrawnAt: true } });
         const entry = entries.find((entry) => privacyReplayTarget("journal", entry.id) === record.target);
@@ -118,6 +120,16 @@ export async function replayPrivacyRequests(backupAt: Date, apply = false, legac
         result.books++;
       }
       afterBook = books.at(-1)!.id;
+    }
+    let afterNotebook: string | undefined;
+    while (true) {
+      const notebooks = await prisma.journalNotebook.findMany({ where: afterNotebook ? { id: { gt: afterNotebook } } : {}, select: { id: true, ownerId: true }, orderBy: { id: "asc" }, take: 250 });
+      if (!notebooks.length) break;
+      for (const notebook of notebooks) if (targetReceipts.some(record => record.kind === "journal_book_deleted" && record.subject === privacyReplaySubject(notebook.ownerId) && record.target === privacyReplayTarget("book", notebook.id))) {
+        if (apply) await deleteNotebook(notebook.ownerId, notebook.id, true);
+        result.books++;
+      }
+      afterNotebook = notebooks.at(-1)!.id;
     }
   }
   const objects = await cleanupPrivacyReplayObjects(apply, undefined, snapshot);

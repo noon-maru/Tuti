@@ -721,6 +721,7 @@ model JournalEntry {
   updatedAt   DateTime  @updatedAt @map("updated_at")
   owner       User      @relation(fields: [ownerId], references: [id], onDelete: Cascade)
   place       Place?    @relation(fields: [placeId], references: [id], onDelete: SetNull)
+  notebookEntries JournalNotebookEntry[]
 
   @@index([ownerId, visitedAt])
   @@index([placeId])
@@ -729,8 +730,38 @@ model JournalEntry {
   @@map("journal_entries")
 }
 
+model JournalNotebook {
+  id         String @id
+  ownerId    String @map("owner_id")
+  title      String
+  coverStyle String @map("cover_style")
+  innerStyle String @map("inner_style")
+  revision   Int @default(1)
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+  owner      User @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  entries    JournalNotebookEntry[]
+
+  @@index([ownerId, createdAt])
+  @@map("journal_notebooks")
+}
+
+model JournalNotebookEntry {
+  notebookId String @map("notebook_id")
+  entryId    String @map("entry_id")
+  notebook   JournalNotebook @relation(fields: [notebookId], references: [id], onDelete: Cascade)
+  entry      JournalEntry @relation(fields: [entryId], references: [id], onDelete: Cascade)
+
+  @@id([notebookId, entryId])
+  @@index([entryId])
+  @@map("journal_notebook_entries")
+}
+
 model JournalBook {
   id           String   @id
+  coverStyle   String?  @map("cover_style")
+  coverThumbnail Bytes? @map("cover_thumbnail")
+  coverReady Boolean @default(false) @map("cover_ready")
   sensitivePolicyVersion String? @map("sensitive_policy_version")
   ownerId      String   @map("owner_id")
   title        String
@@ -780,6 +811,7 @@ model User {
   authIdentities        AuthIdentity[]
   journalEntries        JournalEntry[]
   journalBooks          JournalBook[]
+  journalNotebooks      JournalNotebook[]
   oauthAuthorizations   OAuthAuthorization[]
   sessions              UserSession[]
   recommendationActions RecommendationAction[]

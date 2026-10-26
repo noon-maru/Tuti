@@ -17,6 +17,7 @@ import type {
   JournalBookResponse,
   JournalBooksResponse,
 } from "@/shared/api/journalBook";
+import { JOURNAL_BOOK_COVER_STYLES, type JournalBookCoverStyle } from "@/shared/api/journalBook";
 import {
   JournalBookApprovalError,
   readJournalBookCompletionRequest,
@@ -31,9 +32,17 @@ export async function GET(request: Request) {
   try {
     const user = await authenticateUser(request);
     if (!user) return withCors(request, unauthorized());
+    const params = new URL(request.url).searchParams;
+    const limit = params.has("limit") ? Number(params.get("limit")) : null;
+    if (limit !== null && (!Number.isInteger(limit) || limit < 1 || limit > 48)) return withCors(request, Response.json({ error: "목록 범위를 확인해주세요." }, { status: 400 }));
+    const cursorId = params.get("cursor");
+    const cursor = cursorId ? await prisma.journalBook.findFirst({ where: { id: cursorId, ownerId: user.id }, select: { id: true, createdAt: true } }) : null;
+    if (cursorId && !cursor) return withCors(request, Response.json({ error: "목록 위치를 확인해주세요." }, { status: 400 }));
     const withdrawnEntries = await prisma.journalEntry.findMany({ where: { ownerId: user.id, sensitiveWithdrawnAt: { not: null } }, select: { id: true } });
     const books = await prisma.journalBook.findMany({
-      where: { ownerId: user.id, ...(withdrawnEntries.length ? { NOT: { entryIds: { hasSome: withdrawnEntries.map((entry) => entry.id) } } } : {}) },
+      where: { ownerId: user.id, ...(withdrawnEntries.length ? { NOT: { entryIds: { hasSome: withdrawnEntries.map((entry) => entry.id) } } } : {}),
+        ...(cursor ? { OR: [{ createdAt: { lt: cursor.createdAt } }, { createdAt: cursor.createdAt, id: { lt: cursor.id } }] } : {}) },
+      ...(limit ? { take: limit + 1 } : {}),
       orderBy: [{ createdAt: "desc" }, { id: "desc" }],
       select: {
         id: true,
@@ -41,18 +50,24 @@ export async function GET(request: Request) {
         entryIds: true,
         pageCount: true,
         createdAt: true,
+        coverStyle: true,
+        coverReady: true,
       },
     });
     const response: JournalBooksResponse = {
-      books: books.map((book) => ({
+      books: (limit ? books.slice(0, limit) : books).map((book) => ({
         id: book.id,
         title: book.title,
         entryCount: book.entryIds.length,
         pageCount: book.pageCount,
         createdAt: book.createdAt.toISOString(),
+        coverStyle: JOURNAL_BOOK_COVER_STYLES.includes(book.coverStyle as JournalBookCoverStyle) ? book.coverStyle as JournalBookCoverStyle : null,
+        hasCover: Boolean(book.coverReady),
       })),
+      ...(limit ? { nextCursor: books.length > limit ? books[limit - 1].id : null,
+        ...(!cursor ? { recordCount: await prisma.journalEntry.count({ where: { ownerId: user.id, sensitiveWithdrawnAt: null } }) } : {}) } : {}),
     };
-    return withCors(request, Response.json(response));
+    return withCors(request, Response.json(response, { headers: { "Cache-Control": "private, no-store" } }));
   } catch {
     console.error("완성한 기록집 목록을 불러오지 못했습니다.");
     await writeDiagnosticLogSafely({ code: "UNEXPECTED_FAILURE", component: "book" });
@@ -132,6 +147,7 @@ export async function POST(request: Request) {
           sensitivePolicyVersion: prepared.sensitivePolicyVersion,
           ownerId: user.id,
           title: prepared.title,
+          coverStyle: prepared.coverStyle ?? null,
           entryIds: prepared.entryIds,
           objectKey: storedObjectKey,
           pageCount: prepared.pageCount,

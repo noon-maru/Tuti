@@ -32,6 +32,9 @@ export function useTutiJournalEntries(enabled = true) {
   const createMutation = useMutation({
     mutationFn: createJournalEntry,
     onSuccess: (entry) => {
+      void queryClient.invalidateQueries({ queryKey: ["library-books"] });
+      void queryClient.invalidateQueries({ queryKey: ["library-notebooks"] });
+      void queryClient.invalidateQueries({ queryKey: ["notebook-entries"] });
       queryClient.setQueryData<TutiJournalEntry[]>(
         journalEntriesQueryKey,
         (currentEntries = []) => [entry, ...currentEntries],
@@ -47,6 +50,8 @@ export function useTutiJournalEntries(enabled = true) {
       input: JournalEntryInput;
     }) => updateJournalEntry(entryId, input),
     onSuccess: (entry) => {
+      void queryClient.invalidateQueries({ queryKey: ["notebook-entries"] });
+      queryClient.removeQueries({ queryKey: ["library-cover"] });
       queryClient.setQueryData<TutiJournalEntry[]>(
         journalEntriesQueryKey,
         (currentEntries = []) =>
@@ -62,9 +67,17 @@ export function useTutiJournalEntries(enabled = true) {
       // 철회가 접수됐지만 파일 정리가 남은 경우 예전 본문·사진을 계속 표시하지 않는다.
       await queryClient.invalidateQueries({ queryKey: journalEntriesQueryKey });
       await queryClient.invalidateQueries({ queryKey: ["journal-books"] });
+      await queryClient.invalidateQueries({ queryKey: ["library-books"] });
+      await queryClient.invalidateQueries({ queryKey: ["library-notebooks"] });
+      await queryClient.invalidateQueries({ queryKey: ["notebook-entries"] });
+      queryClient.removeQueries({ queryKey: ["library-cover"] });
     },
     onSuccess: (entryId) => {
       void queryClient.invalidateQueries({ queryKey: ["journal-books"] });
+      void queryClient.invalidateQueries({ queryKey: ["library-notebooks"] });
+      void queryClient.invalidateQueries({ queryKey: ["notebook-entries"] });
+      void queryClient.invalidateQueries({ queryKey: ["library-books"] });
+      queryClient.removeQueries({ queryKey: ["library-cover"] });
       queryClient.setQueryData<TutiJournalEntry[]>(
         journalEntriesQueryKey,
         (currentEntries = []) =>
