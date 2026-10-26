@@ -5,12 +5,15 @@ import { ChevronRight } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { TutiWordmark } from "@/features/tuti/components/TutiWordmark";
-import { acceptInitialServiceTerms, InitialTermsLoadError, isInitialTermsRightsPath, startInitialServiceTerms, type InitialTermsState } from "@/lib/initialServiceTerms";
+import { InitialTermsLoadError, isInitialTermsRightsPath, startInitialServiceTerms, type InitialTermsState } from "@/lib/initialServiceTerms";
+import { submitInitialConsents } from "@/lib/initialConsent";
+import { animateRequiredConsents } from "@/lib/requiredConsentAnimation";
 import { getSessionSnapshot, subscribeToSession } from "@/lib/auth/session";
 import { serviceTermsAcceptanceCache } from "@/lib/serviceTermsAcceptanceCache";
 import { Button, baseControlStyles } from "@/shared/ui/buttons";
 import { SERVICE_TERMS_REQUIRED_EVENT, ServiceTermsSessionExpiredError } from "@/lib/serviceTerms";
 import type { ServiceTermsOffer } from "@/shared/legal/serviceTerms";
+import { getLocationTerms, getLocationTermsVersion } from "@/shared/location/terms";
 
 // 오버레이가 아니라 진입 화면이다. 통과 전에는 children과 그 안의 effect를 마운트하지 않는다.
 export function InitialServiceTermsGate({ children, rightsChildren, renderContent = content => content }: {
@@ -21,7 +24,7 @@ export function InitialServiceTermsGate({ children, rightsChildren, renderConten
   const [state, setState] = useState<InitialTermsState | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [retry, setRetry] = useState(0);
-  const [documentOpen, setDocumentOpen] = useState(false);
+  const [documentOpen, setDocumentOpen] = useState<"service" | "location" | null>(null);
   const [reconsent, setReconsent] = useState(false);
   const admitted = useRef(false);
   const activeUserId = useRef<string | null>(null);
@@ -62,7 +65,7 @@ export function InitialServiceTermsGate({ children, rightsChildren, renderConten
       forceChecking.current = true;
       const userId = getSessionSnapshot()?.userId;
       if (userId) void serviceTermsAcceptanceCache.clear(userId);
-      setDocumentOpen(false);
+      setDocumentOpen(null);
       setError(null);
       setState(previous => previous ? { ...previous, allowed: false, offer: null } : null);
       setRetry(value => value + 1);
@@ -79,7 +82,7 @@ export function InitialServiceTermsGate({ children, rightsChildren, renderConten
       activeUserId.current = userId;
       admitted.current = false;
       forceChecking.current = false;
-      setState(null); setError(null); setReconsent(false); setDocumentOpen(false);
+      setState(null); setError(null); setReconsent(false); setDocumentOpen(null);
       setRetry(value => value + 1);
     });
     const visible = () => {
@@ -122,37 +125,39 @@ export function InitialServiceTermsGate({ children, rightsChildren, renderConten
   if (!state && !error) return renderContent(<LoadingBrand role="status" aria-label="튜티 시작 중"><TutiWordmark priority /></LoadingBrand>);
 
   const offer = state?.offer ?? null;
+  const locationTerms = getLocationTerms();
+  const displayedDocument = documentOpen === "location" ? locationTerms : offer?.document;
   const reload = () => { setError(null); setState(null); setRetry(value => value + 1); };
 
   const screen = (
     <Screen ref={screenRef} tabIndex={reconsent ? -1 : undefined} role={reconsent ? "dialog" : undefined} aria-modal={reconsent || undefined} aria-labelledby="initial-terms-title" data-initial-terms-screen>
-      {documentOpen && offer ? <>
+      {documentOpen && offer && displayedDocument && <>
         <DocumentHeader>
-          <Button type="button" $tone="text" $size="compact" onClick={() => setDocumentOpen(false)}>닫기</Button>
-          <span>서비스 이용약관</span>
+          <Button type="button" $tone="text" $size="compact" onClick={() => setDocumentOpen(null)}>닫기</Button>
+          <span>{documentOpen === "location" ? "위치기반서비스 이용약관" : "서비스 이용약관"}</span>
         </DocumentHeader>
-        <Document data-scroll-region tabIndex={0} aria-label="서비스 이용약관 전문">
-          <h1 id="initial-terms-title">{offer.document.title}</h1>
-          <p>{offer.document.summary}</p>
+        <Document data-scroll-region tabIndex={0} aria-label={`${documentOpen === "location" ? "위치기반서비스 이용약관" : "서비스 이용약관"} 전문`}>
+          <h1 id="initial-terms-title">{displayedDocument.title}</h1>
+          <p>{displayedDocument.summary}</p>
           <h2>시작 전에 확인할 중요 내용</h2>
-          <ul>{offer.document.importantTerms.map(item => <li key={item}>{item}</li>)}</ul>
-          {offer.document.sections.map(section => <section key={section.title}>
+          <ul>{displayedDocument.importantTerms.map(item => <li key={item}>{item}</li>)}</ul>
+          {displayedDocument.sections.map(section => <section key={section.title}>
             <h2>{section.title}</h2>
             {section.paragraphs.map((paragraph, index) => <p key={index}>{paragraph}</p>)}
           </section>)}
-          <p>버전 {offer.version} · 시행일 {new Intl.DateTimeFormat("ko-KR", { timeZone: "Asia/Seoul", dateStyle: "long" }).format(new Date(offer.effectiveAt))}</p>
+          <p>버전 {documentOpen === "location" ? getLocationTermsVersion() : offer.version} · 시행일 {documentOpen === "location" ? locationTerms.effectiveDate : new Intl.DateTimeFormat("ko-KR", { timeZone: "Asia/Seoul", dateStyle: "long" }).format(new Date(offer.effectiveAt))}</p>
         </Document>
-      </> : <>
+      </>}
+      <MainPanel hidden={Boolean(documentOpen)}>
         <Heading>
-          <TutiWordmark priority />
           <div>
-            <h1 id="initial-terms-title">{reconsent ? <>이용약관을<br />다시 확인해주세요</> : <>우리의 첫 페이지를<br />열기 전에</>}</h1>
+            <h1 id={documentOpen ? undefined : "initial-terms-title"}>{reconsent ? <>이용약관을<br />다시 확인해주세요</> : <>첫 마디를<br />남기기 전에</>}</h1>
             <p>{reconsent ? <>현재 적용 중인 약관에<br />동의가 필요해요.</> : <>튜티와 함께하기 위한<br />작은 약속을 확인해주세요.</>}</p>
           </div>
         </Heading>
         <Content data-scroll-region>
           {offer ? <ConsentForm key={`${offer.version}:${offer.documentHash}`} offer={offer}
-            onRead={() => setDocumentOpen(true)} onAccepted={next => { admitted.current = next.allowed; setReconsent(false); setState(next); }} onRefresh={reload}
+            onRead={setDocumentOpen} onAccepted={next => { admitted.current = next.allowed; setReconsent(false); setState(next); }} onRefresh={reload}
             onSubmittingChange={value => { submittingConsent.current = value; }} /> : <Unavailable role="status" aria-live="polite">
             <p>{error ?? (state ? "서비스 이용약관을 준비하고 있어요." : "이용약관을 확인하고 있어요.")}</p>
             {(error || state) && <>
@@ -162,7 +167,7 @@ export function InitialServiceTermsGate({ children, rightsChildren, renderConten
           </Unavailable>}
         </Content>
         <Footer>
-          <p>위치·알림·민감정보는 필요한 순간에<br />별도로 확인할게요.</p>
+          <p>위치 동의는 선택이에요. 마디만 남겨도 좋아요.<br />기기 위치 권한·알림·민감정보는 필요할 때 확인할게요.</p>
           <nav aria-label="약관과 도움말">
             <a href="/legal/privacy">개인정보 처리방침</a>
             <a href="/account-deletion">데이터 삭제 안내</a>
@@ -170,57 +175,81 @@ export function InitialServiceTermsGate({ children, rightsChildren, renderConten
             <a href="mailto:admin@tuti.today">문의</a>
           </nav>
         </Footer>
-      </>}
+      </MainPanel>
     </Screen>
   );
   return renderContent(reconsent ? <ReconsentBackdrop>{screen}</ReconsentBackdrop> : screen);
 }
 
 function ConsentForm({ offer, onRead, onAccepted, onRefresh, onSubmittingChange }: {
-  offer: ServiceTermsOffer; onRead: () => void; onAccepted: (state: InitialTermsState) => void; onRefresh: () => void;
+  offer: ServiceTermsOffer; onRead: (document: "service" | "location") => void; onAccepted: (state: InitialTermsState) => void; onRefresh: () => void;
   onSubmittingChange: (value: boolean) => void;
 }) {
   const [ageConfirmed, setAgeConfirmed] = useState(false);
   const [termsConfirmed, setTermsConfirmed] = useState(false);
+  const [locationConfirmed, setLocationConfirmed] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [confirming, setConfirming] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const submitting = useRef(false);
   const active = useRef(true);
-  useEffect(() => { active.current = true; return () => { active.current = false; }; }, []);
+  const animation = useRef<AbortController | null>(null);
+  const requiredGroup = useRef<HTMLDivElement>(null);
+  useEffect(() => { active.current = true; return () => { active.current = false; animation.current?.abort(); }; }, []);
 
   const accept = async (event: React.FormEvent) => {
     event.preventDefault();
-    if (submitting.current || !ageConfirmed || !termsConfirmed) return;
+    if (submitting.current) return;
     submitting.current = true;
+    const controller = new AbortController();
+    animation.current = controller;
     onSubmittingChange(true);
     setSaving(true);
+    setConfirming(true);
     setError(null);
     try {
-      const state = await acceptInitialServiceTerms(offer, { ageConfirmed, importantTermsConfirmed: termsConfirmed });
-      if (active.current) onAccepted(state);
+      requiredGroup.current?.scrollIntoView({ block: "nearest", behavior: "auto" });
+      await animateRequiredConsents({ ageConfirmed, termsConfirmed,
+        confirmAge: () => setAgeConfirmed(true), confirmTerms: () => setTermsConfirmed(true),
+        reducedMotion: window.matchMedia("(prefers-reduced-motion: reduce)").matches,
+        signal: controller.signal });
+      if (!active.current || controller.signal.aborted) return;
+      setConfirming(false);
+      const result = await submitInitialConsents(offer, { ageConfirmed: true, importantTermsConfirmed: true }, locationConfirmed);
+      // 선택 동의 저장 실패로 필수 동의를 마친 사용자의 시작을 막지 않는다.
+      // 위치 사용 시에는 서버에 저장된 동의 상태를 다시 확인한다.
+      if (result.locationError) console.warn("선택 위치 동의를 저장하지 못했습니다. 위치 사용 시 다시 확인합니다.");
+      if (active.current) onAccepted(result.state);
     } catch (failure) {
-      if (active.current) {
+      if (active.current && !controller.signal.aborted) {
         if (failure instanceof ServiceTermsSessionExpiredError) {
           setAgeConfirmed(false);
           setTermsConfirmed(false);
+          setLocationConfirmed(false);
           setError(failure.message);
         } else setError("동의를 저장하지 못했어요. 다시 시도하거나 최신 약관을 확인해주세요.");
       }
     } finally {
       submitting.current = false;
       onSubmittingChange(false);
-      if (active.current) setSaving(false);
+      if (active.current) { setSaving(false); setConfirming(false); }
     }
   };
 
   return <Form onSubmit={event => void accept(event)} aria-busy={saving}>
-    <AgreementGroup>
+    <AgreementGroup ref={requiredGroup}>
       <CheckRow><input type="checkbox" checked={ageConfirmed} disabled={saving} onChange={event => setAgeConfirmed(event.target.checked)} /><span>만 14세 이상이에요.<small>필수</small></span></CheckRow>
       <CheckRow><input type="checkbox" checked={termsConfirmed} disabled={saving} onChange={event => setTermsConfirmed(event.target.checked)} /><span>중요 내용을 확인했고,<br />서비스 이용약관에 동의해요.<small>필수</small></span></CheckRow>
-      <ReadButton type="button" onClick={onRead}>약관과 중요 내용 읽기<ChevronRight size={16} aria-hidden="true" /></ReadButton>
+      <ReadButton type="button" disabled={saving} onClick={() => onRead("service")}>약관과 중요 내용 읽기<ChevronRight size={16} aria-hidden="true" /></ReadButton>
+    </AgreementGroup>
+    <AgreementGroup>
+      <CheckRow><input type="checkbox" checked={locationConfirmed} disabled={saving} onChange={event => setLocationConfirmed(event.target.checked)} /><span>위치기반서비스 이용약관에 동의해요.<small>선택</small></span></CheckRow>
+      <OptionalHint>가까운 장소를 추천받을 때 사용해요.<br />동의하지 않아도 마디와 하루마디를 이용할 수 있어요.</OptionalHint>
+      <ReadButton type="button" disabled={saving} onClick={() => onRead("location")}>위치약관 읽기<ChevronRight size={16} aria-hidden="true" /></ReadButton>
     </AgreementGroup>
     {error && <ErrorMessage role="alert">{error}<Button type="button" $tone="text" $size="compact" disabled={saving} onClick={onRefresh}>최신 약관 확인</Button></ErrorMessage>}
-    <Button type="submit" $tone="secondary" $size="large" $fullWidth disabled={saving || !ageConfirmed || !termsConfirmed}>{saving ? "동의를 저장하고 있어요" : "동의하고 시작하기"}</Button>
+    <Button type="submit" $tone="secondary" $size="large" $fullWidth disabled={saving}>{confirming ? "필수 항목을 확인하고 있어요" : saving ? "동의를 저장하고 있어요" : ageConfirmed && termsConfirmed ? "동의하고 시작하기" : "필수 항목에 동의하고 시작하기"}</Button>
+    <small>버튼을 누르면 만 14세 이상임을 확인하고<br />서비스 이용약관과 중요 내용에 동의해요.<br />위치 동의는 선택한 경우에만 포함돼요.</small>
     <small>개인정보 처리방침에서 정보가 어떻게 쓰이는지 확인할 수 있어요.</small>
   </Form>;
 }
@@ -230,6 +259,8 @@ const Screen = styled.section`
   padding: max(28px, env(safe-area-inset-top)) 24px max(20px, env(safe-area-inset-bottom));
   box-sizing: border-box; background: var(--color-surface); color: var(--color-text);
 `;
+const MainPanel = styled.div`display: contents; &[hidden] { display: none; }`;
+const OptionalHint = styled.p`margin: 0 0 4px 33px; color: var(--color-text-muted); font-size: 11px; line-height: 1.65;`;
 const LoadingBrand = styled.div`
   width: 100%; height: 100%; display: grid; place-items: center; background: var(--color-surface);
   img { width: 76px; height: auto; }
@@ -243,11 +274,9 @@ const ReconsentBackdrop = styled.div`
 `;
 const Heading = styled.header`
   flex-shrink: 0;
-  > img { width: 76px; height: auto; }
-  > div { margin-top: clamp(24px, 6cqh, 56px); }
   h1 { margin: 0; font-size: clamp(26px, 4.3cqh, 34px); font-weight: 700; line-height: 1.35; letter-spacing: -0.045em; }
   p { margin: 14px 0 0; color: var(--color-text-muted); font-size: 15px; line-height: 1.65; }
-  @media (max-height: 600px) { > div { margin-top: 16px; } p { margin-top: 8px; } }
+  @media (max-height: 600px) { p { margin-top: 8px; } }
 `;
 const Content = styled.div`
   flex: 1; min-height: 0; display: flex; flex-direction: column;
@@ -264,10 +293,23 @@ const AgreementGroup = styled.div`
 `;
 const CheckRow = styled.label`
   display: flex; align-items: center; gap: 12px; min-height: 52px; cursor: pointer;
-  input { width: 21px; height: 21px; margin: 0; flex-shrink: 0; accent-color: var(--color-brand-800); }
+  input {
+    appearance: none; width: 21px; height: 21px; margin: 0; flex-shrink: 0;
+    display: grid; place-content: center; border: 1.5px solid var(--color-text-muted); border-radius: 5px;
+    background: var(--color-surface); transition: background-color 160ms ease, border-color 160ms ease;
+  }
+  input::after {
+    content: ""; width: 5px; height: 10px; border: solid white; border-width: 0 2px 2px 0;
+    transform: translateY(-1px) rotate(45deg) scale(0);
+    transition: transform 180ms cubic-bezier(0.22, 1, 0.36, 1);
+  }
+  input:checked { background: var(--color-brand-800); border-color: var(--color-brand-800); }
+  input:checked::after { transform: translateY(-1px) rotate(45deg) scale(1); }
   input:focus-visible { outline: 2px solid var(--color-brand-800); outline-offset: 4px; }
   span { display: block; font-size: 14px; font-weight: 600; line-height: 1.6; }
   small { display: inline-block; margin-inline-start: 6px; color: var(--color-text-muted); font-size: 11px; font-weight: 400; }
+  @media (prefers-reduced-motion: reduce) { input, input::after { transition: none; } }
+  @media (forced-colors: active) { input { appearance: auto; } input::after { display: none; } }
 `;
 const ReadButton = styled.button`
   ${baseControlStyles}; display: flex; align-items: center; justify-content: space-between;

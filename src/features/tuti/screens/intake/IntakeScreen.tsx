@@ -10,7 +10,6 @@ import {
 } from "@/features/tuti/components/buttons";
 import { AuxiliaryConditions } from "@/features/tuti/components/AuxiliaryConditions";
 import { ScreenFrame } from "@/features/tuti/components/ScreenFrame";
-import { TutiWordmark } from "@/features/tuti/components/TutiWordmark";
 import type { IntakeStep } from "@/features/tuti/data/intakeSteps";
 import type {
   BudgetAnswer,
@@ -55,9 +54,6 @@ export function IntakeScreen({
   return (
     <Frame>
       <SoftHeader>
-        <Brand>
-          <HeaderWordmark priority />
-        </Brand>
         <RestoreButton onClick={onRestoreRecords}>
           마디 불러오기
         </RestoreButton>
@@ -253,18 +249,8 @@ const Frame = styled(ScreenFrame)`
 const SoftHeader = styled.div`
   display: flex;
   align-items: flex-start;
-  justify-content: space-between;
+  justify-content: flex-end;
   gap: var(--space-4);
-`;
-
-const Brand = styled.div`
-  display: flex;
-  align-items: center;
-`;
-
-const HeaderWordmark = styled(TutiWordmark)`
-  width: 56px;
-  height: auto;
 `;
 
 const RestoreButton = styled(TextButton)`

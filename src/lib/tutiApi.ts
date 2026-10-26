@@ -84,6 +84,7 @@ export async function updateLocationConsent(
   status: LocationConsentStatus,
   ageConfirmed = false,
   termsVersion = getLocationTermsVersion(),
+  expectedUserId?: string,
 ) {
   if (status === "accepted") {
     await fetchServiceTerms(false);
@@ -100,7 +101,7 @@ export async function updateLocationConsent(
       clientPlatform:
         platform === "ios" || platform === "android" ? platform : "web",
     }),
-  });
+  }, expectedUserId);
   if (!response.ok) {
     throw new Error(
       await readApiError(response, "위치정보 동의를 기록하지 못했어요."),

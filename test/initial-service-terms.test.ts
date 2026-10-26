@@ -201,8 +201,9 @@ test("최초 약관 화면은 Providers 바깥에서 자식 마운트를 제어�
   assert.match(shell, /<InitialServiceTermsGate renderContent=\{content => <NativeAppUpdateNotice>/);
   const gate = readFileSync("src/features/legal/InitialServiceTermsGate.tsx", "utf8");
   assert.match(gate, /state\?\.allowed\) return renderContent\(children\)/);
-  assert.match(gate, /saving \|\| !ageConfirmed \|\| !termsConfirmed/);
-  assert.match(gate, /offer\.document\.importantTerms\.map/);
+  assert.match(gate, /\$fullWidth disabled=\{saving\}/);
+  assert.match(gate, /await animateRequiredConsents/);
+  assert.match(gate, /displayedDocument\.importantTerms\.map/);
   assert.doesNotMatch(gate, /localStorage\.setItem|accepted:\s*true/);
   assert.match(gate, /addEventListener\(SERVICE_TERMS_REQUIRED_EVENT, requireTerms\)/);
   assert.match(gate, /removeEventListener\(SERVICE_TERMS_REQUIRED_EVENT, requireTerms\)/);

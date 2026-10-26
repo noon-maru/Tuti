@@ -6,7 +6,6 @@ import { useInfiniteQuery } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useSession } from "@/features/tuti/hooks/useSession";
-import { TutiWordmark } from "@/features/tuti/components/TutiWordmark";
 import { AppLoadingScreen, LoadingIndicator } from "@/features/tuti/components/LoadingIndicator";
 import { HarumadiCover } from "@/features/tuti/components/HarumadiCover";
 import { BaseButton, PrimaryButton } from "@/features/tuti/components/buttons";
@@ -43,7 +42,7 @@ function LibraryHome({ ownerId }: { ownerId: string }) {
   if (showWelcome || welcomeSeen === null) return <AppLoadingScreen label="내 책장을 준비하고 있어요." />;
   const openEditor = () => router.push("/harumadi");
   return <Frame aria-labelledby="library-title">
-    <Header><TutiWordmark priority /><IconButton type="button" onClick={() => router.push("/settings")} aria-label="설정"><Settings2 size={20} /></IconButton></Header>
+    <Header><IconButton type="button" onClick={() => router.push("/settings")} aria-label="설정"><Settings2 size={20} /></IconButton></Header>
     <Heading><h1 id="library-title">나의 작은 책장</h1><p>한 권을 준비하고, 하루씩 채워보세요.</p></Heading>
     <Toolbar><span>하루마디 <strong>{harumadiPdfs.length}{query.hasNextPage ? "+" : ""}</strong>권</span>
       <TextAction type="button" onClick={() => router.push("/journal")}>모아둔 마디<ChevronRight size={14} /></TextAction></Toolbar>
@@ -79,8 +78,7 @@ function LibraryHome({ ownerId }: { ownerId: string }) {
 }
 const Frame = styled.section`height: 100%; min-height: 0; display: flex; flex-direction: column; background: #F8FAFC; color: var(--color-text);`;
 const Header = styled.header`
-  flex: none; display: flex; justify-content: space-between; align-items: center; padding: calc(var(--app-safe-area-top, 0px) + 16px) 24px 0;
-  > img { width: 62px; height: auto; }
+  flex: none; display: flex; justify-content: flex-end; align-items: center; padding: calc(var(--app-safe-area-top, 0px) + 16px) 24px 0;
 `;
 const IconButton = styled(BaseButton)`width: 44px; height: 44px; display: grid; place-items: center; background: transparent; color: var(--color-text); border-radius: 50%; &:hover { background: var(--color-secondary-200); }`;
 const Heading = styled.div`flex: none; padding: 12px 24px 8px; h1 { margin: 0 0 7px; font-size: 27px; font-weight: 600; letter-spacing: -0.045em; line-height: 1.35; } p { margin: 0; font-size: 12px; color: var(--color-text-muted); line-height: 1.6; }`;

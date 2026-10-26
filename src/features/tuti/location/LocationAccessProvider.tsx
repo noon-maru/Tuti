@@ -151,16 +151,6 @@ export function LocationAccessProvider({
     return () => { cancelled = true; };
   }, [hasHydrated, sessionUserId, syncLocationConsent]);
 
-  const regionPreferenceRequired = Boolean(
-    hasHydrated &&
-      !requesting &&
-      !consentSheetOpen &&
-      !locationFailure &&
-      locationConsent &&
-      locationConsent.status !== "accepted" &&
-      !preferredRegion?.sigunguName,
-  );
-
   const clearLocationQueries = useCallback(() => {
     clearLocationQueryCache(queryClient);
   }, [queryClient]);
@@ -449,12 +439,12 @@ export function LocationAccessProvider({
           onChooseRegion={chooseRegionAfterFailure}
         />
       )}
-      {!locationFailure && (regionSheetOpen || regionPreferenceRequired) && (
+      {!locationFailure && regionSheetOpen && (
         <RegionPreferenceSheet
           initialRegion={preferredRegion}
           onComplete={completeRegionPreference}
           onDismiss={
-            regionSheetOpen && !regionPreferenceRequired && regionSheetDismissible
+            regionSheetDismissible
               ? () => {
                   setRegionSheetOpen(false);
                   setRegionSheetDismissible(false);

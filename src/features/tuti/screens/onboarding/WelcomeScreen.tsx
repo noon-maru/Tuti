@@ -6,7 +6,6 @@ import Image from "next/image";
 import { BookOpen } from "lucide-react";
 import { useEffect, useRef } from "react";
 import { ScreenFrame } from "@/features/tuti/components/ScreenFrame";
-import { TutiWordmark } from "@/features/tuti/components/TutiWordmark";
 import { BackButton, BaseButton, ButtonLink, PrimaryButton, TextButton } from "@/features/tuti/components/buttons";
 import { ANDROID_BACK_EVENT } from "@/features/tuti/navigation/androidBack";
 import { WelcomeHarumadiSample } from "./WelcomeHarumadiSample";
@@ -42,7 +41,7 @@ export function WelcomeScreen({ onRecord, onExplore, guideStep, onGuideOpen, onG
 
   return <Frame key={guideStep ?? "welcome"} aria-labelledby="welcome-heading" data-welcome-screen>
     <Header>
-      {guide ? <BackButton aria-label="이용 방법 이전 화면" onClick={onGuideBack} /> : <Wordmark priority />}
+      {guide && <BackButton aria-label="이용 방법 이전 화면" onClick={onGuideBack} />}
       {guide ? <StepCount>{guideStep! + 1} / {WELCOME_GUIDE.length}</StepCount> : <ButtonLink href="/login" $tone="text" $size="compact">로그인</ButtonLink>}
     </Header>
     <Copy>
@@ -108,8 +107,8 @@ const Header = styled.header`
   align-items: center;
   justify-content: space-between;
   min-height: 40px;
+  > :only-child { margin-left: auto; }
 `;
-const Wordmark = styled(TutiWordmark)`width: 60px; height: auto;`;
 const StepCount = styled.span`font-size: var(--font-size-100); color: var(--color-text-muted);`;
 const Copy = styled.div`
   h1 {
