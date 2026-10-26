@@ -1,0 +1,32 @@
+#!/bin/sh
+set -eu
+cd /var/services/homes/Tutiadmin/source/Tuti
+if [ "$(id -u)" -ne 0 ]; then echo "sudo sh scripts/ops/tuti-dev-legal-setup" >&2; exit 1; fi
+[ "$#" -eq 0 ] || exit 1
+stage_dir="$(mktemp -d /tmp/tuti-dev-legal.XXXXXX)"
+cleanup() { rm -f -- "$stage_dir/production-assets.json"; rmdir -- "$stage_dir"; }
+trap cleanup EXIT
+trap 'exit 130' INT
+trap 'exit 143' TERM
+exec 9>.ops-state/maintenance.lock
+/usr/bin/flock --exclusive 9
+for container in tuti-dev-db tuti-prod-db; do
+  [ "$(docker inspect "$container" --format '{{.State.Running}}')" = true ] || exit 1
+done
+dev_volume="$(docker inspect tuti-dev-db --format '{{range .Mounts}}{{if eq .Destination "/var/lib/postgresql/data"}}{{.Source}}{{end}}{{end}}')"
+prod_volume="$(docker inspect tuti-prod-db --format '{{range .Mounts}}{{if eq .Destination "/var/lib/postgresql/data"}}{{.Source}}{{end}}{{end}}')"
+if [ -z "$dev_volume" ] || [ -z "$prod_volume" ] || [ "$dev_volume" = "$prod_volume" ]; then echo "개발·운영 DB 분리 확인에 실패했습니다." >&2; exit 1; fi
+# 운영 DB에서는 객체 키의 SHA-256 목록만 읽는다. 원문·사진·계정·동의는 복사하지 않는다.
+docker compose --env-file .env.production -f docker-compose.prod.yml exec -T db sh -c \
+  'export PGOPTIONS="-c default_transaction_read_only=on"; exec psql -X -qAt -v ON_ERROR_STOP=1 -U "$POSTGRES_USER" -d "$POSTGRES_DB"' >"$stage_dir/production-assets.json" <<'SQL'
+SELECT COALESCE(json_agg(asset_hash), '[]'::json)::text FROM (
+  SELECT encode(sha256(convert_to(image, 'UTF8')), 'hex') AS asset_hash FROM journal_entries WHERE image LIKE 'journal-images/%'
+  UNION SELECT encode(sha256(convert_to(object_key, 'UTF8')), 'hex') FROM journal_books
+) assets;
+SQL
+docker compose -f docker-compose.dev.yml run --rm --no-deps -T --user 0:0 \
+  -e TUTI_INSPECTION_ENV=development \
+  --volume "$stage_dir:/dev-legal:ro" \
+  app node_modules/.bin/tsx scripts/setup-development-legal.ts --apply
+docker compose -f docker-compose.dev.yml up -d --no-deps --force-recreate app
+echo "개발 계정 정리·운영 약관 원문 복사·개발 앱 재생성 완료. 개발 서버 준비 후 새로고침해주세요."
