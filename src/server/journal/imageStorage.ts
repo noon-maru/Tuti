@@ -15,6 +15,13 @@ const MAX_OUTPUT_WIDTH = 1200;
 const MAX_OUTPUT_HEIGHT = 900;
 const WEBP_QUALITY = 82;
 
+/** 읽기 캐시에만 쓰는 작은 사진. */
+export async function createJournalThumbnail(bytes: Uint8Array) {
+  return sharp(Buffer.from(bytes), { limitInputPixels: 40_000_000 }).rotate()
+    .resize({ width: 640, height: 640, fit: "inside", withoutEnlargement: true })
+    .flatten({ background: "#fff" }).jpeg({ quality: 72 }).toBuffer();
+}
+
 type JournalImageIdentity = {
   id: string;
   ownerId: string;

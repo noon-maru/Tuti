@@ -396,7 +396,7 @@ export async function setJournalEntryPublication(
   return serializeJournalEntry(entry);
 }
 
-const journalEntrySelect = {
+export const journalEntrySelect = {
   id: true,
   sensitiveContent: true,
   sensitiveConsentVersion: true,
@@ -417,7 +417,7 @@ const journalEntrySelect = {
   publicationConsentedAt: true,
 } as const;
 
-function serializeJournalEntry(
+export function serializeJournalEntry(
   entry: Omit<
     TutiJournalEntry,
     "visitedAt" | "publication" | "publicationStatus" | "sensitiveWithdrawnAt"

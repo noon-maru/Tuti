@@ -5,6 +5,7 @@ import { removeHarumadiPdfDraft } from "@/lib/harumadiPdfDraft";
 import { Capacitor } from "@capacitor/core";
 import { createSessionReset } from "./sessionMigration";
 import { serviceTermsAcceptanceCache } from "@/lib/serviceTermsAcceptanceCache";
+import { harumadiReadCache, HARUMADI_CACHE_INVALIDATED } from "@/lib/harumadiReadCache";
 import type {
   AccountDeletionResponse,
   AccountIdentityUnlinkResponse,
@@ -47,7 +48,8 @@ export async function fetchWithSession(
 
   if (response.status !== 401) return response;
 
-  await clearStoredSession();
+  if (sessionSnapshot?.userId !== session.userId || sessionSnapshot?.accessToken !== session.accessToken) return response;
+  await clearStoredSession(session);
   const refreshedSession = await ensureSession();
   return fetchWithToken(path, refreshedSession.accessToken, init);
 }
@@ -395,7 +397,9 @@ async function loadOrCreateSession() {
 }
 
 async function clearStoredSession(expected?: TutiSession) {
+  if (expected && (sessionSnapshot?.userId !== expected.userId || sessionSnapshot.accessToken !== expected.accessToken)) return;
   const previousUserId = sessionSnapshot?.userId;
+  if (previousUserId) await harumadiReadCache.clearOwner(previousUserId).catch(() => {});
   sessionPromise = undefined;
   await Promise.all([
     preferencesStorage.removeItem(SESSION_STORAGE_KEY),
@@ -406,6 +410,7 @@ async function clearStoredSession(expected?: TutiSession) {
 
 async function storeSession(session: TutiSession) {
   const previousUserId = sessionSnapshot?.userId;
+  if (previousUserId && (previousUserId !== session.userId || sessionSnapshot?.accessToken !== session.accessToken)) await harumadiReadCache.clearOwner(previousUserId).catch(() => {});
   if (previousUserId && previousUserId !== session.userId) await serviceTermsAcceptanceCache.clear(previousUserId);
   sessionPromise = Promise.resolve(session);
   await preferencesStorage.setItem(
@@ -428,10 +433,20 @@ async function fetchWithToken(
   const headers = new Headers(init?.headers);
   headers.set("Authorization", `Bearer ${accessToken}`);
 
-  const response = await clientFetch(apiUrl(path), {
-    ...init,
-    headers,
-  });
+  const owner = sessionSnapshot?.accessToken === accessToken ? sessionSnapshot.userId : null;
+  const method = init?.method?.toUpperCase() ?? "GET";
+  const changesJournal = (["POST", "PATCH", "DELETE"].includes(method) &&
+    /^journal-entries(?:\/[^/]+(?:\/(?:sensitive-consent|publication))?)?$/.test(path)) || (path === "account" && method === "DELETE");
+  let response: Response;
+  try {
+    response = await clientFetch(apiUrl(path), { ...init, headers });
+  } finally {
+    // 응답을 잃었어도 서버가 삭제·철회를 수행했을 수 있으므로 해당 계정 캐시를 비운다.
+    if (owner && changesJournal) {
+      await harumadiReadCache.clearOwner(owner).catch(() => {});
+      if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent(HARUMADI_CACHE_INVALIDATED, { detail: { owner } }));
+    }
+  }
   if (response.status === 428 && typeof window !== "undefined") {
     window.dispatchEvent(new Event("tuti:service-terms-required"));
   }

@@ -1,4 +1,5 @@
 import { HARUMADI_PDF_COVER_STYLES, HARUMADI_PDF_MAX_ENTRIES, HARUMADI_PDF_TITLE_LIMIT, type HarumadiPdfCoverStyle } from "./harumadiPdf";
+import type { TutiJournalEntry } from "./journal";
 
 export const HARUMADI_INNER_STYLES = ["photo", "text"] as const;
 export type HarumadiInnerStyle = typeof HARUMADI_INNER_STYLES[number];
@@ -17,6 +18,13 @@ export type Harumadi = HarumadiSettings & {
 };
 export type HarumadiUpdate = HarumadiSettings & { revision: number; entryIds: string[] };
 export type HarumadiList = { harumadis: Harumadi[]; nextCursor: string | null; recordCount?: number };
+export type HarumadiContent = {
+  harumadi: Harumadi;
+  entries: TutiJournalEntry[];
+  version: string;
+  totalRecordCount: number;
+  cacheable: boolean;
+};
 
 export function parseHarumadiSettings(value: unknown): HarumadiSettings | null {
   if (!value || typeof value !== "object") return null;

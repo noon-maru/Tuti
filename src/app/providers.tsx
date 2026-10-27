@@ -6,6 +6,7 @@ import { PersistedStateHydrator } from "@/app/PersistedStateHydrator";
 import { SessionBootstrap } from "@/features/tuti/components/SessionBootstrap";
 import { ProductActivityBootstrap } from "@/features/tuti/components/ProductActivityBootstrap";
 import { ServiceRightsOnlyContext } from "@/features/legal/ServiceAccessContext";
+import { HarumadiCacheLifecycle } from "@/features/tuti/components/HarumadiCacheLifecycle";
 
 export function Providers({ children, activityEnabled = true, rightsOnly = false }: { children: React.ReactNode; activityEnabled?: boolean; rightsOnly?: boolean }) {
   const [queryClient] = useState(() => new QueryClient());
@@ -14,6 +15,7 @@ export function Providers({ children, activityEnabled = true, rightsOnly = false
     <QueryClientProvider client={queryClient}>
       <ServiceRightsOnlyContext value={rightsOnly}>
       <PersistedStateHydrator />
+      <HarumadiCacheLifecycle />
       <SessionBootstrap />
       {activityEnabled && <ProductActivityBootstrap />}
       {children}

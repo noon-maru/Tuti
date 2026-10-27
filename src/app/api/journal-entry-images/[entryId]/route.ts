@@ -1,5 +1,6 @@
 import { prisma } from "@/server/db/prisma";
 import {
+  createJournalThumbnail,
   isStoredJournalImage,
   verifyJournalImageSignature,
 } from "@/server/journal/imageStorage";
@@ -38,6 +39,7 @@ export async function GET(
         image: true,
         updatedAt: true,
         sensitiveWithdrawnAt: true,
+        sensitiveContent: true,
       },
     });
 
@@ -51,19 +53,22 @@ export async function GET(
       return notFoundResponse(request);
     }
 
+    const thumbnail = new URL(request.url).searchParams.get("thumbnail") === "1";
+    if (thumbnail && entry.sensitiveContent !== false) return notFoundResponse(request);
     const image = await getObject(entry.image);
     const body = await image.body.transformToByteArray();
-    const responseBody = new Uint8Array(body.byteLength);
-    responseBody.set(body);
+    const bytes = thumbnail ? await createJournalThumbnail(body) : body;
+    const responseBody = new Uint8Array(bytes.byteLength);
+    responseBody.set(bytes);
     const headers = new Headers({
       "Cache-Control": "private, no-store",
-      "Content-Type": image.contentType ?? "application/octet-stream",
+      "Content-Type": thumbnail ? "image/jpeg" : image.contentType ?? "application/octet-stream",
       "X-Content-Type-Options": "nosniff",
     });
 
-    if (image.etag) headers.set("ETag", image.etag);
+    if (image.etag && !thumbnail) headers.set("ETag", image.etag);
     if (image.contentLength !== undefined) {
-      headers.set("Content-Length", String(image.contentLength));
+      headers.set("Content-Length", String(responseBody.byteLength));
     }
 
     return withCors(
