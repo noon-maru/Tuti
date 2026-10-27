@@ -89,7 +89,7 @@ function LibraryHome({ ownerId }: { ownerId: string }) {
   </Frame>;
 }
 const Frame = styled.section`position: relative; height: 100%; min-height: 0; background: #F8FAFC; color: var(--color-text); isolation: isolate;
-  --harumadi-shelf-title-size: 18px; --harumadi-shelf-brand-size: 10px; --harumadi-shelf-date-size: 11px;
+  --harumadi-shelf-title-size: 16px; --harumadi-shelf-brand-size: 10px; --harumadi-shelf-date-size: 11px;
   --harumadi-shelf-title-lines: 3; --harumadi-shelf-title-leading: 1.5;
   --harumadi-shelf-photo-height: min(38%, max(0px, calc(100% - 128px)));
   --main-navigation-label-size: 12px; --main-navigation-create-size: 14px;
