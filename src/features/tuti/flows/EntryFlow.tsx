@@ -37,7 +37,7 @@ export function EntryFlow() {
   const entryStage = useTutiStore((state) => state.entryStage);
   const startRecord = () => {
     void recordProductInteraction("welcome_record_started", "welcome").catch(() => {});
-    router.replace("/journal/new?from=welcome");
+    router.replace("/madi/new?from=welcome");
   };
 
   const shouldRedirectToMain =

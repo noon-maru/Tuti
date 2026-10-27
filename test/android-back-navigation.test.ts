@@ -21,18 +21,18 @@ test("설정 하위 화면은 설정으로 돌아간다", () => {
 });
 
 test("메인의 설정과 활동 화면은 메인으로 돌아간다", () => {
-  for (const pathname of ["/settings", "/journal"]) {
+  for (const pathname of ["/settings", "/madi"]) {
     assert.equal(resolveAndroidBackDestination(pathname), "/");
   }
 });
 
 test("기록 하위 화면은 기록 목록으로 돌아간다", () => {
   for (const pathname of [
-    "/journal/detail",
-    "/journal/edit",
-    "/journal/new",
+    "/madi/detail",
+    "/madi/edit",
+    "/madi/new",
   ]) {
-    assert.equal(resolveAndroidBackDestination(pathname), "/journal");
+    assert.equal(resolveAndroidBackDestination(pathname), "/madi");
   }
 });
 

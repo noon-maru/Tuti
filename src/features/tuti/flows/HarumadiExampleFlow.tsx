@@ -18,7 +18,7 @@ export function HarumadiExampleFlow() {
     onPageChange={next => router.replace(welcomeHarumadiPath(next, source))}
     onRecord={() => {
       void recordProductInteraction("welcome_record_started", "welcome").catch(() => {});
-      router.replace(`/journal/new?from=${source}`);
+      router.replace(`/madi/new?from=${source}`);
     }}
     onClose={() => {
       if (window.history.length > 1) router.back();

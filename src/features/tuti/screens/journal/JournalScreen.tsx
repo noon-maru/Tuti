@@ -1,23 +1,17 @@
 "use client";
 
-import { css, keyframes } from "@emotion/react";
+import { css } from "@emotion/react";
 import styled from "@emotion/styled";
 import { useRef, useState } from "react";
-import {
-  useBrowserHistoryEntry,
-  useBrowserHistoryExit,
-  useHistoryDestinationReveal,
-} from "@/features/tuti/components/BrowserHistoryTransition";
 import { ContextMenu } from "@/features/tuti/components/ContextMenu";
 import { LoadingIndicator } from "@/features/tuti/components/LoadingIndicator";
 import { TutiPlaceIcon } from "@/features/tuti/components/TutiPlaceIcon";
 import { JournalShareDialog } from "@/features/tuti/components/JournalShareDialog";
 import { useJournalEntryTransitionTarget } from "@/features/tuti/components/JournalEntryTransition";
-import { BaseButton } from "@/features/tuti/components/buttons";
+import { BackButton, BaseButton } from "@/features/tuti/components/buttons";
 import { ScreenFrame } from "@/features/tuti/components/ScreenFrame";
 import { useTutiJournalEntries } from "@/features/tuti/hooks/useTutiJournalEntries";
 import { useJournalShareActions } from "@/features/tuti/hooks/useJournalShareActions";
-import { useVerticalSwipeBack } from "@/features/tuti/hooks/useVerticalSwipeBack";
 import { useTutiStore } from "@/store/tuti";
 import { journalCardPreview } from "@/shared/tuti/journalCard";
 import {
@@ -29,17 +23,14 @@ const MAX_VISIBLE_MEMORY_CARDS = 7;
 const MEMORY_CARD_RADIUS = Math.floor(MAX_VISIBLE_MEMORY_CARDS / 2);
 const MEMORY_CARD_GAP_MIN = 40;
 const MEMORY_CARD_GAP_MAX = 60;
-const JOURNAL_EXIT_DURATION = 480;
 
 export function JournalScreen({
   onBack,
   onCreateEntry,
   onEditEntry,
   onOpenEntry,
-  backPath = "/",
 }: {
   onBack: () => void;
-  backPath?: "/" | "/explore";
   onCreateEntry?: () => void;
   onEditEntry?: (entryId: string) => void;
   onOpenEntry?: (
@@ -71,7 +62,6 @@ export function JournalScreen({
   const setActiveJournalEntry = useTutiStore(
     (state) => state.setActiveJournalEntry,
   );
-  const historyEntry = useBrowserHistoryEntry("/journal");
   const persistedEntryIndex = activeJournalEntryId
     ? entries.findIndex((entry) => entry.id === activeJournalEntryId)
     : -1;
@@ -83,19 +73,6 @@ export function JournalScreen({
     selectedCardRef,
     "journal",
   );
-  const revealMainScreen = useHistoryDestinationReveal(backPath);
-  const swipeBack = useVerticalSwipeBack({
-    direction: "up",
-    onBack,
-    onExitStart: revealMainScreen,
-    exitDelay: JOURNAL_EXIT_DURATION,
-  });
-
-  useBrowserHistoryExit({
-    sourcePath: "/journal",
-    destinationPath: backPath,
-    onExit: swipeBack.requestExit,
-  });
 
   const deleteEntry = async (entryId: string) => {
     const target = entries.find((entry) => entry.id === entryId);
@@ -197,19 +174,9 @@ export function JournalScreen({
   };
 
   return (
-    <Frame
-      {...swipeBack.gestureProps}
-      $dragY={swipeBack.dragY}
-      $progress={swipeBack.dragProgress}
-      $isDragging={swipeBack.isDragging}
-      $isEntering={historyEntry.isEntering}
-      onAnimationEnd={(event) => {
-        if (event.currentTarget === event.target) {
-          historyEntry.completeEntry();
-        }
-      }}
-    >
+    <Frame>
       <ListHeader>
+        <BackButton type="button" aria-label="이전 화면으로" onClick={onBack} />
         <h1>나의 마디</h1>
         <AddButton
           type="button"
@@ -393,51 +360,24 @@ function getMemoryCardOffset(relativePosition: number) {
   );
 }
 
-const enterFromHistory = keyframes`
-  from {
-    opacity: 0.68;
-    transform: translateY(-100%) scale(0.975);
-  }
-
-  to {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-  }
-`;
-
-const Frame = styled(ScreenFrame)<{
-  $dragY?: number;
-  $progress?: number;
-  $isDragging?: boolean;
-  $isEntering?: boolean;
-}>`
+const Frame = styled(ScreenFrame)`
   z-index: 1;
   gap: var(--space-5);
   background: var(--color-surface);
-  opacity: ${({ $progress = 0 }) => 1 - $progress * 0.32};
-  transform: translateY(${({ $dragY = 0 }) => $dragY}px)
-    scale(${({ $progress = 0 }) => 1 - $progress * 0.025});
-  transition: ${({ $isDragging = false }) =>
-    $isDragging
-      ? "none"
-      : `opacity ${JOURNAL_EXIT_DURATION}ms cubic-bezier(0.22, 1, 0.36, 1),
-         transform ${JOURNAL_EXIT_DURATION}ms cubic-bezier(0.22, 1, 0.36, 1)`};
-  animation: ${({ $isEntering = false }) =>
-    $isEntering
-      ? css`${enterFromHistory} ${JOURNAL_EXIT_DURATION}ms cubic-bezier(0.22, 1, 0.36, 1) both`
-      : "none"};
   overflow: hidden;
-  touch-action: none;
 `;
 
 const ListHeader = styled.header`
   min-height: var(--space-9);
-  display: flex;
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr) 44px;
   align-items: center;
   justify-content: space-between;
   gap: var(--space-4);
 
   h1 {
+    margin: 0;
+    text-align: center;
     font-size: var(--font-size-500);
     font-weight: 700;
   }

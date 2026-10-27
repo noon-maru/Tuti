@@ -221,6 +221,6 @@ test("최초 약관 화면은 Providers 바깥에서 자식 마운트를 제어�
   const main = readFileSync("src/features/tuti/flows/MainFlow.tsx", "utf8");
   assert.doesNotMatch(main, /<RecommendationsFlow/);
   assert.match(main, /rightsOnly \|\| !hasHydrated \|\| !entryRecord \|\| pathname !== "\/explore"/);
-  for (const path of ["/login", "/inquiry", "/journal", "/journal/detail", "/location", "/notifications"]) assert.equal(isInitialTermsRightsPath(path), true);
-  for (const path of ["/", "/entry", "/journal/new", "/journal/edit"]) assert.equal(isInitialTermsRightsPath(path), false);
+  for (const path of ["/login", "/inquiry", "/madi", "/madi/detail", "/location", "/notifications"]) assert.equal(isInitialTermsRightsPath(path), true);
+  for (const path of ["/", "/entry", "/madi/new", "/madi/edit"]) assert.equal(isInitialTermsRightsPath(path), false);
 });

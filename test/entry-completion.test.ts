@@ -37,7 +37,7 @@ test("재진입 확인 전에는 소개를 그리지 않고 도달 후에는 가
   assert.match(entry, /entryCompleted \|\| \(Boolean\(entryRecord\)/);
   assert.match(entry, /if \(!hasHydrated \|\| !completionReady \|\| shouldRedirectToMain \|\| legacyExample\) return null/);
   assert.match(entry, /router.replace\("\/explore"\)/);
-  assert.match(entry, /router.replace\("\/journal\/new\?from=welcome"\)/);
+  assert.match(entry, /router.replace\("\/madi\/new\?from=welcome"\)/);
   assert.doesNotMatch(entry, /router.push\(welcomeGuidePath/);
   assert.doesNotMatch(home, /showWelcome|readLibraryWelcomeSeen|router.replace\("\/entry"\)/);
   assert.match(home, /markLibraryEntryCompleted\(ownerId\)/);

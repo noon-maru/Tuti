@@ -3,7 +3,7 @@ export const ANDROID_BACK_EVENT = "tuti:android-back";
 const MAIN_CHILD_ROUTES = new Set([
   "/account-deletion",
   "/inquiry",
-  "/journal",
+  "/madi",
   "/legal",
   "/location",
   "/login",
@@ -46,11 +46,11 @@ export function resolveAndroidBackDestination(pathname: string) {
   }
 
   if (
-    normalizedPathname === "/journal/detail" ||
-    normalizedPathname === "/journal/edit" ||
-    normalizedPathname === "/journal/new"
+    normalizedPathname === "/madi/detail" ||
+    normalizedPathname === "/madi/edit" ||
+    normalizedPathname === "/madi/new"
   ) {
-    return "/journal";
+    return "/madi";
   }
 
   if (MAIN_CHILD_ROUTES.has(normalizedPathname)) {

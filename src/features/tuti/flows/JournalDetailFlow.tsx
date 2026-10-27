@@ -27,7 +27,7 @@ export function JournalDetailFlow() {
   );
   const entry = entries.find((candidate) => candidate.id === entryId);
   const returnToJournal = () => router.back();
-  const returnToJournalFallback = () => router.replace("/journal");
+  const returnToJournalFallback = () => router.replace("/madi");
   const shareActions = useJournalShareActions({
     entry,
     changeEntryPublication,
@@ -49,7 +49,7 @@ export function JournalDetailFlow() {
     try {
       await removeEntry(entry.id);
       setActiveJournalEntry(nextEntry?.id);
-      router.replace("/journal");
+      router.replace("/madi");
     } catch (error) {
       window.alert(
         error instanceof Error
@@ -90,7 +90,7 @@ export function JournalDetailFlow() {
         try {
           const result = await withdrawJournalSensitiveConsent(entry.id);
           if (result.pending) window.alert("철회는 접수했어요. 마디와 하루마디는 더 이상 조회할 수 없으며, 파일 정리를 재시도하고 있어요.");
-          router.replace("/journal");
+          router.replace("/madi");
         } catch (error) {
           window.alert(error instanceof Error ? error.message : "철회 요청을 처리하지 못했어요.");
         } finally {
@@ -100,7 +100,7 @@ export function JournalDetailFlow() {
       }}
       onEdit={() =>
         router.push(
-          `/journal/edit?entryId=${encodeURIComponent(entry.id)}&source=detail`,
+          `/madi/edit?entryId=${encodeURIComponent(entry.id)}&source=detail`,
         )
       }
       onPublish={shareActions.publish}

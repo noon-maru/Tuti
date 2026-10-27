@@ -66,10 +66,10 @@ function LibraryHome({ ownerId }: { ownerId: string }) {
         </>}
     </ShelfScroll>
     <LibraryLinks aria-label="마디와 PDF 보관함">
-      <TextAction type="button" onClick={() => router.push("/journal")}>모아둔 마디<ChevronRight size={13} /></TextAction>
+      <TextAction type="button" onClick={() => router.push("/madi")}>모아둔 마디<ChevronRight size={13} /></TextAction>
       <TextAction type="button" onClick={() => router.push("/harumadi/pdfs")}><Download size={13} />저장한 PDF</TextAction>
     </LibraryLinks>
-    <Footer><PrimaryButton type="button" onClick={() => router.push("/journal/new?from=library")}><PenLine size={17} />{isFirstMadi ? "첫 마디 남기기" : "마디 남기기"}</PrimaryButton>
+    <Footer><PrimaryButton type="button" onClick={() => router.push("/madi/new?from=library")}><PenLine size={17} />{isFirstMadi ? "첫 마디 남기기" : "마디 남기기"}</PrimaryButton>
       <ExploreButton type="button" onClick={() => router.push("/explore")}><Compass size={19} /><span>둘러보기</span></ExploreButton></Footer>
   </Frame>;
 }

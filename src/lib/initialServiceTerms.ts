@@ -110,7 +110,7 @@ export async function acceptInitialServiceTerms(offer: ServiceTermsOffer, confir
 
 export function isInitialTermsRightsPath(pathname: string) {
   // 약관 미동의 상태에도 기존 계정의 복구·열람·삭제·철회·문의는 유지한다.
-  return ["/login", "/inquiry", "/journal", "/journal/detail", "/harumadi/pdf/create", "/harumadi", "/harumadi/pdfs", "/harumadi/pdf/view", "/location", "/notifications"].includes(pathname);
+  return ["/login", "/inquiry", "/madi", "/madi/detail", "/harumadi/pdf/create", "/harumadi", "/harumadi/pdfs", "/harumadi/pdf/view", "/location", "/notifications"].includes(pathname);
 }
 
 export function initialTermsEntryRedirect(pathname: string, state: InitialTermsState | null): "/entry" | null {

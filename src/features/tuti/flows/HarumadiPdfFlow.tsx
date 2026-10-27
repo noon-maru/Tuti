@@ -527,7 +527,7 @@ function HarumadiPdfEditor({ ownerId }: { ownerId: string }) {
                 {entries.length === 0 ? (
                   <Notice>
                     남긴 마디가 아직 없어요.
-                    <SmallButton onClick={() => router.push("/journal/new")}>
+                    <SmallButton onClick={() => router.push("/madi/new")}>
                       첫 마디 남기기
                     </SmallButton>
                   </Notice>

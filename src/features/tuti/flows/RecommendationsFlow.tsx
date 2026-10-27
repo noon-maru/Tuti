@@ -264,7 +264,7 @@ export function RecommendationsFlow({ interactive }: { interactive: boolean }) {
     if (!isSuccess) return;
 
     const timer = window.setTimeout(() => {
-      router.prefetch("/journal/new");
+      router.prefetch("/madi/new");
       router.prefetch("/settings");
       router.prefetch("/location");
       if (process.env.NEXT_PUBLIC_TUTI_TARGET === "web") {
@@ -466,7 +466,7 @@ export function RecommendationsFlow({ interactive }: { interactive: boolean }) {
             search.set("journeyId", recommendationId);
             recordAction({ journeyId: recommendationId, action: "journal_started" });
           }
-          router.push(`/journal/new?${search.toString()}`);
+          router.push(`/madi/new?${search.toString()}`);
         }}
         onAdmin={() => router.push("/admin")}
         onDownload={() => router.push("/download")}
@@ -592,7 +592,7 @@ export function RecommendationsFlow({ interactive }: { interactive: boolean }) {
               journeyId: pendingDeparture.journeyId,
             });
             completePendingDeparture();
-            router.push(`/journal/new?${search.toString()}`);
+            router.push(`/madi/new?${search.toString()}`);
           }}
           onNotYet={() => {
             recordAction({

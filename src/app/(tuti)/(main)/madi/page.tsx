@@ -15,19 +15,18 @@ function JournalPageContent() {
   const { startTransition } = useJournalEntryTransition();
 
   useEffect(() => {
-    router.prefetch("/journal/detail");
-    router.prefetch("/journal/edit");
-    router.prefetch("/journal/new");
+    router.prefetch("/madi/detail");
+    router.prefetch("/madi/edit");
+    router.prefetch("/madi/new");
   }, [router]);
 
   return (
     <JournalScreen
-      backPath={backPath}
-      onBack={() => router.replace(backPath)}
-      onCreateEntry={() => router.push("/journal/new")}
+      onBack={() => window.history.length > 1 ? router.back() : router.replace(backPath)}
+      onCreateEntry={() => router.push("/madi/new")}
       onEditEntry={(entryId) =>
         router.push(
-          `/journal/edit?entryId=${encodeURIComponent(entryId)}&source=journal`,
+          `/madi/edit?entryId=${encodeURIComponent(entryId)}&source=journal`,
         )
       }
       onOpenEntry={(entryId, image, sourceElement) => {
@@ -38,7 +37,7 @@ function JournalPageContent() {
           sourceSurface: "journal",
           navigate: () =>
             router.push(
-              `/journal/detail?entryId=${encodeURIComponent(entryId)}`,
+              `/madi/detail?entryId=${encodeURIComponent(entryId)}`,
             ),
         });
       }}

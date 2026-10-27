@@ -224,14 +224,14 @@ export function JournalEntryTransitionProvider({
       let sourceSurface: TransitionSurface | null = null;
 
       if (
-        sourceUrl.pathname === "/journal/detail" &&
-        destinationUrl.pathname === "/journal"
+        sourceUrl.pathname === "/madi/detail" &&
+        destinationUrl.pathname === "/madi"
       ) {
         entryId = sourceUrl.searchParams.get("entryId");
         sourceSurface = "detail";
       } else if (
-        sourceUrl.pathname === "/journal" &&
-        destinationUrl.pathname === "/journal/detail"
+        sourceUrl.pathname === "/madi" &&
+        destinationUrl.pathname === "/madi/detail"
       ) {
         entryId = destinationUrl.searchParams.get("entryId");
         sourceSurface = "journal";
@@ -281,11 +281,11 @@ export function JournalEntryTransitionProvider({
       );
 
       if (
-        destinationUrl.pathname === "/journal" &&
+        destinationUrl.pathname === "/madi" &&
         detailElement?.dataset.journalTransitionEntryId
       ) {
         const sourceUrl = new URL(destinationUrl);
-        sourceUrl.pathname = "/journal/detail";
+        sourceUrl.pathname = "/madi/detail";
         sourceUrl.searchParams.set(
           "entryId",
           detailElement.dataset.journalTransitionEntryId,
@@ -294,7 +294,7 @@ export function JournalEntryTransitionProvider({
         return;
       }
 
-      if (destinationUrl.pathname === "/journal/detail") {
+      if (destinationUrl.pathname === "/madi/detail") {
         const entryId = destinationUrl.searchParams.get("entryId");
 
         if (!entryId) return;
@@ -307,7 +307,7 @@ export function JournalEntryTransitionProvider({
         if (!journalElement) return;
 
         const sourceUrl = new URL(destinationUrl);
-        sourceUrl.pathname = "/journal";
+        sourceUrl.pathname = "/madi";
         sourceUrl.search = "";
         startHistoryTransition(sourceUrl, destinationUrl);
       }

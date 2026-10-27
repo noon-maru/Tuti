@@ -27,9 +27,9 @@ export function JournalEditFlow() {
       return;
     }
 
-    router.replace("/journal");
+    router.replace("/madi");
   };
-  const returnToJournalFallback = () => router.replace("/journal");
+  const returnToJournalFallback = () => router.replace("/madi");
 
   if (isPending) {
     return (

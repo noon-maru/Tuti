@@ -5,11 +5,11 @@ import test from "node:test";
 test("둘러보기 아래 드래그·휠은 목록이 아니라 작성 화면으로 연결한다", () => {
   const flow = readFileSync("src/features/tuti/flows/RecommendationsFlow.tsx", "utf8");
   const screen = readFileSync("src/features/tuti/screens/recommendations/RecommendationsScreen.tsx", "utf8");
-  assert.match(flow, /router.prefetch\("\/journal\/new"\)/);
+  assert.match(flow, /router.prefetch\("\/madi\/new"\)/);
   assert.match(flow, /onCreateMadi=\{\(\) => \{/);
   assert.match(flow, /new URLSearchParams\(\{ from: "explore" \}\)/);
-  assert.match(flow, /router.push\(`\/journal\/new\?\$\{search.toString\(\)\}`\)/);
-  assert.doesNotMatch(flow, /router.push\("\/journal\?from=explore"\)/);
+  assert.match(flow, /router.push\(`\/madi\/new\?\$\{search.toString\(\)\}`\)/);
+  assert.doesNotMatch(flow, /router.push\("\/madi\?from=explore"\)/);
   assert.equal(screen.match(/onCreateMadi\(\);/g)?.length, 2);
   assert.doesNotMatch(screen, /<JournalScreen|onJournal/);
 });
