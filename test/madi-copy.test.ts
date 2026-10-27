@@ -5,6 +5,12 @@ import { WELCOME_GUIDE } from "../src/shared/tuti/welcomeGuide";
 
 const read = (path: string) => readFileSync(`src/features/tuti/${path}`, "utf8");
 
+test("둘러보기의 계정 복원 동선은 마디에 한정하지 않고 기록 불러오기로 안내한다", () => {
+  const intake = read("screens/intake/IntakeScreen.tsx");
+  assert.match(intake, /기록 불러오기/);
+  assert.doesNotMatch(intake, /마디 불러오기/);
+});
+
 test("첫 마디는 사진·이야기로 설명하고 시작 동작과 빈 하루마디에 연결한다", () => {
   const welcome = read("screens/onboarding/WelcomeScreen.tsx");
   assert.match(welcome, /사진 한 장, 짧은 이야기면 충분해요/);

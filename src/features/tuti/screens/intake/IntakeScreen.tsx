@@ -55,7 +55,7 @@ export function IntakeScreen({
     <Frame>
       <SoftHeader>
         <RestoreButton onClick={onRestoreRecords}>
-          마디 불러오기
+          기록 불러오기
         </RestoreButton>
       </SoftHeader>
       <QuestionBlock>
