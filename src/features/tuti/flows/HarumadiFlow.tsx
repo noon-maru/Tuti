@@ -20,12 +20,14 @@ import { HARUMADI_PDF_MAX_ENTRIES, HARUMADI_PDF_TITLE_LIMIT, type HarumadiPdfInp
 import type { Harumadi, HarumadiSettings } from "@/shared/api/harumadi";
 import { ANDROID_BACK_EVENT } from "@/features/tuti/navigation/androidBack";
 
-export function HarumadiFlow() {
+type ReaderOptions = { bookId?: string; initialMode?: "pages" | "settings"; onClose?: () => void };
+export function HarumadiFlow({ bookId, initialMode, onClose }: ReaderOptions = {}) {
   const session = useSession();
-  const id = useSearchParams().get("harumadiId");
-  return session ? <HarumadiLoader key={`${session.userId}:${id ?? "new"}`} owner={session.userId} id={id} /> : <AppLoadingScreen />;
+  const routeId = useSearchParams().get("harumadiId");
+  const id = bookId ?? routeId;
+  return session ? <HarumadiLoader key={`${session.userId}:${id ?? "new"}`} owner={session.userId} id={id} initialMode={initialMode} onClose={onClose} /> : <AppLoadingScreen />;
 }
-function HarumadiLoader({ owner, id }: { owner: string; id: string | null }) {
+function HarumadiLoader({ owner, id, initialMode, onClose }: { owner: string; id: string | null } & ReaderOptions) {
   const router = useRouter();
   const client = useQueryClient();
   const query = useQuery({ queryKey: ["harumadi-content", owner, id], queryFn: ({ signal }) => fetchHarumadiContent(owner, id!, signal),
@@ -44,20 +46,20 @@ function HarumadiLoader({ owner, id }: { owner: string; id: string | null }) {
   const current = Boolean(id && query.data && harumadiReadCache.current(owner, id, query.data.ticket));
   const verified = !id || Boolean(current && query.data && !query.data.cached && query.isFetchedAfterMount && !query.isFetching && !query.isPaused && !query.error);
   const readable = Boolean(query.data && current && !authoritativeReadError(query.error) && (canCacheHarumadi(query.data.content) || verified));
-  if (id && !readable && (query.isPending || query.isFetching)) return <AppLoadingScreen label="하루마디를 열고 있어요." />;
-  if (id && !readable) return <Frame><Header><Quiet onClick={() => router.replace("/")}><ArrowLeft size={18} />내 책장</Quiet></Header><Body role="alert"><h1>하루마디를 열지 못했어요.</h1><p>{query.error?.message ?? "연결을 확인하고 다시 열어주세요."}</p><PrimaryButton onClick={() => void query.refetch()}>다시 불러오기</PrimaryButton></Body></Frame>;
+  if (id && !readable && (query.isPending || query.isFetching)) return <Frame>{onClose && <Header><Quiet onClick={onClose}><ArrowLeft size={18} />내 책장</Quiet></Header>}<AppLoadingScreen label="하루마디를 열고 있어요." /></Frame>;
+  if (id && !readable) return <Frame><Header><Quiet onClick={onClose ?? (() => router.replace("/"))}><ArrowLeft size={18} />내 책장</Quiet></Header><Body role="alert"><h1>하루마디를 열지 못했어요.</h1><p>{query.error?.message ?? "연결을 확인하고 다시 열어주세요."}</p><PrimaryButton onClick={() => void query.refetch()}>다시 불러오기</PrimaryButton></Body></Frame>;
   return <HarumadiEditor key={id ?? "new"} owner={owner} initial={query.data?.content.harumadi} read={query.data}
-    verified={verified} refreshing={query.isFetching} onRefresh={() => void query.refetch()} />;
+    verified={verified} refreshing={query.isFetching} onRefresh={() => void query.refetch()} initialMode={initialMode} onClose={onClose} />;
 }
 
-function HarumadiEditor({ owner, initial, read, verified, refreshing, onRefresh }: {
+function HarumadiEditor({ owner, initial, read, verified, refreshing, onRefresh, initialMode, onClose }: {
   owner: string; initial?: Harumadi; read?: HarumadiRead; verified: boolean; refreshing: boolean; onRefresh: () => void;
-}) {
+} & ReaderOptions) {
   const router = useRouter(); const client = useQueryClient();
   const scroller = useRef<HTMLDivElement>(null);
   const [harumadi, setHarumadi] = useState(initial);
   const [settings, setSettings] = useState<HarumadiSettings>(initial ?? { title: "우리의 작은 하루", coverStyle: "white-plain", innerStyle: "photo" });
-  const [mode, setMode] = useState<"settings" | "pages" | "selection" | "pdf">(initial ? "pages" : "settings");
+  const [mode, setMode] = useState<"settings" | "pages" | "selection" | "pdf">(initial ? initialMode ?? "pages" : "settings");
   const [selected, setSelected] = useState(initial?.entryIds ?? []);
   const [confirmed, setConfirmed] = useState(false);
   const [busy, setBusy] = useState(false); const [error, setError] = useState("");
@@ -93,6 +95,7 @@ function HarumadiEditor({ owner, initial, read, verified, refreshing, onRefresh 
       const saved = harumadi ? await updateHarumadi(owner, harumadi.id, { ...input, revision: harumadi.revision, entryIds: harumadi.entryIds }) : await createHarumadi(owner, input);
       refreshLibrary();
       if (!harumadi) { router.replace(harumadiPath(saved.id)); return; }
+      if (onClose && initialMode === "settings") { onClose(); return; }
       setHarumadi(saved); setSettings(saved); setMode("pages");
     } catch (cause) { setError(cause instanceof Error ? cause.message : "하루마디를 저장하지 못했어요."); }
     finally { setBusy(false); }
@@ -119,7 +122,7 @@ function HarumadiEditor({ owner, initial, read, verified, refreshing, onRefresh 
   async function remove() {
     if (!harumadi || readOnly || busy || !window.confirm("하루마디 틀을 삭제할까요? 담았던 원본 마디와 이미 저장한 PDF는 남아요.")) return;
     setBusy(true); setError("");
-    try { await deleteHarumadi(owner, harumadi.id); refreshLibrary(); router.replace("/"); }
+    try { await deleteHarumadi(owner, harumadi.id); refreshLibrary(); if (onClose) onClose(); else router.replace("/"); }
     catch (cause) { setBusy(false); setError(cause instanceof Error ? cause.message : "삭제하지 못했어요."); }
   }
   const pdfInput = useMemo<HarumadiPdfInput | null>(() => harumadi && chosen.length ? {
@@ -128,7 +131,7 @@ function HarumadiEditor({ owner, initial, read, verified, refreshing, onRefresh 
     freeformNonSensitiveConfirmed: confirmed,
   } : null, [harumadi, chosen, confirmed]);
   const selectRecords = () => { if (readOnly) return; setSelected(chosen.map(entry => entry.id)); setError(""); setMode("selection"); };
-  const back = useCallback(() => { if (busy) return; if (harumadi && mode !== "pages") { setMode("pages"); setSettings(harumadi); setError(""); } else router.replace("/"); }, [busy, harumadi, mode, router]);
+  const back = useCallback(() => { if (busy) return; if (harumadi && mode !== "pages" && !(onClose && initialMode === "settings" && mode === "settings")) { setMode("pages"); setSettings(harumadi); setError(""); } else if (onClose) onClose(); else router.replace("/"); }, [busy, harumadi, mode, router, onClose, initialMode]);
   useEffect(() => {
     const handleBack = (event: Event) => { event.preventDefault(); back(); };
     window.addEventListener(ANDROID_BACK_EVENT, handleBack);
@@ -151,8 +154,8 @@ function HarumadiEditor({ owner, initial, read, verified, refreshing, onRefresh 
   // 사용자 저장 결과와 네트워크 조회 완료를 연결하는 외부 동기화다.
   useAttachNewEntry(attachNewEntry);
 
-  return <Frame>
-    <Header><Quiet type="button" onClick={back} disabled={busy}><ArrowLeft size={18} />{mode === "pages" || !harumadi ? "내 책장" : "하루마디"}</Quiet>
+  return <Frame data-harumadi-editor>
+    <Header><Quiet type="button" onClick={back} disabled={busy}><ArrowLeft size={18} />{mode === "pages" || !harumadi || (onClose && initialMode === "settings" && mode === "settings") ? "내 책장" : "하루마디"}</Quiet>
       {harumadi && mode === "pages" && <Quiet type="button" disabled={readOnly} onClick={() => { setConfirmed(false); setMode("settings"); }}><Settings2 size={17} />설정</Quiet>}</Header>
     <Body ref={scroller} data-scroll-region>
       {readOnly && <ReadNotice role="status">{refreshing ? "저장된 내용을 먼저 보여드리고 있어요." : "저장된 하루마디를 보고 있어요. 연결 후 최신 내용을 확인해주세요."}<Quiet type="button" disabled={refreshing} onClick={onRefresh}>최신 내용 확인</Quiet></ReadNotice>}

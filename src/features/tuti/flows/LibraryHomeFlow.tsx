@@ -1,16 +1,18 @@
 "use client";
 
 import styled from "@emotion/styled";
-import { BookOpen, ChevronRight, Plus, Settings2, PenLine, ArrowUpRight, Download } from "lucide-react";
+import { BookOpen, ChevronRight, Plus, Settings2, PenLine, ArrowUpRight, Download, MoreVertical } from "lucide-react";
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useSession } from "@/features/tuti/hooks/useSession";
 import { AppLoadingScreen, LoadingIndicator } from "@/features/tuti/components/LoadingIndicator";
 import { HarumadiCover } from "@/features/tuti/components/HarumadiCover";
+import { HarumadiBookReader, type BookOpening } from "@/features/tuti/components/HarumadiBookReader";
 import { MainNavigation } from "@/features/tuti/components/MainNavigation";
 import { BaseButton, PrimaryButton } from "@/features/tuti/components/buttons";
-import { fetchHarumadis, harumadiPath } from "@/lib/harumadis";
+import { fetchHarumadis } from "@/lib/harumadis";
+import type { Harumadi } from "@/shared/api/harumadi";
 import { markLibraryEntryCompleted } from "@/lib/libraryPreferences";
 import { loadHarumadiPdfDraft } from "@/lib/harumadiPdfDraft";
 import { welcomeHarumadiPath } from "@/shared/tuti/welcomeHarumadi";
@@ -23,6 +25,15 @@ export function LibraryHomeFlow() {
 function LibraryHome({ ownerId }: { ownerId: string }) {
   const router = useRouter();
   const [hasDraft, setHasDraft] = useState(false);
+  const frame = useRef<HTMLElement>(null);
+  const [opening, setOpening] = useState<BookOpening | null>(null);
+  const closeBook = useCallback(() => setOpening(null), []);
+  const openBook = (book: Harumadi, control: HTMLElement, settings = false) => {
+    const bounds = frame.current?.getBoundingClientRect();
+    const cover = control.closest("[data-harumadi-card]")?.querySelector("[data-book-cover] > span")?.getBoundingClientRect();
+    if (!bounds || !cover) return;
+    setOpening({ book, settings, origin: { x: cover.left - bounds.left, y: cover.top - bounds.top, width: cover.width, height: cover.height } });
+  };
   const query = useInfiniteQuery({ queryKey: ["library-harumadis", ownerId], initialPageParam: undefined as string | undefined,
     queryFn: ({ pageParam }) => fetchHarumadis(ownerId, pageParam), getNextPageParam: page => page.nextCursor ?? undefined,
     staleTime: 30_000, retry: false });
@@ -39,7 +50,7 @@ function LibraryHome({ ownerId }: { ownerId: string }) {
     return () => { active = false; };
   }, [ownerId]);
   const openEditor = () => router.push("/harumadi");
-  return <Frame aria-labelledby="library-title">
+  return <Frame ref={frame} aria-labelledby="library-title"><HomeSurface inert={Boolean(opening)} aria-hidden={opening ? true : undefined}>
     <Header><h1 id="library-title">나의 하루마디</h1><IconButton type="button" onClick={() => router.push("/settings")} aria-label="설정"><Settings2 size={20} /></IconButton></Header>
     <Toolbar><span>{query.isSuccess ? <>하루마디 <strong>{harumadiPdfs.length}{query.hasNextPage ? "+" : ""}</strong>권</> : "나의 책장"}</span>
       <TextAction type="button" onClick={openEditor}><Plus size={15} />새 하루마디</TextAction></Toolbar>
@@ -56,10 +67,12 @@ function LibraryHome({ ownerId }: { ownerId: string }) {
             <TextAction onClick={() => { setWelcomeHarumadiOrigin(null); router.push(welcomeHarumadiPath(1, "library")); }}>하루마디 예시 펼쳐보기<ChevronRight size={14} /></TextAction>
           </EmptyShelf> : <>
             {Array.from({ length: Math.ceil(harumadiPdfs.length / 2) }, (_, row) => <ShelfRow key={harumadiPdfs[row * 2].id}>
-              <HarumadiGrid>{harumadiPdfs.slice(row * 2, row * 2 + 2).map(harumadiPdf => <HarumadiButton type="button" key={harumadiPdf.id} aria-label={`${harumadiPdf.title}, 마디 ${harumadiPdf.entryIds.length}개 열기`} onClick={() => router.push(harumadiPath(harumadiPdf.id))}>
+              <HarumadiGrid>{harumadiPdfs.slice(row * 2, row * 2 + 2).map(harumadiPdf => <HarumadiCard key={harumadiPdf.id} data-harumadi-card>
+                <HarumadiButton data-book-cover type="button" aria-label={`${harumadiPdf.title}, 마디 ${harumadiPdf.entryIds.length}개 열기`} onClick={event => openBook(harumadiPdf, event.currentTarget)}>
                 <HarumadiCover harumadiPdf={{ ...harumadiPdf, entryCount: harumadiPdf.entryIds.length, pageCount: 0, hasCover: harumadiPdf.coverStyle.endsWith("-image") && harumadiPdf.entryIds.length > 0 }} ownerId={ownerId} kind="harumadi" />
                 <HarumadiLabel><strong>{harumadiPdf.title}</strong><small>{harumadiPdf.entryIds.length ? `마디 ${harumadiPdf.entryIds.length}개` : "첫 마디를 기다려요"} · {harumadiPdf.innerStyle === "photo" ? "사진 속지" : "글 속지"}</small></HarumadiLabel>
-              </HarumadiButton>)}</HarumadiGrid><ShelfEdge aria-hidden="true" />
+              </HarumadiButton><BookSettings type="button" aria-label={`${harumadiPdf.title} 설정`} title="하루마디 설정" onClick={event => openBook(harumadiPdf, event.currentTarget, true)}><MoreVertical size={19} /></BookSettings>
+              </HarumadiCard>)}</HarumadiGrid><ShelfEdge aria-hidden="true" />
             </ShelfRow>)}
             {query.isError && <InlineError role="alert">다음 하루마디를 불러오지 못했어요.</InlineError>}
             {query.hasNextPage && <MoreButton disabled={query.isFetchingNextPage} onClick={() => void query.fetchNextPage()}>{query.isFetchingNextPage ? "불러오고 있어요" : "하루마디 더 보기"}</MoreButton>}
@@ -71,9 +84,12 @@ function LibraryHome({ ownerId }: { ownerId: string }) {
       <TextAction type="button" onClick={() => router.push("/harumadi/pdfs")}><Download size={13} />저장한 PDF</TextAction>
     </LibraryLinks>
     <MainNavigation active="harumadi" firstMadi={isFirstMadi} />
+    </HomeSurface>
+    {opening && <HarumadiBookReader opening={opening} ownerId={ownerId} onClose={closeBook} />}
   </Frame>;
 }
-const Frame = styled.section`height: 100%; min-height: 0; display: flex; flex-direction: column; background: #F8FAFC; color: var(--color-text);`;
+const Frame = styled.section`position: relative; height: 100%; min-height: 0; background: #F8FAFC; color: var(--color-text); isolation: isolate;`;
+const HomeSurface = styled.div`height: 100%; min-height: 0; display: flex; flex-direction: column;`;
 const Header = styled.header`
   flex: none; display: flex; justify-content: space-between; align-items: center; gap: 12px;
   padding: calc(var(--app-safe-area-top, 0px) + 18px) 20px 0 24px;
@@ -86,13 +102,15 @@ const DraftButton = styled(BaseButton)`flex: none; display: flex; align-items: c
 const ShelfScroll = styled.div`flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 20px 20px 8px; scrollbar-width: thin; &:has(> div:only-child) { display: flex; flex-direction: column; }`;
 const ShelfRow = styled.div`margin-bottom: 24px; position: relative; flex: none; > div:last-child { position: absolute; left: 0; right: 0; bottom: 59px; pointer-events: none; }`;
 const HarumadiGrid = styled.div`display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px; padding: 0 8px; align-items: end;`;
+const HarumadiCard = styled.div`position: relative; min-width: 0;`;
+const BookSettings = styled(BaseButton)`position: absolute; right: -12px; bottom: 13px; width: 36px; height: 44px; display: grid; place-items: center; background: transparent; border-radius: 18px; color: var(--color-text-muted); &:hover { background: #e8ede4; } &:focus-visible { outline: 2px solid var(--color-brand-700); outline-offset: 1px; }`;
 const HarumadiButton = styled(BaseButton)`display: grid; gap: 0; min-width: 0; text-align: left; background: transparent; color: inherit; overflow: visible;
   > span:first-of-type { transition: transform 180ms ease; } &:hover > span:first-of-type { transform: translateY(-5px); }
   &:focus-visible { outline: 2px solid var(--color-brand-700); outline-offset: 7px; border-radius: 4px; }
   @media (prefers-reduced-motion: reduce) { > span:first-of-type { transition: none; } &:hover > span:first-of-type { transform: none; } }
 `;
 const ShelfEdge = styled.div`height: 6px; border-radius: 1px 1px 3px 3px; background: linear-gradient(#ffffff, #e5e9e3); border-top: 1px solid white; box-shadow: 0 6px 10px rgb(27 34 42 / 0.06);`;
-const HarumadiLabel = styled.span`min-width: 0; height: 59px; padding: 15px 1px 5px; display: grid; align-content: start; gap: 5px; strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; font-weight: 500; } small { color: var(--color-text-muted); font-size: 10px; line-height: 1.5; }`;
+const HarumadiLabel = styled.span`min-width: 0; height: 59px; padding: 15px 24px 5px 1px; display: grid; align-content: start; gap: 5px; strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; font-weight: 500; } small { color: var(--color-text-muted); font-size: 10px; line-height: 1.5; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }`;
 const EmptyShelf = styled.div`flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 290px; padding: 16px 0 28px; h2 { margin: 27px 0 10px; font-size: 19px; font-weight: 600; letter-spacing: -0.035em; text-align: center; } > p { margin: 0 0 14px; white-space: pre-line; text-align: center; font-size: 13px; color: var(--color-text-muted); line-height: 1.85; } > button { margin-bottom: 4px; }`;
 const EmptyMark = styled.span`position: relative; width: 80px; height: 102px; display: grid; place-content: center; justify-items: center; gap: 14px; border: 1px solid #dce3d6; border-radius: 2px 6px 6px 2px; background: #ffffff; box-shadow: 3px 3px 0 #e9ede5, 6px 8px 16px rgb(27 34 42 / 0.04); color: #7d8b70; &::before { content: ""; position: absolute; top: 0; bottom: 0; left: 6px; border-left: 1px solid #edf0e9; } > span { width: 22px; border-bottom: 1px solid #dce3d6; }`;
 const Status = styled.div`min-height: 230px; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; gap: 14px; h2 { margin: 0; font-size: 17px; } p { margin: 0; line-height: 1.8; font-size: 12px; color: var(--color-text-muted); }`;
