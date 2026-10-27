@@ -10,7 +10,7 @@ test("책장·첫 화면·질문 상단은 워드마크 없이 기능 버튼만 
   assert.match(sources[0], /justify-content: flex-end/);
   assert.match(sources[1], /이용 방법 이전 화면/);
   assert.match(sources[1], /href="\/login"/);
-  assert.match(sources[1], /:only-child \{ margin-left: auto/);
+  assert.match(sources[1], /<GuideButton type="button" onClick=\{onGuideOpen\}>이용 방법/);
   assert.match(sources[2], /onClick=\{onRestoreRecords\}/);
   assert.match(sources[2], /justify-content: flex-end/);
 });

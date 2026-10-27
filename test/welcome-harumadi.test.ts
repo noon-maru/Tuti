@@ -18,6 +18,17 @@ test("예시 화면의 DOM 속성과 클릭·레이어 선택자는 소문자 da
   assert.match(preview, /\[data-harumadi-pdf-edge="next"\]/);
 });
 
+test("엔트리는 짧은 소개·예시·첫 마디 행동에 집중하고 이용 방법은 상단에 둔다", () => {
+  const source = readFileSync("src/features/tuti/screens/onboarding/WelcomeScreen.tsx", "utf8");
+  const actions = source.slice(source.indexOf("<Actions>"), source.indexOf("</Actions>"));
+  assert.match(source, /<GuideButton type="button" onClick=\{onGuideOpen\}>이용 방법/);
+  assert.doesNotMatch(actions, /onGuideOpen/);
+  assert.match(actions, /onClick=\{onRecord\}>첫 마디 남기기/);
+  assert.match(actions, /onClick=\{onExplore\}>가까운 공간 둘러보기/);
+  assert.doesNotMatch(source, /마디는 어떻게 남기나요|infinite/);
+  assert.match(source, /prefers-reduced-motion: reduce/);
+});
+
 test("하루마디 예시는 별도 화면이며 기본 진입은 눌렀던 본문 페이지다", () => {
   assert.equal(WELCOME_HARUMADI_PAGE_COUNT, 4);
   assert.equal(WELCOME_HARUMADI_LAST_PAGE, 3);

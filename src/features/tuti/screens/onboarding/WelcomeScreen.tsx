@@ -41,12 +41,12 @@ export function WelcomeScreen({ onRecord, onExplore, guideStep, onGuideOpen, onG
 
   return <Frame key={guideStep ?? "welcome"} aria-labelledby="welcome-heading" data-welcome-screen>
     <Header>
-      {guide && <BackButton aria-label="이용 방법 이전 화면" onClick={onGuideBack} />}
+      {guide ? <BackButton aria-label="이용 방법 이전 화면" onClick={onGuideBack} /> : <GuideButton type="button" onClick={onGuideOpen}>이용 방법</GuideButton>}
       {guide ? <StepCount>{guideStep! + 1} / {WELCOME_GUIDE.length}</StepCount> : <ButtonLink href="/login" $tone="text" $size="compact">로그인</ButtonLink>}
     </Header>
     <Copy>
-      <h1 id="welcome-heading" ref={heading} tabIndex={-1}>{guide ? guide.title : "함께한 순간들이,\n한 권의 추억이 되도록."}</h1>
-      <p>{guide ? guide.description : "사진 한 장, 짧은 이야기로\n우리의 첫 마디를 남겨보세요."}</p>
+      <h1 id="welcome-heading" ref={heading} tabIndex={-1}>{guide ? guide.title : "기억하고 싶은 하루를,\n한 마디씩 남겨요."}</h1>
+      <p>{guide ? guide.description : "사진 한 장, 짧은 이야기면 충분해요."}</p>
     </Copy>
     <Visual>
       {guideStep === 1 ? <StoryExample aria-label="사진과 짧은 이야기 예시">
@@ -64,7 +64,7 @@ export function WelcomeScreen({ onRecord, onExplore, guideStep, onGuideOpen, onG
             <WelcomeHarumadiSample page="page" priority />
           </SamplePulse>
         </HarumadiButton>
-        <OpenHint aria-hidden="true"><BookOpen size={14} />눌러서 펼쳐보기</OpenHint>
+        <OpenHint aria-hidden="true"><BookOpen size={14} />하루마디 예시 펼쳐보기</OpenHint>
       </HarumadiFigure>}
     </Visual>
     <Actions>
@@ -73,7 +73,6 @@ export function WelcomeScreen({ onRecord, onExplore, guideStep, onGuideOpen, onG
         <SubButton type="button" onClick={guideStep === 2 ? onExplore : onRecord}>{guideStep === 2 ? "가까운 공간 둘러보기" : "바로 첫 마디 남기기"}</SubButton>
       </> : <>
         <NextButton type="button" onClick={onRecord}>첫 마디 남기기</NextButton>
-        <SubButton type="button" onClick={onGuideOpen}>마디는 어떻게 남기나요?</SubButton>
         <ExploreButton type="button" onClick={onExplore}>가까운 공간 둘러보기</ExploreButton>
       </>}
     </Actions>
@@ -107,15 +106,15 @@ const Header = styled.header`
   align-items: center;
   justify-content: space-between;
   min-height: 40px;
-  > :only-child { margin-left: auto; }
 `;
+const GuideButton = styled(TextButton)`min-height: 40px; padding-inline: 0; font-size: 12px; font-weight: 400; color: var(--color-text-muted);`;
 const StepCount = styled.span`font-size: var(--font-size-100); color: var(--color-text-muted);`;
 const Copy = styled.div`
   h1 {
     margin: 0 0 var(--space-3);
-    font-size: var(--font-size-600);
-    font-weight: 700;
-    line-height: var(--line-height-heading);
+    font-size: clamp(24px, 4.2cqh, 30px);
+    font-weight: 600;
+    line-height: 1.45;
     letter-spacing: var(--letter-spacing-heading);
     white-space: pre-line;
     word-break: keep-all;
@@ -146,12 +145,11 @@ const HarumadiFigure = styled.figure`
   container-type: size;
   display: flex; flex-direction: column; align-items: center; justify-content: center;
   gap: 16px;
+  @container app-viewport (max-height: 500px) and (min-aspect-ratio: 1/1) { gap: 8px; }
 `;
 const invite = keyframes`
-  0%, 8%, 44%, 100% { transform: translateY(0) rotate(0) scale(1); }
-  18% { transform: translateY(-12px) rotate(-1.2deg) scale(1.025); }
-  28% { transform: translateY(0) rotate(0.4deg) scale(1); }
-  36% { transform: translateY(-5px) rotate(-0.4deg) scale(1.01); }
+  0%, 100% { transform: translateY(0); }
+  45% { transform: translateY(-4px); }
 `;
 const HarumadiButton = styled(BaseButton)`
   position: relative; min-height: 0; min-width: 0;
@@ -161,18 +159,21 @@ const HarumadiButton = styled(BaseButton)`
   flex-shrink: 0;
   &:hover > span, &:focus-visible > span { animation-play-state: paused; }
   &:active > span { animation: none; transform: scale(0.985); }
+  @container app-viewport (max-height: 500px) and (min-aspect-ratio: 1/1) {
+    width: min(calc(100cqw - 12px), calc((100cqh - 36px) * 148 / 210), 180px);
+  }
 `;
 const SamplePulse = styled.span`
   position: relative; display: block; width: 100%; border: 1px solid var(--color-border);
   transform-origin: center 75%;
-  animation: ${invite} 3.8s cubic-bezier(0.22, 0.61, 0.36, 1) 650ms infinite;
+  animation: ${invite} 1.8s cubic-bezier(0.22, 0.61, 0.36, 1) 650ms 1;
   @media (prefers-reduced-motion: reduce) { animation: none; }
 `;
 const OpenHint = styled.span`
   flex-shrink: 0; pointer-events: none;
   display: inline-flex; align-items: center; gap: 6px;
-  color: var(--color-brand-900);
-  font-size: 12px; font-weight: 600; line-height: 1.5; white-space: nowrap;
+  color: var(--color-text-muted);
+  font-size: 11px; font-weight: 400; line-height: 1.5; white-space: nowrap;
   @container app-viewport (max-height: 520px) { font-size: 10px; }
 `;
 const PhotoExample = styled.div`
