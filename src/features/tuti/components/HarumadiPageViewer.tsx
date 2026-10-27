@@ -1,6 +1,6 @@
 "use client";
 
-import { useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import styled from "@emotion/styled";
 import { BaseButton } from "./buttons";
 import { HarumadiPageSheet } from "./HarumadiSheet";
@@ -10,7 +10,22 @@ import type { Harumadi } from "@/shared/api/harumadi";
 import type { TutiJournalEntry } from "@/shared/api/journal";
 
 export function HarumadiPageViewer({ book, entries }: { book: Harumadi; entries: TutiJournalEntry[] }) {
-  const pages = useMemo(() => buildHarumadiReaderPages(book, entries), [book, entries]);
+  const stage = useRef<HTMLDivElement>(null);
+  const [pageWidth, setPageWidth] = useState(320);
+  useEffect(() => {
+    const node = stage.current;
+    if (!node) return;
+    const measure = () => {
+      const bounds = node.getBoundingClientRect();
+      const width = Math.floor(Math.min(bounds.width, bounds.height * 419.53 / 595.28)) - 2;
+      if (width > 0) setPageWidth(value => Math.abs(value - width) > 1 ? width : value);
+    };
+    measure();
+    if (typeof ResizeObserver === "undefined") { window.addEventListener("resize", measure); return () => window.removeEventListener("resize", measure); }
+    const observer = new ResizeObserver(measure); observer.observe(node);
+    return () => observer.disconnect();
+  }, []);
+  const pages = useMemo(() => buildHarumadiReaderPages(book, entries, pageWidth), [book, entries, pageWidth]);
   // 책장에서 표지를 이미 열었으므로 첫 지면부터 보여준다. 이전 쪽으로 표지를 볼 수 있다.
   const [index, setIndex] = useState(1);
   const current = Math.min(index, pages.length - 1);
@@ -39,7 +54,7 @@ export function HarumadiPageViewer({ book, entries }: { book: Harumadi; entries:
   return <Reader data-harumadi-paged-reader onKeyDown={event => {
     if (event.key === "ArrowLeft" || event.key === "ArrowRight") { event.preventDefault(); turn(current + (event.key === "ArrowRight" ? 1 : -1)); }
   }}>
-    <Stage onClickCapture={event => { if (skipClick.current) { event.preventDefault(); event.stopPropagation(); skipClick.current = false; } }} onPointerDown={event => { if (event.isPrimary && event.button === 0) { skipClick.current = false; pointer.current = { x: event.clientX, y: event.clientY, id: event.pointerId }; } }}
+    <Stage ref={stage} onClickCapture={event => { if (skipClick.current) { event.preventDefault(); event.stopPropagation(); skipClick.current = false; } }} onPointerDown={event => { if (event.isPrimary && event.button === 0) { skipClick.current = false; pointer.current = { x: event.clientX, y: event.clientY, id: event.pointerId }; } }}
       onPointerCancel={() => { pointer.current = null; }} onPointerUp={event => {
         const start = pointer.current; pointer.current = null;
         if (!start || start.id !== event.pointerId) return;
@@ -66,5 +81,5 @@ const Reader = styled.div`display: grid; grid-template-rows: minmax(0, 1fr) auto
 const Stage = styled.div`display: grid; place-items: center; min-height: 0; min-width: 0; container-type: size; perspective: 1200px; touch-action: pan-y; user-select: none;`;
 const Page = styled.div<{ $front: boolean }>`position: relative; grid-area: 1 / 1; width: min(100cqw, calc(100cqh * 419.53 / 595.28)); background: white; box-shadow: 0 7px 24px #1b222a10, -3px 0 0 #e8ede4; z-index: ${({ $front }) => $front ? 2 : 1}; backface-visibility: hidden; border: 1px solid #e4e9e0; &[data-retained-page] { pointer-events: none; }`;
 const Edge = styled(BaseButton)<{ $side: "left" | "right" }>`position: absolute; top: 0; bottom: 0; ${({ $side }) => $side}: 0; width: 22%; min-width: 0; border-radius: 0; padding: 0; background: transparent; &:hover { background: transparent; } &:focus-visible { outline: 2px solid var(--color-brand-700); outline-offset: -2px; }`;
-const Navigation = styled.nav`display: flex; align-items: center; justify-content: space-between; gap: 12px; > span { color: var(--color-text-muted); font-size: 11px; font-variant-numeric: tabular-nums; }`;
-const Turn = styled(BaseButton)`min-height: 44px; padding: 8px; background: transparent; font-size: 12px; color: var(--color-text-muted); &:focus-visible { outline: 2px solid var(--color-brand-700); }`;
+const Navigation = styled.nav`display: flex; align-items: center; justify-content: space-between; gap: 12px; > span { color: var(--color-text-muted); font-size: 13px; font-variant-numeric: tabular-nums; }`;
+const Turn = styled(BaseButton)`min-height: 44px; padding: 8px; background: transparent; font-size: 14px; color: var(--color-text-muted); &:focus-visible { outline: 2px solid var(--color-brand-700); }`;

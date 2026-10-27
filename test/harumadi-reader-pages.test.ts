@@ -39,3 +39,24 @@ test("실제 읽기와 예시는 공유 지면을 사용하며 세로 목록 대
   assert.match(flow, /<HarumadiPageViewer book=\{harumadi\}/);
   assert.doesNotMatch(flow, /<Pages>|chosen.map\(entry => <Page/);
 });
+
+test("읽기 글꼴을 인쇄 수치와 분리하고 좁은 지면에서도 제목·본문을 모두 보존한다", () => {
+  const { harumadi: book, entries } = harumadiContent();
+  entries[0].title = "오래 기억하고 싶은 우리들의 작은 하루 ".repeat(3).slice(0, 80);
+  entries[0].content = "넓은 영문 WWWWWW와 함께 남기는 이야기\n".repeat(70);
+  entries[0].image = "/photo.jpg";
+  const wide = buildHarumadiReaderPages(book, entries, 340);
+  const narrow = buildHarumadiReaderPages(book, entries, 220);
+  assert.ok(narrow.length > wide.length);
+  for (const pages of [wide, narrow]) {
+    const body = pages.filter(p => p.kind !== "cover" && p.kind !== "back");
+    assert.equal(body.map(p => p.content).join(""), entries[0].content);
+    assert.equal(body.map(p => p.title).join(""), entries[0].title);
+  }
+  const sheet = readFileSync("src/features/tuti/components/HarumadiSheet.tsx", "utf8");
+  assert.match(sheet, /\$reading data-harumadi-page/);
+  assert.match(sheet, /--hm-body: \$\{reading.body\}px/);
+  assert.match(sheet, /--hm-photo-body: \$\{reading.photoBody\}px/);
+  const sample = sheet.slice(sheet.indexOf("export function WelcomeHarumadiSample"), sheet.indexOf("function PhotoHeader"));
+  assert.doesNotMatch(sample, /\$reading/);
+});
