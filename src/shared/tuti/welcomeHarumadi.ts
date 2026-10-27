@@ -8,7 +8,7 @@ export function welcomeHarumadiNeighbor(page: WelcomeHarumadiPage, direction: -1
   return next < 0 || next > WELCOME_HARUMADI_LAST_PAGE ? null : next as WelcomeHarumadiPage;
 }
 
-export function welcomeHarumadiTurn(previous: WelcomeHarumadiPage, next: WelcomeHarumadiPage) {
+export function welcomeHarumadiTurn(previous: number, next: number) {
   const forward = next > previous;
   const frames = [
     { offset: 0, transform: "perspective(1200px) rotateY(0deg)", opacity: 1 },

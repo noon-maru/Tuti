@@ -24,8 +24,9 @@ export function HarumadiBookReader({ opening, ownerId, onClose }: { opening: Boo
       animations.push(paper.current.animate([{ opacity: 0 }, { opacity: 1 }], { duration: opening.settings ? 180 : 360, delay: opening.settings ? 0 : 340, fill: "backwards" }));
       if (!opening.settings && root.current && book.current && cover.current) {
         const bounds = root.current.getBoundingClientRect();
-        const width = Math.min(bounds.width - 64, 290), height = width * 210 / 148;
-        const x = (bounds.width - width) / 2, y = Math.max(60, (bounds.height - height) / 2);
+        const target = root.current.querySelector("[data-harumadi-page]")?.getBoundingClientRect();
+        const width = target?.width ?? Math.min(bounds.width - 64, 290), height = width * 210 / 148;
+        const x = target ? target.left - bounds.left : (bounds.width - width) / 2, y = target ? target.top - bounds.top : Math.max(60, (bounds.height - height) / 2);
         book.current.style.width = `${width}px`;
         book.current.style.opacity = "1";
         book.current.style.left = `${x}px`; book.current.style.top = `${y}px`;

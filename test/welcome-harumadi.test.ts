@@ -6,7 +6,7 @@ import { getWelcomeHarumadiOrigin, setWelcomeHarumadiOrigin, takeWelcomeHarumadi
 
 test("예시 화면의 DOM 속성과 클릭·레이어 선택자는 소문자 data 속성을 공유한다", () => {
   const read = (file: string) => readFileSync(`src/features/tuti/screens/onboarding/${file}.tsx`, "utf8");
-  const sample = read("WelcomeHarumadiSample");
+  const sample = readFileSync("src/features/tuti/components/HarumadiSheet.tsx", "utf8");
   const screen = read("WelcomeScreen");
   const preview = read("WelcomeHarumadiPreview");
   for (const source of [sample, screen, preview]) assert.doesNotMatch(source, /data-[a-z-]*[A-Z]/);
@@ -41,7 +41,7 @@ test("하루마디 예시는 별도 화면이며 기본 진입은 눌렀던 본�
 });
 
 test("사진 전용 예시는 실제 PDF처럼 날짜·장소·쪽번호와 고정 높이 사진을 보여준다", () => {
-  const sample = readFileSync("src/features/tuti/screens/onboarding/WelcomeHarumadiSample.tsx", "utf8");
+  const sample = readFileSync("src/features/tuti/components/HarumadiSheet.tsx", "utf8");
   const photo = sample.slice(sample.indexOf('if (page === "photo")'), sample.indexOf('if (page === "text")'));
   assert.match(photo, /data-harumadi-pdf-sample="photo"/);
   assert.equal((photo.match(/<Image /g) ?? []).length, 1);

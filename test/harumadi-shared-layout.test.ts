@@ -5,7 +5,7 @@ import { HARUMADI_PDF_LAYOUT as layout, harumadiPdfCssLength } from "@/shared/ha
 
 test("PDF와 예시는 A5 기준 크기·사진 지면·짧은 글 지면·쪽번호 수치를 공유한다", () => {
   const pdf = readFileSync("src/server/pdf/harumadiPdf.tsx", "utf8");
-  const sample = readFileSync("src/features/tuti/screens/onboarding/WelcomeHarumadiSample.tsx", "utf8");
+  const sample = readFileSync("src/features/tuti/components/HarumadiSheet.tsx", "utf8");
   for (const source of [pdf, sample]) assert.match(source, /shared\/harumadi\/pdfLayout/);
   for (const field of ["photo.padding", "photo.paddingBottom", "photo.imageHeight", "photo.imageRadius", "photo.titlePaddingRight",
     "cover.bodyHeight", "cover.imageWidth", "cover.imageHeight", "shortText.frameLeft", "shortText.frameRight",
@@ -27,7 +27,7 @@ test("pt 변환은 화면 너비에 비례하며 근삿값을 사용하지 않�
     const css = harumadiPdfCssLength(pt);
     assert.ok(Math.abs(parseFloat(css) / 100 * layout.page.width - pt) < 1e-10);
   }
-  const sample = readFileSync("src/features/tuti/screens/onboarding/WelcomeHarumadiSample.tsx", "utf8");
+  const sample = readFileSync("src/features/tuti/components/HarumadiSheet.tsx", "utf8");
   assert.doesNotMatch(sample, /top: 36%|59\.59cqw|15\.73cqw|17\.16cqw|object-fit: contain/);
   assert.match(sample, /textAnchor="end" fontFamily="Helvetica, Arial, sans-serif"/);
   assert.match(sample, /2026-06-28 · 동네 산책길/);
