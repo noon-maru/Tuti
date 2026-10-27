@@ -22,6 +22,7 @@ import type {
 } from "@/shared/api/journal";
 import { isCurrentJournalPublicationPolicy } from "@/shared/legal/journalPublicationPolicy";
 import { commitPrivacyReplayReceipt, preparePrivacyReplayReceipt, privacyReplayEnabled } from "@/server/legal/privacyReplayLedger";
+import { createDefaultHarumadiForFirstMadi } from "@/server/harumadi/firstMadi";
 
 export async function getJournalEntries(
   ownerId: string,
@@ -69,22 +70,28 @@ export async function createJournalEntry(
   });
 
   try {
-    const entry = await prisma.journalEntry.create({
-      data: {
-        id: entryId,
-        ownerId,
-        ...sensitiveData,
-        title: input.title,
-        content: input.content,
-        image: preparedImage.image,
-        crowd: input.crowd,
-        placeId: selectedPlace.id,
-        placeName: selectedPlace.name,
-        theme: input.theme,
-        difficulty: input.difficulty,
-        visitedAt: input.visitedAt ? new Date(input.visitedAt) : new Date(),
-      },
-      select: journalEntrySelect,
+    const entry = await prisma.$transaction(async tx => {
+      // 첫 마디 판단과 하루마디 생성을 계정별로 직렬화한다.
+      await tx.$queryRaw`SELECT id FROM users WHERE id = ${ownerId} FOR UPDATE`;
+      const created = await tx.journalEntry.create({
+        data: {
+          id: entryId,
+          ownerId,
+          ...sensitiveData,
+          title: input.title,
+          content: input.content,
+          image: preparedImage.image,
+          crowd: input.crowd,
+          placeId: selectedPlace.id,
+          placeName: selectedPlace.name,
+          theme: input.theme,
+          difficulty: input.difficulty,
+          visitedAt: input.visitedAt ? new Date(input.visitedAt) : new Date(),
+        },
+        select: journalEntrySelect,
+      });
+      await createDefaultHarumadiForFirstMadi(tx, ownerId, created);
+      return created;
     });
 
     await writeSystemLogSafely({

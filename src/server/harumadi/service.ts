@@ -37,8 +37,12 @@ export async function readHarumadi(ownerId: string, id: string) {
 }
 export async function createHarumadi(ownerId: string, settings: HarumadiSettings) {
   validateFreeform(settings);
-  return dto(await prisma.harumadi.create({ data: { id: randomUUID(), ownerId, title: settings.title,
-    coverStyle: settings.coverStyle, innerStyle: settings.innerStyle }, select: selection }));
+  return prisma.$transaction(async tx => {
+    // 첫 마디의 기본 하루마디 생성과 수동 생성을 같은 소유자 잠금으로 조정한다.
+    await tx.$queryRaw`SELECT id FROM users WHERE id = ${ownerId} FOR UPDATE`;
+    return dto(await tx.harumadi.create({ data: { id: randomUUID(), ownerId, title: settings.title,
+      coverStyle: settings.coverStyle, innerStyle: settings.innerStyle }, select: selection }));
+  });
 }
 export async function updateHarumadi(ownerId: string, id: string, input: HarumadiUpdate) {
   // 표지 변경에만 자유 입력 확인을 요구한다. 기록 선택 자체의 민감정보 동의는 원본 기록에 귀속된다.
