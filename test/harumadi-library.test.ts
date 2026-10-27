@@ -3,18 +3,18 @@ import { readFileSync } from "node:fs";
 import test from "node:test";
 import sharp from "sharp";
 import { preferencesStorage } from "../src/lib/storage/preferencesStorage";
-import { markLibraryWelcomeSeen, readLibraryWelcomeSeen } from "../src/lib/libraryPreferences";
+import { markLibraryEntryCompleted, readLibraryEntryCompleted } from "../src/lib/libraryPreferences";
 
-test("책장 안내 방문 여부는 계정별로 분리하고 저장소 장애는 반복 안내를 만들지 않는다", async t => {
+test("책장 도달 이력은 계정별로 분리하고 메모리에서도 유지한다", async t => {
   const values = new Map<string, string>();
   t.mock.method(preferencesStorage, "getItem", async (key: string) => values.get(key) ?? null);
   t.mock.method(preferencesStorage, "setItem", async (key: string, value: string) => { values.set(key, value); });
-  assert.equal(await readLibraryWelcomeSeen("a"), false);
-  await markLibraryWelcomeSeen("a");
-  assert.equal(await readLibraryWelcomeSeen("a"), true);
-  assert.equal(await readLibraryWelcomeSeen("b"), false);
+  assert.equal(await readLibraryEntryCompleted("a"), false);
+  await markLibraryEntryCompleted("a");
+  assert.equal(await readLibraryEntryCompleted("a"), true);
+  assert.equal(await readLibraryEntryCompleted("b"), false);
   t.mock.method(preferencesStorage, "getItem", async () => { throw new Error("unavailable"); });
-  assert.equal(await readLibraryWelcomeSeen("b"), true);
+  assert.equal(await readLibraryEntryCompleted("a"), true);
 });
 
 test("홈은 탐색을 마운트하지 않고 페이지네이션·소유자별 캐시·작은 표지만 사용한다", () => {
@@ -36,10 +36,20 @@ test("둘러보기 후 빈 홈은 기본 표지 대신 첫 마디 작성을 안�
   assert.match(home, /const isFirstMadi = query.isSuccess && recordCount === 0/);
   assert.match(home, /isFirstMadi \? "첫 마디 남기기" : "마디 남기기"/);
   assert.match(home, /router.push\("\/journal\/new\?from=library"\)/);
-  assert.match(home, /하루마디부터 만들고 싶어요/);
+  assert.match(home, /새 하루마디<\/TextAction>/);
   assert.match(home, /harumadiPdfs.slice\(row \* 2, row \* 2 \+ 2\).map/);
-  assert.match(entry, /onExplore=\{\(\) => \{[\s\S]*?router.push\("\/explore"\)/);
+  assert.match(entry, /onExplore=\{\(\) => \{[\s\S]*?router.replace\("\/explore"\)/);
   assert.doesNotMatch(entry, /createHarumadi\(/);
+});
+
+test("가판대는 표지를 중심으로 두고 생성·보관함 동선을 중복하지 않는다", () => {
+  const home = readFileSync("src/features/tuti/flows/LibraryHomeFlow.tsx", "utf8");
+  assert.match(home, /<Header><h1 id="library-title">나의 하루마디<\/h1>/);
+  assert.match(home, /<LibraryLinks aria-label="마디와 PDF 보관함">/);
+  assert.match(home, /router.push\("\/journal"\)/);
+  assert.match(home, /router.push\("\/harumadi\/pdfs"\)/);
+  assert.doesNotMatch(home, /<Heading>|<CreateHarumadi|<ArchiveButton/);
+  assert.match(home, /prefers-reduced-motion: reduce/);
 });
 
 test("하루마디 목록과 표지는 소유권·민감정보 철회·크기 한도를 지킨다", async t => {

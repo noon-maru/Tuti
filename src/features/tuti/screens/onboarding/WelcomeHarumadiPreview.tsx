@@ -145,7 +145,7 @@ export function WelcomeHarumadiPreview({ page, origin, onPageChange, onRecord, o
 }
 
 function HarumadiPageContent({ page, onRecord }: { page: WelcomeHarumadiPage; onRecord: () => void }) {
-  if (page !== WELCOME_HARUMADI_LAST_PAGE) return <WelcomeHarumadiSample page={page === 0 ? "cover" : page === 1 ? "page" : "text"} priority />;
+  if (page !== WELCOME_HARUMADI_LAST_PAGE) return <WelcomeHarumadiSample page={page === 0 ? "cover" : page === 1 ? "page" : page === 2 ? "photo" : "text"} priority />;
   return <Ending>
     <EndingCopy>
       <h2>이제 우리의<br />첫 마디를 남겨볼까요?</h2>

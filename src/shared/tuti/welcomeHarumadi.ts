@@ -1,6 +1,6 @@
-export const WELCOME_HARUMADI_PAGE_COUNT = 4;
-export const WELCOME_HARUMADI_LAST_PAGE = 3;
-export type WelcomeHarumadiPage = 0 | 1 | 2 | 3;
+export const WELCOME_HARUMADI_PAGE_COUNT = 5;
+export const WELCOME_HARUMADI_LAST_PAGE = 4;
+export type WelcomeHarumadiPage = 0 | 1 | 2 | 3 | 4;
 export type WelcomeHarumadiOrigin = { left: number; top: number; width: number; height: number };
 
 export function welcomeHarumadiNeighbor(page: WelcomeHarumadiPage, direction: -1 | 1): WelcomeHarumadiPage | null {
@@ -26,7 +26,7 @@ export function welcomeHarumadiTurn(previous: WelcomeHarumadiPage, next: Welcome
 }
 
 export function parseWelcomeHarumadiPage(page: string | null): WelcomeHarumadiPage {
-  return page === "0" ? 0 : page === "2" ? 2 : page === "3" ? 3 : 1;
+  return page === "0" ? 0 : page === "2" ? 2 : page === "3" ? 3 : page === "4" ? 4 : 1;
 }
 
 export function welcomeHarumadiPath(page: WelcomeHarumadiPage, source: "welcome" | "library" = "welcome") {

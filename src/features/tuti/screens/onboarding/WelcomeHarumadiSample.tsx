@@ -3,6 +3,7 @@
 import Image from "next/image";
 import styled from "@emotion/styled";
 import { getHarumadiPdfCoverPalette } from "@/shared/api/harumadiPdf";
+import { HARUMADI_PDF_LAYOUT as layout, harumadiPdfCssLength as pt } from "@/shared/harumadi/pdfLayout";
 
 const sample = {
   title: "함께라서 좋았던 오후",
@@ -11,86 +12,117 @@ const sample = {
 };
 const coverPalette = getHarumadiPdfCoverPalette("green-image");
 
-/** HTML rendition of the A5 photo-text layout; all copy remains real text. */
-export function WelcomeHarumadiSample({ page, priority = false }: { page: "cover" | "page" | "text"; priority?: boolean }) {
-  const cover = page === "cover";
+/** 실제 PDF의 A5 레이아웃 수치를 공유하는 HTML 예시. */
+export function WelcomeHarumadiSample({ page, priority = false }: { page: "cover" | "page" | "photo" | "text"; priority?: boolean }) {
+  if (page === "photo") return <Sheet data-harumadi-pdf-sample="photo">
+    <PhotoOnlyPaper $cover={false}>
+      <PhotoHeader date="2026.06.25" place="동네 카페" />
+      <PhotoOnlyBody><PhotoOnly><Image src={sample.photo} alt="함께 커피를 나눈 오후를 사진만으로 담은 마디 예시" fill sizes="(max-width: 600px) 80vw, 400px" priority={priority} /></PhotoOnly></PhotoOnlyBody>
+      <Folio number={2} />
+    </PhotoOnlyPaper>
+  </Sheet>;
   if (page === "text") return <Sheet data-harumadi-pdf-sample="text">
     <TextPaper $cover={false}>
       <TextFrame>
-        <TextMeta>2026.06.28 · 동네 산책길</TextMeta>
+        <TextMeta>2026-06-28 · 동네 산책길</TextMeta>
         <TextTitle>집까지 조금 더 천천히</TextTitle>
         <TextBody>{"금방 들어가기 아쉬워서\n익숙한 길을 한 바퀴 더 걸었다.\n\n별일 없던 하루도\n같이 걸으면 남기고 싶어진다."}</TextBody>
       </TextFrame>
-      <Folio>2</Folio>
+      <Folio number={3} />
     </TextPaper>
   </Sheet>;
   return <Sheet data-harumadi-pdf-sample={page}>
-    <Paper $cover={cover}>
-      {cover ? <>
-        <CoverHeader><span>2026.06.23<br />- 2026.06.28</span><span>함께 남긴 하루</span></CoverHeader>
-        <CoverPhoto><Image src={sample.photo} alt="함께 커피를 나눈 오후의 예시 사진" fill sizes="200px" priority={priority} /></CoverPhoto>
-        <CoverMark>Tuti</CoverMark>
-      </> : <>
-        <PageHeader><span>2026.06.23</span><Place><PlaceMark aria-hidden="true" />동네 카페</Place></PageHeader>
-        <Photo><Image src={sample.photo} alt="함께 커피를 나눈 오후의 예시 사진" fill sizes="(max-width: 600px) 60vw, 320px" priority={priority} /></Photo>
-        <Story><Title>{sample.title}</Title><Body>{sample.content}</Body></Story>
-        <Folio>1</Folio>
-      </>}
-    </Paper>
+    {page === "cover" ? <CoverPaper $cover>
+      <CoverHeader><span>2026.06.23<br />- 2026.06.28</span><span>함께 남긴 하루</span></CoverHeader>
+      <CoverBody><CoverPhoto><Image src={sample.photo} alt="함께 커피를 나눈 오후의 예시 사진" fill sizes="200px" priority={priority} /></CoverPhoto></CoverBody>
+      <CoverMark>Tuti</CoverMark>
+    </CoverPaper> : <PhotoPaper $cover={false}>
+      <PhotoHeader date="2026.06.23" place="동네 카페" />
+      <Photo><Image src={sample.photo} alt="함께 커피를 나눈 오후의 예시 사진" fill sizes="(max-width: 600px) 60vw, 320px" priority={priority} /></Photo>
+      <Story><Title>{sample.title}</Title><Body>{sample.content}</Body></Story>
+      <Folio number={1} />
+    </PhotoPaper>}
   </Sheet>;
 }
 
+function PhotoHeader({ date, place }: { date: string; place: string }) {
+  return <PageHeader><span>{date}</span><Place><PlaceMark aria-hidden="true" />{place}</Place></PageHeader>;
+}
+
+// PDF 쪽번호와 동일한 좌표·기준선에 배치한다.
+function Folio({ number }: { number: number }) {
+  return <FolioLayer viewBox={`0 0 ${layout.page.width} ${layout.page.height}`} aria-hidden="true">
+    <text x={layout.page.width - layout.folio.right} y={layout.page.height - layout.folio.bottom}
+      textAnchor="end" fontFamily="Helvetica, Arial, sans-serif" fontSize={layout.folio.fontSize}
+      fill={`rgb(${layout.folio.gray * 100}% ${layout.folio.gray * 100}% ${layout.folio.gray * 100}%)`}>{number}</text>
+  </FolioLayer>;
+}
+
 const Sheet = styled.span`
-  position: relative; display: block;
-  width: 100%; min-width: 0; min-height: 0;
-  container-type: inline-size;
+  position: relative; display: block; width: 100%; min-width: 0; min-height: 0; container-type: inline-size;
 `;
-// A5: 419.53 × 595.28pt. Dimensions below follow the PDF's 42pt inset,
-// 250pt photo, 66pt short-copy gap, 10pt semibold title and 9pt body.
 const Paper = styled.span<{ $cover: boolean }>`
-  position: relative; display: block; width: 100%; aspect-ratio: 148 / 210;
-  padding: ${({ $cover }) => $cover ? "8.1cqw" : "10cqw"};
+  position: relative; display: block; box-sizing: border-box; width: 100%;
+  aspect-ratio: ${layout.page.width} / ${layout.page.height};
+  padding: ${pt(layout.page.padding)}; padding-bottom: ${pt(layout.page.paddingBottom)};
   background: ${({ $cover }) => $cover ? coverPalette.background : "#fff"};
   color: ${({ $cover }) => $cover ? coverPalette.foreground : "#303030"};
-  text-align: left; font-size: 2.145cqw; font-weight: 400; line-height: 1.8;
+  font-family: var(--font-pretendard), sans-serif; text-align: left;
+  font-size: ${pt(layout.page.fontSize)}; font-weight: 400; line-height: ${layout.page.lineHeight};
+`;
+const PhotoPaper = styled(Paper)`
+  padding: ${pt(layout.photo.padding)}; padding-bottom: ${pt(layout.photo.paddingBottom)};
+  font-size: ${pt(layout.photo.fontSize)};
 `;
 const PageHeader = styled.span`
-  display: flex; justify-content: space-between; align-items: center;
-  height: 3.34cqw; line-height: 1.4;
+  display: flex; flex: none; justify-content: space-between; align-items: center;
+  height: ${pt(layout.photo.headerHeight)}; line-height: ${layout.photo.headerLineHeight};
 `;
-const Place = styled.span`display: inline-flex; align-items: center; gap: 0.715cqw;`;
+const Place = styled.span`display: inline-flex; align-items: center; gap: ${pt(layout.photo.placeMarkGap)};`;
 const PlaceMark = styled.span`
-  display: inline-block; width: 1.67cqw; height: 1.67cqw; border-radius: 50%;
+  display: inline-block; flex: none; width: ${pt(layout.photo.placeMarkSize)}; height: ${pt(layout.photo.placeMarkSize)}; border-radius: 50%;
   background: linear-gradient(to bottom, #c7e887 50%, #8cbdef 50%);
 `;
 const Photo = styled.span`
-  display: block; position: relative; margin-top: 7.63cqw;
-  width: 100%; height: 59.59cqw; border-radius: 1.19cqw; overflow: hidden;
+  display: block; position: relative; margin-top: ${pt(layout.photo.lead)};
+  width: 100%; height: ${pt(layout.photo.imageHeight)}; border-radius: ${pt(layout.photo.imageRadius)}; overflow: hidden;
   img { object-fit: cover; }
 `;
-const Story = styled.span`
-  display: grid; grid-template-columns: 42% 52%; justify-content: space-between;
-  margin-top: 15.73cqw;
+const PhotoOnlyPaper = styled(PhotoPaper)`display: flex; flex-direction: column;`;
+const PhotoOnlyBody = styled.span`display: flex; flex: 1; flex-direction: column; justify-content: center;`;
+const PhotoOnly = styled(Photo)`margin-top: 0; flex: none;`;
+const Story = styled.span`display: flex; justify-content: space-between; margin-top: ${pt(layout.photo.shortGap)};`;
+const Title = styled.span`
+  box-sizing: border-box; width: ${layout.photo.titleWidth}; padding-right: ${pt(layout.photo.titlePaddingRight)};
+  font-size: ${pt(layout.photo.titleSize)}; font-weight: ${layout.photo.titleWeight}; line-height: ${layout.photo.titleLineHeight};
 `;
-const Title = styled.span`font-size: 2.384cqw; font-weight: 600; line-height: 1.8;`;
-const Body = styled.span`white-space: pre-line; line-height: 1.9; word-break: keep-all;`;
-const Folio = styled.span`position: absolute; bottom: 4.76cqw; right: 8.1cqw; color: #858585;`;
+const Body = styled.span`width: ${layout.photo.textWidth}; white-space: pre-line; line-height: ${layout.photo.textLineHeight}; word-break: keep-all;`;
+const FolioLayer = styled.svg`position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none;`;
+const CoverPaper = styled(Paper)`
+  display: flex; flex-direction: column; justify-content: space-between;
+  padding-top: ${pt(layout.cover.paddingTop)}; padding-bottom: ${pt(layout.cover.paddingBottom)};
+`;
 const CoverHeader = styled.span`
-  display: flex; justify-content: space-between; font-size: 1.907cqw; line-height: 1.55;
+  display: flex; flex: none; justify-content: space-between; align-items: flex-start;
+  font-size: ${pt(layout.cover.fontSize)}; line-height: ${layout.cover.lineHeight};
+  > span:first-of-type { width: ${layout.cover.dateWidth}; }
+  > span:last-of-type { width: ${layout.cover.titleWidth}; text-align: right; }
 `;
-const CoverPhoto = styled(Photo)`
-  position: absolute; top: 36%; left: 25%; margin: 0;
-  width: 50%; height: 40.52cqw;
+const CoverBody = styled.span`display: flex; flex: none; height: ${pt(layout.cover.bodyHeight)}; align-items: center; justify-content: center;`;
+const CoverPhoto = styled.span`
+  display: block; position: relative; width: ${pt(layout.cover.imageWidth)}; height: ${pt(layout.cover.imageHeight)};
+  border-radius: ${pt(layout.photo.imageRadius)}; overflow: hidden; img { object-fit: cover; }
 `;
-const CoverMark = styled.span`position: absolute; bottom: 6.67cqw; right: 8.1cqw; font-size: 2.384cqw;`;
+const CoverMark = styled.span`display: block; flex: none; text-align: right; font-size: ${pt(layout.cover.wordmarkSize)};`;
 const TextPaper = styled(Paper)`
   display: flex; flex-direction: column; justify-content: center;
-  padding: 17.16cqw 8.1cqw; background: #fbfcfe;
+  padding-top: ${pt(layout.shortText.paddingVertical)}; padding-bottom: ${pt(layout.shortText.paddingVertical)};
+  background: ${layout.shortText.background};
 `;
 const TextFrame = styled.span`
-  display: block; padding-left: 5.24cqw; padding-right: 2.86cqw;
-  border-left: 0.477cqw solid #add1f4;
+  display: block; padding-left: ${pt(layout.shortText.frameLeft)}; padding-right: ${pt(layout.shortText.frameRight)};
+  border-left: ${pt(layout.shortText.borderWidth)} solid ${layout.shortText.borderColor};
 `;
-const TextMeta = styled.span`display: block; color: #606060; margin-bottom: 3.34cqw;`;
-const TextTitle = styled.span`display: block; font-size: 2.384cqw; font-weight: 600; margin-bottom: 4.77cqw; line-height: 1.5;`;
-const TextBody = styled.span`display: block; font-size: 3.1cqw; line-height: 2; white-space: pre-line; word-break: keep-all;`;
+const TextMeta = styled.span`display: block; color: #606060; font-size: ${pt(layout.shortText.captionSize)}; margin-bottom: ${pt(layout.shortText.captionGap)};`;
+const TextTitle = styled.span`display: block; font-size: ${pt(layout.shortText.titleSize)}; font-weight: ${layout.shortText.titleWeight}; margin-bottom: ${pt(layout.shortText.titleGap)}; line-height: ${layout.shortText.titleLineHeight};`;
+const TextBody = styled.span`display: block; font-size: ${pt(layout.shortText.bodySize)}; line-height: ${layout.shortText.bodyLineHeight}; white-space: pre-line; word-break: keep-all;`;

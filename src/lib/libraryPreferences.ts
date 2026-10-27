@@ -1,9 +1,17 @@
 import { preferencesStorage } from "./storage/preferencesStorage";
 
-export async function readLibraryWelcomeSeen(ownerId: string) {
-  try { return await preferencesStorage.getItem(`tuti-library-welcome:${ownerId}`) === "seen"; }
-  catch { return true; } // 저장소 장애로 안내 화면을 반복하지 않는다.
+const completedOwners = new Set<string>();
+
+export async function readLibraryEntryCompleted(ownerId: string) {
+  if (completedOwners.has(ownerId)) return true;
+  try {
+    const completed = await preferencesStorage.getItem(`tuti-entry-completed:${ownerId}`) === "complete";
+    if (completed) completedOwners.add(ownerId);
+    return completed;
+  } catch { return false; }
 }
-export async function markLibraryWelcomeSeen(ownerId: string) {
-  try { await preferencesStorage.setItem(`tuti-library-welcome:${ownerId}`, "seen"); } catch {}
+
+export async function markLibraryEntryCompleted(ownerId: string) {
+  completedOwners.add(ownerId);
+  await preferencesStorage.setItem(`tuti-entry-completed:${ownerId}`, "complete").catch(() => {});
 }

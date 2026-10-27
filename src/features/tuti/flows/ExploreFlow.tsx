@@ -8,10 +8,17 @@ import { RecommendationReadyFlow } from "./RecommendationReadyFlow";
 import { RecommendationsFlow } from "./RecommendationsFlow";
 import { BaseButton } from "@/features/tuti/components/buttons";
 import { useTutiStore } from "@/store/tuti";
+import { useEffect } from "react";
+import { useSession } from "@/features/tuti/hooks/useSession";
+import { markLibraryEntryCompleted } from "@/lib/libraryPreferences";
 
 export function ExploreFlow() {
   const router = useRouter();
   const params = useSearchParams();
+  const ownerId = useSession()?.userId;
+  useEffect(() => {
+    if (ownerId) void markLibraryEntryCompleted(ownerId);
+  }, [ownerId]);
   const entryRecord = useTutiStore(state => state.entryRecord);
   const stage = useTutiStore(state => state.entryStage);
   const questions = params.get("mode") === "questions";

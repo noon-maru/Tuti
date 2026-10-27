@@ -14,6 +14,7 @@ import {
   rgb,
 } from "pdf-lib";
 import { PDF_FONT_FAMILY, registerPdfFonts } from "./fonts";
+import { HARUMADI_PDF_LAYOUT } from "../../shared/harumadi/pdfLayout";
 import {
   estimateHarumadiPdfPhotoTextLines,
   getHarumadiPdfCoverPalette,
@@ -59,46 +60,47 @@ export function getHarumadiPdfEntryLayout(
   return contentLength <= 240 ? "short-text" : "long-text";
 }
 
+const layout = HARUMADI_PDF_LAYOUT;
 const styles = StyleSheet.create({
   page: {
     fontFamily: PDF_FONT_FAMILY,
     backgroundColor: "#FFFFFF",
-    padding: 34,
-    paddingBottom: 48,
+    padding: layout.page.padding,
+    paddingBottom: layout.page.paddingBottom,
     color: "#303030",
-    fontSize: 11,
-    lineHeight: 1.8,
+    fontSize: layout.page.fontSize,
+    lineHeight: layout.page.lineHeight,
   },
   cover: {
     justifyContent: "space-between",
-    paddingTop: 34,
-    paddingBottom: 28,
+    paddingTop: layout.cover.paddingTop,
+    paddingBottom: layout.cover.paddingBottom,
   },
   coverHeader: {
     flexDirection: "row",
     alignItems: "flex-start",
     justifyContent: "space-between",
   },
-  coverDate: { width: "42%", fontSize: 8, lineHeight: 1.55 },
+  coverDate: { width: layout.cover.dateWidth, fontSize: layout.cover.fontSize, lineHeight: layout.cover.lineHeight },
   coverTitle: {
-    width: "48%",
-    fontSize: 8,
-    lineHeight: 1.55,
+    width: layout.cover.titleWidth,
+    fontSize: layout.cover.fontSize,
+    lineHeight: layout.cover.lineHeight,
     textAlign: "right",
   },
   coverBody: {
-    height: 260,
+    height: layout.cover.bodyHeight,
     alignItems: "center",
     justifyContent: "center",
   },
   coverImage: {
-    width: 210,
-    height: 170,
-    borderRadius: 5,
+    width: layout.cover.imageWidth,
+    height: layout.cover.imageHeight,
+    borderRadius: layout.photo.imageRadius,
     objectFit: "cover",
   },
-  coverPlaceholder: { width: 210, height: 170, borderRadius: 5 },
-  coverWordmark: { fontSize: 10, textAlign: "right" },
+  coverPlaceholder: { width: layout.cover.imageWidth, height: layout.cover.imageHeight, borderRadius: layout.photo.imageRadius },
+  coverWordmark: { fontSize: layout.cover.wordmarkSize, textAlign: "right" },
   backCover: {
     paddingTop: 42,
     paddingLeft: 42,
@@ -107,31 +109,31 @@ const styles = StyleSheet.create({
   },
   backCoverMessage: { fontSize: 9, lineHeight: 1.5 },
   photoPage: {
-    paddingTop: 42,
-    paddingLeft: 42,
-    paddingRight: 42,
-    paddingBottom: 48,
-    fontSize: 9,
+    paddingTop: layout.photo.padding,
+    paddingLeft: layout.photo.padding,
+    paddingRight: layout.photo.padding,
+    paddingBottom: layout.photo.paddingBottom,
+    fontSize: layout.photo.fontSize,
     lineHeight: 1.8,
   },
   photoHeader: {
-    height: 14,
+    height: layout.photo.headerHeight,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
   },
-  photoDate: { fontSize: 9, lineHeight: 1.4 },
+  photoDate: { fontSize: layout.photo.fontSize, lineHeight: layout.photo.headerLineHeight },
   photoPlace: {
     flexDirection: "row",
     alignItems: "center",
-    fontSize: 9,
-    lineHeight: 1.4,
+    fontSize: layout.photo.fontSize,
+    lineHeight: layout.photo.headerLineHeight,
   },
   photoPlaceMark: {
-    width: 7,
-    height: 7,
+    width: layout.photo.placeMarkSize,
+    height: layout.photo.placeMarkSize,
     overflow: "hidden",
-    marginRight: 3,
+    marginRight: layout.photo.placeMarkGap,
     borderRadius: 4,
   },
   photoPlaceMarkTop: { height: 3.5, backgroundColor: "#C7E887" },
@@ -142,15 +144,15 @@ const styles = StyleSheet.create({
   },
   photoOnlyImage: {
     width: "100%",
-    height: 250,
-    borderRadius: 5,
+    height: layout.photo.imageHeight,
+    borderRadius: layout.photo.imageRadius,
     objectFit: "cover",
   },
-  photoStoryLead: { marginTop: 32 },
+  photoStoryLead: { marginTop: layout.photo.lead },
   photoStoryImage: {
     width: "100%",
-    height: 250,
-    borderRadius: 5,
+    height: layout.photo.imageHeight,
+    borderRadius: layout.photo.imageRadius,
     objectFit: "cover",
   },
   photoStoryCopy: {
@@ -158,38 +160,38 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
   },
   photoStoryTitle: {
-    width: "42%",
-    paddingRight: 14,
-    fontSize: 10,
-    fontWeight: 600,
-    lineHeight: 1.8,
+    width: layout.photo.titleWidth,
+    paddingRight: layout.photo.titlePaddingRight,
+    fontSize: layout.photo.titleSize,
+    fontWeight: layout.photo.titleWeight,
+    lineHeight: layout.photo.titleLineHeight,
   },
   photoStoryText: {
-    width: "52%",
-    fontSize: 9,
-    lineHeight: 1.9,
+    width: layout.photo.textWidth,
+    fontSize: layout.photo.fontSize,
+    lineHeight: layout.photo.textLineHeight,
     textAlign: "left",
   },
-  caption: { fontSize: 9, color: "#606060", marginBottom: 14 },
+  caption: { fontSize: layout.shortText.captionSize, color: "#606060", marginBottom: layout.shortText.captionGap },
   shortTextPage: {
     justifyContent: "center",
-    paddingTop: 72,
-    paddingBottom: 72,
-    backgroundColor: "#FBFCFE",
+    paddingTop: layout.shortText.paddingVertical,
+    paddingBottom: layout.shortText.paddingVertical,
+    backgroundColor: layout.shortText.background,
   },
   shortTextFrame: {
-    paddingLeft: 22,
-    paddingRight: 12,
-    borderLeftWidth: 2,
-    borderLeftColor: "#ADD1F4",
+    paddingLeft: layout.shortText.frameLeft,
+    paddingRight: layout.shortText.frameRight,
+    borderLeftWidth: layout.shortText.borderWidth,
+    borderLeftColor: layout.shortText.borderColor,
   },
   shortTextTitle: {
-    fontSize: 10,
-    fontWeight: 600,
-    lineHeight: 1.5,
-    marginBottom: 20,
+    fontSize: layout.shortText.titleSize,
+    fontWeight: layout.shortText.titleWeight,
+    lineHeight: layout.shortText.titleLineHeight,
+    marginBottom: layout.shortText.titleGap,
   },
-  shortTextParagraph: { fontSize: 13, lineHeight: 2 },
+  shortTextParagraph: { fontSize: layout.shortText.bodySize, lineHeight: layout.shortText.bodyLineHeight },
   longTextLead: {
     marginBottom: 22,
     paddingBottom: 18,
@@ -382,7 +384,7 @@ export async function renderHarumadiPdf(
               <View
                 style={[
                   styles.photoStoryCopy,
-                  { marginTop: layout === "photo-text" ? 66 : 30 },
+                  { marginTop: layout === "photo-text" ? HARUMADI_PDF_LAYOUT.photo.shortGap : HARUMADI_PDF_LAYOUT.photo.longGap },
                 ]}
               >
                 <Text style={styles.photoStoryTitle}>{title}</Text>
@@ -494,14 +496,14 @@ async function addPageFolios(pdf: Uint8Array) {
   const font = await document.embedFont(StandardFonts.Helvetica);
   pages.slice(1, -1).forEach((page, index) => {
     const label = `${index + 1}`;
-    const size = 9;
+    const size = layout.folio.fontSize;
     const width = font.widthOfTextAtSize(label, size);
     page.drawText(label, {
-      x: page.getWidth() - 34 - width,
-      y: 20,
+      x: page.getWidth() - layout.folio.right - width,
+      y: layout.folio.bottom,
       size,
       font,
-      color: rgb(0.52, 0.52, 0.52),
+      color: rgb(layout.folio.gray, layout.folio.gray, layout.folio.gray),
     });
   });
   return document.save({ useObjectStreams: false });

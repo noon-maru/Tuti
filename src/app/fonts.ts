@@ -18,6 +18,11 @@ export const pretendard = localFont({
       style: "normal",
     },
     {
+      path: "../../public/fonts/pretendard/Pretendard-SemiBold.woff2",
+      weight: "600",
+      style: "normal",
+    },
+    {
       path: "../../public/fonts/pretendard/Pretendard-Bold.woff2",
       weight: "700",
       style: "normal",

@@ -29,7 +29,7 @@ export function JournalCreateFlow() {
 
   if (fromWelcome) return <FirstMemoryScreen
     inHarumadi={Boolean(harumadiId)}
-    onBack={() => router.replace(harumadiId ? harumadiPath(harumadiId) : searchParams.get("from") === "library" ? "/" : "/entry")}
+    onBack={() => router.replace(harumadiId ? harumadiPath(harumadiId) : "/")}
     onSave={addEntry}
     onSaved={(entry) => { savedEntryId.current = entry.id; setActiveJournalEntry(entry.id); }}
     onCollection={() => router.replace(harumadiId ? `${harumadiPath(harumadiId)}${savedEntryId.current ? `&addEntryId=${encodeURIComponent(savedEntryId.current)}` : ""}` : "/")}
