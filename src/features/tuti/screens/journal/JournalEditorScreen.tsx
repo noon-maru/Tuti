@@ -52,14 +52,11 @@ export type JournalEntryDraft = JournalEntryInput;
 export function JournalEditorScreen({
   entry,
   initialPlace,
-  preview = false,
   onBack,
   onSubmit,
 }: {
   entry?: TutiJournalEntry;
   initialPlace?: { id: string; name: string };
-  /** 드래그 전환의 비활성 미리보기는 원격 정책을 조회하지 않는다. */
-  preview?: boolean;
   onBack: () => void;
   onSubmit: (
     draft: JournalEntryDraft,
@@ -106,13 +103,12 @@ export function JournalEditorScreen({
   const [sensitiveContent, setSensitiveContent] = useState<boolean | null>(entry?.sensitiveContent ?? false);
   const [sensitiveAgreed, setSensitiveAgreed] = useState(false);
   useEffect(() => {
-    if (preview) return;
     let disposed = false;
     void fetchSensitiveJournalPolicy().then((policy) => {
       if (!disposed) setSensitivePolicy(policy);
     }).catch(() => { if (!disposed) setPolicyError("마디 보호 설정을 확인하지 못했어요. 화면을 다시 열어주세요."); });
     return () => { disposed = true; };
-  }, [preview]);
+  }, []);
   const sensitiveReady = canSubmitJournalClassification(sensitivePolicy, sensitiveContent, sensitiveAgreed);
   const privateStorageAvailable = !!sensitivePolicy && canStoreSensitiveJournal(sensitivePolicy);
   const canSubmit = Boolean(

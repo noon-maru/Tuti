@@ -42,9 +42,10 @@ test("일반 마디는 추가 답변 없이 저장 가능하지만 민감정보�
 });
 
 test("첫 작성은 고정 안내만 표시하고 정책 조회 없이 일반 마디로 저장한다", () => {
-  const first = readFileSync("src/features/tuti/screens/onboarding/FirstMemoryScreen.tsx", "utf8");
+  const first = readFileSync("src/features/tuti/screens/journal/MadiCreateScreen.tsx", "utf8");
   assert.match(first, /<PrivacyHint>민감정보나 주민등록번호 등은 남기지 말아주세요\.<\/PrivacyHint>/);
-  assert.match(first, /onSave\(\{ \.\.\.draft, sensitiveContent: false \}\)/);
+  assert.match(first, /onSave\(\{ \.\.\.draft,/);
+  assert.match(first, /sensitiveContent: false/);
   assert.doesNotMatch(first, /JournalAdditionalSettings|fetchSensitiveJournalPolicy|sensitiveReady|sensitiveConsentVersion|SensitiveSection|policyAttempt|policyFailed/);
   assert.match(first, /disabled=\{!draft\}/);
   assert.match(first, /disabled=\{!draft \|\| saving\}/);

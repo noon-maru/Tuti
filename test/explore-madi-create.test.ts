@@ -16,10 +16,11 @@ test("둘러보기 아래 드래그·휠은 목록이 아니라 작성 화면으
 
 test("작성 전환 미리보기는 비활성이고 정책 요청을 발생시키지 않는다", () => {
   const screen = readFileSync("src/features/tuti/screens/recommendations/RecommendationsScreen.tsx", "utf8");
-  const editor = readFileSync("src/features/tuti/screens/journal/JournalEditorScreen.tsx", "utf8");
+  const editor = readFileSync("src/features/tuti/screens/journal/MadiCreateScreen.tsx", "utf8");
   assert.match(screen, /<TransitionLayer[^>]*aria-hidden="true" inert>/);
-  assert.match(screen, /<JournalEditorScreen preview /);
-  assert.match(editor, /if \(preview\) return;[\s\S]*?fetchSensitiveJournalPolicy/);
+  assert.match(screen, /<MadiCreateScreen preview /);
+  assert.match(editor, /if \(preview\) return;/);
+  assert.doesNotMatch(editor, /fetchSensitiveJournalPolicy|useTutiJournalEntries/);
 });
 
 test("둘러보기 작성은 방문 장소를 추정하지 않고 저장 후 추천 화면으로 복귀한다", () => {
@@ -28,7 +29,7 @@ test("둘러보기 작성은 방문 장소를 추정하지 않고 저장 후 추
   assert.doesNotMatch(callback, /activePlace|placeId|placeName|return_confirmed/);
   assert.match(callback, /action: "journal_started"/);
   const create = readFileSync("src/features/tuti/flows/JournalCreateFlow.tsx", "utf8");
-  assert.match(create, /const fromExplore = searchParams.get\("from"\) === "explore"/);
-  assert.match(create, /if \(fromExplore\) \{\s*returnToJournal\(\);\s*return;/);
-  assert.match(create, /onBack=\{returnToJournal\}/);
+  assert.match(create, /const fromExplore = source === "explore"/);
+  assert.match(create, /router.replace\(fromExplore \? "\/explore" : "\/madi"\)/);
+  assert.match(create, /onBack=\{returnToSource\}/);
 });

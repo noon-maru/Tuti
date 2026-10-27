@@ -49,6 +49,7 @@ function HarumadiEditor({ owner, initial }: { owner: string; initial?: Harumadi 
     if (getSessionSnapshot()?.userId !== owner) throw new Error("계정이 바뀌었어요.");
     return values;
   }, enabled: Boolean(harumadi), refetchOnWindowFocus: false });
+  const isFirstMadi = entries.isSuccess && entries.data.length === 0;
   const chosen = useMemo(() => (entries.data ?? []).filter(entry => harumadi?.entryIds.includes(entry.id)).sort((a, b) => a.visitedAt.localeCompare(b.visitedAt) || a.id.localeCompare(b.id)), [entries.data, harumadi]);
   const titleNeedsConfirmation = Boolean(sensitivePolicy?.enabled && (!harumadi || settings.title.trim() !== harumadi.title));
   const refreshLibrary = () => { void client.invalidateQueries({ queryKey: ["library-harumadis", owner] }); client.removeQueries({ queryKey: ["library-cover", owner] }); };
@@ -146,7 +147,7 @@ function HarumadiEditor({ owner, initial }: { owner: string; initial?: Harumadi 
       </> : harumadi && <>
         <Eyebrow>{harumadi.innerStyle === "photo" ? "사진과 이야기" : "이야기 중심"} 하루마디</Eyebrow><h1>{harumadi.title}</h1>
         <p>{chosen.length ? `지금까지 ${chosen.length}개의 마디를 담았어요.` : "표지와 속지가 준비됐어요.\n이제 하루의 이야기를 채워볼까요?"}</p>
-        <HarumadiActions><PrimaryButton type="button" disabled={busy || chosen.length >= HARUMADI_PDF_MAX_ENTRIES} onClick={() => router.push(`/madi/new?from=library&harumadiId=${encodeURIComponent(harumadi.id)}`)}><PenLine size={16} />{chosen.length ? "마디 남기기" : "첫 마디 남기기"}</PrimaryButton><Quiet type="button" onClick={selectRecords} disabled={busy}><Plus size={16} />마디 골라 담기</Quiet></HarumadiActions>
+        <HarumadiActions><PrimaryButton type="button" disabled={busy || chosen.length >= HARUMADI_PDF_MAX_ENTRIES} onClick={() => router.push(`/madi/new?from=library&harumadiId=${encodeURIComponent(harumadi.id)}`)}><PenLine size={16} />{isFirstMadi ? "첫 마디 남기기" : "마디 남기기"}</PrimaryButton><Quiet type="button" onClick={selectRecords} disabled={busy}><Plus size={16} />마디 골라 담기</Quiet></HarumadiActions>
         {entries.isError ? <Quiet onClick={() => void entries.refetch()}>마디 다시 불러오기</Quiet> : entries.isPending ? <p role="status">마디를 불러오고 있어요.</p> : chosen.length === 0 ? <BlankPage><BookOpen size={30} strokeWidth={1} /><strong>첫 마디를 채워보세요</strong><span>사진 한 장, 짧은 이야기부터.</span></BlankPage> : <Pages>{chosen.map(entry => <Page key={entry.id}>{harumadi.innerStyle === "photo" && entry.image && <Image src={entry.image} alt="" width={320} height={240} unoptimized />}<small>{entry.visitedAt.slice(0, 10)} · {entry.placeName}</small><h2>{entry.title || "남긴 하루"}</h2><p>{entry.content}</p></Page>)}</Pages>}
         <ExportButton type="button" disabled={!chosen.length || busy || entries.isPending || entries.isError} onClick={() => { setConfirmed(false); setPdf(null); setMode("pdf"); }}><Download size={17} /><span><strong>PDF로 저장하기</strong><small>지금까지 채운 페이지를 별도 파일로</small></span></ExportButton>
       </>}

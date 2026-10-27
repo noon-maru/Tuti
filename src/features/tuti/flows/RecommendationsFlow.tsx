@@ -587,6 +587,7 @@ export function RecommendationsFlow({ interactive }: { interactive: boolean }) {
               placeId: pendingDeparture.placeId,
             });
             const search = new URLSearchParams({
+              from: "explore",
               placeId: pendingDeparture.placeId,
               placeName: pendingDeparture.placeName,
               journeyId: pendingDeparture.journeyId,

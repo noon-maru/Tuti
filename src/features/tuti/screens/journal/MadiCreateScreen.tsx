@@ -15,22 +15,27 @@ import type { JournalEntryInput, TutiJournalEntry } from "@/shared/api/journal";
 
 type Stage = "photo" | "write" | "preview";
 
-export function FirstMemoryScreen({ onBack, onSave, onCollection, onSaved, inHarumadi = false }: {
+export function MadiCreateScreen({ onBack, onSave, onCollection, onSaved, inHarumadi = false, firstMadi = false, initialPlace, collectionLabel = "작성 마치기", preview = false }: {
   inHarumadi?: boolean;
+  firstMadi?: boolean;
+  initialPlace?: { id: string; name: string };
+  collectionLabel?: string;
+  preview?: boolean;
   onBack: () => void;
-  onSave: (input: JournalEntryInput) => Promise<TutiJournalEntry>;
+  onSave?: (input: JournalEntryInput) => Promise<TutiJournalEntry>;
   onCollection: () => void;
-  onSaved: (entry: TutiJournalEntry) => void;
+  onSaved?: (entry: TutiJournalEntry) => void;
 }) {
   const [stage, setStage] = useState<Stage>("photo");
   const [continued, setContinued] = useState(false);
-  const madiLabel = inHarumadi || continued ? "새로운 마디" : "첫 마디";
+  const [savedAsFirstMadi, setSavedAsFirstMadi] = useState(false);
   const [image, setImage] = useState<string | null>(null);
   const [cropSource, setCropSource] = useState<string | null>(null);
   const [content, setContent] = useState("");
   const [date, setDate] = useState(getKoreanDateKey);
-  const [place, setPlace] = useState("");
+  const [place, setPlace] = useState(initialPlace?.name ?? "");
   const [saved, setSaved] = useState<TutiJournalEntry | null>(null);
+  const madiLabel = (saved ? savedAsFirstMadi : firstMadi && !continued) ? "첫 마디" : "새로운 마디";
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const savingRef = useRef(false);
@@ -47,9 +52,10 @@ export function FirstMemoryScreen({ onBack, onSave, onCollection, onSaved, inHar
   useEffect(() => () => { if (cropSource) URL.revokeObjectURL(cropSource); }, [cropSource]);
   useEffect(() => () => { selection.current += 1; }, []);
   useEffect(() => {
+    if (preview) return;
     scroll.current?.scrollTo({ top: 0 });
     heading.current?.focus({ preventScroll: true });
-  }, [stage, saved]);
+  }, [stage, saved, preview]);
 
   const cancelCrop = useCallback(() => {
     selection.current += 1;
@@ -65,13 +71,14 @@ export function FirstMemoryScreen({ onBack, onSave, onCollection, onSaved, inHar
     else onBack();
   }, [cancelCrop, cropSource, onBack, onCollection, saved, stage]);
   useEffect(() => {
+    if (preview) return;
     const onAndroidBack = (event: Event) => {
       event.preventDefault();
       back();
     };
     window.addEventListener(ANDROID_BACK_EVENT, onAndroidBack);
     return () => window.removeEventListener(ANDROID_BACK_EVENT, onAndroidBack);
-  }, [back]);
+  }, [back, preview]);
 
   const choosePhoto = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -80,7 +87,7 @@ export function FirstMemoryScreen({ onBack, onSave, onCollection, onSaved, inHar
     setError("");
     selection.current += 1;
     setCropSource(URL.createObjectURL(file));
-    // 첫 기록에서 GPS는 읽지 않는다. 촬영일만 선택적으로 가져온다.
+    // 새 마디 작성에서 GPS는 읽지 않는다. 촬영일만 선택적으로 가져온다.
     photoMetadata.current = readImageMetadata(file);
   };
 
@@ -94,14 +101,17 @@ export function FirstMemoryScreen({ onBack, onSave, onCollection, onSaved, inHar
   };
 
   const save = async () => {
-    if (!draft || savingRef.current) return;
+    if (!draft || savingRef.current || preview || !onSave) return;
     savingRef.current = true;
+    setSavedAsFirstMadi(firstMadi && !continued);
     setSaving(true); setError("");
     try {
-      // 첫 작성은 일반 마디만 취급한다. 별도 민감정보 동의를 만들거나 추정하지 않는다.
-      const entry = await onSave({ ...draft, sensitiveContent: false });
+      // 간편 작성은 일반 마디만 취급하며 별도 민감정보 동의를 추정하지 않는다.
+      const entry = await onSave({ ...draft,
+        placeId: initialPlace && place.trim() === initialPlace.name ? initialPlace.id : null,
+        sensitiveContent: false });
       setSaved(entry);
-      onSaved(entry);
+      onSaved?.(entry);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "마디를 저장하지 못했어요. 다시 시도해주세요.");
     } finally { savingRef.current = false; setSaving(false); }
@@ -115,15 +125,15 @@ export function FirstMemoryScreen({ onBack, onSave, onCollection, onSaved, inHar
     setStage("photo");
   };
 
-  return <Frame aria-labelledby="first-memory-heading">
+  return <Frame aria-labelledby="madi-create-heading">
     <Header>
-      <BackButton aria-label={saved ? inHarumadi ? "하루마디로" : "내 마디 모음으로" : "이전으로"} onClick={back} disabled={saving} />
+      <BackButton aria-label={saved ? inHarumadi ? "하루마디로" : collectionLabel : "이전으로"} onClick={back} disabled={saving} />
       <span>{inHarumadi ? "하루마디에 남길 마디" : madiLabel}</span>
       <StepCount>{saved ? <Check size={18} aria-label="저장 완료" /> : `${stage === "photo" ? 1 : stage === "write" ? 2 : 3} / 3`}</StepCount>
     </Header>
     <Content ref={scroll} data-scroll-region>
       <Intro>
-        <h1 ref={heading} tabIndex={-1} id="first-memory-heading">{saved ? <>{madiLabel}를<br />남겼어요.</> : stage === "photo" ? <>어떤 순간을<br />오래 간직하고 싶나요?</> : stage === "write" ? <>그날의 이야기를<br />조금만 들려주세요.</> : <>{madiLabel}를<br />살펴볼까요?</>}</h1>
+        <h1 ref={heading} tabIndex={-1} id="madi-create-heading">{saved ? <>{madiLabel}를<br />남겼어요.</> : stage === "photo" ? <>어떤 순간을<br />오래 간직하고 싶나요?</> : stage === "write" ? <>그날의 이야기를<br />조금만 들려주세요.</> : <>{madiLabel}를<br />살펴볼까요?</>}</h1>
         <p>{saved ? "하루의 마디들이 모여, 한 권의 이야기가 돼요." : stage === "photo" ? "사진 한 장, 짧은 이야기면 충분해요." : stage === "write" ? "길게 쓰지 않아도 괜찮아요. 사진만 남겨도 좋아요." : "이 모습으로 마디를 남겨둘게요."}</p>
       </Intro>
       {!saved && stage === "photo" && <PhotoChoices>
@@ -151,7 +161,7 @@ export function FirstMemoryScreen({ onBack, onSave, onCollection, onSaved, inHar
     </Content>
     <Footer>
       {saved ? <>
-        <PrimaryButton type="button" onClick={onCollection}>{inHarumadi ? "하루마디에 담기" : "내 마디 모음 보기"} <ArrowRight size={16} aria-hidden="true" /></PrimaryButton>
+        <PrimaryButton type="button" onClick={onCollection}>{inHarumadi ? "하루마디에 담기" : collectionLabel} <ArrowRight size={16} aria-hidden="true" /></PrimaryButton>
         {!inHarumadi && <TextButton type="button" onClick={startAnother}>다음 마디 남기기</TextButton>}
       </> : stage === "photo" ? image && <PrimaryButton type="button" onClick={() => setStage("write")}>이 사진으로 계속하기</PrimaryButton>
         : stage === "write" ? <PrimaryButton type="button" disabled={!draft} onClick={() => { setError(""); setStage("preview"); }}>{madiLabel} 미리보기</PrimaryButton>
@@ -194,5 +204,5 @@ const PageMeta = styled.div`display: flex; justify-content: space-between; gap: 
 const PageImage = styled.div`position: relative; width: 100%; aspect-ratio: 4 / 3; flex: none; img { object-fit: contain; }`;
 const PageText = styled.p`white-space: pre-wrap; font-size: 12px; line-height: 1.95; overflow-wrap: anywhere; word-break: keep-all;`;
 const PageNumber = styled.span`margin-top: auto; padding-top: 20px; align-self: flex-end; font-size: 10px; color: var(--color-text-muted);`;
-const Footer = styled.div`flex: none; display: grid; gap: 6px; > button { white-space: normal; min-height: 48px; line-height: 1.6; } > button:first-of-type { color: #173b60; }`;
+const Footer = styled.footer`flex: none; display: grid; gap: 6px; > button { white-space: normal; min-height: 48px; line-height: 1.6; } > button:first-of-type { color: #173b60; }`;
 const ErrorMessage = styled.p`font-size: 13px; color: var(--color-danger, #b84242); line-height: 1.7;`;

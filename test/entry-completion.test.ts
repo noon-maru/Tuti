@@ -43,6 +43,7 @@ test("재진입 확인 전에는 소개를 그리지 않고 도달 후에는 가
   assert.match(home, /markLibraryEntryCompleted\(ownerId\)/);
   assert.match(explore, /markLibraryEntryCompleted\(ownerId\)/);
   const create = readFileSync("src/features/tuti/flows/JournalCreateFlow.tsx", "utf8");
-  assert.match(create, /onBack=\{\(\) => router.replace\(harumadiId \? harumadiPath\(harumadiId\) : "\/"\)\}/);
+  assert.match(create, /if \(fromLibrary\) \{ router.replace\("\/"\); return; \}/);
+  assert.match(create, /onBack=\{returnToSource\}/);
   assert.doesNotMatch(create, /"\/entry"/);
 });

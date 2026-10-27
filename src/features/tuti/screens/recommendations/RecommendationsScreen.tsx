@@ -16,7 +16,7 @@ import {
   type CardTransitionRect,
 } from "@/features/tuti/screens/departure/FullscreenDeparturePlanScreen";
 import { DetailScreen } from "@/features/tuti/screens/detail/DetailScreen";
-import { JournalEditorScreen } from "@/features/tuti/screens/journal/JournalEditorScreen";
+import { MadiCreateScreen } from "@/features/tuti/screens/journal/MadiCreateScreen";
 import { usePlaceDetail } from "@/features/tuti/hooks/usePlaceDetail";
 import {
   getRecommendationStatus,
@@ -900,7 +900,7 @@ export function RecommendationsScreen({
         verticalProgress > 0 &&
         transitionTarget === "journal" && (
           <TransitionLayer $progress={verticalProgress} $from={-34} aria-hidden="true" inert>
-            <JournalEditorScreen preview onBack={() => undefined} onSubmit={() => undefined} />
+            <MadiCreateScreen preview onBack={() => undefined} onCollection={() => undefined} />
           </TransitionLayer>
         )}
 

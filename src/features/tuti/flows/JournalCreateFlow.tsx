@@ -1,78 +1,58 @@
 "use client";
 
 import { useRouter, useSearchParams } from "next/navigation";
+import { useRef } from "react";
 import { requestLoginNudge } from "@/features/tuti/auth/loginNudge";
-import { useJournalEntryTransition } from "@/features/tuti/components/JournalEntryTransition";
 import { useTutiJournalEntries } from "@/features/tuti/hooks/useTutiJournalEntries";
-import { JournalEditorScreen } from "@/features/tuti/screens/journal/JournalEditorScreen";
-import { FirstMemoryScreen } from "@/features/tuti/screens/onboarding/FirstMemoryScreen";
+import { MadiCreateScreen } from "@/features/tuti/screens/journal/MadiCreateScreen";
 import { recordRecommendationAction } from "@/lib/tutiApi";
 import { useTutiStore } from "@/store/tuti";
 import { harumadiPath } from "@/lib/harumadis";
-import { useRef } from "react";
 
 export function JournalCreateFlow() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const harumadiId = searchParams.get("harumadiId");
   const savedEntryId = useRef<string | null>(null);
-  const { startTransition } = useJournalEntryTransition();
-  const { addEntry } = useTutiJournalEntries();
-  const setActiveJournalEntry = useTutiStore(
-    (state) => state.setActiveJournalEntry,
-  );
-  const fromWelcome = ["welcome", "library"].includes(searchParams.get("from") ?? "");
-  const fromExplore = searchParams.get("from") === "explore";
-  const returnToJournal = () => router.back();
+  const { addEntry, entries, isSuccess } = useTutiJournalEntries();
+  const setActiveJournalEntry = useTutiStore(state => state.setActiveJournalEntry);
+  const source = searchParams.get("from");
+  const fromLibrary = source === "welcome" || source === "library";
+  const fromExplore = source === "explore";
   const initialPlaceId = searchParams.get("placeId");
   const initialPlaceName = searchParams.get("placeName");
   const recommendationId = searchParams.get("journeyId");
+  const returnToSource = () => {
+    if (harumadiId) { router.replace(harumadiPath(harumadiId)); return; }
+    if (fromLibrary) { router.replace("/"); return; }
+    if (window.history.length > 1) router.back();
+    else router.replace(fromExplore ? "/explore" : "/madi");
+  };
 
-  if (fromWelcome) return <FirstMemoryScreen
+  return <MadiCreateScreen
+    firstMadi={isSuccess && entries.length === 0}
     inHarumadi={Boolean(harumadiId)}
-    onBack={() => router.replace(harumadiId ? harumadiPath(harumadiId) : "/")}
-    onSave={addEntry}
-    onSaved={(entry) => { savedEntryId.current = entry.id; setActiveJournalEntry(entry.id); }}
-    onCollection={() => router.replace(harumadiId ? `${harumadiPath(harumadiId)}${savedEntryId.current ? `&addEntryId=${encodeURIComponent(savedEntryId.current)}` : ""}` : "/")}
-  />;
-
-  return (
-    <JournalEditorScreen
-      initialPlace={
-        initialPlaceId && initialPlaceName
-          ? { id: initialPlaceId, name: initialPlaceName }
-          : undefined
-      }
-      onBack={returnToJournal}
-      onSubmit={async (draft, sourceElement) => {
-        const entry = await addEntry(draft);
-        requestLoginNudge("journal_created");
-
-        if (recommendationId) {
-          void recordRecommendationAction({
-            journeyId: recommendationId,
-            action: "journal_created",
-            placeId: entry.placeId ?? undefined,
-            metadata: { entryId: entry.id },
-          }).catch((error) => {
-            console.warn("기록 작성 행동을 저장하지 못했습니다.", error);
-          });
-        }
-
-        setActiveJournalEntry(entry.id);
-        // 둘러보기에서 작성한 마디는 목록 전환 효과 없이 원래 추천 화면으로 돌아간다.
-        if (fromExplore) {
-          returnToJournal();
-          return;
-        }
-        startTransition({
-          entryId: entry.id,
-          image: entry.image ?? undefined,
-          navigate: returnToJournal,
-          sourceElement,
-          sourceSurface: "editor",
+    initialPlace={initialPlaceId && initialPlaceName ? { id: initialPlaceId, name: initialPlaceName } : undefined}
+    collectionLabel={fromExplore ? "둘러보기로 돌아가기" : fromLibrary ? "하루마디로 돌아가기" : "작성 마치기"}
+    onBack={returnToSource}
+    onSave={async draft => {
+      const entry = await addEntry(draft);
+      if (recommendationId) {
+        void recordRecommendationAction({ journeyId: recommendationId, action: "journal_created",
+          placeId: entry.placeId ?? undefined, metadata: { entryId: entry.id } }).catch(error => {
+          console.warn("마디 작성 행동을 저장하지 못했습니다.", error);
         });
-      }}
-    />
-  );
+      }
+      return entry;
+    }}
+    onSaved={entry => {
+      savedEntryId.current = entry.id;
+      setActiveJournalEntry(entry.id);
+      requestLoginNudge("journal_created");
+    }}
+    onCollection={() => {
+      if (harumadiId) router.replace(`${harumadiPath(harumadiId)}${savedEntryId.current ? `&addEntryId=${encodeURIComponent(savedEntryId.current)}` : ""}`);
+      else returnToSource();
+    }}
+  />;
 }

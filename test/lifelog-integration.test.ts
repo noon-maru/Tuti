@@ -25,13 +25,11 @@ test("목업 관심 수집도 현재 규약과 계정에 고정된 인증을 사
   assert.equal(requiresServiceTerms("/api/product-interactions", "OPTIONS"), false);
 });
 
-test("새 첫 기록도 민감정보 확인·별도 동의를 거치며 미동의 권리 경로는 추천 없이 유지한다", () => {
-  const first = readFileSync("src/features/tuti/screens/onboarding/FirstMemoryScreen.tsx", "utf8");
-  assert.match(first, /useState<boolean \| null>\(null\)/);
-  assert.match(first, /canSubmitJournalClassification\(sensitivePolicy, sensitiveContent, sensitiveAgreed\)/);
-  assert.match(first, /if \(!draft \|\| !sensitiveReady/);
-  assert.match(first, /onSave\(\{ \.\.\.draft, sensitiveContent/);
-  assert.match(first, /sensitiveConsentVersion: sensitivePolicy.version/);
+test("새 마디 간편 작성은 일반 마디로 저장하며 미동의 권리 경로는 추천 없이 유지한다", () => {
+  const first = readFileSync("src/features/tuti/screens/journal/MadiCreateScreen.tsx", "utf8");
+  assert.match(first, /sensitiveContent: false/);
+  assert.match(first, /if \(!draft \|\| savingRef.current \|\| preview \|\| !onSave\) return/);
+  assert.doesNotMatch(first, /sensitiveConsentVersion|fetchSensitiveJournalPolicy/);
   const main = readFileSync("src/features/tuti/flows/MainFlow.tsx", "utf8");
   assert.doesNotMatch(main, /<RecommendationsFlow|router\.replace/);
   assert.match(main, /rightsOnly \|\| !hasHydrated \|\| !entryRecord \|\| pathname !== "\/explore"/);
