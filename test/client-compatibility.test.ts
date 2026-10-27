@@ -73,7 +73,10 @@ test("옛 호환 분기는 제거하고 버전·약관 병렬 확인을 모두 �
   assert.match(gate, /state\?\.allowed\) return renderContent\(children\)/);
   assert.match(gate, /return renderContent\(reconsentDialog \? <ReconsentBackdrop>/);
   const notice = readFileSync("src/features/tuti/components/NativeAppUpdateNotice.tsx", "utf8");
-  assert.match(notice, /incompatible \|\| checkFailed \|\| !checked/);
+  assert.match(notice, /if \(incompatible \|\| checkFailed\) return <Backdrop>/);
+  assert.match(notice, /if \(!checked\) return <StartupSplash role="status" aria-label="튜티 시작 중">\{localCheckComplete && <TutiWordmark priority \/>/);
+  assert.ok(notice.indexOf("if (incompatible || checkFailed)") < notice.indexOf("if (!checked) return <StartupSplash"));
+  assert.doesNotMatch(notice, /사용할 버전을 확인하고 있어요/);
   assert.match(notice, /!policy.required && children/);
   assert.match(notice, /setCheckFailed\(true\)/);
   const recorded = JSON.parse(readFileSync("docs/legal/readiness-status.json", "utf8"));

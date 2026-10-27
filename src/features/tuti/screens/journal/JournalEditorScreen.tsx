@@ -17,6 +17,7 @@ import {
 import { readImageMetadata } from "@/features/tuti/lib/readImageMetadata";
 import { fetchLocationConsent, fetchNearbyPlaces, fetchSensitiveJournalPolicy } from "@/lib/tutiApi";
 import { canStoreSensitiveJournal, canSubmitJournalClassification, sensitiveJournalConsentNotice, type SensitiveJournalPolicyResponse } from "@/shared/legal/sensitiveJournalPolicy";
+import { JournalAdditionalSettings } from "@/features/tuti/components/JournalAdditionalSettings";
 import type {
   JournalEntryInput,
   TutiJournalEntry,
@@ -99,7 +100,7 @@ export function JournalEditorScreen({
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [sensitivePolicy, setSensitivePolicy] = useState<SensitiveJournalPolicyResponse | null>(null);
   const [policyError, setPolicyError] = useState<string | null>(null);
-  const [sensitiveContent, setSensitiveContent] = useState<boolean | null>(entry?.sensitiveContent ?? null);
+  const [sensitiveContent, setSensitiveContent] = useState<boolean | null>(entry?.sensitiveContent ?? false);
   const [sensitiveAgreed, setSensitiveAgreed] = useState(false);
   useEffect(() => {
     let disposed = false;
@@ -269,7 +270,7 @@ export function JournalEditorScreen({
     setTheme("");
     setDifficulty("");
     setSubmitError(null);
-    setSensitiveContent(null);
+    setSensitiveContent(entry?.sensitiveContent ?? false);
     setSensitiveAgreed(false);
   };
 
@@ -433,6 +434,7 @@ export function JournalEditorScreen({
           />
         </EditorCopy>
         {sensitivePolicy && (
+          <JournalAdditionalSettings initiallyOpen={entry?.sensitiveContent === true} includesSensitive={sensitiveContent === true}>
           <SensitiveSection>
             <legend>사진이나 글에 본인의 민감정보가 있나요?</legend>
             <p>건강, 정치적 견해, 사상·신념, 성생활 등에 관한 정보를 뜻해요. 타인의 민감정보와 주민등록번호 등은 남기지 말아주세요.</p>
@@ -458,6 +460,7 @@ export function JournalEditorScreen({
                 [선택] 이 기록의 민감정보 처리에 별도로 동의해요.</label>
             </>}
           </SensitiveSection>
+          </JournalAdditionalSettings>
         )}
       </Editor>
 

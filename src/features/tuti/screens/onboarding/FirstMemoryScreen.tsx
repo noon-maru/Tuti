@@ -12,8 +12,6 @@ import { ANDROID_BACK_EVENT } from "@/features/tuti/navigation/androidBack";
 import { getKoreanDateKey } from "@/lib/date/koreanDate";
 import { FIRST_JOURNAL_CONTENT_LIMIT, FIRST_JOURNAL_PLACE_LIMIT, prepareFirstJournalDraft } from "@/shared/api/firstJournal";
 import type { JournalEntryInput, TutiJournalEntry } from "@/shared/api/journal";
-import { fetchSensitiveJournalPolicy } from "@/lib/tutiApi";
-import { canStoreSensitiveJournal, canSubmitJournalClassification, sensitiveJournalConsentNotice, type SensitiveJournalPolicyResponse } from "@/shared/legal/sensitiveJournalPolicy";
 
 type Stage = "photo" | "write" | "preview";
 
@@ -35,11 +33,6 @@ export function FirstMemoryScreen({ onBack, onSave, onCollection, onSaved, inHar
   const [saved, setSaved] = useState<TutiJournalEntry | null>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
-  const [sensitivePolicy, setSensitivePolicy] = useState<SensitiveJournalPolicyResponse | null>(null);
-  const [sensitiveContent, setSensitiveContent] = useState<boolean | null>(null);
-  const [sensitiveAgreed, setSensitiveAgreed] = useState(false);
-  const [policyAttempt, setPolicyAttempt] = useState(0);
-  const [policyFailed, setPolicyFailed] = useState(false);
   const savingRef = useRef(false);
   const dateEdited = useRef(false);
   const selection = useRef(0);
@@ -50,16 +43,6 @@ export function FirstMemoryScreen({ onBack, onSave, onCollection, onSaved, inHar
   const scroll = useRef<HTMLDivElement>(null);
   const today = getKoreanDateKey();
   const draft = prepareFirstJournalDraft({ image, content, date, place }, today);
-  const sensitiveReady = canSubmitJournalClassification(sensitivePolicy, sensitiveContent, sensitiveAgreed);
-  const privateStorageAvailable = sensitivePolicy && canStoreSensitiveJournal(sensitivePolicy);
-
-  useEffect(() => {
-    let active = true;
-    void fetchSensitiveJournalPolicy().then(policy => {
-      if (active) { setSensitivePolicy(policy); setPolicyFailed(false); }
-    }).catch(() => { if (active) setPolicyFailed(true); });
-    return () => { active = false; };
-  }, [policyAttempt]);
 
   useEffect(() => () => { if (cropSource) URL.revokeObjectURL(cropSource); }, [cropSource]);
   useEffect(() => () => { selection.current += 1; }, []);
@@ -111,12 +94,12 @@ export function FirstMemoryScreen({ onBack, onSave, onCollection, onSaved, inHar
   };
 
   const save = async () => {
-    if (!draft || !sensitiveReady || !sensitivePolicy || sensitiveContent === null || savingRef.current) return;
+    if (!draft || savingRef.current) return;
     savingRef.current = true;
     setSaving(true); setError("");
     try {
-      const entry = await onSave({ ...draft, sensitiveContent,
-        ...(sensitiveContent && sensitiveAgreed ? { sensitiveConsentVersion: sensitivePolicy.version } : {}) });
+      // 첫 작성은 일반 마디만 취급한다. 별도 민감정보 동의를 만들거나 추정하지 않는다.
+      const entry = await onSave({ ...draft, sensitiveContent: false });
       setSaved(entry);
       onSaved(entry);
     } catch (cause) {
@@ -129,7 +112,6 @@ export function FirstMemoryScreen({ onBack, onSave, onCollection, onSaved, inHar
     selection.current += 1;
     setSaved(null); setImage(null); setContent(""); setDate(getKoreanDateKey()); setPlace(""); setError("");
     dateEdited.current = false;
-    setSensitiveContent(null); setSensitiveAgreed(false);
     setStage("photo");
   };
 
@@ -157,22 +139,7 @@ export function FirstMemoryScreen({ onBack, onSave, onCollection, onSaved, inHar
         <label><span>기억하고 싶은 이야기 <small>{image ? "선택" : "필수"}</small></span><textarea aria-label="기억하고 싶은 이야기" placeholder="함께여서 좋았던 순간을 남겨보세요." maxLength={FIRST_JOURNAL_CONTENT_LIMIT} value={content} onChange={(event) => setContent(event.target.value)} /></label>
         <label>날짜<input aria-label="마디 날짜" type="date" max={today} value={date} onChange={(event) => { dateEdited.current = true; setDate(event.target.value); }} /></label>
         <label><span>어디에서 함께했나요? <small>선택</small></span><input aria-label="장소 (선택)" placeholder="동네 카페, 함께 걷던 길" maxLength={FIRST_JOURNAL_PLACE_LIMIT} value={place} onChange={(event) => setPlace(event.target.value)} /></label>
-        {sensitivePolicy ? <SensitiveSection>
-          <legend>사진이나 글에 본인의 민감정보가 있나요?</legend>
-          <p>건강, 정치적 견해, 사상·신념, 성생활 등에 관한 정보를 뜻해요. 타인의 민감정보와 주민등록번호 등은 남기지 말아주세요.</p>
-          <label><input type="radio" name="first-memory-sensitive" checked={sensitiveContent === false} onChange={() => { setSensitiveContent(false); setSensitiveAgreed(false); }} />없어요</label>
-          <label><input type="radio" name="first-memory-sensitive" checked={sensitiveContent === true} onChange={() => { setSensitiveContent(true); setSensitiveAgreed(false); }} />본인의 민감정보가 있어요</label>
-          {sensitiveContent && !privateStorageAvailable && <p role="status">민감정보 보관 기능을 이용할 수 없어요. 해당 내용을 빼고 ‘없어요’를 선택해주세요.</p>}
-          {sensitiveContent && privateStorageAvailable && <>
-            <p>민감정보가 있는 마디는 나만 볼 수 있고, 웹 링크로 공개할 수 없어요.</p>
-            <dl><dt>처리 항목</dt><dd>{sensitiveJournalConsentNotice.items}</dd>
-              <dt>처리 목적</dt><dd>{sensitiveJournalConsentNotice.purpose}</dd>
-              <dt>보관기간</dt><dd>{sensitiveJournalConsentNotice.retention}</dd></dl>
-            <p>{sensitiveJournalConsentNotice.refusal}</p><p>{sensitiveJournalConsentNotice.withdrawal}</p>
-            <label><input type="checkbox" checked={sensitiveAgreed} onChange={event => setSensitiveAgreed(event.target.checked)} />[선택] 이 기록의 민감정보 처리에 별도로 동의해요.</label>
-          </>}
-        </SensitiveSection> : <div role="status">{policyFailed ? "마디 보관 기준을 확인하지 못했어요." : "마디 보관 기준을 확인하고 있어요."}
-          {policyFailed && <TextButton type="button" onClick={() => setPolicyAttempt(value => value + 1)}>다시 확인하기</TextButton>}</div>}
+        <PrivacyHint>민감정보나 주민등록번호 등은 남기지 말아주세요.</PrivacyHint>
       </Fields>}
       {(saved || stage === "preview") && <MemoryPage
         image={saved ? saved.image : image}
@@ -187,8 +154,8 @@ export function FirstMemoryScreen({ onBack, onSave, onCollection, onSaved, inHar
         <PrimaryButton type="button" onClick={onCollection}>{inHarumadi ? "하루마디에 담기" : "내 마디 모음 보기"} <ArrowRight size={16} aria-hidden="true" /></PrimaryButton>
         {!inHarumadi && <TextButton type="button" onClick={startAnother}>다음 마디 남기기</TextButton>}
       </> : stage === "photo" ? image && <PrimaryButton type="button" onClick={() => setStage("write")}>이 사진으로 계속하기</PrimaryButton>
-        : stage === "write" ? <PrimaryButton type="button" disabled={!draft || !sensitiveReady} onClick={() => { setError(""); setStage("preview"); }}>{madiLabel} 미리보기</PrimaryButton>
-          : <><PrimaryButton type="button" disabled={!draft || !sensitiveReady || saving} onClick={() => void save()}>{saving ? "마디를 저장하고 있어요…" : "이대로 마디 남기기"}</PrimaryButton><TextButton type="button" disabled={saving} onClick={() => setStage("write")}>조금 더 고치기</TextButton></>}
+        : stage === "write" ? <PrimaryButton type="button" disabled={!draft} onClick={() => { setError(""); setStage("preview"); }}>{madiLabel} 미리보기</PrimaryButton>
+          : <><PrimaryButton type="button" disabled={!draft || saving} onClick={() => void save()}>{saving ? "마디를 저장하고 있어요…" : "이대로 마디 남기기"}</PrimaryButton><TextButton type="button" disabled={saving} onClick={() => setStage("write")}>조금 더 고치기</TextButton></>}
     </Footer>
     {cropSource && <ImageCropDialog source={cropSource} onCancel={cancelCrop} onConfirm={confirmCrop} />}
   </Frame>;
@@ -214,15 +181,7 @@ const Intro = styled.div`
 const PhotoChoices = styled.div`display: grid; gap: 12px; margin-top: 8px;`;
 const SelectedPhoto = styled.div`position: relative; aspect-ratio: 4 / 3; border-radius: 5px; overflow: hidden; background: #f6f9fc; img { object-fit: contain; }`;
 const HiddenInput = styled.input`display: none;`;
-const SensitiveSection = styled.fieldset`
-  display: grid; gap: 12px; margin: 0; padding: 16px; border: 1px solid var(--color-border); border-radius: 16px;
-  font-size: 12px; line-height: 1.7;
-  legend { padding-inline: 4px; font-size: 13px; font-weight: 600; }
-  p, dd { margin: 0; color: var(--color-text-muted); }
-  dt { margin-top: 8px; font-weight: 600; }
-  && label { display: flex; align-items: flex-start; gap: 8px; }
-  && input { width: 18px; height: 18px; flex: none; margin-top: 2px; accent-color: var(--color-brand-800); }
-`;
+const PrivacyHint = styled.p`margin: 0; font-size: 11px; font-weight: 400; line-height: 1.7; color: var(--color-text-muted); word-break: keep-all;`;
 const Fields = styled.div`
   display: grid; gap: 24px;
   label { display: grid; gap: 10px; font-size: 13px; font-weight: 500; }

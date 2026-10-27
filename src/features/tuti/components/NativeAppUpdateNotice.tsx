@@ -4,15 +4,18 @@ import { Preferences } from "@capacitor/preferences";
 import styled from "@emotion/styled";
 import { ArrowUpRight } from "lucide-react";
 import { usePathname } from "next/navigation";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useState } from "react";
 import {
   fetchNativeAppUpdatePolicy,
+  getNativeAppPlatform,
   openNativeAppStore,
+  readCachedAppUpdatePolicy,
 } from "@/lib/appUpdate";
 import type { AppUpdatePolicyResponse } from "@/shared/api/appUpdate";
 import { Button } from "@/features/tuti/components/buttons";
 import { CLIENT_UPDATE_REQUIRED_EVENT, type ClientUpdateRequired } from "@/shared/api/clientProtocol";
 import { isInitialTermsRightsPath } from "@/lib/initialServiceTerms";
+import { TutiWordmark } from "@/features/tuti/components/TutiWordmark";
 
 const UPDATE_SNOOZE_DURATION_MS = 24 * 60 * 60 * 1_000;
 
@@ -21,6 +24,7 @@ export function NativeAppUpdateNotice({ children }: { children: React.ReactNode 
   const [policy, setPolicy] = useState<AppUpdatePolicyResponse | null>(null);
   const [openingStore, setOpeningStore] = useState(false);
   const [checked, setChecked] = useState(false);
+  const [localCheckComplete, setLocalCheckComplete] = useState(false);
   const [checkFailed, setCheckFailed] = useState(false);
   const [attempt, setAttempt] = useState(0);
   const [incompatible, setIncompatible] = useState<ClientUpdateRequired | null>(null);
@@ -36,13 +40,31 @@ export function NativeAppUpdateNotice({ children }: { children: React.ReactNode 
     [],
   );
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     let disposed = false;
+    let cached = readCachedAppUpdatePolicy();
+    // 서버 HTML에서는 저장소를 읽을 수 없으므로 로고 없이 시작하고 로컬 판단 뒤에만 표시한다.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setLocalCheckComplete(true);
+    // 로컬 확인 결과로 먼저 표시하고, 매번 네트워크를 기다리며 스플래시를 띄우지 않는다.
+    if (!getNativeAppPlatform() || cached) {
+      // hydration 결과를 첫 paint 전에 반영해 캐시 진입 시 스플래시 깜빡임을 막는다.
+      setChecked(true);
+      if (cached?.policy.required) setPolicy(cached.policy);
+    }
 
-    void fetchNativeAppUpdatePolicy()
+    void fetchNativeAppUpdatePolicy(identity => {
+      if (disposed || !cached) return;
+      if (cached.appId !== identity.appId || cached.build !== identity.build ||
+          cached.policy.currentVersion !== identity.version) {
+        cached = null;
+        setPolicy(null);
+        setChecked(false);
+      }
+    })
       .then(async (nextPolicy) => {
         if (disposed) return;
-        if (!nextPolicy?.updateAvailable || !nextPolicy.storeUrl) { setChecked(true); return; }
+        if (!nextPolicy?.updateAvailable || !nextPolicy.storeUrl) { setPolicy(null); setChecked(true); return; }
 
         if (!nextPolicy.required && nextPolicy.latestVersion) {
           const { value } = await Preferences.get({
@@ -50,7 +72,7 @@ export function NativeAppUpdateNotice({ children }: { children: React.ReactNode 
           });
           const snoozedUntil = Number(value);
           if (Number.isFinite(snoozedUntil) && snoozedUntil > Date.now()) {
-            if (!disposed) setChecked(true);
+            if (!disposed) { setPolicy(null); setChecked(true); }
             return;
           }
         }
@@ -58,7 +80,9 @@ export function NativeAppUpdateNotice({ children }: { children: React.ReactNode 
         if (!disposed) { setPolicy(nextPolicy); setChecked(true); }
       })
       .catch(() => {
-        if (!disposed) setCheckFailed(true);
+        // 이미 확인한 같은 앱의 일시적 통신 실패는 진입을 막지 않는다.
+        // 캐시된 필수 업데이트 및 API의 426 차단은 계속 유지한다.
+        if (!disposed && !cached) setCheckFailed(true);
       });
 
     return () => {
@@ -107,11 +131,11 @@ export function NativeAppUpdateNotice({ children }: { children: React.ReactNode 
   // 계정 복구·삭제·열람·철회·문의는 업데이트와 분리한다. API 쪽 기존 인증은 유지한다.
   if (isInitialTermsRightsPath(pathname)) return children;
 
-  if (incompatible || checkFailed || !checked) return <Backdrop>
+  if (incompatible || checkFailed) return <Backdrop>
     <Dialog role="dialog" aria-modal="true" aria-labelledby="client-version-title">
       <Copy>
-        <h2 id="client-version-title">{incompatible ? "새 버전으로 이어서 사용할 수 있어요." : checkFailed ? "앱 버전을 확인하지 못했어요." : "사용할 버전을 확인하고 있어요."}</h2>
-        <p>{incompatible?.error ?? (checkFailed ? "연결을 확인한 뒤 다시 시도해주세요." : "잠시만 기다려주세요.")}</p>
+        <h2 id="client-version-title">{incompatible ? "새 버전으로 이어서 사용할 수 있어요." : "앱 버전을 확인하지 못했어요."}</h2>
+        <p>{incompatible?.error ?? "연결을 확인한 뒤 다시 시도해주세요."}</p>
       </Copy>
       {incompatible ? incompatible.storeUrl ? <Button type="button" $tone="primary" onClick={() => {
         const url = incompatible.storeUrl;
@@ -122,6 +146,9 @@ export function NativeAppUpdateNotice({ children }: { children: React.ReactNode 
       <a href="mailto:admin@tuti.today">문의</a>
     </Dialog>
   </Backdrop>;
+
+  // 시작 화면을 유지하는 동안만 가린다. 실패·필수 업데이트 안내는 위에서 별도로 처리한다.
+  if (!checked) return <StartupSplash role="status" aria-label="튜티 시작 중">{localCheckComplete && <TutiWordmark priority />}</StartupSplash>;
 
   if (!policy?.updateAvailable || !policy.latestVersion || !policy.storeUrl) return children;
 
@@ -187,6 +214,15 @@ export function NativeAppUpdateNotice({ children }: { children: React.ReactNode 
 function getSnoozeKey(policy: AppUpdatePolicyResponse) {
   return `tuti-app-update-snooze:${policy.platform}:${policy.latestVersion}`;
 }
+
+const StartupSplash = styled.div`
+  width: 100%;
+  height: 100%;
+  display: grid;
+  place-items: center;
+  background: var(--color-surface);
+  img { width: 76px; height: auto; }
+`;
 
 const Backdrop = styled.div`
   position: fixed;

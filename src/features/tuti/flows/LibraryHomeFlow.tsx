@@ -28,6 +28,7 @@ function LibraryHome({ ownerId }: { ownerId: string }) {
     staleTime: 30_000, retry: false });
   const harumadiPdfs = query.data?.pages.flatMap(page => page.harumadis) ?? [];
   const recordCount = query.data?.pages[0].recordCount ?? 0;
+  const isFirstMadi = query.isSuccess && recordCount === 0;
   useEffect(() => {
     let active = true;
     void Promise.all([readLibraryWelcomeSeen(ownerId), loadHarumadiPdfDraft(ownerId).catch(() => null)]).then(([seen, draft]) => {
@@ -43,7 +44,7 @@ function LibraryHome({ ownerId }: { ownerId: string }) {
   const openEditor = () => router.push("/harumadi");
   return <Frame aria-labelledby="library-title">
     <Header><IconButton type="button" onClick={() => router.push("/settings")} aria-label="설정"><Settings2 size={20} /></IconButton></Header>
-    <Heading><h1 id="library-title">나의 작은 책장</h1><p>한 권을 준비하고, 하루씩 채워보세요.</p></Heading>
+    <Heading><h1 id="library-title">나의 작은 책장</h1><p>{isFirstMadi ? "기억하고 싶은 하루, 첫 마디부터 남겨보세요." : "한 권을 준비하고, 하루씩 채워보세요."}</p></Heading>
     <Toolbar><span>하루마디 <strong>{harumadiPdfs.length}{query.hasNextPage ? "+" : ""}</strong>권</span>
       <TextAction type="button" onClick={() => router.push("/journal")}>모아둔 마디<ChevronRight size={14} /></TextAction></Toolbar>
     {hasDraft && <DraftButton type="button" onClick={() => router.push("/harumadi/pdf/create")}><Download size={17} /><span>이전 PDF 작업 이어가기</span><ArrowUpRight size={16} /></DraftButton>}
@@ -52,11 +53,12 @@ function LibraryHome({ ownerId }: { ownerId: string }) {
         : query.isError && !query.data ? <Status role="alert"><BookOpen size={28} /><h2>책장을 불러오지 못했어요.</h2><p>하루마디가 없어진 건 아니에요.<br />연결을 확인하고 다시 불러와주세요.</p><TextAction onClick={() => void query.refetch()}>다시 불러오기<ChevronRight size={14} /></TextAction></Status>
         : <>
           {harumadiPdfs.length === 0 ? <EmptyShelf>
-            <EmptyHarumadi aria-hidden="true"><span>Tuti</span><BookOpen size={30} strokeWidth={1} /><i>기억하고 싶은 하루</i></EmptyHarumadi>
-            <ShelfEdge aria-hidden="true" />
-            <h2>앞으로의 하루를 담을 한 권</h2>
-            <p>표지와 속지를 먼저 준비해요.<br />마디는 나중에 한 페이지씩 채워도 좋아요.</p>
-            <PrimaryButton onClick={openEditor}>새 하루마디 만들기<ArrowUpRight size={16} /></PrimaryButton>
+            <EmptyMark aria-hidden="true"><PenLine size={28} strokeWidth={1.25} /></EmptyMark>
+            <h2>{isFirstMadi ? "첫 마디를 채워넣어보세요" : "모아둔 마디를 한 권으로"}</h2>
+            <p>{isFirstMadi ? <>사진 한 장이나 짧은 이야기로<br />오늘의 순간을 가볍게 남겨보세요.</> : <>소중한 마디들을 담을<br />표지와 속지를 준비해보세요.</>}</p>
+            {isFirstMadi
+              ? <TextAction type="button" onClick={openEditor}>하루마디부터 만들고 싶어요<ChevronRight size={14} /></TextAction>
+              : <PrimaryButton type="button" onClick={openEditor}>새 하루마디 만들기<ArrowUpRight size={16} /></PrimaryButton>}
             <TextAction onClick={() => router.push("/entry?mode=harumadi&page=1")}>하루마디 예시 펼쳐보기<ChevronRight size={14} /></TextAction>
           </EmptyShelf> : <>
             {Array.from({ length: Math.ceil(harumadiPdfs.length / 2) }, (_, row) => <ShelfRow key={harumadiPdfs[row * 2].id}>
@@ -72,7 +74,7 @@ function LibraryHome({ ownerId }: { ownerId: string }) {
           <ArchiveButton type="button" onClick={() => router.push("/harumadi/pdfs")}><Download size={15} />저장한 PDF 보기<ChevronRight size={14} /></ArchiveButton>
         </>}
     </ShelfScroll>
-    <Footer><PrimaryButton type="button" onClick={() => router.push("/journal/new?from=library")}><PenLine size={17} />마디 남기기</PrimaryButton>
+    <Footer><PrimaryButton type="button" onClick={() => router.push("/journal/new?from=library")}><PenLine size={17} />{isFirstMadi ? "첫 마디 남기기" : "마디 남기기"}</PrimaryButton>
       <ExploreButton type="button" onClick={() => router.push("/explore")}><Compass size={19} /><span>둘러보기</span></ExploreButton></Footer>
   </Frame>;
 }
@@ -95,8 +97,8 @@ const HarumadiButton = styled(BaseButton)`display: grid; gap: 0; min-width: 0; t
 `;
 const ShelfEdge = styled.div`height: 8px; border-radius: 2px; background: linear-gradient(#FDFEFC, #E3E8E0); border-top: 1px solid white; box-shadow: 0 5px 8px rgb(27 34 42 / 0.07);`;
 const HarumadiLabel = styled.span`min-width: 0; height: 49px; padding: 11px 2px 5px; display: grid; align-content: start; gap: 3px; strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11px; font-weight: 500; } small { color: var(--color-text-muted); font-size: 9px; }`;
-const EmptyShelf = styled.div`display: flex; flex-direction: column; align-items: center; padding-top: 6px; > div { width: 100%; } h2 { margin: 30px 0 10px; font-size: 18px; font-weight: 600; letter-spacing: -0.025em; } > p { margin: 0 0 20px; white-space: pre-line; text-align: center; font-size: 12px; color: var(--color-text-muted); line-height: 1.9; } > button { margin-bottom: 8px; }`;
-const EmptyHarumadi = styled.span`width: 119px; aspect-ratio: 148 / 210; background: #EBF5D5; border: 1px solid #dbe8cd; box-shadow: 3px 3px 0 #dce4d4, 5px 10px 15px rgb(27 34 42 / 0.1); padding: 18px; display: flex; flex-direction: column; align-items: center; justify-content: space-between; border-radius: 2px 5px 5px 2px; span { font-size: 10px; font-weight: 600; } i { font-size: 8px; font-style: normal; }`;
+const EmptyShelf = styled.div`display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 280px; padding: 24px 0; h2 { margin: 24px 0 10px; font-size: 18px; font-weight: 600; letter-spacing: -0.025em; text-align: center; } > p { margin: 0 0 20px; white-space: pre-line; text-align: center; font-size: 12px; color: var(--color-text-muted); line-height: 1.9; } > button { margin-bottom: 8px; }`;
+const EmptyMark = styled.span`width: 64px; height: 64px; display: grid; place-items: center; border-radius: 50%; background: var(--color-secondary-200); color: var(--color-text-muted);`;
 const Status = styled.div`min-height: 230px; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; gap: 14px; h2 { margin: 0; font-size: 17px; } p { margin: 0; line-height: 1.8; font-size: 12px; color: var(--color-text-muted); }`;
 const MoreButton = styled(BaseButton)`display: block; margin: 4px auto 20px; padding: 12px 20px; border-radius: 20px; background: white; color: var(--color-text-muted); font-size: 12px;`;
 const ArchiveButton = styled(BaseButton)`display: flex; align-items: center; justify-content: center; gap: 7px; min-height: 44px; margin: 20px auto 0; background: transparent; color: var(--color-text-muted); font-size: 11px;`;

@@ -32,9 +32,8 @@ test("목록·작성·공유의 이름을 맞추고 이어 쓰기는 첫 마디�
 
 test("법적 문안·활동 기록과 기존 저장 프로토콜은 제품 용어와 구분한다", () => {
   assert.match(read("components/JournalPublicationConsentDialog.tsx"), /기록 공개 운영정책/);
-  for (const path of ["screens/journal/JournalEditorScreen.tsx", "screens/onboarding/FirstMemoryScreen.tsx"]) {
-    assert.match(read(path), /\[선택\] 이 기록의 민감정보 처리에 별도로 동의해요\./);
-  }
+  assert.match(read("screens/journal/JournalEditorScreen.tsx"), /\[선택\] 이 기록의 민감정보 처리에 별도로 동의해요\./);
+  assert.doesNotMatch(read("screens/onboarding/FirstMemoryScreen.tsx"), /sensitiveConsentVersion/);
   assert.match(read("components/LocationHistorySection.tsx"), /위치정보를 이용한 기록/);
   const api = readFileSync("src/lib/tutiApi.ts", "utf8");
   assert.match(api, /행동을 기록하지 못했어요/);

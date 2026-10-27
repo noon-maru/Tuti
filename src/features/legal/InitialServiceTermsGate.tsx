@@ -25,6 +25,7 @@ export function InitialServiceTermsGate({ children, rightsChildren, renderConten
   const [state, setState] = useState<InitialTermsState | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [retry, setRetry] = useState(0);
+  const [localCheckComplete, setLocalCheckComplete] = useState(false);
   const [documentOpen, setDocumentOpen] = useState<"service" | "location" | null>(null);
   const [reconsent, setReconsent] = useState(false);
   const admitted = useRef(false);
@@ -49,7 +50,9 @@ export function InitialServiceTermsGate({ children, rightsChildren, renderConten
       activeUserId.current = cached.userId ?? null;
       setState(cached);
       setError(null);
-    }, !forceChecking.current).then(next => {
+    }, !forceChecking.current, () => {
+      if (active) setLocalCheckComplete(true);
+    }).then(next => {
       if (active) {
         activeUserId.current = next.userId ?? null;
         setReconsent(admitted.current && !next.allowed && Boolean(next.offer));
@@ -129,7 +132,8 @@ export function InitialServiceTermsGate({ children, rightsChildren, renderConten
   // 새 기기에서도 기존 계정을 복구하거나 문의할 수 있다. 이 경로에서는 분석/추천을 시작하지 않는다.
   if (pathname === "/login" || pathname === "/inquiry" || (state?.hasStoredSession && isInitialTermsRightsPath(pathname))) return renderContent(rightsChildren);
 
-  if (entryRedirect || (!state && !error)) return renderContent(<LoadingBrand role="status" aria-label="튜티 시작 중"><TutiWordmark priority /></LoadingBrand>);
+  // SSR·저장소 조회 동안 로고를 미리 그리면 캐시 진입에서도 새로고침마다 깜빡인다.
+  if (entryRedirect || (!state && !error)) return renderContent(<LoadingBrand role="status" aria-label="튜티 시작 중">{localCheckComplete && !entryRedirect && <TutiWordmark priority />}</LoadingBrand>);
 
   const offer = state?.offer ?? null;
   const locationTerms = getLocationTerms();

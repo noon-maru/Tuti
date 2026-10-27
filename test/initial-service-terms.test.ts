@@ -148,8 +148,13 @@ test("최초 약관 진입은 시행 원문과 실제 동의만 허용하며 구
     lookupWait = new Promise<void>(resolve => { release = resolve; });
     let cachedReady!: (state: Awaited<ReturnType<typeof loadInitialServiceTerms>>) => void;
     const ready = new Promise<Awaited<ReturnType<typeof loadInitialServiceTerms>>>(resolve => { cachedReady = resolve; });
-    const pending = startInitialServiceTerms(cachedReady);
+    const order: string[] = [];
+    const pending = startInitialServiceTerms(state => {
+      order.push("cached");
+      cachedReady(state);
+    }, true, () => { order.push("local-check-complete"); });
     assert.equal((await ready).allowed, true);
+    assert.deepEqual(order, ["cached", "local-check-complete"]);
     release();
     assert.equal((await pending).allowed, true);
     lookupWait = null;
@@ -171,8 +176,10 @@ test("최초 약관 진입은 시행 원문과 실제 동의만 허용하며 구
     accepted = true;
     await loadInitialServiceTerms();
     sawCache = false;
-    await startInitialServiceTerms(() => { sawCache = true; }, false);
+    let localCheckComplete = false;
+    await startInitialServiceTerms(() => { sawCache = true; }, false, () => { localCheckComplete = true; });
     assert.equal(sawCache, false);
+    assert.equal(localCheckComplete, true);
   });
   await t.test("기존 계정의 조회 장애는 권리 행사에 필요한 저장 계정 여부만 유지한다", async () => {
     failLookup = true;

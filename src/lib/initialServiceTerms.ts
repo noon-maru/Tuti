@@ -24,7 +24,11 @@ export class InitialTermsLoadError extends Error {
   }
 }
 
-export async function startInitialServiceTerms(onCached: (state: InitialTermsState) => void, useCache = true) {
+export async function startInitialServiceTerms(
+  onCached: (state: InitialTermsState) => void,
+  useCache = true,
+  onLocalCheckComplete?: () => void,
+) {
   const session = getSessionSnapshot() ?? await readStoredSession();
   if (session && useCache) {
     const cached = await serviceTermsAcceptanceCache.read(session.userId);
@@ -32,6 +36,7 @@ export async function startInitialServiceTerms(onCached: (state: InitialTermsSta
     if (cached && activeSession?.userId === session.userId && activeSession.accessToken === session.accessToken) onCached({ hasStoredSession: true, userId: session.userId, offer: null, allowed: true,
       acceptedTerms: { version: cached.version, documentHash: cached.documentHash } });
   }
+  onLocalCheckComplete?.();
   return loadInitialServiceTerms();
 }
 

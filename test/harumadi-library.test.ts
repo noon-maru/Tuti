@@ -29,6 +29,19 @@ test("홈은 탐색을 마운트하지 않고 페이지네이션·소유자별 �
   assert.match(readFileSync("src/features/tuti/components/HarumadiCover.tsx", "utf8"), /URL\.revokeObjectURL/);
 });
 
+test("둘러보기 후 빈 홈은 기본 표지 대신 첫 마디 작성을 안내하고 실제 하루마디는 유지한다", () => {
+  const home = readFileSync("src/features/tuti/flows/LibraryHomeFlow.tsx", "utf8");
+  const entry = readFileSync("src/features/tuti/flows/EntryFlow.tsx", "utf8");
+  assert.doesNotMatch(home, /EmptyHarumadi|기억하고 싶은 하루<\/i>|createHarumadi\(/);
+  assert.match(home, /const isFirstMadi = query.isSuccess && recordCount === 0/);
+  assert.match(home, /isFirstMadi \? "첫 마디 남기기" : "마디 남기기"/);
+  assert.match(home, /router.push\("\/journal\/new\?from=library"\)/);
+  assert.match(home, /하루마디부터 만들고 싶어요/);
+  assert.match(home, /harumadiPdfs.slice\(row \* 2, row \* 2 \+ 2\).map/);
+  assert.match(entry, /onExplore=\{\(\) => \{[\s\S]*?router.push\("\/explore"\)/);
+  assert.doesNotMatch(entry, /createHarumadi\(/);
+});
+
 test("하루마디 목록과 표지는 소유권·민감정보 철회·크기 한도를 지킨다", async t => {
   (globalThis as { prisma?: unknown }).prisma = {
     user: { findUnique: async () => null },
