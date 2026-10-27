@@ -311,7 +311,7 @@ export function DailyCheckInScreen({
                   오늘 상태 다시 고르기
                 </ReviseButton>
                 <SkipAction type="button" onClick={() => closeWith(onSkip)}>
-                  질문 없이 둘러보기
+                  질문 없이 작은 여행 찾기
                 </SkipAction>
                 <SnoozeAction
                   type="button"

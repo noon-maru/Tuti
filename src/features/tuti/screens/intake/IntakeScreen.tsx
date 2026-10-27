@@ -116,7 +116,7 @@ export function IntakeScreen({
             : "다음"}
         </NextButton>
         <BrowseButton disabled={resolvingLocation} onClick={onSkip}>
-          질문 없이 바로 둘러보기
+          질문 없이 작은 여행 찾기
         </BrowseButton>
       </QuestionActions>
     </Frame>

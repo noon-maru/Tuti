@@ -33,7 +33,7 @@ export function JournalCreateFlow() {
     firstMadi={isSuccess && entries.length === 0}
     inHarumadi={Boolean(harumadiId)}
     initialPlace={initialPlaceId && initialPlaceName ? { id: initialPlaceId, name: initialPlaceName } : undefined}
-    collectionLabel={fromExplore ? "둘러보기로 돌아가기" : fromLibrary ? "하루마디로 돌아가기" : "작성 마치기"}
+    collectionLabel={fromExplore ? "작은 여행으로 돌아가기" : fromLibrary ? "하루마디로 돌아가기" : "작성 마치기"}
     onBack={returnToSource}
     onSave={async draft => {
       const entry = await addEntry(draft);

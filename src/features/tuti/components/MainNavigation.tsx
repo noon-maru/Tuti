@@ -21,7 +21,7 @@ export function MainNavigation({ active, firstMadi = false }: {
       </CreateButton>
       <Destination type="button" aria-current={active === "explore" ? "page" : undefined}
         onClick={() => { if (active !== "explore") router.replace("/explore"); }}>
-        <span><Compass size={21} strokeWidth={1.7} /></span>둘러보기
+        <span><Compass size={21} strokeWidth={1.7} /></span>작은 여행
       </Destination>
     </Navigation>
   </Bar>;

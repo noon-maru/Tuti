@@ -70,10 +70,10 @@ export function WelcomeScreen({ onRecord, onExplore, guideStep, onGuideOpen, onG
     <Actions>
       {guide ? <>
         <NextButton type="button" onClick={guideStep === 2 ? onRecord : onGuideNext}>{guideStep === 2 ? "첫 마디 남기기" : "다음"}</NextButton>
-        <SubButton type="button" onClick={guideStep === 2 ? onExplore : onRecord}>{guideStep === 2 ? "가까운 공간 둘러보기" : "바로 첫 마디 남기기"}</SubButton>
+        <SubButton type="button" onClick={guideStep === 2 ? onExplore : onRecord}>{guideStep === 2 ? "작은 여행 찾아보기" : "바로 첫 마디 남기기"}</SubButton>
       </> : <>
         <NextButton type="button" onClick={onRecord}>첫 마디 남기기</NextButton>
-        <ExploreButton type="button" onClick={onExplore}>가까운 공간 둘러보기</ExploreButton>
+        <ExploreButton type="button" onClick={onExplore}>작은 여행 찾아보기</ExploreButton>
       </>}
     </Actions>
   </Frame>;

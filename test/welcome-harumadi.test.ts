@@ -24,7 +24,7 @@ test("엔트리는 짧은 소개·예시·첫 마디 행동에 집중하고 이�
   assert.match(source, /<GuideButton type="button" onClick=\{onGuideOpen\}>이용 방법/);
   assert.doesNotMatch(actions, /onGuideOpen/);
   assert.match(actions, /onClick=\{onRecord\}>첫 마디 남기기/);
-  assert.match(actions, /onClick=\{onExplore\}>가까운 공간 둘러보기/);
+  assert.match(actions, /onClick=\{onExplore\}>작은 여행 찾아보기/);
   assert.doesNotMatch(source, /마디는 어떻게 남기나요|infinite/);
   assert.match(source, /prefers-reduced-motion: reduce/);
 });

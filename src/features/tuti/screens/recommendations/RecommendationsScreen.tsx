@@ -759,10 +759,8 @@ export function RecommendationsScreen({
           />
         </AccountMenu>
         <Copy $progress={verticalProgress}>
-          <h1>오늘 가능한 정도</h1>
-          <p>
-            {activePlace?.reason ?? "지금의 마음에 맞는 장소를 찾고 있어요."}
-          </p>
+          <h1>다음 마디가 될 작은 여행</h1>
+          <p>가까운 곳에서, 남기고 싶은 하루를 만나보세요.</p>
           {!locationAvailable && (
             <LocationModeButton
               type="button"
@@ -984,7 +982,7 @@ export function RecommendationsScreen({
               onPointerDown={(event) => event.stopPropagation()}
               onClick={skipInitialHelp}
             >
-              바로 둘러보기
+              작은 여행 보기
             </HelpSkipButton>
           </HelpContent>
         )}
@@ -1555,7 +1553,8 @@ const Copy = styled.div<{ $progress: number }>`
     $progress > 0 ? "none" : "opacity 220ms ease, transform 240ms ease"};
 
   h1 {
-    font-size: var(--font-size-500);
+    max-width: calc(100% - 48px);
+    font-size: clamp(18px, 5cqw, 22px);
     font-weight: 600;
     line-height: var(--line-height-subtitle);
     letter-spacing: var(--letter-spacing-subtitle);

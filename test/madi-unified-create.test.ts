@@ -23,7 +23,7 @@ test("첫 마디 안내는 진입 위치가 아니라 실제 마디가 없는 �
 test("작성 완료는 원래 화면으로 복귀하며 하루마디 연결과 추천 행동 계측을 보존한다", () => {
   const flow = readFileSync("src/features/tuti/flows/JournalCreateFlow.tsx", "utf8");
   assert.match(flow, /onBack=\{returnToSource\}/);
-  assert.match(flow, /fromExplore \? "둘러보기로 돌아가기"/);
+  assert.match(flow, /fromExplore \? "작은 여행으로 돌아가기"/);
   assert.match(flow, /&addEntryId=\$\{encodeURIComponent\(savedEntryId.current\)\}/);
   assert.match(flow, /action: "journal_created"/);
   const screen = readFileSync("src/features/tuti/screens/journal/MadiCreateScreen.tsx", "utf8");
