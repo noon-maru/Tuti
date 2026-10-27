@@ -61,9 +61,10 @@ test("메인 확대는 기존 좌우 여백과 2열 간격을 유지하고 행�
   assert.match(home, /grid-template-columns: repeat\(2, minmax\(0, 1fr\)\); gap: 24px; padding: 0 8px/);
   assert.match(home, /bottom: 108px/);
   assert.match(home, /height: 108px; padding: 18px 0 12px/);
-  assert.match(home, /bottom: 46px; width: 44px; height: 44px/);
+  assert.match(home, /bottom: 60px; width: 44px; height: 44px/);
   assert.match(home, /--harumadi-shelf-title-size: 16px/);
-  assert.match(home, /strong \{ min-height: 44\.8px; padding-right: 36px/);
+  assert.match(home, /strong \{ padding-right: 36px/);
+  assert.doesNotMatch(home, /min-height: 44\.8px/);
   assert.match(home, /-webkit-line-clamp: 2/);
   assert.match(home, /max-height: 620px/);
   assert.match(home, /--main-navigation-create-height: 52px/);
