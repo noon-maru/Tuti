@@ -20,26 +20,23 @@ function place(id: string, moodTags: string[], fatigue = 30): TutiPlace {
   };
 }
 
-function journal(placeId: string | null, theme: string): TutiJournalEntry {
+function journal(placeId: string | null): TutiJournalEntry {
   return {
-    id: `journal-${placeId ?? theme}`,
+    id: `journal-${placeId ?? "freeform"}`,
     title: "기록",
     content: "",
     image: null,
-    crowd: "보통",
     placeId,
     placeName: "다녀온 공간",
-    theme,
-    difficulty: "가벼움",
     visitedAt: "2026-09-09T00:00:00.000Z",
     publicationStatus: "private",
     publication: null,
   };
 }
 
-test("기록의 테마와 닮은 오늘 추천을 우선하고 방문·저장 장소는 제외한다", () => {
+test("연결된 방문 장소의 분위기를 참고하고 방문·저장 장소는 제외한다", () => {
   const result = findSimilarVisitedPlaces({
-    journalEntries: [journal("visited", "걷기 좋은")],
+    journalEntries: [journal("visited")],
     recommendationPlaces: [
       place("visited", ["walk"]),
       place("saved", ["walk"]),
@@ -56,9 +53,9 @@ test("기록의 테마와 닮은 오늘 추천을 우선하고 방문·저장 �
   );
 });
 
-test("연결할 수 있는 기록 테마가 없으면 억지로 비슷한 공간을 만들지 않는다", () => {
+test("장소 연결이 없는 자유 기록에서는 취향을 임의로 추론하지 않는다", () => {
   const result = findSimilarVisitedPlaces({
-    journalEntries: [journal(null, "나만의 특별한 하루")],
+    journalEntries: [journal(null)],
     recommendationPlaces: [place("quiet", ["quiet"])],
     savedPlaceIds: [],
   });

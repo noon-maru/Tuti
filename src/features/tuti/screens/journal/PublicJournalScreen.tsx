@@ -128,11 +128,6 @@ export function PublicJournalScreen({
             <DateText>{formatPublicDate(entry.visitedAt)}</DateText>
             <h1>{entry.title || "남겨둔 공간"}</h1>
             <JournalLocationLabel placeName={entry.placeName} />
-            <Tags aria-label="마디 정보">
-              <Tag $tone="brand">{entry.crowd}</Tag>
-              <Tag $tone="neutral">{entry.theme}</Tag>
-              <Tag $tone="secondary">{entry.difficulty}</Tag>
-            </Tags>
             <Description>
               {entry.content || "오늘의 공기를 이곳에 남겨두었어요."}
             </Description>
@@ -331,34 +326,6 @@ const Content = styled.div`
 const DateText = styled.time`
   color: ${palette.neutral[900]};
   font-size: 14px;
-`;
-
-const Tags = styled.div`
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 8px;
-`;
-
-const Tag = styled.span<{
-  $tone: "brand" | "neutral" | "secondary";
-}>`
-  min-width: 0;
-  min-height: 32px;
-  display: grid;
-  place-items: center;
-  padding: 4px 10px;
-  overflow: hidden;
-  border-radius: 999px;
-  background: ${({ $tone }) =>
-    $tone === "brand"
-      ? palette.brand[500]
-      : $tone === "secondary"
-        ? palette.secondary[500]
-        : palette.neutral[500]};
-  font-size: 12px;
-  font-weight: 500;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 `;
 
 const Description = styled.p`

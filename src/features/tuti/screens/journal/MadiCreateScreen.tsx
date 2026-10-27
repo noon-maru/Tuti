@@ -10,7 +10,7 @@ import { ImageCropDialog } from "@/features/tuti/components/ImageCropDialog";
 import { readImageMetadata } from "@/features/tuti/lib/readImageMetadata";
 import { ANDROID_BACK_EVENT } from "@/features/tuti/navigation/androidBack";
 import { getKoreanDateKey } from "@/lib/date/koreanDate";
-import { FIRST_JOURNAL_CONTENT_LIMIT, FIRST_JOURNAL_PLACE_LIMIT, prepareFirstJournalDraft } from "@/shared/api/firstJournal";
+import { FIRST_JOURNAL_CONTENT_LIMIT, FIRST_JOURNAL_PLACE_LIMIT, FIRST_JOURNAL_TITLE_LIMIT, prepareFirstJournalDraft } from "@/shared/api/firstJournal";
 import type { JournalEntryInput, TutiJournalEntry } from "@/shared/api/journal";
 
 type Stage = "photo" | "write" | "preview";
@@ -32,6 +32,7 @@ export function MadiCreateScreen({ onBack, onSave, onCollection, onSaved, inHaru
   const [image, setImage] = useState<string | null>(null);
   const [cropSource, setCropSource] = useState<string | null>(null);
   const [content, setContent] = useState("");
+  const [title, setTitle] = useState("");
   const [date, setDate] = useState(getKoreanDateKey);
   const [place, setPlace] = useState(initialPlace?.name ?? "");
   const [saved, setSaved] = useState<TutiJournalEntry | null>(null);
@@ -47,7 +48,7 @@ export function MadiCreateScreen({ onBack, onSave, onCollection, onSaved, inHaru
   const heading = useRef<HTMLHeadingElement>(null);
   const scroll = useRef<HTMLDivElement>(null);
   const today = getKoreanDateKey();
-  const draft = prepareFirstJournalDraft({ image, content, date, place }, today);
+  const draft = prepareFirstJournalDraft({ image, title, content, date, place }, today);
 
   useEffect(() => () => { if (cropSource) URL.revokeObjectURL(cropSource); }, [cropSource]);
   useEffect(() => () => { selection.current += 1; }, []);
@@ -120,7 +121,7 @@ export function MadiCreateScreen({ onBack, onSave, onCollection, onSaved, inHaru
   const startAnother = () => {
     setContinued(true);
     selection.current += 1;
-    setSaved(null); setImage(null); setContent(""); setDate(getKoreanDateKey()); setPlace(""); setError("");
+    setSaved(null); setImage(null); setTitle(""); setContent(""); setDate(getKoreanDateKey()); setPlace(""); setError("");
     dateEdited.current = false;
     setStage("photo");
   };
@@ -146,12 +147,14 @@ export function MadiCreateScreen({ onBack, onSave, onCollection, onSaved, inHaru
       <HiddenInput ref={cameraInput} type="file" accept="image/*" capture="environment" aria-label="카메라 사진 촬영" onChange={choosePhoto} />
       {!saved && stage === "write" && <Fields>
         {image && <SelectedPhoto><Image src={image} alt="마디에 담을 사진" fill unoptimized sizes="350px" /></SelectedPhoto>}
+        <label><span>제목 <small>선택</small></span><input aria-label="마디 제목 (선택)" placeholder="이날을 기억할 짧은 제목" maxLength={FIRST_JOURNAL_TITLE_LIMIT} value={title} onChange={event => setTitle(event.target.value)} /></label>
         <label><span>기억하고 싶은 이야기 <small>{image ? "선택" : "필수"}</small></span><textarea aria-label="기억하고 싶은 이야기" placeholder="함께여서 좋았던 순간을 남겨보세요." maxLength={FIRST_JOURNAL_CONTENT_LIMIT} value={content} onChange={(event) => setContent(event.target.value)} /></label>
         <label>날짜<input aria-label="마디 날짜" type="date" max={today} value={date} onChange={(event) => { dateEdited.current = true; setDate(event.target.value); }} /></label>
         <label><span>어디에서 함께했나요? <small>선택</small></span><input aria-label="장소 (선택)" placeholder="동네 카페, 함께 걷던 길" maxLength={FIRST_JOURNAL_PLACE_LIMIT} value={place} onChange={(event) => setPlace(event.target.value)} /></label>
         <PrivacyHint>민감정보나 주민등록번호 등은 남기지 말아주세요.</PrivacyHint>
       </Fields>}
       {(saved || stage === "preview") && <MemoryPage
+        title={saved ? saved.title : title.trim()}
         image={saved ? saved.image : image}
         content={saved ? saved.content : content.trim()}
         date={saved ? getKoreanDateKey(new Date(saved.visitedAt)) : date}
@@ -171,16 +174,18 @@ export function MadiCreateScreen({ onBack, onSave, onCollection, onSaved, inHaru
   </Frame>;
 }
 
-function MemoryPage({ image, content, date, place }: { image: string | null; content: string; date: string; place: string }) {
+function MemoryPage({ title, image, content, date, place }: { title: string; image: string | null; content: string; date: string; place: string }) {
   return <Page aria-label="하루마디에 담을 마디 미리보기">
     <PageMeta><span>{date.replaceAll("-", ".")}</span>{place && <span>{place}</span>}</PageMeta>
     {image && <PageImage><Image src={image} alt="마디에 담은 사진" fill unoptimized sizes="350px" /></PageImage>}
+    {title && <PageTitle>{title}</PageTitle>}
     {content && <PageText>{content}</PageText>}
     <PageNumber aria-hidden="true">1</PageNumber>
   </Page>;
 }
 
 const Frame = styled(ScreenFrame)`background: #fff; gap: 20px; --screen-padding-top: calc(24px + var(--app-safe-area-top, 0px));`;
+const PageTitle = styled.h2`margin: 0; font-size: 15px; font-weight: 600; line-height: 1.6; overflow-wrap: anywhere;`;
 const Header = styled.header`flex: none; display: grid; grid-template-columns: 44px minmax(0, 1fr) 44px; align-items: center; text-align: center; gap: 8px; > span { font-size: 14px; font-weight: 600; }`;
 const StepCount = styled.div`font-size: 12px; color: var(--color-text-muted); display: flex; justify-content: center;`;
 const Content = styled.div`flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 2px 2px 24px; display: flex; flex-direction: column; gap: 26px; > * { flex-shrink: 0; }`;

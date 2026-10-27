@@ -6,7 +6,7 @@ import { canStoreSensitiveJournal, canSubmitJournalClassification, SENSITIVE_JOU
 import { parseJournalEntryInput } from "../src/server/journal/input";
 import { emptyHarumadiPdfDraft, parseHarumadiPdfInput } from "../src/shared/api/harumadiPdf";
 
-const input = { title: "작은 하루", content: "기록", image: null, crowd: "미정", difficulty: "미정", placeName: "남긴 공간", theme: "미정" };
+const input = { title: "작은 하루", content: "기록", image: null, placeName: "남긴 공간", };
 const now = new Date("2026-10-20T00:00:00Z");
 let writes = 0;
 let lastDelivery: unknown;

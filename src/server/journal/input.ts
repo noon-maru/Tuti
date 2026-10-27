@@ -4,7 +4,6 @@ const MAX_IMAGE_INPUT_LENGTH = 7 * 1024 * 1024;
 const MAX_TITLE_LENGTH = 80;
 const MAX_CONTENT_LENGTH = 4_000;
 const MAX_PLACE_NAME_LENGTH = 120;
-const MAX_TAG_LENGTH = 40;
 
 export function parseJournalEntryInput(
   value: unknown,
@@ -15,12 +14,9 @@ export function parseJournalEntryInput(
 
   const {
     content,
-    crowd,
-    difficulty,
     image,
     placeId,
     placeName,
-    theme,
     title,
     visitedAt,
   } = value;
@@ -28,10 +24,7 @@ export function parseJournalEntryInput(
   if (
     typeof title !== "string" ||
     typeof content !== "string" ||
-    typeof crowd !== "string" ||
     typeof placeName !== "string" ||
-    typeof theme !== "string" ||
-    typeof difficulty !== "string" ||
     (image !== null && typeof image !== "string") ||
     (placeId !== undefined && placeId !== null && typeof placeId !== "string") ||
     (visitedAt !== undefined && typeof visitedAt !== "string")
@@ -44,10 +37,7 @@ export function parseJournalEntryInput(
   if (
     title.trim().length > MAX_TITLE_LENGTH ||
     content.trim().length > MAX_CONTENT_LENGTH ||
-    placeName.trim().length > MAX_PLACE_NAME_LENGTH ||
-    crowd.trim().length > MAX_TAG_LENGTH ||
-    theme.trim().length > MAX_TAG_LENGTH ||
-    difficulty.trim().length > MAX_TAG_LENGTH
+    placeName.trim().length > MAX_PLACE_NAME_LENGTH
   ) {
     return null;
   }
@@ -63,14 +53,11 @@ export function parseJournalEntryInput(
     title: title.trim(),
     content: content.trim(),
     image,
-    crowd: crowd.trim() || "미정",
     placeId:
       typeof placeId === "string" && placeId.trim()
         ? placeId.trim()
         : null,
     placeName: placeName.trim() || "남긴 공간",
-    theme: theme.trim() || "미정",
-    difficulty: difficulty.trim() || "미정",
     visitedAt,
     ...(typeof value.sensitiveContent === "boolean" ? { sensitiveContent: value.sensitiveContent } : {}),
     ...(typeof value.sensitiveConsentVersion === "string" ? { sensitiveConsentVersion: value.sensitiveConsentVersion } : {}),

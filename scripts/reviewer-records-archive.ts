@@ -15,7 +15,7 @@ let stage = "arguments";
 class ArchiveSourceError extends Error { readonly code = "UNSUPPORTED_IMAGE_SOURCE"; }
 const digest = (value: string | Uint8Array) => createHash("sha256").update(value).digest("hex");
 type Image = { file: string; bytes: number; sha256: string; contentType: string };
-type RecordData = { sourceEntryId: string; title: string; content: string; crowd: string; difficulty: string; theme: string; placeId: string | null; placeName: string; visitedAt: string; image: Image };
+type RecordData = { sourceEntryId: string; title: string; content: string; placeId: string | null; placeName: string; visitedAt: string; image: Image };
 type Archive = { version: 1; purpose: "operator-owned-review-test-content"; sourceUserId: string; sourceFingerprint: string; exportedAt: string; reviewBy: string; importPolicy: "new-account-new-ids-private-no-consent-copy"; records: RecordData[] };
 
 export async function sourceSnapshot() {
@@ -25,7 +25,7 @@ export async function sourceSnapshot() {
     if (users.length !== 1) throw new Error("기존 심사용 일반 계정을 정확히 확인하지 못했습니다.");
     if (await tx.harumadiPdf.count({ where: { ownerId: SOURCE_USER_ID } })) throw new Error("하루마디가 생겼습니다. 보관 범위를 다시 확인해주세요.");
     const records = await tx.journalEntry.findMany({ where: { ownerId: SOURCE_USER_ID }, orderBy: { id: "asc" }, select: {
-      id: true, title: true, content: true, image: true, crowd: true, difficulty: true, theme: true,
+      id: true, title: true, content: true, image: true,
       placeId: true, placeName: true, visitedAt: true, updatedAt: true, sensitiveContent: true, sensitiveWithdrawnAt: true,
     } });
     if (records.length !== EXPECTED_RECORDS || records.some(record => !record.image || record.sensitiveContent || record.sensitiveWithdrawnAt)) throw new Error("승인한 기록 3개·이미지 3개와 다르거나 별도 민감정보 확인이 필요합니다.");
@@ -69,7 +69,7 @@ export function validateArchive(value: unknown): asserts value is Archive {
   const files = new Set<string>();
   for (const record of a.records) {
     if (!record || typeof record.sourceEntryId !== "string" || !record.sourceEntryId || ids.has(record.sourceEntryId) ||
-        ![record.title, record.content, record.crowd, record.difficulty, record.theme, record.placeName].every(text => typeof text === "string") ||
+        ![record.title, record.content, record.placeName].every(text => typeof text === "string") ||
         !(record.placeId === null || typeof record.placeId === "string") || !Number.isFinite(Date.parse(record.visitedAt)) ||
         !record.image || !/^image-0[1-3]\.bin$/.test(record.image.file) || files.has(record.image.file) ||
         !Number.isInteger(record.image.bytes) || record.image.bytes < 1 || record.image.bytes > MAX_IMAGE_BYTES ||
@@ -120,7 +120,7 @@ async function main() {
       const file = `image-0${i + 1}.bin`;
       stage = `image-save-${i + 1}`;
       await writeDurable(join(ROOT, file), bytes);
-      records.push({ sourceEntryId: entry.id, title: entry.title, content: entry.content, crowd: entry.crowd, difficulty: entry.difficulty, theme: entry.theme, placeId: entry.placeId, placeName: entry.placeName, visitedAt: entry.visitedAt.toISOString(), image: { file, contentType, bytes: bytes.byteLength, sha256: digest(bytes) } });
+      records.push({ sourceEntryId: entry.id, title: entry.title, content: entry.content, placeId: entry.placeId, placeName: entry.placeName, visitedAt: entry.visitedAt.toISOString(), image: { file, contentType, bytes: bytes.byteLength, sha256: digest(bytes) } });
     }
     const archive: Archive = { version: 1, purpose: "operator-owned-review-test-content", sourceUserId: SOURCE_USER_ID, sourceFingerprint: snapshot.fingerprint, exportedAt: new Date().toISOString(), reviewBy: new Date(Date.now() + 30 * 86400000).toISOString(), importPolicy: "new-account-new-ids-private-no-consent-copy", records };
     validateArchive(archive);

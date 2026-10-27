@@ -702,11 +702,8 @@ model JournalEntry {
   title       String
   content     String
   image       String?
-  crowd       String
   placeId     String?   @map("place_id")
   placeName   String    @map("place_name")
-  theme       String    @default("미정")
-  difficulty  String
   visitedAt   DateTime  @map("visited_at")
   publicId    String?   @unique @map("public_id")
   publishedAt DateTime? @map("published_at")

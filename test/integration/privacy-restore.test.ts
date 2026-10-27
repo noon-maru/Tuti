@@ -106,7 +106,7 @@ test("전체 스키마와 실제 Garage의 사진·PDF를 복원한 뒤 원장�
     const image = `journal-images/${ownerId}/${id}/photo.webp`;
     objects.set(image, Buffer.from(`SYNTHETIC-PHOTO-${id}`));
     await client.journalEntry.create({ data: {
-      id, ownerId, title: `test-${id}`, content: `synthetic story ${id}`, image, crowd: "미정", placeName: "시험 공간", difficulty: "미정", visitedAt: new Date(),
+      id, ownerId, title: `test-${id}`, content: `synthetic story ${id}`, image, placeName: "시험 공간", visitedAt: new Date(),
       sensitiveContent: id === "sensitive", sensitiveConsentVersion: id === "sensitive" ? "sensitive-journal-v1" : null,
       sensitiveConsentedAt: id === "sensitive" ? new Date() : null,
     } });

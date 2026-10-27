@@ -396,11 +396,6 @@ function JournalShareCard({
 
         <ShareBody>
           <ShareLocation placeName={entry.placeName} />
-          <ShareTags>
-            <ShareTag $tone="brand">{entry.crowd}</ShareTag>
-            <ShareTag $tone="neutral">{entry.theme}</ShareTag>
-            <ShareTag $tone="secondary">{entry.difficulty}</ShareTag>
-          </ShareTags>
           <ShareDescription>
             {entry.content || "오늘의 공기를 이곳에 남겨두었어요."}
           </ShareDescription>
@@ -685,35 +680,6 @@ const ShareLocation = styled(JournalLocationLabel)`
     width: 18px;
     height: 22px;
   }
-`;
-
-const ShareTags = styled.div`
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 16px;
-`;
-
-const ShareTag = styled.span<{
-  $tone: "brand" | "neutral" | "secondary";
-}>`
-  min-width: 0;
-  height: 52px;
-  display: grid;
-  place-items: center;
-  padding: 0 20px;
-  overflow: hidden;
-  border-radius: 999px;
-  background: ${({ $tone }) =>
-    $tone === "brand"
-      ? palette.brand[500]
-      : $tone === "secondary"
-        ? palette.secondary[500]
-        : palette.neutral[500]};
-  font-size: 23px;
-  font-weight: 500;
-  line-height: 1;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 `;
 
 const ShareDescription = styled.p`

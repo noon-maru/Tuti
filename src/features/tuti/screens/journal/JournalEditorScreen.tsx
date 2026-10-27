@@ -26,17 +26,6 @@ import { getLocationTermsVersion } from "@/shared/location/terms";
 import { useTutiStore } from "@/store/tuti";
 import { journalImageMaxWidth } from "@/styles/tokens";
 
-const CROWD_OPTIONS = ["한적함", "보통", "활기참"];
-const THEME_OPTIONS = [
-  "걷기 좋은",
-  "조용한",
-  "초록이 많은",
-  "사진 남기기 좋은",
-  "바람 쐬기 좋은",
-  "머물기 좋은",
-];
-const DIFFICULTY_OPTIONS = ["가벼움", "적당함", "조금 힘듦"];
-
 type PhotoPlaceHint = {
   status: "loading" | "success" | "notice";
   message: string;
@@ -78,7 +67,6 @@ export function JournalEditorScreen({
     entry?.image ?? null,
   );
   const [cropSource, setCropSource] = useState<string | null>(null);
-  const [crowd, setCrowd] = useState(entry?.crowd ?? "");
   const [placeId, setPlaceId] = useState<string | null>(
     entry?.placeId ?? initialPlace?.id ?? null,
   );
@@ -89,8 +77,6 @@ export function JournalEditorScreen({
     useState<PhotoPlaceHint | null>(null);
   const [pendingPhotoLocationChoice, setPendingPhotoLocationChoice] =
     useState<PendingPhotoLocationChoice | null>(null);
-  const [theme, setTheme] = useState(entry?.theme ?? "");
-  const [difficulty, setDifficulty] = useState(entry?.difficulty ?? "");
   const [visitDate, setVisitDate] = useState(() =>
     toDateInputValue(entry?.visitedAt ?? new Date()),
   );
@@ -115,9 +101,7 @@ export function JournalEditorScreen({
     title.trim() ||
       body.trim() ||
       imageUrl ||
-      crowd.trim() ||
-      placeName.trim() ||
-      difficulty.trim(),
+      placeName.trim(),
   );
 
   const selectImage = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -263,12 +247,9 @@ export function JournalEditorScreen({
     setTitle("");
     setBody("");
     setImageUrl(null);
-    setCrowd("");
     setPlaceId(null);
     setPlaceName("");
     setPhotoPlaceHint(null);
-    setTheme("");
-    setDifficulty("");
     setSubmitError(null);
     setSensitiveContent(entry?.sensitiveContent ?? false);
     setSensitiveAgreed(false);
@@ -286,11 +267,8 @@ export function JournalEditorScreen({
           title: title.trim(),
           content: body.trim(),
           image: imageUrl,
-          crowd: crowd.trim() || "미정",
           placeId,
           placeName: placeName.trim() || "남긴 공간",
-          theme: theme.trim() || "미정",
-          difficulty: difficulty.trim() || "미정",
           visitedAt: toVisitedAt(visitDate),
           ...(sensitivePolicy && sensitiveContent !== null ? {
             sensitiveContent,
@@ -374,50 +352,6 @@ export function JournalEditorScreen({
             setPhotoPlaceHint(null);
           }}
         />
-
-        <Tags aria-label="마디 정보">
-          <ContextMenu
-            label="혼잡도 선택"
-            triggerContent={crowd || "혼잡도"}
-            triggerTone="brand"
-            items={withCurrentOption(CROWD_OPTIONS, crowd).map(
-              (option) => ({
-                label: option,
-                selected: option === crowd,
-                onSelect: () => setCrowd(option),
-              }),
-            )}
-          />
-          <ContextMenu
-            label="테마 선택"
-            triggerContent={theme || "테마"}
-            triggerTone="neutral"
-            items={withCurrentOption(THEME_OPTIONS, theme).map((option) => ({
-              label: option,
-              selected: option === theme,
-              onSelect: () => setTheme(option),
-            }))}
-            textInput={{
-              label: "테마 직접 입력",
-              placeholder: "나만의 테마",
-              value: theme,
-              onSubmit: setTheme,
-            }}
-          />
-          <ContextMenu
-            label="난이도 선택"
-            triggerContent={difficulty || "난이도"}
-            triggerTone="secondary"
-            items={withCurrentOption(
-              DIFFICULTY_OPTIONS,
-              difficulty,
-            ).map((option) => ({
-              label: option,
-              selected: option === difficulty,
-              onSelect: () => setDifficulty(option),
-            }))}
-          />
-        </Tags>
 
         <EditorCopy>
           <TitleInput
@@ -521,12 +455,6 @@ export function JournalEditorStatusScreen({
         {loading ? <LoadingIndicator label={message} /> : message}
       </Status>
     </Frame>
-  );
-}
-
-function withCurrentOption(options: string[], currentOption: string) {
-  return Array.from(
-    new Set([currentOption, ...options].filter(Boolean)),
   );
 }
 
@@ -676,12 +604,6 @@ const VisitDateInput = styled.input`
     cursor: pointer;
     opacity: 0.64;
   }
-`;
-
-const Tags = styled.div`
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: var(--space-2);
 `;
 
 const SensitiveSection = styled.fieldset`

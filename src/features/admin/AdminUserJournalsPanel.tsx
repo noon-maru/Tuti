@@ -130,8 +130,6 @@ export function AdminUserJournalsPanel({ user, onBack, backLabel }: {
                   <div><dt>방문일</dt><dd>{visitFormatter.format(new Date(entry.visitedAt))}</dd></div>
                   <div><dt>작성 시각</dt><dd>{dateFormatter.format(new Date(entry.createdAt))}</dd></div>
                   <div><dt>최종 수정</dt><dd>{dateFormatter.format(new Date(entry.updatedAt))}</dd></div>
-                  <div><dt>혼잡도 / 난이도</dt><dd>{entry.crowd} / {entry.difficulty}</dd></div>
-                  <div><dt>테마</dt><dd>{entry.theme}</dd></div>
                   <div><dt>기록 ID</dt><dd>{entry.id}</dd></div>
                 </Facts>
               </EntryBody>

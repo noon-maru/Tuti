@@ -5,7 +5,7 @@ import type { Prisma } from "@/generated/prisma/client";
 import { createDefaultHarumadiForFirstMadi } from "@/server/harumadi/firstMadi";
 
 const input: JournalEntryInput = { title: "", content: "함께 걸었던 하루", image: null,
-  crowd: "미정", difficulty: "미정", placeName: "남긴 공간", theme: "미정", sensitiveContent: false };
+  placeName: "남긴 공간", sensitiveContent: false };
 
 test("첫 마디와 기본 하루마디를 함께 저장하고 동시 요청·실패·기존 책장을 구분한다", async t => {
   type Entry = Omit<JournalEntryInput, "visitedAt"> & { id: string; ownerId: string; updatedAt: Date; visitedAt: Date };

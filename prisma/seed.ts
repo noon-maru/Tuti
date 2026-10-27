@@ -35,9 +35,7 @@ type SeedJournalEntry = {
   title: string;
   content: string;
   image: string | null;
-  crowd: "한적함" | "보통" | "활기참";
   placeName: string;
-  difficulty: "가벼움" | "적당함" | "조금 힘듦";
   visitedAt: Date;
 };
 
@@ -196,9 +194,7 @@ const journalEntries: SeedJournalEntry[] = [
       "푸른 나무들이 우거진 곳에서 벗어난 듯 고요한 여유를 느낄 수 있는 곳으로, 시야를 가득 채우는 짙은 초록빛 덕분에 답답했던 마음을 환기하기에 가벼운 산책이 되었습니다. 나무 사이로 불어오던 바람과 한적한 길을 걷다 보니 온전히 나만의 시간에 집중하게 되는 매력적인 공간입니다.",
     image:
       "https://images.unsplash.com/photo-1441974231531-c6227db76b6e?auto=format&fit=crop&w=1200&q=80",
-    crowd: "한적함",
     placeName: "작은 동네 공원",
-    difficulty: "가벼움",
     visitedAt: new Date("2026-06-26T16:20:00+09:00"),
   },
   {
@@ -208,9 +204,7 @@ const journalEntries: SeedJournalEntry[] = [
       "해가 조금씩 내려앉는 시간에 물가를 따라 천천히 걸었습니다. 서두르지 않아도 되는 길이라 복잡했던 생각이 물결을 따라 조금씩 느려졌고, 돌아오는 길에는 처음보다 가벼운 마음이 남았습니다.",
     image:
       "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=1200&q=80",
-    crowd: "보통",
     placeName: "강변 문화광장",
-    difficulty: "적당함",
     visitedAt: new Date("2026-06-18T19:10:00+09:00"),
   },
   {
@@ -220,9 +214,7 @@ const journalEntries: SeedJournalEntry[] = [
       "창가에 앉아 지나가는 사람들을 바라보며 따뜻한 차를 천천히 마셨습니다. 특별히 무언가를 하지 않아도 어색하지 않은 곳이어서, 말없이 머무는 것만으로도 충분했던 시간이었습니다.",
     image:
       "https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?auto=format&fit=crop&w=1200&q=80",
-    crowd: "한적함",
     placeName: "조용한 창가 카페",
-    difficulty: "가벼움",
     visitedAt: new Date("2026-06-09T14:40:00+09:00"),
   },
   {
@@ -232,9 +224,7 @@ const journalEntries: SeedJournalEntry[] = [
       "돌아갈 시간을 정하지 않은 채 오래된 골목과 시장 사이를 걸었습니다. 사람들의 목소리와 가게 앞의 작은 풍경이 계속 이어져서, 목적지가 없어도 발걸음이 자연스럽게 다음 길을 찾아갔습니다.",
     image:
       "https://images.unsplash.com/photo-1529156069898-49953e39b3ac?auto=format&fit=crop&w=1200&q=80",
-    crowd: "활기참",
     placeName: "오래된 시장 산책",
-    difficulty: "조금 힘듦",
     visitedAt: new Date("2026-05-30T17:30:00+09:00"),
   },
   {
@@ -244,9 +234,7 @@ const journalEntries: SeedJournalEntry[] = [
       "숲 안쪽의 작은 쉼터에 앉아 한동안 나뭇잎이 흔들리는 소리를 들었습니다. 도시의 소리가 멀어진 자리에서는 다른 생각을 애써 정리하지 않아도 괜찮았고, 잠깐의 고요만으로도 충분히 쉬어갈 수 있었습니다.",
     image:
       "https://images.unsplash.com/photo-1501785888041-af3ef285b470?auto=format&fit=crop&w=1200&q=80",
-    crowd: "한적함",
     placeName: "숲속 작은 쉼터",
-    difficulty: "적당함",
     visitedAt: new Date("2026-05-21T12:50:00+09:00"),
   },
   {
@@ -256,9 +244,7 @@ const journalEntries: SeedJournalEntry[] = [
       "강변 벤치에 앉아 지나가는 자전거와 물결을 한참 바라봤습니다. 오래 걷지 않았는데도 시야가 멀어지니 답답했던 마음에 작은 틈이 생겼고, 바람이 잦아들 때쯤 천천히 집으로 돌아왔습니다.",
     image:
       "https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=1200&q=80",
-    crowd: "한적함",
     placeName: "강변의 조용한 벤치",
-    difficulty: "가벼움",
     visitedAt: new Date("2026-05-12T18:10:00+09:00"),
   },
   {
@@ -268,9 +254,7 @@ const journalEntries: SeedJournalEntry[] = [
       "열린 광장을 천천히 가로지르며 오가는 사람들의 표정과 소리를 바라봤습니다. 혼자 걷고 있었지만 주변의 가벼운 활기가 부담스럽지 않았고, 잠깐 섞여 있는 것만으로도 기분이 환기되는 시간이었습니다.",
     image:
       "https://images.unsplash.com/photo-1494522358652-f30e61a60313?auto=format&fit=crop&w=1200&q=80",
-    crowd: "활기참",
     placeName: "동네 열린 광장",
-    difficulty: "가벼움",
     visitedAt: new Date("2026-05-03T15:20:00+09:00"),
   },
   {
@@ -280,9 +264,7 @@ const journalEntries: SeedJournalEntry[] = [
       "늘 빠르게 지나치던 산책길을 오늘은 목적 없이 천천히 걸었습니다. 익숙한 나무와 모퉁이도 속도를 낮추니 다르게 보였고, 짧은 거리였지만 하루의 리듬을 다시 맞추기에 충분했습니다.",
     image:
       "https://images.unsplash.com/photo-1473448912268-2022ce9509d8?auto=format&fit=crop&w=1200&q=80",
-    crowd: "보통",
     placeName: "짧은 산책길",
-    difficulty: "적당함",
     visitedAt: new Date("2026-04-24T17:45:00+09:00"),
   },
   {
@@ -292,9 +274,7 @@ const journalEntries: SeedJournalEntry[] = [
       "기차에 올라 평소보다 조금 먼 곳까지 다녀왔습니다. 계획을 빽빽하게 세우지 않고 창밖으로 바뀌는 풍경을 바라보니 이동하는 시간 자체가 쉼처럼 느껴졌고, 돌아오는 길에도 여유가 남았습니다.",
     image:
       "https://images.unsplash.com/photo-1474487548417-781cb71495f3?auto=format&fit=crop&w=1200&q=80",
-    crowd: "보통",
     placeName: "기차로 닿는 바깥",
-    difficulty: "조금 힘듦",
     visitedAt: new Date("2026-04-13T13:30:00+09:00"),
   },
   {
@@ -304,9 +284,7 @@ const journalEntries: SeedJournalEntry[] = [
       "비가 그친 뒤 가까운 공원에 들렀습니다. 젖은 흙 냄새와 선명해진 잎의 색을 따라 천천히 한 바퀴 돌았고, 멀리 가지 않아도 공기가 달라졌다는 사실만으로 충분히 기분 좋은 저녁이었습니다.",
     image:
       "https://images.unsplash.com/photo-1441974231531-c6227db76b6e?auto=format&fit=crop&w=1200&q=80",
-    crowd: "한적함",
     placeName: "작은 동네 공원",
-    difficulty: "가벼움",
     visitedAt: new Date("2026-04-02T18:35:00+09:00"),
   },
 ];

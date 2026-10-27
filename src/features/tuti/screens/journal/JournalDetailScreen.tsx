@@ -123,11 +123,6 @@ export function JournalDetailScreen({
             ? "동의 철회로 마디와 하루마디를 정리하고 있어요."
             : "민감정보 처리에 별도로 동의한 나만의 마디예요. 웹 링크로는 공개할 수 없어요."}</ModerationNotice>}
           <JournalLocationLabel placeName={entry.placeName} />
-          <Tags aria-label="마디 정보">
-            <Tag $tone="brand">{entry.crowd}</Tag>
-            <Tag $tone="neutral">{entry.theme}</Tag>
-            <Tag $tone="secondary">{entry.difficulty}</Tag>
-          </Tags>
 
           <Copy>
             <h2>{entry.title}</h2>
@@ -263,36 +258,6 @@ const DetailContent = styled.div<{ $hidden: boolean }>`
   gap: var(--space-5);
   opacity: ${({ $hidden }) => ($hidden ? 0 : 1)};
   transition: opacity 240ms ease 60ms;
-`;
-
-const Tags = styled.div`
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: var(--space-2);
-`;
-
-const Tag = styled.span<{ $tone: "brand" | "neutral" | "secondary" }>`
-  min-width: 0;
-  min-height: 24px;
-  display: grid;
-  place-items: center;
-  padding: var(--space-1) var(--space-2);
-  overflow: hidden;
-  border-radius: 999px;
-  background: ${({ $tone }) =>
-    $tone === "brand"
-      ? "var(--color-brand-500)"
-      : $tone === "secondary"
-        ? "var(--color-secondary-500)"
-        : "var(--color-neutral-500)"};
-  font-family: var(--font-sans);
-  font-size: var(--font-size-100);
-  font-stretch: 100%;
-  font-weight: 400;
-  line-height: var(--line-height-body);
-  letter-spacing: var(--letter-spacing-body);
-  text-overflow: ellipsis;
-  white-space: nowrap;
 `;
 
 const Copy = styled.article`

@@ -13,10 +13,10 @@ export async function withdrawSensitiveJournal(ownerId: string, entryId: string)
     where: { id: entryId, ownerId, sensitiveWithdrawnAt: null },
     data: { sensitiveWithdrawnAt: new Date(), sensitiveConsentVersion: null, sensitiveConsentedAt: null,
       publicId: null, publishedAt: null, publicationStatus: "private",
-      // 파일 저장소 장애가 있어도 DB의 원문과 장소·태그는 먼저 파기한다.
+      // 파일 저장소 장애가 있어도 DB의 원문과 장소는 먼저 파기한다.
       // 사진 키와 소유자/기록 ID만 파일·연관 PDF 정리에 필요한 동안 유지한다.
       title: "", content: "", placeId: null, placeName: "남긴 공간",
-      crowd: "미정", theme: "미정", difficulty: "미정", visitedAt: new Date(),
+      visitedAt: new Date(),
     },
   });
   // 원장은 삭제 완료 증명이 아니라 복구 시 재이행할 의무다. 파일 실패에도 유지한다.

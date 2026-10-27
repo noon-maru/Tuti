@@ -186,9 +186,6 @@ export type AdminUserJournalItem = {
   content: string;
   image: string | null;
   placeName: string;
-  crowd: string;
-  difficulty: string;
-  theme: string;
   publicationStatus: "private" | "pending" | "published" | "hidden";
   visitedAt: string;
   createdAt: string;

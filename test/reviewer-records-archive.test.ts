@@ -14,7 +14,7 @@ let harumadiPdfs = 0;
 let changed = false;
 let sensitive = false;
 const calls: string[] = [];
-const rows = () => [1, 2, 3].map(i => ({ id: `test-${i}`, title: "테스트", content: changed ? "바뀐 내용" : "본문", image: "data:image/png;base64,example", crowd: "한적", difficulty: "낮음", theme: "산책", placeId: null, placeName: "예시 공간", visitedAt: new Date("2026-09-01T00:00:00Z"), updatedAt: new Date("2026-09-01T00:00:00Z"), sensitiveContent: sensitive, sensitiveWithdrawnAt: null }));
+const rows = () => [1, 2, 3].map(i => ({ id: `test-${i}`, title: "테스트", content: changed ? "바뀐 내용" : "본문", image: "data:image/png;base64,example", placeId: null, placeName: "예시 공간", visitedAt: new Date("2026-09-01T00:00:00Z"), updatedAt: new Date("2026-09-01T00:00:00Z"), sensitiveContent: sensitive, sensitiveWithdrawnAt: null }));
 (globalThis as { prisma?: unknown }).prisma = { $transaction: async (operation: (tx: unknown) => Promise<unknown>, options: unknown) => {
   assert.deepEqual(options, { isolationLevel: "RepeatableRead" });
   return operation({
@@ -56,7 +56,7 @@ test("사본 해시·이미지 해독·원본 비교와 변조/링크/범위 밖
   const archive = {
     version: 1, purpose: "operator-owned-review-test-content", sourceUserId: SOURCE_USER_ID, sourceFingerprint: snapshot.fingerprint,
     exportedAt: new Date().toISOString(), reviewBy: new Date(Date.now() + 30 * 86400000).toISOString(), importPolicy: "new-account-new-ids-private-no-consent-copy",
-    records: snapshot.records.map((row, i) => ({ sourceEntryId: row.id, title: row.title, content: row.content, crowd: row.crowd, difficulty: row.difficulty, theme: row.theme, placeId: row.placeId, placeName: row.placeName, visitedAt: row.visitedAt.toISOString(), image: { file: `image-0${i + 1}.bin`, bytes: image.byteLength, sha256: sha(image), contentType: "image/png" } })),
+    records: snapshot.records.map((row, i) => ({ sourceEntryId: row.id, title: row.title, content: row.content, placeId: row.placeId, placeName: row.placeName, visitedAt: row.visitedAt.toISOString(), image: { file: `image-0${i + 1}.bin`, bytes: image.byteLength, sha256: sha(image), contentType: "image/png" } })),
   };
   const raw = JSON.stringify(archive);
   try {

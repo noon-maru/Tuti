@@ -10,7 +10,7 @@ let rightsReads = 0;
 const publicId = "a".repeat(32);
 const fake = {
   user: { findUnique: async () => ({ id: "operator", role, lastAccessedAt: new Date(), authIdentities: [{ id: "identity", email: "operator@example.test", provider: "email" }] }) },
-  journalEntry: { findFirst: async () => ({ id: "entry", title: "제목", content: "내용", image: "journal-images/test.webp", ownerId: "author", publicId, publicationStatus: "published", publishedAt: new Date(), visitedAt: new Date(), crowd: "미정", theme: "미정", difficulty: "미정", placeName: "공간" }) },
+  journalEntry: { findFirst: async () => ({ id: "entry", title: "제목", content: "내용", image: "journal-images/test.webp", ownerId: "author", publicId, publicationStatus: "published", publishedAt: new Date(), visitedAt: new Date(), placeName: "공간" }) },
   journalRightsCase: { findMany: async () => { rightsReads++; return blocked ? [{ state: "copyright_block", notices: [] }] : []; } },
 };
 (globalThis as { prisma?: unknown }).prisma = fake;

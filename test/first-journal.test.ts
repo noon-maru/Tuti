@@ -13,8 +13,20 @@ test("첫 기록은 글만으로도 기존 기록 API에 저장할 수 있다", 
   assert.equal(draft.visitedAt, "2026-10-18T03:00:00.000Z");
   assert.equal(draft.placeName, "남긴 공간");
   assert.equal(draft.title, "");
-  assert.equal(draft.crowd, "미정");
+  for (const field of ["crowd", "theme", "difficulty"]) assert.equal(field in draft, false);
   assert.deepEqual(parseJournalEntryInput(draft), draft);
+});
+
+test("제목은 선택 입력이며 길이를 제한하고 앞뒤 공백만 제거한다", () => {
+  assert.equal(prepareFirstJournalDraft(base, today)?.title, "");
+  assert.equal(prepareFirstJournalDraft({ ...base, title: "  함께 걷던 오후  " }, today)?.title, "함께 걷던 오후");
+  assert.equal(prepareFirstJournalDraft({ ...base, title: "가".repeat(81) }, today), null);
+  assert.equal(prepareFirstJournalDraft({ ...base, content: "", title: "제목만" }, today), null);
+});
+
+test("서버 입력은 삭제한 분류 항목을 요구하거나 저장하지 않는다", () => {
+  const draft = prepareFirstJournalDraft(base, today)!;
+  assert.deepEqual(parseJournalEntryInput({ ...draft, crowd: "한적함", theme: "산책", difficulty: "쉬움" }), draft);
 });
 
 test("사진만으로 시작할 수 있으며 필수 분류·GPS·임의 이야기를 만들지 않는다", () => {
