@@ -30,11 +30,11 @@ export function WelcomeHarumadiPreview({ page, origin, onPageChange, onRecord, o
   const next = welcomeHarumadiNeighbor(page, 1);
   const close = useCallback(() => {
     if (closing.current) return;
+    closing.current = true;
     const element = sheet.current;
     if (!element || !origin || window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
       onClose(); return;
     }
-    closing.current = true;
     animation.current?.cancel();
     element.style.transformOrigin = "left top";
     const target = element.getBoundingClientRect();

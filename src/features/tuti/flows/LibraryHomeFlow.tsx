@@ -13,6 +13,8 @@ import { fetchHarumadis, harumadiPath } from "@/lib/harumadis";
 import { readLibraryWelcomeSeen } from "@/lib/libraryPreferences";
 import { loadHarumadiPdfDraft } from "@/lib/harumadiPdfDraft";
 import { useTutiStore } from "@/store/tuti";
+import { welcomeHarumadiPath } from "@/shared/tuti/welcomeHarumadi";
+import { setWelcomeHarumadiOrigin } from "@/lib/welcomeHarumadiNavigation";
 
 export function LibraryHomeFlow() {
   const session = useSession();
@@ -59,7 +61,7 @@ function LibraryHome({ ownerId }: { ownerId: string }) {
             {isFirstMadi
               ? <TextAction type="button" onClick={openEditor}>하루마디부터 만들고 싶어요<ChevronRight size={14} /></TextAction>
               : <PrimaryButton type="button" onClick={openEditor}>새 하루마디 만들기<ArrowUpRight size={16} /></PrimaryButton>}
-            <TextAction onClick={() => router.push("/entry?mode=harumadi&page=1")}>하루마디 예시 펼쳐보기<ChevronRight size={14} /></TextAction>
+            <TextAction onClick={() => { setWelcomeHarumadiOrigin(null); router.push(welcomeHarumadiPath(1, "library")); }}>하루마디 예시 펼쳐보기<ChevronRight size={14} /></TextAction>
           </EmptyShelf> : <>
             {Array.from({ length: Math.ceil(harumadiPdfs.length / 2) }, (_, row) => <ShelfRow key={harumadiPdfs[row * 2].id}>
               <HarumadiGrid>{harumadiPdfs.slice(row * 2, row * 2 + 2).map(harumadiPdf => <HarumadiButton type="button" key={harumadiPdf.id} aria-label={`${harumadiPdf.title}, 마디 ${harumadiPdf.entryIds.length}개 열기`} onClick={() => router.push(harumadiPath(harumadiPdf.id))}>

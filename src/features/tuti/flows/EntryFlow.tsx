@@ -1,16 +1,16 @@
 "use client";
 
 import { useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { RecommendationReadyFlow } from "@/features/tuti/flows/RecommendationReadyFlow";
 import { IntakeFlow } from "@/features/tuti/flows/IntakeFlow";
 import { WelcomeScreen } from "@/features/tuti/screens/onboarding/WelcomeScreen";
-import { WelcomeHarumadiPreview } from "@/features/tuti/screens/onboarding/WelcomeHarumadiPreview";
 import { recordProductInteraction } from "@/lib/productInteraction";
 import { recordProductActivity } from "@/lib/productActivity";
 import { useTutiStore } from "@/store/tuti";
 import { parseWelcomeGuideStep, welcomeGuidePath, type WelcomeGuideStep } from "@/shared/tuti/welcomeGuide";
-import { parseWelcomeHarumadiPage, welcomeHarumadiPath, type WelcomeHarumadiOrigin } from "@/shared/tuti/welcomeHarumadi";
+import { parseWelcomeHarumadiPage, welcomeHarumadiPath } from "@/shared/tuti/welcomeHarumadi";
+import { setWelcomeHarumadiOrigin } from "@/lib/welcomeHarumadiNavigation";
 import { ensureSession } from "@/lib/auth/session";
 import { markLibraryWelcomeSeen } from "@/lib/libraryPreferences";
 
@@ -19,8 +19,7 @@ export function EntryFlow() {
   const params = useSearchParams();
   const questionsRequested = params.get("mode") === "questions";
   const guideStep = parseWelcomeGuideStep(params.get("mode"), params.get("step"));
-  const harumadiPage = parseWelcomeHarumadiPage(params.get("mode"), params.get("page"));
-  const [harumadiOrigin, setHarumadiOrigin] = useState<WelcomeHarumadiOrigin | null>(null);
+  const legacyExample = params.get("mode") === "harumadi";
   const hasHydrated = useTutiStore((state) => state.hasHydrated);
   const entryRecord = useTutiStore((state) => state.entryRecord);
   const entryStage = useTutiStore((state) => state.entryStage);
@@ -32,10 +31,14 @@ export function EntryFlow() {
   const shouldRedirectToMain =
     hasHydrated &&
     Boolean(entryRecord) &&
-    guideStep === null && harumadiPage === null &&
+    guideStep === null && !legacyExample &&
     entryStage !== "recommendation-ready";
 
   useEffect(() => {
+    if (legacyExample) {
+      router.replace(welcomeHarumadiPath(parseWelcomeHarumadiPage(params.get("page"))));
+      return;
+    }
     if (questionsRequested || entryStage === "recommendation-ready") {
       router.replace(questionsRequested ? "/explore?mode=questions" : "/explore");
       return;
@@ -43,13 +46,13 @@ export function EntryFlow() {
     if (shouldRedirectToMain) {
       router.replace("/");
     }
-  }, [router, shouldRedirectToMain, questionsRequested, entryStage]);
+  }, [router, shouldRedirectToMain, questionsRequested, entryStage, legacyExample, params]);
 
   useEffect(() => {
-    if (!hasHydrated || shouldRedirectToMain || entryStage === "recommendation-ready") return;
+    if (!hasHydrated || shouldRedirectToMain || legacyExample || entryStage === "recommendation-ready") return;
 
     if (!questionsRequested) {
-      if (guideStep === null && harumadiPage === null) {
+      if (guideStep === null) {
         void ensureSession().then(session => markLibraryWelcomeSeen(session.userId)).catch(() => {});
         void recordProductInteraction("welcome_viewed", "welcome").catch(() => {});
       }
@@ -59,23 +62,16 @@ export function EntryFlow() {
     void recordProductActivity("entry_started").catch(() => {
       // 분석 기록 실패가 질문 흐름을 막지 않도록 한다.
     });
-  }, [harumadiPage, entryStage, guideStep, hasHydrated, questionsRequested, shouldRedirectToMain]);
+  }, [legacyExample, entryStage, guideStep, hasHydrated, questionsRequested, shouldRedirectToMain]);
 
-  if (!hasHydrated || shouldRedirectToMain) return null;
-
-  if (entryStage !== "recommendation-ready" && harumadiPage !== null) {
-    return <WelcomeHarumadiPreview page={harumadiPage} origin={harumadiOrigin}
-      onPageChange={(page) => router.replace(welcomeHarumadiPath(page, params.get("from") === "guide"))}
-      onRecord={startRecord}
-      onClose={() => router.replace(params.get("from") === "guide" ? welcomeGuidePath(2) : "/entry")} />;
-  }
+  if (!hasHydrated || shouldRedirectToMain || legacyExample) return null;
 
   if (entryStage !== "recommendation-ready" && !questionsRequested) {
     return <WelcomeScreen
       guideStep={guideStep}
       onBookOpen={(origin) => {
-        setHarumadiOrigin(origin);
-        router.push(welcomeHarumadiPath(1, guideStep !== null));
+        setWelcomeHarumadiOrigin(origin);
+        router.push(welcomeHarumadiPath(1));
       }}
       onGuideOpen={() => router.push(welcomeGuidePath(0))}
       onGuideNext={() => {

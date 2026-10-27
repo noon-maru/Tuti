@@ -25,11 +25,10 @@ export function welcomeHarumadiTurn(previous: WelcomeHarumadiPage, next: Welcome
   };
 }
 
-export function parseWelcomeHarumadiPage(mode: string | null, page: string | null): WelcomeHarumadiPage | null {
-  if (mode !== "harumadi") return null;
+export function parseWelcomeHarumadiPage(page: string | null): WelcomeHarumadiPage {
   return page === "0" ? 0 : page === "2" ? 2 : page === "3" ? 3 : 1;
 }
 
-export function welcomeHarumadiPath(page: WelcomeHarumadiPage, fromGuide = false) {
-  return `/entry?mode=harumadi&page=${page}${fromGuide ? "&from=guide" : ""}`;
+export function welcomeHarumadiPath(page: WelcomeHarumadiPage, source: "welcome" | "library" = "welcome") {
+  return `/harumadi/example?page=${page}${source === "library" ? "&from=library" : ""}`;
 }
