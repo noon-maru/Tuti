@@ -54,6 +54,20 @@ test("가판대는 표지를 중심으로 두고 생성·보관함 동선을 중
   assert.match(home, /prefers-reduced-motion: reduce/);
 });
 
+test("메인 확대는 기존 좌우 여백과 2열 간격을 유지하고 행과 조작 영역을 함께 넓힌다", () => {
+  const home = readFileSync("src/features/tuti/flows/LibraryHomeFlow.tsx", "utf8");
+  const navigation = readFileSync("src/features/tuti/components/MainNavigation.tsx", "utf8");
+  assert.match(home, /font-size: 28px/);
+  assert.match(home, /grid-template-columns: repeat\(2, minmax\(0, 1fr\)\); gap: 24px; padding: 0 8px/);
+  assert.match(home, /bottom: 84px/);
+  assert.match(home, /height: 84px; padding: 18px 36px 12px/);
+  assert.match(home, /bottom: 24px; width: 44px; height: 44px/);
+  assert.match(home, /--main-navigation-create-height: 52px/);
+  assert.match(home, /width: 100%; min-width: 0; padding: 0; text-align: left/);
+  assert.match(home, /position: relative; flex: none; width: 96px; height: 124px/);
+  assert.match(navigation, /var\(--main-navigation-label-size, 10px\)/);
+});
+
 test("하루마디 목록과 표지는 소유권·민감정보 철회·크기 한도를 지킨다", async t => {
   (globalThis as { prisma?: unknown }).prisma = {
     user: { findUnique: async () => null },

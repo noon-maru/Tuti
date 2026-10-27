@@ -37,14 +37,15 @@ const Navigation = styled.nav`
   > button:focus-visible { outline: 2px solid var(--color-brand-700); outline-offset: 3px; }
 `;
 const Destination = styled(BaseButton)`
-  min-width: 0; min-height: 48px; display: grid; justify-items: center; align-content: center; gap: 3px;
-  padding: 0; border-radius: 12px; background: transparent; color: var(--color-text-muted); font-size: 10px; line-height: 1.4;
+  min-width: 0; min-height: var(--main-navigation-item-height, 48px); display: grid; justify-items: center; align-content: center; gap: 3px;
+  padding: 0; border-radius: 12px; background: transparent; color: var(--color-text-muted); font-size: var(--main-navigation-label-size, 10px); line-height: 1.4;
   > span { width: 40px; height: 27px; border-radius: 12px; display: grid; place-items: center; }
+  svg { width: var(--main-navigation-icon-size, 21px); height: var(--main-navigation-icon-size, 21px); }
   &[aria-current="page"] { color: var(--color-brand-900); font-weight: 600; > span { background: var(--color-brand-100); } }
 `;
 const CreateButton = styled(BaseButton)`
-  min-width: 0; min-height: 44px; display: inline-flex; align-items: center; justify-content: center; gap: 5px;
+  min-width: 0; min-height: var(--main-navigation-create-height, 44px); display: inline-flex; align-items: center; justify-content: center; gap: 5px;
   padding: 10px 8px; border-radius: 24px; background: var(--color-brand-300); color: var(--color-brand-1000);
-  font-size: 12px; font-weight: 600; line-height: 1.5; white-space: nowrap;
+  font-size: var(--main-navigation-create-size, 12px); font-weight: 600; line-height: 1.5; white-space: nowrap;
   &:hover { background: var(--color-brand-400); }
 `;
