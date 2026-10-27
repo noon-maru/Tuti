@@ -1,13 +1,14 @@
 "use client";
 
 import styled from "@emotion/styled";
-import { BookOpen, ChevronRight, Compass, Plus, Settings2, PenLine, ArrowUpRight, Download } from "lucide-react";
+import { BookOpen, ChevronRight, Plus, Settings2, PenLine, ArrowUpRight, Download } from "lucide-react";
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useSession } from "@/features/tuti/hooks/useSession";
 import { AppLoadingScreen, LoadingIndicator } from "@/features/tuti/components/LoadingIndicator";
 import { HarumadiCover } from "@/features/tuti/components/HarumadiCover";
+import { MainNavigation } from "@/features/tuti/components/MainNavigation";
 import { BaseButton, PrimaryButton } from "@/features/tuti/components/buttons";
 import { fetchHarumadis, harumadiPath } from "@/lib/harumadis";
 import { markLibraryEntryCompleted } from "@/lib/libraryPreferences";
@@ -66,11 +67,10 @@ function LibraryHome({ ownerId }: { ownerId: string }) {
         </>}
     </ShelfScroll>
     <LibraryLinks aria-label="마디와 PDF 보관함">
-      <TextAction type="button" onClick={() => router.push("/madi")}>모아둔 마디<ChevronRight size={13} /></TextAction>
+      <TextAction type="button" onClick={() => router.push("/madi")}>전체 마디 보기<ChevronRight size={13} /></TextAction>
       <TextAction type="button" onClick={() => router.push("/harumadi/pdfs")}><Download size={13} />저장한 PDF</TextAction>
     </LibraryLinks>
-    <Footer><PrimaryButton type="button" onClick={() => router.push("/madi/new?from=library")}><PenLine size={17} />{isFirstMadi ? "첫 마디 남기기" : "마디 남기기"}</PrimaryButton>
-      <ExploreButton type="button" onClick={() => router.push("/explore")}><Compass size={19} /><span>둘러보기</span></ExploreButton></Footer>
+    <MainNavigation active="harumadi" firstMadi={isFirstMadi} />
   </Frame>;
 }
 const Frame = styled.section`height: 100%; min-height: 0; display: flex; flex-direction: column; background: #F8FAFC; color: var(--color-text);`;
@@ -99,5 +99,3 @@ const Status = styled.div`min-height: 230px; display: flex; flex-direction: colu
 const MoreButton = styled(BaseButton)`display: block; margin: 4px auto 20px; padding: 12px 20px; border-radius: 20px; background: white; color: var(--color-text-muted); font-size: 12px;`;
 const LibraryLinks = styled.nav`flex: none; display: flex; justify-content: space-between; align-items: center; gap: 16px; margin: 0 24px; border-top: 1px solid #e8ede4; > button { font-size: 11px; }`;
 const InlineError = styled.p`font-size: 12px; text-align: center; color: var(--color-error);`;
-const Footer = styled.footer`flex: none; display: grid; grid-template-columns: minmax(0, 1fr) 64px; gap: 12px; align-items: center; padding: 8px 24px calc(16px + var(--app-safe-area-bottom, 0px)); background: #F8FAFC; > button:first-of-type { min-height: 48px; display: inline-flex; align-items: center; justify-content: center; gap: 8px; }`;
-const ExploreButton = styled(BaseButton)`min-height: 48px; display: grid; justify-items: center; align-content: center; gap: 3px; padding: 0; background: transparent; color: var(--color-text-muted); font-size: 10px;`;

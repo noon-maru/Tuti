@@ -24,7 +24,7 @@ test("홈은 탐색을 마운트하지 않고 페이지네이션·소유자별 �
   assert.doesNotMatch(home, /useTutiRecommendations|requestLocation|HarumadiPdfPreview/);
   assert.match(home, /\["library-harumadis", ownerId\]/);
   assert.match(home, /getNextPageParam/);
-  assert.match(home, /router\.push\("\/explore"\)/);
+  assert.match(home, /<MainNavigation active="harumadi"/);
   assert.match(readFileSync("src/app/(tuti)/(main)/page.tsx", "utf8"), /<LibraryHomeFlow/);
   assert.match(readFileSync("src/features/tuti/components/HarumadiCover.tsx", "utf8"), /URL\.revokeObjectURL/);
 });
@@ -34,8 +34,10 @@ test("둘러보기 후 빈 홈은 기본 표지 대신 첫 마디 작성을 안�
   const entry = readFileSync("src/features/tuti/flows/EntryFlow.tsx", "utf8");
   assert.doesNotMatch(home, /EmptyHarumadi|기억하고 싶은 하루<\/i>|createHarumadi\(/);
   assert.match(home, /const isFirstMadi = query.isSuccess && recordCount === 0/);
-  assert.match(home, /isFirstMadi \? "첫 마디 남기기" : "마디 남기기"/);
-  assert.match(home, /router.push\("\/madi\/new\?from=library"\)/);
+  assert.match(home, /firstMadi=\{isFirstMadi\}/);
+  const navigation = readFileSync("src/features/tuti/components/MainNavigation.tsx", "utf8");
+  assert.match(navigation, /firstMadi \? "첫 마디 남기기" : "마디 남기기"/);
+  assert.match(navigation, /`\/madi\/new\?from=\$\{active === "harumadi" \? "library" : "explore"\}`/);
   assert.match(home, /새 하루마디<\/TextAction>/);
   assert.match(home, /harumadiPdfs.slice\(row \* 2, row \* 2 \+ 2\).map/);
   assert.match(entry, /onExplore=\{\(\) => \{[\s\S]*?router.replace\("\/explore"\)/);
