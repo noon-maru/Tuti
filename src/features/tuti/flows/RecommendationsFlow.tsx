@@ -264,7 +264,7 @@ export function RecommendationsFlow({ interactive }: { interactive: boolean }) {
     if (!isSuccess) return;
 
     const timer = window.setTimeout(() => {
-      router.prefetch("/journal");
+      router.prefetch("/journal/new");
       router.prefetch("/settings");
       router.prefetch("/location");
       if (process.env.NEXT_PUBLIC_TUTI_TARGET === "web") {
@@ -460,7 +460,14 @@ export function RecommendationsFlow({ interactive }: { interactive: boolean }) {
         onDetail={openDetail}
         onDetailExitStart={beginDetailClose}
         onDetailClose={finishDetailClose}
-        onJournal={() => router.push("/journal?from=explore")}
+        onCreateMadi={() => {
+          const search = new URLSearchParams({ from: "explore" });
+          if (recommendationId) {
+            search.set("journeyId", recommendationId);
+            recordAction({ journeyId: recommendationId, action: "journal_started" });
+          }
+          router.push(`/journal/new?${search.toString()}`);
+        }}
         onAdmin={() => router.push("/admin")}
         onDownload={() => router.push("/download")}
         onSettings={() => router.push("/settings")}

@@ -22,6 +22,7 @@ export function JournalCreateFlow() {
     (state) => state.setActiveJournalEntry,
   );
   const fromWelcome = ["welcome", "library"].includes(searchParams.get("from") ?? "");
+  const fromExplore = searchParams.get("from") === "explore";
   const returnToJournal = () => router.back();
   const initialPlaceId = searchParams.get("placeId");
   const initialPlaceName = searchParams.get("placeName");
@@ -59,6 +60,11 @@ export function JournalCreateFlow() {
         }
 
         setActiveJournalEntry(entry.id);
+        // 둘러보기에서 작성한 마디는 목록 전환 효과 없이 원래 추천 화면으로 돌아간다.
+        if (fromExplore) {
+          returnToJournal();
+          return;
+        }
         startTransition({
           entryId: entry.id,
           image: entry.image ?? undefined,
