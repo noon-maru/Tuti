@@ -437,8 +437,7 @@ export function JournalEditorScreen({
             onChange={(event) => setBody(event.target.value)}
           />
         </EditorCopy>
-        {sensitivePolicy && (
-          <JournalAdditionalSettings initiallyOpen={entry?.sensitiveContent === true} includesSensitive={sensitiveContent === true}>
+          <JournalAdditionalSettings available={privateStorageAvailable} initiallyOpen={entry?.sensitiveContent === true} includesSensitive={sensitiveContent === true}>
           <SensitiveSection>
             <legend>사진이나 글에 본인의 민감정보가 있나요?</legend>
             <p>건강, 정치적 견해, 사상·신념, 성생활 등에 관한 정보를 뜻해요. 타인의 민감정보와 주민등록번호 등은 남기지 말아주세요.</p>
@@ -448,9 +447,6 @@ export function JournalEditorScreen({
               onChange={() => { setSensitiveContent(false); setSensitiveAgreed(false); }} /> 없어요</label>
             <label><input type="radio" name="journal-sensitive-content" checked={sensitiveContent === true}
               onChange={() => { setSensitiveContent(true); setSensitiveAgreed(false); }} /> 본인의 민감정보가 있어요</label>
-            {sensitiveContent && !privateStorageAvailable && <p role="status">{entry?.sensitiveContent
-              ? "민감정보 보관 기능을 이용할 수 없어 이 마디는 수정할 수 없어요. 상세 메뉴에서 동의를 철회할 수 있어요."
-              : "민감정보를 안전하게 보관하는 기능을 준비 중이에요. 지금은 해당 내용을 빼고 ‘없어요’를 선택해주세요."}</p>}
             {sensitiveContent && privateStorageAvailable && <>
               <p>민감정보가 있는 마디는 나만 볼 수 있고, 웹 링크로 공개할 수 없어요.</p>
               <dl>
@@ -465,7 +461,9 @@ export function JournalEditorScreen({
             </>}
           </SensitiveSection>
           </JournalAdditionalSettings>
-        )}
+        {sensitivePolicy && entry?.sensitiveContent && !privateStorageAvailable && <EditorError role="status">
+          민감정보 보관 기능을 이용할 수 없어 이 마디는 수정할 수 없어요. 상세 메뉴에서 동의를 철회할 수 있어요.
+        </EditorError>}
       </Editor>
 
       <EditorFooter>

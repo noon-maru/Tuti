@@ -3,17 +3,18 @@
 import styled from "@emotion/styled";
 import type { ReactNode } from "react";
 
-export function JournalAdditionalSettings({ children, initiallyOpen = false, includesSensitive = false }: {
+export function JournalAdditionalSettings({ children, available = false, initiallyOpen = false, includesSensitive = false }: {
   children?: ReactNode;
+  available?: boolean;
   initiallyOpen?: boolean;
   includesSensitive?: boolean;
 }) {
   return <Settings>
     <p>민감정보나 주민등록번호 등은 남기지 말아주세요.</p>
-    <details open={initiallyOpen || undefined}>
+    {available && <details open={initiallyOpen || undefined}>
       <summary>추가 설정{includesSensitive && <span> · 민감정보 포함</span>}</summary>
       {children}
-    </details>
+    </details>}
   </Settings>;
 }
 
