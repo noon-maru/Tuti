@@ -160,13 +160,10 @@ export function InitialServiceTermsGate({ children, rightsChildren, renderConten
         </Document>
       </>}
       <MainPanel hidden={Boolean(documentOpen)}>
-        <Heading>
-          <div>
-            <h1 id={documentOpen ? undefined : "initial-terms-title"}>{reconsent ? <>이용약관을<br />다시 확인해주세요</> : <>첫 마디를<br />남기기 전에</>}</h1>
-            <p>{reconsent ? <>현재 적용 중인 약관에<br />동의가 필요해요.</> : <>튜티와 함께하기 위한<br />작은 약속을 확인해주세요.</>}</p>
-          </div>
-        </Heading>
         <Content data-scroll-region>
+          <Heading>
+            <h1 id={documentOpen ? undefined : "initial-terms-title"}><TutiWordmark priority /><span>{reconsent ? "이용약관 다시 동의" : "이용약관 동의"}</span></h1>
+          </Heading>
           {offer ? <ConsentForm key={`${offer.version}:${offer.documentHash}`} offer={offer}
             onRead={setDocumentOpen} onAccepted={next => { admitted.current = next.allowed; setReconsent(false); setState(next); }} onRefresh={reload}
             onSubmittingChange={value => { submittingConsent.current = value; }} /> : <Unavailable role="status" aria-live="polite">
@@ -178,10 +175,8 @@ export function InitialServiceTermsGate({ children, rightsChildren, renderConten
           </Unavailable>}
         </Content>
         <Footer>
-          <p>위치 동의는 선택이에요. 마디만 남겨도 좋아요.<br />기기 위치 권한·알림·민감정보는 필요할 때 확인할게요.</p>
           <nav aria-label="약관과 도움말">
             <a href="/legal/privacy">개인정보 처리방침</a>
-            <a href="/account-deletion">데이터 삭제 안내</a>
             <a href="/login">계정 관리</a>
             <a href="mailto:admin@tuti.today">문의</a>
           </nav>
@@ -249,19 +244,22 @@ function ConsentForm({ offer, onRead, onAccepted, onRefresh, onSubmittingChange 
 
   return <Form onSubmit={event => void accept(event)} aria-busy={saving}>
     <AgreementGroup ref={requiredGroup}>
-      <CheckRow><input type="checkbox" checked={ageConfirmed} disabled={saving} onChange={event => setAgeConfirmed(event.target.checked)} /><span>만 14세 이상이에요.<small>필수</small></span></CheckRow>
-      <CheckRow><input type="checkbox" checked={termsConfirmed} disabled={saving} onChange={event => setTermsConfirmed(event.target.checked)} /><span>중요 내용을 확인했고,<br />서비스 이용약관에 동의해요.<small>필수</small></span></CheckRow>
-      <ReadButton type="button" disabled={saving} onClick={() => onRead("service")}>약관과 중요 내용 읽기<ChevronRight size={16} aria-hidden="true" /></ReadButton>
+      <CheckRow><input type="checkbox" checked={ageConfirmed} disabled={saving} onChange={event => setAgeConfirmed(event.target.checked)} /><span>만 14세 이상입니다<small>필수</small></span></CheckRow>
+      <AgreementRow>
+        <CheckRow><input type="checkbox" checked={termsConfirmed} disabled={saving} onChange={event => setTermsConfirmed(event.target.checked)} /><span>서비스 이용약관 동의<small>필수</small></span></CheckRow>
+        <ReadButton type="button" aria-label="서비스 이용약관과 중요 내용 보기" disabled={saving} onClick={() => onRead("service")}><ChevronRight size={18} aria-hidden="true" /></ReadButton>
+      </AgreementRow>
     </AgreementGroup>
     <AgreementGroup>
-      <CheckRow><input type="checkbox" checked={locationConfirmed} disabled={saving} onChange={event => setLocationConfirmed(event.target.checked)} /><span>위치기반서비스 이용약관에 동의해요.<small>선택</small></span></CheckRow>
-      <OptionalHint>가까운 장소를 추천받을 때 사용해요.<br />동의하지 않아도 마디와 하루마디를 이용할 수 있어요.</OptionalHint>
-      <ReadButton type="button" disabled={saving} onClick={() => onRead("location")}>위치약관 읽기<ChevronRight size={16} aria-hidden="true" /></ReadButton>
+      <AgreementRow>
+        <CheckRow><input type="checkbox" checked={locationConfirmed} disabled={saving} onChange={event => setLocationConfirmed(event.target.checked)} /><span>위치기반서비스 이용약관<small>선택</small></span></CheckRow>
+        <ReadButton type="button" aria-label="위치기반서비스 이용약관 보기" disabled={saving} onClick={() => onRead("location")}><ChevronRight size={18} aria-hidden="true" /></ReadButton>
+      </AgreementRow>
+      <OptionalHint>위치 동의 없이도 마디를 남길 수 있어요.</OptionalHint>
     </AgreementGroup>
     {error && <ErrorMessage role="alert">{error}<Button type="button" $tone="text" $size="compact" disabled={saving} onClick={onRefresh}>최신 약관 확인</Button></ErrorMessage>}
     <Button type="submit" $tone="secondary" $size="large" $fullWidth disabled={saving}>{confirming ? "필수 항목을 확인하고 있어요" : saving ? "동의를 저장하고 있어요" : ageConfirmed && termsConfirmed ? "동의하고 시작하기" : "필수 항목에 동의하고 시작하기"}</Button>
-    <small>버튼을 누르면 만 14세 이상임을 확인하고<br />서비스 이용약관과 중요 내용에 동의해요.<br />위치 동의는 선택한 경우에만 포함돼요.</small>
-    <small>개인정보 처리방침에서 정보가 어떻게 쓰이는지 확인할 수 있어요.</small>
+    <small>버튼을 누르면 만 14세 이상임을 확인하고<br />서비스 이용약관과 중요 내용에 동의해요.</small>
   </Form>;
 }
 
@@ -284,29 +282,32 @@ const ReconsentBackdrop = styled.div`
   @media (max-height: 600px) { padding: 8px; > section { border-radius: 16px; } }
 `;
 const Heading = styled.header`
-  flex-shrink: 0;
-  h1 { margin: 0; font-size: clamp(26px, 4.3cqh, 34px); font-weight: 700; line-height: 1.35; letter-spacing: -0.045em; }
-  p { margin: 14px 0 0; color: var(--color-text-muted); font-size: 15px; line-height: 1.65; }
-  @media (max-height: 600px) { p { margin-top: 8px; } }
+  flex-shrink: 0; margin-bottom: 30px;
+  h1 { display: flex; align-items: center; gap: 10px; margin: 0; font-size: 18px; font-weight: 500; line-height: 1.5; letter-spacing: -0.025em; }
+  img { display: block; width: 52px; height: auto; flex: none; }
+  @media (max-height: 600px) { margin-bottom: 22px; }
 `;
 const Content = styled.div`
-  flex: 1; min-height: 0; display: flex; flex-direction: column;
-  overflow-y: auto; padding-block: 24px 16px;
-  > form, > div { margin-top: auto; }
-  @media (max-height: 600px) { padding-block: 16px 8px; }
+  flex: 1; min-height: 0; display: flex; flex-direction: column; justify-content: safe center;
+  overflow-y: auto; padding-block: 24px 28px;
+  @media (max-height: 600px) { padding-block: 12px 20px; }
 `;
 const Form = styled.form`
-  display: grid; gap: 16px; flex-shrink: 0;
+  display: grid; gap: 12px; flex-shrink: 0;
   > small { color: var(--color-text-muted); font-size: 11px; line-height: 1.6; text-align: center; }
 `;
 const AgreementGroup = styled.div`
-  border-radius: 20px; padding: 8px 16px; background: var(--color-secondary-100);
+  padding: 6px 14px; border: 1px solid var(--color-border); border-radius: 16px;
+  background: var(--color-surface);
+  > label + div { border-top: 1px solid var(--color-border); }
+  & + & { padding: 2px 0 10px; border: none; border-radius: 0; background: transparent; }
 `;
+const AgreementRow = styled.div`display: flex; align-items: center; gap: 4px; > label { flex: 1; min-width: 0; }`;
 const CheckRow = styled.label`
   display: flex; align-items: center; gap: 12px; min-height: 52px; cursor: pointer;
   input {
-    appearance: none; width: 21px; height: 21px; margin: 0; flex-shrink: 0;
-    display: grid; place-content: center; border: 1.5px solid var(--color-text-muted); border-radius: 5px;
+    appearance: none; width: 20px; height: 20px; margin: 0; flex-shrink: 0;
+    display: grid; place-content: center; border: 1.5px solid var(--color-text-muted); border-radius: 6px;
     background: var(--color-surface); transition: background-color 160ms ease, border-color 160ms ease;
   }
   input::after {
@@ -317,19 +318,18 @@ const CheckRow = styled.label`
   input:checked { background: var(--color-brand-800); border-color: var(--color-brand-800); }
   input:checked::after { transform: translateY(-1px) rotate(45deg) scale(1); }
   input:focus-visible { outline: 2px solid var(--color-brand-800); outline-offset: 4px; }
-  span { display: block; font-size: 14px; font-weight: 600; line-height: 1.6; }
-  small { display: inline-block; margin-inline-start: 6px; color: var(--color-text-muted); font-size: 11px; font-weight: 400; }
+  span { display: block; font-size: 14px; font-weight: 500; line-height: 1.6; word-break: keep-all; }
+  small { display: inline-block; margin-inline-start: 6px; color: var(--color-text-muted); font-size: 10px; font-weight: 400; white-space: nowrap; }
   @media (prefers-reduced-motion: reduce) { input, input::after { transition: none; } }
   @media (forced-colors: active) { input { appearance: auto; } input::after { display: none; } }
 `;
 const ReadButton = styled.button`
-  ${baseControlStyles}; display: flex; align-items: center; justify-content: space-between;
-  width: 100%; min-height: 44px; padding: 4px 0 4px 33px; background: transparent;
-  color: var(--color-text-muted); font-size: 12px; text-align: left;
+  ${baseControlStyles}; display: grid; place-items: center; flex: none;
+  width: 40px; min-height: 48px; padding: 0; background: transparent;
+  color: var(--color-text-muted);
 `;
 const Footer = styled.footer`
   flex-shrink: 0; text-align: center;
-  p { color: var(--color-text-muted); font-size: 12px; line-height: 1.6; margin: 0 0 12px; }
   nav { display: flex; flex-wrap: wrap; justify-content: center; gap: 4px 14px; }
   a { color: var(--color-text-muted); font-size: 11px; line-height: 1.6; padding-block: 4px; text-underline-offset: 3px; }
 `;

@@ -13,6 +13,12 @@ test("책장·첫 화면·질문 상단은 워드마크 없이 기능 버튼만 
   assert.match(sources[1], /:only-child \{ margin-left: auto/);
   assert.match(sources[2], /onClick=\{onRestoreRecords\}/);
   assert.match(sources[2], /justify-content: flex-end/);
+});
+
+test("약관 제목은 작은 Tuti 워드마크와 이용약관 동의를 한 줄로 묶는다", () => {
   const gate = readFileSync("src/features/legal/InitialServiceTermsGate.tsx", "utf8");
-  assert.doesNotMatch(gate, /<Heading>\s*<TutiWordmark/);
+  assert.match(gate, /<h1[^>]*><TutiWordmark priority \/><span>/);
+  assert.match(gate, /"이용약관 동의"/);
+  assert.match(gate, /font-size: 18px/);
+  assert.match(gate, /width: 52px/);
 });

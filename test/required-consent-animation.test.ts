@@ -45,7 +45,7 @@ test("시작은 명시적 클릭에만 연결하고 위치 선택은 자동 체�
   assert.match(accept, /if \(!active.current \|\| controller.signal.aborted\) return/);
   assert.doesNotMatch(accept, /setLocationConfirmed\(true\)/);
   assert.match(gate, /버튼을 누르면 만 14세 이상임을 확인하고/);
-  assert.match(gate, /위치 동의는 선택한 경우에만 포함돼요/);
+  assert.match(gate, /위치 동의 없이도 마디를 남길 수 있어요/);
   assert.match(gate, /prefers-reduced-motion: reduce/);
 });
 

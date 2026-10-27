@@ -81,7 +81,7 @@ test("최초 선택 위치 동의는 필수 약관 뒤 별도로 저장하고 �
 test("위치 선택은 시작 버튼의 필수 조건이 아니며 약관 열람 중 체크 상태를 유지한다", () => {
   const gate = readFileSync("src/features/legal/InitialServiceTermsGate.tsx", "utf8");
   assert.match(gate, /locationConfirmed, setLocationConfirmed\] = useState\(false\)/);
-  assert.match(gate, /위치기반서비스 이용약관에 동의해요\.<small>선택/);
+  assert.match(gate, /위치기반서비스 이용약관<small>선택/);
   assert.match(gate, /<MainPanel hidden=\{Boolean\(documentOpen\)\}/);
   assert.match(gate, /\$fullWidth disabled=\{saving\}/);
   assert.match(gate, /ageConfirmed: true, importantTermsConfirmed: true/);
@@ -92,4 +92,17 @@ test("위치 선택은 시작 버튼의 필수 조건이 아니며 약관 열람
   assert.match(provider, /!locationFailure && regionSheetOpen/);
   assert.match(provider, /const declineRequest[\s\S]*?setRegionSheetOpen\(true\)/);
   assert.doesNotMatch(readFileSync("src/lib/initialConsent.ts", "utf8"), /requestDeviceLocation|requestPermissions|getCurrentPosition/);
+});
+
+test("동의 화면은 세 항목·전문 보기·단일 동의 설명만 두고 반복 안내를 제거한다", () => {
+  const gate = readFileSync("src/features/legal/InitialServiceTermsGate.tsx", "utf8");
+  assert.match(gate, /"이용약관 동의"/);
+  assert.match(gate, /aria-label="서비스 이용약관과 중요 내용 보기"/);
+  assert.match(gate, /aria-label="위치기반서비스 이용약관 보기"/);
+  assert.equal((gate.match(/type="checkbox"/g) ?? []).length, 3);
+  assert.match(gate, /서비스 이용약관과 중요 내용에 동의해요/);
+  assert.match(gate, /href="\/legal\/privacy"/);
+  assert.match(gate, /href="\/login"/);
+  assert.match(gate, /href="mailto:admin@tuti.today"/);
+  assert.doesNotMatch(gate, /작은 약속을 확인|기기 위치 권한·알림·민감정보|개인정보 처리방침에서 정보가 어떻게 쓰이는지/);
 });
