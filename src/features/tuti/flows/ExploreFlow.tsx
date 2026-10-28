@@ -10,6 +10,8 @@ import { useTutiStore } from "@/store/tuti";
 import { useEffect } from "react";
 import { useSession } from "@/features/tuti/hooks/useSession";
 import { markLibraryEntryCompleted } from "@/lib/libraryPreferences";
+import { ExploreLocationGate } from "@/features/tuti/location/ExploreLocationGate";
+import { AppLoadingScreen } from "@/features/tuti/components/LoadingIndicator";
 
 export function ExploreFlow() {
   const params = useSearchParams();
@@ -21,7 +23,7 @@ export function ExploreFlow() {
   const stage = useTutiStore(state => state.entryStage);
   const questions = params.get("mode") === "questions";
   return <Frame>
-    <Content>{stage === "recommendation-ready" ? <RecommendationReadyFlow /> : !entryRecord || questions ? <IntakeFlow /> : <RecommendationsFlow interactive />}</Content>
+    <Content>{ownerId ? <ExploreLocationGate key={ownerId}>{stage === "recommendation-ready" ? <RecommendationReadyFlow /> : !entryRecord || questions ? <IntakeFlow /> : <RecommendationsFlow interactive />}</ExploreLocationGate> : <AppLoadingScreen />}</Content>
     <MainNavigation active="explore" />
   </Frame>;
 }

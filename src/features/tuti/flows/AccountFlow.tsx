@@ -12,8 +12,6 @@ import {
 } from "react";
 import { AccountScreen } from "@/features/tuti/screens/account/AccountScreen";
 import { useSession } from "@/features/tuti/hooks/useSession";
-import { useLocationAccess } from "@/features/tuti/location/LocationAccessProvider";
-import { prepareRecommendationLocation } from "@/features/tuti/location/prepareRecommendationLocation";
 import {
   completeOAuthLogin,
   createOAuthLoginUrl,
@@ -36,7 +34,6 @@ export function AccountFlow() {
   const searchParams = useSearchParams();
   const queryClient = useQueryClient();
   const session = useSession();
-  const { requestLocation, refreshLocationConsent } = useLocationAccess();
   const entryRecord = useTutiStore((state) => state.entryRecord);
   const finishIntake = useTutiStore((state) => state.finishIntake);
   const finishEntry = useTutiStore((state) => state.finishEntry);
@@ -68,9 +65,7 @@ export function AccountFlow() {
       return;
     }
 
-    await refreshLocationConsent();
     queryClient.removeQueries({ queryKey: ["recommendations"] });
-    await prepareRecommendationLocation(useTutiStore.getState, requestLocation);
 
     if (!entryRecord) {
       finishIntake("skipped");
@@ -84,8 +79,6 @@ export function AccountFlow() {
     finishEntry,
     finishIntake,
     queryClient,
-    refreshLocationConsent,
-    requestLocation,
     router,
     skipInitialHelp,
   ]);

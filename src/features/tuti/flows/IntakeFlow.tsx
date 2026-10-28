@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { getIntakeSteps } from "@/features/tuti/data/intakeSteps";
 import { useLocationAccess } from "@/features/tuti/location/LocationAccessProvider";
+import { prepareRecommendationLocation } from "@/features/tuti/location/prepareRecommendationLocation";
 import { IntakeScreen } from "@/features/tuti/screens/intake/IntakeScreen";
 import { recordProductActivity } from "@/lib/productActivity";
 import { useTutiStore } from "@/store/tuti";
@@ -37,7 +38,7 @@ export function IntakeFlow() {
 
     setResolvingLocation(true);
     try {
-      await requestLocation();
+      await prepareRecommendationLocation(useTutiStore.getState, requestLocation);
       void recordProductActivity("entry_completed").catch(() => {
         // 분석 기록 실패가 질문 완료를 막지 않도록 한다.
       });
@@ -52,7 +53,7 @@ export function IntakeFlow() {
 
     setResolvingLocation(true);
     try {
-      await requestLocation();
+      await prepareRecommendationLocation(useTutiStore.getState, requestLocation);
       void recordProductActivity("entry_skipped").catch(() => {
         // 분석 기록 실패가 둘러보기를 막지 않도록 한다.
       });
