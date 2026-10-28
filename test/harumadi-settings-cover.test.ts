@@ -41,8 +41,9 @@ test("설정 표지는 같은 표지 데이터를 쓰고 미리보기에서만 �
     assert.match(preview, coverStyle.endsWith("-image") ? /data-cover-preview="photo"/ : /data-cover-preview="plain"/);
     assert.match(preview, /--hm-title:clamp\(11px, 12cqw, 16px\)/);
     assert.match(preview, /\[data-cover-title\]\{text-align:center/);
-    assert.match(preview, /\[data-cover-photo\]\{width:100%;height:100%/);
-    assert.match(preview, /grid-template-columns:minmax\(0, 1fr\);grid-template-rows:auto minmax\(0, 1fr\) auto/);
+    assert.match(preview, /\[data-cover-mark\]\{position:absolute;right:9%;bottom:6%/);
+    assert.match(preview, /height:auto;aspect-ratio:210\s*\/\s*170/);
+    assert.doesNotMatch(preview, /\[data-cover-photo\]\{width:100%;height:100%/);
     assert.doesNotMatch(actual, /data-cover-preview=|--hm-title:clamp\(11px/);
   }
   const empty = renderToStaticMarkup(createElement(HarumadiSettingsCover, { title: " ", coverStyle: "green-image", entries: [] }));
@@ -50,6 +51,15 @@ test("설정 표지는 같은 표지 데이터를 쓰고 미리보기에서만 �
   assert.match(empty, /아직 쓰지 않은, 우리 이야기/);
   assert.match(empty, /#8CBDEF/);
   assert.doesNotMatch(empty, /<img/);
+});
+
+test("두 미리보기는 같은 Tuti 위치를 쓰고 사진은 PDF 비율 그대로 20%만 확대한다", () => {
+  const sheet = readFileSync("src/features/tuti/components/HarumadiSheet.tsx", "utf8");
+  const compact = sheet.slice(sheet.indexOf("${({ $compactCover })"), sheet.indexOf("const Paper"));
+  assert.equal((compact.match(/\[data-cover-mark\]/g) ?? []).length, 1);
+  assert.ok(compact.indexOf("[data-cover-mark]") < compact.indexOf('&[data-cover-preview="plain"]'));
+  assert.match(compact, /pt\(layout.cover.imageWidth \* 1\.2\)/);
+  assert.match(compact, /aspect-ratio: \$\{layout.cover.imageWidth\} \/ \$\{layout.cover.imageHeight\}/);
 });
 
 test("생성·수정 미리보기는 현재 설정과 담긴 마디를 쓰고 기존 압축 배치 크기를 유지한다", () => {
