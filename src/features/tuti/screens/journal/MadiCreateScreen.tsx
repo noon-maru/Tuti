@@ -167,7 +167,7 @@ export function MadiCreateScreen({ onBack, onSave, onCollection, onSaved, haruma
       <HiddenInput ref={cameraInput} type="file" accept="image/*" capture="environment" aria-label="카메라 사진 촬영" onChange={choosePhoto} />
       {!saved && stage === "write" && <Fields>
         {image && <SelectedPhoto><Image src={image} alt="마디에 담을 사진" fill unoptimized sizes="350px" /></SelectedPhoto>}
-        <label data-madi-title-field><span>제목 <small>선택</small></span><input aria-label="마디 제목 (선택)" placeholder="이날을 기억할 짧은 제목" maxLength={FIRST_JOURNAL_TITLE_LIMIT} value={title} onChange={event => setTitle(event.target.value)} /></label>
+        <label><span>제목 <small>선택</small></span><input aria-label="마디 제목 (선택)" placeholder="이날을 기억할 짧은 제목" maxLength={FIRST_JOURNAL_TITLE_LIMIT} value={title} onChange={event => setTitle(event.target.value)} /></label>
         <label><span>기억하고 싶은 이야기 <small>{image ? "선택" : "필수"}</small></span><textarea aria-label="기억하고 싶은 이야기" placeholder="함께여서 좋았던 순간을 남겨보세요." maxLength={FIRST_JOURNAL_CONTENT_LIMIT} value={content} onChange={(event) => setContent(event.target.value)} /></label>
         <label>날짜<input aria-label="마디 날짜" type="date" max={today} value={date} onChange={(event) => { dateEdited.current = true; setDate(event.target.value); }} /></label>
         <label><span>어디에서 함께했나요? <small>선택</small></span><input aria-label="장소 (선택)" placeholder="동네 카페, 함께 걷던 길" maxLength={FIRST_JOURNAL_PLACE_LIMIT} value={place} onChange={(event) => setPlace(event.target.value)} /></label>
@@ -206,8 +206,11 @@ function MemoryPage({ title, image, content, date, place }: { title: string; ima
 }
 
 const Frame = styled(ScreenFrame)`background: #fff; gap: 20px; --screen-padding-top: calc(24px + var(--app-safe-area-top, 0px));`;
-const PageTitle = styled.h2`margin: 0; font-size: 18px; font-weight: 600; line-height: 1.55; overflow-wrap: anywhere;`;
-const Header = styled.header`flex: none; display: grid; grid-template-columns: 44px minmax(0, 1fr) 44px; align-items: center; text-align: center; gap: 8px; > span { font-size: 14px; font-weight: 600; }`;
+const PageTitle = styled.h2`margin: 0; font-size: 15px; font-weight: 600; line-height: 1.6; overflow-wrap: anywhere;`;
+const Header = styled.header`flex: none; display: grid; grid-template-columns: 44px minmax(0, 1fr) 44px; align-items: center; text-align: center; gap: 8px;
+  > span { min-width: 0; font-size: 18px; font-weight: 600; line-height: 1.4; letter-spacing: -0.02em; word-break: keep-all; }
+  @container app-viewport (max-width: 340px) { > span { font-size: 16px; } }
+`;
 const StepCount = styled.div`font-size: 12px; color: var(--color-text-muted); display: flex; justify-content: center;`;
 const Content = styled.div`flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 2px 2px 24px; display: flex; flex-direction: column; gap: 26px; > * { flex-shrink: 0; }`;
 const Intro = styled.div`
@@ -223,9 +226,6 @@ const Fields = styled.div`
   label { display: grid; gap: 10px; font-size: 13px; font-weight: 500; }
   small { display: inline; font-size: 11px; font-weight: 400; color: var(--color-text-muted); }
   input, textarea { min-width: 0; max-width: 100%; width: 100%; border: 1px solid var(--color-border); border-radius: 12px; padding: 14px; color: var(--color-text); background: #fff; font: inherit; font-weight: 400; line-height: 1.7; }
-  [data-madi-title-field] > span { font-size: 14px; font-weight: 600; }
-  [data-madi-title-field] input { min-height: 58px; font-size: 18px; font-weight: 600; line-height: 1.5; }
-  [data-madi-title-field] input::placeholder { font-size: 16px; font-weight: 400; color: var(--color-text-muted); }
   textarea { min-height: 130px; resize: vertical; }
 `;
 const Page = styled.article`position: relative; min-height: 420px; width: 100%; display: flex; flex-direction: column; gap: 32px; padding: 28px 24px; border: 1px solid #e6edf4; border-radius: 3px; background: #fff;`;

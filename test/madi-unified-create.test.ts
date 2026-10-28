@@ -33,12 +33,13 @@ test("작성 완료는 원래 화면으로 복귀하며 하루마디 연결과 �
   assert.match(screen, /initialPlace && place.trim\(\) === initialPlace.name \? initialPlace.id : null/);
 });
 
-test("새 마디 제목은 입력·미리보기에서 18px로 구분하되 선택 입력을 유지한다", () => {
+test("상단 작성 화면 제목만 키우고 마디 제목 입력·미리보기 크기는 원래대로 유지한다", () => {
   const screen = readFileSync("src/features/tuti/screens/journal/MadiCreateScreen.tsx", "utf8");
-  assert.match(screen, /<label data-madi-title-field><span>제목 <small>선택<\/small>/);
-  assert.match(screen, /\[data-madi-title-field\] input \{ min-height: 58px; font-size: 18px; font-weight: 600/);
-  assert.match(screen, /\[data-madi-title-field\] input::placeholder \{ font-size: 16px; font-weight: 400/);
-  assert.match(screen, /const PageTitle = styled.h2`[^`]*font-size: 18px; font-weight: 600/);
+  assert.match(screen, /> span \{ min-width: 0; font-size: 18px; font-weight: 600/);
+  assert.match(screen, /@container app-viewport \(max-width: 340px\) \{ > span \{ font-size: 16px/);
+  assert.match(screen, /inHarumadi \? "하루마디에 남길 마디" : madiLabel/);
+  assert.doesNotMatch(screen, /data-madi-title-field/);
+  assert.match(screen, /const PageTitle = styled.h2`[^`]*font-size: 15px; font-weight: 600; line-height: 1\.6/);
   assert.match(screen, /\{title && <PageTitle>\{title\}<\/PageTitle>\}/);
   assert.match(screen, /aria-label="마디 제목 \(선택\)"[^>]*maxLength=\{FIRST_JOURNAL_TITLE_LIMIT\}/);
 });
