@@ -9,6 +9,7 @@ import {
 } from "@/features/tuti/screens/journal/JournalEditorScreen";
 import { useTutiStore } from "@/store/tuti";
 import { useSession } from "@/features/tuti/hooks/useSession";
+import { resolveMadiEditReturn } from "@/lib/madiEditReturn";
 
 export function JournalEditFlow() {
   const router = useRouter();
@@ -22,14 +23,11 @@ export function JournalEditFlow() {
     (state) => state.setActiveJournalEntry,
   );
   const entry = entries.find((candidate) => candidate.id === entryId);
-  const returnToJournal = () => router.back();
-  const showJournalAfterSave = () => {
-    if (source === "journal") {
-      router.back();
-      return;
-    }
-
-    router.replace("/madi");
+  const returnToJournal = () => {
+    if (!entryId) { router.replace("/madi"); return; }
+    const destination = resolveMadiEditReturn(ownerId, entryId, source);
+    if (destination.back) router.back();
+    else router.replace(destination.path);
   };
   const returnToJournalFallback = () => router.replace("/madi");
 
@@ -64,7 +62,7 @@ export function JournalEditFlow() {
         startTransition({
           entryId: updatedEntry.id,
           image: updatedEntry.image ?? undefined,
-          navigate: showJournalAfterSave,
+          navigate: returnToJournal,
           sourceElement,
           sourceSurface: "editor",
         });

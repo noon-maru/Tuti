@@ -10,9 +10,12 @@ import {
   JournalDetailStatusScreen,
 } from "@/features/tuti/screens/journal/JournalDetailScreen";
 import { useTutiStore } from "@/store/tuti";
+import { useSession } from "@/features/tuti/hooks/useSession";
+import { rememberMadiEditOrigin } from "@/lib/madiEditReturn";
 
 export function JournalDetailFlow() {
   const router = useRouter();
+  const ownerId = useSession()?.userId;
   const queryClient = useQueryClient();
   const searchParams = useSearchParams();
   const entryId = searchParams.get("entryId");
@@ -98,11 +101,12 @@ export function JournalDetailFlow() {
           await queryClient.invalidateQueries({ queryKey: ["harumadi-pdfs"] });
         }
       }}
-      onEdit={() =>
+      onEdit={() => {
+        rememberMadiEditOrigin(ownerId, entry.id, "detail");
         router.push(
           `/madi/edit?entryId=${encodeURIComponent(entry.id)}&source=detail`,
-        )
-      }
+        );
+      }}
       onPublish={shareActions.publish}
       onSharePublicLink={shareActions.sharePublicLink}
       onUnpublish={shareActions.unpublish}
