@@ -164,13 +164,15 @@ function HarumadiEditor({ owner, initial, read, verified, refreshing, onRefresh,
       {readOnly && <ReadNotice role="status">{refreshing ? "저장된 내용을 먼저 보여드리고 있어요." : "저장된 하루마디를 보고 있어요. 연결 후 최신 내용을 확인해주세요."}<Quiet type="button" disabled={refreshing} onClick={onRefresh}>최신 내용 확인</Quiet></ReadNotice>}
       {read?.cached && read.missingImages > 0 && <p className="hint">일부 사진은 연결 후 볼 수 있어요.</p>}
       {mode === "settings" ? <SettingsPanel $creating={!harumadi}>
+        <SettingsIntro $creating={!harumadi}>
         {harumadi && <Eyebrow>하루마디 설정</Eyebrow>}<h1>{harumadi ? "이름과 표지" : "어떤 하루를 담을까요?"}</h1>
         <p>{harumadi ? <>표지를 고르고,<br />기억하고 싶은 순간을 천천히 채워보세요.</> : "이름과 표지를 고르면 준비 끝이에요."}</p>
+        </SettingsIntro>
         <CoverSetup $creating={!harumadi}>
           <CoverPreview $green={settings.coverStyle.startsWith("green")}><small>Tuti / 하루마디</small><strong>{settings.title || "하루마디 제목"}</strong>{settings.coverStyle.endsWith("-image") && <PhotoPlaceholder>{harumadi ? "마디를 담으면 첫 사진이 표지가 돼요." : "첫 사진이 표지가 돼요."}</PhotoPlaceholder>}<span>아직 쓰지 않은, 우리 이야기</span></CoverPreview>
           <NameField $creating={!harumadi}>
             <Label htmlFor="harumadi-title">하루마디 이름</Label><TitleInput id="harumadi-title" value={settings.title} maxLength={HARUMADI_PDF_TITLE_LIMIT} onChange={event => { setSettings({ ...settings, title: event.target.value }); setConfirmed(false); }} />
-            {!harumadi && <small>이름과 표지는<br />나중에도 바꿀 수 있어요.</small>}
+            {!harumadi && <small>이름과 표지는 나중에도 바꿀 수 있어요.</small>}
           </NameField>
         </CoverSetup>
         <Fieldset><legend>표지</legend><Choices>{(["white-plain", "green-plain", "white-image", "green-image"] as const).map((style, index) => <Choice key={style} type="button" aria-pressed={settings.coverStyle === style} $selected={settings.coverStyle === style} onClick={() => setSettings({ ...settings, coverStyle: style })}><Swatch $green={style.startsWith("green")} $photo={style.endsWith("image")} />{["흰색", "연두색", "흰색 · 사진", "연두색 · 사진"][index]}{settings.coverStyle === style && <Check size={12} />}</Choice>)}</Choices></Fieldset>
@@ -211,9 +213,13 @@ function HarumadiEditor({ owner, initial, read, verified, refreshing, onRefresh,
 function useAttachNewEntry(attach: () => Promise<void>) { useEffect(() => { void attach(); }, [attach]); }
 
 const Frame = styled.section`height: 100%; min-height: 0; display: flex; flex-direction: column; background: #F8FAFC; color: var(--color-text);`;
-const Header = styled.header<{ $creating?: boolean }>`flex: none; display: flex; justify-content: space-between; align-items: center; padding: calc(${({ $creating }) => $creating ? "6px" : "12px"} + var(--app-safe-area-top, 0px)) 22px 0; min-height: ${({ $creating }) => $creating ? "44px" : "50px"};`;
+const Header = styled.header<{ $creating?: boolean }>`flex: none; display: flex; justify-content: space-between; align-items: center; padding: calc(12px + var(--app-safe-area-top, 0px)) 22px 0; min-height: 50px;
+  ${({ $creating }) => $creating && `@container app-viewport (max-height: 719px) { padding-top: calc(6px + var(--app-safe-area-top, 0px)); min-height: 44px; }`}
+`;
 const Quiet = styled(BaseButton)`display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 40px; padding: 6px 0; background: transparent; color: var(--color-text-muted); font-size: 14px; &:focus-visible { outline: 2px solid var(--color-brand-700); outline-offset: 3px; }`;
-const Body = styled.div<{ $reading: boolean; $creating?: boolean }>`flex: 1; min-height: 0; overflow-y: ${({ $reading }) => $reading ? "hidden" : "auto"}; padding: ${({ $reading, $creating }) => $reading ? "16px 24px calc(12px + var(--app-safe-area-bottom, 0px))" : $creating ? "10px 24px 12px" : "22px 24px 28px"}; ${({ $reading }) => $reading && "display: flex; flex-direction: column;"} overscroll-behavior: contain; h1 { font-size: 25px; line-height: 1.4; font-weight: 600; letter-spacing: -0.04em; margin: 8px 0 12px; overflow-wrap: anywhere; } > p { font-size: 14px; line-height: 1.8; color: var(--color-text-muted); white-space: pre-line; } .hint { font-size: 13px; }`;
+const Body = styled.div<{ $reading: boolean; $creating?: boolean }>`flex: 1; min-height: 0; overflow-y: ${({ $reading }) => $reading ? "hidden" : "auto"}; padding: ${({ $reading, $creating }) => $reading ? "16px 24px calc(12px + var(--app-safe-area-bottom, 0px))" : $creating ? "22px 24px 20px" : "22px 24px 28px"}; ${({ $reading }) => $reading && "display: flex; flex-direction: column;"} overscroll-behavior: contain; h1 { font-size: 25px; line-height: 1.4; font-weight: 600; letter-spacing: -0.04em; margin: 8px 0 12px; overflow-wrap: anywhere; } > p { font-size: 14px; line-height: 1.8; color: var(--color-text-muted); white-space: pre-line; } .hint { font-size: 13px; }
+  ${({ $creating }) => $creating && `@container app-viewport (max-height: 719px) { padding: 10px 24px 12px; }`}
+`;
 const Eyebrow = styled.span`font-size: 13px; color: var(--color-text-muted);`;
 const ReadNotice = styled.div`display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 16px; padding: 10px 12px; border-radius: 10px; background: var(--color-brand-100); color: var(--color-text-muted); font-size: 13px; line-height: 1.7;`;
 const CoverPreview = styled.div<{ $green: boolean }>`width: 126px; aspect-ratio: 148 / 210; margin: 24px auto 28px; padding: 16px; border-radius: 2px 5px 5px 2px; background: ${({ $green }) => $green ? "#EBF5D5" : "#fff"}; box-shadow: 3px 3px 0 #dce3d6, 5px 12px 18px #1b222a12; display: flex; flex-direction: column; justify-content: space-between; border-left: 3px solid #1b222a0c; small { font-size: 9px; } strong { font-size: 15px; line-height: 1.6; overflow-wrap: anywhere; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; } > span { font-size: 9px; }`;
@@ -232,26 +238,45 @@ const SettingsPanel = styled.div<{ $creating: boolean }>`
   display: ${({ $creating }) => $creating ? "flex" : "contents"};
   > p { font-size: 14px; line-height: 1.8; color: var(--color-text-muted); white-space: pre-line; }
   ${({ $creating }) => $creating && `
-    flex-direction: column; gap: 12px;
-    --create-cover-width: clamp(76px, 14cqh, 112px);
-    > h1 { margin: 0; font-size: 22px; line-height: 1.4; }
-    > p { margin: -4px 0 2px; font-size: 14px; line-height: 1.6; color: var(--color-text-muted); }
+    flex-direction: column; gap: 18px; min-height: 100%; justify-content: space-between;
+    --create-cover-width: clamp(104px, calc(20cqh - 40px), 132px);
     > fieldset { margin: 0; min-width: 0; }
     > fieldset legend { margin-bottom: 8px; font-size: 14px; }
-    > label { margin: 0; font-size: 12px; line-height: 1.7; }
-    @container app-viewport (max-height: 620px) { gap: 10px; > h1 { font-size: 21px; } }
-    @container app-viewport (max-width: 340px) { --create-cover-width: 76px; }
+    > label { margin: 0; font-size: 13px; line-height: 1.7; }
+    @container app-viewport (max-height: 719px) {
+      min-height: 0; justify-content: flex-start; gap: 12px;
+      --create-cover-width: clamp(76px, 14cqh, 112px);
+      > label { font-size: 12px; }
+    }
+    @container app-viewport (max-height: 620px) { gap: 10px; }
+    @container app-viewport (max-height: 719px) and (max-width: 340px) { --create-cover-width: 76px; }
+  `}
+`;
+const SettingsIntro = styled.div<{ $creating: boolean }>`
+  display: ${({ $creating }) => $creating ? "block" : "contents"};
+  > p { font-size: 14px; line-height: 1.8; color: var(--color-text-muted); white-space: pre-line; }
+  ${({ $creating }) => $creating && `
+    > h1 { margin: 0; font-size: 25px; line-height: 1.4; }
+    > p { margin: 8px 0 0; line-height: 1.6; }
+    @container app-viewport (max-height: 719px) { > h1 { font-size: 22px; } > p { margin-top: 4px; } }
+    @container app-viewport (max-height: 620px) { > h1 { font-size: 21px; } }
   `}
 `;
 const CoverSetup = styled.div<{ $creating: boolean }>`
   display: ${({ $creating }) => $creating ? "grid" : "contents"};
   ${({ $creating }) => $creating && `
-    grid-template-columns: var(--create-cover-width) minmax(0, 1fr); gap: 20px; align-items: center;
-    > div:first-of-type { width: var(--create-cover-width); min-width: 0; margin: 0; padding: 10px; }
-    > div:first-of-type strong { font-size: 13px; line-height: 1.4; -webkit-line-clamp: 2; }
-    > div:first-of-type small { font-size: 8px; }
+    grid-template-columns: minmax(0, 1fr); gap: 18px; align-items: center;
+    > div:first-of-type { width: var(--create-cover-width); min-width: 0; margin: 0 auto; padding: 14px; }
+    > div:first-of-type strong { font-size: 14px; line-height: 1.4; -webkit-line-clamp: 2; }
+    > div:first-of-type small { font-size: 9px; }
     > div:first-of-type > span { display: none; }
-    @container app-viewport (max-width: 340px) { gap: 16px; }
+    @container app-viewport (max-height: 719px) {
+      grid-template-columns: var(--create-cover-width) minmax(0, 1fr); gap: 20px;
+      > div:first-of-type { margin: 0; padding: 10px; }
+      > div:first-of-type strong { font-size: 13px; }
+      > div:first-of-type small { font-size: 8px; }
+    }
+    @container app-viewport (max-height: 719px) and (max-width: 340px) { gap: 16px; }
   `}
 `;
 const NameField = styled.div<{ $creating: boolean }>`
@@ -259,7 +284,9 @@ const NameField = styled.div<{ $creating: boolean }>`
   min-width: 0;
   > small { display: block; margin-top: 8px; font-size: 12px; line-height: 1.7; color: var(--color-text-muted); }
 `;
-const Footer = styled.footer<{ $creating?: boolean }>`flex: none; padding: ${({ $creating }) => $creating ? "8px" : "12px"} 24px calc(${({ $creating }) => $creating ? "12px" : "16px"} + var(--app-safe-area-bottom, 0px)); border-top: 1px solid var(--color-border); background: #F8FAFC; > button { width: 100%; }`;
+const Footer = styled.footer<{ $creating?: boolean }>`flex: none; padding: 12px 24px calc(16px + var(--app-safe-area-bottom, 0px)); border-top: 1px solid var(--color-border); background: #F8FAFC; > button { width: 100%; }
+  ${({ $creating }) => $creating && `@container app-viewport (max-height: 719px) { padding: 8px 24px calc(12px + var(--app-safe-area-bottom, 0px)); }`}
+`;
 const ReaderTools = styled.nav`display: flex; flex: none; align-items: center; justify-content: space-between; gap: 8px; border-top: 1px solid var(--color-border); padding-top: 6px; margin-top: 4px; > button { min-height: 44px; font-size: 13px; }`;
 const RecordList = styled.div`display: grid; gap: 10px; margin: 22px 0;`;
 const RecordOption = styled.label`display: flex; gap: 12px; align-items: center; padding: 16px 12px; border: 1px solid var(--color-border); border-radius: 10px; background: white; > span { min-width: 0; display: grid; gap: 6px; } strong { font-size: 14px; font-weight: 500; overflow-wrap: anywhere; } small { font-size: 12px; color: var(--color-text-muted); }`;

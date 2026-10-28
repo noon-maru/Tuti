@@ -4,14 +4,18 @@ import test from "node:test";
 
 const flow = readFileSync("src/features/tuti/flows/HarumadiFlow.tsx", "utf8");
 
-test("새 하루마디만 표지·이름 병렬 배치와 앱 높이 기반 표지 크기를 사용한다", () => {
+test("새 하루마디는 넉넉한 세로 배치를 기본으로 하고 낮은 화면에서만 병렬로 압축한다", () => {
   assert.match(flow, /<SettingsPanel \$creating=\{!harumadi\}>/);
   assert.match(flow, /<CoverSetup \$creating=\{!harumadi\}>/);
   assert.match(flow, /<NameField \$creating=\{!harumadi\}>/);
   assert.match(flow, /--create-cover-width: clamp\(76px, 14cqh, 112px\)/);
+  assert.match(flow, /--create-cover-width: clamp\(104px, calc\(20cqh - 40px\), 132px\)/);
+  assert.match(flow, /gap: 18px; min-height: 100%; justify-content: space-between/);
+  assert.match(flow, /grid-template-columns: minmax\(0, 1fr\); gap: 18px/);
+  assert.match(flow, /@container app-viewport \(max-height: 719px\) \{\s*grid-template-columns: var\(--create-cover-width\)/);
   assert.match(flow, /grid-template-columns: var\(--create-cover-width\) minmax\(0, 1fr\)/);
   assert.match(flow, /@container app-viewport \(max-height: 620px\)/);
-  assert.match(flow, /@container app-viewport \(max-width: 340px\)/);
+  assert.match(flow, /@container app-viewport \(max-height: 719px\) and \(max-width: 340px\)/);
   assert.match(flow, /display: \$\{\(\{ \$creating \}\) => \$creating \? "grid" : "contents"\}/);
 });
 
