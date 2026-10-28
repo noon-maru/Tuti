@@ -6,6 +6,7 @@ import { Capacitor } from "@capacitor/core";
 import { createSessionReset } from "./sessionMigration";
 import { serviceTermsAcceptanceCache } from "@/lib/serviceTermsAcceptanceCache";
 import { harumadiReadCache, HARUMADI_CACHE_INVALIDATED } from "@/lib/harumadiReadCache";
+import { madiDraftStorage } from "@/lib/madiDraft";
 import type {
   AccountDeletionResponse,
   AccountIdentityUnlinkResponse,
@@ -400,6 +401,7 @@ async function clearStoredSession(expected?: TutiSession) {
   if (expected && (sessionSnapshot?.userId !== expected.userId || sessionSnapshot.accessToken !== expected.accessToken)) return;
   const previousUserId = sessionSnapshot?.userId;
   if (previousUserId) await harumadiReadCache.clearOwner(previousUserId).catch(() => {});
+  if (previousUserId) await madiDraftStorage.clearOwner(previousUserId).catch(() => {});
   sessionPromise = undefined;
   await Promise.all([
     preferencesStorage.removeItem(SESSION_STORAGE_KEY),
@@ -412,6 +414,7 @@ async function storeSession(session: TutiSession) {
   const previousUserId = sessionSnapshot?.userId;
   if (previousUserId && (previousUserId !== session.userId || sessionSnapshot?.accessToken !== session.accessToken)) await harumadiReadCache.clearOwner(previousUserId).catch(() => {});
   if (previousUserId && previousUserId !== session.userId) await serviceTermsAcceptanceCache.clear(previousUserId);
+  if (previousUserId && previousUserId !== session.userId) await madiDraftStorage.clearOwner(previousUserId).catch(() => {});
   sessionPromise = Promise.resolve(session);
   await preferencesStorage.setItem(
     SESSION_STORAGE_KEY,
@@ -441,6 +444,9 @@ async function fetchWithToken(
   try {
     response = await clientFetch(apiUrl(path), { ...init, headers });
   } finally {
+    if (owner && path === "account" && method === "DELETE") await madiDraftStorage.clearOwner(owner).catch(() => {});
+    const deletedMadi = method === "DELETE" ? /^journal-entries\/([^/]+)(?:\/sensitive-consent)?$/.exec(path)?.[1] : null;
+    if (owner && deletedMadi) await madiDraftStorage.remove(owner, decodeURIComponent(deletedMadi)).catch(() => {});
     // 응답을 잃었어도 서버가 삭제·철회를 수행했을 수 있으므로 해당 계정 캐시를 비운다.
     if (owner && changesJournal) {
       await harumadiReadCache.clearOwner(owner).catch(() => {});

@@ -25,6 +25,9 @@ import type {
 import { getLocationTermsVersion } from "@/shared/location/terms";
 import { useTutiStore } from "@/store/tuti";
 import { journalImageMaxWidth } from "@/styles/tokens";
+import { useMadiDraft } from "@/features/tuti/hooks/useMadiDraft";
+import { AppLoadingScreen } from "@/features/tuti/components/LoadingIndicator";
+import { ANDROID_BACK_EVENT } from "@/features/tuti/navigation/androidBack";
 
 type PhotoPlaceHint = {
   status: "loading" | "success" | "notice";
@@ -43,7 +46,9 @@ export function JournalEditorScreen({
   initialPlace,
   onBack,
   onSubmit,
+  draftOwnerId,
 }: {
+  draftOwnerId?: string;
   entry?: TutiJournalEntry;
   initialPlace?: { id: string; name: string };
   onBack: () => void;
@@ -103,6 +108,28 @@ export function JournalEditorScreen({
       imageUrl ||
       placeName.trim(),
   );
+  const originalImage = imageUrl === (entry?.image ?? null);
+  const draftSource = entry ? JSON.stringify([entry.title, entry.content, entry.visitedAt, entry.placeId, entry.placeName, Boolean(entry.image)]) : "new";
+  const localDraft = useMadiDraft({ ownerId: draftOwnerId, scope: entry?.id ?? "new", source: draftSource,
+    privateOnly: sensitiveContent !== false || Boolean(entry && entry.sensitiveContent !== false),
+    value: { title, content: body, date: visitDate, place: placeName, placeId, image: originalImage ? null : imageUrl, originalImage },
+    restore: draft => {
+      setTitle(draft.title); setBody(draft.content); setVisitDate(draft.date); setPlaceName(draft.place); setPlaceId(draft.placeId);
+      setImageUrl(draft.originalImage ? entry?.image ?? null : draft.image);
+      hasEditedVisitDateRef.current = true; hasEditedPlaceRef.current = true;
+    } });
+  const leaveEditor = () => { if (!isSubmitting) void localDraft.leave(onBack); };
+  useEffect(() => {
+    const back = (event: Event) => {
+      event.preventDefault();
+      if (isSubmitting) return;
+      if (cropSource) { setCropSource(null); return; }
+      if (pendingPhotoLocationChoice) { setPendingPhotoLocationChoice(null); return; }
+      void localDraft.leave(onBack);
+    };
+    window.addEventListener(ANDROID_BACK_EVENT, back);
+    return () => window.removeEventListener(ANDROID_BACK_EVENT, back);
+  }, [cropSource, isSubmitting, localDraft, onBack, pendingPhotoLocationChoice]);
 
   const selectImage = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -277,6 +304,7 @@ export function JournalEditorScreen({
         },
         imagePickerRef.current,
       );
+      await localDraft.finish();
     } catch (error) {
       setSubmitError(
         error instanceof Error
@@ -287,13 +315,15 @@ export function JournalEditorScreen({
     }
   };
 
+  if (!localDraft.ready) return <AppLoadingScreen label="수정 중이던 마디를 확인하고 있어요." />;
   return (
     <Frame>
       <EditorHeader>
         <BackButton
           type="button"
           aria-label="지난 공간으로 돌아가기"
-          onClick={onBack}
+          onClick={leaveEditor}
+          disabled={isSubmitting}
         />
         <h1>{entry ? "마디 다듬기" : "오늘의 마디"}</h1>
         <ContextMenu
@@ -305,7 +335,7 @@ export function JournalEditorScreen({
             },
             {
               label: entry ? "수정 취소" : "작성 취소",
-              onSelect: onBack,
+              onSelect: leaveEditor,
             },
           ]}
         />
@@ -398,6 +428,7 @@ export function JournalEditorScreen({
 
       <EditorFooter>
         {policyError && <EditorError role="alert">{policyError}</EditorError>}
+        {localDraft.notice && <p role="status">{localDraft.notice}</p>}
         {submitError && <EditorError role="alert">{submitError}</EditorError>}
         <SubmitButton
           type="button"

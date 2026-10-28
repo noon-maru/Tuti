@@ -31,7 +31,7 @@ export function JournalCreateFlow() {
     else router.replace(fromExplore ? "/explore" : "/madi");
   };
 
-  return <MadiCreateScreen
+  return <MadiCreateScreen key={ownerId ?? "pending"} draftOwnerId={ownerId}
     firstMadi={isSuccess && entries.length === 0}
     inHarumadi={Boolean(harumadiId)}
     initialPlace={initialPlaceId && initialPlaceName ? { id: initialPlaceId, name: initialPlaceName } : undefined}

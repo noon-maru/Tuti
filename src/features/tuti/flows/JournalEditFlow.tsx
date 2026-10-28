@@ -8,9 +8,11 @@ import {
   JournalEditorStatusScreen,
 } from "@/features/tuti/screens/journal/JournalEditorScreen";
 import { useTutiStore } from "@/store/tuti";
+import { useSession } from "@/features/tuti/hooks/useSession";
 
 export function JournalEditFlow() {
   const router = useRouter();
+  const ownerId = useSession()?.userId;
   const searchParams = useSearchParams();
   const { startTransition } = useJournalEntryTransition();
   const entryId = searchParams.get("entryId");
@@ -52,6 +54,7 @@ export function JournalEditFlow() {
 
   return (
     <JournalEditorScreen
+      key={`${ownerId}:${entry.id}`} draftOwnerId={ownerId}
       entry={entry}
       onBack={returnToJournal}
       onSubmit={async (draft, sourceElement) => {

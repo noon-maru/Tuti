@@ -13,10 +13,13 @@ import { getKoreanDateKey } from "@/lib/date/koreanDate";
 import { FIRST_JOURNAL_CONTENT_LIMIT, FIRST_JOURNAL_PLACE_LIMIT, FIRST_JOURNAL_TITLE_LIMIT, prepareFirstJournalDraft } from "@/shared/api/firstJournal";
 import type { JournalEntryInput, TutiJournalEntry } from "@/shared/api/journal";
 import { MadiHarumadiSelection } from "./MadiHarumadiSelection";
+import { useMadiDraft } from "@/features/tuti/hooks/useMadiDraft";
+import { AppLoadingScreen } from "@/features/tuti/components/LoadingIndicator";
 
 type Stage = "photo" | "write" | "preview";
 
-export function MadiCreateScreen({ onBack, onSave, onCollection, onSaved, harumadiSelection, inHarumadi = false, firstMadi = false, initialPlace, collectionLabel = "작성 마치기", preview = false }: {
+export function MadiCreateScreen({ onBack, onSave, onCollection, onSaved, harumadiSelection, draftOwnerId, inHarumadi = false, firstMadi = false, initialPlace, collectionLabel = "작성 마치기", preview = false }: {
+  draftOwnerId?: string;
   inHarumadi?: boolean;
   firstMadi?: boolean;
   initialPlace?: { id: string; name: string };
@@ -51,6 +54,12 @@ export function MadiCreateScreen({ onBack, onSave, onCollection, onSaved, haruma
   const scroll = useRef<HTMLDivElement>(null);
   const today = getKoreanDateKey();
   const draft = prepareFirstJournalDraft({ image, title, content, date, place }, today);
+  const localDraft = useMadiDraft({ ownerId: draftOwnerId, scope: "new", source: "new", enabled: !preview && !saved,
+    value: { image, title, content, date, place, placeId: null, originalImage: false, stage },
+    restore: value => {
+      setImage(value.image); setTitle(value.title); setContent(value.content); setDate(value.date); setPlace(value.place); setStage(value.stage ?? "write");
+      dateEdited.current = true;
+    } });
 
   useEffect(() => () => { if (cropSource) URL.revokeObjectURL(cropSource); }, [cropSource]);
   useEffect(() => () => { selection.current += 1; }, []);
@@ -71,8 +80,8 @@ export function MadiCreateScreen({ onBack, onSave, onCollection, onSaved, haruma
     if (saved) { onCollection(); return; }
     if (stage === "preview") setStage("write");
     else if (stage === "write") setStage("photo");
-    else onBack();
-  }, [cancelCrop, cropSource, onBack, onCollection, saved, stage]);
+    else void localDraft.leave(onBack);
+  }, [cancelCrop, cropSource, onBack, onCollection, saved, stage, localDraft]);
   useEffect(() => {
     if (preview || (saved && !savedAsFirstMadi && harumadiSelection)) return;
     const onAndroidBack = (event: Event) => {
@@ -113,6 +122,7 @@ export function MadiCreateScreen({ onBack, onSave, onCollection, onSaved, haruma
       const entry = await onSave({ ...draft,
         placeId: initialPlace && place.trim() === initialPlace.name ? initialPlace.id : null,
         sensitiveContent: false });
+      await localDraft.finish();
       setSaved(entry);
       onSaved?.(entry);
     } catch (cause) {
@@ -128,6 +138,7 @@ export function MadiCreateScreen({ onBack, onSave, onCollection, onSaved, haruma
     setStage("photo");
   };
 
+  if (!localDraft.ready && !preview) return <AppLoadingScreen label="작성 중이던 마디를 확인하고 있어요." />;
   if (saved && !savedAsFirstMadi && harumadiSelection) return <MadiHarumadiSelection key={saved.id}
     {...harumadiSelection} entryId={saved.id} onNext={startAnother} />;
 
@@ -166,6 +177,7 @@ export function MadiCreateScreen({ onBack, onSave, onCollection, onSaved, haruma
         place={saved ? (saved.placeName === "남긴 공간" ? "" : saved.placeName) : place.trim()}
       />}
       {error && <ErrorMessage role="alert">{error}</ErrorMessage>}
+      {!saved && localDraft.notice && <PrivacyHint role="status">{localDraft.notice}</PrivacyHint>}
     </Content>
     <Footer>
       {saved ? <>
