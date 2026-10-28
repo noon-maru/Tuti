@@ -12,10 +12,11 @@ import { ANDROID_BACK_EVENT } from "@/features/tuti/navigation/androidBack";
 import { getKoreanDateKey } from "@/lib/date/koreanDate";
 import { FIRST_JOURNAL_CONTENT_LIMIT, FIRST_JOURNAL_PLACE_LIMIT, FIRST_JOURNAL_TITLE_LIMIT, prepareFirstJournalDraft } from "@/shared/api/firstJournal";
 import type { JournalEntryInput, TutiJournalEntry } from "@/shared/api/journal";
+import { MadiHarumadiSelection } from "./MadiHarumadiSelection";
 
 type Stage = "photo" | "write" | "preview";
 
-export function MadiCreateScreen({ onBack, onSave, onCollection, onSaved, inHarumadi = false, firstMadi = false, initialPlace, collectionLabel = "작성 마치기", preview = false }: {
+export function MadiCreateScreen({ onBack, onSave, onCollection, onSaved, harumadiSelection, inHarumadi = false, firstMadi = false, initialPlace, collectionLabel = "작성 마치기", preview = false }: {
   inHarumadi?: boolean;
   firstMadi?: boolean;
   initialPlace?: { id: string; name: string };
@@ -25,6 +26,7 @@ export function MadiCreateScreen({ onBack, onSave, onCollection, onSaved, inHaru
   onSave?: (input: JournalEntryInput) => Promise<TutiJournalEntry>;
   onCollection: () => void;
   onSaved?: (entry: TutiJournalEntry) => void;
+  harumadiSelection?: { ownerId: string; initialBookId?: string | null; onDone: () => void };
 }) {
   const [stage, setStage] = useState<Stage>("photo");
   const [continued, setContinued] = useState(false);
@@ -72,14 +74,14 @@ export function MadiCreateScreen({ onBack, onSave, onCollection, onSaved, inHaru
     else onBack();
   }, [cancelCrop, cropSource, onBack, onCollection, saved, stage]);
   useEffect(() => {
-    if (preview) return;
+    if (preview || (saved && !savedAsFirstMadi && harumadiSelection)) return;
     const onAndroidBack = (event: Event) => {
       event.preventDefault();
       back();
     };
     window.addEventListener(ANDROID_BACK_EVENT, onAndroidBack);
     return () => window.removeEventListener(ANDROID_BACK_EVENT, onAndroidBack);
-  }, [back, preview]);
+  }, [back, preview, saved, savedAsFirstMadi, harumadiSelection]);
 
   const choosePhoto = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -125,6 +127,9 @@ export function MadiCreateScreen({ onBack, onSave, onCollection, onSaved, inHaru
     dateEdited.current = false;
     setStage("photo");
   };
+
+  if (saved && !savedAsFirstMadi && harumadiSelection) return <MadiHarumadiSelection key={saved.id}
+    {...harumadiSelection} entryId={saved.id} onNext={startAnother} />;
 
   return <Frame aria-labelledby="madi-create-heading">
     <Header>
