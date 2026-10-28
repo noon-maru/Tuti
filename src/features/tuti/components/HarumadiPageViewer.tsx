@@ -9,7 +9,7 @@ import { welcomeHarumadiTurn } from "@/shared/tuti/welcomeHarumadi";
 import type { Harumadi } from "@/shared/api/harumadi";
 import type { TutiJournalEntry } from "@/shared/api/journal";
 
-export function HarumadiPageViewer({ book, entries }: { book: Harumadi; entries: TutiJournalEntry[] }) {
+export function HarumadiPageViewer({ book, entries, onClose, closing = false }: { book: Harumadi; entries: TutiJournalEntry[]; onClose: () => void; closing?: boolean }) {
   const stage = useRef<HTMLDivElement>(null);
   const [pageWidth, setPageWidth] = useState(320);
   useEffect(() => {
@@ -29,12 +29,14 @@ export function HarumadiPageViewer({ book, entries }: { book: Harumadi; entries:
   // 책장에서 표지를 이미 열었으므로 첫 지면부터 보여준다. 이전 쪽으로 표지를 볼 수 있다.
   const [index, setIndex] = useState(1);
   const current = Math.min(index, pages.length - 1);
+  const lastPage = current === pages.length - 1;
   const [retained, setRetained] = useState<{ page: HarumadiReaderPage; index: number } | null>(null);
   const sheet = useRef<HTMLDivElement>(null), old = useRef<HTMLDivElement>(null);
   const locked = useRef(false), skipClick = useRef(false);
   const pointer = useRef<{ x: number; y: number; id: number } | null>(null);
   const turn = (next: number) => {
-    if (locked.current || next < 0 || next >= pages.length || next === current) return;
+    if (locked.current || closing || next < 0 || next === current) return;
+    if (next >= pages.length) { onClose(); return; }
     if (!window.matchMedia("(prefers-reduced-motion: reduce)").matches && typeof sheet.current?.animate === "function") {
       locked.current = true; setRetained({ page: pages[current], index: current });
     }
@@ -63,17 +65,17 @@ export function HarumadiPageViewer({ book, entries }: { book: Harumadi; entries:
       }}>
       <Page ref={sheet} $front={Boolean(retained && current < retained.index)} aria-label={current === 0 ? "하루마디 표지" : `${current}쪽`}>
         <HarumadiPageSheet page={pages[current]} coverStyle={book.coverStyle} number={current} />
-        <Edge type="button" $side="left" aria-label="왼쪽 영역을 눌러 이전 쪽" disabled={current === 0 || Boolean(retained)} onClick={() => edge(-1)} />
-        <Edge type="button" $side="right" aria-label="오른쪽 영역을 눌러 다음 쪽" disabled={current === pages.length - 1 || Boolean(retained)} onClick={() => edge(1)} />
+        <Edge type="button" $side="left" aria-label="왼쪽 영역을 눌러 이전 쪽" disabled={closing || current === 0 || Boolean(retained)} onClick={() => edge(-1)} />
+        <Edge type="button" $side="right" aria-label={lastPage ? "오른쪽 영역을 눌러 덮기" : "오른쪽 영역을 눌러 다음 쪽"} disabled={closing || Boolean(retained)} onClick={() => edge(1)} />
       </Page>
       {retained && <Page ref={old} $front={retained.index < current} aria-hidden="true" inert data-retained-page>
         <HarumadiPageSheet page={retained.page} coverStyle={book.coverStyle} number={retained.index} />
       </Page>}
     </Stage>
     <Navigation aria-label="하루마디 쪽 이동">
-      <Turn type="button" disabled={current === 0 || Boolean(retained)} onClick={() => turn(current - 1)}>이전 쪽</Turn>
+      <Turn type="button" disabled={closing || current === 0 || Boolean(retained)} onClick={() => turn(current - 1)}>이전 쪽</Turn>
       <span role="status">{current + 1} / {pages.length}</span>
-      <Turn type="button" disabled={current === pages.length - 1 || Boolean(retained)} onClick={() => turn(current + 1)}>다음 쪽</Turn>
+      <Turn type="button" disabled={closing || Boolean(retained)} onClick={() => turn(current + 1)}>{lastPage ? "덮기" : "다음 쪽"}</Turn>
     </Navigation>
   </Reader>;
 }
