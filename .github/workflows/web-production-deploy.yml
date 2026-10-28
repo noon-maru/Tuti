@@ -58,6 +58,7 @@ jobs:
         with:
           context: .
           target: runner
+          pull: true
           platforms: linux/amd64
           push: true
           provenance: false
@@ -80,6 +81,7 @@ jobs:
         with:
           context: .
           target: builder
+          pull: true
           platforms: linux/amd64
           push: true
           provenance: false

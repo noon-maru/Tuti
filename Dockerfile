@@ -1,4 +1,4 @@
-FROM node:24-bookworm-slim AS base
+FROM node:26.12.1-bookworm-slim AS base
 
 WORKDIR /app
 
@@ -59,9 +59,9 @@ ENV TUTI_TARGET=web
 
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
-RUN pnpm build:web
+RUN node scripts/check-node-runtime.mjs && pnpm build:web
 
-FROM node:24-bookworm-slim AS runner
+FROM node:26.12.1-bookworm-slim AS runner
 
 WORKDIR /app
 
@@ -77,6 +77,9 @@ ENV PORT=3000
 COPY --from=builder --chown=node:node /app/public ./public
 COPY --from=builder --chown=node:node /app/.next/standalone ./
 COPY --from=builder --chown=node:node /app/.next/static ./.next/static
+COPY --from=builder --chown=node:node /app/scripts/check-node-runtime.mjs ./scripts/check-node-runtime.mjs
+
+RUN node scripts/check-node-runtime.mjs
 
 USER node
 

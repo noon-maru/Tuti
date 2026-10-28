@@ -1,4 +1,5 @@
 minimumReleaseAge: 1440
+engineStrict: true
 overrides:
   '@capacitor/assets>sharp': 0.34.5
 allowBuilds:

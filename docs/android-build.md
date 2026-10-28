@@ -146,7 +146,7 @@ sudo rm -f /tmp/tuti-upload-jks.base64
 
 워크플로는 아래 작업을 수행한다.
 
-1. Node.js 24, pnpm 11.2.2, JDK 21과 Android API 36·NDK 29 설치
+1. Node.js 26.12.1(`.node-version`), pnpm 11.2.2, JDK 21과 Android API 36·NDK 29 설치
 2. 앱 버전 일치 여부 검증
 3. 운영 공개 설정으로 Next.js 정적 앱 및 Capacitor Android 프로젝트 생성
 4. 업로드 키로 Release AAB와 APK 서명

@@ -46,8 +46,10 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v5
         with:
-          node-version: 24
+          node-version-file: .node-version
           cache: pnpm
+      - name: Check Node.js runtime
+        run: node scripts/check-node-runtime.mjs
 
       - name: Select Xcode 26.6
         shell: bash

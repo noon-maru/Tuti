@@ -52,7 +52,7 @@ App Store Connect에 올릴 때만 값을 `true`로 선택한다. 심사 제출�
 
 워크플로는 아래 작업을 수행한다.
 
-1. macOS 26과 Xcode 26.6, Node.js 24, pnpm 11.2.2 준비
+1. macOS 26과 Xcode 26.6, Node.js 26.12.1(`.node-version`), pnpm 11.2.2 준비
 2. 앱 버전 일치 여부 검증과 운영 공개 설정 기반 Capacitor iOS 동기화
 3. App Store Connect API 키와 Xcode 자동 서명으로 Release Archive 생성
 4. 버전·빌드 번호·번들 ID와 앱 코드 서명 검증

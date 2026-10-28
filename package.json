@@ -4,7 +4,11 @@
   "private": true,
   "type": "module",
   "packageManager": "pnpm@11.2.2",
+  "engines": {
+    "node": ">=26.12.1 <27"
+  },
   "scripts": {
+    "runtime:check": "node scripts/check-node-runtime.mjs",
     "legal:privacy:maintain": "tsx scripts/maintain-privacy-data.ts",
     "legal:retention:inspect": "tsx scripts/maintain-operational-retention.ts",
     "legal:retention:hold": "tsx scripts/manage-retention-hold.ts",

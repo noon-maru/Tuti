@@ -75,8 +75,12 @@ if [ -n "$remote_app_image" ]; then
   docker tag "$remote_ops_image" "$ops_image"
 else
   echo "커밋별 운영 이미지 빌드: $revision"
-  docker compose --env-file .env.production -f docker-compose.prod.yml build ops app
+  docker compose --env-file .env.production -f docker-compose.prod.yml build --pull ops app
 fi
+
+echo "운영 앱·작업 이미지 Node.js 26 런타임 검사"
+docker run --rm --network none --read-only --entrypoint node "$app_image" /app/scripts/check-node-runtime.mjs
+docker run --rm --network none --read-only --entrypoint node "$ops_image" /app/scripts/check-node-runtime.mjs
 
 echo "배포 이미지 테스트"
 docker compose --env-file .env.production -f docker-compose.prod.yml \

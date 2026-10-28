@@ -24,8 +24,9 @@ jobs:
           version: 11.2.2
       - uses: actions/setup-node@v5
         with:
-          node-version: 24
+          node-version-file: .node-version
           cache: pnpm
+      - run: node scripts/check-node-runtime.mjs
       - name: PostgreSQL 17 시험용 실행 파일 설치
         run: |
           sudo apt-get update
@@ -53,8 +54,9 @@ jobs:
           version: 11.2.2
       - uses: actions/setup-node@v5
         with:
-          node-version: 24
+          node-version-file: .node-version
           cache: pnpm
+      - run: node scripts/check-node-runtime.mjs
       - run: pnpm install --frozen-lockfile
       - run: pnpm db:generate
       - run: pnpm test
