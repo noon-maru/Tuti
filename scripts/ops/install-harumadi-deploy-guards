@@ -1,0 +1,17 @@
+#!/bin/sh
+set -eu
+if [ "$(id -u)" -ne 0 ]; then echo "sudo로 실행해주세요." >&2; exit 1; fi
+source_dir="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
+project_dir="$(CDPATH= cd -- "$source_dir/../.." && pwd)"
+backup_dir="$project_dir/.ops-state/deploy-guards/$(date +%Y%m%d-%H%M%S)-$$"
+exec 9>"$project_dir/.ops-state/maintenance.lock"
+/usr/bin/flock --exclusive 9
+install -d -o root -g root -m 0700 "$backup_dir"
+for name in tuti-prod-deploy tuti-prod-rollback; do
+  sh -n "$source_dir/$name"
+  cp -p "/usr/local/sbin/$name" "$backup_dir/$name"
+  install -o root -g root -m 0750 "$source_dir/$name" "/usr/local/sbin/$name"
+  cmp "$source_dir/$name" "/usr/local/sbin/$name"
+done
+echo "배포·롤백 스키마 보호 장치 설치 완료. 이전 도구 보관: $backup_dir"
+echo "서비스 중지·마이그레이션·운영 배포는 실행하지 않았습니다."

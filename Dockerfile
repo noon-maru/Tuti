@@ -63,6 +63,8 @@ RUN node scripts/check-node-runtime.mjs && pnpm build:web
 
 FROM node:26.12.1-bookworm-slim AS runner
 
+LABEL com.tuti.harumadi-layout="automatic"
+
 WORKDIR /app
 
 RUN apt-get update -y \
