@@ -5,7 +5,7 @@ import { parseHarumadiSettings, parseHarumadiUpdate } from "../src/shared/api/ha
 import { parseHarumadiPdfInput } from "../src/shared/api/harumadiPdf";
 import { requiresServiceTerms } from "../src/shared/legal/serviceTerms";
 
-const settings = { title: "우리의 다음 하루", coverStyle: "green-plain", innerStyle: "photo" } as const;
+const settings = { title: "우리의 다음 하루", coverStyle: "green-plain", innerStyle: "photo", freeformNonSensitiveConfirmed: true } as const;
 test("표지와 속지로 빈 하루마디를 만들고 기록 연결은 별도로 검증한다", () => {
   assert.deepEqual(parseHarumadiSettings(settings), settings);
   assert.deepEqual(parseHarumadiUpdate({ ...settings, revision: 1, entryIds: [] }), { ...settings, revision: 1, entryIds: [] });
@@ -54,7 +54,10 @@ test("사진·글 속지 선택이 실제 PDF의 사진 포함 여부를 바꾸�
   assert.ok(await images("text", true) > 0);
 });
 
-test("하루마디 서버는 빈 틀·소유권·낙관적 잠금·민감정보를 구분한다", async () => {
+test("하루마디 서버는 빈 틀·소유권·낙관적 잠금·민감정보를 구분한다", async t => {
+  const previous = process.env.SENSITIVE_JOURNAL_WORKFLOW_ENABLED;
+  process.env.SENSITIVE_JOURNAL_WORKFLOW_ENABLED = "true";
+  t.after(() => { if (previous === undefined) delete process.env.SENSITIVE_JOURNAL_WORKFLOW_ENABLED; else process.env.SENSITIVE_JOURNAL_WORKFLOW_ENABLED = previous; });
   const rows = new Map<string, { id: string; ownerId: string; title: string; coverStyle: string; innerStyle: string; revision: number; createdAt: Date; updatedAt: Date }>();
   const links = new Map<string, string[]>();
   const records = new Map([["mine", { id: "mine", ownerId: "owner", sensitiveContent: false, sensitiveConsentVersion: null, sensitiveWithdrawnAt: null as Date | null }], ["foreign", { id: "foreign", ownerId: "someone-else", sensitiveContent: false, sensitiveConsentVersion: null, sensitiveWithdrawnAt: null as Date | null }]]);
@@ -86,6 +89,7 @@ test("하루마디 서버는 빈 틀·소유권·낙관적 잠금·민감정보�
     try { return await fn(database); } catch (error) { rows.clear(); for (const [id, row] of snapshot) rows.set(id, row); links.clear(); for (const [id, ids] of linkSnapshot) links.set(id, ids); throw error; }
   } };
   const { createHarumadi, readHarumadi, updateHarumadi, listHarumadis } = await import("../src/server/harumadi/service");
+  await assert.rejects(createHarumadi("owner", { ...settings, freeformNonSensitiveConfirmed: false }), { status: 409 });
   const harumadiPdf = await createHarumadi("owner", settings);
   assert.deepEqual(harumadiPdf.entryIds, []);
   assert.equal(harumadiPdf.revision, 1);

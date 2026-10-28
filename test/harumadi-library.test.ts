@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
+import { SENSITIVE_JOURNAL_CONSENT_VERSION } from "@/shared/legal/sensitiveJournalPolicy";
 import sharp from "sharp";
 import { preferencesStorage } from "../src/lib/storage/preferencesStorage";
 import { markLibraryEntryCompleted, readLibraryEntryCompleted } from "../src/lib/libraryPreferences";
@@ -85,12 +86,15 @@ test("하루마디 목록과 표지는 소유권·민감정보 철회·크기 �
   const { GET: cover, POST: saveCover } = await import("../src/app/api/harumadi-pdfs/[harumadiPdfId]/cover/route");
   const { GET: metadata } = await import("../src/app/api/harumadi-pdfs/[harumadiPdfId]/route");
   const previous = process.env.SERVICE_TERMS_ENFORCEMENT_ENABLED;
+  const previousSensitive = process.env.SENSITIVE_JOURNAL_WORKFLOW_ENABLED;
+  process.env.SENSITIVE_JOURNAL_WORKFLOW_ENABLED = "true";
+  t.after(() => { if (previousSensitive === undefined) delete process.env.SENSITIVE_JOURNAL_WORKFLOW_ENABLED; else process.env.SENSITIVE_JOURNAL_WORKFLOW_ENABLED = previousSensitive; });
   process.env.SERVICE_TERMS_ENFORCEMENT_ENABLED = "false";
   t.after(() => { if (previous === undefined) delete process.env.SERVICE_TERMS_ENFORCEMENT_ENABLED; else process.env.SERVICE_TERMS_ENFORCEMENT_ENABLED = previous; });
   const request = (path: string, init?: RequestInit) => new Request(`https://tuti.test/api/harumadi-pdfs${path}`, { ...init, headers: { Authorization: `Bearer ${"a".repeat(40)}`, ...init?.headers } });
   const context = { params: Promise.resolve({ harumadiPdfId: "harumadiPdf-a" }) };
   const jpeg = await sharp({ create: { width: 12, height: 16, channels: 3, background: "white" } }).jpeg().toBuffer();
-  const harumadiPdf = { id: "harumadiPdf-a", title: "한 권", entryIds: ["entry-a"], pageCount: 3, createdAt: new Date(), coverStyle: "green-plain", coverReady: false, sensitivePolicyVersion: null };
+  const harumadiPdf = { id: "harumadiPdf-a", title: "한 권", entryIds: ["entry-a"], pageCount: 3, createdAt: new Date(), coverStyle: "green-plain", coverReady: false, sensitivePolicyVersion: SENSITIVE_JOURNAL_CONSENT_VERSION as string | null };
   let owned = true; let withdrawn = false; let updated = 0;
   t.mock.method(prisma.user, "findUnique", async () => ({ id: "owner-a", role: "user", displayName: null, lastAccessedAt: new Date(), authIdentities: [] }));
   t.mock.method(prisma.journalEntry, "findMany", async () => []);
@@ -124,6 +128,10 @@ test("하루마디 목록과 표지는 소유권·민감정보 철회·크기 �
   const image = await cover(request("/harumadiPdf-a/cover"), context);
   assert.equal(image.status, 200); assert.equal(image.headers.get("content-type"), "image/jpeg");
   assert.deepEqual(Buffer.from(await image.arrayBuffer()), jpeg);
+  harumadiPdf.sensitivePolicyVersion = null;
+  assert.equal((await metadata(request("/harumadiPdf-a"), context)).status, 409);
+  assert.equal((await cover(request("/harumadiPdf-a/cover"), context)).status, 409);
+  harumadiPdf.sensitivePolicyVersion = SENSITIVE_JOURNAL_CONSENT_VERSION;
   const save = (bytes: Uint8Array, type = "image/jpeg") => saveCover(request("/harumadiPdf-a/cover", { method: "POST", headers: { "Content-Type": type }, body: bytes.slice().buffer }), context);
   assert.equal((await save(new Uint8Array(131073))).status, 413);
   assert.equal((await save(new TextEncoder().encode("<svg/>"), "image/svg+xml")).status, 415);
