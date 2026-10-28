@@ -25,7 +25,15 @@
 
 ## Actions 러너 자체는 별도
 
-`actions/setup-node`는 프로젝트의 Node를 바꾸며 self-hosted 러너와 각 Action이 번들한 Node를 바꾸지 않는다. 확인된 NAS 러너의 번들 Node는 24.21.0이다. 이 파일을 Node 26으로 임의 덮어쓰지 않는다. 패치된 번들 Node가 포함된 공식 러너/Action 릴리스로 업데이트하고 별도로 버전을 확인해야 한다. VS Code 서버 등 다른 제품의 번들 런타임도 해당 제품 업데이트로 관리한다.
+`actions/setup-node`는 프로젝트의 Node를 바꾸며 self-hosted 러너와 각 Action이 번들한 Node를 바꾸지 않는다. 확인된 NAS 러너는 2.338.0, 번들 Node는 24.21.0이다. 이 파일을 Node 26으로 임의 덮어쓰지 않는다. 공식 러너 **2.338.2** 태그는 Node 24.22.1을 포함하므로 해당 버전 이상 공식 릴리스로 업데이트한 뒤 실제 번들 버전을 확인해야 한다. 러너 업데이트는 아직 실행하지 않았다. VS Code 서버 등 다른 제품의 번들 런타임도 해당 제품 업데이트로 관리한다.
+
+## 로컬 검증 범위
+
+- Node 26.12.1·pnpm 11.2.2 실행, frozen lockfile 검사와 Prisma 7.8.0 클라이언트 생성에 성공했다.
+- Node 24.18.1로 설치를 시도하면 `ERR_PNPM_UNSUPPORTED_ENGINE`으로 거부되는 것도 확인했다.
+- `main` fast-forward 이후 Node 26으로 전체 자동 테스트를 다시 실행해 **671개 통과·2개 건너뜀·실패 0개**를 확인했다. 첫 실행에서 실패한 오래된 UI 구조 검사 2개는 Node 24에서도 재현돼, 기능 변경 없이 현재 컴포넌트 위치와 배치 기준으로 갱신했다.
+- Node 26의 격리 개발 인스턴스에서 Next.js 기동·홈·liveness HTTP 200을 확인했다. 운영 DB·스토리지를 사용하는 readiness 시험은 아니다.
+- 타입·변경 파일 린트·워크플로 YAML 구문을 검사했다. NAS에서는 운영 웹 전체 빌드나 네이티브 빌드를 실행하지 않았으며, 해당 산출물은 CI 검증이 필요하다.
 
 ## 근거
 
@@ -33,3 +41,4 @@
 - [26.12.1 보안 릴리스](https://nodejs.org/en/blog/release/v26.12.1)
 - [2026년 10월 보안 공지](https://nodejs.org/en/blog/vulnerability/october-2026-security-releases)
 - [공식 Node Docker 이미지의 의존성](https://github.com/nodejs/docker-node/blob/main/26/bookworm-slim/Dockerfile)
+- [러너 2.338.2의 번들 Node 버전](https://github.com/actions/runner/blob/v2.338.2/src/Misc/externals.sh)

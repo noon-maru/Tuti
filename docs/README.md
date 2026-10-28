@@ -9,6 +9,7 @@
 | 영역 | 기준 문서 |
 | --- | --- |
 | 웹 배포·백업·보안·정기 작업 | [운영 명령](operations.md) |
+| Node.js 실행 버전·보안 패치 | [Node 26 전환과 Node2Shell 대응](node-runtime.md) |
 | Android / iOS 빌드 | [Android 빌드](android-build.md) · [iOS 빌드](ios-build.md) |
 | 출시 문구 | [공통 출시 노트](release-notes.md) |
 | 관리자 운영 | [관리자 콘솔](admin-console.md) |
