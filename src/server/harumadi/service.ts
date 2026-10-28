@@ -4,17 +4,19 @@ import type { Prisma } from "@/generated/prisma/client";
 import type { Harumadi, HarumadiSettings, HarumadiUpdate } from "@/shared/api/harumadi";
 import { assertHarumadiPdfFreeform, assertSensitiveJournalReadable } from "@/server/journal/sensitivePolicy";
 import { commitPrivacyReplayReceipt, preparePrivacyReplayReceipt } from "@/server/legal/privacyReplayLedger";
+import { LEGACY_HARUMADI_BACK_COVER_TEXT, pickHarumadiBackCoverText } from "@/shared/harumadi/backCover";
 
 export class HarumadiError extends Error {
   constructor(message: string, readonly status = 400) { super(message); }
 }
 const selection = {
-  id: true, title: true, coverStyle: true, revision: true, createdAt: true, updatedAt: true,
+  id: true, title: true, coverStyle: true, backCoverText: true, revision: true, createdAt: true, updatedAt: true,
   entries: { where: { entry: { sensitiveWithdrawnAt: null } }, select: { entryId: true } },
 } as const;
 type HarumadiRow = Prisma.HarumadiGetPayload<{ select: typeof selection }>;
 function dto(row: HarumadiRow): Harumadi {
   return { id: row.id, title: row.title, coverStyle: row.coverStyle as Harumadi["coverStyle"],
+    backCoverText: row.backCoverText,
     revision: row.revision,
     entryIds: row.entries.map(link => link.entryId), createdAt: row.createdAt.toISOString(), updatedAt: row.updatedAt.toISOString() };
 }
@@ -41,17 +43,19 @@ export async function createHarumadi(ownerId: string, settings: HarumadiSettings
     // 첫 마디의 기본 하루마디 생성과 수동 생성을 같은 소유자 잠금으로 조정한다.
     await tx.$queryRaw`SELECT id FROM users WHERE id = ${ownerId} FOR UPDATE`;
     return dto(await tx.harumadi.create({ data: { id: randomUUID(), ownerId, title: settings.title,
-      coverStyle: settings.coverStyle }, select: selection }));
+      coverStyle: settings.coverStyle, backCoverText: settings.backCoverText ?? pickHarumadiBackCoverText() }, select: selection }));
   });
 }
 export async function updateHarumadi(ownerId: string, id: string, input: HarumadiUpdate) {
   // 표지 변경에만 자유 입력 확인을 요구한다. 기록 선택 자체의 민감정보 동의는 원본 기록에 귀속된다.
   return prisma.$transaction(async tx => {
-    const existing = await tx.harumadi.findFirst({ where: { id, ownerId }, select: { title: true } });
+    const existing = await tx.harumadi.findFirst({ where: { id, ownerId }, select: { title: true, backCoverText: true } });
     if (!existing) throw new HarumadiError("하루마디를 찾지 못했어요.", 404);
-    if (existing.title !== input.title) validateFreeform(input);
+    if (existing.title !== input.title || (input.backCoverText !== undefined &&
+        input.backCoverText !== (existing.backCoverText ?? LEGACY_HARUMADI_BACK_COVER_TEXT))) validateFreeform(input);
     const updated = await tx.harumadi.updateMany({ where: { id, ownerId, revision: input.revision },
-      data: { title: input.title, coverStyle: input.coverStyle, revision: { increment: 1 } } });
+      data: { title: input.title, coverStyle: input.coverStyle,
+        ...(input.backCoverText !== undefined ? { backCoverText: input.backCoverText } : {}), revision: { increment: 1 } } });
     if (!updated.count) throw new HarumadiError("다른 화면에서 하루마디가 바뀌었어요. 다시 불러온 후 수정해주세요.", 409);
     // 선택한 원본을 잠가 철회/삭제된 기록이나 다른 계정의 기록을 연결하지 않는다.
     if (input.entryIds.length) await tx.$queryRaw`SELECT id FROM journal_entries WHERE owner_id = ${ownerId} AND id = ANY(${input.entryIds}::text[]) ORDER BY id FOR UPDATE`;

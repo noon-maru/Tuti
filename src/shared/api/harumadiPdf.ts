@@ -1,3 +1,5 @@
+import { isHarumadiBackCoverText } from "../harumadi/backCover";
+
 export const HARUMADI_PDF_MAX_ENTRIES = 12;
 export const HARUMADI_PDF_TITLE_LIMIT = 80;
 export const HARUMADI_PDF_LETTER_LIMIT = 1200;
@@ -52,6 +54,7 @@ export function getHarumadiPdfCoverPalette(style: HarumadiPdfCoverStyle) {
 }
 
 export type HarumadiPdfInput = {
+  backCoverText?: string;
   freeformNonSensitiveConfirmed?: boolean;
   entryIds: string[];
   title: string;
@@ -104,6 +107,7 @@ export function emptyHarumadiPdfDraft(): HarumadiPdfDraft {
 export function parseHarumadiPdfInput(value: unknown): HarumadiPdfInput | null {
   if (!value || typeof value !== "object") return null;
   const input = value as Record<string, unknown>;
+  if (input.backCoverText !== undefined && !isHarumadiBackCoverText(input.backCoverText)) return null;
   if (input.freeformNonSensitiveConfirmed !== undefined && typeof input.freeformNonSensitiveConfirmed !== "boolean") return null;
   const coverStyle = HARUMADI_PDF_COVER_STYLES.includes(
     input.coverStyle as HarumadiPdfCoverStyle,
@@ -141,6 +145,7 @@ export function parseHarumadiPdfInput(value: unknown): HarumadiPdfInput | null {
     letter: input.letter,
     coverEntryId: input.coverEntryId,
     coverStyle,
+    ...(typeof input.backCoverText === "string" ? { backCoverText: input.backCoverText.trim() } : {}),
     ...(typeof input.freeformNonSensitiveConfirmed === "boolean" ? { freeformNonSensitiveConfirmed: input.freeformNonSensitiveConfirmed } : {}),
   };
 }

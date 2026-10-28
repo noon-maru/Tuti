@@ -732,6 +732,7 @@ model Harumadi {
   ownerId    String @map("owner_id")
   title      String
   coverStyle String @map("cover_style")
+  backCoverText String @default("오늘 가능한 만큼만,") @map("back_cover_text")
   revision   Int @default(1)
   createdAt  DateTime @default(now()) @map("created_at")
   updatedAt  DateTime @updatedAt @map("updated_at")

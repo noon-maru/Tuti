@@ -166,4 +166,4 @@ const TextBody = styled.span`display: block; font-size: var(--hm-body, ${pt(layo
 const LongPaper = styled(Paper)`display: flex; flex-direction: column;`;
 const LongHeader = styled.span`display: block; margin-bottom: ${pt(22)}; padding-bottom: ${pt(18)}; border-bottom: ${pt(1)} solid #DCE7F1;`;
 const LongBody = styled.span`display: block; font-size: var(--hm-body, ${pt(12)}); line-height: var(--hm-line, 1.95); white-space: pre-wrap; overflow-wrap: anywhere;`;
-const BackMessage = styled.span`display: grid; flex: 1; place-items: center; font-size: var(--hm-body, ${pt(14)});`;
+const BackMessage = styled.span`display: grid; flex: 1; place-items: center; font-size: var(--hm-body, ${pt(14)}); line-height: 1.5; white-space: pre-line; overflow-wrap: anywhere;`;

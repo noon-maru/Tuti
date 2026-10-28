@@ -3,6 +3,7 @@ import type { TutiJournalEntry } from "../api/journal";
 import { estimateHarumadiPdfPhotoTextLines, harumadiPdfDate } from "../api/harumadiPdf";
 import { HARUMADI_PDF_LAYOUT as layout } from "./pdfLayout";
 import { HARUMADI_READING_TYPE as type } from "./readingTypography";
+import { LEGACY_HARUMADI_BACK_COVER_TEXT } from "./backCover";
 
 export type HarumadiReaderPage = {
   kind: "cover" | "photo" | "photo-only" | "text" | "continuation" | "back" | "empty";
@@ -62,6 +63,6 @@ export function buildHarumadiReaderPages(book: Harumadi, entries: TutiJournalEnt
     // 이어지는 쪽에서는 사진을 반복하지 않고 본문 전체를 읽도록 한다.
     for (const content of splitReaderText(chunks.join(""), units, bodyLines)) if (content) pages.push({ ...data, title: "", image: null, content, kind: "continuation" });
   }
-  pages.push({ ...base, kind: "back", content: "오늘 가능한 만큼만," });
+  pages.push({ ...base, kind: "back", content: book.backCoverText ?? LEGACY_HARUMADI_BACK_COVER_TEXT });
   return pages;
 }

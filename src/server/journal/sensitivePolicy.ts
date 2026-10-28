@@ -37,7 +37,7 @@ export function sensitiveJournalData(input: JournalEntryInput, enabled = sensiti
 
 export function assertHarumadiPdfFreeform(input: HarumadiPdfInput) {
   if (sensitiveJournalPolicyEnabled() && input.freeformNonSensitiveConfirmed !== true) {
-    throw new SensitiveJournalPolicyError("표지 제목과 남기는 말에 민감정보가 없는지 확인해주세요. 민감정보는 별도 동의한 마디에서만 가져올 수 있어요.");
+    throw new SensitiveJournalPolicyError("표지 제목·뒷표지 문구·남기는 말에 민감정보가 없는지 확인해주세요. 민감정보는 별도 동의한 마디에서만 가져올 수 있어요.");
   }
 }
 

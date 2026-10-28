@@ -1,5 +1,6 @@
 import type { HarumadiContent } from "@/shared/api/harumadi";
 import { preferencesStorage } from "./storage/preferencesStorage";
+import { isHarumadiBackCoverText } from "@/shared/harumadi/backCover";
 
 export const HARUMADI_CACHE_TTL = 7 * 86400_000;
 export const HARUMADI_CACHE_MAX_BOOKS = 5;
@@ -119,6 +120,7 @@ export function isReadContent(value: unknown): value is HarumadiContent {
   const data = value as HarumadiContent, book = data.harumadi;
   return Boolean(book && validId(book.id) && typeof book.title === "string" && book.title.length <= 80 &&
     ["white-plain", "white-image", "green-plain", "green-image"].includes(book.coverStyle) &&
+    (book.backCoverText === undefined || isHarumadiBackCoverText(book.backCoverText)) &&
     Number.isSafeInteger(book.revision) && book.revision > 0 && typeof book.createdAt === "string" && Number.isFinite(Date.parse(book.createdAt)) &&
     typeof book.updatedAt === "string" && Number.isFinite(Date.parse(book.updatedAt)) &&
     Array.isArray(book.entryIds) && book.entryIds.length <= 12 && new Set(book.entryIds).size === book.entryIds.length &&

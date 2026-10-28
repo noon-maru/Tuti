@@ -19,6 +19,7 @@ import { getSessionSnapshot } from "@/lib/auth/session";
 import { HARUMADI_PDF_MAX_ENTRIES, HARUMADI_PDF_TITLE_LIMIT, type HarumadiPdfInput } from "@/shared/api/harumadiPdf";
 import type { Harumadi, HarumadiSettings } from "@/shared/api/harumadi";
 import { ANDROID_BACK_EVENT } from "@/features/tuti/navigation/androidBack";
+import { HARUMADI_BACK_COVER_TEXT_LIMIT, LEGACY_HARUMADI_BACK_COVER_TEXT, isHarumadiBackCoverText, pickHarumadiBackCoverText } from "@/shared/harumadi/backCover";
 
 type ReaderOptions = { bookId?: string; initialMode?: "pages" | "settings"; onClose?: () => void };
 export function HarumadiFlow({ bookId, initialMode, onClose }: ReaderOptions = {}) {
@@ -76,7 +77,9 @@ function HarumadiEditor({ owner, initial, read, verified, refreshing, onRefresh,
   }, enabled: Boolean(harumadi) && (mode === "selection" || Boolean(addEntryId)), refetchOnWindowFocus: false });
   const isFirstMadi = read ? read.content.totalRecordCount === 0 : entries.isSuccess && entries.data.length === 0;
   const chosen = useMemo(() => (read?.content.entries ?? []).filter(entry => harumadi?.entryIds.includes(entry.id)).sort((a, b) => a.visitedAt.localeCompare(b.visitedAt) || a.id.localeCompare(b.id)), [read, harumadi]);
-  const titleNeedsConfirmation = Boolean(sensitivePolicy?.enabled && (!harumadi || settings.title.trim() !== harumadi.title));
+  const titleNeedsConfirmation = Boolean(sensitivePolicy?.enabled && (!harumadi || settings.title.trim() !== harumadi.title ||
+    (settings.backCoverText ?? LEGACY_HARUMADI_BACK_COVER_TEXT).trim() !== (harumadi.backCoverText ?? LEGACY_HARUMADI_BACK_COVER_TEXT)));
+  const backCoverTextValid = settings.backCoverText === undefined || isHarumadiBackCoverText(settings.backCoverText);
   const refreshLibrary = () => { void client.invalidateQueries({ queryKey: ["library-harumadis", owner] }); void client.invalidateQueries({ queryKey: ["harumadi-content", owner] }); client.removeQueries({ queryKey: ["library-cover", owner] }); };
   const savedEntry = useRef<string | null>(null);
   useEffect(() => { scroller.current?.scrollTo({ top: 0 }); }, [mode]);
@@ -88,7 +91,7 @@ function HarumadiEditor({ owner, initial, read, verified, refreshing, onRefresh,
   }, [initial, verified, mode, busy, harumadi?.revision, harumadi?.updatedAt, harumadi?.entryIds]);
 
   async function saveSettings() {
-    if (readOnly || busy || !settings.title.trim() || (titleNeedsConfirmation && !confirmed) || !sensitivePolicy) return;
+    if (readOnly || busy || !settings.title.trim() || !backCoverTextValid || (titleNeedsConfirmation && !confirmed) || !sensitivePolicy) return;
     setBusy(true); setError("");
     try {
       const input = { ...settings, freeformNonSensitiveConfirmed: confirmed };
@@ -126,7 +129,7 @@ function HarumadiEditor({ owner, initial, read, verified, refreshing, onRefresh,
     catch (cause) { setBusy(false); setError(cause instanceof Error ? cause.message : "삭제하지 못했어요."); }
   }
   const pdfInput = useMemo<HarumadiPdfInput | null>(() => harumadi && chosen.length ? {
-    title: harumadi.title, coverStyle: harumadi.coverStyle, letter: "", entryIds: chosen.map(entry => entry.id),
+    title: harumadi.title, coverStyle: harumadi.coverStyle, backCoverText: harumadi.backCoverText ?? LEGACY_HARUMADI_BACK_COVER_TEXT, letter: "", entryIds: chosen.map(entry => entry.id),
     coverEntryId: harumadi.coverStyle.endsWith("-image") ? chosen.find(entry => entry.image)?.id ?? null : null,
     freeformNonSensitiveConfirmed: confirmed,
   } : null, [harumadi, chosen, confirmed]);
@@ -166,15 +169,24 @@ function HarumadiEditor({ owner, initial, read, verified, refreshing, onRefresh,
         <CoverPreview $green={settings.coverStyle.startsWith("green")}><small>Tuti / 하루마디</small><strong>{settings.title || "하루마디 제목"}</strong>{settings.coverStyle.endsWith("-image") && <PhotoPlaceholder>마디를 담으면 첫 사진이 표지가 돼요.</PhotoPlaceholder>}<span>아직 쓰지 않은, 우리 이야기</span></CoverPreview>
         <Label htmlFor="harumadi-title">하루마디 이름</Label><TitleInput id="harumadi-title" value={settings.title} maxLength={HARUMADI_PDF_TITLE_LIMIT} onChange={event => { setSettings({ ...settings, title: event.target.value }); setConfirmed(false); }} />
         <Fieldset><legend>표지</legend><Choices>{(["white-plain", "green-plain", "white-image", "green-image"] as const).map((style, index) => <Choice key={style} type="button" aria-pressed={settings.coverStyle === style} $selected={settings.coverStyle === style} onClick={() => setSettings({ ...settings, coverStyle: style })}><Swatch $green={style.startsWith("green")} $photo={style.endsWith("image")} />{["흰색", "연두색", "흰색 · 사진", "연두색 · 사진"][index]}{settings.coverStyle === style && <Check size={12} />}</Choice>)}</Choices></Fieldset>
+        {harumadi && <BackCoverField>
+          <Label htmlFor="harumadi-back-cover">뒷표지 문구</Label>
+          <BackCoverInput id="harumadi-back-cover" rows={3} maxLength={HARUMADI_BACK_COVER_TEXT_LIMIT}
+            aria-invalid={!backCoverTextValid} aria-describedby="harumadi-back-cover-hint"
+            value={settings.backCoverText ?? LEGACY_HARUMADI_BACK_COVER_TEXT}
+            onChange={event => { setSettings({ ...settings, backCoverText: event.target.value }); setConfirmed(false); }} />
+          <BackCoverTools><small id="harumadi-back-cover-hint">120자·3줄까지, 비워두면 문구 없이 보여요.</small><Quiet type="button" disabled={busy || readOnly} onClick={() => { setSettings({ ...settings, backCoverText: pickHarumadiBackCoverText(settings.backCoverText ?? LEGACY_HARUMADI_BACK_COVER_TEXT) }); setConfirmed(false); }}>다른 문구 보기</Quiet></BackCoverTools>
+          {!backCoverTextValid && <ErrorMessage role="alert">뒷표지 문구는 120자·3줄 이내로 적어주세요.</ErrorMessage>}
+        </BackCoverField>}
         <p className="hint">마디가 없어도 만들 수 있어요. 이름과 표지는 나중에도 바꿀 수 있어요.</p>
-        {titleNeedsConfirmation && <Confirmation><input type="checkbox" checked={confirmed} onChange={event => setConfirmed(event.target.checked)} />표지 제목에 건강·정치적 견해 등 민감정보가 없음을 확인해요.</Confirmation>}
+        {titleNeedsConfirmation && <Confirmation><input type="checkbox" checked={confirmed} onChange={event => setConfirmed(event.target.checked)} />이름과 뒷표지 문구에 건강·정치적 견해 등 민감정보가 없음을 확인해요.</Confirmation>}
         {harumadi && <Quiet type="button" onClick={() => void remove()} disabled={busy || readOnly}><Trash2 size={15} />하루마디 틀 삭제</Quiet>}
       </> : mode === "selection" ? <>
         <Eyebrow>마디 채우기</Eyebrow><h1>어떤 순간을 담을까요?</h1><p>원본 마디는 그대로 두고 이 하루마디에 담아요.<br />한 권에 최대 {HARUMADI_PDF_MAX_ENTRIES}개까지 담을 수 있어요.</p>
         {entries.isPending ? <p role="status">마디를 불러오고 있어요.</p> : entries.isError ? <Quiet onClick={() => void entries.refetch()}>마디 다시 불러오기</Quiet> : !entries.data?.length ? <p>아직 남긴 마디가 없어요. 먼저 한 페이지를 써볼까요?</p> : <RecordList>{entries.data.map(entry => <RecordOption key={entry.id}><input type="checkbox" checked={selected.includes(entry.id)} disabled={busy || readOnly || (!selected.includes(entry.id) && selected.length >= HARUMADI_PDF_MAX_ENTRIES)} onChange={() => setSelected(current => current.includes(entry.id) ? current.filter(id => id !== entry.id) : [...current, entry.id])} /><span><strong>{entry.title || entry.placeName || "남긴 하루"}</strong><small>{entry.visitedAt.slice(0, 10)} · {entry.content.slice(0, 45) || "사진으로 남긴 순간"}</small></span></RecordOption>)}</RecordList>}
       </> : mode === "pdf" ? <>
         <Eyebrow>별도 파일로 소장하기</Eyebrow><h1>PDF로 저장하기</h1><p>지금 담긴 마디로 PDF를 만들어요.<br />저장 후 하루마디를 바꿔도 이미 만든 PDF는 바뀌지 않아요.</p>
-        {sensitivePolicy?.enabled && <Confirmation><input type="checkbox" checked={confirmed} onChange={event => setConfirmed(event.target.checked)} />표지 제목에 민감정보가 없음을 확인해요.</Confirmation>}
+        {sensitivePolicy?.enabled && <Confirmation><input type="checkbox" checked={confirmed} onChange={event => setConfirmed(event.target.checked)} />이름과 뒷표지 문구에 민감정보가 없음을 확인해요.</Confirmation>}
         {pdfInput && !readOnly && sensitivePolicy && (!sensitivePolicy.enabled || confirmed) && <HarumadiPdfPreview key={`${harumadi!.revision}:${confirmed}`} ownerId={owner} input={pdfInput} onReady={handlePdf} />}
       </> : harumadi && <>
         <HarumadiPageViewer book={harumadi} entries={chosen} />
@@ -187,7 +199,7 @@ function HarumadiEditor({ owner, initial, read, verified, refreshing, onRefresh,
       {policyQuery.isError && <ErrorMessage role="alert">마디 보호 설정을 불러오지 못했어요.<Quiet onClick={() => void policyQuery.refetch()}>다시 불러오기</Quiet></ErrorMessage>}
       {error && <ErrorMessage role="alert">{error}<Quiet onClick={() => window.location.reload()}>다시 불러오기</Quiet></ErrorMessage>}
     </Body>
-    {mode !== "pages" && <Footer><PrimaryButton type="button" disabled={busy || readOnly || (mode === "settings" && (!settings.title.trim() || !sensitivePolicy || (titleNeedsConfirmation && !confirmed))) || (mode === "selection" && !entries.data) || (mode === "pdf" && (!pdf?.approvalToken || Boolean(sensitivePolicy?.enabled && !confirmed)))} onClick={() => void (mode === "settings" ? saveSettings() : mode === "selection" ? saveEntries() : downloadPdf())}>{busy ? "저장하고 있어요." : mode === "settings" ? harumadi ? "설정 저장하기" : "빈 하루마디 만들기" : mode === "selection" ? `마디 ${selected.length}개 담기` : "PDF 파일 저장하기"}</PrimaryButton></Footer>}
+    {mode !== "pages" && <Footer><PrimaryButton type="button" disabled={busy || readOnly || (mode === "settings" && (!settings.title.trim() || !backCoverTextValid || !sensitivePolicy || (titleNeedsConfirmation && !confirmed))) || (mode === "selection" && !entries.data) || (mode === "pdf" && (!pdf?.approvalToken || Boolean(sensitivePolicy?.enabled && !confirmed)))} onClick={() => void (mode === "settings" ? saveSettings() : mode === "selection" ? saveEntries() : downloadPdf())}>{busy ? "저장하고 있어요." : mode === "settings" ? harumadi ? "설정 저장하기" : "빈 하루마디 만들기" : mode === "selection" ? `마디 ${selected.length}개 담기` : "PDF 파일 저장하기"}</PrimaryButton></Footer>}
   </Frame>;
 }
 
@@ -203,6 +215,9 @@ const CoverPreview = styled.div<{ $green: boolean }>`width: 126px; aspect-ratio:
 const PhotoPlaceholder = styled.div`padding: 10px 5px; font-size: 9px; line-height: 1.7; background: #d9e6ed; text-align: center;`;
 const Label = styled.label`display: block; font-size: 14px; font-weight: 600; margin-bottom: 9px;`;
 const TitleInput = styled.input`width: 100%; min-height: 44px; padding: 10px 12px; border: 1px solid var(--color-border); border-radius: 10px; background: white; font: inherit; font-size: 16px; color: inherit;`;
+const BackCoverField = styled.div`margin-top: 24px;`;
+const BackCoverInput = styled.textarea`width: 100%; resize: vertical; min-height: 96px; padding: 12px; border: 1px solid var(--color-border); border-radius: 10px; background: white; font: inherit; font-size: 16px; line-height: 1.7; color: inherit; &:focus-visible { outline: 2px solid var(--color-brand-700); outline-offset: 2px; }`;
+const BackCoverTools = styled.div`display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 4px 12px; small { font-size: 12px; color: var(--color-text-muted); } button { font-size: 13px; }`;
 const Fieldset = styled.fieldset`border: 0; padding: 0; margin: 24px 0; legend { font-size: 14px; font-weight: 600; margin-bottom: 12px; }`;
 const Choices = styled.div`display: grid; grid-template-columns: 1fr 1fr; gap: 8px;`;
 const Choice = styled(BaseButton)<{ $selected: boolean }>`display: flex; align-items: center; gap: 7px; min-height: 44px; padding: 10px; font-size: 13px; background: white; border-radius: 10px; border: 1px solid ${({ $selected }) => $selected ? "var(--color-brand-700)" : "var(--color-border)"}; color: inherit;`;

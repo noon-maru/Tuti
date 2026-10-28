@@ -14,6 +14,7 @@ import {
   rgb,
 } from "pdf-lib";
 import { PDF_FONT_FAMILY, registerPdfFonts } from "./fonts";
+import { LEGACY_HARUMADI_BACK_COVER_TEXT } from "@/shared/harumadi/backCover";
 import { HARUMADI_PDF_LAYOUT } from "../../shared/harumadi/pdfLayout";
 import {
   estimateHarumadiPdfPhotoTextLines,
@@ -448,7 +449,7 @@ export async function renderHarumadiPdf(
             { color: coverPalette.foreground },
           ]}
         >
-          오늘 가능한 만큼만,
+          {printable(input.backCoverText ?? LEGACY_HARUMADI_BACK_COVER_TEXT)}
         </Text>
       </Page>
     </Document>,

@@ -4,6 +4,7 @@ import { readFileSync } from "node:fs";
 import { parseHarumadiSettings, parseHarumadiUpdate } from "../src/shared/api/harumadi";
 import { parseHarumadiPdfInput } from "../src/shared/api/harumadiPdf";
 import { requiresServiceTerms } from "../src/shared/legal/serviceTerms";
+import { HARUMADI_BACK_COVER_MESSAGES } from "../src/shared/harumadi/backCover";
 
 const settings = { title: "우리의 다음 하루", coverStyle: "green-plain", freeformNonSensitiveConfirmed: true } as const;
 test("표지로 빈 하루마디를 만들고 기록 연결은 별도로 검증한다", () => {
@@ -89,15 +90,24 @@ test("하루마디 서버는 빈 틀·소유권·낙관적 잠금·민감정보�
   const harumadiPdf = await createHarumadi("owner", settings);
   assert.deepEqual(harumadiPdf.entryIds, []);
   assert.equal(harumadiPdf.revision, 1);
+  assert.ok(HARUMADI_BACK_COVER_MESSAGES.some(message => message === harumadiPdf.backCoverText));
+  assert.equal((await readHarumadi("owner", harumadiPdf.id)).backCoverText, harumadiPdf.backCoverText);
   await assert.rejects(readHarumadi("other", harumadiPdf.id), /찾지 못/);
   await assert.rejects(updateHarumadi("other", harumadiPdf.id, { ...settings, revision: 1, entryIds: ["mine"] }), /찾지 못/);
   await assert.rejects(updateHarumadi("owner", harumadiPdf.id, { ...settings, revision: 1, entryIds: ["foreign"] }), /선택한 마디/);
   assert.equal((await readHarumadi("owner", harumadiPdf.id)).revision, 1);
   const filled = await updateHarumadi("owner", harumadiPdf.id, { ...settings, revision: 1, entryIds: ["mine"] });
   assert.deepEqual(filled.entryIds, ["mine"]);
+  assert.equal(filled.backCoverText, harumadiPdf.backCoverText, "문구 없는 기존 설정·마디 연결 요청은 저장된 문구를 유지한다");
   await assert.rejects(updateHarumadi("owner", harumadiPdf.id, { ...settings, revision: 1, entryIds: [] }), /다른 화면/);
   records.get("mine")!.sensitiveWithdrawnAt = new Date();
   assert.deepEqual((await readHarumadi("owner", harumadiPdf.id)).entryIds, []);
   await assert.rejects(updateHarumadi("owner", harumadiPdf.id, { ...settings, revision: 2, entryIds: ["mine"] }), /민감정보|기록/);
   assert.equal((await listHarumadis("owner", null)).harumadis.length, 1);
+  await assert.rejects(updateHarumadi("owner", harumadiPdf.id, { ...settings, freeformNonSensitiveConfirmed: false,
+    revision: 2, entryIds: [], backCoverText: "내가 남긴 마지막 말" }), { status: 409 });
+  const edited = await updateHarumadi("owner", harumadiPdf.id, { ...settings, revision: 2, entryIds: [], backCoverText: "내가 남긴 마지막 말" });
+  assert.equal(edited.backCoverText, "내가 남긴 마지막 말");
+  const blank = await updateHarumadi("owner", harumadiPdf.id, { ...settings, revision: 3, entryIds: [], backCoverText: "" });
+  assert.equal(blank.backCoverText, "", "빈 문구는 기본 문구로 덮어쓰지 않는다");
 });
