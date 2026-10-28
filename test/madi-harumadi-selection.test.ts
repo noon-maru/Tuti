@@ -17,10 +17,19 @@ test("첫 마디는 기존 완료 화면을 유지하고 두 번째부터 저장
   assert.match(screen, /if \(saved && !savedAsFirstMadi && harumadiSelection\) return <MadiHarumadiSelection/);
   assert.match(screen, /if \(preview \|\| \(saved && !savedAsFirstMadi && harumadiSelection\)\) return/);
   const flow = readFileSync("src/features/tuti/flows/JournalCreateFlow.tsx", "utf8");
-  assert.match(flow, /initialBookId: harumadiId/);
+  assert.match(flow, /harumadiSelection=\{ownerId && !harumadiId \? \{ ownerId,/);
   assert.match(screen, /onNext=\{startAnother\}/);
   // 담지 않고 마치기는 addEntryId를 붙이지 않는 복귀 경로다.
   assert.match(flow, /onDone: \(\) => \{ requestLoginNudge\("journal_created"\); returnToSource\(\); \}/);
+});
+
+test("하루마디 안에서 작성하면 선택 화면 없이 원래 하루마디에 연결한다", () => {
+  const flow = readFileSync("src/features/tuti/flows/JournalCreateFlow.tsx", "utf8");
+  assert.match(flow, /inHarumadi=\{Boolean\(harumadiId\)\}/);
+  assert.match(flow, /harumadiSelection=\{ownerId && !harumadiId \?/);
+  assert.doesNotMatch(flow, /initialBookId: harumadiId/);
+  assert.match(flow, /if \(harumadiId\) router.replace\(`\$\{harumadiPath\(harumadiId\)\}/);
+  assert.match(flow, /&addEntryId=\$\{encodeURIComponent\(savedEntryId.current\)\}/);
 });
 
 test("선택 화면은 빈 책장·기존 책·가득 찬 책과 담지 않기를 구분한다", () => {

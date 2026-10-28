@@ -51,7 +51,9 @@ export function JournalCreateFlow() {
       savedEntryId.current = entry.id;
       setActiveJournalEntry(entry.id);
     }}
-    harumadiSelection={ownerId ? { ownerId, initialBookId: harumadiId,
+    // 하루마디 안에서 시작했다면 담을 곳은 이미 정해져 있다.
+    // 완료 후 기존 addEntryId 경로로 해당 하루마디에 연결한다.
+    harumadiSelection={ownerId && !harumadiId ? { ownerId,
       onDone: () => { requestLoginNudge("journal_created"); returnToSource(); } } : undefined}
     onCollection={() => {
       requestLoginNudge("journal_created");
