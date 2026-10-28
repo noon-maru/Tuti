@@ -10,6 +10,7 @@ import { HarumadiCover } from "@/features/tuti/components/HarumadiCover";
 import { HarumadiBookReader } from "@/features/tuti/components/HarumadiBookReader";
 import { useHarumadiHistory } from "@/features/tuti/hooks/useHarumadiHistory";
 import { MainNavigation } from "@/features/tuti/components/MainNavigation";
+import { LibraryLoadNotice } from "@/features/tuti/components/LibraryLoadNotice";
 import { BaseButton, PrimaryButton } from "@/features/tuti/components/buttons";
 import { useHarumadiLibrary } from "@/features/tuti/hooks/useHarumadiLibrary";
 import type { Harumadi } from "@/shared/api/harumadi";
@@ -70,8 +71,9 @@ function LibraryHome({ ownerId }: { ownerId: string }) {
               </HarumadiButton><BookSettings type="button" aria-label={`${harumadiPdf.title} 설정`} title="하루마디 설정" onClick={event => openBook(harumadiPdf, event.currentTarget, true)}><MoreVertical size={22} /></BookSettings>
               </HarumadiCard>)}</HarumadiGrid><ShelfEdge aria-hidden="true" />
             </ShelfRow>)}
-            {query.isError && <InlineError role="alert">다음 하루마디를 불러오지 못했어요.</InlineError>}
-            {query.hasNextPage && <MoreButton disabled={query.isFetchingNextPage} onClick={() => void query.fetchNextPage()}>{query.isFetchingNextPage ? "불러오고 있어요" : "하루마디 더 보기"}</MoreButton>}
+            {query.isError && <LibraryLoadNotice nextPage={query.isFetchNextPageError} busy={query.isFetching}
+              onRetry={() => { if (query.isFetchNextPageError) void query.fetchNextPage(); else void query.refetch(); }} />}
+            {query.hasNextPage && !query.isError && <MoreButton disabled={query.isFetchingNextPage} onClick={() => void query.fetchNextPage()}>{query.isFetchingNextPage ? "불러오고 있어요" : "하루마디 더 보기"}</MoreButton>}
           </>}
         </>}
     </ShelfScroll>
@@ -116,4 +118,3 @@ const EmptyMark = styled.span`position: relative; flex: none; width: 96px; heigh
 const Status = styled.div`min-height: 230px; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; gap: 14px; h2 { margin: 0; font-size: 17px; } p { margin: 0; line-height: 1.8; font-size: 16px; color: var(--color-text-muted); }`;
 const MoreButton = styled(BaseButton)`display: block; margin: 4px auto 20px; padding: 12px 20px; border-radius: 20px; background: white; color: var(--color-text-muted); font-size: 16px;`;
 const LibraryLinks = styled.nav`flex: none; display: flex; justify-content: space-between; align-items: center; gap: 20px; margin: 0 24px; padding: 6px 0; border-top: 1px solid #e8ede4; > button { font-size: 15px; }`;
-const InlineError = styled.p`font-size: 16px; text-align: center; color: var(--color-error);`;
