@@ -53,12 +53,12 @@ test("설정 표지는 같은 표지 데이터를 쓰고 미리보기에서만 �
   assert.doesNotMatch(empty, /<img/);
 });
 
-test("두 미리보기는 같은 Tuti 위치를 쓰고 사진은 PDF 비율 그대로 20%만 확대한다", () => {
+test("두 미리보기는 같은 Tuti 위치를 쓰고 사진은 PDF 비율 그대로 50% 확대한다", () => {
   const sheet = readFileSync("src/features/tuti/components/HarumadiSheet.tsx", "utf8");
   const compact = sheet.slice(sheet.indexOf("${({ $compactCover })"), sheet.indexOf("const Paper"));
   assert.equal((compact.match(/\[data-cover-mark\]/g) ?? []).length, 1);
   assert.ok(compact.indexOf("[data-cover-mark]") < compact.indexOf('&[data-cover-preview="plain"]'));
-  assert.match(compact, /pt\(layout.cover.imageWidth \* 1\.2\)/);
+  assert.match(compact, /pt\(layout.cover.imageWidth \* 1\.5\)/);
   assert.match(compact, /aspect-ratio: \$\{layout.cover.imageWidth\} \/ \$\{layout.cover.imageHeight\}/);
 });
 

@@ -115,7 +115,7 @@ const Sheet = styled.span<{ $reading?: boolean; $compactCover?: boolean }>`
       [data-cover-date] { display: none; }
       [data-cover-title] { -webkit-line-clamp: 2; }
       [data-cover-body] { width: 100%; height: auto; }
-      [data-cover-photo] { width: ${pt(layout.cover.imageWidth * 1.2)}; height: auto; aspect-ratio: ${layout.cover.imageWidth} / ${layout.cover.imageHeight}; max-height: none; flex: none; }
+      [data-cover-photo] { width: ${pt(layout.cover.imageWidth * 1.5)}; height: auto; aspect-ratio: ${layout.cover.imageWidth} / ${layout.cover.imageHeight}; max-height: none; flex: none; }
     }
   `}
 `;
