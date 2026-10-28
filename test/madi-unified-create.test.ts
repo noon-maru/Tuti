@@ -32,3 +32,13 @@ test("작성 완료는 원래 화면으로 복귀하며 하루마디 연결과 �
   assert.match(screen, /setSavedAsFirstMadi\(firstMadi && !continued\)/);
   assert.match(screen, /initialPlace && place.trim\(\) === initialPlace.name \? initialPlace.id : null/);
 });
+
+test("새 마디 제목은 입력·미리보기에서 18px로 구분하되 선택 입력을 유지한다", () => {
+  const screen = readFileSync("src/features/tuti/screens/journal/MadiCreateScreen.tsx", "utf8");
+  assert.match(screen, /<label data-madi-title-field><span>제목 <small>선택<\/small>/);
+  assert.match(screen, /\[data-madi-title-field\] input \{ min-height: 58px; font-size: 18px; font-weight: 600/);
+  assert.match(screen, /\[data-madi-title-field\] input::placeholder \{ font-size: 16px; font-weight: 400/);
+  assert.match(screen, /const PageTitle = styled.h2`[^`]*font-size: 18px; font-weight: 600/);
+  assert.match(screen, /\{title && <PageTitle>\{title\}<\/PageTitle>\}/);
+  assert.match(screen, /aria-label="마디 제목 \(선택\)"[^>]*maxLength=\{FIRST_JOURNAL_TITLE_LIMIT\}/);
+});
