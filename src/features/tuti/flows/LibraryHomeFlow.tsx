@@ -4,11 +4,12 @@ import styled from "@emotion/styled";
 import { BookOpen, ChevronRight, Plus, Settings2, PenLine, ArrowUpRight, Download, MoreVertical } from "lucide-react";
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useSession } from "@/features/tuti/hooks/useSession";
 import { AppLoadingScreen, LoadingIndicator } from "@/features/tuti/components/LoadingIndicator";
 import { HarumadiCover } from "@/features/tuti/components/HarumadiCover";
-import { HarumadiBookReader, type BookOpening } from "@/features/tuti/components/HarumadiBookReader";
+import { HarumadiBookReader } from "@/features/tuti/components/HarumadiBookReader";
+import { useHarumadiHistory } from "@/features/tuti/hooks/useHarumadiHistory";
 import { MainNavigation } from "@/features/tuti/components/MainNavigation";
 import { BaseButton, PrimaryButton } from "@/features/tuti/components/buttons";
 import { fetchHarumadis } from "@/lib/harumadis";
@@ -26,13 +27,12 @@ function LibraryHome({ ownerId }: { ownerId: string }) {
   const router = useRouter();
   const [hasDraft, setHasDraft] = useState(false);
   const frame = useRef<HTMLElement>(null);
-  const [opening, setOpening] = useState<BookOpening | null>(null);
-  const closeBook = useCallback(() => setOpening(null), []);
+  const { opening, openBook: showBook, closeBook } = useHarumadiHistory(ownerId);
   const openBook = (book: Harumadi, control: HTMLElement, settings = false) => {
     const bounds = frame.current?.getBoundingClientRect();
     const cover = control.closest("[data-harumadi-card]")?.querySelector("[data-book-cover] > span")?.getBoundingClientRect();
     if (!bounds || !cover) return;
-    setOpening({ book, settings, origin: { x: cover.left - bounds.left, y: cover.top - bounds.top, width: cover.width, height: cover.height } });
+    showBook({ book, settings, origin: { x: cover.left - bounds.left, y: cover.top - bounds.top, width: cover.width, height: cover.height } });
   };
   const query = useInfiniteQuery({ queryKey: ["library-harumadis", ownerId], initialPageParam: undefined as string | undefined,
     queryFn: ({ pageParam }) => fetchHarumadis(ownerId, pageParam), getNextPageParam: page => page.nextCursor ?? undefined,
