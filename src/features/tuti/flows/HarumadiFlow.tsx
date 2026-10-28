@@ -4,13 +4,14 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter, useSearchParams } from "next/navigation";
 import styled from "@emotion/styled";
-import { ArrowLeft, Check, Download, PenLine, Plus, Settings2, Trash2 } from "lucide-react";
+import { ArrowLeft, Check, Download, PenLine, Plus, Settings2 } from "lucide-react";
 import { useSession } from "@/features/tuti/hooks/useSession";
 import { AppLoadingScreen } from "@/features/tuti/components/LoadingIndicator";
 import { BaseButton, PrimaryButton } from "@/features/tuti/components/buttons";
 import { HarumadiPdfPreview } from "@/features/tuti/components/HarumadiPdfPreview";
 import { HarumadiPageViewer } from "@/features/tuti/components/HarumadiPageViewer";
 import { HarumadiSettingsCover } from "@/features/tuti/components/HarumadiSettingsCover";
+import { HarumadiDeleteSection } from "@/features/tuti/components/HarumadiDeleteSection";
 import { createHarumadi, deleteHarumadi, harumadiPath, updateHarumadi } from "@/lib/harumadis";
 import { authoritativeReadError, fetchHarumadiContent, loadCachedHarumadi, type HarumadiRead } from "@/lib/harumadiContent";
 import { canCacheHarumadi, harumadiReadCache } from "@/lib/harumadiReadCache";
@@ -124,7 +125,7 @@ function HarumadiEditor({ owner, initial, read, verified, refreshing, onRefresh,
     finally { setBusy(false); }
   }
   async function remove() {
-    if (!harumadi || readOnly || busy || !window.confirm("하루마디 틀을 삭제할까요? 담았던 원본 마디와 이미 저장한 PDF는 남아요.")) return;
+    if (!harumadi || readOnly || busy || !window.confirm("하루마디 틀을 삭제할까요? 이 작업은 되돌릴 수 없어요.\n담았던 원본 마디와 이미 저장한 PDF는 남아요.")) return;
     setBusy(true); setError("");
     try { await deleteHarumadi(owner, harumadi.id); refreshLibrary(); if (onClose) onClose(); else router.replace("/"); }
     catch (cause) { setBusy(false); setError(cause instanceof Error ? cause.message : "삭제하지 못했어요."); }
@@ -188,7 +189,7 @@ function HarumadiEditor({ owner, initial, read, verified, refreshing, onRefresh,
         </BackCoverField>}
         {harumadi && <p className="hint">마디가 없어도 만들 수 있어요. 이름과 표지는 나중에도 바꿀 수 있어요.</p>}
         {titleNeedsConfirmation && <Confirmation><input type="checkbox" checked={confirmed} onChange={event => setConfirmed(event.target.checked)} />이름과 뒷표지 문구에 건강·정치적 견해 등 민감정보가 없음을 확인해요.</Confirmation>}
-        {harumadi && <Quiet type="button" onClick={() => void remove()} disabled={busy || readOnly}><Trash2 size={15} />하루마디 틀 삭제</Quiet>}
+        {harumadi && <HarumadiDeleteSection disabled={busy || readOnly} onDelete={() => void remove()} />}
       </SettingsPanel> : mode === "selection" ? <>
         <Eyebrow>마디 채우기</Eyebrow><h1>어떤 순간을 담을까요?</h1><p>원본 마디는 그대로 두고 이 하루마디에 담아요.<br />한 권에 최대 {HARUMADI_PDF_MAX_ENTRIES}개까지 담을 수 있어요.</p>
         {entries.isPending ? <p role="status">마디를 불러오고 있어요.</p> : entries.isError ? <Quiet onClick={() => void entries.refetch()}>마디 다시 불러오기</Quiet> : !entries.data?.length ? <p>아직 남긴 마디가 없어요. 먼저 한 페이지를 써볼까요?</p> : <RecordList>{entries.data.map(entry => <RecordOption key={entry.id}><input type="checkbox" checked={selected.includes(entry.id)} disabled={busy || readOnly || (!selected.includes(entry.id) && selected.length >= HARUMADI_PDF_MAX_ENTRIES)} onChange={() => setSelected(current => current.includes(entry.id) ? current.filter(id => id !== entry.id) : [...current, entry.id])} /><span><strong>{entry.title || entry.placeName || "남긴 하루"}</strong><small>{entry.visitedAt.slice(0, 10)} · {entry.content.slice(0, 45) || "사진으로 남긴 순간"}</small></span></RecordOption>)}</RecordList>}
