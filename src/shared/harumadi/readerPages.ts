@@ -27,6 +27,14 @@ export function splitReaderText(text: string, units: number, lines: number): str
   return chunks;
 }
 
+/** 실제 읽기와 설정 미리보기가 같은 날짜·표지 사진을 선택한다. */
+export function buildHarumadiCoverPage(book: Pick<Harumadi, "title" | "coverStyle">, entries: TutiJournalEntry[]): HarumadiReaderPage {
+  const sorted = [...entries].sort((a, b) => a.visitedAt.localeCompare(b.visitedAt) || a.id.localeCompare(b.id));
+  return { kind: "cover", title: book.title, content: "", place: "",
+    image: book.coverStyle.endsWith("-image") ? sorted.find(entry => entry.image)?.image ?? null : null,
+    date: sorted.length ? `${harumadiPdfDate(sorted[0].visitedAt).replaceAll("-", ".")}\n- ${harumadiPdfDate(sorted.at(-1)!.visitedAt).replaceAll("-", ".")}` : "아직 쓰지 않은, 우리 이야기" };
+}
+
 export function buildHarumadiReaderPages(book: Harumadi, entries: TutiJournalEntry[], pageWidth = 320): HarumadiReaderPage[] {
   const width = Math.max(100, pageWidth), scale = width / layout.page.width, height = width * layout.page.height / layout.page.width;
   const textWidth = width - (2 * layout.page.padding + layout.shortText.frameLeft + layout.shortText.frameRight + layout.shortText.borderWidth) * scale;
@@ -37,8 +45,7 @@ export function buildHarumadiReaderPages(book: Harumadi, entries: TutiJournalEnt
   const bodyLines = Math.max(1, Math.floor(textSpace / (type.body * type.bodyLineHeight)) - 1);
   const sorted = [...entries].sort((a, b) => a.visitedAt.localeCompare(b.visitedAt) || a.id.localeCompare(b.id));
   const base = { title: book.title, content: "", image: null, date: "", place: "" };
-  const pages: HarumadiReaderPage[] = [{ ...base, kind: "cover", image: book.coverStyle.endsWith("-image") ? sorted.find(e => e.image)?.image ?? null : null,
-    date: sorted.length ? `${harumadiPdfDate(sorted[0].visitedAt).replaceAll("-", ".")}\n- ${harumadiPdfDate(sorted.at(-1)!.visitedAt).replaceAll("-", ".")}` : "아직 쓰지 않은, 우리 이야기" }];
+  const pages: HarumadiReaderPage[] = [buildHarumadiCoverPage(book, sorted)];
   if (!sorted.length) pages.push({ ...base, kind: "empty" });
   for (const entry of sorted) {
     const image = entry.image;

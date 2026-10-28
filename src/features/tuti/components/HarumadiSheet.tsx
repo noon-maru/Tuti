@@ -9,10 +9,10 @@ import type { HarumadiPdfCoverStyle } from "@/shared/api/harumadiPdf";
 import { HARUMADI_READING_TYPE as reading } from "@/shared/harumadi/readingTypography";
 
 /** 예시와 실제 마디가 같은 종이·수치·서체를 사용한다. */
-export function HarumadiPageSheet({ page, coverStyle, number }: { page: HarumadiReaderPage; coverStyle: HarumadiPdfCoverStyle; number: number }) {
+export function HarumadiPageSheet({ page, coverStyle, number, compactCover = false }: { page: HarumadiReaderPage; coverStyle: HarumadiPdfCoverStyle; number: number; compactCover?: boolean }) {
   const palette = getHarumadiPdfCoverPalette(coverStyle);
   const photo = page.image ? <Image src={page.image} alt="마디에 남긴 사진" fill unoptimized sizes="(max-width: 600px) 85vw, 400px" /> : null;
-  if (page.kind === "cover" || page.kind === "back") return <Sheet $reading data-harumadi-page={page.kind}>
+  if (page.kind === "cover" || page.kind === "back") return <Sheet $reading $compactCover={compactCover} data-harumadi-page={page.kind}>
     <CoverPaper $cover style={{ background: palette.background, color: palette.foreground }}>
       {page.kind === "cover" ? <><CoverHeader><span style={{ whiteSpace: "pre-line" }}>{page.date}</span><span>{page.title}</span></CoverHeader><CoverBody>{coverStyle.endsWith("-image") && <CoverPhoto style={{ background: photo ? undefined : palette.placeholder }}>{photo}</CoverPhoto>}</CoverBody><CoverMark>Tuti</CoverMark></> : <BackMessage>{page.content}</BackMessage>}
     </CoverPaper>
@@ -86,7 +86,7 @@ function Folio({ number }: { number: number }) {
   </FolioLayer>;
 }
 
-const Sheet = styled.span<{ $reading?: boolean }>`
+const Sheet = styled.span<{ $reading?: boolean; $compactCover?: boolean }>`
   position: relative; display: block; width: 100%; min-width: 0; min-height: 0; container-type: inline-size;
   ${({ $reading }) => $reading && `
     --hm-body: ${reading.body}px; --hm-photo-body: ${reading.photoBody}px;
@@ -95,6 +95,11 @@ const Sheet = styled.span<{ $reading?: boolean }>`
     --hm-story-direction: column; --hm-copy-width: 100%; --hm-title-padding: 0px; --hm-copy-gap: 8px;
     --hm-cover-direction: column; --hm-cover-align: left; --hm-cover-height: auto; --hm-cover-flex: 1;
     --hm-header-height: 20px; --hm-meta-display: -webkit-box; --hm-meta-lines: 2;
+  `}
+  ${({ $compactCover }) => $compactCover && `
+    --hm-title: ${reading.title / 320 * 100}cqw;
+    --hm-meta: ${reading.meta / 320 * 100}cqw;
+    --hm-copy-gap: ${8 / 320 * 100}cqw;
   `}
 `;
 const Paper = styled.span<{ $cover: boolean }>`

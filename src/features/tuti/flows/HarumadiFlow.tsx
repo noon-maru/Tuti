@@ -10,6 +10,7 @@ import { AppLoadingScreen } from "@/features/tuti/components/LoadingIndicator";
 import { BaseButton, PrimaryButton } from "@/features/tuti/components/buttons";
 import { HarumadiPdfPreview } from "@/features/tuti/components/HarumadiPdfPreview";
 import { HarumadiPageViewer } from "@/features/tuti/components/HarumadiPageViewer";
+import { HarumadiSettingsCover } from "@/features/tuti/components/HarumadiSettingsCover";
 import { createHarumadi, deleteHarumadi, harumadiPath, updateHarumadi } from "@/lib/harumadis";
 import { authoritativeReadError, fetchHarumadiContent, loadCachedHarumadi, type HarumadiRead } from "@/lib/harumadiContent";
 import { canCacheHarumadi, harumadiReadCache } from "@/lib/harumadiReadCache";
@@ -169,10 +170,10 @@ function HarumadiEditor({ owner, initial, read, verified, refreshing, onRefresh,
         <p>{harumadi ? <>표지를 고르고,<br />기억하고 싶은 순간을 천천히 채워보세요.</> : "이름과 표지를 고르면 준비 끝이에요."}</p>
         </SettingsIntro>
         <CoverSetup $creating={!harumadi}>
-          <CoverPreview $green={settings.coverStyle.startsWith("green")}><small>Tuti / 하루마디</small><strong>{settings.title || "하루마디 제목"}</strong>{settings.coverStyle.endsWith("-image") && <PhotoPlaceholder>{harumadi ? "마디를 담으면 첫 사진이 표지가 돼요." : "첫 사진이 표지가 돼요."}</PhotoPlaceholder>}<span>아직 쓰지 않은, 우리 이야기</span></CoverPreview>
+          <CoverPreview title={settings.title} coverStyle={settings.coverStyle} entries={chosen} />
           <NameField $creating={!harumadi}>
             <Label htmlFor="harumadi-title">하루마디 이름</Label><TitleInput id="harumadi-title" value={settings.title} maxLength={HARUMADI_PDF_TITLE_LIMIT} onChange={event => { setSettings({ ...settings, title: event.target.value }); setConfirmed(false); }} />
-            {!harumadi && <small>이름과 표지는 나중에도 바꿀 수 있어요.</small>}
+            {!harumadi && <small>{settings.coverStyle.endsWith("-image") ? "마디를 담으면 첫 사진이 표지가 돼요." : "이름과 표지는 나중에도 바꿀 수 있어요."}</small>}
           </NameField>
         </CoverSetup>
         <Fieldset><legend>표지</legend><Choices>{(["white-plain", "green-plain", "white-image", "green-image"] as const).map((style, index) => <Choice key={style} type="button" aria-pressed={settings.coverStyle === style} $selected={settings.coverStyle === style} onClick={() => setSettings({ ...settings, coverStyle: style })}><Swatch $green={style.startsWith("green")} $photo={style.endsWith("image")} />{["흰색", "연두색", "흰색 · 사진", "연두색 · 사진"][index]}{settings.coverStyle === style && <Check size={12} />}</Choice>)}</Choices></Fieldset>
@@ -222,8 +223,7 @@ const Body = styled.div<{ $reading: boolean; $creating?: boolean }>`flex: 1; min
 `;
 const Eyebrow = styled.span`font-size: 13px; color: var(--color-text-muted);`;
 const ReadNotice = styled.div`display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 16px; padding: 10px 12px; border-radius: 10px; background: var(--color-brand-100); color: var(--color-text-muted); font-size: 13px; line-height: 1.7;`;
-const CoverPreview = styled.div<{ $green: boolean }>`width: 126px; aspect-ratio: 148 / 210; margin: 24px auto 28px; padding: 16px; border-radius: 2px 5px 5px 2px; background: ${({ $green }) => $green ? "#EBF5D5" : "#fff"}; box-shadow: 3px 3px 0 #dce3d6, 5px 12px 18px #1b222a12; display: flex; flex-direction: column; justify-content: space-between; border-left: 3px solid #1b222a0c; small { font-size: 9px; } strong { font-size: 15px; line-height: 1.6; overflow-wrap: anywhere; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; } > span { font-size: 9px; }`;
-const PhotoPlaceholder = styled.div`padding: 10px 5px; font-size: 9px; line-height: 1.7; background: #d9e6ed; text-align: center;`;
+const CoverPreview = styled(HarumadiSettingsCover)`width: 126px; min-width: 0; margin: 24px auto 28px; border-radius: 2px 5px 5px 2px; box-shadow: 3px 3px 0 #dce3d6, 5px 12px 18px #1b222a12; > span { border-radius: inherit; overflow: hidden; }`;
 const Label = styled.label`display: block; font-size: 14px; font-weight: 600; margin-bottom: 9px;`;
 const TitleInput = styled.input`width: 100%; min-height: 44px; padding: 10px 12px; border: 1px solid var(--color-border); border-radius: 10px; background: white; font: inherit; font-size: 16px; color: inherit;`;
 const BackCoverField = styled.div`margin-top: 24px;`;
@@ -266,15 +266,10 @@ const CoverSetup = styled.div<{ $creating: boolean }>`
   display: ${({ $creating }) => $creating ? "grid" : "contents"};
   ${({ $creating }) => $creating && `
     grid-template-columns: minmax(0, 1fr); gap: 18px; align-items: center;
-    > div:first-of-type { width: var(--create-cover-width); min-width: 0; margin: 0 auto; padding: 14px; }
-    > div:first-of-type strong { font-size: 14px; line-height: 1.4; -webkit-line-clamp: 2; }
-    > div:first-of-type small { font-size: 9px; }
-    > div:first-of-type > span { display: none; }
+    > div:first-of-type { width: var(--create-cover-width); min-width: 0; margin: 0 auto; }
     @container app-viewport (max-height: 719px) {
       grid-template-columns: var(--create-cover-width) minmax(0, 1fr); gap: 20px;
-      > div:first-of-type { margin: 0; padding: 10px; }
-      > div:first-of-type strong { font-size: 13px; }
-      > div:first-of-type small { font-size: 8px; }
+      > div:first-of-type { margin: 0; }
     }
     @container app-viewport (max-height: 719px) and (max-width: 340px) { gap: 16px; }
   `}
