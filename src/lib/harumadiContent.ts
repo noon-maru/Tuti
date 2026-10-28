@@ -56,7 +56,7 @@ async function persistContent(owner: string, id: string, accessToken: string, co
   const images: Record<string, string> = previous?.content.version === content.version
     ? Object.fromEntries(previous.content.entries.filter(entry => entry.image).map(entry => [entry.id, entry.image!])) : {};
   await harumadiReadCache.put(owner, id, binding, content, images, ticket);
-  const photos = content.harumadi.innerStyle === "photo" ? content.entries : content.harumadi.coverStyle.endsWith("-image") ? content.entries.filter(entry => entry.image).slice(0, 1) : [];
+  const photos = content.entries;
   let cursor = 0;
   const worker = async () => {
     while (cursor < photos.length && current()) {

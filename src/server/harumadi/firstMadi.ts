@@ -11,7 +11,7 @@ export async function createDefaultHarumadiForFirstMadi(
   if (await tx.harumadi.findFirst({ where: { ownerId }, select: { id: true } })) return;
   await tx.harumadi.create({ data: {
     id: randomUUID(), ownerId, title: "우리의 작은 하루",
-    coverStyle: "white-plain", innerStyle: entry.image ? "photo" : "text",
+    coverStyle: "white-plain",
     entries: { create: { entryId: entry.id } },
   } });
 }

@@ -732,7 +732,6 @@ model Harumadi {
   ownerId    String @map("owner_id")
   title      String
   coverStyle String @map("cover_style")
-  innerStyle String @map("inner_style")
   revision   Int @default(1)
   createdAt  DateTime @default(now()) @map("created_at")
   updatedAt  DateTime @updatedAt @map("updated_at")

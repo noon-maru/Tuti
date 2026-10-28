@@ -16,6 +16,16 @@ function fixture() {
   return { files, blocked, storage, cache: createHarumadiReadCache(storage, () => clock), advance: (amount: number) => { clock += amount; }, fail: (value: boolean) => { failClear = value; } };
 }
 
+test("속지 선택을 포함하던 이전 캐시는 폐기하고 자동 지면 응답을 다시 받는다", async () => {
+  const { cache, files } = fixture();
+  await cache.put("owner", "book-a", "binding", harumadiContent());
+  const key = "owner/book-a.json";
+  const previous = JSON.parse(files.get(key)!); previous.schema = 1;
+  files.set(key, JSON.stringify(previous));
+  assert.equal(await cache.get("owner", "book-a", "binding"), null);
+  assert.equal(files.has(key), false);
+});
+
 test("일반 마디만 계정·로그인 세션별 저장하고 서명 URL·토큰은 남기지 않는다", async () => {
   const { cache, files } = fixture(); const content = harumadiContent();
   content.entries[0].image = "/api/journal-entry-images/entry-a?signature=private-signature";

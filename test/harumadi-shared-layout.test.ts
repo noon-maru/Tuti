@@ -43,12 +43,12 @@ test("공유 수치로 실제 PDF의 표지·사진과 글·사진만·글만·�
   const base = { title: "남긴 하루", placeName: "동네 카페", visitedAt: new Date("2026-06-23T03:00:00Z") };
   const entries = [
     { ...base, id: "mixed", image, content: "함께여서 좋았던 오후." },
-    { ...base, id: "photo", image, content: "" },
+    { ...base, id: "photo", title: "", image, content: "" },
     { ...base, id: "text", image: null, content: "집까지 조금 더 천천히 걸었다." },
   ];
   assert.deepEqual(entries.map(getHarumadiPdfEntryLayout), ["photo-text", "photo-only", "short-text"]);
   const bytes = await renderHarumadiPdf({ title: "함께 남긴 하루", entryIds: entries.map(e => e.id),
-    coverStyle: "green-image", coverEntryId: "mixed", innerStyle: "photo", letter: "" }, entries);
+    coverStyle: "green-image", coverEntryId: "mixed", letter: "" }, entries);
   const pdf = await PDFDocument.load(bytes);
   assert.equal(pdf.getPageCount(), 5);
   for (const page of pdf.getPages()) {

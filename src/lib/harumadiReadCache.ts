@@ -60,7 +60,7 @@ export function createHarumadiReadCache(storage: ReadCacheStorage, now = Date.no
           const raw = await storage.read(owner, `${id}.json`);
           if (new TextEncoder().encode(raw).byteLength > MAX_BOOK_BYTES) throw new Error("oversize");
           const data = JSON.parse(raw);
-          if (data.schema !== 1 || data.owner !== owner || data.binding !== binding || data.savedAt !== found.savedAt ||
+          if (data.schema !== 2 || data.owner !== owner || data.binding !== binding || data.savedAt !== found.savedAt ||
             data.content?.harumadi?.id !== id || !isReadContent(data.content) || !canCacheHarumadi(data.content) ||
             !data.content.entries.every((entry: { image: string | null }) => entry.image === null || isCachedImage(entry.image)) ||
             !Number.isSafeInteger(data.missingImages) || data.missingImages < 0) throw new Error("invalid");
@@ -76,7 +76,7 @@ export function createHarumadiReadCache(storage: ReadCacheStorage, now = Date.no
         image: isCachedImage(images[entry.id]) ? images[entry.id] : null, placeId: entry.placeId, placeName: entry.placeName,
         visitedAt: entry.visitedAt, sensitiveContent: false as const, publicationStatus: "private" as const, publication: null }));
       const missingImages = content.entries.filter(entry => entry.image && !images[entry.id]).length;
-      const raw = JSON.stringify({ schema: 1, owner, binding, savedAt, missingImages, content: { ...content, entries } });
+      const raw = JSON.stringify({ schema: 2, owner, binding, savedAt, missingImages, content: { ...content, entries } });
       if (new TextEncoder().encode(raw).byteLength > MAX_BOOK_BYTES) return;
       await enqueue(owner, async () => {
         if (!current(owner, id, expected) || await storage.blocked(owner)) return;
@@ -118,7 +118,7 @@ export function isReadContent(value: unknown): value is HarumadiContent {
   if (!value || typeof value !== "object") return false;
   const data = value as HarumadiContent, book = data.harumadi;
   return Boolean(book && validId(book.id) && typeof book.title === "string" && book.title.length <= 80 &&
-    ["white-plain", "white-image", "green-plain", "green-image"].includes(book.coverStyle) && ["photo", "text"].includes(book.innerStyle) &&
+    ["white-plain", "white-image", "green-plain", "green-image"].includes(book.coverStyle) &&
     Number.isSafeInteger(book.revision) && book.revision > 0 && typeof book.createdAt === "string" && Number.isFinite(Date.parse(book.createdAt)) &&
     typeof book.updatedAt === "string" && Number.isFinite(Date.parse(book.updatedAt)) &&
     Array.isArray(book.entryIds) && book.entryIds.length <= 12 && new Set(book.entryIds).size === book.entryIds.length &&

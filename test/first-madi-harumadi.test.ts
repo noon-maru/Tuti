@@ -9,7 +9,7 @@ const input: JournalEntryInput = { title: "", content: "함께 걸었던 하루"
 
 test("첫 마디와 기본 하루마디를 함께 저장하고 동시 요청·실패·기존 책장을 구분한다", async t => {
   type Entry = Omit<JournalEntryInput, "visitedAt"> & { id: string; ownerId: string; updatedAt: Date; visitedAt: Date };
-  type Book = { id: string; ownerId: string; title: string; coverStyle: string; innerStyle: string; entries: { create: { entryId: string } } };
+  type Book = { id: string; ownerId: string; title: string; coverStyle: string; entries: { create: { entryId: string } } };
   let entries = new Map<string, Entry>();
   let books = new Map<string, Book>();
   let failBook = false;
@@ -59,12 +59,12 @@ test("첫 마디와 기본 하루마디를 함께 저장하고 동시 요청·�
   });
   const { createJournalEntry } = await import("@/server/journal/service");
 
-  await t.test("첫 글 마디를 담은 기본 하루마디는 이야기 속지로 생성한다", async () => {
+  await t.test("첫 글 마디를 담은 기본 하루마디는 표지만 설정해 생성한다", async () => {
     const entry = await createJournalEntry("new-owner", input);
     const book = [...books.values()].find(b => b.ownerId === "new-owner")!;
     assert.equal(book.title, "우리의 작은 하루");
     assert.equal(book.coverStyle, "white-plain");
-    assert.equal(book.innerStyle, "text");
+    assert.equal("innerStyle" in book, false);
     assert.equal(book.entries.create.entryId, entry.id);
     await createJournalEntry("new-owner", input);
     assert.equal([...books.values()].filter(b => b.ownerId === "new-owner").length, 1);
@@ -84,7 +84,7 @@ test("첫 마디와 기본 하루마디를 함께 저장하고 동시 요청·�
     assert.equal([...entries.values()].filter(e => e.ownerId === "retry").length, 1);
   });
   await t.test("사용자가 미리 만든 하루마디를 덮거나 기본 하루마디를 추가하지 않는다", async () => {
-    books.set("manual", { id: "manual", ownerId: "prepared", title: "직접 만든 책", coverStyle: "green-plain", innerStyle: "photo", entries: { create: { entryId: "existing" } } });
+    books.set("manual", { id: "manual", ownerId: "prepared", title: "직접 만든 책", coverStyle: "green-plain", entries: { create: { entryId: "existing" } } });
     await createJournalEntry("prepared", input);
     assert.equal([...books.values()].filter(b => b.ownerId === "prepared").length, 1);
     assert.equal(books.get("manual")?.title, "직접 만든 책");
@@ -96,7 +96,7 @@ test("첫 마디와 기본 하루마디를 함께 저장하고 동시 요청·�
   });
 });
 
-test("첫 마디에 사진이 있으면 사진과 이야기 속지를 선택하고 같은 마디만 연결한다", async () => {
+test("첫 마디에 사진이 있어도 속지 설정 없이 같은 마디만 연결한다", async () => {
   const writes: Record<string, unknown>[] = [];
   const tx = {
     journalEntry: { count: async () => 1 },
@@ -104,6 +104,6 @@ test("첫 마디에 사진이 있으면 사진과 이야기 속지를 선택하�
   } as unknown as Prisma.TransactionClient;
   await createDefaultHarumadiForFirstMadi(tx, "photo-owner", { id: "photo-entry", image: "journal-images/test.webp" });
   assert.equal(writes[0].ownerId, "photo-owner");
-  assert.equal(writes[0].innerStyle, "photo");
+  assert.equal("innerStyle" in writes[0], false);
   assert.deepEqual(writes[0].entries, { create: { entryId: "photo-entry" } });
 });

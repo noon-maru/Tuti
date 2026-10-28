@@ -15,7 +15,6 @@ import {
   type PreparedHarumadiPdfEntry,
 } from "@/server/pdf/harumadiPdf";
 import { getObject } from "@/server/storage/objectStorage";
-import { harumadiPdfCoverUsesImage } from "@/shared/api/harumadiPdf";
 
 export const runtime = "nodejs";
 
@@ -45,7 +44,7 @@ const preview = createHarumadiPdfPreviewHandler({
     const prepared: PreparedHarumadiPdfEntry[] = [];
     for (const entry of entries) {
       let image: Buffer | null = null;
-      if (entry.image && (input.innerStyle !== "text" || (harumadiPdfCoverUsesImage(input.coverStyle) && input.coverEntryId === entry.id))) {
+      if (entry.image) {
         // Only trusted storage keys from the owner's records; never fetch input URLs.
         if (!isStoredJournalImage(entry.image))
           throw new Error("Unsupported image source");

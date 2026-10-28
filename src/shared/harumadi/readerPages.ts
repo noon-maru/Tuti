@@ -40,9 +40,9 @@ export function buildHarumadiReaderPages(book: Harumadi, entries: TutiJournalEnt
     date: sorted.length ? `${harumadiPdfDate(sorted[0].visitedAt).replaceAll("-", ".")}\n- ${harumadiPdfDate(sorted.at(-1)!.visitedAt).replaceAll("-", ".")}` : "아직 쓰지 않은, 우리 이야기" }];
   if (!sorted.length) pages.push({ ...base, kind: "empty" });
   for (const entry of sorted) {
-    const image = book.innerStyle === "photo" ? entry.image : null;
+    const image = entry.image;
     const data = { title: entry.title, content: entry.content, image, date: harumadiPdfDate(entry.visitedAt), place: entry.placeName };
-    if (image && !entry.content.trim()) { pages.push({ ...data, kind: "photo-only" }); continue; }
+    if (image && !entry.content.trim() && !entry.title.trim()) { pages.push({ ...data, kind: "photo-only" }); continue; }
     const long = image ? estimateHarumadiPdfPhotoTextLines(entry.content) > 7 : entry.content.trim().length > 240;
     const titleLines = Math.ceil(Array.from(entry.title).length / titleUnits);
     const titleHeight = titleLines * type.title * type.titleLineHeight + layout.shortText.titleGap * scale;

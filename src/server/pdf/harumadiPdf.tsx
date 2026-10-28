@@ -47,11 +47,11 @@ export type HarumadiPdfEntryLayout =
 const HARUMADI_PDF_PAGE_SIZE = "A5" as const;
 
 export function getHarumadiPdfEntryLayout(
-  entry: Pick<PreparedHarumadiPdfEntry, "image" | "content">,
+  entry: Pick<PreparedHarumadiPdfEntry, "image" | "content"> & Partial<Pick<PreparedHarumadiPdfEntry, "title">>,
 ): HarumadiPdfEntryLayout {
   const contentLength = entry.content.trim().length;
   if (entry.image) {
-    if (contentLength === 0) return "photo-only";
+    if (contentLength === 0 && !entry.title?.trim()) return "photo-only";
     return estimateHarumadiPdfPhotoTextLines(entry.content) <=
       HARUMADI_PDF_PHOTO_SHORT_LINE_LIMIT
       ? "photo-text"
@@ -338,8 +338,7 @@ export async function renderHarumadiPdf(
           </View>
         </Page>
       )}
-      {entries.map((sourceEntry) => {
-        const entry = input.innerStyle === "text" ? { ...sourceEntry, image: null } : sourceEntry;
+      {entries.map((entry) => {
         const layout = getHarumadiPdfEntryLayout(entry);
         const title = printable(entry.title);
         const content = printable(entry.content);

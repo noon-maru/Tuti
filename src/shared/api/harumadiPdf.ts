@@ -52,7 +52,6 @@ export function getHarumadiPdfCoverPalette(style: HarumadiPdfCoverStyle) {
 }
 
 export type HarumadiPdfInput = {
-  innerStyle?: "photo" | "text";
   freeformNonSensitiveConfirmed?: boolean;
   entryIds: string[];
   title: string;
@@ -105,7 +104,6 @@ export function emptyHarumadiPdfDraft(): HarumadiPdfDraft {
 export function parseHarumadiPdfInput(value: unknown): HarumadiPdfInput | null {
   if (!value || typeof value !== "object") return null;
   const input = value as Record<string, unknown>;
-  if (input.innerStyle !== undefined && input.innerStyle !== "photo" && input.innerStyle !== "text") return null;
   if (input.freeformNonSensitiveConfirmed !== undefined && typeof input.freeformNonSensitiveConfirmed !== "boolean") return null;
   const coverStyle = HARUMADI_PDF_COVER_STYLES.includes(
     input.coverStyle as HarumadiPdfCoverStyle,
@@ -143,7 +141,6 @@ export function parseHarumadiPdfInput(value: unknown): HarumadiPdfInput | null {
     letter: input.letter,
     coverEntryId: input.coverEntryId,
     coverStyle,
-    ...(input.innerStyle ? { innerStyle: input.innerStyle as "photo" | "text" } : {}),
     ...(typeof input.freeformNonSensitiveConfirmed === "boolean" ? { freeformNonSensitiveConfirmed: input.freeformNonSensitiveConfirmed } : {}),
   };
 }

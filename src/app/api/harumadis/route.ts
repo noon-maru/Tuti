@@ -9,7 +9,7 @@ export function GET(request: Request) {
 export function POST(request: Request) {
   return harumadiRequest(request, async owner => {
     const settings = parseHarumadiSettings(await readHarumadiBody(request));
-    if (!settings) throw new HarumadiError("제목·표지·속지를 확인해주세요.");
+    if (!settings) throw new HarumadiError("이름과 표지를 확인해주세요.");
     return { harumadi: await createHarumadi(owner, settings) };
   });
 }

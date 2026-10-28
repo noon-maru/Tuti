@@ -9,13 +9,13 @@ export class HarumadiError extends Error {
   constructor(message: string, readonly status = 400) { super(message); }
 }
 const selection = {
-  id: true, title: true, coverStyle: true, innerStyle: true, revision: true, createdAt: true, updatedAt: true,
+  id: true, title: true, coverStyle: true, revision: true, createdAt: true, updatedAt: true,
   entries: { where: { entry: { sensitiveWithdrawnAt: null } }, select: { entryId: true } },
 } as const;
 type HarumadiRow = Prisma.HarumadiGetPayload<{ select: typeof selection }>;
 function dto(row: HarumadiRow): Harumadi {
   return { id: row.id, title: row.title, coverStyle: row.coverStyle as Harumadi["coverStyle"],
-    innerStyle: row.innerStyle as Harumadi["innerStyle"], revision: row.revision,
+    revision: row.revision,
     entryIds: row.entries.map(link => link.entryId), createdAt: row.createdAt.toISOString(), updatedAt: row.updatedAt.toISOString() };
 }
 function validateFreeform(settings: HarumadiSettings) {
@@ -41,7 +41,7 @@ export async function createHarumadi(ownerId: string, settings: HarumadiSettings
     // 첫 마디의 기본 하루마디 생성과 수동 생성을 같은 소유자 잠금으로 조정한다.
     await tx.$queryRaw`SELECT id FROM users WHERE id = ${ownerId} FOR UPDATE`;
     return dto(await tx.harumadi.create({ data: { id: randomUUID(), ownerId, title: settings.title,
-      coverStyle: settings.coverStyle, innerStyle: settings.innerStyle }, select: selection }));
+      coverStyle: settings.coverStyle }, select: selection }));
   });
 }
 export async function updateHarumadi(ownerId: string, id: string, input: HarumadiUpdate) {
@@ -51,7 +51,7 @@ export async function updateHarumadi(ownerId: string, id: string, input: Harumad
     if (!existing) throw new HarumadiError("하루마디를 찾지 못했어요.", 404);
     if (existing.title !== input.title) validateFreeform(input);
     const updated = await tx.harumadi.updateMany({ where: { id, ownerId, revision: input.revision },
-      data: { title: input.title, coverStyle: input.coverStyle, innerStyle: input.innerStyle, revision: { increment: 1 } } });
+      data: { title: input.title, coverStyle: input.coverStyle, revision: { increment: 1 } } });
     if (!updated.count) throw new HarumadiError("다른 화면에서 하루마디가 바뀌었어요. 다시 불러온 후 수정해주세요.", 409);
     // 선택한 원본을 잠가 철회/삭제된 기록이나 다른 계정의 기록을 연결하지 않는다.
     if (input.entryIds.length) await tx.$queryRaw`SELECT id FROM journal_entries WHERE owner_id = ${ownerId} AND id = ANY(${input.entryIds}::text[]) ORDER BY id FOR UPDATE`;

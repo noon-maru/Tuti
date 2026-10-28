@@ -4,15 +4,35 @@ import { readFileSync } from "node:fs";
 import { buildHarumadiReaderPages, splitReaderText } from "@/shared/harumadi/readerPages";
 import { harumadiContent } from "./fixtures/harumadiContent";
 
-test("실제 마디를 표지·본문·뒷표지로 만들고 빈 책과 글 속지도 지원한다", () => {
+test("실제 마디를 표지·본문·뒷표지로 만들고 사진과 글을 내용에 따라 배치한다", () => {
   const { harumadi: book, entries } = harumadiContent();
   assert.deepEqual(buildHarumadiReaderPages(book, []).map(p => p.kind), ["cover", "empty", "back"]);
   entries[0].image = "/photo.jpg";
   entries[0].content = "";
+  entries[0].title = "";
   assert.deepEqual(buildHarumadiReaderPages(book, entries).map(p => p.kind), ["cover", "photo-only", "back"]);
-  assert.equal(buildHarumadiReaderPages({ ...book, innerStyle: "text" }, entries)[1].image, null);
+  assert.equal(buildHarumadiReaderPages(book, entries)[1].image, entries[0].image);
+  entries[0].title = "사진에 붙인 제목";
+  assert.equal(buildHarumadiReaderPages(book, entries)[1].kind, "photo");
+  assert.equal(buildHarumadiReaderPages(book, entries)[1].title, "사진에 붙인 제목");
   entries[0].content = "짧게 남긴 하루";
   assert.equal(buildHarumadiReaderPages(book, entries)[1].kind, "photo");
+  entries[0].image = null;
+  assert.equal(buildHarumadiReaderPages(book, entries)[1].kind, "text");
+});
+
+test("속지 타입은 UI·API·모델에서 제거하고 설정 열만 삭제한다", () => {
+  const flow = readFileSync("src/features/tuti/flows/HarumadiFlow.tsx", "utf8");
+  assert.doesNotMatch(flow, /innerStyle|InnerChoice|PaperSample|<legend>속지/);
+  assert.match(flow, /이름과 표지/);
+  for (const path of ["src/shared/api/harumadi.ts", "src/shared/api/harumadiPdf.ts", "src/server/harumadi/service.ts", "src/server/harumadi/content.ts", "src/server/pdf/harumadiPdf.tsx", "src/app/api/harumadi-pdfs/preview/route.ts"]) {
+    assert.doesNotMatch(readFileSync(path, "utf8"), /innerStyle|HarumadiInnerStyle|HARUMADI_INNER_STYLES/);
+  }
+  const schema = readFileSync("prisma/schema.prisma", "utf8");
+  assert.doesNotMatch(schema.match(/model Harumadi \{[\s\S]*?\n\}/)?.[0] ?? "", /innerStyle|inner_style/);
+  const migration = readFileSync("prisma/migrations/20261028120000_remove_harumadi_inner_style/migration.sql", "utf8");
+  assert.match(migration, /ALTER TABLE "harumadis" DROP COLUMN "inner_style"/);
+  assert.doesNotMatch(migration, /DROP TABLE|DELETE FROM|journal_entries|harumadi_pdfs/);
 });
 
 test("긴 글·줄바꿈·이모지를 잘라 버리지 않고 이어지는 쪽으로 보존한다", () => {

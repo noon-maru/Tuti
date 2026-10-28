@@ -75,6 +75,10 @@ test("사진과 글 길이에 따라 하루마디 지면을 고른다", () => {
     "photo-only",
   );
   assert.equal(
+    getHarumadiPdfEntryLayout({ image: Buffer.from([1]), content: "", title: "사진의 제목" }),
+    "photo-text",
+  );
+  assert.equal(
     getHarumadiPdfEntryLayout({ image: Buffer.from([1]), content: "짧은 하루" }),
     "photo-text",
   );

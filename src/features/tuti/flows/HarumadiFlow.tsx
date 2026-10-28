@@ -58,7 +58,7 @@ function HarumadiEditor({ owner, initial, read, verified, refreshing, onRefresh,
   const router = useRouter(); const client = useQueryClient();
   const scroller = useRef<HTMLDivElement>(null);
   const [harumadi, setHarumadi] = useState(initial);
-  const [settings, setSettings] = useState<HarumadiSettings>(initial ?? { title: "우리의 작은 하루", coverStyle: "white-plain", innerStyle: "photo" });
+  const [settings, setSettings] = useState<HarumadiSettings>(initial ?? { title: "우리의 작은 하루", coverStyle: "white-plain" });
   const [mode, setMode] = useState<"settings" | "pages" | "selection" | "pdf">(initial ? initialMode ?? "pages" : "settings");
   const [selected, setSelected] = useState(initial?.entryIds ?? []);
   const [confirmed, setConfirmed] = useState(false);
@@ -126,7 +126,7 @@ function HarumadiEditor({ owner, initial, read, verified, refreshing, onRefresh,
     catch (cause) { setBusy(false); setError(cause instanceof Error ? cause.message : "삭제하지 못했어요."); }
   }
   const pdfInput = useMemo<HarumadiPdfInput | null>(() => harumadi && chosen.length ? {
-    title: harumadi.title, coverStyle: harumadi.coverStyle, innerStyle: harumadi.innerStyle, letter: "", entryIds: chosen.map(entry => entry.id),
+    title: harumadi.title, coverStyle: harumadi.coverStyle, letter: "", entryIds: chosen.map(entry => entry.id),
     coverEntryId: harumadi.coverStyle.endsWith("-image") ? chosen.find(entry => entry.image)?.id ?? null : null,
     freeformNonSensitiveConfirmed: confirmed,
   } : null, [harumadi, chosen, confirmed]);
@@ -159,15 +159,14 @@ function HarumadiEditor({ owner, initial, read, verified, refreshing, onRefresh,
       {harumadi && mode === "pages" && <Quiet type="button" disabled={readOnly} onClick={() => { setConfirmed(false); setMode("settings"); }}><Settings2 size={17} />설정</Quiet>}</Header>
     <Body ref={scroller} data-scroll-region={mode === "pages" ? undefined : ""} $reading={mode === "pages"}>
       {readOnly && <ReadNotice role="status">{refreshing ? "저장된 내용을 먼저 보여드리고 있어요." : "저장된 하루마디를 보고 있어요. 연결 후 최신 내용을 확인해주세요."}<Quiet type="button" disabled={refreshing} onClick={onRefresh}>최신 내용 확인</Quiet></ReadNotice>}
-      {read?.cached && read.missingImages > 0 && harumadi?.innerStyle === "photo" && <p className="hint">일부 사진은 연결 후 볼 수 있어요.</p>}
+      {read?.cached && read.missingImages > 0 && <p className="hint">일부 사진은 연결 후 볼 수 있어요.</p>}
       {mode === "settings" ? <>
-        <Eyebrow>{harumadi ? "하루마디 설정" : "새 하루마디"}</Eyebrow><h1>{harumadi ? "표지와 속지" : "어떤 하루를 담을까요?"}</h1>
-        <p>표지와 속지를 먼저 고르고,<br />기억하고 싶은 순간을 천천히 채워보세요.</p>
+        <Eyebrow>{harumadi ? "하루마디 설정" : "새 하루마디"}</Eyebrow><h1>{harumadi ? "이름과 표지" : "어떤 하루를 담을까요?"}</h1>
+        <p>표지를 고르고,<br />기억하고 싶은 순간을 천천히 채워보세요.</p>
         <CoverPreview $green={settings.coverStyle.startsWith("green")}><small>Tuti / 하루마디</small><strong>{settings.title || "하루마디 제목"}</strong>{settings.coverStyle.endsWith("-image") && <PhotoPlaceholder>마디를 담으면 첫 사진이 표지가 돼요.</PhotoPlaceholder>}<span>아직 쓰지 않은, 우리 이야기</span></CoverPreview>
         <Label htmlFor="harumadi-title">하루마디 이름</Label><TitleInput id="harumadi-title" value={settings.title} maxLength={HARUMADI_PDF_TITLE_LIMIT} onChange={event => { setSettings({ ...settings, title: event.target.value }); setConfirmed(false); }} />
         <Fieldset><legend>표지</legend><Choices>{(["white-plain", "green-plain", "white-image", "green-image"] as const).map((style, index) => <Choice key={style} type="button" aria-pressed={settings.coverStyle === style} $selected={settings.coverStyle === style} onClick={() => setSettings({ ...settings, coverStyle: style })}><Swatch $green={style.startsWith("green")} $photo={style.endsWith("image")} />{["흰색", "연두색", "흰색 · 사진", "연두색 · 사진"][index]}{settings.coverStyle === style && <Check size={12} />}</Choice>)}</Choices></Fieldset>
-        <Fieldset><legend>속지</legend><InnerChoices>{(["photo", "text"] as const).map(style => <InnerChoice key={style} type="button" aria-pressed={settings.innerStyle === style} $selected={settings.innerStyle === style} onClick={() => setSettings({ ...settings, innerStyle: style })}><PaperSample $photo={style === "photo"}><i /><span /><span /><span /></PaperSample><strong>{style === "photo" ? "사진과 이야기" : "이야기 중심"}</strong><small>{style === "photo" ? "사진 전체와 짧은 글" : "사진 없이 글과 날짜"}</small></InnerChoice>)}</InnerChoices></Fieldset>
-        <p className="hint">지금 마디가 없어도 만들 수 있어요. 표지와 속지는 나중에도 바꿀 수 있어요.</p>
+        <p className="hint">마디가 없어도 만들 수 있어요. 이름과 표지는 나중에도 바꿀 수 있어요.</p>
         {titleNeedsConfirmation && <Confirmation><input type="checkbox" checked={confirmed} onChange={event => setConfirmed(event.target.checked)} />표지 제목에 건강·정치적 견해 등 민감정보가 없음을 확인해요.</Confirmation>}
         {harumadi && <Quiet type="button" onClick={() => void remove()} disabled={busy || readOnly}><Trash2 size={15} />하루마디 틀 삭제</Quiet>}
       </> : mode === "selection" ? <>
@@ -208,9 +207,6 @@ const Fieldset = styled.fieldset`border: 0; padding: 0; margin: 24px 0; legend {
 const Choices = styled.div`display: grid; grid-template-columns: 1fr 1fr; gap: 8px;`;
 const Choice = styled(BaseButton)<{ $selected: boolean }>`display: flex; align-items: center; gap: 7px; min-height: 44px; padding: 10px; font-size: 13px; background: white; border-radius: 10px; border: 1px solid ${({ $selected }) => $selected ? "var(--color-brand-700)" : "var(--color-border)"}; color: inherit;`;
 const Swatch = styled.span<{ $green: boolean; $photo: boolean }>`width: 16px; height: 22px; flex: none; border: 1px solid #d1d9c9; border-radius: 1px; background: ${({ $green }) => $green ? "#EBF5D5" : "#fff"}; ${({ $photo }) => $photo && "box-shadow: inset 0 -11px #d9e6ed;"}`;
-const InnerChoices = styled.div`display: grid; grid-template-columns: 1fr 1fr; gap: 12px;`;
-const InnerChoice = styled(BaseButton)<{ $selected: boolean }>`display: flex; flex-direction: column; align-items: center; gap: 7px; padding: 14px 8px; background: ${({ $selected }) => $selected ? "#F0F6E7" : "white"}; border-radius: 12px; border: 1px solid ${({ $selected }) => $selected ? "var(--color-brand-700)" : "var(--color-border)"}; color: inherit; strong { font-size: 14px; font-weight: 500; } small { font-size: 12px; color: var(--color-text-muted); }`;
-const PaperSample = styled.span<{ $photo: boolean }>`width: 48px; height: 66px; background: white; box-shadow: 0 2px 5px #00000012; padding: 10px 7px; display: flex; flex-direction: column; gap: 5px; i { display: ${({ $photo }) => $photo ? "block" : "none"}; height: 24px; background: #dce8ed; margin-bottom: 2px; } > span { height: 2px; width: 100%; background: #c6cdbf; } > span:last-child { width: 70%; }`;
 const Confirmation = styled.label`display: flex; gap: 9px; align-items: flex-start; margin: 18px 0; font-size: 13px; line-height: 1.7; input { margin-top: 3px; flex: none; }`;
 const Footer = styled.footer`flex: none; padding: 12px 24px calc(16px + var(--app-safe-area-bottom, 0px)); border-top: 1px solid var(--color-border); background: #F8FAFC; > button { width: 100%; }`;
 const ReaderTools = styled.nav`display: flex; flex: none; align-items: center; justify-content: space-between; gap: 8px; border-top: 1px solid var(--color-border); padding-top: 6px; margin-top: 4px; > button { min-height: 44px; font-size: 13px; }`;
