@@ -5,7 +5,7 @@ import { buildHarumadiCoverPage } from "@/shared/harumadi/readerPages";
 import type { HarumadiPdfCoverStyle } from "@/shared/api/harumadiPdf";
 import type { TutiJournalEntry } from "@/shared/api/journal";
 
-/** 설정에서는 실제 표지 지면을 작게 표시한다. 별도 표지 디자인·이미지 요청은 만들지 않는다. */
+/** 실제 표지 데이터를 쓰되 작은 미리보기에서는 제목·사진을 과장해 구분하기 쉽게 표시한다. */
 export function HarumadiSettingsCover({ title, coverStyle, entries, className }: {
   title: string; coverStyle: HarumadiPdfCoverStyle; entries: TutiJournalEntry[]; className?: string;
 }) {

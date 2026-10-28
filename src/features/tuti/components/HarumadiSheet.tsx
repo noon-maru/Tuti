@@ -12,9 +12,10 @@ import { HARUMADI_READING_TYPE as reading } from "@/shared/harumadi/readingTypog
 export function HarumadiPageSheet({ page, coverStyle, number, compactCover = false }: { page: HarumadiReaderPage; coverStyle: HarumadiPdfCoverStyle; number: number; compactCover?: boolean }) {
   const palette = getHarumadiPdfCoverPalette(coverStyle);
   const photo = page.image ? <Image src={page.image} alt="마디에 남긴 사진" fill unoptimized sizes="(max-width: 600px) 85vw, 400px" /> : null;
-  if (page.kind === "cover" || page.kind === "back") return <Sheet $reading $compactCover={compactCover} data-harumadi-page={page.kind}>
-    <CoverPaper $cover style={{ background: palette.background, color: palette.foreground }}>
-      {page.kind === "cover" ? <><CoverHeader><span style={{ whiteSpace: "pre-line" }}>{page.date}</span><span>{page.title}</span></CoverHeader><CoverBody>{coverStyle.endsWith("-image") && <CoverPhoto style={{ background: photo ? undefined : palette.placeholder }}>{photo}</CoverPhoto>}</CoverBody><CoverMark>Tuti</CoverMark></> : <BackMessage>{page.content}</BackMessage>}
+  if (page.kind === "cover" || page.kind === "back") return <Sheet $reading $compactCover={compactCover} data-harumadi-page={page.kind}
+    data-cover-preview={compactCover ? coverStyle.endsWith("-image") ? "photo" : "plain" : undefined}>
+    <CoverPaper $cover data-cover-paper style={{ background: palette.background, color: palette.foreground }}>
+      {page.kind === "cover" ? <><CoverHeader data-cover-header><span data-cover-date style={{ whiteSpace: "pre-line" }}>{page.date}</span><span data-cover-title title={page.title}>{page.title}</span></CoverHeader><CoverBody data-cover-body>{coverStyle.endsWith("-image") && <CoverPhoto data-cover-photo style={{ background: photo ? undefined : palette.placeholder }}>{photo}</CoverPhoto>}</CoverBody><CoverMark data-cover-mark>Tuti</CoverMark></> : <BackMessage>{page.content}</BackMessage>}
     </CoverPaper>
   </Sheet>;
   if (page.kind === "empty") return <Sheet $reading data-harumadi-page="empty"><TextPaper $cover={false}><TextFrame><TextTitle>첫 마디를 채워보세요</TextTitle><TextBody>사진 한 장, 짧은 이야기부터.</TextBody></TextFrame></TextPaper></Sheet>;
@@ -97,9 +98,25 @@ const Sheet = styled.span<{ $reading?: boolean; $compactCover?: boolean }>`
     --hm-header-height: 20px; --hm-meta-display: -webkit-box; --hm-meta-lines: 2;
   `}
   ${({ $compactCover }) => $compactCover && `
-    --hm-title: ${reading.title / 320 * 100}cqw;
-    --hm-meta: ${reading.meta / 320 * 100}cqw;
-    --hm-copy-gap: ${8 / 320 * 100}cqw;
+    --hm-title: clamp(11px, 12cqw, 16px);
+    --hm-meta: clamp(5px, 6cqw, 8px);
+    --hm-copy-gap: 4cqw;
+    [data-cover-paper] { padding: 10% 9% 8%; }
+    [data-cover-title] { font-weight: 600; line-height: 1.4; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; overflow: hidden; }
+    &[data-cover-preview="plain"] {
+      [data-cover-header] { flex: 1; min-height: 0; justify-content: center; align-items: center; }
+      [data-cover-date] { position: absolute; top: 8%; left: 9%; right: 9%; width: auto; line-height: 1.4; }
+      [data-cover-title] { text-align: center; }
+      [data-cover-body] { display: none; }
+    }
+    &[data-cover-preview="photo"] {
+      --hm-title: clamp(8px, 8cqw, 12px);
+      [data-cover-paper] { display: grid; grid-template-columns: minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr) auto; justify-content: stretch; gap: 6cqw; padding: 8% 8% 7%; }
+      [data-cover-date] { display: none; }
+      [data-cover-title] { -webkit-line-clamp: 2; }
+      [data-cover-body] { width: 100%; height: auto; }
+      [data-cover-photo] { width: 100%; height: 100%; max-height: none; }
+    }
   `}
 `;
 const Paper = styled.span<{ $cover: boolean }>`

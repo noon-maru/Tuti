@@ -23,7 +23,7 @@ test("설정과 실제 표지는 같은 날짜·첫 사진 선택 및 빈 책 �
   }
 });
 
-test("설정 표지는 별도 디자인 대신 실제 표지 지면을 축소하고 네 가지 표지를 반영한다", () => {
+test("설정 표지는 같은 표지 데이터를 쓰고 미리보기에서만 제목·사진을 강조한다", () => {
   const { entries } = harumadiContent();
   for (const coverStyle of HARUMADI_PDF_COVER_STYLES) {
     const title = "오래 간직할 하루";
@@ -38,7 +38,12 @@ test("설정 표지는 별도 디자인 대신 실제 표지 지면을 축소하
       assert.match(html, coverStyle.startsWith("green") ? /#EBF5D5/ : /#FFFFFF/);
       assert.doesNotMatch(html, /Tuti \/ 하루마디|첫 사진이 표지가/);
     }
-    assert.match(preview, /--hm-title:5\.625cqw/);
+    assert.match(preview, coverStyle.endsWith("-image") ? /data-cover-preview="photo"/ : /data-cover-preview="plain"/);
+    assert.match(preview, /--hm-title:clamp\(11px, 12cqw, 16px\)/);
+    assert.match(preview, /\[data-cover-title\]\{text-align:center/);
+    assert.match(preview, /\[data-cover-photo\]\{width:100%;height:100%/);
+    assert.match(preview, /grid-template-columns:minmax\(0, 1fr\);grid-template-rows:auto minmax\(0, 1fr\) auto/);
+    assert.doesNotMatch(actual, /data-cover-preview=|--hm-title:clamp\(11px/);
   }
   const empty = renderToStaticMarkup(createElement(HarumadiSettingsCover, { title: " ", coverStyle: "green-image", entries: [] }));
   assert.match(empty, /하루마디 제목/);
