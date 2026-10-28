@@ -2,7 +2,6 @@
 
 import styled from "@emotion/styled";
 import { BookOpen, ChevronRight, Plus, Settings2, PenLine, ArrowUpRight, Download, MoreVertical } from "lucide-react";
-import { useInfiniteQuery } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { useSession } from "@/features/tuti/hooks/useSession";
@@ -12,7 +11,7 @@ import { HarumadiBookReader } from "@/features/tuti/components/HarumadiBookReade
 import { useHarumadiHistory } from "@/features/tuti/hooks/useHarumadiHistory";
 import { MainNavigation } from "@/features/tuti/components/MainNavigation";
 import { BaseButton, PrimaryButton } from "@/features/tuti/components/buttons";
-import { fetchHarumadis } from "@/lib/harumadis";
+import { useHarumadiLibrary } from "@/features/tuti/hooks/useHarumadiLibrary";
 import type { Harumadi } from "@/shared/api/harumadi";
 import { markLibraryEntryCompleted } from "@/lib/libraryPreferences";
 import { loadHarumadiPdfDraft } from "@/lib/harumadiPdfDraft";
@@ -34,12 +33,9 @@ function LibraryHome({ ownerId }: { ownerId: string }) {
     if (!bounds || !cover) return;
     showBook({ book, settings, origin: { x: cover.left - bounds.left, y: cover.top - bounds.top, width: cover.width, height: cover.height } });
   };
-  const query = useInfiniteQuery({ queryKey: ["library-harumadis", ownerId], initialPageParam: undefined as string | undefined,
-    queryFn: ({ pageParam }) => fetchHarumadis(ownerId, pageParam), getNextPageParam: page => page.nextCursor ?? undefined,
-    staleTime: 30_000, retry: false });
+  const query = useHarumadiLibrary(ownerId);
   const harumadiPdfs = query.data?.pages.flatMap(page => page.harumadis) ?? [];
-  const recordCount = query.data?.pages[0].recordCount ?? 0;
-  const isFirstMadi = query.isSuccess && recordCount === 0;
+  const isFirstMadi = query.isFirstMadi;
   useEffect(() => {
     let active = true;
     void markLibraryEntryCompleted(ownerId);
@@ -83,7 +79,7 @@ function LibraryHome({ ownerId }: { ownerId: string }) {
       <TextAction type="button" onClick={() => router.push("/madi")}>전체 마디 보기<ChevronRight size={13} /></TextAction>
       <TextAction type="button" onClick={() => router.push("/harumadi/pdfs")}><Download size={13} />저장한 PDF</TextAction>
     </LibraryLinks>
-    <MainNavigation active="harumadi" firstMadi={isFirstMadi} />
+    <MainNavigation active="harumadi" />
     </HomeSurface>
     {opening && <HarumadiBookReader opening={opening} ownerId={ownerId} onClose={closeBook} />}
   </Frame>;
@@ -92,9 +88,6 @@ const Frame = styled.section`position: relative; height: 100%; min-height: 0; ba
   --harumadi-shelf-title-size: 16px; --harumadi-shelf-brand-size: 10px; --harumadi-shelf-date-size: 11px;
   --harumadi-shelf-title-lines: 3; --harumadi-shelf-title-leading: 1.5;
   --harumadi-shelf-photo-height: min(38%, max(0px, calc(100% - 128px)));
-  --main-navigation-label-size: 12px; --main-navigation-create-size: 14px;
-  --main-navigation-item-height: 56px; --main-navigation-create-height: 52px;
-  --main-navigation-icon-size: 24px;
 `;
 const HomeSurface = styled.div`height: 100%; min-height: 0; display: flex; flex-direction: column;`;
 const Header = styled.header`

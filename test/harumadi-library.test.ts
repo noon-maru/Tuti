@@ -23,8 +23,8 @@ test("홈은 탐색을 마운트하지 않고 페이지네이션·소유자별 �
   const home = readFileSync("src/features/tuti/flows/LibraryHomeFlow.tsx", "utf8");
   assert.doesNotMatch(main, /RecommendationsFlow|router\.replace/);
   assert.doesNotMatch(home, /useTutiRecommendations|requestLocation|HarumadiPdfPreview/);
-  assert.match(home, /\["library-harumadis", ownerId\]/);
-  assert.match(home, /getNextPageParam/);
+  assert.match(readFileSync("src/features/tuti/hooks/useHarumadiLibrary.ts", "utf8"), /\["library-harumadis", ownerId\]/);
+  assert.match(readFileSync("src/features/tuti/hooks/useHarumadiLibrary.ts", "utf8"), /getNextPageParam/);
   assert.match(home, /<MainNavigation active="harumadi"/);
   assert.match(readFileSync("src/app/(tuti)/(main)/page.tsx", "utf8"), /<LibraryHomeFlow/);
   assert.match(readFileSync("src/features/tuti/components/HarumadiCover.tsx", "utf8"), /URL\.revokeObjectURL/);
@@ -34,10 +34,10 @@ test("둘러보기 후 빈 홈은 기본 표지 대신 첫 마디 작성을 안�
   const home = readFileSync("src/features/tuti/flows/LibraryHomeFlow.tsx", "utf8");
   const entry = readFileSync("src/features/tuti/flows/EntryFlow.tsx", "utf8");
   assert.doesNotMatch(home, /EmptyHarumadi|기억하고 싶은 하루<\/i>|createHarumadi\(/);
-  assert.match(home, /const isFirstMadi = query.isSuccess && recordCount === 0/);
-  assert.match(home, /firstMadi=\{isFirstMadi\}/);
+  assert.match(home, /const isFirstMadi = query.isFirstMadi/);
+  assert.match(home, /useHarumadiLibrary\(ownerId\)/);
   const navigation = readFileSync("src/features/tuti/components/MainNavigation.tsx", "utf8");
-  assert.match(navigation, /firstMadi \? "첫 마디 남기기" : "마디 남기기"/);
+  assert.match(navigation, /isFirstMadi \? "첫 마디 남기기" : "마디 남기기"/);
   assert.match(navigation, /`\/madi\/new\?from=\$\{active === "harumadi" \? "library" : "explore"\}`/);
   assert.match(home, /새 하루마디<\/TextAction>/);
   assert.match(home, /harumadiPdfs.slice\(row \* 2, row \* 2 \+ 2\).map/);
@@ -68,10 +68,10 @@ test("메인 확대는 기존 좌우 여백과 2열 간격을 유지하고 행�
   assert.doesNotMatch(home, /min-height: 44\.8px/);
   assert.match(home, /-webkit-line-clamp: 2/);
   assert.match(home, /max-height: 620px/);
-  assert.match(home, /--main-navigation-create-height: 52px/);
+  assert.match(navigation, /--main-navigation-create-height: 52px/);
   assert.match(home, /width: 100%; min-width: 0; padding: 0; text-align: left/);
   assert.match(home, /position: relative; flex: none; width: 96px; height: 124px/);
-  assert.match(navigation, /var\(--main-navigation-label-size, 10px\)/);
+  assert.match(navigation, /var\(--main-navigation-label-size\)/);
 });
 
 test("하루마디 목록과 표지는 소유권·민감정보 철회·크기 한도를 지킨다", async t => {

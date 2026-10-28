@@ -1,13 +1,33 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
+import { createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { useHarumadiLibrary } from "@/features/tuti/hooks/useHarumadiLibrary";
 
 const read = (path: string) => readFileSync(`src/features/tuti/${path}`, "utf8");
+
+test("공유 목록 상태는 확인된 0개만 첫 마디로 판단하고 다른 계정·미확인은 구분한다", () => {
+  function Status({ ownerId }: { ownerId?: string }) {
+    const { isFirstMadi } = useHarumadiLibrary(ownerId);
+    return createElement("span", null, isFirstMadi ? "첫 마디" : "마디");
+  }
+  const client = new QueryClient();
+  client.setQueryData(["library-harumadis", "empty"], { pages: [{ harumadis: [], nextCursor: null, recordCount: 0 }], pageParams: [undefined] });
+  client.setQueryData(["library-harumadis", "existing"], { pages: [{ harumadis: [], nextCursor: null, recordCount: 1 }], pageParams: [undefined] });
+  client.setQueryData(["library-harumadis", "unknown-count"], { pages: [{ harumadis: [], nextCursor: null }], pageParams: [undefined] });
+  for (const ownerId of ["empty", "existing", "unknown-count", "not-loaded", undefined]) {
+    const html = renderToStaticMarkup(createElement(QueryClientProvider, { client }, createElement(Status, { ownerId })));
+    assert.equal(html, ownerId === "empty" ? "<span>첫 마디</span>" : "<span>마디</span>");
+  }
+  client.clear();
+});
 
 test("홈과 둘러보기는 같은 하단 바를 사용하고 기존 상단 이동은 제거한다", () => {
   const home = read("flows/LibraryHomeFlow.tsx");
   const explore = read("flows/ExploreFlow.tsx");
-  assert.match(home, /<MainNavigation active="harumadi" firstMadi=\{isFirstMadi\}/);
+  assert.match(home, /<MainNavigation active="harumadi" \/>/);
   assert.match(explore, /<MainNavigation active="explore"/);
   assert.doesNotMatch(home, /<Footer>|<ExploreButton/);
   assert.doesNotMatch(explore, /내 책장으로|<Navigation/);
@@ -18,6 +38,22 @@ test("홈과 둘러보기는 같은 하단 바를 사용하고 기존 상단 이
     assert.doesNotMatch(read(`flows/${flow}.tsx`), /MainNavigation/);
   }
   assert.doesNotMatch(read("screens/journal/JournalScreen.tsx"), /MainNavigation/);
+});
+
+test("바 크기와 첫 마디 문구는 부모 화면이 아닌 공통 컴포넌트에서 관리한다", () => {
+  const navigation = read("components/MainNavigation.tsx");
+  const home = read("flows/LibraryHomeFlow.tsx"), explore = read("flows/ExploreFlow.tsx");
+  for (const source of [home, explore]) assert.doesNotMatch(source, /--main-navigation-|<MainNavigation[^>]*firstMadi/);
+  for (const declaration of ["label-size: 12px", "create-size: 14px", "item-height: 56px", "create-height: 52px", "icon-size: 24px"]) assert.ok(navigation.includes(`--main-navigation-${declaration}`));
+  assert.match(navigation, /useHarumadiLibrary\(ownerId\)/);
+  assert.match(home, /useHarumadiLibrary\(ownerId\)/);
+  assert.match(navigation, /isFirstMadi \? "첫 마디 남기기" : "마디 남기기"/);
+  assert.match(navigation, /minmax\(max-content, 1.65fr\)/);
+  const query = read("hooks/useHarumadiLibrary.ts");
+  assert.match(query, /queryKey: \["library-harumadis", ownerId\]/);
+  assert.match(query, /enabled: Boolean\(ownerId\)/);
+  assert.match(query, /query.isSuccess && query.data\?\.pages\[0\]\?\.recordCount === 0/);
+  assert.doesNotMatch(query, /fetchJournalEntries|fetchRecommendations/);
 });
 
 test("작은 여행은 다음 마디로 남길 경험을 발견하는 화면으로 안내한다", () => {
