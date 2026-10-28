@@ -30,6 +30,12 @@ test("하루마디 안에서 작성하면 선택 화면 없이 원래 하루마�
   assert.doesNotMatch(flow, /initialBookId: harumadiId/);
   assert.match(flow, /if \(harumadiId\) router.replace\(`\$\{harumadiPath\(harumadiId\)\}/);
   assert.match(flow, /&addEntryId=\$\{encodeURIComponent\(savedEntryId.current\)\}/);
+  const screen = readFileSync("src/features/tuti/screens/journal/MadiCreateScreen.tsx", "utf8");
+  // 저장 ID를 먼저 전달해야 자동 복귀 요청에 새 마디 ID가 포함된다.
+  assert.match(screen, /setSaved\(entry\);\s*onSaved\?\.\(entry\);[\s\S]*?if \(inHarumadi\) onCollection\(\);/);
+  // 라우팅이 끝나기 전에도 별도의 완료/담기 화면은 노출하지 않는다.
+  assert.match(screen, /if \(saved && inHarumadi\) return <AppLoadingScreen label="하루마디에 담고 있어요\."/);
+  assert.ok(screen.indexOf("if (saved && inHarumadi)") < screen.indexOf("return <Frame"));
 });
 
 test("선택 화면은 빈 책장·기존 책·가득 찬 책과 담지 않기를 구분한다", () => {

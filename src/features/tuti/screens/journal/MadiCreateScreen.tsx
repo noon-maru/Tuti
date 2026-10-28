@@ -125,6 +125,9 @@ export function MadiCreateScreen({ onBack, onSave, onCollection, onSaved, haruma
       await localDraft.finish();
       setSaved(entry);
       onSaved?.(entry);
+      // 이 화면에 들어오기 전에 담을 하루마디를 이미 정했다.
+      // 저장된 ID를 전달한 뒤 바로 연결·복귀하며 완료 버튼을 다시 요구하지 않는다.
+      if (inHarumadi) onCollection();
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "마디를 저장하지 못했어요. 다시 시도해주세요.");
     } finally { savingRef.current = false; setSaving(false); }
@@ -139,6 +142,7 @@ export function MadiCreateScreen({ onBack, onSave, onCollection, onSaved, haruma
   };
 
   if (!localDraft.ready && !preview) return <AppLoadingScreen label="작성 중이던 마디를 확인하고 있어요." />;
+  if (saved && inHarumadi) return <AppLoadingScreen label="하루마디에 담고 있어요." />;
   if (saved && !savedAsFirstMadi && harumadiSelection) return <MadiHarumadiSelection key={saved.id}
     {...harumadiSelection} entryId={saved.id} onNext={startAnother} />;
 
