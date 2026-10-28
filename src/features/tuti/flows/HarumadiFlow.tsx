@@ -158,16 +158,21 @@ function HarumadiEditor({ owner, initial, read, verified, refreshing, onRefresh,
   useAttachNewEntry(attachNewEntry);
 
   return <Frame data-harumadi-editor>
-    <Header><Quiet type="button" onClick={back} disabled={busy}><ArrowLeft size={18} />{mode === "pages" || !harumadi || (onClose && initialMode === "settings" && mode === "settings") ? "내 책장" : "하루마디"}</Quiet>
+    <Header $creating={!harumadi && mode === "settings"}><Quiet type="button" onClick={back} disabled={busy}><ArrowLeft size={18} />{mode === "pages" || !harumadi || (onClose && initialMode === "settings" && mode === "settings") ? "내 책장" : "하루마디"}</Quiet>
       {harumadi && mode === "pages" && <Quiet type="button" disabled={readOnly} onClick={() => { setConfirmed(false); setMode("settings"); }}><Settings2 size={17} />설정</Quiet>}</Header>
-    <Body ref={scroller} data-scroll-region={mode === "pages" ? undefined : ""} $reading={mode === "pages"}>
+    <Body ref={scroller} data-scroll-region={mode === "pages" ? undefined : ""} $reading={mode === "pages"} $creating={!harumadi && mode === "settings"}>
       {readOnly && <ReadNotice role="status">{refreshing ? "저장된 내용을 먼저 보여드리고 있어요." : "저장된 하루마디를 보고 있어요. 연결 후 최신 내용을 확인해주세요."}<Quiet type="button" disabled={refreshing} onClick={onRefresh}>최신 내용 확인</Quiet></ReadNotice>}
       {read?.cached && read.missingImages > 0 && <p className="hint">일부 사진은 연결 후 볼 수 있어요.</p>}
-      {mode === "settings" ? <>
-        <Eyebrow>{harumadi ? "하루마디 설정" : "새 하루마디"}</Eyebrow><h1>{harumadi ? "이름과 표지" : "어떤 하루를 담을까요?"}</h1>
-        <p>표지를 고르고,<br />기억하고 싶은 순간을 천천히 채워보세요.</p>
-        <CoverPreview $green={settings.coverStyle.startsWith("green")}><small>Tuti / 하루마디</small><strong>{settings.title || "하루마디 제목"}</strong>{settings.coverStyle.endsWith("-image") && <PhotoPlaceholder>마디를 담으면 첫 사진이 표지가 돼요.</PhotoPlaceholder>}<span>아직 쓰지 않은, 우리 이야기</span></CoverPreview>
-        <Label htmlFor="harumadi-title">하루마디 이름</Label><TitleInput id="harumadi-title" value={settings.title} maxLength={HARUMADI_PDF_TITLE_LIMIT} onChange={event => { setSettings({ ...settings, title: event.target.value }); setConfirmed(false); }} />
+      {mode === "settings" ? <SettingsPanel $creating={!harumadi}>
+        {harumadi && <Eyebrow>하루마디 설정</Eyebrow>}<h1>{harumadi ? "이름과 표지" : "어떤 하루를 담을까요?"}</h1>
+        <p>{harumadi ? <>표지를 고르고,<br />기억하고 싶은 순간을 천천히 채워보세요.</> : "이름과 표지를 고르면 준비 끝이에요."}</p>
+        <CoverSetup $creating={!harumadi}>
+          <CoverPreview $green={settings.coverStyle.startsWith("green")}><small>Tuti / 하루마디</small><strong>{settings.title || "하루마디 제목"}</strong>{settings.coverStyle.endsWith("-image") && <PhotoPlaceholder>{harumadi ? "마디를 담으면 첫 사진이 표지가 돼요." : "첫 사진이 표지가 돼요."}</PhotoPlaceholder>}<span>아직 쓰지 않은, 우리 이야기</span></CoverPreview>
+          <NameField $creating={!harumadi}>
+            <Label htmlFor="harumadi-title">하루마디 이름</Label><TitleInput id="harumadi-title" value={settings.title} maxLength={HARUMADI_PDF_TITLE_LIMIT} onChange={event => { setSettings({ ...settings, title: event.target.value }); setConfirmed(false); }} />
+            {!harumadi && <small>이름과 표지는<br />나중에도 바꿀 수 있어요.</small>}
+          </NameField>
+        </CoverSetup>
         <Fieldset><legend>표지</legend><Choices>{(["white-plain", "green-plain", "white-image", "green-image"] as const).map((style, index) => <Choice key={style} type="button" aria-pressed={settings.coverStyle === style} $selected={settings.coverStyle === style} onClick={() => setSettings({ ...settings, coverStyle: style })}><Swatch $green={style.startsWith("green")} $photo={style.endsWith("image")} />{["흰색", "연두색", "흰색 · 사진", "연두색 · 사진"][index]}{settings.coverStyle === style && <Check size={12} />}</Choice>)}</Choices></Fieldset>
         {harumadi && <BackCoverField>
           <Label htmlFor="harumadi-back-cover">뒷표지 문구</Label>
@@ -178,10 +183,10 @@ function HarumadiEditor({ owner, initial, read, verified, refreshing, onRefresh,
           <BackCoverTools><small id="harumadi-back-cover-hint">120자·3줄까지, 비워두면 문구 없이 보여요.</small><Quiet type="button" disabled={busy || readOnly} onClick={() => { setSettings({ ...settings, backCoverText: pickHarumadiBackCoverText(settings.backCoverText ?? LEGACY_HARUMADI_BACK_COVER_TEXT) }); setConfirmed(false); }}>다른 문구 보기</Quiet></BackCoverTools>
           {!backCoverTextValid && <ErrorMessage role="alert">뒷표지 문구는 120자·3줄 이내로 적어주세요.</ErrorMessage>}
         </BackCoverField>}
-        <p className="hint">마디가 없어도 만들 수 있어요. 이름과 표지는 나중에도 바꿀 수 있어요.</p>
+        {harumadi && <p className="hint">마디가 없어도 만들 수 있어요. 이름과 표지는 나중에도 바꿀 수 있어요.</p>}
         {titleNeedsConfirmation && <Confirmation><input type="checkbox" checked={confirmed} onChange={event => setConfirmed(event.target.checked)} />이름과 뒷표지 문구에 건강·정치적 견해 등 민감정보가 없음을 확인해요.</Confirmation>}
         {harumadi && <Quiet type="button" onClick={() => void remove()} disabled={busy || readOnly}><Trash2 size={15} />하루마디 틀 삭제</Quiet>}
-      </> : mode === "selection" ? <>
+      </SettingsPanel> : mode === "selection" ? <>
         <Eyebrow>마디 채우기</Eyebrow><h1>어떤 순간을 담을까요?</h1><p>원본 마디는 그대로 두고 이 하루마디에 담아요.<br />한 권에 최대 {HARUMADI_PDF_MAX_ENTRIES}개까지 담을 수 있어요.</p>
         {entries.isPending ? <p role="status">마디를 불러오고 있어요.</p> : entries.isError ? <Quiet onClick={() => void entries.refetch()}>마디 다시 불러오기</Quiet> : !entries.data?.length ? <p>아직 남긴 마디가 없어요. 먼저 한 페이지를 써볼까요?</p> : <RecordList>{entries.data.map(entry => <RecordOption key={entry.id}><input type="checkbox" checked={selected.includes(entry.id)} disabled={busy || readOnly || (!selected.includes(entry.id) && selected.length >= HARUMADI_PDF_MAX_ENTRIES)} onChange={() => setSelected(current => current.includes(entry.id) ? current.filter(id => id !== entry.id) : [...current, entry.id])} /><span><strong>{entry.title || entry.placeName || "남긴 하루"}</strong><small>{entry.visitedAt.slice(0, 10)} · {entry.content.slice(0, 45) || "사진으로 남긴 순간"}</small></span></RecordOption>)}</RecordList>}
       </> : mode === "pdf" ? <>
@@ -199,16 +204,16 @@ function HarumadiEditor({ owner, initial, read, verified, refreshing, onRefresh,
       {policyQuery.isError && <ErrorMessage role="alert">마디 보호 설정을 불러오지 못했어요.<Quiet onClick={() => void policyQuery.refetch()}>다시 불러오기</Quiet></ErrorMessage>}
       {error && <ErrorMessage role="alert">{error}<Quiet onClick={() => window.location.reload()}>다시 불러오기</Quiet></ErrorMessage>}
     </Body>
-    {mode !== "pages" && <Footer><PrimaryButton type="button" disabled={busy || readOnly || (mode === "settings" && (!settings.title.trim() || !backCoverTextValid || !sensitivePolicy || (titleNeedsConfirmation && !confirmed))) || (mode === "selection" && !entries.data) || (mode === "pdf" && (!pdf?.approvalToken || Boolean(sensitivePolicy?.enabled && !confirmed)))} onClick={() => void (mode === "settings" ? saveSettings() : mode === "selection" ? saveEntries() : downloadPdf())}>{busy ? "저장하고 있어요." : mode === "settings" ? harumadi ? "설정 저장하기" : "빈 하루마디 만들기" : mode === "selection" ? `마디 ${selected.length}개 담기` : "PDF 파일 저장하기"}</PrimaryButton></Footer>}
+    {mode !== "pages" && <Footer $creating={!harumadi && mode === "settings"}><PrimaryButton type="button" disabled={busy || readOnly || (mode === "settings" && (!settings.title.trim() || !backCoverTextValid || !sensitivePolicy || (titleNeedsConfirmation && !confirmed))) || (mode === "selection" && !entries.data) || (mode === "pdf" && (!pdf?.approvalToken || Boolean(sensitivePolicy?.enabled && !confirmed)))} onClick={() => void (mode === "settings" ? saveSettings() : mode === "selection" ? saveEntries() : downloadPdf())}>{busy ? "저장하고 있어요." : mode === "settings" ? harumadi ? "설정 저장하기" : "빈 하루마디 만들기" : mode === "selection" ? `마디 ${selected.length}개 담기` : "PDF 파일 저장하기"}</PrimaryButton></Footer>}
   </Frame>;
 }
 
 function useAttachNewEntry(attach: () => Promise<void>) { useEffect(() => { void attach(); }, [attach]); }
 
 const Frame = styled.section`height: 100%; min-height: 0; display: flex; flex-direction: column; background: #F8FAFC; color: var(--color-text);`;
-const Header = styled.header`flex: none; display: flex; justify-content: space-between; align-items: center; padding: calc(12px + var(--app-safe-area-top, 0px)) 22px 0; min-height: 50px;`;
+const Header = styled.header<{ $creating?: boolean }>`flex: none; display: flex; justify-content: space-between; align-items: center; padding: calc(${({ $creating }) => $creating ? "6px" : "12px"} + var(--app-safe-area-top, 0px)) 22px 0; min-height: ${({ $creating }) => $creating ? "44px" : "50px"};`;
 const Quiet = styled(BaseButton)`display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 40px; padding: 6px 0; background: transparent; color: var(--color-text-muted); font-size: 14px; &:focus-visible { outline: 2px solid var(--color-brand-700); outline-offset: 3px; }`;
-const Body = styled.div<{ $reading: boolean }>`flex: 1; min-height: 0; overflow-y: ${({ $reading }) => $reading ? "hidden" : "auto"}; padding: ${({ $reading }) => $reading ? "16px 24px calc(12px + var(--app-safe-area-bottom, 0px))" : "22px 24px 28px"}; ${({ $reading }) => $reading && "display: flex; flex-direction: column;"} overscroll-behavior: contain; h1 { font-size: 25px; line-height: 1.4; font-weight: 600; letter-spacing: -0.04em; margin: 8px 0 12px; overflow-wrap: anywhere; } > p { font-size: 14px; line-height: 1.8; color: var(--color-text-muted); white-space: pre-line; } .hint { font-size: 13px; }`;
+const Body = styled.div<{ $reading: boolean; $creating?: boolean }>`flex: 1; min-height: 0; overflow-y: ${({ $reading }) => $reading ? "hidden" : "auto"}; padding: ${({ $reading, $creating }) => $reading ? "16px 24px calc(12px + var(--app-safe-area-bottom, 0px))" : $creating ? "10px 24px 12px" : "22px 24px 28px"}; ${({ $reading }) => $reading && "display: flex; flex-direction: column;"} overscroll-behavior: contain; h1 { font-size: 25px; line-height: 1.4; font-weight: 600; letter-spacing: -0.04em; margin: 8px 0 12px; overflow-wrap: anywhere; } > p { font-size: 14px; line-height: 1.8; color: var(--color-text-muted); white-space: pre-line; } .hint { font-size: 13px; }`;
 const Eyebrow = styled.span`font-size: 13px; color: var(--color-text-muted);`;
 const ReadNotice = styled.div`display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 16px; padding: 10px 12px; border-radius: 10px; background: var(--color-brand-100); color: var(--color-text-muted); font-size: 13px; line-height: 1.7;`;
 const CoverPreview = styled.div<{ $green: boolean }>`width: 126px; aspect-ratio: 148 / 210; margin: 24px auto 28px; padding: 16px; border-radius: 2px 5px 5px 2px; background: ${({ $green }) => $green ? "#EBF5D5" : "#fff"}; box-shadow: 3px 3px 0 #dce3d6, 5px 12px 18px #1b222a12; display: flex; flex-direction: column; justify-content: space-between; border-left: 3px solid #1b222a0c; small { font-size: 9px; } strong { font-size: 15px; line-height: 1.6; overflow-wrap: anywhere; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; } > span { font-size: 9px; }`;
@@ -223,7 +228,38 @@ const Choices = styled.div`display: grid; grid-template-columns: 1fr 1fr; gap: 8
 const Choice = styled(BaseButton)<{ $selected: boolean }>`display: flex; align-items: center; gap: 7px; min-height: 44px; padding: 10px; font-size: 13px; background: white; border-radius: 10px; border: 1px solid ${({ $selected }) => $selected ? "var(--color-brand-700)" : "var(--color-border)"}; color: inherit;`;
 const Swatch = styled.span<{ $green: boolean; $photo: boolean }>`width: 16px; height: 22px; flex: none; border: 1px solid #d1d9c9; border-radius: 1px; background: ${({ $green }) => $green ? "#EBF5D5" : "#fff"}; ${({ $photo }) => $photo && "box-shadow: inset 0 -11px #d9e6ed;"}`;
 const Confirmation = styled.label`display: flex; gap: 9px; align-items: flex-start; margin: 18px 0; font-size: 13px; line-height: 1.7; input { margin-top: 3px; flex: none; }`;
-const Footer = styled.footer`flex: none; padding: 12px 24px calc(16px + var(--app-safe-area-bottom, 0px)); border-top: 1px solid var(--color-border); background: #F8FAFC; > button { width: 100%; }`;
+const SettingsPanel = styled.div<{ $creating: boolean }>`
+  display: ${({ $creating }) => $creating ? "flex" : "contents"};
+  > p { font-size: 14px; line-height: 1.8; color: var(--color-text-muted); white-space: pre-line; }
+  ${({ $creating }) => $creating && `
+    flex-direction: column; gap: 12px;
+    --create-cover-width: clamp(76px, 14cqh, 112px);
+    > h1 { margin: 0; font-size: 22px; line-height: 1.4; }
+    > p { margin: -4px 0 2px; font-size: 14px; line-height: 1.6; color: var(--color-text-muted); }
+    > fieldset { margin: 0; min-width: 0; }
+    > fieldset legend { margin-bottom: 8px; font-size: 14px; }
+    > label { margin: 0; font-size: 12px; line-height: 1.7; }
+    @container app-viewport (max-height: 620px) { gap: 10px; > h1 { font-size: 21px; } }
+    @container app-viewport (max-width: 340px) { --create-cover-width: 76px; }
+  `}
+`;
+const CoverSetup = styled.div<{ $creating: boolean }>`
+  display: ${({ $creating }) => $creating ? "grid" : "contents"};
+  ${({ $creating }) => $creating && `
+    grid-template-columns: var(--create-cover-width) minmax(0, 1fr); gap: 20px; align-items: center;
+    > div:first-of-type { width: var(--create-cover-width); min-width: 0; margin: 0; padding: 10px; }
+    > div:first-of-type strong { font-size: 13px; line-height: 1.4; -webkit-line-clamp: 2; }
+    > div:first-of-type small { font-size: 8px; }
+    > div:first-of-type > span { display: none; }
+    @container app-viewport (max-width: 340px) { gap: 16px; }
+  `}
+`;
+const NameField = styled.div<{ $creating: boolean }>`
+  display: ${({ $creating }) => $creating ? "block" : "contents"};
+  min-width: 0;
+  > small { display: block; margin-top: 8px; font-size: 12px; line-height: 1.7; color: var(--color-text-muted); }
+`;
+const Footer = styled.footer<{ $creating?: boolean }>`flex: none; padding: ${({ $creating }) => $creating ? "8px" : "12px"} 24px calc(${({ $creating }) => $creating ? "12px" : "16px"} + var(--app-safe-area-bottom, 0px)); border-top: 1px solid var(--color-border); background: #F8FAFC; > button { width: 100%; }`;
 const ReaderTools = styled.nav`display: flex; flex: none; align-items: center; justify-content: space-between; gap: 8px; border-top: 1px solid var(--color-border); padding-top: 6px; margin-top: 4px; > button { min-height: 44px; font-size: 13px; }`;
 const RecordList = styled.div`display: grid; gap: 10px; margin: 22px 0;`;
 const RecordOption = styled.label`display: flex; gap: 12px; align-items: center; padding: 16px 12px; border: 1px solid var(--color-border); border-radius: 10px; background: white; > span { min-width: 0; display: grid; gap: 6px; } strong { font-size: 14px; font-weight: 500; overflow-wrap: anywhere; } small { font-size: 12px; color: var(--color-text-muted); }`;
