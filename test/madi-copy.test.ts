@@ -19,7 +19,8 @@ test("첫 마디는 사진·이야기로 설명하고 시작 동작과 빈 하�
   assert.doesNotMatch(welcome, /첫 페이지 만들기/);
   assert.match(read("screens/onboarding/WelcomeHarumadiPreview.tsx"), />첫 마디 남기기</);
   const book = read("flows/HarumadiFlow.tsx");
-  assert.match(book, /첫 마디를 채워보세요/);
+  assert.match(read("components/HarumadiSheet.tsx"), /첫 마디를 채워보세요/);
+  assert.match(book, /<HarumadiPageViewer book=\{harumadi\}/);
   assert.match(book, /마디 골라 담기/);
   assert.match(book, /entries.isSuccess && entries.data.length === 0/);
   assert.match(book, /isFirstMadi \? "첫 마디 남기기" : "마디 남기기"/);
