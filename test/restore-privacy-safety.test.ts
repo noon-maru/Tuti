@@ -45,6 +45,8 @@ fs.appendFileSync(process.env.TEST_DOCKER_LOG, JSON.stringify({args, image: proc
 if (args[0] === 'inspect') {
   console.log(args.join(' ').includes('Config.Env') ? 'TUTI_RELEASE=previous' : (fs.existsSync(process.env.TEST_IMAGE_FILE) ? fs.readFileSync(process.env.TEST_IMAGE_FILE, 'utf8') : 'tuti:prod-current'));
 }
+if (args.includes('exec') && args.includes('db') && args.some(arg => arg.includes('exec psql -X -A -t'))) console.log(process.env.TEST_SCHEMA_COLUMN || '1');
+if (args[0] === 'image' && args[1] === 'inspect' && args.join(' ').includes('com.tuti.harumadi-layout')) console.log(process.env.TEST_SCHEMA_LABEL || '');
 if (args.includes('create') && args.includes('--no-deps')) process.exit(1);
 if (args.includes('up') && args.includes('--no-start') && process.env.TUTI_APP_IMAGE) fs.writeFileSync(process.env.TEST_IMAGE_FILE, process.env.TUTI_APP_IMAGE);
 if (args.includes('scripts/privacy-replay.ts') && args.includes('--mode')) console.log(process.env.TEST_LEDGER_MODE || 'disabled');
@@ -108,11 +110,22 @@ test("DB 복원 실패 시 앱을 멈춘 채 유지하며, 완료되지 않은 �
   assert.equal(system.calls().some((call) => call.args.includes("up")), false);
 });
 
-test("DB 복원이 없는 일반 앱 롤백은 기존처럼 즉시 시작한다", (t) => {
+test("DB 복원이 없고 스키마가 호환되는 일반 앱 롤백은 즉시 시작한다", (t) => {
   const system = fixture(t);
   const rolledBack = system.run("tuti-prod-rollback");
   assert.equal(rolledBack.status, 0, rolledBack.stderr);
   assert.ok(system.calls().some((call) => call.args.includes("up") && call.image === "tuti:prod-previous"));
+});
+
+test("속지 열 삭제 뒤 구 앱 롤백은 차단하고 자동 지면 지원 이미지만 허용한다", t => {
+  const system = fixture(t);
+  const blocked = system.run("tuti-prod-rollback", [], { TEST_SCHEMA_COLUMN: "0" });
+  assert.notEqual(blocked.status, 0);
+  assert.match(blocked.stderr, /호환되지 않아 롤백하지 않습니다/);
+  assert.equal(system.calls().some(call => call.args.includes("up")), false);
+  const allowed = system.run("tuti-prod-rollback", [], { TEST_SCHEMA_COLUMN: "0", TEST_SCHEMA_LABEL: "automatic" });
+  assert.equal(allowed.status, 0, allowed.stderr);
+  assert.ok(system.calls().some(call => call.args.includes("up")));
 });
 
 test("복원 원장이 활성화되면 재개 전에 재반영하고 실패 시 서비스는 중지 상태를 유지한다", (t) => {
