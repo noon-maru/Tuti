@@ -26,6 +26,15 @@ function exampleSections(source: string) {
   )]));
 }
 
+test("배포 이미지에는 공개 예제 4개만 포함하고 실제 env 제외 규칙은 유지한다", async () => {
+  const rules = (await readFile(".dockerignore", "utf8")).split(/\r?\n/).map(line => line.trim());
+  assert.ok(rules.includes(".env"));
+  assert.ok(rules.includes(".env.*"));
+  const exceptions = rules.filter(line => line.startsWith("!.env"));
+  assert.deepEqual(exceptions.sort(), exampleFiles.map(file => `!${file}`).sort());
+  for (const exception of exceptions) assert.ok(rules.indexOf(exception) > rules.indexOf(".env.*"));
+});
+
 test("env 예제는 4종류로 나누고 동일 파일의 중복 키와 폐기 키를 금지한다", async () => {
   const files = await examples();
   assert.equal(files.size, 4);
