@@ -24,10 +24,10 @@
 기록한다.
 
 - `session_started`: 새 브라우저 탭 또는 앱 WebView 실행
-- `entry_started`: 초기 질문 화면 도달
+- `entry_started`: 초기 질문 화면 도달. 첫 약관·소개 열람 전체를 뜻하지 않음
 - `entry_completed`: 초기 질문 응답 완료
 - `entry_skipped`: 질문 없이 둘러보기 선택
-- `main_viewed`: 유효한 초기 상태를 가진 메인 화면 도달
+- `main_viewed`: 유효한 초기 상태를 가진 작은 여행(`/explore`) 도달. 이전 이벤트명을 유지하며 홈 책장 방문은 아님
 
 제품 활동에는 무작위 클라이언트 세션 ID, 웹·Android·iOS 구분과 네이티브 앱
 버전만 저장한다. IP 주소, 전체 User-Agent, 현재 좌표, 화면 내용은 저장하지

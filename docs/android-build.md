@@ -25,7 +25,7 @@ sudo sh scripts/ops/install-tuti-operations.sh
 
 Android 앱 식별자는 Android Application ID와 iOS Bundle ID 모두
 `com.noonmaru.tuti`를 사용한다. 생성된 프로젝트는 Android API 36, 최소 API 24,
-Android Gradle Plugin 8.13.0과 Gradle 8.14.3을 사용한다. 빌더는 JDK 21,
+Android Gradle Plugin 9.0.1과 Gradle 9.1.0을 사용한다. 빌더는 JDK 21,
 Android Platform 36과 Build Tools 35.0.0·36.0.0을 고정해 설치한다.
 
 ## Debug APK 빌드
@@ -197,8 +197,9 @@ android/app/build/outputs/bundle/release/app-release.aab
 /var/services/homes/Tutiadmin/.tuti-releases/android/<versionName>-<versionCode>/
 ```
 
-현재 Android 릴리스 버전은 `versionCode 11`, `versionName 1.3.1`이다. Android
-전용 패치 버전이므로 웹/package와 iOS는 `1.3.0`을 유지한다. R8 코드 축소와
+2026-10-29 기준 저장소 버전은 Android `1.5.0 (14)`이며 웹·iOS도 1.5.0이다.
+실제 빌드 전 `pnpm app:version:verify`와 네이티브 설정을 확인한다. Actions는 버전 번호를
+자동 증가시키지 않는다. R8 코드 축소와
 난독화는 활성화하되, 위치 권한 회귀가 발생했던 Capacitor 코어 권한 브리지,
 Geolocation 플러그인과 `IONGeolocationLib` 경계는 `proguard-rules.pro`에서
 보존한다. 플러그인 경계만 보존한 1차 내부 테스트에서도 권한 요청 직후 종료가
@@ -213,16 +214,15 @@ DEX 최적화, 코드 축소 중 하나라도 꺼졌거나 Play 기준점인 25%
 Android 빌드 도구는 AGP `9.0.1`과 Gradle `9.1.0`을 사용한다. AGP 9의 내장
 Kotlin과 충돌하지 않도록 공식 수정이 포함된 `@capacitor/filesystem 8.1.4` 이상을
 유지한다. AGP 8 전용 `android.r8.optimizedResourceShrinking` 속성은 제거했으며,
-리소스 축소를 활성화하는 후속 버전부터 AGP 9 기본 파이프라인을 사용한다.
+현재 리소스 축소는 AGP 9 기본 파이프라인을 사용한다.
 
-### 다음 Android 마이너 버전 계획
+### 리소스 축소와 실기기 회귀
 
-Play Console의 `R8 최적화로 앱의 메모리 및 성능 개선` 권장 조치 중
-`리소스 축소가 사용 설정되지 않음` 항목은 다음 마이너 버전 후보인 `1.4.0`에
-반영한다. `android/app/build.gradle`의 Release 설정에서 `shrinkResources`를
-활성화했으며, 코드 축소와 권한 브리지 보존 규칙은 현재 구성을 유지한다.
+`android/app/build.gradle`의 Release 설정은 `minifyEnabled`·`shrinkResources`가
+모두 활성화되어 있다. 권한 브리지 보존과 산출물 검증도 유지한다. 예전 Play Console의
+미활성화 경고를 아직 남은 구현 과제로 안내하지 않는다.
 
-`1.3.1 (11)` 버전을 유지한 내부 테스트 APK에서 정확한 위치 권한 승인과 추천
+과거 `1.3.1 (11)` 내부 테스트 APK에서 정확한 위치 권한 승인과 추천
 진입을 확인했다. 해당 APK는 기존 리소스 축소 비활성 APK보다 167,904바이트
 작았고, R8 메타데이터 기준 난독화 80.69%, DEX 최적화 79.09%, 코드 축소 80.58%를
 기록했다.

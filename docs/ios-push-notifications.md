@@ -36,8 +36,8 @@ APNS_ENVIRONMENT=production
 APNS_PRIVATE_KEY_HOST_PATH=/var/services/homes/Tutiadmin/.tuti-secrets/apple/tuti-apns-auth-key.p8
 ```
 
-시행 전에는 `APNS_PUSH_ENABLED=false`를 유지하고 내부 QA 계정만
-`APNS_PUSH_TEST_EMAILS`에 등록한다. 개발용 Xcode 직접 설치 앱이 개발 API를
+내부 QA는 일반 활성화와 구분해 `APNS_PUSH_TEST_EMAILS`로 제한한다.
+개발용 Xcode 직접 설치 앱이 개발 API를
 사용한다면 개발 서버의 `APNS_ENVIRONMENT=sandbox`로 설정한다. TestFlight와
 App Store 빌드는 `production`을 사용한다.
 
@@ -64,10 +64,12 @@ App Store 빌드는 `production`을 사용한다.
 6. 알림 선택 시 내 문의 답변 화면 이동 확인
 7. 알림 해제, 로그아웃·재로그인, 재설치 후 잘못된 계정 발송 여부 확인
 
-일반 사용자 대상 발송은 개인정보 처리방침 개정 시행일인 2026년 10월 1일
-이후 운영 점검을 마친 뒤 `APNS_PUSH_ENABLED=true`로 전환한다.
+일반 발송은 `APNS_PUSH_ENABLED`와 사용자 선택에 따르며 날짜만으로 자동 전환하지 않는다.
+현행 방침과 시행 이력은 [법적 문서 안내](legal/README.md)를 따른다.
+Apple 개인정보팀의 App Store 처리자 설명은 APNs 역할을 확정한 답변이 아니다.
+APNs 처리 관계·계약·보관은 개발자 지원에 추가 확인할 대상으로 남기며 임의 고정 기간을 만들지 않는다.
 
-## 2026-10-20 등록·계정 삭제 정리 — 로컬 구현
+## 등록·계정 삭제 정리
 
 공통 클라이언트에서 등록·해제 요청을 직렬화하고 정리 대기를 영속 저장한다.
 알림 해제는 서버 등록 삭제와 OS `unregisterForRemoteNotifications` 완료 뒤에만
@@ -75,7 +77,8 @@ App Store 빌드는 `production`을 사용한다.
 다음 실행·앱 복귀·온라인 복귀에 재시도한다. 삭제 계정의 요청을 새 익명 계정으로
 재전송하지 않는다. 기존 설치는 정리 후 알림을 다시 켜야 할 수 있다.
 
-이 변경은 새 iOS 앱에 번들해야 한다. 이 환경에서 iOS 빌드·실기기 시험은 하지 않았다.
+이 보호 코드는 네이티브 앱에 번들되므로 서버만 배포해서는 기존 설치가 바뀌지 않는다.
+빌드 업로드 성공과 아래 실기기 회귀 시험 완료는 구분한다.
 OS 등록 해제가 Apple의 기기 토큰·운영 로그·백업 자료 전체 삭제를 증명하지는 않는다.
 개발자 앱 변경으로 다른 오프라인 기기의 OS 등록까지 해제할 수도 없다.
 수신, 등록 중 해제, 오프라인 해제 후 복귀, 계정 삭제 후 재등록 없음, 재활성화를

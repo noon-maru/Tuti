@@ -1,8 +1,8 @@
-**Tuti 실사용성·유용성 점검 — 2026-09-08**
+# Tuti 실사용성·유용성 점검 — 2026-09-08
 
 > 당시 릴리스의 점검 기록이다. 아래 결함과 추천 수치를 현재 동작으로
 > 해석하지 않는다. 후속 확인은 [2026-09-09 재점검](./usability-usefulness-recheck-2026-09-09.md),
-> 최신 추천 설계는 [추천 성능](./recommendation-performance.md)을 참고한다.
+> 최신 추천 설계는 [추천 성능](../recommendation-performance.md)을 참고한다.
 
 현재 Tuti는 지역의 관광·문화 공간을 발견하는 데 도움이 된다. 다만 핵심 약속인 “오늘 감당할 수 있는 작은 외출을 골라준다”는 아직 안정적으로 충족하지 못한다. 시간·예산 제약 위반, 지역 변경 후 이전 결과 유지, 첫 방문의 제스처 강제 학습을 우선 수정해야 한다.
 
@@ -38,7 +38,7 @@
 
 화면 라벨은 ‘대구에서 추천’이지만 갤러리피치, 명보아트홀, 와룡공원, 파리공원, 북한산 자락길, 금나래아트홀을 계속 보여준다. 추천 ID가 같고 추천 API도 서울 조건으로 한 번만 호출됐다. 상태 주입 없이 실제 UI로 확인했다.
 
-추천 캐시가 날짜·cycle·알고리즘만 확인하며 지역·좌표를 제외하고, 저장 결과를 `initialData` 및 `staleTime: Infinity`로 재사용한다. 지역 변경은 저장된 추천을 지우지 않는다. 관련 코드: [useTutiRecommendations.ts](../src/features/tuti/hooks/useTutiRecommendations.ts), [LocationAccessProvider.tsx](../src/features/tuti/location/LocationAccessProvider.tsx), [tuti.ts](../src/store/tuti.ts).
+추천 캐시가 날짜·cycle·알고리즘만 확인하며 지역·좌표를 제외하고, 저장 결과를 `initialData` 및 `staleTime: Infinity`로 재사용한다. 지역 변경은 저장된 추천을 지우지 않는다. 관련 코드: [useTutiRecommendations.ts](../../src/features/tuti/hooks/useTutiRecommendations.ts), [LocationAccessProvider.tsx](../../src/features/tuti/location/LocationAccessProvider.tsx), [tuti.ts](../../src/store/tuti.ts).
 
 수정 기준: 질문·지역·좌표 등 추천 입력을 캐시 정체성에 포함하고, 조건 변경 시 저장 결과도 함께 무효화한다. 새 결과가 오기 전에는 이전 카드에 새 지역 라벨을 붙이지 않는다. 같은 날 서울 → 대구 → 서울 및 새로고침 복원을 검증한다.
 
@@ -59,7 +59,7 @@
 
 예: 태백 → 정선 아리랑센터는 편도 7,319초, 2회 환승, 전체 289분이다. 그런데 결과 설명은 한적함을 강조한다. 서울 한국미술관은 전체 95분·`fitsAvailableTime=false`이면서 ‘오늘 정한 이동 범위 안에서 골랐어요’라고 설명한다.
 
-후보 조회에 최대 반경 제한이 없고, 실행시간 초과는 제외가 아니라 점수 불이익에 그친다. 최종 6개를 채울 때 조건 위반이 남는다. 관련 코드: [service.ts](../src/server/recommendations/service.ts) 297~355행, [fatigue.ts](../src/server/recommendations/fatigue.ts) 104~126·180행 및 735행.
+후보 조회에 최대 반경 제한이 없고, 실행시간 초과는 제외가 아니라 점수 불이익에 그친다. 최종 6개를 채울 때 조건 위반이 남는다. 관련 코드: [service.ts](../../src/server/recommendations/service.ts) 297~355행, [fatigue.ts](../../src/server/recommendations/fatigue.ts) 104~126·180행 및 735행.
 
 수정 기준: 시간 한도 초과·도착 시 휴무는 기본 결과에서 제외한다. 조건에 맞는 2곳이면 2곳을 보여주고 범위 확대를 사용자가 선택하게 한다. ‘잠깐’을 실제로 10~30분 외출로 정의할지, 60분까지 허용할지 문구와 모델을 맞춘다. 경로 미확인 결과는 검증된 근거리 결과보다 우대하지 않는다.
 
@@ -71,7 +71,7 @@
 
 경로 값 검증이 null만 차단하여 0을 통과시키고, `Number(null)` 또는 빈 문자열도 0으로 바뀔 수 있다. 경로 객체가 있으면 직선거리 평가를 생략하지만 실행 가능성 검사는 0초를 값 없음으로 취급하여 생략한다. 카카오 원본 응답이 0인지 null인지까지는 확인하지 않았다.
 
-관련 코드: [kakaoMapClient.ts](../src/server/maps/kakaoMapClient.ts) 227·364행, [travelTimeSummary.ts](../src/server/departure/travelTimeSummary.ts) 7행, [executionFeasibility.ts](../src/server/recommendations/executionFeasibility.ts) 104행, [fatigue.ts](../src/server/recommendations/fatigue.ts) 123·615행.
+관련 코드: [kakaoMapClient.ts](../../src/server/maps/kakaoMapClient.ts) 227·364행, [travelTimeSummary.ts](../../src/server/departure/travelTimeSummary.ts) 7행, [executionFeasibility.ts](../../src/server/recommendations/executionFeasibility.ts) 104행, [fatigue.ts](../../src/server/recommendations/fatigue.ts) 123·615행.
 
 수정 기준: 출발·도착이 떨어져 있는데 시간·거리가 0이면 경로 미확인으로 처리한다. 지도 제공자 응답 검증과 순위·설명·실행 검사에서 같은 유효성 기준을 사용한다.
 
@@ -83,7 +83,7 @@
 
 수정 기준: 필수 입장료와 선택 체험비, 일반 요금과 면제 대상을 구분한다. 명시적 무료 선택에는 일반 입장료 0원 확인 결과를 사용하고, 요금 미확인은 별도로 알린다. 요금 데이터는 추천과 상세에서 일관되게 사용한다.
 
-관련 코드: [AuxiliaryConditions.tsx](../src/features/tuti/components/AuxiliaryConditions.tsx), [fatigue.ts](../src/server/recommendations/fatigue.ts), [executionFeasibility.ts](../src/server/recommendations/executionFeasibility.ts).
+관련 코드: [AuxiliaryConditions.tsx](../../src/features/tuti/components/AuxiliaryConditions.tsx), [fatigue.ts](../../src/server/recommendations/fatigue.ts), [executionFeasibility.ts](../../src/server/recommendations/executionFeasibility.ts).
 
 **5. P1 — 첫 방문에 ‘눌러서 출발 준비’가 작동하지 않는다. 운영 웹 재현**
 
@@ -91,7 +91,7 @@
 
 첫 안내는 좌우 카드 → 위로 상세 → 아래로 기록 → 출발 순서이며, 앞선 안내 중 카드 탭을 코드가 무시한다. 건너뛰기 버튼이 없다. 키보드·보조기술의 첫 안내 완료가 어려운 점은 코드상 확인이며 별도 보조기기 실측은 하지 않았다.
 
-수정 기준: 첫 카드 탭을 즉시 작동시키고 안내를 선택형으로 제공한다. 상세·기록·출발에는 버튼 대안을 두고 제스처를 보조 조작으로 제공한다. 관련 코드: [RecommendationsScreen.tsx](../src/features/tuti/screens/recommendations/RecommendationsScreen.tsx) 326~336·466~473·823~868행, [RecommendationsFlow.tsx](../src/features/tuti/flows/RecommendationsFlow.tsx) 478행.
+수정 기준: 첫 카드 탭을 즉시 작동시키고 안내를 선택형으로 제공한다. 상세·기록·출발에는 버튼 대안을 두고 제스처를 보조 조작으로 제공한다. 관련 코드: [RecommendationsScreen.tsx](../../src/features/tuti/screens/recommendations/RecommendationsScreen.tsx) 326~336·466~473·823~868행, [RecommendationsFlow.tsx](../../src/features/tuti/flows/RecommendationsFlow.tsx) 478행.
 
 사진 중심 화면은 분위기를 전달하지만, 장소명·위치·시간을 비교하려면 상세로 들어가야 하는 부담도 있다.
 
@@ -108,9 +108,9 @@
 
 공기·밀도 질문에 따라 결과가 바뀌는 경우는 분명 있다. 그러나 서울 ‘트인 곳’ 1위는 라이브 공연장 롤링홀이었다. 같은 서비스의 상세 소개 역시 공연장으로 설명한다. 공통적인 감성 문구만으로 넓은 시야·가벼운 산책 적합성을 검증하기 어렵다.
 
-위치가 있는 장거리 경로는 코드에서 기본 공기·밀도 답변을 후보 선정에 사용하지 않는다. 원본 장거리 함수에 외부 DB·교통 응답만 고정한 실험에서 공기 3 × 밀도 3의 9조합이 같은 장소·순서를 반환했다. 이는 운영의 실제 장거리 시간표 9회 조회 결과는 아니다. 관련 코드: [service.ts](../src/server/recommendations/service.ts) 143~191행, [longDistancePlanner.ts](../src/server/recommendations/longDistancePlanner.ts) 189~224행.
+위치가 있는 장거리 경로는 코드에서 기본 공기·밀도 답변을 후보 선정에 사용하지 않는다. 원본 장거리 함수에 외부 DB·교통 응답만 고정한 실험에서 공기 3 × 밀도 3의 9조합이 같은 장소·순서를 반환했다. 이는 운영의 실제 장거리 시간표 9회 조회 결과는 아니다. 관련 코드: [service.ts](../../src/server/recommendations/service.ts) 143~191행, [longDistancePlanner.ts](../../src/server/recommendations/longDistancePlanner.ts) 189~224행.
 
-또한 ‘오늘 하루’ 이후 선택지는 내일 당일치기와 오늘 숙박뿐이다. 오늘 출발·오늘 귀가 의도를 입력하기 어렵다. 관련 코드: [intakeSteps.ts](../src/features/tuti/data/intakeSteps.ts).
+또한 ‘오늘 하루’ 이후 선택지는 내일 당일치기와 오늘 숙박뿐이다. 오늘 출발·오늘 귀가 의도를 입력하기 어렵다. 관련 코드: [intakeSteps.ts](../../src/features/tuti/data/intakeSteps.ts).
 
 수정 기준: 장거리도 답변을 후보 선정부터 반영한다. 출발지를 모르면 일정을 만들 수 없음을 알리고 수동 출발지 입력을 제공한다. 태그 검수에는 실내/실외, 탁 트인 조망, 실제 산책로, 공연 관람·예약 필요 여부를 사용한다.
 
@@ -118,7 +118,7 @@
 
 지역 선택만으로 추천·상세까지는 사용할 수 있었다. 하지만 출발 준비를 펼치면 ‘현재 위치 확인하기’만 있고, 직접 출발지를 입력하거나 목적지를 지도 앱에서 여는 대안은 없었다. 관찰된 화면에는 링크가 없었다. 상세에는 주소·소개·운영시간이 있어 사용자가 다른 지도에서 직접 검색하는 것은 가능하다.
 
-수정 기준: ‘지도에서 장소 보기’, 주소 복사, 수동 출발지 입력을 제공한다. 위치 실패의 timeout/unavailable도 지역 선택으로 복구한다. 현재 코드는 권한 denied일 때만 지역 선택을 연다. 관련 코드: [DeparturePlanScreen.tsx](../src/features/tuti/screens/departure/DeparturePlanScreen.tsx) 232행, [LocationAccessProvider.tsx](../src/features/tuti/location/LocationAccessProvider.tsx) 152~158행.
+수정 기준: ‘지도에서 장소 보기’, 주소 복사, 수동 출발지 입력을 제공한다. 위치 실패의 timeout/unavailable도 지역 선택으로 복구한다. 현재 코드는 권한 denied일 때만 지역 선택을 연다. 관련 코드: [DeparturePlanScreen.tsx](../../src/features/tuti/screens/departure/DeparturePlanScreen.tsx) 232행, [LocationAccessProvider.tsx](../../src/features/tuti/location/LocationAccessProvider.tsx) 152~158행.
 
 **추가로 확인한 위험과 한계**
 
@@ -132,7 +132,7 @@
 |가족 적합성|코드 확인|이름·태그 가산은 있으나 유모차·계단·연령 적합성 확인은 없다. 가족 조건만으로 접근성을 보장할 수 없다.|
 |단기 기록의 유용성|빈 기록 목록까지 실제 진입|기록 작성·사진 업로드·복귀 알림·장기간 재사용 효과는 이번 감사에서 평가하지 않았다.|
 
-근거 파일: [LocationAccessProvider.tsx](../src/features/tuti/location/LocationAccessProvider.tsx) 167~175행, [useDeparturePlan.ts](../src/features/tuti/hooks/useDeparturePlan.ts) 20행, [crowdForecast.ts](../src/server/recommendations/crowdForecast.ts) 107~136행, [DetailScreen.tsx](../src/features/tuti/screens/detail/DetailScreen.tsx) 113~120·186~192·561~606·633~688행.
+근거 파일: [LocationAccessProvider.tsx](../../src/features/tuti/location/LocationAccessProvider.tsx) 167~175행, [useDeparturePlan.ts](../../src/features/tuti/hooks/useDeparturePlan.ts) 20행, [crowdForecast.ts](../../src/server/recommendations/crowdForecast.ts) 107~136행, [DetailScreen.tsx](../../src/features/tuti/screens/detail/DetailScreen.tsx) 113~120·186~192·561~606·633~688행.
 
 **지역·플랫폼에 관한 판단**
 

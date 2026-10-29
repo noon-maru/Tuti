@@ -2,7 +2,7 @@
 
 ## 공통 원칙
 
-- 앱 실행 직후가 아니라 이용자가 `장소 확인하기`를 선택한 뒤 Tuti 약관 동의와 OS 권한을 순서대로 요청한다.
+- 홈 진입·로그인 직후가 아닌 작은 여행 진입에서 위치가 필요한 때 요청한다. 기존 동의가 없으면 Tuti 위치약관부터, 있으면 OS 권한·좌표 확인으로 이어간다.
 - 정밀 위치는 주변 추천, 이동 부담, 예상 이동시간과 출발 계획에만 사용한다.
 - 백그라운드 위치와 지속 위치 추적은 사용하지 않는다.
 - 현재 좌표는 계정·저널·추천 이력에 원본 형태로 저장하지 않는다.
@@ -31,5 +31,5 @@
 
 1. 공개 개인정보 처리방침 URL을 `https://tuti.today/legal/privacy`로 등록
 2. 공개 위치약관 URL을 `https://tuti.today/legal/location-terms`로 등록
-3. Kakao 좌표 처리 관계가 `processor`로 서면 확인되기 전 `LOCATION_EXTERNAL_COORDINATE_MODE=pending` 유지
+3. 운영자 판단에 따른 `LOCATION_EXTERNAL_COORDINATE_MODE=processor`와 현행 위탁 안내가 일치하는지 확인. 별도 서면 회신을 확보한 것으로 표시하지 않음
 4. 제3자 제공으로 확인되면 `third_party`를 바로 활성화하지 않고 별도 동의·제공사실 통보 기능을 먼저 구현

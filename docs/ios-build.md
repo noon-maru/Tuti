@@ -9,7 +9,7 @@ Swift Package Manager를 사용하므로 CocoaPods는 필요하지 않다.
 
 - macOS와 Xcode 26 이상
 - Xcode에 설치된 iOS Simulator Runtime
-- Node.js 22 이상과 pnpm 11
+- `.node-version`의 Node.js 26.12.1과 `package.json`의 pnpm 11.2.2
 - 앱 빌드용 공개 설정이 담긴 `.env.app.local`
 
 최초 한 번 Xcode를 실행해 라이선스와 추가 구성 요소 설치를 완료한 뒤, 터미널이
@@ -76,8 +76,8 @@ GitHub Artifact 보관기간은 30일이므로 App Store에 제출한 Archive는
 ```sh
 git clone https://github.com/noon-maru/Tuti.git
 cd Tuti
-corepack enable
-corepack prepare pnpm@11.2.2 --activate
+npm install --global pnpm@11.2.2
+pnpm runtime:check
 pnpm install --frozen-lockfile
 cp .env.app.example .env.app.local
 pnpm ios:sync
@@ -90,8 +90,9 @@ pnpm cap:open:ios
 target의 Team과 자동 서명을 확인하고 `Any iOS Device (arm64)` 대상으로
 `Product > Archive`를 실행한다.
 
-현재 프로젝트 버전은 `1.3.0 (11)`이다. 이미 build 11을 App Store Connect에
-업로드했다면 `CURRENT_PROJECT_VERSION`을 더 큰 정수로 올린 뒤 다시 Archive한다.
+2026-10-29 기준 프로젝트 버전은 `1.5.0 (14)`다. 실제 빌드 전 `pnpm app:version:verify`로
+확인한다. 같은 빌드 번호를 이미 업로드했다면 `CURRENT_PROJECT_VERSION`을 더 큰 정수로
+올리고 Android·웹 표시 버전과 출시 의도를 대조한 뒤 다시 Archive한다.
 인증서와 프로비저닝 프로파일은 Git으로 옮기지 않고 Xcode의 자동 서명으로 새
 Mac에 발급한다.
 

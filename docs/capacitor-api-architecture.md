@@ -2,6 +2,13 @@
 
 Tuti는 같은 소스코드에서 웹과 앱을 함께 가져간다. 웹은 Next.js standalone 서버로 배포하고, 앱은 Capacitor가 정적 빌드 산출물을 감싸는 구조를 기준으로 한다.
 
+## 화면과 문서의 경계
+
+홈 `/`는 하루마디 책장, `/madi`는 마디 목록, `/explore`는 작은 여행이다.
+최초 약관은 `/entry`에서 받고 위치는 작은 여행 진입에서 필요한 때 요청한다.
+사용자 동선은 [마디](madi.md)·[하루마디](harumadi.md)·[위치](location-access.md),
+약관 캐시는 [시작 성능](startup-performance.md)을 따른다. 아래 `journal`은 내부 API 식별자다.
+
 ## 결정
 
 - 웹 빌드는 Next.js standalone으로 배포한다.
@@ -153,8 +160,9 @@ sequenceDiagram
 
 ## 출발 계획 API
 
-- `POST /api/places/{placeId}/travel-time`은 메인 캐러셀에서 현재 선택한
-  장소 한 곳의 이동시간만 계산한다. 직선거리 1.5km 이내는 도보를 먼저
+- `POST /api/places/{placeId}/travel-time`은 작은 여행 카드에서 현재 선택한
+  장소 한 곳의 이동시간만 지연 계산한다. 자동차 선택은 자동차로 고정하고,
+  그 외 직선거리 1.5km 이내는 도보를 먼저
   확인하고, 이후 대중교통·자동차·자전거 순서로 사용 가능한 경로를 찾는다.
   카드가 선택되기 전에는 호출하지 않는다.
 - 현재 출발 준비는 카드 뒤집기의 짧은 안내에서 바로 전체 시트로 연다.

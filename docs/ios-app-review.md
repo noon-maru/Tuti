@@ -60,7 +60,7 @@ Tuti의 핵심 장소 추천과 기록 기능은 로그인 없이 사용할 수 
    `AUTH_APP_REVIEW_EMAIL`과 `AUTH_APP_REVIEW_PASSWORD` 설정을 확인하되 값을
    문서나 이슈에 복사하지 않는다.
 6. 관리자 감사 로그에서 이메일·코드·IP 원문 없이 요청·검증 결과가 남는지 확인한다.
-7. Archive의 버전·빌드 번호가 이번 제출용 [출시 노트](release-notes.md)와
+7. Archive의 버전·빌드 번호가 이번 제출용 [출시 노트](./release-notes.md)와
    저장소의 iOS 프로젝트 설정에 일치하는지 확인한다.
 8. GitHub Actions 업로드, App Store Connect 처리와 TestFlight 설치 테스트를
    마친 뒤 실제 업로드된 빌드를 심사 버전에 연결한다.

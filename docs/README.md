@@ -1,68 +1,80 @@
 # Tuti 문서 안내
 
-문서는 **현재 운영 기준**, **제품·기술 설명**, **향후 계획**, **과거 검토 기록**으로
-구분한다. 문서의 오래된 수치·버전보다 실행 중인 코드와 설정을 우선 확인한다.
-특히 과거 QA와 사업 시뮬레이션을 현재 기능 또는 성과로 인용하지 않는다.
+정리 기준: 2026-10-29. 현재 제품은 **마디를 하루마디에 채워 소장하는 라이프로그 서비스**다.
+홈은 책장이며 작은 여행은 별도 화면이다. 실물 주문·결제·배송과 사용자 LLM 개인화는 제공하지 않는다.
 
-## 현재 운영 기준
+## 문서를 읽는 순서
 
-| 영역 | 기준 문서 |
+| 목적 | 기준 문서 |
 | --- | --- |
-| 웹 배포·백업·보안·정기 작업 | [운영 명령](operations.md) |
-| Node.js 실행 버전·보안 패치 | [Node 26 전환과 Node2Shell 대응](node-runtime.md) |
-| Android / iOS 빌드 | [Android 빌드](android-build.md) · [iOS 빌드](ios-build.md) |
-| 출시 문구 | [공통 출시 노트](release-notes.md) |
-| 관리자 운영 | [관리자 콘솔](admin-console.md) |
-| 기록 공개·신고 | [기록 공유](journal-sharing.md) · [기록 웹 공개 운영 지침](journal-publication-operations.md) |
-| 알림 | [Android 서버 푸시](android-push-notifications.md) · [iOS 서버 푸시](ios-push-notifications.md) · [로컬 알림](local-notifications.md) |
-| 데이터·파일 | [관광 공공데이터 동기화](tourism-data-sync.md) · [오브젝트 스토리지](object-storage.md) |
-| 위치정보 | [위치정보 이용 흐름](location-access.md) · [스토어 위치정보 공개](store-location-disclosures.md) · [위치정보 보호 문서](compliance/location-information-protection-plan.md) |
+| 서비스·개발 시작 | [저장소 README](../README.md) |
+| 제품 방향·고객 가설 | [제품 방향](./product-direction.md) |
+| 화면 흐름·마디·하루마디·PDF | [마디 작성](./madi.md) · [하루마디 구현](./harumadi.md) |
+| 웹·앱·서버 경계·인증 | [Capacitor API 구조](./capacitor-api-architecture.md) |
+| 시행 원문·선택 동의·개인정보 | [법적 문서 안내](./legal/README.md) |
+| 현재 버전의 출시 문구 | [출시 노트](./release-notes.md) |
 
-위치정보 보호 문서는 [내부관리계획](compliance/location-information-protection-plan.md),
-[자체점검](compliance/location-security-self-inspection.md),
-[침해사고 대응](compliance/location-incident-response.md),
-[취급자 교육 기록](compliance/location-handler-training-record.md)으로 나뉜다.
-작성·승인 이력이 필요한 통제 문서이므로 일반 제품 문서와 임의로 합치지 않는다.
+## 개발·배포·운영
 
-## 현재 제품과 기술
-
-| 주제 | 문서 |
+| 영역 | 문서 |
 | --- | --- |
-| 앱·API 경계 | [Capacitor API 구조](capacitor-api-architecture.md) |
-| 위치와 추천 | [추천 이후 행동 루프](recommendation-action-loop.md) · [추천 성능](recommendation-performance.md) · [장소 체류시간 전처리](place-visit-time-preprocessing.md) |
-| 개인화 제한 | [LLM 개인화 운영 원칙](llm-personalization.md) — 현재 사용자 AI 개인화는 비활성화 |
-| 기록과 하루마디 | [기록 공유](journal-sharing.md) · [디지털 하루마디](harumadi.md) · [PDF 폰트](pdf-fonts.md) |
-| 화면 동작 | [크로스플랫폼 모션](cross-platform-motion.md) |
+| 웹 수동 배포·백업·복구 | [운영 명령](./operations.md) |
+| 런타임·보안 업데이트 | [Node 실행 기준](./node-runtime.md) |
+| 네이티브 빌드·스토어 업로드 | [Android](./android-build.md) · [iOS](./ios-build.md) |
+| 스토어 제출 점검 | [iOS 심사 체크리스트](./ios-app-review.md) · [위치정보 공개](./store-location-disclosures.md) |
+| 관리자·권한·로그 | [관리자 콘솔](./admin-console.md) |
+| 상주 ops worker·예약 실행 | [운영 작업 컨테이너](./ops-workers.md) |
+| 객체 스토리지 | [오브젝트 스토리지](./object-storage.md) |
+| 공공데이터 | [관광 데이터 동기화](./tourism-data-sync.md) · [장소 체류시간 전처리](./place-visit-time-preprocessing.md) |
+| 푸시·로컬 알림 | [Android 푸시](./android-push-notifications.md) · [iOS 푸시](./ios-push-notifications.md) · [로컬 알림](./local-notifications.md) |
+| 개인정보 예약 정리·원장·보관 | [자동화](./legal/privacy-automation-operations.md) · [복원 방지](./legal/privacy-replay-operations.md) · [보관기한](./legal/operational-retention.md) |
 
-## 계획과 검증 기준
+## 제품·기술
 
-약관·개인정보 개편은 [법적 문서 개편 검토](legal/README.md)에 미시행 초안으로
-분리했다. 현재 적용 약관이나 동의 완료 사실로 인용하지 않는다.
+| 영역 | 문서 |
+| --- | --- |
+| 위치·권한·지역 선택 | [위치 흐름](./location-access.md) |
+| 추천과 이후 행동 | [행동 루프](./recommendation-action-loop.md) |
+| 성능·과거 측정값 | [추천 성능](./recommendation-performance.md) · [시작·약관 확인](./startup-performance.md) |
+| AI 역할과 제한 | [LLM 개인화 원칙](./llm-personalization.md) |
+| PNG·웹 공유와 권리 대응 | [기록 공유](./journal-sharing.md) · [공개 운영](./journal-publication-operations.md) |
+| 글꼴·애니메이션 | [PDF 폰트](./pdf-fonts.md) · [모션](./cross-platform-motion.md) |
+| 브랜드 원본 | [에셋 README](../assets/README.md) |
 
-- [제품 방향과 우선 고객 가설](product-direction.md): 라이프로그 서비스의
-  정의, 작은 외출·기록·소장의 방향과 20~25세 여성·커플 고객 가설.
-  현재 출시 기능과 구분한다.
-- [향후 검토 사양](future-product-specs.md): 아직 제공하지 않는 UI·안전 기능.
-- [하루마디 BM 적용·검증 계획](harumadi-bm-validation-plan.md): 무료 디지털
-  하루마디 이후 개인 실물 상품의 정상가 구매를 우선 검증하고 기관 프로그램은
-  후순위로 다룬다. 현재 결제 기능이 아니다.
-- [iOS 심사 점검표](ios-app-review.md): 제출할 때마다 콘솔·빌드·심사 계정을
-  다시 확인하는 템플릿. 이전 버전을 그대로 제출하지 않는다.
+위치 보호의 승인·작성 기록은 별도 통제 문서로 유지한다:
+[내부관리계획](./compliance/location-information-protection-plan.md),
+[자체점검](./compliance/location-security-self-inspection.md),
+[사고 대응](./compliance/location-incident-response.md),
+[취급자 교육](./compliance/location-handler-training-record.md).
+이 양식이 존재한다고 점검·교육·신고가 완료된 것은 아니다.
 
-## 과거 결정·조사 기록
+## 계획과 과거 기록
 
-다음 자료는 당시 판단과 실측을 보존한다. 현재 기능 설명이나 최신 숫자의
-단일 출처로 사용하지 않는다.
+- [하루마디 BM 검증 계획](./harumadi-bm-validation-plan.md): 실물 상품·자동 초안·주문 등 **미구현 계획**.
+- [향후 검토 사양](./future-product-specs.md): 미제공 후보. 실행 약속이나 출시 일정이 아니다.
+- [과거 기록 안내](./archive/README.md): 이전 BM을 통합한 요약, 앱 전환, 공모전·QA·약관 검토 이력.
+- 법적 문서의 초안·확정본·운영 절차 구분은 [법적 문서 안내](./legal/README.md)를 따른다.
 
-- [Capacitor 전환 로드맵](capacitor-app-transition-roadmap.md)
-- [2026 공모전 제출 준비](contest-2026-submission-readiness.md): 당시 제출용 수치
-- [2026-09-08 실사용성 감사](usability-usefulness-audit-2026-09-08.md) ·
-  [2026-09-09 재점검](usability-usefulness-recheck-2026-09-09.md)
-- [이전 사업모델 탐색](business-model-strategy.md) ·
-  [B2C 시나리오](b2c-scenario-exploration.md) ·
-  [이전 매출 시뮬레이션](b2c-revenue-simulation.md)
-- [Kakao 위치정보 처리 문의 초안](kakao-location-processing-inquiry.md)
+## 저장소 전체 문서 관리 기준
 
-문서를 고칠 때는 현재 상태와 제안 상태를 분리하고, 날짜가 있는 관측값에는
-측정 시점·환경을 남긴다. 기능을 출시하거나 비활성화하면 이 안내와 해당
-운영 문서를 같이 갱신한다.
+이 기준은 루트·각 디렉터리 README, `docs/**` 및 저장소의 모든 직접 관리 문서에 적용한다.
+
+1. **한 주제에 기준 문서 하나:** README는 입구로 두고 상세 절차는 링크한다. 기능 설명을
+   여러 문서에 복제하지 않는다. 제품 방향·구현·운영·계획·관측 이력을 구분한다.
+2. **현재 코드를 먼저 대조:** 경로·필드·환경변수·명령은 실제 소스와 맞춘다. 내부
+   `journal` 식별자나 승인 원문을 UI의 ‘마디’ 용어로 무조건 치환하지 않는다.
+3. **상태를 명시:** 계획은 계획으로, 완료된 전환은 과거 기록으로 쓴다. ‘이번 작업’,
+   ‘로컬 구현’, ‘아직 미시행’ 같은 상대 시점은 날짜와 적용 범위를 붙이거나 제거한다.
+4. **중복·폐기 문서 정리:** 유효한 내용은 기준 문서에 합치고 이전 수익 가정·완료된
+   체크리스트는 제거한다. 보존할 실측·승인 근거는 `archive/`로 옮겨 현행 지침과 분리한다.
+   삭제 전문은 Git 이력으로 복구할 수 있다.
+5. **측정과 완료를 과장하지 않음:** 수치에는 날짜·환경·커밋·한계를 남긴다. 코드 구현,
+   DB 적용, 운영 활성화, 실기기 확인, 스토어 업로드·심사·공개 출시는 별개다.
+6. **보호 자료 제외:** 승인 약관·해시·마이그레이션·감사 증거는 일반 문서처럼 정정·삭제하지
+   않는다. 비공개 운영 증거와 생성물·벤더 README도 출처의 보존·생성 절차를 따른다.
+   백업 제외 테이블 TXT는 실행 정책 입력이지 폐기 가능한 메모가 아니다.
+7. **안전한 예시:** 비밀값·사용자 본문을 넣지 않는다. 파괴적 명령은 고정된 과거 계정 수·해시를
+   재사용하지 않으며 새 대상·권한·승인을 확인한다. 문서 정리는 실제 운영 변경을 승인하지 않는다.
+8. **변경 검증:** `pnpm docs:check`와 `git diff --check`를 실행한다. 약관 관련 변경은
+   `pnpm exec tsx scripts/verify-bundled-legal-documents.ts`로 무결성도 확인한다.
+   UI·API·DB·배포 동작이 바뀌면 관련 문서와 이 색인을 같은 작업에서 갱신한다.
