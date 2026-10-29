@@ -65,7 +65,7 @@ export async function updateHarumadi(ownerId: string, id: string, input: Harumad
         validateFreeform(input);
         const updated = await tx.harumadi.updateMany({ where: { id, ownerId, revision: input.revision }, data: { title: input.title, coverStyle: input.coverStyle, ...(input.backCoverText === undefined ? {} : { backCoverText: input.backCoverText }), revision: { increment: 1 } } });
         if (!updated.count) throw new HarumadiError("하루마디가 바뀌었어요. 다시 확인해주세요.", 409);
-        return dto(await tx.harumadi.findUniqueOrThrow({ where: { id }, select: selection }));
+        return { ...dto(await tx.harumadi.findUniqueOrThrow({ where: { id }, select: selection })), shared: true, togetherEnabled: true, role: "owner" as const };
       }
     }
     const existing = await tx.harumadi.findFirst({ where: { id, ownerId }, select: { title: true, backCoverText: true } });

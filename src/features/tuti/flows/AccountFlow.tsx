@@ -28,6 +28,7 @@ import type { AccountJournalResolution } from "@/shared/api/session";
 import type { JournalAuthorBlockItem } from "@/shared/api/journal";
 import { accountAuthEnabled } from "@/shared/auth/config";
 import { useTutiStore } from "@/store/tuti";
+import { pendingHarumadiInvite } from "@/lib/harumadiInviteIntent";
 
 export function AccountFlow() {
   const router = useRouter();
@@ -73,7 +74,7 @@ export function AccountFlow() {
     }
 
     skipInitialHelp();
-    router.replace("/");
+    router.replace(await pendingHarumadiInvite().catch(() => null) ? "/harumadi/invite" : "/");
   }, [
     entryRecord,
     finishEntry,

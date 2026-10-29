@@ -6,6 +6,7 @@ import { Capacitor, type PluginListenerHandle } from "@capacitor/core";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 import { readNativeOAuthCallback } from "@/shared/auth/nativeOAuth";
+import { rememberHarumadiInviteUrl } from "@/lib/harumadiInviteIntent";
 
 export function NativeOAuthCallbackHandler() {
   const router = useRouter();
@@ -18,6 +19,7 @@ export function NativeOAuthCallbackHandler() {
 
     const openCallback = async (url?: string) => {
       if (!url) return;
+      if (await rememberHarumadiInviteUrl(url).catch(() => null)) { if (!disposed) router.replace("/harumadi/invite"); return; }
       const loginPath = readNativeOAuthCallback(url);
       if (!loginPath) return;
 

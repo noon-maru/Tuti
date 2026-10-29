@@ -1,5 +1,6 @@
 import type { HarumadiPdfEntry } from "../pdf/harumadiPdf";
 import { SensitiveJournalPolicyError } from "@/server/journal/sensitivePolicy";
+import { HarumadiError } from "./errors";
 import {
   parseHarumadiPdfInput,
   type HarumadiPdfInput,
@@ -8,7 +9,7 @@ import {
 type Dependencies = {
   validate?: (input: HarumadiPdfInput) => void;
   authenticate: (request: Request) => Promise<{ id: string } | null>;
-  findEntries: (ownerId: string, ids: string[]) => Promise<HarumadiPdfEntry[]>;
+  findEntries: (ownerId: string, ids: string[], input: HarumadiPdfInput) => Promise<HarumadiPdfEntry[]>;
   render: (
     input: HarumadiPdfInput,
     entries: HarumadiPdfEntry[],
@@ -62,7 +63,7 @@ export function createHarumadiPdfPreviewHandler(dependencies: Dependencies) {
       rendering = true;
       try {
         const issuedAt = Date.now();
-        const entries = await dependencies.findEntries(user.id, input.entryIds);
+        const entries = await dependencies.findEntries(user.id, input.entryIds, input);
         if (
           entries.length !== input.entryIds.length ||
           !input.entryIds.every((id) =>
@@ -108,7 +109,7 @@ export function createHarumadiPdfPreviewHandler(dependencies: Dependencies) {
         rendering = false;
       }
     } catch (error) {
-      if (error instanceof SensitiveJournalPolicyError) return fail(error.message, error.status);
+      if (error instanceof SensitiveJournalPolicyError || error instanceof HarumadiError) return fail(error.message, error.status);
       return fail(
         error instanceof SyntaxError
           ? "요청 내용을 확인해주세요."

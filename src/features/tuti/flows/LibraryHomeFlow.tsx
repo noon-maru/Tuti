@@ -67,7 +67,7 @@ function LibraryHome({ ownerId }: { ownerId: string }) {
               <HarumadiGrid>{harumadiPdfs.slice(row * 2, row * 2 + 2).map(harumadiPdf => <HarumadiCard key={harumadiPdf.id} data-harumadi-card>
                 <HarumadiButton data-book-cover type="button" aria-label={`${harumadiPdf.title}, 마디 ${harumadiPdf.entryIds.length}개 열기`} onClick={event => openBook(harumadiPdf, event.currentTarget)}>
                 <HarumadiCover harumadiPdf={{ ...harumadiPdf, entryCount: harumadiPdf.entryIds.length, pageCount: 0, hasCover: harumadiPdf.coverStyle.endsWith("-image") && harumadiPdf.entryIds.length > 0 }} ownerId={ownerId} kind="harumadi" />
-                <HarumadiLabel><strong>{harumadiPdf.title}</strong><small>{harumadiPdf.entryIds.length ? `마디 ${harumadiPdf.entryIds.length}개` : "첫 마디를 기다려요"}</small></HarumadiLabel>
+                <HarumadiLabel><strong>{harumadiPdf.title}</strong><small>{harumadiPdf.entryIds.length ? `마디 ${harumadiPdf.entryIds.length}개` : "첫 마디를 기다려요"}{harumadiPdf.shared ? " · 함께 채우는 중" : ""}</small>{harumadiPdf.role === "contributor" && <small>{harumadiPdf.ownerName}님의 하루마디</small>}</HarumadiLabel>
               </HarumadiButton><BookSettings type="button" aria-label={`${harumadiPdf.title} 설정`} title="하루마디 설정" onClick={event => openBook(harumadiPdf, event.currentTarget, true)}><MoreVertical size={22} /></BookSettings>
               </HarumadiCard>)}</HarumadiGrid><ShelfEdge aria-hidden="true" />
             </ShelfRow>)}

@@ -13,6 +13,8 @@ import { HarumadiPageViewer } from "@/features/tuti/components/HarumadiPageViewe
 import { HarumadiSettingsCover } from "@/features/tuti/components/HarumadiSettingsCover";
 import { HarumadiDeleteSection } from "@/features/tuti/components/HarumadiDeleteSection";
 import { HarumadiCloseTransition } from "@/features/tuti/components/HarumadiCloseTransition";
+import { HarumadiTogetherPanel } from "@/features/tuti/components/HarumadiTogetherPanel";
+import { changeTogether } from "@/lib/harumadiTogether";
 import { createHarumadi, deleteHarumadi, harumadiPath, updateHarumadi } from "@/lib/harumadis";
 import { authoritativeReadError, fetchHarumadiContent, loadCachedHarumadi, type HarumadiRead } from "@/lib/harumadiContent";
 import { canCacheHarumadi, harumadiReadCache } from "@/lib/harumadiReadCache";
@@ -35,7 +37,8 @@ function HarumadiLoader({ owner, id, initialMode, onClose }: { owner: string; id
   const router = useRouter();
   const client = useQueryClient();
   const query = useQuery({ queryKey: ["harumadi-content", owner, id], queryFn: ({ signal }) => fetchHarumadiContent(owner, id!, signal),
-    enabled: Boolean(id), retry: false, staleTime: 0, refetchOnMount: "always", refetchOnWindowFocus: false });
+    enabled: Boolean(id), retry: false, staleTime: 0, refetchOnMount: "always", refetchOnWindowFocus: true,
+    refetchInterval: query => query.state.data?.content.harumadi.shared ? 30_000 : false });
   useEffect(() => {
     if (!id) return;
     let active = true;
@@ -48,7 +51,7 @@ function HarumadiLoader({ owner, id, initialMode, onClose }: { owner: string; id
     return () => { active = false; };
   }, [owner, id, client]);
   const current = Boolean(id && query.data && harumadiReadCache.current(owner, id, query.data.ticket));
-  const verified = !id || Boolean(current && query.data && !query.data.cached && query.isFetchedAfterMount && !query.isFetching && !query.isPaused && !query.error);
+  const verified = !id || Boolean(current && query.data && !query.data.cached && query.isFetchedAfterMount && !query.isPaused && !query.error);
   const readable = Boolean(query.data && current && !authoritativeReadError(query.error) && (canCacheHarumadi(query.data.content) || verified));
   if (id && !readable && (query.isPending || query.isFetching)) return <Frame>{onClose && <Header><Quiet onClick={onClose}><ArrowLeft size={18} />내 책장</Quiet></Header>}<AppLoadingScreen label="하루마디를 열고 있어요." /></Frame>;
   if (id && !readable) return <Frame><Header><Quiet onClick={onClose ?? (() => router.replace("/"))}><ArrowLeft size={18} />내 책장</Quiet></Header><Body $reading={false} role="alert"><h1>하루마디를 열지 못했어요.</h1><p>{query.error?.message ?? "연결을 확인하고 다시 열어주세요."}</p><PrimaryButton onClick={() => void query.refetch()}>다시 불러오기</PrimaryButton></Body></Frame>;
@@ -66,7 +69,7 @@ function HarumadiEditor({ owner, initial, read, verified, refreshing, onRefresh,
   const scroller = useRef<HTMLDivElement>(null);
   const [harumadi, setHarumadi] = useState(initial);
   const [settings, setSettings] = useState<HarumadiSettings>(initial ?? { title: "우리의 작은 하루", coverStyle: "white-plain" });
-  const [mode, setMode] = useState<"settings" | "pages" | "selection" | "pdf">(initial ? initialMode ?? "pages" : "settings");
+  const [mode, setMode] = useState<"settings" | "pages" | "selection" | "pdf" | "together">(initial ? initialMode === "settings" && initial.role === "contributor" ? "together" : initialMode ?? "pages" : "settings");
   const [selected, setSelected] = useState(initial?.entryIds ?? []);
   const [confirmed, setConfirmed] = useState(false);
   const [busy, setBusy] = useState(false); const [error, setError] = useState("");
@@ -93,7 +96,7 @@ function HarumadiEditor({ owner, initial, read, verified, refreshing, onRefresh,
   const titleNeedsConfirmation = Boolean(sensitivePolicy?.enabled && (!harumadi || settings.title.trim() !== harumadi.title ||
     (settings.backCoverText ?? LEGACY_HARUMADI_BACK_COVER_TEXT).trim() !== (harumadi.backCoverText ?? LEGACY_HARUMADI_BACK_COVER_TEXT)));
   const backCoverTextValid = settings.backCoverText === undefined || isHarumadiBackCoverText(settings.backCoverText);
-  const refreshLibrary = () => { void client.invalidateQueries({ queryKey: ["library-harumadis", owner] }); void client.invalidateQueries({ queryKey: ["harumadi-content", owner] }); client.removeQueries({ queryKey: ["library-cover", owner] }); };
+  const refreshLibrary = useCallback(() => { void client.invalidateQueries({ queryKey: ["library-harumadis", owner] }); void client.invalidateQueries({ queryKey: ["harumadi-content", owner] }); client.removeQueries({ queryKey: ["library-cover", owner] }); }, [client, owner]);
   const savedEntry = useRef<string | null>(null);
   useEffect(() => { scroller.current?.scrollTo({ top: 0 }); }, [mode]);
   useEffect(() => {
@@ -120,6 +123,12 @@ function HarumadiEditor({ owner, initial, read, verified, refreshing, onRefresh,
     if (!harumadi || readOnly || busy) return;
     setBusy(true); setError("");
     try {
+      if (harumadi.shared) {
+        const mine = chosen.filter(entry => entry.authorId === owner).map(entry => entry.id);
+        for (const id of mine.filter(id => !selected.includes(id))) await changeTogether(owner, harumadi.id, "remove-entry", id);
+        for (const id of selected.filter(id => !mine.includes(id))) await changeTogether(owner, harumadi.id, "add-entry", id, { sharingConfirmed: true });
+        refreshLibrary(); setMode("pages"); return;
+      }
       const saved = await updateHarumadi(owner, harumadi.id, { ...harumadi, revision: harumadi.revision, entryIds: selected });
       setHarumadi(saved); refreshLibrary(); setMode("pages");
     } catch (cause) { setError(cause instanceof Error ? cause.message : "마디를 담지 못했어요."); }
@@ -143,10 +152,11 @@ function HarumadiEditor({ owner, initial, read, verified, refreshing, onRefresh,
   }
   const pdfInput = useMemo<HarumadiPdfInput | null>(() => harumadi && chosen.length ? {
     title: harumadi.title, coverStyle: harumadi.coverStyle, backCoverText: harumadi.backCoverText ?? LEGACY_HARUMADI_BACK_COVER_TEXT, letter: "", entryIds: chosen.map(entry => entry.id),
+    ...(harumadi.shared ? { harumadiId: harumadi.id, harumadiRevision: harumadi.revision } : {}),
     coverEntryId: harumadi.coverStyle.endsWith("-image") ? chosen.find(entry => entry.image)?.id ?? null : null,
     freeformNonSensitiveConfirmed: confirmed,
   } : null, [harumadi, chosen, confirmed]);
-  const selectRecords = () => { if (readOnly) return; setSelected(chosen.map(entry => entry.id)); setError(""); setMode("selection"); };
+  const selectRecords = () => { if (readOnly) return; setSelected(chosen.filter(entry => !harumadi?.shared || entry.authorId === owner).map(entry => entry.id)); setError(""); setMode("selection"); };
   const back = useCallback(() => { if (busy || closingRef.current) return; if (harumadi && mode !== "pages" && !(onClose && initialMode === "settings" && mode === "settings")) { setMode("pages"); setSettings(harumadi); setError(""); } else closeToLibrary(); }, [busy, harumadi, mode, onClose, initialMode, closeToLibrary]);
   useEffect(() => {
     const handleBack = (event: Event) => { event.preventDefault(); back(); };
@@ -162,24 +172,29 @@ function HarumadiEditor({ owner, initial, read, verified, refreshing, onRefresh,
     if (harumadi.entryIds.includes(addEntryId)) { router.replace(harumadiPath(harumadi.id)); return; }
     setBusy(true);
     try {
+      if (harumadi.shared) {
+        await changeTogether(owner, harumadi.id, "add-entry", addEntryId, { sharingConfirmed: true });
+        refreshLibrary(); router.replace(harumadiPath(harumadi.id)); return;
+      }
       const saved = await updateHarumadi(owner, harumadi.id, { ...harumadi, entryIds: [...harumadi.entryIds, addEntryId] });
       setHarumadi(saved); void client.invalidateQueries({ queryKey: ["library-harumadis", owner] }); void client.invalidateQueries({ queryKey: ["harumadi-content", owner] }); router.replace(harumadiPath(harumadi.id));
     } catch { setError("마디는 저장됐지만 하루마디에 담지 못했어요. ‘마디 골라 담기’로 다시 담아주세요."); }
     finally { setBusy(false); }
-  }, [harumadi, readOnly, addEntryId, entries.data, owner, client, router]);
+  }, [harumadi, readOnly, addEntryId, entries.data, owner, client, router, refreshLibrary]);
   // 사용자 저장 결과와 네트워크 조회 완료를 연결하는 외부 동기화다.
   useAttachNewEntry(attachNewEntry);
 
   return <Frame ref={frame} data-harumadi-editor aria-busy={busy || closing}>
     <BookContents ref={contents} inert={closing}>
     <Header $creating={!harumadi && mode === "settings"}><Quiet type="button" onClick={back} disabled={busy}><ArrowLeft size={18} />{mode === "pages" || !harumadi || (onClose && initialMode === "settings" && mode === "settings") ? "내 책장" : "하루마디"}</Quiet>
-      {harumadi && mode === "pages" && <Quiet type="button" disabled={readOnly} onClick={() => { setConfirmed(false); setMode("settings"); }}><Settings2 size={17} />설정</Quiet>}</Header>
+      {harumadi && mode === "pages" && <Quiet type="button" disabled={readOnly} onClick={() => { setConfirmed(false); setMode(harumadi.role === "contributor" ? "together" : "settings"); }}><Settings2 size={17} />설정</Quiet>}</Header>
     <Body ref={scroller} data-scroll-region={mode === "pages" ? undefined : ""} $reading={mode === "pages"} $creating={!harumadi && mode === "settings"}>
       {readOnly && <ReadNotice role="status">{refreshing ? "저장된 내용을 먼저 보여드리고 있어요." : "저장된 하루마디를 보고 있어요. 연결 후 최신 내용을 확인해주세요."}<Quiet type="button" disabled={refreshing} onClick={onRefresh}>최신 내용 확인</Quiet></ReadNotice>}
       {read?.cached && read.missingImages > 0 && <p className="hint">일부 사진은 연결 후 볼 수 있어요.</p>}
-      {mode === "settings" ? <SettingsPanel $creating={!harumadi}>
+      {mode === "together" && harumadi ? <HarumadiTogetherPanel owner={owner} bookId={harumadi.id} onExit={finishClose} /> : mode === "settings" ? <SettingsPanel $creating={!harumadi}>
         <SettingsIntro $creating={!harumadi}>
         {harumadi && <Eyebrow>하루마디 설정</Eyebrow>}<h1>{harumadi ? "이름과 표지" : "어떤 하루를 담을까요?"}</h1>
+        {harumadi?.togetherEnabled && <Quiet type="button" disabled={busy || readOnly} onClick={() => setMode("together")}>함께 채우기 · 참여자 관리</Quiet>}
         <p>{harumadi ? <>표지를 고르고,<br />기억하고 싶은 순간을 천천히 채워보세요.</> : "이름과 표지를 고르면 준비 끝이에요."}</p>
         </SettingsIntro>
         <CoverSetup $creating={!harumadi}>
@@ -212,6 +227,7 @@ function HarumadiEditor({ owner, initial, read, verified, refreshing, onRefresh,
       </> : harumadi && <>
         <HarumadiPageViewer book={harumadi} entries={chosen} onClose={closeToLibrary} closing={closing} />
         <ReaderTools aria-label="하루마디 채우기와 저장">
+          {harumadi.togetherEnabled && <Quiet type="button" disabled={busy || readOnly} onClick={() => setMode("together")}>함께 채우기</Quiet>}
           <Quiet type="button" disabled={busy || readOnly} onClick={() => router.push(`/madi/new?from=library&harumadiId=${encodeURIComponent(harumadi.id)}`)}><PenLine size={15} />{isFirstMadi ? "첫 마디 남기기" : "마디 남기기"}</Quiet>
           <Quiet type="button" onClick={selectRecords} disabled={busy || readOnly}><Plus size={15} />골라 담기</Quiet>
           <Quiet type="button" disabled={!chosen.length || readOnly || busy} onClick={() => { setConfirmed(false); setPdf(null); setMode("pdf"); }}><Download size={15} />PDF 저장</Quiet>
@@ -220,7 +236,7 @@ function HarumadiEditor({ owner, initial, read, verified, refreshing, onRefresh,
       {policyQuery.isError && <ErrorMessage role="alert">마디 보호 설정을 불러오지 못했어요.<Quiet onClick={() => void policyQuery.refetch()}>다시 불러오기</Quiet></ErrorMessage>}
       {error && <ErrorMessage role="alert">{error}<Quiet onClick={() => window.location.reload()}>다시 불러오기</Quiet></ErrorMessage>}
     </Body>
-    {mode !== "pages" && <Footer $creating={!harumadi && mode === "settings"}><PrimaryButton type="button" disabled={busy || readOnly || (mode === "settings" && (!settings.title.trim() || !backCoverTextValid || !sensitivePolicy || (titleNeedsConfirmation && !confirmed))) || (mode === "selection" && !entries.data) || (mode === "pdf" && (!pdf?.approvalToken || Boolean(sensitivePolicy?.enabled && !confirmed)))} onClick={() => void (mode === "settings" ? saveSettings() : mode === "selection" ? saveEntries() : downloadPdf())}>{busy ? "저장하고 있어요." : mode === "settings" ? harumadi ? "설정 저장하기" : "빈 하루마디 만들기" : mode === "selection" ? `마디 ${selected.length}개 담기` : "PDF 파일 저장하기"}</PrimaryButton></Footer>}
+    {mode !== "pages" && mode !== "together" && <Footer $creating={!harumadi && mode === "settings"}><PrimaryButton type="button" disabled={busy || readOnly || (mode === "settings" && (!settings.title.trim() || !backCoverTextValid || !sensitivePolicy || (titleNeedsConfirmation && !confirmed))) || (mode === "selection" && !entries.data) || (mode === "pdf" && (!pdf?.approvalToken || Boolean(sensitivePolicy?.enabled && !confirmed)))} onClick={() => void (mode === "settings" ? saveSettings() : mode === "selection" ? saveEntries() : downloadPdf())}>{busy ? "저장하고 있어요." : mode === "settings" ? harumadi ? "설정 저장하기" : "빈 하루마디 만들기" : mode === "selection" ? `마디 ${selected.length}개 담기` : "PDF 파일 저장하기"}</PrimaryButton></Footer>}
     </BookContents>
     {closing && harumadi && <HarumadiCloseTransition book={harumadi} entries={chosen} containerRef={frame} contentsRef={contents} onComplete={finishClose} />}
   </Frame>;

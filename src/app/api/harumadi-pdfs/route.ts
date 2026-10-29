@@ -2,6 +2,7 @@ import { writeDiagnosticLogSafely } from "@/server/admin/log";
 
 import { authenticateUser } from "@/server/auth/session";
 import { prisma } from "@/server/db/prisma";
+import { lockHarumadi, requireHarumadiAccess, requireTogether } from "@/server/harumadi/access";
 import { assertSensitiveJournalReadable, sensitiveJournalPolicyEnabled, SensitiveJournalPolicyError } from "@/server/journal/sensitivePolicy";
 import { SENSITIVE_JOURNAL_CONSENT_VERSION } from "@/shared/legal/sensitiveJournalPolicy";
 import {
@@ -132,10 +133,17 @@ export async function POST(request: Request) {
       objectKey = await storeHarumadiPdf(user.id, id, prepared.pdf);
       const storedObjectKey = objectKey;
       const created = await prisma.$transaction(async (tx) => {
+        if (prepared.sourceHarumadi) {
+          requireTogether();
+          await lockHarumadi(tx, prepared.sourceHarumadi.id);
+          const book = await requireHarumadiAccess(tx, user.id, prepared.sourceHarumadi.id);
+          if (book.revision !== prepared.sourceHarumadi.revision || book.accessRevision !== prepared.sourceHarumadi.accessRevision) throw new HarumadiPdfApprovalError("참여 상태나 하루마디가 바뀌었어요. 다시 미리보기 해주세요.", 409);
+        }
         if (sensitiveJournalPolicyEnabled() && prepared.sensitivePolicyVersion !== SENSITIVE_JOURNAL_CONSENT_VERSION) throw new SensitiveJournalPolicyError("기록 보호 확인 후 다시 미리보기 해주세요.");
         // 철회 표시와 직렬화한다. 렌더 중 철회·수정된 PDF의 재업로드도 거절한다.
-        await tx.$queryRaw`SELECT id FROM journal_entries WHERE owner_id = ${user.id} AND id = ANY(${prepared.entryIds}::text[]) ORDER BY id FOR UPDATE`;
-        const entries = await tx.journalEntry.findMany({ where: { ownerId: user.id, id: { in: prepared.entryIds } },
+        if (prepared.sourceHarumadi) await tx.$queryRaw`SELECT e.id FROM journal_entries e JOIN harumadi_entry_links l ON l.entry_id = e.id WHERE l.harumadi_id = ${prepared.sourceHarumadi.id} AND e.id = ANY(${prepared.entryIds}::text[]) ORDER BY e.id FOR UPDATE OF e`;
+        else await tx.$queryRaw`SELECT id FROM journal_entries WHERE owner_id = ${user.id} AND id = ANY(${prepared.entryIds}::text[]) ORDER BY id FOR UPDATE`;
+        const entries = await tx.journalEntry.findMany({ where: { ...(prepared.sourceHarumadi ? { sensitiveContent: false, harumadiEntries: { some: { harumadiId: prepared.sourceHarumadi.id } } } : { ownerId: user.id }), id: { in: prepared.entryIds } },
           select: { sensitiveContent: true, sensitiveConsentVersion: true, sensitiveWithdrawnAt: true, updatedAt: true } });
         if (entries.length !== prepared.entryIds.length || entries.some((entry) => entry.updatedAt.getTime() > prepared.issuedAt)) {
           throw new HarumadiPdfApprovalError("기록이 바뀌었어요. 최신 내용으로 다시 미리보기 해주세요.", 409);

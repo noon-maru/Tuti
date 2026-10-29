@@ -15,6 +15,7 @@ import {
   type PreparedHarumadiPdfEntry,
 } from "@/server/pdf/harumadiPdf";
 import { getObject } from "@/server/storage/objectStorage";
+import { requireHarumadiAccess, requireTogether } from "@/server/harumadi/access";
 
 export const runtime = "nodejs";
 
@@ -22,7 +23,15 @@ const preview = createHarumadiPdfPreviewHandler({
   validate: assertHarumadiPdfFreeform,
   authenticate: authenticateUser,
   approve: createHarumadiPdfApproval,
-  findEntries: async (ownerId, ids) => {
+  findEntries: async (ownerId, ids, input) => {
+    if (input.harumadiId) {
+      requireTogether();
+      return prisma.$transaction(async tx => {
+        await requireHarumadiAccess(tx, ownerId, input.harumadiId!);
+        const entries = await tx.journalEntry.findMany({ where: { id: { in: ids }, sensitiveContent: false, sensitiveWithdrawnAt: null, harumadiEntries: { some: { harumadiId: input.harumadiId } } } });
+        return entries;
+      }, { isolationLevel: "RepeatableRead" });
+    }
     const entries = await prisma.journalEntry.findMany({
       where: { ownerId, id: { in: ids } },
       select: {

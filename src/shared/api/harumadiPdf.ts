@@ -53,6 +53,8 @@ export function getHarumadiPdfCoverPalette(style: HarumadiPdfCoverStyle) {
 }
 
 export type HarumadiPdfInput = {
+  harumadiId?: string;
+  harumadiRevision?: number;
   backCoverText?: string;
   freeformNonSensitiveConfirmed?: boolean;
   entryIds: string[];
@@ -106,6 +108,7 @@ export function emptyHarumadiPdfDraft(): HarumadiPdfDraft {
 export function parseHarumadiPdfInput(value: unknown): HarumadiPdfInput | null {
   if (!value || typeof value !== "object") return null;
   const input = value as Record<string, unknown>;
+  if (input.harumadiId !== undefined && (typeof input.harumadiId !== "string" || !/^[a-zA-Z0-9_-]{1,128}$/.test(input.harumadiId) || !Number.isSafeInteger(input.harumadiRevision) || Number(input.harumadiRevision) < 1)) return null;
   if (input.backCoverText !== undefined && !isHarumadiBackCoverText(input.backCoverText)) return null;
   if (input.freeformNonSensitiveConfirmed !== undefined && typeof input.freeformNonSensitiveConfirmed !== "boolean") return null;
   const coverStyle = HARUMADI_PDF_COVER_STYLES.includes(
@@ -139,6 +142,7 @@ export function parseHarumadiPdfInput(value: unknown): HarumadiPdfInput | null {
     return null;
   return {
     entryIds: [...input.entryIds],
+    ...(typeof input.harumadiId === "string" ? { harumadiId: input.harumadiId, harumadiRevision: input.harumadiRevision as number } : {}),
     title: input.title.trim(),
     letter: input.letter,
     coverEntryId: input.coverEntryId,

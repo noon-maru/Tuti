@@ -26,11 +26,12 @@ type HarumadiPdfApprovalPayload = {
   issuedAt: number;
   sensitivePolicyVersion: string | null;
   coverStyle?: HarumadiPdfCoverStyle;
+  sourceHarumadi?: { id: string; revision: number; accessRevision: number };
 };
 
 export type ApprovedHarumadiPdf = Pick<
   HarumadiPdfApprovalPayload,
-  "harumadiPdfId" | "title" | "entryIds" | "pageCount" | "issuedAt" | "sensitivePolicyVersion" | "coverStyle"
+  "harumadiPdfId" | "title" | "entryIds" | "pageCount" | "issuedAt" | "sensitivePolicyVersion" | "coverStyle" | "sourceHarumadi"
 >;
 
 export type HarumadiPdfCompletionRequest = {
@@ -47,6 +48,17 @@ export async function createHarumadiPdfApproval(
 ) {
   assertPdf(pdf);
   const pageCount = await readHarumadiPdfPageCount(pdf);
+  let sourceHarumadi: HarumadiPdfApprovalPayload["sourceHarumadi"];
+  if (input.harumadiId) {
+    const { prisma } = await import("@/server/db/prisma");
+    const { requireTogether, requireHarumadiAccess } = await import("./access");
+    requireTogether();
+    sourceHarumadi = await prisma.$transaction(async tx => {
+      const book = await requireHarumadiAccess(tx, ownerId, input.harumadiId!);
+      if (book.revision !== input.harumadiRevision || await tx.harumadiEntryLink.count({ where: { harumadiId: book.id, entryId: { in: input.entryIds } } }) !== input.entryIds.length) throw new HarumadiPdfApprovalError("하루마디가 바뀌었어요. 다시 미리보기 해주세요.", 409);
+      return { id: book.id, revision: book.revision, accessRevision: book.accessRevision };
+    });
+  }
   const payload: HarumadiPdfApprovalPayload = {
     version: APPROVAL_VERSION,
     harumadiPdfId: randomUUID(),
@@ -59,6 +71,7 @@ export async function createHarumadiPdfApproval(
     issuedAt,
     sensitivePolicyVersion: input.freeformNonSensitiveConfirmed === true ? SENSITIVE_JOURNAL_CONSENT_VERSION : null,
     coverStyle: input.coverStyle,
+    ...(sourceHarumadi ? { sourceHarumadi } : {}),
   };
   const encoded = Buffer.from(JSON.stringify(payload)).toString("base64url");
   return `${encoded}.${sign(encoded)}`;
@@ -108,6 +121,7 @@ export function verifyHarumadiPdfApproval(
     issuedAt: payload.issuedAt,
     sensitivePolicyVersion: payload.sensitivePolicyVersion,
     ...(payload.coverStyle ? { coverStyle: payload.coverStyle } : {}),
+    ...(payload.sourceHarumadi ? { sourceHarumadi: payload.sourceHarumadi } : {}),
   };
 }
 
@@ -213,6 +227,7 @@ function isApprovalPayload(value: unknown): value is HarumadiPdfApprovalPayload 
   const payload = value as Partial<HarumadiPdfApprovalPayload>;
   return (
     payload.version === APPROVAL_VERSION &&
+    (payload.sourceHarumadi === undefined || (typeof payload.sourceHarumadi === "object" && payload.sourceHarumadi !== null && typeof payload.sourceHarumadi.id === "string" && /^[a-zA-Z0-9_-]{1,128}$/.test(payload.sourceHarumadi.id) && Number.isSafeInteger(payload.sourceHarumadi.revision) && payload.sourceHarumadi.revision > 0 && Number.isSafeInteger(payload.sourceHarumadi.accessRevision) && payload.sourceHarumadi.accessRevision >= 0)) &&
     (payload.coverStyle === undefined || HARUMADI_PDF_COVER_STYLES.includes(payload.coverStyle)) &&
     (payload.sensitivePolicyVersion === null || payload.sensitivePolicyVersion === SENSITIVE_JOURNAL_CONSENT_VERSION) &&
     typeof payload.harumadiPdfId === "string" &&

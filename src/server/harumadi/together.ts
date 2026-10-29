@@ -51,6 +51,7 @@ export async function acceptInvite(userId: string, token: string) {
     if (!invite || invite.revokedAt || invite.expiresAt <= new Date() || (invite.acceptedAt && invite.acceptedByUserId !== userId)) throw new HarumadiError("만료되었거나 이미 사용한 초대예요. 새 초대를 부탁해주세요.", 410);
     const existing = await tx.harumadiMember.findUnique({ where: { harumadiId_userId: { harumadiId: invite.harumadiId, userId } } });
     if (invite.acceptedAt && existing?.endedAt) throw new HarumadiError("새 초대로 다시 참여해주세요.", 410);
+    if (existing?.endedAt && invite.createdAt <= existing.endedAt) throw new HarumadiError("참여가 종료되기 전에 만든 초대예요. 새 초대를 부탁해주세요.", 410);
     if (invite.harumadi.ownerId === userId) throw new HarumadiError("직접 만든 하루마디예요. 상대방에게 초대를 보내주세요.");
     const participants = await tx.harumadiMember.findMany({ where: { harumadiId: invite.harumadiId, endedAt: null }, select: { userId: true } });
     const ids = [invite.harumadi.ownerId, ...participants.map(member => member.userId)];

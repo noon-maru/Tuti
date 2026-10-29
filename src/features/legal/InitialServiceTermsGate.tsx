@@ -14,6 +14,7 @@ import { Button, baseControlStyles } from "@/shared/ui/buttons";
 import { SERVICE_TERMS_REQUIRED_EVENT, ServiceTermsSessionExpiredError } from "@/lib/serviceTerms";
 import type { ServiceTermsOffer } from "@/shared/legal/serviceTerms";
 import { getLocationTerms, getLocationTermsVersion } from "@/shared/location/terms";
+import { rememberHarumadiInviteUrl } from "@/lib/harumadiInviteIntent";
 
 // 오버레이가 아니라 진입 화면이다. 통과 전에는 children과 그 안의 effect를 마운트하지 않는다.
 export function InitialServiceTermsGate({ children, rightsChildren, renderContent = content => content }: {
@@ -37,7 +38,7 @@ export function InitialServiceTermsGate({ children, rightsChildren, renderConten
   const reconsentDialog = reconsent && pathname !== "/entry";
 
   useEffect(() => {
-    if (entryRedirect) router.replace(entryRedirect);
+    if (entryRedirect) void rememberHarumadiInviteUrl(window.location.href).catch(() => null).then(() => router.replace(entryRedirect));
   }, [entryRedirect, router]);
 
   useEffect(() => {

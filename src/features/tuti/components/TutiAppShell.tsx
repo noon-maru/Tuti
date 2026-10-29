@@ -9,6 +9,7 @@ import { PushNotificationHandler } from "@/features/tuti/components/PushNotifica
 import { GentleLoginNudge } from "@/features/tuti/components/GentleLoginNudge";
 import { NativeAppUpdateNotice } from "@/features/tuti/components/NativeAppUpdateNotice";
 import { InitialServiceTermsGate } from "@/features/legal/InitialServiceTermsGate";
+import { HarumadiInviteContinuation } from "./HarumadiInviteContinuation";
 
 export function TutiAppShell({ children }: { children: React.ReactNode }) {
   return (
@@ -22,6 +23,7 @@ export function TutiAppShell({ children }: { children: React.ReactNode }) {
         </Providers>
       }>
         <Providers>
+          <HarumadiInviteContinuation />
           <NativeOAuthCallbackHandler />
           <LocalNotificationHandler />
           <PushNotificationHandler />
