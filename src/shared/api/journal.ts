@@ -1,4 +1,5 @@
 export type TutiJournalEntry = {
+  authorId?: string;
   id: string;
   sensitiveContent?: boolean | null;
   sensitiveConsentVersion?: string | null;

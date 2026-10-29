@@ -9,6 +9,11 @@ export type HarumadiSettings = {
   freeformNonSensitiveConfirmed?: boolean;
 };
 export type Harumadi = HarumadiSettings & {
+  togetherEnabled?: boolean;
+  shared?: boolean;
+  role?: "owner" | "contributor";
+  ownerName?: string;
+  participantCount?: number;
   id: string;
   revision: number;
   entryIds: string[];

@@ -16,7 +16,7 @@ export async function GET(request: Request, context: { params: Promise<{ harumad
     if (!user) return fail("사용자 인증이 필요해요.", 401);
     const harumadi = await readHarumadi(user.id, (await context.params).harumadiId);
     if (!harumadi.coverStyle.endsWith("-image")) return fail("사진 표지가 아니에요.", 404);
-    const entry = await prisma.journalEntry.findFirst({ where: { ownerId: user.id, id: { in: harumadi.entryIds }, image: { not: null }, sensitiveWithdrawnAt: null },
+    const entry = await prisma.journalEntry.findFirst({ where: { ...(harumadi.shared ? { sensitiveContent: false } : { ownerId: user.id }), id: { in: harumadi.entryIds }, image: { not: null }, sensitiveWithdrawnAt: null },
       select: { image: true, sensitiveContent: true, sensitiveConsentVersion: true, sensitiveWithdrawnAt: true }, orderBy: [{ visitedAt: "asc" }, { id: "asc" }] });
     if (!entry?.image || !isStoredJournalImage(entry.image)) return fail("사진을 담으면 표지가 채워져요.", 404);
     assertSensitiveJournalReadable(entry);

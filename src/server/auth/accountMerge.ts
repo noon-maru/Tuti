@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { prisma } from "@/server/db/prisma";
+import { mergeTogether } from "@/server/harumadi/merge";
 import { AccountAuthError } from "@/server/auth/session";
 
 type MergeIdentityUpdate = {
@@ -256,6 +257,7 @@ export async function mergeUserIntoCurrentAccount({
       where: { ownerId: sourceUserId },
       data: { ownerId: targetUserId },
     });
+    if (transaction.harumadiMember) await mergeTogether(transaction, sourceUserId, targetUserId);
     await transaction.authIdentity.updateMany({
       where: { userId: sourceUserId },
       data: { userId: targetUserId },

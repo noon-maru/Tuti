@@ -53,6 +53,7 @@
 
 - [하루마디 BM 검증 계획](./harumadi-bm-validation-plan.md): 실물 상품·자동 초안·주문 등 **미구현 계획**.
 - [향후 검토 사양](./future-product-specs.md): 미제공 후보. 실행 약속이나 출시 일정이 아니다.
+- [함께 채우기](./harumadi-together.md): 여러 명의 하루마디 공동작성 구현·전환 기준. 운영 제공 여부는 별도다.
 - [과거 기록 안내](./archive/README.md): 이전 BM을 통합한 요약, 앱 전환, 공모전·QA·약관 검토 이력.
 - 법적 문서의 초안·확정본·운영 절차 구분은 [법적 문서 안내](./legal/README.md)를 따른다.
 

@@ -5,7 +5,10 @@ import { isAbsolute, join } from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
 import { LEGACY_HARUMADI_DELETION_KIND, LEGACY_HARUMADI_TARGET_DOMAIN, INTERIM_HARUMADI_DELETION_KIND, INTERIM_HARUMADI_TARGET_DOMAIN } from "@/shared/harumadi/legacy";
 
-export type PrivacyReplayKind = "account_deleted" | "location_withdrawn" | "journal_deleted" | "journal_sensitive_withdrawn" | "harumadi_deleted" | "journal_unpublished" | typeof LEGACY_HARUMADI_DELETION_KIND | typeof INTERIM_HARUMADI_DELETION_KIND;
+export const TOGETHER_REPLAY_KINDS = ["harumadi_member_left", "harumadi_invite_revoked", "harumadi_entry_removed", "harumadi_comment_deleted"] as const;
+export type TogetherReplayKind = typeof TOGETHER_REPLAY_KINDS[number];
+export const isTogetherReplayKind = (kind: string): kind is TogetherReplayKind => (TOGETHER_REPLAY_KINDS as readonly string[]).includes(kind);
+export type PrivacyReplayKind = "account_deleted" | "location_withdrawn" | "journal_deleted" | "journal_sensitive_withdrawn" | "harumadi_deleted" | "journal_unpublished" | TogetherReplayKind | typeof LEGACY_HARUMADI_DELETION_KIND | typeof INTERIM_HARUMADI_DELETION_KIND;
 type Receipt = { version: 1; id: string; kind: PrivacyReplayKind; subject: string; target: string | null; phase: "prepared" | "committed"; preparedAt: string; effectiveAt: string | null };
 type Header = { version: 1; type: "privacy-replay"; coverageStart: string; keyCheck: string; receiptIds: string[]; retiringIds: string[]; activatedAt?: string; activationReference?: string };
 export type PrivacyReplaySnapshot = { coverageStart: Date; committed: Receipt[]; unresolved: number; pending?: Receipt[] };
@@ -145,7 +148,7 @@ export async function preparePrivacyReplayReceipt(kind: PrivacyReplayKind, userI
   return withLedgerLock(async () => {
     const header = await readHeader(); // API는 누락된 원장을 조용히 새로 만들지 않는다.
     const { directory, secret } = config();
-    const receipt: Receipt = { version: 1, id: randomUUID(), kind, subject: privacyReplaySubject(userId), target: targetId ? privacyReplayTarget(isHarumadiDeletion(kind) ? harumadiTargetDomain(kind) : "journal", targetId) : null, phase: "prepared", preparedAt: now.toISOString(), effectiveAt: null };
+    const receipt: Receipt = { version: 1, id: randomUUID(), kind, subject: privacyReplaySubject(userId), target: targetId ? privacyReplayTarget(isTogetherReplayKind(kind) ? "harumadi" : isHarumadiDeletion(kind) ? harumadiTargetDomain(kind) : "journal", targetId) : null, phase: "prepared", preparedAt: now.toISOString(), effectiveAt: null };
     await writeSigned(join(directory, `${receipt.id}.json`), receipt, secret);
     await syncDirectory(directory);
     await replaceSigned("ledger.json", { ...header, receiptIds: [...header.receiptIds, receipt.id] });
@@ -165,8 +168,8 @@ export async function commitPrivacyReplayReceipt(receipt: Receipt | null, effect
 }
 function parseReceipt(value: Record<string, unknown>, filename: string): Receipt {
   // 새 철회 종류도 journal 대상의 서명·형식을 동일하게 검증한다.
-  const kindForValidation = value.kind === "journal_sensitive_withdrawn" ? "journal_deleted" : isHarumadiDeletion(String(value.kind)) ? "harumadi_deleted" : value.kind;
-  if (value.version !== 1 || typeof value.id !== "string" || !UUID.test(value.id) || filename !== `${value.id}.json` || typeof value.subject !== "string" || !DIGEST.test(value.subject) || !["account_deleted", "location_withdrawn", "journal_deleted", "harumadi_deleted", "journal_unpublished"].includes(String(kindForValidation)) || ((String(value.kind).startsWith("journal_") || isHarumadiDeletion(String(value.kind))) ? typeof value.target !== "string" || !DIGEST.test(value.target) : value.target !== null) || !["prepared", "committed"].includes(String(value.phase)) || !iso(value.preparedAt) || (value.phase === "prepared" ? value.effectiveAt !== null : !iso(value.effectiveAt) || Date.parse(value.effectiveAt) < Date.parse(value.preparedAt))) throw new PrivacyReplayError("유효하지 않은 원장 기록이 있습니다. 자동 복원 재개를 중지합니다.");
+  const kindForValidation = value.kind === "journal_sensitive_withdrawn" ? "journal_deleted" : isTogetherReplayKind(String(value.kind)) || isHarumadiDeletion(String(value.kind)) ? "harumadi_deleted" : value.kind;
+  if (value.version !== 1 || typeof value.id !== "string" || !UUID.test(value.id) || filename !== `${value.id}.json` || typeof value.subject !== "string" || !DIGEST.test(value.subject) || !["account_deleted", "location_withdrawn", "journal_deleted", "harumadi_deleted", "journal_unpublished"].includes(String(kindForValidation)) || ((String(value.kind).startsWith("journal_") || isTogetherReplayKind(String(value.kind)) || isHarumadiDeletion(String(value.kind))) ? typeof value.target !== "string" || !DIGEST.test(value.target) : value.target !== null) || !["prepared", "committed"].includes(String(value.phase)) || !iso(value.preparedAt) || (value.phase === "prepared" ? value.effectiveAt !== null : !iso(value.effectiveAt) || Date.parse(value.effectiveAt) < Date.parse(value.preparedAt))) throw new PrivacyReplayError("유효하지 않은 원장 기록이 있습니다. 자동 복원 재개를 중지합니다.");
   return value as unknown as Receipt;
 }
 export async function readPrivacyReplaySnapshot(): Promise<PrivacyReplaySnapshot> {

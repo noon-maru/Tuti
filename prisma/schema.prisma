@@ -734,16 +734,71 @@ model Harumadi {
   coverStyle String @map("cover_style")
   backCoverText String @default("오늘 가능한 만큼만,") @map("back_cover_text")
   revision   Int @default(1)
+  accessRevision Int @default(0) @map("access_revision")
+  collaborationStartedAt DateTime? @map("collaboration_started_at")
   createdAt  DateTime @default(now()) @map("created_at")
   updatedAt  DateTime @updatedAt @map("updated_at")
   owner      User @relation(fields: [ownerId], references: [id], onDelete: Cascade)
   entries    HarumadiEntryLink[]
+  members HarumadiMember[]
+  invites HarumadiInvite[]
+  comments HarumadiComment[]
 
   @@index([ownerId, createdAt])
   @@map("harumadis")
 }
 
+model HarumadiMember {
+  id String @id
+  harumadiId String @map("harumadi_id")
+  userId String @map("user_id")
+  joinedAt DateTime @default(now()) @map("joined_at")
+  endedAt DateTime? @map("ended_at")
+  harumadi Harumadi @relation(fields: [harumadiId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([harumadiId, userId])
+  @@index([userId, endedAt])
+  @@map("harumadi_members")
+}
+
+model HarumadiInvite {
+  id String @id
+  harumadiId String @map("harumadi_id")
+  tokenHash String @unique @map("token_hash")
+  createdAt DateTime @default(now()) @map("created_at")
+  expiresAt DateTime @map("expires_at")
+  revokedAt DateTime? @map("revoked_at")
+  acceptedAt DateTime? @map("accepted_at")
+  acceptedByUserId String? @map("accepted_by_user_id")
+  harumadi Harumadi @relation(fields: [harumadiId], references: [id], onDelete: Cascade)
+
+  @@index([harumadiId, createdAt])
+  @@map("harumadi_invites")
+}
+
+model HarumadiComment {
+  id String @id
+  harumadiId String @map("harumadi_id")
+  authorId String? @map("author_id")
+  parentId String? @map("parent_id")
+  body String
+  revision Int @default(1)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+  harumadi Harumadi @relation(fields: [harumadiId], references: [id], onDelete: Cascade)
+  author User? @relation(fields: [authorId], references: [id], onDelete: SetNull)
+  parent HarumadiComment? @relation("HarumadiReplies", fields: [parentId], references: [id], onDelete: SetNull)
+  replies HarumadiComment[] @relation("HarumadiReplies")
+
+  @@index([harumadiId, parentId, createdAt, id])
+  @@index([authorId])
+  @@map("harumadi_comments")
+}
+
 model HarumadiEntryLink {
+  id String @unique @default(uuid())
   harumadiId String @map("harumadi_id")
   entryId    String @map("entry_id")
   harumadi   Harumadi @relation(fields: [harumadiId], references: [id], onDelete: Cascade)
@@ -809,6 +864,8 @@ model User {
   journalEntries        JournalEntry[]
   harumadiPdfs          HarumadiPdf[]
   harumadis      Harumadi[]
+  harumadiMemberships HarumadiMember[]
+  harumadiComments HarumadiComment[]
   oauthAuthorizations   OAuthAuthorization[]
   sessions              UserSession[]
   recommendationActions RecommendationAction[]

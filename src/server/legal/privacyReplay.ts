@@ -7,6 +7,8 @@ import { deleteHarumadiPdf } from "@/server/harumadi/pdfDeletion";
 import { deleteHarumadi } from "@/server/harumadi/service";
 import { purgeWithdrawnSensitiveJournal } from "@/server/journal/sensitiveWithdrawal";
 import { cleanupPrivacyReplayObjects } from "@/server/legal/privacyReplayObjects";
+import { isTogetherReplayKind } from "@/server/legal/privacyReplayLedger";
+import { inspectTogetherReplay } from "@/server/harumadi/replay";
 
 // DB 파일을 교체하기 전, 앱 중지 상태의 현재 DB로 완료 여부가 입증되는 준비 기록만 확정한다.
 export async function settleCurrentPrivacyRequests() {
@@ -43,6 +45,7 @@ export async function settleCurrentPrivacyRequests() {
         fulfilled = !entry || record.kind === "journal_sensitive_withdrawn" && !!entry.sensitiveWithdrawnAt || record.kind === "journal_unpublished" && entry.publicId === null && entry.publicationStatus === "private";
       }
     }
+    if (isTogetherReplayKind(record.kind)) fulfilled = (await inspectTogetherReplay({ ...record, kind: record.kind }, false)).fulfilled;
     if (fulfilled) { await commitPrivacyReplayReceipt(record); settled++; }
   }
   return { settled, unresolved: (await readPrivacyReplaySnapshot()).unresolved };
@@ -132,6 +135,7 @@ export async function replayPrivacyRequests(backupAt: Date, apply = false, legac
       afterHarumadi = harumadis.at(-1)!.id;
     }
   }
+  for (const record of snapshot.committed) if (isTogetherReplayKind(record.kind)) await inspectTogetherReplay({ ...record, kind: record.kind }, apply);
   const objects = await cleanupPrivacyReplayObjects(apply, undefined, snapshot);
   result.objects = apply ? objects.deleted : objects.candidates;
   return result;

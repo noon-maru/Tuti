@@ -5,10 +5,10 @@ import type { Harumadi, HarumadiSettings, HarumadiUpdate } from "@/shared/api/ha
 import { assertHarumadiPdfFreeform, assertSensitiveJournalReadable } from "@/server/journal/sensitivePolicy";
 import { commitPrivacyReplayReceipt, preparePrivacyReplayReceipt } from "@/server/legal/privacyReplayLedger";
 import { LEGACY_HARUMADI_BACK_COVER_TEXT, pickHarumadiBackCoverText } from "@/shared/harumadi/backCover";
+import { harumadiTogetherEnabled, lockHarumadi, requireHarumadiAccess } from "./access";
+import { HarumadiError } from "./errors";
+export { HarumadiError } from "./errors";
 
-export class HarumadiError extends Error {
-  constructor(message: string, readonly status = 400) { super(message); }
-}
 const selection = {
   id: true, title: true, coverStyle: true, backCoverText: true, revision: true, createdAt: true, updatedAt: true,
   entries: { where: { entry: { sensitiveWithdrawnAt: null } }, select: { entryId: true } },
@@ -24,15 +24,22 @@ function validateFreeform(settings: HarumadiSettings) {
   assertHarumadiPdfFreeform({ ...settings, entryIds: [], letter: "", coverEntryId: null });
 }
 export async function listHarumadis(ownerId: string, cursorId: string | null) {
-  const cursor = cursorId ? await prisma.harumadi.findFirst({ where: { id: cursorId, ownerId }, select: { id: true, createdAt: true } }) : null;
+  const together = harumadiTogetherEnabled();
+  const access = together ? { OR: [{ ownerId }, { members: { some: { userId: ownerId, endedAt: null } } }] } : { ownerId };
+  const cursor = cursorId ? await prisma.harumadi.findFirst({ where: { id: cursorId, ...access }, select: { id: true, createdAt: true } }) : null;
   if (cursorId && !cursor) throw new HarumadiError("책장 위치를 다시 확인해주세요.");
-  const rows = await prisma.harumadi.findMany({ where: { ownerId,
+  const rows = await prisma.harumadi.findMany({ where: { ...(together ? { AND: [access] } : { ownerId }),
     ...(cursor ? { OR: [{ createdAt: { lt: cursor.createdAt } }, { createdAt: cursor.createdAt, id: { lt: cursor.id } }] } : {}) },
-    select: selection, take: 13, orderBy: [{ createdAt: "desc" }, { id: "desc" }] });
-  return { harumadis: rows.slice(0, 12).map(dto), nextCursor: rows.length > 12 ? rows[11].id : null,
+    select: { ...selection, ...(together ? { ownerId: true, owner: { select: { displayName: true } }, collaborationStartedAt: true, members: { where: { endedAt: null }, select: { userId: true } } } : {}) }, take: 13, orderBy: [{ createdAt: "desc" }, { id: "desc" }] });
+  return { harumadis: rows.slice(0, 12).map(row => ({ ...dto(row), ...(together ? { togetherEnabled: true, role: row.ownerId === ownerId ? "owner" as const : "contributor" as const, shared: Boolean(row.collaborationStartedAt), ownerName: row.owner?.displayName || "만든 사람", participantCount: (row.members?.length ?? 0) + 1 } : {}) })), nextCursor: rows.length > 12 ? rows[11].id : null,
     ...(!cursor ? { recordCount: await prisma.journalEntry.count({ where: { ownerId, sensitiveWithdrawnAt: null } }) } : {}) };
 }
 export async function readHarumadi(ownerId: string, id: string) {
+  if (harumadiTogetherEnabled()) return prisma.$transaction(async tx => {
+    const book = await requireHarumadiAccess(tx, ownerId, id);
+    const row = await tx.harumadi.findUniqueOrThrow({ where: { id }, select: selection });
+    return { ...dto(row), togetherEnabled: true, shared: Boolean(book.collaborationStartedAt), role: book.ownerId === ownerId ? "owner" as const : "contributor" as const };
+  });
   const row = await prisma.harumadi.findFirst({ where: { ownerId, id }, select: selection });
   if (!row) throw new HarumadiError("하루마디를 찾지 못했어요.", 404);
   return dto(row);
@@ -49,6 +56,18 @@ export async function createHarumadi(ownerId: string, settings: HarumadiSettings
 export async function updateHarumadi(ownerId: string, id: string, input: HarumadiUpdate) {
   // 표지 변경에만 자유 입력 확인을 요구한다. 기록 선택 자체의 민감정보 동의는 원본 기록에 귀속된다.
   return prisma.$transaction(async tx => {
+    if (harumadiTogetherEnabled()) {
+      await lockHarumadi(tx, id);
+      const access = await requireHarumadiAccess(tx, ownerId, id, true);
+      if (access.collaborationStartedAt) {
+        const links = await tx.harumadiEntryLink.findMany({ where: { harumadiId: id }, select: { entryId: true } });
+        if (links.length !== input.entryIds.length || links.some(link => !input.entryIds.includes(link.entryId))) throw new HarumadiError("함께 채우는 마디는 추가·빼기 기능으로 변경해주세요.", 409);
+        validateFreeform(input);
+        const updated = await tx.harumadi.updateMany({ where: { id, ownerId, revision: input.revision }, data: { title: input.title, coverStyle: input.coverStyle, ...(input.backCoverText === undefined ? {} : { backCoverText: input.backCoverText }), revision: { increment: 1 } } });
+        if (!updated.count) throw new HarumadiError("하루마디가 바뀌었어요. 다시 확인해주세요.", 409);
+        return dto(await tx.harumadi.findUniqueOrThrow({ where: { id }, select: selection }));
+      }
+    }
     const existing = await tx.harumadi.findFirst({ where: { id, ownerId }, select: { title: true, backCoverText: true } });
     if (!existing) throw new HarumadiError("하루마디를 찾지 못했어요.", 404);
     if (existing.title !== input.title || (input.backCoverText !== undefined &&
