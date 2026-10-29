@@ -48,6 +48,7 @@ test("계정 탈퇴와 공동작성 종료는 원본·연결·다른 사람 PDF�
 });
 
 test("권한 철회·초대 취소·마디 빼기·댓글 삭제는 복원 방지 원장과 연결한다", () => {
+  assert.match(readFileSync("src/server/harumadi/access.ts", "utf8"), /pg_advisory_xact_lock\(hashtextextended\([^\n]+\)\)::text AS lock_result/);
   const ledger = readFileSync("src/server/legal/privacyReplayLedger.ts", "utf8");
   for (const kind of ["harumadi_member_left", "harumadi_invite_revoked", "harumadi_entry_removed", "harumadi_comment_deleted"]) assert.ok(ledger.includes(kind));
   assert.match(readFileSync("src/server/legal/privacyReplay.ts", "utf8"), /inspectTogetherReplay/);

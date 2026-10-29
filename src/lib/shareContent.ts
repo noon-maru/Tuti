@@ -35,7 +35,8 @@ export async function shareContent(content: ShareContent) {
   textArea.style.opacity = "0";
   document.body.append(textArea);
   textArea.select();
-  document.execCommand("copy");
+  const copied = document.execCommand("copy");
   textArea.remove();
+  if (!copied) throw new Error("링크를 복사하지 못했어요. 다시 눌러주세요.");
   return "copied" as const;
 }

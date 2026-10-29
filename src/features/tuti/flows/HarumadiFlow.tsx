@@ -52,7 +52,7 @@ function HarumadiLoader({ owner, id, initialMode, onClose }: { owner: string; id
     return () => { active = false; };
   }, [owner, id, client]);
   const current = Boolean(id && query.data && harumadiReadCache.current(owner, id, query.data.ticket));
-  const verified = !id || Boolean(current && query.data && !query.data.cached && query.isFetchedAfterMount && !query.isPaused && !query.error);
+  const verified = !id || Boolean((current || query.isFetching) && query.data && !query.data.cached && query.isFetchedAfterMount && !query.isPaused && !query.error);
   const readable = Boolean(query.data && current && !authoritativeReadError(query.error) && (canCacheHarumadi(query.data.content) || verified));
   if (id && !readable && (query.isPending || query.isFetching)) return <Frame>{onClose && <Header><Quiet onClick={onClose}><ArrowLeft size={18} />내 책장</Quiet></Header>}<AppLoadingScreen label="하루마디를 열고 있어요." /></Frame>;
   if (id && !readable) return <Frame><Header><Quiet onClick={onClose ?? (() => router.replace("/"))}><ArrowLeft size={18} />내 책장</Quiet></Header><Body $reading={false} role="alert"><h1>하루마디를 열지 못했어요.</h1><p>{query.error?.message ?? "연결을 확인하고 다시 열어주세요."}</p><PrimaryButton onClick={() => void query.refetch()}>다시 불러오기</PrimaryButton></Body></Frame>;

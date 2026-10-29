@@ -181,7 +181,7 @@ export async function verifyOperationalRetention(t: TestContext, client: PrismaC
       // fallback TCP 주소도 운영 포트가 아닌 시험 전용 15479다. 실제 pg 연결은 아래 임시 Unix 소켓을 사용한다.
       const databaseUrl = `postgresql://tuti_legal_test@localhost:15479/legal_restore_test?host=${encodeURIComponent(socket)}`;
       assert.equal(new URL(databaseUrl).searchParams.get("host"), socket);
-      const env = { PATH: process.env.PATH, NODE_ENV: "test" as const, NODE_OPTIONS: "--max-old-space-size=256",
+      const env = { PATH: process.env.PATH, LD_LIBRARY_PATH: process.env.LD_LIBRARY_PATH, NODE_ENV: "test" as const, NODE_OPTIONS: "--max-old-space-size=256",
         DATABASE_URL: databaseUrl, PRIVACY_EXTENDED_RETENTION_ENABLED: "true" };
       const result = spawnSync(process.execPath, ["--import", "tsx", "scripts/maintain-operational-retention.ts"], { env, encoding: "utf8", timeout: 10_000 });
       assert.equal(result.status, 2, result.stderr);
@@ -213,7 +213,7 @@ export async function verifyOperationalRetention(t: TestContext, client: PrismaC
         await import('./scripts/notify-legal-job-failure.ts');
         assert.equal(called, true);
         console.log('MOCK_NOTIFICATION_ACCEPTED');
-      `], { env: { PATH: process.env.PATH, NODE_ENV: "test", NODE_OPTIONS: "--max-old-space-size=256", LEGAL_RIGHTS_ALERT_WEBHOOK_URL: "https://alerts.invalid/retention-test" }, encoding: "utf8", timeout: 10_000 });
+      `], { env: { PATH: process.env.PATH, LD_LIBRARY_PATH: process.env.LD_LIBRARY_PATH, NODE_ENV: "test", NODE_OPTIONS: "--max-old-space-size=256", LEGAL_RIGHTS_ALERT_WEBHOOK_URL: "https://alerts.invalid/retention-test" }, encoding: "utf8", timeout: 10_000 });
       assert.equal(notification.status, 0, notification.stderr);
       assert.match(notification.stdout, /MOCK_NOTIFICATION_ACCEPTED/);
       t.diagnostic("재검토 알림은 실제 CLI exit=2 및 모의 전송 검증. 운영 systemd 실패·Slack 수신 시험은 수행하지 않음");

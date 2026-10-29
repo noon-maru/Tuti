@@ -68,6 +68,8 @@ test("분리된 PostgreSQL에서 약관·권리 보호 마이그레이션의 실
         const held = await client.$queryRaw<Array<{ acquired: boolean }>>`SELECT pg_try_advisory_xact_lock(20261019, 1) AS acquired`;
         assert.equal(held[0].acquired, false, "반환값 캐스팅이 잠금을 해제하거나 별도 연결로 옮겨서는 안 된다.");
         await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtext('tuti-journal-rights-deadline-alert'))::text AS lock_result`;
+        const { lockSharingSecurity } = await import("../../src/server/harumadi/access");
+        await lockSharingSecurity(tx);
       });
       const released = await client.$queryRaw<Array<{ acquired: boolean }>>`SELECT pg_try_advisory_xact_lock(20261019, 1) AS acquired`;
       assert.equal(released[0].acquired, true);
@@ -78,6 +80,10 @@ test("분리된 PostgreSQL에서 약관·권리 보호 마이그레이션의 실
     assert.notEqual(result.status, 0);
     assert.match(result.stderr, message);
   };
+  await t.test("함께 채우기 실제 스키마는 여러 참여자·댓글·탈퇴와 타인의 PDF 보존을 구분한다", { skip: serverVersion < 130000 }, async () => {
+    const { verifyTogetherSchema } = await import("./harumadi-together-scenario");
+    verifyTogetherSchema(query, rejected, socket);
+  });
   query('CREATE TABLE users(id text PRIMARY KEY); CREATE TABLE content_reports(id text PRIMARY KEY);');
   query("CREATE TABLE system_logs(id text PRIMARY KEY, actor_user_id text, target_type text, target_id text, category text, action text, metadata jsonb, created_at timestamp(3) DEFAULT CURRENT_TIMESTAMP)");
   query(`INSERT INTO system_logs(id,actor_user_id,target_type,target_id,category,action,metadata) VALUES ('legacy-access','legacy-admin','user','legacy-owner','journal','journal.admin.viewed','{"purpose":"support","reference":"CASE-123","entryIds":"entry-1,entry-2","content":"DO-NOT-COPY"}'), ('ordinary','legacy-admin','user','legacy-owner','journal','journal.created','{}')`);

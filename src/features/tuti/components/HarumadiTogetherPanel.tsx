@@ -12,6 +12,7 @@ export function HarumadiTogetherPanel({ owner, bookId, onExit, entries = [] }: {
   const client = useQueryClient(), router = useRouter();
   const query = useQuery({ queryKey: ["harumadi-together", owner, bookId], queryFn: () => fetchTogether(owner, bookId), retry: false });
   const [busy, setBusy] = useState(false), [notice, setNotice] = useState("");
+  const [pendingInvite, setPendingInvite] = useState<{ id: string; token: string } | null>(null);
   const refresh = async () => {
     await Promise.all([client.invalidateQueries({ queryKey: ["harumadi-together", owner, bookId] }), client.invalidateQueries({ queryKey: ["library-harumadis", owner] }), client.invalidateQueries({ queryKey: ["harumadi-content", owner, bookId] })]);
     client.removeQueries({ queryKey: ["library-cover", owner] });
@@ -24,12 +25,15 @@ export function HarumadiTogetherPanel({ owner, bookId, onExit, entries = [] }: {
     setBusy(true); setNotice("");
     try {
       if (type === "invite") {
-        const invite = await changeTogether<{ token: string }>(owner, bookId, "invite", undefined, { sharingConfirmed: true });
-        await refresh();
+        const invite = pendingInvite ?? await changeTogether<{ id: string; token: string }>(owner, bookId, "invite", undefined, { sharingConfirmed: true });
+        setPendingInvite(invite);
+        void refresh();
         const result = await shareHarumadiInvite(invite.token);
+        if (result !== "cancelled") setPendingInvite(null);
         setNotice(result === "copied" ? "초대 링크를 복사했어요." : result === "cancelled" ? "공유를 취소했어요. 아래에서 초대도 취소할 수 있어요." : "수락하면 상대방 책장에도 같은 하루마디가 보여요.");
       } else {
         await changeTogether(owner, bookId, type, target);
+        if (type === "revoke-invite" && target === pendingInvite?.id) setPendingInvite(null);
         if (type === "leave") { client.removeQueries({ queryKey: ["harumadi-content", owner, bookId] }); void client.invalidateQueries({ queryKey: ["library-harumadis", owner] }); onExit(); return; }
         await refresh();
         setNotice(type === "revoke-invite" ? "초대를 취소했어요." : type === "remove-entry" ? "이 책에서 마디를 뺐어요." : "함께 채우기를 종료했어요.");

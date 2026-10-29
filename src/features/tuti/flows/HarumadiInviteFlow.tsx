@@ -58,7 +58,7 @@ export function HarumadiInviteFlow() {
     {preview.isError && <p role="alert">{preview.error.message}<TextButton onClick={() => void preview.refetch()}>초대 다시 확인하기</TextButton></p>}
     {error && <p role="alert">{error}</p>}
     <PrimaryButton disabled={!token || !session || busy || Boolean(session.account && !preview.data)} onClick={() => void accept()}>{busy ? "책장에 놓고 있어요…" : preview.data?.joined ? "하루마디 펼치기" : session?.account ? "함께 채우기" : "로그인하고 함께 채우기"}</PrimaryButton>
-    {!Capacitor.isNativePlatform() && token && <TextButton onClick={() => window.location.assign(`com.noonmaru.tuti://harumadi/invite#${token}`)}>앱에서 열기</TextButton>}
+    {!Capacitor.isNativePlatform() && token && typeof window !== "undefined" && window.location.origin === "https://tuti.today" && <TextButton onClick={() => window.location.assign(`com.noonmaru.tuti://harumadi/invite#${token}`)}>앱에서 열기</TextButton>}
     {session?.account && <TextButton disabled={busy} onClick={() => void switchAccount()}>다른 계정으로 참여하기</TextButton>}
     <TextButton disabled={busy} onClick={() => { void clearHarumadiInvite().then(() => router.replace("/")); }}>지금은 참여하지 않기</TextButton>
   </Frame>;

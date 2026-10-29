@@ -4,6 +4,7 @@ import { readFileSync } from "node:fs";
 import { parseHarumadiInviteUrl, rememberHarumadiInviteUrl, pendingHarumadiInvite, clearHarumadiInvite, setHarumadiInviteResume } from "@/lib/harumadiInviteIntent";
 import { preferencesStorage } from "@/lib/storage/preferencesStorage";
 import { parseHarumadiPdfInput } from "@/shared/api/harumadiPdf";
+import { harumadiInviteUrl } from "@/shared/api/harumadiTogether";
 
 test("초대는 검증된 경로의 fragment로 전달하며 로그인 전후에도 명시 수락을 기다린다", async t => {
   const token = "a".repeat(43);
@@ -23,6 +24,12 @@ test("초대는 검증된 경로의 fragment로 전달하며 로그인 전후에
   await setHarumadiInviteResume(true);
   assert.equal(await pendingHarumadiInvite(true), token);
   await clearHarumadiInvite(); assert.equal(await pendingHarumadiInvite(), null);
+});
+test("개발 초대는 개발 API origin으로, 앱의 운영 초대는 운영 API origin으로 전달한다", () => {
+  const token = "a".repeat(43);
+  assert.equal(harumadiInviteUrl(token, "/api", "http://127.0.0.1:5080"), `http://127.0.0.1:5080/harumadi/invite#${token}`);
+  assert.equal(harumadiInviteUrl(token, "https://tuti.today/api", "capacitor://localhost"), `https://tuti.today/harumadi/invite#${token}`);
+  assert.throws(() => harumadiInviteUrl("wrong", "/api", "https://tuti.today"));
 });
 
 test("공동 PDF 입력은 책 ID·리비전을 묶고 개인 PDF 입력과 분리한다", () => {

@@ -10,7 +10,7 @@ export async function lockHarumadi(tx: Prisma.TransactionClient, id: string) {
   await tx.$queryRaw`SELECT id FROM harumadis WHERE id = ${id} FOR UPDATE`;
 }
 export async function lockSharingSecurity(tx: Prisma.TransactionClient) {
-  await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtextextended('tuti-harumadi-sharing-security', 0))`;
+  await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtextextended('tuti-harumadi-sharing-security', 0))::text AS lock_result`;
 }
 export async function requireHarumadiAccess(tx: Prisma.TransactionClient, userId: string, id: string, manage = false) {
   const book = await tx.harumadi.findUnique({ where: { id }, select: {
