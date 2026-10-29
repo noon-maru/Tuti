@@ -15,7 +15,7 @@ case "$mode" in
     environment_file=".env.android.development"
     if [ ! -f "$environment_file" ]; then
       echo "$environment_file 파일이 없습니다." >&2
-      echo ".env.android.development.example을 복사하고 외부 기기에서 접근 가능한 HTTPS 개발 API 주소를 설정하세요." >&2
+      echo "앱 빌드는 GitHub Actions를 사용하세요. 로컬 개발 빌드용 env 예제는 더 이상 제공하지 않습니다." >&2
       exit 1
     fi
     ;;

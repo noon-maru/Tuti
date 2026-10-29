@@ -5,21 +5,11 @@ Xcode로 빌드한다. 운영용 Release Archive는 개인 Mac의 로그인 세�
 않도록 GitHub Actions의 macOS runner에서 생성한다. Capacitor 8의 기본값인
 Swift Package Manager를 사용하므로 CocoaPods는 필요하지 않다.
 
-## 요구사항
+## 빌드 환경
 
-- macOS와 Xcode 26 이상
-- Xcode에 설치된 iOS Simulator Runtime
-- `.node-version`의 Node.js 26.12.1과 `package.json`의 pnpm 11.2.2
-- 앱 빌드용 공개 설정이 담긴 `.env.app.local`
-
-최초 한 번 Xcode를 실행해 라이선스와 추가 구성 요소 설치를 완료한 뒤, 터미널이
-전체 Xcode를 사용하도록 설정한다.
-
-```sh
-sudo xcode-select --switch /Applications/Xcode.app/Contents/Developer
-sudo xcodebuild -runFirstLaunch
-xcodebuild -version
-```
+워크플로가 macOS·Xcode·Node·pnpm을 준비한다. 개인 Mac이나 로컬 앱 빌드용 env는
+필요하지 않으며, 앱 번들의 공개 설정은 `.github/workflows/ios-release.yml`의 `env`에서 관리한다.
+서명·업로드 비밀값은 Actions Secrets에만 등록한다. 로컬 빌드 예제는 제거했다.
 
 ## GitHub Actions Release Archive
 
@@ -67,65 +57,12 @@ GitHub Artifact 보관기간은 30일이므로 App Store에 제출한 Archive는
 `CURRENT_PROJECT_VERSION`이 기존 업로드보다 큰지 확인한다. 워크플로는 저장소의
 버전과 빌드 번호를 그대로 사용하며 자동으로 증가시키지 않는다.
 
-## 새 Mac에서 로컬 App Store 빌드 준비
+## 버전과 프로젝트
 
-저장소를 새로 내려받은 Mac에서는 서버 DB 비밀번호나 API 비밀키가 담긴
-`.env.production`을 복사하지 않는다. 앱 정적 번들에 공개되어도 되는 값만 별도
-파일로 준비한다.
-
-```sh
-git clone https://github.com/noon-maru/Tuti.git
-cd Tuti
-npm install --global pnpm@11.2.2
-pnpm runtime:check
-pnpm install --frozen-lockfile
-cp .env.app.example .env.app.local
-pnpm ios:sync
-pnpm cap:open:ios
-```
-
-`.env.app.local`의 API 주소와 로그인 기능 플래그를 출시 환경에 맞게 확인한다.
-`ios:sync`는 앱 버전 일치 검사, 정적 웹 빌드, Capacitor 플러그인 동기화를 함께
-수행한다. Xcode에서 현재 소유자 Apple Developer 계정으로 로그인한 뒤 Tuti
-target의 Team과 자동 서명을 확인하고 `Any iOS Device (arm64)` 대상으로
-`Product > Archive`를 실행한다.
-
-2026-10-29 기준 프로젝트 버전은 `1.5.0 (14)`다. 실제 빌드 전 `pnpm app:version:verify`로
-확인한다. 같은 빌드 번호를 이미 업로드했다면 `CURRENT_PROJECT_VERSION`을 더 큰 정수로
-올리고 Android·웹 표시 버전과 출시 의도를 대조한 뒤 다시 Archive한다.
-인증서와 프로비저닝 프로파일은 Git으로 옮기지 않고 Xcode의 자동 서명으로 새
-Mac에 발급한다.
-
-## Simulator Debug 빌드
-
-```sh
-pnpm ios:debug
-```
-
-이 명령은 다음 작업을 순서대로 수행한다.
-
-1. 서버 전용 코드를 제외한 Next.js 정적 앱을 `out/`에 빌드한다.
-2. `Tuti.xcodeproj`와 Capacitor 호환 링크를 확인한 뒤 웹 산출물과
-   Capacitor 플러그인을 `ios/` 프로젝트에 동기화한다.
-3. 코드 서명 없이 iOS Simulator용 Debug 앱을 빌드한다.
-
-빌드 결과는 아래 경로에 생성된다.
-
-```text
-ios/DerivedData/Build/Products/Debug-iphonesimulator/Tuti.app
-```
-
-Xcode에서 실행하려면 다음 명령으로 프로젝트를 연 뒤 대상 Simulator를 선택한다.
-
-```sh
-pnpm cap:open:ios
-```
-
-Xcode에서는 프로젝트·target·scheme·product가 모두 `Tuti`로 표시된다.
-Capacitor CLI가 사용하는 `ios/App/App.xcodeproj`는 실제
-`Tuti.xcodeproj`를 가리키는 상대 심볼릭 링크로 유지한다. Git clone 시
-링크가 함께 복원되며, 누락된 경우 `ios:sync`와 `cap:open:ios`가 자동으로
-다시 생성한다. `node_modules`의 Capacitor 코드는 수정하지 않는다.
+2026-10-29 기준 저장소 버전은 `1.5.0 (14)`다. Actions에서 `pnpm app:version:verify`로
+확인한다. 이미 업로드한 빌드 번호를 재사용하지 않으며 워크플로가 자동 증가시키지 않는다.
+프로젝트·target·scheme·product는 `Tuti`다. Capacitor용 `ios/App/App.xcodeproj`는
+실제 `Tuti.xcodeproj`로 연결되는 상대 심볼릭 링크이며 동기화 도구가 확인한다.
 
 ## 권한과 개인정보 매니페스트
 
@@ -141,11 +78,9 @@ Capacitor CLI가 사용하는 `ios/App/App.xcodeproj`는 실제
 
 ## 실기기와 App Store 배포
 
-Simulator 빌드에는 Apple Developer 계정이나 코드 서명이 필요하지 않다. 실기기
-설치와 로컬 App Store 배포 전에는 Xcode의 Tuti target에서 Team을 선택하고
-Signing & Capabilities를 설정해야 한다. 일상적인 운영 Archive와 업로드는 GitHub
-Actions를 사용하고, 로컬 Xcode는 Actions 장애나 서명 문제를 진단하는 비상
-경로로 유지한다.
+Archive와 App Store Connect 업로드는 GitHub Actions에서만 진행한다. 서명 설정과
+Secrets를 확인하고, 업로드한 빌드는 TestFlight·실기기에서 검증한 뒤 별도로 심사 제출한다.
+Actions 장애를 이유로 로컬 빌드로 우회하지 않는다.
 
 첫 버전 출시와 정연한 팀으로의 앱 이전을 완료했다. 새 팀의 공급자 설정을
 사용해 Apple·Google·Kakao 로그인을 운영하며 서버의 `SOCIAL_OAUTH_ENABLED`와

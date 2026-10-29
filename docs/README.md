@@ -19,6 +19,7 @@
 | 영역 | 문서 |
 | --- | --- |
 | 웹 수동 배포·백업·복구 | [운영 명령](./operations.md) |
+| env 예제·직접 편집 기준 | [운영 설정](./operations.md#env-예제의-역할과-편집-경계) |
 | 런타임·보안 업데이트 | [Node 실행 기준](./node-runtime.md) |
 | 네이티브 빌드·스토어 업로드 | [Android](./android-build.md) · [iOS](./ios-build.md) |
 | 스토어 제출 점검 | [iOS 심사 체크리스트](./ios-app-review.md) · [위치정보 공개](./store-location-disclosures.md) |

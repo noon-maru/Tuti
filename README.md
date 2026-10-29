@@ -60,11 +60,10 @@ Capacitor Android·iOS 앱은 정적 번들과 원격 API를 사용합니다.
 pnpm test
 pnpm lint
 pnpm docs:check
-pnpm build:web
 ```
 
 DB 통합 시험은 별도 격리 DB가 필요합니다. 테스트 통과·스토어 업로드·실기기 검증·
-공개 출시는 서로 다른 단계입니다. NAS에서 무거운 앱 빌드를 반복하기보다 수동 Actions를 사용합니다.
+공개 출시는 서로 다른 단계입니다. 릴리스 산출물 빌드와 웹·앱 빌드 검증은 Actions에서 진행합니다.
 
 ## 배포와 문서
 

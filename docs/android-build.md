@@ -2,8 +2,8 @@
 
 Tuti Android 앱은 Next.js 정적 산출물을 Capacitor 네이티브 프로젝트에 복사한 뒤
 Gradle로 APK 또는 AAB를 생성한다. 운영용 Release AAB는 NAS의 서비스 자원과
-분리하기 위해 GitHub Actions의 Linux runner에서 빌드한다. NAS의 전용 Docker
-빌더는 개발용 Debug APK와 비상시 로컬 검증에만 사용한다.
+분리하기 위해 GitHub Actions의 Linux runner에서 빌드한다. 앱 빌드는 Actions 전용이며
+로컬·NAS 빌드와 전용 로컬 env 예제는 더 이상 운영 절차로 제공하지 않는다.
 
 ## 저장소에 포함하는 항목
 
@@ -28,54 +28,11 @@ Android 앱 식별자는 Android Application ID와 iOS Bundle ID 모두
 Android Gradle Plugin 9.0.1과 Gradle 9.1.0을 사용한다. 빌더는 JDK 21,
 Android Platform 36과 Build Tools 35.0.0·36.0.0을 고정해 설치한다.
 
-## Debug APK 빌드
+## 빌드 설정의 관리 위치
 
-```sh
-sudo -n /usr/local/sbin/tuti-android-debug-build
-```
-
-명령은 다음 작업을 순서대로 수행한다.
-
-1. 전용 Android 빌더 이미지를 생성하거나 갱신한다.
-2. 잠금 파일을 기준으로 Node 의존성을 설치한다.
-3. 서버 전용 소스를 제외하고 Next.js 앱을 `out/`에 정적으로 빌드한다.
-4. Capacitor 플러그인과 웹 산출물을 Android 프로젝트에 동기화한다.
-5. Gradle `assembleDebug`를 실행한다.
-
-완성된 APK는 아래 경로에 생성된다.
-
-```text
-android/app/build/outputs/apk/debug/app-debug.apk
-```
-
-### 개발 서버 푸시 테스트 APK
-
-운영 FCM을 활성화하기 전 실기기 푸시를 검증할 때는 운영 API를 사용하는 기본
-디버그 APK와 구분된 개발 빌드를 사용한다. 먼저 예시 파일을 복사한다.
-
-```sh
-cp .env.android.development.example .env.android.development
-```
-
-`.env.android.development`의 `NEXT_PUBLIC_API_BASE_URL`에는 휴대전화에서 접근할 수
-있는 HTTPS 개발 API 주소를 넣는다. `localhost`, NAS 사설 IP와 평문 HTTP 주소는
-허용하지 않는다. 이 파일은 비공개 환경 파일이므로 Git에 포함되지 않는다.
-
-운영 명령을 다시 설치한 뒤 개발 모드로 빌드한다.
-
-```sh
-sudo sh scripts/ops/install-tuti-operations.sh
-sudo -n /usr/local/sbin/tuti-android-debug-build --development
-```
-
-개발 서버의 `.env.development`에는 `FCM_PUSH_ENABLED=true`, 운영 서버에는 사전
-고지 시행 전까지 `FCM_PUSH_ENABLED=false`를 유지한다. APK 출력 경로는 기본
-디버그 빌드와 같으므로 어떤 환경으로 마지막 빌드했는지 기록하고 배포 파일을
-혼동하지 않는다.
-
-`out/`, Android 빌드 결과와 의존성 캐시는 재생성할 수 있으므로 다른 빌드 장비로
-이전하지 않는다. 새 장비에서는 Git 저장소와 비공개 환경변수를 복원하고 동일한
-Docker Compose 명령을 실행한다.
+앱 번들에 들어가는 공개 설정은 `.github/workflows/android-release.yml`의 `env`에서 관리한다.
+서명·스토어 업로드 키는 Actions Secrets를 사용한다. 로컬 빌드용 env 파일은 만들지 않는다.
+개발 서버용 APK가 필요해지면 별도 Actions 작업을 준비하며, 기존 NAS 빌더를 실행하지 않는다.
 
 ## 브랜드 에셋 변경
 
@@ -165,37 +122,7 @@ Tuti 앱에 대한 테스트 트랙 출시 권한이 필요하다. Android 출�
 `distribution/google-play/whatsnew/whatsnew-ko-KR`에서 읽으므로 버전을 올릴 때
 `docs/release-notes.md`와 함께 갱신한다.
 
-## NAS 로컬 Release AAB 빌드
-
-GitHub Actions 장애 또는 워크플로 검증이 필요할 때만 기존 명령을 비상 수단으로
-사용한다. 운영 서비스와 동시에 실행하면 메모리·스왑 압박이 발생할 수 있으므로
-일상적인 릴리스 생성에는 사용하지 않는다.
-
-버전을 확인하고 서명된 AAB를 만드는 명령은 다음과 같다.
-
-```sh
-sudo -n /usr/local/sbin/tuti-android-release-build
-```
-
-명령은 운영 웹 빌드, Capacitor 동기화, Gradle `bundleRelease`, JAR 서명 검증과
-SHA-256 출력을 순서대로 수행한다. R8 코드 최적화·난독화와 미사용 리소스 축소는
-해당 버전의 `android/app/build.gradle` 설정을 따르며, 네이티브 라이브러리에는
-`SYMBOL_TABLE` 디버그 기호 생성을 요청한다. 완성된 작업 파일은 아래에 생성된다.
-
-```text
-android/app/build/outputs/bundle/release/app-release.aab
-```
-
-빌드가 성공하면 AAB, 같은 빌드에서 생성된 R8 `mapping.txt`와 두 파일의 체크섬을
-저장소 밖의 아래 폴더에 함께 영구 보관한다. 네이티브 디버그 기호는 AAB의
-`BUNDLE-METADATA/com.android.tools.build.debugsymbols`에 포함되며, 릴리스 명령은
-네이티브 라이브러리가 있는데 이 기호가 누락된 빌드를 실패 처리한다. `mapping.txt`는
-해당 버전의 난독화된 Java/Kotlin 충돌·ANR 스택을 복원할 때 사용하므로 다른 빌드의
-파일로 덮어쓰면 안 된다.
-
-```text
-/var/services/homes/Tutiadmin/.tuti-releases/android/<versionName>-<versionCode>/
-```
+## 버전과 R8 보호
 
 2026-10-29 기준 저장소 버전은 Android `1.5.0 (14)`이며 웹·iOS도 1.5.0이다.
 실제 빌드 전 `pnpm app:version:verify`와 네이티브 설정을 확인한다. Actions는 버전 번호를
