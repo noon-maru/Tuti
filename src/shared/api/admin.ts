@@ -148,6 +148,9 @@ export type AdminPlacesMeta = {
 
 export type AdminReportItem = {
   id: string;
+  harumadiId?: string | null;
+  commentId?: string | null;
+  sharedHiddenAt?: string | null;
   entryId: string | null;
   targetOwnerId: string;
   targetTitle: string;

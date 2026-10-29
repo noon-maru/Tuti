@@ -4,7 +4,7 @@ import { prisma } from "@/server/db/prisma";
 import { commitPrivacyReplayReceipt, preparePrivacyReplayReceipt } from "@/server/legal/privacyReplayLedger";
 import { INVITE_TOKEN, type HarumadiTogether } from "@/shared/api/harumadiTogether";
 import { assertSensitiveJournalReadable } from "@/server/journal/sensitivePolicy";
-import { lockHarumadi, requireHarumadiAccess, requireLinkedAccount, requireTogether } from "./access";
+import { lockHarumadi, lockSharingSecurity, requireHarumadiAccess, requireLinkedAccount, requireTogether } from "./access";
 import { HarumadiError } from "./errors";
 
 export function hashInvite(token: string) {
@@ -45,6 +45,7 @@ export async function acceptInvite(userId: string, token: string) {
   const hint = await prisma.harumadiInvite.findUnique({ where: { tokenHash }, select: { harumadiId: true } });
   if (!hint) throw new HarumadiError("사용할 수 없는 초대예요. 새 초대를 부탁해주세요.", 410);
   return prisma.$transaction(async tx => {
+    await lockSharingSecurity(tx);
     await lockHarumadi(tx, hint.harumadiId);
     await requireLinkedAccount(tx, userId);
     const invite = await tx.harumadiInvite.findUnique({ where: { tokenHash }, include: { harumadi: { select: { ownerId: true } } } });
@@ -53,6 +54,7 @@ export async function acceptInvite(userId: string, token: string) {
     if (invite.acceptedAt && existing?.endedAt) throw new HarumadiError("새 초대로 다시 참여해주세요.", 410);
     if (existing?.endedAt && invite.createdAt <= existing.endedAt) throw new HarumadiError("참여가 종료되기 전에 만든 초대예요. 새 초대를 부탁해주세요.", 410);
     if (invite.harumadi.ownerId === userId) throw new HarumadiError("직접 만든 하루마디예요. 상대방에게 초대를 보내주세요.");
+    if (existing && !existing.endedAt) return { harumadiId: invite.harumadiId };
     const participants = await tx.harumadiMember.findMany({ where: { harumadiId: invite.harumadiId, endedAt: null }, select: { userId: true } });
     const ids = [invite.harumadi.ownerId, ...participants.map(member => member.userId)];
     if (await tx.journalAuthorBlock.findFirst({ where: { OR: [{ blockerUserId: userId, blockedUserId: { in: ids } }, { blockedUserId: userId, blockerUserId: { in: ids } }] } })) throw new HarumadiError("차단 관계가 있는 사람과 함께 채울 수 없어요.", 403);
@@ -61,6 +63,18 @@ export async function acceptInvite(userId: string, token: string) {
     await tx.harumadiInvite.update({ where: { id: invite.id }, data: { acceptedAt: invite.acceptedAt ?? new Date(), acceptedByUserId: userId } });
     await tx.harumadi.update({ where: { id: invite.harumadiId }, data: { accessRevision: { increment: 1 } } });
     return { harumadiId: invite.harumadiId };
+  });
+}
+export async function inspectInvite(userId: string, token: string) {
+  requireTogether();
+  return prisma.$transaction(async tx => {
+    await requireLinkedAccount(tx, userId);
+    const invite = await tx.harumadiInvite.findUnique({ where: { tokenHash: hashInvite(token) }, include: { harumadi: { select: { id: true, ownerId: true, title: true, owner: { select: { displayName: true } } } } } });
+    if (!invite) throw new HarumadiError("초대를 찾지 못했어요. 링크를 다시 확인해주세요.", 410);
+    const member = await tx.harumadiMember.findUnique({ where: { harumadiId_userId: { harumadiId: invite.harumadiId, userId } } });
+    const joined = invite.harumadi.ownerId === userId || Boolean(member && !member.endedAt);
+    if (!joined && (invite.revokedAt || invite.expiresAt <= new Date() || invite.acceptedAt || (member?.endedAt && invite.createdAt <= member.endedAt))) throw new HarumadiError("사용할 수 없는 초대예요. 새 초대를 부탁해주세요.", 410);
+    return { harumadiId: invite.harumadi.id, title: invite.harumadi.title, inviterName: invite.harumadi.owner.displayName || "함께할 사람", joined };
   });
 }
 export async function revokeInvite(userId: string, id: string, inviteId: string) {
@@ -110,6 +124,7 @@ export async function addSharedEntry(userId: string, id: string, entryId: string
     const entry = await tx.journalEntry.findFirst({ where: { id: entryId, ownerId: userId } });
     if (!entry) throw new HarumadiError("내가 남긴 마디만 담을 수 있어요.", 404);
     assertSensitiveJournalReadable(entry);
+    if (await tx.contentReport.findFirst({ where: { harumadiId: id, entryId, sharedHiddenAt: { not: null } }, select: { id: true } })) throw new HarumadiError("운영 검토로 이 책에서 제외된 마디예요.", 403);
     if (book.collaborationStartedAt && entry.sensitiveContent !== false) throw new HarumadiError("민감정보가 없는 마디만 함께 채울 수 있어요.", 409);
     const exists = await tx.harumadiEntryLink.findUnique({ where: { harumadiId_entryId: { harumadiId: id, entryId } } });
     if (!exists) {

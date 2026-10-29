@@ -38,7 +38,9 @@ export function InitialServiceTermsGate({ children, rightsChildren, renderConten
   const reconsentDialog = reconsent && pathname !== "/entry";
 
   useEffect(() => {
-    if (entryRedirect) void rememberHarumadiInviteUrl(window.location.href).catch(() => null).then(() => router.replace(entryRedirect));
+    let active = true;
+    if (entryRedirect) void rememberHarumadiInviteUrl(window.location.href).catch(() => null).then(() => { if (active) router.replace(entryRedirect); });
+    return () => { active = false; };
   }, [entryRedirect, router]);
 
   useEffect(() => {

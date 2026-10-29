@@ -74,7 +74,7 @@ export function AccountFlow() {
     }
 
     skipInitialHelp();
-    router.replace(await pendingHarumadiInvite().catch(() => null) ? "/harumadi/invite" : "/");
+    router.replace(await pendingHarumadiInvite(true).catch(() => null) ? "/harumadi/invite" : "/");
   }, [
     entryRecord,
     finishEntry,
@@ -239,7 +239,7 @@ export function AccountFlow() {
         setJournalAuthorBlocks((current) =>
           current.filter((block) => block.blockedUserId !== blockedUserId),
         );
-        setAccountNotice("공개 마디 작성자 차단을 해제했어요.");
+        setAccountNotice("사용자 차단을 해제했어요. 함께 채우기 참여는 자동 복구되지 않아요.");
       }}
       onDeleteAccount={async () => {
         const result = await deleteAccount();

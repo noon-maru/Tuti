@@ -61,7 +61,7 @@ test("위치와 선택 지역이 없으면 작은 여행만 준비 실패로 처
 test("로그인 완료는 위치 요청 없이 홈으로 가고 작은 여행에서만 지역을 준비한다", () => {
   const account = readFileSync("src/features/tuti/flows/AccountFlow.tsx", "utf8");
   assert.doesNotMatch(account, /requestLocation|refreshLocationConsent|prepareRecommendationLocation|useLocationAccess/);
-  assert.match(account, /router.replace\("\/"\)/);
+  assert.match(account, /router.replace\(await pendingHarumadiInvite\(true\).*\? "\/harumadi\/invite" : "\/"\)/);
   const explore = readFileSync("src/features/tuti/flows/ExploreFlow.tsx", "utf8");
   assert.match(explore, /<ExploreLocationGate key=\{ownerId\}>/);
   const gate = readFileSync("src/features/tuti/location/ExploreLocationGate.tsx", "utf8");

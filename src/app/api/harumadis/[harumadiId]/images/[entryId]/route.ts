@@ -17,7 +17,8 @@ export async function GET(request: Request, context: { params: Promise<{ harumad
     const entry = await prisma.$transaction(async tx => {
       const book = await requireHarumadiAccess(tx, scope.userId, harumadiId);
       if (book.accessRevision !== scope.accessRevision) return null;
-      return tx.journalEntry.findFirst({ where: { id: entryId, sensitiveContent: false, sensitiveWithdrawnAt: null, harumadiEntries: { some: { harumadiId } } }, select: { image: true } });
+      const entry = await tx.journalEntry.findFirst({ where: { id: entryId, sensitiveContent: false, sensitiveWithdrawnAt: null, harumadiEntries: { some: { harumadiId } } }, select: { image: true, updatedAt: true } });
+      return entry && (!scope.entryVersion || entry.updatedAt.toISOString() === scope.entryVersion) ? entry : null;
     });
     if (!entry?.image || !isStoredJournalImage(entry.image)) return fail();
     const object = await getObject(entry.image);

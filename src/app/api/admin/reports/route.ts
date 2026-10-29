@@ -10,6 +10,7 @@ import { forceDeleteJournalEntry } from "@/server/journal/service";
 import { getJournalModerationTransition } from "@/server/journal/publicationState";
 import type { AdminReportsResponse } from "@/shared/api/admin";
 import { getJournalPublicationPolicyVersion } from "@/shared/legal/journalPublicationPolicy";
+import { hideReportedSharedTarget } from "@/server/harumadi/moderation";
 
 export const runtime = "nodejs";
 
@@ -72,6 +73,7 @@ export async function GET(request: Request) {
         restrictionByOwnerId.get(report.targetOwnerId)?.toISOString() ?? null,
       createdAt: report.createdAt.toISOString(),
       reviewedAt: report.reviewedAt?.toISOString() ?? null,
+      sharedHiddenAt: report.sharedHiddenAt?.toISOString() ?? null,
     })),
   };
 
@@ -392,9 +394,16 @@ async function moderateReportedJournalEntry({
       id: true,
       entryId: true,
       targetTitle: true,
+      harumadiId: true,
     },
   });
 
+  if (report?.harumadiId) {
+    if (action !== "hide") return Response.json({ error: "제거한 공유 대상은 자동 복원하지 않아요. 작성자가 다시 담아야 해요." }, { status: 409 });
+    await hideReportedSharedTarget(reportId, reviewerUserId);
+    await writeSystemLog({ category: "moderation", action: "harumadi.shared-target.hidden", message: "신고된 공유 대상을 해당 하루마디에서 제거했습니다.", actorUserId: reviewerUserId, targetType: "contentReport", targetId: reportId });
+    return Response.json({ hidden: true });
+  }
   if (!report?.entryId) {
     return Response.json(
       { error: "조치할 신고 대상 기록이 없습니다." },

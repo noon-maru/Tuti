@@ -494,7 +494,7 @@ export function AccountScreen({
             <LoginMethodSection>
               <LoginMethodHeading>
                 <div>
-                  <strong>차단한 공개 마디 작성자</strong>
+                  <strong>차단한 사용자</strong>
                   <p>차단을 해제하면 해당 작성자의 공유 링크를 다시 볼 수 있어요.</p>
                 </div>
               </LoginMethodHeading>

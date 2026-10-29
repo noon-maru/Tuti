@@ -14,6 +14,7 @@ import { HarumadiSettingsCover } from "@/features/tuti/components/HarumadiSettin
 import { HarumadiDeleteSection } from "@/features/tuti/components/HarumadiDeleteSection";
 import { HarumadiCloseTransition } from "@/features/tuti/components/HarumadiCloseTransition";
 import { HarumadiTogetherPanel } from "@/features/tuti/components/HarumadiTogetherPanel";
+import { HarumadiComments } from "@/features/tuti/components/HarumadiComments";
 import { changeTogether } from "@/lib/harumadiTogether";
 import { createHarumadi, deleteHarumadi, harumadiPath, updateHarumadi } from "@/lib/harumadis";
 import { authoritativeReadError, fetchHarumadiContent, loadCachedHarumadi, type HarumadiRead } from "@/lib/harumadiContent";
@@ -69,7 +70,7 @@ function HarumadiEditor({ owner, initial, read, verified, refreshing, onRefresh,
   const scroller = useRef<HTMLDivElement>(null);
   const [harumadi, setHarumadi] = useState(initial);
   const [settings, setSettings] = useState<HarumadiSettings>(initial ?? { title: "우리의 작은 하루", coverStyle: "white-plain" });
-  const [mode, setMode] = useState<"settings" | "pages" | "selection" | "pdf" | "together">(initial ? initialMode === "settings" && initial.role === "contributor" ? "together" : initialMode ?? "pages" : "settings");
+  const [mode, setMode] = useState<"settings" | "pages" | "selection" | "pdf" | "together" | "comments">(initial ? initialMode === "settings" && initial.role === "contributor" ? "together" : initialMode ?? "pages" : "settings");
   const [selected, setSelected] = useState(initial?.entryIds ?? []);
   const [confirmed, setConfirmed] = useState(false);
   const [busy, setBusy] = useState(false); const [error, setError] = useState("");
@@ -187,11 +188,12 @@ function HarumadiEditor({ owner, initial, read, verified, refreshing, onRefresh,
   return <Frame ref={frame} data-harumadi-editor aria-busy={busy || closing}>
     <BookContents ref={contents} inert={closing}>
     <Header $creating={!harumadi && mode === "settings"}><Quiet type="button" onClick={back} disabled={busy}><ArrowLeft size={18} />{mode === "pages" || !harumadi || (onClose && initialMode === "settings" && mode === "settings") ? "내 책장" : "하루마디"}</Quiet>
+      {harumadi?.shared && mode === "pages" && <Quiet type="button" disabled={readOnly} onClick={() => setMode("comments")}>댓글·답글</Quiet>}
       {harumadi && mode === "pages" && <Quiet type="button" disabled={readOnly} onClick={() => { setConfirmed(false); setMode(harumadi.role === "contributor" ? "together" : "settings"); }}><Settings2 size={17} />설정</Quiet>}</Header>
     <Body ref={scroller} data-scroll-region={mode === "pages" ? undefined : ""} $reading={mode === "pages"} $creating={!harumadi && mode === "settings"}>
       {readOnly && <ReadNotice role="status">{refreshing ? "저장된 내용을 먼저 보여드리고 있어요." : "저장된 하루마디를 보고 있어요. 연결 후 최신 내용을 확인해주세요."}<Quiet type="button" disabled={refreshing} onClick={onRefresh}>최신 내용 확인</Quiet></ReadNotice>}
       {read?.cached && read.missingImages > 0 && <p className="hint">일부 사진은 연결 후 볼 수 있어요.</p>}
-      {mode === "together" && harumadi ? <HarumadiTogetherPanel owner={owner} bookId={harumadi.id} onExit={finishClose} /> : mode === "settings" ? <SettingsPanel $creating={!harumadi}>
+      {mode === "comments" && harumadi ? <HarumadiComments owner={owner} bookId={harumadi.id} onExit={finishClose} /> : mode === "together" && harumadi ? <HarumadiTogetherPanel owner={owner} bookId={harumadi.id} entries={chosen} onExit={finishClose} /> : mode === "settings" ? <SettingsPanel $creating={!harumadi}>
         <SettingsIntro $creating={!harumadi}>
         {harumadi && <Eyebrow>하루마디 설정</Eyebrow>}<h1>{harumadi ? "이름과 표지" : "어떤 하루를 담을까요?"}</h1>
         {harumadi?.togetherEnabled && <Quiet type="button" disabled={busy || readOnly} onClick={() => setMode("together")}>함께 채우기 · 참여자 관리</Quiet>}
@@ -227,7 +229,6 @@ function HarumadiEditor({ owner, initial, read, verified, refreshing, onRefresh,
       </> : harumadi && <>
         <HarumadiPageViewer book={harumadi} entries={chosen} onClose={closeToLibrary} closing={closing} />
         <ReaderTools aria-label="하루마디 채우기와 저장">
-          {harumadi.togetherEnabled && <Quiet type="button" disabled={busy || readOnly} onClick={() => setMode("together")}>함께 채우기</Quiet>}
           <Quiet type="button" disabled={busy || readOnly} onClick={() => router.push(`/madi/new?from=library&harumadiId=${encodeURIComponent(harumadi.id)}`)}><PenLine size={15} />{isFirstMadi ? "첫 마디 남기기" : "마디 남기기"}</Quiet>
           <Quiet type="button" onClick={selectRecords} disabled={busy || readOnly}><Plus size={15} />골라 담기</Quiet>
           <Quiet type="button" disabled={!chosen.length || readOnly || busy} onClick={() => { setConfirmed(false); setPdf(null); setMode("pdf"); }}><Download size={15} />PDF 저장</Quiet>
@@ -236,7 +237,7 @@ function HarumadiEditor({ owner, initial, read, verified, refreshing, onRefresh,
       {policyQuery.isError && <ErrorMessage role="alert">마디 보호 설정을 불러오지 못했어요.<Quiet onClick={() => void policyQuery.refetch()}>다시 불러오기</Quiet></ErrorMessage>}
       {error && <ErrorMessage role="alert">{error}<Quiet onClick={() => window.location.reload()}>다시 불러오기</Quiet></ErrorMessage>}
     </Body>
-    {mode !== "pages" && mode !== "together" && <Footer $creating={!harumadi && mode === "settings"}><PrimaryButton type="button" disabled={busy || readOnly || (mode === "settings" && (!settings.title.trim() || !backCoverTextValid || !sensitivePolicy || (titleNeedsConfirmation && !confirmed))) || (mode === "selection" && !entries.data) || (mode === "pdf" && (!pdf?.approvalToken || Boolean(sensitivePolicy?.enabled && !confirmed)))} onClick={() => void (mode === "settings" ? saveSettings() : mode === "selection" ? saveEntries() : downloadPdf())}>{busy ? "저장하고 있어요." : mode === "settings" ? harumadi ? "설정 저장하기" : "빈 하루마디 만들기" : mode === "selection" ? `마디 ${selected.length}개 담기` : "PDF 파일 저장하기"}</PrimaryButton></Footer>}
+    {mode !== "pages" && mode !== "together" && mode !== "comments" && <Footer $creating={!harumadi && mode === "settings"}><PrimaryButton type="button" disabled={busy || readOnly || (mode === "settings" && (!settings.title.trim() || !backCoverTextValid || !sensitivePolicy || (titleNeedsConfirmation && !confirmed))) || (mode === "selection" && !entries.data) || (mode === "pdf" && (!pdf?.approvalToken || Boolean(sensitivePolicy?.enabled && !confirmed)))} onClick={() => void (mode === "settings" ? saveSettings() : mode === "selection" ? saveEntries() : downloadPdf())}>{busy ? "저장하고 있어요." : mode === "settings" ? harumadi ? "설정 저장하기" : "빈 하루마디 만들기" : mode === "selection" ? `마디 ${selected.length}개 담기` : "PDF 파일 저장하기"}</PrimaryButton></Footer>}
     </BookContents>
     {closing && harumadi && <HarumadiCloseTransition book={harumadi} entries={chosen} containerRef={frame} contentsRef={contents} onComplete={finishClose} />}
   </Frame>;

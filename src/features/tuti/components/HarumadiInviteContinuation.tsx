@@ -7,7 +7,7 @@ export function HarumadiInviteContinuation() {
   useEffect(() => {
     if (pathname !== "/" && pathname !== "/entry") return;
     let active = true;
-    void pendingHarumadiInvite().then(token => { if (active && token) router.replace("/harumadi/invite"); });
+    void pendingHarumadiInvite(true).then(token => { if (active && token) router.replace("/harumadi/invite"); });
     return () => { active = false; };
   }, [pathname, router]);
   return null;

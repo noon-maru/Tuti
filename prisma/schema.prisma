@@ -759,6 +759,7 @@ model HarumadiMember {
 
   @@unique([harumadiId, userId])
   @@index([userId, endedAt])
+  @@index([userId, endedAt, joinedAt, harumadiId])
   @@map("harumadi_members")
 }
 
@@ -771,6 +772,7 @@ model HarumadiInvite {
   revokedAt DateTime? @map("revoked_at")
   acceptedAt DateTime? @map("accepted_at")
   acceptedByUserId String? @map("accepted_by_user_id")
+  acceptedBy User? @relation(fields: [acceptedByUserId], references: [id], onDelete: SetNull)
   harumadi Harumadi @relation(fields: [harumadiId], references: [id], onDelete: Cascade)
 
   @@index([harumadiId, createdAt])
@@ -866,6 +868,7 @@ model User {
   harumadis      Harumadi[]
   harumadiMemberships HarumadiMember[]
   harumadiComments HarumadiComment[]
+  acceptedHarumadiInvites HarumadiInvite[]
   oauthAuthorizations   OAuthAuthorization[]
   sessions              UserSession[]
   recommendationActions RecommendationAction[]
@@ -1242,6 +1245,9 @@ model ContentReport {
   id             String       @id
   reporterUserId String       @map("reporter_user_id")
   entryId        String?      @map("entry_id")
+  harumadiId     String?      @map("harumadi_id")
+  commentId      String?      @map("comment_id")
+  sharedHiddenAt DateTime?    @map("shared_hidden_at")
   targetOwnerId  String       @map("target_owner_id")
   targetTitle    String       @map("target_title")
   targetPublicId String?      @map("target_public_id")
@@ -1257,6 +1263,7 @@ model ContentReport {
 
   @@index([status, createdAt])
   @@index([entryId])
+  @@index([harumadiId, commentId])
   @@index([reporterUserId, createdAt])
   @@map("content_reports")
 }

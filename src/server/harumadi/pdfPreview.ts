@@ -1,6 +1,7 @@
 import type { HarumadiPdfEntry } from "../pdf/harumadiPdf";
 import { SensitiveJournalPolicyError } from "@/server/journal/sensitivePolicy";
 import { HarumadiError } from "./errors";
+import { HarumadiPdfApprovalError } from "./pdfApproval";
 import {
   parseHarumadiPdfInput,
   type HarumadiPdfInput,
@@ -109,7 +110,7 @@ export function createHarumadiPdfPreviewHandler(dependencies: Dependencies) {
         rendering = false;
       }
     } catch (error) {
-      if (error instanceof SensitiveJournalPolicyError || error instanceof HarumadiError) return fail(error.message, error.status);
+      if (error instanceof SensitiveJournalPolicyError || error instanceof HarumadiError || error instanceof HarumadiPdfApprovalError) return fail(error.message, error.status);
       return fail(
         error instanceof SyntaxError
           ? "요청 내용을 확인해주세요."

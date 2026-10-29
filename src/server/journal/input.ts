@@ -9,6 +9,7 @@ export function parseJournalEntryInput(
   value: unknown,
 ): JournalEntryInput | null {
   if (!isRecord(value)) return null;
+  if (value.harumadiId !== undefined && (typeof value.harumadiId !== "string" || !/^[a-zA-Z0-9_-]{1,128}$/.test(value.harumadiId))) return null;
   if (value.sensitiveContent !== undefined && typeof value.sensitiveContent !== "boolean") return null;
   if (value.sensitiveConsentVersion !== undefined && (typeof value.sensitiveConsentVersion !== "string" || value.sensitiveConsentVersion.length > 80)) return null;
 
@@ -50,6 +51,7 @@ export function parseJournalEntryInput(
   }
 
   return {
+    ...(typeof value.harumadiId === "string" ? { harumadiId: value.harumadiId } : {}),
     title: title.trim(),
     content: content.trim(),
     image,

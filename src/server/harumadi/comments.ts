@@ -34,7 +34,7 @@ export async function saveComment(userId: string, id: string, value: unknown, co
     await requireLinkedAccount(tx, userId);
     if (!book.collaborationStartedAt) throw new HarumadiError("함께 채우는 하루마디에서 이야기를 나눌 수 있어요.", 409);
     if (input.parentId) {
-      const parent = await tx.harumadiComment.findFirst({ where: { id: input.parentId, harumadiId: id, parentId: null, deletedAt: null } });
+      const parent = await tx.harumadiComment.findFirst({ where: { id: input.parentId, harumadiId: id, parentId: null, ...(commentId ? {} : { deletedAt: null }) } });
       if (!parent) throw new HarumadiError("답글을 남길 댓글을 찾지 못했어요.", 404);
     }
     if (commentId) {
@@ -43,11 +43,18 @@ export async function saveComment(userId: string, id: string, value: unknown, co
       if (!result.count) throw new HarumadiError("댓글이 바뀌었거나 삭제됐어요. 다시 확인해주세요.", 409);
       return { id: commentId };
     }
-    return tx.harumadiComment.create({ data: { id: randomUUID(), harumadiId: id, authorId: userId, ...input }, select: { id: true } });
+    const requestId = (value as Record<string, unknown>).requestId;
+    const newId = typeof requestId === "string" && /^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/i.test(requestId) ? requestId : randomUUID();
+    const existing = await tx.harumadiComment.findUnique({ where: { id: newId } });
+    if (existing) {
+      if (existing.harumadiId !== id || existing.authorId !== userId || existing.body !== input.body || existing.parentId !== input.parentId || existing.deletedAt) throw new HarumadiError("댓글 요청을 다시 확인해주세요.", 409);
+      return { id: existing.id };
+    }
+    return tx.harumadiComment.create({ data: { id: newId, harumadiId: id, authorId: userId, ...input }, select: { id: true } });
   });
 }
 export async function eraseComment(userId: string, id: string, commentId: string, admin = false) {
-  requireTogether();
+  if (!admin) requireTogether();
   const exists = await prisma.$transaction(async tx => {
     const book = admin ? null : await requireHarumadiAccess(tx, userId, id);
     const comment = await tx.harumadiComment.findFirst({ where: { id: commentId, harumadiId: id } });

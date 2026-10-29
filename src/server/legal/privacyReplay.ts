@@ -135,7 +135,12 @@ export async function replayPrivacyRequests(backupAt: Date, apply = false, legac
       afterHarumadi = harumadis.at(-1)!.id;
     }
   }
-  for (const record of snapshot.committed) if (isTogetherReplayKind(record.kind)) await inspectTogetherReplay({ ...record, kind: record.kind }, apply);
+  const blockDecisions = new Map<string, typeof snapshot.committed[number]>();
+  for (const record of snapshot.committed) if (record.kind === "harumadi_user_blocked" || record.kind === "harumadi_user_unblocked") {
+    const key = `${record.subject}:${record.target}`, previous = blockDecisions.get(key);
+    if (!previous || String(previous.effectiveAt) < String(record.effectiveAt)) blockDecisions.set(key, record);
+  }
+  for (const record of snapshot.committed) if (isTogetherReplayKind(record.kind) && (!record.kind.startsWith("harumadi_user_") || blockDecisions.get(`${record.subject}:${record.target}`) === record)) await inspectTogetherReplay({ ...record, kind: record.kind }, apply);
   const objects = await cleanupPrivacyReplayObjects(apply, undefined, snapshot);
   result.objects = apply ? objects.deleted : objects.candidates;
   return result;

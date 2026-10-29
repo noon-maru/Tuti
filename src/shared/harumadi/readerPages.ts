@@ -6,6 +6,7 @@ import { HARUMADI_READING_TYPE as type } from "./readingTypography";
 import { LEGACY_HARUMADI_BACK_COVER_TEXT } from "./backCover";
 
 export type HarumadiReaderPage = {
+  authorName?: string;
   kind: "cover" | "photo" | "photo-only" | "text" | "continuation" | "back" | "empty";
   title: string; content: string; image: string | null; date: string; place: string; long?: boolean;
 };
@@ -49,7 +50,7 @@ export function buildHarumadiReaderPages(book: Harumadi, entries: TutiJournalEnt
   if (!sorted.length) pages.push({ ...base, kind: "empty" });
   for (const entry of sorted) {
     const image = entry.image;
-    const data = { title: entry.title, content: entry.content, image, date: harumadiPdfDate(entry.visitedAt), place: entry.placeName };
+    const data = { title: entry.title, content: entry.content, image, date: harumadiPdfDate(entry.visitedAt), place: entry.placeName, ...(entry.authorName ? { authorName: entry.authorName } : {}) };
     if (image && !entry.content.trim() && !entry.title.trim()) { pages.push({ ...data, kind: "photo-only" }); continue; }
     const long = image ? estimateHarumadiPdfPhotoTextLines(entry.content) > 7 : entry.content.trim().length > 240;
     const titleLines = Math.ceil(Array.from(entry.title).length / titleUnits);

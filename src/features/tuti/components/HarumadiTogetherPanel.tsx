@@ -6,7 +6,9 @@ import styled from "@emotion/styled";
 import { Users, UserPlus } from "lucide-react";
 import { BaseButton, PrimaryButton, TextButton } from "./buttons";
 import { changeTogether, fetchTogether, shareHarumadiInvite } from "@/lib/harumadiTogether";
-export function HarumadiTogetherPanel({ owner, bookId, onExit }: { owner: string; bookId: string; onExit: () => void }) {
+import { HarumadiSafetyActions } from "./HarumadiSafetyActions";
+import type { TutiJournalEntry } from "@/shared/api/journal";
+export function HarumadiTogetherPanel({ owner, bookId, onExit, entries = [] }: { owner: string; bookId: string; onExit: () => void; entries?: TutiJournalEntry[] }) {
   const client = useQueryClient(), router = useRouter();
   const query = useQuery({ queryKey: ["harumadi-together", owner, bookId], queryFn: () => fetchTogether(owner, bookId), retry: false });
   const [busy, setBusy] = useState(false), [notice, setNotice] = useState("");
@@ -18,6 +20,7 @@ export function HarumadiTogetherPanel({ owner, bookId, onExit }: { owner: string
     if (busy) return;
     if (type === "remove-member" && !window.confirm("이 사람을 내보낼까요? 담은 마디와 댓글은 이 책에서 빠져요. 본인 계정의 원본과 이미 저장한 PDF는 남아요.")) return;
     if (type === "leave" && !window.confirm("함께 채우기에서 나갈까요? 내가 담은 마디와 댓글은 이 책에서 빠져요. 내 계정의 원본과 이미 저장한 PDF는 남아요.")) return;
+    if (type === "remove-entry" && !window.confirm("이 책에서 마디를 뺄까요? 작성자의 원본과 이미 저장한 PDF는 남아요.")) return;
     setBusy(true); setNotice("");
     try {
       if (type === "invite") {
@@ -29,7 +32,7 @@ export function HarumadiTogetherPanel({ owner, bookId, onExit }: { owner: string
         await changeTogether(owner, bookId, type, target);
         if (type === "leave") { client.removeQueries({ queryKey: ["harumadi-content", owner, bookId] }); void client.invalidateQueries({ queryKey: ["library-harumadis", owner] }); onExit(); return; }
         await refresh();
-        setNotice(type === "revoke-invite" ? "초대를 취소했어요." : "함께 채우기를 종료했어요.");
+        setNotice(type === "revoke-invite" ? "초대를 취소했어요." : type === "remove-entry" ? "이 책에서 마디를 뺐어요." : "함께 채우기를 종료했어요.");
       }
     } catch (cause) { setNotice(cause instanceof Error ? cause.message : "요청을 완료하지 못했어요. 다시 시도해주세요."); }
     finally { setBusy(false); }
@@ -44,6 +47,7 @@ export function HarumadiTogetherPanel({ owner, bookId, onExit }: { owner: string
         : <Danger disabled={busy} onClick={() => void action("leave")}>함께 채우기 나가기</Danger>}
     </>}
     {notice && <p role="status">{notice}</p>}
+    {query.data && <details><summary>담긴 마디·참여자 관리</summary><List>{query.data.participants.filter(person => person.userId !== owner).map(person => <li key={person.userId}><span>{person.name}</span><HarumadiSafetyActions owner={owner} bookId={bookId} targetId={person.userId} authorId={person.userId} kind="user" onBlocked={onExit} /></li>)}</List><List>{entries.map(entry => <li key={entry.id}><span>{entry.title || entry.placeName || "남긴 마디"}<small>{entry.authorId === owner ? "내가 남긴 마디" : "함께 채운 마디"}</small></span>{(query.data.owner || entry.authorId === owner) && <TextButton disabled={busy} onClick={() => void action("remove-entry", entry.id)}>책에서 빼기</TextButton>}{entry.authorId && <HarumadiSafetyActions owner={owner} bookId={bookId} targetId={entry.id} authorId={entry.authorId} kind="entry" onBlocked={onExit} />}</li>)}</List></details>}
     <TextButton disabled={busy} onClick={() => router.push("/login")}>로그인 계정 확인</TextButton>
   </Panel>;
 }

@@ -1,10 +1,10 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { getRequiredAuthEnv } from "@/server/auth/config";
 
-type Scope = { userId: string; bookId: string; entryId: string; accessRevision: number; expires: number };
-const sign = (value: string) => createHmac("sha256", getRequiredAuthEnv("AUTH_EMAIL_CODE_SECRET")).update(`harumadi-media-v1:${value}`).digest("hex");
-export function sharedImageUrl(userId: string, bookId: string, entryId: string, accessRevision: number) {
-  const value = Buffer.from(JSON.stringify({ userId, bookId, entryId, accessRevision, expires: Date.now() + 15 * 60_000 })).toString("base64url");
+type Scope = { userId: string; bookId: string; entryId: string; accessRevision: number; expires: number; entryVersion?: string };
+const sign = (value: string) => createHmac("sha256", getRequiredAuthEnv("OBJECT_STORAGE_SECRET_ACCESS_KEY")).update(`harumadi-media-v1:${value}`).digest("hex");
+export function sharedImageUrl(userId: string, bookId: string, entryId: string, accessRevision: number, entryVersion?: string) {
+  const value = Buffer.from(JSON.stringify({ userId, bookId, entryId, accessRevision, expires: (Math.floor(Date.now() / 300_000) + 3) * 300_000, ...(entryVersion ? { entryVersion } : {}) })).toString("base64url");
   return `/api/harumadis/${encodeURIComponent(bookId)}/images/${encodeURIComponent(entryId)}?ticket=${value}.${sign(value)}`;
 }
 export function readSharedImageTicket(ticket: string | null): Scope | null {

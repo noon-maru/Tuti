@@ -1,5 +1,6 @@
 export type TutiJournalEntry = {
   authorId?: string;
+  authorName?: string;
   id: string;
   sensitiveContent?: boolean | null;
   sensitiveConsentVersion?: string | null;
@@ -23,6 +24,7 @@ export type JournalEntryInput = Pick<
   TutiJournalEntry,
   "content" | "image" | "placeName" | "title"
 > & {
+  harumadiId?: string;
   placeId?: string | null;
   visitedAt?: string;
   sensitiveContent?: boolean;

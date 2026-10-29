@@ -2294,7 +2294,7 @@ function ReportActionEditor({
       >
         저장
       </CompactActionButton>
-      {report.targetPublicationStatus === "published" ? (
+      {report.harumadiId ? ((report.entryId || report.commentId) && !report.sharedHiddenAt ? <DangerButton type="button" disabled={saving} onClick={() => onModerate(report, "hide")}>공유 대상 제거</DangerButton> : null) : report.targetPublicationStatus === "published" ? (
         <DangerButton
           type="button"
           disabled={saving}

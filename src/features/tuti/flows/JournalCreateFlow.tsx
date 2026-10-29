@@ -38,7 +38,7 @@ export function JournalCreateFlow() {
     collectionLabel={fromExplore ? "작은 여행으로 돌아가기" : fromLibrary ? "하루마디로 돌아가기" : "작성 마치기"}
     onBack={returnToSource}
     onSave={async draft => {
-      const entry = await addEntry(draft);
+      const entry = await addEntry({ ...draft, ...(harumadiId ? { harumadiId } : {}) });
       if (recommendationId) {
         void recordRecommendationAction({ journeyId: recommendationId, action: "journal_created",
           placeId: entry.placeId ?? undefined, metadata: { entryId: entry.id } }).catch(error => {

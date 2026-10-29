@@ -1,4 +1,4 @@
-type InventoryGroup = { id: string; models: string[]; items: string; retention: string; sources: string[] };
+type InventoryGroup = { id: string; models: string[]; items: string; retention: string; sources: string[]; implementationState?: "disabled-pending-rollout" };
 type ExternalFlow = { id: string; role: string; items: string; sources: string[]; openReview: string };
 export type ProcessingInventory = {
   reference: string; reviewedAt: string; scope: string; legalApproval: false;
@@ -25,6 +25,8 @@ export function auditProcessingInventory(inventory: ProcessingInventory, schema:
   return {
     scope: "static-prisma-model-classification-and-source-references-only" as const,
     reference: inventory.reference, models: schemaModels.length, groups: inventory.groups.length,
+    pendingRolloutModels: inventory.groups.filter(group => group.implementationState === "disabled-pending-rollout").flatMap(group => group.models),
+    pendingRolloutGroups: inventory.groups.filter(group => group.implementationState === "disabled-pending-rollout").length,
     externalFlows: inventory.externalFlows.length, unclassifiedModels, staleModels, duplicateModels,
     sourceCoverageComplete: !unclassifiedModels.length && !staleModels.length && !duplicateModels.length,
     sources, openReviews: inventory.openReviews,

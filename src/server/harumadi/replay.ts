@@ -1,10 +1,30 @@
 import { prisma } from "@/server/db/prisma";
-import { privacyReplayTarget, type TogetherReplayKind } from "@/server/legal/privacyReplayLedger";
+import { privacyReplaySubject, privacyReplayTarget, type TogetherReplayKind } from "@/server/legal/privacyReplayLedger";
 import { endMember } from "./together";
 import { lockHarumadi } from "./access";
 
 // Generation-specific row IDs ensure an old withdrawal never removes a later rejoin/re-add.
-export async function inspectTogetherReplay(record: { kind: TogetherReplayKind; target: string | null }, apply: boolean) {
+export async function inspectTogetherReplay(record: { kind: TogetherReplayKind; target: string | null; subject: string; effectiveAt: string | null }, apply: boolean) {
+  if (record.kind === "harumadi_user_blocked" || record.kind === "harumadi_user_unblocked") {
+    let after: string | undefined, actorId: string | undefined, targetId: string | undefined;
+    do {
+      const users = await prisma.user.findMany({ where: after ? { id: { gt: after } } : {}, select: { id: true }, orderBy: { id: "asc" }, take: 250 });
+      for (const user of users) {
+        if (privacyReplaySubject(user.id) === record.subject) actorId = user.id;
+        if (privacyReplayTarget("harumadi", user.id) === record.target) targetId = user.id;
+      }
+      after = users.length === 250 ? users.at(-1)!.id : undefined;
+    } while (after);
+    if (!actorId || !targetId) return { fulfilled: true, matched: 0 };
+    const pair = { blockerUserId: actorId, blockedUserId: targetId };
+    const existing = await prisma.journalAuthorBlock.findUnique({ where: { blockerUserId_blockedUserId: pair } });
+    const blocked = record.kind === "harumadi_user_blocked";
+    if (apply && record.effectiveAt && (!existing || existing.createdAt <= new Date(record.effectiveAt))) {
+      if (blocked) await prisma.journalAuthorBlock.upsert({ where: { blockerUserId_blockedUserId: pair }, create: { ...pair, createdAt: new Date(record.effectiveAt) }, update: {} });
+      else await prisma.journalAuthorBlock.deleteMany({ where: pair });
+    }
+    return { fulfilled: blocked ? Boolean(existing) : !existing, matched: 1 };
+  }
   const ids: { id: string; harumadiId: string; ended?: boolean }[] = [];
   let cursor: string | undefined;
   do {

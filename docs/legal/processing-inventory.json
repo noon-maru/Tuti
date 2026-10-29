@@ -22,9 +22,17 @@
     {
       "id": "private-journals-harumadis",
       "models": ["JournalEntry", "HarumadiPdf", "Harumadi", "HarumadiEntryLink"],
-      "items": "제목·본문·사진 참조·방문일·장소·혼잡도·난이도·공개 상태·민감정보 분류/동의/철회, 하루마디 표지·속지 유형·선택 기록 연결·수정 번호, 별도 PDF 파일 키·페이지 수",
+      "items": "제목·본문·사진 참조·방문일·장소·공개 상태·민감정보 분류/동의/철회, 하루마디 표지·뒷표지 문구·선택 마디 연결·수정 번호, 별도 PDF 파일 키·페이지 수",
       "retention": "보관 요청·계정 유지 범위. 삭제·철회 시 DB·객체·연결 하루마디 정리 경로와 별도 실패 재시도. 서버 외부로 내려받은 사본은 별개",
       "sources": ["src/server/journal/service.ts", "src/server/harumadi/service.ts", "src/server/legal/privacyReplay.ts", "src/server/journal/sensitiveWithdrawal.ts", "src/server/admin/users.ts", "src/server/storage/objectStorage.ts", "prisma/schema.prisma"]
+    },
+    {
+      "id": "harumadi-together",
+      "implementationState": "disabled-pending-rollout",
+      "models": ["HarumadiMember", "HarumadiInvite", "HarumadiComment"],
+      "items": "2026-10-29 기능 브랜치·기본 비활성: 책별 참여자·참여 세대·참여/종료 시각, 1회용 초대 토큰 해시·만료/취소/수락 시각, 댓글·1단 답글·작성자·수정/삭제 상태. 다른 책·개인 마디 목록은 공유하지 않음",
+      "retention": "초대 수락 유효기간 7일.계정/책 삭제 시 관계 삭제. 공동작성 종료 시 해당 책의 본인 마디 연결·댓글 본문 제거, 계정 원본과 다른 저장자의 PDF 유지. 만료 초대는 만료 후 30일, 종료 참여 행은 종료 후 30일, 본문을 지운 댓글은 삭제 후 30일에 타인의 답글이 없으면 정기 정리. 운영 적용은 별도",
+      "sources": ["src/server/harumadi/together.ts", "src/server/harumadi/comments.ts", "src/server/harumadi/moderation.ts", "src/server/harumadi/replay.ts", "src/server/harumadi/retention.ts", "scripts/maintain-privacy-data.ts", "prisma/schema.prisma"]
     },
     {
       "id": "png-share-traces",
@@ -108,6 +116,7 @@
     { "id": "place-ai-and-disabled-user-profiling", "role": "공개 장소 정보의 외부 AI 요약과 비활성 사용자 AI 처리 경로를 구분", "items": "공개 장소명·주소·설명·속성. 사용자 AI 프로필 생성 코드는 별도 플래그로 차단하며 2026-10-21 운영 조회에서 비활성", "sources": ["src/server/llm/openaiClient.ts", "scripts/enrich-place-meaning-profiles.ts", "scripts/refresh-user-signal-profiles.ts", "src/server/personalization/config.ts"], "openReview": "공개 장소 처리와 이용자 개인정보 이전을 혼동하지 않음. 사용자 처리 활성화 전 항목·근거·제공자 조건·별도 필요 동의 검토. 코드만으로 과거 전송 전체가 없었다고 증명하지 않음" }
   ],
   "openReviews": [
+    "함께 채우기: 다중 참여자 공유 범위·PDF 사본·공동작성 종료·댓글/신고/차단 고지 및 30일 종료 이력 정리의 문안 대조. 기능 기본 비활성·운영 적용 전",
     "기능별 법적 근거·필수/선택·정당한 이익 필요성/형량·거부 경로",
     "운영자가 결정한 문의 3년·미완료 공유 추적 30일·일반 오류 1년의 처리 근거·기존 자료 적용·완료일 누락 문의 처리와 운영 정리 검증. 세 범주의 사건별 보전/90일 검토 알림은 로컬 구현, 다른 범주 사건과 실제 검토·알림·삭제/철회 이행은 별도",
     "범주별 관리자/위치 감사 기간의 법적 적용과 운영 정리 범위",

@@ -7,6 +7,7 @@ import {
   withCors,
 } from "@/server/http/cors";
 import type { JournalAuthorBlocksResponse } from "@/shared/api/journal";
+import { unblockTogetherUser } from "@/server/harumadi/moderation";
 
 export const runtime = "nodejs";
 
@@ -78,9 +79,7 @@ export async function DELETE(request: Request) {
     if (!blockedUserId) {
       return withCors(request, Response.json({ error: "차단 해제 대상을 확인해주세요." }, { status: 400 }));
     }
-    const result = await prisma.journalAuthorBlock.deleteMany({
-      where: { blockerUserId: authentication.id, blockedUserId },
-    });
+    const result = await unblockTogetherUser(authentication.id, blockedUserId);
     if (result.count === 0) {
       return withCors(request, Response.json({ error: "차단 기록을 찾지 못했어요." }, { status: 404 }));
     }

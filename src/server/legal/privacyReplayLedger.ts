@@ -5,7 +5,7 @@ import { isAbsolute, join } from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
 import { LEGACY_HARUMADI_DELETION_KIND, LEGACY_HARUMADI_TARGET_DOMAIN, INTERIM_HARUMADI_DELETION_KIND, INTERIM_HARUMADI_TARGET_DOMAIN } from "@/shared/harumadi/legacy";
 
-export const TOGETHER_REPLAY_KINDS = ["harumadi_member_left", "harumadi_invite_revoked", "harumadi_entry_removed", "harumadi_comment_deleted"] as const;
+export const TOGETHER_REPLAY_KINDS = ["harumadi_member_left", "harumadi_invite_revoked", "harumadi_entry_removed", "harumadi_comment_deleted", "harumadi_user_blocked", "harumadi_user_unblocked"] as const;
 export type TogetherReplayKind = typeof TOGETHER_REPLAY_KINDS[number];
 export const isTogetherReplayKind = (kind: string): kind is TogetherReplayKind => (TOGETHER_REPLAY_KINDS as readonly string[]).includes(kind);
 export type PrivacyReplayKind = "account_deleted" | "location_withdrawn" | "journal_deleted" | "journal_sensitive_withdrawn" | "harumadi_deleted" | "journal_unpublished" | TogetherReplayKind | typeof LEGACY_HARUMADI_DELETION_KIND | typeof INTERIM_HARUMADI_DELETION_KIND;
@@ -143,7 +143,7 @@ export async function initializePrivacyReplayLedger(now = new Date()) {
 }
 export async function preparePrivacyReplayReceipt(kind: PrivacyReplayKind, userId: string, now = new Date(), targetId?: string) {
   if (!privacyReplayEnabled()) return null;
-  const requiresTarget = kind.startsWith("journal_") || isHarumadiDeletion(kind);
+  const requiresTarget = kind.startsWith("journal_") || isHarumadiDeletion(kind) || isTogetherReplayKind(kind);
   if (requiresTarget !== Boolean(targetId) || targetId && targetId.length > 200) throw new PrivacyReplayError("삭제·공개 중지 대상 식별값을 확인해주세요.");
   return withLedgerLock(async () => {
     const header = await readHeader(); // API는 누락된 원장을 조용히 새로 만들지 않는다.
@@ -185,7 +185,9 @@ export async function readPrivacyReplaySnapshot(): Promise<PrivacyReplaySnapshot
   }
   if (records.length !== header.receiptIds.length || records.some((record) => !header.receiptIds.includes(record.id))) throw new PrivacyReplayError("원장의 처리 기록이 누락되었거나 불완전합니다.");
   const committed = records.filter((record) => record.phase === "committed");
-  const pending = records.filter((record) => record.phase === "prepared" && !committed.some((later) => later.subject === record.subject && (later.kind === "account_deleted" || later.kind === record.kind && later.target === record.target && later.preparedAt >= record.preparedAt)));
+  const pending = records.filter((record) => record.phase === "prepared" && !committed.some((later) => later.subject === record.subject &&
+    (later.kind === "account_deleted" ||
+      (later.kind === record.kind || later.kind.startsWith("harumadi_user_") && record.kind.startsWith("harumadi_user_")) && later.target === record.target && later.preparedAt >= record.preparedAt)));
   return { coverageStart: new Date(header.coverageStart), committed, unresolved: pending.length, pending };
   });
 }

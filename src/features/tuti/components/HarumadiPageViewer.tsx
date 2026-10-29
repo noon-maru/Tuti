@@ -74,7 +74,7 @@ export function HarumadiPageViewer({ book, entries, onClose, closing = false }: 
     </Stage>
     <Navigation aria-label="하루마디 쪽 이동">
       <Turn type="button" disabled={closing || current === 0 || Boolean(retained)} onClick={() => turn(current - 1)}>이전 쪽</Turn>
-      <span role="status">{current + 1} / {pages.length}</span>
+      <span role="status">{book.shared && pages[current]?.authorName && <small>{pages[current].authorName}의 마디<br /></small>}{current + 1} / {pages.length}</span>
       <Turn type="button" disabled={closing || Boolean(retained)} onClick={() => turn(current + 1)}>{lastPage ? "덮기" : "다음 쪽"}</Turn>
     </Navigation>
   </Reader>;

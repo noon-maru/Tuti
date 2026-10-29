@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { readFileSync } from "node:fs";
-import { parseHarumadiInviteUrl, rememberHarumadiInviteUrl, pendingHarumadiInvite, clearHarumadiInvite } from "@/lib/harumadiInviteIntent";
+import { parseHarumadiInviteUrl, rememberHarumadiInviteUrl, pendingHarumadiInvite, clearHarumadiInvite, setHarumadiInviteResume } from "@/lib/harumadiInviteIntent";
 import { preferencesStorage } from "@/lib/storage/preferencesStorage";
 import { parseHarumadiPdfInput } from "@/shared/api/harumadiPdf";
 
@@ -16,6 +16,12 @@ test("초대는 검증된 경로의 fragment로 전달하며 로그인 전후에
   t.mock.method(preferencesStorage, "removeItem", async (key: string) => { values.delete(key); });
   await rememberHarumadiInviteUrl(`https://tuti.today/harumadi/invite#${token}`);
   assert.equal(await pendingHarumadiInvite(), token);
+  assert.equal(await pendingHarumadiInvite(true), token);
+  await setHarumadiInviteResume(false);
+  assert.equal(await pendingHarumadiInvite(true), null, "사용자가 뒤로 가면 홈에서 다시 초대로 끌어오지 않는다");
+  assert.equal(await pendingHarumadiInvite(), token);
+  await setHarumadiInviteResume(true);
+  assert.equal(await pendingHarumadiInvite(true), token);
   await clearHarumadiInvite(); assert.equal(await pendingHarumadiInvite(), null);
 });
 
@@ -34,6 +40,6 @@ test("초대는 웹 대안·네이티브 링크·약관과 로그인 후 복귀�
   const callback = readFileSync("src/features/tuti/components/NativeOAuthCallbackHandler.tsx", "utf8");
   assert.match(callback, /rememberHarumadiInviteUrl/);
   assert.match(readFileSync("src/features/legal/InitialServiceTermsGate.tsx", "utf8"), /rememberHarumadiInviteUrl\(window\.location\.href\)/);
-  assert.match(readFileSync("src/features/tuti/flows/AccountFlow.tsx", "utf8"), /pendingHarumadiInvite\(\)/);
+  assert.match(readFileSync("src/features/tuti/flows/AccountFlow.tsx", "utf8"), /pendingHarumadiInvite\(true\)/);
   assert.match(readFileSync("android/app/src/main/AndroidManifest.xml", "utf8"), /android:host="harumadi" android:path="\/invite"/);
 });

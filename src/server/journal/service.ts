@@ -23,6 +23,8 @@ import type {
 import { isCurrentJournalPublicationPolicy } from "@/shared/legal/journalPublicationPolicy";
 import { commitPrivacyReplayReceipt, preparePrivacyReplayReceipt, privacyReplayEnabled } from "@/server/legal/privacyReplayLedger";
 import { createDefaultHarumadiForFirstMadi } from "@/server/harumadi/firstMadi";
+import { lockHarumadi, requireHarumadiAccess, requireTogether } from "@/server/harumadi/access";
+import { HarumadiError } from "@/server/harumadi/errors";
 
 export async function getJournalEntries(
   ownerId: string,
@@ -70,6 +72,12 @@ export async function createJournalEntry(
     const entry = await prisma.$transaction(async tx => {
       // 첫 마디 판단과 하루마디 생성을 계정별로 직렬화한다.
       await tx.$queryRaw`SELECT id FROM users WHERE id = ${ownerId} FOR UPDATE`;
+      if (input.harumadiId) {
+        await lockHarumadi(tx, input.harumadiId);
+        const book = await requireHarumadiAccess(tx, ownerId, input.harumadiId);
+        if (book.collaborationStartedAt) requireTogether();
+        if (book.collaborationStartedAt && sensitiveData.sensitiveContent !== false) throw new HarumadiError("민감정보가 없는 마디만 함께 채울 수 있어요.", 409);
+      }
       const created = await tx.journalEntry.create({
         data: {
           id: entryId,
@@ -84,7 +92,10 @@ export async function createJournalEntry(
         },
         select: journalEntrySelect,
       });
-      await createDefaultHarumadiForFirstMadi(tx, ownerId, created);
+      if (input.harumadiId) {
+        await tx.harumadiEntryLink.create({ data: { harumadiId: input.harumadiId, entryId: created.id } });
+        await tx.harumadi.update({ where: { id: input.harumadiId }, data: { revision: { increment: 1 } } });
+      } else await createDefaultHarumadiForFirstMadi(tx, ownerId, created);
       return created;
     });
 
@@ -137,7 +148,10 @@ export async function updateJournalEntry(
   let result: { count: number };
 
   try {
-    result = await prisma.journalEntry.updateMany({
+    result = await prisma.$transaction(async tx => {
+      await tx.$queryRaw`SELECT id FROM journal_entries WHERE id = ${entryId} AND owner_id = ${ownerId} FOR UPDATE`;
+      if (input.sensitiveContent === true && await tx.harumadiEntryLink.findFirst({ where: { entryId, harumadi: { collaborationStartedAt: { not: null } } }, select: { id: true } })) throw new SensitiveJournalPolicyError("함께 채우는 하루마디에서 먼저 마디를 뺀 뒤 민감정보 여부를 변경해주세요.");
+      return tx.journalEntry.updateMany({
       where: { id: entryId, ownerId, sensitiveWithdrawnAt: null },
       data: {
         ...sensitiveData,
@@ -166,6 +180,7 @@ export async function updateJournalEntry(
           publicationStatusChangedAt: new Date(),
         } : {}),
       },
+    });
     });
   } catch (error) {
     await cleanupUploadedImage(preparedImage.uploadedKey);
