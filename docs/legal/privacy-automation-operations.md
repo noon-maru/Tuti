@@ -40,7 +40,7 @@ sudo /usr/local/sbin/tuti-privacy-ledger-backup
 사용자에게 안내하거나 기능을 자동 활성화하지 않는다.
 
 서버에는 과거·기존 자료 보호를 위한 분류·열람·공개 제한·별도 동의·철회 경로가 남아 있다.
-`SENSITIVE_JOURNAL_WORKFLOW_ENABLED`와 복원 원장, 현행 별도 동의를 모두 확인하는
+`SENSITIVE_MADI_WORKFLOW_ENABLED`와 복원 원장, 현행 별도 동의를 모두 확인하는
 서버 조건을 문서 정리만으로 제거하지 않는다. 민감정보로 표시한 마디는 웹 공개할 수 없다.
 
 철회 시 별도 원장 의무 준비 → 원문·공개 차단 → 의무 확정 → 이미지·연관 PDF·추적자료 정리

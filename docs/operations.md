@@ -18,6 +18,11 @@
 스토어의 실제 공개 버전과 최소 지원 버전은 운영자가 확인해 입력한다. 최소 버전을 비워두면
 최신 버전이 최소 지원 버전이 되므로 단순 업데이트 권고와 혼동하지 않는다.
 
+마디 환경변수는 `MADI_SHARE_TRACE_SECRET`, `NEXT_PUBLIC_MADI_PUBLICATION_ENABLED`,
+`NEXT_PUBLIC_MADI_PUBLICATION_AUDIENCE`, `SENSITIVE_MADI_WORKFLOW_ENABLED`를 사용한다.
+서버·빌드 도구는 전환 동안 이전 JOURNAL 이름도 호환한다. 새 플래그가 명시되면 false·빈 값도
+우선하며, 공유 서명키는 이름만 바꾸고 값·서명 입력은 유지한다.
+
 ## 운영 도구 설치
 
 Codex가 Docker 전체 권한을 갖지 않도록, Tuti 작업만 허용하는 root 소유 명령을 사용한다.

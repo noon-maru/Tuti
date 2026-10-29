@@ -12,7 +12,7 @@ import { enablePrivacyLedgerEnvironment } from "../src/server/legal/privacyRunti
 const start = new Date("2026-10-20T07:22:33.479Z");
 const activeAt = new Date("2026-10-20T09:00:00Z");
 test("환경 전환은 키·다른 기능 플래그를 보존하고 중복 설정을 거절한다", () => {
-  const source = "# test\nSYNTHETIC_SECRET=keep\nSERVICE_TERMS_WORKFLOW_ENABLED=false\n  export PRIVACY_REPLAY_LEDGER_ENABLED = false\nSENSITIVE_JOURNAL_WORKFLOW_ENABLED=false\n";
+  const source = "# test\nSYNTHETIC_SECRET=keep\nSERVICE_TERMS_WORKFLOW_ENABLED=false\n  export PRIVACY_REPLAY_LEDGER_ENABLED = false\nSENSITIVE_MADI_WORKFLOW_ENABLED=false\n";
   const result = enablePrivacyLedgerEnvironment(source);
   assert.equal(result, source.replace("  export PRIVACY_REPLAY_LEDGER_ENABLED = false", "PRIVACY_REPLAY_LEDGER_ENABLED=true"));
   assert.equal(enablePrivacyLedgerEnvironment(result), result);
@@ -106,7 +106,7 @@ test("운영 전환은 root·명시 실행을 요구하고 기존 이미지·복
   assert.match(source, /restore-privacy\/pending.env/);
   assert.match(source, /--restart=no/);
   assert.match(source, /TUTI_APP_IMAGE="\$image"/);
-  assert.doesNotMatch(source, /--build|SERVICE_TERMS_WORKFLOW_ENABLED=true|LEGAL_RIGHTS_WORKFLOW_ENABLED=true|SENSITIVE_JOURNAL_WORKFLOW_ENABLED=true/);
+  assert.doesNotMatch(source, /--build|SERVICE_TERMS_WORKFLOW_ENABLED=true|LEGAL_RIGHTS_WORKFLOW_ENABLED=true|SENSITIVE_MADI_WORKFLOW_ENABLED=true/);
   assert.ok(source.indexOf('ops "--activate-coverage=') < source.indexOf("scripts/enable-privacy-ledger-config.ts"));
   assert.ok(source.indexOf("systemctl start tuti-backup-retention.service") < source.indexOf("systemctl enable"));
   assert.match(readFileSync("scripts/ops/systemd/tuti-privacy-ledger-backup.service", "utf8"), /OnFailure=/);

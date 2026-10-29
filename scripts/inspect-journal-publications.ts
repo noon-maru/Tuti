@@ -1,5 +1,5 @@
 import { prisma } from "../src/server/db/prisma";
-import { journalPublicationEnabled } from "../src/shared/features/release";
+import { journalPublicationEnabled, journalPublicationAudience } from "../src/shared/features/release";
 import {
   isJournalPublicationPolicyEffective,
   JOURNAL_PUBLICATION_POLICY_EFFECTIVE_AT,
@@ -10,8 +10,7 @@ const now = new Date();
 const oneDayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
 const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
 const environment = process.env.TUTI_INSPECTION_ENV?.trim() || "unknown";
-const audience =
-  process.env.NEXT_PUBLIC_JOURNAL_PUBLICATION_AUDIENCE ?? "internal";
+const audience = journalPublicationAudience;
 const policyEffective = isJournalPublicationPolicyEffective(now);
 
 try {

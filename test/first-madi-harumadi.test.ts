@@ -51,11 +51,11 @@ test("첫 마디와 기본 하루마디를 함께 저장하고 동시 요청·�
     catch (error) { entries = entrySnapshot; books = bookSnapshot; throw error; }
     finally { lockedOwner = null; release(); }
   } };
-  const previous = process.env.SENSITIVE_JOURNAL_WORKFLOW_ENABLED;
-  process.env.SENSITIVE_JOURNAL_WORKFLOW_ENABLED = "true";
+  const previous = process.env.SENSITIVE_MADI_WORKFLOW_ENABLED;
+  process.env.SENSITIVE_MADI_WORKFLOW_ENABLED = "true";
   t.after(() => {
-    if (previous === undefined) delete process.env.SENSITIVE_JOURNAL_WORKFLOW_ENABLED;
-    else process.env.SENSITIVE_JOURNAL_WORKFLOW_ENABLED = previous;
+    if (previous === undefined) delete process.env.SENSITIVE_MADI_WORKFLOW_ENABLED;
+    else process.env.SENSITIVE_MADI_WORKFLOW_ENABLED = previous;
   });
   const { createJournalEntry } = await import("@/server/journal/service");
 

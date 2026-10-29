@@ -71,8 +71,8 @@ jobs:
             NEXT_PUBLIC_APPLE_OAUTH_ENABLED=true
             NEXT_PUBLIC_GOOGLE_OAUTH_ENABLED=true
             NEXT_PUBLIC_KAKAO_OAUTH_ENABLED=true
-            NEXT_PUBLIC_JOURNAL_PUBLICATION_ENABLED=true
-            NEXT_PUBLIC_JOURNAL_PUBLICATION_AUDIENCE=public
+            NEXT_PUBLIC_MADI_PUBLICATION_ENABLED=true
+            NEXT_PUBLIC_MADI_PUBLICATION_AUDIENCE=public
           cache-from: type=gha,scope=tuti-production-app
           cache-to: type=gha,mode=max,scope=tuti-production-app
 
@@ -94,8 +94,8 @@ jobs:
             NEXT_PUBLIC_APPLE_OAUTH_ENABLED=true
             NEXT_PUBLIC_GOOGLE_OAUTH_ENABLED=true
             NEXT_PUBLIC_KAKAO_OAUTH_ENABLED=true
-            NEXT_PUBLIC_JOURNAL_PUBLICATION_ENABLED=true
-            NEXT_PUBLIC_JOURNAL_PUBLICATION_AUDIENCE=public
+            NEXT_PUBLIC_MADI_PUBLICATION_ENABLED=true
+            NEXT_PUBLIC_MADI_PUBLICATION_AUDIENCE=public
           cache-from: |
             type=gha,scope=tuti-production-app
             type=gha,scope=tuti-production-ops

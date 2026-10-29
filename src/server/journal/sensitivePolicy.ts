@@ -2,8 +2,11 @@ import type { JournalEntryInput } from "@/shared/api/journal";
 import type { HarumadiPdfInput } from "@/shared/api/harumadiPdf";
 import { privacyReplayEnabled } from "@/server/legal/privacyReplayLedger";
 import { SENSITIVE_JOURNAL_CONSENT_VERSION } from "@/shared/legal/sensitiveJournalPolicy";
+import { preferMadiEnvironmentValue } from "@/shared/madi/environment";
 
-export const sensitiveJournalPolicyEnabled = () => process.env.SENSITIVE_JOURNAL_WORKFLOW_ENABLED === "true";
+export const sensitiveJournalPolicyEnabled = () => preferMadiEnvironmentValue(
+  process.env.SENSITIVE_MADI_WORKFLOW_ENABLED, process.env.SENSITIVE_JOURNAL_WORKFLOW_ENABLED,
+) === "true";
 
 export function publicSensitiveJournalFilter() {
   return { sensitiveWithdrawnAt: null,

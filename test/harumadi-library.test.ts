@@ -86,9 +86,9 @@ test("하루마디 목록과 표지는 소유권·민감정보 철회·크기 �
   const { GET: cover, POST: saveCover } = await import("../src/app/api/harumadi-pdfs/[harumadiPdfId]/cover/route");
   const { GET: metadata } = await import("../src/app/api/harumadi-pdfs/[harumadiPdfId]/route");
   const previous = process.env.SERVICE_TERMS_ENFORCEMENT_ENABLED;
-  const previousSensitive = process.env.SENSITIVE_JOURNAL_WORKFLOW_ENABLED;
-  process.env.SENSITIVE_JOURNAL_WORKFLOW_ENABLED = "true";
-  t.after(() => { if (previousSensitive === undefined) delete process.env.SENSITIVE_JOURNAL_WORKFLOW_ENABLED; else process.env.SENSITIVE_JOURNAL_WORKFLOW_ENABLED = previousSensitive; });
+  const previousSensitive = process.env.SENSITIVE_MADI_WORKFLOW_ENABLED;
+  process.env.SENSITIVE_MADI_WORKFLOW_ENABLED = "true";
+  t.after(() => { if (previousSensitive === undefined) delete process.env.SENSITIVE_MADI_WORKFLOW_ENABLED; else process.env.SENSITIVE_MADI_WORKFLOW_ENABLED = previousSensitive; });
   process.env.SERVICE_TERMS_ENFORCEMENT_ENABLED = "false";
   t.after(() => { if (previous === undefined) delete process.env.SERVICE_TERMS_ENFORCEMENT_ENABLED; else process.env.SERVICE_TERMS_ENFORCEMENT_ENABLED = previous; });
   const request = (path: string, init?: RequestInit) => new Request(`https://tuti.test/api/harumadi-pdfs${path}`, { ...init, headers: { Authorization: `Bearer ${"a".repeat(40)}`, ...init?.headers } });

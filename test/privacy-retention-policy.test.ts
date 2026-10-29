@@ -86,15 +86,15 @@ test("입력 파서는 민감정보 여부를 강제 형변환하지 않고 동�
 });
 
 test("웹 공개 조건은 민감정보와 미확인 기록을 승인하지 않는다", () => {
-  const before = process.env.SENSITIVE_JOURNAL_WORKFLOW_ENABLED;
+  const before = process.env.SENSITIVE_MADI_WORKFLOW_ENABLED;
   try {
-    process.env.SENSITIVE_JOURNAL_WORKFLOW_ENABLED = "true";
+    process.env.SENSITIVE_MADI_WORKFLOW_ENABLED = "true";
     assert.deepEqual(publicSensitiveJournalFilter(), { sensitiveWithdrawnAt: null, sensitiveContent: false });
     const harumadiPdf = { ...emptyHarumadiPdfDraft(), entryIds: ["entry-1"] };
     assert.throws(() => assertHarumadiPdfFreeform(harumadiPdf), /표지 제목/);
     assert.doesNotThrow(() => assertHarumadiPdfFreeform({ ...harumadiPdf, freeformNonSensitiveConfirmed: true }));
     assert.equal(parseHarumadiPdfInput({ ...harumadiPdf, freeformNonSensitiveConfirmed: "true" }), null);
-  } finally { if (before === undefined) delete process.env.SENSITIVE_JOURNAL_WORKFLOW_ENABLED; else process.env.SENSITIVE_JOURNAL_WORKFLOW_ENABLED = before; }
+  } finally { if (before === undefined) delete process.env.SENSITIVE_MADI_WORKFLOW_ENABLED; else process.env.SENSITIVE_MADI_WORKFLOW_ENABLED = before; }
 });
 
 test("푸시 정리는 조회 전용으로 시작하고 30일 경계를 포함해 파기한다", async () => {

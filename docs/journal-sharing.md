@@ -57,9 +57,10 @@
 이동하지만, 서명에 사용한 최초 사용자 ID는 변경하지 않는다. 계정 또는 저널을
 삭제하면 연결된 공유 추적 기록도 함께 삭제한다.
 
-`JOURNAL_SHARE_TRACE_SECRET`이 설정되어 있으면 추적 서명에 사용한다. 비어
-있으면 기존 `AUTH_EMAIL_CODE_SECRET`을 용도 문자열로 분리해 사용한다. 두
-값 모두 32자 이상이어야 한다.
+추적 서명은 `MADI_SHARE_TRACE_SECRET`을 우선 사용하고 이전 이름
+`JOURNAL_SHARE_TRACE_SECRET`도 전환 동안 호환한다. 둘 다 비어 있으면
+`AUTH_EMAIL_CODE_SECRET`을 사용한다. 사용되는 비밀값은 32자 이상이어야 한다.
+변수 이름만 바꾸며 비밀값과 기존 서명 입력의 용도 문자열은 변경하지 않는다.
 
 메신저나 SNS가 PNG를 재인코딩하면 텍스트 메타데이터가 제거될 수 있다.
 이때는 이미지에 보이는 짧은 추적 코드를 이용해 서버 기록을 조회한다.
@@ -76,8 +77,8 @@ pnpm journal:trace -- 8C44-6B78-7384
 
 ## 공개 링크
 
-- 1.0.0부터 `NEXT_PUBLIC_JOURNAL_PUBLICATION_ENABLED=true`와
-  `NEXT_PUBLIC_JOURNAL_PUBLICATION_AUDIENCE=public`으로 인터넷 공개 UI와
+- 1.0.0부터 `NEXT_PUBLIC_MADI_PUBLICATION_ENABLED=true`와
+  `NEXT_PUBLIC_MADI_PUBLICATION_AUDIENCE=public`으로 인터넷 공개 UI와
   서버 생성을 정식 포함한다.
 - 일반 계정의 공개 요청은 기록 공개 운영정책 시행일인 2026년 10월 1일부터
   허용한다.
@@ -188,7 +189,7 @@ AI 안전 분류와 종료된 링크 안내는 현재 기능이 아닌
 
 - 스토어 심사 정보, 이용약관과 개인정보 처리방침을 갱신한다.
 - 운영 대응시간과 제재 정책을 확정한 뒤
-  `NEXT_PUBLIC_JOURNAL_PUBLICATION_ENABLED=true`로 배포한다.
+  `NEXT_PUBLIC_MADI_PUBLICATION_ENABLED=true`로 배포한다.
 - 기능 플래그 활성화만으로 끝내지 않고, 활성화 배포 전에 운영 DB 마이그레이션과
   공개 링크 회귀 테스트를 실행한다.
 

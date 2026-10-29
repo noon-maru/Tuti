@@ -38,7 +38,7 @@ test("전체 스키마와 실제 Garage의 사진·PDF를 복원한 뒤 원장�
     OBJECT_STORAGE_SECRET_ACCESS_KEY: "2".repeat(64),
     LEGAL_RIGHTS_WORKFLOW_ENABLED: "false", SERVICE_TERMS_WORKFLOW_ENABLED: "false",
     TUTI_PRIVACY_REPLAY_OFFLINE: "true",
-    SERVICE_TERMS_ENFORCEMENT_ENABLED: "false", SENSITIVE_JOURNAL_WORKFLOW_ENABLED: "false",
+    SERVICE_TERMS_ENFORCEMENT_ENABLED: "false", SENSITIVE_MADI_WORKFLOW_ENABLED: "false",
     ANDROID_PUSH_ENABLED: "false", IOS_PUSH_ENABLED: "false", LEGAL_RIGHTS_ALERT_WEBHOOK_URL: "",
   };
   const previous = new Map(Object.keys(settings).map((key) => [key, process.env[key]]));

@@ -52,9 +52,9 @@ test("실제 PDF는 사진이 있으면 본문에 포함하며 사진 표지와�
 });
 
 test("하루마디 서버는 빈 틀·소유권·낙관적 잠금·민감정보를 구분한다", async t => {
-  const previous = process.env.SENSITIVE_JOURNAL_WORKFLOW_ENABLED;
-  process.env.SENSITIVE_JOURNAL_WORKFLOW_ENABLED = "true";
-  t.after(() => { if (previous === undefined) delete process.env.SENSITIVE_JOURNAL_WORKFLOW_ENABLED; else process.env.SENSITIVE_JOURNAL_WORKFLOW_ENABLED = previous; });
+  const previous = process.env.SENSITIVE_MADI_WORKFLOW_ENABLED;
+  process.env.SENSITIVE_MADI_WORKFLOW_ENABLED = "true";
+  t.after(() => { if (previous === undefined) delete process.env.SENSITIVE_MADI_WORKFLOW_ENABLED; else process.env.SENSITIVE_MADI_WORKFLOW_ENABLED = previous; });
   const rows = new Map<string, { id: string; ownerId: string; title: string; coverStyle: string; revision: number; createdAt: Date; updatedAt: Date }>();
   const links = new Map<string, string[]>();
   const records = new Map([["mine", { id: "mine", ownerId: "owner", sensitiveContent: false, sensitiveConsentVersion: null, sensitiveWithdrawnAt: null as Date | null }], ["foreign", { id: "foreign", ownerId: "someone-else", sensitiveContent: false, sensitiveConsentVersion: null, sensitiveWithdrawnAt: null as Date | null }]]);

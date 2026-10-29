@@ -94,8 +94,8 @@ OAuth를 검증할 때는 공급자 페이지가 앱 WebView 안이 아니라 �
 열리는지와 성공·취소 모두 로그인 화면으로 돌아오는지 확인한다.
 
 현재 사용자 행동의 외부 AI 전송은 비활성화한다. 공개 기록 웹 링크는 1.0.0부터
-`NEXT_PUBLIC_JOURNAL_PUBLICATION_ENABLED=true`와
-`NEXT_PUBLIC_JOURNAL_PUBLICATION_AUDIENCE=public`으로 정식 포함한다. 일반
+`NEXT_PUBLIC_MADI_PUBLICATION_ENABLED=true`와
+`NEXT_PUBLIC_MADI_PUBLICATION_AUDIENCE=public`으로 정식 포함한다. 일반
 계정의 공개 요청은 기록 공개 운영정책 시행일인 2026년 10월 1일부터 허용한다.
 앱의 `계정 및 데이터` 화면에서는 로그인 계정과 자동 생성된 익명 계정을 모두
 직접 삭제할 수 있어야 한다.

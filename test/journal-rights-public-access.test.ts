@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 process.env.DATABASE_URL = "postgresql://test:test@127.0.0.1:1/test";
-process.env.NEXT_PUBLIC_JOURNAL_PUBLICATION_ENABLED = "true";
+process.env.NEXT_PUBLIC_MADI_PUBLICATION_ENABLED = "true";
 process.env.LEGAL_RIGHTS_WORKFLOW_ENABLED = "true";
 let blocked = true;
 let role = "admin";

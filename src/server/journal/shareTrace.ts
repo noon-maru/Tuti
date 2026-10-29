@@ -7,6 +7,7 @@ import {
 
 import { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/server/db/prisma";
+import { madiShareTraceSecret } from "@/shared/madi/environment";
 import type {
   JournalShareTraceFinalization,
   JournalShareTraceIssue,
@@ -206,9 +207,7 @@ function signShareTrace({
 }
 
 function getTraceSigningSecret() {
-  const secret =
-    process.env.JOURNAL_SHARE_TRACE_SECRET?.trim() ||
-    process.env.AUTH_EMAIL_CODE_SECRET?.trim();
+  const secret = madiShareTraceSecret(process.env);
 
   if (!secret || secret.length < 32) {
     throw new JournalShareTraceError(

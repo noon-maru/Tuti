@@ -1,4 +1,5 @@
 import { isJournalPublicationPolicyEffective } from "@/shared/legal/journalPublicationPolicy";
+import { preferMadiEnvironmentValue } from "@/shared/madi/environment";
 
 export function isJournalPublicationEnabled(
   value?: string,
@@ -7,7 +8,8 @@ export function isJournalPublicationEnabled(
 }
 
 export const journalPublicationEnabled = isJournalPublicationEnabled(
-  process.env.NEXT_PUBLIC_JOURNAL_PUBLICATION_ENABLED,
+  preferMadiEnvironmentValue(process.env.NEXT_PUBLIC_MADI_PUBLICATION_ENABLED,
+    process.env.NEXT_PUBLIC_JOURNAL_PUBLICATION_ENABLED),
 );
 
 export type JournalPublicationAudience = "internal" | "public";
@@ -19,7 +21,8 @@ export function getJournalPublicationAudience(
 }
 
 export const journalPublicationAudience = getJournalPublicationAudience(
-  process.env.NEXT_PUBLIC_JOURNAL_PUBLICATION_AUDIENCE,
+  preferMadiEnvironmentValue(process.env.NEXT_PUBLIC_MADI_PUBLICATION_AUDIENCE,
+    process.env.NEXT_PUBLIC_JOURNAL_PUBLICATION_AUDIENCE),
 );
 
 export function canAccountPublishJournal(

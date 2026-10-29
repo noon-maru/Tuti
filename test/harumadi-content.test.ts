@@ -28,15 +28,15 @@ test("책에 담긴 마디만 같은 스냅샷으로 읽고 본문 수정도 별
 });
 
 test("다른 계정·잘못 연결된 마디·철회 데이터는 캐시 응답으로 우회하지 않는다", async t => {
-  const previous = process.env.SENSITIVE_JOURNAL_WORKFLOW_ENABLED;
-  t.after(() => { if (previous === undefined) delete process.env.SENSITIVE_JOURNAL_WORKFLOW_ENABLED; else process.env.SENSITIVE_JOURNAL_WORKFLOW_ENABLED = previous; record.sensitiveContent = false; });
-  process.env.SENSITIVE_JOURNAL_WORKFLOW_ENABLED = "true";
+  const previous = process.env.SENSITIVE_MADI_WORKFLOW_ENABLED;
+  t.after(() => { if (previous === undefined) delete process.env.SENSITIVE_MADI_WORKFLOW_ENABLED; else process.env.SENSITIVE_MADI_WORKFLOW_ENABLED = previous; record.sensitiveContent = false; });
+  process.env.SENSITIVE_MADI_WORKFLOW_ENABLED = "true";
   const { readHarumadiContent } = await import("@/server/harumadi/content");
   await assert.rejects(readHarumadiContent("other", "book-a"), { status: 404 });
   record.ownerId = "other"; await assert.rejects(readHarumadiContent("owner", "book-a"), { status: 403 }); record.ownerId = "owner";
   record.sensitiveWithdrawnAt = new Date(); await assert.rejects(readHarumadiContent("owner", "book-a"), { status: 409 }); record.sensitiveWithdrawnAt = null;
   record.sensitiveContent = null;
   await assert.rejects(readHarumadiContent("owner", "book-a"), { status: 409 });
-  process.env.SENSITIVE_JOURNAL_WORKFLOW_ENABLED = "false";
+  process.env.SENSITIVE_MADI_WORKFLOW_ENABLED = "false";
   assert.equal((await readHarumadiContent("owner", "book-a")).cacheable, false);
 });

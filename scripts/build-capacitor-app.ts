@@ -196,12 +196,16 @@ async function runNextBuild(apiBaseUrl: string) {
     (await readPublicEnvValue("NEXT_PUBLIC_KAKAO_OAUTH_ENABLED")) ||
     "true";
   const journalPublicationEnabled =
-    process.env.NEXT_PUBLIC_JOURNAL_PUBLICATION_ENABLED?.trim() ||
-    (await readPublicEnvValue("NEXT_PUBLIC_JOURNAL_PUBLICATION_ENABLED")) ||
+    process.env.NEXT_PUBLIC_MADI_PUBLICATION_ENABLED?.trim() ??
+    process.env.NEXT_PUBLIC_JOURNAL_PUBLICATION_ENABLED?.trim() ??
+    (await readPublicEnvValue("NEXT_PUBLIC_MADI_PUBLICATION_ENABLED")) ??
+    (await readPublicEnvValue("NEXT_PUBLIC_JOURNAL_PUBLICATION_ENABLED")) ??
     "false";
   const journalPublicationAudience =
-    process.env.NEXT_PUBLIC_JOURNAL_PUBLICATION_AUDIENCE?.trim() ||
-    (await readPublicEnvValue("NEXT_PUBLIC_JOURNAL_PUBLICATION_AUDIENCE")) ||
+    process.env.NEXT_PUBLIC_MADI_PUBLICATION_AUDIENCE?.trim() ??
+    process.env.NEXT_PUBLIC_JOURNAL_PUBLICATION_AUDIENCE?.trim() ??
+    (await readPublicEnvValue("NEXT_PUBLIC_MADI_PUBLICATION_AUDIENCE")) ??
+    (await readPublicEnvValue("NEXT_PUBLIC_JOURNAL_PUBLICATION_AUDIENCE")) ??
     "internal";
 
   await new Promise<void>((resolvePromise, reject) => {
@@ -218,9 +222,9 @@ async function runNextBuild(apiBaseUrl: string) {
           NEXT_PUBLIC_APPLE_OAUTH_ENABLED: appleOAuthEnabled,
           NEXT_PUBLIC_GOOGLE_OAUTH_ENABLED: googleOAuthEnabled,
           NEXT_PUBLIC_KAKAO_OAUTH_ENABLED: kakaoOAuthEnabled,
-          NEXT_PUBLIC_JOURNAL_PUBLICATION_ENABLED:
+          NEXT_PUBLIC_MADI_PUBLICATION_ENABLED:
             journalPublicationEnabled,
-          NEXT_PUBLIC_JOURNAL_PUBLICATION_AUDIENCE:
+          NEXT_PUBLIC_MADI_PUBLICATION_AUDIENCE:
             journalPublicationAudience,
           NEXT_TELEMETRY_DISABLED: "1",
           NODE_ENV: "production",
