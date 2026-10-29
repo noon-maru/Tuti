@@ -29,6 +29,7 @@ import { purgeExpiredAuthRecordsIfDue } from "@/server/auth/retention";
 import type {
   AccountJournalResolution,
   EmailCodeRequest,
+  EmailCodeRequestResponse,
   EmailCodeVerification,
   EmailCodeVerificationResult,
 } from "@/shared/api/session";
@@ -82,7 +83,7 @@ async function createAndDeliverEmailCode(
   email: string,
   appReviewConfig: AppReviewAuthConfig | null,
   appReviewAccount: boolean,
-) {
+): Promise<EmailCodeRequestResponse> {
   await purgeExpiredAuthRecordsIfDue();
   const requestWindowStart = minutesAgo(REQUEST_WINDOW_MINUTES);
   const recentRequestCount = await prisma.emailVerificationCode.count({
@@ -139,9 +140,7 @@ async function createAndDeliverEmailCode(
   return {
     expiresInSeconds: CODE_LIFETIME_MINUTES * 60,
     message: appReviewAccount
-      ? appReviewConfig!.verificationMethod === "password"
-        ? "비밀번호를 입력해주세요."
-        : "심사용 인증코드를 입력해주세요."
+      ? "비밀번호를 입력해주세요."
       : "인증코드를 보냈어요.",
     verificationMethod: appReviewAccount
       ? appReviewConfig!.verificationMethod
@@ -213,7 +212,7 @@ async function verifyParsedEmailCode(
 
   if (!challenge || challenge.expiresAt <= new Date()) {
     throw new AccountAuthError(
-      appReviewConfig?.verificationMethod === "password"
+      appReviewConfig
         ? "로그인 요청이 만료됐어요. 이메일부터 다시 입력해주세요."
         : "인증코드가 만료됐어요. 새 코드를 요청해주세요.",
       "email_code_expired",
@@ -223,7 +222,7 @@ async function verifyParsedEmailCode(
 
   if (challenge.attempts >= MAX_VERIFICATION_ATTEMPTS) {
     throw new AccountAuthError(
-      appReviewConfig?.verificationMethod === "password"
+      appReviewConfig
         ? "입력 횟수를 초과했어요. 이메일부터 다시 입력해주세요."
         : "입력 횟수를 초과했어요. 새 코드를 요청해주세요.",
       "email_code_attempts_exceeded",
@@ -247,7 +246,7 @@ async function verifyParsedEmailCode(
     });
 
     throw new AccountAuthError(
-      appReviewConfig?.verificationMethod === "password"
+      appReviewConfig
         ? "비밀번호를 확인해주세요."
         : "인증코드를 확인해주세요.",
       "invalid_email_code",
@@ -417,8 +416,9 @@ function parseCredential(
 ) {
   const code = typeof input?.code === "string" ? input.code.trim() : "";
 
-  if (appReviewConfig?.verificationMethod === "password") {
-    if (!code || code.length > 128) {
+  if (appReviewConfig) {
+    // 전환 전에 발급된 고정 6자리 챌린지도 비밀번호 경로로 통과하지 못한다.
+    if (code.length < 8 || code.length > 128) {
       throw new AccountAuthError(
         "비밀번호를 입력해주세요.",
         "invalid_app_review_password_format",
@@ -445,9 +445,7 @@ function getDeliveryMode(
   appReviewAccount: boolean,
 ): EmailAuthDeliveryMode {
   if (!appReviewAccount || !appReviewConfig) return "smtp";
-  return appReviewConfig.verificationMethod === "password"
-    ? "app_review_password"
-    : "app_review_fixed_code";
+  return "app_review_password";
 }
 
 function parseJournalResolution(

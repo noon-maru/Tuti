@@ -2,7 +2,6 @@ import { writeSystemLogSafely } from "@/server/admin/log";
 
 export type EmailAuthAuditOperation = "request" | "verify";
 export type EmailAuthDeliveryMode =
-  | "app_review_fixed_code"
   | "app_review_password"
   | "smtp"
   | "unresolved";
