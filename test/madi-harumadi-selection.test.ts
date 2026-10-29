@@ -9,7 +9,6 @@ import { addMadiToHarumadi } from "@/lib/addMadiToHarumadi";
 import { ensureSession } from "@/lib/auth/session";
 import { preferencesStorage } from "@/lib/storage/preferencesStorage";
 import { harumadiReadCache } from "@/lib/harumadiReadCache";
-import { HARUMADI_PDF_MAX_ENTRIES } from "@/shared/api/harumadiPdf";
 import { harumadiContent } from "./fixtures/harumadiContent";
 
 test("첫 마디는 기존 완료 화면을 유지하고 두 번째부터 저장 후 선택 화면을 연다", () => {
@@ -38,11 +37,11 @@ test("하루마디 안에서 작성하면 선택 화면 없이 원래 하루마�
   assert.ok(screen.indexOf("if (saved && inHarumadi)") < screen.indexOf("return <Frame"));
 });
 
-test("선택 화면은 빈 책장·기존 책·가득 찬 책과 담지 않기를 구분한다", () => {
+test("선택 화면은 빈 책장과 기존 책을 구분하고 마디가 많아도 담을 수 있다", () => {
   const book = harumadiContent().harumadi;
-  for (const variant of ["empty", "book", "full"] as const) {
+  for (const variant of ["empty", "book", "many"] as const) {
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-    const row = { ...book, entryIds: variant === "full" ? Array.from({ length: HARUMADI_PDF_MAX_ENTRIES }, (_, i) => `old-${i}`) : book.entryIds };
+    const row = { ...book, entryIds: variant === "many" ? Array.from({ length: 100 }, (_, i) => `old-${i}`) : book.entryIds };
     client.setQueryData(["library-harumadis", "owner"], { pages: [{ harumadis: variant === "empty" ? [] : [row], nextCursor: null }], pageParams: [undefined] });
     const html = renderToStaticMarkup(createElement(QueryClientProvider, { client }, createElement(MadiHarumadiSelection, {
       ownerId: "owner", entryId: "new-entry", initialBookId: book.id, onDone() {}, onNext() {},
@@ -52,12 +51,16 @@ test("선택 화면은 빈 책장·기존 책·가득 찬 책과 담지 않기�
     assert.doesNotMatch(html, /민감정보가 있나요/);
     if (variant === "empty") assert.match(html, /아직 하루마디가 없어요/);
     else assert.match(html, /type="radio"[^>]*checked/);
-    if (variant === "full") assert.match(html, /가득 찼어요/);
+    if (variant === "many") {
+      assert.match(html, /마디 100개/);
+      assert.doesNotMatch(html, /가득 찼어요/);
+      assert.doesNotMatch(html, /<(?:input|button)\b[^>]*\sdisabled(?:[\s=>])/);
+    }
     client.clear();
   }
 });
 
-test("연결은 최신 책 내용·리비전을 보존하고 중복·정원·충돌·다른 계정을 검증한다", async t => {
+test("연결은 개수 제한 없이 최신 내용·리비전을 보존하고 중복·충돌·다른 계정을 검증한다", async t => {
   const session = { userId: "selection-owner", accessToken: "s".repeat(40) };
   t.mock.method(preferencesStorage, "getItem", async () => JSON.stringify(session));
   await ensureSession();
@@ -96,9 +99,11 @@ test("연결은 최신 책 내용·리비전을 보존하고 중복·정원·충
   assert.equal(writes, afterLostResponse);
   assert.equal(book.entryIds.filter(id => id === "response-lost-entry").length, 1);
   const before = writes;
-  book.entryIds = Array.from({ length: HARUMADI_PDF_MAX_ENTRIES }, (_, i) => `full-${i}`);
-  await assert.rejects(addMadiToHarumadi(session.userId, book.id, "over-limit"), /가득 찼어요/);
-  assert.equal(writes, before);
+  book.entryIds = Array.from({ length: 100 }, (_, i) => `old-${i}`);
+  await addMadiToHarumadi(session.userId, book.id, "next-entry");
+  assert.equal(book.entryIds.length, 101);
+  assert.equal(book.entryIds.at(-1), "next-entry");
+  assert.equal(writes, before + 1);
   await assert.rejects(addMadiToHarumadi("other-owner", book.id, "entry"), /계정/);
-  assert.equal(writes, before);
+  assert.equal(writes, before + 1);
 });

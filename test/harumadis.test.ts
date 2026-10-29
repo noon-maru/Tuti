@@ -11,7 +11,19 @@ test("표지로 빈 하루마디를 만들고 기록 연결은 별도로 검증�
   assert.deepEqual(parseHarumadiSettings(settings), settings);
   assert.deepEqual(parseHarumadiUpdate({ ...settings, revision: 1, entryIds: [] }), { ...settings, revision: 1, entryIds: [] });
   for (const invalid of [{ title: " " }, { title: "가".repeat(81) }, { coverStyle: "other" }, { freeformNonSensitiveConfirmed: "yes" }]) assert.equal(parseHarumadiSettings({ ...settings, ...invalid }), null);
-  for (const invalid of [{ revision: 0 }, { revision: 1.1 }, { entryIds: ["a", "a"] }, { entryIds: Array.from({ length: 13 }, (_, i) => `id-${i}`) }, { entryIds: ["../foreign"] }]) assert.equal(parseHarumadiUpdate({ ...settings, revision: 1, entryIds: [], ...invalid }), null);
+  for (const invalid of [{ revision: 0 }, { revision: 1.1 }, { entryIds: ["a", "a"] }, { entryIds: ["../foreign"] }]) assert.equal(parseHarumadiUpdate({ ...settings, revision: 1, entryIds: [], ...invalid }), null);
+});
+test("하루마디 저장은 마디 개수로 제한하지 않는다", () => {
+  for (const count of [13, 100, 500]) {
+    const entryIds = Array.from({ length: count }, (_, i) => `id-${i}`);
+    assert.deepEqual(parseHarumadiUpdate({ ...settings, revision: 1, entryIds })?.entryIds, entryIds);
+  }
+});
+test("마디 선택·새 마디 작성·PDF 선택 화면에 개수 제한을 남기지 않는다", () => {
+  for (const path of ["src/features/tuti/flows/HarumadiFlow.tsx", "src/features/tuti/flows/HarumadiPdfFlow.tsx", "src/features/tuti/screens/journal/MadiHarumadiSelection.tsx", "src/lib/addMadiToHarumadi.ts"]) {
+    const source = readFileSync(path, "utf8");
+    assert.doesNotMatch(source, /HARUMADI_PDF_MAX_ENTRIES|가득 찼어요|한 권에 최대|한 권에는 최대/);
+  }
 });
 test("PDF 입력에는 속지 선택이 없으며 마디 내용으로 지면을 구성한다", () => {
   const input = { ...settings, entryIds: ["one"], letter: "", coverEntryId: null };
@@ -110,4 +122,9 @@ test("하루마디 서버는 빈 틀·소유권·낙관적 잠금·민감정보�
   assert.equal(edited.backCoverText, "내가 남긴 마지막 말");
   const blank = await updateHarumadi("owner", harumadiPdf.id, { ...settings, revision: 3, entryIds: [], backCoverText: "" });
   assert.equal(blank.backCoverText, "", "빈 문구는 기본 문구로 덮어쓰지 않는다");
+  const manyIds = Array.from({ length: 100 }, (_, i) => `owned-${i}`);
+  for (const id of manyIds) records.set(id, { ...records.get("mine")!, id, sensitiveWithdrawnAt: null });
+  const many = await updateHarumadi("owner", harumadiPdf.id, { ...settings, revision: blank.revision, entryIds: manyIds });
+  assert.deepEqual(many.entryIds, manyIds);
+  assert.deepEqual((await readHarumadi("owner", harumadiPdf.id)).entryIds, manyIds);
 });

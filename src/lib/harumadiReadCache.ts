@@ -123,7 +123,7 @@ export function isReadContent(value: unknown): value is HarumadiContent {
     (book.backCoverText === undefined || isHarumadiBackCoverText(book.backCoverText)) &&
     Number.isSafeInteger(book.revision) && book.revision > 0 && typeof book.createdAt === "string" && Number.isFinite(Date.parse(book.createdAt)) &&
     typeof book.updatedAt === "string" && Number.isFinite(Date.parse(book.updatedAt)) &&
-    Array.isArray(book.entryIds) && book.entryIds.length <= 12 && new Set(book.entryIds).size === book.entryIds.length &&
+    Array.isArray(book.entryIds) && new Set(book.entryIds).size === book.entryIds.length &&
     Array.isArray(data.entries) && data.entries.length === book.entryIds.length && new Set(data.entries.map(e => e.id)).size === data.entries.length &&
     data.entries.every(entry => validId(entry.id) && book.entryIds.includes(entry.id) &&
       typeof entry.title === "string" && entry.title.length <= 80 && typeof entry.content === "string" && entry.content.length <= 4000 &&

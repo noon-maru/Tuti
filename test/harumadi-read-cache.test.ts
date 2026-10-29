@@ -16,6 +16,18 @@ function fixture() {
   return { files, blocked, storage, cache: createHarumadiReadCache(storage, () => clock), advance: (amount: number) => { clock += amount; }, fail: (value: boolean) => { failClear = value; } };
 }
 
+test("12개를 넘는 마디도 기존 용량 보호 안에서 캐시에 저장하고 다시 읽는다", async () => {
+  const { cache } = fixture();
+  const content = harumadiContent();
+  content.entries = Array.from({ length: 100 }, (_, i) => ({ ...content.entries[0], id: `entry-${i}`, image: null }));
+  content.harumadi.entryIds = content.entries.map(entry => entry.id);
+  content.totalRecordCount = content.entries.length;
+  await cache.put("owner", "book-a", "binding", content);
+  const read = await cache.get("owner", "book-a", "binding");
+  assert.equal(read?.content.entries.length, 100);
+  assert.deepEqual(read?.content.harumadi.entryIds, content.harumadi.entryIds);
+});
+
 test("속지 선택을 포함하던 이전 캐시는 폐기하고 자동 지면 응답을 다시 받는다", async () => {
   const { cache, files } = fixture();
   await cache.put("owner", "book-a", "binding", harumadiContent());

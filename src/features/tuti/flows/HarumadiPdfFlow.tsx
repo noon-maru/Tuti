@@ -42,7 +42,6 @@ import {
   harumadiPdfCoverUsesImage,
   harumadiPdfDate,
   parseHarumadiPdfInput,
-  HARUMADI_PDF_MAX_ENTRIES,
   HARUMADI_PDF_TITLE_LIMIT,
   HARUMADI_PDF_LETTER_LIMIT,
   type HarumadiPdfCoverStyle,
@@ -282,12 +281,6 @@ function HarumadiPdfEditor({ ownerId }: { ownerId: string }) {
   function select(id: string) {
     if (!draft) return;
     const selected = draft.entryIds.includes(id);
-    if (!selected && draft.entryIds.length >= HARUMADI_PDF_MAX_ENTRIES) {
-      setMessage(
-        `한 권에는 최대 ${HARUMADI_PDF_MAX_ENTRIES}개의 마디를 담을 수 있어요.`,
-      );
-      return;
-    }
     const entryIds = selected
       ? draft.entryIds.filter((entryId) => entryId !== id)
       : [...draft.entryIds, id];
@@ -631,7 +624,6 @@ function HarumadiPdfEditor({ ownerId }: { ownerId: string }) {
                     )}
                     <SelectionSummary>
                       <strong>{draft.entryIds.length}개 선택</strong>
-                      <span>한 권에 최대 {HARUMADI_PDF_MAX_ENTRIES}개</span>
                     </SelectionSummary>
                     {selectionNotice && (
                       <SelectionNotice role="status">

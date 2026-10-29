@@ -1,4 +1,4 @@
-import { HARUMADI_PDF_COVER_STYLES, HARUMADI_PDF_MAX_ENTRIES, HARUMADI_PDF_TITLE_LIMIT, type HarumadiPdfCoverStyle } from "./harumadiPdf";
+import { HARUMADI_PDF_COVER_STYLES, HARUMADI_PDF_TITLE_LIMIT, type HarumadiPdfCoverStyle } from "./harumadiPdf";
 import type { TutiJournalEntry } from "./journal";
 import { isHarumadiBackCoverText } from "../harumadi/backCover";
 
@@ -41,7 +41,7 @@ export function parseHarumadiUpdate(value: unknown): HarumadiUpdate | null {
   if (!settings) return null;
   const input = value as Record<string, unknown>;
   if (!Number.isSafeInteger(input.revision) || (input.revision as number) < 1 ||
-      !Array.isArray(input.entryIds) || input.entryIds.length > HARUMADI_PDF_MAX_ENTRIES ||
+      !Array.isArray(input.entryIds) ||
       !input.entryIds.every(id => typeof id === "string" && /^[a-zA-Z0-9_-]{1,128}$/.test(id)) ||
       new Set(input.entryIds).size !== input.entryIds.length) return null;
   return { ...settings, revision: input.revision as number, entryIds: input.entryIds as string[] };

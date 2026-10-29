@@ -115,13 +115,11 @@ test("하루마디는 고른 기록에 속한 표지만 허용하고 입력 범�
     parseHarumadiPdfInput({ ...input, entryIds: ["entry-1", "entry-1"] }),
     null,
   );
-  assert.equal(
-    parseHarumadiPdfInput({
-      ...input,
-      entryIds: Array.from({ length: 13 }, (_, i) => `id-${i}`),
-    }),
-    null,
-  );
+  for (const count of [13, 100, 500]) {
+    const entryIds = Array.from({ length: count }, (_, i) => `id-${i}`);
+    assert.deepEqual(parseHarumadiPdfInput({ ...input, entryIds })?.entryIds, entryIds);
+    assert.deepEqual(parseHarumadiPdfDraft({ ...emptyHarumadiPdfDraft(), entryIds })?.entryIds, entryIds);
+  }
   assert.equal(parseHarumadiPdfInput({ ...input, title: " " }), null);
   assert.equal(
     parseHarumadiPdfInput({ ...input, letter: "x".repeat(1201) }),
@@ -282,12 +280,14 @@ test("생성 실패 후 재시도 가능하고 동시에 여러 PDF를 만들지
 test("서버가 승인한 미리보기 PDF만 같은 쪽 수로 완성할 수 있다", async () => {
   process.env.AUTH_EMAIL_CODE_SECRET =
     "harumadi-pdf-test-secret-at-least-32-characters";
-  const pdf = await renderHarumadiPdf(input, [{ ...entry, image: null }]);
-  const token = await createHarumadiPdfApproval("owner-a", input, pdf);
+  const entries = Array.from({ length: 13 }, (_, i) => ({ ...entry, id: `entry-${i}`, image: null }));
+  const manyInput = { ...input, entryIds: entries.map(item => item.id) };
+  const pdf = await renderHarumadiPdf(manyInput, entries);
+  const token = await createHarumadiPdfApproval("owner-a", manyInput, pdf);
   const approved = verifyHarumadiPdfApproval("owner-a", token, pdf);
   assert.equal(approved.title, input.title);
-  assert.deepEqual(approved.entryIds, input.entryIds);
-  assert.ok(approved.pageCount >= 2);
+  assert.deepEqual(approved.entryIds, manyInput.entryIds);
+  assert.ok(approved.pageCount >= 15, "13개 마디와 표지·뒷표지를 모두 출력한다");
   assert.match(approved.harumadiPdfId, /^[0-9a-f-]{36}$/i);
   assert.throws(
     () =>

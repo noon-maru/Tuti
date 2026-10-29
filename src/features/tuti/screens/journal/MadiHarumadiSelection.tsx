@@ -9,7 +9,6 @@ import { BackButton, PrimaryButton, TextButton } from "@/features/tuti/component
 import { ANDROID_BACK_EVENT } from "@/features/tuti/navigation/androidBack";
 import { fetchHarumadis } from "@/lib/harumadis";
 import { addMadiToHarumadi } from "@/lib/addMadiToHarumadi";
-import { HARUMADI_PDF_MAX_ENTRIES } from "@/shared/api/harumadiPdf";
 
 export function MadiHarumadiSelection({ ownerId, entryId, initialBookId, onDone, onNext }: {
   ownerId: string; entryId: string; initialBookId?: string | null;
@@ -26,7 +25,7 @@ export function MadiHarumadiSelection({ ownerId, entryId, initialBookId, onDone,
     staleTime: 0, retry: false });
   const books = query.data?.pages.flatMap(page => page.harumadis) ?? [];
   const selectedBook = books.find(book => book.id === selected);
-  const canAdd = Boolean(selectedBook && (selectedBook.entryIds.includes(entryId) || selectedBook.entryIds.length < HARUMADI_PDF_MAX_ENTRIES));
+  const canAdd = Boolean(selectedBook);
 
   useEffect(() => { heading.current?.focus({ preventScroll: true }); }, []);
   useEffect(() => {
@@ -57,11 +56,10 @@ export function MadiHarumadiSelection({ ownerId, entryId, initialBookId, onDone,
         : query.isError && !query.data ? <Notice role="alert">하루마디를 불러오지 못했어요.<TextButton onClick={() => void query.refetch()}>다시 불러오기</TextButton></Notice>
         : !books.length ? <Notice><BookOpen size={28} strokeWidth={1.3} /><p>아직 하루마디가 없어요.<br />내 책장에서 한 권을 만든 뒤 담을 수 있어요.</p></Notice>
         : <Choices aria-label="마디를 담을 하루마디">{books.map(book => {
-          const full = book.entryIds.length >= HARUMADI_PDF_MAX_ENTRIES && !book.entryIds.includes(entryId);
           return <Choice key={book.id} $selected={selected === book.id}>
-            <input type="radio" name="madi-harumadi" value={book.id} checked={selected === book.id} disabled={busy || full} onChange={() => { setSelected(book.id); setError(""); }} />
+            <input type="radio" name="madi-harumadi" value={book.id} checked={selected === book.id} disabled={busy} onChange={() => { setSelected(book.id); setError(""); }} />
             <Spine aria-hidden="true" $green={book.coverStyle.startsWith("green")}><BookOpen size={18} strokeWidth={1.3} /></Spine>
-            <span><strong>{book.title}</strong><small>마디 {book.entryIds.length}개{full ? " · 가득 찼어요" : ""}</small></span>
+            <span><strong>{book.title}</strong><small>마디 {book.entryIds.length}개</small></span>
           </Choice>;
         })}</Choices>}
       {query.isError && query.data && <Notice role="alert">목록을 새로 불러오지 못했어요.<TextButton onClick={() => void query.refetch()}>다시 불러오기</TextButton></Notice>}

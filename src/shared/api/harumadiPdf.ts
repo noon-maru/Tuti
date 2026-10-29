@@ -1,6 +1,5 @@
 import { isHarumadiBackCoverText } from "../harumadi/backCover";
 
-export const HARUMADI_PDF_MAX_ENTRIES = 12;
 export const HARUMADI_PDF_TITLE_LIMIT = 80;
 export const HARUMADI_PDF_LETTER_LIMIT = 1200;
 export const HARUMADI_PDF_PHOTO_SHORT_LINE_LIMIT = 7;
@@ -121,7 +120,6 @@ export function parseHarumadiPdfInput(value: unknown): HarumadiPdfInput | null {
   if (
     !Array.isArray(input.entryIds) ||
     input.entryIds.length < 1 ||
-    input.entryIds.length > HARUMADI_PDF_MAX_ENTRIES ||
     !input.entryIds.every(
       (id) => typeof id === "string" && /^[a-zA-Z0-9_-]{1,128}$/.test(id),
     ) ||

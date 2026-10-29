@@ -224,7 +224,6 @@ function isApprovalPayload(value: unknown): value is HarumadiPdfApprovalPayload 
     payload.title.length <= 80 &&
     Array.isArray(payload.entryIds) &&
     payload.entryIds.length >= 1 &&
-    payload.entryIds.length <= 12 &&
     payload.entryIds.every(
       (id) => typeof id === "string" && /^[a-zA-Z0-9_-]{1,128}$/.test(id),
     ) &&

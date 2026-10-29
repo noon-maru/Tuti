@@ -19,7 +19,7 @@ import { canCacheHarumadi, harumadiReadCache } from "@/lib/harumadiReadCache";
 import { fetchJournalEntries, fetchSensitiveJournalPolicy, createHarumadiPdf } from "@/lib/tutiApi";
 import { exportHarumadiPdf } from "@/lib/harumadiPdfExport";
 import { getSessionSnapshot } from "@/lib/auth/session";
-import { HARUMADI_PDF_MAX_ENTRIES, HARUMADI_PDF_TITLE_LIMIT, type HarumadiPdfInput } from "@/shared/api/harumadiPdf";
+import { HARUMADI_PDF_TITLE_LIMIT, type HarumadiPdfInput } from "@/shared/api/harumadiPdf";
 import type { Harumadi, HarumadiSettings } from "@/shared/api/harumadi";
 import { ANDROID_BACK_EVENT } from "@/features/tuti/navigation/androidBack";
 import { HARUMADI_BACK_COVER_TEXT_LIMIT, LEGACY_HARUMADI_BACK_COVER_TEXT, isHarumadiBackCoverText, pickHarumadiBackCoverText } from "@/shared/harumadi/backCover";
@@ -203,8 +203,8 @@ function HarumadiEditor({ owner, initial, read, verified, refreshing, onRefresh,
         {titleNeedsConfirmation && <Confirmation><input type="checkbox" checked={confirmed} onChange={event => setConfirmed(event.target.checked)} />이름과 뒷표지 문구에 건강·정치적 견해 등 민감정보가 없음을 확인해요.</Confirmation>}
         {harumadi && <HarumadiDeleteSection disabled={busy || readOnly} onDelete={() => void remove()} />}
       </SettingsPanel> : mode === "selection" ? <>
-        <Eyebrow>마디 채우기</Eyebrow><h1>어떤 순간을 담을까요?</h1><p>원본 마디는 그대로 두고 이 하루마디에 담아요.<br />한 권에 최대 {HARUMADI_PDF_MAX_ENTRIES}개까지 담을 수 있어요.</p>
-        {entries.isPending ? <p role="status">마디를 불러오고 있어요.</p> : entries.isError ? <Quiet onClick={() => void entries.refetch()}>마디 다시 불러오기</Quiet> : !entries.data?.length ? <p>아직 남긴 마디가 없어요. 먼저 한 페이지를 써볼까요?</p> : <RecordList>{entries.data.map(entry => <RecordOption key={entry.id}><input type="checkbox" checked={selected.includes(entry.id)} disabled={busy || readOnly || (!selected.includes(entry.id) && selected.length >= HARUMADI_PDF_MAX_ENTRIES)} onChange={() => setSelected(current => current.includes(entry.id) ? current.filter(id => id !== entry.id) : [...current, entry.id])} /><span><strong>{entry.title || entry.placeName || "남긴 하루"}</strong><small>{entry.visitedAt.slice(0, 10)} · {entry.content.slice(0, 45) || "사진으로 남긴 순간"}</small></span></RecordOption>)}</RecordList>}
+        <Eyebrow>마디 채우기</Eyebrow><h1>어떤 순간을 담을까요?</h1><p>원본 마디는 그대로 두고 이 하루마디에 담아요.</p>
+        {entries.isPending ? <p role="status">마디를 불러오고 있어요.</p> : entries.isError ? <Quiet onClick={() => void entries.refetch()}>마디 다시 불러오기</Quiet> : !entries.data?.length ? <p>아직 남긴 마디가 없어요. 먼저 한 페이지를 써볼까요?</p> : <RecordList>{entries.data.map(entry => <RecordOption key={entry.id}><input type="checkbox" checked={selected.includes(entry.id)} disabled={busy || readOnly} onChange={() => setSelected(current => current.includes(entry.id) ? current.filter(id => id !== entry.id) : [...current, entry.id])} /><span><strong>{entry.title || entry.placeName || "남긴 하루"}</strong><small>{entry.visitedAt.slice(0, 10)} · {entry.content.slice(0, 45) || "사진으로 남긴 순간"}</small></span></RecordOption>)}</RecordList>}
       </> : mode === "pdf" ? <>
         <Eyebrow>별도 파일로 소장하기</Eyebrow><h1>PDF로 저장하기</h1><p>지금 담긴 마디로 PDF를 만들어요.<br />저장 후 하루마디를 바꿔도 이미 만든 PDF는 바뀌지 않아요.</p>
         {sensitivePolicy?.enabled && <Confirmation><input type="checkbox" checked={confirmed} onChange={event => setConfirmed(event.target.checked)} />이름과 뒷표지 문구에 민감정보가 없음을 확인해요.</Confirmation>}
@@ -212,7 +212,7 @@ function HarumadiEditor({ owner, initial, read, verified, refreshing, onRefresh,
       </> : harumadi && <>
         <HarumadiPageViewer book={harumadi} entries={chosen} onClose={closeToLibrary} closing={closing} />
         <ReaderTools aria-label="하루마디 채우기와 저장">
-          <Quiet type="button" disabled={busy || readOnly || chosen.length >= HARUMADI_PDF_MAX_ENTRIES} onClick={() => router.push(`/madi/new?from=library&harumadiId=${encodeURIComponent(harumadi.id)}`)}><PenLine size={15} />{isFirstMadi ? "첫 마디 남기기" : "마디 남기기"}</Quiet>
+          <Quiet type="button" disabled={busy || readOnly} onClick={() => router.push(`/madi/new?from=library&harumadiId=${encodeURIComponent(harumadi.id)}`)}><PenLine size={15} />{isFirstMadi ? "첫 마디 남기기" : "마디 남기기"}</Quiet>
           <Quiet type="button" onClick={selectRecords} disabled={busy || readOnly}><Plus size={15} />골라 담기</Quiet>
           <Quiet type="button" disabled={!chosen.length || readOnly || busy} onClick={() => { setConfirmed(false); setPdf(null); setMode("pdf"); }}><Download size={15} />PDF 저장</Quiet>
         </ReaderTools>
