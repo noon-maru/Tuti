@@ -7,7 +7,7 @@ import { harumadiContent } from "./fixtures/harumadiContent";
 test("공동작성 시작과 참여자 관리는 책별 메뉴에서 바로 열고 참여자에게 소유자 설정은 보이지 않는다", () => {
   const book = { ...harumadiContent().harumadi, togetherEnabled: true, role: "owner" as const };
   assert.deepEqual(harumadiActions(book), [{ label: "함께 채우기 시작", mode: "together" }, { label: "하루마디 설정", mode: "settings" }]);
-  assert.deepEqual(harumadiActions({ ...book, shared: true, role: "contributor" }), [{ label: "함께 채우기 · 참여자 관리", mode: "together" }]);
+  assert.deepEqual(harumadiActions({ ...book, shared: true, role: "contributor" }), [{ label: "함께 채우기 관리", mode: "together" }]);
   assert.deepEqual(harumadiActions({ ...book, togetherEnabled: false }), [{ label: "하루마디 설정", mode: "settings" }]);
   assert.equal(initialHarumadiMode(book, "together"), "together");
   assert.equal(initialHarumadiMode(book), "pages");
@@ -20,6 +20,8 @@ test("책장·책 읽기에 명시적인 공동작성 진입점을 두되 메뉴
   const flow = readFileSync("src/features/tuti/flows/HarumadiFlow.tsx", "utf8");
   const menu = readFileSync("src/features/tuti/components/ContextMenu.tsx", "utf8");
   assert.match(home, /harumadiPdf.togetherEnabled && <TogetherAction/);
+  assert.match(home, /label: action.label, singleLine: true/);
+  assert.match(menu, /\$singleLine \? "nowrap" : "pre-line"/);
   assert.match(home, /openBook\(harumadiPdf, event.currentTarget, "together"\)/);
   assert.match(flow, /harumadi\?\.togetherEnabled && mode === "pages" && <TogetherEntry/);
   assert.doesNotMatch(flow, /함께 채우기 · 참여자 관리/);

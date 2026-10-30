@@ -72,7 +72,7 @@ function LibraryHome({ ownerId }: { ownerId: string }) {
                 <HarumadiButton data-book-cover type="button" aria-label={`${harumadiPdf.title}, 마디 ${harumadiPdf.entryIds.length}개 열기`} onClick={event => openBook(harumadiPdf, event.currentTarget)}>
                 <HarumadiCover harumadiPdf={{ ...harumadiPdf, entryCount: harumadiPdf.entryIds.length, pageCount: 0, hasCover: harumadiPdf.coverStyle.endsWith("-image") && harumadiPdf.entryIds.length > 0 }} ownerId={ownerId} kind="harumadi" />
                 <HarumadiLabel><strong>{harumadiPdf.title}</strong><small>{harumadiPdf.entryIds.length ? `마디 ${harumadiPdf.entryIds.length}개` : "첫 마디를 기다려요"}{harumadiPdf.shared ? " · 함께 채우는 중" : ""}</small>{harumadiPdf.role === "contributor" && <small>{harumadiPdf.ownerName}님의 하루마디</small>}</HarumadiLabel>
-              </HarumadiButton><BookMenu label={`${harumadiPdf.title} 메뉴`} triggerContent={<MoreVertical size={22} />} items={harumadiActions(harumadiPdf).map(action => ({ label: action.label, onSelect: trigger => openBook(harumadiPdf, trigger, action.mode) }))} />
+              </HarumadiButton><BookMenu label={`${harumadiPdf.title} 메뉴`} triggerContent={<MoreVertical size={22} />} items={harumadiActions(harumadiPdf).map(action => ({ label: action.label, singleLine: true, onSelect: trigger => openBook(harumadiPdf, trigger, action.mode) }))} />
                 <TogetherSlot>{harumadiPdf.togetherEnabled && <TogetherAction type="button" aria-label={`${harumadiPdf.title} 함께 채우기`} onClick={event => openBook(harumadiPdf, event.currentTarget, "together")}><Users size={16} aria-hidden="true" />함께 채우기</TogetherAction>}</TogetherSlot>
               </HarumadiCard>)}</HarumadiGrid><ShelfEdge aria-hidden="true" />
             </ShelfRow>)}

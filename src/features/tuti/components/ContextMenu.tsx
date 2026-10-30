@@ -26,6 +26,7 @@ export type ContextMenuItem = {
   onSelect: (trigger: HTMLButtonElement) => void | Promise<void>;
   selected?: boolean;
   tone?: "default" | "danger";
+  singleLine?: boolean;
 };
 
 export type ContextMenuTextInput = {
@@ -201,6 +202,7 @@ export function ContextMenu({
                   type="button"
                   role="menuitem"
                   $tone={item.tone ?? "default"}
+                  $singleLine={item.singleLine ?? false}
                   onClick={() => {
                     setOpen(false);
                     if (triggerRef.current) {
@@ -329,6 +331,7 @@ const Menu = styled.div`
 
 const MenuItem = styled(BaseButton)<{
   $tone: "default" | "danger";
+  $singleLine: boolean;
 }>`
   min-height: ${MENU_ITEM_HEIGHT}px;
   display: flex;
@@ -345,7 +348,7 @@ const MenuItem = styled(BaseButton)<{
   font-size: var(--font-size-100);
   font-weight: 500;
   text-align: left;
-  white-space: pre-line;
+  white-space: ${({ $singleLine }) => $singleLine ? "nowrap" : "pre-line"};
 
   &:hover,
   &:focus-visible {
