@@ -5,6 +5,26 @@ import { lockHarumadi } from "./access";
 
 // Generation-specific row IDs ensure an old withdrawal never removes a later rejoin/re-add.
 export async function inspectTogetherReplay(record: { kind: TogetherReplayKind; target: string | null; subject: string; effectiveAt: string | null }, apply: boolean) {
+  if (record.kind === "harumadi_together_ended") {
+    let cursor: string | undefined, matched = 0, fulfilled = true;
+    do {
+      const books = await prisma.harumadi.findMany({ where: cursor ? { id: { gt: cursor } } : {}, select: { id: true, ownerId: true, collaborationStartedAt: true }, orderBy: { id: "asc" }, take: 250 });
+      for (const book of books) {
+        if (privacyReplayTarget("harumadi", book.id) !== record.target) continue;
+        matched++;
+        if (privacyReplaySubject(book.ownerId) !== record.subject) { fulfilled = false; continue; }
+        if (!book.collaborationStartedAt) continue;
+        const cutoff = record.effectiveAt ? new Date(record.effectiveAt) : null;
+        // 새 초대로 다시 시작한 공동작성은 과거 종료 요청으로 되돌리지 않는다.
+        if (cutoff && book.collaborationStartedAt > cutoff) continue;
+        if (apply && cutoff && book.collaborationStartedAt < cutoff) {
+          await prisma.harumadi.updateMany({ where: { id: book.id, ownerId: book.ownerId, collaborationStartedAt: { lt: cutoff } }, data: { collaborationStartedAt: null, revision: { increment: 1 }, accessRevision: { increment: 1 } } });
+        } else fulfilled = false;
+      }
+      cursor = books.length === 250 ? books.at(-1)!.id : undefined;
+    } while (cursor);
+    return { fulfilled, matched };
+  }
   if (record.kind === "harumadi_user_blocked" || record.kind === "harumadi_user_unblocked") {
     let after: string | undefined, actorId: string | undefined, targetId: string | undefined;
     do {

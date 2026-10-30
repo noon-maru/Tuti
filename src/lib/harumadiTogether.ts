@@ -17,7 +17,7 @@ export async function togetherRequest<T>(owner: string, bookId: string, area: st
 export const fetchTogether = (owner: string, id: string) => togetherRequest<HarumadiTogether>(owner, id, "together");
 export async function changeTogether<T = { added?: boolean }>(owner: string, id: string, action: string, target?: string, extras: Record<string, unknown> = {}) {
   try { return await togetherRequest<T>(owner, id, "together", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action, target, ...extras }) }); }
-  finally { if (action === "leave" || action === "remove-member" || action === "remove-entry") await harumadiReadCache.clearBook(owner, id).catch(() => {}); }
+  finally { if (action === "leave" || action === "remove-member" || action === "remove-entry" || action === "end-together") await harumadiReadCache.clearBook(owner, id).catch(() => {}); }
 }
 export type CommentsPage = { comments: (HarumadiComment & { replyCount: number })[]; nextCursor: string | null };
 export const fetchComments = (owner: string, id: string, parentId: string | null, cursor?: string) => togetherRequest<CommentsPage>(owner, id, `comments?${new URLSearchParams({ ...(parentId ? { parentId } : {}), ...(cursor ? { cursor } : {}) })}`);

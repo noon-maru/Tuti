@@ -20,7 +20,7 @@ export async function readTogether(userId: string, id: string): Promise<Harumadi
     const owner = await tx.user.findUniqueOrThrow({ where: { id: book.ownerId }, select: { displayName: true } });
     const members = await tx.harumadiMember.findMany({ where: { harumadiId: id, endedAt: null }, select: { userId: true, user: { select: { displayName: true } } }, orderBy: { joinedAt: "asc" } });
     const invites = book.ownerId === userId ? await tx.harumadiInvite.findMany({ where: { harumadiId: id, acceptedAt: null, revokedAt: null, expiresAt: { gt: new Date() } }, select: inviteSelect, orderBy: { createdAt: "desc" }, take: 50 }) : [];
-    return { owner: book.ownerId === userId, participants: [{ userId: book.ownerId, name: owner.displayName || "만든 사람", owner: true },
+    return { owner: book.ownerId === userId, shared: Boolean(book.collaborationStartedAt), participants: [{ userId: book.ownerId, name: owner.displayName || "만든 사람", owner: true },
       ...members.map(member => ({ userId: member.userId, name: member.user.displayName || "함께하는 사람", owner: false }))],
       invites: invites.map(invite => ({ id: invite.id, expiresAt: invite.expiresAt.toISOString(), acceptedAt: invite.acceptedAt?.toISOString() ?? null, revokedAt: invite.revokedAt?.toISOString() ?? null })) };
   }, { isolationLevel: "RepeatableRead" });
@@ -105,7 +105,7 @@ export async function leaveHarumadi(actorId: string, id: string, targetId: strin
   requireTogether();
   const member = await prisma.$transaction(async tx => {
     const book = await requireHarumadiAccess(tx, actorId, id, actorId !== targetId);
-    if (book.ownerId === targetId) throw new HarumadiError("만든 사람은 나가기 대신 하루마디 틀을 삭제할 수 있어요.");
+    if (book.ownerId === targetId) throw new HarumadiError("만든 사람은 ‘함께 채우기 종료’로 나만의 하루마디로 바꿀 수 있어요.");
     return tx.harumadiMember.findUnique({ where: { harumadiId_userId: { harumadiId: id, userId: targetId } } });
   });
   if (!member) throw new HarumadiError("참여자를 찾지 못했어요.", 404);

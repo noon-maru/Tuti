@@ -19,6 +19,7 @@ export function HarumadiTogetherPanel({ owner, bookId, onExit, entries = [] }: {
   };
   const action = async (type: string, target?: string) => {
     if (busy) return;
+    if (type === "end-together" && !window.confirm("함께 채우기를 종료하고 나만의 하루마디로 바꿀까요?\n\n모든 초대가 취소되고 참여자의 책장에서 이 하루마디가 사라져요. 다른 사람이 담은 마디와 공유 댓글은 이 책에서 빠져요. 각자의 원본 마디와 이미 저장한 PDF는 그대로 남아요.")) return;
     if (type === "remove-member" && !window.confirm("이 사람을 내보낼까요? 담은 마디와 댓글은 이 책에서 빠져요. 본인 계정의 원본과 이미 저장한 PDF는 남아요.")) return;
     if (type === "leave" && !window.confirm("함께 채우기에서 나갈까요? 내가 담은 마디와 댓글은 이 책에서 빠져요. 내 계정의 원본과 이미 저장한 PDF는 남아요.")) return;
     if (type === "remove-entry" && !window.confirm("이 책에서 마디를 뺄까요? 작성자의 원본과 이미 저장한 PDF는 남아요.")) return;
@@ -34,7 +35,14 @@ export function HarumadiTogetherPanel({ owner, bookId, onExit, entries = [] }: {
       } else {
         await changeTogether(owner, bookId, type, target);
         if (type === "revoke-invite" && target === pendingInvite?.id) setPendingInvite(null);
-        if (type === "leave") { client.removeQueries({ queryKey: ["harumadi-content", owner, bookId] }); void client.invalidateQueries({ queryKey: ["library-harumadis", owner] }); onExit(); return; }
+        if (type === "leave" || type === "end-together") {
+          setPendingInvite(null);
+          client.removeQueries({ queryKey: ["harumadi-content", owner, bookId] });
+          client.removeQueries({ queryKey: ["harumadi-comments", owner, bookId] });
+          await client.invalidateQueries({ queryKey: ["library-harumadis", owner] });
+          client.removeQueries({ queryKey: ["harumadi-together", owner, bookId] });
+          onExit(); return;
+        }
         await refresh();
         setNotice(type === "revoke-invite" ? "초대를 취소했어요." : type === "remove-entry" ? "이 책에서 마디를 뺐어요." : "함께 채우기를 종료했어요.");
       }
@@ -49,6 +57,7 @@ export function HarumadiTogetherPanel({ owner, bookId, onExit, entries = [] }: {
       {query.data.owner ? <><PrimaryButton disabled={busy} onClick={() => void action("invite")}><UserPlus size={18} />초대 링크 보내기</PrimaryButton><small>한 링크로 한 명이 참여해요. 여러 명에게는 각각 보내주세요. 7일 동안 유효하며 전달받은 사람도 수락할 수 있어요.</small>
         {query.data.invites.length > 0 && <List aria-label="수락 대기 중인 초대">{query.data.invites.map((invite, index) => <li key={invite.id}><span>수락 대기 중인 초대 {index + 1}<small>{new Date(invite.expiresAt).toLocaleDateString("ko-KR")} 만료</small></span><TextButton disabled={busy} onClick={() => void action("revoke-invite", invite.id)}>취소</TextButton></li>)}</List>}</>
         : <Danger disabled={busy} onClick={() => void action("leave")}>함께 채우기 나가기</Danger>}
+      {query.data.owner && query.data.shared && <EndSection><Danger disabled={busy} onClick={() => void action("end-together")}>함께 채우기 종료</Danger><small>초대와 참여를 모두 해제하고 나만의 하루마디로 돌아가요.<br />각자의 원본 마디와 저장한 PDF는 남아요.</small></EndSection>}
     </>}
     {notice && <p role="status">{notice}</p>}
     {query.data && <details><summary>담긴 마디·참여자 관리</summary><List>{query.data.participants.filter(person => person.userId !== owner).map(person => <li key={person.userId}><span>{person.name}</span><HarumadiSafetyActions owner={owner} bookId={bookId} targetId={person.userId} authorId={person.userId} kind="user" onBlocked={onExit} /></li>)}</List><List>{entries.map(entry => <li key={entry.id}><span>{entry.title || entry.placeName || "남긴 마디"}<small>{entry.authorId === owner ? "내가 남긴 마디" : "함께 채운 마디"}</small></span>{(query.data.owner || entry.authorId === owner) && <TextButton disabled={busy} onClick={() => void action("remove-entry", entry.id)}>책에서 빼기</TextButton>}{entry.authorId && <HarumadiSafetyActions owner={owner} bookId={bookId} targetId={entry.id} authorId={entry.authorId} kind="entry" onBlocked={onExit} />}</li>)}</List></details>}
@@ -60,3 +69,4 @@ const Disclosure = styled.div`font-size: 12px; line-height: 1.9; padding: 16px; 
 const List = styled.ul`margin: 0; padding: 0; list-style: none; li { display: flex; align-items: center; gap: 12px; padding: 14px 0; border-bottom: 1px solid var(--color-border); } li > span { flex: 1; overflow-wrap: anywhere; font-size: 15px; } small { display: block; margin-top: 5px; font-size: 12px; color: var(--color-text-muted); } button { min-height: 44px; flex-shrink: 0; }`;
 const Avatar = styled.div`display: grid; place-items: center; flex-shrink: 0; width: 36px; height: 36px; border-radius: 50%; font-size: 14px; background: var(--color-brand-100);`;
 const Danger = styled(BaseButton)`padding: 14px; margin-top: 12px; color: var(--color-danger, #b84242); border: 1px solid var(--color-border); border-radius: 12px; background: transparent;`;
+const EndSection = styled.div`display: grid; gap: 10px; margin-top: 12px; padding-top: 16px; border-top: 1px solid var(--color-border); > small { color: var(--color-text-muted); font-size: 12px; line-height: 1.8; }`;

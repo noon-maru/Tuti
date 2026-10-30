@@ -1,6 +1,6 @@
 export type HarumadiParticipant = { userId: string; name: string; owner: boolean };
 export type HarumadiInviteItem = { id: string; expiresAt: string; acceptedAt: string | null; revokedAt: string | null };
-export type HarumadiTogether = { owner: boolean; participants: HarumadiParticipant[]; invites: HarumadiInviteItem[] };
+export type HarumadiTogether = { owner: boolean; shared: boolean; participants: HarumadiParticipant[]; invites: HarumadiInviteItem[] };
 export type HarumadiComment = { id: string; authorId: string | null; authorName: string; parentId: string | null;
   body: string; revision: number; createdAt: string; updatedAt: string; deleted: boolean; canEdit: boolean; canDelete: boolean };
 export const HARUMADI_COMMENT_LIMIT = 1000;

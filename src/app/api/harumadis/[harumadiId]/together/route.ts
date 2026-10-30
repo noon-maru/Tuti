@@ -4,6 +4,7 @@ import { acceptInvite, inspectInvite, addSharedEntry, createInvite, leaveHarumad
 import { HarumadiError } from "@/server/harumadi/errors";
 import { consumeRateLimit } from "@/server/http/rateLimit";
 import { blockTogetherUser, reportSharedTarget } from "@/server/harumadi/moderation";
+import { endTogether } from "@/server/harumadi/endTogether";
 export const runtime = "nodejs";
 type Context = { params: Promise<{ harumadiId: string }> };
 export function GET(request: Request, context: Context) {
@@ -21,6 +22,7 @@ export function POST(request: Request, context: Context) {
     if (body.action === "inspect-invite" && typeof body.token === "string") return inspectInvite(userId, body.token);
     if (body.action === "leave" || (body.action === "remove-member" && target)) { await leaveHarumadi(userId, harumadiId, body.action === "leave" ? userId : target); return { ended: true }; }
     if (body.action === "revoke-invite" && target) { await revokeInvite(userId, harumadiId, target); return { revoked: true }; }
+    if (body.action === "end-together") return endTogether(userId, harumadiId);
     if (body.action === "add-entry" && target && body.sharingConfirmed === true) { await addSharedEntry(userId, harumadiId, target); return { added: true }; }
     if (body.action === "remove-entry" && target) { await removeSharedEntry(userId, harumadiId, target); return { removed: true }; }
     if (body.action === "report" && target) return reportSharedTarget(userId, harumadiId, body);

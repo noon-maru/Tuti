@@ -56,6 +56,14 @@ test("분리된 PostgreSQL에서 약관·권리 보호 마이그레이션의 실
     assert.equal(Math.floor(serverVersion / 10000), Number(expectedMajor), "요청한 PostgreSQL 주 버전으로 시험해야 한다.");
   }
   t.diagnostic(`isolated PostgreSQL server_version_num=${serverVersion}`);
+  await t.test("함께 채우기 전체 종료는 실제 ORM·행 잠금·롤백에서 원본과 다른 책을 보존한다", () => {
+    const result = spawnSync(process.execPath, ["--import", "tsx", "test/integration/harumadi-end-together-runtime.ts", socket], {
+      env: { ...env, DATABASE_URL: "postgresql://unused:unused@127.0.0.1:1/unused", PRIVACY_REPLAY_LEDGER_ENABLED: "false" },
+      encoding: "utf8", timeout: 20000,
+    });
+    assert.equal(result.status, 0, result.stderr || result.error?.message);
+    assert.match(result.stdout, /"concurrentInviteProtected":true/);
+  });
   await t.test("Prisma 실제 어댑터가 권리 알림·약관 공고 잠금의 반환값을 읽고 트랜잭션 잠금을 유지한다", async () => {
     const { PrismaClient } = await import("../../src/generated/prisma/client");
     const { PrismaPg } = await import("@prisma/adapter-pg");

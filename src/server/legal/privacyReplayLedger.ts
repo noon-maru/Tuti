@@ -5,7 +5,7 @@ import { isAbsolute, join } from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
 import { LEGACY_HARUMADI_DELETION_KIND, LEGACY_HARUMADI_TARGET_DOMAIN, INTERIM_HARUMADI_DELETION_KIND, INTERIM_HARUMADI_TARGET_DOMAIN } from "@/shared/harumadi/legacy";
 
-export const TOGETHER_REPLAY_KINDS = ["harumadi_member_left", "harumadi_invite_revoked", "harumadi_entry_removed", "harumadi_comment_deleted", "harumadi_user_blocked", "harumadi_user_unblocked"] as const;
+export const TOGETHER_REPLAY_KINDS = ["harumadi_member_left", "harumadi_invite_revoked", "harumadi_entry_removed", "harumadi_comment_deleted", "harumadi_user_blocked", "harumadi_user_unblocked", "harumadi_together_ended"] as const;
 export type TogetherReplayKind = typeof TOGETHER_REPLAY_KINDS[number];
 export const isTogetherReplayKind = (kind: string): kind is TogetherReplayKind => (TOGETHER_REPLAY_KINDS as readonly string[]).includes(kind);
 export type PrivacyReplayKind = "account_deleted" | "location_withdrawn" | "journal_deleted" | "journal_sensitive_withdrawn" | "harumadi_deleted" | "journal_unpublished" | TogetherReplayKind | typeof LEGACY_HARUMADI_DELETION_KIND | typeof INTERIM_HARUMADI_DELETION_KIND;
