@@ -155,7 +155,8 @@ test("전체 종료는 소유자의 공유 책에서만 확인 후 실행하고 
   const client = readFileSync("src/lib/harumadiTogether.ts", "utf8");
   const route = readFileSync("src/app/api/harumadis/[harumadiId]/together/route.ts", "utf8");
   assert.match(panel, /query.data.owner && query.data.shared && <EndSection/);
-  assert.match(panel, /type === "end-together" && !window.confirm/);
+  assert.match(panel, /requestConfirmation\("end-together"\)/);
+  assert.doesNotMatch(panel, /window.confirm/);
   assert.match(panel, /함께 채우기 종료/);
   assert.match(panel, /client.removeQueries\(\{ queryKey: \["harumadi-comments", owner, bookId\]/);
   assert.match(panel, /client.invalidateQueries\(\{ queryKey: \["library-harumadis", owner\]/);
