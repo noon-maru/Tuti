@@ -105,5 +105,7 @@ test("첫 마디에 사진이 있어도 속지 설정 없이 같은 마디만 �
   await createDefaultHarumadiForFirstMadi(tx, "photo-owner", { id: "photo-entry", image: "journal-images/test.webp" });
   assert.equal(writes[0].ownerId, "photo-owner");
   assert.equal("innerStyle" in writes[0], false);
-  assert.deepEqual(writes[0].entries, { create: { entryId: "photo-entry" } });
+  const link = (writes[0].entries as { create: { id: string; entryId: string } }).create;
+  assert.equal(link.entryId, "photo-entry");
+  assert.match(link.id, /^[a-f0-9-]{36}$/);
 });

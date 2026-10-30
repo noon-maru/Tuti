@@ -20,6 +20,7 @@ import { AdminSecurityTrafficPanel } from "@/features/admin/AdminSecurityTraffic
 import { AdminUserActivityPanel } from "@/features/admin/AdminUserActivityPanel";
 import { AdminUserJournalsPanel } from "@/features/admin/AdminUserJournalsPanel";
 import { AdminLifelogMetricsPanel } from "@/features/admin/AdminLifelogMetricsPanel";
+import { AdminJobHealthPanel } from "@/features/admin/AdminJobHealthPanel";
 import type { LifelogMetricsResponse } from "@/shared/api/lifelogMetrics";
 import { TutiWordmark } from "@/features/tuti/components/TutiWordmark";
 import { BaseButton, baseControlStyles } from "@/shared/ui/buttons";
@@ -1198,11 +1199,13 @@ function OverviewPanel({
     (overview?.pendingReports ?? 0) +
     (overview?.pendingPlaces ?? 0);
   const failedNotifications = notifications?.summary.failed24h ?? 0;
+  const jobFailures = overview?.jobs?.jobs.filter(job => job.state === "failed" || job.state === "overdue").length ?? 0;
+  const jobUnknown = !overview?.jobs?.fresh || overview.jobs.jobs.some(job => job.state === "unknown" || job.state === "disabled");
   const cards = [
-    ["전체 사용자", overview?.users ?? 0],
-    ["관리자", overview?.admins ?? 0],
-    ["노출 중인 장소", overview?.activePlaces ?? 0],
-    ["오늘 로그", overview?.logsToday ?? 0],
+    ["마디 보유 계정", overview?.lifelog?.writers ?? "—"],
+    ["현재 원본 마디", overview?.lifelog?.madis ?? "—"],
+    ["채워진 하루마디", overview?.lifelog?.filledBooks ?? "—"],
+    ["실제 공동작성 책", overview?.lifelog?.collaborativeBooks ?? "—"],
   ];
 
   return (
@@ -1211,7 +1214,11 @@ function OverviewPanel({
         <HeroCopy>
           <StatusKicker>오늘 운영 상태</StatusKicker>
           <h2>
-            {failedNotifications > 0
+            {jobFailures > 0
+              ? `예약 작업 ${jobFailures}개의 실패·지연을 확인해주세요.`
+              : jobUnknown
+                ? "예약 작업 관측 상태를 확인해주세요."
+                : failedNotifications > 0
               ? "알림 전달 상태를 먼저 확인해 주세요."
               : pendingTotal > 0
                 ? `처리할 일이 ${pendingTotal}건 남아 있어요.`
@@ -1231,6 +1238,8 @@ function OverviewPanel({
           </div>
         </HeroStatusSummary>
       </OperationsHero>
+
+      <AdminJobHealthPanel report={overview?.jobs} />
 
       <OverviewSplit>
         <OverviewSection>

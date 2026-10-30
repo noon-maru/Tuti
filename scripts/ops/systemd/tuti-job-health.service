@@ -1,0 +1,8 @@
+[Unit]
+Description=Tuti sanitized scheduled job observations
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/tuti-job-health-collect
+TimeoutStartSec=30
+UMask=0022

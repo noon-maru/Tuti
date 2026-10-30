@@ -1,0 +1,21 @@
+#!/bin/sh
+set -eu
+case "$#:${1:-}" in 0:) echo '조회 전용 상태 수집기·systemd 파일 설치. --apply로 설치하고 시작합니다. 앱 재시작·DB 변경·기존 작업 실행은 하지 않습니다.'; exit 0 ;; 1:--apply) ;; *) exit 1 ;; esac
+[ "$(id -u)" = 0 ] || { echo 'NAS 관리자 권한이 필요합니다.' >&2; exit 1; }
+cd /var/services/homes/Tutiadmin/source/Tuti
+docker exec tuti-ops-maintenance sh -c 'test -f /app/scripts/publish-job-health.mjs' || { echo '새 작업 이미지를 먼저 배포해주세요. 관측기를 시작하지 않았습니다.' >&2; exit 1; }
+backup=".ops-state/job-health-install/$(date +%Y%m%d-%H%M%S)-$$"
+[ ! -L .ops-state ] && [ ! -L .ops-state/job-health-install ] || exit 1
+install -d -m 0700 "$backup"
+for target in /usr/local/sbin/tuti-job-health-collect /etc/systemd/system/tuti-job-health.service /etc/systemd/system/tuti-job-health.timer; do
+  [ ! -L "$target" ] || exit 1
+  if [ -f "$target" ]; then cp -p "$target" "$backup/$(basename "$target")"; fi
+done
+install -o root -g root -m 0755 scripts/ops/tuti-job-health-collect /usr/local/sbin/tuti-job-health-collect
+install -o root -g root -m 0644 scripts/ops/systemd/tuti-job-health.service /etc/systemd/system/tuti-job-health.service
+install -o root -g root -m 0644 scripts/ops/systemd/tuti-job-health.timer /etc/systemd/system/tuti-job-health.timer
+systemctl daemon-reload
+systemctl start tuti-job-health.service
+systemctl enable tuti-job-health.timer
+systemctl start tuti-job-health.timer
+echo "상태 관측기 설치 완료. 이전 설치본: $backup. 앱·DB 재시작과 기존 예약 작업 실행은 하지 않았습니다."

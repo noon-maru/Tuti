@@ -1,0 +1,76 @@
+#!/bin/sh
+set -eu
+PATH=/usr/local/bin:/usr/bin:/bin:/usr/local/sbin:/usr/sbin:/sbin
+export PATH
+export LC_ALL=C LANG=C
+[ "$(id -u)" = 0 ] || { echo 'NAS 관리자 권한이 필요합니다.' >&2; exit 1; }
+[ "$#" = 0 ] || exit 1
+state_dir=/var/services/homes/Tutiadmin/source/Tuti/.ops-state/job-health
+[ ! -L /var/services/homes/Tutiadmin/source/Tuti/.ops-state ] && [ ! -L "$state_dir" ] || exit 1
+exec 8>/var/services/homes/Tutiadmin/source/Tuti/.ops-state/maintenance.lock
+/usr/bin/flock --shared --nonblock 8 || exit 0
+install -d -o root -g root -m 0755 "$state_dir"
+exec 9>"$state_dir/collect.lock"
+/usr/bin/flock --exclusive --nonblock 9 || exit 0
+[ ! -L "$state_dir/latest.json" ] || exit 1
+rows="$(mktemp "$state_dir/.rows.XXXXXX")"
+result="$(mktemp "$state_dir/.snapshot.XXXXXX")"
+trap 'rm -f "$rows" "$result"' EXIT INT TERM
+epoch="$(date +%s)"
+captured="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+property() { printf '%s\n' "$1" | sed -n "s/^$2=//p" | head -n 1; }
+timestamp() {
+  case "$1" in '' | n/a) return ;; esac
+  parsed="$(date -d "$1" +%s 2>/dev/null)" || return 0
+  case "$parsed" in *[!0-9]* | '') return ;; esac
+  [ "$parsed" -gt 0 ] || return 0
+  date -u -d "@$parsed" +%Y-%m-%dT%H:%M:%SZ
+}
+while IFS='|' read -r job unit allowance; do
+  [ -n "$job" ] || continue
+  service="$(systemctl show "$unit.service" -p LoadState -p ActiveState -p Result -p ExecMainStartTimestamp -p ExecMainExitTimestamp 2>/dev/null)" || service=''
+  timer="$(systemctl show "$unit.timer" -p LoadState -p ActiveState -p NextElapseUSecRealtime 2>/dev/null)" || timer=''
+  last_attempt="$(timestamp "$(property "$service" ExecMainStartTimestamp)")"
+  finished="$(timestamp "$(property "$service" ExecMainExitTimestamp)")"
+  next="$(timestamp "$(property "$timer" NextElapseUSecRealtime)")"
+  last_success=''
+  if [ -f "$state_dir/latest.json" ]; then
+    last_success="$(jq -er --arg id "$job" '.jobs[] | select(.id==$id) | .lastSuccessAt // empty' "$state_dir/latest.json" 2>/dev/null)" || last_success=''
+  fi
+  status=unknown
+  loaded="$(property "$service" LoadState)"
+  timer_loaded="$(property "$timer" LoadState)"
+  active="$(property "$service" ActiveState)"
+  outcome="$(property "$service" Result)"
+  if [ "$loaded" = loaded ] && [ "$timer_loaded" = loaded ]; then
+    if [ "$active" = activating ] || [ "$active" = active ]; then
+      status=running
+      if [ -n "$last_attempt" ]; then
+        started_epoch="$(date -d "$last_attempt" +%s)"
+        if [ "$started_epoch" -gt "$epoch" ]; then status=unknown
+        elif [ "$((epoch - started_epoch))" -gt "$allowance" ]; then status=overdue; fi
+      fi
+    elif [ -n "$outcome" ] && [ "$outcome" != success ]; then status=failed
+    elif [ "$(property "$timer" ActiveState)" != active ]; then status=disabled
+    elif [ "$outcome" = success ] && [ -n "$finished" ]; then
+      last_success="$finished"
+      done_epoch="$(date -d "$finished" +%s)"
+      if [ "$done_epoch" -gt "$epoch" ]; then status=unknown
+      elif [ "$((epoch - done_epoch))" -gt "$allowance" ]; then status=overdue
+      else status=healthy; fi
+    fi
+  fi
+  jq -cn --arg id "$job" --arg state "$status" --arg attempt "$last_attempt" --arg success "$last_success" --arg next "$next" \
+    '{id:$id,state:$state,lastAttemptAt:(if $attempt=="" then null else $attempt end),lastSuccessAt:(if $success=="" then null else $success end),nextAt:(if $next=="" then null else $next end)}' >> "$rows"
+done <<'JOBS'
+rights|tuti-journal-rights|240
+privacy|tuti-privacy-maintenance|600
+ledger|tuti-privacy-ledger-backup|600
+retention|tuti-backup-retention|7200
+core-backup|tuti-core-backup|93600
+JOBS
+jq -s --arg captured "$captured" '{version:1,capturedAt:$captured,jobs:.}' "$rows" > "$result"
+chmod 0644 "$result"
+mv -f "$result" "$state_dir/latest.json"
+docker exec -i tuti-ops-maintenance node scripts/publish-job-health.mjs < "$state_dir/latest.json"
+echo '{"scope":"sanitized-job-health","published":true,"jobs":5}'

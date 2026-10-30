@@ -1,5 +1,7 @@
 import { authenticateAdmin } from "@/server/admin/auth";
 import { prisma } from "@/server/db/prisma";
+import { readJobHealth } from "@/server/admin/jobHealth";
+import { readLifelogStock } from "@/server/admin/lifelogStock";
 import {
   createPreflightResponse,
   isRequestOriginAllowed,
@@ -99,6 +101,8 @@ export async function GET(request: Request) {
   ]);
   const response: AdminOverviewResponse = {
     overview: {
+      jobs: await readJobHealth(),
+      lifelog: await readLifelogStock(),
       users,
       admins,
       activePlaces,

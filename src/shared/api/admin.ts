@@ -1,5 +1,7 @@
 import type { StateFeature, TutiPlace } from "@/lib/recommendations";
 import type { IntakeAnswers, PreferredRegion, UserLocation } from "@/shared/tuti/types";
+import type { JobHealthReport } from "./jobHealth";
+import type { LifelogStock } from "./lifelogMetrics";
 
 type LogLevel = "info" | "warning" | "error";
 type PlaceReviewStatus = "pending" | "approved" | "rejected";
@@ -10,6 +12,8 @@ type InquiryCategory = "account" | "service" | "place" | "privacy" | "other";
 type InquiryStatus = "pending" | "reviewing" | "answered" | "closed";
 
 export type AdminOverview = {
+  jobs?: JobHealthReport;
+  lifelog?: LifelogStock;
   users: number;
   admins: number;
   activePlaces: number;
