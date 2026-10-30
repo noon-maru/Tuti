@@ -1,4 +1,5 @@
 "use client";
+import { confirmAction } from "@/lib/feedback";
 
 import { useRouter } from "next/navigation";
 import { useLocationAccess } from "@/features/tuti/location/LocationAccessProvider";
@@ -44,9 +45,7 @@ export function LocationSettingsFlow() {
       }}
       onWithdraw={async () => {
         if (
-          !window.confirm(
-            "위치정보 이용 동의를 철회할까요? 이후에는 현재 위치를 요청하지 않아요.",
-          )
+          !(await confirmAction("위치정보 이용 동의를 철회할까요? 이후에는 현재 위치를 요청하지 않아요.", {"title":"동의 철회","confirmLabel":"철회하기","tone":"danger"}))
         ) {
           return null;
         }

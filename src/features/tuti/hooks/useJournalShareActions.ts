@@ -1,4 +1,5 @@
 "use client";
+import { confirmAction, showErrorToast, showToast } from "@/lib/feedback";
 
 import { useRouter } from "next/navigation";
 import { useCallback } from "react";
@@ -36,9 +37,7 @@ export function useJournalShareActions({
 
     if (!session?.account) {
       if (
-        window.confirm(
-          "인터넷에 공개한 마디를 계속 관리하려면 계정 연결이 필요해요. 로그인 화면으로 이동할까요?",
-        )
+        (await confirmAction("인터넷에 공개한 마디를 계속 관리하려면 계정 연결이 필요해요. 로그인 화면으로 이동할까요?", {"title":"로그인이 필요해요","confirmLabel":"로그인하기"}))
       ) {
         router.push("/login");
       }
@@ -59,9 +58,7 @@ export function useJournalShareActions({
     if (
       !entry ||
       entry.publicationStatus === "private" ||
-      !window.confirm(
-        "인터넷 공개를 중지하면 기존 링크는 다시 사용할 수 없어요. 계속할까요?",
-      )
+      !(await confirmAction("인터넷 공개를 중지하면 기존 링크는 다시 사용할 수 없어요. 계속할까요?", {"title":"인터넷 공개 중지","confirmLabel":"공개 중지","tone":"danger"}))
     ) {
       return;
     }
@@ -69,11 +66,9 @@ export function useJournalShareActions({
     try {
       await changeEntryPublication(entry.id, false);
     } catch (error) {
-      window.alert(
-        error instanceof Error
+      showErrorToast(error instanceof Error
           ? error.message
-          : "마디 공개를 중지하지 못했어요.",
-      );
+          : "마디 공개를 중지하지 못했어요.");
     }
   }, [changeEntryPublication, entry]);
 
@@ -82,9 +77,9 @@ export function useJournalShareActions({
 
     try {
       await copyJournalPublicUrl(entry.publication.publicId);
-      window.alert("공유 링크를 복사했어요.");
+      showToast("공유 링크를 복사했어요.");
     } catch {
-      window.alert("공유 링크를 복사하지 못했어요.");
+      showErrorToast("공유 링크를 복사하지 못했어요.");
     }
   }, [entry]);
 
@@ -97,10 +92,10 @@ export function useJournalShareActions({
         entry,
       );
       if (result === "copied") {
-        window.alert("공유를 지원하지 않아 링크를 복사했어요.");
+        showToast("공유를 지원하지 않아 링크를 복사했어요.");
       }
     } catch {
-      window.alert("공유 화면을 열지 못했어요.");
+      showErrorToast("공유 화면을 열지 못했어요.");
     }
   }, [entry]);
 

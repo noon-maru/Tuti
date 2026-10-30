@@ -1,4 +1,5 @@
 "use client";
+import { confirmAction, showErrorToast } from "@/lib/feedback";
 
 import { css } from "@emotion/react";
 import styled from "@emotion/styled";
@@ -76,7 +77,7 @@ export function JournalScreen({
 
   const deleteEntry = async (entryId: string) => {
     const target = entries.find((entry) => entry.id === entryId);
-    if (!window.confirm(target?.sensitiveContent ? "이 마디와 사진, 이 마디를 포함한 서버 하루마디를 함께 삭제할까요? 민감정보 처리 동의도 철회돼요." : "이 마디를 삭제할까요?")) return;
+    if (!(await confirmAction(target?.sensitiveContent ? "이 마디와 사진, 이 마디를 포함한 서버 하루마디를 함께 삭제할까요? 민감정보 처리 동의도 철회돼요." : "이 마디를 삭제할까요?", {"title":"삭제 전 확인","confirmLabel":"삭제하기","tone":"danger"}))) return;
 
     const remainingEntries = entries.filter(
       (entry) => entry.id !== entryId,
@@ -93,11 +94,9 @@ export function JournalScreen({
       await removeEntry(entryId);
       setActiveJournalEntry(nextEntry?.id);
     } catch (error) {
-      window.alert(
-        error instanceof Error
+      showErrorToast(error instanceof Error
           ? error.message
-          : "마디를 삭제하지 못했어요.",
-      );
+          : "마디를 삭제하지 못했어요.");
     }
   };
 

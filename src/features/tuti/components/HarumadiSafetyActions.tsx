@@ -1,4 +1,5 @@
 "use client";
+import { confirmAction } from "@/lib/feedback";
 import { useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import styled from "@emotion/styled";
@@ -13,7 +14,7 @@ export function HarumadiSafetyActions({ owner, bookId, targetId, kind, authorId,
   if (owner === authorId) return null;
   const perform = async (block: boolean) => {
     if (saving.current) return;
-    if (block && !window.confirm("차단하면 이 사람과 함께 채우던 모든 책에서 함께 채우기가 종료돼요. 내가 만든 책에서는 상대가 나가고, 다른 책에서는 내가 나가요. 원본 마디와 이미 저장한 PDF는 남아요. 차단할까요?")) return;
+    if (block && !(await confirmAction("차단하면 이 사람과 함께 채우던 모든 책에서 함께 채우기가 종료돼요. 내가 만든 책에서는 상대가 나가고, 다른 책에서는 내가 나가요. 원본 마디와 이미 저장한 PDF는 남아요. 차단할까요?", {"title":"사용자 차단","confirmLabel":"차단하기","tone":"danger"}))) return;
     saving.current = true; setBusy(true); setMessage("");
     try {
       await changeTogether(owner, bookId, block ? "block-user" : "report", block ? authorId : targetId, { kind, reason, detail });

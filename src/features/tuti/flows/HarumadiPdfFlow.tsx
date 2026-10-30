@@ -1,4 +1,5 @@
 "use client";
+import { confirmAction } from "@/lib/feedback";
 
 import styled from "@emotion/styled";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -984,9 +985,7 @@ export function StoredHarumadiPdfViewer({
   async function remove() {
     if (
       busy ||
-      !window.confirm(
-        "이 하루마디를 삭제할까요? 삭제하면 다시 복구할 수 없어요.",
-      )
+      !(await confirmAction("이 하루마디를 삭제할까요? 삭제하면 다시 복구할 수 없어요.", {"title":"삭제 전 확인","confirmLabel":"삭제하기","tone":"danger"}))
     )
       return;
     setBusy("delete");

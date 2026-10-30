@@ -1,4 +1,5 @@
 "use client";
+import { confirmAction, showErrorToast, showToast } from "@/lib/feedback";
 
 import { useRouter, useSearchParams } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
@@ -36,7 +37,7 @@ export function JournalDetailFlow() {
     changeEntryPublication,
   });
   const deleteEntry = async () => {
-    if (!entry || !window.confirm(entry.sensitiveContent ? "이 마디와 사진, 이 마디를 포함한 서버 하루마디를 함께 삭제할까요? 민감정보 처리 동의도 철회돼요." : "이 마디를 삭제할까요?")) return;
+    if (!entry || !(await confirmAction(entry.sensitiveContent ? "이 마디와 사진, 이 마디를 포함한 서버 하루마디를 함께 삭제할까요? 민감정보 처리 동의도 철회돼요." : "이 마디를 삭제할까요?", {"title":"삭제 전 확인","confirmLabel":"삭제하기","tone":"danger"}))) return;
 
     const deletedIndex = entries.findIndex(
       (candidate) => candidate.id === entry.id,
@@ -54,11 +55,9 @@ export function JournalDetailFlow() {
       setActiveJournalEntry(nextEntry?.id);
       router.replace("/madi");
     } catch (error) {
-      window.alert(
-        error instanceof Error
+      showErrorToast(error instanceof Error
           ? error.message
-          : "마디를 삭제하지 못했어요.",
-      );
+          : "마디를 삭제하지 못했어요.");
     }
   };
 
@@ -89,13 +88,13 @@ export function JournalDetailFlow() {
       onCopyPublicLink={shareActions.copyPublicLink}
       onDelete={deleteEntry}
       onWithdrawSensitive={async () => {
-        if (!window.confirm("민감정보 처리 동의를 철회할까요? 이 마디와 사진, 이 마디를 포함한 서버 하루마디를 함께 삭제해요. 이미 내려받은 사본은 직접 정리해주세요.")) return;
+        if (!(await confirmAction("민감정보 처리 동의를 철회할까요? 이 마디와 사진, 이 마디를 포함한 서버 하루마디를 함께 삭제해요. 이미 내려받은 사본은 직접 정리해주세요.", {"title":"삭제 전 확인","confirmLabel":"삭제하기","tone":"danger"}))) return;
         try {
           const result = await withdrawJournalSensitiveConsent(entry.id);
-          if (result.pending) window.alert("철회는 접수했어요. 마디와 하루마디는 더 이상 조회할 수 없으며, 파일 정리를 재시도하고 있어요.");
+          if (result.pending) showToast("철회는 접수했어요. 마디와 하루마디는 더 이상 조회할 수 없으며, 파일 정리를 재시도하고 있어요.");
           router.replace("/madi");
         } catch (error) {
-          window.alert(error instanceof Error ? error.message : "철회 요청을 처리하지 못했어요.");
+          showErrorToast(error instanceof Error ? error.message : "철회 요청을 처리하지 못했어요.");
         } finally {
           await queryClient.invalidateQueries({ queryKey: ["journal-entries"] });
           await queryClient.invalidateQueries({ queryKey: ["harumadi-pdfs"] });

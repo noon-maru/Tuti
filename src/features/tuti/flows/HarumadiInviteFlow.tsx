@@ -1,4 +1,5 @@
 "use client";
+import { confirmAction } from "@/lib/feedback";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -47,7 +48,7 @@ export function HarumadiInviteFlow() {
     finally { setBusy(false); }
   };
   const switchAccount = async () => {
-    if (busy || !window.confirm("현재 계정에서 로그아웃하고 다른 계정으로 참여할까요? 서버에 저장한 마디는 삭제되지 않아요.")) return;
+    if (busy || !(await confirmAction("현재 계정에서 로그아웃하고 다른 계정으로 참여할까요? 서버에 저장한 마디는 삭제되지 않아요.", {"title":"계정을 변경할까요?","confirmLabel":"계정 변경"}))) return;
     setBusy(true); setError("");
     try { await setHarumadiInviteResume(true); await logoutAccount(); client.clear(); router.replace("/login"); }
     catch (cause) { setError(cause instanceof Error ? cause.message : "계정을 변경하지 못했어요."); }

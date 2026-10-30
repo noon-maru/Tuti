@@ -1,4 +1,5 @@
 "use client";
+import { confirmAction } from "@/lib/feedback";
 
 import styled from "@emotion/styled";
 import { useState, type FormEvent } from "react";
@@ -193,9 +194,7 @@ export function AccountScreen({
 
     const providerLabel = getIdentityLabel(identity);
     if (
-      !window.confirm(
-        `${providerLabel} 연결을 해제할까요?\n\n현재 Tuti 계정의 마디와 데이터는 유지되지만, 분리된 로그인 수단에는 데이터가 남지 않으며 이 수단으로는 현재 계정에 다시 들어올 수 없어요.`,
-      )
+      !(await confirmAction(`${providerLabel} 연결을 해제할까요?\n\n현재 Tuti 계정의 마디와 데이터는 유지되지만, 분리된 로그인 수단에는 데이터가 남지 않으며 이 수단으로는 현재 계정에 다시 들어올 수 없어요.`, {"title":"로그인 연결 해제","confirmLabel":"연결 해제","tone":"danger"}))
     ) {
       return;
     }
@@ -221,9 +220,7 @@ export function AccountScreen({
 
     const targetLabel = providers.length > 0 ? "계정" : "현재 이용 데이터";
     if (
-      !window.confirm(
-        `${targetLabel}과 마디, 사진, 추천 이력을 모두 삭제할까요? 삭제한 데이터는 복구할 수 없어요.`,
-      )
+      !(await confirmAction(`${targetLabel}과 마디, 사진, 추천 이력을 모두 삭제할까요? 삭제한 데이터는 복구할 수 없어요.`, {"title":"삭제 전 확인","confirmLabel":"삭제하기","tone":"danger"}))
     ) {
       return;
     }

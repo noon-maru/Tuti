@@ -1,4 +1,5 @@
 "use client";
+import { confirmAction } from "@/lib/feedback";
 import { useRef, useState } from "react";
 import { useInfiniteQuery, useQueryClient } from "@tanstack/react-query";
 import styled from "@emotion/styled";
@@ -22,7 +23,7 @@ function Thread({ owner, bookId, parentId, onExit, canCompose = true }: Props & 
   if (query.isPending) return <p role="status">이야기를 불러오고 있어요.</p>;
   if (query.isError) return <p role="alert">{query.error.message}<TextButton onClick={() => void query.refetch()}>다시 불러오기</TextButton></p>;
   const remove = async (comment: HarumadiComment) => {
-    if (deleting || !window.confirm("댓글을 삭제할까요? 다른 사람이 쓴 답글은 남아요.")) return;
+    if (deleting || !(await confirmAction("댓글을 삭제할까요? 다른 사람이 쓴 답글은 남아요.", {"title":"삭제 전 확인","confirmLabel":"삭제하기","tone":"danger"}))) return;
     setDeleting(comment.id); setMessage("");
     try { await togetherRequest(owner, bookId, `comments?commentId=${encodeURIComponent(comment.id)}`, { method: "DELETE" }); await refresh(); }
     catch (cause) { setMessage(cause instanceof Error ? cause.message : "댓글을 삭제하지 못했어요."); }

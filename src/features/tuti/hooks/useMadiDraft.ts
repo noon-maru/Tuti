@@ -1,4 +1,5 @@
 "use client";
+import { confirmAction } from "@/lib/feedback";
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { madiDraftStorage, type MadiDraft } from "@/lib/madiDraft";
@@ -64,9 +65,9 @@ export function useMadiDraft({ ownerId, scope, source, value, restore, enabled =
     if (ownerId) await madiDraftStorage.remove(ownerId, scope).catch(() => {});
   }, [ownerId, scope]);
   const leave = async (navigate: () => void) => {
-    if (dirty && !stopped.current && !window.confirm(privateOnly ? "작성 중인 내용은 임시 저장되지 않아요. 나갈까요?" : "작성 중인 내용을 초안으로 남겨두고 나갈까요?")) return;
+    if (dirty && !stopped.current && !(await confirmAction(privateOnly ? "작성 중인 내용은 임시 저장되지 않아요. 나갈까요?" : "작성 중인 내용을 초안으로 남겨두고 나갈까요?", {"title":"작성 화면을 나갈까요?","confirmLabel":"나가기"}))) return;
     try { await latest.current?.(); }
-    catch { if (!window.confirm("초안을 저장하지 못했어요. 그래도 나갈까요?")) return; }
+    catch { if (!(await confirmAction("초안을 저장하지 못했어요. 그래도 나갈까요?", {"title":"작성 화면을 나갈까요?","confirmLabel":"나가기"}))) return; }
     if (scope === "new" && !stopped.current) trackLifecycle("compose_exited");
     navigate();
   };

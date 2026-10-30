@@ -1,4 +1,5 @@
 "use client";
+import { confirmAction, showErrorToast } from "@/lib/feedback";
 
 import styled from "@emotion/styled";
 import { useEffect, useState } from "react";
@@ -146,12 +147,12 @@ export function PublicJournalScreen({
             <ReportButton
               type="button"
               disabled={blocking}
-              onClick={() => {
-                if (window.confirm("이 작성자의 공개 마디를 더 이상 보지 않을까요?")) {
+              onClick={async () => {
+                if ((await confirmAction("이 작성자의 공개 마디를 더 이상 보지 않을까요?", {"title":"작성자 차단","confirmLabel":"차단하기","tone":"danger"}))) {
                   setBlocking(true);
                   void onBlockAuthor().catch(() => {
                     setBlocking(false);
-                    window.alert("작성자를 차단하지 못했어요. 잠시 후 다시 시도해주세요.");
+                    showErrorToast("작성자를 차단하지 못했어요. 잠시 후 다시 시도해주세요.");
                   });
                 }
               }}

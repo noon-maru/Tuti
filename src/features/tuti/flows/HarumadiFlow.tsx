@@ -1,4 +1,5 @@
 "use client";
+import { confirmAction } from "@/lib/feedback";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -150,7 +151,7 @@ function HarumadiEditor({ owner, initial, read, verified, refreshing, onRefresh,
     finally { setBusy(false); }
   }
   async function remove() {
-    if (!harumadi || readOnly || busy || !window.confirm("하루마디 틀을 삭제할까요? 이 작업은 되돌릴 수 없어요.\n담았던 원본 마디와 이미 저장한 PDF는 남아요.")) return;
+    if (!harumadi || readOnly || busy || !(await confirmAction("하루마디 틀을 삭제할까요? 이 작업은 되돌릴 수 없어요.\n담았던 원본 마디와 이미 저장한 PDF는 남아요.", {"title":"삭제 전 확인","confirmLabel":"삭제하기","tone":"danger"}))) return;
     setBusy(true); setError("");
     try { await deleteHarumadi(owner, harumadi.id); refreshLibrary(); if (onClose) onClose(); else router.replace("/"); }
     catch (cause) { setBusy(false); setError(cause instanceof Error ? cause.message : "삭제하지 못했어요."); }
