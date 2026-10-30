@@ -366,6 +366,7 @@ export async function createHarumadiPdf(
     body: pdf.slice().buffer,
   });
   if (!response.ok) {
+    (await import("./lifecycle")).trackLifecycle("pdf_failed", { origin: "request_failed" });
     throw new Error(
       await readApiError(response, "하루마디를 완성하지 못했어요."),
     );

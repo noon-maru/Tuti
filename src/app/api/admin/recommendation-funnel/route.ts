@@ -14,7 +14,7 @@ import type {
 export const runtime = "nodejs";
 
 const STAGES = [
-  ["recommendation_shown", "추천 노출"],
+  ["recommendation_shown", "추천 실행 관측"],
   ["place_selected", "장소 선택"],
   ["departure_peek_opened", "출발 준비 확인"],
   ["departure_plan_expanded", "출발 정보 펼침"],
@@ -63,14 +63,15 @@ export async function GET(request: Request) {
   ]);
 
   const runCount = runs.length;
+  const runIds = new Set(runs.map(run => run.id));
+  const scopedActions = actions.filter(action => runIds.has(action.journeyId));
   const actionJourneys = new Map<string, Set<string>>();
-  for (const action of actions) {
+  for (const action of scopedActions) {
     const journeys = actionJourneys.get(action.action) ?? new Set<string>();
     journeys.add(action.journeyId);
     actionJourneys.set(action.action, journeys);
   }
 
-  let previousCount = runCount;
   const stages: AdminRecommendationFunnelStage[] = STAGES.map(
     ([action, label], index) => {
       const journeys =
@@ -80,9 +81,8 @@ export async function GET(request: Request) {
         label,
         journeys,
         rateFromRuns: percentage(journeys, runCount),
-        rateFromPrevious: percentage(journeys, previousCount),
+        rateFromPrevious: null,
       };
-      previousCount = journeys;
       return stage;
     },
   );
@@ -97,7 +97,7 @@ export async function GET(request: Request) {
     }
   >();
 
-  for (const action of actions) {
+  for (const action of scopedActions) {
     if (
       !action.placeId ||
       (action.action !== "navigation_started" &&
@@ -161,5 +161,5 @@ function normalizePeriodDays(value: string | null) {
 }
 
 function percentage(value: number, total: number) {
-  return total > 0 ? Math.round((value / total) * 1000) / 10 : 0;
+  return total > 0 ? Math.round((value / total) * 1000) / 10 : null;
 }

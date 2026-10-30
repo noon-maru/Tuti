@@ -852,7 +852,7 @@ export function AdminScreen({
               const cursor = userActivity?.nextCursor;
               if (!cursor) return;
               void fetchAdminJson<AdminUserActivityResponse>(`user-activity?days=${userActivityDays}&cursor=${encodeURIComponent(cursor)}`).then(response => {
-                setUserActivity(current => current ? { ...response, users: [...current.users, ...response.users.filter(row => !current.users.some(prior => prior.userId === row.userId))] } : response);
+                setUserActivity(current => current?.periodDays === response.periodDays ? { ...response, users: [...current.users, ...response.users.filter(row => !current.users.some(prior => prior.userId === row.userId))] } : current);
               }).catch(cause => setError(toErrorMessage(cause)));
             }}
             onToggleExcluded={(user: AdminUserActivityItem) => {
@@ -1223,11 +1223,11 @@ function OverviewPanel({
           <h2>
             {jobFailures > 0
               ? `예약 작업 ${jobFailures}개의 실패·지연을 확인해주세요.`
+              : failedNotifications > 0
+              ? "알림 전달 상태를 먼저 확인해 주세요."
               : jobUnknown
                 ? "예약 작업 관측 상태를 확인해주세요."
-                : failedNotifications > 0
-              ? "알림 전달 상태를 먼저 확인해 주세요."
-              : pendingTotal > 0
+                : pendingTotal > 0
                 ? `처리할 일이 ${pendingTotal}건 남아 있어요.`
                 : "지금은 조용히 운영되고 있어요."}
           </h2>
@@ -1357,7 +1357,7 @@ function RecommendationFunnelPanel({
   return (
     <FunnelContent>
       <FunnelHeader>
-        <h2>추천 이후 행동 흐름</h2>
+        <h2>작은 여행 행동 도달 현황</h2>
         <PeriodSelect
           value={days}
           onChange={(event) => onDaysChange(Number(event.target.value))}
@@ -1368,6 +1368,7 @@ function RecommendationFunnelPanel({
           <option value={90}>최근 90일</option>
         </PeriodSelect>
       </FunnelHeader>
+      <FunnelEmpty>각 항목은 같은 기간 추천 실행에 연결된 독립적인 행동 도달입니다. 순차 전환율이나 실제 방문 인증이 아닙니다. 추천 실행 관측과 사용자 화면 노출도 구분합니다.</FunnelEmpty>
 
       <FunnelSummary>
         <FunnelSummaryCard>
@@ -1377,7 +1378,7 @@ function RecommendationFunnelPanel({
         </FunnelSummaryCard>
         <FunnelSummaryCard>
           <span>위치 기반 추천</span>
-          <strong>{formatRate(funnel.locationUsageRate)}</strong>
+          <strong>{funnel.locationUsageRate == null ? "집계 불가" : formatRate(funnel.locationUsageRate)}</strong>
           <small>전체 추천 중</small>
         </FunnelSummaryCard>
         <FunnelSummaryCard>
@@ -1391,11 +1392,10 @@ function RecommendationFunnelPanel({
         <Table>
           <thead>
             <tr>
-              <th scope="col">단계</th>
+              <th scope="col">항목</th>
               <th scope="col">행동</th>
               <th scope="col">여정 수</th>
               <th scope="col">전체 대비</th>
-              <th scope="col">이전 단계 대비</th>
             </tr>
           </thead>
           <tbody>
@@ -1408,10 +1408,7 @@ function RecommendationFunnelPanel({
                 <td data-label="여정 수">
                   {stage.journeys.toLocaleString("ko-KR")}
                 </td>
-                <td data-label="전체 대비">{formatRate(stage.rateFromRuns)}</td>
-                <td data-label="이전 단계 대비">
-                  {index > 0 ? formatRate(stage.rateFromPrevious) : "기준 단계"}
-                </td>
+                <td data-label="전체 대비">{stage.rateFromRuns == null ? "집계 불가" : formatRate(stage.rateFromRuns)}</td>
               </tr>
             ))}
           </tbody>
@@ -1420,7 +1417,7 @@ function RecommendationFunnelPanel({
 
       <FunnelBottomGrid>
         <FunnelPanelCard>
-          <h3>출발로 이어진 장소</h3>
+          <h3>길찾기를 연 장소</h3>
           {funnel.topPlaces.length === 0 ? (
             <FunnelEmpty>아직 길찾기 기록이 없습니다.</FunnelEmpty>
           ) : (

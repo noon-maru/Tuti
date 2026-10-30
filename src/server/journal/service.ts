@@ -8,7 +8,7 @@ import {
   writeSystemLogSafely,
 } from "@/server/admin/log";
 import { prisma } from "@/server/db/prisma";
-import { sensitiveJournalData, sensitiveJournalPolicyEnabled, SensitiveJournalPolicyError } from "@/server/journal/sensitivePolicy";
+import { assertSensitiveJournalReadable, sensitiveJournalData, sensitiveJournalPolicyEnabled, SensitiveJournalPolicyError } from "@/server/journal/sensitivePolicy";
 import {
   deleteStoredJournalImage,
   prepareJournalImage,
@@ -83,6 +83,7 @@ export async function createJournalEntry(
           if (receipt.requestHash !== requestHash) throw new HarumadiError("저장 요청 내용이 바뀌었어요. 새 작성으로 다시 시도해주세요.", 409);
           const prior = receipt.entityId ? await tx.journalEntry.findFirst({ where: { id: receipt.entityId, ownerId }, select: journalEntrySelect }) : null;
           if (!prior) throw new HarumadiError("이미 처리되거나 삭제된 저장 요청이에요. 새로 작성해주세요.", 409);
+          assertSensitiveJournalReadable(prior);
           return prior;
         }
       }
@@ -115,7 +116,10 @@ export async function createJournalEntry(
       return created;
     });
 
-    if (entry.id !== entryId) await cleanupUploadedImage(preparedImage.uploadedKey);
+    if (entry.id !== entryId) {
+      await cleanupUploadedImage(preparedImage.uploadedKey);
+      return serializeJournalEntry(entry);
+    }
 
     await writeSystemLogSafely({
       category: "journal",

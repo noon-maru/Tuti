@@ -6,7 +6,7 @@ import { lifelogStockSql } from "../../src/server/admin/lifelogStock";
 import { lifelogUsersSql } from "../../src/server/admin/lifelogUsers";
 import type { Prisma } from "../../src/generated/prisma/client";
 
-export function verifyLifelogMetrics(query: (sql: string) => string, rejected: (sql: string, match: RegExp) => void, socket: string) {
+export async function verifyLifelogMetrics(query: (sql: string) => string, rejected: (sql: string, match: RegExp) => void, socket: string) {
   assert.ok(socket.includes("tuti-legal-postgres-") && socket.endsWith("/socket"));
   query("CREATE SCHEMA lifelog_fixture");
   const run = (sql: string) => query(`SET search_path=lifelog_fixture,public; ${sql}`).replace(/^SET\n/, "");
@@ -63,6 +63,23 @@ export function verifyLifelogMetrics(query: (sql: string) => string, rejected: (
   const nextPage = JSON.parse(run(render(lifelogUsersSql(period, page.nextCursor))));
   assert.equal(nextPage.summary.observedUsers, page.summary.observedUsers);
   assert.ok(nextPage.users.every((row: { userId: string }) => !page.users.some((old: { userId: string }) => old.userId === row.userId)));
+  const { PrismaClient } = await import("../../src/generated/prisma/client");
+  const { PrismaPg } = await import("@prisma/adapter-pg");
+  const { recordLifecycle } = await import("../../src/server/analytics/lifecycle");
+  const client = new PrismaClient({ adapter: new PrismaPg({ host: socket, port: 15479, user: "tuti_legal_test", database: "postgres", max: 2, options: "-c search_path=lifelog_fixture,public" }, { schema: "lifelog_fixture" }) });
+  try {
+    const [native] = await client.$queryRaw<Array<{ value: { newMadis: number } }>>(lifelogActivitySql(period));
+    assert.equal(native.value.newMadis, 2, "실제 어댑터의 파라미터·JSON 결과도 격리 SQL과 같아야 한다.");
+    const [nativeUsers] = await client.$queryRaw<Array<{ value: { summary: { observedUsers: number } } }>>(lifelogUsersSql(period, null));
+    assert.equal(nativeUsers.value.summary.observedUsers, page.summary.observedUsers);
+    await assert.rejects(client.$transaction(async tx => {
+      await recordLifecycle(tx, "b", { name: "pdf_created", key: "rolled-back" });
+      throw new Error("synthetic-rollback");
+    }), /synthetic-rollback/);
+    assert.equal(run("SELECT count(1) FROM lifecycle_events WHERE occurrence_key='rolled-back'"), "0");
+    await Promise.all([1,2].map(() => client.$transaction(tx => recordLifecycle(tx, "b", { name: "pdf_created", key: "one-occurrence" }))));
+    assert.equal(run("SELECT count(1) FROM lifecycle_events WHERE occurrence_key='one-occurrence'"), "1");
+  } finally { await client.$disconnect(); }
   rejected("SET search_path=lifelog_fixture,public; INSERT INTO lifecycle_events(id,occurrence_key,user_id,name,retention_until) VALUES('bad','bad','a','private_content',now()+interval '1 day')", /check constraint/i);
   run("DELETE FROM users WHERE id='a'");
   assert.equal(run("SELECT count(1) FROM lifecycle_events WHERE user_id='a'"), "0");

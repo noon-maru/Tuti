@@ -23,6 +23,11 @@ export function AdminLifelogMetricsPanel({ data, days, onDaysChange }: { data: L
     <Notice>현재 보유량과 기간 내 성공 사건은 다릅니다. {observed ? `보존된 관측 자료 시작: ${date(a!.retainedSince!)}.` : "새 라이프로그 계측 자료가 아직 없습니다."}
       {partial && " 선택 기간 일부만 관측됐습니다."} 구버전 앱·계측 전 활동은 소급하지 않으며, 계정 탈퇴·파기로 과거 수치가 달라질 수 있습니다.</Notice>
     <Navigation aria-label="라이프로그 지표 영역">{sections.map(([id, label]) => <button key={id} type="button" aria-pressed={section === id} onClick={() => setSection(id)}>{label}</button>)}</Navigation>
+    {section === "summary" && <Notice>선택 기간 책 열람 {value(a?.readerUsers)}계정 · 30일 서로 다른 2일 이상 열람 {value(a?.repeatReaders30d)}계정. 재열람과 재기록은 별개의 가치입니다.</Notice>}
+    {section === "records" && <Notice>선택 기간 수동 책 생성 {value(a?.manualBooks)}권 · 첫 마디에 따른 자동 생성 {value(a?.automaticBooks)}권. 현재 보유 권수와 구분합니다.</Notice>}
+    {section === "records" && <Panel><h3>한 권에 얼마나 채우나요?</h3><p>현재 평균 {number(s.meanEntries)}개 · 빈 책을 포함합니다. 이 구간은 분석용 분포이며 작성 개수 제한이 아닙니다.</p><TableWrap><table><thead><tr><th>권당 마디 수</th><th>하루마디</th></tr></thead><tbody>{s.entryDistribution?.map(row => <tr key={row.range}><th>{row.range}</th><td>{number(row.books)}권</td></tr>)}</tbody></table></TableWrap></Panel>}
+    {section === "together" && <Notice>초대 수락 오류가 관측된 계정 {value(a?.inviteFailedUsers)}개. 수락 실패 원문이나 초대 토큰은 수집하지 않습니다.</Notice>}
+    {section === "keepsake" && <Notice>PDF 저장·내보내기 오류 관측 계정 {value(a?.pdfFailedUsers)}개. 사용자의 공유 취소는 오류 계정 집계에서 제외합니다.</Notice>}
     <section aria-label={sections.find(([id]) => id === section)?.[1]}>
       {section === "summary" && <>
         <Ledger aria-label="핵심 제품 지표">
@@ -41,6 +46,8 @@ export function AdminLifelogMetricsPanel({ data, days, onDaysChange }: { data: L
           <p>작은 여행 경유는 실제 방문 인증이 아니며, 동의 이전 화면의 전체 이탈은 아직 측정하지 않습니다.</p></Panel>
         <Panel><h3>첫 마디 이후 재기록</h3><p>계측 시작 이후 생성된 잔존 계정의 첫 저장 주차입니다. W1은 첫 저장 후 7~13일, W4는 28~34일에 새 마디를 남긴 비율입니다. 전체 코호트의 관측 기간이 끝나기 전에는 집계 중입니다.</p>
           {a?.cohorts.length ? <TableWrap><table><thead><tr><th>첫 저장 주차</th><th>계정</th><th>W1 재기록</th><th>W4 재기록</th></tr></thead><tbody>{a.cohorts.map(cohort => <tr key={cohort.week}><th>{cohort.week}</th><td>{number(cohort.users)}</td><td>{cohort.w1 == null ? "집계 중" : `${number(cohort.w1)}%`}</td><td>{cohort.w4 == null ? "집계 중" : `${number(cohort.w4)}%`}</td></tr>)}</tbody></table></TableWrap> : <p>새 첫 저장 코호트가 아직 없습니다.</p>}</Panel>
+        <Panel><h3>첫 마디 이후 다시 펼치기</h3><p>동일한 첫 저장 코호트의 책 열람입니다. 기록은 하지 않고 읽으러 돌아온 경우도 따로 살핍니다.</p><TableWrap><table><thead><tr><th>첫 저장 주차</th><th>W1 열람</th><th>W4 열람</th></tr></thead><tbody>{a?.cohorts.map(row => <tr key={row.week}><th>{row.week}</th><td>{row.readW1 == null ? "집계 중" : `${number(row.readW1)}%`}</td><td>{row.readW4 == null ? "집계 중" : `${number(row.readW4)}%`}</td></tr>)}</tbody></table></TableWrap></Panel>
+        <Panel><h3>작성 과정의 관측</h3><Ledger>{metric("저장 오류 관측 계정", value(a?.saveFailedUsers), "제한된 실패 사건만 집계")}{metric("초안 복원 계정", value(a?.draftResumedUsers), "실제 복원 · 원문은 수집하지 않음")}{metric("작성 화면을 나간 계정", value(a?.composeExitedUsers), "초안을 남겼을 수 있으며 이탈 확정 아님")}</Ledger></Panel>
       </>}
       {section === "records" && <Panel><h3>현재 남아 있는 마디와 하루마디</h3><Ledger>
         {metric("마디 보유 계정", number(s.writers), "현재 원본을 보유한 고유 계정")}{metric("사진 포함 마디", number(s.withPhoto), "원본 기준")}{metric("사진 없는 마디", number(s.textOnly), "글 중심 원본")}{metric("책에 담기지 않은 마디", number(s.unfiled), "어느 책에도 연결되지 않은 원본")}

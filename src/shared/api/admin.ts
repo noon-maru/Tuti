@@ -547,8 +547,8 @@ export type AdminRecommendationFunnelStage = {
   action: string;
   label: string;
   journeys: number;
-  rateFromRuns: number;
-  rateFromPrevious: number;
+  rateFromRuns: number | null;
+  rateFromPrevious: number | null;
 };
 
 export type AdminRecommendationFunnelPlace = {
@@ -567,7 +567,7 @@ export type AdminRecommendationFunnelResponse = {
   periodDays: number;
   generatedAt: string;
   recommendationRuns: number;
-  locationUsageRate: number;
+  locationUsageRate: number | null;
   stages: AdminRecommendationFunnelStage[];
   topPlaces: AdminRecommendationFunnelPlace[];
   algorithms: AdminRecommendationAlgorithm[];

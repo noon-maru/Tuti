@@ -6,7 +6,7 @@ CREATE TABLE lifecycle_events (
   app_version TEXT, origin TEXT, version INTEGER NOT NULL DEFAULT 1,
   occurred_at TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP, retention_until TIMESTAMP(3) NOT NULL,
   CHECK (name IN ('madi_created','harumadi_created','madi_added','invite_created','invite_accepted','shared_first_contribution','pdf_created',
-    'home_viewed','explore_viewed','compose_started','book_opened','invite_viewed','purchase_viewed','purchase_clicked','pdf_exported','compose_failed','pdf_failed','invite_failed','daily_active','session_started')),
+    'home_viewed','explore_viewed','compose_started','compose_exited','draft_restored','book_opened','invite_viewed','purchase_viewed','purchase_clicked','pdf_exported','compose_failed','pdf_failed','invite_failed','daily_active','session_started')),
   CHECK (source IN ('home','explore','book','invite','unknown')),
   CHECK (platform IN ('web','android','ios','unknown')),
   CHECK (origin IS NULL OR origin IN ('manual','first_madi_auto','existing_selection','within_book','download','share_sheet','cancelled','request_failed')),

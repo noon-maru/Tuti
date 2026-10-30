@@ -17,7 +17,9 @@ export async function recordLifecycle(tx: Prisma.TransactionClient, userId: stri
   // The generated production delegate always exists; a missing migration fails the transaction.
   if (!tx.lifecycleEvent) return;
   const data = lifecycleData(userId, fact, context, now);
-  await tx.lifecycleEvent.upsert({ where: { occurrenceKey: data.occurrenceKey }, create: data, update: {} });
+  // Prisma's empty-update upsert may emulate read-then-create and race.
+  // PostgreSQL ON CONFLICT DO NOTHING keeps the surrounding transaction usable.
+  await tx.lifecycleEvent.createMany({ data: [data], skipDuplicates: true });
 }
 export async function recordContribution(tx: Prisma.TransactionClient, userId: string, bookId: string, entryId: string, generationId: string, context: LifecycleContext = {}) {
   await recordLifecycle(tx, userId, { name: "madi_added", key: `link:${generationId}`, entityId: entryId, bookId }, context);

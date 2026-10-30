@@ -24,6 +24,9 @@ export function lifelogStockSql() {
       (SELECT avg(n) FROM sizes) AS "meanEntries",
       (SELECT percentile_cont(0.5) WITHIN GROUP(ORDER BY n) FROM sizes) AS "medianEntries",
       (SELECT percentile_cont(0.9) WITHIN GROUP(ORDER BY n) FROM sizes) AS "p90Entries",
+      (SELECT coalesce(json_agg(bins ORDER BY first_size),'[]'::json) FROM (
+        SELECT CASE WHEN n=0 THEN '0개' WHEN n=1 THEN '1개' WHEN n<=5 THEN '2~5개' WHEN n<=10 THEN '6~10개' WHEN n<=20 THEN '11~20개' ELSE '21개 이상' END AS range,
+          count(1) AS books,min(n) AS first_size FROM sizes GROUP BY 1) bins) AS "entryDistribution",
       (SELECT count(DISTINCT harumadi_id) FROM members) AS "sharedBooks",
       (SELECT count(1) FROM sizes WHERE authors>=2) AS "collaborativeBooks",
       (SELECT count(DISTINCT user_id) FROM members) AS participants,
@@ -35,6 +38,8 @@ export function lifelogStockSql() {
 }
 export async function readLifelogStock(): Promise<LifelogStock> {
   const { prisma } = await import("@/server/db/prisma");
-  const [row] = await prisma.$queryRaw<Array<Record<keyof LifelogStock, bigint | number | null>>>(lifelogStockSql());
-  return Object.fromEntries(Object.entries(row).map(([key, value]) => [key, Math.round(Number(value ?? 0) * 10) / 10])) as LifelogStock;
+  const [row] = await prisma.$queryRaw<Array<Record<string, unknown>>>(lifelogStockSql());
+  const { entryDistribution, ...numeric } = row;
+  return { ...Object.fromEntries(Object.entries(numeric).map(([key, value]) => [key, Math.round(Number(value ?? 0) * 10) / 10])),
+    entryDistribution: entryDistribution as LifelogStock["entryDistribution"] } as LifelogStock;
 }

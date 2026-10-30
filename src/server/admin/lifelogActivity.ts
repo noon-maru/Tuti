@@ -32,6 +32,10 @@ export function lifelogActivitySql(period: ReturnType<typeof analyticsPeriod>) {
         SELECT 1 FROM e WHERE e.user_id=c.id AND name='madi_created' AND occurred_at>=c.first_madi+interval '7 days' AND occurred_at<c.first_madi+interval '14 days'))/count(1),1) END AS w1,
       CASE WHEN max(first_madi)+interval '35 days'<=(SELECT until FROM p) THEN round(100.0*count(1) FILTER(WHERE EXISTS(
         SELECT 1 FROM e WHERE e.user_id=c.id AND name='madi_created' AND occurred_at>=c.first_madi+interval '28 days' AND occurred_at<c.first_madi+interval '35 days'))/count(1),1) END AS w4
+      ,CASE WHEN max(first_madi)+interval '14 days'<=(SELECT until FROM p) THEN round(100.0*count(1) FILTER(WHERE EXISTS(
+        SELECT 1 FROM e WHERE e.user_id=c.id AND name='book_opened' AND occurred_at>=c.first_madi+interval '7 days' AND occurred_at<c.first_madi+interval '14 days'))/count(1),1) END AS "readW1",
+      CASE WHEN max(first_madi)+interval '35 days'<=(SELECT until FROM p) THEN round(100.0*count(1) FILTER(WHERE EXISTS(
+        SELECT 1 FROM e WHERE e.user_id=c.id AND name='book_opened' AND occurred_at>=c.first_madi+interval '28 days' AND occurred_at<c.first_madi+interval '35 days'))/count(1),1) END AS "readW4"
       FROM cohort_users c GROUP BY week),
     path_entries AS (SELECT user_id,CASE WHEN name='invite_viewed' THEN 'invite' WHEN name='explore_viewed' THEN 'explore' ELSE 'home' END AS source,min(occurred_at) AS entered
       FROM e,p WHERE name IN('home_viewed','invite_viewed','explore_viewed') AND occurred_at>=p.since GROUP BY 1,2),
@@ -53,6 +57,15 @@ export function lifelogActivitySql(period: ReturnType<typeof analyticsPeriod>) {
       'writerUsers',(SELECT count(DISTINCT user_id) FROM e,p WHERE name='madi_created' AND occurred_at>=p.since),
       'newMadis',(SELECT count(1) FROM e,p WHERE name='madi_created' AND occurred_at>=p.since),
       'repeatWriters30d',(SELECT count(1) FROM repeat_writers),
+      'readerUsers',(SELECT count(DISTINCT user_id) FROM e,p WHERE name='book_opened' AND occurred_at>=p.since),
+      'repeatReaders30d',(SELECT count(1) FROM (SELECT user_id FROM e,p WHERE name='book_opened' AND occurred_at>=p.monthly GROUP BY user_id HAVING count(DISTINCT (occurred_at+interval '9 hours')::date)>=2) readers),
+      'manualBooks',(SELECT count(1) FROM e,p WHERE name='harumadi_created' AND origin='manual' AND occurred_at>=p.since),
+      'automaticBooks',(SELECT count(1) FROM e,p WHERE name='harumadi_created' AND origin='first_madi_auto' AND occurred_at>=p.since),
+      'saveFailedUsers',(SELECT count(DISTINCT user_id) FROM e,p WHERE name='compose_failed' AND occurred_at>=p.since),
+      'draftResumedUsers',(SELECT count(DISTINCT user_id) FROM e,p WHERE name='draft_restored' AND occurred_at>=p.since),
+      'composeExitedUsers',(SELECT count(DISTINCT user_id) FROM e,p WHERE name='compose_exited' AND occurred_at>=p.since),
+      'pdfFailedUsers',(SELECT count(DISTINCT user_id) FROM e,p WHERE name='pdf_failed' AND origin='request_failed' AND occurred_at>=p.since),
+      'inviteFailedUsers',(SELECT count(DISTINCT user_id) FROM e,p WHERE name='invite_failed' AND occurred_at>=p.since),
       'updatedBooks',(SELECT count(DISTINCT book_id) FROM e JOIN current_books b ON b.id=e.book_id,p WHERE name='madi_added' AND occurred_at>=p.since),
       'activeCollaborativeBooks',(SELECT count(DISTINCT book_id) FROM e JOIN collab c ON c.harumadi_id=e.book_id,p WHERE name='madi_added' AND occurred_at>=p.since),
       'invites',(SELECT count(1) FROM invites),

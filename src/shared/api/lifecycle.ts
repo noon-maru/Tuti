@@ -1,7 +1,7 @@
 export const LIFECYCLE_SOURCES = ["home", "explore", "book", "invite", "unknown"] as const;
 export const LIFECYCLE_PLATFORMS = ["web", "android", "ios", "unknown"] as const;
 export const LIFECYCLE_ORIGINS = ["manual", "first_madi_auto", "existing_selection", "within_book", "download", "share_sheet", "cancelled", "request_failed"] as const;
-export const CLIENT_LIFECYCLE_NAMES = ["home_viewed", "explore_viewed", "compose_started", "book_opened", "invite_viewed", "purchase_viewed", "purchase_clicked", "pdf_exported", "compose_failed", "pdf_failed", "invite_failed", "daily_active", "session_started"] as const;
+export const CLIENT_LIFECYCLE_NAMES = ["home_viewed", "explore_viewed", "compose_started", "compose_exited", "draft_restored", "book_opened", "invite_viewed", "purchase_viewed", "purchase_clicked", "pdf_exported", "compose_failed", "pdf_failed", "invite_failed", "daily_active", "session_started"] as const;
 export type ClientLifecycleName = typeof CLIENT_LIFECYCLE_NAMES[number];
 export type LifecycleName = ClientLifecycleName | "madi_created" | "harumadi_created" | "madi_added" | "invite_created" | "invite_accepted" | "shared_first_contribution" | "pdf_created";
 export type LifecycleContext = { source?: typeof LIFECYCLE_SOURCES[number]; platform?: typeof LIFECYCLE_PLATFORMS[number]; appVersion?: string; sessionId?: string; flowId?: string };

@@ -44,6 +44,10 @@ export async function exportHarumadiPdf(bytes: Uint8Array, title: string) {
       dialogTitle: "하루마디 저장 또는 공유하기",
     });
     trackLifecycle("pdf_exported", { origin: "share_sheet", source: "book" });
+  } catch (error) {
+    const cancelled = error instanceof Error && /cancel|abort/i.test(`${error.name} ${error.message}`);
+    trackLifecycle("pdf_failed", { origin: cancelled ? "cancelled" : "request_failed", source: "book" });
+    throw error;
   } finally {
     try {
       await Filesystem.deleteFile({ path, directory: Directory.Cache });

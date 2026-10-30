@@ -13,6 +13,7 @@ import { clearHarumadiInvite, pendingHarumadiInvite, rememberHarumadiInviteUrl, 
 import { harumadiPath } from "@/lib/harumadis";
 import { logoutAccount } from "@/lib/auth/session";
 import { useLifecycleView } from "../hooks/useLifecycleView";
+import { trackLifecycle } from "@/lib/lifecycle";
 export function HarumadiInviteFlow() {
   useLifecycleView("invite_viewed", "invite");
   const session = useSession(), router = useRouter(), client = useQueryClient();
@@ -42,7 +43,7 @@ export function HarumadiInviteFlow() {
       await clearHarumadiInvite();
       client.removeQueries({ queryKey: ["library-harumadis", session.userId] });
       router.replace(harumadiPath(result.harumadiId));
-    } catch (cause) { setError(cause instanceof Error ? cause.message : "초대를 확인하지 못했어요. 다시 시도해주세요."); }
+    } catch (cause) { trackLifecycle("invite_failed", { source: "invite", origin: "request_failed" }); setError(cause instanceof Error ? cause.message : "초대를 확인하지 못했어요. 다시 시도해주세요."); }
     finally { setBusy(false); }
   };
   const switchAccount = async () => {

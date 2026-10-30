@@ -7,6 +7,7 @@ import { parseLifecycleInput } from "@/shared/api/lifecycle";
 import { recordLifecycle } from "@/server/analytics/lifecycle";
 import { requireHarumadiAccess } from "@/server/harumadi/access";
 import { koreanDay } from "@/server/admin/analyticsScope";
+import { readObservation } from "@/server/analytics/readObservation";
 
 export const runtime = "nodejs";
 export async function POST(request: Request) {
@@ -18,9 +19,7 @@ export async function POST(request: Request) {
     const user = await authenticateUser(request);
     if (!user) return reply({ error: "사용자 확인이 필요해요." }, 401);
     if (!consumeRateLimit(user.id, { id: "lifecycle", limit: 120, windowMs: 60_000 }).allowed) return reply({ error: "잠시 후 다시 시도해주세요." }, 429);
-    const text = await request.text();
-    if (text.length > 2048) return reply({ error: "관측 요청을 확인해주세요." }, 400);
-    const input = parseLifecycleInput(JSON.parse(text));
+    const input = parseLifecycleInput(await readObservation(request));
     if (!input) return reply({ error: "관측 요청을 확인해주세요." }, 400);
     const now = Date.now(), observed = input.observedAt ? Date.parse(input.observedAt) : now;
     if (observed < now - 30 * 60_000 || observed > now + 60_000) return reply({ error: "관측 시각을 확인해주세요." }, 400);
