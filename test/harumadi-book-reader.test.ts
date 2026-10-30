@@ -5,8 +5,9 @@ import test from "node:test";
 test("책장 표지와 설정은 중첩 버튼 없이 같은 책 읽기 화면을 별도로 연다", () => {
   const home = readFileSync("src/features/tuti/flows/LibraryHomeFlow.tsx", "utf8");
   assert.match(home, /<HarumadiCard[^>]*data-harumadi-card/);
-  assert.match(home, /<\/HarumadiButton><BookSettings/);
-  assert.match(home, /openBook\(harumadiPdf, event.currentTarget, true\)/);
+  assert.match(home, /<\/HarumadiButton><BookMenu/);
+  assert.match(home, /items=\{harumadiActions\(harumadiPdf\)/);
+  assert.match(home, /openBook\(harumadiPdf, trigger, action.mode\)/);
   assert.match(home, /<HomeSurface inert=\{Boolean\(opening\)\}/);
   assert.match(home, /<HarumadiBookReader opening=\{opening\}/);
   assert.doesNotMatch(home, /router.push\(harumadiPath/);
@@ -25,7 +26,7 @@ test("책 펼치기는 앱 영역·축 회전·동작 줄이기·키보드와 �
   assert.match(reader, /const previous = returnFocus.current/);
   assert.match(reader, /previous\?\.focus\(\)/);
   assert.match(flow, /bookId \?\? routeId/);
-  assert.match(flow, /initialMode \?\? "pages"/);
+  assert.match(flow, /initialHarumadiMode\(initial, initialMode\)/);
   assert.match(flow, /if \(onClose\) onClose\(\); else router.replace/);
   assert.match(flow, /readOnly = Boolean\(harumadi && !verified\)/);
 });

@@ -1,7 +1,7 @@
 "use client";
 
 import styled from "@emotion/styled";
-import { BookOpen, ChevronRight, Plus, Settings2, PenLine, ArrowUpRight, Download, MoreVertical } from "lucide-react";
+import { BookOpen, ChevronRight, Plus, Settings2, PenLine, ArrowUpRight, Download, MoreVertical, Users } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { useSession } from "@/features/tuti/hooks/useSession";
@@ -19,6 +19,8 @@ import { loadHarumadiPdfDraft } from "@/lib/harumadiPdfDraft";
 import { welcomeHarumadiPath } from "@/shared/tuti/welcomeHarumadi";
 import { setWelcomeHarumadiOrigin } from "@/lib/welcomeHarumadiNavigation";
 import { useLifecycleView } from "../hooks/useLifecycleView";
+import { ContextMenu } from "../components/ContextMenu";
+import { harumadiActions, type HarumadiOpeningMode } from "../navigation/harumadiActions";
 
 export function LibraryHomeFlow() {
   const session = useSession();
@@ -30,11 +32,11 @@ function LibraryHome({ ownerId }: { ownerId: string }) {
   const frame = useRef<HTMLElement>(null);
   const { opening, openBook: showBook, closeBook } = useHarumadiHistory(ownerId);
   useLifecycleView("home_viewed", "home", undefined, !opening);
-  const openBook = (book: Harumadi, control: HTMLElement, settings = false) => {
+  const openBook = (book: Harumadi, control: HTMLElement, mode: HarumadiOpeningMode = "pages") => {
     const bounds = frame.current?.getBoundingClientRect();
     const cover = control.closest("[data-harumadi-card]")?.querySelector("[data-book-cover] > span")?.getBoundingClientRect();
     if (!bounds || !cover) return;
-    showBook({ book, settings, origin: { x: cover.left - bounds.left, y: cover.top - bounds.top, width: cover.width, height: cover.height } });
+    showBook({ book, mode, origin: { x: cover.left - bounds.left, y: cover.top - bounds.top, width: cover.width, height: cover.height } });
   };
   const query = useHarumadiLibrary(ownerId);
   const harumadiPdfs = query.data?.pages.flatMap(page => page.harumadis) ?? [];
@@ -70,7 +72,8 @@ function LibraryHome({ ownerId }: { ownerId: string }) {
                 <HarumadiButton data-book-cover type="button" aria-label={`${harumadiPdf.title}, 마디 ${harumadiPdf.entryIds.length}개 열기`} onClick={event => openBook(harumadiPdf, event.currentTarget)}>
                 <HarumadiCover harumadiPdf={{ ...harumadiPdf, entryCount: harumadiPdf.entryIds.length, pageCount: 0, hasCover: harumadiPdf.coverStyle.endsWith("-image") && harumadiPdf.entryIds.length > 0 }} ownerId={ownerId} kind="harumadi" />
                 <HarumadiLabel><strong>{harumadiPdf.title}</strong><small>{harumadiPdf.entryIds.length ? `마디 ${harumadiPdf.entryIds.length}개` : "첫 마디를 기다려요"}{harumadiPdf.shared ? " · 함께 채우는 중" : ""}</small>{harumadiPdf.role === "contributor" && <small>{harumadiPdf.ownerName}님의 하루마디</small>}</HarumadiLabel>
-              </HarumadiButton><BookSettings type="button" aria-label={`${harumadiPdf.title} 설정`} title="하루마디 설정" onClick={event => openBook(harumadiPdf, event.currentTarget, true)}><MoreVertical size={22} /></BookSettings>
+              </HarumadiButton><BookMenu label={`${harumadiPdf.title} 메뉴`} triggerContent={<MoreVertical size={22} />} items={harumadiActions(harumadiPdf).map(action => ({ label: action.label, onSelect: trigger => openBook(harumadiPdf, trigger, action.mode) }))} />
+                <TogetherSlot>{harumadiPdf.togetherEnabled && <TogetherAction type="button" aria-label={`${harumadiPdf.title} 함께 채우기`} onClick={event => openBook(harumadiPdf, event.currentTarget, "together")}><Users size={16} aria-hidden="true" />함께 채우기</TogetherAction>}</TogetherSlot>
               </HarumadiCard>)}</HarumadiGrid><ShelfEdge aria-hidden="true" />
             </ShelfRow>)}
             {query.isError && <LibraryLoadNotice nextPage={query.isFetchNextPageError} busy={query.isFetching}
@@ -104,10 +107,12 @@ const Toolbar = styled.div`display: flex; justify-content: space-between; align-
 const TextAction = styled(BaseButton)`display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 48px; padding: 8px 0; background: transparent; font-size: 16px; color: var(--color-text-muted); &:focus-visible { outline: 2px solid var(--color-brand-700); outline-offset: 3px; border-radius: 4px; }`;
 const DraftButton = styled(BaseButton)`flex: none; display: flex; align-items: center; gap: 10px; margin: 8px 24px; padding: 12px 14px; background: var(--color-secondary-200); border-radius: 12px; color: var(--color-text); font-size: 16px; text-align: left; > span { flex: 1; }`;
 const ShelfScroll = styled.div`flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 30px 20px 12px; scrollbar-width: thin; &:has(> div:only-child) { display: flex; flex-direction: column; } @container app-viewport (max-height: 620px) { &:has([data-empty-shelf]) { padding-top: 16px; padding-bottom: 8px; } }`;
-const ShelfRow = styled.div`margin-bottom: 36px; position: relative; flex: none; > div:last-child { position: absolute; left: 0; right: 0; bottom: 108px; pointer-events: none; }`;
+const ShelfRow = styled.div`margin-bottom: 36px; position: relative; flex: none; > div:last-child { position: absolute; left: 0; right: 0; bottom: 152px; pointer-events: none; }`;
 const HarumadiGrid = styled.div`display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px; padding: 0 8px; align-items: end;`;
 const HarumadiCard = styled.div`position: relative; min-width: 0;`;
-const BookSettings = styled(BaseButton)`position: absolute; right: -8px; bottom: 60px; width: 44px; height: 44px; display: grid; place-items: center; background: transparent; border-radius: 18px; color: var(--color-text-muted); &:hover { background: #e8ede4; } &:focus-visible { outline: 2px solid var(--color-brand-700); outline-offset: 1px; }`;
+const BookMenu = styled(ContextMenu)`position: absolute; right: -8px; bottom: 104px; width: 44px; height: 44px; > button { width: 44px; height: 44px; padding: 0; border-radius: 18px; color: var(--color-text-muted); &:hover { background: #e8ede4; } &:focus-visible { outline: 2px solid var(--color-brand-700); outline-offset: 1px; } }`;
+const TogetherSlot = styled.div`height: 44px; display: flex; align-items: center;`;
+const TogetherAction = styled(BaseButton)`display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 44px; padding: 0 8px; margin-left: -8px; border-radius: 12px; background: transparent; color: var(--color-brand-700); font-size: 13px; font-weight: 500; white-space: nowrap; &:hover { background: #e8ede4; } &:focus-visible { outline: 2px solid var(--color-brand-700); outline-offset: 1px; }`;
 const HarumadiButton = styled(BaseButton)`display: grid; gap: 0; width: 100%; min-width: 0; padding: 0; text-align: left; background: transparent; color: inherit; overflow: visible;
   > span:first-of-type { transition: transform 180ms ease; } &:hover > span:first-of-type { transform: translateY(-5px); }
   &:focus-visible { outline: 2px solid var(--color-brand-700); outline-offset: 7px; border-radius: 4px; }

@@ -6,8 +6,9 @@ import { HarumadiFlow } from "@/features/tuti/flows/HarumadiFlow";
 import { HarumadiCover } from "./HarumadiCover";
 import { ANDROID_BACK_EVENT } from "@/features/tuti/navigation/androidBack";
 import type { Harumadi } from "@/shared/api/harumadi";
+import type { HarumadiOpeningMode } from "../navigation/harumadiActions";
 
-export type BookOpening = { book: Harumadi; settings: boolean; origin: { x: number; y: number; width: number; height: number } };
+export type BookOpening = { book: Harumadi; mode: HarumadiOpeningMode; origin: { x: number; y: number; width: number; height: number } };
 
 /** 책장을 교체하지 않고 같은 앱 영역 안에서 표지 뒤의 지면을 연다. */
 export function HarumadiBookReader({ opening, ownerId, onClose }: { opening: BookOpening; ownerId: string; onClose: () => void }) {
@@ -21,8 +22,8 @@ export function HarumadiBookReader({ opening, ownerId, onClose }: { opening: Boo
     root.current?.focus();
     const animations: Animation[] = [];
     if (!window.matchMedia("(prefers-reduced-motion: reduce)").matches && typeof paper.current?.animate === "function") {
-      animations.push(paper.current.animate([{ opacity: 0 }, { opacity: 1 }], { duration: opening.settings ? 180 : 360, delay: opening.settings ? 0 : 340, fill: "backwards" }));
-      if (!opening.settings && root.current && book.current && cover.current) {
+      animations.push(paper.current.animate([{ opacity: 0 }, { opacity: 1 }], { duration: opening.mode !== "pages" ? 180 : 360, delay: opening.mode !== "pages" ? 0 : 340, fill: "backwards" }));
+      if (opening.mode === "pages" && root.current && book.current && cover.current) {
         const bounds = root.current.getBoundingClientRect();
         const target = root.current.querySelector("[data-harumadi-page]")?.getBoundingClientRect();
         const width = target?.width ?? Math.min(bounds.width - 64, 290), height = width * 210 / 148;
@@ -63,9 +64,9 @@ export function HarumadiBookReader({ opening, ownerId, onClose }: { opening: Boo
     if (event.shiftKey && (document.activeElement === first || document.activeElement === root.current)) { event.preventDefault(); last?.focus(); }
     else if (!event.shiftKey && (document.activeElement === last || document.activeElement === root.current)) { event.preventDefault(); first.focus(); }
   };
-  return <Reader ref={root} role="dialog" aria-modal="true" aria-label={`${opening.book.title} ${opening.settings ? "설정" : "펼쳐보기"}`} tabIndex={-1} onKeyDown={keyDown}>
-    <Paper ref={paper}><HarumadiFlow bookId={opening.book.id} initialMode={opening.settings ? "settings" : "pages"} onClose={onClose} /></Paper>
-    {!opening.settings && <MovingBook ref={book} aria-hidden="true"><TurningCover ref={cover}>
+  return <Reader ref={root} role="dialog" aria-modal="true" aria-label={`${opening.book.title} ${opening.mode === "settings" ? "설정" : opening.mode === "together" ? "함께 채우기" : "펼쳐보기"}`} tabIndex={-1} onKeyDown={keyDown}>
+    <Paper ref={paper}><HarumadiFlow bookId={opening.book.id} initialMode={opening.mode} onClose={onClose} /></Paper>
+    {opening.mode === "pages" && <MovingBook ref={book} aria-hidden="true"><TurningCover ref={cover}>
       <HarumadiCover ownerId={ownerId} kind="harumadi" harumadiPdf={{ ...opening.book, entryCount: opening.book.entryIds.length, pageCount: 0, hasCover: opening.book.coverStyle.endsWith("-image") && opening.book.entryIds.length > 0 }} />
     </TurningCover></MovingBook>}
   </Reader>;

@@ -11,6 +11,7 @@ import {
 } from "react";
 import { createPortal } from "react-dom";
 import { BaseButton } from "@/features/tuti/components/buttons";
+import { ANDROID_BACK_EVENT } from "@/features/tuti/navigation/androidBack";
 
 const MENU_WIDTH = 160;
 const MENU_ITEM_HEIGHT = 44;
@@ -22,7 +23,7 @@ const MENU_VIEWPORT_MARGIN = 12;
 
 export type ContextMenuItem = {
   label: string;
-  onSelect: () => void | Promise<void>;
+  onSelect: (trigger: HTMLButtonElement) => void | Promise<void>;
   selected?: boolean;
   tone?: "default" | "danger";
 };
@@ -113,15 +114,23 @@ export function ContextMenu({
       triggerRef.current?.focus();
     };
     const closeOnViewportChange = () => setOpen(false);
+    const closeOnAndroidBack = (event: Event) => {
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      setOpen(false);
+      triggerRef.current?.focus();
+    };
 
     window.addEventListener("keydown", closeOnEscape);
     window.addEventListener("resize", closeOnViewportChange);
     window.addEventListener("scroll", closeOnViewportChange, true);
+    window.addEventListener(ANDROID_BACK_EVENT, closeOnAndroidBack, true);
 
     return () => {
       window.removeEventListener("keydown", closeOnEscape);
       window.removeEventListener("resize", closeOnViewportChange);
       window.removeEventListener("scroll", closeOnViewportChange, true);
+      window.removeEventListener(ANDROID_BACK_EVENT, closeOnAndroidBack, true);
     };
   }, [open]);
 
@@ -166,7 +175,7 @@ export function ContextMenu({
         typeof document !== "undefined" &&
         createPortal(
           <DismissLayer
-            onPointerDown={() => setOpen(false)}
+            onPointerDown={() => { setOpen(false); triggerRef.current?.focus(); }}
           >
             <Menu
               role="menu"
@@ -174,6 +183,16 @@ export function ContextMenu({
               style={position}
               data-swipe-back-ignore
               onPointerDown={(event) => event.stopPropagation()}
+              onKeyDown={event => {
+                if (event.key === "Tab") { setOpen(false); triggerRef.current?.focus(); return; }
+                if (!["ArrowDown", "ArrowUp", "Home", "End"].includes(event.key)) return;
+                const controls = Array.from(event.currentTarget.querySelectorAll<HTMLButtonElement>('[role="menuitem"]'));
+                if (!controls.length) return;
+                event.preventDefault();
+                const index = controls.indexOf(document.activeElement as HTMLButtonElement);
+                const next = event.key === "Home" ? 0 : event.key === "End" ? controls.length - 1 : (index + (event.key === "ArrowDown" ? 1 : -1) + controls.length) % controls.length;
+                controls[next]?.focus();
+              }}
             >
               {items.map((item, index) => (
                 <MenuItem
@@ -184,7 +203,10 @@ export function ContextMenu({
                   $tone={item.tone ?? "default"}
                   onClick={() => {
                     setOpen(false);
-                    void item.onSelect();
+                    if (triggerRef.current) {
+                      triggerRef.current.focus();
+                      void item.onSelect(triggerRef.current);
+                    }
                   }}
                 >
                   <span>{item.label}</span>

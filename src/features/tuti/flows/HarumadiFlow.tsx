@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter, useSearchParams } from "next/navigation";
 import styled from "@emotion/styled";
-import { ArrowLeft, Check, Download, PenLine, Plus, Settings2 } from "lucide-react";
+import { ArrowLeft, Check, ChevronRight, Download, PenLine, Plus, Settings2, Users } from "lucide-react";
 import { useSession } from "@/features/tuti/hooks/useSession";
 import { AppLoadingScreen } from "@/features/tuti/components/LoadingIndicator";
 import { BaseButton, PrimaryButton } from "@/features/tuti/components/buttons";
@@ -28,7 +28,9 @@ import type { Harumadi, HarumadiSettings } from "@/shared/api/harumadi";
 import { ANDROID_BACK_EVENT } from "@/features/tuti/navigation/androidBack";
 import { HARUMADI_BACK_COVER_TEXT_LIMIT, LEGACY_HARUMADI_BACK_COVER_TEXT, isHarumadiBackCoverText, pickHarumadiBackCoverText } from "@/shared/harumadi/backCover";
 
-type ReaderOptions = { bookId?: string; initialMode?: "pages" | "settings"; onClose?: () => void };
+import { initialHarumadiMode, type HarumadiOpeningMode } from "../navigation/harumadiActions";
+
+type ReaderOptions = { bookId?: string; initialMode?: HarumadiOpeningMode; onClose?: () => void };
 export function HarumadiFlow({ bookId, initialMode, onClose }: ReaderOptions = {}) {
   const session = useSession();
   const routeId = useSearchParams().get("harumadiId");
@@ -71,7 +73,7 @@ function HarumadiEditor({ owner, initial, read, verified, refreshing, onRefresh,
   const scroller = useRef<HTMLDivElement>(null);
   const [harumadi, setHarumadi] = useState(initial);
   const [settings, setSettings] = useState<HarumadiSettings>(initial ?? { title: "우리의 작은 하루", coverStyle: "white-plain" });
-  const [mode, setMode] = useState<"settings" | "pages" | "selection" | "pdf" | "together" | "comments">(initial ? initialMode === "settings" && initial.role === "contributor" ? "together" : initialMode ?? "pages" : "settings");
+  const [mode, setMode] = useState<HarumadiOpeningMode | "selection" | "pdf" | "comments">(initial ? initialHarumadiMode(initial, initialMode) : "settings");
   useLifecycleView("book_opened", "book", harumadi?.id, Boolean(harumadi && mode === "pages"));
   const [selected, setSelected] = useState(initial?.entryIds ?? []);
   const [confirmed, setConfirmed] = useState(false);
@@ -160,7 +162,7 @@ function HarumadiEditor({ owner, initial, read, verified, refreshing, onRefresh,
     freeformNonSensitiveConfirmed: confirmed,
   } : null, [harumadi, chosen, confirmed]);
   const selectRecords = () => { if (readOnly) return; setSelected(chosen.filter(entry => !harumadi?.shared || entry.authorId === owner).map(entry => entry.id)); setError(""); setMode("selection"); };
-  const back = useCallback(() => { if (busy || closingRef.current) return; if (harumadi && mode !== "pages" && !(onClose && initialMode === "settings" && mode === "settings")) { setMode("pages"); setSettings(harumadi); setError(""); } else closeToLibrary(); }, [busy, harumadi, mode, onClose, initialMode, closeToLibrary]);
+  const back = useCallback(() => { if (busy || closingRef.current) return; if (harumadi && mode !== "pages" && !(onClose && initialMode && initialMode !== "pages" && mode === initialMode)) { setMode("pages"); setSettings(harumadi); setError(""); } else closeToLibrary(); }, [busy, harumadi, mode, onClose, initialMode, closeToLibrary]);
   useEffect(() => {
     const handleBack = (event: Event) => { event.preventDefault(); back(); };
     window.addEventListener(ANDROID_BACK_EVENT, handleBack);
@@ -189,13 +191,14 @@ function HarumadiEditor({ owner, initial, read, verified, refreshing, onRefresh,
 
   return <Frame ref={frame} data-harumadi-editor aria-busy={busy || closing}>
     <BookContents ref={contents} inert={closing}>
-    <Header $creating={!harumadi && mode === "settings"}><Quiet type="button" onClick={back} disabled={busy}><ArrowLeft size={18} />{mode === "pages" || !harumadi || (onClose && initialMode === "settings" && mode === "settings") ? "내 책장" : "하루마디"}</Quiet>
+    <Header $creating={!harumadi && mode === "settings"}><Quiet type="button" onClick={back} disabled={busy}><ArrowLeft size={18} />{mode === "pages" || !harumadi || (onClose && initialMode && initialMode !== "pages" && mode === initialMode) ? "내 책장" : "하루마디"}</Quiet>
       {harumadi?.shared && mode === "pages" && <Quiet type="button" disabled={readOnly} onClick={() => setMode("comments")}>댓글·답글</Quiet>}
-      {harumadi && mode === "pages" && <Quiet type="button" disabled={readOnly} onClick={() => { setConfirmed(false); setMode(harumadi.role === "contributor" ? "together" : "settings"); }}><Settings2 size={17} />설정</Quiet>}</Header>
+      {harumadi && harumadi.role !== "contributor" && mode === "pages" && <Quiet type="button" disabled={readOnly} onClick={() => { setConfirmed(false); setMode("settings"); }}><Settings2 size={17} />설정</Quiet>}</Header>
+    {harumadi?.togetherEnabled && mode === "pages" && <TogetherEntry type="button" disabled={busy || readOnly} onClick={() => setMode("together")}><Users size={19} aria-hidden="true" /><span>함께 채우기<small>{harumadi.shared ? "함께하는 사람 관리" : "소중한 사람 초대하기"}</small></span><ChevronRight size={17} aria-hidden="true" /></TogetherEntry>}
     <Body ref={scroller} data-scroll-region={mode === "pages" ? undefined : ""} $reading={mode === "pages"} $creating={!harumadi && mode === "settings"}>
       {readOnly && <ReadNotice role="status">{refreshing ? "저장된 내용을 먼저 보여드리고 있어요." : "저장된 하루마디를 보고 있어요. 연결 후 최신 내용을 확인해주세요."}<Quiet type="button" disabled={refreshing} onClick={onRefresh}>최신 내용 확인</Quiet></ReadNotice>}
       {read?.cached && read.missingImages > 0 && <p className="hint">일부 사진은 연결 후 볼 수 있어요.</p>}
-      {mode === "comments" && harumadi ? <HarumadiComments owner={owner} bookId={harumadi.id} onExit={finishClose} /> : mode === "together" && harumadi ? <HarumadiTogetherPanel owner={owner} bookId={harumadi.id} entries={chosen} onExit={finishClose} /> : mode === "settings" ? <SettingsPanel $creating={!harumadi}>
+      {mode === "comments" && harumadi ? <HarumadiComments owner={owner} bookId={harumadi.id} onExit={finishClose} /> : mode === "together" && harumadi ? readOnly ? <p>연결 후 최신 내용을 확인하면 함께 채울 수 있어요.</p> : <HarumadiTogetherPanel owner={owner} bookId={harumadi.id} entries={chosen} onExit={finishClose} /> : mode === "settings" ? <SettingsPanel $creating={!harumadi}>
         <SettingsIntro $creating={!harumadi}>
         {harumadi && <Eyebrow>하루마디 설정</Eyebrow>}<h1>{harumadi ? "이름과 표지" : "어떤 하루를 담을까요?"}</h1>
         {harumadi?.togetherEnabled && <Quiet type="button" disabled={busy || readOnly} onClick={() => setMode("together")}>함께 채우기 · 참여자 관리</Quiet>}
@@ -249,6 +252,7 @@ function useAttachNewEntry(attach: () => Promise<void>) { useEffect(() => { void
 
 const Frame = styled.section`position: relative; height: 100%; min-height: 0; display: flex; flex-direction: column; background: #F8FAFC; color: var(--color-text);`;
 const BookContents = styled.div`height: 100%; min-height: 0; display: flex; flex-direction: column;`;
+const TogetherEntry = styled(BaseButton)`flex: none; display: flex; align-items: center; gap: 10px; min-height: 48px; margin: 8px 22px 0; padding: 8px 12px; border: 1px solid #dce5d1; border-radius: 12px; background: #edf4e5; color: var(--color-brand-700); text-align: left; > span { flex: 1; font-size: 14px; font-weight: 500; } small { margin-left: 10px; font-size: 12px; font-weight: 400; color: var(--color-text-muted); } &:focus-visible { outline: 2px solid var(--color-brand-700); outline-offset: 2px; } @container app-viewport (max-width: 350px) { small { display: block; margin: 3px 0 0; } }`;
 const Header = styled.header<{ $creating?: boolean }>`flex: none; display: flex; justify-content: space-between; align-items: center; padding: calc(12px + var(--app-safe-area-top, 0px)) 22px 0; min-height: 50px;
   ${({ $creating }) => $creating && `@container app-viewport (max-height: 719px) { padding-top: calc(6px + var(--app-safe-area-top, 0px)); min-height: 44px; }`}
 `;
