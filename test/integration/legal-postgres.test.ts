@@ -80,6 +80,10 @@ test("분리된 PostgreSQL에서 약관·권리 보호 마이그레이션의 실
     assert.notEqual(result.status, 0);
     assert.match(result.stderr, message);
   };
+  await t.test("라이프로그 SQL은 전체 집계·실제 다중 작성자·순차 전환·미성숙 코호트와 계정 파기를 구분한다", async () => {
+    const { verifyLifelogMetrics } = await import("./lifelog-metrics-scenario");
+    verifyLifelogMetrics(query, rejected, socket);
+  });
   await t.test("함께 채우기 실제 스키마는 여러 참여자·댓글·탈퇴와 타인의 PDF 보존을 구분한다", { skip: serverVersion < 130000 }, async () => {
     const { verifyTogetherSchema } = await import("./harumadi-together-scenario");
     verifyTogetherSchema(query, rejected, socket);

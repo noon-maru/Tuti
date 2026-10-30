@@ -1,0 +1,54 @@
+import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { analyticsPeriod } from "../../src/server/admin/analyticsScope";
+import { lifelogActivitySql } from "../../src/server/admin/lifelogActivity";
+import { lifelogStockSql } from "../../src/server/admin/lifelogStock";
+import type { Prisma } from "../../src/generated/prisma/client";
+
+export function verifyLifelogMetrics(query: (sql: string) => string, rejected: (sql: string, match: RegExp) => void, socket: string) {
+  assert.ok(socket.includes("tuti-legal-postgres-") && socket.endsWith("/socket"));
+  query("CREATE SCHEMA lifelog_fixture");
+  const run = (sql: string) => query(`SET search_path=lifelog_fixture,public; ${sql}`).replace(/^SET\n/, "");
+  // Test-only rendering: production uses parameterized Prisma SQL, never this renderer.
+  const render = (sql: Prisma.Sql) => sql.strings.map((s, i) => s + (i < sql.values.length ? `'${(sql.values[i] as Date).toISOString().replace(/'/g, "''")}'` : "")).join("");
+  run(`CREATE TABLE users(id text PRIMARY KEY,role text,analytics_excluded_at timestamp,created_at timestamp);
+    CREATE TABLE journal_entries(id text PRIMARY KEY,owner_id text,image text,sensitive_withdrawn_at timestamp);
+    CREATE TABLE harumadis(id text PRIMARY KEY,owner_id text);
+    CREATE TABLE harumadi_entry_links(harumadi_id text,entry_id text);
+    CREATE TABLE harumadi_members(harumadi_id text,user_id text,ended_at timestamp);
+    CREATE TABLE harumadi_comments(harumadi_id text,author_id text,deleted_at timestamp);
+    CREATE TABLE harumadi_pdfs(owner_id text,page_count integer);`);
+  run(readFileSync("prisma/migrations/20261030020000_lifelog_events/migration.sql", "utf8"));
+  run(`INSERT INTO users VALUES ('admin','admin',null,'2026-08-01'),('qa','user','2026-09-01','2026-09-01'),
+    ('a','user',null,'2026-10-01'),('b','user',null,'2026-10-01'),('old','user',null,'2020-01-01');
+    INSERT INTO journal_entries VALUES ('a1','a','image',null),('a2','a',null,null),('old1','old',null,null),('qa1','qa',null,null);
+    INSERT INTO harumadis VALUES ('shared','a'),('private','a'),('empty','b'),('internal','admin');
+    INSERT INTO harumadi_entry_links VALUES ('shared','a1'),('shared','old1'),('private','a1');
+    INSERT INTO harumadi_members VALUES ('shared','old',null);
+    INSERT INTO harumadi_pdfs VALUES ('a',4),('admin',100);`);
+  const add = (id: string, owner: string, name: string, at: string, book: string | null = null, flow: string | null = null) => run(`INSERT INTO lifecycle_events(id,occurrence_key,user_id,name,occurred_at,retention_until,book_id,flow_id,source)
+    VALUES('${id}','${id}','${owner}','${name}','${at}','2027-01-01',${book ? `'${book}'` : "null"},${flow ? `'${flow}'` : "null"},'home')`);
+  add("coverage","admin","daily_active","2026-09-01");
+  add("home-a","a","home_viewed","2026-10-02");
+  add("compose-a","a","compose_started","2026-10-02T01:00:00",null,"flow-a");
+  add("madi-a1","a","madi_created","2026-10-03",null,"flow-a");
+  add("madi-a2","a","madi_created","2026-10-11");
+  add("add-a","a","madi_added","2026-10-11","shared");
+  add("home-b","b","home_viewed","2026-10-26");
+  add("future","a","madi_created","2026-11-01");
+  add("qa-write","qa","madi_created","2026-10-12");
+  const period = analyticsPeriod(30, new Date("2026-10-30T03:00:00Z"));
+  const result = JSON.parse(run(render(lifelogActivitySql(period))));
+  assert.equal(result.newMadis, 2); assert.equal(result.writerUsers, 1); assert.equal(result.repeatWriters30d, 1);
+  assert.equal(result.activeCollaborativeBooks, 1);
+  assert.equal(result.activation.eligible, 1); assert.equal(result.activation.pending, 1); assert.equal(result.activation.converted, 1); assert.equal(result.activation.rate, 100);
+  assert.equal(result.cohorts[0].w1, 100); assert.equal(result.cohorts[0].w4, null);
+  assert.equal(result.paths[0].successes, 1);
+  const stock = JSON.parse(run(`SELECT row_to_json(x) FROM (${render(lifelogStockSql())}) x`));
+  assert.equal(stock.madis, 3); assert.equal(stock.books, 3); assert.equal(stock.emptyBooks, 1);
+  assert.equal(stock.collaborativeBooks, 1); assert.equal(stock.pdfs, 1); assert.equal(stock.unfiled, 1);
+  rejected("SET search_path=lifelog_fixture,public; INSERT INTO lifecycle_events(id,occurrence_key,user_id,name,retention_until) VALUES('bad','bad','a','private_content',now()+interval '1 day')", /check constraint/i);
+  run("DELETE FROM users WHERE id='a'");
+  assert.equal(run("SELECT count(1) FROM lifecycle_events WHERE user_id='a'"), "0");
+  query("DROP SCHEMA lifelog_fixture CASCADE");
+}

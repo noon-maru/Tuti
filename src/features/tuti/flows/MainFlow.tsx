@@ -8,12 +8,14 @@ import { AppLoadingScreen } from "@/features/tuti/components/LoadingIndicator";
 import { recordProductActivity } from "@/lib/productActivity";
 import { useTutiStore } from "@/store/tuti";
 import { useServiceRightsOnly } from "@/features/legal/ServiceAccessContext";
+import { useLifecycleView } from "../hooks/useLifecycleView";
 
 export function MainFlow({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const rightsOnly = useServiceRightsOnly();
   const hasHydrated = useTutiStore(state => state.hasHydrated);
   const entryRecord = useTutiStore(state => state.entryRecord);
+  useLifecycleView("explore_viewed", "explore", undefined, !rightsOnly && hasHydrated && pathname === "/explore");
   useEffect(() => {
     // 기존 추천 도달 이벤트의 의미를 홈 개편 이후에도 유지한다.
     if (rightsOnly || !hasHydrated || !entryRecord || pathname !== "/explore") return;

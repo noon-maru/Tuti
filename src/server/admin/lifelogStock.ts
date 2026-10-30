@@ -1,11 +1,10 @@
 import { Prisma } from "@/generated/prisma/client";
-import { prisma } from "@/server/db/prisma";
 import type { LifelogStock } from "@/shared/api/lifelogMetrics";
 
-export async function readLifelogStock(): Promise<LifelogStock> {
+export function lifelogStockSql() {
   // One statement gives a consistent snapshot, regardless of user-list pagination.
   // No content, images, addresses or names leave the database.
-  const [row] = await prisma.$queryRaw<Array<Record<keyof LifelogStock, bigint | number | null>>>(Prisma.sql`
+  return Prisma.sql`
     WITH eligible AS (SELECT id FROM users WHERE role='user' AND analytics_excluded_at IS NULL),
     entries AS (SELECT j.id,j.owner_id, nullif(j.image,'') IS NOT NULL AS photo FROM journal_entries j JOIN eligible u ON u.id=j.owner_id WHERE j.sensitive_withdrawn_at IS NULL),
     books AS (SELECT b.id FROM harumadis b JOIN eligible u ON u.id=b.owner_id),
@@ -18,7 +17,7 @@ export async function readLifelogStock(): Promise<LifelogStock> {
       (SELECT count(1) FROM entries) AS madis,
       (SELECT count(1) FROM entries WHERE photo) AS "withPhoto",
       (SELECT count(1) FROM entries WHERE NOT photo) AS "textOnly",
-      (SELECT count(1) FROM entries e WHERE NOT EXISTS(SELECT 1 FROM links l WHERE l.entry_id=e.id)) AS unfiled,
+      (SELECT count(1) FROM entries e WHERE NOT EXISTS(SELECT 1 FROM harumadi_entry_links l WHERE l.entry_id=e.id)) AS unfiled,
       (SELECT count(1) FROM books) AS books,
       (SELECT count(1) FROM sizes WHERE n=0) AS "emptyBooks",
       (SELECT count(1) FROM sizes WHERE n>0) AS "filledBooks",
@@ -32,6 +31,10 @@ export async function readLifelogStock(): Promise<LifelogStock> {
       (SELECT count(1) FROM pdfs) AS pdfs,
       (SELECT count(DISTINCT owner_id) FROM pdfs) AS "pdfOwners",
       (SELECT coalesce(sum(page_count),0) FROM pdfs) AS "pdfPages"
-  `);
+  `;
+}
+export async function readLifelogStock(): Promise<LifelogStock> {
+  const { prisma } = await import("@/server/db/prisma");
+  const [row] = await prisma.$queryRaw<Array<Record<keyof LifelogStock, bigint | number | null>>>(lifelogStockSql());
   return Object.fromEntries(Object.entries(row).map(([key, value]) => [key, Math.round(Number(value ?? 0) * 10) / 10])) as LifelogStock;
 }

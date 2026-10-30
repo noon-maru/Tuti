@@ -5,7 +5,7 @@ process.env.DATABASE_URL = "postgresql://test:test@127.0.0.1:1/test";
 const queries: Array<{ table: string; where: unknown }> = [];
 const delegate = (table: string) => ({ deleteMany: async ({ where }: { where: unknown }) => { queries.push({ table, where }); return { count: 1 }; } });
 (globalThis as { prisma?: unknown }).prisma = {
-  ...Object.fromEntries(["userSession", "emailVerificationCode", "oAuthAuthorization", "productActivityEvent", "trafficObservation", "trafficBlockRule", "systemLog", "adminJournalAccessAudit"].map((name) => [name, delegate(name)])),
+  ...Object.fromEntries(["userSession", "emailVerificationCode", "oAuthAuthorization", "productActivityEvent", "lifecycleEvent", "trafficObservation", "trafficBlockRule", "systemLog", "adminJournalAccessAudit"].map((name) => [name, delegate(name)])),
   $transaction: (operations: Array<Promise<unknown>>) => Promise.all(operations),
 };
 const { adminJournalAccessAuditCutoff } = await import("@/server/admin/journalAccessAudit");
@@ -24,6 +24,8 @@ test("관리자 기록 접근 증거만 2년 기준으로 정리하며 일반 �
   const interactions = queries.find(item => item.table === "systemLog" && (item.where as { category: string }).category === "product");
   assert.equal((interactions?.where as { createdAt: { lte: Date } }).createdAt.lte.getTime(), now.getTime() - 180 * 86400000);
   assert.equal(result.productInteractions, 1);
+  assert.equal(result.lifecycleEvents, 1);
+  assert.deepEqual(queries.find(item => item.table === "lifecycleEvent")?.where, { retentionUntil: { lte: now } });
 });
 test("윤일 경계는 보존기간을 단축하지 않도록 보수적으로 계산한다", () => {
   assert.equal(adminJournalAccessAuditCutoff(new Date("2028-02-29T12:34:56Z")).toISOString(), "2026-02-28T12:34:56.000Z");
