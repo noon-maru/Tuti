@@ -4,6 +4,8 @@ import EmotionRegistry from "./EmotionRegistry";
 import GlobalStyles from "./GlobalStyles";
 import { pretendard } from "./fonts";
 import { AndroidBackButtonHandler } from "@/features/tuti/components/AndroidBackButtonHandler";
+import { Suspense } from "react";
+import { FeedbackHost } from "@/shared/ui/FeedbackHost";
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://tuti.today"),
@@ -57,6 +59,7 @@ export default function RootLayout({
           <GlobalStyles />
           <AndroidBackButtonHandler />
           {children}
+          <Suspense fallback={null}><FeedbackHost /></Suspense>
         </EmotionRegistry>
       </body>
     </html>

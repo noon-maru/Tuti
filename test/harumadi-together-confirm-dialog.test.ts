@@ -27,14 +27,14 @@ test("요청 중 중복 확인·취소를 비활성화하고 실패는 모달 �
 });
 
 test("모달은 목업 영역 안에 놓고 배경·포커스·뒤로가기를 독립적으로 처리한다", () => {
-  const source = readFileSync("src/features/tuti/components/HarumadiTogetherConfirmDialog.tsx", "utf8");
+  const source = readFileSync("src/shared/ui/AppDialogFrame.tsx", "utf8");
   const panel = readFileSync("src/features/tuti/components/HarumadiTogetherPanel.tsx", "utf8");
   assert.match(source, /querySelector<HTMLElement>\("\[data-app-viewport\]"\)/);
   assert.match(source, /viewport \?\? document.body/);
   assert.match(source, /role="alertdialog" aria-modal="true"/);
   assert.match(source, /node.inert = true/);
   assert.match(source, /node.inert = inert\[index\]/);
-  assert.match(source, /cancel.current\?\.focus/);
+  assert.match(source, /initialFocus.current\?\.focus/);
   assert.match(source, /previous.focus\(\{ preventScroll: true \}\)/);
   assert.match(source, /removeEventListener\(ANDROID_BACK_EVENT, back, true\)/);
   assert.match(source, /event.stopImmediatePropagation\(\)/);
