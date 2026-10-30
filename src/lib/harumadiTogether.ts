@@ -3,7 +3,7 @@ import { fetchWithPinnedSession, getSessionSnapshot } from "./auth/session";
 import { harumadiReadCache } from "./harumadiReadCache";
 import { HarumadiRequestError } from "./harumadis";
 import type { HarumadiTogether, HarumadiComment } from "@/shared/api/harumadiTogether";
-import { harumadiInviteUrl } from "@/shared/api/harumadiTogether";
+import { harumadiInviteShareContent, harumadiInviteUrl } from "@/shared/api/harumadiTogether";
 import { apiUrl } from "./api/apiUrl";
 import { shareContent } from "./shareContent";
 
@@ -24,7 +24,7 @@ export const fetchComments = (owner: string, id: string, parentId: string | null
 
 export async function shareHarumadiInvite(token: string) {
   const url = harumadiInviteUrl(token, apiUrl(""), window.location.origin);
-  const data = { title: "하루마디 함께 채우기", text: "각자의 순간을 하나의 하루마디에 담아보세요.", url };
+  const data = harumadiInviteShareContent(url);
   try {
     if (Capacitor.isNativePlatform()) { const { Share } = await import("@capacitor/share"); await Share.share({ ...data, dialogTitle: "함께할 사람 초대하기" }); return "shared"; }
     return await shareContent(data);

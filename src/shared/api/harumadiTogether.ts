@@ -12,6 +12,11 @@ export function harumadiInviteUrl(token: string, apiBase: string, localOrigin: s
   url.hash = token;
   return url.toString();
 }
+export function harumadiInviteShareContent(url: string) {
+  // 공유 대상마다 text와 url을 합치는 순서·구분자가 달라 초대 토큰이 오염될 수 있다.
+  // URL을 별도 필드로 보내지 않고 안내 뒤 한 본문에 담아 경계를 고정한다.
+  return { title: "하루마디 함께 채우기", text: `각자의 순간을 하나의 하루마디에 담아보세요.\n\n${url}` };
+}
 export function parseTogetherComment(value: unknown) {
   if (!value || typeof value !== "object") return null;
   const input = value as Record<string, unknown>;
