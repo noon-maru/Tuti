@@ -9,6 +9,8 @@ import { recordRecommendationAction } from "@/lib/tutiApi";
 import { useTutiStore } from "@/store/tuti";
 import { harumadiPath } from "@/lib/harumadis";
 import { useSession } from "@/features/tuti/hooks/useSession";
+import { useLifecycleView } from "../hooks/useLifecycleView";
+import { trackLifecycle } from "@/lib/lifecycle";
 
 export function JournalCreateFlow() {
   const router = useRouter();
@@ -16,11 +18,13 @@ export function JournalCreateFlow() {
   const searchParams = useSearchParams();
   const harumadiId = searchParams.get("harumadiId");
   const savedEntryId = useRef<string | null>(null);
+  const request = useRef<{ hash: string; id: string } | null>(null);
   const { addEntry, entries, isSuccess } = useTutiJournalEntries();
   const setActiveJournalEntry = useTutiStore(state => state.setActiveJournalEntry);
   const source = searchParams.get("from");
   const fromLibrary = source === "welcome" || source === "library";
   const fromExplore = source === "explore";
+  useLifecycleView("compose_started", harumadiId ? "book" : fromExplore ? "explore" : "home");
   const initialPlaceId = searchParams.get("placeId");
   const initialPlaceName = searchParams.get("placeName");
   const recommendationId = searchParams.get("journeyId");
@@ -38,7 +42,13 @@ export function JournalCreateFlow() {
     collectionLabel={fromExplore ? "작은 여행으로 돌아가기" : fromLibrary ? "하루마디로 돌아가기" : "작성 마치기"}
     onBack={returnToSource}
     onSave={async draft => {
-      const entry = await addEntry({ ...draft, ...(harumadiId ? { harumadiId } : {}) });
+      const input = { ...draft, ...(harumadiId ? { harumadiId } : {}) };
+      const bytes = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(JSON.stringify(input)));
+      const hash = Array.from(new Uint8Array(bytes), byte => byte.toString(16).padStart(2, "0")).join("");
+      if (request.current?.hash !== hash) request.current = { hash, id: crypto.randomUUID() };
+      let entry;
+      try { entry = await addEntry({ ...input, requestId: request.current.id }); }
+      catch (error) { trackLifecycle("compose_failed", { origin: "request_failed" }); throw error; }
       if (recommendationId) {
         void recordRecommendationAction({ journeyId: recommendationId, action: "journal_created",
           placeId: entry.placeId ?? undefined, metadata: { entryId: entry.id } }).catch(error => {

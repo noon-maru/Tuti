@@ -18,6 +18,7 @@ import { markLibraryEntryCompleted } from "@/lib/libraryPreferences";
 import { loadHarumadiPdfDraft } from "@/lib/harumadiPdfDraft";
 import { welcomeHarumadiPath } from "@/shared/tuti/welcomeHarumadi";
 import { setWelcomeHarumadiOrigin } from "@/lib/welcomeHarumadiNavigation";
+import { useLifecycleView } from "../hooks/useLifecycleView";
 
 export function LibraryHomeFlow() {
   const session = useSession();
@@ -28,6 +29,7 @@ function LibraryHome({ ownerId }: { ownerId: string }) {
   const [hasDraft, setHasDraft] = useState(false);
   const frame = useRef<HTMLElement>(null);
   const { opening, openBook: showBook, closeBook } = useHarumadiHistory(ownerId);
+  useLifecycleView("home_viewed", "home", undefined, !opening);
   const openBook = (book: Harumadi, control: HTMLElement, settings = false) => {
     const bounds = frame.current?.getBoundingClientRect();
     const cover = control.closest("[data-harumadi-card]")?.querySelector("[data-book-cover] > span")?.getBoundingClientRect();

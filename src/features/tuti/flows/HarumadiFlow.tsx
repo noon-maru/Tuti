@@ -16,6 +16,7 @@ import { HarumadiCloseTransition } from "@/features/tuti/components/HarumadiClos
 import { HarumadiTogetherPanel } from "@/features/tuti/components/HarumadiTogetherPanel";
 import { HarumadiComments } from "@/features/tuti/components/HarumadiComments";
 import { changeTogether } from "@/lib/harumadiTogether";
+import { useLifecycleView } from "../hooks/useLifecycleView";
 import { createHarumadi, deleteHarumadi, harumadiPath, updateHarumadi } from "@/lib/harumadis";
 import { authoritativeReadError, fetchHarumadiContent, loadCachedHarumadi, type HarumadiRead } from "@/lib/harumadiContent";
 import { canCacheHarumadi, harumadiReadCache } from "@/lib/harumadiReadCache";
@@ -71,6 +72,7 @@ function HarumadiEditor({ owner, initial, read, verified, refreshing, onRefresh,
   const [harumadi, setHarumadi] = useState(initial);
   const [settings, setSettings] = useState<HarumadiSettings>(initial ?? { title: "우리의 작은 하루", coverStyle: "white-plain" });
   const [mode, setMode] = useState<"settings" | "pages" | "selection" | "pdf" | "together" | "comments">(initial ? initialMode === "settings" && initial.role === "contributor" ? "together" : initialMode ?? "pages" : "settings");
+  useLifecycleView("book_opened", "book", harumadi?.id, Boolean(harumadi && mode === "pages"));
   const [selected, setSelected] = useState(initial?.entryIds ?? []);
   const [confirmed, setConfirmed] = useState(false);
   const [busy, setBusy] = useState(false); const [error, setError] = useState("");

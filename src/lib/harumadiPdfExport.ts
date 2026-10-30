@@ -2,6 +2,7 @@
 
 import { Capacitor } from "@capacitor/core";
 import { createHarumadiPdfFilename } from "@/shared/api/harumadiPdf";
+import { trackLifecycle } from "./lifecycle";
 
 export async function exportHarumadiPdf(bytes: Uint8Array, title: string) {
   const filename = createHarumadiPdfFilename(title);
@@ -20,6 +21,7 @@ export async function exportHarumadiPdf(bytes: Uint8Array, title: string) {
     anchor.click();
     anchor.remove();
     window.setTimeout(() => URL.revokeObjectURL(url), 1_000);
+    trackLifecycle("pdf_exported", { origin: "download", source: "book" });
     return "downloaded" as const;
   }
 
@@ -41,6 +43,7 @@ export async function exportHarumadiPdf(bytes: Uint8Array, title: string) {
       title,
       dialogTitle: "하루마디 저장 또는 공유하기",
     });
+    trackLifecycle("pdf_exported", { origin: "share_sheet", source: "book" });
   } finally {
     try {
       await Filesystem.deleteFile({ path, directory: Directory.Cache });

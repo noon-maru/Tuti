@@ -12,7 +12,9 @@ import { changeTogether } from "@/lib/harumadiTogether";
 import { clearHarumadiInvite, pendingHarumadiInvite, rememberHarumadiInviteUrl, setHarumadiInviteResume, HARUMADI_INVITE_CHANGED } from "@/lib/harumadiInviteIntent";
 import { harumadiPath } from "@/lib/harumadis";
 import { logoutAccount } from "@/lib/auth/session";
+import { useLifecycleView } from "../hooks/useLifecycleView";
 export function HarumadiInviteFlow() {
+  useLifecycleView("invite_viewed", "invite");
   const session = useSession(), router = useRouter(), client = useQueryClient();
   const [token, setToken] = useState<string | null>(null), [busy, setBusy] = useState(false), [error, setError] = useState("");
   const [fingerprint, setFingerprint] = useState("");

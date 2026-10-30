@@ -361,6 +361,7 @@ export async function createHarumadiPdf(
     headers: {
       "Content-Type": "application/pdf",
       "X-Tuti-Journal-Harumadi-Approval": approvalToken,
+      ...(await import("./lifecycle")).lifecycleHeaders(),
     },
     body: pdf.slice().buffer,
   });
@@ -402,6 +403,7 @@ export async function createJournalEntry(
     method: "POST",
     headers: {
       "Content-Type": "application/json",
+      ...(await import("./lifecycle")).lifecycleHeaders(),
     },
     body: JSON.stringify(input),
   });

@@ -7,14 +7,34 @@ import { BaseButton, PrimaryButton, TextButton } from "@/features/tuti/component
 import { recordProductInteraction } from "@/lib/productInteraction";
 import type { ProductInteractionSurface } from "@/shared/api/productInteraction";
 import { ANDROID_BACK_EVENT } from "@/features/tuti/navigation/androidBack";
+import { trackLifecycle } from "@/lib/lifecycle";
+import { useSession } from "../hooks/useSession";
 
 export function HarumadiPurchaseButton({ surface }: { surface: ProductInteractionSurface }) {
+  const owner = useSession()?.userId;
+  const observed = useRef("");
   const [open, setOpen] = useState(false);
   const [trackingFailed, setTrackingFailed] = useState(false);
   const trigger = useRef<HTMLButtonElement>(null);
   const close = useRef<HTMLButtonElement>(null);
   const dialog = useRef<HTMLElement>(null);
   const latestEvent = useRef<string | null>(null);
+  const observe = () => {
+    if (surface !== "completed_harumadi" || !owner || observed.current === owner) return;
+    observed.current = owner;
+    trackLifecycle("purchase_viewed", { source: "book" });
+  };
+  useEffect(() => {
+    const control = trigger.current;
+    if (!control || !owner || surface !== "completed_harumadi" || typeof IntersectionObserver === "undefined") return;
+    const observer = new IntersectionObserver(items => {
+      if (items.some(item => item.isIntersecting && item.intersectionRatio >= 0.5) && document.visibilityState === "visible" && observed.current !== owner) {
+        observed.current = owner; trackLifecycle("purchase_viewed", { source: "book" });
+      }
+    }, { threshold: 0.5 });
+    observer.observe(control);
+    return () => observer.disconnect();
+  }, [owner, surface]);
   const track = (eventId: string) => {
     void recordProductInteraction("harumadi_purchase_clicked", surface, eventId)
       .then(() => { if (latestEvent.current === eventId) setTrackingFailed(false); })
@@ -53,6 +73,8 @@ export function HarumadiPurchaseButton({ surface }: { surface: ProductInteractio
   return <>
     <PurchaseAction>
       <PurchaseButton ref={trigger} type="button" onClick={() => {
+        observe();
+        if (surface === "completed_harumadi") trackLifecycle("purchase_clicked", { source: "book" });
         setOpen(true);
         setTrackingFailed(false);
         const eventId = crypto.randomUUID();

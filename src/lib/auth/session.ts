@@ -401,6 +401,7 @@ async function clearStoredSession(expected?: TutiSession) {
   if (expected && (sessionSnapshot?.userId !== expected.userId || sessionSnapshot.accessToken !== expected.accessToken)) return;
   const previousUserId = sessionSnapshot?.userId;
   if (previousUserId) await harumadiReadCache.clearOwner(previousUserId).catch(() => {});
+  if (previousUserId) await import("../lifecycle").then(module => module.clearLifecycleClient(previousUserId)).catch(() => {});
   if (previousUserId) await madiDraftStorage.clearOwner(previousUserId).catch(() => {});
   sessionPromise = undefined;
   await Promise.all([
@@ -414,6 +415,7 @@ async function storeSession(session: TutiSession) {
   const previousUserId = sessionSnapshot?.userId;
   if (previousUserId && (previousUserId !== session.userId || sessionSnapshot?.accessToken !== session.accessToken)) await harumadiReadCache.clearOwner(previousUserId).catch(() => {});
   if (previousUserId && previousUserId !== session.userId) await serviceTermsAcceptanceCache.clear(previousUserId);
+  if (previousUserId && previousUserId !== session.userId) await import("../lifecycle").then(module => module.clearLifecycleClient(previousUserId)).catch(() => {});
   if (previousUserId && previousUserId !== session.userId) await madiDraftStorage.clearOwner(previousUserId).catch(() => {});
   sessionPromise = Promise.resolve(session);
   await preferencesStorage.setItem(
@@ -445,6 +447,7 @@ async function fetchWithToken(
     response = await clientFetch(apiUrl(path), { ...init, headers });
   } finally {
     if (owner && path === "account" && method === "DELETE") await madiDraftStorage.clearOwner(owner).catch(() => {});
+    if (owner && path === "account" && method === "DELETE") await import("../lifecycle").then(module => module.clearLifecycleClient(owner)).catch(() => {});
     const deletedMadi = method === "DELETE" ? /^journal-entries\/([^/]+)(?:\/sensitive-consent)?$/.exec(path)?.[1] : null;
     if (owner && deletedMadi) await madiDraftStorage.remove(owner, decodeURIComponent(deletedMadi)).catch(() => {});
     // 응답을 잃었어도 서버가 삭제·철회를 수행했을 수 있으므로 해당 계정 캐시를 비운다.
