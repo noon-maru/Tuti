@@ -19,11 +19,11 @@ import { AdminNotificationsPanel } from "@/features/admin/AdminNotificationsPane
 import { AdminSecurityTrafficPanel } from "@/features/admin/AdminSecurityTrafficPanel";
 import { AdminUserActivityPanel } from "@/features/admin/AdminUserActivityPanel";
 import { AdminUserJournalsPanel } from "@/features/admin/AdminUserJournalsPanel";
-import { AdminBusinessMetricsPanel } from "@/features/admin/AdminBusinessMetricsPanel";
+import { AdminLifelogMetricsPanel } from "@/features/admin/AdminLifelogMetricsPanel";
+import type { LifelogMetricsResponse } from "@/shared/api/lifelogMetrics";
 import { TutiWordmark } from "@/features/tuti/components/TutiWordmark";
 import { BaseButton, baseControlStyles } from "@/shared/ui/buttons";
 import type {
-  AdminBusinessMetricsResponse,
   AdminInquiriesResponse,
   AdminInquiryItem,
   AdminLogItem,
@@ -67,11 +67,11 @@ export type AdminTab =
 
 const tabs: Array<{ id: AdminTab; label: string }> = [
   { id: "overview", label: "운영 현황" },
-  { id: "business", label: "사업 지표" },
+  { id: "business", label: "제품 성과" },
   { id: "activity", label: "사용자 활동" },
   { id: "security", label: "트래픽·보안" },
   { id: "notifications", label: "알림 전달" },
-  { id: "funnel", label: "추천 성과" },
+  { id: "funnel", label: "작은 여행 성과" },
   { id: "logs", label: "시스템 로그" },
   { id: "location", label: "위치정보 감사" },
   { id: "places", label: "장소 운영" },
@@ -116,11 +116,11 @@ const mobilePrimaryTabs: Array<{ id: AdminTab; label: string }> = [
   { id: "overview", label: "홈" },
   { id: "inquiries", label: "문의" },
   { id: "reports", label: "신고" },
-  { id: "places", label: "장소" },
+  { id: "business", label: "제품 성과" },
 ];
 
 const mobileMoreTabs: Array<{ id: AdminTab; label: string }> = [
-  { id: "business", label: "사업 지표" },
+  { id: "places", label: "장소 운영" },
   { id: "activity", label: "사용자 활동" },
   { id: "security", label: "트래픽 및 보안 관제" },
   { id: "funnel", label: "추천 행동 퍼널" },
@@ -249,7 +249,7 @@ export function AdminScreen({
     useState<AdminRecommendationFunnelResponse | null>(null);
   const [funnelDays, setFunnelDays] = useState(30);
   const [businessMetrics, setBusinessMetrics] =
-    useState<AdminBusinessMetricsResponse | null>(null);
+    useState<LifelogMetricsResponse | null>(null);
   const [businessMetricDays, setBusinessMetricDays] = useState(30);
   const [userActivity, setUserActivity] =
     useState<AdminUserActivityResponse | null>(null);
@@ -460,8 +460,8 @@ export function AdminScreen({
       setNotifications(response);
       notificationsLoadedRef.current = true;
     } else if (tab === "business") {
-      const response = await fetchAdminJson<AdminBusinessMetricsResponse>(
-        `business-metrics?days=${businessMetricDays}`,
+      const response = await fetchAdminJson<LifelogMetricsResponse>(
+        `lifelog-metrics?days=${businessMetricDays}`,
       );
       setBusinessMetrics(response);
     } else if (tab === "funnel") {
@@ -830,7 +830,7 @@ export function AdminScreen({
         ) : tab === "notifications" ? (
           <AdminNotificationsPanel data={notifications} />
         ) : tab === "business" ? (
-          <AdminBusinessMetricsPanel
+          <AdminLifelogMetricsPanel
             data={businessMetrics}
             days={businessMetricDays}
             onDaysChange={setBusinessMetricDays}
