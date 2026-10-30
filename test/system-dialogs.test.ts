@@ -1,11 +1,20 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { execFileSync } from "node:child_process";
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
+import { join } from "node:path";
 import ts from "typescript";
 
+function sourceFiles(directory: string): string[] {
+  return readdirSync(directory, { withFileTypes: true }).flatMap(entry => {
+    const path = join(directory, entry.name);
+    if (entry.isDirectory()) return entry.name === "generated" ? [] : sourceFiles(path);
+    return entry.isFile() && /\.tsx?$/.test(entry.name) ? [path] : [];
+  });
+}
+
 test("사용자·관리자 코드에 시스템 alert·confirm·prompt가 다시 들어오지 않는다", () => {
-  const paths = execFileSync("git", ["ls-files", "src/**/*.ts", "src/**/*.tsx"], { encoding: "utf8" }).trim().split("\n");
+  // 배포 작업 이미지는 Git 실행 파일·메타데이터 없이도 같은 검사를 수행한다.
+  const paths = sourceFiles("src");
   const native: string[] = [], unawaited: string[] = [];
   let confirmations = 0;
   for (const path of paths) {
