@@ -4,8 +4,13 @@ import { lifecycleData, recordLifecycle } from "../src/server/analytics/lifecycl
 import { parseLifecycleInput } from "../src/shared/api/lifecycle";
 import type { Prisma } from "../src/generated/prisma/client";
 import { readObservation } from "../src/server/analytics/readObservation";
+import { requiresServiceTerms } from "../src/shared/legal/serviceTerms";
 
 const id = "bb17e0d4-d207-4d0e-9bf0-d00604d60e8a";
+test("새 화면 계측 API도 일반 이용약관 보호 범위에 포함한다", () => {
+  assert.equal(requiresServiceTerms("/api/lifecycle", "POST"), true);
+  assert.equal(requiresServiceTerms("/api/lifecycle", "OPTIONS"), false);
+});
 test("관측 요청은 문자열 변환 전에 바이트 제한을 적용하고 비정상 JSON을 거부한다", async () => {
   const request = (body: string) => new Request("https://example.test/lifecycle", { method: "POST", body });
   assert.deepEqual(await readObservation(request('{"name":"home_viewed"}')), { name: "home_viewed" });

@@ -70,6 +70,9 @@ export async function verifyLifelogMetrics(query: (sql: string) => string, rejec
   try {
     const [native] = await client.$queryRaw<Array<{ value: { newMadis: number } }>>(lifelogActivitySql(period));
     assert.equal(native.value.newMadis, 2, "실제 어댑터의 파라미터·JSON 결과도 격리 SQL과 같아야 한다.");
+    const [nativeStock] = await client.$queryRaw<Array<{ madis: bigint; entryDistribution: unknown[] }>>(lifelogStockSql());
+    assert.equal(Number(nativeStock.madis), 3);
+    assert.ok(Array.isArray(nativeStock.entryDistribution));
     const [nativeUsers] = await client.$queryRaw<Array<{ value: { summary: { observedUsers: number } } }>>(lifelogUsersSql(period, null));
     assert.equal(nativeUsers.value.summary.observedUsers, page.summary.observedUsers);
     await assert.rejects(client.$transaction(async tx => {
