@@ -2,6 +2,7 @@ import { authenticateAdmin } from "@/server/admin/auth";
 import { calculateBusinessMetrics } from "@/server/admin/businessMetrics";
 import { prisma } from "@/server/db/prisma";
 import { PRODUCT_INTERACTION_ACTIONS } from "@/shared/api/productInteraction";
+import { analyticsUserWhere } from "@/server/admin/analyticsScope";
 import {
   createPreflightResponse,
   isRequestOriginAllowed,
@@ -32,10 +33,7 @@ export async function GET(request: Request) {
   const analysisSince = new Date(
     now.getTime() - Math.max(100, periodDays * 2 + 2) * DAY_MS,
   );
-  const includedUserWhere = {
-    role: "user" as const,
-    analyticsExcludedAt: null,
-  };
+  const includedUserWhere = analyticsUserWhere;
 
   const interactionLogs = await prisma.systemLog.findMany({
     where: {

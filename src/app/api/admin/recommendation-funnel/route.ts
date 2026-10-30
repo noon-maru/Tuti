@@ -1,5 +1,6 @@
 import { authenticateAdmin } from "@/server/admin/auth";
 import { prisma } from "@/server/db/prisma";
+import { analyticsPeriod, analyticsUserWhere } from "@/server/admin/analyticsScope";
 import {
   createPreflightResponse,
   isRequestOriginAllowed,
@@ -38,14 +39,14 @@ export async function GET(request: Request) {
   const periodDays = normalizePeriodDays(
     new URL(request.url).searchParams.get("days"),
   );
-  const since = new Date(Date.now() - periodDays * 24 * 60 * 60 * 1000);
+  const { start: since, end } = analyticsPeriod(periodDays);
   const [runs, actions, algorithmGroups] = await Promise.all([
     prisma.recommendationRun.findMany({
-      where: { createdAt: { gte: since } },
+      where: { user: analyticsUserWhere, createdAt: { gte: since, lt: end } },
       select: { id: true, locationUsed: true },
     }),
     prisma.recommendationAction.findMany({
-      where: { createdAt: { gte: since } },
+      where: { user: analyticsUserWhere, createdAt: { gte: since, lt: end } },
       select: {
         journeyId: true,
         action: true,
@@ -55,7 +56,7 @@ export async function GET(request: Request) {
     }),
     prisma.recommendationRun.groupBy({
       by: ["algorithmVersion"],
-      where: { createdAt: { gte: since } },
+      where: { user: analyticsUserWhere, createdAt: { gte: since, lt: end } },
       _count: { _all: true },
       orderBy: { _count: { algorithmVersion: "desc" } },
     }),
