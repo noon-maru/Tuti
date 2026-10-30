@@ -22,6 +22,7 @@ test("책장·책 읽기에 명시적인 공동작성 진입점을 두되 메뉴
   assert.match(home, /harumadiPdf.togetherEnabled && <TogetherAction/);
   assert.match(home, /openBook\(harumadiPdf, event.currentTarget, "together"\)/);
   assert.match(flow, /harumadi\?\.togetherEnabled && mode === "pages" && <TogetherEntry/);
+  assert.doesNotMatch(flow, /함께 채우기 · 참여자 관리/);
   assert.match(flow, /mode === "together" && harumadi \? readOnly \?/);
   assert.doesNotMatch(home, /changeTogether|createInvite/);
   assert.match(menu, /void item.onSelect\(triggerRef.current\)/);
