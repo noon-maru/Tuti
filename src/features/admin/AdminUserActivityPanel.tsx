@@ -25,12 +25,14 @@ export function AdminUserActivityPanel({
   mutatingId,
   onDaysChange,
   onToggleExcluded,
+  onLoadMore,
 }: {
   data: AdminUserActivityResponse | null;
   days: number;
   mutatingId: string | null;
   onDaysChange: (days: number) => void;
   onToggleExcluded: (user: AdminUserActivityItem) => void;
+  onLoadMore?: () => void;
 }) {
   const [userListTab, setUserListTab] = useState<"included" | "excluded">(
     "included",
@@ -63,9 +65,9 @@ export function AdminUserActivityPanel({
 
       <Summary aria-label="사용자 활동 요약">
         <SummaryPrimary>
-          <span>의미 있는 사용자</span>
+          <span>기록·열람 이용 계정</span>
           <strong>{formatNumber(data.summary.meaningfulUsers)}</strong>
-          <small>추천 결과까지 도달</small>
+          <small>마디·책 읽기·담기·PDF 관측</small>
         </SummaryPrimary>
         <SummaryItem>
           <span>관측 사용자</span>
@@ -76,11 +78,11 @@ export function AdminUserActivityPanel({
           <strong>{formatNumber(data.summary.newUsers)}</strong>
         </SummaryItem>
         <SummaryItem>
-          <span>재방문</span>
+          <span>2일 이상 활동</span>
           <strong>{formatNumber(data.summary.returningUsers)}</strong>
         </SummaryItem>
         <SummaryItem>
-          <span>출발·기록 전환</span>
+          <span>마디 작성 계정</span>
           <strong>{formatNumber(data.summary.convertedUsers)}</strong>
         </SummaryItem>
         <SummaryItem>
@@ -127,8 +129,8 @@ export function AdminUserActivityPanel({
 
       <UserSection>
         <SectionHeading>
-          <h3>사용자별 이용 단계</h3>
-          <StageLegend>생성 → 방문 → 추천 → 탐색 → 전환</StageLegend>
+          <h3>사용자별 이용 현황</h3>
+          <StageLegend>전체 요약과 별도인 계정 목록 · 작성·열람·함께 채우기 구분</StageLegend>
         </SectionHeading>
         <UserTabs role="tablist" aria-label="사용자 활동 집계 구분">
           <UserTab
@@ -167,7 +169,7 @@ export function AdminUserActivityPanel({
               <thead>
                 <tr>
                   <th scope="col">사용자</th>
-                  <th scope="col">최종 단계</th>
+                  <th scope="col">라이프로그 활동</th>
                   <th scope="col">환경</th>
                   <th scope="col">세션</th>
                   <th scope="col">추천</th>
@@ -187,10 +189,8 @@ export function AdminUserActivityPanel({
                         </small>
                       </UserIdentity>
                     </td>
-                    <td data-label="최종 단계">
-                      <StageBadge data-stage={user.stage}>
-                        {getStageLabel(user.stage)}
-                      </StageBadge>
+                    <td data-label="라이프로그 활동">
+                      {user.lifelog ? <><StageBadge data-stage={user.lifelog.writes ? "converted" : "visited"}>작성 {user.lifelog.writes} · {user.lifelog.writeDays}일</StageBadge><Subtle>책 열람 {user.lifelog.bookOpens} · 담기 {user.lifelog.contributions} · PDF {user.lifelog.pdfs}</Subtle></> : <StageBadge data-stage={user.stage}>{getStageLabel(user.stage)}</StageBadge>}
                     </td>
                     <td data-label="환경">
                       {getPlatformLabel(user.platform)}
@@ -228,9 +228,10 @@ export function AdminUserActivityPanel({
           </TableViewport>
         )}
       </UserSection>
+      {data.nextCursor && onLoadMore && <ExcludeButton type="button" onClick={onLoadMore}>다음 계정 불러오기</ExcludeButton>}
       <Footnote>
-        ‘재방문’은 조회 기간에 서로 다른 클라이언트 세션이 두 번 이상 관측된
-        경우입니다. 활동 수집 도입 이전 방문은 일부 집계되지 않을 수 있습니다.
+        상단 요약·날짜별 활동은 페이지와 무관한 전체 분석 대상 집계입니다. ‘2일 이상 활동’은 한국 시간 기준 서로 다른 날짜의 관측입니다.
+        목록의 라이프로그 활동은 새 계측 이후 자료이며, 과거 생성·삭제 자료와 미계측 활동은 소급하지 않습니다.
       </Footnote>
     </Layout>
   );

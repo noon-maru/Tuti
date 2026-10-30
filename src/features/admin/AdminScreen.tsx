@@ -848,6 +848,13 @@ export function AdminScreen({
             days={userActivityDays}
             mutatingId={mutatingId}
             onDaysChange={setUserActivityDays}
+            onLoadMore={() => {
+              const cursor = userActivity?.nextCursor;
+              if (!cursor) return;
+              void fetchAdminJson<AdminUserActivityResponse>(`user-activity?days=${userActivityDays}&cursor=${encodeURIComponent(cursor)}`).then(response => {
+                setUserActivity(current => current ? { ...response, users: [...current.users, ...response.users.filter(row => !current.users.some(prior => prior.userId === row.userId))] } : response);
+              }).catch(cause => setError(toErrorMessage(cause)));
+            }}
             onToggleExcluded={(user: AdminUserActivityItem) => {
               const nextExcluded = !user.excluded;
               if (

@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 import { analyticsPeriod } from "../../src/server/admin/analyticsScope";
 import { lifelogActivitySql } from "../../src/server/admin/lifelogActivity";
 import { lifelogStockSql } from "../../src/server/admin/lifelogStock";
+import { lifelogUsersSql } from "../../src/server/admin/lifelogUsers";
 import type { Prisma } from "../../src/generated/prisma/client";
 
 export function verifyLifelogMetrics(query: (sql: string) => string, rejected: (sql: string, match: RegExp) => void, socket: string) {
@@ -10,7 +11,8 @@ export function verifyLifelogMetrics(query: (sql: string) => string, rejected: (
   query("CREATE SCHEMA lifelog_fixture");
   const run = (sql: string) => query(`SET search_path=lifelog_fixture,public; ${sql}`).replace(/^SET\n/, "");
   // Test-only rendering: production uses parameterized Prisma SQL, never this renderer.
-  const render = (sql: Prisma.Sql) => sql.strings.map((s, i) => s + (i < sql.values.length ? `'${(sql.values[i] as Date).toISOString().replace(/'/g, "''")}'` : "")).join("");
+  const quote = (value: unknown) => value === null ? "NULL" : typeof value === "number" ? String(value) : `'${String(value instanceof Date ? value.toISOString() : value).replace(/'/g, "''")}'`;
+  const render = (sql: Prisma.Sql) => sql.strings.map((s, i) => s + (i < sql.values.length ? quote(sql.values[i]) : "")).join("");
   run(`CREATE TABLE users(id text PRIMARY KEY,role text,analytics_excluded_at timestamp,created_at timestamp);
     CREATE TABLE journal_entries(id text PRIMARY KEY,owner_id text,image text,sensitive_withdrawn_at timestamp);
     CREATE TABLE harumadis(id text PRIMARY KEY,owner_id text);
@@ -47,6 +49,20 @@ export function verifyLifelogMetrics(query: (sql: string) => string, rejected: (
   const stock = JSON.parse(run(`SELECT row_to_json(x) FROM (${render(lifelogStockSql())}) x`));
   assert.equal(stock.madis, 3); assert.equal(stock.books, 3); assert.equal(stock.emptyBooks, 1);
   assert.equal(stock.collaborativeBooks, 1); assert.equal(stock.pdfs, 1); assert.equal(stock.unfiled, 1);
+  run(`ALTER TABLE users ADD COLUMN display_name text,ADD COLUMN analytics_exclusion_reason text,ADD COLUMN last_accessed_at timestamp DEFAULT '2026-10-30';
+    ALTER TABLE journal_entries ADD COLUMN created_at timestamp DEFAULT '2026-10-03';
+    CREATE TABLE auth_identities(user_id text);
+    CREATE TABLE recommendation_runs(user_id text,created_at timestamp);
+    CREATE TABLE recommendation_actions(user_id text,created_at timestamp);
+    CREATE TABLE product_activity_events(user_id text,created_at timestamp,platform text,app_version text,client_session_id text);
+    INSERT INTO users(id,role,created_at) SELECT 'bulk-'||s,'user','2026-10-28' FROM generate_series(1,1000) s;`);
+  const page = JSON.parse(run(render(lifelogUsersSql(period, null))));
+  assert.equal(page.users.length, 100);
+  assert.ok(page.summary.observedUsers > 1000);
+  assert.ok(page.nextCursor);
+  const nextPage = JSON.parse(run(render(lifelogUsersSql(period, page.nextCursor))));
+  assert.equal(nextPage.summary.observedUsers, page.summary.observedUsers);
+  assert.ok(nextPage.users.every((row: { userId: string }) => !page.users.some((old: { userId: string }) => old.userId === row.userId)));
   rejected("SET search_path=lifelog_fixture,public; INSERT INTO lifecycle_events(id,occurrence_key,user_id,name,retention_until) VALUES('bad','bad','a','private_content',now()+interval '1 day')", /check constraint/i);
   run("DELETE FROM users WHERE id='a'");
   assert.equal(run("SELECT count(1) FROM lifecycle_events WHERE user_id='a'"), "0");

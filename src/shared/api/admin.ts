@@ -214,6 +214,7 @@ export type AdminUserActivityStage =
   | "converted";
 
 export type AdminUserActivityItem = {
+  lifelog?: { writes: number; writeDays: number; bookOpens: number; contributions: number; pdfs: number };
   userId: string;
   displayName: string | null;
   accountType: "anonymous" | "authenticated" | "admin";
@@ -239,6 +240,7 @@ export type AdminUserActivityDay = {
 };
 
 export type AdminUserActivityResponse = {
+  nextCursor?: string | null;
   periodDays: number;
   generatedAt: string;
   trackingStartedAt: string | null;

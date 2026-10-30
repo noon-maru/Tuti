@@ -1,187 +1,24 @@
 import { authenticateAdmin } from "@/server/admin/auth";
 import { writeSystemLog } from "@/server/admin/log";
-import {
-  isMeaningfulActivityStage,
-  resolveUserActivityStage,
-} from "@/server/admin/userActivity";
 import { prisma } from "@/server/db/prisma";
-import {
-  createPreflightResponse,
-  isRequestOriginAllowed,
-  withCors,
-} from "@/server/http/cors";
-import type {
-  AdminUserActivityDay,
-  AdminUserActivityItem,
-  AdminUserActivityResponse,
-} from "@/shared/api/admin";
+import { analyticsPeriod, normalizeAnalyticsDays } from "@/server/admin/analyticsScope";
+import { readLifelogUsers } from "@/server/admin/lifelogUsers";
+import { lifecycleId } from "@/shared/api/lifecycle";
+import { createPreflightResponse, isRequestOriginAllowed, withCors } from "@/server/http/cors";
 
 export const runtime = "nodejs";
-
-const DAY_MS = 24 * 60 * 60 * 1_000;
-
 export async function GET(request: Request) {
-  if (!isRequestOriginAllowed(request)) {
-    return Response.json({ error: "허용되지 않은 요청 출처예요." }, { status: 403 });
-  }
-
+  if (!isRequestOriginAllowed(request)) return Response.json({ error: "허용되지 않은 요청 출처예요." }, { status: 403 });
   const authentication = await authenticateAdmin(request);
   if (!authentication.ok) return withCors(request, authentication.response);
-
-  const periodDays = normalizePeriodDays(
-    new URL(request.url).searchParams.get("days"),
-  );
-  const since = new Date(Date.now() - periodDays * DAY_MS);
-
-  const [
-    users,
-    productEvents,
-    recommendationRuns,
-    recommendationActions,
-    journals,
-    trackingBoundary,
-  ] = await Promise.all([
-      prisma.user.findMany({
-        where: {
-          OR: [
-            { createdAt: { gte: since } },
-            { productActivityEvents: { some: { createdAt: { gte: since } } } },
-            { recommendationRuns: { some: { createdAt: { gte: since } } } },
-            { recommendationActions: { some: { createdAt: { gte: since } } } },
-            { journalEntries: { some: { createdAt: { gte: since } } } },
-          ],
-        },
-        select: {
-          id: true,
-          displayName: true,
-          role: true,
-          createdAt: true,
-          lastAccessedAt: true,
-          analyticsExcludedAt: true,
-          analyticsExclusionReason: true,
-          authIdentities: { select: { id: true } },
-        },
-        orderBy: { lastAccessedAt: "desc" },
-        take: 500,
-      }),
-      prisma.productActivityEvent.findMany({
-        where: { createdAt: { gte: since } },
-        select: {
-          userId: true,
-          clientSessionId: true,
-          action: true,
-          platform: true,
-          appVersion: true,
-          createdAt: true,
-        },
-        orderBy: { createdAt: "asc" },
-      }),
-      prisma.recommendationRun.findMany({
-        where: { createdAt: { gte: since } },
-        select: { userId: true, createdAt: true },
-      }),
-      prisma.recommendationAction.findMany({
-        where: { createdAt: { gte: since } },
-        select: { userId: true, action: true, createdAt: true },
-      }),
-      prisma.journalEntry.findMany({
-        where: { createdAt: { gte: since } },
-        select: { ownerId: true, createdAt: true },
-      }),
-      prisma.productActivityEvent.aggregate({
-        _min: { createdAt: true },
-      }),
-    ]);
-
-  const productByUser = groupBy(productEvents, (event) => event.userId);
-  const runsByUser = groupBy(recommendationRuns, (run) => run.userId);
-  const actionsByUser = groupBy(recommendationActions, (action) => action.userId);
-  const journalsByUser = groupBy(journals, (journal) => journal.ownerId);
-  const daily = new Map<string, {
-    newUsers: Set<string>;
-    activeUsers: Set<string>;
-    meaningfulUsers: Set<string>;
-  }>();
-  const trackingStartedAt = trackingBoundary._min.createdAt?.toISOString() ?? null;
-
-  const items = users.map<AdminUserActivityItem>((user) => {
-    const events = productByUser.get(user.id) ?? [];
-    const runs = runsByUser.get(user.id) ?? [];
-    const actions = actionsByUser.get(user.id) ?? [];
-    const userJournals = journalsByUser.get(user.id) ?? [];
-    const stage = resolveUserActivityStage({
-      productActions: events.map((event) => event.action),
-      recommendationRuns: runs.length,
-      recommendationActions: actions.map((action) => action.action),
-      journalCount: userJournals.length,
-    });
-    const timestamps = [
-      ...(user.createdAt >= since ? [user.createdAt] : []),
-      ...(user.lastAccessedAt >= since ? [user.lastAccessedAt] : []),
-      ...events.map((event) => event.createdAt),
-      ...runs.map((run) => run.createdAt),
-      ...actions.map((action) => action.createdAt),
-      ...userJournals.map((journal) => journal.createdAt),
-    ].sort((left, right) => left.getTime() - right.getTime());
-    const latestEvent = events.at(-1);
-    const excluded = user.role === "admin" || Boolean(user.analyticsExcludedAt);
-    const item: AdminUserActivityItem = {
-      userId: user.id,
-      displayName: user.displayName,
-      accountType:
-        user.role === "admin"
-          ? "admin"
-          : user.authIdentities.length > 0
-            ? "authenticated"
-            : "anonymous",
-      stage,
-      excluded,
-      exclusionReason:
-        user.role === "admin"
-          ? "관리자 계정"
-          : user.analyticsExclusionReason,
-      platform: latestEvent?.platform ?? null,
-      appVersion: latestEvent?.appVersion ?? null,
-      sessionCount: new Set(events.map((event) => event.clientSessionId)).size,
-      recommendationRuns: runs.length,
-      recommendationActions: actions.length,
-      journalCount: userJournals.length,
-      createdAt: user.createdAt.toISOString(),
-      firstActivityAt: (timestamps[0] ?? user.createdAt).toISOString(),
-      lastActivityAt: (timestamps.at(-1) ?? user.lastAccessedAt).toISOString(),
-    };
-
-    if (!excluded) {
-      addDailyUser(daily, user.createdAt, since, user.id, "newUsers");
-      for (const timestamp of timestamps) {
-        addDailyUser(daily, timestamp, since, user.id, "activeUsers");
-      }
-      for (const signal of [...runs, ...actions, ...userJournals]) {
-        addDailyUser(daily, signal.createdAt, since, user.id, "meaningfulUsers");
-      }
-    }
-    return item;
-  });
-
-  const included = items.filter((item) => !item.excluded);
-  const response: AdminUserActivityResponse = {
-    periodDays,
-    generatedAt: new Date().toISOString(),
-    trackingStartedAt,
-    summary: {
-      observedUsers: included.length,
-      newUsers: included.filter((item) => new Date(item.createdAt) >= since).length,
-      returningUsers: included.filter((item) => item.sessionCount >= 2).length,
-      meaningfulUsers: included.filter((item) => isMeaningfulActivityStage(item.stage)).length,
-      convertedUsers: included.filter((item) => item.stage === "converted").length,
-      authenticatedUsers: included.filter((item) => item.accountType === "authenticated").length,
-      excludedUsers: items.filter((item) => item.excluded).length,
-    },
-    daily: serializeDaily(daily, periodDays),
-    users: items,
-  };
-
-  return withCors(request, Response.json(response));
+  const params = new URL(request.url).searchParams, cursor = params.get("cursor");
+  if (cursor !== null && !lifecycleId(cursor)) return withCors(request, Response.json({ error: "목록 위치를 확인해주세요." }, { status: 400 }));
+  try {
+    const period = analyticsPeriod(normalizeAnalyticsDays(params.get("days") ?? "7"));
+    return withCors(request, Response.json(await readLifelogUsers(period, cursor), { headers: { "Cache-Control": "private, no-store" } }));
+  } catch {
+    return withCors(request, Response.json({ error: "사용자 활동을 불러오지 못했어요." }, { status: 503 }));
+  }
 }
 
 export async function PATCH(request: Request) {
@@ -250,68 +87,5 @@ export async function PATCH(request: Request) {
   }
 }
 
-export function OPTIONS(request: Request) {
-  return createPreflightResponse(request);
-}
 
-function normalizePeriodDays(value: string | null) {
-  const parsed = Number(value);
-  return parsed === 30 || parsed === 90 ? parsed : 7;
-}
-
-function groupBy<T>(items: T[], key: (item: T) => string) {
-  const groups = new Map<string, T[]>();
-  for (const item of items) {
-    const value = key(item);
-    const group = groups.get(value);
-    if (group) group.push(item);
-    else groups.set(value, [item]);
-  }
-  return groups;
-}
-
-function addDailyUser(
-  daily: Map<string, { newUsers: Set<string>; activeUsers: Set<string>; meaningfulUsers: Set<string> }>,
-  timestamp: Date,
-  since: Date,
-  userId: string,
-  field: "newUsers" | "activeUsers" | "meaningfulUsers",
-) {
-  if (timestamp < since) return;
-  const date = koreanDateKey(timestamp);
-  const row = daily.get(date) ?? {
-    newUsers: new Set<string>(),
-    activeUsers: new Set<string>(),
-    meaningfulUsers: new Set<string>(),
-  };
-  row[field].add(userId);
-  daily.set(date, row);
-}
-
-function serializeDaily(
-  daily: Map<string, { newUsers: Set<string>; activeUsers: Set<string>; meaningfulUsers: Set<string> }>,
-  periodDays: number,
-) {
-  const rows: AdminUserActivityDay[] = [];
-  for (let offset = periodDays - 1; offset >= 0; offset -= 1) {
-    const date = new Date(Date.now() - offset * DAY_MS);
-    const key = koreanDateKey(date);
-    const value = daily.get(key);
-    rows.push({
-      date: key,
-      newUsers: value?.newUsers.size ?? 0,
-      activeUsers: value?.activeUsers.size ?? 0,
-      meaningfulUsers: value?.meaningfulUsers.size ?? 0,
-    });
-  }
-  return rows;
-}
-
-function koreanDateKey(value: Date) {
-  return new Intl.DateTimeFormat("sv-SE", {
-    timeZone: "Asia/Seoul",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).format(value);
-}
+export const OPTIONS = createPreflightResponse;
