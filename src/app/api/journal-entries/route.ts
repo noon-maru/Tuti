@@ -1,6 +1,7 @@
 import { authenticateUser } from "@/server/auth/session";
 import { parseJournalEntryInput } from "@/server/journal/input";
 import { HarumadiError } from "@/server/harumadi/errors";
+import { readLifecycleContext } from "@/server/analytics/lifecycle";
 import { JournalImageError } from "@/server/journal/imageStorage";
 import { SensitiveJournalPolicyError } from "@/server/journal/sensitivePolicy";
 import {
@@ -70,7 +71,7 @@ export async function POST(request: Request) {
     }
 
     const response: JournalEntryResponse = {
-      entry: await createJournalEntry(user.id, input),
+      entry: await createJournalEntry(user.id, input, readLifecycleContext(request)),
     };
 
     return withCors(

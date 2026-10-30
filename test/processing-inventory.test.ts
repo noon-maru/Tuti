@@ -92,7 +92,7 @@ test("시행 대장은 소스 대조와 계약·처리 근거 승인을 분리�
   // Preserve the historical approved audit; disabled new functionality is not legal approval.
   assert.equal(evidence.checks.processingInventory.sourceAudit.prismaModelsClassified, report.models - report.pendingRolloutModels.length);
   assert.equal(evidence.checks.processingInventory.sourceAudit.groups, report.groups - report.pendingRolloutGroups);
-  assert.deepEqual(report.pendingRolloutModels, ["HarumadiMember", "HarumadiInvite", "HarumadiComment"]);
+  assert.deepEqual(report.pendingRolloutModels, ["HarumadiMember", "HarumadiInvite", "HarumadiComment", "LifecycleEvent"]);
   assert.equal(evidence.checks.processorsAndTransfers.sourceAudit.externalFlowGroups, report.externalFlows);
   assert.equal(evidence.checks.processingInventory.reference, "LEGAL-TEXT-DECISION-20261022");
   assert.equal(evidence.checks.processorsAndTransfers.reference, "LEGAL-TEXT-DECISION-20261022");

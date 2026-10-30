@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { recordContribution, recordLifecycle } from "@/server/analytics/lifecycle";
 import { prisma } from "@/server/db/prisma";
 import type { Prisma } from "@/generated/prisma/client";
 import type { Harumadi, HarumadiSettings, HarumadiUpdate } from "@/shared/api/harumadi";
@@ -68,8 +69,10 @@ export async function createHarumadi(ownerId: string, settings: HarumadiSettings
   return prisma.$transaction(async tx => {
     // 첫 마디의 기본 하루마디 생성과 수동 생성을 같은 소유자 잠금으로 조정한다.
     await tx.$queryRaw`SELECT id FROM users WHERE id = ${ownerId} FOR UPDATE`;
-    return dto(await tx.harumadi.create({ data: { id: randomUUID(), ownerId, title: settings.title,
-      coverStyle: settings.coverStyle, backCoverText: settings.backCoverText ?? pickHarumadiBackCoverText() }, select: selection }));
+    const book = await tx.harumadi.create({ data: { id: randomUUID(), ownerId, title: settings.title,
+      coverStyle: settings.coverStyle, backCoverText: settings.backCoverText ?? pickHarumadiBackCoverText() }, select: selection });
+    await recordLifecycle(tx, ownerId, { name: "harumadi_created", key: `book:${book.id}`, entityId: book.id, bookId: book.id, origin: "manual" });
+    return dto(book);
   });
 }
 export async function updateHarumadi(ownerId: string, id: string, input: HarumadiUpdate) {
@@ -103,8 +106,11 @@ export async function updateHarumadi(ownerId: string, id: string, input: Harumad
       select: { id: true, sensitiveContent: true, sensitiveConsentVersion: true, sensitiveWithdrawnAt: true } });
     if (entries.length !== input.entryIds.length) throw new HarumadiError("선택한 마디가 없거나 삭제됐어요. 다시 골라주세요.", 409);
     entries.forEach(entry => assertSensitiveJournalReadable(entry));
-    await tx.harumadiEntryLink.deleteMany({ where: { harumadiId: id } });
-    if (input.entryIds.length) await tx.harumadiEntryLink.createMany({ data: input.entryIds.map(entryId => ({ harumadiId: id, entryId })) });
+    const priorLinks = await tx.harumadiEntryLink.findMany({ where: { harumadiId: id }, select: { entryId: true } });
+    await tx.harumadiEntryLink.deleteMany({ where: { harumadiId: id, entryId: { notIn: input.entryIds } } });
+    const added = input.entryIds.filter(entryId => !priorLinks.some(link => link.entryId === entryId)).map(entryId => ({ id: randomUUID(), harumadiId: id, entryId }));
+    if (added.length) await tx.harumadiEntryLink.createMany({ data: added });
+    for (const link of added) await recordContribution(tx, ownerId, id, link.entryId, link.id);
     return dto(await tx.harumadi.findFirstOrThrow({ where: { id, ownerId }, select: selection }));
   });
 }

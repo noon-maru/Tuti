@@ -88,7 +88,8 @@ test("하루마디 서버는 빈 틀·소유권·낙관적 잠금·민감정보�
     harumadi: model,
     journalEntry: { count: async () => 1, findMany: async ({ where }: { where: { ownerId: string; id: { in: string[] } } }) => [...records.values()].filter(record => record.ownerId === where.ownerId && where.id.in.includes(record.id)) },
     harumadiEntryLink: {
-      deleteMany: async ({ where }: { where: { harumadiId: string } }) => { links.set(where.harumadiId, []); },
+      findMany: async ({ where }: { where: { harumadiId: string } }) => (links.get(where.harumadiId) ?? []).map(entryId => ({ entryId })),
+      deleteMany: async ({ where }: { where: { harumadiId: string; entryId?: { notIn: string[] } } }) => { links.set(where.harumadiId, (links.get(where.harumadiId) ?? []).filter(id => where.entryId?.notIn.includes(id))); },
       createMany: async ({ data }: { data: { harumadiId: string; entryId: string }[] }) => { for (const link of data) links.set(link.harumadiId, [...(links.get(link.harumadiId) ?? []), link.entryId]); },
     },
     $queryRaw: async () => [],

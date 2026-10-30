@@ -1,4 +1,6 @@
-import { randomBytes } from "node:crypto";
+import { createHash, randomBytes } from "node:crypto";
+import { recordContribution, recordLifecycle } from "@/server/analytics/lifecycle";
+import type { LifecycleContext } from "@/shared/api/lifecycle";
 
 import { Prisma } from "@/generated/prisma/client";
 import {
@@ -58,6 +60,7 @@ export async function getJournalEntries(
 export async function createJournalEntry(
   ownerId: string,
   input: JournalEntryInput,
+  context: LifecycleContext = {},
 ): Promise<TutiJournalEntry> {
   const sensitiveData = sensitiveJournalData(input);
   const entryId = crypto.randomUUID();
@@ -72,6 +75,17 @@ export async function createJournalEntry(
     const entry = await prisma.$transaction(async tx => {
       // 첫 마디 판단과 하루마디 생성을 계정별로 직렬화한다.
       await tx.$queryRaw`SELECT id FROM users WHERE id = ${ownerId} FOR UPDATE`;
+      const requestKey = input.requestId ? `madi-request:${ownerId}:${input.requestId}` : undefined;
+      const requestHash = requestKey ? createHash("sha256").update(JSON.stringify(input)).digest("hex") : undefined;
+      if (requestKey && tx.lifecycleEvent) {
+        const receipt = await tx.lifecycleEvent.findUnique({ where: { requestKey } });
+        if (receipt) {
+          if (receipt.requestHash !== requestHash) throw new HarumadiError("저장 요청 내용이 바뀌었어요. 새 작성으로 다시 시도해주세요.", 409);
+          const prior = receipt.entityId ? await tx.journalEntry.findFirst({ where: { id: receipt.entityId, ownerId }, select: journalEntrySelect }) : null;
+          if (!prior) throw new HarumadiError("이미 처리되거나 삭제된 저장 요청이에요. 새로 작성해주세요.", 409);
+          return prior;
+        }
+      }
       if (input.harumadiId) {
         await lockHarumadi(tx, input.harumadiId);
         const book = await requireHarumadiAccess(tx, ownerId, input.harumadiId);
@@ -93,11 +107,15 @@ export async function createJournalEntry(
         select: journalEntrySelect,
       });
       if (input.harumadiId) {
-        await tx.harumadiEntryLink.create({ data: { harumadiId: input.harumadiId, entryId: created.id } });
+        const link = await tx.harumadiEntryLink.create({ data: { harumadiId: input.harumadiId, entryId: created.id } });
+        await recordContribution(tx, ownerId, input.harumadiId, created.id, link.id, context);
         await tx.harumadi.update({ where: { id: input.harumadiId }, data: { revision: { increment: 1 } } });
-      } else await createDefaultHarumadiForFirstMadi(tx, ownerId, created);
+      } else await createDefaultHarumadiForFirstMadi(tx, ownerId, created, context);
+      await recordLifecycle(tx, ownerId, { name: "madi_created", key: `madi:${created.id}`, entityId: created.id, bookId: input.harumadiId, requestKey, requestHash }, context);
       return created;
     });
+
+    if (entry.id !== entryId) await cleanupUploadedImage(preparedImage.uploadedKey);
 
     await writeSystemLogSafely({
       category: "journal",

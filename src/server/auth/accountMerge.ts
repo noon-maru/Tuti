@@ -233,6 +233,7 @@ export async function mergeUserIntoCurrentAccount({
       where: { userId: sourceUserId },
       data: { userId: targetUserId },
     });
+    if (transaction.lifecycleEvent) await transaction.lifecycleEvent.updateMany({ where: { userId: sourceUserId }, data: { userId: targetUserId } });
     await transaction.locationConsentEvent.updateMany({
       where: { userId: sourceUserId },
       data: { userId: targetUserId },

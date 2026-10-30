@@ -24,6 +24,7 @@ export type JournalEntryInput = Pick<
   TutiJournalEntry,
   "content" | "image" | "placeName" | "title"
 > & {
+  requestId?: string;
   harumadiId?: string;
   placeId?: string | null;
   visitedAt?: string;

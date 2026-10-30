@@ -77,6 +77,14 @@
       "sources": ["src/app/api/product-activity/route.ts", "src/server/auth/retention.ts", "prisma/schema.prisma"]
     },
     {
+      "id": "lifelog-analytics",
+      "implementationState": "disabled-pending-rollout",
+      "models": ["LifecycleEvent"],
+      "items": "개발 브랜치의 라이프로그 성공 사건·허용된 화면 관측, 내부 책/마디 식별값, 세션·흐름, 플랫폼·버전, 요청 멱등 해시. 본문·사진·좌표·초대 원문은 포함하지 않음",
+      "retention": "개발 구현·운영 미적용. 제품 활동과 같은 180일 만료, 계정 삭제 Cascade. 잔존 계정 코호트와 계측 전 공백을 명시하며 과거 법적 승인 수치는 수정하지 않음",
+      "sources": ["src/server/analytics/lifecycle.ts", "src/server/auth/retention.ts", "prisma/schema.prisma"]
+    },
+    {
       "id": "traffic-security",
       "models": ["TrafficObservation", "TrafficBlockRule"],
       "items": "방문/계정/IP/UA HMAC 식별값, 마스킹 대역·클라이언트 요약·경로 범주·메서드·위험 신호·횟수, 차단/해제·관리자 식별값",

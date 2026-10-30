@@ -1,4 +1,5 @@
 import { writeDiagnosticLogSafely } from "@/server/admin/log";
+import { readLifecycleContext, recordLifecycle } from "@/server/analytics/lifecycle";
 
 import { authenticateUser } from "@/server/auth/session";
 import { prisma } from "@/server/db/prisma";
@@ -149,7 +150,7 @@ export async function POST(request: Request) {
           throw new HarumadiPdfApprovalError("기록이 바뀌었어요. 최신 내용으로 다시 미리보기 해주세요.", 409);
         }
         entries.forEach((entry) => assertSensitiveJournalReadable(entry));
-        return tx.harumadiPdf.create({
+        const pdf = await tx.harumadiPdf.create({
         data: {
           id,
           sensitivePolicyVersion: prepared.sensitivePolicyVersion,
@@ -168,6 +169,8 @@ export async function POST(request: Request) {
           createdAt: true,
         },
         });
+        await recordLifecycle(tx, user.id, { name: "pdf_created", key: `pdf:${pdf.id}`, entityId: pdf.id, bookId: prepared.sourceHarumadi?.id }, readLifecycleContext(request));
+        return pdf;
       });
       const response: HarumadiPdfResponse = {
         harumadiPdf: {

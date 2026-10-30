@@ -1,4 +1,5 @@
 import type { JournalEntryInput } from "@/shared/api/journal";
+import { LIFECYCLE_UUID } from "@/shared/api/lifecycle";
 
 const MAX_IMAGE_INPUT_LENGTH = 7 * 1024 * 1024;
 const MAX_TITLE_LENGTH = 80;
@@ -9,6 +10,7 @@ export function parseJournalEntryInput(
   value: unknown,
 ): JournalEntryInput | null {
   if (!isRecord(value)) return null;
+  if (value.requestId !== undefined && (typeof value.requestId !== "string" || !LIFECYCLE_UUID.test(value.requestId))) return null;
   if (value.harumadiId !== undefined && (typeof value.harumadiId !== "string" || !/^[a-zA-Z0-9_-]{1,128}$/.test(value.harumadiId))) return null;
   if (value.sensitiveContent !== undefined && typeof value.sensitiveContent !== "boolean") return null;
   if (value.sensitiveConsentVersion !== undefined && (typeof value.sensitiveConsentVersion !== "string" || value.sensitiveConsentVersion.length > 80)) return null;
@@ -51,6 +53,7 @@ export function parseJournalEntryInput(
   }
 
   return {
+    ...(typeof value.requestId === "string" ? { requestId: value.requestId } : {}),
     ...(typeof value.harumadiId === "string" ? { harumadiId: value.harumadiId } : {}),
     title: title.trim(),
     content: content.trim(),

@@ -1,4 +1,5 @@
 import { createHash, randomBytes, randomUUID } from "node:crypto";
+import { recordContribution, recordLifecycle } from "@/server/analytics/lifecycle";
 import type { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/server/db/prisma";
 import { commitPrivacyReplayReceipt, preparePrivacyReplayReceipt } from "@/server/legal/privacyReplayLedger";
@@ -35,7 +36,9 @@ export async function createInvite(userId: string, id: string) {
     // Limit outstanding links, not participants. Tokens are returned only once, never stored raw.
     if (await tx.harumadiInvite.count({ where: { harumadiId: id, acceptedAt: null, revokedAt: null, expiresAt: { gt: new Date() } } }) >= 50) throw new HarumadiError("사용하지 않은 초대를 취소한 뒤 다시 보내주세요.", 429);
     await tx.harumadi.update({ where: { id }, data: { collaborationStartedAt: new Date(), accessRevision: { increment: 1 } } });
-    return tx.harumadiInvite.create({ data: { id: randomUUID(), harumadiId: id, tokenHash: hashInvite(token), expiresAt: new Date(Date.now() + 7 * 86400_000) }, select: inviteSelect });
+    const created = await tx.harumadiInvite.create({ data: { id: randomUUID(), harumadiId: id, tokenHash: hashInvite(token), expiresAt: new Date(Date.now() + 7 * 86400_000) }, select: inviteSelect });
+    await recordLifecycle(tx, userId, { name: "invite_created", key: `invite:${created.id}`, entityId: created.id, bookId: id }, { source: "book" });
+    return created;
   });
   return { token, id: invite.id, expiresAt: invite.expiresAt.toISOString() };
 }
@@ -61,6 +64,7 @@ export async function acceptInvite(userId: string, token: string) {
     if (!existing || existing.endedAt) await tx.harumadiMember.upsert({ where: { harumadiId_userId: { harumadiId: invite.harumadiId, userId } },
       create: { id: randomUUID(), harumadiId: invite.harumadiId, userId }, update: { id: randomUUID(), joinedAt: new Date(), endedAt: null } });
     await tx.harumadiInvite.update({ where: { id: invite.id }, data: { acceptedAt: invite.acceptedAt ?? new Date(), acceptedByUserId: userId } });
+    await recordLifecycle(tx, userId, { name: "invite_accepted", key: `accepted:${invite.id}`, entityId: invite.id, bookId: invite.harumadiId }, { source: "invite" });
     await tx.harumadi.update({ where: { id: invite.harumadiId }, data: { accessRevision: { increment: 1 } } });
     return { harumadiId: invite.harumadiId };
   });
@@ -128,7 +132,8 @@ export async function addSharedEntry(userId: string, id: string, entryId: string
     if (book.collaborationStartedAt && entry.sensitiveContent !== false) throw new HarumadiError("민감정보가 없는 마디만 함께 채울 수 있어요.", 409);
     const exists = await tx.harumadiEntryLink.findUnique({ where: { harumadiId_entryId: { harumadiId: id, entryId } } });
     if (!exists) {
-      await tx.harumadiEntryLink.create({ data: { harumadiId: id, entryId } });
+      const link = await tx.harumadiEntryLink.create({ data: { harumadiId: id, entryId } });
+      await recordContribution(tx, userId, id, entryId, link.id, { source: "book" });
       await tx.harumadi.update({ where: { id }, data: { revision: { increment: 1 } } });
     }
   });
