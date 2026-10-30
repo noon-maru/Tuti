@@ -1,4 +1,5 @@
 "use client";
+import { confirmAction } from "@/lib/feedback";
 
 import styled from "@emotion/styled";
 import Link from "next/link";
@@ -855,14 +856,12 @@ export function AdminScreen({
                 setUserActivity(current => current?.periodDays === response.periodDays ? { ...response, users: [...current.users, ...response.users.filter(row => !current.users.some(prior => prior.userId === row.userId))] } : current);
               }).catch(cause => setError(toErrorMessage(cause)));
             }}
-            onToggleExcluded={(user: AdminUserActivityItem) => {
+            onToggleExcluded={async (user: AdminUserActivityItem) => {
               const nextExcluded = !user.excluded;
               if (
-                !window.confirm(
-                  nextExcluded
+                !(await confirmAction(nextExcluded
                     ? "이 계정을 내부·QA 계정으로 표시하고 실사용 통계에서 제외할까요? 원본 활동 기록은 유지됩니다."
-                    : "이 계정을 실사용 통계에 다시 포함할까요?",
-                )
+                    : "이 계정을 실사용 통계에 다시 포함할까요?", {"title":"통계 집계 대상 변경","confirmLabel":"변경하기"}))
               ) {
                 return;
               }
@@ -894,8 +893,8 @@ export function AdminScreen({
                 }),
               );
             }}
-            onUnblock={(ruleId) => {
-              if (!window.confirm("이 차단을 해제할까요? 다음 요청부터 다시 허용됩니다.")) {
+            onUnblock={async (ruleId) => {
+              if (!(await confirmAction("이 차단을 해제할까요? 다음 요청부터 다시 허용됩니다.", {"title":"차단 해제","confirmLabel":"해제하기"}))) {
                 return;
               }
               void mutate(
@@ -944,11 +943,9 @@ export function AdminScreen({
                 }),
               )
             }
-            onForceDelete={(report) => {
+            onForceDelete={async (report) => {
               if (
-                !window.confirm(
-                  `"${report.targetTitle}" 기록을 강제로 삭제할까요? 이 작업은 되돌릴 수 없습니다.`,
-                )
+                !(await confirmAction(`"${report.targetTitle}" 기록을 강제로 삭제할까요? 이 작업은 되돌릴 수 없습니다.`, {"title":"삭제 전 확인","confirmLabel":"삭제하기","tone":"danger"}))
               ) {
                 return;
               }
@@ -959,13 +956,11 @@ export function AdminScreen({
                 adminJsonRequest("DELETE", { reportId: report.id }),
               );
             }}
-            onModerate={(report, moderationAction) => {
+            onModerate={async (report, moderationAction) => {
               const actionLabel =
                 moderationAction === "hide" ? "즉시 숨길" : "다시 공개할";
               if (
-                !window.confirm(
-                  `"${report.targetTitle}" 기록을 ${actionLabel}까요? 조치 내용은 감사 로그에 남습니다.`,
-                )
+                !(await confirmAction(`"${report.targetTitle}" 기록을 ${actionLabel}까요? 조치 내용은 감사 로그에 남습니다.`, {"title":"운영 조치 확인","confirmLabel":"적용하기","tone":"danger"}))
               ) {
                 return;
               }
@@ -983,14 +978,12 @@ export function AdminScreen({
                 }),
               );
             }}
-            onModerateOwner={(report, ownerAction) => {
+            onModerateOwner={async (report, ownerAction) => {
               const restricting = ownerAction === "restrict";
               if (
-                !window.confirm(
-                  restricting
+                !(await confirmAction(restricting
                     ? "이 사용자의 기존 공개 기록을 모두 숨기고 추가 공개를 제한할까요?"
-                    : "이 사용자의 공개 제한을 해제할까요? 기존 기록은 자동으로 재공개되지 않습니다.",
-                )
+                    : "이 사용자의 공개 제한을 해제할까요? 기존 기록은 자동으로 재공개되지 않습니다.", {"title":"운영 조치 확인","confirmLabel":"적용하기","tone":"danger"}))
               ) {
                 return;
               }
@@ -1030,13 +1023,11 @@ export function AdminScreen({
             users={users}
             mode={tab === "admins" ? "admins" : "users"}
             mutatingId={mutatingId}
-            onRoleChange={(user, role) => {
+            onRoleChange={async (user, role) => {
               const accountLabel = user.email ?? user.displayName ?? user.id;
-              const confirmed = window.confirm(
-                role === "admin"
+              const confirmed = (await confirmAction(role === "admin"
                   ? `"${accountLabel}" 계정에 관리자 권한을 부여할까요? 운영센터의 모든 관리 기능에 접근할 수 있게 됩니다.`
-                  : `"${accountLabel}" 계정의 관리자 권한을 해제할까요? 해제 즉시 운영센터에 접근할 수 없게 됩니다.`,
-              );
+                  : `"${accountLabel}" 계정의 관리자 권한을 해제할까요? 해제 즉시 운영센터에 접근할 수 없게 됩니다.`, {"title":"관리자 권한 변경","confirmLabel":"변경하기","tone":"danger"}));
               if (!confirmed) return;
 
               void mutate(
@@ -1045,11 +1036,9 @@ export function AdminScreen({
                 adminJsonRequest("PATCH", { userId: user.id, role }),
               );
             }}
-            onForceDelete={(user) => {
+            onForceDelete={async (user) => {
               if (
-                !window.confirm(
-                  `"${user.email ?? user.id}" 계정과 모든 기록을 강제로 삭제할까요? 이 작업은 되돌릴 수 없습니다.`,
-                )
+                !(await confirmAction(`"${user.email ?? user.id}" 계정과 모든 기록을 강제로 삭제할까요? 이 작업은 되돌릴 수 없습니다.`, {"title":"삭제 전 확인","confirmLabel":"삭제하기","tone":"danger"}))
               ) {
                 return;
               }
