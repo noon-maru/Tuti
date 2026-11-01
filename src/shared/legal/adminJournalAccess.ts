@@ -7,6 +7,11 @@ export const ADMIN_JOURNAL_ACCESS_PURPOSES = {
 
 export type AdminJournalAccessPurpose = keyof typeof ADMIN_JOURNAL_ACCESS_PURPOSES;
 
+export function parseAdminJournalPurpose(value: unknown): AdminJournalAccessPurpose | null {
+  return typeof value === "string" && Object.hasOwn(ADMIN_JOURNAL_ACCESS_PURPOSES, value)
+    ? value as AdminJournalAccessPurpose : null;
+}
+
 export function parseAdminJournalAccess(value: unknown) {
   if (!value || typeof value !== "object") return null;
   const input = value as Record<string, unknown>;

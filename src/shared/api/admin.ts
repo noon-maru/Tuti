@@ -206,6 +206,12 @@ export type AdminUserJournalsResponse = {
   totalPages: number;
 };
 
+export type AdminProcessingCase = {
+  reference: string;
+  purpose: import("@/shared/legal/adminJournalAccess").AdminJournalAccessPurpose;
+  createdAt: string;
+};
+
 export type AdminUserActivityStage =
   | "created"
   | "visited"

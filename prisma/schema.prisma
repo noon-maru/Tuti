@@ -864,6 +864,7 @@ model User {
   updatedAt             DateTime               @updatedAt @map("updated_at")
   authIdentities        AuthIdentity[]
   journalEntries        JournalEntry[]
+  adminProcessingCases AdminProcessingCase[]
   harumadiPdfs          HarumadiPdf[]
   harumadis      Harumadi[]
   harumadiMemberships HarumadiMember[]
@@ -1232,6 +1233,19 @@ model TrafficBlockRule {
   @@index([expiresAt])
   @@index([createdAt])
   @@map("traffic_block_rules")
+}
+
+// 조회 요청의 최소 연결 정보. 대상 계정 삭제 시 제거하고 번호는 재사용하지 않는다.
+model AdminProcessingCase {
+  number        BigInt   @id @default(autoincrement())
+  subjectUserId String   @map("subject_user_id")
+  actorUserId   String   @map("actor_user_id")
+  purpose       String
+  createdAt     DateTime @default(now()) @map("created_at")
+  subject       User     @relation(fields: [subjectUserId], references: [id], onDelete: Cascade)
+
+  @@index([subjectUserId, createdAt])
+  @@map("admin_processing_cases")
 }
 
 // 법정 접근 감사: 계정 삭제와 분리하여 보존. User/JournalEntry FK를 두지 않는다.

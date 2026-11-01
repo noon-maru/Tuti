@@ -1,5 +1,6 @@
 import { authenticateAdmin } from "@/server/admin/auth";
 import { writeAdminJournalAccessAudit } from "@/server/admin/journalAccessAudit";
+import { resolveProcessingCase } from "@/server/admin/processingCases";
 import { prisma } from "@/server/db/prisma";
 import {
   createPreflightResponse,
@@ -45,11 +46,15 @@ export async function POST(request: Request) {
   }
   // 조회 사유를 URL·접속 로그에 노출하지 않고 요청 본문으로 받는다.
   const access = parseAdminJournalAccess(await request.json().catch(() => null));
-  if (!access) return respond({ error: "조회 목적과 처리 번호를 확인해주세요. 번호에는 영문·숫자·밑줄·하이픈만 사용해주세요(3~80자)." }, 400);
+  if (!access) return respond({ error: "등록된 처리 요청을 선택해주세요." }, 400);
 
   try {
     const user = await prisma.user.findUnique({ where: { id: userId }, select: { id: true } });
     if (!user) return respond({ error: "사용자를 찾지 못했습니다." }, 404);
+    const processingCase = await resolveProcessingCase(userId, access.reference);
+    if (!processingCase || processingCase.purpose !== access.purpose) {
+      return respond({ error: "해당 사용자의 등록된 처리 요청을 선택해주세요." }, 400);
+    }
 
     const total = await prisma.journalEntry.count({ where: { ownerId: userId, sensitiveWithdrawnAt: null } });
     const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));

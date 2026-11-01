@@ -5,7 +5,7 @@ import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
 import { adminJsonRequest, fetchAdminJson } from "@/lib/adminApi";
 import { BackButton, Button } from "@/shared/ui/buttons";
-import type { AdminUserItem, AdminUserJournalsResponse } from "@/shared/api/admin";
+import type { AdminProcessingCase, AdminUserItem, AdminUserJournalsResponse } from "@/shared/api/admin";
 import { ADMIN_JOURNAL_ACCESS_PURPOSES, parseAdminJournalAccess, type AdminJournalAccessPurpose } from "@/shared/legal/adminJournalAccess";
 
 const dateFormatter = new Intl.DateTimeFormat("ko-KR", {
@@ -24,11 +24,17 @@ const statusLabels = {
   hidden: "숨김",
 };
 
-export function AdminUserJournalsPanel({ user, onBack, backLabel }: {
+type PanelProps = {
   user: AdminUserItem;
   onBack: () => void;
   backLabel: string;
-}) {
+};
+
+export function AdminUserJournalsPanel(props: PanelProps) {
+  return <UserJournalsPanel key={props.user.id} {...props} />;
+}
+
+function UserJournalsPanel({ user, onBack, backLabel }: PanelProps) {
   const [page, setPage] = useState(1);
   const [attempt, setAttempt] = useState(0);
   const [data, setData] = useState<AdminUserJournalsResponse | null>(null);
@@ -36,8 +42,49 @@ export function AdminUserJournalsPanel({ user, onBack, backLabel }: {
   const headingRef = useRef<HTMLHeadingElement>(null);
   const [purpose, setPurpose] = useState<AdminJournalAccessPurpose>("support");
   const [reference, setReference] = useState("");
-  const [authorization, setAuthorization] = useState<ReturnType<typeof parseAdminJournalAccess>>(null);
-  const access = parseAdminJournalAccess({ purpose, reference });
+  const [cases, setCases] = useState<AdminProcessingCase[]>([]);
+  const [caseLoading, setCaseLoading] = useState(true);
+  const [caseError, setCaseError] = useState<string | null>(null);
+  const [creating, setCreating] = useState(false);
+  const creatingRef = useRef(false);
+  const scopeRef = useRef(user.id);
+  const [authorization, setAuthorization] = useState<{ purpose: AdminJournalAccessPurpose; reference: string; userId: string } | null>(null);
+  const selectedCase = cases.find((item) => item.reference === reference);
+  const access = parseAdminJournalAccess(selectedCase);
+
+  useEffect(() => {
+    let active = true;
+    scopeRef.current = user.id;
+    void fetchAdminJson<{ cases: AdminProcessingCase[] }>(`processing-cases?${new URLSearchParams({ userId: user.id })}`, { cache: "no-store" })
+      .then((response) => {
+        if (!active) return;
+        setCases(response.cases);
+        setReference(response.cases[0]?.reference ?? "");
+      }).catch(() => { if (active) setCaseError("처리 요청을 불러오지 못했어요. 화면을 다시 열어주세요."); })
+      .finally(() => { if (active) setCaseLoading(false); });
+    return () => { active = false; scopeRef.current = ""; };
+  }, [user.id]);
+
+  const createCase = async () => {
+    if (creatingRef.current || caseLoading || caseError) return;
+    const subjectId = user.id;
+    creatingRef.current = true;
+    setCreating(true);
+    try {
+      const response = await fetchAdminJson<{ processingCase: AdminProcessingCase }>(
+        `processing-cases?${new URLSearchParams({ userId: subjectId })}`, adminJsonRequest("POST", { purpose }),
+      );
+      if (scopeRef.current !== subjectId) return;
+      setCases((current) => [response.processingCase, ...current].slice(0, 100));
+      setReference(response.processingCase.reference);
+      setCaseError(null);
+    } catch {
+      if (scopeRef.current === subjectId) setCaseError("처리 요청을 만들지 못했어요. 화면을 다시 열어 등록 여부를 확인해주세요.");
+    } finally {
+      creatingRef.current = false;
+      setCreating(false);
+    }
+  };
 
   useEffect(() => {
     headingRef.current?.focus({ preventScroll: true });
@@ -45,7 +92,7 @@ export function AdminUserJournalsPanel({ user, onBack, backLabel }: {
   }, []);
 
   useEffect(() => {
-    if (!authorization) return;
+    if (!authorization || authorization.userId !== user.id) return;
     let active = true;
     void fetchAdminJson<AdminUserJournalsResponse>(
       `user-journals?${new URLSearchParams({ userId: user.id, page: String(page) })}`,
@@ -75,20 +122,25 @@ export function AdminUserJournalsPanel({ user, onBack, backLabel }: {
           <UserId>{user.id}</UserId>
         </div>
       </Header>
-      {!authorization ? (
+      {!authorization || authorization.userId !== user.id ? (
         <AccessForm onSubmit={(event) => {
           event.preventDefault();
-          if (access) setAuthorization(access);
+          if (access && !creating && !caseLoading) setAuthorization({ ...access, userId: user.id });
         }}>
           <p>업무에 필요한 기록만 확인해주세요. 조회 목적과 처리 번호가 감사 기록에 남습니다.</p>
-          <label htmlFor="journal-access-purpose">조회 목적</label>
+          <label htmlFor="journal-access-reference">등록된 처리 요청</label>
+          <select id="journal-access-reference" value={reference} onChange={(event) => setReference(event.target.value)} disabled={caseLoading || creating} aria-describedby="journal-access-help">
+            <option value="">{caseLoading ? "처리 요청을 불러오는 중…" : "처리 요청을 선택해주세요"}</option>
+            {cases.map((item) => <option key={item.reference} value={item.reference}>{item.reference} · {ADMIN_JOURNAL_ACCESS_PURPOSES[item.purpose]} · {dateFormatter.format(new Date(item.createdAt))}</option>)}
+          </select>
+          <Meta id="journal-access-help">같은 문의·사고의 후속 조회라면 기존 요청을 선택해주세요. 최근 2년 내 요청을 최대 100개 표시합니다.</Meta>
+          <label htmlFor="journal-access-purpose">새 처리 요청의 목적</label>
           <select id="journal-access-purpose" value={purpose} onChange={(event) => setPurpose(event.target.value as AdminJournalAccessPurpose)}>
             {Object.entries(ADMIN_JOURNAL_ACCESS_PURPOSES).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
           </select>
-          <label htmlFor="journal-access-reference">문의·사고·법적 요청 처리 번호</label>
-          <input id="journal-access-reference" value={reference} onChange={(event) => setReference(event.target.value)} required minLength={3} maxLength={80} pattern="[a-zA-Z0-9_-]{3,80}" aria-describedby="journal-access-help" />
-          <Meta id="journal-access-help">등록된 처리 번호를 입력해주세요. 이름·이메일이나 기록 내용은 입력하지 마세요.</Meta>
-          <Button type="submit" $size="compact" disabled={!access}>목적 확인 후 기록 조회</Button>
+          <Button type="button" $size="compact" disabled={creating || caseLoading || !!caseError} onClick={() => void createCase()}>{creating ? "처리 번호 발급 중…" : "새 요청 등록·번호 자동 발급"}</Button>
+          {caseError && <p role="alert">{caseError}</p>}
+          <Button type="submit" $size="compact" disabled={!access || creating || caseLoading}>선택한 요청으로 기록 조회</Button>
         </AccessForm>
       ) : error ? (
         <State role="alert">
@@ -102,6 +154,8 @@ export function AdminUserJournalsPanel({ user, onBack, backLabel }: {
         <State role="status">기록을 불러오고 있어요.</State>
       ) : (
         <>
+          <Meta>처리 번호 {authorization.reference} · {ADMIN_JOURNAL_ACCESS_PURPOSES[authorization.purpose]}</Meta>
+          <Button $size="compact" onClick={() => { setAuthorization(null); setData(null); setError(null); }}>다른 처리 요청 선택</Button>
           <Meta>전체 {data.total.toLocaleString("ko-KR")}개 · 최신 작성순 · 한국 시간 기준</Meta>
           {data.entries.length === 0 ? (
             <State>남긴 기록이 없습니다.</State>

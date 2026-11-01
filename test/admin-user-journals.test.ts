@@ -12,6 +12,7 @@ let reads = 0;
 const audits: unknown[] = [];
 const accessAudits: unknown[] = [];
 let dedicatedAuditFails = false;
+let caseExists = true;
 const queries: Array<{ where: unknown; skip: number; take: number }> = [];
 const countQueries: unknown[] = [];
 const entries = Array.from({ length: 21 }, (_, index) => ({
@@ -36,6 +37,9 @@ function filteredEntries(where: EntryWhere) {
 
 // 이 파일의 테스트 프로세스 안에서만 사용한다. 실제 DB에는 연결하지 않는다.
 const fakePrisma = {
+  $queryRaw: async (_sql: TemplateStringsArray, number: bigint, subjectUserId: string) =>
+    caseExists && number === 123n && subjectUserId === userId
+      ? [{ number: 123n, purpose: "support", createdAt: new Date() }] : [],
   adminJournalAccessAudit: { findUniqueOrThrow: async () => {
     if (dedicatedAuditFails) throw new Error("dedicated audit unavailable");
     return accessAudits.at(-1);
@@ -79,7 +83,7 @@ const database = { ...fakePrisma, $transaction: async (operation: (client: typeo
 (globalThis as { prisma?: unknown }).prisma = database;
 const { POST, GET } = await import("@/app/api/admin/user-journals/route");
 
-function request(query = `userId=${userId}`, authenticated = true, origin?: string, body: unknown = { purpose: "support", reference: "INQUIRY-123" }) {
+function request(query = `userId=${userId}`, authenticated = true, origin?: string, body: unknown = { purpose: "support", reference: "CASE-000123" }) {
   return new Request(`https://tuti.today/api/admin/user-journals?${query}`, {
     method: "POST",
     body: JSON.stringify(body),
@@ -135,15 +139,29 @@ test("관리자 기록 조회의 접근 제어·페이지 이동·감사 기록"
     const audit = JSON.stringify(audits.at(-1));
     assert.match(audit, /journal.admin.viewed/);
     assert.match(audit, /test-operator/);
-    assert.match(audit, /INQUIRY-123/);
+    assert.match(audit, /CASE-000123/);
     assert.match(audit, /support/);
     assert.match(audit, new RegExp(userId));
     assert.doesNotMatch(audit, /개인 기록 본문|비공개 기록 제목|signature|private-image/);
     const canonical = JSON.stringify(accessAudits.at(-1));
     assert.match(canonical, /subjectUserId/);
     assert.match(canonical, new RegExp(userId));
-    assert.match(canonical, /test-operator|INQUIRY-123/);
+    assert.match(canonical, /test-operator|CASE-000123/);
     assert.doesNotMatch(canonical, /개인 기록 본문|비공개 기록 제목|signature|private-image|email/);
+  });
+
+  await t.test("미등록·다른 사용자 요청·목적 변조는 기록을 읽기 전에 거절한다", async () => {
+    const before = reads;
+    caseExists = false;
+    assert.equal((await POST(request())).status, 400);
+    caseExists = true;
+    for (const body of [
+      { purpose: "support", reference: "CASE-000124" },
+      { purpose: "security", reference: "CASE-000123" },
+      { purpose: "support", reference: "INQUIRY-123" },
+      { purpose: "support", reference: "CASE-9999999999999999999" },
+    ]) assert.equal((await POST(request(undefined, true, undefined, body))).status, 400);
+    assert.equal(reads, before);
   });
 
   await t.test("철회한 기록은 목록·전체 개수·접근 감사 대상에서 제외한다", async () => {

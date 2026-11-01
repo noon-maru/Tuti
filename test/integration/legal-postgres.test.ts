@@ -97,6 +97,16 @@ test("분리된 PostgreSQL에서 약관·권리 보호 마이그레이션의 실
     verifyTogetherSchema(query, rejected, socket);
   });
   query('CREATE TABLE users(id text PRIMARY KEY); CREATE TABLE content_reports(id text PRIMARY KEY);');
+  await t.test("처리 요청 시퀀스는 중복 없이 증가하고 계정 삭제 시 요청만 정리한다", () => {
+    query(readFileSync(join(process.cwd(), "prisma/migrations/20261101000000_add_admin_processing_cases/migration.sql"), "utf8"));
+    query("INSERT INTO users(id) VALUES ('case-owner')");
+    assert.equal(query("INSERT INTO admin_processing_cases(subject_user_id,actor_user_id,purpose) VALUES ('case-owner','operator','support') RETURNING number").split("\n")[0], "1");
+    query("BEGIN; INSERT INTO admin_processing_cases(subject_user_id,actor_user_id,purpose) VALUES ('case-owner','operator','incident'); ROLLBACK");
+    assert.equal(query("INSERT INTO admin_processing_cases(subject_user_id,actor_user_id,purpose) VALUES ('case-owner','operator','security') RETURNING number").split("\n")[0], "3");
+    rejected("INSERT INTO admin_processing_cases(subject_user_id,actor_user_id,purpose) VALUES ('case-owner','operator','curiosity')", /check constraint/);
+    query("DELETE FROM users WHERE id='case-owner'");
+    assert.equal(query("SELECT count(*) FROM admin_processing_cases"), "0");
+  });
   query("CREATE TABLE system_logs(id text PRIMARY KEY, actor_user_id text, target_type text, target_id text, category text, action text, metadata jsonb, created_at timestamp(3) DEFAULT CURRENT_TIMESTAMP)");
   query(`INSERT INTO system_logs(id,actor_user_id,target_type,target_id,category,action,metadata) VALUES ('legacy-access','legacy-admin','user','legacy-owner','journal','journal.admin.viewed','{"purpose":"support","reference":"CASE-123","entryIds":"entry-1,entry-2","content":"DO-NOT-COPY"}'), ('ordinary','legacy-admin','user','legacy-owner','journal','journal.created','{}')`);
   for (const name of ["20261019120000_add_service_terms_consent", "20261019130000_add_journal_rights_workflow"]) query(readFileSync(join(process.cwd(), "prisma/migrations", name, "migration.sql"), "utf8"));

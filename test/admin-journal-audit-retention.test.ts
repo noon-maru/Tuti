@@ -7,6 +7,11 @@ const delegate = (table: string) => ({ deleteMany: async ({ where }: { where: un
 (globalThis as { prisma?: unknown }).prisma = {
   ...Object.fromEntries(["userSession", "emailVerificationCode", "oAuthAuthorization", "productActivityEvent", "lifecycleEvent", "trafficObservation", "trafficBlockRule", "systemLog", "adminJournalAccessAudit"].map((name) => [name, delegate(name)])),
   $transaction: (operations: Array<Promise<unknown>>) => Promise.all(operations),
+  $executeRaw: async (sql: TemplateStringsArray, cutoff: Date) => {
+    assert.match(sql.join("?"), /DELETE FROM admin_processing_cases WHERE created_at </);
+    queries.push({ table: "adminProcessingCase", where: { createdAt: { lt: cutoff } } });
+    return 1;
+  },
 };
 const { adminJournalAccessAuditCutoff } = await import("@/server/admin/journalAccessAudit");
 const { purgeExpiredAuthRecords } = await import("@/server/auth/retention");
@@ -19,6 +24,8 @@ test("관리자 기록 접근 증거만 2년 기준으로 정리하며 일반 �
   assert.ok(queries.some((item) => item.table === "systemLog" && JSON.stringify(item.where) === JSON.stringify({ category: "journal", action: "journal.admin.viewed", createdAt: { lt: cutoff } })));
   assert.equal(result.adminJournalAccessAudits, 1);
   assert.equal(result.legacyAdminJournalAccessLogs, 1);
+  assert.equal(result.adminProcessingCases, 1);
+  assert.deepEqual(queries.find((item) => item.table === "adminProcessingCase")?.where, { createdAt: { lt: cutoff } });
   const security = queries.find((item) => item.table === "systemLog" && (item.where as { category: string }).category === "security");
   assert.equal((security?.where as { createdAt: { lte: Date } }).createdAt.lte.getTime(), now.getTime() - 90 * 86400000);
   const interactions = queries.find(item => item.table === "systemLog" && (item.where as { category: string }).category === "product");
