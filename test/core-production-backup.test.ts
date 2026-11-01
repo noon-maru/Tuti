@@ -112,10 +112,12 @@ test("가짜 Docker로 전체·핵심 백업 경로·덤프 옵션·객체 동�
   await executable("git", 'printf "synthetic-revision\\n"');
   await executable("install", 'while [ "$#" -gt 1 ]; do shift; done; mkdir -p "$1"');
   await executable("sleep", 'exit 0');
+  await executable("logger", 'echo recovery-alert >> "$MOCK_LOG"');
   await executable("curl", 'echo readiness >> "$MOCK_LOG"; if [ "$MOCK_FAIL" = readiness ]; then exit 1; fi');
   await executable("worker", `
 printf 'worker %s\\n' "$*" >> "$MOCK_LOG"
 case "$1" in
+  backup-check) if [ "$MOCK_FAIL" = preflight ]; then exit 1; fi ;;
   backup-cleanup) if [ "$MOCK_FAIL" = cleanup ]; then exit 1; fi ;;
   backup-objects)
     if [ "$MOCK_FAIL" = objects ]; then exit 1; fi
@@ -127,9 +129,11 @@ esac`);
   await executable("docker", `
 printf '%s\\n' "$*" >> "$MOCK_LOG"
 case "$*" in
-  "inspect tuti-prod --format {{.State.Running}}") echo true ;;
+  "inspect tuti-prod --format {{.State.Running}}") if [ "$MOCK_FAIL" = already-stopped ]; then echo false; else echo true; fi ;;
   "inspect tuti-prod --format {{.Config.Image}}") echo tuti:prod-fixture ;;
-  inspect*) echo TUTI_RELEASE=fixture ;;
+  "inspect tuti-prod --format {{.Id}}|{{.Image}}")
+    if [ "$MOCK_FAIL" = changed ] && [ -f "$MOCK_ROOT/stopped" ]; then echo 'changed-container|sha256:other'; else echo 'original-container|sha256:fixture'; fi ;;
+  "start original-container") case "$MOCK_FAIL" in start | stop-start) echo do-not-print >&2; exit 1 ;; esac ;;
   *"exec -T db"*psql*) if [ "$MOCK_FAIL" = guard ]; then exit 1; fi; cat >/dev/null ;;
   *"exec -T db"*pg_dump*) if [ "$MOCK_FAIL" = dump ]; then exit 1; fi; printf PGDMPsynthetic ;;
   *scripts/backup-object-storage.ts*)
@@ -144,32 +148,57 @@ case "$*" in
     ;;
 esac`);
   const original = await readFile("scripts/ops/tuti-prod-backup", "utf8");
-  for (const [index, scope, failure] of [[0, "full", ""], [1, "core", ""], [2, "core", "guard"], [3, "core", "dump"], [4, "core", "objects"], [5, "core", "stop"], [6, "core", "cleanup"], [7, "core", "readiness"]] as const) {
+  for (const [index, scope, failure] of [[0, "full", ""], [1, "core", ""], [2, "core", "guard"], [3, "core", "dump"], [4, "core", "objects"], [5, "core", "stop"], [6, "core", "cleanup"], [7, "core", "readiness"], [8, "full", "start"], [9, "full", "changed"], [10, "full", "privacy"], [11, "full", "preflight"], [12, "full", "already-stopped"], [13, "full", "stop-start"], [14, "full", "signal"]] as const) {
     const root = join(base, String(index)); await mkdir(root);
     await mkdir(join(root, "scripts/ops"), { recursive: true });
-    await writeFile(join(root, "scripts/ops/tuti-planned-container-stop"), '#!/bin/sh\nprintf "planned-stop %s\\n" "$1" >> "$MOCK_LOG"\nif [ "$MOCK_FAIL" = stop ]; then exit 1; fi\n');
+    await writeFile(join(root, "scripts/ops/tuti-planned-container-stop"), '#!/bin/sh\nprintf "planned-stop %s\\n" "$1" >> "$MOCK_LOG"\ntouch "$MOCK_ROOT/stopped"\nif [ "$MOCK_FAIL" = privacy ]; then mkdir -p "$MOCK_ROOT/.ops-state/privacy-activation"; touch "$MOCK_ROOT/.ops-state/privacy-activation/pending"; fi\nif [ "$MOCK_FAIL" = signal ]; then kill -TERM "$PPID"; exit 0; fi\ncase "$MOCK_FAIL" in stop | stop-start) exit 1 ;; esac\n');
     for (const file of ["core-backup-excluded-data-tables.txt", "core-backup-production-guard.sql"]) await writeFile(join(root, "scripts/ops", file), await readFile(`scripts/ops/${file}`));
     const script = join(root, "backup.sh");
     await writeFile(script, original.replaceAll("/var/services/homes/Tutiadmin/source/Tuti", root).replaceAll("/volume1/tuti/backups/full", join(root, "full")).replaceAll("/volume1/tuti/backups/core", join(root, "core")).replaceAll("/usr/local/sbin/tuti-ops-workers", join(bin, "worker")));
     const log = join(root, "log");
     const run = spawnSync("sh", [script, ...(scope === "core" ? ["--core"] : [])], { encoding: "utf8", env: { ...process.env, PATH: `${bin}:${process.env.PATH}`, MOCK_ROOT: root, MOCK_LOG: log, MOCK_FAIL: failure } });
     const calls = await readFile(log, "utf8");
-    assert.match(calls, /planned-stop tuti-prod/);
-    assert.match(calls, /up -d --no-deps app/);
+    if (failure === "preflight" || failure === "already-stopped") assert.doesNotMatch(calls, /planned-stop|start original-container|readiness/);
+    else assert.match(calls, /planned-stop tuti-prod/);
+    if (["changed", "privacy", "preflight", "already-stopped"].includes(failure)) assert.doesNotMatch(calls, /start original-container/);
+    else assert.match(calls, /start original-container/);
+    assert.doesNotMatch(calls, /up -d --no-deps app|Config.Env/);
     assert.doesNotMatch(calls, /run --rm/);
-    if (failure === "stop") assert.doesNotMatch(calls, /worker backup-cleanup|pg_dump/);
+    if (["stop", "stop-start", "signal", "preflight"].includes(failure)) assert.doesNotMatch(calls, /worker backup-cleanup|pg_dump/);
+    else if (failure === "already-stopped") assert.match(calls, /worker backup-cleanup/);
     else assert.ok(calls.indexOf("planned-stop tuti-prod") < calls.indexOf("worker backup-cleanup"));
     const entries = await readdir(join(root, scope));
-    if (failure) {
+    if (failure && failure !== "already-stopped") {
       assert.notEqual(run.status, 0, run.stdout + run.stderr);
-      if (failure === "readiness") {
+      if (["readiness", "start", "changed", "privacy"].includes(failure)) {
         assert.equal(entries.length, 1, "기동 실패와 무관하게 완성된 백업 사본은 보존");
-        assert.match(run.stderr, /readiness/);
+        assert.equal(run.status, 20);
+        assert.match(run.stderr, /자동 복구에 실패/);
+        assert.doesNotMatch(run.stdout, /백업 완료:/);
+        if (failure === "readiness") assert.match(run.stderr, /readiness/);
+        if (failure === "start") assert.equal((calls.match(/start original-container/g) ?? []).length, 3);
+        assert.doesNotMatch(run.stderr, /do-not-print/);
       } else assert.deepEqual(entries, []);
+      if (failure === "stop-start") {
+        assert.equal(run.status, 20);
+        assert.match(run.stderr, /stage=container-start exit=1/);
+        assert.match(calls, /recovery-alert/);
+        assert.equal((calls.match(/start original-container/g) ?? []).length, 3);
+      }
+      if (failure === "signal") {
+        assert.equal(run.status, 143);
+        assert.match(run.stdout, /재기동·readiness 확인 완료/);
+      }
+      if (failure === "stop") {
+        assert.equal(run.status, 1, "DSM 검증 실패는 복구 후에도 백업 성공이 아니다");
+        assert.match(run.stdout, /재기동·readiness 확인 완료/);
+        assert.ok(calls.indexOf("planned-stop") < calls.indexOf("start original-container"));
+        assert.ok(calls.indexOf("start original-container") < calls.indexOf("readiness"));
+      }
       if (failure === "guard") assert.doesNotMatch(calls, /pg_dump/);
     } else {
       assert.equal(run.status, 0, run.stdout + run.stderr);
-      assert.ok(calls.indexOf("up -d --no-deps app") < calls.indexOf("readiness"));
+      if (failure !== "already-stopped") assert.ok(calls.indexOf("start original-container") < calls.indexOf("readiness"));
       assert.equal(entries.length, 1);
       const backup = join(root, scope, entries[0]);
       assert.match(await readFile(join(backup, "manifest.txt"), "utf8"), new RegExp(`database=production-${scope}-custom-dump`));

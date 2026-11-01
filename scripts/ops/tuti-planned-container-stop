@@ -37,13 +37,31 @@ fi
 running="$(docker inspect --format '{{.State.Running}}' "$container")"
 case "$running" in false) exit 0 ;; true) ;; *) exit 1 ;; esac
 # CLI output can contain package diagnostics. Never print it or credentials.
-if ! response="$(timeout 45 "$api" --exec api=SYNO.Docker.Container method=stop version=1 "name=$container" 2>/dev/null)"; then
-  echo "DSM 계획 중지 요청에 실패했습니다. 일반 Docker 중지로 우회하지 않습니다." >&2; exit 1
-fi
-if ! printf '%s' "$response" | jq -e '.success == true' >/dev/null 2>&1; then
-  echo "DSM 계획 중지 응답을 검증하지 못했습니다." >&2; exit 1
+request_ok=false
+response_ok=false
+json_valid=false
+provider_error=unknown
+if response="$(timeout 45 "$api" --exec api=SYNO.Docker.Container method=stop version=1 "name=$container" 2>/dev/null)"; then
+  request_ok=true
+  if printf '%s' "$response" | jq -e -s 'length == 1 and (.[0] | type == "object")' >/dev/null 2>&1; then
+    json_valid=true
+    if printf '%s' "$response" | jq -e '.success == true' >/dev/null 2>&1; then response_ok=true; fi
+    provider_error="$(printf '%s' "$response" | jq -r '.error | if type == "object" then .code | if type == "number" then tostring else "unknown" end else "unknown" end')"
+  fi
 fi
 unset response
+# 응답이 깨지거나 CLI가 실패해도 실제 중지 여부는 별도로 관측한다.
+# 불명확한 응답을 성공으로 바꾸거나 백업을 이어가지 않는다. 호출자의 EXIT 복구로 넘긴다.
+if [ "$response_ok" != true ]; then
+  observed_state="$(docker inspect --format '{{.State.Running}}|{{.State.ExitCode}}|{{.State.OOMKilled}}' "$container" 2>/dev/null || true)"
+  case "$observed_state" in
+    false\|*) observation=stopped ;;
+    true\|*) observation=running ;;
+    *) observation=unknown ;;
+  esac
+  printf 'DSM 계획 중지 검증 실패: request_ok=%s response_ok=false json_valid=%s provider_error=%s observed=%s. 백업·배포를 중단하고 호출자 복구로 넘깁니다.\n' "$request_ok" "$json_valid" "$provider_error" "$observation" >&2
+  exit 1
+fi
 attempt=0
 while [ "$attempt" -lt 15 ]; do
   state="$(docker inspect --format '{{.State.Running}}|{{.State.ExitCode}}|{{.State.OOMKilled}}' "$container")"

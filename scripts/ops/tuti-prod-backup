@@ -61,9 +61,14 @@ if [ -e "$temporary_dir" ] || [ -e "$backup_dir" ]; then echo "동일 시각의 
 printf 'backup\n' > "$maintenance_marker"
 chmod 0600 "$maintenance_marker"
 install -d -o root -g root -m 0700 "$temporary_dir"
-app_was_running="$(docker inspect tuti-prod --format '{{.State.Running}}' 2>/dev/null || printf false)"
-app_image_before="$(docker inspect tuti-prod --format '{{.Config.Image}}' 2>/dev/null || printf tuti:prod)"
-app_release_before="$(docker inspect tuti-prod --format '{{range .Config.Env}}{{println .}}{{end}}' 2>/dev/null | sed -n 's/^TUTI_RELEASE=//p' | head -n 1)"
+app_was_running="$(docker inspect tuti-prod --format '{{.State.Running}}')"
+case "$app_was_running" in true | false) ;; *) echo "앱의 실행 상태를 확인하지 못했습니다. 중지하지 않습니다." >&2; exit 1 ;; esac
+# 같은 컨테이너만 재개한다. Compose 재생성·env 재적용·이미지 교체는 백업의 역할이 아니다.
+app_identity_before="$(docker inspect tuti-prod --format '{{.Id}}|{{.Image}}')"
+case "$app_identity_before" in ?*\|?*) ;; *) echo "앱의 컨테이너 식별값을 확인하지 못했습니다." >&2; exit 1 ;; esac
+app_container_id="${app_identity_before%%|*}"
+recovery_required=false
+recovery_attempt=1
 
 # Deploy may export the NEXT ops image. Backup must use the CURRENT deployed worker
 # (before migrations), not replace it while holding the maintenance lock.
@@ -80,26 +85,67 @@ wait_for_app_ready() {
   return 1
 }
 
+restore_original_app() {
+  [ "$recovery_required" = true ] || return 0
+  if [ -f "$project_dir/.ops-state/restore-privacy/pending.env" ] || [ -f "$project_dir/.ops-state/privacy-activation/pending" ]; then
+    echo "개인정보 복원·전환 확인 대기 상태이므로 앱을 자동 재개하지 않습니다." >&2
+    return 1
+  fi
+  while [ "$recovery_attempt" -le 3 ]; do
+    if ! current_identity="$(timeout 10 docker inspect tuti-prod --format '{{.Id}}|{{.Image}}' 2>/dev/null)"; then
+      echo "백업 앱 복구 단계 실패: stage=identity-read" >&2
+      return 1
+    fi
+    if [ "$current_identity" != "$app_identity_before" ]; then
+      echo "백업 중 앱 컨테이너가 교체됐습니다. 다른 컨테이너를 자동 기동하지 않습니다." >&2
+      return 1
+    fi
+    recovery_attempt=$((recovery_attempt + 1))
+    if timeout 30 docker start "$app_container_id" >/dev/null 2>&1; then
+      if wait_for_app_ready; then
+        echo "백업 후 기존 앱 재기동·readiness 확인 완료."
+        recovery_required=false
+        return 0
+      fi
+      echo "백업 앱 복구 단계 실패: stage=readiness" >&2
+    else
+      start_status=$?
+      printf '백업 앱 복구 단계 실패: stage=container-start exit=%s\n' "$start_status" >&2
+    fi
+    echo "백업 후 기존 앱 복구 실패: $((recovery_attempt - 1))/3" >&2
+  done
+  return 1
+}
+
 cleanup() {
+  original_status=$?
+  trap - EXIT INT TERM HUP
+  # EXIT 복구 자체는 errexit으로 중단되지 않아야 한다. 오류는 명시적으로 전파한다.
+  set +e
+  if ! restore_original_app; then
+    echo "백업 후 앱 자동 복구에 실패했습니다. 운영 앱을 즉시 점검해주세요. 백업 성공으로 처리하지 않습니다." >&2
+    logger -p daemon.err -t tuti-backup "Tuti backup app recovery failed; operator action required." 2>/dev/null
+    original_status=20
+  fi
   rm -rf "$temporary_dir"
   rm -f "$maintenance_marker"
-  if [ "$app_was_running" = true ] && [ ! -f "$project_dir/.ops-state/restore-privacy/pending.env" ]; then
-    TUTI_APP_IMAGE="$app_image_before" TUTI_RELEASE="${app_release_before:-unknown}" \
-      docker compose --env-file .env.production -f docker-compose.prod.yml \
-      up -d --no-deps app >/dev/null 2>&1 || true
-  fi
+  exit "$original_status"
 }
-trap cleanup EXIT INT TERM
+trap cleanup EXIT
 trap 'exit 130' INT
 trap 'exit 143' TERM
+trap 'exit 129' HUP
 
 cd "$project_dir"
 
 command -v curl >/dev/null
+command -v timeout >/dev/null
 backup_worker backup-check "$backup_scope" "$timestamp"
 
 if [ "$app_was_running" = true ]; then
   echo "DB와 객체의 동일 시점 백업을 위해 운영 앱 쓰기를 잠시 중지합니다."
+  # DSM 요청이 실패/시간 초과해도 실제 중지는 일어날 수 있다. 호출 전에 복구를 예약한다.
+  recovery_required=true
   sh "$project_dir/scripts/ops/tuti-planned-container-stop" tuti-prod
 fi
 
@@ -169,14 +215,9 @@ EOF
 
 mv "$temporary_dir" "$backup_dir"
 
-if [ "$app_was_running" = true ]; then
-  TUTI_APP_IMAGE="$app_image_before" TUTI_RELEASE="${app_release_before:-unknown}" \
-    docker compose --env-file .env.production -f docker-compose.prod.yml \
-    up -d --no-deps app
-  wait_for_app_ready
-fi
+restore_original_app || exit 20
 rm -f "$maintenance_marker"
-trap - EXIT INT TERM
+trap - EXIT INT TERM HUP
 
 # 파기는 두 백업 경로와 삭제 원장을 함께 검토하는 전용 예약 작업에서만 수행한다.
 

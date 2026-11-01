@@ -19,7 +19,7 @@ printf 'api %s\\n' "$*" >> "$TEST_LOG"
 case "$*" in *method=get*) echo '{"success":true}'; exit 0 ;; esac
 touch "$TEST_MARKER"
 case "\${TEST_API:-success}" in
-  failure) echo '{"success":false,"private":"do-not-print"}' ;;
+  failure) echo '{"success":false,"error":{"code":105},"private":"do-not-print"}' ;;
   invalid) echo do-not-print ;;
   exit) exit 2 ;;
   *) echo '{"success":true}' ;;
@@ -60,6 +60,12 @@ esac
     const result = await run(["tuti-prod"], extra);
     assert.notEqual(result.status, 0); assert.doesNotMatch(result.stdout + result.stderr, /do-not-print/);
     assert.doesNotMatch(result.calls, /docker (stop|kill|update)/);
+    if (extra.TEST_API) {
+      assert.match(result.stderr, /observed=stopped/);
+      assert.match(result.calls, /docker inspect.*ExitCode/);
+      if (extra.TEST_API === "invalid") assert.match(result.stderr, /json_valid=false/);
+      if (extra.TEST_API === "failure") assert.match(result.stderr, /json_valid=true provider_error=105/);
+    }
   }
   for (const args of [["tuti-dev"], ["cloudflared"], ["tuti-prod", "extra"]]) assert.notEqual((await run(args)).status, 0);
   const unlocked = await run(["tuti-prod"], {}, false);
@@ -77,11 +83,42 @@ test("백업 일관성·배포 스키마 경계와 장애 알림은 유지한다
   const backup = await readFile("scripts/ops/tuti-prod-backup", "utf8");
   assert.ok(backup.indexOf('tuti-planned-container-stop" tuti-prod') < backup.indexOf("backup_worker backup-cleanup"));
   assert.ok(backup.indexOf('tuti-planned-container-stop" tuti-prod') < backup.indexOf("pg_dump"));
-  assert.match(backup, /up -d --no-deps app/);
+  assert.match(backup, /timeout 30 docker start "\$app_container_id"/);
+  assert.doesNotMatch(backup, /up -d --no-deps app|Config.Env/);
   const helper = await readFile("scripts/ops/tuti-planned-container-stop", "utf8");
   assert.doesNotMatch(helper, /docker (?:stop|kill|update)|synonotify|config\.v2|\.config[ '\"]/);
   assert.match(helper, /timeout 45/);
   const installer = await readFile("scripts/ops/install-planned-container-stop", "utf8");
   assert.ok(installer.indexOf('tuti-planned-container-stop --check') < installer.indexOf('for tool in $tools; do install'));
   assert.doesNotMatch(installer, /systemctl (?:stop|disable)|docker (?:stop|kill)/);
+});
+
+test("백업 복구 설치는 두 도구만 백업·교체하며 앱·백업·예약은 실행하지 않는다", async t => {
+  const root = await mkdtemp(join(process.cwd(), ".backup-recovery-install-test-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  for (const folder of ["bin", "installed", "scripts/ops", ".ops-state"]) await mkdir(join(root, folder), { recursive: true });
+  await writeFile(join(root, "bin/id"), '#!/bin/sh\necho 0\n', { mode: 0o700 });
+  await writeFile(join(root, "bin/git"), '#!/bin/sh\nexit 0\n', { mode: 0o700 });
+  await writeFile(join(root, "scripts/ops/tuti-prod-backup"), '#!/bin/sh\necho do-not-execute\n');
+  await writeFile(join(root, "scripts/ops/tuti-planned-container-stop"), '#!/bin/sh\n[ "$1" = --check ] || exit 1\necho read-only-check\n');
+  await writeFile(join(root, "installed/tuti-prod-backup"), "old-backup");
+  await writeFile(join(root, "installed/tuti-prod-deploy"), "untouched-deploy");
+  const source = (await readFile("scripts/ops/install-backup-recovery", "utf8"))
+    .replaceAll("/var/services/homes/Tutiadmin/source/Tuti", root)
+    .replaceAll("/usr/local/sbin", join(root, "installed"))
+    .replaceAll("install -d -o root -g root", "install -d")
+    .replaceAll("install -o root -g root", "install");
+  const script = join(root, "installer.sh"); await writeFile(script, source);
+  const env = { ...process.env, PATH: `${join(root, "bin")}:${process.env.PATH}` };
+  const dry = spawnSync("sh", [script], { env, encoding: "utf8" });
+  assert.equal(dry.status, 0, dry.stderr);
+  assert.equal(await readFile(join(root, "installed/tuti-prod-backup"), "utf8"), "old-backup");
+  const apply = spawnSync("sh", [script, "--apply"], { env, encoding: "utf8" });
+  assert.equal(apply.status, 0, apply.stderr);
+  assert.match(apply.stdout, /read-only-check/);
+  assert.doesNotMatch(apply.stdout, /do-not-execute/);
+  assert.match(await readFile(join(root, "installed/tuti-prod-backup"), "utf8"), /do-not-execute/);
+  assert.equal(await readFile(join(root, "installed/tuti-prod-deploy"), "utf8"), "untouched-deploy");
+  const snapshot = apply.stdout.match(/이전 설치본: (.+)/)![1];
+  assert.equal(await readFile(join(snapshot, "tuti-prod-backup"), "utf8"), "old-backup");
 });

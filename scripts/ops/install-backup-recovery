@@ -1,0 +1,31 @@
+#!/bin/sh
+# 백업·계획 중지 도구만 교체한다. 앱 중지·백업 실행·예약 변경은 하지 않는다.
+set -eu
+case "$#:$*" in 0:) apply=false ;; 1:--apply) apply=true ;; *) exit 1 ;; esac
+project_dir=/var/services/homes/Tutiadmin/source/Tuti
+cd "$project_dir"
+project_dir="$(pwd -P)"
+tools="tuti-prod-backup tuti-planned-container-stop"
+for tool in $tools; do
+  sh -n "scripts/ops/$tool"
+  if [ -L "/usr/local/sbin/$tool" ]; then echo "심볼릭 링크 설치 대상은 교체하지 않습니다." >&2; exit 1; fi
+done
+if [ "$apply" != true ]; then echo "문법 검사 완료. 실제 설치·중지·백업은 실행하지 않았습니다."; exit 0; fi
+if [ "$(id -u)" != 0 ]; then echo "NAS 관리자 권한이 필요합니다." >&2; exit 1; fi
+for tool in $tools; do
+  git -c safe.directory="$project_dir" ls-files --error-unmatch "scripts/ops/$tool" >/dev/null
+  git -c safe.directory="$project_dir" diff --quiet HEAD -- "scripts/ops/$tool"
+done
+sh scripts/ops/tuti-planned-container-stop --check
+exec 9>"$project_dir/.ops-state/maintenance.lock"
+/usr/bin/flock --exclusive 9
+snapshot="$project_dir/.ops-state/backup-recovery-tools/$(date +%Y%m%d-%H%M%S)-$$"
+install -d -o root -g root -m 0700 "$snapshot"
+for tool in $tools; do
+  if [ -f "/usr/local/sbin/$tool" ]; then cp -p "/usr/local/sbin/$tool" "$snapshot/$tool"; fi
+done
+for tool in $tools; do
+  install -o root -g root -m 0750 "scripts/ops/$tool" "/usr/local/sbin/$tool"
+done
+echo "백업 복구 보호 도구 설치 완료. 이전 설치본: $snapshot"
+echo "앱·DB 재시작, 백업 실행, 예약·알림 설정 변경은 하지 않았습니다."
