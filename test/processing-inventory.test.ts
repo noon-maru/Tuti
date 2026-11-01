@@ -89,8 +89,13 @@ test("시행 대장은 소스 대조와 계약·처리 근거 승인을 분리�
   const { inventory, schema } = await fixture();
   const report = auditProcessingInventory(inventory, schema);
   const evidence = JSON.parse(await readFile("docs/legal/readiness-status.json", "utf8"));
-  // Preserve the historical approved audit; disabled new functionality is not legal approval.
-  assert.equal(evidence.checks.processingInventory.sourceAudit.prismaModelsClassified, report.models - report.pendingRolloutModels.length);
+  // 과거 승인 수치를 새 모델로 덮지 않는다. 이후 추가한 감사 연결 모델은 별도로 대조한다.
+  const processingCases = inventory.groups.find(group => group.id === "administrator-operations")!;
+  assert.ok(processingCases.models.includes("AdminProcessingCase"));
+  assert.match(processingCases.items, /자유문·이메일·원문을 받지 않음/);
+  assert.match(processingCases.retention, /자동 채번 처리 요청은 생성 후 2년/);
+  assert.ok(processingCases.sources.includes("src/server/admin/processingCases.ts"));
+  assert.equal(evidence.checks.processingInventory.sourceAudit.prismaModelsClassified, report.models - report.pendingRolloutModels.length - 1);
   assert.equal(evidence.checks.processingInventory.sourceAudit.groups, report.groups - report.pendingRolloutGroups);
   assert.deepEqual(report.pendingRolloutModels, ["HarumadiMember", "HarumadiInvite", "HarumadiComment", "LifecycleEvent"]);
   assert.equal(evidence.checks.processorsAndTransfers.sourceAudit.externalFlowGroups, report.externalFlows);
