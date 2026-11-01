@@ -5,6 +5,12 @@ project_dir=/var/services/homes/Tutiadmin/source/Tuti
 project_dir="$(CDPATH= cd -- "$project_dir" && pwd -P)"
 cd "$project_dir"
 tools="tuti-planned-container-stop tuti-prod-backup tuti-prod-deploy tuti-prod-rollback tuti-ops-workers"
+runner=scripts/ops/run-backup-job.mjs
+[ -f "$runner" ] && [ ! -L "$runner" ] || exit 1
+if [ "$apply" = true ]; then
+  git -c safe.directory="$project_dir" ls-files --error-unmatch "$runner" >/dev/null
+  git -c safe.directory="$project_dir" diff --quiet HEAD -- "$runner"
+fi
 for tool in $tools; do
   sh -n "scripts/ops/$tool"
   if [ -L "/usr/local/sbin/$tool" ]; then echo "심볼릭 링크 설치 대상은 교체하지 않습니다." >&2; exit 1; fi
@@ -24,5 +30,12 @@ install -d -o root -g root -m 0700 "$snapshot"
 for tool in $tools; do
   if [ -f "/usr/local/sbin/$tool" ]; then cp -p "/usr/local/sbin/$tool" "$snapshot/$tool"; fi
 done
+for directory in /usr/local/libexec /usr/local/libexec/tuti; do
+  if [ -L "$directory" ]; then echo "실행 파일 디렉터리에 심볼릭 링크를 사용할 수 없습니다." >&2; exit 1; fi
+done
+if [ -L /usr/local/libexec/tuti/run-backup-job.mjs ]; then exit 1; fi
+install -d -o root -g root -m 0755 /usr/local/libexec/tuti
+if [ -f /usr/local/libexec/tuti/run-backup-job.mjs ]; then cp -p /usr/local/libexec/tuti/run-backup-job.mjs "$snapshot/run-backup-job.mjs"; fi
+install -o root -g root -m 0644 "$runner" /usr/local/libexec/tuti/run-backup-job.mjs
 for tool in $tools; do install -o root -g root -m 0750 "scripts/ops/$tool" "/usr/local/sbin/$tool"; done
 echo "계획 중지 도구 설치 완료. 컨테이너·예약·알림 설정은 변경하지 않았습니다. 이전 도구: $snapshot"

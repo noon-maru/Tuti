@@ -65,6 +65,21 @@ app_was_running="$(docker inspect tuti-prod --format '{{.State.Running}}' 2>/dev
 app_image_before="$(docker inspect tuti-prod --format '{{.Config.Image}}' 2>/dev/null || printf tuti:prod)"
 app_release_before="$(docker inspect tuti-prod --format '{{range .Config.Env}}{{println .}}{{end}}' 2>/dev/null | sed -n 's/^TUTI_RELEASE=//p' | head -n 1)"
 
+# Deploy may export the NEXT ops image. Backup must use the CURRENT deployed worker
+# (before migrations), not replace it while holding the maintenance lock.
+backup_worker() { TUTI_OPS_IMAGE=tuti:ops /usr/local/sbin/tuti-ops-workers "$@"; }
+wait_for_app_ready() {
+  attempt=1
+  while [ "$attempt" -le 12 ]; do
+    if curl --fail --silent --show-error --connect-timeout 3 --max-time 5 \
+      http://127.0.0.1:5050/api/health </dev/null >/dev/null 2>&1; then return 0; fi
+    sleep 2
+    attempt=$((attempt + 1))
+  done
+  echo "백업 후 앱 readiness를 확인하지 못했습니다. 백업 사본과 별도로 서비스 복구를 점검해주세요." >&2
+  return 1
+}
+
 cleanup() {
   rm -rf "$temporary_dir"
   rm -f "$maintenance_marker"
@@ -80,15 +95,16 @@ trap 'exit 143' TERM
 
 cd "$project_dir"
 
+command -v curl >/dev/null
+backup_worker backup-check "$backup_scope" "$timestamp"
+
 if [ "$app_was_running" = true ]; then
   echo "DB와 객체의 동일 시점 백업을 위해 운영 앱 쓰기를 잠시 중지합니다."
   sh "$project_dir/scripts/ops/tuti-planned-container-stop" tuti-prod
 fi
 
 echo "완료된 삭제 요청의 잔존 객체 점검·정리"
-docker compose --env-file .env.production -f docker-compose.prod.yml run --rm --no-deps -T \
-  --user 1000:1000 -e TUTI_PRIVACY_REPLAY_OFFLINE=true ops \
-  node_modules/.bin/tsx scripts/privacy-replay.ts --cleanup-objects --apply
+backup_worker backup-cleanup
 
 set --
 if [ "$backup_scope" = core ]; then
@@ -118,12 +134,7 @@ if [ ! -s "$temporary_dir/postgres.dump" ]; then
 fi
 
 echo "Garage 오브젝트 논리 백업"
-docker compose \
-  --env-file .env.production \
-  -f docker-compose.prod.yml \
-  run --rm --no-deps \
-  -v "$temporary_dir:/backup" \
-  ops node_modules/.bin/tsx scripts/backup-object-storage.ts /backup
+backup_worker backup-objects "$backup_scope" "$timestamp"
 
 # 명령이 성공해도 지정한 마운트에 결과물이 없으면 완전한 백업으로 확정하지 않는다.
 if [ ! -s "$temporary_dir/objects.manifest.json" ] || [ ! -d "$temporary_dir/objects" ]; then
@@ -162,6 +173,7 @@ if [ "$app_was_running" = true ]; then
   TUTI_APP_IMAGE="$app_image_before" TUTI_RELEASE="${app_release_before:-unknown}" \
     docker compose --env-file .env.production -f docker-compose.prod.yml \
     up -d --no-deps app
+  wait_for_app_ready
 fi
 rm -f "$maintenance_marker"
 trap - EXIT INT TERM

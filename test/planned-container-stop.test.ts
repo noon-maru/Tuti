@@ -75,7 +75,7 @@ test("백업 일관성·배포 스키마 경계와 장애 알림은 유지한다
     assert.equal(spawnSync("sh", ["-n", `scripts/ops/${file}`]).status, 0, file);
   }
   const backup = await readFile("scripts/ops/tuti-prod-backup", "utf8");
-  assert.ok(backup.indexOf('tuti-planned-container-stop" tuti-prod') < backup.indexOf("--cleanup-objects --apply"));
+  assert.ok(backup.indexOf('tuti-planned-container-stop" tuti-prod') < backup.indexOf("backup_worker backup-cleanup"));
   assert.ok(backup.indexOf('tuti-planned-container-stop" tuti-prod') < backup.indexOf("pg_dump"));
   assert.match(backup, /up -d --no-deps app/);
   const helper = await readFile("scripts/ops/tuti-planned-container-stop", "utf8");

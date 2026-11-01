@@ -27,6 +27,8 @@ function fixture(t: test.TestContext, scope: "full" | "core" = "full") {
   for (const [name, contents] of Object.entries(files)) writeFileSync(join(backup, name), contents);
   writeFileSync(join(backup, "checksums.sha256"), Object.entries(files).map(([name, contents]) => `${createHash("sha256").update(contents).digest("hex")}  ${name}`).join("\n") + "\n");
   const scripts = new Map<string, string>();
+  mkdirSync(join(project, "scripts/ops"), { recursive: true });
+  writeFileSync(join(project, "scripts/ops/tuti-planned-container-stop"), "#!/bin/sh\nexit 0\n");
   for (const name of ["tuti-prod-restore", "tuti-prod-rollback", "tuti-prod-deploy"]) {
     const source = readFileSync(new URL(`../scripts/ops/${name}`, import.meta.url), "utf8")
       .replace('project_dir="/var/services/homes/Tutiadmin/source/Tuti"', `project_dir=${JSON.stringify(project)}`)

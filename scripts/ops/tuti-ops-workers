@@ -8,8 +8,19 @@ mode="${1:-}"
 [ "$#" -gt 0 ] || exit 1
 shift
 case "$mode:$#:${1:-}" in
-  --refresh:0: | --refresh-locked:0: | --check:0: | rights:0: | rights:1:--apply | privacy:0: | privacy:1:--apply | recovery:0: | recovery:1:--apply | retention:0: | retention:1:--apply) ;;
-  *) echo "지원 명령: --check | --refresh | rights|privacy|recovery|retention [--apply]" >&2; exit 1 ;;
+  --refresh:0: | --refresh-locked:0: | --check:0: | rights:0: | rights:1:--apply | privacy:0: | privacy:1:--apply | recovery:0: | recovery:1:--apply | retention:0: | retention:1:--apply | backup-cleanup:0: | backup-check:2:full | backup-check:2:core | backup-objects:2:full | backup-objects:2:core) ;;
+  *) echo "지원 명령: --check | --refresh | rights|privacy|recovery|retention [--apply] | backup-cleanup | backup-check|backup-objects full|core YYYYMMDD-HHMMSS" >&2; exit 1 ;;
+esac
+case "$mode" in
+  backup-*)
+    if [ "$(readlink "/proc/$$/fd/9" 2>/dev/null || true)" != "$project_dir/.ops-state/maintenance.lock" ] ||
+       ! /usr/bin/flock --exclusive --nonblock 9; then
+      echo "백업 작업에는 유지보수 배타 잠금이 필요합니다." >&2; exit 1
+    fi
+    if [ "$mode" != backup-cleanup ] && ! printf '%s\n' "$2" | LC_ALL=C grep -Eq '^[0-9]{8}-[0-9]{6}$'; then exit 1; fi
+    [ -f /usr/local/libexec/tuti/run-backup-job.mjs ] && [ ! -L /usr/local/libexec/tuti/run-backup-job.mjs ] || exit 1
+    runner_source="$(cat /usr/local/libexec/tuti/run-backup-job.mjs)"
+    ;;
 esac
 compose() { docker compose --env-file .env.production -f docker-compose.prod.yml -f docker-compose.ops-workers.yml --profile ops-workers "$@"; }
 state_dir="$project_dir/.ops-state/ops-workers"
@@ -89,18 +100,21 @@ case "$mode" in
     echo '{"workers":3,"running":true,"configurationVerified":true,"ephemeralContainersCreated":false}'
     exit 0
     ;;
-  rights | privacy) container=tuti-ops-maintenance ;;
+  rights | privacy | backup-cleanup) container=tuti-ops-maintenance ;;
   recovery) container=tuti-ops-recovery ;;
-  retention) container=tuti-ops-retention ;;
+  retention | backup-check | backup-objects) container=tuti-ops-retention ;;
 esac
 check_worker "$container"
 # The task's exit status must reach systemd/OnFailure; never fall back to compose run.
 # Keep the inherited maintenance lock until the runner has stopped its process group.
 run_id="$(cat /proc/sys/kernel/random/uuid)"
 client_pid=""
+cancel_user=0:0
+# Same UID is needed to verify /proc/<pid>/environ without adding SYS_PTRACE.
+if [ "$mode" = backup-cleanup ]; then cancel_user=1000:1000; fi
 cancel() {
   trap '' TERM INT HUP
-  if ! docker exec "$container" node -e '
+  if ! docker exec --user "$cancel_user" "$container" node -e '
     const fs=require("node:fs");const id=process.argv[1];
     if(!/^[a-f0-9-]{36}$/.test(id))process.exit(1);
     const path=`/tmp/tuti-ops-${id}.json`;
@@ -122,7 +136,15 @@ cancel() {
   exit 143
 }
 trap cancel TERM INT HUP
-docker exec --env "TUTI_OPS_RUN_ID=$run_id" "$container" node scripts/run-maintenance-job.mjs "$mode" "$@" &
+case "$mode" in
+  backup-cleanup)
+    docker exec --user 1000:1000 --env "TUTI_OPS_RUN_ID=$run_id" --env TUTI_PRIVACY_REPLAY_OFFLINE=true \
+      "$container" node --input-type=module -e "$runner_source" -- "$mode" "$@" & ;;
+  backup-check | backup-objects)
+    docker exec --user 0:0 --env "TUTI_OPS_RUN_ID=$run_id" \
+      "$container" node --input-type=module -e "$runner_source" -- "$mode" "$@" & ;;
+  *) docker exec --env "TUTI_OPS_RUN_ID=$run_id" "$container" node scripts/run-maintenance-job.mjs "$mode" "$@" & ;;
+esac
 client_pid=$!
 result=0
 wait "$client_pid" || result=$?

@@ -18,7 +18,8 @@ test("pnpm 스크립트 뒤 구분자는 실제 첫 인자로 전달되어 백�
 test("객체 백업·복원은 패키지 관리자 없이 경로를 직접 전달하고 누락된 객체 백업은 확정하지 않는다", async () => {
   const backup = await readFile("scripts/ops/tuti-prod-backup", "utf8");
   const restore = await readFile("scripts/ops/tuti-prod-restore", "utf8");
-  assert.match(backup, /ops node_modules\/\.bin\/tsx scripts\/backup-object-storage\.ts \/backup/);
+  assert.match(backup, /backup_worker backup-objects "\$backup_scope" "\$timestamp"/);
+  assert.doesNotMatch(backup, /run --rm/);
   assert.match(restore, /ops node_modules\/\.bin\/tsx scripts\/restore-object-storage\.ts \/backup/);
   assert.doesNotMatch(backup + restore, /ops pnpm ops:objects:/);
   assert.ok(backup.indexOf('if [ ! -s "$temporary_dir/objects.manifest.json" ]') < backup.indexOf('mv "$temporary_dir" "$backup_dir"'));

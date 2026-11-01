@@ -25,7 +25,7 @@ if(command==='docker'){
   if(!fs.existsSync(process.env.TEST_STAMP))fs.writeFileSync(process.env.TEST_STAMP,process.env.TUTI_OPS_CONFIG_DIGEST);
   console.log((process.env.TEST_IMAGE||'sha256:test-image')+'|'+fs.readFileSync(process.env.TEST_STAMP,'utf8')+'|'+(process.env.TEST_STOPPED==='true'?'false':'true'));
  }
- if(args.includes('scripts/run-maintenance-job.mjs'))process.exit(Number(process.env.TEST_TASK_EXIT||'0'));
+ if(args.includes('scripts/run-maintenance-job.mjs')||args.includes('--input-type=module'))process.exit(Number(process.env.TEST_TASK_EXIT||'0'));
 }
 if(command==='jq'){
  const config=JSON.parse(fs.readFileSync(0,'utf8'));
@@ -35,6 +35,7 @@ if(command==='jq'){
   for (const name of ["docker", "jq", "flock"]) await writeFile(join(bin, name), `#!/bin/sh\nexec ${JSON.stringify(process.execPath)} ${JSON.stringify(driver)} ${name} "$@"\n`, { mode: 0o700 });
   await writeFile(join(bin, "id"), "#!/bin/sh\necho 0\n", { mode: 0o700 });
   const source = readFileSync("scripts/ops/tuti-ops-workers", "utf8")
+    .replaceAll("/usr/local/libexec/tuti/run-backup-job.mjs", join(root, "backup-runner.mjs"))
     .replaceAll("/var/services/homes/Tutiadmin/source/Tuti", root)
     .replaceAll("/volume1/tuti/backups/full", join(root, "full"))
     .replaceAll("/volume1/tuti/backups/core", join(root, "core"))
@@ -42,8 +43,11 @@ if(command==='jq'){
     .replaceAll("install -d -o root -g root", "install -d")
     .replaceAll("install -o root -g root", "install");
   const script = join(root, "helper.sh"); await writeFile(script, source);
+  await writeFile(join(root, "backup-runner.mjs"), "fixture-backup-runner");
   const log = join(root, "calls"); await writeFile(log, "");
-  const run = (args: string[], extra: Record<string, string> = {}) => spawnSync("sh", [script, ...args], {
+  const run = (args: string[], extra: Record<string, string> = {}) => spawnSync("sh", extra.TEST_LOCK === "true"
+    ? ["-c", 'exec 9>"$TEST_ROOT/.ops-state/maintenance.lock"; exec sh "$@"', "fixture", script, ...args]
+    : [script, ...args], {
     env: { ...process.env, PATH: `${bin}:${process.env.PATH}`, TEST_ROOT: root, TEST_LOG: log, TEST_STAMP: join(root, "stamp"), ...extra }, encoding: "utf8", timeout: 10_000,
   });
   const calls = async () => (await readFile(log, "utf8")).trim().split("\n").filter(Boolean).map(line => JSON.parse(line) as { command: string; args: string[] });
@@ -58,6 +62,23 @@ test("반복 작업은 기존 worker에서만 exec하며 실패 종료코드를 
   assert.equal(calls.filter(call => call.args.includes("scripts/run-maintenance-job.mjs")).length, 5);
   assert.ok(calls.every(call => !call.args.includes("run") && !call.args.includes("up") && !call.args.includes("build")));
   for (const call of calls.filter(call => call.args.includes("scripts/run-maintenance-job.mjs"))) assert.ok(call.args.some(arg => arg.startsWith("TUTI_OPS_RUN_ID=")));
+});
+
+test("백업도 임시 컨테이너 없이 실행하고 전용 UID·잠금·인자 경계를 유지한다", async t => {
+  const f = await fixture(t);
+  assert.notEqual(f.run(["backup-cleanup"]).status, 0);
+  assert.notEqual(f.run(["backup-objects", "full", "../escape"], { TEST_LOCK: "true" }).status, 0);
+  for (const args of [["backup-cleanup"], ["backup-check", "full", "20261101-102139"], ["backup-objects", "core", "20261101-102139"]]) {
+    const result = f.run(args, { TEST_LOCK: "true" }); assert.equal(result.status, 0, result.stderr);
+  }
+  assert.equal(f.run(["backup-objects", "full", "20261101-102139"], { TEST_LOCK: "true", TEST_TASK_EXIT: "2" }).status, 2);
+  const calls = await f.calls();
+  const execs = calls.filter(c => c.args.includes("--input-type=module"));
+  assert.equal(execs.length, 4);
+  assert.ok(execs[0].args.includes("1000:1000") && execs[0].args.includes("TUTI_PRIVACY_REPLAY_OFFLINE=true"));
+  assert.ok(execs[0].args.includes("tuti-ops-maintenance"));
+  assert.ok(execs.slice(1).every(c => c.args.includes("0:0") && c.args.includes("tuti-ops-retention")));
+  assert.ok(calls.every(c => !c.args.includes("run") && !c.args.includes("build") && !c.args.includes("up")));
 });
 
 test("환경 변경·중지·미설치·복원 대기에서는 새 컨테이너로 우회하지 않고 실패한다", async t => {

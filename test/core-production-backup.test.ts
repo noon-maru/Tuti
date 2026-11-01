@@ -111,6 +111,19 @@ test("가짜 Docker로 전체·핵심 백업 경로·덤프 옵션·객체 동�
   const executable = async (name: string, text: string) => writeFile(join(bin, name), `#!/bin/sh\nset -eu\n${text}\n`, { mode: 0o700 });
   await executable("git", 'printf "synthetic-revision\\n"');
   await executable("install", 'while [ "$#" -gt 1 ]; do shift; done; mkdir -p "$1"');
+  await executable("sleep", 'exit 0');
+  await executable("curl", 'echo readiness >> "$MOCK_LOG"; if [ "$MOCK_FAIL" = readiness ]; then exit 1; fi');
+  await executable("worker", `
+printf 'worker %s\\n' "$*" >> "$MOCK_LOG"
+case "$1" in
+  backup-cleanup) if [ "$MOCK_FAIL" = cleanup ]; then exit 1; fi ;;
+  backup-objects)
+    if [ "$MOCK_FAIL" = objects ]; then exit 1; fi
+    target="$MOCK_ROOT/$2/.$3.partial"
+    mkdir -p "$target/objects"
+    printf '{"version":1,"objects":[],"count":0,"totalBytes":0}' > "$target/objects.manifest.json"
+    ;;
+esac`);
   await executable("docker", `
 printf '%s\\n' "$*" >> "$MOCK_LOG"
 case "$*" in
@@ -131,27 +144,32 @@ case "$*" in
     ;;
 esac`);
   const original = await readFile("scripts/ops/tuti-prod-backup", "utf8");
-  for (const [index, scope, failure] of [[0, "full", ""], [1, "core", ""], [2, "core", "guard"], [3, "core", "dump"], [4, "core", "objects"], [5, "core", "stop"]] as const) {
+  for (const [index, scope, failure] of [[0, "full", ""], [1, "core", ""], [2, "core", "guard"], [3, "core", "dump"], [4, "core", "objects"], [5, "core", "stop"], [6, "core", "cleanup"], [7, "core", "readiness"]] as const) {
     const root = join(base, String(index)); await mkdir(root);
     await mkdir(join(root, "scripts/ops"), { recursive: true });
     await writeFile(join(root, "scripts/ops/tuti-planned-container-stop"), '#!/bin/sh\nprintf "planned-stop %s\\n" "$1" >> "$MOCK_LOG"\nif [ "$MOCK_FAIL" = stop ]; then exit 1; fi\n');
     for (const file of ["core-backup-excluded-data-tables.txt", "core-backup-production-guard.sql"]) await writeFile(join(root, "scripts/ops", file), await readFile(`scripts/ops/${file}`));
     const script = join(root, "backup.sh");
-    await writeFile(script, original.replaceAll("/var/services/homes/Tutiadmin/source/Tuti", root).replaceAll("/volume1/tuti/backups/full", join(root, "full")).replaceAll("/volume1/tuti/backups/core", join(root, "core")));
+    await writeFile(script, original.replaceAll("/var/services/homes/Tutiadmin/source/Tuti", root).replaceAll("/volume1/tuti/backups/full", join(root, "full")).replaceAll("/volume1/tuti/backups/core", join(root, "core")).replaceAll("/usr/local/sbin/tuti-ops-workers", join(bin, "worker")));
     const log = join(root, "log");
-    const run = spawnSync("sh", [script, ...(scope === "core" ? ["--core"] : [])], { encoding: "utf8", env: { ...process.env, PATH: `${bin}:${process.env.PATH}`, MOCK_LOG: log, MOCK_FAIL: failure } });
+    const run = spawnSync("sh", [script, ...(scope === "core" ? ["--core"] : [])], { encoding: "utf8", env: { ...process.env, PATH: `${bin}:${process.env.PATH}`, MOCK_ROOT: root, MOCK_LOG: log, MOCK_FAIL: failure } });
     const calls = await readFile(log, "utf8");
     assert.match(calls, /planned-stop tuti-prod/);
     assert.match(calls, /up -d --no-deps app/);
-    if (failure === "stop") assert.doesNotMatch(calls, /privacy-replay.ts|pg_dump/);
-    else assert.ok(calls.indexOf("planned-stop tuti-prod") < calls.indexOf("privacy-replay.ts --cleanup-objects --apply"));
+    assert.doesNotMatch(calls, /run --rm/);
+    if (failure === "stop") assert.doesNotMatch(calls, /worker backup-cleanup|pg_dump/);
+    else assert.ok(calls.indexOf("planned-stop tuti-prod") < calls.indexOf("worker backup-cleanup"));
     const entries = await readdir(join(root, scope));
     if (failure) {
       assert.notEqual(run.status, 0, run.stdout + run.stderr);
-      assert.deepEqual(entries, []);
+      if (failure === "readiness") {
+        assert.equal(entries.length, 1, "기동 실패와 무관하게 완성된 백업 사본은 보존");
+        assert.match(run.stderr, /readiness/);
+      } else assert.deepEqual(entries, []);
       if (failure === "guard") assert.doesNotMatch(calls, /pg_dump/);
     } else {
       assert.equal(run.status, 0, run.stdout + run.stderr);
+      assert.ok(calls.indexOf("up -d --no-deps app") < calls.indexOf("readiness"));
       assert.equal(entries.length, 1);
       const backup = join(root, scope, entries[0]);
       assert.match(await readFile(join(backup, "manifest.txt"), "utf8"), new RegExp(`database=production-${scope}-custom-dump`));
