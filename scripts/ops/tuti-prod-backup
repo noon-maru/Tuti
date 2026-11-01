@@ -82,7 +82,7 @@ cd "$project_dir"
 
 if [ "$app_was_running" = true ]; then
   echo "DB와 객체의 동일 시점 백업을 위해 운영 앱 쓰기를 잠시 중지합니다."
-  docker compose --env-file .env.production -f docker-compose.prod.yml stop app
+  sh "$project_dir/scripts/ops/tuti-planned-container-stop" tuti-prod
 fi
 
 echo "완료된 삭제 요청의 잔존 객체 점검·정리"

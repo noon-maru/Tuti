@@ -58,6 +58,13 @@ case "$mode" in
       install -d -o root -g root -m 0700 "$directory"
     done
     # No NAS build/pull and no app/DB restart. Changed env/image produces a new config digest.
+    # Mark only workers that need replacement as planned stops; unchanged workers stay up.
+    for worker in tuti-ops-maintenance tuti-ops-recovery tuti-ops-retention; do
+      actual="$(docker inspect --format '{{.Image}}|{{index .Config.Labels "today.tuti.ops-config"}}|{{.State.Running}}' "$worker" 2>/dev/null || true)"
+      if [ -n "$actual" ] && [ "$actual" != "$image_id|$TUTI_OPS_CONFIG_DIGEST|true" ]; then
+        sh "$project_dir/scripts/ops/tuti-planned-container-stop" "$worker"
+      fi
+    done
     compose up -d --no-deps --no-build --pull never ops-maintenance ops-recovery ops-retention
     ;;
   *)

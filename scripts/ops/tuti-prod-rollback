@@ -67,6 +67,7 @@ case "$column" in
   *) echo "DB 스키마를 확인하지 못해 롤백하지 않습니다." >&2; exit 1 ;;
 esac
 echo "앱 이미지를 이전 버전으로 되돌립니다: $previous_image"
+sh "$project_dir/scripts/ops/tuti-planned-container-stop" tuti-prod
 TUTI_APP_IMAGE="$previous_image" TUTI_RELEASE="${previous_release:-rollback}" \
   docker compose --env-file .env.production -f docker-compose.prod.yml \
   up -d --no-deps app

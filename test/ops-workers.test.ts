@@ -13,6 +13,7 @@ async function fixture(t: { after: (fn: () => Promise<void>) => void }) {
   const bin = join(root, "bin");
   for (const path of [bin, ".ops-state/ops-workers", "scripts/ops", "src/server/legal"]) await mkdir(path === bin ? bin : join(root, path), { recursive: true });
   for (const path of [".env", ".env.production", "docker-compose.prod.yml", "docker-compose.ops-workers.yml", "scripts/prune-production-backups.ts", "src/server/legal/backupRetention.ts", "scripts/ops/run-maintenance-job.mjs", ".ops-state/ops-workers/enabled"]) await writeFile(join(root, path), "fixture");
+  await writeFile(join(root, "scripts/ops/tuti-planned-container-stop"), '#!/bin/sh\nprintf \'{"command":"planned-stop","args":["%s"]}\\n\' "$1" >> "$TEST_LOG"\n');
   const driver = join(root, "driver.cjs");
   await writeFile(driver, `const fs=require('node:fs');const [command,...args]=process.argv.slice(2);
 fs.appendFileSync(process.env.TEST_LOG,JSON.stringify({command,args})+'\\n');
@@ -83,6 +84,20 @@ test("refresh는 로컬 이미지로 작업 컨테이너 3개만 시작하고 �
   for (const flag of ["-d", "--no-deps", "--no-build", "--pull", "never"]) assert.ok(up.args.includes(flag));
   assert.deepEqual(up.args.slice(-3), ["ops-maintenance", "ops-recovery", "ops-retention"]);
   await access(join(f.root, ".ops-state/ops-workers/enabled"));
+});
+
+test("설정이 달라진 worker만 DSM 계획 중지 후 교체하고 동일 설정은 중지하지 않는다", async t => {
+  const f = await fixture(t);
+  assert.equal(f.run(["--refresh"]).status, 0);
+  assert.equal((await f.calls()).filter(c => c.command === "planned-stop").length, 0);
+  await writeFile(join(f.root, ".env.production"), "changed");
+  const refreshed = f.run(["--refresh"]);
+  assert.equal(refreshed.status, 0, refreshed.stderr);
+  const calls = await f.calls();
+  assert.deepEqual(calls.filter(c => c.command === "planned-stop").map(c => c.args[0]), ["tuti-ops-maintenance", "tuti-ops-recovery", "tuti-ops-retention"]);
+  assert.ok(calls.findLastIndex(c => c.command === "planned-stop") < calls.findLastIndex(c => c.args.includes("up")));
+  assert.equal(f.run(["--refresh"]).status, 0);
+  assert.equal((await f.calls()).filter(c => c.command === "planned-stop").length, 3);
 });
 
 test("래퍼는 기존 잠금과 실패 알림을 유지하고 복구/백업 볼륨은 분리한다", async () => {

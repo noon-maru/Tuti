@@ -125,7 +125,7 @@ if [ -f prisma/migrations/20261028120000_remove_harumadi_inner_style/migration.s
   case "$column" in
     1)
       echo "속지 설정 열 삭제 전 운영 앱을 중지합니다. 마이그레이션 후 새 앱으로 재개합니다."
-      docker compose --env-file .env.production -f docker-compose.prod.yml stop app
+      sh "$project_dir/scripts/ops/tuti-planned-container-stop" tuti-prod
       ;;
     0) ;;
     *) echo "운영 DB 스키마를 확인하지 못해 전환하지 않습니다." >&2; exit 1 ;;
@@ -138,6 +138,7 @@ if ! { docker compose --env-file .env.production -f docker-compose.prod.yml \
   && docker compose --env-file .env.production -f docker-compose.prod.yml \
   run --rm ops pnpm transport:hubs:sync; }; then
   if image_matches_schema "$previous_image"; then
+    sh "$project_dir/scripts/ops/tuti-planned-container-stop" tuti-prod
     TUTI_APP_IMAGE="$previous_image" TUTI_RELEASE="${previous_release:-rollback}" \
       docker compose --env-file .env.production -f docker-compose.prod.yml up -d --no-deps app
   else
@@ -146,6 +147,7 @@ if ! { docker compose --env-file .env.production -f docker-compose.prod.yml \
   exit 1
 fi
 echo "새 운영 앱 교체"
+sh "$project_dir/scripts/ops/tuti-planned-container-stop" tuti-prod
 docker compose --env-file .env.production -f docker-compose.prod.yml \
   up -d --no-deps app
 
@@ -167,6 +169,7 @@ if [ "$healthy" != true ]; then
   echo "새 버전 readiness 확인에 실패했습니다." >&2
   if image_matches_schema "$previous_image"; then
     echo "이전 앱 이미지로 복귀합니다: $previous_image" >&2
+    sh "$project_dir/scripts/ops/tuti-planned-container-stop" tuti-prod
     TUTI_APP_IMAGE="$previous_image" TUTI_RELEASE="${previous_release:-rollback}" \
       docker compose --env-file .env.production -f docker-compose.prod.yml \
       up -d --no-deps app

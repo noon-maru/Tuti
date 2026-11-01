@@ -1,0 +1,59 @@
+#!/bin/sh
+# Only planned, maintenance-locked stops use DSM's own container stop API.
+# Never disable notifications or rewrite Container Manager's private config files.
+set -eu
+case "$#:$*" in
+  1:--check) mode=check; container="" ;;
+  1:tuti-prod | 1:tuti-ops-maintenance | 1:tuti-ops-recovery | 1:tuti-ops-retention)
+    mode=stop; container="$1" ;;
+  *) echo "지원 대상: --check 또는 운영 앱·상시 작업 컨테이너 이름" >&2; exit 1 ;;
+esac
+if [ "$(id -u)" != 0 ]; then echo "NAS 관리자 권한이 필요합니다." >&2; exit 1; fi
+api=/usr/syno/bin/synowebapi
+definition=/var/packages/ContainerManager/target/webapi/SYNO.Docker.lib
+if [ ! -x "$api" ] || ! jq -e '
+  .["SYNO.Docker.Container"] |
+  .minVersion <= 1 and .maxVersion >= 1 and any(.methods["1"][]; has("stop"))
+' "$definition" >/dev/null 2>&1; then
+  echo "DSM 정상 중지 API를 확인하지 못했습니다. Docker 중지로 우회하지 않습니다." >&2; exit 1
+fi
+if [ "$mode" = check ]; then
+  # Read-only round trip also checks CLI permissions and response format before installation.
+  if ! response="$(timeout 45 "$api" --exec api=SYNO.Docker.Container method=get version=1 name=tuti-prod 2>/dev/null)" ||
+     ! printf '%s' "$response" | jq -e '.success == true' >/dev/null 2>&1; then
+    echo "DSM 조회 API 응답을 검증하지 못했습니다. 설치·중지를 진행하지 않습니다." >&2; exit 1
+  fi
+  unset response
+  echo '{"plannedStopApiAvailable":true,"notificationsChanged":false,"containersStopped":false}'
+  exit 0
+fi
+project_dir=/var/services/homes/Tutiadmin/source/Tuti
+project_dir="$(CDPATH= cd -- "$project_dir" && pwd -P)"
+# Require the caller's maintenance FD and an exclusive lock before any stop request.
+if [ "$(readlink "/proc/$$/fd/9" 2>/dev/null || true)" != "$project_dir/.ops-state/maintenance.lock" ] ||
+   ! /usr/bin/flock --exclusive --nonblock 9; then
+  echo "유지보수 배타 잠금 없이 컨테이너를 중지할 수 없습니다." >&2; exit 1
+fi
+running="$(docker inspect --format '{{.State.Running}}' "$container")"
+case "$running" in false) exit 0 ;; true) ;; *) exit 1 ;; esac
+# CLI output can contain package diagnostics. Never print it or credentials.
+if ! response="$(timeout 45 "$api" --exec api=SYNO.Docker.Container method=stop version=1 "name=$container" 2>/dev/null)"; then
+  echo "DSM 계획 중지 요청에 실패했습니다. 일반 Docker 중지로 우회하지 않습니다." >&2; exit 1
+fi
+if ! printf '%s' "$response" | jq -e '.success == true' >/dev/null 2>&1; then
+  echo "DSM 계획 중지 응답을 검증하지 못했습니다." >&2; exit 1
+fi
+unset response
+attempt=0
+while [ "$attempt" -lt 15 ]; do
+  state="$(docker inspect --format '{{.State.Running}}|{{.State.ExitCode}}|{{.State.OOMKilled}}' "$container")"
+  case "$state" in
+    'false|0|false' | 'false|143|false')
+      printf '계획된 컨테이너 중지 확인: %s\n' "$container"; exit 0 ;;
+    true\|*) sleep 1 ;;
+    *) echo "중지 후 비정상 종료·OOM 여부를 점검해야 합니다." >&2; exit 1 ;;
+  esac
+  attempt=$((attempt + 1))
+done
+echo "DSM 요청 후 컨테이너 중지를 확인하지 못했습니다." >&2
+exit 1

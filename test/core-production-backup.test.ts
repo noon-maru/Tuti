@@ -131,18 +131,20 @@ case "$*" in
     ;;
 esac`);
   const original = await readFile("scripts/ops/tuti-prod-backup", "utf8");
-  for (const [index, scope, failure] of [[0, "full", ""], [1, "core", ""], [2, "core", "guard"], [3, "core", "dump"], [4, "core", "objects"]] as const) {
+  for (const [index, scope, failure] of [[0, "full", ""], [1, "core", ""], [2, "core", "guard"], [3, "core", "dump"], [4, "core", "objects"], [5, "core", "stop"]] as const) {
     const root = join(base, String(index)); await mkdir(root);
     await mkdir(join(root, "scripts/ops"), { recursive: true });
+    await writeFile(join(root, "scripts/ops/tuti-planned-container-stop"), '#!/bin/sh\nprintf "planned-stop %s\\n" "$1" >> "$MOCK_LOG"\nif [ "$MOCK_FAIL" = stop ]; then exit 1; fi\n');
     for (const file of ["core-backup-excluded-data-tables.txt", "core-backup-production-guard.sql"]) await writeFile(join(root, "scripts/ops", file), await readFile(`scripts/ops/${file}`));
     const script = join(root, "backup.sh");
     await writeFile(script, original.replaceAll("/var/services/homes/Tutiadmin/source/Tuti", root).replaceAll("/volume1/tuti/backups/full", join(root, "full")).replaceAll("/volume1/tuti/backups/core", join(root, "core")));
     const log = join(root, "log");
     const run = spawnSync("sh", [script, ...(scope === "core" ? ["--core"] : [])], { encoding: "utf8", env: { ...process.env, PATH: `${bin}:${process.env.PATH}`, MOCK_LOG: log, MOCK_FAIL: failure } });
     const calls = await readFile(log, "utf8");
-    assert.match(calls, /stop app/);
+    assert.match(calls, /planned-stop tuti-prod/);
     assert.match(calls, /up -d --no-deps app/);
-    assert.ok(calls.indexOf("stop app") < calls.indexOf("privacy-replay.ts --cleanup-objects --apply"));
+    if (failure === "stop") assert.doesNotMatch(calls, /privacy-replay.ts|pg_dump/);
+    else assert.ok(calls.indexOf("planned-stop tuti-prod") < calls.indexOf("privacy-replay.ts --cleanup-objects --apply"));
     const entries = await readdir(join(root, scope));
     if (failure) {
       assert.notEqual(run.status, 0, run.stdout + run.stderr);
