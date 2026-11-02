@@ -12,8 +12,8 @@ export function engagementMetricsSql(period: ReturnType<typeof analyticsPeriod>)
     current_events AS (SELECT e.* FROM e,p WHERE occurred_at>=p.since),
     legacy AS (SELECT a.* FROM product_activity_events a JOIN eligible u ON u.id=a.user_id,p
       WHERE a.created_at>=p.since AND a.created_at<p.until AND a.retention_until>p.until),
-    activity AS (SELECT user_id,platform,coalesce(app_version,'unknown') AS version FROM current_events
-      UNION ALL SELECT user_id,platform,coalesce(app_version,'unknown') FROM legacy),
+    activity AS (SELECT user_id,platform::text AS platform,coalesce(app_version,'unknown') AS version FROM current_events
+      UNION ALL SELECT user_id,platform::text,coalesce(app_version,'unknown') FROM legacy),
     slices AS (SELECT e.user_id,e.session_id,
       extract(epoch FROM least(e.occurred_at,p.until)-greatest(e.active_started_at,p.since))*1000 AS ms
       FROM e,p WHERE e.name='session_active' AND e.active_started_at<p.until AND e.occurred_at>p.since),

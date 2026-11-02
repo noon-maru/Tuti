@@ -10,8 +10,9 @@ export async function verifyEngagementMetrics(query: (sql: string) => string, so
   const run = (sql: string) => query(`SET search_path=engagement_fixture,public; ${sql}`).replace(/^SET\n/, "");
   const quote = (v: unknown) => v === null ? "NULL" : `'${String(v instanceof Date ? v.toISOString() : v).replace(/'/g, "''")}'`;
   const render = (sql: Prisma.Sql) => sql.strings.map((s, i) => s + (i < sql.values.length ? quote(sql.values[i]) : "")).join("");
-  run(`CREATE TABLE users(id text PRIMARY KEY,role text,analytics_excluded_at timestamp);
-    CREATE TABLE product_activity_events(user_id text,platform text,app_version text,created_at timestamp,retention_until timestamp);
+  run(`CREATE TYPE "ProductActivityPlatform" AS ENUM ('web','android','ios');
+    CREATE TABLE users(id text PRIMARY KEY,role text,analytics_excluded_at timestamp);
+    CREATE TABLE product_activity_events(user_id text,platform "ProductActivityPlatform",app_version text,created_at timestamp,retention_until timestamp);
     INSERT INTO users VALUES('a','user',null),('b','user',null),('c','user',null),('legacy','user',null),('qa','user','2026-10-01'),('admin','admin',null);`);
   run(readFileSync("prisma/migrations/20261030020000_lifelog_events/migration.sql", "utf8"));
   run(readFileSync("prisma/migrations/20261102090000_lifecycle_active_duration/migration.sql", "utf8"));

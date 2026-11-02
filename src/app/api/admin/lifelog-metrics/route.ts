@@ -17,8 +17,13 @@ export async function GET(request: Request) {
     const response: LifelogMetricsResponse = { asOf: period.asOf, period: { days: period.days, start: period.start.toISOString(), end: period.end.toISOString() },
       observation: "current-surviving-data", stock, activity, engagement };
     return withCors(request, Response.json(response, { headers: { "Cache-Control": "private, no-store" } }));
-  } catch {
-    return withCors(request, Response.json({ error: "라이프로그 지표를 불러오지 못했어요. 마이그레이션과 연결 상태를 확인해주세요." }, { status: 503 }));
+  } catch (error) {
+    // 쿼리·바인딩 값·개인정보는 출력하지 않고 오류 분류만 남긴다.
+    const failure = error && typeof error === "object" ? error as { code?: unknown; meta?: { code?: unknown } } : {};
+    const code = typeof failure.code === "string" && /^P\d{4}$/.test(failure.code) ? failure.code : "UNKNOWN";
+    const sqlState = typeof failure.meta?.code === "string" && /^[0-9A-Z]{5}$/.test(failure.meta.code) ? failure.meta.code : "UNKNOWN";
+    console.error("라이프로그 지표 조회 실패", { code, sqlState });
+    return withCors(request, Response.json({ error: "라이프로그 지표를 불러오지 못했어요. 마이그레이션과 연결 상태를 확인해주세요." }, { status: 503, headers: { "Cache-Control": "private, no-store" } }));
   }
 }
 export const OPTIONS = createPreflightResponse;

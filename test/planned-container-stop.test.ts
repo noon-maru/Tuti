@@ -80,7 +80,8 @@ esac
     assert.notEqual(unsafe.status, 0, state);
     assert.doesNotMatch(unsafe.stdout, /계획된 컨테이너 중지 확인/);
   }
-  for (const extra of [{ TEST_EXIT: "137" }, { TEST_OOM: "true" }]) {
+  const unhealthyStates: Array<Record<string, string>> = [{ TEST_EXIT: "137" }, { TEST_OOM: "true" }];
+  for (const extra of unhealthyStates) {
     assert.notEqual((await run(["tuti-prod"], { TEST_API: "missing", ...extra })).status, 0);
   }
   const already = await run(["tuti-prod"], { TEST_ALREADY: "true" });
