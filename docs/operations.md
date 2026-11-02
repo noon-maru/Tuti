@@ -226,6 +226,17 @@ sudo sh scripts/ops/install-backup-recovery --apply
 설치 후 실제 예약 결과에서 **백업 완료와 앱 readiness 확인을 모두 확인**한다.
 중지 응답 검증 실패가 반복되면 새 비식별 진단으로 DSM 호환성을 추가 조사해야 한다.
 
+같은 날 제품성과 배포에서 `request_ok=true, json_valid=true, provider_error=1301, observed=stopped`를
+재현했고 기존 앱 자동 복구도 확인했다. 설치된 Container Manager UI의 오류 상수에서
+1301은 `WEBAPI_ERR_CONTAINER_NOT_EXIST`로 매핑되지만 Docker에는 같은 컨테이너가 실제로 남아 있었다.
+DSM 내부에서 왜 이 응답이 발생했는지는 확정하지 않는다.
+
+후속 보완은 **정상 JSON의 명시적 success=false·오류 1301**에 한해서만 엔진 사후조건 검증을 허용한다.
+중지 전후 전체 컨테이너 ID·StartedAt이 같고, Running=false·종료 코드 0/143·OOMKilled=false이며
+FinishedAt이 중지 전과 달라진 유효한 종료 시각인 경우에만 정상 중지로 진행한다.
+컨테이너 소멸·교체·재시작·계속 실행·새 종료 시각 없음·OOM·다른 종료 코드·다른 API 오류·깨진 JSON은
+계속 실패로 처리한다. API 오류 자체를 성공으로 바꾸거나 일반 Docker stop/kill로 우회하지 않는다.
+
 ### 2026-10-20 객체 백업 누락 발견 및 수정
 
 `20261020-224729` 사본 검사에서 `objects.manifest.json` 누락을 확인했다.

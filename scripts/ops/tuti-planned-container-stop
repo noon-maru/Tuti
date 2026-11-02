@@ -34,25 +34,36 @@ if [ "$(readlink "/proc/$$/fd/9" 2>/dev/null || true)" != "$project_dir/.ops-sta
    ! /usr/bin/flock --exclusive --nonblock 9; then
   echo "유지보수 배타 잠금 없이 컨테이너를 중지할 수 없습니다." >&2; exit 1
 fi
-running="$(docker inspect --format '{{.State.Running}}' "$container")"
+state_format='{{.Id}}|{{.State.Running}}|{{.State.ExitCode}}|{{.State.OOMKilled}}|{{.State.FinishedAt}}|{{.State.StartedAt}}'
+before="$(timeout 10 docker inspect --format "$state_format" "$container")"
+IFS='|' read -r original_id running initial_exit initial_oom finished_before started_before <<EOF
+$before
+EOF
+if ! printf '%s' "$original_id" | LC_ALL=C grep -Eq '^[0-9a-f]{64}$' || [ -z "$started_before" ]; then
+  echo "중지 전 컨테이너 식별 상태를 확인하지 못했습니다." >&2; exit 1
+fi
 case "$running" in false) exit 0 ;; true) ;; *) exit 1 ;; esac
 # CLI output can contain package diagnostics. Never print it or credentials.
 request_ok=false
 response_ok=false
 json_valid=false
 provider_error=unknown
+post_stop_1301=false
 if response="$(timeout 45 "$api" --exec api=SYNO.Docker.Container method=stop version=1 "name=$container" 2>/dev/null)"; then
   request_ok=true
   if printf '%s' "$response" | jq -e -s 'length == 1 and (.[0] | type == "object")' >/dev/null 2>&1; then
     json_valid=true
     if printf '%s' "$response" | jq -e '.success == true' >/dev/null 2>&1; then response_ok=true; fi
     provider_error="$(printf '%s' "$response" | jq -r '.error | if type == "object" then .code | if type == "number" then tostring else "unknown" end else "unknown" end')"
+    if [ "$provider_error" = 1301 ] && printf '%s' "$response" | jq -e '.success == false' >/dev/null 2>&1; then
+      post_stop_1301=true
+    fi
   fi
 fi
 unset response
 # 응답이 깨지거나 CLI가 실패해도 실제 중지 여부는 별도로 관측한다.
-# 불명확한 응답을 성공으로 바꾸거나 백업을 이어가지 않는다. 호출자의 EXIT 복구로 넘긴다.
-if [ "$response_ok" != true ]; then
+# 불명확한 응답은 실패로 남긴다. 관측된 1301만 아래의 동일 컨테이너 상태 검증 대상으로 허용한다.
+if [ "$response_ok" != true ] && [ "$post_stop_1301" != true ]; then
   observed_state="$(docker inspect --format '{{.State.Running}}|{{.State.ExitCode}}|{{.State.OOMKilled}}' "$container" 2>/dev/null || true)"
   case "$observed_state" in
     false\|*) observation=stopped ;;
@@ -64,9 +75,27 @@ if [ "$response_ok" != true ]; then
 fi
 attempt=0
 while [ "$attempt" -lt 15 ]; do
-  state="$(docker inspect --format '{{.State.Running}}|{{.State.ExitCode}}|{{.State.OOMKilled}}' "$container")"
-  case "$state" in
+  if ! after="$(timeout 10 docker inspect --format "$state_format" "$container" 2>/dev/null)"; then
+    echo "중지 후 원래 컨테이너를 조회하지 못했습니다. 정상 중지로 처리하지 않습니다." >&2; exit 1
+  fi
+  IFS='|' read -r current_id current_running exit_code oom finished_after started_after <<EOF
+$after
+EOF
+  if [ "$current_id" != "$original_id" ] || [ "$started_after" != "$started_before" ]; then
+    echo "중지 도중 컨테이너가 교체·재시작됐습니다. 정상 중지로 처리하지 않습니다." >&2; exit 1
+  fi
+  case "$current_running|$exit_code|$oom" in
     'false|0|false' | 'false|143|false')
+      case "$finished_after" in '' | 0001-*) echo "컨테이너 종료 시각을 확인하지 못했습니다." >&2; exit 1 ;; esac
+      if ! printf '%s' "$finished_after" | LC_ALL=C grep -Eq '^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}([.][0-9]{1,9})?Z$'; then
+        echo "컨테이너 종료 시각 형식을 확인하지 못했습니다." >&2; exit 1
+      fi
+      if [ "$finished_after" = "$finished_before" ]; then
+        echo "중지 요청 이후의 실제 종료를 확인하지 못했습니다." >&2; exit 1
+      fi
+      if [ "$post_stop_1301" = true ]; then
+        echo "DSM 응답 1301: 원래 ID·시작 시각 유지, 새 종료 시각·정상 종료·OOM 없음으로 중지 확인."
+      fi
       printf '계획된 컨테이너 중지 확인: %s\n' "$container"; exit 0 ;;
     true\|*) sleep 1 ;;
     *) echo "중지 후 비정상 종료·OOM 여부를 점검해야 합니다." >&2; exit 1 ;;

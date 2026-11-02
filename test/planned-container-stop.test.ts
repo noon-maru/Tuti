@@ -14,12 +14,14 @@ test("계획 중지는 DSM API만 사용하며 잠금·API 오류·OOM을 우회
   await writeFile(definition, JSON.stringify({ "SYNO.Docker.Container": { minVersion: 1, maxVersion: 1, methods: { "1": [{ stop: {} }] } } }));
   await writeFile(log, "");
   await writeFile(join(bin, "id"), '#!/bin/sh\necho "${TEST_UID:-0}"\n', { mode: 0o700 });
+  await writeFile(join(bin, "sleep"), '#!/bin/sh\nexit 0\n', { mode: 0o700 });
   await writeFile(join(bin, "synowebapi"), `#!/bin/sh
 printf 'api %s\\n' "$*" >> "$TEST_LOG"
 case "$*" in *method=get*) echo '{"success":true}'; exit 0 ;; esac
 touch "$TEST_MARKER"
 case "\${TEST_API:-success}" in
   failure) echo '{"success":false,"error":{"code":105},"private":"do-not-print"}' ;;
+  missing) echo '{"success":false,"error":{"code":1301},"private":"do-not-print"}' ;;
   invalid) echo do-not-print ;;
   exit) exit 2 ;;
   *) echo '{"success":true}' ;;
@@ -28,6 +30,22 @@ esac
   await writeFile(join(bin, "docker"), `#!/bin/sh
 printf 'docker %s\\n' "$*" >> "$TEST_LOG"
 case "$*" in
+  *".Id"*)
+    identity=${"a".repeat(64)}; running=true; finished=0001-01-01T00:00:00Z; started=2026-11-01T00:00:00Z
+    if [ -f "$TEST_MARKER" ]; then
+      [ "\${TEST_STATE:-}" != absent ] || exit 1
+      running=false; finished=2026-11-02T00:20:02Z
+      case "\${TEST_STATE:-}" in
+        replaced) identity=${"b".repeat(64)} ;;
+        restarted) started=2026-11-02T00:20:03Z ;;
+        unchanged) finished=0001-01-01T00:00:00Z ;;
+        invalid-time) finished=invalid ;;
+        running) running=true ;;
+      esac
+    fi
+    if [ "\${TEST_ALREADY:-false}" = true ]; then running=false; fi
+    printf '%s|%s|%s|%s|%s|%s\\n' "$identity" "$running" "\${TEST_EXIT:-0}" "\${TEST_OOM:-false}" "$finished" "$started"
+    ;;
   *".ExitCode"*) printf 'false|%s|%s\\n' "\${TEST_EXIT:-0}" "\${TEST_OOM:-false}" ;;
   *) if [ -f "$TEST_MARKER" ] || [ "\${TEST_ALREADY:-false}" = true ]; then echo false; else echo true; fi ;;
 esac
@@ -53,6 +71,18 @@ esac
     assert.doesNotMatch(result.calls, /docker (stop|kill|update)/);
   }
   assert.equal((await run(["tuti-prod"], { TEST_EXIT: "143" })).status, 0);
+  const postStop = await run(["tuti-prod"], { TEST_API: "missing", TEST_EXIT: "143" });
+  assert.equal(postStop.status, 0, postStop.stderr);
+  assert.match(postStop.stdout, /DSM 응답 1301/);
+  assert.doesNotMatch(postStop.stdout + postStop.stderr, /do-not-print/);
+  for (const state of ["absent", "replaced", "restarted", "unchanged", "invalid-time", "running"]) {
+    const unsafe = await run(["tuti-prod"], { TEST_API: "missing", TEST_STATE: state });
+    assert.notEqual(unsafe.status, 0, state);
+    assert.doesNotMatch(unsafe.stdout, /계획된 컨테이너 중지 확인/);
+  }
+  for (const extra of [{ TEST_EXIT: "137" }, { TEST_OOM: "true" }]) {
+    assert.notEqual((await run(["tuti-prod"], { TEST_API: "missing", ...extra })).status, 0);
+  }
   const already = await run(["tuti-prod"], { TEST_ALREADY: "true" });
   assert.equal(already.status, 0); assert.doesNotMatch(already.calls, /api /);
   const failures: Array<Record<string, string>> = [{ TEST_API: "failure" }, { TEST_API: "invalid" }, { TEST_API: "exit" }, { TEST_EXIT: "137" }, { TEST_OOM: "true" }];
