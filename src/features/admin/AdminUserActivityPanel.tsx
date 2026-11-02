@@ -72,7 +72,7 @@ export function AdminUserActivityPanel({
           <small>작성·열람·담기·PDF</small>
         </SummaryPrimary>
         <SummaryItem>
-          <span>기간 내 이용 계정</span>
+          <span>관측 계정</span>
           <strong>{formatNumber(data.summary.observedUsers)}</strong>
         </SummaryItem>
         <SummaryItem>
@@ -132,7 +132,7 @@ export function AdminUserActivityPanel({
       <UserSection>
         <SectionHeading>
           <h3>사용자별 이용 현황</h3>
-          <StageLegend>전체 요약과 별도인 계정 목록 · 작성·열람·함께 채우기 구분</StageLegend>
+          <StageLegend>계정별 활동</StageLegend>
         </SectionHeading>
         <UserTabs role="tablist" aria-label="사용자 활동 집계 구분">
           <UserTab

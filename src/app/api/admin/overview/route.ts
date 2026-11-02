@@ -2,6 +2,7 @@ import { authenticateAdmin } from "@/server/admin/auth";
 import { prisma } from "@/server/db/prisma";
 import { readJobHealth } from "@/server/admin/jobHealth";
 import { readLifelogStock } from "@/server/admin/lifelogStock";
+import { koreanDayStart } from "@/server/admin/analyticsScope";
 import {
   createPreflightResponse,
   isRequestOriginAllowed,
@@ -37,8 +38,7 @@ export async function GET(request: Request) {
     return withCors(request, authentication.response);
   }
 
-  const startOfToday = new Date();
-  startOfToday.setHours(0, 0, 0, 0);
+  const startOfToday = koreanDayStart(new Date());
   const sevenDaysFromNow = new Date();
   sevenDaysFromNow.setDate(sevenDaysFromNow.getDate() + 7);
 

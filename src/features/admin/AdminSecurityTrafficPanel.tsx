@@ -68,10 +68,11 @@ export function AdminSecurityTrafficPanel({
     );
   };
 
-  const safeRequests = Math.max(1, data.summary.requests);
-  const humanRate = (data.summary.likelyHumanRequests / safeRequests) * 100;
-  const botRate = (data.summary.botRequests / safeRequests) * 100;
-  const unknownRate = (data.summary.unknownRequests / safeRequests) * 100;
+  const rate = (count: number) => data.summary.requests > 0
+    ? count / data.summary.requests * 100 : null;
+  const humanRate = rate(data.summary.likelyHumanRequests);
+  const botRate = rate(data.summary.botRequests);
+  const unknownRate = rate(data.summary.unknownRequests);
   const maximumDailyRequests = Math.max(1, ...data.daily.map((day) => day.requests));
 
   return (
@@ -144,17 +145,17 @@ export function AdminSecurityTrafficPanel({
         <CompositionRail aria-label="트래픽 추정 구성">
           <CompositionPart
             data-kind="human"
-            style={{ width: `${humanRate}%` }}
+            style={{ width: `${humanRate ?? 0}%` }}
             title={`사람 가능성 높음 ${formatRate(humanRate)}`}
           />
           <CompositionPart
             data-kind="bot"
-            style={{ width: `${botRate}%` }}
+            style={{ width: `${botRate ?? 0}%` }}
             title={`봇·자동화 ${formatRate(botRate)}`}
           />
           <CompositionPart
             data-kind="unknown"
-            style={{ width: `${unknownRate}%` }}
+            style={{ width: `${unknownRate ?? 0}%` }}
             title={`판단 보류 ${formatRate(unknownRate)}`}
           />
         </CompositionRail>
@@ -476,8 +477,8 @@ function formatNumber(value: number) {
   return value.toLocaleString("ko-KR");
 }
 
-function formatRate(value: number) {
-  return `${value.toLocaleString("ko-KR", { maximumFractionDigits: 1 })}%`;
+function formatRate(value: number | null) {
+  return value === null ? "—" : `${value.toLocaleString("ko-KR", { maximumFractionDigits: 1 })}%`;
 }
 
 function formatDate(value: string) {

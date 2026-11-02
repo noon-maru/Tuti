@@ -20,7 +20,7 @@ const STAGES = [
   ["departure_plan_expanded", "출발 정보 펼침"],
   ["navigation_started", "길찾기 시작"],
   ["return_confirmed", "다녀옴 확인"],
-  ["journal_created", "기록 남김"],
+  ["journal_created", "마디 작성"],
 ] as const;
 
 export async function GET(request: Request) {

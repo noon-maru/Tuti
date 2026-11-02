@@ -5,12 +5,15 @@ const KST_OFFSET = 9 * 3_600_000;
 export function koreanDay(value: Date) {
   return Math.floor((value.getTime() + KST_OFFSET) / ANALYTICS_DAY_MS);
 }
+export function koreanDayStart(value: Date) {
+  return new Date(koreanDay(value) * ANALYTICS_DAY_MS - KST_OFFSET);
+}
 export function normalizeAnalyticsDays(value: string | null): 7 | 30 | 90 {
   return value === "7" ? 7 : value === "90" ? 90 : 30;
 }
 export function analyticsPeriod(days: 7 | 30 | 90, now = new Date()) {
   if (!Number.isFinite(now.getTime())) throw new Error("INVALID_ANALYTICS_TIME");
-  const today = koreanDay(now) * ANALYTICS_DAY_MS - KST_OFFSET;
+  const today = koreanDayStart(now).getTime();
   const start = new Date(today - (days - 1) * ANALYTICS_DAY_MS);
   // Half-open range, inclusive of the observed instant, never future events.
   const end = new Date(now.getTime() + 1);

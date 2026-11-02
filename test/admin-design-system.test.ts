@@ -24,6 +24,19 @@ test("모든 관리자 하위 라우트는 같은 전용 테마를 쓰고 경고
   assert.doesNotMatch(main, /FunnelStageIndex|추천 행동 퍼널/);
 });
 
+test("작은 보조 글자와 탐색 라벨은 흰 바탕에서 명도 대비를 확보한다", () => {
+  const luminance = (hex: string) => {
+    const channels = hex.slice(1).match(/../g)!.map(value => {
+      const channel = parseInt(value, 16) / 255;
+      return channel <= .04045 ? channel / 12.92 : ((channel + .055) / 1.055) ** 2.4;
+    });
+    return channels[0] * .2126 + channels[1] * .7152 + channels[2] * .0722;
+  };
+  for (const color of [adminTheme["--color-text-muted"], adminTheme["--color-neutral-800"], adminTheme["--color-accent-primary"]]) {
+    assert.ok(1.05 / (luminance(color) + .05) >= 4.5, color);
+  }
+});
+
 test("사용자 활동은 라이프로그 단계와 환경 미확인을 구분하고 QA 제어를 유지한다", () => {
   const at = "2026-11-01T16:00:00Z";
   const data: AdminUserActivityResponse = {

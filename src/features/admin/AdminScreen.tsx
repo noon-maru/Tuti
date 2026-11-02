@@ -2604,7 +2604,7 @@ function UsersPanel({
               onSort={toggleSort}
             />
             <SortableUserHeader
-              label="기록"
+              label="마디"
               sortKey="journalCount"
               sort={sort}
               onSort={toggleSort}
@@ -2633,7 +2633,7 @@ function UsersPanel({
                 <Small>{user.id}</Small>
               </td>
               <td data-label="공급자">{user.providers.join(", ") || "-"}</td>
-              <td data-label="기록">
+              <td data-label="마디">
                 {user.journalCount > 0 ? (
                   <JournalViewButton
                     id={`journal-view-${user.id}`}

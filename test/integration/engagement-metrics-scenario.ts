@@ -4,6 +4,7 @@ import type { Prisma } from "../../src/generated/prisma/client";
 import type { EngagementMetrics } from "../../src/shared/api/engagementMetrics";
 import { analyticsPeriod } from "../../src/server/admin/analyticsScope";
 import { engagementMetricsSql } from "../../src/server/admin/engagementMetrics";
+import { activityAccountCountSql } from "../../src/server/admin/activityAccounts";
 
 export async function verifyEngagementMetrics(query: (sql: string) => string, socket: string) {
   query("CREATE SCHEMA engagement_fixture");
@@ -40,6 +41,14 @@ export async function verifyEngagementMetrics(query: (sql: string) => string, so
   }
   run("INSERT INTO product_activity_events VALUES('legacy','ios','1.4.0','2026-10-02','2027-01-01')");
   const period = analyticsPeriod(90, new Date("2026-11-02T12:00:00Z"));
+  assert.equal(Number(run(render(activityAccountCountSql(period)))), 4,
+    "구형·신형 계정 합집합에 관리자·QA는 포함하지 않는다");
+  run("INSERT INTO product_activity_events VALUES('a','web','1.6.1','2026-10-02','2027-01-01')");
+  assert.equal(Number(run(render(activityAccountCountSql(period)))), 4, "중복 계정은 한 번만 집계한다");
+  run("INSERT INTO users VALUES('expired','user',null),('future','user',null)");
+  run("INSERT INTO product_activity_events VALUES('expired','ios','1.4.0','2026-10-02','2026-10-03'),('future','web','1.6.1','2026-11-03','2027-01-01')");
+  assert.equal(Number(run(render(activityAccountCountSql(period)))), 4, "만료·미래 자료는 제외한다");
+  run("DELETE FROM product_activity_events WHERE user_id IN ('a','expired','future')");
   const result = JSON.parse(run(render(engagementMetricsSql(period)))) as EngagementMetrics;
   assert.equal(result.coverage.activeUsers, 4);
   assert.equal(result.coverage.lifecycleUsers, 3);

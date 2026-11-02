@@ -207,13 +207,13 @@ const Panel = styled.section`
   gap: var(--space-4);
   min-width: 0;
   margin-bottom: var(--space-5);
-  padding: var(--space-5);
+  padding: 24px;
   border: 1px solid var(--color-border);
-  border-radius: var(--space-3);
-  background: var(--color-neutral-200);
+  border-radius: var(--admin-card-radius);
+  background: var(--admin-card-background);
 
   @media (max-width: 768px) {
-    padding: var(--space-3);
+    padding: 18px 14px;
   }
 `;
 

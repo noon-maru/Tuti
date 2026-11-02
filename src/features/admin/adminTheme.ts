@@ -18,7 +18,7 @@ export const adminTheme = {
   "--color-neutral-500": "#cdd8d0",
   "--color-neutral-600": "#b6c4bb",
   "--color-neutral-700": "#97a99d",
-  "--color-neutral-800": "#7b8f81",
+  "--color-neutral-800": "#667777",
   "--color-neutral-900": "#667777",
   "--color-neutral-1000": "#586b63",
   "--color-neutral-1100": "#35483e",

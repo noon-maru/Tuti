@@ -1,6 +1,8 @@
 import { randomUUID } from "node:crypto";
 import { authenticateAdmin } from "@/server/admin/auth";
 import { writeSystemLog } from "@/server/admin/log";
+import { analyticsPeriod } from "@/server/admin/analyticsScope";
+import { readActivityAccountCount } from "@/server/admin/activityAccounts";
 import { prisma } from "@/server/db/prisma";
 import {
   createPreflightResponse,
@@ -34,8 +36,9 @@ export async function GET(request: Request) {
   const authentication = await authenticateAdmin(request);
   if (!authentication.ok) return withCors(request, authentication.response);
 
+  const now = new Date();
   const periodDays = normalizePeriodDays(new URL(request.url).searchParams.get("days"));
-  const since = new Date(Date.now() - periodDays * DAY_MS);
+  const period = analyticsPeriod(periodDays, now);
   const [
     observations,
     activityUsers,
@@ -44,18 +47,11 @@ export async function GET(request: Request) {
     blockRules,
   ] = await Promise.all([
     prisma.trafficObservation.findMany({
-      where: { bucketStartedAt: { gte: since } },
+      where: { bucketStartedAt: { gte: period.start, lt: period.end } },
       orderBy: { lastSeenAt: "desc" },
       take: 20_000,
     }),
-    prisma.productActivityEvent.findMany({
-      where: {
-        createdAt: { gte: since },
-        user: { role: "user", analyticsExcludedAt: null },
-      },
-      select: { userId: true },
-      distinct: ["userId"],
-    }),
+    readActivityAccountCount(period),
     prisma.trafficObservation.aggregate({ _min: { firstSeenAt: true } }),
     prisma.trafficObservation.aggregate({
       where: { actorKey: { not: null } },
@@ -67,7 +63,7 @@ export async function GET(request: Request) {
     }),
   ]);
 
-  const daily = createDailyRows(periodDays);
+  const daily = createDailyRows(periodDays, now);
   const findings = new Map<string, FindingAccumulator>();
   const routes = new Map<string, RouteAccumulator>();
   const actors = new Map<string, ActorAccumulator>();
@@ -81,7 +77,6 @@ export async function GET(request: Request) {
   let rateLimitedRequests = 0;
   let blockedRequests = 0;
 
-  const now = new Date();
   const activeActorBlocks = new Set(
     blockRules
       .filter((rule) => isRuleActive(rule, now) && rule.scope === "actor")
@@ -194,7 +189,7 @@ export async function GET(request: Request) {
       riskyRequests,
       rateLimitedRequests,
       blockedRequests,
-      activityConfirmedUsers: activityUsers.length,
+      activityConfirmedUsers: activityUsers,
     },
     daily: [...daily.values()].map(serializeDay),
     findings: [...findings.values()]
@@ -442,10 +437,10 @@ type BlockRuleRecord = {
   createdAt: Date;
 };
 
-function createDailyRows(periodDays: number) {
+function createDailyRows(periodDays: number, now: Date) {
   const rows = new Map<string, DailyAccumulator>();
   for (let offset = periodDays - 1; offset >= 0; offset -= 1) {
-    const date = koreanDateKey(new Date(Date.now() - offset * DAY_MS));
+    const date = koreanDateKey(new Date(now.getTime() - offset * DAY_MS));
     rows.set(date, {
       date,
       requests: 0,
