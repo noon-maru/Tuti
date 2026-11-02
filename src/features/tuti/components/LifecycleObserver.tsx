@@ -34,16 +34,17 @@ export function LifecycleObserver() {
     sample(true); observeActivity();
     const timer = window.setInterval(() => { sample(); retry(); }, ACTIVE_HEARTBEAT_MS);
     const nativeListener = Capacitor.isNativePlatform() ? App.addListener("appStateChange", state => {
+      if (disposed) return;
       nativeActive = state.isActive; if (state.isActive) focused = true;
       sample(state.isActive, true); if (state.isActive) observeActivity();
-    }).then(handle => { if (disposed) void handle.remove(); return handle; }).catch(() => null) : null;
+    }).then(handle => { if (disposed) void handle.remove().catch(() => {}); return handle; }).catch(() => null) : null;
     return () => {
       sample(false, true); tracker.reset(); disposed = true; unsubscribe();
       document.removeEventListener("pointerdown", activity); document.removeEventListener("keydown", activity);
       document.removeEventListener("scroll", activity, true); document.removeEventListener("visibilitychange", visibility);
       window.removeEventListener("focus", focus); window.removeEventListener("blur", blur); window.removeEventListener("pagehide", leave);
       window.removeEventListener("online", retry); window.clearInterval(timer);
-      if (nativeListener) void nativeListener.then(handle => handle?.remove());
+      if (nativeListener) void nativeListener.then(handle => handle?.remove()).catch(() => {});
     };
   }, []);
   return null;

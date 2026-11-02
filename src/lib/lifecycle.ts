@@ -33,6 +33,8 @@ function context(): LifecycleContext {
     appVersion: version, sessionId: clock?.sessionId, ...(flowOwner === getSessionSnapshot()?.userId ? { flowId } : {}) };
 }
 function enqueue(owner: string, name: ClientLifecycleName, extras: Partial<LifecycleInput> = {}) {
+  // Offline heartbeat는 중요한 화면/실패 관측을 큐 밖으로 밀어내지 않는다.
+  if (name === "session_active" && pending.size >= 80) return;
   if (pending.size >= 100) pending.delete(pending.keys().next().value!);
   const event = { id: crypto.randomUUID(), observedAt: new Date().toISOString(), ...context(), ...extras, name } as LifecycleInput;
   pending.set(event.id, { owner, event, at: Date.now() });

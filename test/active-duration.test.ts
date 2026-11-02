@@ -38,3 +38,12 @@ test("활성 구간 입력은 세션·시각·1~30000ms를 요구하고 다른 �
   for (const ms of [0, -1, 30001, 1.5, "15000", null]) assert.equal(parseLifecycleInput({ ...valid, activeMilliseconds: ms }), null);
   for (const patch of [{ sessionId: undefined }, { observedAt: undefined }, { entityId: "book" }, { name: "home_viewed" }]) assert.equal(parseLifecycleInput({ ...valid, ...patch }), null);
 });
+
+test("누적된 짧은 구간과 30초 지연이 합쳐져도 전송 구간은 30초 이하로 나눈다", () => {
+  const intervals: Array<{ ms: number; end: number }> = [];
+  const tracker = createActiveTimeTracker((_owner, ms, end) => intervals.push({ ms, end }));
+  tracker.sample(0, "a", true, true);
+  tracker.sample(14000, "a", true, true);
+  tracker.sample(44000, "a", true, true);
+  assert.deepEqual(intervals, [{ ms: 30000, end: 30000 }, { ms: 14000, end: 44000 }]);
+});

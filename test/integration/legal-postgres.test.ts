@@ -92,6 +92,10 @@ test("분리된 PostgreSQL에서 약관·권리 보호 마이그레이션의 실
     const { verifyLifelogMetrics } = await import("./lifelog-metrics-scenario");
     await verifyLifelogMetrics(query, rejected, socket);
   });
+  await t.test("활성 체류·계측 범위·KST 방문 리텐션은 표본·미성숙·구버전을 구분한다", async () => {
+    const { verifyEngagementMetrics } = await import("./engagement-metrics-scenario");
+    await verifyEngagementMetrics(query, socket);
+  });
   await t.test("함께 채우기 실제 스키마는 여러 참여자·댓글·탈퇴와 타인의 PDF 보존을 구분한다", { skip: serverVersion < 130000 }, async () => {
     const { verifyTogetherSchema } = await import("./harumadi-together-scenario");
     verifyTogetherSchema(query, rejected, socket);

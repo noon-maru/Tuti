@@ -2,6 +2,8 @@
 import { useState } from "react";
 import styled from "@emotion/styled";
 import type { LifelogMetricsResponse } from "@/shared/api/lifelogMetrics";
+import { AdminEngagementMetricsPanel } from "./AdminEngagementMetricsPanel";
+import { MetricsLedger as Ledger, MetricsValue as Metric, MetricsPanel as Panel, MetricsTable as TableWrap } from "./AdminMetricsPrimitives";
 
 const sections = [["summary", "사업 요약"], ["activation", "첫 경험·재방문"], ["records", "마디·하루마디"], ["together", "함께 채우기"], ["keepsake", "소장·구매 관심"]] as const;
 type Section = typeof sections[number][0];
@@ -37,6 +39,7 @@ export function AdminLifelogMetricsPanel({ data, days, onDaysChange }: { data: L
         <Panel><h3>최근 작성 흐름 · 최대 14개 활동일</h3>{a?.daily.length ? <TableWrap><table><thead><tr><th>한국 날짜</th><th>작성 계정</th><th>새 원본 마디</th></tr></thead><tbody>{a.daily.slice(-14).map(day => <tr key={day.day}><th>{day.day}</th><td>{number(day.writers)}</td><td>{number(day.madis)}</td></tr>)}</tbody></table></TableWrap> : <p>{observed ? "작성 내역 없음" : "미계측"}</p>}</Panel>
       </>}
       {section === "activation" && <>
+        <AdminEngagementMetricsPanel data={data.engagement} />
         <Panel><h3>진입 경로별 7일 도달</h3>
           <TableWrap><table><thead><tr><th>진입면</th><th>관측 계정</th><th>작성 시작 / 수락</th><th>저장 / 첫 기여</th></tr></thead><tbody>{["home", "explore", "invite"].map(source => { const path = a?.paths.find(row => row.source === source); return <tr key={source}><th>{{ home: "바로 기록", explore: "작은 여행", invite: "초대" }[source]}</th><td>{value(path?.entrants ?? 0)}</td><td>{value(path?.starters ?? 0)}</td><td>{value(path?.successes ?? 0)}</td></tr>; })}</tbody></table></TableWrap>
           </Panel>
@@ -68,8 +71,4 @@ const Layout = styled.div`display:grid;gap:22px;color:var(--color-text,#1b2d32);
 const Header = styled.header`display:flex;justify-content:space-between;align-items:end;gap:20px;flex-wrap:wrap;h2{font-size:25px;font-weight:600;letter-spacing:-.04em;margin:8px 0;line-height:1.5;}small{font-size:13px;color:#456749;}p{font-size:12px;color:#667777;margin:0;line-height:1.8;}label{display:grid;gap:8px;font-size:12px;color:#667777;}select{min-height:44px;padding:8px 12px;border:1px solid #d7e1dc;border-radius:10px;background:#fff;color:#1b2d32;font:inherit;}`;
 const Notice = styled.div`padding:14px 18px;border:1px solid #e3eae6;background:#f6f9f5;border-radius:12px;color:#586b63;font-size:13px;line-height:1.9;`;
 const Navigation = styled.nav`display:flex;gap:6px;flex-wrap:wrap;border-bottom:1px solid #e3eae6;padding-bottom:12px;button{font:inherit;font-size:14px;min-height:44px;padding:9px 15px;border:1px solid transparent;border-radius:10px;background:transparent;color:#667777;cursor:pointer;}button[aria-pressed=true]{background:#eaf2df;border-color:#d6e5c1;color:#314e31;font-weight:600;}button:focus-visible{outline:2px solid #456749;outline-offset:2px;}`;
-const Ledger = styled.dl`display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,210px),1fr));gap:0;margin:0;border-top:1px solid #e3eae6;border-bottom:1px solid #e3eae6;background:#fff;`;
-const Metric = styled.div`padding:22px 18px;min-width:0;dt{font-size:13px;line-height:1.7;color:#586b63;}dd{font-size:30px;line-height:1.6;font-weight:600;font-variant-numeric:tabular-nums;margin:5px 0;letter-spacing:-.035em;overflow-wrap:anywhere;}small{display:block;font-size:12px;line-height:1.8;color:#667777;}@media(max-width:540px){padding:16px 12px;dd{font-size:25px;}}`;
-const Panel = styled.section`padding:24px;background:#fff;border:1px solid #e3eae6;border-radius:14px;margin-top:20px;min-width:0;h3{font-size:18px;line-height:1.6;margin:0 0 14px;font-weight:600;letter-spacing:-.025em;}p{font-size:13px;line-height:1.9;color:#667777;margin:12px 0;}@media(max-width:540px){padding:18px 14px;}`;
 const StockRail = styled.div`display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;padding:18px 0;border-bottom:3px solid #d8edb7;div{display:grid;gap:10px;min-width:0;}span{font-size:13px;color:#667777;}strong{font-size:28px;font-weight:600;font-variant-numeric:tabular-nums;overflow-wrap:anywhere;}small{font-size:13px;font-weight:400;margin-left:4px;}@media(max-width:420px){strong{font-size:22px;}span{font-size:12px;}}`;
-const TableWrap = styled.div`overflow-x:auto;table{width:100%;border-collapse:collapse;font-size:13px;}th,td{text-align:left;padding:13px 10px;border-bottom:1px solid #e3eae6;white-space:nowrap;font-variant-numeric:tabular-nums;}thead th{color:#667777;font-size:12px;font-weight:500;}tbody th{font-weight:500;}`;

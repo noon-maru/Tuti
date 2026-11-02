@@ -7,8 +7,11 @@ export function createActiveTimeTracker(emit: (owner: string, milliseconds: numb
   let clock: { owner: string; at: number; interaction: number; visible: boolean } | null = null;
   let buffered = 0, endedAt = 0;
   function flush() {
-    if (clock && buffered > 0) emit(clock.owner, buffered, endedAt);
-    buffered = 0;
+    while (clock && buffered > 0) {
+      const milliseconds = Math.min(buffered, ACTIVE_MAX_GAP_MS);
+      emit(clock.owner, milliseconds, endedAt - buffered + milliseconds);
+      buffered -= milliseconds;
+    }
   }
   return {
     sample(now: number, owner: string | undefined, visible: boolean, interaction = false, force = false) {

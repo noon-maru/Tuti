@@ -8,6 +8,7 @@ export type LifelogStock = {
 export type LifelogMetricsResponse = {
   asOf: string; period: { days: number; start: string; end: string }; stock: LifelogStock;
   observation: "current-surviving-data"; activity: LifelogActivity | null;
+  engagement?: import("./engagementMetrics").EngagementMetrics;
 };
 export type LifelogActivity = {
   retainedSince: string | null; writerUsers: number; newMadis: number; repeatWriters30d: number;
