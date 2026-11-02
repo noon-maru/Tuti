@@ -91,11 +91,8 @@ export function createHarumadiPdfPreviewHandler(dependencies: Dependencies) {
             413,
           );
         }
-        entries.sort(
-          (a, b) =>
-            a.visitedAt.getTime() - b.visitedAt.getTime() ||
-            a.id.localeCompare(b.id),
-        );
+        const rank = new Map(input.entryIds.map((id, index) => [id, index]));
+        entries.sort((a, b) => rank.get(a.id)! - rank.get(b.id)!);
         const pdf = await dependencies.render(input, entries);
         const approval = await dependencies.approve(user.id, input, pdf, issuedAt);
         return new Response(new Uint8Array(pdf).buffer, {

@@ -96,6 +96,11 @@ test("분리된 PostgreSQL에서 약관·권리 보호 마이그레이션의 실
     const { verifyEngagementMetrics } = await import("./engagement-metrics-scenario");
     await verifyEngagementMetrics(query, socket);
   });
+  await t.test("하루마디 순서는 실제 DB에서 소유자 권한·원본 보존·동시 수정 충돌을 검증한다", () => {
+    const result = spawnSync(process.execPath, ["--import", "tsx", "test/integration/harumadi-order-runtime.ts", socket], { env, encoding: "utf8", timeout: 30000 });
+    assert.equal(result.status, 0, result.stderr + result.stdout);
+    assert.match(result.stdout, /"concurrentUpdateProtected":true/);
+  });
   await t.test("함께 채우기 실제 스키마는 여러 참여자·댓글·탈퇴와 타인의 PDF 보존을 구분한다", { skip: serverVersion < 130000 }, async () => {
     const { verifyTogetherSchema } = await import("./harumadi-together-scenario");
     verifyTogetherSchema(query, rejected, socket);

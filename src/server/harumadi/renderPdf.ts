@@ -53,10 +53,8 @@ export async function renderOwnedHarumadiPdf(
     );
   }
 
-  entries.sort(
-    (a, b) =>
-      a.visitedAt.getTime() - b.visitedAt.getTime() || a.id.localeCompare(b.id),
-  );
+  const rank = new Map(input.entryIds.map((id, index) => [id, index]));
+  entries.sort((a, b) => rank.get(a.id)! - rank.get(b.id)!);
 
   const prepared: PreparedHarumadiPdfEntry[] = [];
   for (const entry of entries) {

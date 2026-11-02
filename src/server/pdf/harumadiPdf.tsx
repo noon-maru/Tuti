@@ -263,9 +263,10 @@ export async function renderHarumadiPdf(
   const cover = entries.find((entry) => entry.id === input.coverEntryId);
   const coverPalette = getHarumadiPdfCoverPalette(input.coverStyle);
   const imageCover = harumadiPdfCoverUsesImage(input.coverStyle);
-  const firstDate = harumadiPdfDate(entries[0].visitedAt).replaceAll("-", ".");
+  const dates = entries.map(entry => entry.visitedAt).sort((a, b) => a.getTime() - b.getTime());
+  const firstDate = harumadiPdfDate(dates[0]).replaceAll("-", ".");
   const lastDate = harumadiPdfDate(
-    entries[entries.length - 1].visitedAt,
+    dates[dates.length - 1],
   ).replaceAll("-", ".");
   const letter = printable(input.letter);
   const shortLetter = Boolean(letter.trim()) && letter.trim().length <= 240;

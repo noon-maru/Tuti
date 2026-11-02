@@ -21,6 +21,7 @@ export type Harumadi = HarumadiSettings & {
   updatedAt: string;
 };
 export type HarumadiUpdate = HarumadiSettings & { revision: number; entryIds: string[] };
+export type HarumadiOrderUpdate = { revision: number; entryIds: string[] };
 export type HarumadiList = { harumadis: Harumadi[]; nextCursor: string | null; recordCount?: number };
 export type HarumadiContent = {
   harumadi: Harumadi;
@@ -50,4 +51,14 @@ export function parseHarumadiUpdate(value: unknown): HarumadiUpdate | null {
       !input.entryIds.every(id => typeof id === "string" && /^[a-zA-Z0-9_-]{1,128}$/.test(id)) ||
       new Set(input.entryIds).size !== input.entryIds.length) return null;
   return { ...settings, revision: input.revision as number, entryIds: input.entryIds as string[] };
+}
+
+export function parseHarumadiOrder(value: unknown): HarumadiOrderUpdate | null {
+  if (!value || typeof value !== "object") return null;
+  const input = value as Record<string, unknown>;
+  if (!Number.isSafeInteger(input.revision) || (input.revision as number) < 1 ||
+    !Array.isArray(input.entryIds) ||
+    !input.entryIds.every(id => typeof id === "string" && /^[a-zA-Z0-9_-]{1,128}$/.test(id)) ||
+    new Set(input.entryIds).size !== input.entryIds.length) return null;
+  return { revision: input.revision as number, entryIds: input.entryIds as string[] };
 }

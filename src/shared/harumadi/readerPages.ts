@@ -4,6 +4,7 @@ import { estimateHarumadiPdfPhotoTextLines, harumadiPdfDate } from "../api/harum
 import { HARUMADI_PDF_LAYOUT as layout } from "./pdfLayout";
 import { HARUMADI_READING_TYPE as type } from "./readingTypography";
 import { LEGACY_HARUMADI_BACK_COVER_TEXT } from "./backCover";
+import { orderByEntryIds } from "./order";
 
 export type HarumadiReaderPage = {
   authorName?: string;
@@ -29,10 +30,11 @@ export function splitReaderText(text: string, units: number, lines: number): str
 }
 
 /** 실제 읽기와 설정 미리보기가 같은 날짜·표지 사진을 선택한다. */
-export function buildHarumadiCoverPage(book: Pick<Harumadi, "title" | "coverStyle">, entries: TutiJournalEntry[]): HarumadiReaderPage {
+export function buildHarumadiCoverPage(book: Pick<Harumadi, "title" | "coverStyle"> & Partial<Pick<Harumadi, "entryIds">>, entries: TutiJournalEntry[]): HarumadiReaderPage {
   const sorted = [...entries].sort((a, b) => a.visitedAt.localeCompare(b.visitedAt) || a.id.localeCompare(b.id));
+  const ordered = orderByEntryIds(sorted, book.entryIds ?? entries.map(entry => entry.id));
   return { kind: "cover", title: book.title, content: "", place: "",
-    image: book.coverStyle.endsWith("-image") ? sorted.find(entry => entry.image)?.image ?? null : null,
+    image: book.coverStyle.endsWith("-image") ? ordered.find(entry => entry.image)?.image ?? null : null,
     date: sorted.length ? `${harumadiPdfDate(sorted[0].visitedAt).replaceAll("-", ".")}\n- ${harumadiPdfDate(sorted.at(-1)!.visitedAt).replaceAll("-", ".")}` : "아직 쓰지 않은, 우리 이야기" };
 }
 
@@ -44,7 +46,7 @@ export function buildHarumadiReaderPages(book: Harumadi, entries: TutiJournalEnt
   const metaHeight = type.meta * 1.6 * 2 + layout.shortText.captionGap * scale;
   const textSpace = height - 2 * layout.shortText.paddingVertical * scale - metaHeight;
   const bodyLines = Math.max(1, Math.floor(textSpace / (type.body * type.bodyLineHeight)) - 1);
-  const sorted = [...entries].sort((a, b) => a.visitedAt.localeCompare(b.visitedAt) || a.id.localeCompare(b.id));
+  const sorted = orderByEntryIds([...entries].sort((a, b) => a.visitedAt.localeCompare(b.visitedAt) || a.id.localeCompare(b.id)), book.entryIds);
   const base = { title: book.title, content: "", image: null, date: "", place: "" };
   const pages: HarumadiReaderPage[] = [buildHarumadiCoverPage(book, sorted)];
   if (!sorted.length) pages.push({ ...base, kind: "empty" });

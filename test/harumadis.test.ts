@@ -71,7 +71,7 @@ test("하루마디 서버는 빈 틀·소유권·낙관적 잠금·민감정보�
   const links = new Map<string, string[]>();
   const records = new Map([["mine", { id: "mine", ownerId: "owner", sensitiveContent: false, sensitiveConsentVersion: null, sensitiveWithdrawnAt: null as Date | null }], ["foreign", { id: "foreign", ownerId: "someone-else", sensitiveContent: false, sensitiveConsentVersion: null, sensitiveWithdrawnAt: null as Date | null }]]);
   const find = (where: { id?: string; ownerId?: string }) => [...rows.values()].find(row => (!where.id || row.id === where.id) && (!where.ownerId || row.ownerId === where.ownerId));
-  const dto = (row: NonNullable<ReturnType<typeof find>>) => ({ ...row, entries: (links.get(row.id) ?? []).filter(id => !records.get(id)?.sensitiveWithdrawnAt).map(entryId => ({ entryId })) });
+  const dto = (row: NonNullable<ReturnType<typeof find>>) => ({ ...row, entries: (links.get(row.id) ?? []).filter(id => !records.get(id)?.sensitiveWithdrawnAt).map(entryId => ({ entryId, position: null, entry: { visitedAt: new Date("2026-10-01") } })) });
   const model = {
     create: async ({ data }: { data: Omit<ReturnType<typeof dto>, "entries" | "revision" | "createdAt" | "updatedAt"> }) => {
       const row = { ...data, revision: 1, createdAt: new Date(), updatedAt: new Date() }; rows.set(row.id, row); return dto(row);
@@ -126,6 +126,6 @@ test("하루마디 서버는 빈 틀·소유권·낙관적 잠금·민감정보�
   const manyIds = Array.from({ length: 100 }, (_, i) => `owned-${i}`);
   for (const id of manyIds) records.set(id, { ...records.get("mine")!, id, sensitiveWithdrawnAt: null });
   const many = await updateHarumadi("owner", harumadiPdf.id, { ...settings, revision: blank.revision, entryIds: manyIds });
-  assert.deepEqual(many.entryIds, manyIds);
-  assert.deepEqual((await readHarumadi("owner", harumadiPdf.id)).entryIds, manyIds);
+  assert.deepEqual(many.entryIds, [...manyIds].sort());
+  assert.deepEqual((await readHarumadi("owner", harumadiPdf.id)).entryIds, [...manyIds].sort());
 });

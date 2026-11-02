@@ -6,6 +6,7 @@ import { assertSensitiveJournalReadable } from "@/server/journal/sensitivePolicy
 import type { HarumadiContent } from "@/shared/api/harumadi";
 import { harumadiTogetherEnabled, requireHarumadiAccess } from "./access";
 import { sharedImageUrl } from "./media";
+import { orderedLinks } from "./order";
 
 export async function readHarumadiContent(ownerId: string, id: string): Promise<HarumadiContent> {
   // 제목·연결·본문을 같은 스냅샷에서 읽어 도중의 삭제나 연결 변경을 섞지 않는다.
@@ -14,10 +15,10 @@ export async function readHarumadiContent(ownerId: string, id: string): Promise<
     const shared = Boolean(access?.collaborationStartedAt);
     const book = await tx.harumadi.findFirst({ where: { id, ...(access ? {} : { ownerId }) }, select: {
       id: true, title: true, coverStyle: true, backCoverText: true, revision: true, createdAt: true, updatedAt: true,
-      entries: { select: { entry: { select: { ...journalEntrySelect, ...(shared ? { owner: { select: { displayName: true } } } : {}) } } } },
+      entries: { select: { entryId: true, position: true, entry: { select: { ...journalEntrySelect, ...(shared ? { owner: { select: { displayName: true } } } : {}) } } } },
     } });
     if (!book) throw new HarumadiError("하루마디를 찾지 못했어요.", 404);
-    const rows = book.entries.map(link => link.entry);
+    const rows = orderedLinks(book.entries).map(link => link.entry);
     // 철회가 아직 책 연결을 정리 중이라면 캐시로 우회하지 않는다.
     rows.forEach(entry => {
       if (!shared && entry.ownerId !== ownerId) throw new HarumadiError("마디를 확인할 수 없어요.", 403);

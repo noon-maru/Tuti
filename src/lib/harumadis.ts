@@ -1,5 +1,5 @@
 import { fetchWithPinnedSession, getSessionSnapshot } from "./auth/session";
-import type { Harumadi, HarumadiList, HarumadiSettings, HarumadiUpdate } from "@/shared/api/harumadi";
+import type { Harumadi, HarumadiList, HarumadiSettings, HarumadiUpdate, HarumadiOrderUpdate } from "@/shared/api/harumadi";
 import { harumadiReadCache } from "./harumadiReadCache";
 
 export class HarumadiRequestError extends Error {
@@ -24,4 +24,17 @@ export const updateHarumadi = async (owner: string, id: string, input: HarumadiU
 export const deleteHarumadi = async (owner: string, id: string) => {
   try { return await request<{ deleted: boolean }>(owner, `/${encodeURIComponent(id)}`, { method: "DELETE" }); }
   finally { await harumadiReadCache.clearBook(owner, id).catch(() => {}); }
+};
+export const reorderHarumadi = async (owner: string, id: string, input: HarumadiOrderUpdate) => {
+  let rejected = false;
+  try { return (await request<{ harumadi: Harumadi }>(owner, `/${encodeURIComponent(id)}/order`, {
+    method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(input),
+  })).harumadi; }
+  catch (error) {
+    // 명시적으로 거절된 순서는 저장되지 않았다. 편집 화면을 유지해 충돌 사유를 보여준다.
+    rejected = error instanceof HarumadiRequestError && [400, 409, 413].includes(error.status);
+    throw error;
+  } finally {
+    if (!rejected) await harumadiReadCache.clearBook(owner, id).catch(() => {});
+  }
 };

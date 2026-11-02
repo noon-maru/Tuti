@@ -6,6 +6,7 @@ import { readHarumadi, HarumadiError } from "@/server/harumadi/service";
 import { assertSensitiveJournalReadable, SensitiveJournalPolicyError } from "@/server/journal/sensitivePolicy";
 import { isStoredJournalImage } from "@/server/journal/imageStorage";
 import { getObject } from "@/server/storage/objectStorage";
+import { orderByEntryIds } from "@/shared/harumadi/order";
 
 export const runtime = "nodejs";
 export async function GET(request: Request, context: { params: Promise<{ harumadiId: string }> }) {
@@ -16,8 +17,9 @@ export async function GET(request: Request, context: { params: Promise<{ harumad
     if (!user) return fail("사용자 인증이 필요해요.", 401);
     const harumadi = await readHarumadi(user.id, (await context.params).harumadiId);
     if (!harumadi.coverStyle.endsWith("-image")) return fail("사진 표지가 아니에요.", 404);
-    const entry = await prisma.journalEntry.findFirst({ where: { ...(harumadi.shared ? { sensitiveContent: false } : { ownerId: user.id }), id: { in: harumadi.entryIds }, image: { not: null }, sensitiveWithdrawnAt: null },
-      select: { image: true, sensitiveContent: true, sensitiveConsentVersion: true, sensitiveWithdrawnAt: true }, orderBy: [{ visitedAt: "asc" }, { id: "asc" }] });
+    const photos = await prisma.journalEntry.findMany({ where: { ...(harumadi.shared ? { sensitiveContent: false } : { ownerId: user.id }), id: { in: harumadi.entryIds }, image: { not: null }, sensitiveWithdrawnAt: null },
+      select: { id: true, image: true, sensitiveContent: true, sensitiveConsentVersion: true, sensitiveWithdrawnAt: true } });
+    const entry = orderByEntryIds(photos, harumadi.entryIds)[0];
     if (!entry?.image || !isStoredJournalImage(entry.image)) return fail("사진을 담으면 표지가 채워져요.", 404);
     assertSensitiveJournalReadable(entry);
     const source = await getObject(entry.image);

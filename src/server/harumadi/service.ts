@@ -2,7 +2,8 @@ import { randomUUID } from "node:crypto";
 import { recordContribution, recordLifecycle } from "@/server/analytics/lifecycle";
 import { prisma } from "@/server/db/prisma";
 import type { Prisma } from "@/generated/prisma/client";
-import type { Harumadi, HarumadiSettings, HarumadiUpdate } from "@/shared/api/harumadi";
+import type { Harumadi, HarumadiSettings, HarumadiUpdate, HarumadiOrderUpdate } from "@/shared/api/harumadi";
+import { orderedLinks } from "./order";
 import { assertHarumadiPdfFreeform, assertSensitiveJournalReadable } from "@/server/journal/sensitivePolicy";
 import { commitPrivacyReplayReceipt, preparePrivacyReplayReceipt } from "@/server/legal/privacyReplayLedger";
 import { LEGACY_HARUMADI_BACK_COVER_TEXT, pickHarumadiBackCoverText } from "@/shared/harumadi/backCover";
@@ -12,7 +13,7 @@ export { HarumadiError } from "./errors";
 
 const selection = {
   id: true, title: true, coverStyle: true, backCoverText: true, revision: true, createdAt: true, updatedAt: true,
-  entries: { where: { entry: { sensitiveWithdrawnAt: null } }, select: { entryId: true } },
+  entries: { where: { entry: { sensitiveWithdrawnAt: null } }, select: { entryId: true, position: true, entry: { select: { visitedAt: true } } } },
 } as const;
 type HarumadiRow = Prisma.HarumadiGetPayload<{ select: typeof selection }>;
 const togetherSelection = { ...selection, ownerId: true, owner: { select: { displayName: true } }, collaborationStartedAt: true, members: { where: { endedAt: null }, select: { userId: true } } } as const;
@@ -24,7 +25,7 @@ function dto(row: HarumadiRow): Harumadi {
   return { id: row.id, title: row.title, coverStyle: row.coverStyle as Harumadi["coverStyle"],
     backCoverText: row.backCoverText,
     revision: row.revision,
-    entryIds: row.entries.map(link => link.entryId), createdAt: row.createdAt.toISOString(), updatedAt: row.updatedAt.toISOString() };
+    entryIds: orderedLinks(row.entries).map(link => link.entryId), createdAt: row.createdAt.toISOString(), updatedAt: row.updatedAt.toISOString() };
 }
 function validateFreeform(settings: HarumadiSettings) {
   assertHarumadiPdfFreeform({ ...settings, entryIds: [], letter: "", coverEntryId: null });
@@ -121,4 +122,28 @@ export async function deleteHarumadi(ownerId: string, id: string, replay = false
   const deleted = await prisma.harumadi.deleteMany({ where: { id, ownerId } });
   if (!deleted.count) throw new HarumadiError("하루마디를 찾지 못했어요.", 404);
   await commitPrivacyReplayReceipt(receipt);
+}
+
+export async function reorderHarumadi(ownerId: string, id: string, input: HarumadiOrderUpdate) {
+  return prisma.$transaction(async tx => {
+    await lockHarumadi(tx, id);
+    const book = await requireHarumadiAccess(tx, ownerId, id, true);
+    if (!harumadiTogetherEnabled() && book.collaborationStartedAt) throw new HarumadiError("함께 채우기 상태를 확인해주세요.", 409);
+    if (book.revision !== input.revision) throw new HarumadiError("하루마디가 바뀌었어요. 최신 내용을 확인한 뒤 순서를 다시 정해주세요.", 409);
+    const links = await tx.harumadiEntryLink.findMany({ where: { harumadiId: id }, select: { entryId: true } });
+    const wanted = new Set(input.entryIds);
+    if (wanted.size !== input.entryIds.length || wanted.size !== links.length || links.some(link => !wanted.has(link.entryId))) {
+      throw new HarumadiError("담긴 마디가 바뀌었어요. 최신 내용을 확인한 뒤 순서를 다시 정해주세요.", 409);
+    }
+    // 연결 ID·원본·작성자·권한을 바꾸지 않고 위치만 한 번에 갱신한다.
+    if (input.entryIds.length) {
+      const changed = await tx.$executeRaw`UPDATE harumadi_entry_links l SET position = (o.ordinality - 1)::integer
+        FROM unnest(${input.entryIds}::text[]) WITH ORDINALITY AS o(entry_id, ordinality)
+        WHERE l.harumadi_id = ${id} AND l.entry_id = o.entry_id`;
+      if (changed !== input.entryIds.length) throw new HarumadiError("담긴 마디가 바뀌었어요. 다시 확인해주세요.", 409);
+    }
+    await tx.harumadi.update({ where: { id }, data: { revision: { increment: 1 } } });
+    const row = await tx.harumadi.findUniqueOrThrow({ where: { id }, select: selection });
+    return { ...dto(row), ...(harumadiTogetherEnabled() ? { togetherEnabled: true, shared: Boolean(book.collaborationStartedAt), role: "owner" as const } : {}) };
+  });
 }
