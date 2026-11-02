@@ -5,7 +5,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter, useSearchParams } from "next/navigation";
 import styled from "@emotion/styled";
-import { ArrowLeft, Check, ChevronRight, Download, PenLine, Plus, Settings2, Users } from "lucide-react";
+import { ArrowLeft, ArrowUpDown, Check, ChevronRight, Download, PenLine, Plus, Settings2, Users } from "lucide-react";
 import { useSession } from "@/features/tuti/hooks/useSession";
 import { AppLoadingScreen } from "@/features/tuti/components/LoadingIndicator";
 import { BaseButton, PrimaryButton } from "@/features/tuti/components/buttons";
@@ -16,9 +16,11 @@ import { HarumadiDeleteSection } from "@/features/tuti/components/HarumadiDelete
 import { HarumadiCloseTransition } from "@/features/tuti/components/HarumadiCloseTransition";
 import { HarumadiTogetherPanel } from "@/features/tuti/components/HarumadiTogetherPanel";
 import { HarumadiComments } from "@/features/tuti/components/HarumadiComments";
+import { HarumadiOrderEditor } from "@/features/tuti/components/HarumadiOrderEditor";
 import { changeTogether } from "@/lib/harumadiTogether";
 import { useLifecycleView } from "../hooks/useLifecycleView";
-import { createHarumadi, deleteHarumadi, harumadiPath, updateHarumadi } from "@/lib/harumadis";
+import { createHarumadi, deleteHarumadi, harumadiPath, updateHarumadi, reorderHarumadi } from "@/lib/harumadis";
+import { orderByEntryIds } from "@/shared/harumadi/order";
 import { authoritativeReadError, fetchHarumadiContent, loadCachedHarumadi, type HarumadiRead } from "@/lib/harumadiContent";
 import { canCacheHarumadi, harumadiReadCache } from "@/lib/harumadiReadCache";
 import { fetchJournalEntries, fetchSensitiveJournalPolicy, createHarumadiPdf } from "@/lib/tutiApi";
@@ -74,9 +76,10 @@ function HarumadiEditor({ owner, initial, read, verified, refreshing, onRefresh,
   const scroller = useRef<HTMLDivElement>(null);
   const [harumadi, setHarumadi] = useState(initial);
   const [settings, setSettings] = useState<HarumadiSettings>(initial ?? { title: "우리의 작은 하루", coverStyle: "white-plain" });
-  const [mode, setMode] = useState<HarumadiOpeningMode | "selection" | "pdf" | "comments">(initial ? initialHarumadiMode(initial, initialMode) : "settings");
+  const [mode, setMode] = useState<HarumadiOpeningMode | "selection" | "pdf" | "comments" | "order">(initial ? initialHarumadiMode(initial, initialMode) : "settings");
   useLifecycleView("book_opened", "book", harumadi?.id, Boolean(harumadi && mode === "pages"));
   const [selected, setSelected] = useState(initial?.entryIds ?? []);
+  const [orderedIds, setOrderedIds] = useState(initial?.entryIds ?? []);
   const [confirmed, setConfirmed] = useState(false);
   const [busy, setBusy] = useState(false); const [error, setError] = useState("");
   const [pdf, setPdf] = useState<{ bytes: Uint8Array; pageCount: number; approvalToken?: string } | null>(null);
@@ -91,7 +94,7 @@ function HarumadiEditor({ owner, initial, read, verified, refreshing, onRefresh,
     return values;
   }, enabled: Boolean(harumadi) && (mode === "selection" || Boolean(addEntryId)), refetchOnWindowFocus: false });
   const isFirstMadi = read ? read.content.totalRecordCount === 0 : entries.isSuccess && entries.data.length === 0;
-  const chosen = useMemo(() => (read?.content.entries ?? []).filter(entry => harumadi?.entryIds.includes(entry.id)).sort((a, b) => a.visitedAt.localeCompare(b.visitedAt) || a.id.localeCompare(b.id)), [read, harumadi]);
+  const chosen = useMemo(() => orderByEntryIds((read?.content.entries ?? []).filter(entry => harumadi?.entryIds.includes(entry.id)), harumadi?.entryIds ?? []), [read, harumadi]);
   const finishClose = useCallback(() => { if (onClose) onClose(); else router.replace("/"); }, [onClose, router]);
   const closeToLibrary = useCallback(() => {
     if (busy || closingRef.current) return;
@@ -149,6 +152,17 @@ function HarumadiEditor({ owner, initial, read, verified, refreshing, onRefresh,
       void client.invalidateQueries({ queryKey: ["library-exports", owner] });
     } catch (cause) { setError(cause instanceof Error ? cause.message : "PDF를 저장하지 못했어요."); }
     finally { setBusy(false); }
+  }
+  async function saveOrder() {
+    if (!harumadi || harumadi.role === "contributor" || readOnly || busy) return;
+    setBusy(true); setError("");
+    try {
+      await client.cancelQueries({ queryKey: ["harumadi-content", owner, harumadi.id] });
+      const saved = await reorderHarumadi(owner, harumadi.id, { revision: harumadi.revision, entryIds: orderedIds });
+      setHarumadi(saved); setSettings(saved); setPdf(null); refreshLibrary(); setMode("pages");
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "마디 순서를 저장하지 못했어요. 다시 시도해주세요.");
+    } finally { setBusy(false); }
   }
   async function remove() {
     if (!harumadi || readOnly || busy || !(await confirmAction("하루마디 틀을 삭제할까요? 이 작업은 되돌릴 수 없어요.\n담았던 원본 마디와 이미 저장한 PDF는 남아요.", {"title":"삭제 전 확인","confirmLabel":"삭제하기","tone":"danger"}))) return;
@@ -224,7 +238,7 @@ function HarumadiEditor({ owner, initial, read, verified, refreshing, onRefresh,
         {harumadi && <p className="hint">마디가 없어도 만들 수 있어요. 이름과 표지는 나중에도 바꿀 수 있어요.</p>}
         {titleNeedsConfirmation && <Confirmation><input type="checkbox" checked={confirmed} onChange={event => setConfirmed(event.target.checked)} />이름과 뒷표지 문구에 건강·정치적 견해 등 민감정보가 없음을 확인해요.</Confirmation>}
         {harumadi && <HarumadiDeleteSection disabled={busy || readOnly} onDelete={() => void remove()} />}
-      </SettingsPanel> : mode === "selection" ? <>
+      </SettingsPanel> : mode === "order" ? <HarumadiOrderEditor entries={chosen} ids={orderedIds} onChange={setOrderedIds} disabled={busy || readOnly} scrollRef={scroller} /> : mode === "selection" ? <>
         <Eyebrow>마디 채우기</Eyebrow><h1>어떤 순간을 담을까요?</h1><p>원본 마디는 그대로 두고 이 하루마디에 담아요.</p>
         {entries.isPending ? <p role="status">마디를 불러오고 있어요.</p> : entries.isError ? <Quiet onClick={() => void entries.refetch()}>마디 다시 불러오기</Quiet> : !entries.data?.length ? <p>아직 남긴 마디가 없어요. 먼저 한 페이지를 써볼까요?</p> : <RecordList>{entries.data.map(entry => <RecordOption key={entry.id}><input type="checkbox" checked={selected.includes(entry.id)} disabled={busy || readOnly} onChange={() => setSelected(current => current.includes(entry.id) ? current.filter(id => id !== entry.id) : [...current, entry.id])} /><span><strong>{entry.title || entry.placeName || "남긴 하루"}</strong><small>{entry.visitedAt.slice(0, 10)} · {entry.content.slice(0, 45) || "사진으로 남긴 순간"}</small></span></RecordOption>)}</RecordList>}
       </> : mode === "pdf" ? <>
@@ -236,13 +250,14 @@ function HarumadiEditor({ owner, initial, read, verified, refreshing, onRefresh,
         <ReaderTools aria-label="하루마디 채우기와 저장">
           <Quiet type="button" disabled={busy || readOnly} onClick={() => router.push(`/madi/new?from=library&harumadiId=${encodeURIComponent(harumadi.id)}`)}><PenLine size={15} />{isFirstMadi ? "첫 마디 남기기" : "마디 남기기"}</Quiet>
           <Quiet type="button" onClick={selectRecords} disabled={busy || readOnly}><Plus size={15} />골라 담기</Quiet>
+          {harumadi.role !== "contributor" && <Quiet type="button" disabled={busy || readOnly || chosen.length < 2} onClick={() => { setOrderedIds(harumadi.entryIds); setError(""); setMode("order"); }}><ArrowUpDown size={15} />순서 바꾸기</Quiet>}
           <Quiet type="button" disabled={!chosen.length || readOnly || busy} onClick={() => { setConfirmed(false); setPdf(null); setMode("pdf"); }}><Download size={15} />PDF 저장</Quiet>
         </ReaderTools>
       </>}
       {policyQuery.isError && <ErrorMessage role="alert">마디 보호 설정을 불러오지 못했어요.<Quiet onClick={() => void policyQuery.refetch()}>다시 불러오기</Quiet></ErrorMessage>}
       {error && <ErrorMessage role="alert">{error}<Quiet onClick={() => window.location.reload()}>다시 불러오기</Quiet></ErrorMessage>}
     </Body>
-    {mode !== "pages" && mode !== "together" && mode !== "comments" && <Footer $creating={!harumadi && mode === "settings"}><PrimaryButton type="button" disabled={busy || readOnly || (mode === "settings" && (!settings.title.trim() || !backCoverTextValid || !sensitivePolicy || (titleNeedsConfirmation && !confirmed))) || (mode === "selection" && !entries.data) || (mode === "pdf" && (!pdf?.approvalToken || Boolean(sensitivePolicy?.enabled && !confirmed)))} onClick={() => void (mode === "settings" ? saveSettings() : mode === "selection" ? saveEntries() : downloadPdf())}>{busy ? "저장하고 있어요." : mode === "settings" ? harumadi ? "설정 저장하기" : "빈 하루마디 만들기" : mode === "selection" ? `마디 ${selected.length}개 담기` : "PDF 파일 저장하기"}</PrimaryButton></Footer>}
+    {mode !== "pages" && mode !== "together" && mode !== "comments" && <Footer $creating={!harumadi && mode === "settings"}><PrimaryButton type="button" disabled={busy || readOnly || (mode === "settings" && (!settings.title.trim() || !backCoverTextValid || !sensitivePolicy || (titleNeedsConfirmation && !confirmed))) || (mode === "selection" && !entries.data) || (mode === "order" && orderedIds.join(",") === harumadi?.entryIds.join(",")) || (mode === "pdf" && (!pdf?.approvalToken || Boolean(sensitivePolicy?.enabled && !confirmed)))} onClick={() => void (mode === "settings" ? saveSettings() : mode === "selection" ? saveEntries() : mode === "order" ? saveOrder() : downloadPdf())}>{busy ? "저장하고 있어요." : mode === "settings" ? harumadi ? "설정 저장하기" : "빈 하루마디 만들기" : mode === "selection" ? `마디 ${selected.length}개 담기` : mode === "order" ? "이 순서로 저장하기" : "PDF 파일 저장하기"}</PrimaryButton></Footer>}
     </BookContents>
     {closing && harumadi && <HarumadiCloseTransition book={harumadi} entries={chosen} containerRef={frame} contentsRef={contents} onComplete={finishClose} />}
   </Frame>;
@@ -321,7 +336,7 @@ const NameField = styled.div<{ $creating: boolean }>`
 const Footer = styled.footer<{ $creating?: boolean }>`flex: none; padding: 12px 24px calc(16px + var(--app-safe-area-bottom, 0px)); border-top: 1px solid var(--color-border); background: #F8FAFC; > button { width: 100%; }
   ${({ $creating }) => $creating && `@container app-viewport (max-height: 719px) { padding: 8px 24px calc(12px + var(--app-safe-area-bottom, 0px)); }`}
 `;
-const ReaderTools = styled.nav`display: flex; flex: none; align-items: center; justify-content: space-between; gap: 8px; border-top: 1px solid var(--color-border); padding-top: 6px; margin-top: 4px; > button { min-height: 44px; font-size: 13px; }`;
+const ReaderTools = styled.nav`display: flex; flex: none; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; border-top: 1px solid var(--color-border); padding-top: 6px; margin-top: 4px; > button { min-height: 44px; font-size: 13px; } @media(max-width:440px){display:grid;grid-template-columns:repeat(2,minmax(0,1fr));}`;
 const RecordList = styled.div`display: grid; gap: 10px; margin: 22px 0;`;
 const RecordOption = styled.label`display: flex; gap: 12px; align-items: center; padding: 16px 12px; border: 1px solid var(--color-border); border-radius: 10px; background: white; > span { min-width: 0; display: grid; gap: 6px; } strong { font-size: 14px; font-weight: 500; overflow-wrap: anywhere; } small { font-size: 12px; color: var(--color-text-muted); }`;
 const ErrorMessage = styled.div`padding: 12px; font-size: 14px; line-height: 1.7; color: #b42318; background: white; border-radius: 8px; margin-top: 12px; > button { display: block; }`;
