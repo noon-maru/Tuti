@@ -1172,6 +1172,8 @@ model LifecycleEvent {
   origin String?
   version Int @default(1)
   occurredAt DateTime @default(now()) @map("occurred_at")
+  activeMilliseconds Int? @map("active_milliseconds")
+  activeStartedAt DateTime? @map("active_started_at")
   retentionUntil DateTime @map("retention_until")
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 

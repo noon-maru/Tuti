@@ -80,9 +80,9 @@
       "id": "lifelog-analytics",
       "implementationState": "disabled-pending-rollout",
       "models": ["LifecycleEvent"],
-      "items": "개발 브랜치의 라이프로그 성공 사건·허용된 화면 관측, 내부 책/마디 식별값, 세션·흐름, 플랫폼·버전, 요청 멱등 해시. 본문·사진·좌표·초대 원문은 포함하지 않음",
+      "items": "라이프로그 성공 사건·허용된 화면 관측, 내부 책/마디 식별값, 세션·흐름, 플랫폼·버전, 요청 멱등 해시. 2026-11-02 추가 구현: 전경·최근 상호작용의 활성 구간 시작/종료 시각과 최대 30000ms, 기기 간 겹침 제외. 본문·사진·좌표·키 입력 내용·초대 원문은 포함하지 않음",
       "retention": "개발 구현·운영 미적용. 제품 활동과 같은 180일 만료, 계정 삭제 Cascade. 잔존 계정 코호트와 계측 전 공백을 명시하며 과거 법적 승인 수치는 수정하지 않음",
-      "sources": ["src/server/analytics/lifecycle.ts", "src/server/auth/retention.ts", "prisma/schema.prisma"]
+      "sources": ["src/server/analytics/lifecycle.ts", "src/server/analytics/activeDuration.ts", "src/features/tuti/components/LifecycleObserver.tsx", "src/server/auth/retention.ts", "prisma/schema.prisma"]
     },
     {
       "id": "traffic-security",

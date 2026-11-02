@@ -6,11 +6,12 @@ export function readLifecycleContext(request: Request): LifecycleContext {
   return lifecycleContext({ source: request.headers.get("x-tuti-source"), platform: request.headers.get("x-tuti-platform") ?? request.headers.get("x-tuti-client-platform"),
     appVersion: request.headers.get("x-tuti-version") ?? request.headers.get("x-tuti-client-version"), sessionId: request.headers.get("x-tuti-session"), flowId: request.headers.get("x-tuti-flow") });
 }
-type Fact = { name: LifecycleName; key: string; entityId?: string; bookId?: string; requestKey?: string; requestHash?: string; origin?: typeof LIFECYCLE_ORIGINS[number] };
+type Fact = { name: LifecycleName; key: string; entityId?: string; bookId?: string; requestKey?: string; requestHash?: string; origin?: typeof LIFECYCLE_ORIGINS[number]; activeMilliseconds?: number };
 export function lifecycleData(userId: string, fact: Fact, context: LifecycleContext = {}, now = new Date()) {
   return { id: randomUUID(), occurrenceKey: fact.key, userId, name: fact.name,
     entityId: fact.entityId, bookId: fact.bookId, requestKey: fact.requestKey, requestHash: fact.requestHash, origin: fact.origin,
-    ...lifecycleContext(context), occurredAt: now, retentionUntil: new Date(now.getTime() + 180 * 86_400_000), version: 1 };
+    ...lifecycleContext(context), occurredAt: now, retentionUntil: new Date(now.getTime() + 180 * 86_400_000), version: 1,
+    ...(fact.activeMilliseconds ? { activeMilliseconds: fact.activeMilliseconds, activeStartedAt: new Date(now.getTime() - fact.activeMilliseconds) } : {}) };
 }
 export async function recordLifecycle(tx: Prisma.TransactionClient, userId: string, fact: Fact, context: LifecycleContext = {}, now = new Date()) {
   // Some isolated domain-test adapters intentionally have no analytics delegate.

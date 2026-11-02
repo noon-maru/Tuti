@@ -21,6 +21,7 @@ export async function verifyLifelogMetrics(query: (sql: string) => string, rejec
     CREATE TABLE harumadi_comments(harumadi_id text,author_id text,deleted_at timestamp);
     CREATE TABLE harumadi_pdfs(owner_id text,page_count integer);`);
   run(readFileSync("prisma/migrations/20261030020000_lifelog_events/migration.sql", "utf8"));
+  run(readFileSync("prisma/migrations/20261102090000_lifecycle_active_duration/migration.sql", "utf8"));
   run(`INSERT INTO users VALUES ('admin','admin',null,'2026-08-01'),('qa','user','2026-09-01','2026-09-01'),
     ('a','user',null,'2026-10-01'),('b','user',null,'2026-10-01'),('old','user',null,'2020-01-01');
     INSERT INTO journal_entries VALUES ('a1','a','image',null),('a2','a',null,null),('old1','old',null,null),('qa1','qa',null,null);
@@ -82,6 +83,15 @@ export async function verifyLifelogMetrics(query: (sql: string) => string, rejec
     assert.equal(run("SELECT count(1) FROM lifecycle_events WHERE occurrence_key='rolled-back'"), "0");
     await Promise.all([1,2].map(() => client.$transaction(tx => recordLifecycle(tx, "b", { name: "pdf_created", key: "one-occurrence" }))));
     assert.equal(run("SELECT count(1) FROM lifecycle_events WHERE occurrence_key='one-occurrence'"), "1");
+    const { recordActiveDuration } = await import("../../src/server/analytics/activeDuration");
+    const input = { id: "bb17e0d4-d207-4d0e-9bf0-d00604d60e8a", name: "session_active" as const,
+      sessionId: "bb17e0d4-d207-4d0e-9bf0-d00604d60e8a", activeMilliseconds: 15_000 };
+    const end = new Date("2026-10-29T01:00:15Z");
+    await Promise.all([input, { ...input, id: "bb17e0d4-d207-4d0e-9bf0-d00604d60e8b" }].map(event =>
+      client.$transaction(tx => recordActiveDuration(tx, "b", event, end))));
+    assert.equal(run("SELECT sum(active_milliseconds) FROM lifecycle_events WHERE name='session_active'"), "15000", "기기 간 중복 구간은 한 번만 저장한다");
+    await client.$transaction(tx => recordActiveDuration(tx, "b", { ...input, id: "bb17e0d4-d207-4d0e-9bf0-d00604d60e8c" }, new Date(end.getTime() + 5000)));
+    assert.equal(run("SELECT sum(active_milliseconds) FROM lifecycle_events WHERE name='session_active'"), "20000", "겹치는 앞부분을 잘라 새 5초만 반영한다");
   } finally { await client.$disconnect(); }
   rejected("SET search_path=lifelog_fixture,public; INSERT INTO lifecycle_events(id,occurrence_key,user_id,name,retention_until) VALUES('bad','bad','a','private_content',now()+interval '1 day')", /check constraint/i);
   run("DELETE FROM users WHERE id='a'");

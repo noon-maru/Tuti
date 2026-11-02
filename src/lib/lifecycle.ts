@@ -65,6 +65,13 @@ export function trackLifecycle(name: ClientLifecycleName, extras: Partial<Lifecy
   enqueue(owner, name, extras);
   void flushLifecycle();
 }
+export function trackActiveDuration(owner: string, milliseconds: number, endedAt: number) {
+  if (getSessionSnapshot()?.userId !== owner || milliseconds < 1 || milliseconds > 30_000) return;
+  observeActivity();
+  if (!clock || clock.owner !== owner) return;
+  enqueue(owner, "session_active", { activeMilliseconds: Math.floor(milliseconds), observedAt: new Date(endedAt).toISOString(), flowId: undefined });
+  void flushLifecycle();
+}
 export function lifecycleHeaders(): Record<string, string> {
   observeActivity();
   const value = context();

@@ -8,6 +8,7 @@ import { recordLifecycle } from "@/server/analytics/lifecycle";
 import { requireHarumadiAccess } from "@/server/harumadi/access";
 import { koreanDay } from "@/server/admin/analyticsScope";
 import { readObservation } from "@/server/analytics/readObservation";
+import { recordActiveDuration } from "@/server/analytics/activeDuration";
 
 export const runtime = "nodejs";
 export async function POST(request: Request) {
@@ -25,6 +26,10 @@ export async function POST(request: Request) {
     if (observed < now - 30 * 60_000 || observed > now + 60_000) return reply({ error: "관측 시각을 확인해주세요." }, 400);
     const occurredAt = new Date(Math.min(now, observed));
     await prisma.$transaction(async tx => {
+      if (input.name === "session_active") {
+        await recordActiveDuration(tx, user.id, input, occurredAt);
+        return;
+      }
       if (input.name === "book_opened") {
         if (!input.entityId) throw new Error("BOOK_REQUIRED");
         await requireHarumadiAccess(tx, user.id, input.entityId);
