@@ -20,7 +20,7 @@ export function AdminLifelogMetricsPanel({ data, days, onDaysChange }: { data: L
   const partial = a?.retainedSince && new Date(a.retainedSince) > new Date(data.period.start);
   const metric = (label: string, amount: string, detail: string) => <Metric><dt>{label}</dt><dd>{amount}</dd><small>{detail}</small></Metric>;
   return <Layout>
-    <Header><div><small>라이프로그 사업 지표</small><h2>남긴 하루가 다시 쌓이고 있나요?</h2><p>{date(data.asOf)} 기준 · 관리자·분석 제외 계정 제외{!observed ? " · 미계측" : partial ? " · 일부 기간 미계측" : ""}</p></div>
+    <Header><p>{date(data.asOf)} 기준 · 관리자·분석 제외 계정 제외{!observed ? " · 미계측" : partial ? " · 일부 기간 미계측" : ""}</p>
       <label>활동 관측 기간<select value={days} onChange={event => onDaysChange(Number(event.target.value))}>{[7, 30, 90].map(day => <option key={day} value={day}>최근 {day}일</option>)}</select></label></Header>
     <Navigation aria-label="라이프로그 지표 영역">{sections.map(([id, label]) => <button key={id} type="button" aria-pressed={section === id} onClick={() => setSection(id)}>{label}</button>)}</Navigation>
     {section === "records" && <Panel><h3>한 권에 얼마나 채우나요?</h3><p>권당 평균 {number(s.meanEntries)}개 · 빈 책 포함</p><TableWrap><table><thead><tr><th>권당 마디 수</th><th>하루마디</th></tr></thead><tbody>{s.entryDistribution?.map(row => <tr key={row.range}><th>{row.range}</th><td>{number(row.books)}권</td></tr>)}</tbody></table></TableWrap></Panel>}
@@ -68,7 +68,7 @@ export function AdminLifelogMetricsPanel({ data, days, onDaysChange }: { data: L
   </Layout>;
 }
 const Layout = styled.div`display:grid;gap:22px;color:var(--color-text,#1b2d32);min-width:0;`;
-const Header = styled.header`display:flex;justify-content:space-between;align-items:end;gap:20px;flex-wrap:wrap;h2{font-size:25px;font-weight:600;letter-spacing:-.04em;margin:8px 0;line-height:1.5;}small{font-size:13px;color:#456749;}p{font-size:12px;color:#667777;margin:0;line-height:1.8;}label{display:grid;gap:8px;font-size:12px;color:#667777;}select{min-height:44px;padding:8px 12px;border:1px solid #d7e1dc;border-radius:10px;background:#fff;color:#1b2d32;font:inherit;}`;
+const Header = styled.header`display:flex;justify-content:space-between;align-items:center;gap:20px;flex-wrap:wrap;p{font-size:12px;color:#667777;margin:0;line-height:1.8;}label{display:grid;gap:8px;font-size:12px;color:#667777;}select{min-height:44px;padding:8px 12px;border:1px solid #d7e1dc;border-radius:10px;background:#fff;color:#1b2d32;font:inherit;}`;
 const Notice = styled.div`padding:14px 18px;border:1px solid #e3eae6;background:#f6f9f5;border-radius:12px;color:#586b63;font-size:13px;line-height:1.9;`;
 const Navigation = styled.nav`display:flex;gap:6px;flex-wrap:wrap;border-bottom:1px solid #e3eae6;padding-bottom:12px;button{font:inherit;font-size:14px;min-height:44px;padding:9px 15px;border:1px solid transparent;border-radius:10px;background:transparent;color:#667777;cursor:pointer;}button[aria-pressed=true]{background:#eaf2df;border-color:#d6e5c1;color:#314e31;font-weight:600;}button:focus-visible{outline:2px solid #456749;outline-offset:2px;}`;
 const StockRail = styled.div`display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;padding:18px 0;border-bottom:3px solid #d8edb7;div{display:grid;gap:10px;min-width:0;}span{font-size:13px;color:#667777;}strong{font-size:28px;font-weight:600;font-variant-numeric:tabular-nums;overflow-wrap:anywhere;}small{font-size:13px;font-weight:400;margin-left:4px;}@media(max-width:420px){strong{font-size:22px;}span{font-size:12px;}}`;

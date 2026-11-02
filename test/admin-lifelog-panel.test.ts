@@ -15,6 +15,8 @@ test("새 관리자 요약은 미계측을 0%로 꾸미지 않고 현재 보유�
   assert.match(markup, /현재 마디·하루마디·PDF/);
   assert.match(markup, /하루마디 열람 사용자 · 30일/);
   assert.match(markup, /반복 열람 사용자 · 30일/);
+  assert.doesNotMatch(markup, /남긴 하루가 다시 쌓이고 있나요|라이프로그 사업 지표/);
+  assert.match(markup, /활동 관측 기간/);
   assert.doesNotMatch(markup, />0%/);
   for (const label of ["첫 경험·재방문", "함께 채우기", "소장·구매 관심"]) assert.ok(markup.includes(label));
 });
