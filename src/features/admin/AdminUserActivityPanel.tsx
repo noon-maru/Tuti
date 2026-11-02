@@ -10,11 +10,13 @@ import type {
 import { BaseButton } from "@/shared/ui/buttons";
 
 const dateFormatter = new Intl.DateTimeFormat("ko-KR", {
+  timeZone: "Asia/Seoul",
   dateStyle: "medium",
   timeStyle: "short",
 });
 
 const dayFormatter = new Intl.DateTimeFormat("ko-KR", {
+  timeZone: "Asia/Seoul",
   month: "numeric",
   day: "numeric",
 });
@@ -65,12 +67,12 @@ export function AdminUserActivityPanel({
 
       <Summary aria-label="사용자 활동 요약">
         <SummaryPrimary>
-          <span>기록·열람 이용 계정</span>
+          <span>라이프로그 이용 계정</span>
           <strong>{formatNumber(data.summary.meaningfulUsers)}</strong>
-          <small>마디·책 읽기·담기·PDF 관측</small>
+          <small>작성·열람·담기·PDF</small>
         </SummaryPrimary>
         <SummaryItem>
-          <span>관측 사용자</span>
+          <span>기간 내 이용 계정</span>
           <strong>{formatNumber(data.summary.observedUsers)}</strong>
         </SummaryItem>
         <SummaryItem>
@@ -229,19 +231,15 @@ export function AdminUserActivityPanel({
         )}
       </UserSection>
       {data.nextCursor && onLoadMore && <ExcludeButton type="button" onClick={onLoadMore}>다음 계정 불러오기</ExcludeButton>}
-      <Footnote>
-        상단 요약·날짜별 활동은 페이지와 무관한 전체 분석 대상 집계입니다. ‘2일 이상 활동’은 한국 시간 기준 서로 다른 날짜의 관측입니다.
-        목록의 라이프로그 활동은 새 계측 이후 자료이며, 과거 생성·삭제 자료와 미계측 활동은 소급하지 않습니다.
-      </Footnote>
     </Layout>
   );
 }
 
 function getStageLabel(stage: AdminUserActivityStage) {
-  if (stage === "converted") return "전환";
-  if (stage === "engaged") return "탐색";
+  if (stage === "converted") return "마디 작성";
+  if (stage === "engaged") return "열람·담기";
   if (stage === "recommended") return "추천";
-  if (stage === "visited") return "방문";
+  if (stage === "visited") return "활동 관측";
   return "계정 생성";
 }
 
@@ -255,7 +253,7 @@ function getPlatformLabel(platform: AdminUserActivityItem["platform"]) {
   if (platform === "android") return "Android";
   if (platform === "ios") return "iOS";
   if (platform === "web") return "Web";
-  return "수집 전";
+  return "미확인";
 }
 
 function getUserLabel(user: AdminUserActivityItem) {
@@ -326,7 +324,7 @@ const PeriodSelect = styled.select`
 
 const Summary = styled.div`
   display: grid;
-  grid-template-columns: 1.45fr repeat(6, minmax(100px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 150px), 1fr));
   overflow: hidden;
   border: 1px solid var(--color-border);
   border-radius: var(--admin-card-radius);
@@ -365,22 +363,7 @@ const SummaryItem = styled.div`
   }
 `;
 
-const SummaryPrimary = styled(SummaryItem)`
-  position: relative;
-  background: var(--color-brand-100);
-
-  &::before {
-    position: absolute;
-    inset: 0 auto 0 0;
-    width: 4px;
-    background: linear-gradient(
-      var(--color-brand-500),
-      var(--color-accent-bridge),
-      var(--color-secondary-500)
-    );
-    content: "";
-  }
-`;
+const SummaryPrimary = styled(SummaryItem)`background:var(--color-brand-100);`;
 
 const ActivitySection = styled.section`
   display: grid;
@@ -662,11 +645,7 @@ const ExcludedLabel = styled.span`
   font-size: 11px;
 `;
 
-const Footnote = styled.p`
-  color: var(--color-text-muted);
-  font-size: 11px;
-  line-height: 1.6;
-`;
+
 
 const Empty = styled.div`
   min-height: 180px;

@@ -228,6 +228,7 @@ const areaOptions = [
 ] as const;
 
 const dateFormatter = new Intl.DateTimeFormat("ko-KR", {
+  timeZone: "Asia/Seoul",
   dateStyle: "medium",
   timeStyle: "short",
 });
@@ -2784,7 +2785,7 @@ const WorkspaceNav = styled.nav`
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   border: 1px solid var(--color-neutral-400);
-  border-radius: 10px;
+  border-radius: var(--admin-card-radius);
   background: var(--color-white);
 
   @media (max-width: 640px) {
@@ -2792,7 +2793,7 @@ const WorkspaceNav = styled.nav`
     z-index: 12;
     top: max(68px, calc(36px + env(safe-area-inset-top)));
     border-radius: 8px;
-    box-shadow: 0 4px 12px rgb(var(--color-black-rgb) / 0.06);
+    box-shadow: none;
   }
 `;
 
@@ -2904,7 +2905,7 @@ const CollectionSection = styled.section`
   gap: var(--space-4);
   padding: var(--space-5);
   border: 1px solid var(--color-neutral-400);
-  border-radius: 10px;
+  border-radius: var(--admin-card-radius);
   background: var(--color-white);
 
   @media (max-width: 640px) {
@@ -3248,7 +3249,7 @@ const CrowdCoverageSection = styled.section`
   gap: var(--space-4);
   padding: var(--space-5);
   border: 1px solid var(--color-neutral-400);
-  border-radius: 10px;
+  border-radius: var(--admin-card-radius);
   background: var(--color-white);
 
   @media (max-width: 640px) {
@@ -3453,7 +3454,7 @@ const OverviewSection = styled.section`
   gap: var(--space-4);
   padding: var(--space-5);
   border: 1px solid var(--color-neutral-400);
-  border-radius: 10px;
+  border-radius: var(--admin-card-radius);
   background: var(--color-white);
 
   @media (max-width: 640px) {
@@ -3569,7 +3570,7 @@ const SyncSection = styled.section`
   gap: var(--space-4);
   padding: var(--space-5);
   border: 1px solid var(--color-neutral-400);
-  border-radius: 10px;
+  border-radius: var(--admin-card-radius);
   background: var(--color-white);
 
   h2 {
@@ -4838,7 +4839,7 @@ const AccessCard = styled.section`
   display: grid;
   gap: var(--space-4);
   padding: var(--space-8);
-  border-radius: 10px;
+  border-radius: var(--admin-card-radius);
   background: var(--color-brand-100);
   box-shadow: 0 16px 40px rgb(var(--color-black-rgb) / 0.08);
 

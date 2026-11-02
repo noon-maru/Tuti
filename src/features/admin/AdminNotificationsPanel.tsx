@@ -8,6 +8,7 @@ import type {
 } from "@/shared/api/admin";
 
 const dateFormatter = new Intl.DateTimeFormat("ko-KR", {
+  timeZone: "Asia/Seoul",
   month: "short",
   day: "numeric",
   hour: "2-digit",
@@ -33,7 +34,6 @@ export function AdminNotificationsPanel({
     <PanelRoot>
       <PulseHero>
         <PulseCopy>
-          <StatusKicker>알림 전달 상태</StatusKicker>
           <h2>{getNotificationHeadline(data)}</h2>
         </PulseCopy>
         <HeroMetrics>
@@ -308,12 +308,12 @@ export function AdminNotificationsPanel({
 
 function getNotificationHeadline(data: AdminNotificationsResponse) {
   if (data.summary.failed24h > 0) {
-    return `전달하지 못한 알림이 ${data.summary.failed24h}건 있어요.`;
+    return "발송 실패 확인 필요";
   }
   if (data.summary.sent24h > 0) {
-    return `최근 24시간 알림 ${data.summary.sent24h}건을 안정적으로 전달했어요.`;
+    return "최근 24시간 발송 결과";
   }
-  return "새 알림을 기다리는 중이에요.";
+  return "최근 24시간 발송 없음";
 }
 
 function getConfigurationLabel(configuration: {
@@ -359,91 +359,51 @@ const PanelRoot = styled.div`
 `;
 
 const PulseHero = styled.section`
-  position: relative;
-  overflow: hidden;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: var(--space-6);
-  padding: var(--space-5);
-  border: 1px solid var(--color-brand-200);
+  grid-template-columns: 1fr;
+  gap: 18px;
+  padding: 24px;
+  border: 1px solid var(--color-border);
   border-radius: var(--admin-card-radius);
   background: var(--admin-card-background);
-  box-shadow: none;
-
-  &::before {
-    position: absolute;
-    inset: 0 0 auto;
-    height: 3px;
-    background: linear-gradient(
-      90deg,
-      var(--color-brand-500),
-      var(--color-accent-bridge) 52%,
-      var(--color-secondary-500)
-    );
-    content: "";
-  }
-
-  @media (max-width: 720px) {
-    grid-template-columns: 1fr;
-    gap: var(--space-5);
-    padding: var(--space-5);
-    border-radius: var(--admin-card-radius);
-  }
+  @media (max-width: 720px) { padding: 18px 14px; }
 `;
 
 const PulseCopy = styled.div`
-  max-width: 680px;
-
   h2 {
-    margin-top: var(--space-2);
-    font-size: clamp(var(--font-size-500), 2.2vw, var(--font-size-700));
-    line-height: 1.3;
-    letter-spacing: var(--letter-spacing-heading);
-  }
-
-  p {
-    max-width: 56ch;
-    margin-top: var(--space-3);
+    font-size: 14px;
+    font-weight: 500;
+    line-height: 1.6;
     color: var(--color-text-muted);
-    font-size: var(--font-size-100);
-    line-height: 1.65;
   }
-`;
-
-const StatusKicker = styled.span`
-  color: var(--color-brand-800);
-  font-size: var(--font-size-100);
-  font-weight: 700;
 `;
 
 const HeroMetrics = styled.div`
-  display: flex;
-  align-items: stretch;
-  gap: var(--space-2);
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0;
+  border-top: 1px solid var(--color-border);
+  border-bottom: 1px solid var(--color-border);
 `;
 
 const HeroMetric = styled.div`
-  min-width: 112px;
+  min-width: 0;
   display: grid;
   align-content: center;
-  gap: var(--space-1);
-  padding: var(--space-4);
-  border-radius: var(--admin-card-radius);
-  background: var(--color-neutral-100);
-
-  span {
-    color: var(--color-text-muted);
-    font-size: var(--font-size-100);
-  }
-
+  gap: 8px;
+  padding: 22px 18px;
+  span { color: var(--color-text-muted); font-size: 13px; }
   strong {
-    font-size: var(--font-size-600);
-    line-height: 1;
+    font-size: 30px;
+    font-weight: 600;
+    line-height: 1.6;
+    letter-spacing: -.035em;
+    font-variant-numeric: tabular-nums;
+    overflow-wrap: anywhere;
   }
-
-  @media (max-width: 480px) {
-    min-width: 0;
-    flex: 1;
+  @media (max-width: 540px) {
+    padding: 16px 10px;
+    strong { font-size: 25px; }
   }
 `;
 
@@ -458,17 +418,7 @@ const DeliveryTrack = styled.div`
 const DeliverySuccess = styled.div`
   height: 100%;
   border-radius: inherit;
-  background: linear-gradient(
-    90deg,
-    var(--color-brand-500),
-    var(--color-accent-bridge),
-    var(--color-secondary-500)
-  );
-  transition: width 320ms ease;
-
-  @media (prefers-reduced-motion: reduce) {
-    transition: none;
-  }
+  background: var(--color-brand-800);
 `;
 
 const DeliveryLegend = styled.div`

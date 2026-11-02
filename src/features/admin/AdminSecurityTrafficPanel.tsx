@@ -15,6 +15,7 @@ const dateFormatter = new Intl.DateTimeFormat("ko-KR", {
   timeZone: "Asia/Seoul",
 });
 const dayFormatter = new Intl.DateTimeFormat("ko-KR", {
+  timeZone: "Asia/Seoul",
   month: "numeric",
   day: "numeric",
 });
@@ -105,9 +106,9 @@ export function AdminSecurityTrafficPanel({
 
       <SignalBoard>
         <SignalLead>
-          <span>앱 활동 확인 사용자</span>
+          <span>활동 확인 계정</span>
           <strong>{formatNumber(data.summary.activityConfirmedUsers)}</strong>
-          <small>화면 실행 이벤트가 저장된 계정</small>
+          <small>신·구 활동 로그 합집합 · 관리자·QA 제외</small>
         </SignalLead>
         <SignalItem>
           <span>관측 요청</span>
@@ -541,7 +542,6 @@ const SignalItem = styled.div`
 const SignalLead = styled(SignalItem)`
   position: relative;
   background: var(--color-brand-100);
-  &::before { position: absolute; inset: 0 auto 0 0; width: 4px; background: linear-gradient(var(--color-brand-500), var(--color-accent-bridge), var(--color-secondary-500)); content: ""; }
 `;
 
 const CompositionSection = styled.section`

@@ -125,7 +125,7 @@ const mobileMoreTabs: Array<{ id: AdminTab; label: string }> = [
   { id: "places", label: "장소 운영" },
   { id: "activity", label: "사용자 활동" },
   { id: "security", label: "트래픽 및 보안 관제" },
-  { id: "funnel", label: "추천 행동 퍼널" },
+  { id: "funnel", label: "작은 여행 성과" },
   { id: "notifications", label: "알림 전달" },
   { id: "users", label: "사용자 계정" },
   { id: "admins", label: "관리자" },
@@ -135,6 +135,7 @@ const mobileMoreTabs: Array<{ id: AdminTab; label: string }> = [
 ];
 
 const dateFormatter = new Intl.DateTimeFormat("ko-KR", {
+  timeZone: "Asia/Seoul",
   dateStyle: "medium",
   timeStyle: "short",
 });
@@ -1208,17 +1209,16 @@ function OverviewPanel({
     <OverviewContent>
       <OperationsHero>
         <HeroCopy>
-          <StatusKicker>오늘 운영 상태</StatusKicker>
           <h2>
             {jobFailures > 0
-              ? `예약 작업 ${jobFailures}개의 실패·지연을 확인해주세요.`
+              ? `예약 작업 실패·지연 ${jobFailures}개`
               : failedNotifications > 0
-              ? "알림 전달 상태를 먼저 확인해 주세요."
+              ? "알림 실패 확인 필요"
               : jobUnknown
-                ? "예약 작업 관측 상태를 확인해주세요."
+                ? "예약 작업 관측 확인 필요"
                 : pendingTotal > 0
-                ? `처리할 일이 ${pendingTotal}건 남아 있어요.`
-                : "지금은 조용히 운영되고 있어요."}
+                ? `처리 대기 ${pendingTotal}건`
+                : "확인된 처리 대기 없음"}
           </h2>
         </HeroCopy>
         <HeroStatusSummary aria-label="운영 신호 요약">
@@ -1346,18 +1346,17 @@ function RecommendationFunnelPanel({
   return (
     <FunnelContent>
       <FunnelHeader>
-        <h2>작은 여행 행동 도달 현황</h2>
+        <span>추천 실행에 연결된 행동</span>
         <PeriodSelect
           value={days}
           onChange={(event) => onDaysChange(Number(event.target.value))}
-          aria-label="추천 퍼널 조회 기간"
+          aria-label="작은 여행 성과 조회 기간"
         >
           <option value={7}>최근 7일</option>
           <option value={30}>최근 30일</option>
           <option value={90}>최근 90일</option>
         </PeriodSelect>
       </FunnelHeader>
-      <FunnelEmpty>각 항목은 같은 기간 추천 실행에 연결된 독립적인 행동 도달입니다. 순차 전환율이나 실제 방문 인증이 아닙니다. 추천 실행 관측과 사용자 화면 노출도 구분합니다.</FunnelEmpty>
 
       <FunnelSummary>
         <FunnelSummaryCard>
@@ -1381,23 +1380,19 @@ function RecommendationFunnelPanel({
         <Table>
           <thead>
             <tr>
-              <th scope="col">항목</th>
               <th scope="col">행동</th>
               <th scope="col">여정 수</th>
-              <th scope="col">전체 대비</th>
+              <th scope="col">추천 실행 대비 도달률</th>
             </tr>
           </thead>
           <tbody>
-            {funnel.stages.map((stage, index) => (
+            {funnel.stages.map((stage) => (
               <tr key={stage.action}>
-                <td data-label="단계">
-                  <FunnelStageIndex>{index + 1}</FunnelStageIndex>
-                </td>
                 <td data-label="행동"><strong>{stage.label}</strong></td>
                 <td data-label="여정 수">
                   {stage.journeys.toLocaleString("ko-KR")}
                 </td>
-                <td data-label="전체 대비">{stage.rateFromRuns == null ? "집계 불가" : formatRate(stage.rateFromRuns)}</td>
+                <td data-label="추천 실행 대비 도달률">{stage.rateFromRuns == null ? "집계 불가" : formatRate(stage.rateFromRuns)}</td>
               </tr>
             ))}
           </tbody>
@@ -1416,7 +1411,7 @@ function RecommendationFunnelPanel({
                   <span>{index + 1}</span>
                   <strong>{place.placeName}</strong>
                   <small>
-                    길찾기 {place.navigationStarted} · 기록 {place.journalCreated}
+                    길찾기 {place.navigationStarted} · 마디 작성 {place.journalCreated}
                   </small>
                 </li>
               ))}
@@ -3054,10 +3049,6 @@ function toErrorMessage(error: unknown) {
 }
 
 const AdminLayout = styled.div<{ $drawerOpen: boolean }>`
-  --admin-page-background: var(--color-white);
-  --admin-card-background: var(--color-neutral-200);
-  --admin-card-radius: 8px;
-
   height: 100dvh;
   min-height: 0;
   display: grid;
@@ -3603,65 +3594,29 @@ const OverviewContent = styled.div`
 `;
 
 const OperationsHero = styled.section`
-  position: relative;
-  overflow: hidden;
   display: grid;
-  grid-template-columns: minmax(260px, 0.8fr) minmax(420px, 1.2fr);
-  align-items: end;
-  gap: var(--space-6);
-  padding: var(--space-5);
-  border: 1px solid var(--color-brand-200);
+  grid-template-columns: minmax(200px, 1fr) minmax(260px, 1fr);
+  align-items: center;
+  gap: 24px;
+  padding: 24px;
+  border: 1px solid var(--color-border);
   border-radius: var(--admin-card-radius);
   background: var(--admin-card-background);
-  box-shadow: none;
 
-  &::before {
-    position: absolute;
-    inset: 0 0 auto;
-    height: 3px;
-    background: linear-gradient(
-      90deg,
-      var(--color-brand-500),
-      var(--color-accent-bridge) 52%,
-      var(--color-secondary-500)
-    );
-    content: "";
-  }
-
-  @media (max-width: 980px) {
+  @media (max-width: 760px) {
     grid-template-columns: 1fr;
-    align-items: stretch;
-  }
-
-  @media (max-width: 520px) {
-    gap: var(--space-5);
-    padding: var(--space-4);
-    border-radius: var(--admin-card-radius);
+    padding: 18px 14px;
+    gap: 18px;
   }
 `;
 
 const HeroCopy = styled.div`
   h2 {
-    max-width: 18ch;
-    margin-top: var(--space-2);
-    font-size: clamp(var(--font-size-500), 2.5vw, var(--font-size-700));
-    line-height: 1.3;
-    letter-spacing: var(--letter-spacing-heading);
+    font-size: 18px;
+    font-weight: 600;
+    line-height: 1.6;
+    letter-spacing: -.025em;
   }
-
-  p {
-    max-width: 48ch;
-    margin-top: var(--space-3);
-    color: var(--color-text-muted);
-    font-size: var(--font-size-100);
-    line-height: 1.65;
-  }
-`;
-
-const StatusKicker = styled.span`
-  color: var(--color-brand-800);
-  font-size: var(--font-size-100);
-  font-weight: 700;
 `;
 
 const HeroStatusSummary = styled.div`
@@ -3719,22 +3674,10 @@ const OverviewSection = styled.section`
 `;
 
 const SectionTitle = styled.h2`
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  font-size: var(--font-size-300);
-
-  &::before {
-    width: var(--space-1);
-    height: 1em;
-    border-radius: 999px;
-    background: var(--color-brand-500);
-    content: "";
-  }
-
-  section:nth-of-type(2) &::before {
-    background: var(--color-secondary-600);
-  }
+  font-size: 18px;
+  font-weight: 600;
+  line-height: 1.6;
+  letter-spacing: -.025em;
 `;
 
 const QueueList = styled.div`
@@ -3848,12 +3791,7 @@ const GlanceTrack = styled.div`
     height: 100%;
     display: block;
     border-radius: inherit;
-    background: linear-gradient(
-      90deg,
-      var(--color-brand-500),
-      var(--color-accent-bridge),
-      var(--color-secondary-500)
-    );
+    background: var(--color-brand-800);
   }
 `;
 
@@ -4039,17 +3977,7 @@ const FunnelSummaryCard = styled.article`
   }
 `;
 
-const FunnelStageIndex = styled.span`
-  width: var(--space-7);
-  height: var(--space-7);
-  display: grid;
-  place-items: center;
-  border-radius: 4px;
-  background: var(--color-brand-100);
-  color: var(--color-brand-900);
-  font-size: 11px;
-  font-weight: 700;
-`;
+
 
 const FunnelBottomGrid = styled.div`
   display: grid;

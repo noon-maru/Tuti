@@ -49,7 +49,7 @@ export function JournalRightsScreen() {
         <BaseButton disabled={busy} type="submit">접수</BaseButton>
       </Form></Panel>
       <Panel><h2>사건 목록</h2><TableWrap><table><thead><tr><th>사건</th><th>상태</th><th>확인 기한</th><th>미완료 통지</th><th>처리</th></tr></thead><tbody>
-        {data.cases.map((item) => <tr key={item.id}><td>{item.reference}</td><td>{RIGHTS_STATES[item.state]}</td><td>{new Date(item.nextReviewAt).toLocaleString("ko-KR")}{item.overdue && <strong> · 확인 필요</strong>}</td><td>{item.notices.filter((notice) => notice.status === "manual_required").length}</td><td><BaseButton $size="compact" $tone="neutral" disabled={busy} onClick={() => { setSelected(item.id); setAction("close_release"); }}>선택</BaseButton></td></tr>)}
+        {data.cases.map((item) => <tr key={item.id}><td>{item.reference}</td><td>{RIGHTS_STATES[item.state]}</td><td>{new Date(item.nextReviewAt).toLocaleString("ko-KR", { timeZone: "Asia/Seoul" })}{item.overdue && <strong> · 확인 필요</strong>}</td><td>{item.notices.filter((notice) => notice.status === "manual_required").length}</td><td><BaseButton $size="compact" $tone="neutral" disabled={busy} onClick={() => { setSelected(item.id); setAction("close_release"); }}>선택</BaseButton></td></tr>)}
         {!data.cases.length && <tr><td colSpan={5}>접수된 사건이 없어요.</td></tr>}
       </tbody></table></TableWrap><p>최근 기한 순 최대 200건 표시 · 임시조치 만료는 공개 여부와 별도로 적용돼요.</p></Panel>
       {current && <Panel key={current.id}><h2>{current.reference}</h2><p>증빙 원문·연락처는 이 화면에 입력하지 마세요. 통지에는 사건별 사유와 권리 행사 방법을 포함하고, 저작권 절차는 법정 서식·필요 첨부 자료까지 확인해주세요.</p>
@@ -66,8 +66,8 @@ export function JournalRightsScreen() {
     </>}
   </Page>;
 }
-const Page = styled.main`max-width: 1180px; margin: auto; padding: 28px 24px calc(112px + env(safe-area-inset-bottom)); color: var(--color-text-primary, #17212b); h1 {font-size: 24px;} h2 {font-size: 17px; margin: 0 0 20px;} p {font-size: 13px; line-height: 1.7;} @media(max-width:600px){padding-inline:16px;}`;
+const Page = styled.main`max-width: 1180px; margin: auto; padding: 28px 24px calc(112px + env(safe-area-inset-bottom)); color: var(--color-text); h1 {font-size: 22px; font-weight:600;} h2 {font-size: 18px; font-weight:600; margin: 0 0 20px;} p {font-size: 13px; line-height: 1.7;} @media(max-width:600px){padding-inline:16px;}`;
 const Header = styled.header`display:flex; gap:16px; justify-content:space-between; align-items:center; margin:20px 0;`;
-const Panel = styled.section`background:var(--color-surface, #fff); border:1px solid #e1e8f0; border-radius:12px; padding:24px; margin-bottom:20px;`;
-const Form = styled.form`display:flex; flex-wrap:wrap; gap:16px; align-items:end; label {display:flex; flex-direction:column; gap:8px; font-size:13px; min-width:0; flex:1 1 220px;} input,select {font:inherit; padding:10px; border:1px solid #d4dfeb; border-radius:8px; min-width:0; background:#fff; color:inherit;} .check {flex-direction:row; align-items:center; align-self:center;} input[type=checkbox] {flex:none;} button {flex-shrink:0;}`;
-const TableWrap = styled.div`overflow-x:auto; table {width:100%; border-collapse:collapse; font-size:13px;} th,td {padding:14px 12px; text-align:left; border-bottom:1px solid #e6edf5; white-space:nowrap;} th {font-weight:600; background:#f5f8fc;} strong {font-weight:600; color:#9b3c26;}`;
+const Panel = styled.section`background:var(--color-surface, #fff); border:1px solid var(--color-border); border-radius:var(--admin-card-radius); padding:24px; margin-bottom:20px;`;
+const Form = styled.form`display:flex; flex-wrap:wrap; gap:16px; align-items:end; label {display:flex; flex-direction:column; gap:8px; font-size:13px; min-width:0; flex:1 1 220px;} input,select {font:inherit; padding:10px; border:1px solid var(--color-border); border-radius:8px; min-width:0; background:#fff; color:inherit;} .check {flex-direction:row; align-items:center; align-self:center;} input[type=checkbox] {flex:none;} button {flex-shrink:0;}`;
+const TableWrap = styled.div`overflow-x:auto; table {width:100%; border-collapse:collapse; font-size:13px;} th,td {padding:14px 12px; text-align:left; border-bottom:1px solid var(--color-border); white-space:nowrap;} th {font-weight:600; background:var(--color-neutral-200);} strong {font-weight:600; color:#9b3c26;}`;

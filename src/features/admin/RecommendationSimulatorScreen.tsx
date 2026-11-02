@@ -93,6 +93,7 @@ const scoreLabels: Record<keyof AdminRecommendationScoreBreakdown, string> = {
 };
 
 const dateFormatter = new Intl.DateTimeFormat("ko-KR", {
+  timeZone: "Asia/Seoul",
   dateStyle: "medium",
   timeStyle: "medium",
 });
@@ -826,7 +827,7 @@ const Page = styled.main`
   overflow-x: hidden;
   overflow-y: auto;
   overscroll-behavior-y: auto;
-  background: var(--color-neutral-200);
+  background: var(--admin-page-background);
   color: var(--color-text);
   touch-action: pan-y;
   -webkit-overflow-scrolling: touch;
@@ -905,9 +906,9 @@ const ConditionPanel = styled.section`
   gap: var(--space-5);
   padding: var(--space-5);
   border: 1px solid var(--color-border);
-  border-radius: 10px;
+  border-radius: var(--admin-card-radius);
   background: var(--color-white);
-  box-shadow: 0 8px 24px rgb(var(--color-black-rgb) / 0.05);
+  box-shadow: none;
   color: var(--color-text);
 
   @media (max-width: 1240px) {
@@ -1202,7 +1203,7 @@ const EmptyResult = styled.div`
   gap: var(--space-3);
   padding: var(--space-6);
   border: 1px dashed var(--color-brand-300);
-  border-radius: 10px;
+  border-radius: var(--admin-card-radius);
   background: var(--color-white);
   color: var(--color-text-muted);
   text-align: center;
