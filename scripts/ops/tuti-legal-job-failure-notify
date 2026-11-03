@@ -1,8 +1,41 @@
 #!/bin/sh
 set -eu
 if [ "$#" -ne 0 ]; then echo "인자를 지원하지 않습니다." >&2; exit 1; fi
+[ "$(id -u)" = 0 ] || { echo 'NAS 관리자 권한이 필요합니다.' >&2; exit 1; }
 /usr/bin/logger -p daemon.err -t tuti-legal-jobs "Tuti scheduled legal job failed. Inspect maintenance logs."
 cd /var/services/homes/Tutiadmin/source/Tuti
+# One shared cooldown: these units all send the same generic operational alert.
+# Retain every failure in NAS logs; throttle only Slack, never maintenance tasks.
+state_dir=.ops-state/job-failure-alert
+if [ -L .ops-state ] || [ -L "$state_dir" ]; then exit 1; fi
+install -d -o root -g root -m 0700 .ops-state "$state_dir"
+if [ -L "$state_dir/send.lock" ]; then exit 1; fi
+exec 9>"$state_dir/send.lock"
+/usr/bin/flock --exclusive --nonblock 9 || exit 0
+for file in last-success last-attempt; do
+  if [ -L "$state_dir/$file" ]; then exit 1; fi
+done
+now="$(date +%s)"
+within_window() {
+  [ -f "$1" ] || return 1
+  stamp="$(head -n 1 "$1")"
+  case "$stamp" in '' | *[!0-9]*) return 1 ;; 0) ;; 0*) return 1 ;; esac
+  [ "${#stamp}" -le 12 ] || return 1
+  # A backwards clock adjustment must not silence alerts indefinitely.
+  [ "$now" -ge "$stamp" ] && [ "$((now - stamp))" -lt "$2" ]
+}
+if within_window "$state_dir/last-success" 3600; then
+  echo '이전 실패 알림 발송 후 1시간 이내여서 Slack 중복 알림을 생략합니다.'
+  exit 0
+fi
+# Failed webhooks/container starts are not successes; retry after five minutes.
+if within_window "$state_dir/last-attempt" 300; then
+  echo '실패 알림 전송 재시도 대기 중입니다. NAS 작업 로그를 확인해주세요.'
+  exit 0
+fi
+umask 077
+printf '%s\n' "$now" > "$state_dir/last-attempt"
 # 작업명·사용자·주소·토큰을 외부로 내보내지 않는다. Docker 장애는 NAS 로그로 남는다.
 docker compose --env-file .env.production -f docker-compose.prod.yml \
   run --rm --no-deps -T ops node_modules/.bin/tsx scripts/notify-legal-job-failure.ts
+date +%s > "$state_dir/last-success"

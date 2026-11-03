@@ -1,0 +1,19 @@
+#!/bin/sh
+set -eu
+case "$#:${1:-}" in 0:) apply=false ;; 1:--apply) apply=true ;; *) exit 1 ;; esac
+cd /var/services/homes/Tutiadmin/source/Tuti
+source=scripts/ops/tuti-legal-job-failure-notify
+target=/usr/local/sbin/tuti-legal-job-failure-notify
+sh -n "$source"
+[ ! -L "$target" ] || exit 1
+if [ "$apply" != true ]; then echo '실패 알림 1시간 억제·전송 실패 5분 재시도 도구만 교체합니다. 아직 설치하지 않았습니다.'; exit 0; fi
+[ "$(id -u)" = 0 ] || { echo 'NAS 관리자 권한이 필요합니다.' >&2; exit 1; }
+git -c safe.directory="$(pwd -P)" ls-files --error-unmatch "$source" >/dev/null
+git -c safe.directory="$(pwd -P)" diff --quiet HEAD -- "$source"
+[ ! -L .ops-state ] && [ ! -L .ops-state/job-alert-tools ] || exit 1
+snapshot=".ops-state/job-alert-tools/$(date +%Y%m%d-%H%M%S)-$$"
+install -d -o root -g root -m 0700 "$snapshot"
+if [ -f "$target" ]; then cp -p "$target" "$snapshot/tuti-legal-job-failure-notify"; fi
+install -o root -g root -m 0750 "$source" "$target"
+echo "실패 알림 중복 억제 설치 완료. 이전 도구 보관: $snapshot"
+echo '작업·타이머·앱·DB 재시작과 Slack 시험 발송은 하지 않았습니다.'
