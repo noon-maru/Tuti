@@ -5,9 +5,10 @@ export type TogetherNotificationKind = "shared-madi" | "invite-accepted" | "comm
 export async function enqueueTogetherNotification(tx: Prisma.TransactionClient, actorId: string, bookId: string, kind: TogetherNotificationKind, entityId: string, recipientId?: string) {
   // Domain adapters without the push subsystem do not emit notifications.
   if (!tx.pushDevice) return;
-  await tx.$executeRaw`INSERT INTO notification_jobs(id,user_id,actor_id,book_id,kind,entity_id,due_at)
-    SELECT ${randomUUID()} || ':' || u.id, u.id, ${actorId}, b.id, ${kind}, ${entityId},
-      CURRENT_TIMESTAMP + (${kind === "shared-madi" ? 180 : 0} * interval '1 second')
+  const now = new Date();
+  await tx.$executeRaw`INSERT INTO notification_jobs(id,user_id,actor_id,book_id,kind,entity_id,created_at,due_at)
+    SELECT ${randomUUID()} || ':' || u.id, u.id, ${actorId}, b.id, ${kind}, ${entityId}, ${now},
+      ${new Date(now.getTime() + (kind === "shared-madi" ? 180_000 : 0))}
     FROM harumadis b JOIN users u ON (u.id=b.owner_id OR EXISTS(SELECT 1 FROM harumadi_members m WHERE m.harumadi_id=b.id AND m.user_id=u.id AND m.ended_at IS NULL))
     JOIN notification_preferences p ON p.user_id=u.id AND p.news_enabled
     WHERE b.id=${bookId} AND b.collaboration_started_at IS NOT NULL AND u.id<>${actorId}

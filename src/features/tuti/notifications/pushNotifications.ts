@@ -46,6 +46,7 @@ const privacy = createPushPrivacyLifecycle({
 
 export type PushNotificationStatus = {
   supported: boolean;
+  registered?: boolean;
   permission: "prompt" | "prompt-with-rationale" | "granted" | "denied" | "unsupported";
 };
 
@@ -60,7 +61,13 @@ export async function getPushNotificationStatus(): Promise<PushNotificationStatu
   }
 
   const { receive } = await PushNotifications.checkPermissions();
-  return { supported: true, permission: receive };
+  let registered = false;
+  try {
+    const raw = await preferencesStorage.getItem(PRIVACY_STATE_KEY);
+    const state = raw ? JSON.parse(raw) as PushPrivacyState : null;
+    registered = state?.status === "enabled" && state.ownerId === getSessionSnapshot()?.userId;
+  } catch { /* Unknown cleanup state is not proof of registration. */ }
+  return { supported: true, permission: receive, registered };
 }
 
 export async function enableServerPushNotifications() {
@@ -69,14 +76,21 @@ export async function enableServerPushNotifications() {
   const registered = await privacy.enable(owner.userId, async (assertActive) => {
     let { receive } = await PushNotifications.checkPermissions();
     if (receive === "prompt" || receive === "prompt-with-rationale") {
+      reportPermission("permission-requested", owner.userId);
       ({ receive } = await PushNotifications.requestPermissions());
     }
     assertActive();
     assertSessionOwner(owner.userId);
+    reportPermission(receive === "granted" ? "permission-granted" : "permission-denied", owner.userId);
     if (receive !== "granted") return false;
     return registerForOwner(owner.userId, assertActive);
   });
   return { status: registered ? "registered" : "denied" } as const;
+}
+
+function reportPermission(action: string, ownerId: string) {
+  void fetchWithPinnedSession("notifications/events", { method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ kind: "permission", action }) }, ownerId).catch(() => {});
 }
 
 export async function syncServerPushRegistration() {
@@ -224,10 +238,10 @@ async function configurePushChannel() {
   await PushNotifications.createChannel({
     id: TUTI_SERVICE_PUSH_CHANNEL_ID,
     name: "Tuti 소식",
-    description: "문의 답변처럼 사용자가 기다리는 소식을 알려드려요.",
-    importance: 4,
+    description: "함께 채우기 소식과 오늘의 마디 기록 알림을 받아요.",
+    importance: 3,
     visibility: 1,
-    vibration: true,
+    vibration: false,
     lights: true,
     lightColor: "#C7EA86",
   });

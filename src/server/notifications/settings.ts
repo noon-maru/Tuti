@@ -10,13 +10,16 @@ export async function readNotificationSettings(userId: string) {
 export async function saveNotificationSettings(userId: string, input: NotificationSettings) {
   await prisma.$transaction(async tx => {
     await tx.$queryRaw`SELECT id FROM users WHERE id=${userId} FOR UPDATE`;
+    const [previous] = await tx.$queryRaw<{ news: boolean; reminder: boolean }[]>`SELECT news_enabled AS news,reminder_enabled AS reminder FROM notification_preferences WHERE user_id=${userId}`;
     await tx.$executeRaw`INSERT INTO notification_preferences (user_id,news_enabled,reminder_enabled,reminder_time,time_zone)
       VALUES (${userId},${input.newsEnabled},${input.reminderEnabled},${input.reminderTime},${input.timeZone})
       ON CONFLICT (user_id) DO UPDATE SET news_enabled=EXCLUDED.news_enabled,reminder_enabled=EXCLUDED.reminder_enabled,reminder_time=EXCLUDED.reminder_time,time_zone=EXCLUDED.time_zone,updated_at=CURRENT_TIMESTAMP`;
     // Never deliver an old queued event after switching a category off and back on.
     await tx.$executeRaw`UPDATE notification_jobs SET consumed_at=CURRENT_TIMESTAMP WHERE user_id=${userId} AND consumed_at IS NULL
       AND ((${!input.newsEnabled} AND kind<>'madi-reminder') OR (${!input.reminderEnabled} AND kind='madi-reminder'))`;
-    await tx.$executeRaw`INSERT INTO notification_events(id,user_id,kind,action) VALUES (${randomUUID()},${userId},'settings',${input.newsEnabled || input.reminderEnabled ? "opt-in" : "disabled"})`;
+    for (const [kind, before, after] of [["news", previous?.news ?? false, input.newsEnabled], ["reminder", previous?.reminder ?? false, input.reminderEnabled]] as const) {
+      if (before !== after) await tx.$executeRaw`INSERT INTO notification_events(id,user_id,kind,action) VALUES (${randomUUID()},${userId},${kind},${after ? "opt-in" : "disabled"})`;
+    }
   });
   return input;
 }

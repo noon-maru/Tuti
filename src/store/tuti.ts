@@ -4,7 +4,6 @@ import {
   getKoreanDateKey,
   getKoreanDateKeyAfterDays,
 } from "@/lib/date/koreanDate";
-import type { DailyNotificationStyle } from "@/features/tuti/notifications/localNotifications";
 import { preferencesStorage } from "@/lib/storage/preferencesStorage";
 import type { TutiPlace } from "@/lib/recommendations";
 import type { DepartureRouteMode } from "@/shared/api/departurePlan";
@@ -64,13 +63,6 @@ export type DailyRecommendationSnapshot = {
   places: TutiPlace[];
 };
 
-export type NotificationPreferences = {
-  dailyReminderEnabled: boolean;
-  dailyReminderTime: string;
-  dailyReminderStyle?: DailyNotificationStyle;
-  inquiryReplyEnabled: boolean;
-};
-
 export type CardDisplayPreferences = {
   showPlaceName: boolean;
   showPublicTransitTime: boolean;
@@ -100,7 +92,6 @@ type TutiState = {
   dailyCheckInSnoozedUntil?: string;
   pendingDeparture?: PendingDeparture;
   savedDeparturePlaces: SavedDeparturePlace[];
-  notificationPreferences: NotificationPreferences;
   cardDisplayPreferences: CardDisplayPreferences;
   setAnswer: <Key extends keyof IntakeAnswers>(
     key: Key,
@@ -147,9 +138,6 @@ type TutiState = {
   deferPendingDeparture: () => void;
   addSavedDeparturePlace: (place: SavedDeparturePlaceInput) => void;
   removeSavedDeparturePlace: (placeId: string) => void;
-  setNotificationPreferences: (
-    preferences: NotificationPreferences,
-  ) => void;
   setCardDisplayPreferences: (
     preferences: CardDisplayPreferences,
   ) => void;
@@ -185,12 +173,6 @@ export const useTutiStore = create<TutiState>()(
       dailyCheckInSnoozedUntil: undefined,
       pendingDeparture: undefined,
       savedDeparturePlaces: [],
-      notificationPreferences: {
-        dailyReminderEnabled: false,
-        dailyReminderTime: "10:00",
-        dailyReminderStyle: "quiet",
-        inquiryReplyEnabled: false,
-      },
       cardDisplayPreferences: {
         showPlaceName: true,
         showPublicTransitTime: true,
@@ -444,8 +426,6 @@ export const useTutiStore = create<TutiState>()(
             (place) => place.placeId !== placeId,
           ),
         })),
-      setNotificationPreferences: (notificationPreferences) =>
-        set({ notificationPreferences }),
       setCardDisplayPreferences: (cardDisplayPreferences) =>
         set({ cardDisplayPreferences }),
       finishEntry: () => set({ entryStage: "complete" }),
@@ -512,7 +492,6 @@ export const useTutiStore = create<TutiState>()(
         dailyCheckInSnoozedUntil: state.dailyCheckInSnoozedUntil,
         pendingDeparture: state.pendingDeparture,
         savedDeparturePlaces: state.savedDeparturePlaces,
-        notificationPreferences: state.notificationPreferences,
         cardDisplayPreferences: state.cardDisplayPreferences,
         activePlaceId: state.activePlaceId,
         activeJournalEntryId: state.activeJournalEntryId,

@@ -19,6 +19,7 @@ import { HarumadiComments } from "@/features/tuti/components/HarumadiComments";
 import { HarumadiOrderEditor } from "@/features/tuti/components/HarumadiOrderEditor";
 import { changeTogether } from "@/lib/harumadiTogether";
 import { useLifecycleView } from "../hooks/useLifecycleView";
+import { useNotificationPresence } from "../hooks/useNotificationPresence";
 import { createHarumadi, deleteHarumadi, harumadiPath, updateHarumadi, reorderHarumadi } from "@/lib/harumadis";
 import { orderByEntryIds } from "@/shared/harumadi/order";
 import { authoritativeReadError, fetchHarumadiContent, loadCachedHarumadi, type HarumadiRead } from "@/lib/harumadiContent";
@@ -78,6 +79,7 @@ function HarumadiEditor({ owner, initial, read, verified, refreshing, onRefresh,
   const [settings, setSettings] = useState<HarumadiSettings>(initial ?? { title: "우리의 작은 하루", coverStyle: "white-plain" });
   const [mode, setMode] = useState<HarumadiOpeningMode | "selection" | "pdf" | "comments" | "order">(initial ? initialHarumadiMode(initial, initialMode) : "settings");
   useLifecycleView("book_opened", "book", harumadi?.id, Boolean(harumadi && mode === "pages"));
+  useNotificationPresence(harumadi?.id ?? null, false, Boolean(harumadi && verified));
   const [selected, setSelected] = useState(initial?.entryIds ?? []);
   const [orderedIds, setOrderedIds] = useState(initial?.entryIds ?? []);
   const [confirmed, setConfirmed] = useState(false);

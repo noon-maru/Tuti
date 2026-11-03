@@ -2,9 +2,16 @@ import { prisma } from "@/server/db/prisma";
 import { createPreflightResponse } from "@/server/http/cors";
 import { harumadiRequest, readHarumadiBody } from "@/server/harumadi/http";
 import { HarumadiError } from "@/server/harumadi/errors";
+import { randomUUID } from "node:crypto";
+import { consumeRateLimit } from "@/server/http/rateLimit";
 export const runtime = "nodejs";
 export const POST = (request: Request) => harumadiRequest(request, async user => {
   const input = await readHarumadiBody(request) as Record<string, unknown>;
+  if (input?.kind === "permission" && ["permission-requested", "permission-granted", "permission-denied"].includes(String(input.action))) {
+    if (!consumeRateLimit(user, { id: "notification-permission", limit: 12, windowMs: 60_000 }).allowed) throw new HarumadiError("잠시 후 다시 시도해주세요.", 429);
+    await prisma.$executeRaw`INSERT INTO notification_events(id,user_id,kind,action) VALUES (${randomUUID()},${user},'permission',${String(input.action)})`;
+    return { ok: true };
+  }
   if (!input || typeof input.notificationId !== "string" || input.notificationId.length > 200 || !["opened", "written"].includes(String(input.action))) throw new HarumadiError("알림을 확인해주세요.");
   await prisma.$executeRaw`INSERT INTO notification_events(id,user_id,kind,action)
     SELECT ${`${input.action}:${input.notificationId}`},${user},j.kind,${String(input.action)} FROM notification_jobs j

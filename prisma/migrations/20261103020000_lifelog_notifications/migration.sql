@@ -37,7 +37,7 @@ CREATE TABLE notification_events (
  id text PRIMARY KEY,
  user_id text NOT NULL REFERENCES users(id) ON DELETE CASCADE,
  kind text NOT NULL,
- action text NOT NULL CHECK(action IN ('opened','written','opt-in','denied','disabled')),
+ action text NOT NULL CHECK(action IN ('opened','written','opt-in','denied','disabled','permission-requested','permission-granted','permission-denied')),
  created_at timestamp(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 CREATE INDEX notification_events_time ON notification_events(created_at);

@@ -1,89 +1,12 @@
 "use client";
+import { useEffect } from "react";
+import { disableDailyTutiReminder, supportsLocalNotifications } from "../notifications/localNotifications";
 
-import { LocalNotifications } from "@capacitor/local-notifications";
-import type { PluginListenerHandle } from "@capacitor/core";
-import { useRouter } from "next/navigation";
-import { useEffect, useRef } from "react";
-import {
-  normalizeDailyNotificationStyle,
-  supportsLocalNotifications,
-  syncDailyTutiReminder,
-} from "@/features/tuti/notifications/localNotifications";
-import { useTutiStore } from "@/store/tuti";
-
+// Remove the previous recurring outing reminder on upgrade. New writing reminders
+// are server scheduled, so writing on another device also suppresses today's nudge.
 export function LocalNotificationHandler() {
-  const router = useRouter();
-  const hasHydrated = useTutiStore((state) => state.hasHydrated);
-  const entryRecord = useTutiStore((state) => state.entryRecord);
-  const notificationPreferences = useTutiStore(
-    (state) => state.notificationPreferences,
-  );
-  const requestDailyCheckIn = useTutiStore(
-    (state) => state.requestDailyCheckIn,
-  );
-  const lastSyncedPreference = useRef<string | null>(null);
-
   useEffect(() => {
-    if (!supportsLocalNotifications()) return;
-
-    let disposed = false;
-    let listener: PluginListenerHandle | null = null;
-
-    void LocalNotifications.addListener(
-      "localNotificationActionPerformed",
-      ({ notification }) => {
-        if (disposed || notification.extra?.action !== "daily-check-in") {
-          return;
-        }
-
-        if (entryRecord) {
-          requestDailyCheckIn();
-          router.replace("/explore");
-          return;
-        }
-
-        router.replace("/explore");
-      },
-    ).then((handle) => {
-      if (disposed) {
-        void handle.remove();
-        return;
-      }
-
-      listener = handle;
-    });
-
-    return () => {
-      disposed = true;
-      void listener?.remove();
-    };
-  }, [entryRecord, requestDailyCheckIn, router]);
-
-  useEffect(() => {
-    if (!hasHydrated || !supportsLocalNotifications()) return;
-
-    const preferenceKey = [
-      notificationPreferences.dailyReminderEnabled,
-      notificationPreferences.dailyReminderTime,
-      normalizeDailyNotificationStyle(
-        notificationPreferences.dailyReminderStyle,
-      ),
-    ].join(":");
-
-    if (lastSyncedPreference.current === preferenceKey) return;
-    lastSyncedPreference.current = preferenceKey;
-
-    void syncDailyTutiReminder(
-      notificationPreferences.dailyReminderEnabled,
-      notificationPreferences.dailyReminderTime,
-      normalizeDailyNotificationStyle(
-        notificationPreferences.dailyReminderStyle,
-      ),
-    ).catch((error) => {
-      lastSyncedPreference.current = null;
-      console.warn("로컬 알림 예약을 동기화하지 못했습니다.", error);
-    });
-  }, [hasHydrated, notificationPreferences]);
-
+    if (supportsLocalNotifications()) void disableDailyTutiReminder().catch(() => {});
+  }, []);
   return null;
 }

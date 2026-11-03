@@ -128,7 +128,7 @@ export function SettingsScreen({
                 <RowIcon $tone="bridge"><BellRing aria-hidden="true" /></RowIcon>
                 <RowCopy>
                   <strong>알림 설정</strong>
-                  <span>오늘의 Tuti와 문의 답변 알림을 정해요.</span>
+                  <span>함께 채우기 소식과 마디 기록 알림을 정해요.</span>
                 </RowCopy>
                 <ChevronRight aria-hidden="true" />
               </SettingsRow>

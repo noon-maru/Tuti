@@ -11,12 +11,15 @@ import { harumadiPath } from "@/lib/harumadis";
 import { useSession } from "@/features/tuti/hooks/useSession";
 import { useLifecycleView } from "../hooks/useLifecycleView";
 import { trackLifecycle } from "@/lib/lifecycle";
+import { useNotificationPresence } from "../hooks/useNotificationPresence";
+import { notificationRequest } from "@/lib/notificationSettings";
 
 export function JournalCreateFlow() {
   const router = useRouter();
   const ownerId = useSession()?.userId;
   const searchParams = useSearchParams();
   const harumadiId = searchParams.get("harumadiId");
+  useNotificationPresence(harumadiId, true);
   const savedEntryId = useRef<string | null>(null);
   const request = useRef<{ hash: string; id: string } | null>(null);
   const { addEntry, entries, isSuccess } = useTutiJournalEntries();
@@ -58,6 +61,8 @@ export function JournalCreateFlow() {
       return entry;
     }}
     onSaved={entry => {
+      const notificationId = searchParams.get("notificationId");
+      if (source === "notification" && notificationId) void notificationRequest("notifications/events", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ notificationId, action: "written" }) }).catch(() => {});
       savedEntryId.current = entry.id;
       setActiveJournalEntry(entry.id);
     }}

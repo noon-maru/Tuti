@@ -15,6 +15,8 @@ import { SERVICE_TERMS_REQUIRED_EVENT, ServiceTermsSessionExpiredError } from "@
 import type { ServiceTermsOffer } from "@/shared/legal/serviceTerms";
 import { getLocationTerms, getLocationTermsVersion } from "@/shared/location/terms";
 import { rememberHarumadiInviteUrl } from "@/lib/harumadiInviteIntent";
+import { supportsServerPushNotifications } from "@/features/tuti/notifications/pushNotifications";
+import { optInInitialNotifications } from "@/lib/notificationSettings";
 
 // 오버레이가 아니라 진입 화면이다. 통과 전에는 children과 그 안의 effect를 마운트하지 않는다.
 export function InitialServiceTermsGate({ children, rightsChildren, renderContent = content => content }: {
@@ -197,6 +199,8 @@ function ConsentForm({ offer, onRead, onAccepted, onRefresh, onSubmittingChange 
   const [ageConfirmed, setAgeConfirmed] = useState(false);
   const [termsConfirmed, setTermsConfirmed] = useState(false);
   const [locationConfirmed, setLocationConfirmed] = useState(false);
+  const [notificationConfirmed, setNotificationConfirmed] = useState(false);
+  const nativeNotifications = supportsServerPushNotifications();
   const [saving, setSaving] = useState(false);
   const [confirming, setConfirming] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -228,6 +232,10 @@ function ConsentForm({ offer, onRead, onAccepted, onRefresh, onSubmittingChange 
       // 선택 동의 저장 실패로 필수 동의를 마친 사용자의 시작을 막지 않는다.
       // 위치 사용 시에는 서버에 저장된 동의 상태를 다시 확인한다.
       if (result.locationError) console.warn("선택 위치 동의를 저장하지 못했습니다. 위치 사용 시 다시 확인합니다.");
+      if (notificationConfirmed) {
+        try { await optInInitialNotifications(); }
+        catch { console.warn("선택 알림 설정을 마치지 못했습니다. 설정에서 다시 켤 수 있습니다."); }
+      }
       if (active.current) onAccepted(result.state);
     } catch (failure) {
       if (active.current && !controller.signal.aborted) {
@@ -259,6 +267,10 @@ function ConsentForm({ offer, onRead, onAccepted, onRefresh, onSubmittingChange 
         <ReadButton type="button" aria-label="위치기반서비스 이용약관 보기" disabled={saving} onClick={() => onRead("location")}><ChevronRight size={18} aria-hidden="true" /></ReadButton>
       </AgreementRow>
       <OptionalHint>위치 동의 없이도 마디를 남길 수 있어요.</OptionalHint>
+      {nativeNotifications && <>
+        <CheckRow><input type="checkbox" checked={notificationConfirmed} disabled={saving} onChange={event => setNotificationConfirmed(event.target.checked)} /><span>알림 받기<small>선택</small></span></CheckRow>
+        <OptionalHint>함께 채우기 소식과 매일 저녁 7시 기록 알림을 받아요.<br />설정에서 종류와 시간을 바꿀 수 있어요.</OptionalHint>
+      </>}
     </AgreementGroup>
     {error && <ErrorMessage role="alert">{error}<Button type="button" $tone="text" $size="compact" disabled={saving} onClick={onRefresh}>최신 약관 확인</Button></ErrorMessage>}
     <Button type="submit" $tone="secondary" $size="large" $fullWidth disabled={saving}>{confirming ? "필수 항목을 확인하고 있어요" : saving ? "동의를 저장하고 있어요" : ageConfirmed && termsConfirmed ? "동의하고 시작하기" : "필수 항목에 동의하고 시작하기"}</Button>

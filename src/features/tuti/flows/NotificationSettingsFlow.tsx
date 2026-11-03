@@ -1,288 +1,55 @@
 "use client";
-
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
-import {
-  disableDailyTutiReminder,
-  enableDailyTutiReminder,
-  getLocalNotificationStatus,
-  normalizeDailyNotificationStyle,
-  scheduleNotificationPreview,
-  supportsLocalNotifications,
-  type DailyNotificationStyle,
-  type LocalNotificationStatus,
-} from "@/features/tuti/notifications/localNotifications";
+import { useEffect, useRef, useState } from "react";
 import { NotificationSettingsScreen } from "@/features/tuti/screens/notifications/NotificationSettingsScreen";
-import { useTutiStore } from "@/store/tuti";
-import {
-  disableServerPushNotifications,
-  enableServerPushNotifications,
-  getPushNotificationStatus,
-  supportsServerPushNotifications,
-  type PushNotificationStatus,
-} from "@/features/tuti/notifications/pushNotifications";
+import { readNotificationSettings, saveNotificationSettings } from "@/lib/notificationSettings";
+import { DEFAULT_NOTIFICATION_SETTINGS, type NotificationSettings } from "@/shared/notifications/preferences";
+import { disableDailyTutiReminder } from "../notifications/localNotifications";
+import { enableServerPushNotifications, disableServerPushNotifications, getPushNotificationStatus, supportsServerPushNotifications, type PushNotificationStatus } from "../notifications/pushNotifications";
+import { subscribeToSession } from "@/lib/auth/session";
 
 export function NotificationSettingsFlow() {
   const router = useRouter();
-  const preferences = useTutiStore((state) => state.notificationPreferences);
-  const setPreferences = useTutiStore(
-    (state) => state.setNotificationPreferences,
-  );
-  const [status, setStatus] = useState<LocalNotificationStatus | null>(() =>
-    supportsLocalNotifications()
-      ? null
-      : { supported: false, permission: "unsupported", scheduled: false },
-  );
-  const [busy, setBusy] = useState(false);
+  const [settings, setSettings] = useState(DEFAULT_NOTIFICATION_SETTINGS);
+  const [status, setStatus] = useState<PushNotificationStatus | null>(null);
+  const [busy, setBusy] = useState(true);
+  const [loaded, setLoaded] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
-  const [pushStatus, setPushStatus] = useState<PushNotificationStatus | null>(
-    () =>
-      supportsServerPushNotifications()
-        ? null
-        : { supported: false, permission: "unsupported" },
-  );
-  const dailyReminderStyle = normalizeDailyNotificationStyle(
-    preferences.dailyReminderStyle,
-  );
-
-  const refreshStatus = async () => {
-    const nextStatus = await getLocalNotificationStatus();
-    setStatus(nextStatus);
-    return nextStatus;
-  };
-
+  const saving = useRef(false);
   useEffect(() => {
-    let disposed = false;
-
-    const refreshVisibleStatus = () => {
-      if (document.visibilityState !== "visible") return;
-
-      void Promise.all([
-        getLocalNotificationStatus(),
-        getPushNotificationStatus(),
-      ])
-        .then(([nextStatus, nextPushStatus]) => {
-          if (!disposed) {
-            setStatus(nextStatus);
-            setPushStatus(nextPushStatus);
-          }
-        })
-        .catch(() => undefined);
+    let active = true, generation = 0;
+    const refresh = () => {
+      if (saving.current) return;
+      const version = ++generation;
+      setLoaded(false); setBusy(true);
+      void Promise.all([readNotificationSettings(), getPushNotificationStatus()]).then(([next, permission]) => {
+        if (active && version === generation) { setSettings(next); setStatus(permission); setLoaded(true); setMessage(null); }
+      }).catch(() => { if (active && version === generation) setMessage("알림 설정을 불러오지 못했어요. 다시 열어주세요."); })
+        .finally(() => { if (active && version === generation) setBusy(false); });
     };
-
-    void Promise.all([
-      getLocalNotificationStatus(),
-      getPushNotificationStatus(),
-    ])
-      .then(([nextStatus, nextPushStatus]) => {
-        if (!disposed) {
-          setStatus(nextStatus);
-          setPushStatus(nextPushStatus);
-        }
-      })
-      .catch(() => {
-        if (!disposed) {
-          setMessage("알림 상태를 확인하지 못했어요. 잠시 후 다시 시도해주세요.");
-        }
-      });
-    window.addEventListener("focus", refreshVisibleStatus);
-    document.addEventListener("visibilitychange", refreshVisibleStatus);
-
-    return () => {
-      disposed = true;
-      window.removeEventListener("focus", refreshVisibleStatus);
-      document.removeEventListener("visibilitychange", refreshVisibleStatus);
-    };
+    refresh();
+    const visible = () => { if (document.visibilityState === "visible") refresh(); };
+    const unsubscribe = subscribeToSession(refresh);
+    document.addEventListener("visibilitychange", visible);
+    return () => { active = false; unsubscribe(); document.removeEventListener("visibilitychange", visible); };
   }, []);
-
-  const changeInquiryReplyEnabled = async (enabled: boolean) => {
-    setBusy(true);
-    setMessage(null);
-
+  const change = async (patch: Partial<NotificationSettings>) => {
+    if (!loaded || saving.current) return;
+    saving.current = true; setBusy(true); setMessage(null);
     try {
-      if (!enabled) {
-        // 네트워크/네이티브 정리가 실패해도 UI의 재등록 의도는 먼저 철회한다.
-        setPreferences({ ...preferences, inquiryReplyEnabled: false });
-        await disableServerPushNotifications();
-        setMessage("문의 답변 알림을 껐어요.");
-      } else {
-        const result = await enableServerPushNotifications();
-        if (result.status === "registered") {
-          setPreferences({ ...preferences, inquiryReplyEnabled: true });
-          setMessage("문의에 답변이 오면 알려드릴게요.");
-        } else if (result.status === "denied") {
-          setMessage("기기에서 알림 권한을 허용해야 답변 알림을 받을 수 있어요.");
-        }
+      const next = { ...settings, ...patch, timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone || settings.timeZone };
+      if ((patch.newsEnabled === true || patch.reminderEnabled === true) && (await enableServerPushNotifications()).status !== "registered") {
+        setMessage("기기 설정에서 Tuti 알림을 허용해주세요."); return;
       }
-      setPushStatus(await getPushNotificationStatus());
-    } catch (error) {
-      console.warn("문의 답변 알림 설정을 변경하지 못했습니다.", error);
-      setMessage(
-        error instanceof Error
-          ? error.message
-          : "문의 답변 알림을 저장하지 못했어요. 잠시 후 다시 시도해주세요.",
-      );
-    } finally {
-      setBusy(false);
-    }
+      const saved = await saveNotificationSettings(next);
+      setSettings(saved);
+      await disableDailyTutiReminder();
+      if (!saved.newsEnabled && !saved.reminderEnabled) await disableServerPushNotifications();
+      window.dispatchEvent(new Event("tuti-notification-settings-changed"));
+      setMessage("알림 설정을 저장했어요.");
+    } catch (error) { setMessage(error instanceof Error ? error.message : "알림 설정을 저장하지 못했어요."); }
+    finally { setStatus(await getPushNotificationStatus().catch(() => null)); saving.current = false; setBusy(false); }
   };
-
-  const changeEnabled = async (enabled: boolean) => {
-    setBusy(true);
-    setMessage(null);
-
-    try {
-      if (!enabled) {
-        await disableDailyTutiReminder();
-        setPreferences({
-          ...preferences,
-          dailyReminderEnabled: false,
-        });
-        setMessage("오늘의 Tuti 알림을 껐어요.");
-        await refreshStatus();
-        return;
-      }
-
-      const result = await enableDailyTutiReminder(
-        preferences.dailyReminderTime,
-        dailyReminderStyle,
-      );
-
-      if (result.status === "scheduled") {
-        setPreferences({
-          ...preferences,
-          dailyReminderEnabled: true,
-        });
-        setMessage(
-          dailyReminderStyle === "prominent"
-            ? "정해둔 시간에 바로 알아볼 수 있게 알려드릴게요."
-            : "정해둔 시간에 조용히 알려드릴게요.",
-        );
-      } else if (result.status === "denied") {
-        setMessage("기기에서 알림 권한을 허용해야 알림을 받을 수 있어요.");
-      }
-
-      await refreshStatus();
-    } catch (error) {
-      console.warn("오늘의 Tuti 알림 설정을 변경하지 못했습니다.", error);
-      setMessage("알림 설정을 저장하지 못했어요. 잠시 후 다시 시도해주세요.");
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  const changeTime = async (time: string) => {
-    if (!time) return;
-
-    setBusy(true);
-    setMessage(null);
-
-    try {
-      if (preferences.dailyReminderEnabled) {
-        const result = await enableDailyTutiReminder(
-          time,
-          dailyReminderStyle,
-        );
-        if (result.status !== "scheduled") {
-          setMessage("알림 시간을 바꾸지 못했어요. 기기 권한을 확인해주세요.");
-          await refreshStatus();
-          return;
-        }
-      }
-
-      setPreferences({
-        ...preferences,
-        dailyReminderTime: time,
-      });
-      setMessage(`${formatReminderTime(time)}으로 알림 시간을 바꿨어요.`);
-      await refreshStatus();
-    } catch (error) {
-      console.warn("오늘의 Tuti 알림 시간을 변경하지 못했습니다.", error);
-      setMessage("알림 시간을 저장하지 못했어요. 잠시 후 다시 시도해주세요.");
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  const changeStyle = async (style: DailyNotificationStyle) => {
-    setBusy(true);
-    setMessage(null);
-
-    try {
-      if (preferences.dailyReminderEnabled) {
-        const result = await enableDailyTutiReminder(
-          preferences.dailyReminderTime,
-          style,
-        );
-        if (result.status !== "scheduled") {
-          setMessage("알림 방식을 바꾸지 못했어요. 기기 권한을 확인해주세요.");
-          await refreshStatus();
-          return;
-        }
-      }
-
-      setPreferences({
-        ...preferences,
-        dailyReminderStyle: style,
-      });
-      setMessage(
-        style === "prominent"
-          ? "화면에서 바로 알아볼 수 있게 알려드릴게요."
-          : "알림함에 조용히 남겨드릴게요.",
-      );
-      await refreshStatus();
-    } catch (error) {
-      console.warn("오늘의 Tuti 알림 방식을 변경하지 못했습니다.", error);
-      setMessage("알림 방식을 저장하지 못했어요. 잠시 후 다시 시도해주세요.");
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  const preview = async () => {
-    setBusy(true);
-    setMessage(null);
-
-    try {
-      const result = await scheduleNotificationPreview(dailyReminderStyle);
-      setMessage(
-        result.status === "scheduled"
-          ? "앱을 잠시 내려두면 5초 뒤 테스트 알림이 도착해요."
-          : "기기에서 알림 권한을 허용해주세요.",
-      );
-      await refreshStatus();
-    } catch (error) {
-      console.warn("테스트 알림을 예약하지 못했습니다.", error);
-      setMessage("테스트 알림을 예약하지 못했어요.");
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  return (
-    <NotificationSettingsScreen
-      enabled={preferences.dailyReminderEnabled}
-      time={preferences.dailyReminderTime}
-      dailyReminderStyle={dailyReminderStyle}
-      status={status}
-      inquiryReplyEnabled={preferences.inquiryReplyEnabled}
-      pushStatus={pushStatus}
-      busy={busy}
-      message={message}
-      onBack={() => router.replace("/settings")}
-      onEnabledChange={changeEnabled}
-      onTimeChange={changeTime}
-      onStyleChange={changeStyle}
-      onPreview={preview}
-      onInquiryReplyEnabledChange={changeInquiryReplyEnabled}
-    />
-  );
-}
-
-function formatReminderTime(time: string) {
-  const [hourText, minuteText] = time.split(":");
-  const hour = Number(hourText);
-  const period = hour < 12 ? "오전" : "오후";
-  const displayHour = hour % 12 || 12;
-  return `${period} ${displayHour}:${minuteText}`;
+  return <NotificationSettingsScreen settings={settings} supported={supportsServerPushNotifications()} status={status} busy={busy || !loaded} message={message}
+    onBack={() => router.back()} onChange={change} />;
 }

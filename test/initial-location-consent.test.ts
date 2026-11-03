@@ -94,12 +94,14 @@ test("위치 선택은 시작 버튼의 필수 조건이 아니며 약관 열람
   assert.doesNotMatch(readFileSync("src/lib/initialConsent.ts", "utf8"), /requestDeviceLocation|requestPermissions|getCurrentPosition/);
 });
 
-test("동의 화면은 세 항목·전문 보기·단일 동의 설명만 두고 반복 안내를 제거한다", () => {
+test("동의 화면은 필수 두 항목과 위치·앱 알림 선택을 간결하게 표시한다", () => {
   const gate = readFileSync("src/features/legal/InitialServiceTermsGate.tsx", "utf8");
   assert.match(gate, /"이용약관 동의"/);
   assert.match(gate, /aria-label="서비스 이용약관과 중요 내용 보기"/);
   assert.match(gate, /aria-label="위치기반서비스 이용약관 보기"/);
-  assert.equal((gate.match(/type="checkbox"/g) ?? []).length, 3);
+  assert.equal((gate.match(/type="checkbox"/g) ?? []).length, 4);
+  assert.match(gate, /함께 채우기 소식과 매일 저녁 7시 기록 알림/);
+  assert.match(gate, /if \(notificationConfirmed\)/);
   assert.match(gate, /서비스 이용약관과 중요 내용에 동의해요/);
   assert.match(gate, /href="\/legal\/privacy"/);
   assert.match(gate, /href="\/login"/);

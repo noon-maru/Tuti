@@ -9,6 +9,7 @@ import { changeTogether, fetchTogether, shareHarumadiInvite } from "@/lib/haruma
 import { HarumadiSafetyActions } from "./HarumadiSafetyActions";
 import { HarumadiTogetherConfirmDialog, type TogetherConfirmationAction } from "./HarumadiTogetherConfirmDialog";
 import type { TutiJournalEntry } from "@/shared/api/journal";
+import { HarumadiNotificationToggle } from "./HarumadiNotificationToggle";
 export function HarumadiTogetherPanel({ owner, bookId, onExit, entries = [] }: { owner: string; bookId: string; onExit: () => void; entries?: TutiJournalEntry[] }) {
   const client = useQueryClient(), router = useRouter();
   const query = useQuery({ queryKey: ["harumadi-together", owner, bookId], queryFn: () => fetchTogether(owner, bookId), retry: false });
@@ -60,6 +61,7 @@ export function HarumadiTogetherPanel({ owner, bookId, onExit, entries = [] }: {
     <Disclosure>이 책에 담긴 마디는 현재·앞으로 참여하는 사람들에게 보여요. 다른 하루마디와 개인 마디 목록은 공유되지 않아요. 참여자는 PDF 사본을 저장할 수 있어요.</Disclosure>
     {query.isPending ? <p role="status">함께할 사람을 확인하고 있어요.</p> : query.isError ? <p role="alert">{query.error.message}<TextButton onClick={() => void query.refetch()}>다시 확인하기</TextButton></p> : <>
       <List aria-label="함께 채우는 사람">{query.data.participants.map(person => <li key={person.userId}><Avatar aria-hidden="true">{person.name.slice(0, 1)}</Avatar><span>{person.name}<small>{person.owner ? "만든 사람" : "함께 채우는 사람"}</small></span>{query.data.owner && !person.owner && <TextButton disabled={busy} onClick={() => requestConfirmation("remove-member", person.userId)}>내보내기</TextButton>}</li>)}</List>
+      {query.data.shared && <HarumadiNotificationToggle owner={owner} bookId={bookId} />}
       {query.data.owner ? <><PrimaryButton disabled={busy} onClick={() => void action("invite")}><UserPlus size={18} />초대 링크 보내기</PrimaryButton><small>한 링크로 한 명이 참여해요. 여러 명에게는 각각 보내주세요. 7일 동안 유효하며 전달받은 사람도 수락할 수 있어요.</small>
         {query.data.invites.length > 0 && <List aria-label="수락 대기 중인 초대">{query.data.invites.map((invite, index) => <li key={invite.id}><span>수락 대기 중인 초대 {index + 1}<small>{new Date(invite.expiresAt).toLocaleDateString("ko-KR")} 만료</small></span><TextButton disabled={busy} onClick={() => void action("revoke-invite", invite.id)}>취소</TextButton></li>)}</List>}</>
         : <Danger disabled={busy} onClick={() => requestConfirmation("leave")}>함께 채우기 나가기</Danger>}
