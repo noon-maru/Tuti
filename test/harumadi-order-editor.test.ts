@@ -42,6 +42,7 @@ test("읽기 화면은 소유자·온라인 상태에서 순서 편집을 열고
   assert.match(editor, /onPointerCancel=\{event => finish\(true, event.pointerId\)\}/);
   assert.match(editor, /onLostPointerCapture=\{event => finish\(true, event.pointerId\)\}/);
   assert.match(editor, /event.key === "ArrowUp"/);
+  assert.match(editor, /const index = positionIds.indexOf\(entry.id\)/);
   const drag = readFileSync("src/features/tuti/hooks/useHarumadiOrderDrag.ts", "utf8");
   assert.match(drag, /list.setPointerCapture\(event.pointerId\)/);
   assert.match(drag, /node.style.transform = translation/);

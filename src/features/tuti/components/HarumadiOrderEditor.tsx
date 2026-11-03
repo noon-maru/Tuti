@@ -18,7 +18,7 @@ export function HarumadiOrderEditor({ entries, ids, onChange, disabled, scrollRe
   disabled: boolean;
   scrollRef: RefObject<HTMLDivElement | null>;
 }) {
-  const { dragging, movingId, renderIds, announcement, listRef, registerRow, move, pointerDown, pointerMove, finish } =
+  const { dragging, movingId, renderIds, positionIds, announcement, listRef, registerRow, move, pointerDown, pointerMove, finish } =
     useHarumadiOrderDrag({ ids, onChange, disabled, scrollRef });
   const ordered = orderByEntryIds(entries, renderIds);
 
@@ -28,7 +28,7 @@ export function HarumadiOrderEditor({ entries, ids, onChange, disabled, scrollRe
     <List ref={listRef} aria-label="하루마디에 담긴 마디" onPointerMove={pointerMove}
       onPointerUp={event => finish(false, event.pointerId)} onPointerCancel={event => finish(true, event.pointerId)} onLostPointerCapture={event => finish(true, event.pointerId)}>
       {ordered.map(entry => {
-        const index = ids.indexOf(entry.id);
+        const index = positionIds.indexOf(entry.id);
         return <Row ref={registerRow(entry.id)} key={entry.id} data-order-entry={entry.id} data-dragging={dragging === entry.id || undefined} data-moving={movingId === entry.id || undefined}>
         <Thumbnail>{entry.image ? <Image src={entry.image} alt="" fill unoptimized sizes="68px" /> : <TextThumbnail aria-hidden="true"><span>{entry.title || "남긴 하루"}</span>{entry.content.trim()}</TextThumbnail>}
           <Number aria-hidden="true">{String(index + 1).padStart(2, "0")}</Number>

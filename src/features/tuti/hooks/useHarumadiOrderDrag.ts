@@ -32,6 +32,7 @@ export function useHarumadiOrderDrag({ ids, onChange, disabled, scrollRef }: {
   const buttonTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [buttonPreview, setButtonPreview] = useState<{ ids: string[]; entryId: string } | null>(null);
   const [dragging, setDragging] = useState<string | null>(null);
+  const [dragPreviewIds, setDragPreviewIds] = useState<string[] | null>(null);
   const [announcement, setAnnouncement] = useState("");
 
   const capturePositions = useCallback(() => {
@@ -126,7 +127,7 @@ export function useHarumadiOrderDrag({ ids, onChange, disabled, scrollRef }: {
       pointer.current = null;
       const list = listRef.current;
       if (list?.hasPointerCapture(active.pointerId)) list.releasePointerCapture(active.pointerId);
-      queueMicrotask(() => { setDragging(null); setAnnouncement("목록이 바뀌어 드래그를 취소했어요."); });
+      queueMicrotask(() => { setDragging(null); setDragPreviewIds(null); setAnnouncement("목록이 바뀌어 드래그를 취소했어요."); });
     }
     for (const [id, node] of rows.current) {
       clearPreviewTransform(node);
@@ -145,6 +146,7 @@ export function useHarumadiOrderDrag({ ids, onChange, disabled, scrollRef }: {
     const target = dragOrderTarget(projected.map(slot => ({ ...slot, top: bounds.top + slot.top * scale, height: slot.height * scale })), active.entryId, centerY);
     if (target === active.previewIds.indexOf(active.entryId)) return;
     active.previewIds = moveEntry(active.previewIds, active.entryId, target);
+    setDragPreviewIds(active.previewIds);
     for (const slot of projectOrderSlots(active.previewIds, active.slots)) {
       if (slot.id === active.entryId) continue;
       const node = rows.current.get(slot.id);
@@ -210,6 +212,7 @@ export function useHarumadiOrderDrag({ ids, onChange, disabled, scrollRef }: {
       }
     }
     setDragging(null);
+    setDragPreviewIds(null);
     setAnnouncement(cancelled ? "드래그를 취소했어요." : `${active.previewIds.indexOf(active.entryId) + 1}번째로 옮겼어요.`);
     const list = listRef.current;
     if (list?.hasPointerCapture(active.pointerId)) list.releasePointerCapture(active.pointerId);
@@ -242,5 +245,6 @@ export function useHarumadiOrderDrag({ ids, onChange, disabled, scrollRef }: {
     return callback;
   }, []);
   return { listRef, registerRow, dragging, announcement, move, pointerDown, pointerMove, finish,
+    positionIds: dragPreviewIds ?? ids,
     renderIds: buttonPreview?.ids ?? ids, movingId: buttonPreview?.entryId ?? null };
 }

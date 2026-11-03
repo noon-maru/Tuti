@@ -19,7 +19,7 @@ function harness(reduced = false, scale = 1) {
   const same = (a: unknown[] | undefined, b: unknown[]) => a?.length === b.length && b.every((v, i) => Object.is(v, a[i]));
   type Hook = { listRef: { current: unknown }; registerRow: (id: string) => (node: unknown) => void;
     pointerDown: (event: unknown, id: string) => void; pointerMove: (event: unknown) => void;
-    finish: (cancel?: boolean, pointerId?: number) => void; move: (id: string, target: number) => void; renderIds: string[] };
+    finish: (cancel?: boolean, pointerId?: number) => void; move: (id: string, target: number) => void; renderIds: string[]; positionIds: string[] };
   const compiledModule = { exports: {} as { useHarumadiOrderDrag: (props: unknown) => Hook } };
   const source = ts.transpileModule(readFileSync("src/features/tuti/hooks/useHarumadiOrderDrag.ts", "utf8"), { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText;
   runInNewContext(source, { module: compiledModule, exports: compiledModule.exports, queueMicrotask,
@@ -95,8 +95,27 @@ function harness(reduced = false, scale = 1) {
     current = render();
   };
   return { drag, finish, point, arrow, finishButton, motions, nodes, updates, render,
+    get positionIds() { return current.positionIds; },
     get domIds() { return current.renderIds; }, get ids() { return ids; }, get pendingTimers() { return timers.size; } };
 }
+test("손을 놓기 전 표시 번호는 양쪽 마디의 예상 위치를 따르고 DOM과 저장 순서는 유지한다", () => {
+  for (const [id, target] of [["a", 1], ["b", 0]] as const) {
+    const h = harness(); h.drag(id, target);
+    assert.equal(h.positionIds.indexOf(id), target);
+    assert.equal(h.positionIds.join(","), "b,a");
+    assert.equal(h.domIds.join(","), "a,b");
+    assert.equal(h.updates.length, 0);
+    h.finish();
+    assert.equal(h.positionIds.join(","), "b,a");
+  }
+});
+test("드래그 취소와 방향 되돌리기는 표시 번호도 원래 순서로 돌린다", () => {
+  const cancelled = harness(); cancelled.drag("b", 0); cancelled.finish(true);
+  assert.equal(cancelled.positionIds.join(","), "a,b");
+  const reversed = harness(); reversed.drag("b", 0); reversed.point(120);
+  assert.equal(reversed.positionIds.join(","), "a,b");
+  assert.equal(reversed.updates.length, 0);
+});
 test("위로 끄는 동안 위 마디를 CSS로 아래에 이동시키고 DOM 순서는 건드리지 않는다", () => {
   const h = harness(); h.drag("b", 0);
   assert.equal(h.nodes.get("a")!.style.transform, "translate3d(0,120px,0)");
