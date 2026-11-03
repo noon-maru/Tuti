@@ -6,13 +6,13 @@ export function HarumadiNotificationToggle({ owner, bookId }: { owner: string; b
   const client = useQueryClient();
   const key = ["harumadi-notification", owner, bookId];
   const path = `harumadis/${encodeURIComponent(bookId)}/notifications`;
-  const query = useQuery({ queryKey: key, queryFn: () => notificationRequest<{ muted: boolean }>(path), retry: false });
+  const query = useQuery({ queryKey: key, queryFn: () => notificationRequest<{ muted: boolean }>(path, undefined, owner), retry: false });
   const [busy, setBusy] = useState(false), [error, setError] = useState("");
   return <div><label style={{ display: "flex", gap: 12, alignItems: "center", justifyContent: "space-between", minHeight: 48 }}>
     이 하루마디 알림 받기<input type="checkbox" role="switch" checked={query.data ? !query.data.muted : false} disabled={busy || !query.data}
       onChange={event => {
         const muted = !event.target.checked; setBusy(true); setError("");
-        void notificationRequest<{ muted: boolean }>(path, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ muted }) })
+        void notificationRequest<{ muted: boolean }>(path, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ muted }) }, owner)
           .then(data => client.setQueryData(key, data)).catch(() => setError("알림 설정을 저장하지 못했어요."))
           .finally(() => setBusy(false));
       }} />

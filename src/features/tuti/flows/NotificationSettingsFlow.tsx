@@ -6,7 +6,7 @@ import { readNotificationSettings, saveNotificationSettings } from "@/lib/notifi
 import { DEFAULT_NOTIFICATION_SETTINGS, type NotificationSettings } from "@/shared/notifications/preferences";
 import { disableDailyTutiReminder } from "../notifications/localNotifications";
 import { enableServerPushNotifications, disableServerPushNotifications, getPushNotificationStatus, supportsServerPushNotifications, type PushNotificationStatus } from "../notifications/pushNotifications";
-import { subscribeToSession } from "@/lib/auth/session";
+import { getSessionSnapshot, subscribeToSession } from "@/lib/auth/session";
 
 export function NotificationSettingsFlow() {
   const router = useRouter();
@@ -15,40 +15,56 @@ export function NotificationSettingsFlow() {
   const [busy, setBusy] = useState(true);
   const [loaded, setLoaded] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+  const [refreshVersion, setRefreshVersion] = useState(0);
   const saving = useRef(false);
+  const loadedOwner = useRef<string | null>(null);
+  const refreshPending = useRef(false);
   useEffect(() => {
     let active = true, generation = 0;
     const refresh = () => {
-      if (saving.current) return;
+      if (saving.current) { refreshPending.current = true; return; }
       const version = ++generation;
+      const owner = getSessionSnapshot()?.userId;
+      loadedOwner.current = null;
       setLoaded(false); setBusy(true);
-      void Promise.all([readNotificationSettings(), getPushNotificationStatus()]).then(([next, permission]) => {
-        if (active && version === generation) { setSettings(next); setStatus(permission); setLoaded(true); setMessage(null); }
+      void Promise.all([readNotificationSettings(owner), getPushNotificationStatus()]).then(([next, permission]) => {
+        if (active && version === generation) { loadedOwner.current = owner ?? null; setSettings(next); setStatus(permission); setLoaded(true); setMessage(null); }
       }).catch(() => { if (active && version === generation) setMessage("알림 설정을 불러오지 못했어요. 다시 열어주세요."); })
         .finally(() => { if (active && version === generation) setBusy(false); });
     };
     refresh();
     const visible = () => { if (document.visibilityState === "visible") refresh(); };
-    const unsubscribe = subscribeToSession(refresh);
+    const unsubscribe = subscribeToSession(() => { loadedOwner.current = null; setLoaded(false); refresh(); });
     document.addEventListener("visibilitychange", visible);
     return () => { active = false; unsubscribe(); document.removeEventListener("visibilitychange", visible); };
-  }, []);
+  }, [refreshVersion]);
   const change = async (patch: Partial<NotificationSettings>) => {
-    if (!loaded || saving.current) return;
+    const owner = loadedOwner.current;
+    if (!loaded || saving.current || !owner || getSessionSnapshot()?.userId !== owner) return;
     saving.current = true; setBusy(true); setMessage(null);
+    let registeredHere = false;
+    let savedHere = false;
     try {
       const next = { ...settings, ...patch, timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone || settings.timeZone };
-      if ((patch.newsEnabled === true || patch.reminderEnabled === true) && (await enableServerPushNotifications()).status !== "registered") {
-        setMessage("기기 설정에서 Tuti 알림을 허용해주세요."); return;
+      if (patch.newsEnabled === true || patch.reminderEnabled === true) {
+        if ((await enableServerPushNotifications()).status !== "registered") { setMessage("기기 설정에서 Tuti 알림을 허용해주세요."); return; }
+        registeredHere = true;
       }
-      const saved = await saveNotificationSettings(next);
+      const saved = await saveNotificationSettings(next, owner);
+      savedHere = true;
       setSettings(saved);
       await disableDailyTutiReminder();
-      if (!saved.newsEnabled && !saved.reminderEnabled) await disableServerPushNotifications();
+      if (!saved.newsEnabled && !saved.reminderEnabled && getSessionSnapshot()?.userId === owner) await disableServerPushNotifications();
       window.dispatchEvent(new Event("tuti-notification-settings-changed"));
       setMessage("알림 설정을 저장했어요.");
-    } catch (error) { setMessage(error instanceof Error ? error.message : "알림 설정을 저장하지 못했어요."); }
-    finally { setStatus(await getPushNotificationStatus().catch(() => null)); saving.current = false; setBusy(false); }
+    } catch (error) {
+      if (registeredHere && !savedHere && !settings.newsEnabled && !settings.reminderEnabled && getSessionSnapshot()?.userId === owner) await disableServerPushNotifications().catch(() => {});
+      setMessage(error instanceof Error ? error.message : "알림 설정을 저장하지 못했어요.");
+    }
+    finally {
+      setStatus(await getPushNotificationStatus().catch(() => null)); saving.current = false; setBusy(false);
+      if (refreshPending.current) { refreshPending.current = false; setRefreshVersion(value => value + 1); }
+    }
   };
   return <NotificationSettingsScreen settings={settings} supported={supportsServerPushNotifications()} status={status} busy={busy || !loaded} message={message}
     onBack={() => router.back()} onChange={change} />;
