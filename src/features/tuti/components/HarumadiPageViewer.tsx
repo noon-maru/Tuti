@@ -4,7 +4,9 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import styled from "@emotion/styled";
 import { BaseButton } from "./buttons";
 import { HarumadiPageSheet } from "./HarumadiSheet";
-import { buildHarumadiReaderPages, type HarumadiReaderPage } from "@/shared/harumadi/readerPages";
+import { HarumadiByline } from "./HarumadiByline";
+import { buildHarumadiReaderPages, harumadiPageAuthor, type HarumadiReaderPage } from "@/shared/harumadi/readerPages";
+import { HARUMADI_READING_LAYOUT } from "@/shared/harumadi/readingTypography";
 import { welcomeHarumadiTurn } from "@/shared/tuti/welcomeHarumadi";
 import type { Harumadi } from "@/shared/api/harumadi";
 import type { TutiJournalEntry } from "@/shared/api/journal";
@@ -14,18 +16,19 @@ export function HarumadiPageViewer({ book, entries, onClose, closing = false }: 
   const stage = useRef<HTMLDivElement>(null);
   const [pageWidth, setPageWidth] = useState(320);
   const [measureText, setMeasureText] = useState<ReaderTextMeasure>();
+  const captionSpace = book.shared ? HARUMADI_READING_LAYOUT.byline.gap + HARUMADI_READING_LAYOUT.byline.height : 0;
   useEffect(() => {
     const node = stage.current;
     if (!node) return;
     const measure = () => {
-      const width = readerPageWidth(node.clientWidth, node.clientHeight);
+      const width = readerPageWidth(node.clientWidth, node.clientHeight, captionSpace);
       if (width > 0) setPageWidth(value => Math.abs(value - width) > 1 ? width : value);
     };
     measure();
     if (typeof ResizeObserver === "undefined") { window.addEventListener("resize", measure); return () => window.removeEventListener("resize", measure); }
     const observer = new ResizeObserver(measure); observer.observe(node);
     return () => observer.disconnect();
-  }, []);
+  }, [captionSpace]);
   useEffect(() => {
     const node = stage.current, context = document.createElement("canvas").getContext("2d");
     if (!node || !context) return;
@@ -83,25 +86,32 @@ export function HarumadiPageViewer({ book, entries, onClose, closing = false }: 
         const dx = event.clientX - start.x, dy = event.clientY - start.y;
         if (Math.abs(dx) > 45 && Math.abs(dx) > Math.abs(dy) * 1.4) { skipClick.current = true; turn(current + (dx < 0 ? 1 : -1)); }
       }}>
-      <Page ref={sheet} $front={Boolean(retained && current < retained.index)} aria-label={current === 0 ? "하루마디 표지" : `${current}쪽`}>
+      <Page ref={sheet} $captionSpace={captionSpace} $front={Boolean(retained && current < retained.index)} aria-label={current === 0 ? "하루마디 표지" : `${current}쪽`}>
+        <Paper>
         <HarumadiPageSheet page={pages[current]} coverStyle={book.coverStyle} number={current} />
         <Edge type="button" $side="left" aria-label="왼쪽 영역을 눌러 이전 쪽" disabled={closing || current === 0 || Boolean(retained)} onClick={() => edge(-1)} />
         <Edge type="button" $side="right" aria-label={lastPage ? "오른쪽 영역을 눌러 덮기" : "오른쪽 영역을 눌러 다음 쪽"} disabled={closing || Boolean(retained)} onClick={() => edge(1)} />
+        </Paper>
+        <HarumadiByline shared={book.shared} authorName={harumadiPageAuthor(book.shared, pages[current])} />
       </Page>
-      {retained && <Page ref={old} $front={retained.index < current} aria-hidden="true" inert data-retained-page>
+      {retained && <Page ref={old} $captionSpace={captionSpace} $front={retained.index < current} aria-hidden="true" inert data-retained-page>
+        <Paper>
         <HarumadiPageSheet page={retained.page} coverStyle={book.coverStyle} number={retained.index} />
+        </Paper>
+        <HarumadiByline shared={book.shared} authorName={harumadiPageAuthor(book.shared, retained.page)} />
       </Page>}
     </Stage>
     <Navigation aria-label="하루마디 쪽 이동">
       <Turn type="button" disabled={closing || current === 0 || Boolean(retained)} onClick={() => turn(current - 1)}>이전 쪽</Turn>
-      <span role="status">{book.shared && pages[current]?.authorName && <small>{pages[current].authorName}의 마디<br /></small>}{current + 1} / {pages.length}</span>
+      <span role="status">{current + 1} / {pages.length}</span>
       <Turn type="button" disabled={closing || Boolean(retained)} onClick={() => turn(current + 1)}>{lastPage ? "덮기" : "다음 쪽"}</Turn>
     </Navigation>
   </Reader>;
 }
 const Reader = styled.div`display: grid; grid-template-rows: minmax(0, 1fr) auto; flex: 1; min-height: 0; gap: 12px;`;
 const Stage = styled.div`display: grid; place-items: center; min-height: 0; min-width: 0; container-type: size; perspective: 1200px; touch-action: pan-y; user-select: none;`;
-const Page = styled.div<{ $front: boolean }>`position: relative; grid-area: 1 / 1; width: min(100cqw, calc(100cqh * 419.53 / 595.28)); background: white; box-shadow: 0 7px 24px #1b222a10, -3px 0 0 #e8ede4; z-index: ${({ $front }) => $front ? 2 : 1}; backface-visibility: hidden; border: 1px solid #e4e9e0; &[data-retained-page] { pointer-events: none; }`;
+const Page = styled.div<{ $front: boolean; $captionSpace: number }>`position: relative; grid-area: 1 / 1; width: min(100cqw, calc((100cqh - ${({ $captionSpace }) => $captionSpace}px) * 419.53 / 595.28)); z-index: ${({ $front }) => $front ? 2 : 1}; backface-visibility: hidden; &[data-retained-page] { pointer-events: none; }`;
+const Paper = styled.div`position: relative; background: white; box-shadow: 0 7px 24px #1b222a10, -3px 0 0 #e8ede4; border: 1px solid #e4e9e0;`;
 const Edge = styled(BaseButton)<{ $side: "left" | "right" }>`position: absolute; top: 0; bottom: 0; ${({ $side }) => $side}: 0; width: 22%; min-width: 0; border-radius: 0; padding: 0; background: transparent; &:hover { background: transparent; } &:focus-visible { outline: 2px solid var(--color-brand-700); outline-offset: -2px; }`;
 const Navigation = styled.nav`display: flex; align-items: center; justify-content: space-between; gap: 12px; > span { color: var(--color-text-muted); font-size: 13px; font-variant-numeric: tabular-nums; }`;
 const Turn = styled(BaseButton)`min-height: 44px; padding: 8px; background: transparent; font-size: 14px; color: var(--color-text-muted); &:focus-visible { outline: 2px solid var(--color-brand-700); }`;

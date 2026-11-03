@@ -28,7 +28,8 @@ export function takeReaderText(text: string, width: number, size: number, count:
   return [first, text.slice(first.length)] as const;
 }
 
-export function readerPageWidth(width: number, height: number) {
-  if (width <= 0 || height <= 0) return 0;
-  return Math.max(1, Math.floor(Math.min(width, height * 419.53 / 595.28)) - 2);
+export function readerPageWidth(width: number, height: number, captionSpace = 0) {
+  const availableHeight = height - captionSpace;
+  if (width <= 0 || availableHeight <= 0) return 0;
+  return Math.max(1, Math.floor(Math.min(width, availableHeight * 419.53 / 595.28)) - 2);
 }

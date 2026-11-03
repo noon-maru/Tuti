@@ -67,7 +67,7 @@ test("쪽 크기는 PC 목업 축소 이전 CSS 좌표로 계산하고 숨긴 �
   assert.equal(readerPageWidth(400, 500), 350);
   assert.equal(readerPageWidth(0, 0), 0);
   const viewer = readFileSync("src/features/tuti/components/HarumadiPageViewer.tsx", "utf8");
-  assert.match(viewer, /readerPageWidth\(node.clientWidth, node.clientHeight\)/);
+  assert.match(viewer, /readerPageWidth\(node.clientWidth, node.clientHeight, captionSpace\)/);
   assert.doesNotMatch(viewer, /node.getBoundingClientRect\(\)/);
   assert.match(viewer, /context.measureText\(text\).width/);
   assert.match(viewer, /document.fonts\?\.ready.then\(update\)/);

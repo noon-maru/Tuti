@@ -15,6 +15,11 @@ export type HarumadiReaderPage = {
   continuation?: { title: string; image: string | null };
 };
 
+export function harumadiPageAuthor(shared: boolean | undefined, page: HarumadiReaderPage): string | null {
+  if (!shared || page.kind === "cover" || page.kind === "back" || page.kind === "empty") return null;
+  return page.authorName?.trim() || null;
+}
+
 /** 브라우저 줄바꿈에 여유를 두고 원문을 자르지 않고 다음 지면으로 이어간다. */
 export function splitReaderText(text: string, units: number, lines: number): string[] {
   const wrapped = readerTextLines(text, units, 1), chunks: string[] = [];
