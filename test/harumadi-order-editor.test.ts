@@ -41,8 +41,9 @@ test("읽기 화면은 소유자·온라인 상태에서 순서 편집을 열고
   assert.match(editor, /event.key === "ArrowUp"/);
   const drag = readFileSync("src/features/tuti/hooks/useHarumadiOrderDrag.ts", "utf8");
   assert.match(drag, /list.setPointerCapture\(event.pointerId\)/);
-  assert.match(drag, /node.style.transform = `translate3d/);
+  assert.match(drag, /node.style.transform = translation/);
   assert.match(drag, /node.animate\(/);
   assert.match(drag, /motionReduced\(\)/);
-  assert.match(drag, /if \(restore\) onChange\(active.originalIds\)/);
+  assert.match(drag, /const changed = !cancelled/);
+  assert.match(drag, /onChange\(active.previewIds\)/);
 });

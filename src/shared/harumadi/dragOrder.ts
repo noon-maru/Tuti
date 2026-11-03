@@ -11,6 +11,20 @@ export function orderFlipOffset(previousLocalTop: number, nextLayoutTop: number)
   return previousLocalTop - nextLayoutTop;
 }
 
+/** Preview slots without moving DOM nodes. Preserve real row heights and grid gap. */
+export function projectOrderSlots(ids: readonly string[], original: readonly OrderSlot[]): OrderSlot[] {
+  const gap = original.length > 1 ? Math.max(0, original[1].top - original[0].top - original[0].height) : 0;
+  const byId = new Map(original.map(slot => [slot.id, slot]));
+  let top = original[0]?.top ?? 0;
+  return ids.flatMap(id => {
+    const slot = byId.get(id);
+    if (!slot) return [];
+    const result = { id, top, height: slot.height };
+    top += slot.height + gap;
+    return [result];
+  });
+}
+
 export function dragOrderScale(viewportHeight: number, layoutHeight: number) {
   const scale = viewportHeight / layoutHeight;
   return Number.isFinite(scale) && scale > 0 ? scale : 1;

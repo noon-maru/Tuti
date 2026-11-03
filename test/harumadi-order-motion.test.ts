@@ -6,73 +6,149 @@ import ts from "typescript";
 import * as geometry from "../src/shared/harumadi/dragOrder";
 import * as ordering from "../src/shared/harumadi/order";
 
-// Execute the real hook with deterministic layout/WAAPI adapters. No browser or
-// native frame-rate claim: this verifies the transforms handed to the browser.
-function harness(reduced = false) {
+// Real hook, deterministic hooks/layout/WAAPI adapters. In particular, layout
+// effects rerun only when dependencies change, just like React in the browser.
+function harness(reduced = false, scale = 1) {
   const refs: { current: unknown }[] = [];
-  let cursor = 0, ids = ["a", "b"], listTop = 100;
-  const layouts: (() => void)[] = [];
+  let cursor = 0, callbackCursor = 0, layoutCursor = 0, ids = ["a", "b"], listTop = 100;
+  const callbacks: { deps: unknown[]; fn: unknown }[] = [], layoutDeps: unknown[][] = [];
+  const layouts: (() => void)[] = [], updates: string[][] = [];
   const motions: { id: string; from: string; duration: number; easing: string }[] = [];
-  const compiledModule = { exports: {} as { useHarumadiOrderDrag: (props: unknown) => ReturnTypeHook } };
-  type ReturnTypeHook = {
-    listRef: { current: unknown }; registerRow: (id: string) => (node: unknown) => void;
-    pointerDown: (event: unknown, id: string) => void; move: (id: string, target: number) => void;
-  };
+  const same = (a: unknown[] | undefined, b: unknown[]) => a?.length === b.length && b.every((v, i) => Object.is(v, a[i]));
+  type Hook = { listRef: { current: unknown }; registerRow: (id: string) => (node: unknown) => void;
+    pointerDown: (event: unknown, id: string) => void; pointerMove: (event: unknown) => void;
+    finish: (cancel?: boolean, pointerId?: number) => void; move: (id: string, target: number) => void };
+  const compiledModule = { exports: {} as { useHarumadiOrderDrag: (props: unknown) => Hook } };
   const source = ts.transpileModule(readFileSync("src/features/tuti/hooks/useHarumadiOrderDrag.ts", "utf8"), { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText;
-  runInNewContext(source, { module: compiledModule, exports: compiledModule.exports, window: { matchMedia: () => ({ matches: reduced }) }, require: (name: string) => {
-    if (name === "react") return {
-      useRef: (value: unknown) => refs[cursor++] ?? (refs[cursor - 1] = { current: value }),
-      useState: (value: unknown) => [value, () => {}], useCallback: (fn: unknown) => fn,
-      useEffect: () => {}, useLayoutEffect: (fn: () => void) => layouts.push(fn),
-    };
-    if (name.endsWith("/dragOrder")) return geometry;
-    if (name.endsWith("/order")) return ordering;
-    throw new Error(`Unexpected import: ${name}`);
-  } });
+  runInNewContext(source, { module: compiledModule, exports: compiledModule.exports, queueMicrotask,
+    window: { matchMedia: () => ({ matches: reduced }) }, require: (name: string) => {
+      if (name === "react") return {
+        useRef: (value: unknown) => refs[cursor++] ?? (refs[cursor - 1] = { current: value }),
+        useState: (value: unknown) => [value, () => {}],
+        useCallback: (fn: unknown, deps: unknown[]) => {
+          const index = callbackCursor++;
+          if (!same(callbacks[index]?.deps, deps)) callbacks[index] = { fn, deps };
+          return callbacks[index].fn;
+        },
+        useEffect: () => {}, useLayoutEffect: (fn: () => void, deps: unknown[]) => {
+          const index = layoutCursor++;
+          if (!same(layoutDeps[index], deps)) { layoutDeps[index] = deps; layouts.push(fn); }
+        },
+      };
+      if (name.endsWith("/dragOrder")) return geometry;
+      if (name.endsWith("/order")) return ordering;
+      throw new Error(`Unexpected import: ${name}`);
+    } });
   const nodes = new Map(["a", "b"].map(id => [id, {
-    offsetTop: id === "a" ? 0 : 120, offsetHeight: 108, style: { transform: "" },
+    offsetTop: id === "a" ? 0 : 120, offsetHeight: 108, visualShift: null as number | null,
+    style: { transform: "", transition: "" },
     getBoundingClientRect() {
-      const shift = Number(/translate3d\(0,([^p]+)px/.exec(this.style.transform)?.[1] ?? 0);
-      return { top: listTop + this.offsetTop + shift, height: 108 };
+      const shift = this.visualShift ?? Number(/translate3d\(0,([^p]+)px/.exec(this.style.transform)?.[1] ?? 0);
+      return { top: listTop + (this.offsetTop + shift) * scale, height: 108 * scale };
     },
     animate(frames: { transform: string }[], timing: { duration: number; easing: string }) {
-      motions.push({ id, from: frames[0].transform, ...timing });
-      return { cancel() {}, onfinish: null };
+      motions.push({ id, from: frames[0].transform, ...timing }); return { cancel() {}, onfinish: null };
     },
   }]));
-  const list = { offsetHeight: 228, getBoundingClientRect: () => ({ top: listTop, height: 228 }), setPointerCapture() {} };
+  const list = { offsetHeight: 228, getBoundingClientRect: () => ({ top: listTop, height: 228 * scale }),
+    setPointerCapture() {}, hasPointerCapture: () => true, releasePointerCapture() {} };
+  const scrollRef = { current: { getBoundingClientRect: () => ({ top: 0, bottom: 600 }) } };
+  const onChange = (next: string[]) => { updates.push([...next]); ids = next; };
   const render = () => {
-    cursor = 0;
-    const hook = compiledModule.exports.useHarumadiOrderDrag({ ids, onChange: (next: string[]) => { ids = next; }, disabled: false,
-      scrollRef: { current: { getBoundingClientRect: () => ({ top: 0, bottom: 600 }) } } });
+    cursor = callbackCursor = layoutCursor = 0;
+    const hook = compiledModule.exports.useHarumadiOrderDrag({ ids, onChange, disabled: false, scrollRef });
     hook.listRef.current = list;
     for (const [id, node] of nodes) hook.registerRow(id)(node);
     while (layouts.length) layouts.shift()!();
     return hook;
   };
-  const swap = (id: string, target: number) => {
-    const hook = render();
-    const node = nodes.get(id)!;
-    hook.pointerDown({ isPrimary: true, button: 0, pointerId: 1, clientX: 0, clientY: listTop + node.offsetTop + 20 }, id);
-    hook.move(id, target);
-    ids.forEach((id, index) => { nodes.get(id)!.offsetTop = index * 120; });
-    listTop -= 120; // An anchored row can keep exactly the same viewport top.
-    render();
+  let current: Hook;
+  const drag = (id: string, target: number) => {
+    current = render(); const node = nodes.get(id)!;
+    current.pointerDown({ isPrimary: true, button: 0, pointerId: 1, clientY: listTop + node.offsetTop * scale + 20 }, id);
+    current.pointerMove({ pointerId: 1, clientY: listTop + target * 120 * scale + 20 + (target === 0 ? -1 : 1) });
+    current = render(); // A drag-state render must not clear the neighbour transform.
   };
-  return { swap, motions };
+  const finish = (cancel = false, pointerId = 1) => {
+    current.finish(cancel, pointerId);
+    ids.forEach((id, index) => { nodes.get(id)!.offsetTop = index * 120; });
+    for (const node of nodes.values()) node.visualShift = null;
+    listTop -= 120;
+    current = render();
+  };
+  const point = (top: number) => {
+    current.pointerMove({ pointerId: 1, clientY: listTop + top * scale + 20 + 1 }); current = render();
+  };
+  const arrow = (id: string, target: number) => {
+    current = render(); current.move(id, target);
+    ids.forEach((id, index) => { nodes.get(id)!.offsetTop = index * 120; });
+    current = render();
+  };
+  return { drag, finish, point, arrow, motions, nodes, updates, render, get ids() { return ids; } };
 }
-test("위로 잡아끌 때 밀려 내려가는 이웃 마디에도 420ms 이징을 적용한다", () => {
-  const h = harness(); h.swap("b", 0);
-  assert.equal(h.motions.length, 1);
-  assert.deepEqual(h.motions[0], { id: "a", from: "translate3d(0,-120px,0)", ...geometry.ORDER_MOVE_TIMING });
+test("위로 끄는 동안 위 마디를 CSS로 아래에 이동시키고 DOM 순서는 건드리지 않는다", () => {
+  const h = harness(); h.drag("b", 0);
+  assert.equal(h.nodes.get("a")!.style.transform, "translate3d(0,120px,0)");
+  assert.match(h.nodes.get("a")!.style.transition, /420ms cubic-bezier/);
+  assert.equal(h.nodes.get("a")!.offsetTop, 0);
+  assert.equal(h.updates.length, 0);
+  assert.equal(h.ids.join(","), "a,b");
+  h.finish(); assert.equal(h.ids.join(","), "b,a"); assert.equal(h.updates.length, 1);
 });
-test("아래로 잡아끌 때 올라오는 마디도 같은 시간·이징을 사용한다", () => {
-  const h = harness(); h.swap("a", 1);
-  assert.equal(h.motions.length, 1);
-  assert.deepEqual(h.motions[0], { id: "b", from: "translate3d(0,120px,0)", ...geometry.ORDER_MOVE_TIMING });
+test("아래로 끌 때도 DOM 재배치 없이 반대 부호·같은 시간으로 이동한다", () => {
+  const h = harness(); h.drag("a", 1);
+  assert.equal(h.nodes.get("b")!.style.transform, "translate3d(0,-120px,0)");
+  assert.match(h.nodes.get("b")!.style.transition, /420ms cubic-bezier/);
+  assert.equal(h.updates.length, 0);
+  h.finish(); assert.equal(h.ids.join(","), "b,a");
 });
-test("동작 줄이기에서는 양방향 자리 이동 애니메이션을 생략한다", () => {
-  for (const [id, target] of [["a", 1], ["b", 0]] as const) {
-    const h = harness(true); h.swap(id, target); assert.equal(h.motions.length, 0);
+test("손을 놓는 순간에도 진행 중인 이웃 애니메이션의 현재 위치에서 이어간다", () => {
+  const h = harness(); h.drag("b", 0);
+  h.nodes.get("a")!.visualShift = 40;
+  h.finish();
+  const neighbour = h.motions.find(m => m.id === "a")!;
+  assert.deepEqual(neighbour, { id: "a", from: "translate3d(0,-80px,0)", ...geometry.ORDER_MOVE_TIMING });
+});
+test("드래그 취소는 부모 순서를 변경하지 않고 이웃 마디를 원래 위치로 되돌린다", () => {
+  const h = harness(); h.drag("b", 0); h.finish(true);
+  assert.equal(h.updates.length, 0); assert.equal(h.ids.join(","), "a,b");
+  assert.equal(h.nodes.get("a")!.style.transform, "translate3d(0,0px,0)");
+  assert.match(h.nodes.get("a")!.style.transition, /420ms/);
+});
+test("동작 줄이기는 포인터 추적을 유지하되 이웃 이동·정착 효과를 생략한다", () => {
+  for (const [id, target, neighbour] of [["a", 1, "b"], ["b", 0, "a"]] as const) {
+    const h = harness(true); h.drag(id, target);
+    assert.equal(h.nodes.get(neighbour)!.style.transition, "none");
+    h.finish(); assert.equal(h.motions.length, 0);
   }
+});
+
+test("축소된 PC 목업에서도 양방향 같은 CSS 이동량을 사용한다", () => {
+  const up = harness(false, .8); up.drag("b", 0);
+  assert.equal(up.nodes.get("a")!.style.transform, "translate3d(0,120px,0)");
+  const down = harness(false, .8); down.drag("a", 1);
+  assert.equal(down.nodes.get("b")!.style.transform, "translate3d(0,-120px,0)");
+});
+
+test("다른 포인터의 손 떼기는 현재 드래그를 저장하지 않는다", () => {
+  const h = harness(); h.drag("b", 0); h.finish(false, 2);
+  assert.equal(h.updates.length, 0);
+  h.finish(false, 1); assert.equal(h.updates.length, 1);
+});
+
+test("끌다가 방향을 되돌려도 부모 DOM 순서를 바꾸지 않고 CSS 목표만 갱신한다", () => {
+  const h = harness(); h.drag("b", 0); h.point(120);
+  assert.equal(h.nodes.get("a")!.style.transform, "translate3d(0,0px,0)");
+  assert.match(h.nodes.get("a")!.style.transition, /420ms/);
+  assert.equal(h.updates.length, 0);
+  h.finish(); assert.equal(h.updates.length, 0);
+});
+
+test("보조 화살표와 키보드 이동은 즉시 순서를 바꾸되 양쪽 행에 같은 정착 효과를 적용한다", () => {
+  const h = harness(); h.arrow("b", 0);
+  assert.equal(h.ids.join(","), "b,a"); assert.equal(h.updates.length, 1);
+  assert.equal(h.motions.length, 2);
+  assert.equal(h.motions.find(m => m.id === "a")?.from, "translate3d(0,-120px,0)");
+  assert.equal(h.motions.find(m => m.id === "b")?.from, "translate3d(0,120px,0)");
+  assert.ok(h.motions.every(m => m.duration === 420));
 });

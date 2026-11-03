@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { dragOrderScale, dragOrderTarget, dragOrderTop, dragScrollDelta, orderLocalTop, orderFlipOffset, ORDER_MOVE_TIMING } from "../src/shared/harumadi/dragOrder";
+import { dragOrderScale, dragOrderTarget, dragOrderTop, dragScrollDelta, orderLocalTop, orderFlipOffset, projectOrderSlots, ORDER_MOVE_TIMING } from "../src/shared/harumadi/dragOrder";
 
 test("들고 있는 마디의 중앙이 이웃 마디의 중앙을 지날 때만 자리를 바꾼다", () => {
   const slots = [{ id: "a", top: 100, height: 80 }, { id: "b", top: 190, height: 120 }, { id: "c", top: 320, height: 100 }];
@@ -51,4 +51,13 @@ test("자리 이동은 스크롤 보정·목업 배율과 무관하게 양방향
   }
   assert.equal(ORDER_MOVE_TIMING.duration, 420);
   assert.equal(ORDER_MOVE_TIMING.easing, "cubic-bezier(.22,.68,.24,1)");
+});
+
+test("DOM을 옮기지 않은 미리보기에서도 실제 행 높이와 행 간격을 유지한다", () => {
+  const original = [{ id: "a", top: 0, height: 80 }, { id: "b", top: 92, height: 120 }, { id: "c", top: 224, height: 60 }];
+  assert.deepEqual(projectOrderSlots(["c", "a", "b"], original), [
+    { id: "c", top: 0, height: 60 }, { id: "a", top: 72, height: 80 }, { id: "b", top: 164, height: 120 },
+  ]);
+  assert.deepEqual(projectOrderSlots([], []), []);
+  assert.deepEqual(projectOrderSlots(["a"], [original[0]]), [original[0]]);
 });
