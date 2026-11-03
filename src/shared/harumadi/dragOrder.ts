@@ -1,5 +1,16 @@
 export type OrderSlot = { id: string; top: number; height: number };
 
+export const ORDER_MOVE_TIMING = { duration: 420, easing: "cubic-bezier(.22,.68,.24,1)" };
+
+/** FLIP snapshots live in list-local CSS pixels, not viewport coordinates.
+ * DOM placement / scroll anchoring can move the whole list between snapshots. */
+export function orderLocalTop(rowViewportTop: number, listViewportTop: number, scale: number) {
+  return (rowViewportTop - listViewportTop) / scale;
+}
+export function orderFlipOffset(previousLocalTop: number, nextLayoutTop: number) {
+  return previousLocalTop - nextLayoutTop;
+}
+
 export function dragOrderScale(viewportHeight: number, layoutHeight: number) {
   const scale = viewportHeight / layoutHeight;
   return Number.isFinite(scale) && scale > 0 ? scale : 1;

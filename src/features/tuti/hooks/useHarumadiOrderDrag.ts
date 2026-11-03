@@ -2,12 +2,11 @@
 
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type PointerEvent, type RefObject } from "react";
 import { moveEntry } from "@/shared/harumadi/order";
-import { dragOrderScale, dragOrderTarget, dragOrderTop, dragScrollDelta } from "@/shared/harumadi/dragOrder";
+import { dragOrderScale, dragOrderTarget, dragOrderTop, dragScrollDelta, orderLocalTop, orderFlipOffset, ORDER_MOVE_TIMING } from "@/shared/harumadi/dragOrder";
 
 type Drag = { pointerId: number; entryId: string; startY: number; x: number; y: number;
   grabOffset: number; height: number; moved: boolean; originalIds: string[] };
 const motionReduced = () => window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-const timing = { duration: 220, easing: "cubic-bezier(.2,.8,.2,1)" };
 
 export function useHarumadiOrderDrag({ ids, onChange, disabled, scrollRef }: {
   ids: string[]; onChange: (ids: string[]) => void; disabled: boolean; scrollRef: RefObject<HTMLDivElement | null>;
@@ -23,7 +22,11 @@ export function useHarumadiOrderDrag({ ids, onChange, disabled, scrollRef }: {
   const [announcement, setAnnouncement] = useState("");
 
   const capturePositions = useCallback(() => {
-    before.current = new Map([...rows.current].map(([id, node]) => [id, node.getBoundingClientRect().top]));
+    const list = listRef.current;
+    if (!list) return;
+    const bounds = list.getBoundingClientRect();
+    const scale = dragOrderScale(bounds.height, list.offsetHeight);
+    before.current = new Map([...rows.current].map(([id, node]) => [id, orderLocalTop(node.getBoundingClientRect().top, bounds.top, scale)]));
   }, []);
   const animate = useCallback((id: string, node: HTMLElement, fromY: number) => {
     animations.current.get(id)?.cancel();
@@ -31,7 +34,7 @@ export function useHarumadiOrderDrag({ ids, onChange, disabled, scrollRef }: {
     if (Math.abs(fromY) < .5 || motionReduced() || typeof node.animate !== "function") return;
     const animation = node.animate([
       { transform: `translate3d(0,${fromY}px,0)` }, { transform: "translate3d(0,0,0)" },
-    ], timing);
+    ], ORDER_MOVE_TIMING);
     animations.current.set(id, animation);
     animation.onfinish = () => { if (animations.current.get(id) === animation) animations.current.delete(id); };
   }, []);
@@ -61,14 +64,13 @@ export function useHarumadiOrderDrag({ ids, onChange, disabled, scrollRef }: {
   useLayoutEffect(() => {
     const previous = before.current;
     before.current = null;
-    const list = listRef.current;
-    const scale = list ? dragOrderScale(list.getBoundingClientRect().height, list.offsetHeight) : 1;
     for (const [id, node] of rows.current) {
       if (id === pointer.current?.entryId) continue;
       const from = previous?.get(id);
       if (from === undefined) continue;
-      animations.current.get(id)?.cancel();
-      animate(id, node, (from - node.getBoundingClientRect().top) / scale);
+      // offsetTop is the final layout slot, unaffected by in-flight transforms or
+      // viewport scroll correction. Both movement directions use the same delta.
+      animate(id, node, orderFlipOffset(from, node.offsetTop));
     }
     positionDragged();
   }, [ids, animate, positionDragged]);

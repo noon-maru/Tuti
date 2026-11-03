@@ -21,6 +21,10 @@ test("순서 편집은 현재 순서·썸네일·날짜와 경계별 비활성 �
   const editor = readFileSync("src/features/tuti/components/HarumadiOrderEditor.tsx", "utf8");
   assert.match(editor, /<Image src=\{entry.image\} alt="" fill unoptimized/);
   assert.match(html, /touch-action:none/);
+  assert.match(html, /오른쪽 손잡이를 위아래로/);
+  assert.match(html, /grid-template-columns:68px minmax\(0, 1fr\) 36px/);
+  assert.match(html, /overflow-anchor:none/);
+  assert.match(html, /-webkit-line-clamp:2/);
   assert.equal(requiresServiceTerms("/api/harumadis/book/order", "PATCH"), true);
 });
 

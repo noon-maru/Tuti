@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { dragOrderScale, dragOrderTarget, dragOrderTop, dragScrollDelta } from "../src/shared/harumadi/dragOrder";
+import { dragOrderScale, dragOrderTarget, dragOrderTop, dragScrollDelta, orderLocalTop, orderFlipOffset, ORDER_MOVE_TIMING } from "../src/shared/harumadi/dragOrder";
 
 test("들고 있는 마디의 중앙이 이웃 마디의 중앙을 지날 때만 자리를 바꾼다", () => {
   const slots = [{ id: "a", top: 100, height: 80 }, { id: "b", top: 190, height: 120 }, { id: "c", top: 320, height: 100 }];
@@ -36,4 +36,19 @@ test("PC 목업이 축소돼도 레이아웃 좌표를 화면 좌표로 환산�
   const layoutTop = 100, desiredTop = 260;
   const cssShift = (desiredTop - layoutTop) / scale;
   assert.equal(layoutTop + cssShift * scale, desiredTop);
+});
+
+test("자리 이동은 스크롤 보정·목업 배율과 무관하게 양방향 같은 거리를 움직인다", () => {
+  for (const scale of [1, .8]) {
+    for (const listTop of [140, -80]) {
+      const upper = orderLocalTop(listTop, listTop, scale);
+      const lower = orderLocalTop(listTop + 120 * scale, listTop, scale);
+      assert.equal(orderFlipOffset(upper, 120), -120, "위 행이 아래로 밀릴 때 음수 위치에서 시작한다");
+      assert.equal(orderFlipOffset(lower, 0), 120, "아래 행이 위로 올라올 때 양수 위치에서 시작한다");
+      // 새 목록의 화면 위치는 애니메이션 이동량에 포함하지 않는다.
+      assert.equal(orderFlipOffset(orderLocalTop(listTop + 30 * scale, listTop, scale), 120), -90);
+    }
+  }
+  assert.equal(ORDER_MOVE_TIMING.duration, 420);
+  assert.equal(ORDER_MOVE_TIMING.easing, "cubic-bezier(.22,.68,.24,1)");
 });
