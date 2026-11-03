@@ -16,6 +16,7 @@ test("익명 로그인 병합은 하루마디를 삭제하지 않는다", async 
   };
   let state: ReturnType<typeof initialState>;
   let failPdfTransfer = false;
+  let sourceIdentityCount = 0;
   function initialState(journals = 2, books = 1, pdfs = 1) {
     return {
       sourceExists: true, consumed: false,
@@ -59,7 +60,7 @@ test("익명 로그인 병합은 하루마디를 삭제하지 않는다", async 
       findFirst: async () => challenge,
       update: async () => { state.consumed = true; },
     },
-    authIdentity: { findUnique: async () => ({ id: "identity", userId: targetId }), update: noop },
+    authIdentity: { count: async () => sourceIdentityCount, findUnique: async () => ({ id: "identity", userId: targetId }), update: noop },
     oAuthAuthorization: { findUnique: async () => ({
       id: "authorization", userId: sourceId, provider: "google", providerSubject: "subject",
       providerEmail: email, providerDisplayName: null, collectDisplayName: true,
@@ -104,6 +105,12 @@ test("익명 로그인 병합은 하루마디를 삭제하지 않는다", async 
     oauth: (merge?: "merge") => completeOAuthLogin({ ticket: "x".repeat(40), journalResolution: merge }),
   };
   for (const [provider, login] of Object.entries(logins)) {
+    await t.test(`${provider}: 임시 계정이 다른 화면에서 로그인 계정으로 바뀌면 삭제하지 않는다`, async () => {
+      state = initialState(); const before = structuredClone(state); sourceIdentityCount = 1;
+      try { await assert.rejects(login("merge"), { code: "account_merge_source_changed" }); }
+      finally { sourceIdentityCount = 0; }
+      assert.deepEqual(state, before);
+    });
     await t.test(`${provider}: 관리자 로그인에도 표지·연결·순서·PDF·댓글을 보존`, async () => {
       state = initialState();
       const links = structuredClone(state.links);

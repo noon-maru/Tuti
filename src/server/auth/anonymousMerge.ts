@@ -1,6 +1,7 @@
 import type { Prisma } from "@/generated/prisma/client";
 import { mergeTogether } from "@/server/harumadi/merge";
 import { lockMergeAccounts } from "./mergeLock";
+import { AccountAuthError } from "./session";
 
 /** 인증 트랜잭션 안에서 호출한다. 임시 계정 삭제는 모든 이전이 끝난 뒤 수행한다. */
 export async function transferAnonymousData(
@@ -9,6 +10,9 @@ export async function transferAnonymousData(
   targetId: string,
 ) {
   await lockMergeAccounts(tx, sourceId, targetId);
+  if (await tx.authIdentity.count({ where: { userId: sourceId } })) {
+    throw new AccountAuthError("다른 화면에서 로그인 상태가 바뀌었어요. 다시 확인해주세요.", "account_merge_source_changed", 409);
+  }
   await tx.journalEntry.updateMany({
     where: { ownerId: sourceId }, data: { ownerId: targetId },
   });
