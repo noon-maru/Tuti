@@ -73,7 +73,7 @@ export function HarumadiPageViewer({ book, entries, onClose, closing = false }: 
     return () => { active = false; animation.cancel(); };
   }, [current, retained]);
   const edge = (direction: number) => turn(current + direction);
-  return <Reader data-harumadi-paged-reader onKeyDown={event => {
+  return <Reader data-harumadi-paged-reader data-current-page-kind={pages[current].kind} onKeyDown={event => {
     if (event.key === "ArrowLeft" || event.key === "ArrowRight") { event.preventDefault(); turn(current + (event.key === "ArrowRight" ? 1 : -1)); }
   }}>
     <Stage ref={stage} onClickCapture={event => { if (skipClick.current) { event.preventDefault(); event.stopPropagation(); skipClick.current = false; } }} onPointerDown={event => { if (event.isPrimary && event.button === 0) { skipClick.current = false; pointer.current = { x: event.clientX, y: event.clientY, id: event.pointerId }; } }}

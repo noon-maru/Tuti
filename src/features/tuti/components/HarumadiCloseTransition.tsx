@@ -5,29 +5,33 @@ import styled from "@emotion/styled";
 import { HarumadiPageSheet } from "./HarumadiSheet";
 import { buildHarumadiCoverPage } from "@/shared/harumadi/readerPages";
 import { HARUMADI_PDF_LAYOUT } from "@/shared/harumadi/pdfLayout";
-import { animateHarumadiClose } from "@/lib/harumadiClose";
+import { animateHarumadiClose, animateHarumadiFade } from "@/lib/harumadiClose";
+import { harumadiLocalRect } from "@/shared/harumadi/transitionGeometry";
 import type { Harumadi } from "@/shared/api/harumadi";
 import type { TutiJournalEntry } from "@/shared/api/journal";
 
-export function HarumadiCloseTransition({ book, entries, containerRef, contentsRef, onComplete }: {
-  book: Harumadi; entries: TutiJournalEntry[]; containerRef: RefObject<HTMLElement | null>; contentsRef: RefObject<HTMLElement | null>; onComplete: () => void;
+export function HarumadiCloseTransition({ book, entries, containerRef, contentsRef, fadeOnly = false, onComplete }: {
+  book: Harumadi; entries: TutiJournalEntry[]; containerRef: RefObject<HTMLElement | null>; contentsRef: RefObject<HTMLElement | null>; fadeOnly?: boolean; onComplete: () => void;
 }) {
   const cover = useRef<HTMLDivElement>(null);
   useLayoutEffect(() => {
+    const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (fadeOnly) return animateHarumadiFade(contentsRef.current, onComplete, reduced);
     const node = cover.current;
     const container = containerRef.current;
     if (!container || !node) { onComplete(); return; }
     const bounds = container.getBoundingClientRect();
-    const target = container.querySelector("[data-harumadi-paged-reader] [data-harumadi-page]")?.getBoundingClientRect();
+    const targetBounds = container.querySelector("[data-harumadi-paged-reader] [data-harumadi-page]")?.getBoundingClientRect();
+    const target = targetBounds ? harumadiLocalRect(bounds, targetBounds, container.offsetWidth, container.offsetHeight) : null;
     const ratio = HARUMADI_PDF_LAYOUT.page.width / HARUMADI_PDF_LAYOUT.page.height;
-    const width = target?.width ?? Math.max(1, Math.min(290, bounds.width - 48, (bounds.height - 100) * ratio));
+    const width = target?.width ?? Math.max(1, Math.min(290, container.clientWidth - 48, (container.clientHeight - 100) * ratio));
     const height = width / ratio;
     node.style.width = `${width}px`;
-    node.style.left = `${target ? target.left - bounds.left : (bounds.width - width) / 2}px`;
-    node.style.top = `${target ? target.top - bounds.top : Math.max(0, (bounds.height - height) / 2)}px`;
-    return animateHarumadiClose(node, contentsRef.current, onComplete, window.matchMedia("(prefers-reduced-motion: reduce)").matches);
-  }, [containerRef, contentsRef, onComplete]);
-  return <Layer aria-hidden="true"><Cover ref={cover}>
+    node.style.left = `${target?.x ?? (container.clientWidth - width) / 2}px`;
+    node.style.top = `${target?.y ?? Math.max(0, (container.clientHeight - height) / 2)}px`;
+    return animateHarumadiClose(node, contentsRef.current, onComplete, reduced);
+  }, [containerRef, contentsRef, fadeOnly, onComplete]);
+  return fadeOnly ? null : <Layer aria-hidden="true"><Cover ref={cover}>
     <HarumadiPageSheet page={buildHarumadiCoverPage(book, entries)} coverStyle={book.coverStyle} number={0} />
   </Cover></Layer>;
 }

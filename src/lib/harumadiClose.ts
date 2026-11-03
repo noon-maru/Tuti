@@ -1,3 +1,17 @@
+/** An already visible front cover needs no second cover or rotation. */
+export function animateHarumadiFade(contents: HTMLElement | null, onComplete: () => void, reducedMotion = false) {
+  let active = true, completed = false;
+  let animation: Animation | undefined;
+  const finish = () => { if (active && !completed) { completed = true; onComplete(); } };
+  const cancel = () => { active = false; animation?.cancel(); };
+  if (reducedMotion || typeof contents?.animate !== "function") { finish(); return cancel; }
+  try {
+    animation = contents.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 180, easing: "ease-in", fill: "forwards" });
+    void animation.finished.then(finish).catch(finish);
+  } catch { finish(); }
+  return cancel;
+}
+
 /** 표지 닫기 → 닫힌 책 정리 순서. transform/opacity만 움직인다. */
 export function animateHarumadiClose(cover: HTMLElement, contents: HTMLElement | null, onComplete: () => void, reducedMotion = false) {
   let active = true, completed = false;

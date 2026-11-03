@@ -7,6 +7,7 @@ import { useEffect, useRef, useState } from "react";
 import { useSession } from "@/features/tuti/hooks/useSession";
 import { AppLoadingScreen, LoadingIndicator } from "@/features/tuti/components/LoadingIndicator";
 import { HarumadiCover } from "@/features/tuti/components/HarumadiCover";
+import { harumadiLocalRect } from "@/shared/harumadi/transitionGeometry";
 import { HarumadiBookReader } from "@/features/tuti/components/HarumadiBookReader";
 import { useHarumadiHistory } from "@/features/tuti/hooks/useHarumadiHistory";
 import { MainNavigation } from "@/features/tuti/components/MainNavigation";
@@ -36,7 +37,7 @@ function LibraryHome({ ownerId }: { ownerId: string }) {
     const bounds = frame.current?.getBoundingClientRect();
     const cover = control.closest("[data-harumadi-card]")?.querySelector("[data-book-cover] > span")?.getBoundingClientRect();
     if (!bounds || !cover) return;
-    showBook({ book, mode, origin: { x: cover.left - bounds.left, y: cover.top - bounds.top, width: cover.width, height: cover.height } });
+    showBook({ book, mode, origin: harumadiLocalRect(bounds, cover, frame.current!.offsetWidth, frame.current!.offsetHeight) });
   };
   const query = useHarumadiLibrary(ownerId);
   const harumadiPdfs = query.data?.pages.flatMap(page => page.harumadis) ?? [];
@@ -87,7 +88,7 @@ function LibraryHome({ ownerId }: { ownerId: string }) {
     </LibraryLinks>
     <MainNavigation active="harumadi" />
     </HomeSurface>
-    {opening && <HarumadiBookReader opening={opening} ownerId={ownerId} onClose={closeBook} />}
+    {opening && <HarumadiBookReader opening={opening} onClose={closeBook} />}
   </Frame>;
 }
 const Frame = styled.section`position: relative; height: 100%; min-height: 0; background: #F8FAFC; color: var(--color-text); isolation: isolate;

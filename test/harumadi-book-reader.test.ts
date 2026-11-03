@@ -18,8 +18,10 @@ test("책 펼치기는 앱 영역·축 회전·동작 줄이기·키보드와 �
   const flow = readFileSync("src/features/tuti/flows/HarumadiFlow.tsx", "utf8");
   assert.match(reader, /role="dialog" aria-modal="true"/);
   assert.match(reader, /position: absolute; inset: 0/);
-  assert.match(reader, /transform-origin: left center/);
-  assert.match(reader, /rotateY\(-105deg\)/);
+  const transition = readFileSync("src/features/tuti/components/HarumadiOpenTransition.tsx", "utf8");
+  const motion = readFileSync("src/lib/harumadiOpen.ts", "utf8");
+  assert.match(transition, /transform-origin: left center/);
+  assert.match(motion, /rotateY\(-105deg\)/);
   assert.match(reader, /prefers-reduced-motion: reduce/);
   assert.match(reader, /event.key === "Escape"/);
   assert.match(reader, /event.key !== "Tab"/);

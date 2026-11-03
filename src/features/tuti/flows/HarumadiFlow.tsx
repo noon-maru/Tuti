@@ -14,6 +14,7 @@ import { HarumadiPageViewer } from "@/features/tuti/components/HarumadiPageViewe
 import { HarumadiSettingsCover } from "@/features/tuti/components/HarumadiSettingsCover";
 import { HarumadiDeleteSection } from "@/features/tuti/components/HarumadiDeleteSection";
 import { HarumadiCloseTransition } from "@/features/tuti/components/HarumadiCloseTransition";
+import { HarumadiOpenTransition } from "@/features/tuti/components/HarumadiOpenTransition";
 import { HarumadiTogetherPanel } from "@/features/tuti/components/HarumadiTogetherPanel";
 import { HarumadiComments } from "@/features/tuti/components/HarumadiComments";
 import { HarumadiOrderEditor } from "@/features/tuti/components/HarumadiOrderEditor";
@@ -29,19 +30,20 @@ import { exportHarumadiPdf } from "@/lib/harumadiPdfExport";
 import { getSessionSnapshot } from "@/lib/auth/session";
 import { HARUMADI_PDF_TITLE_LIMIT, type HarumadiPdfInput } from "@/shared/api/harumadiPdf";
 import type { Harumadi, HarumadiSettings } from "@/shared/api/harumadi";
+import type { HarumadiBookRect } from "@/shared/harumadi/transitionGeometry";
 import { ANDROID_BACK_EVENT } from "@/features/tuti/navigation/androidBack";
 import { HARUMADI_BACK_COVER_TEXT_LIMIT, LEGACY_HARUMADI_BACK_COVER_TEXT, isHarumadiBackCoverText, pickHarumadiBackCoverText } from "@/shared/harumadi/backCover";
 
 import { initialHarumadiMode, type HarumadiOpeningMode } from "../navigation/harumadiActions";
 
-type ReaderOptions = { bookId?: string; initialMode?: HarumadiOpeningMode; onClose?: () => void };
-export function HarumadiFlow({ bookId, initialMode, onClose }: ReaderOptions = {}) {
+type ReaderOptions = { bookId?: string; initialMode?: HarumadiOpeningMode; openingOrigin?: HarumadiBookRect; onClose?: () => void };
+export function HarumadiFlow({ bookId, initialMode, openingOrigin, onClose }: ReaderOptions = {}) {
   const session = useSession();
   const routeId = useSearchParams().get("harumadiId");
   const id = bookId ?? routeId;
-  return session ? <HarumadiLoader key={`${session.userId}:${id ?? "new"}`} owner={session.userId} id={id} initialMode={initialMode} onClose={onClose} /> : <AppLoadingScreen />;
+  return session ? <HarumadiLoader key={`${session.userId}:${id ?? "new"}`} owner={session.userId} id={id} initialMode={initialMode} openingOrigin={openingOrigin} onClose={onClose} /> : <AppLoadingScreen />;
 }
-function HarumadiLoader({ owner, id, initialMode, onClose }: { owner: string; id: string | null } & ReaderOptions) {
+function HarumadiLoader({ owner, id, initialMode, openingOrigin, onClose }: { owner: string; id: string | null } & ReaderOptions) {
   const router = useRouter();
   const client = useQueryClient();
   const query = useQuery({ queryKey: ["harumadi-content", owner, id], queryFn: ({ signal }) => fetchHarumadiContent(owner, id!, signal),
@@ -64,20 +66,24 @@ function HarumadiLoader({ owner, id, initialMode, onClose }: { owner: string; id
   if (id && !readable && (query.isPending || query.isFetching)) return <Frame>{onClose && <Header><Quiet onClick={onClose}><ArrowLeft size={18} />내 책장</Quiet></Header>}<AppLoadingScreen label="하루마디를 열고 있어요." /></Frame>;
   if (id && !readable) return <Frame><Header><Quiet onClick={onClose ?? (() => router.replace("/"))}><ArrowLeft size={18} />내 책장</Quiet></Header><Body $reading={false} role="alert"><h1>하루마디를 열지 못했어요.</h1><p>{query.error?.message ?? "연결을 확인하고 다시 열어주세요."}</p><PrimaryButton onClick={() => void query.refetch()}>다시 불러오기</PrimaryButton></Body></Frame>;
   return <HarumadiEditor key={id ?? "new"} owner={owner} initial={query.data?.content.harumadi} read={query.data}
-    verified={verified} refreshing={query.isFetching} onRefresh={() => void query.refetch()} initialMode={initialMode} onClose={onClose} />;
+    verified={verified} refreshing={query.isFetching} onRefresh={() => void query.refetch()} initialMode={initialMode} openingOrigin={openingOrigin} onClose={onClose} />;
 }
 
-function HarumadiEditor({ owner, initial, read, verified, refreshing, onRefresh, initialMode, onClose }: {
+function HarumadiEditor({ owner, initial, read, verified, refreshing, onRefresh, initialMode, openingOrigin, onClose }: {
   owner: string; initial?: Harumadi; read?: HarumadiRead; verified: boolean; refreshing: boolean; onRefresh: () => void;
 } & ReaderOptions) {
   const router = useRouter(); const client = useQueryClient();
   const frame = useRef<HTMLElement>(null), contents = useRef<HTMLDivElement>(null);
   const closingRef = useRef(false);
   const [closing, setClosing] = useState(false);
+  const [closeFromCover, setCloseFromCover] = useState(false);
+  const [openingDone, setOpeningDone] = useState(false);
+  const finishOpening = useCallback(() => setOpeningDone(true), []);
   const scroller = useRef<HTMLDivElement>(null);
   const [harumadi, setHarumadi] = useState(initial);
   const [settings, setSettings] = useState<HarumadiSettings>(initial ?? { title: "우리의 작은 하루", coverStyle: "white-plain" });
   const [mode, setMode] = useState<HarumadiOpeningMode | "selection" | "pdf" | "comments" | "order">(initial ? initialHarumadiMode(initial, initialMode) : "settings");
+  const opening = Boolean(openingOrigin && !openingDone && mode === "pages");
   useLifecycleView("book_opened", "book", harumadi?.id, Boolean(harumadi && mode === "pages"));
   useNotificationPresence(harumadi?.id ?? null, false, Boolean(harumadi && verified));
   const [selected, setSelected] = useState(initial?.entryIds ?? []);
@@ -102,8 +108,9 @@ function HarumadiEditor({ owner, initial, read, verified, refreshing, onRefresh,
     if (busy || closingRef.current) return;
     closingRef.current = true;
     if (!harumadi) { finishClose(); return; }
+    setCloseFromCover(mode === "pages" && frame.current?.querySelector("[data-harumadi-paged-reader]")?.getAttribute("data-current-page-kind") === "cover");
     setClosing(true);
-  }, [busy, harumadi, finishClose]);
+  }, [busy, harumadi, mode, finishClose]);
   const titleNeedsConfirmation = Boolean(sensitivePolicy?.enabled && (!harumadi || settings.title.trim() !== harumadi.title ||
     (settings.backCoverText ?? LEGACY_HARUMADI_BACK_COVER_TEXT).trim() !== (harumadi.backCoverText ?? LEGACY_HARUMADI_BACK_COVER_TEXT)));
   const backCoverTextValid = settings.backCoverText === undefined || isHarumadiBackCoverText(settings.backCoverText);
@@ -207,7 +214,7 @@ function HarumadiEditor({ owner, initial, read, verified, refreshing, onRefresh,
   useAttachNewEntry(attachNewEntry);
 
   return <Frame ref={frame} data-harumadi-editor aria-busy={busy || closing}>
-    <BookContents ref={contents} inert={closing}>
+    <BookContents ref={contents} inert={closing || opening}>
     <Header $creating={!harumadi && mode === "settings"}><Quiet type="button" onClick={back} disabled={busy}><ArrowLeft size={18} />{mode === "pages" || !harumadi || (onClose && initialMode && initialMode !== "pages" && mode === initialMode) ? "내 책장" : "하루마디"}</Quiet>
       {harumadi?.shared && mode === "pages" && <Quiet type="button" disabled={readOnly} onClick={() => setMode("comments")}>댓글·답글</Quiet>}
       {harumadi && harumadi.role !== "contributor" && mode === "pages" && <Quiet type="button" disabled={readOnly} onClick={() => { setConfirmed(false); setMode("settings"); }}><Settings2 size={17} />설정</Quiet>}</Header>
@@ -261,7 +268,8 @@ function HarumadiEditor({ owner, initial, read, verified, refreshing, onRefresh,
     </Body>
     {mode !== "pages" && mode !== "together" && mode !== "comments" && <Footer $creating={!harumadi && mode === "settings"}><PrimaryButton type="button" disabled={busy || readOnly || (mode === "settings" && (!settings.title.trim() || !backCoverTextValid || !sensitivePolicy || (titleNeedsConfirmation && !confirmed))) || (mode === "selection" && !entries.data) || (mode === "order" && orderedIds.join(",") === harumadi?.entryIds.join(",")) || (mode === "pdf" && (!pdf?.approvalToken || Boolean(sensitivePolicy?.enabled && !confirmed)))} onClick={() => void (mode === "settings" ? saveSettings() : mode === "selection" ? saveEntries() : mode === "order" ? saveOrder() : downloadPdf())}>{busy ? "저장하고 있어요." : mode === "settings" ? harumadi ? "설정 저장하기" : "빈 하루마디 만들기" : mode === "selection" ? `마디 ${selected.length}개 담기` : mode === "order" ? "이 순서로 저장하기" : "PDF 파일 저장하기"}</PrimaryButton></Footer>}
     </BookContents>
-    {closing && harumadi && <HarumadiCloseTransition book={harumadi} entries={chosen} containerRef={frame} contentsRef={contents} onComplete={finishClose} />}
+    {openingOrigin && !openingDone && mode === "pages" && !closing && harumadi && <HarumadiOpenTransition book={harumadi} entries={chosen} origin={openingOrigin} containerRef={frame} contentsRef={contents} onComplete={finishOpening} />}
+    {closing && harumadi && <HarumadiCloseTransition book={harumadi} entries={chosen} containerRef={frame} contentsRef={contents} fadeOnly={closeFromCover} onComplete={finishClose} />}
   </Frame>;
 }
 
