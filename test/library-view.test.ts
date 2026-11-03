@@ -96,3 +96,17 @@ test("책등 열 수는 CSS 너비로 계산하고 페이지네이션·열기 �
   assert.match(home, /query.fetchNextPage\(\)/);
   assert.match(home, /harumadiLocalRect\(bounds, cover/);
 });
+
+test("표지·책등은 선반과 종이 단면 간격을 확보하고 설명·메뉴와 hover 기준은 유지한다", () => {
+  const book = harumadiContent().harumadi;
+  for (const view of ["covers", "spines"] as const) {
+    const html = renderToStaticMarkup(createElement(QueryClientProvider, { client: new QueryClient() },
+      createElement(HarumadiShelf, { books: [book], ownerId: "owner", view, onOpen() {} })));
+    assert.match(html, /display:grid;gap:10px;width:100%/);
+    assert.match(html, new RegExp(`bottom:${view === "spines" ? 92 : 108}px`));
+    assert.match(html, /height:6px/);
+    assert.match(html, /translateY\(-5px\)/);
+    assert.match(html, /prefers-reduced-motion:\s*reduce/);
+    assert.match(html, /함께한 하루 메뉴/);
+  }
+});

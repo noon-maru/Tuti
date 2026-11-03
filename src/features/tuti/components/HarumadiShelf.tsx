@@ -61,7 +61,8 @@ const BookMenu = styled(ContextMenu)<{ $spines: boolean }>`position: absolute; r
   ${({ $spines }) => $spines && "right: auto; left: 50%; bottom: 0; transform: translateX(-50%);"}
   > button { width: 44px; height: 44px; padding: 0; border-radius: 18px; color: var(--color-text-muted); &:hover { background: #e8ede4; } &:focus-visible { outline: 2px solid var(--color-brand-700); outline-offset: 1px; } }
 `;
-const HarumadiButton = styled(BaseButton)`display: grid; gap: 0; width: 100%; min-width: 0; padding: 0; text-align: left; background: transparent; color: inherit; overflow: visible;
+// 선반 두께 6px와 표지 아래 종이 단면 4px를 비워 책이 선반에 파묻히지 않게 한다.
+const HarumadiButton = styled(BaseButton)`display: grid; gap: 10px; width: 100%; min-width: 0; padding: 0; text-align: left; background: transparent; color: inherit; overflow: visible;
   > span:first-of-type { transition: transform 180ms ease; } &:hover > span:first-of-type { transform: translateY(-5px); }
   &:focus-visible { outline: 2px solid var(--color-brand-700); outline-offset: 7px; border-radius: 4px; }
   @media (prefers-reduced-motion: reduce) { > span:first-of-type { transition: none; } &:hover > span:first-of-type { transform: none; } }
