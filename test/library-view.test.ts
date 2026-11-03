@@ -1,0 +1,98 @@
+import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import test from "node:test";
+import { createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { createLibraryViewPreferences } from "@/lib/libraryViewPreferences";
+import { parseLibraryView, spineColumnCount } from "@/shared/harumadi/libraryView";
+import { HarumadiShelf, HarumadiSpine } from "@/features/tuti/components/HarumadiShelf";
+import { LibraryViewSwitch } from "@/features/tuti/components/LibraryViewSwitch";
+import { harumadiContent } from "./fixtures/harumadiContent";
+
+test("표지 보기가 기본이고 책등 선택은 계정별 기기 저장소와 메모리에 유지한다", async () => {
+  const data = new Map<string, string>();
+  const storage = { async getItem(key: string) { return data.get(key) ?? null; }, async setItem(key: string, value: string) { data.set(key, value); } };
+  const first = createLibraryViewPreferences(storage);
+  assert.equal(first.peek("a"), "covers");
+  await first.save("a", "spines");
+  assert.equal(first.peek("a"), "spines");
+  assert.equal(first.peek("b"), "covers");
+  assert.equal(await createLibraryViewPreferences(storage).load("a"), "spines");
+  assert.equal(await first.load("b"), "covers");
+  for (const invalid of [null, "", "grid", "book", "{}", undefined]) assert.equal(parseLibraryView(invalid), "covers");
+});
+
+test("느린 저장소 읽기는 방금 선택한 보기나 다른 계정의 선택을 덮어쓰지 않는다", async () => {
+  let resolve!: (value: string | null) => void;
+  const preferences = createLibraryViewPreferences({ getItem: () => new Promise(done => { resolve = done; }), async setItem() {} });
+  const loading = preferences.load("a");
+  await preferences.save("a", "spines");
+  resolve("covers");
+  assert.equal(await loading, "spines");
+  await preferences.save("b", "covers");
+  assert.equal(preferences.peek("a"), "spines");
+  assert.equal(preferences.peek("b"), "covers");
+  const unavailable = createLibraryViewPreferences({ async getItem() { throw new Error("unavailable"); }, async setItem() { throw new Error("unavailable"); } });
+  assert.equal(await unavailable.load("a"), "covers");
+  await unavailable.save("a", "spines");
+  assert.equal(await unavailable.load("a"), "spines");
+});
+
+test("보기 선택은 명시적인 두 버튼과 선택 상태·44px 조작 영역으로 제공한다", () => {
+  for (const view of ["covers", "spines"] as const) {
+    const html = renderToStaticMarkup(createElement(LibraryViewSwitch, { view, onChange() {} }));
+    assert.match(html, /role="group" aria-label="책장 보기 방식"/);
+    assert.equal((html.match(/<button[^>]*aria-pressed="true"/g) ?? []).length, 1);
+    assert.equal((html.match(/<button[^>]*aria-pressed="false"/g) ?? []).length, 1);
+    assert.match(html, /표지/); assert.match(html, /책등/);
+    assert.match(html, /min-height:44px/);
+  }
+});
+
+test("책등은 표지 색상과 세로 제목을 쓰며 사진 요청 없이 모든 책과 공통 메뉴를 표시한다", () => {
+  const base = harumadiContent().harumadi;
+  const books = Array.from({ length: 5 }, (_, index) => ({ ...base, id: `book-${index}`, title: `우리의 하루 ${index}`, coverStyle: "green-image" as const, shared: index === 1 }));
+  const html = renderToStaticMarkup(createElement(HarumadiShelf, { books, ownerId: "owner", view: "spines", onOpen() {} }));
+  assert.match(html, /data-library-view="spines"/);
+  assert.equal((html.match(/data-harumadi-card="true"/g) ?? []).length, 5);
+  assert.equal((html.match(/data-harumadi-spine="true"/g) ?? []).length, 5);
+  assert.doesNotMatch(html, /<img|library-cover|loading="lazy"/);
+  assert.match(html, /writing-mode:vertical-rl/);
+  assert.match(html, /#EBF5D5/);
+  assert.match(html, /함께/);
+  for (const book of books) {
+    assert.match(html, new RegExp(`aria-label="${book.title}, 마디 1개 열기"`));
+    assert.match(html, new RegExp(`aria-label="${book.title} 메뉴"`));
+  }
+  const white = renderToStaticMarkup(createElement(HarumadiSpine, { book: { ...base, coverStyle: "white-plain" } }));
+  assert.match(white, /#FFFFFF/);
+});
+
+test("기존 표지 보기는 두 열과 간격을 유지하고 사진이 없는 책도 열 수 있다", () => {
+  const book = harumadiContent().harumadi;
+  const html = renderToStaticMarkup(createElement(QueryClientProvider, { client: new QueryClient() },
+    createElement(HarumadiShelf, { books: [book], ownerId: "owner", view: "covers", onOpen() {} })));
+  assert.match(html, /data-library-view="covers"/);
+  assert.doesNotMatch(html, /data-harumadi-spine/);
+  assert.match(html, /grid-template-columns:repeat\(2, minmax\(0, 1fr\)\)/);
+  assert.match(html, /gap:24px;padding:0 8px/);
+  assert.match(html, /aria-label="함께한 하루, 마디 1개 열기"/);
+});
+
+test("책등 열 수는 CSS 너비로 계산하고 페이지네이션·열기 이력을 두 보기에서 공유한다", () => {
+  assert.equal(spineColumnCount(280), 3);
+  assert.equal(spineColumnCount(350), 4);
+  assert.equal(spineColumnCount(200), 2);
+  assert.equal(spineColumnCount(1000), 6);
+  const shelf = readFileSync("src/features/tuti/components/HarumadiShelf.tsx", "utf8");
+  assert.match(shelf, /spineColumnCount\(node.clientWidth\)/);
+  assert.match(shelf, /spines \? <HarumadiSpine book=\{book\} \/> : <HarumadiCover/);
+  assert.match(shelf, /items=\{harumadiActions\(book\)/);
+  assert.match(shelf, /onOpen\(book, trigger, action.mode\)/);
+  const home = readFileSync("src/features/tuti/flows/LibraryHomeFlow.tsx", "utf8");
+  assert.match(home, /useLibraryView\(ownerId\)/);
+  assert.match(home, /<HarumadiShelf books=\{harumadiPdfs\} ownerId=\{ownerId\} view=\{view\} onOpen=\{openBook\}/);
+  assert.match(home, /query.fetchNextPage\(\)/);
+  assert.match(home, /harumadiLocalRect\(bounds, cover/);
+});

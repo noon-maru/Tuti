@@ -4,10 +4,12 @@ import test from "node:test";
 
 test("책장 표지와 설정은 중첩 버튼 없이 같은 책 읽기 화면을 별도로 연다", () => {
   const home = readFileSync("src/features/tuti/flows/LibraryHomeFlow.tsx", "utf8");
-  assert.match(home, /<HarumadiCard[^>]*data-harumadi-card/);
-  assert.match(home, /<\/HarumadiButton><BookMenu/);
-  assert.match(home, /items=\{harumadiActions\(harumadiPdf\)/);
-  assert.match(home, /openBook\(harumadiPdf, trigger, action.mode\)/);
+  const shelf = readFileSync("src/features/tuti/components/HarumadiShelf.tsx", "utf8");
+  assert.match(shelf, /<HarumadiCard[^>]*data-harumadi-card/);
+  assert.match(shelf, /<\/HarumadiButton><BookMenu/);
+  assert.match(shelf, /items=\{harumadiActions\(book\)/);
+  assert.match(shelf, /onOpen\(book, trigger, action.mode\)/);
+  assert.match(home, /<HarumadiShelf[^>]*onOpen=\{openBook\}/);
   assert.match(home, /<HomeSurface inert=\{Boolean\(opening\)\}/);
   assert.match(home, /<HarumadiBookReader opening=\{opening\}/);
   assert.doesNotMatch(home, /router.push\(harumadiPath/);
