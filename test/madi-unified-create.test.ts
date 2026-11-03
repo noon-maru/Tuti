@@ -57,3 +57,12 @@ test("iOS 날짜 입력의 기본 최소 폭이 작성 그리드를 밀어내지
   assert.match(globalStyles, /input\[type="date"\]/);
   assert.match(globalStyles, /font-size: max\(16px, 1em\) !important/);
 });
+
+test("작성 입력창의 포커스 강조는 너비와 스크롤 여백을 바꾸지 않고 테두리 안에 표시한다", () => {
+  const screen = readFileSync("src/features/tuti/screens/journal/MadiCreateScreen.tsx", "utf8");
+  const fields = screen.slice(screen.indexOf("const Fields ="), screen.indexOf("const Page ="));
+  assert.match(fields, /input:focus-visible, textarea:focus-visible \{ outline: 2px solid var\(--color-accent-primary\); outline-offset: -2px; \}/);
+  assert.match(fields, /box-sizing: border-box; min-width: 0; max-width: 100%; width: 100%/);
+  assert.match(screen, /padding: 2px 2px 24px/);
+  assert.doesNotMatch(fields, /outline: none|outline: 0/);
+});

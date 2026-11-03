@@ -226,6 +226,7 @@ const Fields = styled.div`
   label { display: grid; grid-template-columns: minmax(0, 1fr); min-width: 0; gap: 10px; font-size: 13px; font-weight: 500; }
   small { display: inline; font-size: 11px; font-weight: 400; color: var(--color-text-muted); }
   input, textarea { display: block; box-sizing: border-box; min-width: 0; max-width: 100%; width: 100%; border: 1px solid var(--color-border); border-radius: 12px; padding: 14px; color: var(--color-text); background: #fff; font: inherit; font-weight: 400; line-height: 1.7; }
+  input:focus-visible, textarea:focus-visible { outline: 2px solid var(--color-accent-primary); outline-offset: -2px; }
   /* Keep iOS's native date picker, without its intrinsic control width expanding the grid. */
   input[type="date"] { -webkit-appearance: none; appearance: none; min-inline-size: 0; inline-size: 100%; max-inline-size: 100%; text-align: left; }
   input[type="date"]::-webkit-date-and-time-value { min-width: 0; text-align: left; }
