@@ -438,10 +438,17 @@ export type AdminNotificationErrorSummary = {
 };
 
 export type AdminNotificationsResponse = {
+  lifelog?: {
+    newsUsers: number; reminderUsers: number; mutedBooks: number; pending: number;
+    opened24h: number; written24h: number;
+    permissionRequestedUsers24h: number; permissionGrantedUsers24h: number; permissionDeniedUsers24h: number; disabledUsers24h: number;
+    lastDispatchAt: string | null; lastDispatchFailed: number;
+    kinds: { kind: string; sent: number; failed: number }[];
+  };
   generatedAt: string;
   configuration: Record<
     AdminNotificationPlatform,
-    { enabled: boolean; testMode: boolean }
+    { enabled: boolean }
   >;
   summary: {
     totalDevices: number;

@@ -97,7 +97,7 @@ test("시행 대장은 소스 대조와 계약·처리 근거 승인을 분리�
   assert.ok(processingCases.sources.includes("src/server/admin/processingCases.ts"));
   assert.equal(evidence.checks.processingInventory.sourceAudit.prismaModelsClassified, report.models - report.pendingRolloutModels.length - 1);
   assert.equal(evidence.checks.processingInventory.sourceAudit.groups, report.groups - report.pendingRolloutGroups);
-  assert.deepEqual(report.pendingRolloutModels, ["HarumadiMember", "HarumadiInvite", "HarumadiComment", "LifecycleEvent"]);
+  assert.deepEqual(report.pendingRolloutModels, ["HarumadiMember", "HarumadiInvite", "HarumadiComment", "NotificationPreference", "NotificationBookSetting", "NotificationPresence", "NotificationJob", "NotificationEvent", "NotificationDispatchStatus", "LifecycleEvent"]);
   assert.equal(evidence.checks.processorsAndTransfers.sourceAudit.externalFlowGroups, report.externalFlows);
   assert.equal(evidence.checks.processingInventory.reference, "LEGAL-TEXT-DECISION-20261022");
   assert.equal(evidence.checks.processorsAndTransfers.reference, "LEGAL-TEXT-DECISION-20261022");

@@ -56,6 +56,14 @@
       "sources": ["src/server/notifications/retention.ts", "src/server/notifications/fcm.ts", "src/server/notifications/apns.ts", "scripts/maintain-privacy-data.ts"]
     },
     {
+      "id": "lifelog-notifications",
+      "implementationState": "disabled-pending-rollout",
+      "models": ["NotificationPreference", "NotificationBookSetting", "NotificationPresence", "NotificationJob", "NotificationEvent", "NotificationDispatchStatus"],
+      "items": "2026-11-03 로컬 구현: 계정별 소식/기록 알림 선택·시간·시간대, 책별 음소거, 작성/열람 생존 신호, 최소 발송 큐의 수신/행위 계정·책·사건 식별값, 앱 보고 열기/작성 사건, 비식별 최신 발송 점검 결과. 본문·사진·장소·책 제목 미포함. 신규 국외 전송 목적·내부 이동 식별값의 고지 검토는 별도",
+      "retention": "설정은 계정/책 삭제까지, 생존 신호 90초, 큐·관측 30일 이내 정기 정리. 계정/책 삭제 시 FK Cascade. 최신 비식별 발송 점검은 한 행 갱신. 복원 시 기존 계정 파기 원장 재반영 경계를 유지. 운영 미적용·실기기 미검증·기존 법률 승인을 확장하지 않음",
+      "sources": ["src/server/notifications/settings.ts", "src/server/notifications/outbox.ts", "src/server/notifications/dispatch.ts", "src/app/api/notifications/events/route.ts", "src/app/api/notifications/presence/route.ts", "prisma/schema.prisma"]
+    },
+    {
       "id": "location",
       "models": ["LocationConsentEvent", "LocationUsageLog", "LocationSecurityAuditEvent"],
       "items": "위치 동의 상태·버전·연령/플랫폼, 이용·외부 전송 상대방/목적/시각/최소 식별값, 위치시스템 접근·권한·점검 서명 기록",

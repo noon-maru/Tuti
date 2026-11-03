@@ -81,6 +81,16 @@ test("백업도 임시 컨테이너 없이 실행하고 전용 UID·잠금·인�
   assert.ok(calls.every(c => !c.args.includes("run") && !c.args.includes("build") && !c.args.includes("up")));
 });
 
+test("알림 발송도 검증된 유지보수 worker와 고정 명령만 사용한다", async t => {
+  const f = await fixture(t);
+  assert.equal(f.run(["notifications"]).status, 0);
+  assert.equal(f.run(["notifications", "--apply"]).status, 0);
+  assert.notEqual(f.run(["notifications", "--arbitrary"]).status, 0);
+  const calls = (await f.calls()).filter(c => c.args.includes("scripts/run-maintenance-job.mjs"));
+  assert.equal(calls.length, 2);
+  assert.ok(calls.every(c => c.args.includes("tuti-ops-maintenance") && c.args.includes("notifications")));
+});
+
 test("환경 변경·중지·미설치·복원 대기에서는 새 컨테이너로 우회하지 않고 실패한다", async t => {
   const f = await fixture(t);
   const checked = f.run(["--check"]); assert.equal(checked.status, 0, checked.stderr);

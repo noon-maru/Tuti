@@ -46,7 +46,7 @@ export function AdminNotificationsPanel({
             <strong>{data.summary.activeDevices.toLocaleString("ko-KR")}</strong>
           </HeroMetric>
           <HeroMetric>
-            <span>전달 성공률</span>
+            <span>제공자 전송 성공률</span>
             <strong>
               {data.summary.successRate === null
                 ? "—"
@@ -56,7 +56,7 @@ export function AdminNotificationsPanel({
         </HeroMetrics>
         <DeliveryTrack
           role="progressbar"
-          aria-label="최근 24시간 알림 전달 성공 비율"
+          aria-label="최근 24시간 제공자 전송 성공 비율"
           aria-valuemin={0}
           aria-valuemax={100}
           aria-valuenow={data.summary.successRate ?? undefined}
@@ -77,6 +77,29 @@ export function AdminNotificationsPanel({
           <time>집계 {formatDate(data.generatedAt)}</time>
         </DeliveryLegend>
       </PulseHero>
+
+      {data.lifelog && <OperationsSection>
+        <SectionHeading><h3>수신 설정·라이프로그 알림</h3></SectionHeading>
+        <HeroMetrics>
+          <HeroMetric><span>소식 수신 계정</span><strong>{data.lifelog.newsUsers}</strong></HeroMetric>
+          <HeroMetric><span>기록 알림 계정</span><strong>{data.lifelog.reminderUsers}</strong></HeroMetric>
+          <HeroMetric><span>하루마디별 알림 끄기</span><strong>{data.lifelog.mutedBooks}</strong></HeroMetric>
+          <HeroMetric><span>발송 대기</span><strong>{data.lifelog.pending}</strong></HeroMetric>
+          <HeroMetric><span>24시간 마디·공동작성 알림 열기</span><strong>{data.lifelog.opened24h}</strong></HeroMetric>
+          <HeroMetric><span>24시간 기록 알림 후 작성</span><strong>{data.lifelog.written24h}</strong></HeroMetric>
+          <HeroMetric><span>24시간 권한 요청 계정</span><strong>{data.lifelog.permissionRequestedUsers24h}</strong></HeroMetric>
+          <HeroMetric><span>24시간 권한 허용 확인</span><strong>{data.lifelog.permissionGrantedUsers24h}</strong></HeroMetric>
+          <HeroMetric><span>24시간 권한 거절 확인</span><strong>{data.lifelog.permissionDeniedUsers24h}</strong></HeroMetric>
+          <HeroMetric><span>24시간 수신 끄기 계정</span><strong>{data.lifelog.disabledUsers24h}</strong></HeroMetric>
+        </HeroMetrics>
+        <TableHint>마지막 발송 점검 {formatOptionalDate(data.lifelog.lastDispatchAt)} · 오류 {data.lifelog.lastDispatchFailed}건</TableHint>
+        {(!data.lifelog.lastDispatchAt || Date.parse(data.generatedAt) - Date.parse(data.lifelog.lastDispatchAt) > 5 * 60_000) && <p role="status">예약 발송기 실행 상태를 확인해주세요.</p>}
+        <TableViewport><NotificationTable><thead><tr><th>알림 종류</th><th>24시간 제공자 전송 성공</th><th>실패·무효</th></tr></thead><tbody>
+          {data.lifelog.kinds.map(kind => <tr key={kind.kind}><td>{getMessageTypeLabel(kind.kind)}</td><td>{kind.sent}</td><td>{kind.failed}</td></tr>)}
+          {!data.lifelog.kinds.length && <tr><td colSpan={3}>최근 24시간 전송 없음</td></tr>}
+        </tbody></NotificationTable></TableViewport>
+        <TableHint>열기·작성은 앱이 보고한 관측값이며, 전송 성공은 기기 수신·열람 확인이 아닙니다.</TableHint>
+      </OperationsSection>}
 
       <OperationsSection>
         <SectionHeading>
@@ -114,16 +137,12 @@ export function AdminNotificationsPanel({
                         $state={
                           configuration.enabled
                             ? "enabled"
-                            : configuration.testMode
-                              ? "test"
-                              : "disabled"
+                            : "disabled"
                         }
                       >
                         {configuration.enabled
                           ? "전체 사용"
-                          : configuration.testMode
-                            ? "내부 테스트"
-                            : "꺼짐"}
+                          : "꺼짐"}
                       </ConfigurationBadge>
                       <TableHint>{getConfigurationLabel(configuration)}</TableHint>
                     </td>
@@ -318,10 +337,8 @@ function getNotificationHeadline(data: AdminNotificationsResponse) {
 
 function getConfigurationLabel(configuration: {
   enabled: boolean;
-  testMode: boolean;
 }) {
-  if (configuration.enabled) return "등록된 모든 사용자에게 발송 가능";
-  if (configuration.testMode) return "허용된 테스트 계정에만 발송";
+  if (configuration.enabled) return "수신을 선택한 모든 사용자에게 발송 가능";
   return "서버 발송이 비활성화된 상태";
 }
 
@@ -330,12 +347,16 @@ function getPlatformLabel(platform: AdminNotificationPlatform) {
 }
 
 function getDeliveryStatusLabel(status: AdminNotificationDeliveryStatus) {
-  if (status === "sent") return "전달 성공";
+  if (status === "sent") return "제공자 전송 성공";
   if (status === "invalidated") return "토큰 무효";
   return "전달 실패";
 }
 
 function getMessageTypeLabel(messageType: string) {
+  if (messageType === "shared-madi") return "함께 채운 새 마디";
+  if (messageType === "invite-accepted") return "초대 수락";
+  if (messageType === "comment-reply") return "내 댓글의 답글";
+  if (messageType === "madi-reminder") return "오늘의 마디 기록 알림";
   if (messageType === "inquiry-answered") return "문의 답변";
   return messageType;
 }

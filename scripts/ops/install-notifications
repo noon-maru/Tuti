@@ -1,0 +1,23 @@
+#!/bin/sh
+set -eu
+case "$#:${1:-}" in 0:) echo '조회: 배포·마이그레이션 후 --apply로 알림 예약 발송기를 설치합니다.'; exit 0 ;; 1:--apply) ;; *) exit 1 ;; esac
+[ "$(id -u)" = 0 ] || { echo 'NAS 관리자 권한이 필요합니다.' >&2; exit 1; }
+cd /var/services/homes/Tutiadmin/source/Tuti
+docker exec tuti-ops-maintenance sh -c 'test -f /app/scripts/dispatch-notifications.ts' || { echo '새 작업 이미지를 먼저 배포해주세요.' >&2; exit 1; }
+[ ! -L .ops-state ] && [ ! -L .ops-state/notification-install ] || exit 1
+backup=".ops-state/notification-install/$(date +%Y%m%d-%H%M%S)-$$"
+install -d -m 0700 "$backup"
+for target in /usr/local/sbin/tuti-ops-workers /usr/local/sbin/tuti-notifications-dispatch /etc/systemd/system/tuti-notifications.service /etc/systemd/system/tuti-notifications.timer; do
+  [ ! -L "$target" ] || exit 1
+  if [ -f "$target" ]; then cp -p "$target" "$backup/$(basename "$target")"; fi
+done
+install -o root -g root -m 0755 scripts/ops/tuti-ops-workers /usr/local/sbin/tuti-ops-workers
+install -o root -g root -m 0755 scripts/ops/tuti-notifications-dispatch /usr/local/sbin/tuti-notifications-dispatch
+/usr/local/sbin/tuti-ops-workers --refresh
+/usr/local/sbin/tuti-notifications-dispatch
+install -o root -g root -m 0644 scripts/ops/systemd/tuti-notifications.service /etc/systemd/system/tuti-notifications.service
+install -o root -g root -m 0644 scripts/ops/systemd/tuti-notifications.timer /etc/systemd/system/tuti-notifications.timer
+systemctl daemon-reload
+systemctl enable tuti-notifications.timer
+systemctl start tuti-notifications.timer
+echo "알림 예약 발송기 활성화 완료. 이전 설치본: $backup. 앱·DB는 재시작하지 않았습니다."

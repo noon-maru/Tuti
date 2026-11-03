@@ -1,8 +1,8 @@
 # Tuti iOS 서버 푸시
 
-iOS 문의 답변 알림은 Capacitor Push Notifications에서 발급받은 APNs 기기
+iOS 알림은 Capacitor Push Notifications에서 발급받은 APNs 기기
 토큰을 Tuti 서버에 등록하고, 서버가 Apple Push Notification service HTTP/2
-API로 직접 발송한다. Firebase iOS SDK는 추가하지 않는다.
+API로 직접 발송한다. Firebase iOS SDK는 추가하지 않는다. 공통 정책·설정·운영은 [알림 개편](local-notifications.md)을 따른다.
 
 ## Apple 설정
 
@@ -42,12 +42,12 @@ App Store 빌드는 `production`을 사용한다.
 
 ## 사용자 흐름
 
-1. iOS 앱 알림 설정에서 문의 답변 알림 직접 활성화
+1. iOS 앱 최초 선택 알림 또는 설정에서 원하는 알림 종류 활성화
 2. iOS 알림 권한 허용 후 APNs 토큰 발급
 3. 설치 식별값·플랫폼·토큰을 현재 로그인 계정에 연결
 4. 관리자가 문의 답변을 저장하면 활성 iOS 기기에 APNs 알림 발송
 5. 알림 선택 시 `/inquiry?view=history`로 이동
-6. 알림을 끄면 서버 연결 삭제와 APNs 등록 해제
+6. 두 종류 모두 끄면 현재 설치의 서버 연결 삭제와 APNs 등록 해제
 
 잠금 화면에 문의 제목·본문·답변 내용은 표시하지 않는다. APNs에는 일반화된
 답변 도착 문구와 인증 후 이동할 앱 내부 경로만 전달한다. 만료되거나 Bundle ID와
@@ -55,9 +55,9 @@ App Store 빌드는 `production`을 사용한다.
 
 ## 실기기 확인
 
-1. `pnpm ios:sync` 후 Xcode에서 새 빌드 설치
+1. Actions에서 빌드한 새 앱 설치
 2. Signing & Capabilities에서 Push Notifications 표시 확인
-3. 앱 알림 설정에서 문의 답변 알림 활성화 및 시스템 권한 허용
+3. 앱 알림 설정에서 함께 채우기·서비스 소식 활성화 및 시스템 권한 허용
 4. 개발 또는 운영 DB `push_devices`에 `platform=ios` 등록 확인
 5. 문의 답변 저장 후 전면·백그라운드·종료 상태 수신 확인
 6. 알림 선택 시 내 문의 답변 화면 이동 확인

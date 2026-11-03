@@ -8,6 +8,7 @@ mode="${1:-}"
 [ "$#" -gt 0 ] || exit 1
 shift
 case "$mode:$#:${1:-}" in
+  notifications:0: | notifications:1:--apply) ;;
   --refresh:0: | --refresh-locked:0: | --check:0: | rights:0: | rights:1:--apply | privacy:0: | privacy:1:--apply | recovery:0: | recovery:1:--apply | retention:0: | retention:1:--apply | backup-cleanup:0: | backup-check:2:full | backup-check:2:core | backup-objects:2:full | backup-objects:2:core) ;;
   *) echo "지원 명령: --check | --refresh | rights|privacy|recovery|retention [--apply] | backup-cleanup | backup-check|backup-objects full|core YYYYMMDD-HHMMSS" >&2; exit 1 ;;
 esac
@@ -100,7 +101,7 @@ case "$mode" in
     echo '{"workers":3,"running":true,"configurationVerified":true,"ephemeralContainersCreated":false}'
     exit 0
     ;;
-  rights | privacy | backup-cleanup) container=tuti-ops-maintenance ;;
+  rights | privacy | notifications | backup-cleanup) container=tuti-ops-maintenance ;;
   recovery) container=tuti-ops-recovery ;;
   retention | backup-check | backup-objects) container=tuti-ops-retention ;;
 esac

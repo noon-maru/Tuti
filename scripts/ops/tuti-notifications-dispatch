@@ -1,0 +1,14 @@
+#!/bin/sh
+set -eu
+case "$#:${1:-}" in 0:) ;; 1:--apply) ;; *) exit 1 ;; esac
+[ "$(id -u)" = 0 ] || exit 1
+cd /var/services/homes/Tutiadmin/source/Tuti
+exec 9>.ops-state/maintenance.lock
+/usr/bin/flock --shared --nonblock 9 || exit 0
+exec 8>.ops-state/notification-dispatch.lock
+/usr/bin/flock --exclusive --nonblock 8 || exit 0
+if [ -f .ops-state/restore-privacy/pending.env ] || [ -f .ops-state/privacy-activation/pending ]; then
+  echo '복원·원장 전환 검토 중에는 알림을 발송하지 않습니다.' >&2
+  exit 1
+fi
+exec /usr/local/sbin/tuti-ops-workers notifications "$@"

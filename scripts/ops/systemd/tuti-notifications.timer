@@ -1,0 +1,11 @@
+[Unit]
+Description=Tuti lifelog notification dispatch each minute
+
+[Timer]
+OnCalendar=*-*-* *:*:00
+AccuracySec=1s
+Persistent=false
+Unit=tuti-notifications.service
+
+[Install]
+WantedBy=timers.target

@@ -88,7 +88,7 @@ test("실패 알림은 설정 누락·HTTP 실패를 실패로 반환하고 고�
         assert.equal(String(url), 'https://example.invalid/test');
         assert.equal(options.method, 'POST');
         assert.equal(options.redirect, 'error');
-        assert.deepEqual(JSON.parse(options.body), {text:'Tuti 개인정보·권리 보호 예약 작업에 실패했어요. NAS의 실패한 작업과 운영 로그를 확인해주세요.'});
+        assert.deepEqual(JSON.parse(options.body), {text:'Tuti 예약 작업에 실패했어요. NAS의 실패한 작업과 운영 로그를 확인해주세요.'});
         if (scenario === 'network-failure') throw new Error('private-provider-error');
         return {ok: scenario === 'success'};
       };

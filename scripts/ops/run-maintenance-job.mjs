@@ -3,6 +3,7 @@ import { spawn } from "node:child_process";
 import { existsSync, writeFileSync, unlinkSync } from "node:fs";
 import { join } from "node:path";
 const tasks = {
+  notifications: "scripts/dispatch-notifications.ts",
   rights: "scripts/maintain-journal-rights.ts",
   privacy: "scripts/maintain-privacy-data.ts",
   recovery: "scripts/privacy-ledger-recovery.ts",

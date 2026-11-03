@@ -215,16 +215,36 @@ export async function GET(request: Request) {
     (delivery) => delivery.status !== "sent",
   ).length;
   const attempted24h = sent24h + failed24h;
+  const [preferenceCounts, queueCounts, eventCounts, dispatchStatus, kindCounts] = await Promise.all([
+    prisma.$queryRaw<{ news: bigint; reminder: bigint; muted: bigint }[]>`SELECT
+      (SELECT count(1) FROM notification_preferences WHERE news_enabled) AS news,
+      (SELECT count(1) FROM notification_preferences WHERE reminder_enabled) AS reminder,
+      (SELECT count(1) FROM notification_book_settings WHERE muted) AS muted`,
+    prisma.$queryRaw<{ pending: bigint }[]>`SELECT count(1) AS pending FROM notification_jobs WHERE consumed_at IS NULL`,
+    prisma.$queryRaw<{ opened: bigint; written: bigint; requested: bigint; granted: bigint; denied: bigint; disabled: bigint }[]>`SELECT count(1) FILTER(WHERE action='opened') AS opened,count(1) FILTER(WHERE action='written') AS written,
+      count(DISTINCT user_id) FILTER(WHERE action='permission-requested') AS requested,count(DISTINCT user_id) FILTER(WHERE action='permission-granted') AS granted,
+      count(DISTINCT user_id) FILTER(WHERE action='permission-denied') AS denied,count(DISTINCT user_id) FILTER(WHERE action='disabled') AS disabled FROM notification_events WHERE created_at>=${since24h}`,
+    prisma.$queryRaw<{ checked_at: Date; failed: number }[]>`SELECT checked_at,failed FROM notification_dispatch_status WHERE id='latest'`,
+    prisma.pushDelivery.groupBy({ by: ["messageType", "status"], where: { createdAt: { gte: since24h } }, _count: true }),
+  ]);
+  const kinds = new Map<string, { kind: string; sent: number; failed: number }>();
+  for (const row of kindCounts) {
+    const item = kinds.get(row.messageType) ?? { kind: row.messageType, sent: 0, failed: 0 };
+    if (row.status === "sent") item.sent += row._count; else item.failed += row._count;
+    kinds.set(row.messageType, item);
+  }
   const response: AdminNotificationsResponse = {
+    lifelog: { newsUsers: Number(preferenceCounts[0].news), reminderUsers: Number(preferenceCounts[0].reminder), mutedBooks: Number(preferenceCounts[0].muted),
+      pending: Number(queueCounts[0].pending), opened24h: Number(eventCounts[0].opened), written24h: Number(eventCounts[0].written),
+      permissionRequestedUsers24h: Number(eventCounts[0].requested), permissionGrantedUsers24h: Number(eventCounts[0].granted), permissionDeniedUsers24h: Number(eventCounts[0].denied), disabledUsers24h: Number(eventCounts[0].disabled),
+      lastDispatchAt: dispatchStatus[0]?.checked_at.toISOString() ?? null, lastDispatchFailed: dispatchStatus[0]?.failed ?? 0, kinds: [...kinds.values()] },
     generatedAt: new Date().toISOString(),
     configuration: {
       android: {
         enabled: isPlatformPushEnabled("android"),
-        testMode: false,
       },
       ios: {
         enabled: isPlatformPushEnabled("ios"),
-        testMode: false,
       },
     },
     summary: {
