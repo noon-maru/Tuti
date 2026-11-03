@@ -6,7 +6,6 @@ import {
   withCors,
 } from "@/server/http/cors";
 import { isPlatformPushEnabled } from "@/server/notifications/pushAccess";
-import { parseFcmPushTestEmails } from "@/server/notifications/pushTestAccess";
 import type {
   AdminNotificationDeliveryStatus,
   AdminNotificationErrorSummary,
@@ -221,15 +220,11 @@ export async function GET(request: Request) {
     configuration: {
       android: {
         enabled: isPlatformPushEnabled("android"),
-        testMode:
-          !isPlatformPushEnabled("android") &&
-          parseFcmPushTestEmails(process.env.FCM_PUSH_TEST_EMAILS).length > 0,
+        testMode: false,
       },
       ios: {
         enabled: isPlatformPushEnabled("ios"),
-        testMode:
-          !isPlatformPushEnabled("ios") &&
-          parseFcmPushTestEmails(process.env.APNS_PUSH_TEST_EMAILS).length > 0,
+        testMode: false,
       },
     },
     summary: {

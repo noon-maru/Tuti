@@ -1,5 +1,3 @@
-import { prisma } from "@/server/db/prisma";
-import { parseFcmPushTestEmails } from "@/server/notifications/pushTestAccess";
 import type { PushPlatform } from "@/shared/api/push";
 
 export function isPlatformPushEnabled(platform: PushPlatform) {
@@ -11,24 +9,8 @@ export function isPlatformPushEnabled(platform: PushPlatform) {
 }
 
 export async function isPushEnabledForUser(
-  userId: string,
+  _userId: string,
   platform: PushPlatform,
 ) {
-  if (isPlatformPushEnabled(platform)) return true;
-
-  const testEmails = parseFcmPushTestEmails(
-    platform === "ios"
-      ? process.env.APNS_PUSH_TEST_EMAILS
-      : process.env.FCM_PUSH_TEST_EMAILS,
-  );
-  if (testEmails.length === 0) return false;
-
-  const identity = await prisma.authIdentity.findFirst({
-    where: {
-      userId,
-      email: { in: testEmails, mode: "insensitive" },
-    },
-    select: { id: true },
-  });
-  return identity !== null;
+  return isPlatformPushEnabled(platform);
 }

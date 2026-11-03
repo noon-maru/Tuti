@@ -15,7 +15,7 @@ test("시행 준비 점검은 미확인 사항을 승인하지 않고 실제 근
 });
 test("런타임 확인 결과는 비밀키·메일주소·저장소 주소를 포함하지 않는다", () => {
   const facts = legalRuntimeFacts({ FCM_PUSH_TEST_EMAILS: "private@example.test", DAUM_SMTP_APP_PASSWORD: "very-private-key", GOOGLE_APPLICATION_CREDENTIALS: "/secret/path", APNS_PUSH_ENABLED: "true", LOCATION_EXTERNAL_COORDINATE_MODE: "processor" });
-  assert.equal(facts.androidPush, true);
+  assert.equal(facts.androidPush, false);
   assert.equal(facts.iosPush, true);
   assert.equal(facts.externalCoordinates, "processor");
   assert.doesNotMatch(JSON.stringify(facts), /private@example|very-private|secret\/path/);

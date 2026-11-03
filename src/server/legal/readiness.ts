@@ -22,8 +22,8 @@ export function legalRuntimeFacts(env: Readonly<Record<string, string | undefine
     externalCoordinates: externalMode === "processor" || externalMode === "third_party" ? externalMode : "pending",
     userAiProfiling: on("TUTI_USER_AI_PROFILING_ENABLED"),
     objectStorage: on("OBJECT_STORAGE_ENABLED"),
-    androidPush: on("FCM_PUSH_ENABLED") || present("FCM_PUSH_TEST_EMAILS"),
-    iosPush: on("APNS_PUSH_ENABLED") || present("APNS_PUSH_TEST_EMAILS"),
+    androidPush: on("FCM_PUSH_ENABLED"),
+    iosPush: on("APNS_PUSH_ENABLED"),
     authenticationEmailProvider: env.AUTH_EMAIL_PROVIDER === "daum-smartwork" ? "daum-smartwork" : present("AUTH_EMAIL_PROVIDER") ? "other" : "unset",
     // Credentials, addresses, subjects, tokens and test-email allowlists must never be returned.
   };

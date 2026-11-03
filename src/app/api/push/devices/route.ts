@@ -38,7 +38,7 @@ export async function POST(request: Request) {
       return withCors(
         request,
         Response.json(
-          { error: "문의 답변 알림은 10월 1일부터 사용할 수 있어요." },
+          { error: "현재 서버 알림을 사용할 수 없어요. 잠시 후 다시 시도해주세요." },
           { status: 503 },
         ),
       );

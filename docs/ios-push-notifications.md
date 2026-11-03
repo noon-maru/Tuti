@@ -28,7 +28,6 @@ Docker 이미지에 포함하지 않고 서버 비공개 폴더에서만 관리�
 
 ```dotenv
 APNS_PUSH_ENABLED=false
-APNS_PUSH_TEST_EMAILS=admin@tuti.today
 APNS_TEAM_ID=
 APNS_KEY_ID=
 APNS_BUNDLE_ID=com.noonmaru.tuti
@@ -36,7 +35,7 @@ APNS_ENVIRONMENT=production
 APNS_PRIVATE_KEY_HOST_PATH=/var/services/homes/Tutiadmin/.tuti-secrets/apple/tuti-apns-auth-key.p8
 ```
 
-내부 QA는 일반 활성화와 구분해 `APNS_PUSH_TEST_EMAILS`로 제한한다.
+사용자별 시험 허용 목록은 제거했다. `APNS_PUSH_ENABLED=true`이면 모든 사용자가 직접 수신을 선택할 수 있다.
 개발용 Xcode 직접 설치 앱이 개발 API를
 사용한다면 개발 서버의 `APNS_ENVIRONMENT=sandbox`로 설정한다. TestFlight와
 App Store 빌드는 `production`을 사용한다.
