@@ -43,6 +43,18 @@ test("권리 행사·공개 공유·콜백·운영/헬스·CORS는 호환 헤더
   for (const header of [CLIENT_PROTOCOL_HEADER, CLIENT_PLATFORM_HEADER, CLIENT_VERSION_HEADER]) assert.ok(preflight.headers.get("Access-Control-Allow-Headers")?.includes(header));
 });
 
+test("공동작성 사진 GET·HEAD는 브라우저 이미지 요청을 허용하되 일반 API·변경 요청은 계속 차단한다", () => {
+  for (const path of ["/api/harumadis/book/images/entry", "/api/harumadis/book/images/entry?ticket=signed", "/api/harumadis/book/images/entry?ticket=signed&thumbnail=1", "/api/harumadis/book/images/entry/"]) {
+    for (const method of ["GET", "HEAD"]) assert.equal(guardClientCompatibility(request(path, method)), null);
+  }
+  for (const path of ["/api/harumadis/book/content", "/api/harumadis/book/images/entry/extra", "/api/harumadis/book/images", "/api/harumadis/book/images/entry"]) {
+    for (const method of ["POST", "PATCH", "PUT"]) assert.equal(guardClientCompatibility(request(path, method))?.status, 426);
+  }
+  for (const path of ["/api/harumadis/book/content", "/api/harumadis/book/images/entry/extra", "/api/harumadis/book/images"]) {
+    assert.equal(guardClientCompatibility(request(path))?.status, 426);
+  }
+});
+
 test("웹 API 요청은 인증·PDF 승인·취소 신호를 보존하고 새 규약을 붙인다", async t => {
   let inspected = false;
   const controller = new AbortController();

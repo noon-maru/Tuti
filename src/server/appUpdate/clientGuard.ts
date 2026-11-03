@@ -15,7 +15,9 @@ export function guardClientCompatibility(request: Request, rightsRequest = false
   const readRights = (request.method === "GET" || request.method === "HEAD") &&
     (path === "/api/account" || path === "/api/journal-entries" || path === "/api/harumadi-pdfs" || path === "/api/harumadis" || /^\/api\/harumadis\/[^/]+(?:\/cover)?$/.test(path) ||
       /^\/api\/journal-entries\/[^/]+$/.test(path) || /^\/api\/harumadi-pdfs\/[^/]+(?:\/file)?$/.test(path) ||
-      /^\/api\/journal-entry-images\/[^/]+$/.test(path));
+      /^\/api\/journal-entry-images\/[^/]+$/.test(path) ||
+      // Image elements cannot attach protocol headers; the route verifies signed membership tickets.
+      /^\/api\/harumadis\/[^/]+\/images\/[^/]+$/.test(path));
   const withdrawal = request.method === "DELETE" && (path === "/api/push/devices" || /^\/api\/journal-entries\/[^/]+\/sensitive-consent$/.test(path));
   if (request.method === "OPTIONS" || rightsRequest || readRights || withdrawal || path === "/api/health" || path === "/api/app-update" ||
       path === "/api/public" || path?.startsWith("/api/public/") || path?.startsWith("/api/admin/") ||
