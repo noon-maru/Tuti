@@ -43,3 +43,17 @@ test("상단 작성 화면 제목만 키우고 마디 제목 입력·미리보�
   assert.match(screen, /\{title && <PageTitle>\{title\}<\/PageTitle>\}/);
   assert.match(screen, /aria-label="마디 제목 \(선택\)"[^>]*maxLength=\{FIRST_JOURNAL_TITLE_LIMIT\}/);
 });
+
+test("iOS 날짜 입력의 기본 최소 폭이 작성 그리드를 밀어내지 않으며 날짜 선택은 유지한다", () => {
+  const screen = readFileSync("src/features/tuti/screens/journal/MadiCreateScreen.tsx", "utf8");
+  const fields = screen.slice(screen.indexOf("const Fields ="), screen.indexOf("const Page ="));
+  assert.equal(fields.match(/grid-template-columns: minmax\(0, 1fr\)/g)?.length, 2, "필드와 라벨 모두 기본 최소 폭을 해제한다");
+  assert.match(fields, /input, textarea \{ display: block; box-sizing: border-box; min-width: 0; max-width: 100%; width: 100%/);
+  assert.match(fields, /input\[type="date"\] \{ -webkit-appearance: none; appearance: none; min-inline-size: 0; inline-size: 100%; max-inline-size: 100%/);
+  assert.match(fields, /::-webkit-date-and-time-value \{ min-width: 0; text-align: left/);
+  assert.match(screen, /aria-label="마디 날짜" type="date" max=\{today\} value=\{date\}/);
+  assert.match(screen, /dateEdited.current = true; setDate\(event.target.value\)/);
+  const globalStyles = readFileSync("src/app/GlobalStyles.tsx", "utf8");
+  assert.match(globalStyles, /input\[type="date"\]/);
+  assert.match(globalStyles, /font-size: max\(16px, 1em\) !important/);
+});

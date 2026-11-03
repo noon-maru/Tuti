@@ -222,10 +222,14 @@ const SelectedPhoto = styled.div`position: relative; aspect-ratio: 4 / 3; border
 const HiddenInput = styled.input`display: none;`;
 const PrivacyHint = styled.p`margin: 0; font-size: 11px; font-weight: 400; line-height: 1.7; color: var(--color-text-muted); word-break: keep-all;`;
 const Fields = styled.div`
-  display: grid; gap: 24px;
-  label { display: grid; gap: 10px; font-size: 13px; font-weight: 500; }
+  display: grid; grid-template-columns: minmax(0, 1fr); min-width: 0; gap: 24px;
+  label { display: grid; grid-template-columns: minmax(0, 1fr); min-width: 0; gap: 10px; font-size: 13px; font-weight: 500; }
   small { display: inline; font-size: 11px; font-weight: 400; color: var(--color-text-muted); }
-  input, textarea { min-width: 0; max-width: 100%; width: 100%; border: 1px solid var(--color-border); border-radius: 12px; padding: 14px; color: var(--color-text); background: #fff; font: inherit; font-weight: 400; line-height: 1.7; }
+  input, textarea { display: block; box-sizing: border-box; min-width: 0; max-width: 100%; width: 100%; border: 1px solid var(--color-border); border-radius: 12px; padding: 14px; color: var(--color-text); background: #fff; font: inherit; font-weight: 400; line-height: 1.7; }
+  /* Keep iOS's native date picker, without its intrinsic control width expanding the grid. */
+  input[type="date"] { -webkit-appearance: none; appearance: none; min-inline-size: 0; inline-size: 100%; max-inline-size: 100%; text-align: left; }
+  input[type="date"]::-webkit-date-and-time-value { min-width: 0; text-align: left; }
+  input[type="date"]::-webkit-datetime-edit { min-width: 0; padding: 0; }
   textarea { min-height: 130px; resize: vertical; }
 `;
 const Page = styled.article`position: relative; min-height: 420px; width: 100%; display: flex; flex-direction: column; gap: 32px; padding: 28px 24px; border: 1px solid #e6edf4; border-radius: 3px; background: #fff;`;
