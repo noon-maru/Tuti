@@ -53,8 +53,11 @@ const Cover = styled.span<{ $green: boolean; $photo: boolean }>`
     display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: var(--harumadi-shelf-title-lines, 4); overflow: hidden; }
   .cover-brand { position: absolute; top: 16px; left: 20px; font-size: var(--harumadi-shelf-brand-size, 9px); color: var(--color-text-muted); letter-spacing: 0.03em; }
   .cover-date { position: absolute; bottom: 16px; left: 20px; font-size: var(--harumadi-shelf-date-size, 10px); font-variant-numeric: tabular-nums; color: var(--color-text-muted); }
-  .cover-photo { position: absolute; bottom: 34px; left: 20px; right: 16px; height: var(--harumadi-shelf-photo-height, 40%); }
-  ${({ $photo }) => $photo && "strong { position: absolute; top: 36px; left: 20px; right: 16px; font-size: var(--harumadi-shelf-title-size, 16px); line-height: 1.4; -webkit-line-clamp: 2; }"}
+  .cover-photo { position: relative; width: 100%; aspect-ratio: 4 / 3; min-height: 0; flex: 0 1 auto; }
+  ${({ $photo }) => $photo && `
+    justify-content: flex-start; padding-top: 36px; padding-bottom: 34px; gap: 12px;
+    strong { flex: none; font-size: var(--harumadi-shelf-title-size, 16px); line-height: 1.4; -webkit-line-clamp: 2; }
+  `}
   .binding { position: absolute; inset: 0 auto 0 5px; width: 1px; background: rgb(27 34 42 / 0.055); pointer-events: none; }
   img { object-fit: contain; }
 `;
