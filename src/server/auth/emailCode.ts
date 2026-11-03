@@ -23,6 +23,7 @@ import {
   hashAccessToken,
   type AuthenticatedUser,
 } from "@/server/auth/session";
+import { transferAnonymousData } from "@/server/auth/anonymousMerge";
 import { mergeUserIntoCurrentAccount } from "@/server/auth/accountMerge";
 import { prisma } from "@/server/db/prisma";
 import { purgeExpiredAuthRecordsIfDue } from "@/server/auth/retention";
@@ -290,7 +291,15 @@ async function verifyParsedEmailCode(
       where: { ownerId: currentUser.id },
     });
 
-    if (currentJournalCount > 0 && !journalResolution) {
+    const [currentBookCount, currentPdfCount] = await Promise.all([
+      prisma.harumadi.count({ where: { ownerId: currentUser.id } }),
+      prisma.harumadiPdf.count({ where: { ownerId: currentUser.id } }),
+    ]);
+
+    if (
+      (currentJournalCount > 0 || currentBookCount > 0 || currentPdfCount > 0) &&
+      !journalResolution
+    ) {
       return {
         status: "journal-resolution-required",
         currentJournalCount,
@@ -298,50 +307,13 @@ async function verifyParsedEmailCode(
     }
 
     if (journalResolution === "merge") {
-      await prisma.$transaction([
-        prisma.journalEntry.updateMany({
-          where: { ownerId: currentUser.id },
-          data: { ownerId: existingIdentity.userId },
-        }),
-        prisma.journalShareTrace.updateMany({
-          where: { resolvedUserId: currentUser.id },
-          data: { resolvedUserId: existingIdentity.userId },
-        }),
-        prisma.customerInquiry.updateMany({
-          where: { requesterUserId: currentUser.id },
-          data: { requesterUserId: existingIdentity.userId },
-        }),
-        // 사용자가 명시적으로 병합을 고른 경우에만 익명 행동 신호도 옮긴다.
-        // 기존 계정 프로필은 다음 배치에서 합쳐진 원천 신호로 다시 생성한다.
-        prisma.recommendationAction.updateMany({
-          where: { userId: currentUser.id },
-          data: { userId: existingIdentity.userId },
-        }),
-        prisma.recommendationRun.updateMany({
-          where: { userId: currentUser.id },
-          data: { userId: existingIdentity.userId },
-        }),
-        prisma.productActivityEvent.updateMany({
-          where: { userId: currentUser.id },
-          data: { userId: existingIdentity.userId },
-        }),
-        // 명시적 병합 시 이용자가 자신의 과거 위치 이용내역도 계속
-        // 열람할 수 있게 하되, 동의 상태 자체는 계정 간 이전하지 않는다.
-        prisma.locationUsageLog.updateMany({
-          where: { userId: currentUser.id },
-          data: { userId: existingIdentity.userId },
-        }),
-        prisma.userSignalProfile.deleteMany({
-          where: { userId: currentUser.id },
-        }),
-        prisma.emailVerificationCode.update({
+      await prisma.$transaction(async (tx) => {
+        await tx.emailVerificationCode.update({
           where: { id: challenge.id },
           data: { consumedAt: new Date() },
-        }),
-        prisma.user.delete({
-          where: { id: currentUser.id },
-        }),
-      ]);
+        });
+        await transferAnonymousData(tx, currentUser.id, existingIdentity.userId);
+      });
     } else {
       await prisma.$transaction([
         prisma.customerInquiry.updateMany({

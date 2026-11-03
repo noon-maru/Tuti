@@ -22,6 +22,7 @@ import {
   verifyAppleIdentityToken,
 } from "@/server/auth/appleOAuth";
 import { readOAuthCallbackParameters } from "@/server/auth/oauthCallback";
+import { transferAnonymousData } from "@/server/auth/anonymousMerge";
 import { mergeUserIntoCurrentAccount } from "@/server/auth/accountMerge";
 import {
   formatKoreanOrderedName,
@@ -364,7 +365,15 @@ export async function completeOAuthLogin(input: {
       where: { ownerId: authorization.userId },
     });
 
-    if (currentJournalCount > 0 && !journalResolution) {
+    const [currentBookCount, currentPdfCount] = await Promise.all([
+      prisma.harumadi.count({ where: { ownerId: authorization.userId } }),
+      prisma.harumadiPdf.count({ where: { ownerId: authorization.userId } }),
+    ]);
+
+    if (
+      (currentJournalCount > 0 || currentBookCount > 0 || currentPdfCount > 0) &&
+      !journalResolution
+    ) {
       return {
         status: "journal-resolution-required" as const,
         currentJournalCount,
@@ -373,7 +382,7 @@ export async function completeOAuthLogin(input: {
 
     targetUserId = existingIdentity.userId;
 
-    const identityUpdate = prisma.authIdentity.update({
+    const identityUpdateArgs = {
       where: { id: existingIdentity.id },
       data: {
         ...(authorization.providerEmail
@@ -386,49 +395,16 @@ export async function completeOAuthLogin(input: {
             }
           : {}),
       },
-    });
+    };
 
     if (journalResolution === "merge") {
-      await prisma.$transaction([
-        identityUpdate,
-        prisma.journalEntry.updateMany({
-          where: { ownerId: authorization.userId },
-          data: { ownerId: targetUserId },
-        }),
-        prisma.journalShareTrace.updateMany({
-          where: { resolvedUserId: authorization.userId },
-          data: { resolvedUserId: targetUserId },
-        }),
-        prisma.customerInquiry.updateMany({
-          where: { requesterUserId: authorization.userId },
-          data: { requesterUserId: targetUserId },
-        }),
-        prisma.recommendationAction.updateMany({
-          where: { userId: authorization.userId },
-          data: { userId: targetUserId },
-        }),
-        prisma.recommendationRun.updateMany({
-          where: { userId: authorization.userId },
-          data: { userId: targetUserId },
-        }),
-        prisma.productActivityEvent.updateMany({
-          where: { userId: authorization.userId },
-          data: { userId: targetUserId },
-        }),
-        prisma.locationUsageLog.updateMany({
-          where: { userId: authorization.userId },
-          data: { userId: targetUserId },
-        }),
-        prisma.userSignalProfile.deleteMany({
-          where: { userId: authorization.userId },
-        }),
-        prisma.user.delete({
-          where: { id: authorization.userId },
-        }),
-      ]);
+      await prisma.$transaction(async (tx) => {
+        await tx.authIdentity.update(identityUpdateArgs);
+        await transferAnonymousData(tx, authorization.userId, targetUserId);
+      });
     } else {
       await prisma.$transaction([
-        identityUpdate,
+        prisma.authIdentity.update(identityUpdateArgs),
         prisma.customerInquiry.updateMany({
           where: { requesterUserId: authorization.userId },
           data: { requesterUserId: targetUserId },

@@ -532,13 +532,9 @@ export function AccountScreen({
       ) : displayedJournalResolution ? (
         <JournalResolutionContent>
           <JournalResolutionCopy>
-            <h2>현재 마디도 함께 가져올까요?</h2>
+            <h2>현재 마디와 하루마디도 가져올까요?</h2>
             <p>
-              이 기기에 남긴 마디{" "}
-              <strong>
-                {displayedJournalResolution.currentJournalCount}개
-              </strong>
-              를 계정 마디와 합칠 수 있어요.
+              이 기기에 남긴 마디와 하루마디, 저장한 PDF를 계정으로 가져올 수 있어요.
             </p>
           </JournalResolutionCopy>
           <JournalResolutionActions>
@@ -560,8 +556,7 @@ export function AccountScreen({
             </AccountOnlyButton>
           </JournalResolutionActions>
           <JournalResolutionWarning>
-            계정 마디만 불러오면 현재 기기의 연결되지 않은 마디{" "}
-            {displayedJournalResolution.currentJournalCount}개는 삭제돼요.
+            계정 마디만 불러오면 현재 기기의 마디와 하루마디, 저장한 PDF는 삭제돼요.
           </JournalResolutionWarning>
           {journalResolutionError && (
             <ErrorMessage role="alert">
