@@ -70,7 +70,7 @@ export function AccountScreen({
     code: string,
     journalResolution?: AccountJournalResolution,
   ) => Promise<EmailCodeVerificationResult>;
-  onDeleteAccount: () => Promise<{ deletionReference: string; pushCleanupPending: boolean }>;
+  onDeleteAccount: () => Promise<{ deletionReference: string; pushCleanupPending: boolean; externalCleanupPending?: boolean }>;
   onDisplayNameUpdate: (displayName: string) => Promise<string>;
   onOAuth: (provider: OAuthProvider) => Promise<void>;
   onUnlinkIdentity: (identityId: string) => Promise<void>;
@@ -92,6 +92,7 @@ export function AccountScreen({
     null,
   );
   const [pushCleanupPending, setPushCleanupPending] = useState(false);
+  const [externalCleanupPending, setExternalCleanupPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const hasEmailInput =
     emailStep === "email"
@@ -232,6 +233,7 @@ export function AccountScreen({
       const result = await onDeleteAccount();
       setDeletionReference(result.deletionReference);
       setPushCleanupPending(result.pushCleanupPending);
+      setExternalCleanupPending(result.externalCleanupPending === true);
     } catch (deletionError) {
       setError(
         deletionError instanceof Error
@@ -294,6 +296,7 @@ export function AccountScreen({
           {pushCleanupPending && (
             <p>이 기기의 알림 정보 정리는 아직 진행 중이에요. 인터넷 연결 후 앱을 다시 열면 재시도해요. 필요하면 기기 설정에서도 Tuti 알림을 꺼주세요.</p>
           )}
+          {externalCleanupPending && <p>계정 삭제는 완료했어요. 사진·PDF 파일과 외부 연결 정리는 서버에서 계속 처리하고 있어요.</p>}
           <DeletionReference>
             처리 번호 {deletionReference.slice(0, 8)}
           </DeletionReference>

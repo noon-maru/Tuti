@@ -9,7 +9,7 @@ export function privacyReplayObjectSelector(snapshot: PrivacyReplaySnapshot) {
     const image = /^journal-images\/([A-Za-z0-9_-]{1,100})\/([A-Za-z0-9_-]{1,100})\/[A-Za-z0-9_-]+\.webp$/.exec(key);
     const historicPrefix = HISTORIC_HARUMADI_PDF_PREFIXES.find(prefix => key.startsWith(prefix));
     const normalized = historicPrefix ? `harumadi-pdfs/${key.slice(historicPrefix.length)}` : key;
-    const harumadiPdf = /^harumadi-pdfs\/([A-Za-z0-9_-]{1,100})\/([A-Za-z0-9_-]{1,100})\.pdf$/.exec(normalized);
+    const harumadiPdf = /^harumadi-pdfs\/([A-Za-z0-9_-]{1,100})\/([A-Za-z0-9_-]{1,100})(?:\/[A-Za-z0-9_-]{1,100})?\.pdf$/.exec(normalized);
     const match = image ?? harumadiPdf;
     if (!match) return false;
     const subject = privacyReplaySubject(match[1]);

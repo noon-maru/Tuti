@@ -9,7 +9,8 @@ export const TOGETHER_REPLAY_KINDS = ["harumadi_member_left", "harumadi_invite_r
 export type TogetherReplayKind = typeof TOGETHER_REPLAY_KINDS[number];
 export const isTogetherReplayKind = (kind: string): kind is TogetherReplayKind => (TOGETHER_REPLAY_KINDS as readonly string[]).includes(kind);
 export type PrivacyReplayKind = "account_deleted" | "location_withdrawn" | "journal_deleted" | "journal_sensitive_withdrawn" | "harumadi_deleted" | "journal_unpublished" | TogetherReplayKind | typeof LEGACY_HARUMADI_DELETION_KIND | typeof INTERIM_HARUMADI_DELETION_KIND;
-type Receipt = { version: 1; id: string; kind: PrivacyReplayKind; subject: string; target: string | null; phase: "prepared" | "committed"; preparedAt: string; effectiveAt: string | null };
+export type PrivacyReplayReceipt = { version: 1; id: string; kind: PrivacyReplayKind; subject: string; target: string | null; phase: "prepared" | "committed"; preparedAt: string; effectiveAt: string | null };
+type Receipt = PrivacyReplayReceipt;
 type Header = { version: 1; type: "privacy-replay"; coverageStart: string; keyCheck: string; receiptIds: string[]; retiringIds: string[]; activatedAt?: string; activationReference?: string };
 export type PrivacyReplaySnapshot = { coverageStart: Date; committed: Receipt[]; unresolved: number; pending?: Receipt[] };
 const UUID = /^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/;
@@ -161,7 +162,10 @@ export async function commitPrivacyReplayReceipt(receipt: Receipt | null, effect
     const { directory, secret } = config();
     if (!UUID.test(receipt.id)) throw new PrivacyReplayError();
     const existing = await readSigned(join(directory, `${receipt.id}.json`), secret);
-    if (existing.subject !== receipt.subject || existing.kind !== receipt.kind || existing.target !== receipt.target || existing.preparedAt !== receipt.preparedAt || existing.phase !== "prepared") throw new PrivacyReplayError();
+    if (existing.subject !== receipt.subject || existing.kind !== receipt.kind || existing.target !== receipt.target || existing.preparedAt !== receipt.preparedAt) throw new PrivacyReplayError();
+    // DB 커밋 뒤 장애가 나면 같은 예약 작업이 다시 실행될 수 있다.
+    if (existing.phase === "committed") return;
+    if (existing.phase !== "prepared") throw new PrivacyReplayError();
     const data: Receipt = { ...receipt, phase: "committed", effectiveAt: new Date(Math.max(effectiveAt.getTime(), Date.parse(receipt.preparedAt))).toISOString() };
     await replaceSigned(`${receipt.id}.json`, data);
   });

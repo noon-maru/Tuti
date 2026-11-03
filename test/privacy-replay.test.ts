@@ -26,14 +26,20 @@ const harumadiModel = {
   findMany: async ({ where }: { where: { id?: { gt: string }; ownerId?: string } }) => harumadiPdfs.filter((harumadiPdf) => (!where.id || harumadiPdf.id > where.id.gt) && (!where.ownerId || harumadiPdf.ownerId === where.ownerId)),
   findFirst: async ({ where }: { where: { id: string; ownerId: string } }) => harumadiPdfs.find((harumadiPdf) => harumadiPdf.id === where.id && harumadiPdf.ownerId === where.ownerId) ?? null,
   delete: async ({ where }: { where: { id: string } }) => { harumadiPdfs = harumadiPdfs.filter((harumadiPdf) => harumadiPdf.id !== where.id); },
+  deleteMany: async ({ where }: { where: { id: string; ownerId: string } }) => { const count = harumadiPdfs.length; harumadiPdfs = harumadiPdfs.filter(pdf => pdf.id !== where.id || pdf.ownerId !== where.ownerId); return { count: count - harumadiPdfs.length }; },
 };
 const deleted: string[] = [];
 const withdrawals: string[] = [];
 const states = new Map<string, { id: string; status: string; createdAt: Date }>([["withdrawn", { id: "old", status: "accepted", createdAt: at(0) }], ["newer", { id: "new", status: "accepted", createdAt: at(20) }]]);
 const transaction = new Proxy({
   $queryRaw: async (_parts: unknown, id: string) => [{ id }],
-  user: { delete: async ({ where }: { where: { id: string } }) => { users = users.filter((id) => id !== where.id); deleted.push(where.id); } },
+  user: {
+    findUnique: async () => ({ authIdentities: [], journalEntries: [], harumadiPdfs: [] }),
+    delete: async ({ where }: { where: { id: string } }) => { users = users.filter((id) => id !== where.id); deleted.push(where.id); },
+  },
   journalEntry: entryModel,
+  harumadiPdf: harumadiModel,
+  userDataCleanupJob: { create: async () => ({}) },
   locationConsentEvent: {
     findFirst: async ({ where }: { where: { userId: string } }) => states.get(where.userId) ?? null,
     deleteMany: async () => ({ count: 0 }),
@@ -41,6 +47,7 @@ const transaction = new Proxy({
   },
 }, { get(target, key) { return Reflect.get(target, key) ?? { deleteMany: async () => ({ count: 0 }), updateMany: async () => ({ count: 0 }) }; } });
 (globalThis as { prisma?: unknown }).prisma = {
+  userDataCleanupJob: { updateMany: async () => ({ count: 0 }) },
   journalEntry: entryModel,
   harumadiPdf: harumadiModel,
   harumadi: {

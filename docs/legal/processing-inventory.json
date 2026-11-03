@@ -119,6 +119,14 @@
       "items": "공공 장소·원천·시간/혼잡도 통계·편집 프로필·동기화 상태. 일반 이용자 기록 모델과 분리",
       "retention": "공개 장소 데이터의 재수집/서비스 필요에 따름. 원천 payload·로그에 실제 개인 식별정보가 섞이는지 여부를 모델 분류만으로 완전 검증한 것은 아님",
       "sources": ["prisma/schema.prisma", "scripts/ops/core-backup-excluded-data-tables.txt"]
+    },
+    {
+      "id": "durable-data-cleanup",
+      "implementationState": "disabled-pending-rollout",
+      "models": ["UserDataCleanupJob"],
+      "items": "2026-11-03 로컬 구현·미배포: 삭제 또는 교체한 사진·PDF의 객체 키, Apple 갱신 토큰의 기존 AES-GCM 암호문, 원문 계정 ID가 없는 삭제 원장 영수증, 정리 예약·임대·재시도 시각과 횟수. 본문·사진 파일·평문 토큰은 저장하지 않음",
+      "retention": "DB 삭제와 같은 트랜잭션으로 예약하고 외부 정리 완료 시 즉시 예약 행 파기. 실패 시 원문을 로그에 출력하지 않고 기존 5분 유지보수에서 재시도. 임대 만료 후 재개 가능. 현재 DB가 참조 중인 객체는 보존. 전체·핵심 백업 30일 통제에 포함. 신규 보유 목적 확대나 외부 제공자 추가를 뜻하지 않으며 실제 운영 적용은 별도",
+      "sources": ["src/server/legal/dataCleanup.ts", "src/server/admin/users.ts", "src/server/journal/service.ts", "src/server/harumadi/pdfDeletion.ts", "scripts/maintain-privacy-data.ts", "prisma/schema.prisma"]
     }
   ],
   "externalFlows": [

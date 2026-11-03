@@ -30,6 +30,7 @@ export type SessionResponse = {
 export type AccountDeletionResponse = {
   deleted: true;
   deletionReference: string;
+  externalCleanupPending?: boolean;
 };
 
 export type AccountProfileUpdateRequest = {

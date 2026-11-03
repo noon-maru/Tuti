@@ -1,12 +1,9 @@
 import { createHash, randomUUID } from "node:crypto";
-import { deleteStoredJournalImage } from "@/server/journal/imageStorage";
-import { deleteStoredHarumadiPdf } from "@/server/harumadi/pdfStorage";
+import { enqueueDataCleanup, processDataCleanupJob } from "@/server/legal/dataCleanup";
 import { prisma } from "@/server/db/prisma";
 import type { LocationSecurityAuditData } from "@/server/location/securityAudit";
-import { getRequiredAuthEnv } from "@/server/auth/config";
-import { revokeAppleRefreshToken } from "@/server/auth/appleOAuth";
 import { lockLocationSubject } from "@/server/location/subjectLock";
-import { commitPrivacyReplayReceipt, preparePrivacyReplayReceipt, privacyReplayEnabled } from "@/server/legal/privacyReplayLedger";
+import { preparePrivacyReplayReceipt } from "@/server/legal/privacyReplayLedger";
 import { LEGACY_ADMIN_JOURNAL_ACCESS_AUDIT } from "@/server/admin/journalAccessAudit";
 
 export async function forceDeleteUser(
@@ -15,45 +12,40 @@ export async function forceDeleteUser(
 ) {
   return deleteUserRecord(userId, {
     permissionAudit,
-    requireCompleteImageDeletion: false,
   });
 }
 
 export async function deleteUserAccount(userId: string) {
-  return deleteUserRecord(userId, {
-    requireCompleteImageDeletion: true,
-  });
+  return deleteUserRecord(userId, {});
 }
 
 // 운영자가 승인한 과거 빈 일반 계정만 정리한다. 잠금 후 다시 확인하므로
 // 준비 이후 기록을 남겼거나 관리자로 승격된 계정은 삭제하지 않는다.
 export async function deleteEmptyOrdinaryAccount(userId: string, createdBefore: Date) {
   if (!Number.isFinite(createdBefore.getTime())) throw new Error("정리 기준 시각이 필요합니다.");
-  return deleteUserRecord(userId, { requireCompleteImageDeletion: true, emptyCreatedBefore: createdBefore });
+  return deleteUserRecord(userId, { emptyCreatedBefore: createdBefore });
 }
 
 export async function deleteOrdinaryTestAccount(userId: string, createdBefore: Date) {
   if (!Number.isFinite(createdBefore.getTime())) throw new Error("정리 기준 시각이 필요합니다.");
-  return deleteUserRecord(userId, { requireCompleteImageDeletion: true, ordinaryCreatedBefore: createdBefore });
+  return deleteUserRecord(userId, { ordinaryCreatedBefore: createdBefore });
 }
 
 // 복원 후 앱이 중지된 상태에서만 사용하는 내부 정리 경로. 이미 철회한 Apple 토큰을
 // 외부로 다시 보내지 않고, 기존 원장 기록을 새 삭제 요청으로 복제하지 않는다.
 export async function replayDeletedUserAccount(userId: string) {
-  return deleteUserRecord(userId, { requireCompleteImageDeletion: true, replay: true });
+  return deleteUserRecord(userId, { replay: true });
 }
 
 async function deleteUserRecord(
   userId: string,
   {
     permissionAudit,
-    requireCompleteImageDeletion,
     replay = false,
     emptyCreatedBefore,
     ordinaryCreatedBefore,
   }: {
     permissionAudit?: LocationSecurityAuditData;
-    requireCompleteImageDeletion: boolean;
     replay?: boolean;
     emptyCreatedBefore?: Date;
     ordinaryCreatedBefore?: Date;
@@ -101,61 +93,29 @@ async function deleteUserRecord(
     ),
   );
   const journalEntryIds = user.journalEntries.map((entry) => entry.id);
-  const failedImageDeletions: string[] = [];
   const retainedModerationSubjectKey = createHash("sha256")
     .update(`deleted-moderation-subject:${randomUUID()}`)
     .digest("hex");
 
-  const deleteAssets = async () => {
-    for (const entry of user.journalEntries) {
-      try {
-        await deleteStoredJournalImage(entry.image);
-      } catch {
-        if (entry.image) failedImageDeletions.push(entry.image);
-      }
-    }
-
-    for (const harumadiPdf of user.harumadiPdfs) {
-      try {
-        await deleteStoredHarumadiPdf(harumadiPdf.objectKey);
-      } catch {
-        failedImageDeletions.push(harumadiPdf.objectKey);
-      }
-    }
-
-    if ((requireCompleteImageDeletion || privacyReplayEnabled()) && failedImageDeletions.length > 0) {
-      throw new Error("계정 이미지 전체를 삭제하지 못했습니다.");
-    }
-  };
-  if (!scopedCreatedBefore) await deleteAssets();
-
-  const appleRefreshTokens = user.authIdentities.flatMap((identity) =>
-    identity.provider === "apple" &&
-    identity.providerRefreshTokenEncrypted
-      ? [identity.providerRefreshTokenEncrypted]
-      : [],
-  );
-  const revokeApple = async () => {
-    if (replay || appleRefreshTokens.length === 0) return;
-    const appleConfiguration = {
-      clientId: getRequiredAuthEnv("APPLE_CLIENT_ID"),
-      teamId: getRequiredAuthEnv("APPLE_TEAM_ID"),
-      keyId: getRequiredAuthEnv("APPLE_KEY_ID"),
-      privateKey: getRequiredAuthEnv("APPLE_PRIVATE_KEY"),
-      encryptionKey: getRequiredAuthEnv("APPLE_TOKEN_ENCRYPTION_KEY"),
-    };
-    for (const encryptedToken of appleRefreshTokens) {
-      await revokeAppleRefreshToken(encryptedToken, appleConfiguration);
-    }
-  };
-  if (!scopedCreatedBefore) await revokeApple();
+  const appleRefreshTokens = replay ? [] : user.authIdentities.flatMap(identity =>
+    identity.provider === "apple" && identity.providerRefreshTokenEncrypted
+      ? [identity.providerRefreshTokenEncrypted] : []);
 
   const deleted = await prisma.$transaction(async (transaction) => {
     await lockLocationSubject(transaction, userId);
-    if (ordinaryCreatedBefore) {
-      // 기존 기록의 수정도 자산 삭제와 경합하지 않게 부모 다음에 잠근다.
-      await transaction.$queryRaw`SELECT "id" FROM "journal_entries" WHERE "owner_id" = ${userId} ORDER BY "id" FOR UPDATE`;
-      await transaction.$queryRaw`SELECT "id" FROM "harumadi_pdfs" WHERE "owner_id" = ${userId} ORDER BY "id" FOR UPDATE`;
+    // 기존 기록의 수정도 자산 삭제와 경합하지 않게 부모 다음에 잠근다.
+    await transaction.$queryRaw`SELECT "id" FROM "journal_entries" WHERE "owner_id" = ${userId} ORDER BY "id" FOR UPDATE`;
+    await transaction.$queryRaw`SELECT "id" FROM "harumadi_pdfs" WHERE "owner_id" = ${userId} ORDER BY "id" FOR UPDATE`;
+    if (!scopedCreatedBefore) {
+      const current = await transaction.user.findUnique({ where: { id: userId }, select: {
+        journalEntries: { select: { id: true, image: true } },
+        harumadiPdfs: { select: { objectKey: true } },
+        authIdentities: { select: { email: true, provider: true, providerRefreshTokenEncrypted: true } },
+      } });
+      const snapshot = (value: unknown) => JSON.stringify(value, (_key, item) => Array.isArray(item) ? [...item].sort((a, b) => JSON.stringify(a).localeCompare(JSON.stringify(b))) : item);
+      if (!current || snapshot(current.journalEntries) !== snapshot(user.journalEntries) || snapshot(current.harumadiPdfs) !== snapshot(user.harumadiPdfs) || snapshot(current.authIdentities) !== snapshot(user.authIdentities)) {
+        throw new Error("계정 데이터가 변경되었습니다. 다시 확인한 뒤 삭제해주세요.");
+      }
     }
     if (scopedCreatedBefore) {
       const current = await transaction.user.findUnique({ where: { id: userId }, select: {
@@ -171,8 +131,6 @@ async function deleteUserRecord(
       // 사용자 행 잠금은 새 기록/하루마디의 FK 삽입과도 경합한다. 재검사 후에만
       // 삭제 원장을 준비하고, DB 커밋이 끝난 뒤 완료 영수증을 남긴다.
       replayReceipt = await preparePrivacyReplayReceipt("account_deleted", userId);
-      await deleteAssets();
-      await revokeApple();
     }
     if (process.env.LEGAL_RIGHTS_WORKFLOW_ENABLED === "true") {
       await transaction.journalRightsNotice.updateMany({
@@ -267,24 +225,31 @@ async function deleteUserRecord(
       where: { userId },
     });
     await transaction.pushDelivery.deleteMany({ where: { userId } });
+    const cleanupJobId = await enqueueDataCleanup(transaction, {
+      images: user.journalEntries.flatMap(entry => entry.image ? [entry.image] : []),
+      pdfs: user.harumadiPdfs.map(pdf => pdf.objectKey),
+      appleTokens: appleRefreshTokens, receipt: replayReceipt,
+    });
     await transaction.user.delete({ where: { id: userId } });
     if (permissionAudit) {
       await transaction.locationSecurityAuditEvent.create({
         data: permissionAudit,
       });
     }
-    return true;
+    return { cleanupJobId };
   }, scopedCreatedBefore ? { timeout: ordinaryCreatedBefore ? 120_000 : 30_000 } : undefined);
 
   if (!deleted) return null;
 
-  await commitPrivacyReplayReceipt(replayReceipt);
+  // DB 커밋 뒤 외부 장애를 계정 삭제 실패로 되돌리지 않는다. 예약 행으로 재시도한다.
+  const cleanupComplete = !deleted.cleanupJobId || await processDataCleanupJob(deleted.cleanupJobId).catch(() => false);
 
   return {
     id: user.id,
     role: user.role,
     deletedJournalCount: user.journalEntries.length,
-    failedImageDeletionCount: failedImageDeletions.length,
-    revokedAppleIdentityCount: replay ? 0 : appleRefreshTokens.length,
+    failedImageDeletionCount: cleanupComplete ? 0 : user.journalEntries.filter(entry => entry.image).length + user.harumadiPdfs.length,
+    externalCleanupPending: !cleanupComplete,
+    revokedAppleIdentityCount: cleanupComplete ? appleRefreshTokens.length : 0,
   };
 }

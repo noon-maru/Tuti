@@ -182,6 +182,7 @@ export async function DELETE(request: Request) {
     const response: AccountDeletionResponse = {
       deleted: true,
       deletionReference,
+      externalCleanupPending: deletion.externalCleanupPending,
     };
     return withCors(request, Response.json(response));
   } catch (error) {

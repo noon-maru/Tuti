@@ -134,6 +134,11 @@ export async function POST(request: Request) {
       objectKey = await storeHarumadiPdf(user.id, id, prepared.pdf);
       const storedObjectKey = objectKey;
       const created = await prisma.$transaction(async (tx) => {
+        // 이미 사용한 승인으로 삭제된 PDF를 되살리지 않는다. 생성 영수증은
+        // 승인 유효기간(30분)보다 긴 180일 동안 보존된다.
+        if (await tx.lifecycleEvent.findUnique({ where: { occurrenceKey: `pdf:${id}` }, select: { id: true } })) {
+          throw new HarumadiPdfApprovalError("이미 처리한 PDF예요. 최신 내용으로 다시 미리보기 해주세요.", 409);
+        }
         if (prepared.sourceHarumadi) {
           requireTogether();
           await lockHarumadi(tx, prepared.sourceHarumadi.id);

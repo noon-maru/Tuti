@@ -123,6 +123,7 @@ export async function revokeAppleRefreshToken(
         token_type_hint: "refresh_token",
       }),
       cache: "no-store",
+      signal: AbortSignal.timeout(20_000),
     },
   );
 

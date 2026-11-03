@@ -7,6 +7,7 @@ test("마디 수정은 오래된 입력과 사진 참조를 원자적으로 거�
     placeId: null, placeName: "공간", visitedAt: new Date(), updatedAt: new Date(0), publicId: null, publishedAt: null,
     publicationStatus: "private", publicationStatusChangedAt: new Date(), sensitiveContent: false, sensitiveWithdrawnAt: null });
   let row = initial(), transactions = 0, fail = false;
+  let job: { id: string; payload: unknown; createdAt: Date } | null = null;
   let resume!: () => void;
   const gate = new Promise<void>(resolve => { resume = resolve; });
   const objects = new Set<string>(), deleted = new Set<string>();
@@ -18,7 +19,13 @@ test("마디 수정은 오래된 입력과 사진 참조를 원자적으로 거�
     return {};
   } };
   const db = {
-    journalEntry: { findFirst: async () => ({ ...row }), findUniqueOrThrow: async () => ({ ...row }),
+    userDataCleanupJob: {
+      create: async ({ data }: { data: { id: string; payload: unknown } }) => { job = { ...data, createdAt: new Date() }; return job; },
+      updateMany: async ({ data }: { data: Record<string, unknown> }) => { Object.assign(job!, data); return { count: 1 }; },
+      findUniqueOrThrow: async () => job,
+      deleteMany: async () => { job = null; return { count: 1 }; },
+    },
+    journalEntry: { count: async ({ where }: { where: { image: string } }) => row.image === where.image ? 1 : 0, findFirst: async () => ({ ...row }), findUniqueOrThrow: async () => ({ ...row }),
       updateMany: async ({ data }: { data: Partial<typeof row> }) => { Object.assign(row, data); return { count: 1 }; } },
     $queryRaw: async () => [], systemLog: { create: async () => ({}) },
     $transaction: async (work: (tx: unknown) => Promise<unknown>) => { if (fail) throw new Error("fixture rollback"); if (++transactions === 2) await gate; return work(db); },

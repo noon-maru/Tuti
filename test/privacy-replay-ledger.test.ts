@@ -33,6 +33,7 @@ test("초기화 전에는 처리하지 않고 서명된 원장에는 원문 사�
   await initializePrivacyReplayLedger(start);
   const receipt = await preparePrivacyReplayReceipt("account_deleted", "private-user", after(1));
   await commitPrivacyReplayReceipt(receipt, after(2));
+  await commitPrivacyReplayReceipt(receipt, after(3)); // 외부 정리 작업의 재시도는 같은 확정 영수증을 허용한다.
   const snapshot = await readPrivacyReplaySnapshot();
   assert.equal(snapshot.committed.length, 1);
   assert.equal(snapshot.unresolved, 0);

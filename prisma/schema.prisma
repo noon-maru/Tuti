@@ -727,6 +727,19 @@ model JournalEntry {
   @@map("journal_entries")
 }
 
+// 외부 정리 예약은 계정과 함께 삭제되지 않도록 User FK를 두지 않는다.
+model UserDataCleanupJob {
+  id String @id
+  payload Json
+  createdAt DateTime @default(now()) @map("created_at")
+  nextAttemptAt DateTime @default(now()) @map("next_attempt_at")
+  attempts Int @default(0)
+  leaseToken String? @map("lease_token")
+  leaseUntil DateTime? @map("lease_until")
+  @@index([nextAttemptAt, leaseUntil])
+  @@map("user_data_cleanup_jobs")
+}
+
 model Harumadi {
   id         String @id
   ownerId    String @map("owner_id")

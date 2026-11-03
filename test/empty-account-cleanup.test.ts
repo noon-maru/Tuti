@@ -44,7 +44,7 @@ test("준비 후 기록·하루마디 생성 또는 승격이 생겨도 행 잠�
     locked = value;
     calls.length = 0;
     assert.equal(await deleteEmptyOrdinaryAccount("subject", cutoff), null);
-    assert.deepEqual(calls, ["lock", "user.findUnique"]);
+    assert.deepEqual(calls, ["lock", "lock", "lock", "user.findUnique"]);
   }
 });
 
@@ -55,7 +55,7 @@ test("승인한 과거 빈 일반 계정은 기존 위치·인증·이력 삭제
   calls.length = 0;
   const result = await deleteEmptyOrdinaryAccount("subject", cutoff);
   assert.equal(result?.deletedJournalCount, 0);
-  assert.deepEqual(calls.slice(0, 2), ["lock", "user.findUnique"]);
+  assert.deepEqual(calls.slice(0, 4), ["lock", "lock", "lock", "user.findUnique"]);
   for (const call of ["locationUsageLog.deleteMany", "locationConsentEvent.deleteMany", "pushDelivery.deleteMany", "user.delete"]) assert.ok(calls.includes(call));
   assert.ok(!calls.some(call => call.startsWith("adminJournalAccessAudit.")));
   assert.ok(!calls.some(call => call.startsWith("emailVerificationCode.")));

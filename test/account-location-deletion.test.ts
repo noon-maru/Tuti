@@ -5,6 +5,7 @@ process.env.DATABASE_URL = "postgresql://test:test@127.0.0.1:1/test";
 const operations: string[] = [];
 const query = async (table: string, method: string, input: unknown) => {
   operations.push(`${table}.${method}`);
+  if (table === "user" && method === "findUnique") return { authIdentities: [], journalEntries: [], harumadiPdfs: [] };
   if (table === "locationUsageLog" || table === "locationConsentEvent") {
     assert.deepEqual(input, { where: { userId: "subject" } });
     assert.equal(method, "deleteMany");

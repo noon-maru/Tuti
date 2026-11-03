@@ -23,10 +23,11 @@ import type {
   TutiJournalEntry,
 } from "@/shared/api/journal";
 import { isCurrentJournalPublicationPolicy } from "@/shared/legal/journalPublicationPolicy";
-import { commitPrivacyReplayReceipt, preparePrivacyReplayReceipt, privacyReplayEnabled } from "@/server/legal/privacyReplayLedger";
+import { commitPrivacyReplayReceipt, preparePrivacyReplayReceipt } from "@/server/legal/privacyReplayLedger";
 import { createDefaultHarumadiForFirstMadi } from "@/server/harumadi/firstMadi";
 import { lockHarumadi, requireHarumadiAccess, requireTogether } from "@/server/harumadi/access";
 import { HarumadiError } from "@/server/harumadi/errors";
+import { enqueueDataCleanup, processDataCleanupJob } from "@/server/legal/dataCleanup";
 
 export class JournalEditConflictError extends Error {
   readonly status = 409;
@@ -175,7 +176,7 @@ export async function updateJournalEntry(
     currentImage: currentEntry.image,
   });
 
-  let result: { count: number };
+  let result: { count: number; cleanupJobId: string | null };
 
   try {
     result = await prisma.$transaction(async tx => {
@@ -183,7 +184,7 @@ export async function updateJournalEntry(
       const locked = await tx.journalEntry.findFirst({ where: { id: entryId, ownerId }, select: { updatedAt: true } });
       if (!locked || locked.updatedAt.toISOString() !== expectedVersion) throw new JournalEditConflictError();
       if (input.sensitiveContent === true && await tx.harumadiEntryLink.findFirst({ where: { entryId, harumadi: { collaborationStartedAt: { not: null } } }, select: { id: true } })) throw new SensitiveJournalPolicyError("함께 채우는 하루마디에서 먼저 마디를 뺀 뒤 민감정보 여부를 변경해주세요.");
-      return tx.journalEntry.updateMany({
+      const changed = await tx.journalEntry.updateMany({
       where: { id: entryId, ownerId, sensitiveWithdrawnAt: null, updatedAt: locked.updatedAt },
       data: {
         updatedAt: new Date(Math.max(Date.now(), locked.updatedAt.getTime() + 1)),
@@ -214,6 +215,9 @@ export async function updateJournalEntry(
         } : {}),
       },
     });
+      const cleanupJobId = changed.count && currentEntry.image && currentEntry.image !== preparedImage.image
+        ? await enqueueDataCleanup(tx, { images: [currentEntry.image], pdfs: [], appleTokens: [], receipt: null }) : null;
+      return { count: changed.count, cleanupJobId };
     });
   } catch (error) {
     await cleanupUploadedImage(preparedImage.uploadedKey);
@@ -230,9 +234,7 @@ export async function updateJournalEntry(
     select: journalEntrySelect,
   });
 
-  if (currentEntry.image !== preparedImage.image) {
-    await cleanupReplacedImage(currentEntry.image);
-  }
+  if (result.cleanupJobId) await processDataCleanupJob(result.cleanupJobId).catch(() => false);
 
   await writeSystemLogSafely({
     category: "journal",
@@ -263,7 +265,6 @@ export async function deleteJournalEntry(
     return result.found;
   }
   const replayReceipt = await preparePrivacyReplayReceipt("journal_deleted", ownerId, new Date(), entryId);
-  if (privacyReplayEnabled()) await deleteStoredJournalImage(entry.image);
 
   const result = await prisma.$transaction(async (transaction) => {
     await transaction.journalShareTrace.deleteMany({ where: { entryId } });
@@ -272,14 +273,15 @@ export async function deleteJournalEntry(
       data: { entryId: null },
     });
 
-    return transaction.journalEntry.deleteMany({
+    const deleted = await transaction.journalEntry.deleteMany({
       where: { id: entryId, ownerId },
     });
+    const cleanupJobId = await enqueueDataCleanup(transaction, { images: entry.image ? [entry.image] : [], pdfs: [], appleTokens: [], receipt: replayReceipt });
+    return { count: deleted.count, cleanupJobId };
   });
-  await commitPrivacyReplayReceipt(replayReceipt);
+  if (result.cleanupJobId) await processDataCleanupJob(result.cleanupJobId).catch(() => false);
 
   if (result.count > 0) {
-    if (!privacyReplayEnabled()) await cleanupReplacedImage(entry.image);
     await writeSystemLogSafely({
       category: "journal",
       action: "journal.deleted",
@@ -301,18 +303,17 @@ export async function forceDeleteJournalEntry(entryId: string, replay = false) {
 
   if (!entry) return false;
   const replayReceipt = replay ? null : await preparePrivacyReplayReceipt("journal_deleted", entry.ownerId, new Date(), entryId);
-  if (replay || privacyReplayEnabled()) await deleteStoredJournalImage(entry.image);
 
-  await prisma.$transaction(async (transaction) => {
+  const cleanupJobId = await prisma.$transaction(async (transaction) => {
     await transaction.journalShareTrace.deleteMany({ where: { entryId } });
     await transaction.contentReport.updateMany({
       where: { entryId },
       data: { entryId: null },
     });
     await transaction.journalEntry.delete({ where: { id: entryId } });
+    return enqueueDataCleanup(transaction, { images: entry.image ? [entry.image] : [], pdfs: [], appleTokens: [], receipt: replayReceipt });
   });
-  await commitPrivacyReplayReceipt(replayReceipt);
-  if (!replay && !privacyReplayEnabled()) await cleanupReplacedImage(entry.image);
+  if (cleanupJobId) await processDataCleanupJob(cleanupJobId).catch(() => false);
   return true;
 }
 
@@ -534,13 +535,5 @@ async function cleanupUploadedImage(image: string | null) {
     await deleteStoredJournalImage(image);
   } catch (error) {
     console.error("저장에 실패한 저널 이미지를 정리하지 못했습니다.", error);
-  }
-}
-
-async function cleanupReplacedImage(image: string | null) {
-  try {
-    await deleteStoredJournalImage(image);
-  } catch (error) {
-    console.error("교체되거나 삭제된 저널 이미지를 정리하지 못했습니다.", error);
   }
 }

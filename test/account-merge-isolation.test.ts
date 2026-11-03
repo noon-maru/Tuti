@@ -1,12 +1,15 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { execFileSync, spawnSync } from "node:child_process";
-import { existsSync, mkdirSync, mkdtempSync, rmSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import pg from "pg";
 import type { Prisma } from "../src/generated/prisma/client";
 import { lockMergeAccounts } from "../src/server/auth/mergeLock";
+import { PrismaClient } from "../src/generated/prisma/client";
+import { PrismaPg } from "@prisma/adapter-pg";
+import { enqueueDataCleanup } from "../src/server/legal/dataCleanup";
 
 test("격리 DB에서 계정 병합과 신규 작성이 직렬화된다", { timeout: 20000 }, async t => {
   const bin = (name: string) => process.env.POSTGRES_BIN_DIR ? join(process.env.POSTGRES_BIN_DIR, name) : name;
@@ -57,4 +60,22 @@ test("격리 DB에서 계정 병합과 신규 작성이 직렬화된다", { time
   await a.query("BEGIN");
   await assert.rejects(lockMergeAccounts(tx, "source", "target"), { code: "account_merge_target_missing" });
   await a.query("ROLLBACK");
+  await a.query(readFileSync("prisma/migrations/20261103130000_user_data_cleanup_outbox/migration.sql", "utf8"));
+  const orm = new PrismaClient({ adapter: new PrismaPg({ host: socket, port: 15483, user: "fixture", database: "postgres" }) });
+  try {
+    const payload = { images: ["journal-images/fixture/a/a.webp"], pdfs: [], appleTokens: [], receipt: null };
+    await assert.rejects(orm.$transaction(async tx => {
+      await enqueueDataCleanup(tx, payload);
+      await tx.$executeRaw`DELETE FROM users WHERE id = 'target'`;
+      throw new Error("fixture rollback");
+    }), /fixture rollback/);
+    assert.equal(await orm.userDataCleanupJob.count(), 0);
+    assert.equal((await a.query("SELECT count(1)::integer n FROM entries")).rows[0].n, 2);
+    await orm.$transaction(async tx => {
+      await enqueueDataCleanup(tx, payload);
+      await tx.$executeRaw`DELETE FROM users WHERE id = 'target'`;
+    });
+    assert.equal(await orm.userDataCleanupJob.count(), 1, "계정이 없어져도 정리 예약은 보존한다");
+    assert.equal((await a.query("SELECT count(1)::integer n FROM entries")).rows[0].n, 0);
+  } finally { await orm.$disconnect(); }
 });
