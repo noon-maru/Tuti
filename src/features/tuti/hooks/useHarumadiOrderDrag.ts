@@ -6,6 +6,7 @@ import { dragOrderScale, dragOrderTarget, dragOrderTop, dragScrollDelta, orderLo
 
 type Drag = { pointerId: number; entryId: string; startY: number; y: number;
   grabOffset: number; height: number; moved: boolean; originalIds: string[]; previewIds: string[]; slots: OrderSlot[] };
+type ButtonMotion = { originalIds: string[]; targetIds: string[]; slots: OrderSlot[] };
 const motionReduced = () => window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 const translation = (y: number) => `translate3d(0,${y}px,0)`;
 const transition = () => motionReduced() ? "none" : `transform ${ORDER_MOVE_TIMING.duration}ms ${ORDER_MOVE_TIMING.easing}`;
@@ -27,6 +28,9 @@ export function useHarumadiOrderDrag({ ids, onChange, disabled, scrollRef }: {
   const animations = useRef(new Map<string, Animation>());
   const before = useRef<Map<string, number> | null>(null);
   const pointer = useRef<Drag | null>(null);
+  const buttonMotion = useRef<ButtonMotion | null>(null);
+  const buttonTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [buttonPreview, setButtonPreview] = useState<{ ids: string[]; entryId: string } | null>(null);
   const [dragging, setDragging] = useState<string | null>(null);
   const [announcement, setAnnouncement] = useState("");
 
@@ -37,6 +41,15 @@ export function useHarumadiOrderDrag({ ids, onChange, disabled, scrollRef }: {
     const scale = dragOrderScale(bounds.height, list.offsetHeight);
     before.current = new Map([...rows.current].map(([id, node]) => [id, orderLocalTop(node.getBoundingClientRect().top, bounds.top, scale)]));
   }, []);
+  const freezePositions = useCallback(() => {
+    capturePositions();
+    for (const [id, row] of rows.current) {
+      setPreviewTransform(row, (before.current?.get(id) ?? row.offsetTop) - row.offsetTop);
+      animations.current.get(id)?.cancel(); animations.current.delete(id);
+    }
+    listRef.current?.getBoundingClientRect();
+    before.current = null;
+  }, [capturePositions]);
   const animate = useCallback((id: string, node: HTMLElement, fromY: number) => {
     animations.current.get(id)?.cancel();
     animations.current.delete(id);
@@ -61,14 +74,50 @@ export function useHarumadiOrderDrag({ ids, onChange, disabled, scrollRef }: {
 
   const move = useCallback((id: string, target: number) => {
     if (disabled || pointer.current || target < 0 || target >= ids.length || ids.indexOf(id) === target) return;
-    capturePositions();
-    onChange(moveEntry(ids, id, target));
+    const nextIds = moveEntry(ids, id, target);
+    if (motionReduced() || !listRef.current) {
+      capturePositions(); onChange(nextIds);
+      setAnnouncement(`${target + 1}번째로 옮겼어요.`);
+      return;
+    }
+    let motion = buttonMotion.current;
+    if (!motion) {
+      const slots = ids.flatMap(id => {
+        const row = rows.current.get(id);
+        return row ? [{ id, top: row.offsetTop, height: row.offsetHeight }] : [];
+      });
+      freezePositions();
+      motion = { originalIds: [...ids], targetIds: nextIds, slots };
+      buttonMotion.current = motion;
+    }
+    motion.targetIds = nextIds;
+    setButtonPreview({ ids: motion.originalIds, entryId: id });
+    for (const slot of projectOrderSlots(nextIds, motion.slots)) {
+      const row = rows.current.get(slot.id);
+      if (row) setPreviewTransform(row, slot.top - row.offsetTop, true);
+    }
+    // Persistable order updates immediately, but neither DOM node is reinserted
+    // until both CSS movements finish. Rapid clicks retarget the same nodes.
+    onChange(nextIds);
+    if (buttonTimer.current !== null) clearTimeout(buttonTimer.current);
+    buttonTimer.current = setTimeout(() => {
+      capturePositions();
+      buttonMotion.current = null; buttonTimer.current = null;
+      setButtonPreview(null);
+    }, ORDER_MOVE_TIMING.duration);
     setAnnouncement(`${target + 1}번째로 옮겼어요.`);
-  }, [disabled, ids, onChange, capturePositions]);
+  }, [disabled, ids, onChange, capturePositions, freezePositions]);
 
-  // Only arrow actions / pointer release change React's DOM order. Rebase from
-  // current visual positions, including any unfinished neighbour transitions.
+  // Release commits and completed button previews rebase from current visual
+  // positions, including any unfinished neighbour transitions.
   useLayoutEffect(() => {
+    if (buttonMotion.current) {
+      if (ids.join(",") === buttonMotion.current.targetIds.join(",")) return;
+      // An authoritative parent update wins over an unfinished local preview.
+      if (buttonTimer.current !== null) clearTimeout(buttonTimer.current);
+      buttonTimer.current = null; buttonMotion.current = null;
+      queueMicrotask(() => setButtonPreview(null));
+    }
     const previous = before.current;
     before.current = null;
     if (pointer.current) {
@@ -84,7 +133,7 @@ export function useHarumadiOrderDrag({ ids, onChange, disabled, scrollRef }: {
       const from = previous?.get(id);
       if (from !== undefined) animate(id, node, orderFlipOffset(from, node.offsetTop));
     }
-  }, [ids, animate]);
+  }, [ids, buttonPreview, animate]);
 
   const reorderAtPointer = useCallback(() => {
     const active = pointer.current, list = listRef.current;
@@ -122,23 +171,15 @@ export function useHarumadiOrderDrag({ ids, onChange, disabled, scrollRef }: {
   }, [dragging, disabled, scrollRef, reorderAtPointer]);
 
   const pointerDown = (event: PointerEvent<HTMLButtonElement>, entryId: string) => {
-    if (disabled || !event.isPrimary || event.button !== 0 || pointer.current) return;
+    if (disabled || !event.isPrimary || event.button !== 0 || pointer.current || buttonMotion.current) return;
     const node = rows.current.get(entryId), list = listRef.current;
     if (!node || !list) return;
-    capturePositions();
     const rect = node.getBoundingClientRect();
     const slots = ids.flatMap(id => {
       const row = rows.current.get(id);
       return row ? [{ id, top: row.offsetTop, height: row.offsetHeight }] : [];
     });
-    for (const [id, row] of rows.current) {
-      const visualTop = before.current?.get(id) ?? row.offsetTop;
-      setPreviewTransform(row, visualTop - row.offsetTop);
-      animations.current.get(id)?.cancel(); animations.current.delete(id);
-    }
-    // Flush the visual starting positions before enabling CSS transitions.
-    list.getBoundingClientRect();
-    before.current = null;
+    freezePositions();
     pointer.current = { pointerId: event.pointerId, entryId, startY: event.clientY, y: event.clientY,
       grabOffset: event.clientY - rect.top, height: rect.height, moved: false,
       originalIds: [...ids], previewIds: [...ids], slots };
@@ -182,7 +223,11 @@ export function useHarumadiOrderDrag({ ids, onChange, disabled, scrollRef }: {
   }, [finish]);
   useEffect(() => {
     const running = animations.current;
-    return () => { running.forEach(animation => animation.cancel()); running.clear(); pointer.current = null; };
+    return () => {
+      running.forEach(animation => animation.cancel()); running.clear(); pointer.current = null;
+      if (buttonTimer.current !== null) clearTimeout(buttonTimer.current);
+      buttonTimer.current = null; buttonMotion.current = null;
+    };
   }, []);
 
   const registerRow = useCallback((id: string) => {
@@ -196,5 +241,6 @@ export function useHarumadiOrderDrag({ ids, onChange, disabled, scrollRef }: {
     }
     return callback;
   }, []);
-  return { listRef, registerRow, dragging, announcement, move, pointerDown, pointerMove, finish };
+  return { listRef, registerRow, dragging, announcement, move, pointerDown, pointerMove, finish,
+    renderIds: buttonPreview?.ids ?? ids, movingId: buttonPreview?.entryId ?? null };
 }

@@ -18,16 +18,18 @@ export function HarumadiOrderEditor({ entries, ids, onChange, disabled, scrollRe
   disabled: boolean;
   scrollRef: RefObject<HTMLDivElement | null>;
 }) {
-  const { dragging, announcement, listRef, registerRow, move, pointerDown, pointerMove, finish } =
+  const { dragging, movingId, renderIds, announcement, listRef, registerRow, move, pointerDown, pointerMove, finish } =
     useHarumadiOrderDrag({ ids, onChange, disabled, scrollRef });
-  const ordered = orderByEntryIds(entries, ids);
+  const ordered = orderByEntryIds(entries, renderIds);
 
   return <Section aria-label="마디 순서 편집" data-order-editor>
     <Heading><div><h1>마디 순서</h1><p>읽고 싶은 순서로 놓아보세요.</p></div><Count>{ordered.length}마디</Count></Heading>
     <Hint><GripVertical size={15} aria-hidden="true" />오른쪽 손잡이를 위아래로 끌어보세요.</Hint>
     <List ref={listRef} aria-label="하루마디에 담긴 마디" onPointerMove={pointerMove}
       onPointerUp={event => finish(false, event.pointerId)} onPointerCancel={event => finish(true, event.pointerId)} onLostPointerCapture={event => finish(true, event.pointerId)}>
-      {ordered.map((entry, index) => <Row ref={registerRow(entry.id)} key={entry.id} data-order-entry={entry.id} data-dragging={dragging === entry.id || undefined}>
+      {ordered.map(entry => {
+        const index = ids.indexOf(entry.id);
+        return <Row ref={registerRow(entry.id)} key={entry.id} data-order-entry={entry.id} data-dragging={dragging === entry.id || undefined} data-moving={movingId === entry.id || undefined}>
         <Thumbnail>{entry.image ? <Image src={entry.image} alt="" fill unoptimized sizes="68px" /> : <TextThumbnail aria-hidden="true"><span>{entry.title || "남긴 하루"}</span>{entry.content.trim()}</TextThumbnail>}
           <Number aria-hidden="true">{String(index + 1).padStart(2, "0")}</Number>
         </Thumbnail>
@@ -46,7 +48,7 @@ export function HarumadiOrderEditor({ entries, ids, onChange, disabled, scrollRe
           }}><GripVertical size={21} aria-hidden="true" /></Handle>
           <Move type="button" disabled={disabled || Boolean(dragging) || index === ids.length - 1} aria-label={`${index + 1}번째 마디 아래로 이동`} onClick={() => move(entry.id, index + 1)}><ArrowDown size={15} aria-hidden="true" /></Move>
         </Actions>
-      </Row>)}
+      </Row>; })}
     </List>
     <Status role="status" aria-live="polite" aria-atomic="true">{announcement}</Status>
   </Section>;
@@ -67,6 +69,7 @@ const Row = styled.li`
   display: grid; grid-template-columns: 68px minmax(0, 1fr) 36px; align-items: center; gap: 14px;
   padding: 12px; border: 1px solid var(--color-neutral-400); border-radius: 16px; background: var(--color-surface);
   position: relative; z-index: 0; overflow-anchor: none; transition: box-shadow 240ms ease, border-color 240ms ease;
+  &[data-moving="true"] { z-index: 1; }
   &[data-dragging="true"] {
     z-index: 2; pointer-events: none; will-change: transform;
     border-color: var(--color-secondary-700);
