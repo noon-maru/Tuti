@@ -36,6 +36,24 @@ try {
   assert.equal(changed.revision, 2);
   assert.deepEqual(changed.entryIds, ["a", "b"]);
   assert.deepEqual((await readHarumadi("maker", "other")).entryIds, ["a"]);
+  await pool.query("INSERT INTO harumadis(id,owner_id) VALUES('legacy-book','maker'),('mixed-book','maker'); INSERT INTO harumadi_entry_links(id,harumadi_id,entry_id,position) VALUES('legacy-a','legacy-book','a',null),('legacy-b','legacy-book','b',null),('mixed-a','mixed-book','a',5),('mixed-b','mixed-book','b',null),('mixed-c','mixed-book','c',null)");
+  const legacy = (await readHarumadi("maker", "legacy-book")).entryIds;
+  const mixed = (await readHarumadi("maker", "mixed-book")).entryIds;
+  await pool.query(readFileSync("prisma/migrations/20261103010000_harumadi_append_order/migration.sql", "utf8"));
+  assert.deepEqual((await readHarumadi("maker", "legacy-book")).entryIds, legacy, "기존 미지정 마디의 표시 순서를 보존한다");
+  assert.deepEqual((await readHarumadi("maker", "mixed-book")).entryIds, mixed, "수동 위치와 미지정 마디가 섞여 있어도 표시 순서를 보존한다");
+  assert.deepEqual((await readHarumadi("maker", "book")).entryIds, ["a", "b"], "수동 정렬은 이전 시 그대로 보존한다");
+  await pool.query("INSERT INTO harumadis(id,owner_id) VALUES('append-book','maker'); INSERT INTO harumadi_entry_links(id,harumadi_id,entry_id) VALUES('append-a','append-book','a'),('append-b','append-book','b'),('append-c','append-book','c')");
+  assert.deepEqual((await readHarumadi("maker", "append-book")).entryIds, ["a", "b", "c"], "방문 날짜와 무관하게 담은 순서를 사용한다");
+  await pool.query("DELETE FROM harumadi_entry_links WHERE id='append-b'; INSERT INTO harumadi_entry_links(id,harumadi_id,entry_id) VALUES('reappend-b','append-book','b')");
+  assert.deepEqual((await readHarumadi("maker", "append-book")).entryIds, ["a", "c", "b"], "다시 담은 마디는 맨 뒤에 놓는다");
+  await pool.query("INSERT INTO harumadis(id,owner_id) VALUES('concurrent-book','maker')");
+  await Promise.all([
+    client.harumadiEntryLink.create({ data: { id: "concurrent-a", harumadiId: "concurrent-book", entryId: "a" } }),
+    client.harumadiEntryLink.create({ data: { id: "concurrent-b", harumadiId: "concurrent-book", entryId: "b" } }),
+  ]);
+  const positions = await pool.query("SELECT position FROM harumadi_entry_links WHERE harumadi_id='concurrent-book' ORDER BY position");
+  assert.deepEqual(positions.rows.map(r => r.position), [0, 1], "동시 추가도 직렬화해 서로 다른 위치를 부여한다");
   await pool.query("INSERT INTO harumadi_entry_links(id,harumadi_id,entry_id) VALUES('link-c','book','c'); UPDATE harumadis SET revision=revision+1,collaboration_started_at=now() WHERE id='book'");
   assert.deepEqual((await readHarumadi("maker", "book")).entryIds, ["a", "b", "c"]);
   await assert.rejects(reorderHarumadi("maker", "book", { revision: 2, entryIds: ["c", "b", "a"] }), { status: 409 });
