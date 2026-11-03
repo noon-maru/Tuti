@@ -226,6 +226,7 @@ function performApnsRequest(
       "apns-topic": bundleId,
       "apns-push-type": "alert",
       "apns-priority": "10",
+      "apns-expiration": String(Math.floor(Date.now() / 1000) + 3600),
       "content-type": "application/json",
     });
     let status = 0;

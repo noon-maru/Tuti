@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { enqueueTogetherNotification } from "@/server/notifications/outbox";
 import type { Prisma } from "@/generated/prisma/client";
 import { lifecycleContext, type LifecycleContext, type LifecycleName, type LIFECYCLE_ORIGINS } from "@/shared/api/lifecycle";
 
@@ -27,6 +28,7 @@ export async function recordContribution(tx: Prisma.TransactionClient, userId: s
   if (!tx.lifecycleEvent) return;
   const book = await tx.harumadi.findUnique({ where: { id: bookId }, select: { ownerId: true, collaborationStartedAt: true } });
   if (!book?.collaborationStartedAt) return;
+  await enqueueTogetherNotification(tx, userId, bookId, "shared-madi", generationId);
   const member = book.ownerId === userId ? null : await tx.harumadiMember.findUnique({ where: { harumadiId_userId: { harumadiId: bookId, userId } }, select: { id: true } });
   await recordLifecycle(tx, userId, { name: "shared_first_contribution", key: `contribution:${bookId}:${member?.id ?? userId}`, entityId: member?.id, bookId }, context);
 }

@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { enqueueTogetherNotification } from "@/server/notifications/outbox";
 import { prisma } from "@/server/db/prisma";
 import { consumeRateLimit } from "@/server/http/rateLimit";
 import { commitPrivacyReplayReceipt, preparePrivacyReplayReceipt } from "@/server/legal/privacyReplayLedger";
@@ -50,7 +51,12 @@ export async function saveComment(userId: string, id: string, value: unknown, co
       if (existing.harumadiId !== id || existing.authorId !== userId || existing.body !== input.body || existing.parentId !== input.parentId || existing.deletedAt) throw new HarumadiError("댓글 요청을 다시 확인해주세요.", 409);
       return { id: existing.id };
     }
-    return tx.harumadiComment.create({ data: { id: newId, harumadiId: id, authorId: userId, ...input }, select: { id: true } });
+    const comment = await tx.harumadiComment.create({ data: { id: newId, harumadiId: id, authorId: userId, ...input }, select: { id: true } });
+    if (input.parentId) {
+      const parent = await tx.harumadiComment.findUnique({ where: { id: input.parentId }, select: { authorId: true } });
+      if (parent?.authorId) await enqueueTogetherNotification(tx, userId, id, "comment-reply", newId, parent.authorId);
+    }
+    return comment;
   });
 }
 export async function eraseComment(userId: string, id: string, commentId: string, admin = false) {

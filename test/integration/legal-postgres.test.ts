@@ -56,6 +56,11 @@ test("분리된 PostgreSQL에서 약관·권리 보호 마이그레이션의 실
     assert.equal(Math.floor(serverVersion / 10000), Number(expectedMajor), "요청한 PostgreSQL 주 버전으로 시험해야 한다.");
   }
   t.diagnostic(`isolated PostgreSQL server_version_num=${serverVersion}`);
+  await t.test("라이프로그 알림은 실제 DB에서 수신 선택·묶음·권한 재검사·오늘 작성 억제를 지킨다", () => {
+    const result = spawnSync(process.execPath, ["--import", "tsx", "test/integration/notifications-runtime.ts", socket], { env, encoding: "utf8", timeout: 30000 });
+    assert.equal(result.status, 0, result.stderr || result.error?.message);
+    assert.match(result.stdout, /"reminderOnceDaily":true/);
+  });
   await t.test("함께 채우기 전체 종료는 실제 ORM·행 잠금·롤백에서 원본과 다른 책을 보존한다", () => {
     const result = spawnSync(process.execPath, ["--import", "tsx", "test/integration/harumadi-end-together-runtime.ts", socket], {
       env: { ...env, DATABASE_URL: "postgresql://unused:unused@127.0.0.1:1/unused", PRIVACY_REPLAY_LEDGER_ENABLED: "false" },

@@ -3,6 +3,7 @@ import { TUTI_SERVICE_PUSH_CHANNEL_ID } from "@/shared/notifications/pushChannel
 export type SafePushData = {
   type: string;
   path: string;
+  notificationId?: string;
 };
 
 export type ServerPushMessage = SafePushData & {
@@ -15,6 +16,7 @@ export function createSafePushData(message: SafePushData) {
   return {
     type: message.type,
     path: message.path,
+    ...(message.notificationId ? { notificationId: message.notificationId } : {}),
   };
 }
 
@@ -30,14 +32,15 @@ export function createAndroidFcmMessage(
     },
     data: createSafePushData(message),
     android: {
-      priority: "high",
+      priority: "normal",
+      ttl: "3600s",
       notification: {
         channelId: TUTI_SERVICE_PUSH_CHANNEL_ID,
         icon: "tuti_notification_icon",
         color: "#8CBDEF",
-        notificationPriority: "PRIORITY_HIGH",
-        defaultSound: true,
-        defaultVibrateTimings: true,
+        notificationPriority: "PRIORITY_DEFAULT",
+        defaultSound: false,
+        defaultVibrateTimings: false,
       },
     },
   } as const;
@@ -50,7 +53,7 @@ export function createIosApnsPayload(message: ServerPushMessage) {
         title: message.title,
         body: message.body,
       },
-      sound: "default",
+      "interruption-level": "passive",
       "thread-id": "tuti-service-updates",
     },
     ...createSafePushData(message),

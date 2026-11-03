@@ -1,4 +1,5 @@
 import { createHash, randomBytes, randomUUID } from "node:crypto";
+import { enqueueTogetherNotification } from "@/server/notifications/outbox";
 import { recordContribution, recordLifecycle } from "@/server/analytics/lifecycle";
 import type { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/server/db/prisma";
@@ -30,12 +31,12 @@ export async function createInvite(userId: string, id: string) {
   const token = randomBytes(32).toString("base64url");
   const invite = await prisma.$transaction(async tx => {
     await lockHarumadi(tx, id);
-    await requireHarumadiAccess(tx, userId, id, true);
+    const book = await requireHarumadiAccess(tx, userId, id, true);
     await requireLinkedAccount(tx, userId);
     if (await tx.journalEntry.count({ where: { harumadiEntries: { some: { harumadiId: id } }, OR: [{ sensitiveContent: null }, { sensitiveContent: true }, { sensitiveWithdrawnAt: { not: null } }] } })) throw new HarumadiError("민감정보가 있거나 확인되지 않은 마디를 먼저 빼주세요.", 409);
     // Limit outstanding links, not participants. Tokens are returned only once, never stored raw.
     if (await tx.harumadiInvite.count({ where: { harumadiId: id, acceptedAt: null, revokedAt: null, expiresAt: { gt: new Date() } } }) >= 50) throw new HarumadiError("사용하지 않은 초대를 취소한 뒤 다시 보내주세요.", 429);
-    await tx.harumadi.update({ where: { id }, data: { collaborationStartedAt: new Date(), accessRevision: { increment: 1 } } });
+    await tx.harumadi.update({ where: { id }, data: { collaborationStartedAt: book.collaborationStartedAt ?? new Date(), accessRevision: { increment: 1 } } });
     const created = await tx.harumadiInvite.create({ data: { id: randomUUID(), harumadiId: id, tokenHash: hashInvite(token), expiresAt: new Date(Date.now() + 7 * 86400_000) }, select: inviteSelect });
     await recordLifecycle(tx, userId, { name: "invite_created", key: `invite:${created.id}`, entityId: created.id, bookId: id }, { source: "book" });
     return created;
@@ -65,6 +66,7 @@ export async function acceptInvite(userId: string, token: string) {
       create: { id: randomUUID(), harumadiId: invite.harumadiId, userId }, update: { id: randomUUID(), joinedAt: new Date(), endedAt: null } });
     await tx.harumadiInvite.update({ where: { id: invite.id }, data: { acceptedAt: invite.acceptedAt ?? new Date(), acceptedByUserId: userId } });
     await recordLifecycle(tx, userId, { name: "invite_accepted", key: `accepted:${invite.id}`, entityId: invite.id, bookId: invite.harumadiId }, { source: "invite" });
+    await enqueueTogetherNotification(tx, userId, invite.harumadiId, "invite-accepted", invite.id, invite.harumadi.ownerId);
     await tx.harumadi.update({ where: { id: invite.harumadiId }, data: { accessRevision: { increment: 1 } } });
     return { harumadiId: invite.harumadiId };
   });

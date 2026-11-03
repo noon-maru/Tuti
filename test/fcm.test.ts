@@ -38,23 +38,23 @@ test("문의 알림은 이용자가 작성한 내용을 메시지에 포함하�
   assert.equal("entityId" in createSafePushData(message), false);
 });
 
-test("문의 답변 푸시를 소리·진동·고우선순위 채널로 전송한다", () => {
+test("일반 소식은 기본 중요도·무음 채널과 짧은 TTL로 전송한다", () => {
   const message = createAndroidFcmMessage(
     "device-token",
     createInquiryAnsweredPushMessage("inquiry-internal-id"),
   );
 
-  assert.equal(message.android.priority, "high");
+  assert.equal(message.android.priority, "normal");
   assert.equal(
     message.android.notification.channelId,
-    "tuti_service_updates_v2",
+    "tuti_lifelog_updates_v3",
   );
   assert.equal(
     message.android.notification.notificationPriority,
-    "PRIORITY_HIGH",
+    "PRIORITY_DEFAULT",
   );
-  assert.equal(message.android.notification.defaultSound, true);
-  assert.equal(message.android.notification.defaultVibrateTimings, true);
+  assert.equal(message.android.notification.defaultSound, false);
+  assert.equal(message.android.notification.defaultVibrateTimings, false);
 });
 
 test("APNs 인증 토큰을 ES256 JWT로 생성한다", () => {
@@ -97,7 +97,7 @@ test("iOS 문의 답변 알림은 APNs 표시 데이터와 안전한 이동 경�
     title: "문의에 답변이 도착했어요",
     body: "남겨둔 문의의 답변을 확인해보세요.",
   });
-  assert.equal(payload.aps.sound, "default");
+  assert.equal(payload.aps["interruption-level"], "passive");
   assert.equal(payload.path, "/inquiry?view=history");
   assert.equal("entityId" in payload, false);
 });

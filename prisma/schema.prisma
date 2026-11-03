@@ -743,6 +743,9 @@ model Harumadi {
   members HarumadiMember[]
   invites HarumadiInvite[]
   comments HarumadiComment[]
+  notificationSettings NotificationBookSetting[]
+  notificationPresence NotificationPresence[]
+  notificationJobs NotificationJob[]
 
   @@index([ownerId, createdAt])
   @@map("harumadis")
@@ -851,6 +854,12 @@ model JournalShareTrace {
 }
 
 model User {
+  notificationPreference NotificationPreference?
+  notificationBookSettings NotificationBookSetting[]
+  notificationPresence NotificationPresence[]
+  notificationJobs NotificationJob[] @relation("notificationRecipient")
+  notificationActions NotificationJob[] @relation("notificationActor")
+  notificationEvents NotificationEvent[]
   id                    String                 @id
   tokenHash             String                 @unique @map("token_hash")
   displayName           String?                @map("display_name")
@@ -953,6 +962,69 @@ model JournalAuthorBlock {
   @@map("journal_author_blocks")
 }
 
+model NotificationPreference {
+  userId String @id @map("user_id")
+  newsEnabled Boolean @default(false) @map("news_enabled")
+  reminderEnabled Boolean @default(false) @map("reminder_enabled")
+  reminderTime String @default("19:00") @map("reminder_time")
+  timeZone String @default("Asia/Seoul") @map("time_zone")
+  updatedAt DateTime @default(now()) @map("updated_at")
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@map("notification_preferences")
+}
+model NotificationBookSetting {
+  userId String @map("user_id")
+  bookId String @map("book_id")
+  muted Boolean @default(false)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  book Harumadi @relation(fields: [bookId], references: [id], onDelete: Cascade)
+  @@id([userId, bookId])
+  @@map("notification_book_settings")
+}
+model NotificationPresence {
+  userId String @map("user_id")
+  sessionId String @map("session_id")
+  bookId String? @map("book_id")
+  composing Boolean @default(false)
+  expiresAt DateTime @map("expires_at")
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  book Harumadi? @relation(fields: [bookId], references: [id], onDelete: Cascade)
+  @@id([userId, sessionId])
+  @@map("notification_presence")
+}
+model NotificationJob {
+  id String @id
+  userId String @map("user_id")
+  actorId String? @map("actor_id")
+  bookId String? @map("book_id")
+  kind String
+  entityId String? @map("entity_id")
+  createdAt DateTime @default(now()) @map("created_at")
+  dueAt DateTime @map("due_at")
+  consumedAt DateTime? @map("consumed_at")
+  user User @relation("notificationRecipient", fields: [userId], references: [id], onDelete: Cascade)
+  actor User? @relation("notificationActor", fields: [actorId], references: [id], onDelete: Cascade)
+  book Harumadi? @relation(fields: [bookId], references: [id], onDelete: Cascade)
+  @@index([createdAt], map: "notification_jobs_retention")
+  @@map("notification_jobs")
+}
+model NotificationEvent {
+  id String @id
+  userId String @map("user_id")
+  kind String
+  action String
+  createdAt DateTime @default(now()) @map("created_at")
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@index([createdAt], map: "notification_events_time")
+  @@map("notification_events")
+}
+model NotificationDispatchStatus {
+  id String @id
+  checkedAt DateTime @map("checked_at")
+  processed Int
+  failed Int
+  @@map("notification_dispatch_status")
+}
 model PushDevice {
   id             String       @id
   userId         String       @map("user_id")
