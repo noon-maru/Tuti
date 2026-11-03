@@ -3,6 +3,75 @@ import test from "node:test";
 import { readFileSync } from "node:fs";
 import { buildHarumadiReaderPages, splitReaderText } from "@/shared/harumadi/readerPages";
 import { harumadiContent } from "./fixtures/harumadiContent";
+import { createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
+import { HarumadiPageSheet } from "@/features/tuti/components/HarumadiSheet";
+import { readerPageWidth, readerTextLines, takeReaderText } from "@/shared/harumadi/readerText";
+
+test("사진 아래 짧은 글은 큰 간격부터 줄여 한 쪽에 보존한다", () => {
+  const { harumadi: book, entries } = harumadiContent();
+  Object.assign(entries[0], { title: "서울숲, 그늘 따라 한 바퀴", image: "/photo.jpg",
+    content: "나무 그늘을 따라 천천히 걸었다. 바쁜 길에서 조금만 벗어났는데 공기가 달라진 듯했다." });
+  for (const width of [300, 320, 340, 360, 400]) {
+    const pages = buildHarumadiReaderPages(book, entries, width);
+    assert.deepEqual(pages.map(page => page.kind), ["cover", "photo", "back"], `${width}px`);
+    assert.equal(pages[1].content, entries[0].content);
+  }
+  assert.equal(buildHarumadiReaderPages(book, entries, 320)[1].long, true);
+  entries[0].content = "천천히 걸었던 하루.";
+  assert.equal(buildHarumadiReaderPages(book, entries, 340)[1].long, false, "넉넉히 들어가는 짧은 글의 여백은 유지한다");
+});
+
+test("단어 줄바꿈과 실제 글꼴 너비로 나누고 공백·개행은 유실하지 않는다", () => {
+  assert.deepEqual(readerTextLines("aa bbbb", 4, 1), ["aa ", "bbbb"]);
+  for (const text of ["단어 사이 공백\n\n마지막 줄", "\r\n".repeat(12) + "끝", "  WWWWWW\t🙂 ".repeat(8)]) {
+    assert.equal(readerTextLines(text, 6, 1).join(""), text);
+    const [first, rest] = takeReaderText(text, 6, 1, 2);
+    assert.equal(first + rest, text);
+  }
+  const { harumadi: book, entries } = harumadiContent();
+  Object.assign(entries[0], { image: "/photo.jpg", title: "", content: "i".repeat(140) });
+  const fallback = buildHarumadiReaderPages(book, entries, 320);
+  const measured = buildHarumadiReaderPages(book, entries, 320, (text, size) => text.length * size * .25);
+  assert.ok(fallback.filter(p => p.kind === "continuation").length > 0);
+  assert.deepEqual(measured.map(p => p.kind), ["cover", "photo", "back"]);
+});
+
+test("이어지는 쪽은 원래 마디 제목·사진 맥락을 표시하며 본문과 작성자를 유지한다", () => {
+  const { harumadi: book, entries } = harumadiContent();
+  Object.assign(entries[0], { title: "서울숲에서 남긴 하루", image: "/photo.jpg", authorName: "작성자", content: "천천히 걸으며 남긴 이야기. ".repeat(100) });
+  const pages = buildHarumadiReaderPages(book, entries);
+  const continuation = pages.filter(p => p.kind === "continuation");
+  assert.ok(continuation.length > 0);
+  for (const page of continuation) {
+    assert.deepEqual(page.continuation, { title: entries[0].title, image: entries[0].image });
+    assert.equal(page.authorName, "작성자");
+  }
+  assert.equal(pages.slice(1, -1).map(p => p.content).join(""), entries[0].content);
+  // next/image's server interop is verified by Actions; Node SSR checks text here.
+  const textOnlyHeader = { ...continuation[0], continuation: { ...continuation[0].continuation!, image: null } };
+  const html = renderToStaticMarkup(createElement(HarumadiPageSheet, { page: textOnlyHeader, coverStyle: "white-plain", number: 2 }));
+  assert.match(html, /서울숲에서 남긴 하루/);
+  assert.match(html, /이어서/);
+  assert.match(html, /data-harumadi-page="continuation"/);
+  const sheet = readFileSync("src/features/tuti/components/HarumadiSheet.tsx", "utf8");
+  assert.match(sheet, /<ContinuedPhoto><Image src=\{page.continuation.image\}/);
+  entries[0].image = null;
+  entries[0].title = "";
+  const textPage = buildHarumadiReaderPages(book, entries).find(p => p.kind === "continuation")!;
+  assert.deepEqual(textPage.continuation, { title: "남긴 하루", image: null });
+});
+
+test("쪽 크기는 PC 목업 축소 이전 CSS 좌표로 계산하고 숨긴 지면은 측정하지 않는다", () => {
+  assert.equal(readerPageWidth(340, 600), 338);
+  assert.equal(readerPageWidth(400, 500), 350);
+  assert.equal(readerPageWidth(0, 0), 0);
+  const viewer = readFileSync("src/features/tuti/components/HarumadiPageViewer.tsx", "utf8");
+  assert.match(viewer, /readerPageWidth\(node.clientWidth, node.clientHeight\)/);
+  assert.doesNotMatch(viewer, /node.getBoundingClientRect\(\)/);
+  assert.match(viewer, /context.measureText\(text\).width/);
+  assert.match(viewer, /document.fonts\?\.ready.then\(update\)/);
+});
 
 test("실제 마디를 표지·본문·뒷표지로 만들고 사진과 글을 내용에 따라 배치한다", () => {
   const { harumadi: book, entries } = harumadiContent();

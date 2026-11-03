@@ -7,6 +7,7 @@ import { HARUMADI_PDF_LAYOUT as layout, harumadiPdfCssLength as pt } from "@/sha
 import type { HarumadiReaderPage } from "@/shared/harumadi/readerPages";
 import type { HarumadiPdfCoverStyle } from "@/shared/api/harumadiPdf";
 import { HARUMADI_READING_TYPE as reading } from "@/shared/harumadi/readingTypography";
+import { HARUMADI_READING_LAYOUT as readingLayout } from "@/shared/harumadi/readingTypography";
 
 /** 예시와 실제 마디가 같은 종이·수치·서체를 사용한다. */
 export function HarumadiPageSheet({ page, coverStyle, number, compactCover = false }: { page: HarumadiReaderPage; coverStyle: HarumadiPdfCoverStyle; number: number; compactCover?: boolean }) {
@@ -26,8 +27,15 @@ export function HarumadiPageSheet({ page, coverStyle, number, compactCover = fal
     <PhotoHeader date={page.date.replaceAll("-", ".")} place={page.place} /><Photo>{photo}</Photo>
     <Story style={{ marginTop: `var(--story-gap, ${pt(page.long ? layout.photo.longGap : layout.photo.shortGap)})` }}>{page.title && <Title>{page.title}</Title>}<Body>{page.content}</Body></Story><Folio number={number} />
   </PhotoPaper></Sheet>;
-  if (page.kind === "continuation" || page.long) return <Sheet $reading data-harumadi-page={page.kind}><LongPaper $cover={false}>
-    <LongHeader><TextMeta>{page.date} · {page.place}{page.kind === "continuation" ? " · 이어지는 마디" : ""}</TextMeta>{page.title && <TextTitle>{page.title}</TextTitle>}</LongHeader><LongBody>{page.content}</LongBody><Folio number={number} />
+  if (page.kind === "continuation") return <Sheet $reading data-harumadi-page="continuation"><LongPaper $cover={false}>
+    <ContinuedHeader>
+      {page.continuation?.image && <ContinuedPhoto><Image src={page.continuation.image} alt="" fill unoptimized sizes="52px" /></ContinuedPhoto>}
+      <ContinuedCopy><ContinuedMeta>{[page.date.replaceAll("-", "."), page.place, "이어서"].filter(Boolean).join(" · ")}</ContinuedMeta>
+        <ContinuedTitle>{page.continuation?.title || "남긴 하루"}</ContinuedTitle></ContinuedCopy>
+    </ContinuedHeader><LongBody>{page.content}</LongBody><Folio number={number} />
+  </LongPaper></Sheet>;
+  if (page.long) return <Sheet $reading data-harumadi-page={page.kind}><LongPaper $cover={false}>
+    <LongHeader><TextMeta>{page.date} · {page.place}</TextMeta>{page.title && <TextTitle>{page.title}</TextTitle>}</LongHeader><LongBody>{page.content}</LongBody><Folio number={number} />
   </LongPaper></Sheet>;
   return <Sheet $reading data-harumadi-page="text"><TextPaper $cover={false}><TextFrame>
     <TextMeta>{page.date} · {page.place}</TextMeta>{page.title && <TextTitle>{page.title}</TextTitle>}<TextBody>{page.content}</TextBody>
@@ -93,9 +101,9 @@ const Sheet = styled.span<{ $reading?: boolean; $compactCover?: boolean }>`
     --hm-body: ${reading.body}px; --hm-photo-body: ${reading.photoBody}px;
     --hm-title: ${reading.title}px; --hm-photo-title: ${reading.photoTitle}px;
     --hm-meta: ${reading.meta}px; --hm-line: ${reading.bodyLineHeight}; --hm-title-line: ${reading.titleLineHeight};
-    --hm-story-direction: column; --hm-copy-width: 100%; --hm-title-padding: 0px; --hm-copy-gap: 8px;
+    --hm-story-direction: column; --hm-copy-width: 100%; --hm-title-padding: 0px; --hm-copy-gap: ${readingLayout.copyGap}px;
     --hm-cover-direction: column; --hm-cover-align: left; --hm-cover-height: auto; --hm-cover-flex: 1;
-    --hm-header-height: 20px; --hm-meta-display: -webkit-box; --hm-meta-lines: 2;
+    --hm-header-height: ${readingLayout.headerHeight}px; --hm-meta-display: -webkit-box; --hm-meta-lines: 2; --hm-meta-line: ${readingLayout.continuation.metaLineHeight};
   `}
   ${({ $compactCover }) => $compactCover && `
     --hm-title: clamp(11px, 12cqw, 16px);
@@ -182,10 +190,15 @@ const TextFrame = styled.span`
   display: block; padding-left: ${pt(layout.shortText.frameLeft)}; padding-right: ${pt(layout.shortText.frameRight)};
   border-left: ${pt(layout.shortText.borderWidth)} solid ${layout.shortText.borderColor};
 `;
-const TextMeta = styled.span`display: var(--hm-meta-display, block); -webkit-box-orient: vertical; -webkit-line-clamp: var(--hm-meta-lines, unset); overflow: hidden; color: #606060; font-size: var(--hm-meta, ${pt(layout.shortText.captionSize)}); margin-bottom: ${pt(layout.shortText.captionGap)}; overflow-wrap: anywhere;`;
+const TextMeta = styled.span`display: var(--hm-meta-display, block); -webkit-box-orient: vertical; -webkit-line-clamp: var(--hm-meta-lines, unset); overflow: hidden; color: #606060; font-size: var(--hm-meta, ${pt(layout.shortText.captionSize)}); line-height: var(--hm-meta-line, inherit); margin-bottom: ${pt(layout.shortText.captionGap)}; overflow-wrap: anywhere;`;
 const TextTitle = styled.span`display: block; font-size: var(--hm-title, ${pt(layout.shortText.titleSize)}); font-weight: ${layout.shortText.titleWeight}; margin-bottom: ${pt(layout.shortText.titleGap)}; line-height: ${layout.shortText.titleLineHeight}; overflow-wrap: anywhere;`;
 const TextBody = styled.span`display: block; font-size: var(--hm-body, ${pt(layout.shortText.bodySize)}); line-height: var(--hm-line, ${layout.shortText.bodyLineHeight}); white-space: pre-wrap; word-break: keep-all; overflow-wrap: anywhere;`;
 const LongPaper = styled(Paper)`display: flex; flex-direction: column;`;
 const LongHeader = styled.span`display: block; margin-bottom: ${pt(22)}; padding-bottom: ${pt(18)}; border-bottom: ${pt(1)} solid #DCE7F1;`;
 const LongBody = styled.span`display: block; font-size: var(--hm-body, ${pt(12)}); line-height: var(--hm-line, 1.95); white-space: pre-wrap; overflow-wrap: anywhere;`;
+const ContinuedHeader = styled.span`display: flex; flex: none; align-items: center; gap: ${readingLayout.continuation.gap}px; margin-bottom: ${readingLayout.continuation.bottomGap}px;`;
+const ContinuedPhoto = styled.span`position: relative; display: block; flex: none; width: ${readingLayout.continuation.photoWidth}px; height: ${readingLayout.continuation.photoHeight}px; border-radius: ${pt(layout.photo.imageRadius)}; overflow: hidden; img { object-fit: cover; }`;
+const ContinuedCopy = styled.span`display: block; min-width: 0; flex: 1;`;
+const ContinuedMeta = styled.span`display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; font-size: ${reading.meta}px; line-height: ${readingLayout.continuation.metaLineHeight}; color: #606060; overflow-wrap: anywhere; margin-bottom: ${readingLayout.continuation.metaGap}px;`;
+const ContinuedTitle = styled.span`display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: ${readingLayout.continuation.titleLines}; overflow: hidden; font-size: ${reading.photoTitle}px; font-weight: 600; line-height: ${reading.titleLineHeight}; overflow-wrap: anywhere;`;
 const BackMessage = styled.span`display: grid; flex: 1; place-items: center; font-size: var(--hm-body, ${pt(14)}); line-height: 1.5; white-space: pre-line; overflow-wrap: anywhere;`;

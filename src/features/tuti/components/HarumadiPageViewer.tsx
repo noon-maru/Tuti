@@ -8,16 +8,17 @@ import { buildHarumadiReaderPages, type HarumadiReaderPage } from "@/shared/haru
 import { welcomeHarumadiTurn } from "@/shared/tuti/welcomeHarumadi";
 import type { Harumadi } from "@/shared/api/harumadi";
 import type { TutiJournalEntry } from "@/shared/api/journal";
+import { readerPageWidth, type ReaderTextMeasure } from "@/shared/harumadi/readerText";
 
 export function HarumadiPageViewer({ book, entries, onClose, closing = false }: { book: Harumadi; entries: TutiJournalEntry[]; onClose: () => void; closing?: boolean }) {
   const stage = useRef<HTMLDivElement>(null);
   const [pageWidth, setPageWidth] = useState(320);
+  const [measureText, setMeasureText] = useState<ReaderTextMeasure>();
   useEffect(() => {
     const node = stage.current;
     if (!node) return;
     const measure = () => {
-      const bounds = node.getBoundingClientRect();
-      const width = Math.floor(Math.min(bounds.width, bounds.height * 419.53 / 595.28)) - 2;
+      const width = readerPageWidth(node.clientWidth, node.clientHeight);
       if (width > 0) setPageWidth(value => Math.abs(value - width) > 1 ? width : value);
     };
     measure();
@@ -25,7 +26,26 @@ export function HarumadiPageViewer({ book, entries, onClose, closing = false }: 
     const observer = new ResizeObserver(measure); observer.observe(node);
     return () => observer.disconnect();
   }, []);
-  const pages = useMemo(() => buildHarumadiReaderPages(book, entries, pageWidth), [book, entries, pageWidth]);
+  useEffect(() => {
+    const node = stage.current, context = document.createElement("canvas").getContext("2d");
+    if (!node || !context) return;
+    let active = true;
+    const update = () => {
+      if (!active) return;
+      const style = getComputedStyle(node);
+      const family = style.getPropertyValue("--font-pretendard").trim() || style.fontFamily;
+      const cache = new Map<string, number>();
+      setMeasureText(() => (text: string, size: number, weight = 400) => {
+        const font = `${weight} ${size}px ${family}`, key = `${font}:${text}`;
+        if (!cache.has(key)) { context.font = font; cache.set(key, context.measureText(text).width); }
+        return cache.get(key)!;
+      });
+    };
+    update();
+    void document.fonts?.ready.then(update);
+    return () => { active = false; };
+  }, []);
+  const pages = useMemo(() => buildHarumadiReaderPages(book, entries, pageWidth, measureText), [book, entries, pageWidth, measureText]);
   // 책장에서 표지를 이미 열었으므로 첫 지면부터 보여준다. 이전 쪽으로 표지를 볼 수 있다.
   const [index, setIndex] = useState(1);
   const current = Math.min(index, pages.length - 1);
