@@ -140,6 +140,7 @@ test("개발 예제는 웹·로그인 UI·개인화·푸시·DB 설정을 분리
   for (const [title, key] of [
     ["개발 웹 API", "NEXT_PUBLIC_API_BASE_URL"],
     ["개발 로그인 UI", "NEXT_PUBLIC_ACCOUNT_AUTH_ENABLED"],
+    ["개발 약관 공개·동의", "SERVICE_TERMS_WORKFLOW_ENABLED"],
     ["추천 개인화·사용자 AI", "TUTI_PERSONALIZATION_MODE"],
     ["개발 서버 푸시", "FCM_PUSH_ENABLED"],
     ["개발 애플리케이션 DB 연결", "DATABASE_URL"],
@@ -147,5 +148,14 @@ test("개발 예제는 웹·로그인 UI·개인화·푸시·DB 설정을 분리
   ]) {
     const section = sections.get(title);
     assert.ok(section?.includes(`\n${key}=`), `${title}: ${key}`);
+  }
+});
+
+test("개발 예제는 약관 조회·동의를 함께 켜고 공통·운영 기본값은 변경하지 않는다", async () => {
+  const files = await examples();
+  for (const key of ["SERVICE_TERMS_WORKFLOW_ENABLED", "SERVICE_TERMS_ENFORCEMENT_ENABLED"]) {
+    assert.equal(files.get(".env.development.example")!.get(key), "true", key);
+    assert.equal(files.get(".env.example")!.get(key), "false", key);
+    assert.equal(files.get(".env.production.example")!.get(key), "false", key);
   }
 });
