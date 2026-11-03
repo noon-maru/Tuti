@@ -10,7 +10,7 @@ import type { Harumadi } from "@/shared/api/harumadi";
 import { spineColumnCount, type HarumadiLibraryView } from "@/shared/harumadi/libraryView";
 
 export function HarumadiShelf({ books, ownerId, view, onOpen }: {
-  books: Harumadi[]; ownerId: string; view: HarumadiLibraryView;
+  books: Harumadi[]; ownerId: string; view: Exclude<HarumadiLibraryView, "carousel">;
   onOpen: (book: Harumadi, control: HTMLElement, mode?: HarumadiOpeningMode) => void;
 }) {
   const shelf = useRef<HTMLDivElement>(null);

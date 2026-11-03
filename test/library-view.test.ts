@@ -39,13 +39,13 @@ test("느린 저장소 읽기는 방금 선택한 보기나 다른 계정의 선
   assert.equal(await unavailable.load("a"), "spines");
 });
 
-test("보기 선택은 명시적인 두 버튼과 선택 상태·44px 조작 영역으로 제공한다", () => {
-  for (const view of ["covers", "spines"] as const) {
+test("보기 선택은 명시적인 세 버튼과 선택 상태·44px 조작 영역으로 제공한다", () => {
+  for (const view of ["covers", "spines", "carousel"] as const) {
     const html = renderToStaticMarkup(createElement(LibraryViewSwitch, { view, onChange() {} }));
     assert.match(html, /role="group" aria-label="책장 보기 방식"/);
     assert.equal((html.match(/<button[^>]*aria-pressed="true"/g) ?? []).length, 1);
-    assert.equal((html.match(/<button[^>]*aria-pressed="false"/g) ?? []).length, 1);
-    assert.match(html, /표지/); assert.match(html, /책등/);
+    assert.equal((html.match(/<button[^>]*aria-pressed="false"/g) ?? []).length, 2);
+    assert.match(html, /표지/); assert.match(html, /책등/); assert.match(html, /한 권씩/);
     assert.match(html, /min-height:44px/);
   }
 });

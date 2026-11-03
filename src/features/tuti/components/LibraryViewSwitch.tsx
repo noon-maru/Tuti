@@ -1,6 +1,6 @@
 "use client";
 import styled from "@emotion/styled";
-import { LayoutGrid, Library } from "lucide-react";
+import { GalleryHorizontalEnd, LayoutGrid, Library } from "lucide-react";
 import { BaseButton } from "./buttons";
 import type { HarumadiLibraryView } from "@/shared/harumadi/libraryView";
 
@@ -8,6 +8,7 @@ export function LibraryViewSwitch({ view, onChange }: { view: HarumadiLibraryVie
   return <Switch role="group" aria-label="책장 보기 방식">
     <Choice type="button" aria-pressed={view === "covers"} onClick={() => onChange("covers")}><LayoutGrid size={15} aria-hidden="true" />표지</Choice>
     <Choice type="button" aria-pressed={view === "spines"} onClick={() => onChange("spines")}><Library size={15} aria-hidden="true" />책등</Choice>
+    <Choice type="button" aria-pressed={view === "carousel"} onClick={() => onChange("carousel")}><GalleryHorizontalEnd size={15} aria-hidden="true" />한 권씩</Choice>
   </Switch>;
 }
 const Switch = styled.div`display: inline-flex; flex: none; gap: 2px; padding: 3px; border: 1px solid #e4e9e0; border-radius: 14px; background: #edf1e9;`;

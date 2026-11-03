@@ -7,6 +7,7 @@ import { useEffect, useRef, useState } from "react";
 import { useSession } from "@/features/tuti/hooks/useSession";
 import { AppLoadingScreen, LoadingIndicator } from "@/features/tuti/components/LoadingIndicator";
 import { HarumadiShelf } from "@/features/tuti/components/HarumadiShelf";
+import { HarumadiCarousel } from "@/features/tuti/components/HarumadiCarousel";
 import { LibraryViewSwitch } from "@/features/tuti/components/LibraryViewSwitch";
 import { useLibraryView } from "@/features/tuti/hooks/useLibraryView";
 import { harumadiLocalRect } from "@/shared/harumadi/transitionGeometry";
@@ -61,7 +62,7 @@ function LibraryHome({ ownerId }: { ownerId: string }) {
       <TextAction type="button" onClick={openEditor}><Plus size={19} />새 하루마디</TextAction></Toolbar>
     <ShelfCount>{query.isSuccess ? <>하루마디 <strong>{harumadiPdfs.length}{query.hasNextPage ? "+" : ""}</strong>권</> : "나의 책장"}</ShelfCount>
     {hasDraft && <DraftButton type="button" onClick={() => router.push("/harumadi/pdf/create")}><Download size={17} /><span>이전 PDF 작업 이어가기</span><ArrowUpRight size={16} /></DraftButton>}
-    <ShelfScroll ref={shelfScroll} data-scroll-region aria-label={view === "spines" ? "내 하루마디 책등 책장" : "내 하루마디 가판대"}>
+    <ShelfScroll ref={shelfScroll} data-scroll-region data-library-layout={view} aria-label={view === "carousel" ? "내 하루마디 한 권씩 보기" : view === "spines" ? "내 하루마디 책등 책장" : "내 하루마디 가판대"}>
       {query.isPending ? <Status role="status"><LoadingIndicator /><p>책장에 하루마디를 놓고 있어요.</p></Status>
         : query.isError && !query.data ? <Status role="alert"><BookOpen size={28} /><h2>책장을 불러오지 못했어요.</h2><p>하루마디가 없어진 건 아니에요.<br />연결을 확인하고 다시 불러와주세요.</p><TextAction onClick={() => void query.refetch()}>다시 불러오기<ChevronRight size={14} /></TextAction></Status>
         : <>
@@ -72,7 +73,12 @@ function LibraryHome({ ownerId }: { ownerId: string }) {
             {!isFirstMadi && <PrimaryButton type="button" onClick={openEditor}>새 하루마디 만들기<ArrowUpRight size={16} /></PrimaryButton>}
             <TextAction onClick={() => { setWelcomeHarumadiOrigin(null); router.push(welcomeHarumadiPath(1, "library")); }}>하루마디 예시 펼쳐보기<ChevronRight size={14} /></TextAction>
           </EmptyShelf> : <>
-            <HarumadiShelf books={harumadiPdfs} ownerId={ownerId} view={view} onOpen={openBook} />
+            {view === "carousel" ? <HarumadiCarousel books={harumadiPdfs} ownerId={ownerId} onOpen={openBook}
+              hasNextPage={query.hasNextPage} loading={query.isFetchingNextPage}
+              onLoadMore={async () => {
+                const result = await query.fetchNextPage();
+                return result.data?.pages.flatMap(page => page.harumadis)[harumadiPdfs.length]?.id ?? null;
+              }} /> : <HarumadiShelf books={harumadiPdfs} ownerId={ownerId} view={view} onOpen={openBook} />}
             {query.isError && <LibraryLoadNotice nextPage={query.isFetchNextPageError} busy={query.isFetching}
               onRetry={() => { if (query.isFetchNextPageError) void query.fetchNextPage(); else void query.refetch(); }} />}
             {query.hasNextPage && !query.isError && <MoreButton disabled={query.isFetchingNextPage} onClick={() => void query.fetchNextPage()}>{query.isFetchingNextPage ? "불러오고 있어요" : "하루마디 더 보기"}</MoreButton>}
@@ -99,11 +105,11 @@ const Header = styled.header`
   h1 { margin: 0; min-width: 0; font-size: 28px; font-weight: 600; letter-spacing: -0.045em; line-height: 1.4; }
 `;
 const IconButton = styled(BaseButton)`width: 48px; height: 48px; flex: none; display: grid; place-items: center; background: transparent; color: var(--color-text-muted); border-radius: 50%; &:hover { background: var(--color-secondary-200); }`;
-const Toolbar = styled.div`display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 10px 24px 8px; flex: none;`;
+const Toolbar = styled.div`display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 6px 12px; padding: 10px 24px 8px; flex: none; > button:last-child { margin-left: auto; }`;
 const ShelfCount = styled.p`flex: none; margin: 4px 24px 0; font-size: 13px; color: var(--color-text-muted); strong { color: var(--color-text); font-weight: 500; font-variant-numeric: tabular-nums; }`;
 const TextAction = styled(BaseButton)`display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 48px; padding: 8px 0; background: transparent; font-size: 16px; color: var(--color-text-muted); &:focus-visible { outline: 2px solid var(--color-brand-700); outline-offset: 3px; border-radius: 4px; }`;
 const DraftButton = styled(BaseButton)`flex: none; display: flex; align-items: center; gap: 10px; margin: 8px 24px; padding: 12px 14px; background: var(--color-secondary-200); border-radius: 12px; color: var(--color-text); font-size: 16px; text-align: left; > span { flex: 1; }`;
-const ShelfScroll = styled.div`flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 30px 20px 12px; scrollbar-width: thin; &:has(> div:only-child) { display: flex; flex-direction: column; } @container app-viewport (max-height: 620px) { &:has([data-empty-shelf]) { padding-top: 16px; padding-bottom: 8px; } }`;
+const ShelfScroll = styled.div`flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 30px 20px 12px; scrollbar-width: thin; &[data-library-layout="carousel"] { padding-top: 4px; padding-bottom: 8px; } &:has(> div:only-child) { display: flex; flex-direction: column; } @container app-viewport (max-height: 620px) { &:has([data-empty-shelf]) { padding-top: 16px; padding-bottom: 8px; } }`;
 const EmptyShelf = styled.div`flex: 1 0 auto; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 290px; padding: 16px 0 28px; h2 { margin: 27px 0 10px; font-size: 22px; font-weight: 600; letter-spacing: -0.035em; text-align: center; } > p { margin: 0 0 14px; white-space: pre-line; text-align: center; font-size: 16px; color: var(--color-text-muted); line-height: 1.85; } > button { margin-bottom: 4px; } @container app-viewport (max-height: 620px) { min-height: 0; padding: 8px 0 12px; h2 { margin: 16px 0 8px; } > p { margin-bottom: 8px; line-height: 1.7; } }`;
 const EmptyMark = styled.span`position: relative; flex: none; width: 96px; height: 124px; display: grid; place-content: center; justify-items: center; gap: 16px; border: 1px solid #dce3d6; border-radius: 2px 6px 6px 2px; background: #ffffff; box-shadow: 3px 3px 0 #e9ede5, 6px 8px 16px rgb(27 34 42 / 0.04); color: #7d8b70; &::before { content: ""; position: absolute; top: 0; bottom: 0; left: 6px; border-left: 1px solid #edf0e9; } > span { width: 26px; border-bottom: 1px solid #dce3d6; } @container app-viewport (max-height: 620px) { width: 64px; height: 82px; gap: 10px; }`;
 const Status = styled.div`min-height: 230px; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; gap: 14px; h2 { margin: 0; font-size: 17px; } p { margin: 0; line-height: 1.8; font-size: 16px; color: var(--color-text-muted); }`;
