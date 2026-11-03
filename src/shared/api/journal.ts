@@ -1,4 +1,5 @@
 export type TutiJournalEntry = {
+  version?: string;
   authorId?: string;
   authorName?: string;
   id: string;
@@ -24,6 +25,7 @@ export type JournalEntryInput = Pick<
   TutiJournalEntry,
   "content" | "image" | "placeName" | "title"
 > & {
+  expectedVersion?: string;
   requestId?: string;
   harumadiId?: string;
   placeId?: string | null;

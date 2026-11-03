@@ -5,6 +5,7 @@ import { SensitiveJournalPolicyError } from "@/server/journal/sensitivePolicy";
 import {
   deleteJournalEntry,
   updateJournalEntry,
+  JournalEditConflictError,
 } from "@/server/journal/service";
 import {
   createPreflightResponse,
@@ -66,6 +67,7 @@ export async function PATCH(
     const response: JournalEntryResponse = { entry };
     return withCors(request, Response.json(response));
   } catch (error) {
+    if (error instanceof JournalEditConflictError) return withCors(request, Response.json({ error: error.message }, { status: error.status }));
     const invalidJson = error instanceof SyntaxError;
     if (error instanceof SensitiveJournalPolicyError) return withCors(request, Response.json({ error: error.message }, { status: error.status }));
     const invalidImage = error instanceof JournalImageError;

@@ -28,6 +28,11 @@ import { createDefaultHarumadiForFirstMadi } from "@/server/harumadi/firstMadi";
 import { lockHarumadi, requireHarumadiAccess, requireTogether } from "@/server/harumadi/access";
 import { HarumadiError } from "@/server/harumadi/errors";
 
+export class JournalEditConflictError extends Error {
+  readonly status = 409;
+  constructor() { super("다른 화면에서 마디가 바뀌었어요. 작성 중인 내용은 그대로 두고 최신 마디를 확인해주세요."); }
+}
+
 export async function getJournalEntries(
   ownerId: string,
 ): Promise<TutiJournalEntry[]> {
@@ -150,10 +155,13 @@ export async function updateJournalEntry(
       publicationStatus: true,
       sensitiveWithdrawnAt: true,
       sensitiveContent: true,
+      updatedAt: true,
     },
   });
 
   if (!currentEntry) return null;
+  const expectedVersion = input.expectedVersion ?? currentEntry.updatedAt.toISOString();
+  if (currentEntry.updatedAt.toISOString() !== expectedVersion) throw new JournalEditConflictError();
   if (currentEntry.sensitiveWithdrawnAt) throw new SensitiveJournalPolicyError("동의 철회로 정리 중인 마디는 수정할 수 없어요.");
   if (currentEntry.sensitiveContent === true && input.sensitiveContent !== true) {
     throw new SensitiveJournalPolicyError("민감정보가 담긴 마디를 일반 마디로 바꾸려면 먼저 동의를 철회해 삭제한 뒤 새 마디로 남겨주세요.");
@@ -172,10 +180,13 @@ export async function updateJournalEntry(
   try {
     result = await prisma.$transaction(async tx => {
       await tx.$queryRaw`SELECT id FROM journal_entries WHERE id = ${entryId} AND owner_id = ${ownerId} FOR UPDATE`;
+      const locked = await tx.journalEntry.findFirst({ where: { id: entryId, ownerId }, select: { updatedAt: true } });
+      if (!locked || locked.updatedAt.toISOString() !== expectedVersion) throw new JournalEditConflictError();
       if (input.sensitiveContent === true && await tx.harumadiEntryLink.findFirst({ where: { entryId, harumadi: { collaborationStartedAt: { not: null } } }, select: { id: true } })) throw new SensitiveJournalPolicyError("함께 채우는 하루마디에서 먼저 마디를 뺀 뒤 민감정보 여부를 변경해주세요.");
       return tx.journalEntry.updateMany({
-      where: { id: entryId, ownerId, sensitiveWithdrawnAt: null },
+      where: { id: entryId, ownerId, sensitiveWithdrawnAt: null, updatedAt: locked.updatedAt },
       data: {
+        updatedAt: new Date(Math.max(Date.now(), locked.updatedAt.getTime() + 1)),
         ...sensitiveData,
         title: input.title,
         content: input.content,
@@ -471,6 +482,7 @@ export function serializeJournalEntry(
 ): TutiJournalEntry {
   return {
     id: entry.id,
+    version: entry.updatedAt.toISOString(),
     sensitiveContent: entry.sensitiveContent,
     sensitiveConsentVersion: entry.sensitiveConsentVersion,
     sensitiveWithdrawnAt: entry.sensitiveWithdrawnAt?.toISOString() ?? null,

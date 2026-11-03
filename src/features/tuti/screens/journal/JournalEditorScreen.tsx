@@ -86,6 +86,8 @@ export function JournalEditorScreen({
     toDateInputValue(entry?.visitedAt ?? new Date()),
   );
   const [title, setTitle] = useState(entry?.title ?? "");
+  // 편집 시작 버전을 고정해 백그라운드 갱신이 충돌 검사를 무력화하지 않게 한다.
+  const [editVersion] = useState(entry?.version);
   const [body, setBody] = useState(entry?.content ?? "");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
@@ -292,6 +294,7 @@ export function JournalEditorScreen({
       await onSubmit(
         {
           title: title.trim(),
+          ...(editVersion ? { expectedVersion: editVersion } : {}),
           content: body.trim(),
           image: imageUrl,
           placeId,
