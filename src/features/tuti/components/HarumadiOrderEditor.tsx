@@ -83,8 +83,10 @@ const Thumbnail = styled.span`
 `;
 const TextThumbnail = styled.span`display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 5; overflow: hidden; padding: 10px 8px 20px; font-size: 8px; line-height: 1.8; color: var(--color-secondary-1000); span { display: block; font-weight: 600; margin-bottom: 4px; }`;
 const Handle = styled(BaseButton)`
+  display: grid; place-items: center; line-height: 1;
   min-height: 40px; width: 100%; padding: 0; border: 0; border-radius: 0; background: transparent;
   color: var(--color-neutral-1000); cursor: grab; touch-action: none;
+  svg { display: block; }
   &:active { cursor: grabbing; }
   &:disabled { cursor: default; }
 `;
@@ -96,9 +98,11 @@ const Copy = styled.div`
 `;
 const Excerpt = styled.span`display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; color: var(--color-text-muted); font-size: 13px; line-height: 1.65; overflow-wrap: anywhere;`;
 const Author = styled.span`font-size: 11px; color: var(--color-text-muted);`;
-const Actions = styled.div`display: grid; gap: 1px;`;
+const Actions = styled.div`display: grid; grid-template-rows: 28px 40px 28px; align-self: center; justify-items: stretch; gap: 1px;`;
 const Move = styled(BaseButton)`
+  display: grid; place-items: center; width: 100%; line-height: 1;
   min-height: 28px; padding: 0; border-radius: 8px; background: transparent; color: var(--color-text-muted);
+  svg { display: block; }
   &:disabled { opacity: .2; }
 `;
 const Status = styled.p`position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap;`;
