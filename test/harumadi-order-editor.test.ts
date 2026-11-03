@@ -32,7 +32,13 @@ test("읽기 화면은 소유자·온라인 상태에서 순서 편집을 열고
   assert.match(flow, /mode === "order" \? saveOrder\(\)/);
   assert.match(flow, /mode === "order" \? "이 순서로 저장하기"/);
   const editor = readFileSync("src/features/tuti/components/HarumadiOrderEditor.tsx", "utf8");
-  assert.match(editor, /onPointerCancel=\{finish\}/);
-  assert.match(editor, /onLostPointerCapture=\{finish\}/);
+  assert.match(editor, /onPointerCancel=\{event => finish\(true, event.pointerId\)\}/);
+  assert.match(editor, /onLostPointerCapture=\{event => finish\(true, event.pointerId\)\}/);
   assert.match(editor, /event.key === "ArrowUp"/);
+  const drag = readFileSync("src/features/tuti/hooks/useHarumadiOrderDrag.ts", "utf8");
+  assert.match(drag, /list.setPointerCapture\(event.pointerId\)/);
+  assert.match(drag, /node.style.transform = `translate3d/);
+  assert.match(drag, /node.animate\(/);
+  assert.match(drag, /motionReduced\(\)/);
+  assert.match(drag, /if \(restore\) onChange\(active.originalIds\)/);
 });

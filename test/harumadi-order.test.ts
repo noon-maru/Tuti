@@ -17,7 +17,7 @@ test("순서 입력은 리비전·고유 ID를 요구하고 이동은 원본 배
   assert.deepEqual(ids, ["a", "b", "c"]);
 });
 
-test("미지정 연결은 날짜순, 새 연결은 지정 순서 뒤이며 같은 마디도 책별로 독립적이다", () => {
+test("이전 전 미지정 연결만 날짜순으로 읽고 지정 위치는 책별로 독립적이다", () => {
   const link = (entryId: string, date: string, position: number | null = null) => ({ entryId, position, entry: { visitedAt: new Date(date) } });
   const a = link("a", "2026-10-02"), b = link("b", "2026-10-01"), c = link("c", "2026-09-01");
   assert.deepEqual(orderedLinks([a, b]).map(l => l.entryId), ["b", "a"]);
