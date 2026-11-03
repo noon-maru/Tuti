@@ -1,5 +1,6 @@
 import type { Prisma } from "@/generated/prisma/client";
 import { mergeTogether } from "@/server/harumadi/merge";
+import { lockMergeAccounts } from "./mergeLock";
 
 /** 인증 트랜잭션 안에서 호출한다. 임시 계정 삭제는 모든 이전이 끝난 뒤 수행한다. */
 export async function transferAnonymousData(
@@ -7,6 +8,7 @@ export async function transferAnonymousData(
   sourceId: string,
   targetId: string,
 ) {
+  await lockMergeAccounts(tx, sourceId, targetId);
   await tx.journalEntry.updateMany({
     where: { ownerId: sourceId }, data: { ownerId: targetId },
   });

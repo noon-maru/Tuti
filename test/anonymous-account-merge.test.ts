@@ -29,6 +29,7 @@ test("익명 로그인 병합은 하루마디를 삭제하지 않는다", async 
   const updateOwners = (rows: { ownerId: string }[], ownerId: string) => rows.forEach(row => { row.ownerId = ownerId; });
   const noop = async () => ({ count: 0 });
   const prismaMock = {
+    $queryRaw: async () => [{ id: sourceId }, { id: targetId }],
     journalEntry: {
       count: async () => state.entries.length,
       updateMany: async ({ data }: { data: { ownerId: string } }) => updateOwners(state.entries, data.ownerId),

@@ -1,3 +1,4 @@
+import { lockMergeAccounts } from "./mergeLock";
 import { randomUUID } from "node:crypto";
 import { prisma } from "@/server/db/prisma";
 import { mergeTogether } from "@/server/harumadi/merge";
@@ -24,55 +25,56 @@ export async function mergeUserIntoCurrentAccount({
 }) {
   if (sourceUserId === targetUserId) return;
 
-  const [sourceUser, targetUser] = await Promise.all([
-    prisma.user.findUnique({
-      where: { id: sourceUserId },
-      select: {
-        role: true,
-        journalPublicationRestrictedAt: true,
-        journalPublicationRestrictionReason: true,
-        journalPublicationRestrictedByUserId: true,
-        analyticsExcludedAt: true,
-        analyticsExclusionReason: true,
-        analyticsExcludedByUserId: true,
-      },
-    }),
-    prisma.user.findUnique({
-      where: { id: targetUserId },
-      select: {
-        role: true,
-        journalPublicationRestrictedAt: true,
-        journalPublicationRestrictedByUserId: true,
-        analyticsExcludedAt: true,
-      },
-    }),
-  ]);
-
-  if (!sourceUser || !targetUser) {
-    throw new AccountAuthError(
-      "병합할 계정을 확인하지 못했어요.",
-      "account_merge_target_missing",
-      404,
-    );
-  }
-
-  if (sourceUser.role === "admin" || targetUser.role === "admin") {
-    throw new AccountAuthError(
-      "관리자 계정은 다른 계정과 병합할 수 없어요.",
-      "admin_account_merge_forbidden",
-      409,
-    );
-  }
-
-  const mergedAccountPublicationRestricted = Boolean(
-    sourceUser.journalPublicationRestrictedAt ||
-      targetUser.journalPublicationRestrictedAt,
-  );
-  const restrictionReviewerUserId =
-    targetUser.journalPublicationRestrictedByUserId ??
-    sourceUser.journalPublicationRestrictedByUserId;
-
   await prisma.$transaction(async (transaction) => {
+    await lockMergeAccounts(transaction, sourceUserId, targetUserId);
+    const [sourceUser, targetUser] = await Promise.all([
+      transaction.user.findUnique({
+        where: { id: sourceUserId },
+        select: {
+          role: true,
+          journalPublicationRestrictedAt: true,
+          journalPublicationRestrictionReason: true,
+          journalPublicationRestrictedByUserId: true,
+          analyticsExcludedAt: true,
+          analyticsExclusionReason: true,
+          analyticsExcludedByUserId: true,
+        },
+      }),
+      transaction.user.findUnique({
+        where: { id: targetUserId },
+        select: {
+          role: true,
+          journalPublicationRestrictedAt: true,
+          journalPublicationRestrictedByUserId: true,
+          analyticsExcludedAt: true,
+        },
+      }),
+    ]);
+
+    if (!sourceUser || !targetUser) {
+      throw new AccountAuthError(
+        "병합할 계정을 확인하지 못했어요.",
+        "account_merge_target_missing",
+        404,
+      );
+    }
+
+    if (sourceUser.role === "admin" || targetUser.role === "admin") {
+      throw new AccountAuthError(
+        "관리자 계정은 다른 계정과 병합할 수 없어요.",
+        "admin_account_merge_forbidden",
+        409,
+      );
+    }
+
+    const mergedAccountPublicationRestricted = Boolean(
+      sourceUser.journalPublicationRestrictedAt ||
+        targetUser.journalPublicationRestrictedAt,
+    );
+    const restrictionReviewerUserId =
+      targetUser.journalPublicationRestrictedByUserId ??
+      sourceUser.journalPublicationRestrictedByUserId;
+
     if (
       sourceUser.journalPublicationRestrictedAt &&
       !targetUser.journalPublicationRestrictedAt
