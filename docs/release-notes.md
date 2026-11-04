@@ -10,6 +10,9 @@ Android의 `출시 노트`와 iOS의 `이 버전에서 업그레이드된 사항
 - Android 버전 코드 / iOS 빌드 번호: `17`
 - 책장·하루마디 읽기·함께 채우기와 마디 작성·수정을 개선한다. 기존 서버에 배포된 변경을 포함하며 이번 작성 개선에는 추가 DB 마이그레이션이 없다.
 - 빌드·운영 배포·Google Play 내부 테스트·App Store Connect 업로드는 GitHub Actions에서 진행한다. 심사 제출·정식 공개와 최신 버전 권고값 변경은 별도다.
+- 2026-11-04 [운영 배포](https://github.com/noon-maru/Tuti/actions/runs/41795651750) 완료. 공개 readiness·liveness의 `8a0358e53e7c` 응답과 DB·객체 저장소 정상, 홈·약관 조회 HTTP 200을 확인했다.
+- [Google Play 내부 테스트](https://github.com/noon-maru/Tuti/actions/runs/41795069195)·[App Store Connect](https://github.com/noon-maru/Tuti/actions/runs/41795072304)에 `1.6.2 (17)` 업로드 완료. 앱 빌드 소스는 `669d124`이며 운영 소스 `8a0358e`와의 차이는 통합 테스트 파일 3개뿐이다.
+- [최종 CI](https://github.com/noon-maru/Tuti/actions/runs/41795480192)의 전체 테스트·린트·웹 빌드·격리 PostgreSQL 검증 통과. 최초 검증 실패는 시험 스키마의 제목 열 누락과 변경 전 저장 조건을 단언한 검사로, 실행 코드 변경 없이 시험을 수정했다. 실기기 UI 검증·스토어 처리 완료·심사 승인은 이 결과에 포함하지 않는다.
 
 ### 공통 출시 노트
 
