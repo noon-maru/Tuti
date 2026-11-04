@@ -7,6 +7,8 @@ export const HARUMADI_READING_TYPE = {
 /** Fixed reading UI geometry, shared by pagination and the HTML sheet. */
 export const HARUMADI_READING_LAYOUT = {
   headerHeight: 20, copyGap: 8, safety: 2,
+  photo: { shortGap: 36, longGap: 22, metaLines: 2, metaLineHeight: 1.4 },
+  longText: { headerGapPt: 22, headerPaddingPt: 18, headerBorderPt: 1 },
   byline: { gap: 8, height: 20 },
   continuation: { photoWidth: 52, photoHeight: 39, gap: 12, metaGap: 6, bottomGap: 16, titleLines: 2, metaLineHeight: 1.6 },
 } as const;

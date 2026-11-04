@@ -8,8 +8,9 @@ import type { HarumadiReaderPage } from "@/shared/harumadi/readerPages";
 import type { HarumadiPdfCoverStyle } from "@/shared/api/harumadiPdf";
 import { HARUMADI_READING_TYPE as reading } from "@/shared/harumadi/readingTypography";
 import { HARUMADI_READING_LAYOUT as readingLayout } from "@/shared/harumadi/readingTypography";
+import { readerMetaLabel } from "@/shared/harumadi/readerText";
 
-/** 예시와 실제 마디가 같은 종이·수치·서체를 사용한다. */
+/** 인쇄 예시의 지면 기하는 공유하되 실제 읽기의 글자·배치는 화면용 규칙을 쓴다. */
 export function HarumadiPageSheet({ page, coverStyle, number, compactCover = false }: { page: HarumadiReaderPage; coverStyle: HarumadiPdfCoverStyle; number: number; compactCover?: boolean }) {
   const palette = getHarumadiPdfCoverPalette(coverStyle);
   const photo = page.image ? <Image src={page.image} alt="마디에 남긴 사진" fill unoptimized sizes="(max-width: 600px) 85vw, 400px" /> : null;
@@ -21,11 +22,11 @@ export function HarumadiPageSheet({ page, coverStyle, number, compactCover = fal
   </Sheet>;
   if (page.kind === "empty") return <Sheet $reading data-harumadi-page="empty"><TextPaper $cover={false}><TextFrame><TextTitle>첫 마디를 채워보세요</TextTitle><TextBody>사진 한 장, 짧은 이야기부터.</TextBody></TextFrame></TextPaper></Sheet>;
   if (page.kind === "photo-only") return <Sheet $reading data-harumadi-page="photo-only"><PhotoOnlyPaper $cover={false}>
-    <PhotoHeader date={page.date.replaceAll("-", ".")} place={page.place} /><PhotoOnlyBody><PhotoOnly>{photo}</PhotoOnly></PhotoOnlyBody><Folio number={number} />
+    <PhotoHeader date={page.date.replaceAll("-", ".")} place={page.place} height={page.headerHeight} /><PhotoOnlyBody><PhotoOnly>{photo}</PhotoOnly></PhotoOnlyBody><Folio number={number} />
   </PhotoOnlyPaper></Sheet>;
   if (page.kind === "photo") return <Sheet $reading data-harumadi-page="photo"><PhotoPaper $cover={false}>
-    <PhotoHeader date={page.date.replaceAll("-", ".")} place={page.place} /><Photo>{photo}</Photo>
-    <Story style={{ marginTop: `var(--story-gap, ${pt(page.long ? layout.photo.longGap : layout.photo.shortGap)})` }}>{page.title && <Title>{page.title}</Title>}<Body>{page.content}</Body></Story><Folio number={number} />
+    <PhotoHeader date={page.date.replaceAll("-", ".")} place={page.place} height={page.headerHeight} /><Photo>{photo}</Photo>
+    <Story style={{ marginTop: `${page.storyGap ?? readingLayout.photo.shortGap}px` }}>{page.title && <Title>{page.title}</Title>}<Body>{page.content}</Body></Story><Folio number={number} />
   </PhotoPaper></Sheet>;
   if (page.kind === "continuation") return <Sheet $reading data-harumadi-page="continuation"><LongPaper $cover={false}>
     <ContinuedHeader>
@@ -35,10 +36,10 @@ export function HarumadiPageSheet({ page, coverStyle, number, compactCover = fal
     </ContinuedHeader><LongBody>{page.content}</LongBody><Folio number={number} />
   </LongPaper></Sheet>;
   if (page.long) return <Sheet $reading data-harumadi-page={page.kind}><LongPaper $cover={false}>
-    <LongHeader><TextMeta>{page.date} · {page.place}</TextMeta>{page.title && <TextTitle>{page.title}</TextTitle>}</LongHeader><LongBody>{page.content}</LongBody><Folio number={number} />
+    <LongHeader><TextMeta>{readerMetaLabel(page.date, page.place)}</TextMeta>{page.title && <TextTitle>{page.title}</TextTitle>}</LongHeader><LongBody>{page.content}</LongBody><Folio number={number} />
   </LongPaper></Sheet>;
   return <Sheet $reading data-harumadi-page="text"><TextPaper $cover={false}><TextFrame>
-    <TextMeta>{page.date} · {page.place}</TextMeta>{page.title && <TextTitle>{page.title}</TextTitle>}<TextBody>{page.content}</TextBody>
+    <TextMeta>{readerMetaLabel(page.date, page.place)}</TextMeta>{page.title && <TextTitle>{page.title}</TextTitle>}<TextBody>{page.content}</TextBody>
   </TextFrame><Folio number={number} /></TextPaper></Sheet>;
 }
 
@@ -82,8 +83,8 @@ export function WelcomeHarumadiSample({ page, priority = false }: { page: "cover
   </Sheet>;
 }
 
-function PhotoHeader({ date, place }: { date: string; place: string }) {
-  return <PageHeader><span>{date}</span><Place><PlaceMark aria-hidden="true" />{place}</Place></PageHeader>;
+function PhotoHeader({ date, place, height }: { date: string; place: string; height?: number }) {
+  return <PageHeader style={height === undefined ? undefined : { height }}><span>{date}</span>{place && <Place><PlaceMark aria-hidden="true" /><PlaceText title={place}>{place}</PlaceText></Place>}</PageHeader>;
 }
 
 // PDF 쪽번호와 동일한 좌표·기준선에 배치한다.
@@ -104,6 +105,7 @@ const Sheet = styled.span<{ $reading?: boolean; $compactCover?: boolean }>`
     --hm-story-direction: column; --hm-copy-width: 100%; --hm-title-padding: 0px; --hm-copy-gap: ${readingLayout.copyGap}px;
     --hm-cover-direction: column; --hm-cover-align: left; --hm-cover-height: auto; --hm-cover-flex: 1;
     --hm-header-height: ${readingLayout.headerHeight}px; --hm-meta-display: -webkit-box; --hm-meta-lines: 2; --hm-meta-line: ${readingLayout.continuation.metaLineHeight};
+    --hm-place-lines: ${readingLayout.photo.metaLines};
   `}
   ${({ $compactCover }) => $compactCover && `
     --hm-title: clamp(11px, 12cqw, 16px);
@@ -145,6 +147,7 @@ const PageHeader = styled.span`
   height: var(--hm-header-height, ${pt(layout.photo.headerHeight)}); font-size: var(--hm-meta, inherit); line-height: ${layout.photo.headerLineHeight};
 `;
 const Place = styled.span`display: inline-flex; align-items: center; gap: ${pt(layout.photo.placeMarkGap)}; max-width: 60%; overflow-wrap: anywhere;`;
+const PlaceText = styled.span`min-width: 0; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: var(--hm-place-lines, unset); overflow: hidden;`;
 const PlaceMark = styled.span`
   display: inline-block; flex: none; width: ${pt(layout.photo.placeMarkSize)}; height: ${pt(layout.photo.placeMarkSize)}; border-radius: 50%;
   background: linear-gradient(to bottom, #c7e887 50%, #8cbdef 50%);
@@ -194,8 +197,8 @@ const TextMeta = styled.span`display: var(--hm-meta-display, block); -webkit-box
 const TextTitle = styled.span`display: block; font-size: var(--hm-title, ${pt(layout.shortText.titleSize)}); font-weight: ${layout.shortText.titleWeight}; margin-bottom: ${pt(layout.shortText.titleGap)}; line-height: ${layout.shortText.titleLineHeight}; overflow-wrap: anywhere;`;
 const TextBody = styled.span`display: block; font-size: var(--hm-body, ${pt(layout.shortText.bodySize)}); line-height: var(--hm-line, ${layout.shortText.bodyLineHeight}); white-space: pre-wrap; word-break: keep-all; overflow-wrap: anywhere;`;
 const LongPaper = styled(Paper)`display: flex; flex-direction: column;`;
-const LongHeader = styled.span`display: block; margin-bottom: ${pt(22)}; padding-bottom: ${pt(18)}; border-bottom: ${pt(1)} solid #DCE7F1;`;
-const LongBody = styled.span`display: block; font-size: var(--hm-body, ${pt(12)}); line-height: var(--hm-line, 1.95); white-space: pre-wrap; overflow-wrap: anywhere;`;
+const LongHeader = styled.span`display: block; margin-bottom: ${pt(readingLayout.longText.headerGapPt)}; padding-bottom: ${pt(readingLayout.longText.headerPaddingPt)}; border-bottom: ${pt(readingLayout.longText.headerBorderPt)} solid #DCE7F1;`;
+const LongBody = styled.span`display: block; font-size: var(--hm-body, ${pt(12)}); line-height: var(--hm-line, 1.95); white-space: pre-wrap; word-break: keep-all; overflow-wrap: anywhere;`;
 const ContinuedHeader = styled.span`display: flex; flex: none; align-items: center; gap: ${readingLayout.continuation.gap}px; margin-bottom: ${readingLayout.continuation.bottomGap}px;`;
 const ContinuedPhoto = styled.span`position: relative; display: block; flex: none; width: ${readingLayout.continuation.photoWidth}px; height: ${readingLayout.continuation.photoHeight}px; border-radius: ${pt(layout.photo.imageRadius)}; overflow: hidden; img { object-fit: cover; }`;
 const ContinuedCopy = styled.span`display: block; min-width: 0; flex: 1;`;

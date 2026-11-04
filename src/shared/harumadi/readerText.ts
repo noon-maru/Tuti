@@ -1,6 +1,8 @@
 /** CSS px, before any transform applied to the desktop app mockup. */
 export type ReaderTextMeasure = (text: string, fontSize: number, weight?: number) => number;
 
+export const readerMetaLabel = (date: string, place: string) => [date, place].filter(Boolean).join(" · ");
+
 export const estimateReaderText: ReaderTextMeasure = (text, size) => Array.from(text).reduce((width, char) =>
   width + (char === "\t" ? 4 : char === " " ? .35 : 1) * size, 0);
 

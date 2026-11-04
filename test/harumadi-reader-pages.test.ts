@@ -17,7 +17,7 @@ test("사진 아래 짧은 글은 큰 간격부터 줄여 한 쪽에 보존한�
     assert.deepEqual(pages.map(page => page.kind), ["cover", "photo", "back"], `${width}px`);
     assert.equal(pages[1].content, entries[0].content);
   }
-  assert.equal(buildHarumadiReaderPages(book, entries, 320)[1].long, true);
+  assert.equal(buildHarumadiReaderPages(book, entries, 320)[1].storyGap, 36, "화면용 간격에서도 전체 글이 들어가면 간격을 유지한다");
   entries[0].content = "천천히 걸었던 하루.";
   assert.equal(buildHarumadiReaderPages(book, entries, 340)[1].long, false, "넉넉히 들어가는 짧은 글의 여백은 유지한다");
 });
