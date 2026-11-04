@@ -2,6 +2,8 @@
 
 import styled from "@emotion/styled";
 import { MapPin, ShieldCheck } from "lucide-react";
+import { useId, useRef } from "react";
+import { AppDialogFrame } from "@/shared/ui/AppDialogFrame";
 import {
   BaseButton,
   PrimaryButton,
@@ -14,22 +16,17 @@ export function PhotoLocationConsentDialog({
   onAccept: () => void;
   onDecline: () => void;
 }) {
+  const id = useId(), decline = useRef<HTMLButtonElement>(null);
   return (
-    <Backdrop>
-      <Dialog
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="photo-location-consent-title"
-        aria-describedby="photo-location-consent-description"
-      >
+      <AppDialogFrame role="dialog" titleId={`${id}-title`} descriptionId={`${id}-description`} initialFocus={decline} onCancel={onDecline}>
         <Icon aria-hidden="true">
           <MapPin />
         </Icon>
         <Copy>
-          <h2 id="photo-location-consent-title">
+          <h2 id={`${id}-title`}>
             사진을 찍은 곳도 살펴볼까요?
           </h2>
-          <p id="photo-location-consent-description">
+          <p id={`${id}-description`}>
             이 사진에 저장된 촬영 위치를 읽어 가까운 장소를 찾아요.
           </p>
         </Copy>
@@ -38,43 +35,19 @@ export function PhotoLocationConsentDialog({
           <span>촬영 위치는 장소를 찾은 뒤 저장하지 않아요.</span>
         </PrivacyNote>
         <Actions>
-          <AcceptButton type="button" autoFocus onClick={onAccept}>
+          <AcceptButton type="button" onClick={onAccept}>
             촬영 위치 사용하기
           </AcceptButton>
-          <DeclineButton type="button" onClick={onDecline}>
+          <DeclineButton ref={decline} type="button" onClick={onDecline}>
             위치 없이 계속하기
           </DeclineButton>
         </Actions>
-      </Dialog>
-    </Backdrop>
+      </AppDialogFrame>
   );
 }
 
-const Backdrop = styled.div`
-  position: absolute;
-  inset: 0;
-  z-index: 95;
-  display: grid;
-  place-items: center;
-  padding: var(--space-6);
-  background: color-mix(in srgb, var(--color-black) 34%, transparent);
-`;
-
-const Dialog = styled.div`
-  width: min(100%, 336px);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: var(--space-4);
-  padding: var(--space-7) var(--space-6) var(--space-6);
-  border: 1px solid var(--color-border);
-  border-radius: var(--space-7);
-  background: var(--color-surface);
-  box-shadow: 0 18px 48px color-mix(in srgb, var(--color-black) 18%, transparent);
-  text-align: center;
-`;
-
 const Icon = styled.div`
+  justify-self: center;
   width: var(--space-13);
   height: var(--space-13);
   display: grid;

@@ -4,9 +4,8 @@ import styled from "@emotion/styled";
 import Link from "next/link";
 import { Globe2, ShieldCheck } from "lucide-react";
 import { useCallback, useEffect, useId, useRef, useState } from "react";
-import { createPortal } from "react-dom";
 import { BaseButton, PrimaryButton } from "@/features/tuti/components/buttons";
-import { ANDROID_BACK_EVENT } from "@/features/tuti/navigation/androidBack";
+import { AppDialogFrame } from "@/shared/ui/AppDialogFrame";
 import { useLegalPolicyRelease } from "@/features/legal/useLegalPolicyRelease";
 import { getJournalPublicationPolicyVersion } from "@/shared/legal/journalPublicationPolicy";
 
@@ -30,7 +29,7 @@ export function JournalPublicationConsentDialog({
   const closeTimerRef = useRef<number | null>(null);
   const closingRef = useRef(false);
   const onCloseRef = useRef(onClose);
-  const returnFocusRef = useRef<HTMLElement | null>(null);
+  const agreementRef = useRef<HTMLInputElement>(null);
   const submittingRef = useRef(false);
 
   useEffect(() => {
@@ -48,30 +47,12 @@ export function JournalPublicationConsentDialog({
   }, []);
 
   useEffect(() => {
-    const previousOverflow = document.body.style.overflow;
-    returnFocusRef.current = document.activeElement as HTMLElement | null;
-    const closeOnEscape = (event: KeyboardEvent) => {
-      if (event.key === "Escape") requestClose();
-    };
-    const closeOnAndroidBack = (event: Event) => {
-      event.preventDefault();
-      requestClose();
-    };
-
-    document.body.style.overflow = "hidden";
-    window.addEventListener("keydown", closeOnEscape);
-    window.addEventListener(ANDROID_BACK_EVENT, closeOnAndroidBack);
-
     return () => {
-      document.body.style.overflow = previousOverflow;
-      window.removeEventListener("keydown", closeOnEscape);
-      window.removeEventListener(ANDROID_BACK_EVENT, closeOnAndroidBack);
       if (closeTimerRef.current !== null) {
         window.clearTimeout(closeTimerRef.current);
       }
-      returnFocusRef.current?.focus();
     };
-  }, [requestClose]);
+  }, []);
 
   const confirmPublication = async () => {
     if (!agreed || submitting || agreedVersion !== policyVersion) return;
@@ -96,32 +77,19 @@ export function JournalPublicationConsentDialog({
     }
   };
 
-  return createPortal(
-    <Backdrop
-      $closing={closing}
-      onPointerDown={() => {
-        requestClose();
-      }}
-    >
-      <Dialog
-        $closing={closing}
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="journal-publication-title"
-        aria-describedby="journal-publication-description"
-        onPointerDown={(event) => event.stopPropagation()}
-      >
-        <Handle aria-hidden="true" />
+  return (
+      <AppDialogFrame role="dialog" titleId={`${agreementId}-title`} descriptionId={`${agreementId}-description`}
+        presentation="sheet" closing={closing} busy={submitting} dismissEnabled={!closing} initialFocus={agreementRef} onCancel={requestClose}>
         <Heading>
           <Icon aria-hidden="true">
             <Globe2 />
           </Icon>
           <div>
-            <h2 id="journal-publication-title">이 마디를 링크로 나눌까요?</h2>
+            <h2 id={`${agreementId}-title`}>이 마디를 링크로 나눌까요?</h2>
           </div>
         </Heading>
 
-        <ScopeCard id="journal-publication-description">
+        <ScopeCard id={`${agreementId}-description`}>
           <ScopePlace>{placeName}</ScopePlace>
           <strong>링크를 받은 사람이 Tuti에서 볼 수 있어요.</strong>
           <p>장소·방문일·제목·본문·사진과 태그가 공개됩니다.</p>
@@ -140,8 +108,8 @@ export function JournalPublicationConsentDialog({
         <Agreement htmlFor={agreementId}>
           <input
             id={agreementId}
+            ref={agreementRef}
             type="checkbox"
-            autoFocus
             checked={agreed && agreedVersion === policyVersion}
             disabled={submitting}
             onChange={(event) => { setAgreed(event.target.checked); setAgreedVersion(event.target.checked ? policyVersion : null); }}
@@ -171,79 +139,9 @@ export function JournalPublicationConsentDialog({
             나만 볼게요
           </CancelButton>
         </Actions>
-      </Dialog>
-    </Backdrop>,
-    document.body,
+      </AppDialogFrame>
   );
 }
-
-const Backdrop = styled.div<{ $closing: boolean }>`
-  position: fixed;
-  z-index: 2147483000;
-  inset: 0;
-  display: flex;
-  align-items: flex-end;
-  justify-content: center;
-  padding: var(--app-safe-area-top, 0px) var(--app-safe-area-right, 0px)
-    var(--app-safe-area-bottom, 0px) var(--app-safe-area-left, 0px);
-  background: rgb(var(--color-black-rgb) / 0.38);
-  opacity: ${({ $closing }) => ($closing ? 0 : 1)};
-  transition: opacity 180ms ease;
-`;
-
-const Dialog = styled.section<{ $closing: boolean }>`
-  width: min(100%, 430px);
-  max-height: calc(100dvh - var(--app-safe-area-top, 0px) - var(--space-5));
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-5);
-  padding: var(--space-3) var(--space-6) var(--space-6);
-  overflow-y: auto;
-  border: 1px solid var(--color-border);
-  border-bottom: 0;
-  border-radius: 28px 28px 0 0;
-  background: var(--color-surface);
-  box-shadow: 0 -18px 52px rgb(var(--color-black-rgb) / 0.18);
-  overscroll-behavior: contain;
-  animation: publication-sheet-enter 280ms cubic-bezier(0.22, 1, 0.36, 1);
-  transform: translateY(${({ $closing }) => ($closing ? "28px" : "0")});
-  opacity: ${({ $closing }) => ($closing ? 0 : 1)};
-  transition:
-    transform 180ms ease-in,
-    opacity 160ms ease;
-
-  @keyframes publication-sheet-enter {
-    from {
-      transform: translateY(36px);
-      opacity: 0;
-    }
-  }
-
-  @media (min-width: 600px) {
-    align-self: center;
-    padding: var(--space-6);
-    border-bottom: 1px solid var(--color-border);
-    border-radius: 28px;
-    box-shadow: 0 24px 72px rgb(var(--color-black-rgb) / 0.22);
-  }
-
-  @media (prefers-reduced-motion: reduce) {
-    animation: none;
-    transition: none;
-  }
-`;
-
-const Handle = styled.span`
-  width: 38px;
-  height: 4px;
-  align-self: center;
-  border-radius: 999px;
-  background: var(--color-neutral-500);
-
-  @media (min-width: 600px) {
-    display: none;
-  }
-`;
 
 const Heading = styled.header`
   display: flex;
