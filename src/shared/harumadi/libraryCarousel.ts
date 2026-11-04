@@ -5,12 +5,6 @@ export function carouselStageHeight(width: number, availableHeight: number, deta
   return Math.max(Math.min(140, Math.max(0, width)), availableHeight - detailsHeight - 32);
 }
 
-/** Aim at the whole content area's center, but keep paper clear of the lower controls. */
-export function carouselBookCenter(stageHeight: number, detailsHeight: number, bookHeight: number) {
-  const half = bookHeight / 2;
-  return clamp((stageHeight + detailsHeight) / 2, half + 12, Math.max(half + 12, stageHeight - half - 12));
-}
-
 /** 선택한 책의 양끝 20%는 옆 책 이동, 가운데와 키보드 클릭은 읽기다. */
 export function carouselTapDirection(clientX: number, bounds: { left: number; width: number }, keyboard = false): -1 | 0 | 1 {
   if (keyboard || bounds.width <= 0) return 0;

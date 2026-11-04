@@ -5,7 +5,7 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { HarumadiCarousel } from "@/features/tuti/components/HarumadiCarousel";
-import { carouselBookCenter, carouselDragProgress, carouselGestureAxis, carouselIndex, carouselPose, carouselShouldWrite, carouselStageHeight, carouselSwipeDirection, carouselTapDirection, carouselWriteProgress } from "@/shared/harumadi/libraryCarousel";
+import { carouselDragProgress, carouselGestureAxis, carouselIndex, carouselPose, carouselShouldWrite, carouselStageHeight, carouselSwipeDirection, carouselTapDirection, carouselWriteProgress } from "@/shared/harumadi/libraryCarousel";
 import { createLibraryViewPreferences } from "@/lib/libraryViewPreferences";
 import { harumadiContent } from "./fixtures/harumadiContent";
 
@@ -24,18 +24,18 @@ test("책 전시 높이는 종이 비율과 실제 설명·추가 UI 높이를 �
   assert.doesNotMatch(home, /div:only-child/);
 });
 
-test("책은 전시·설명 전체 영역의 중앙을 지향하고 작은 화면에서는 설명과 겹치지 않는다", () => {
-  assert.equal(carouselBookCenter(500, 170, 220), 335);
-  assert.equal(carouselBookCenter(359, 170, 220), 237);
-  for (const [stage, details, book] of [[500, 170, 220], [359, 170, 220], [182, 170, 150], [140, 220, 124]]) {
-    const center = carouselBookCenter(stage, details, book);
-    assert.ok(center - book / 2 >= 0);
-    assert.ok(center + book / 2 <= stage);
+test("책만 전시 영역 중앙에 놓고 설명·쪽번호의 하단 배치를 유지한다", () => {
+  for (const [width, stage] of [[350, 500], [350, 359], [280, 182], [280, 140]]) {
+    const bookHeight = Math.min(width * .88, stage * 1.25, 440) / 2 * 595.28 / 419.53;
+    assert.ok((stage - bookHeight) / 2 >= 0, "중앙 배치한 책이 전시 영역을 벗어나지 않는다");
   }
   const source = readFileSync("src/features/tuti/components/HarumadiCarousel.tsx", "utf8");
-  assert.match(source, /top: var\(--carousel-book-center\)/);
-  assert.match(source, /detailsHeight: description.offsetHeight/);
-  assert.doesNotMatch(source, /top: 48%/);
+  assert.match(source, /const Slide = styled.div[^`]*`position: absolute; top: 50%; left: 50%/);
+  assert.match(source, /translate\(-50%, -50%\)/);
+  assert.match(source, /top: calc\(50% \+ var\(--carousel-book-half-height\) - 6px\)/);
+  assert.doesNotMatch(source, /carouselBookCenter|--carousel-book-center/);
+  assert.match(source, /<\/Stage>\s*<Details ref=\{details\}>/);
+  assert.match(source, /const Controls = styled.nav`[^`]*margin-top: 24px/);
 });
 
 test("선택한 책의 양끝은 옆 책 이동, 가운데·키보드는 열기이며 목업 배율에 독립적이다", () => {
