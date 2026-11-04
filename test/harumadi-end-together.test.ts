@@ -152,12 +152,14 @@ test("소유자의 공동작성 전체 종료·롤백·복원은 원본과 새 �
 
 test("전체 종료는 소유자의 공유 책에서만 확인 후 실행하고 댓글·책장 캐시를 갱신한다", () => {
   const panel = readFileSync("src/features/tuti/components/HarumadiTogetherPanel.tsx", "utf8");
+  const view = readFileSync("src/features/tuti/components/HarumadiTogetherView.tsx", "utf8");
   const client = readFileSync("src/lib/harumadiTogether.ts", "utf8");
   const route = readFileSync("src/app/api/harumadis/[harumadiId]/together/route.ts", "utf8");
-  assert.match(panel, /query.data.owner && query.data.shared && <EndSection/);
-  assert.match(panel, /requestConfirmation\("end-together"\)/);
+  assert.match(view, /data.owner && data.shared && <EndSection/);
+  assert.match(view, /onConfirm\("end-together"\)/);
+  assert.match(panel, /onConfirm=\{requestConfirmation\}/);
   assert.doesNotMatch(panel, /window.confirm/);
-  assert.match(panel, /함께 채우기 종료/);
+  assert.match(view, /함께 채우기 종료/);
   assert.match(panel, /client.removeQueries\(\{ queryKey: \["harumadi-comments", owner, bookId\]/);
   assert.match(panel, /client.invalidateQueries\(\{ queryKey: \["library-harumadis", owner\]/);
   assert.match(client, /action === "end-together"\) await harumadiReadCache.clearBook/);

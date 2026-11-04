@@ -27,7 +27,7 @@ test("참여자는 표시 이름·나·역할로 구분하고 글자 아바타�
   assert.match(html, />나<\/span>/);
   assert.match(html, />만든 사람<\/span>/);
   assert.match(html, /이름 미설정/);
-  assert.match(html, /aria-label="이름 미설정 내보내기"/);
+  assert.match(html, /aria-label="이름 미설정 참여자 관리"/);
   assert.equal((html.match(/<button/g) ?? []).length, 1, "만든 사람에게는 내보내기 버튼을 표시하지 않는다");
   const ownMissing = renderToStaticMarkup(createElement(HarumadiParticipantList, { participants: [makeHarumadiParticipant("owner", null, true)], viewerId: "owner", canManage: true, busy: false, onRemove() {} }));
   assert.match(ownMissing, />나<\/strong>/);
@@ -47,14 +47,15 @@ test("참여자에게 내보내기를 제공하지 않고 저장 중 및 긴 이
 
 test("공유 안내·초대·참여자·종료를 구분하고 관리 행동의 기존 확인 절차를 유지한다", () => {
   const source = readFileSync("src/features/tuti/components/HarumadiTogetherPanel.tsx", "utf8");
+  const view = readFileSync("src/features/tuti/components/HarumadiTogetherView.tsx", "utf8");
   assert.doesNotMatch(source, /Avatar|person.name.slice/);
-  assert.ok(source.indexOf('<Disclosure aria-label="공유 범위">') < source.indexOf('<InviteSection aria-label="함께할 사람 초대">'));
-  assert.match(source, /<HarumadiParticipantList participants=\{query.data.participants\}/);
-  assert.match(source, /onRemove=\{userId => requestConfirmation\("remove-member", userId\)\}/);
-  assert.match(source, /수락 기다리는 초대/);
-  assert.match(source, /다른 하루마디와 개인 마디 목록은 공유되지 않아요/);
-  assert.match(source, /requestConfirmation\("end-together"\)/);
-  assert.match(source, /requestConfirmation\("leave"\)/);
-  assert.match(source, /로그인 계정 확인/);
-  assert.match(source, /신고 관리/);
+  assert.match(source, /onConfirm=\{requestConfirmation\}/);
+  assert.match(view, /<HarumadiParticipantList participants=\{data.participants\}/);
+  assert.match(view, /onRemove=\{id => onConfirm\("remove-member", id\)\}/);
+  assert.match(view, /수락 대기/);
+  assert.match(view, /다른 하루마디와 개인 마디 목록은 공유되지 않아요/);
+  assert.match(view, /onConfirm\("end-together"\)/);
+  assert.match(view, /onConfirm\("leave"\)/);
+  assert.match(view, /로그인 계정 확인/);
+  assert.match(view, /신고 관리/);
 });

@@ -5,11 +5,12 @@ import test from "node:test";
 test("공동작성·댓글은 같은 화면 제목과 입력 규칙을 쓰고 댓글 용어를 맞춘다", () => {
   const comments = readFileSync("src/features/tuti/components/HarumadiComments.tsx", "utf8");
   const together = readFileSync("src/features/tuti/components/HarumadiTogetherPanel.tsx", "utf8");
+  const togetherView = readFileSync("src/features/tuti/components/HarumadiTogetherView.tsx", "utf8");
   assert.match(comments, /<h1>댓글·답글<\/h1>/);
   assert.doesNotMatch(comments, /이야기 나누기|이야기 남기기/);
   assert.match(comments, /\$\{inputControlStyles\}/);
   assert.match(comments, /border-inline-start: 1px/);
-  for (const source of [comments, together]) {
+  for (const source of [comments, togetherView]) {
     assert.match(source, /\$\{screenTitleStyles\}/);
     assert.match(source, /\$\{captionStyles\}/);
     assert.match(source, /min-width: 0; overflow-wrap: anywhere/);
