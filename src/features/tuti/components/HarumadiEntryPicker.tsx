@@ -3,13 +3,12 @@
 import styled from "@emotion/styled";
 import Image from "next/image";
 import { useId, useMemo, useState } from "react";
-import { Search, X } from "lucide-react";
 import { AppDialogFrame } from "@/shared/ui/AppDialogFrame";
-import { inputControlStyles } from "@/shared/ui/typography";
 import { groupHarumadiSelection, toggleHarumadiSelection } from "@/shared/harumadi/selection";
 import { journalCardPreview } from "@/shared/tuti/journalCard";
 import type { TutiJournalEntry } from "@/shared/api/journal";
 import { BaseButton, PrimaryButton } from "./buttons";
+import { MadiSearchField } from "./MadiSearchField";
 
 export function HarumadiEntryPicker({ entries, selected, onChange, disabled }: {
   entries: TutiJournalEntry[]; selected: string[]; onChange: (ids: string[]) => void; disabled: boolean;
@@ -22,8 +21,7 @@ export function HarumadiEntryPicker({ entries, selected, onChange, disabled }: {
   const found = groups.reduce((count, group) => count + group.entries.length, 0);
   const selectedSet = useMemo(() => new Set(selected), [selected]);
   return <section aria-label="하루마디에 담을 마디 선택">
-    <SearchField><Search size={17} aria-hidden="true" /><SearchInput type="search" aria-label="마디 검색" placeholder="제목, 이야기, 장소, 날짜 검색" value={search} onChange={event => setSearch(event.target.value)} />
-      {search && <Clear type="button" aria-label="검색 지우기" onClick={() => setSearch("")}><X size={17} aria-hidden="true" /></Clear>}</SearchField>
+    <MadiSearchField value={search} onChange={setSearch} />
     <Count role="status" aria-live="polite">{found}개 마디 · {selected.length}개 선택</Count>
     {!groups.length && <Empty>검색한 마디가 없어요. 다른 단어나 날짜로 찾아보세요.</Empty>}
     {groups.map(group => <Group key={group.key} aria-labelledby={`${id}-${group.key || "unknown"}`}>
@@ -49,9 +47,6 @@ export function HarumadiEntryPicker({ entries, selected, onChange, disabled }: {
   </section>;
 }
 
-const SearchField = styled.div`position: relative; display: flex; align-items: center; > svg { position: absolute; left: 14px; color: var(--color-text-muted); pointer-events: none; }`;
-const SearchInput = styled.input`${inputControlStyles} padding-left: 40px; padding-right: 44px; &::-webkit-search-cancel-button { -webkit-appearance: none; }`;
-const Clear = styled(BaseButton)`position: absolute; right: 0; width: 44px; height: 44px; padding: 0; display: grid; place-items: center; background: transparent; color: var(--color-text-muted);`;
 const Count = styled.p`margin: 12px 0 20px; font-size: var(--ui-caption-size); line-height: 1.6; color: var(--color-text-muted);`;
 const Group = styled.section`margin-top: 24px; h2 { font-size: 14px; font-weight: 600; line-height: 1.5; margin: 0 0 10px; }`;
 const List = styled.div`display: grid; gap: 10px;`;

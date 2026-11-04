@@ -6,7 +6,9 @@ import { confirmAction, showErrorToast } from "@/lib/feedback";
 
 import { css } from "@emotion/react";
 import styled from "@emotion/styled";
-import { useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
+import { MadiSearchField } from "@/features/tuti/components/MadiSearchField";
+import { filterJournalEntries } from "@/shared/tuti/journalSearch";
 import { ContextMenu } from "@/features/tuti/components/ContextMenu";
 import { LoadingIndicator } from "@/features/tuti/components/LoadingIndicator";
 import { TutiPlaceIcon } from "@/features/tuti/components/TutiPlaceIcon";
@@ -44,6 +46,7 @@ export function JournalScreen({
   ) => void;
 }) {
   const [stackDragY, setStackDragY] = useState(0);
+  const [search, setSearch] = useState("");
   const [shareEntryId, setShareEntryId] = useState<string | null>(null);
   const stackPointerStart = useRef<number | null>(null);
   const selectedCardRef = useRef<HTMLButtonElement>(null);
@@ -51,7 +54,7 @@ export function JournalScreen({
   const wheelLocked = useRef(false);
   const suppressCardClick = useRef(false);
   const {
-    entries,
+    entries: allEntries,
     isPending,
     isError,
     isFetching,
@@ -59,7 +62,8 @@ export function JournalScreen({
     changeEntryPublication,
     removeEntry,
   } = useTutiJournalEntries();
-  const shareEntry = entries.find((entry) => entry.id === shareEntryId);
+  const entries = useMemo(() => filterJournalEntries(allEntries, search), [allEntries, search]);
+  const shareEntry = allEntries.find((entry) => entry.id === shareEntryId);
   const shareActions = useJournalShareActions({
     entry: shareEntry,
     changeEntryPublication,
@@ -193,7 +197,8 @@ export function JournalScreen({
         </AddButton>
       </ListHeader>
 
-      {isError && entries.length > 0 && <MadiLoadNotice compact busy={isFetching} onRetry={() => void refetch()} />}
+      {allEntries.length > 0 && <MadiSearchField value={search} onChange={setSearch} />}
+      {isError && allEntries.length > 0 && <MadiLoadNotice compact busy={isFetching} onRetry={() => void refetch()} />}
 
       {entries.length > 0 ? (
         <MemoryStack
@@ -316,6 +321,11 @@ export function JournalScreen({
             );
           })}
         </MemoryStack>
+      ) : allEntries.length > 0 ? (
+        <EmptyState>
+          <p role="status">검색한 마디가 없어요.</p>
+          <TextButton type="button" onClick={() => setSearch("")}>전체 마디 보기</TextButton>
+        </EmptyState>
       ) : isPending ? (
         <EmptyState>
           <LoadingIndicator label="마디를 불러오고 있어요." />

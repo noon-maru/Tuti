@@ -15,7 +15,7 @@ test("조회 실패는 빈 목록 안내와 다른 상태와 재시도 조작을
   assert.match(busy, /disabled=""/); assert.match(busy, /불러오는 중/);
   assert.doesNotMatch(busy, /없어진 건 아니에요/);
   const source = readFileSync("src/features/tuti/screens/journal/JournalScreen.tsx", "utf8");
-  assert.match(source, /isError && entries.length > 0 && <MadiLoadNotice compact/);
+  assert.match(source, /isError && allEntries.length > 0 && <MadiLoadNotice compact/);
   assert.ok(source.indexOf(") : isError ? (") < source.indexOf("첫 마디를 남겨보세요"));
 });
 
