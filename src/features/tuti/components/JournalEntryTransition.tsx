@@ -113,6 +113,11 @@ export function JournalEntryTransitionProvider({
       sourceSurface,
     }: Omit<StartTransitionOptions, "navigate">) => {
       cancelScheduledWork();
+      // 글 전용 마디에는 확대할 사진 지면이 없다. 대상 이미지 등록을 기다리지 않는다.
+      if (!image || window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+        clearTransition();
+        return;
+      }
 
       const nextTransition: JournalEntryTransitionState = {
         entryId,
@@ -476,7 +481,8 @@ const TransitionCard = styled.div<{
   background-image: ${({ $image }) =>
     $image ? `url(${$image})` : "none"};
   background-position: center;
-  background-size: cover;
+  background-size: contain;
+  background-repeat: no-repeat;
   box-shadow: ${({ $phase, $sourceSurface }) =>
     showsJournalSurface($phase, $sourceSurface)
       ? "0 18px 42px rgb(var(--color-black-rgb) / 0.24)"

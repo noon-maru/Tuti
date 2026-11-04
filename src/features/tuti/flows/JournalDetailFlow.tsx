@@ -24,6 +24,8 @@ export function JournalDetailFlow() {
     changeEntryPublication,
     entries,
     isPending,
+    isError,
+    refetch,
     removeEntry,
   } = useTutiJournalEntries();
   const setActiveJournalEntry = useTutiStore(
@@ -64,12 +66,15 @@ export function JournalDetailFlow() {
   if (isPending) {
     return (
       <JournalDetailStatusScreen
-        message="지난 공간을 불러오고 있어요."
+        message="마디를 불러오고 있어요."
         onBack={returnToJournalFallback}
         loading
       />
     );
   }
+
+  if (isError && !entry) return <JournalDetailStatusScreen message="마디를 불러오지 못했어요."
+    onBack={returnToJournalFallback} onRetry={() => void refetch()} />;
 
   if (!entry) {
     return (

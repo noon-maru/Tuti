@@ -14,6 +14,8 @@ import { ScreenFrame } from "@/features/tuti/components/ScreenFrame";
 import { LoadingIndicator } from "@/features/tuti/components/LoadingIndicator";
 import type { TutiJournalEntry } from "@/shared/api/journal";
 import { journalImageMaxWidth, palette } from "@/styles/tokens";
+import { screenTitleStyles, bodyCopyStyles } from "@/shared/ui/typography";
+import { MadiLoadNotice } from "@/features/tuti/components/MadiLoadNotice";
 
 export function JournalDetailScreen({
   entry,
@@ -66,12 +68,12 @@ export function JournalDetailScreen({
       <Header $hidden={!entryTransition.isContentVisible}>
         <BackButton
           type="button"
-          aria-label="지난 공간으로 돌아가기"
+          aria-label="나의 마디로 돌아가기"
           onClick={returnToJournal}
         />
         <h1>{formatJournalDateLong(entry.visitedAt)}</h1>
         <ContextMenu
-          label={`${entry.title} 마디 메뉴`}
+          label={`${entry.title.trim() || "남겨둔 이야기"} 마디 메뉴`}
           items={[
             ...(entry.sensitiveContent && onWithdrawSensitive ? [{
               label: entry.sensitiveWithdrawnAt ? "철회한 마디 정리 재시도" : "민감정보 동의 철회",
@@ -91,7 +93,7 @@ export function JournalDetailScreen({
               onSelect: onDelete,
             },
             {
-              label: "지난 공간으로\n돌아가기",
+              label: "나의 마디로 돌아가기",
               onSelect: returnToJournal,
             },
           ]}
@@ -99,7 +101,7 @@ export function JournalDetailScreen({
       </Header>
 
       <Detail data-scroll-region>
-        <DetailImage
+        {entry.image && <DetailImage
           ref={imageRef}
           role="img"
           $image={entry.image ?? undefined}
@@ -107,8 +109,8 @@ export function JournalDetailScreen({
           data-journal-transition-entry-id={entry.id}
           data-journal-transition-image={entry.image ?? undefined}
           data-journal-transition-surface="detail"
-          aria-label={`${entry.placeName} 마디 이미지`}
-        />
+          aria-label={`${entry.title.trim() || "마디"} 사진`}
+        />}
 
         <DetailContent
           $hidden={!entryTransition.isContentVisible}
@@ -122,11 +124,11 @@ export function JournalDetailScreen({
           {entry.sensitiveContent && <ModerationNotice role="status">{entry.sensitiveWithdrawnAt
             ? "동의 철회로 마디와 하루마디를 정리하고 있어요."
             : "민감정보 처리에 별도로 동의한 나만의 마디예요. 웹 링크로는 공개할 수 없어요."}</ModerationNotice>}
-          <JournalLocationLabel placeName={entry.placeName} />
+          {entry.placeName.trim() && entry.placeName !== "남긴 공간" && <JournalLocationLabel placeName={entry.placeName} />}
 
           <Copy>
-            <h2>{entry.title}</h2>
-            <p>{entry.content}</p>
+            {entry.title.trim() && <h2>{entry.title}</h2>}
+            {entry.content.trim() && <p>{entry.content}</p>}
           </Copy>
         </DetailContent>
       </Detail>
@@ -149,25 +151,27 @@ export function JournalDetailStatusScreen({
   message,
   onBack,
   loading = false,
+  onRetry,
 }: {
   message: string;
   onBack: () => void;
   loading?: boolean;
+  onRetry?: () => void;
 }) {
   return (
     <Frame>
       <Header>
         <BackButton
           type="button"
-          aria-label="지난 공간으로 돌아가기"
+          aria-label="나의 마디로 돌아가기"
           onClick={onBack}
         />
-        <h1>지난 공간</h1>
+        <h1>나의 마디</h1>
         <HeaderSpacer />
       </Header>
-      <Status role={loading ? undefined : "status"}>
+      {onRetry ? <MadiLoadNotice title={message} onRetry={onRetry} /> : <Status role={loading ? undefined : "status"}>
         {loading ? <LoadingIndicator label={message} /> : message}
-      </Status>
+      </Status>}
     </Frame>
   );
 }
@@ -211,8 +215,7 @@ const Header = styled.header<{ $hidden?: boolean }>`
   transition: opacity 200ms ease 40ms;
 
   h1 {
-    font-size: var(--font-size-400);
-    font-weight: 700;
+    ${screenTitleStyles}
     text-align: center;
   }
 `;
@@ -239,11 +242,12 @@ const DetailImage = styled.div<{ $image?: string; $hidden?: boolean }>`
   flex: 0 0 auto;
   align-self: center;
   aspect-ratio: 4 / 3;
-  border-radius: 28px;
-  background-color: var(--color-secondary-500);
+  border-radius: 16px;
+  background-color: var(--color-brand-100);
   background-image: ${({ $image }) => ($image ? `url(${$image})` : "none")};
   background-position: center;
-  background-size: cover;
+  background-size: contain;
+  background-repeat: no-repeat;
   box-shadow: inset 0 0 0 1px rgb(var(--color-white-rgb) / 0.16);
   opacity: ${({ $hidden = false }) => ($hidden ? 0 : 1)};
 
@@ -253,6 +257,8 @@ const DetailImage = styled.div<{ $image?: string; $hidden?: boolean }>`
 `;
 
 const DetailContent = styled.div<{ $hidden: boolean }>`
+  width: min(100%, 68ch);
+  align-self: center;
   display: flex;
   flex-direction: column;
   gap: var(--space-5);
@@ -265,15 +271,15 @@ const Copy = styled.article`
   gap: var(--space-4);
 
   h2 {
-    font-size: var(--font-size-500);
-    font-weight: 700;
+    ${screenTitleStyles}
   }
 
   p {
+    ${bodyCopyStyles}
     color: var(--color-text);
-    font-size: var(--font-size-200);
-    line-height: var(--line-height-body);
-    letter-spacing: var(--letter-spacing-body);
+    font-size: max(1rem, var(--ui-body-size));
+    line-height: 1.85;
+    overflow-wrap: anywhere;
     white-space: pre-line;
   }
 `;
