@@ -1,5 +1,12 @@
 import type { HarumadiBookRect } from "@/shared/harumadi/transitionGeometry";
 
+/** 자식 layout effect보다 늦게 연결되는 부모 DOM ref까지 기다린다. */
+export function scheduleHarumadiOpen(host: Pick<Window, "requestAnimationFrame" | "cancelAnimationFrame">, start: () => (() => void) | undefined) {
+  let cancel: (() => void) | undefined;
+  const frame = host.requestAnimationFrame(() => { cancel = start(); });
+  return () => { host.cancelAnimationFrame(frame); cancel?.(); };
+}
+
 /** 펼친 두 쪽을 회전 없이 확대하고 첫 쪽 읽기로 연결한다. */
 export function animateHarumadiSpreadOpen(book: HTMLElement, contents: HTMLElement | null,
   origin: HarumadiBookRect, target: HarumadiBookRect, onComplete: () => void, reducedMotion = false) {

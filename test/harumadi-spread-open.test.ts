@@ -3,7 +3,7 @@ import test from "node:test";
 import { readFileSync } from "node:fs";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { animateHarumadiSpreadOpen } from "@/lib/harumadiOpen";
+import { animateHarumadiSpreadOpen, scheduleHarumadiOpen } from "@/lib/harumadiOpen";
 import { HarumadiOpenTransition } from "@/features/tuti/components/HarumadiOpenTransition";
 import { harumadiContent } from "./fixtures/harumadiContent";
 
@@ -20,6 +20,23 @@ function animatedNode() {
 const origin = { x: 40, y: 160, width: 280, height: 200, appearance: "spread" as const };
 const target = { x: 20, y: 80, width: 560, height: 400 };
 const flush = () => new Promise<void>(resolve => setImmediate(resolve));
+
+test("부모 DOM ref가 연결된 다음 프레임에 확대를 시작하고 언마운트 시 예약과 동작을 취소한다", () => {
+  let frame: FrameRequestCallback | undefined, cancelledFrame = 0, started = 0, stopped = 0;
+  const parent = { current: null as HTMLElement | null };
+  const host = { requestAnimationFrame(callback: FrameRequestCallback) { frame = callback; return 7; }, cancelAnimationFrame(id: number) { cancelledFrame = id; frame = undefined; } };
+  const start = () => { assert.ok(parent.current); started++; return () => { stopped++; }; };
+  const cancel = scheduleHarumadiOpen(host, start);
+  assert.equal(started, 0);
+  parent.current = {} as HTMLElement;
+  frame!(0); assert.equal(started, 1);
+  cancel(); assert.equal(cancelledFrame, 7); assert.equal(stopped, 1);
+  const cancelBeforeLayout = scheduleHarumadiOpen(host, start);
+  cancelBeforeLayout(); frame?.(0);
+  assert.equal(started, 1); assert.equal(stopped, 1);
+  const source = readFileSync("src/features/tuti/components/HarumadiOpenTransition.tsx", "utf8");
+  assert.match(source, /useLayoutEffect\(\(\) => scheduleHarumadiOpen\(window/);
+});
 
 test("펼친 미리보기는 같은 비율로 확대하고 회전 없이 읽기로 연결한다", async () => {
   const book = animatedNode(), contents = animatedNode(); let completed = 0;

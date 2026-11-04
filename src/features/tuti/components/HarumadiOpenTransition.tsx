@@ -6,7 +6,7 @@ import { HarumadiPageSheet } from "./HarumadiSheet";
 import { buildHarumadiCoverPage } from "@/shared/harumadi/readerPages";
 import { HARUMADI_PDF_LAYOUT } from "@/shared/harumadi/pdfLayout";
 import { harumadiLocalRect, type HarumadiBookRect } from "@/shared/harumadi/transitionGeometry";
-import { animateHarumadiOpen, animateHarumadiSpreadOpen } from "@/lib/harumadiOpen";
+import { animateHarumadiOpen, animateHarumadiSpreadOpen, scheduleHarumadiOpen } from "@/lib/harumadiOpen";
 import { buildHarumadiSpread, HarumadiSpreadSheets } from "./HarumadiSpreadPreview";
 import type { Harumadi } from "@/shared/api/harumadi";
 import type { TutiJournalEntry } from "@/shared/api/journal";
@@ -17,7 +17,7 @@ export function HarumadiOpenTransition({ book, entries, origin, containerRef, co
   containerRef: RefObject<HTMLElement | null>; contentsRef: RefObject<HTMLElement | null>; onComplete: () => void;
 }) {
   const moving = useRef<HTMLDivElement>(null), cover = useRef<HTMLDivElement>(null);
-  useLayoutEffect(() => {
+  useLayoutEffect(() => scheduleHarumadiOpen(window, () => {
     const container = containerRef.current, node = moving.current, face = cover.current;
     if (!container || !node || !face) { onComplete(); return; }
     const bounds = container.getBoundingClientRect();
@@ -34,7 +34,7 @@ export function HarumadiOpenTransition({ book, entries, origin, containerRef, co
     }
     node.style.width = `${target.width}px`; node.style.left = `${target.x}px`; node.style.top = `${target.y}px`;
     return animateHarumadiOpen(node, face, contentsRef.current, origin, target, onComplete, window.matchMedia("(prefers-reduced-motion: reduce)").matches);
-  }, [origin, containerRef, contentsRef, onComplete]);
+  }), [origin, containerRef, contentsRef, onComplete]);
   return <Layer aria-hidden="true"><MovingBook ref={moving}><TurningCover ref={cover} $spread={origin.appearance === "spread"}>
     {origin.appearance === "spread" ? <HarumadiSpreadSheets book={book} pages={buildHarumadiSpread(book, entries)} still /> :
     <HarumadiPageSheet page={buildHarumadiCoverPage(book, entries)} coverStyle={book.coverStyle} number={0} />
