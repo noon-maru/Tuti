@@ -10,17 +10,19 @@ import { HarumadiShelf, HarumadiSpine } from "@/features/tuti/components/Harumad
 import { LibraryViewSwitch } from "@/features/tuti/components/LibraryViewSwitch";
 import { harumadiContent } from "./fixtures/harumadiContent";
 
-test("표지 보기가 기본이고 책등 선택은 계정별 기기 저장소와 메모리에 유지한다", async () => {
+test("한 권씩 보기가 기본이고 기존 선택은 계정별 기기 저장소와 메모리에 유지한다", async () => {
   const data = new Map<string, string>();
   const storage = { async getItem(key: string) { return data.get(key) ?? null; }, async setItem(key: string, value: string) { data.set(key, value); } };
   const first = createLibraryViewPreferences(storage);
-  assert.equal(first.peek("a"), "covers");
+  assert.equal(first.peek("a"), "carousel");
   await first.save("a", "spines");
   assert.equal(first.peek("a"), "spines");
-  assert.equal(first.peek("b"), "covers");
+  assert.equal(first.peek("b"), "carousel");
   assert.equal(await createLibraryViewPreferences(storage).load("a"), "spines");
-  assert.equal(await first.load("b"), "covers");
-  for (const invalid of [null, "", "grid", "book", "{}", undefined]) assert.equal(parseLibraryView(invalid), "covers");
+  assert.equal(await first.load("b"), "carousel");
+  for (const invalid of [null, "", "grid", "book", "{}", undefined]) assert.equal(parseLibraryView(invalid), "carousel");
+  await first.save("b", "covers");
+  assert.equal(await createLibraryViewPreferences(storage).load("b"), "covers");
 });
 
 test("느린 저장소 읽기는 방금 선택한 보기나 다른 계정의 선택을 덮어쓰지 않는다", async () => {
@@ -34,7 +36,7 @@ test("느린 저장소 읽기는 방금 선택한 보기나 다른 계정의 선
   assert.equal(preferences.peek("a"), "spines");
   assert.equal(preferences.peek("b"), "covers");
   const unavailable = createLibraryViewPreferences({ async getItem() { throw new Error("unavailable"); }, async setItem() { throw new Error("unavailable"); } });
-  assert.equal(await unavailable.load("a"), "covers");
+  assert.equal(await unavailable.load("a"), "carousel");
   await unavailable.save("a", "spines");
   assert.equal(await unavailable.load("a"), "spines");
 });

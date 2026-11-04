@@ -1,5 +1,6 @@
 export type HarumadiLibraryView = "covers" | "spines" | "carousel";
-export const parseLibraryView = (value: unknown): HarumadiLibraryView => value === "spines" || value === "carousel" ? value : "covers";
+export const DEFAULT_LIBRARY_VIEW: HarumadiLibraryView = "carousel";
+export const parseLibraryView = (value: unknown): HarumadiLibraryView => value === "covers" || value === "spines" || value === "carousel" ? value : DEFAULT_LIBRARY_VIEW;
 
 /** Keep spine targets at least 64px wide, including the narrowest app layout. */
 export function spineColumnCount(width: number) {

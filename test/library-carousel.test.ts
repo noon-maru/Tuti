@@ -28,7 +28,7 @@ test("한 권씩 선택도 계정별로 저장하고 기존 표지·책등 값�
   const preferences = createLibraryViewPreferences(storage);
   await preferences.save("owner", "carousel");
   assert.equal(await createLibraryViewPreferences(storage).load("owner"), "carousel");
-  assert.equal(await preferences.load("another"), "covers");
+  assert.equal(await preferences.load("another"), "carousel");
   for (const view of ["covers", "spines"] as const) { await preferences.save("owner", view); assert.equal(await preferences.load("owner"), view); }
 });
 

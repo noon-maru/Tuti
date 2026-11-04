@@ -1,11 +1,11 @@
 import { preferencesStorage } from "./storage/preferencesStorage";
-import { parseLibraryView, type HarumadiLibraryView } from "@/shared/harumadi/libraryView";
+import { DEFAULT_LIBRARY_VIEW, parseLibraryView, type HarumadiLibraryView } from "@/shared/harumadi/libraryView";
 
 type Storage = { getItem(key: string): Promise<string | null>; setItem(key: string, value: string): Promise<unknown> };
 export function createLibraryViewPreferences(storage: Storage) {
   const views = new Map<string, HarumadiLibraryView>(), versions = new Map<string, number>();
   const key = (owner: string) => `tuti-library-view:${owner}`;
-  const peek = (owner: string) => views.get(owner) ?? "covers";
+  const peek = (owner: string) => views.get(owner) ?? DEFAULT_LIBRARY_VIEW;
   return {
     peek,
     async load(owner: string) {
