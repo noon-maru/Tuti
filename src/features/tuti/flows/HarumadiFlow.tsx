@@ -22,6 +22,7 @@ import { HarumadiOpenTransition } from "@/features/tuti/components/HarumadiOpenT
 import { HarumadiTogetherPanel } from "@/features/tuti/components/HarumadiTogetherPanel";
 import { HarumadiComments } from "@/features/tuti/components/HarumadiComments";
 import { HarumadiOrderEditor } from "@/features/tuti/components/HarumadiOrderEditor";
+import { HarumadiEntryPicker } from "@/features/tuti/components/HarumadiEntryPicker";
 import { changeTogether } from "@/lib/harumadiTogether";
 import { useLifecycleView } from "../hooks/useLifecycleView";
 import { useNotificationPresence } from "../hooks/useNotificationPresence";
@@ -291,7 +292,7 @@ function HarumadiEditor({ owner, initial, read, verified, refreshing, onRefresh,
         {harumadi && <HarumadiDeleteSection disabled={busy || readOnly} onDelete={() => void remove()} />}
       </SettingsPanel> : mode === "order" ? <HarumadiOrderEditor entries={chosen} ids={orderedIds} onChange={setOrderedIds} disabled={busy || readOnly} scrollRef={scroller} /> : mode === "selection" ? <>
         <h1>어떤 순간을 담을까요?</h1><p>원본 마디는 그대로 두고 이 하루마디에 담아요.</p>
-        {entries.isPending ? <p role="status">마디를 불러오고 있어요.</p> : entries.isError ? <Quiet onClick={() => void entries.refetch()}>마디 다시 불러오기</Quiet> : !entries.data?.length ? <p>아직 남긴 마디가 없어요. 먼저 한 페이지를 써볼까요?</p> : <RecordList>{entries.data.map(entry => <RecordOption key={entry.id}><input type="checkbox" checked={selected.includes(entry.id)} disabled={busy || readOnly} onChange={() => setSelected(current => current.includes(entry.id) ? current.filter(id => id !== entry.id) : [...current, entry.id])} /><span><strong>{entry.title || entry.placeName || "남긴 하루"}</strong><small>{entry.visitedAt.slice(0, 10)} · {entry.content.slice(0, 45) || "사진으로 남긴 순간"}</small></span></RecordOption>)}</RecordList>}
+        {entries.isPending ? <p role="status">마디를 불러오고 있어요.</p> : entries.isError ? <Quiet onClick={() => void entries.refetch()}>마디 다시 불러오기</Quiet> : !entries.data?.length ? <p>아직 남긴 마디가 없어요. 먼저 한 페이지를 써볼까요?</p> : <HarumadiEntryPicker entries={entries.data} selected={selected} onChange={setSelected} disabled={busy || readOnly} />}
       </> : mode === "pdf" ? <>
         <h1>PDF로 저장하기</h1><p>지금 담긴 마디로 PDF를 만들어요.<br />저장 후 하루마디를 바꿔도 이미 만든 PDF는 바뀌지 않아요.</p>
         {sensitivePolicy?.enabled && <Confirmation><input type="checkbox" checked={confirmed} onChange={event => setConfirmed(event.target.checked)} />이름과 뒷표지 문구에 민감정보가 없음을 확인해요.</Confirmation>}
@@ -393,6 +394,4 @@ const Footer = styled.footer<{ $creating?: boolean }>`flex: none; padding: 12px 
 `;
 const ReaderTools = styled.nav`display: flex; flex: none; flex-wrap: wrap; gap: 10px; padding: 12px calc(16px + var(--app-safe-area-right, 0px)) calc(16px + var(--app-safe-area-bottom, 0px)) calc(16px + var(--app-safe-area-left, 0px)); > button { flex: 1 1 auto; min-width: 0; } svg { flex: none; }`;
 const WriteButton = styled(PrimaryButton)`display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding-inline: 12px;`;
-const RecordList = styled.div`display: grid; gap: 10px; margin: 22px 0;`;
-const RecordOption = styled.label`display: flex; gap: 12px; align-items: center; padding: 16px 12px; border: 1px solid var(--color-border); border-radius: 10px; background: white; > span { min-width: 0; display: grid; gap: 6px; } strong { font-size: 14px; font-weight: 500; overflow-wrap: anywhere; } small { font-size: 12px; color: var(--color-text-muted); }`;
 const ErrorMessage = styled.div`padding: 12px; font-size: 14px; line-height: 1.7; color: #b42318; background: white; border-radius: 8px; margin-top: 12px; > button { display: block; }`;
