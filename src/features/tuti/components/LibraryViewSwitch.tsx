@@ -6,9 +6,9 @@ import type { HarumadiLibraryView } from "@/shared/harumadi/libraryView";
 
 export function LibraryViewSwitch({ view, onChange }: { view: HarumadiLibraryView; onChange: (view: HarumadiLibraryView) => void }) {
   return <Switch role="group" aria-label="책장 보기 방식">
+    <Choice type="button" aria-pressed={view === "carousel"} onClick={() => onChange("carousel")}><GalleryHorizontalEnd size={15} aria-hidden="true" />한 권씩</Choice>
     <Choice type="button" aria-pressed={view === "covers"} onClick={() => onChange("covers")}><LayoutGrid size={15} aria-hidden="true" />표지</Choice>
     <Choice type="button" aria-pressed={view === "spines"} onClick={() => onChange("spines")}><Library size={15} aria-hidden="true" />책등</Choice>
-    <Choice type="button" aria-pressed={view === "carousel"} onClick={() => onChange("carousel")}><GalleryHorizontalEnd size={15} aria-hidden="true" />한 권씩</Choice>
   </Switch>;
 }
 const Switch = styled.div`display: inline-flex; flex: none; gap: 2px; padding: 3px; border: 1px solid var(--color-brand-200); border-radius: 999px; background: var(--color-brand-100);`;

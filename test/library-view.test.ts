@@ -48,6 +48,8 @@ test("보기 선택은 명시적인 세 버튼과 선택 상태·44px 조작 영
     assert.equal((html.match(/<button[^>]*aria-pressed="true"/g) ?? []).length, 1);
     assert.equal((html.match(/<button[^>]*aria-pressed="false"/g) ?? []).length, 2);
     assert.match(html, /표지/); assert.match(html, /책등/); assert.match(html, /한 권씩/);
+    const buttons = [...html.matchAll(/<button\b[^>]*>([\s\S]*?)<\/button>/g)].map(match => match[1].replace(/<[^>]*>/g, ""));
+    assert.deepEqual(buttons, ["한 권씩", "표지", "책등"]);
     assert.match(html, /min-height:44px/);
   }
 });
