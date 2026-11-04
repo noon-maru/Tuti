@@ -711,50 +711,35 @@ export function RecommendationsScreen({
           <ContextMenu
             label="메인 메뉴"
             items={
-              accountConnected
-                ? [
-                    ...(adminAccess
+              [
+                    {
+                      group: "작은 여행",
+                      label: "오늘 다시 고르기",
+                      onSelect: onRestartIntake,
+                    },
+                    {
+                      group: "작은 여행",
+                      label: "다음에 갈 공간",
+                      onSelect: onSavedPlaces,
+                    },
+                    {
+                      group: "도움말 · 설정",
+                      label: "튜토리얼 다시보기",
+                      onSelect: replayInitialHelp,
+                    },
+                    ...(process.env.NEXT_PUBLIC_TUTI_TARGET === "web"
+                      ? [{ group: "도움말 · 설정", label: "앱 다운로드", onSelect: onDownload }]
+                      : []),
+                    { group: "도움말 · 설정", label: "설정", onSelect: onSettings },
+                    ...(accountConnected && adminAccess
                       ? [
                           {
+                            group: "운영",
                             label: "관리자 페이지",
                             onSelect: onAdmin,
                           },
                         ]
                       : []),
-                    {
-                      label: "오늘 다시 고르기",
-                      onSelect: onRestartIntake,
-                    },
-                    {
-                      label: "튜토리얼 다시보기",
-                      onSelect: replayInitialHelp,
-                    },
-                    {
-                      label: "다음에 갈 공간",
-                      onSelect: onSavedPlaces,
-                    },
-                    ...(process.env.NEXT_PUBLIC_TUTI_TARGET === "web"
-                      ? [{ label: "앱 다운로드", onSelect: onDownload }]
-                      : []),
-                    { label: "설정", onSelect: onSettings },
-                  ]
-                : [
-                    {
-                      label: "오늘 다시 고르기",
-                      onSelect: onRestartIntake,
-                    },
-                    {
-                      label: "튜토리얼 다시보기",
-                      onSelect: replayInitialHelp,
-                    },
-                    {
-                      label: "다음에 갈 공간",
-                      onSelect: onSavedPlaces,
-                    },
-                    ...(process.env.NEXT_PUBLIC_TUTI_TARGET === "web"
-                      ? [{ label: "앱 다운로드", onSelect: onDownload }]
-                      : []),
-                    { label: "설정", onSelect: onSettings },
                   ]
             }
           />

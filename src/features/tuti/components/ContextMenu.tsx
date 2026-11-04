@@ -20,15 +20,30 @@ const MENU_GAP = 4;
 const MENU_MAX_HEIGHT = 480;
 const MENU_INPUT_HEIGHT = 52;
 const MENU_VIEWPORT_MARGIN = 12;
+const MENU_GROUP_HEADING_HEIGHT = 28;
 
 export type ContextMenuItem = {
   label: string;
   onSelect: (trigger: HTMLButtonElement) => void | Promise<void>;
   selected?: boolean;
   kind?: "radio";
+  group?: string;
   tone?: "default" | "danger";
   singleLine?: boolean;
 };
+
+export function groupContextMenuItems(items: ContextMenuItem[]) {
+  const groups: { label?: string; items: ContextMenuItem[] }[] = [];
+  for (const item of items) {
+    let group = groups.at(-1);
+    if (!group || group.label !== item.group) {
+      group = { label: item.group, items: [] };
+      groups.push(group);
+    }
+    group.items.push(item);
+  }
+  return groups;
+}
 
 export type ContextMenuTextInput = {
   label: string;
@@ -67,6 +82,8 @@ export function ContextMenu({
   const firstItemRef = useRef<HTMLButtonElement>(null);
   const hasTextInput = textInput !== undefined;
   const initialTextInputValue = textInput?.value ?? "";
+  const groups = groupContextMenuItems(items);
+  const groupHeadingCount = groups.filter(group => group.label).length;
 
   useEffect(() => {
     // 권한·연결 상태가 바뀌어 닫힌 메뉴를 재활성화 시 다시 띄우지 않는다.
@@ -89,6 +106,7 @@ export function ContextMenu({
       };
     const menuHeight = Math.min(
       items.length * MENU_ITEM_HEIGHT +
+        groupHeadingCount * MENU_GROUP_HEADING_HEIGHT +
         (hasTextInput ? MENU_INPUT_HEIGHT : 0) +
         MENU_PADDING * 2,
       MENU_MAX_HEIGHT,
@@ -112,7 +130,7 @@ export function ContextMenu({
 
     setPosition({ left, maxHeight: menuHeight, top });
     window.requestAnimationFrame(() => firstItemRef.current?.focus());
-  }, [hasTextInput, items.length, open]);
+  }, [groupHeadingCount, hasTextInput, items.length, open]);
 
   useEffect(() => {
     if (!open) return;
@@ -205,10 +223,12 @@ export function ContextMenu({
                 controls[next]?.focus();
               }}
             >
-              {items.map((item, index) => (
+              {groups.map((group, groupIndex) => <MenuGroup key={`${group.label ?? "actions"}-${groupIndex}`} role={group.label ? "group" : undefined} aria-label={group.label}>
+                {group.label && <GroupHeading aria-hidden="true">{group.label}</GroupHeading>}
+                {group.items.map(item => (
                 <MenuItem
                   key={item.label}
-                  ref={index === 0 ? firstItemRef : undefined}
+                  ref={item === items[0] ? firstItemRef : undefined}
                   type="button"
                   role={item.kind === "radio" ? "menuitemradio" : "menuitem"}
                   aria-checked={item.kind === "radio" ? Boolean(item.selected) : undefined}
@@ -225,7 +245,8 @@ export function ContextMenu({
                   <span>{item.label}</span>
                   {item.selected && <span aria-hidden="true">✓</span>}
                 </MenuItem>
-              ))}
+                ))}
+              </MenuGroup>)}
               {textInput && (
                 <MenuInputForm
                   onSubmit={(event) => {
@@ -364,8 +385,14 @@ const MenuItem = styled(BaseButton)<{
   &:hover,
   &:focus-visible {
     background: var(--color-neutral-200);
-    outline: none;
   }
+`;
+
+const MenuGroup = styled.div`display: grid; min-width: 0;`;
+const GroupHeading = styled.div`
+  min-height: ${MENU_GROUP_HEADING_HEIGHT}px; display: flex; align-items: center;
+  padding: 4px var(--space-3) 0; color: var(--color-text-muted);
+  font-size: 12px; line-height: 1.5; font-weight: 500;
 `;
 
 const MenuInputForm = styled.form`
