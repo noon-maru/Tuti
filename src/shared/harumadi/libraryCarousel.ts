@@ -1,9 +1,14 @@
 const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
 
-/** Keep the book and its details together; short screens may scroll rather than shrink controls. */
+/** Fill the exhibition area, leaving actual details and outer padding at the bottom. */
 export function carouselStageHeight(width: number, availableHeight: number, detailsHeight: number) {
-  const preferred = Math.min(width * .88, 440) / 2 * 595.28 / 419.53 + 48;
-  return Math.max(140, Math.min(preferred, availableHeight - detailsHeight - 32, 360));
+  return Math.max(Math.min(140, Math.max(0, width)), availableHeight - detailsHeight - 32);
+}
+
+/** Aim at the whole content area's center, but keep paper clear of the lower controls. */
+export function carouselBookCenter(stageHeight: number, detailsHeight: number, bookHeight: number) {
+  const half = bookHeight / 2;
+  return clamp((stageHeight + detailsHeight) / 2, half + 12, Math.max(half + 12, stageHeight - half - 12));
 }
 
 /** 선택한 책의 양끝 20%는 옆 책 이동, 가운데와 키보드 클릭은 읽기다. */

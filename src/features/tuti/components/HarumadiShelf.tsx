@@ -27,7 +27,7 @@ export function HarumadiShelf({ books, ownerId, view, onOpen }: {
     return () => observer.disconnect();
   }, [view]);
   const spines = view === "spines", columns = spines ? spineColumns : 2;
-  return <div ref={shelf} data-library-view={view}>
+  return <ShelfContent ref={shelf} data-library-view={view}>
     {Array.from({ length: Math.ceil(books.length / columns) }, (_, row) => {
       const rowBooks = books.slice(row * columns, (row + 1) * columns);
       const hintRows = rowBooks.some(book => book.duplicateTitle) ? (rowBooks.some(book => book.duplicateTitle && book.role === "contributor") ? 2 : 1) : 0;
@@ -39,7 +39,7 @@ export function HarumadiShelf({ books, ownerId, view, onOpen }: {
         </HarumadiButton><BookMenu $spines={spines} $hintRows={hintRows} label={`${harumadiAccessibleTitle(book)} 메뉴`} triggerContent={<MoreVertical size={22} />} items={harumadiActions(book).map(action => ({ label: action.label, singleLine: true, onSelect: trigger => onOpen(book, trigger, action.mode) }))} />
       </HarumadiCard>)}</HarumadiGrid><ShelfEdge aria-hidden="true" />
     </ShelfRow>; })}
-  </div>;
+  </ShelfContent>;
 }
 
 /** No photos or content requests: a spine only needs the book's list metadata. */
@@ -49,6 +49,7 @@ export function HarumadiSpine({ book }: { book: Harumadi }) {
     <strong>{book.title}</strong><span className="spine-mark">Tuti</span>
   </Spine>;
 }
+const ShelfContent = styled.div`flex: none; width: 100%; margin-block: auto; padding-block: 16px; > div:last-child { margin-bottom: 0; }`;
 const Spine = styled.span<{ $green: boolean }>`
   display: block; position: relative; box-sizing: border-box; width: 100%; max-width: 80px; height: 224px; margin: 0 auto; overflow: hidden;
   border: 1px solid #dce3d6; border-radius: 4px 5px 2px 2px; background: ${({ $green }) => $green ? "#EBF5D5" : "#FFFFFF"}; color: var(--color-text);

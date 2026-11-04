@@ -97,6 +97,16 @@ test("기존 표지 보기는 두 열과 간격을 유지하고 사진이 없는
   assert.match(html, /aria-label="함께한 하루, 마디 1개 열기"/);
 });
 
+test("표지·책등은 남는 높이에서 중앙 배치하고 넘치는 목록의 상단은 잘리지 않는다", () => {
+  const shelf = readFileSync("src/features/tuti/components/HarumadiShelf.tsx", "utf8");
+  assert.match(shelf, /<ShelfContent ref=\{shelf\} data-library-view=\{view\}/);
+  assert.match(shelf, /const ShelfContent = styled.div`flex: none; width: 100%; margin-block: auto/);
+  assert.match(shelf, /> div:last-child \{ margin-bottom: 0; \}/);
+  const home = readFileSync("src/features/tuti/flows/LibraryHomeFlow.tsx", "utf8");
+  assert.match(home, /overflow-y: auto; overscroll-behavior: contain; padding: 12px 20px/);
+  assert.match(home, /const LibraryLinks = styled.nav`[\s\S]*?justify-content: center/);
+});
+
 test("책등 열 수는 CSS 너비로 계산하고 페이지네이션·열기 이력을 두 보기에서 공유한다", () => {
   assert.equal(spineColumnCount(280), 3);
   assert.equal(spineColumnCount(350), 4);

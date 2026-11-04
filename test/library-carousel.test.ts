@@ -5,14 +5,14 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { HarumadiCarousel } from "@/features/tuti/components/HarumadiCarousel";
-import { carouselDragProgress, carouselGestureAxis, carouselIndex, carouselPose, carouselShouldWrite, carouselStageHeight, carouselSwipeDirection, carouselTapDirection, carouselWriteProgress } from "@/shared/harumadi/libraryCarousel";
+import { carouselBookCenter, carouselDragProgress, carouselGestureAxis, carouselIndex, carouselPose, carouselShouldWrite, carouselStageHeight, carouselSwipeDirection, carouselTapDirection, carouselWriteProgress } from "@/shared/harumadi/libraryCarousel";
 import { createLibraryViewPreferences } from "@/lib/libraryViewPreferences";
 import { harumadiContent } from "./fixtures/harumadiContent";
 
 test("책 전시 높이는 종이 비율과 실제 설명·추가 UI 높이를 반영한다", () => {
   const normal = carouselStageHeight(350, 561, 170);
-  assert.ok(normal > 260 && normal < 270);
-  assert.equal(carouselStageHeight(350, 649, 170), normal, "긴 화면에서 책 주변 공백만 늘리지 않는다");
+  assert.equal(normal, 359);
+  assert.equal(carouselStageHeight(350, 649, 170), 447, "긴 화면에서는 전시 영역을 채우고 설명은 하단에 둔다");
   assert.equal(carouselStageHeight(350, 384, 170), 182);
   assert.equal(carouselStageHeight(350, 384, 200), 152, "긴 제목·작성자에 필요한 높이를 회수한다");
   assert.equal(carouselStageHeight(280, 280, 200), 140, "좁은 화면은 최소 전시 공간을 유지하고 스크롤한다");
@@ -22,6 +22,20 @@ test("책 전시 높이는 종이 비율과 실제 설명·추가 UI 높이를 �
   assert.doesNotMatch(source, /min-height: 76px|padding-left: 44px/);
   const home = readFileSync("src/features/tuti/flows/LibraryHomeFlow.tsx", "utf8");
   assert.doesNotMatch(home, /div:only-child/);
+});
+
+test("책은 전시·설명 전체 영역의 중앙을 지향하고 작은 화면에서는 설명과 겹치지 않는다", () => {
+  assert.equal(carouselBookCenter(500, 170, 220), 335);
+  assert.equal(carouselBookCenter(359, 170, 220), 237);
+  for (const [stage, details, book] of [[500, 170, 220], [359, 170, 220], [182, 170, 150], [140, 220, 124]]) {
+    const center = carouselBookCenter(stage, details, book);
+    assert.ok(center - book / 2 >= 0);
+    assert.ok(center + book / 2 <= stage);
+  }
+  const source = readFileSync("src/features/tuti/components/HarumadiCarousel.tsx", "utf8");
+  assert.match(source, /top: var\(--carousel-book-center\)/);
+  assert.match(source, /detailsHeight: description.offsetHeight/);
+  assert.doesNotMatch(source, /top: 48%/);
 });
 
 test("선택한 책의 양끝은 옆 책 이동, 가운데·키보드는 열기이며 목업 배율에 독립적이다", () => {

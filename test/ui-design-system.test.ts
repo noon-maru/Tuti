@@ -96,24 +96,25 @@ test("홈은 보기·생성·설정을 한 줄로 묶고 제목과 권수를 반
   assert.doesNotMatch(headerCss, /flex-wrap: wrap/);
 });
 
-test("홈 생성·보관함 글자는 14px 역할로 분리하되 누름 영역과 경로를 유지한다", () => {
+test("홈 생성과 하단 보관함은 14px·44px 누름 영역을 유지하고 경로를 통합한다", () => {
   const home = source("src/features/tuti/flows/LibraryHomeFlow.tsx");
   const create = home.match(/const CreateHarumadi = styled\(TextAction\)`([^`]+)`/)![1];
-  const link = home.match(/const LibraryLink = styled\(TextAction\)`([^`]+)`/)![1];
+  const link = home.match(/const ArchiveMenu = styled\(ContextMenu\)`([^`]+)`/)![1];
   for (const css of [create, link]) {
     assert.match(css, /font-size: \.875rem/);
     assert.match(css, /min-height: 44px/);
     assert.match(css, /line-height: 1\.5/);
   }
   assert.match(create, /font-weight: 500/);
-  assert.match(link, /font-weight: 400/);
   assert.match(home, /const TextAction = [\s\S]*?:focus-visible/);
   assert.match(home, /const IconButton = [\s\S]*?width: 44px; height: 44px/);
   assert.match(home, /const openEditor = \(\) => router.push\("\/harumadi"\)/);
   const links = home.match(/<LibraryLinks\b[\s\S]*?<\/LibraryLinks>/)![0];
   assert.match(links, /\/madi/);
   assert.match(links, /\/harumadi\/pdfs/);
-  assert.equal((links.match(/<ChevronRight size=\{14\} aria-hidden="true"/g) ?? []).length, 2);
+  assert.match(links, /<ArchiveMenu/);
+  assert.match(links, /label: "전체 마디 보기"/);
+  assert.match(links, /label: "저장한 PDF"/);
   assert.doesNotMatch(home.match(/const LibraryLinks = styled\.nav`([^`]+)`/)![1], /border-top/);
   assert.match(source("src/features/tuti/components/MainNavigation.tsx"), /border-top: 1px solid var\(--color-border\)/);
 });

@@ -4,7 +4,7 @@ import styled from "@emotion/styled";
 import { memo, useEffect, useRef, useState, type CSSProperties, type PointerEvent } from "react";
 import { ChevronLeft, ChevronRight, ChevronUp, MoreVertical } from "lucide-react";
 import type { Harumadi } from "@/shared/api/harumadi";
-import { carouselDragProgress, carouselGestureAxis, carouselIndex, carouselPose, carouselShouldWrite, carouselStageHeight, carouselSwipeDirection, carouselTapDirection, carouselWriteProgress } from "@/shared/harumadi/libraryCarousel";
+import { carouselBookCenter, carouselDragProgress, carouselGestureAxis, carouselIndex, carouselPose, carouselShouldWrite, carouselStageHeight, carouselSwipeDirection, carouselTapDirection, carouselWriteProgress } from "@/shared/harumadi/libraryCarousel";
 import { harumadiActions, type HarumadiOpeningMode } from "../navigation/harumadiActions";
 import { HarumadiCover } from "./HarumadiCover";
 import { HarumadiSpreadPreview } from "./HarumadiSpreadPreview";
@@ -24,10 +24,12 @@ export function HarumadiCarousel({ books, ownerId, onOpen, onCreateMadi, hasNext
   const root = useRef<HTMLDivElement>(null), details = useRef<HTMLDivElement>(null);
   const gesture = useRef<Gesture | null>(null), blockedClickUntil = useRef(0), requesting = useRef(false);
   const [selection, setSelection] = useState(() => ({ id: books[0]?.id ?? null, index: 0 }));
-  const [size, setSize] = useState({ width: 320, height: 300 }), [drag, setDrag] = useState(0), [dragging, setDragging] = useState(false), [pending, setPending] = useState(false);
+  const [size, setSize] = useState({ width: 320, height: 300, detailsHeight: 0 }), [drag, setDrag] = useState(0), [dragging, setDragging] = useState(false), [pending, setPending] = useState(false);
   const [writeProgress, setWriteProgress] = useState(0);
   const { width, height } = size;
   const spreadWidth = Math.min(width * .88, height * 1.25, 440);
+  const bookHeight = spreadWidth / 2 * 595.28 / 419.53;
+  const bookCenter = carouselBookCenter(height, size.detailsHeight, bookHeight);
   const index = carouselIndex(books.map(book => book.id), selection), active = books[index];
   useEffect(() => {
     const node = stage.current, carousel = root.current, description = details.current, parent = carousel?.parentElement;
@@ -41,8 +43,8 @@ export function HarumadiCarousel({ books, ownerId, onOpen, onCreateMadi, hasNext
         return sum + child.offsetHeight + (parseFloat(css.marginTop) || 0) + (parseFloat(css.marginBottom) || 0);
       }, 0);
       const available = parent.clientHeight - (parseFloat(style.paddingTop) || 0) - (parseFloat(style.paddingBottom) || 0) - reserved - (parseFloat(style.rowGap) || 0) * siblings.length;
-      const next = { width: node.clientWidth, height: carouselStageHeight(node.clientWidth, available, description.offsetHeight) };
-      setSize(previous => previous.width === next.width && Math.abs(previous.height - next.height) < 1 ? previous : next);
+      const next = { width: node.clientWidth, height: carouselStageHeight(node.clientWidth, available, description.offsetHeight), detailsHeight: description.offsetHeight };
+      setSize(previous => previous.width === next.width && Math.abs(previous.height - next.height) < 1 && previous.detailsHeight === next.detailsHeight ? previous : next);
     }; measure();
     if (typeof ResizeObserver === "undefined") { window.addEventListener("resize", measure); return () => window.removeEventListener("resize", measure); }
     const observer = new ResizeObserver(measure);
@@ -114,7 +116,7 @@ export function HarumadiCarousel({ books, ownerId, onOpen, onCreateMadi, hasNext
   const busy = pending || loading;
   return <Carousel ref={root} data-library-view="carousel">
     <Stage ref={stage} role="region" aria-roledescription="캐러셀" aria-label="하루마디 한 권씩 보기" tabIndex={0} data-swipe-back-ignore="true"
-      style={{ height }} $dragging={dragging} $canWrite={Boolean(onCreateMadi)} onPointerDown={begin} onPointerMove={follow} onPointerUp={event => finish(event)}
+      style={{ height, "--carousel-book-center": `${bookCenter}px`, "--carousel-book-half-height": `${bookHeight / 2}px` } as CSSProperties} $dragging={dragging} $canWrite={Boolean(onCreateMadi)} onPointerDown={begin} onPointerMove={follow} onPointerUp={event => finish(event)}
       onPointerCancel={event => finish(event, true)} onLostPointerCapture={event => { if (event.target === event.currentTarget) finish(event, true); }}
       onDragStart={event => event.preventDefault()} onClickCapture={event => { if (event.timeStamp < blockedClickUntil.current) { event.preventDefault(); event.stopPropagation(); } }}
       onKeyDown={event => {
@@ -159,14 +161,14 @@ const CarouselCover = memo(function CarouselCover({ book, ownerId }: { book: Har
   return <HarumadiCover ownerId={ownerId} kind="harumadi" harumadiPdf={{ ...book, entryCount: book.entryIds.length, pageCount: 0, hasCover: book.coverStyle.endsWith("-image") && book.entryIds.length > 0 }} />;
 });
 
-const Carousel = styled.div`display: flex; flex-direction: column; justify-content: center; flex: 1 0 auto; width: 100%; min-width: 0; padding: 16px 0;`;
+const Carousel = styled.div`display: flex; flex-direction: column; flex: 1 0 auto; width: 100%; min-width: 0; padding: 16px 0;`;
 const Details = styled.div`display: flow-root; flex: none;`;
 // 책 영역만 단일 터치를 예약하고 핀치 확대와 바깥 영역의 세로 스크롤은 보존한다.
 const Stage = styled.div<{ $dragging: boolean; $canWrite: boolean }>`position: relative; flex: none; overflow: hidden; perspective: 850px; touch-action: ${({ $canWrite }) => $canWrite ? "pinch-zoom" : "pan-y"}; user-select: none; cursor: ${({ $dragging }) => $dragging ? "grabbing" : "grab"}; isolation: isolate;
-  &::after { content: ""; position: absolute; width: 60%; height: 12px; border-radius: 50%; background: #1b222a0a; filter: blur(10px); bottom: 5px; left: 20%; z-index: -1; }
+  &::after { content: ""; position: absolute; width: 60%; height: 12px; border-radius: 50%; background: #1b222a0a; filter: blur(10px); top: calc(var(--carousel-book-center) + var(--carousel-book-half-height) - 6px); left: 20%; z-index: -1; }
   &:focus-visible { outline: 2px solid var(--color-brand-700); outline-offset: -3px; border-radius: 12px; }
 `;
-const Slide = styled.div<{ $dragging: boolean }>`position: absolute; top: 48%; left: 50%; will-change: transform; backface-visibility: hidden;
+const Slide = styled.div<{ $dragging: boolean }>`position: absolute; top: var(--carousel-book-center); left: 50%; will-change: transform; backface-visibility: hidden;
   transition: ${({ $dragging }) => $dragging ? "none" : "transform 560ms cubic-bezier(.22,.75,.22,1), opacity 440ms ease"};
   @media (prefers-reduced-motion: reduce) { transition: none; }
 `;
