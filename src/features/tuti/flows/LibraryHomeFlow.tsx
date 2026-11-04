@@ -78,6 +78,7 @@ function LibraryHome({ ownerId }: { ownerId: string }) {
             <TextAction onClick={() => { setWelcomeHarumadiOrigin(null); router.push(welcomeHarumadiPath(1, "library")); }}>하루마디 예시 펼쳐보기<ChevronRight size={14} /></TextAction>
           </EmptyShelf> : <>
             {view === "carousel" ? <HarumadiCarousel books={harumadiPdfs} ownerId={ownerId} onOpen={openBook}
+              onCreateMadi={bookId => router.push(`/madi/new?from=library&harumadiId=${encodeURIComponent(bookId)}`)}
               hasNextPage={query.hasNextPage} loading={query.isFetchingNextPage}
               onLoadMore={async () => {
                 const result = await query.fetchNextPage();

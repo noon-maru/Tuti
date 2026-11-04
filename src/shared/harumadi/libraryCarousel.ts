@@ -23,6 +23,22 @@ export function carouselSwipeDirection(dx: number, width: number, elapsed: numbe
   return dx < 0 ? 1 : -1;
 }
 
+/** 처음 의도가 확실해진 축만 사용해 대각선 이동의 책 넘김·작성 혼선을 막는다. */
+export function carouselGestureAxis(dx: number, dy: number, canWrite: boolean): "horizontal" | "up" | "scroll" | null {
+  if (Math.max(Math.abs(dx), Math.abs(dy)) < 8) return null;
+  if (Math.abs(dx) >= Math.abs(dy) * 1.2) return "horizontal";
+  if (Math.abs(dy) >= Math.abs(dx) * 1.2) return canWrite && dy < 0 ? "up" : "scroll";
+  return null;
+}
+
+export function carouselWriteProgress(dy: number, width: number) {
+  return clamp(-dy / Math.max(1, Math.min(100, width * .25)), 0, 1);
+}
+
+export function carouselShouldWrite(dy: number, width: number, elapsed: number) {
+  return -dy >= Math.min(80, Math.max(48, width * .2)) || (-dy >= 28 && -dy / Math.max(1, elapsed) > .55);
+}
+
 /** x는 선반 너비의 비율. 책이 많아져도 화면에는 주변 세 권까지만 합성한다. */
 export function carouselPose(distance: number) {
   const depth = Math.abs(distance), near = Math.min(depth, 1), far = Math.max(0, Math.min(depth - 1, 1));
