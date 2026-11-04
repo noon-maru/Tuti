@@ -124,7 +124,7 @@ export function JournalDetailScreen({
           {entry.sensitiveContent && <ModerationNotice role="status">{entry.sensitiveWithdrawnAt
             ? "동의 철회로 마디와 하루마디를 정리하고 있어요."
             : "민감정보 처리에 별도로 동의한 나만의 마디예요. 웹 링크로는 공개할 수 없어요."}</ModerationNotice>}
-          {entry.placeName.trim() && entry.placeName !== "남긴 공간" && <JournalLocationLabel placeName={entry.placeName} />}
+          {entry.placeName.trim() && entry.placeName.trim() !== "남긴 공간" && <DetailLocation placeName={entry.placeName} />}
 
           <Copy>
             {entry.title.trim() && <h2>{entry.title}</h2>}
@@ -265,6 +265,8 @@ const DetailContent = styled.div<{ $hidden: boolean }>`
   opacity: ${({ $hidden }) => ($hidden ? 0 : 1)};
   transition: opacity 240ms ease 60ms;
 `;
+
+const DetailLocation = styled(JournalLocationLabel)`align-items: flex-start; > span:last-child { white-space: normal; overflow: visible; text-overflow: clip; overflow-wrap: anywhere; }`;
 
 const Copy = styled.article`
   display: grid;

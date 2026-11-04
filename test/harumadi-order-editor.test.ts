@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { readerManagementActions } from "@/shared/harumadi/readerActions";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { readFileSync } from "node:fs";
@@ -33,7 +34,11 @@ test("순서 편집은 현재 순서·썸네일·날짜와 경계별 비활성 �
 
 test("읽기 화면은 소유자·온라인 상태에서 순서 편집을 열고 지정 순서를 재정렬하지 않는다", () => {
   const flow = readFileSync("src/features/tuti/flows/HarumadiFlow.tsx", "utf8");
-  assert.match(flow, /harumadi.role !== "contributor" && <Quiet[\s\S]*?순서 바꾸기/);
+  assert.equal(readerManagementActions("owner", 2).some(item => item.action === "order"), true);
+  assert.equal(readerManagementActions("contributor", 2).some(item => item.action === "order"), false);
+  assert.match(flow, /<ReaderMenu label="하루마디 관리" disabled=\{busy \|\| readOnly\}/);
+  assert.match(flow, /if \(!harumadi \|\| harumadi.role === "contributor" \|\| readOnly \|\| busy\) return/);
+  assert.match(flow, /if \(action === "order"\) setOrderedIds\(harumadi.entryIds\)/);
   assert.match(flow, /revision: harumadi.revision, entryIds: orderedIds/);
   assert.match(flow, /const chosen = useMemo\(\(\) => orderByEntryIds/);
   assert.match(flow, /mode === "order" \? saveOrder\(\)/);

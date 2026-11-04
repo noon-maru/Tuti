@@ -1,14 +1,15 @@
 "use client";
 
 import styled from "@emotion/styled";
-import { Search } from "lucide-react";
+import { Search, X } from "lucide-react";
 import {
   useEffect,
-  useLayoutEffect,
+  useId,
   useRef,
   useState,
 } from "react";
-import { createPortal } from "react-dom";
+import { AppDialogFrame } from "@/shared/ui/AppDialogFrame";
+import { captionStyles } from "@/shared/ui/typography";
 import { LoadingIndicator } from "@/features/tuti/components/LoadingIndicator";
 import { TutiPlaceIcon } from "@/features/tuti/components/TutiPlaceIcon";
 import { fetchWithSession } from "@/lib/auth/session";
@@ -17,9 +18,6 @@ import type {
   PlaceSearchResult,
 } from "@/shared/api/placeSearch";
 import { BaseButton } from "@/features/tuti/components/buttons";
-
-const PANEL_GAP = 8;
-const PANEL_MARGIN = 16;
 
 export function JournalPlacePicker({
   placeId,
@@ -34,65 +32,13 @@ export function JournalPlacePicker({
   helperStatus?: "loading" | "success" | "notice";
   onChange: (place: PlaceSearchResult) => void;
 }) {
+  const id = useId();
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState(value);
   const [places, setPlaces] = useState<PlaceSearchResult[]>([]);
   const [status, setStatus] = useState<"idle" | "loading" | "error">("idle");
-  const [position, setPosition] = useState({
-    left: 0,
-    top: 0,
-    width: 320,
-    maxHeight: 360,
-  });
   const triggerRef = useRef<HTMLButtonElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
-
-  useLayoutEffect(() => {
-    if (!open || !triggerRef.current) return;
-
-    const triggerRect = triggerRef.current.getBoundingClientRect();
-    const viewportRect =
-      triggerRef.current
-        .closest<HTMLElement>("[data-app-viewport]")
-        ?.getBoundingClientRect() ?? {
-        bottom: window.innerHeight,
-        height: window.innerHeight,
-        left: 0,
-        right: window.innerWidth,
-        top: 0,
-        width: window.innerWidth,
-      };
-    const width = Math.min(328, viewportRect.width - PANEL_MARGIN * 2);
-    const maxHeight = Math.min(368, viewportRect.height - PANEL_MARGIN * 2);
-    const left = Math.min(
-      Math.max(triggerRect.left, viewportRect.left + PANEL_MARGIN),
-      viewportRect.right - width - PANEL_MARGIN,
-    );
-    const belowTop = triggerRect.bottom + PANEL_GAP;
-    const top =
-      belowTop + maxHeight <= viewportRect.bottom - PANEL_MARGIN
-        ? belowTop
-        : Math.max(
-            viewportRect.top + PANEL_MARGIN,
-            triggerRect.top - maxHeight - PANEL_GAP,
-          );
-
-    setPosition({ left, top, width, maxHeight });
-    window.requestAnimationFrame(() => inputRef.current?.focus());
-  }, [open]);
-
-  useEffect(() => {
-    if (!open) return;
-
-    const closeOnEscape = (event: KeyboardEvent) => {
-      if (event.key !== "Escape") return;
-      setOpen(false);
-      triggerRef.current?.focus();
-    };
-
-    window.addEventListener("keydown", closeOnEscape);
-    return () => window.removeEventListener("keydown", closeOnEscape);
-  }, [open]);
 
   useEffect(() => {
     if (!open) return;
@@ -128,7 +74,6 @@ export function JournalPlacePicker({
   const selectPlace = (place: PlaceSearchResult) => {
     onChange(place);
     setOpen(false);
-    window.requestAnimationFrame(() => triggerRef.current?.focus());
   };
 
   return (
@@ -157,26 +102,15 @@ export function JournalPlacePicker({
         )}
       </PlaceField>
 
-      {open &&
-        typeof document !== "undefined" &&
-        createPortal(
-          <DismissLayer onPointerDown={() => setOpen(false)}>
-            <Panel
-              role="dialog"
-              aria-modal="true"
-              aria-label="장소 검색"
-              style={position}
-              data-swipe-back-ignore
-              onPointerDown={(event) => event.stopPropagation()}
-            >
+      {open && <AppDialogFrame role="dialog" titleId={`${id}-title`} initialFocus={inputRef} onCancel={() => setOpen(false)}>
               <PanelHeader>
-                <p>장소를 검색해보세요</p>
+                <h2 id={`${id}-title`}>장소 검색</h2>
                 <CloseButton
                   type="button"
                   aria-label="장소 검색 닫기"
                   onClick={() => setOpen(false)}
                 >
-                  ×
+                  <X size={20} aria-hidden="true" />
                 </CloseButton>
               </PanelHeader>
 
@@ -205,7 +139,7 @@ export function JournalPlacePicker({
                   <ResultStatus>
                     {query.trim()
                       ? "검색 결과가 없어요."
-                      : "등록된 장소를 불러오고 있어요."}
+                      : "검색어를 입력해 장소를 찾아보세요."}
                   </ResultStatus>
                 )}
                 {status === "idle" &&
@@ -227,10 +161,7 @@ export function JournalPlacePicker({
                     </ResultButton>
                   ))}
               </ResultList>
-            </Panel>
-          </DismissLayer>,
-          document.body,
-        )}
+          </AppDialogFrame>}
     </>
   );
 }
@@ -252,10 +183,11 @@ const PlaceTrigger = styled(BaseButton)`
   display: inline-flex;
   align-items: center;
   gap: var(--space-2);
-  padding: 2px 0;
+  min-height: var(--ui-control-height);
+  padding: 8px 0;
   background: transparent;
   color: var(--color-text-muted);
-  font-size: var(--font-size-100);
+  font-size: var(--ui-body-size);
   font-weight: 500;
   line-height: var(--line-height-subtitle);
   letter-spacing: var(--letter-spacing-subtitle);
@@ -269,11 +201,11 @@ const PlaceTrigger = styled(BaseButton)`
 `;
 
 const PlaceHelper = styled.p`
+  ${captionStyles}
   display: flex;
   align-items: center;
   gap: var(--space-1);
   color: var(--color-text-muted);
-  font-size: calc(var(--font-size-100) - 1px);
   line-height: var(--line-height-body);
   letter-spacing: var(--letter-spacing-body);
 
@@ -303,50 +235,24 @@ const HelperDot = styled.span`
   }
 `;
 
-const DismissLayer = styled.div`
-  position: fixed;
-  inset: 0;
-  z-index: 2147482100;
-`;
-
-const Panel = styled.section`
-  position: fixed;
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-3);
-  padding: var(--space-4);
-  border: 1px solid rgb(var(--color-black-rgb) / 0.08);
-  border-radius: 22px;
-  background: rgb(var(--color-white-rgb) / 0.98);
-  box-shadow: 0 18px 48px rgb(var(--color-black-rgb) / 0.2);
-  overflow: hidden;
-`;
-
 const PanelHeader = styled.header`
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: var(--space-3);
 
-  p {
-    color: var(--color-text-muted);
-    font-size: var(--font-size-200);
-    line-height: var(--line-height-subtitle);
-    letter-spacing: var(--letter-spacing-subtitle);
-  }
 `;
 
 const CloseButton = styled(BaseButton)`
-  width: var(--space-8);
-  height: var(--space-8);
+  width: 44px;
+  height: 44px;
   flex: 0 0 auto;
+  display: grid;
+  place-items: center;
   padding: 0;
   border-radius: 999px;
   background: transparent;
   color: var(--color-text-muted);
-  font-size: var(--font-size-600);
-  font-weight: 300;
-  line-height: 1;
 `;
 
 const SearchField = styled.label`
@@ -357,6 +263,7 @@ const SearchField = styled.label`
   padding: 0 var(--space-3);
   border-radius: 999px;
   background: var(--color-secondary-200);
+  &:focus-within { outline: 2px solid var(--color-brand-700); outline-offset: -2px; }
 
   input {
     min-width: 0;
@@ -366,7 +273,7 @@ const SearchField = styled.label`
     background: transparent;
     color: var(--color-text);
     font: inherit;
-    font-size: var(--font-size-100);
+    font-size: var(--ui-input-size);
 
     &::placeholder {
       color: var(--color-text-muted);
@@ -389,6 +296,7 @@ const SearchIcon = styled(Search)`
 
 const ResultList = styled.div`
   min-height: 96px;
+  max-height: min(320px, 45cqh);
   display: grid;
   align-content: start;
   gap: var(--space-2);

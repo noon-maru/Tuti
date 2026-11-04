@@ -3,11 +3,13 @@
 import styled from "@emotion/styled";
 import {
   useEffect,
+  useId,
   useMemo,
   useRef,
   useState,
   type PointerEvent as ReactPointerEvent,
 } from "react";
+import { AppDialogFrame } from "@/shared/ui/AppDialogFrame";
 import {
   BaseButton,
   PrimaryButton,
@@ -37,6 +39,7 @@ export function ImageCropDialog({
   onCancel: () => void;
   onConfirm: (image: string) => void;
 }) {
+  const id = useId(), cancel = useRef<HTMLButtonElement>(null);
   const viewportRef = useRef<HTMLDivElement>(null);
   const imageRef = useRef<HTMLImageElement>(null);
   const dragStartRef = useRef<{
@@ -173,12 +176,12 @@ export function ImageCropDialog({
   };
 
   return (
-    <Dialog role="dialog" aria-modal="true" aria-labelledby="crop-title">
+    <Dialog role="dialog" titleId={`${id}-title`} descriptionId={`${id}-description`} presentation="fullscreen" busy={processing} initialFocus={cancel} onCancel={onCancel}>
       <Header>
-        <HeaderButton type="button" onClick={onCancel}>
+        <HeaderButton ref={cancel} type="button" disabled={processing} onClick={onCancel}>
           취소
         </HeaderButton>
-        <h2 id="crop-title">사진 맞추기</h2>
+        <h2 id={`${id}-title`}>사진 맞추기</h2>
         <HeaderButton
           type="button"
           disabled={!geometry || processing}
@@ -260,7 +263,7 @@ export function ImageCropDialog({
           <CropGuide aria-hidden="true" />
         </CropViewport>
 
-        <CropHint>사진을 움직여 남기고 싶은 부분을 맞춰주세요.</CropHint>
+        <CropHint id={`${id}-description`}>사진을 움직여 남기고 싶은 부분을 맞춰주세요.</CropHint>
         <ZoomControl>
           <span aria-hidden="true">−</span>
           <input
@@ -348,10 +351,7 @@ function clampOffset(
   };
 }
 
-const Dialog = styled.section`
-  position: absolute;
-  z-index: 100;
-  inset: 0;
+const Dialog = styled(AppDialogFrame)`
   display: flex;
   flex-direction: column;
   padding: calc(var(--space-5) + var(--app-safe-area-top, 0px))

@@ -90,11 +90,15 @@ test("일반·동의·중요 확인 모달은 같은 앱 프레임과 전체 필
   const frame = readFileSync("src/shared/ui/AppDialogFrame.tsx", "utf8");
   assert.match(frame, /role = "alertdialog"/); assert.match(frame, /role=\{role\}/);
   assert.match(frame, /viewport \?\? document.body/);
-  for (const name of ["ShareDialogFrame", "PhotoLocationConsentDialog", "JournalPublicationConsentDialog"]) {
+  for (const name of ["ShareDialogFrame", "PhotoLocationConsentDialog", "JournalPublicationConsentDialog", "JournalPlacePicker", "HarumadiPurchaseButton"]) {
     const content = readFileSync(`src/features/tuti/components/${name}.tsx`, "utf8");
     assert.match(content, /<AppDialogFrame role="dialog"/);
     assert.doesNotMatch(content, /createPortal|window.addEventListener/);
   }
   assert.match(readFileSync("src/features/tuti/components/PhotoLocationConsentDialog.tsx", "utf8"), /onCancel=\{onDecline\}/);
   assert.match(readFileSync("src/features/tuti/components/JournalPublicationConsentDialog.tsx", "utf8"), /busy=\{submitting\}/);
+  const crop = readFileSync("src/features/tuti/components/ImageCropDialog.tsx", "utf8");
+  assert.match(crop, /styled\(AppDialogFrame\)/);
+  assert.match(crop, /presentation="fullscreen" busy=\{processing\}/);
+  assert.match(crop, /ref=\{cancel\} type="button" disabled=\{processing\}/);
 });

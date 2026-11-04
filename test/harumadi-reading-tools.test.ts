@@ -23,4 +23,6 @@ test("읽기에는 작성·함께 채우기를 남기고 관리 메뉴와 댓글
   assert.doesNotMatch(source, /<Eyebrow|const Eyebrow/);
   const menu = readFileSync("src/features/tuti/components/ContextMenu.tsx", "utf8");
   assert.match(menu, /disabled=\{disabled\}/); assert.match(menu, /open && !disabled/);
+  assert.match(menu, /if \(disabled\) setOpen\(false\)/);
+  assert.match(menu, /aria-expanded=\{open && !disabled\}/);
 });

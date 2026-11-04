@@ -10,6 +10,7 @@ import { HarumadiSafetyActions } from "./HarumadiSafetyActions";
 import { HarumadiTogetherConfirmDialog, type TogetherConfirmationAction } from "./HarumadiTogetherConfirmDialog";
 import type { TutiJournalEntry } from "@/shared/api/journal";
 import { HarumadiNotificationToggle } from "./HarumadiNotificationToggle";
+import { screenTitleStyles, bodyCopyStyles, captionStyles } from "@/shared/ui/typography";
 export function HarumadiTogetherPanel({ owner, bookId, onExit, entries = [] }: { owner: string; bookId: string; onExit: () => void; entries?: TutiJournalEntry[] }) {
   const client = useQueryClient(), router = useRouter();
   const query = useQuery({ queryKey: ["harumadi-together", owner, bookId], queryFn: () => fetchTogether(owner, bookId), retry: false });
@@ -73,9 +74,9 @@ export function HarumadiTogetherPanel({ owner, bookId, onExit, entries = [] }: {
     {confirmation && <HarumadiTogetherConfirmDialog action={confirmation.action} busy={busy} error={notice || undefined} onCancel={closeConfirmation} onConfirm={() => void action(confirmation.action, confirmation.target)} />}
   </Panel>;
 }
-const Panel = styled.section`display: flex; flex-direction: column; gap: 18px; padding: 8px 0 24px; h1 { margin: 0; font-size: 26px; font-weight: 600; letter-spacing: -.04em; } p { margin: 0; line-height: 1.8; font-size: 15px; } > small { font-size: 12px; line-height: 1.8; color: var(--color-text-muted); }`;
-const Disclosure = styled.div`font-size: 12px; line-height: 1.9; padding: 16px; border-radius: 12px; background: var(--color-brand-100); color: var(--color-text-muted);`;
-const List = styled.ul`margin: 0; padding: 0; list-style: none; li { display: flex; align-items: center; gap: 12px; padding: 14px 0; border-bottom: 1px solid var(--color-border); } li > span { flex: 1; overflow-wrap: anywhere; font-size: 15px; } small { display: block; margin-top: 5px; font-size: 12px; color: var(--color-text-muted); } button { min-height: 44px; flex-shrink: 0; }`;
+const Panel = styled.section`display: flex; flex-direction: column; gap: 18px; padding: 8px 0 24px; h1 { ${screenTitleStyles} } p { ${bodyCopyStyles} margin: 0; } > small { ${captionStyles} }`;
+const Disclosure = styled.div`${captionStyles} line-height: 1.9; padding: 16px; border-radius: 12px; background: var(--color-brand-100);`;
+const List = styled.ul`margin: 0; padding: 0; list-style: none; li { display: flex; align-items: center; gap: 12px; padding: 14px 0; border-bottom: 1px solid var(--color-border); } li > span { flex: 1; min-width: 0; overflow-wrap: anywhere; font-size: var(--ui-body-size); } small { ${captionStyles} display: block; margin-top: 5px; } button { min-height: 44px; flex-shrink: 0; }`;
 const Avatar = styled.div`display: grid; place-items: center; flex-shrink: 0; width: 36px; height: 36px; border-radius: 50%; font-size: 14px; background: var(--color-brand-100);`;
 const Danger = styled(BaseButton)`padding: 14px; margin-top: 12px; color: var(--color-danger, #b84242); border: 1px solid var(--color-border); border-radius: 12px; background: transparent;`;
-const EndSection = styled.div`display: grid; gap: 10px; margin-top: 12px; padding-top: 16px; border-top: 1px solid var(--color-border); > small { color: var(--color-text-muted); font-size: 12px; line-height: 1.8; }`;
+const EndSection = styled.div`display: grid; gap: 10px; margin-top: 12px; padding-top: 16px; border-top: 1px solid var(--color-border); > small { ${captionStyles} }`;

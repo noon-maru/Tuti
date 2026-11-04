@@ -4,6 +4,7 @@ import styled from "@emotion/styled";
 import { MapPin, ShieldCheck } from "lucide-react";
 import { useId, useRef } from "react";
 import { AppDialogFrame } from "@/shared/ui/AppDialogFrame";
+import { bodyCopyStyles, captionStyles } from "@/shared/ui/typography";
 import {
   BaseButton,
   PrimaryButton,
@@ -67,22 +68,14 @@ const Copy = styled.div`
   display: grid;
   gap: var(--space-2);
 
-  h2 {
-    font-size: var(--font-size-500);
-    font-weight: 700;
-    line-height: 1.2;
-    letter-spacing: 0.005em;
-  }
-
   p {
+    ${bodyCopyStyles}
     color: var(--color-text-muted);
-    font-size: var(--font-size-300);
-    line-height: 1.5;
-    letter-spacing: -0.015em;
   }
 `;
 
 const PrivacyNote = styled.div`
+  ${captionStyles}
   width: 100%;
   display: flex;
   align-items: center;

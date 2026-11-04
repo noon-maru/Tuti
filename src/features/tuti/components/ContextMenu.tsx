@@ -67,6 +67,12 @@ export function ContextMenu({
   const hasTextInput = textInput !== undefined;
   const initialTextInputValue = textInput?.value ?? "";
 
+  useEffect(() => {
+    // 권한·연결 상태가 바뀌어 닫힌 메뉴를 재활성화 시 다시 띄우지 않는다.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (disabled) setOpen(false);
+  }, [disabled]);
+
   useLayoutEffect(() => {
     if (!open || !triggerRef.current) return;
 
@@ -156,7 +162,7 @@ export function ContextMenu({
         ref={triggerRef}
         type="button"
         disabled={disabled}
-        aria-expanded={open}
+        aria-expanded={open && !disabled}
         aria-haspopup="menu"
         aria-label={label}
         data-swipe-back-ignore
