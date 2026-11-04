@@ -23,7 +23,7 @@ try {
     CREATE TABLE journal_author_blocks(blocker_user_id text,blocked_user_id text);
     CREATE TABLE push_devices(user_id text,enabled boolean,invalidated_at timestamp);
     INSERT INTO users VALUES('owner'),('member'),('third'),('outsider');
-    INSERT INTO harumadis VALUES('book','owner',1,0,now());
+    INSERT INTO harumadis(id,owner_id,revision,access_revision,collaboration_started_at) VALUES('book','owner',1,0,now());
     INSERT INTO harumadi_members(id,harumadi_id,user_id) VALUES('m1','book','member'),('m2','book','third');
     INSERT INTO journal_entries(id,owner_id) VALUES('entry','member');
     INSERT INTO harumadi_entry_links VALUES('link','book','entry');
