@@ -45,6 +45,16 @@ test("둘러보기 후 빈 홈은 기본 표지 대신 첫 마디 작성을 안�
   assert.doesNotMatch(entry, /createHarumadi\(/);
 });
 
+test("책장 로딩과 오류는 남는 콘텐츠 높이를 채워 세로 중앙에 표시한다", () => {
+  const home = readFileSync("src/features/tuti/flows/LibraryHomeFlow.tsx", "utf8");
+  const status = home.match(/const Status = styled\.div`([^`]+)`/)![1];
+  assert.match(status, /flex: 1 0 auto/);
+  assert.match(status, /min-height: 230px/);
+  assert.match(status, /align-items: center; justify-content: center/);
+  assert.match(home, /query.isPending \? <Status role="status"><LoadingIndicator/);
+  assert.match(home, /query.isError && !query.data \? <Status role="alert"/);
+});
+
 test("가판대는 표지를 중심으로 두고 생성·보관함 동선을 중복하지 않는다", () => {
   const home = readFileSync("src/features/tuti/flows/LibraryHomeFlow.tsx", "utf8");
   assert.match(home, /<Header><LibraryViewSwitch/);
