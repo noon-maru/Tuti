@@ -1,5 +1,12 @@
 const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
 
+/** 선택한 책의 양끝 20%는 옆 책 이동, 가운데와 키보드 클릭은 읽기다. */
+export function carouselTapDirection(clientX: number, bounds: { left: number; width: number }, keyboard = false): -1 | 0 | 1 {
+  if (keyboard || bounds.width <= 0) return 0;
+  const position = (clientX - bounds.left) / bounds.width;
+  return position < .2 ? -1 : position > .8 ? 1 : 0;
+}
+
 export function carouselIndex(ids: string[], selection: { id: string | null; index: number }) {
   const found = selection.id ? ids.indexOf(selection.id) : -1;
   return found >= 0 ? found : clamp(selection.index, 0, Math.max(0, ids.length - 1));

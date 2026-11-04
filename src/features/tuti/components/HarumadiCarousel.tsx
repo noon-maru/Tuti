@@ -4,7 +4,7 @@ import styled from "@emotion/styled";
 import { memo, useEffect, useRef, useState, type CSSProperties, type PointerEvent } from "react";
 import { ChevronLeft, ChevronRight, MoreVertical } from "lucide-react";
 import type { Harumadi } from "@/shared/api/harumadi";
-import { carouselDragProgress, carouselIndex, carouselPose, carouselSwipeDirection } from "@/shared/harumadi/libraryCarousel";
+import { carouselDragProgress, carouselIndex, carouselPose, carouselSwipeDirection, carouselTapDirection } from "@/shared/harumadi/libraryCarousel";
 import { harumadiActions, type HarumadiOpeningMode } from "../navigation/harumadiActions";
 import { HarumadiCover } from "./HarumadiCover";
 import { HarumadiSpreadPreview } from "./HarumadiSpreadPreview";
@@ -95,7 +95,11 @@ export function HarumadiCarousel({ books, ownerId, onOpen, hasNextPage = false, 
         return <Slide key={book.id} data-harumadi-card data-carousel-active={selected} aria-hidden={!selected} $dragging={dragging}
           style={{ width: spreadWidth, zIndex: pose.zIndex, opacity: pose.opacity, pointerEvents: pose.opacity > .1 ? "auto" : "none", transform: `translate(-50%, -50%) translateX(${pose.x * width}px) scale(${pose.scale}) rotateY(${pose.rotation}deg)` }}>
           <CoverButton $spread={selected} style={{ "--spread-page-scale": (spreadWidth / 2 - 2) / 320 } as CSSProperties} data-book-cover type="button" disabled={busy} tabIndex={selected ? 0 : -1} aria-label={`${harumadiAccessibleTitle(book)}, 마디 ${book.entryIds.length}개 ${selected ? "미리보기 열기" : "선택"}`}
-            onClick={event => { if (selected) onOpen(book, event.currentTarget); else choose(bookIndex); }}>
+            onClick={event => {
+              if (!selected) { choose(bookIndex); return; }
+              const direction = carouselTapDirection(event.clientX, event.currentTarget.getBoundingClientRect(), event.detail === 0);
+              if (direction) void move(direction); else onOpen(book, event.currentTarget);
+            }}>
             {selected ? <HarumadiSpreadPreview book={book} ownerId={ownerId} /> : <CarouselCover book={book} ownerId={ownerId} />}
           </CoverButton>
         </Slide>;

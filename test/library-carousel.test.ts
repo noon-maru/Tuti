@@ -5,9 +5,23 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { HarumadiCarousel } from "@/features/tuti/components/HarumadiCarousel";
-import { carouselDragProgress, carouselIndex, carouselPose, carouselSwipeDirection } from "@/shared/harumadi/libraryCarousel";
+import { carouselDragProgress, carouselIndex, carouselPose, carouselSwipeDirection, carouselTapDirection } from "@/shared/harumadi/libraryCarousel";
 import { createLibraryViewPreferences } from "@/lib/libraryViewPreferences";
 import { harumadiContent } from "./fixtures/harumadiContent";
+
+test("선택한 책의 양끝은 옆 책 이동, 가운데·키보드는 열기이며 목업 배율에 독립적이다", () => {
+  for (const width of [280, 140]) {
+    const bounds = { left: 50, width };
+    assert.equal(carouselTapDirection(50 + width * .1, bounds), -1);
+    assert.equal(carouselTapDirection(50 + width * .9, bounds), 1);
+    assert.equal(carouselTapDirection(50 + width * .5, bounds), 0);
+    assert.equal(carouselTapDirection(0, bounds, true), 0);
+  }
+  assert.equal(carouselTapDirection(10, { left: 0, width: 0 }), 0);
+  const source = readFileSync("src/features/tuti/components/HarumadiCarousel.tsx", "utf8");
+  assert.match(source, /event\.detail === 0/);
+  assert.match(source, /if \(direction\) void move\(direction\); else onOpen/);
+});
 
 test("한 권씩 선택도 계정별로 저장하고 기존 표지·책등 값은 그대로 읽는다", async () => {
   const values = new Map<string, string>(), storage = { getItem: async (key: string) => values.get(key) ?? null, setItem: async (key: string, value: string) => { values.set(key, value); } };
