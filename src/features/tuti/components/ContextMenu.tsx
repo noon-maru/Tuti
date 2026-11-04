@@ -44,6 +44,7 @@ export function ContextMenu({
   triggerContent,
   triggerTone = "default",
   textInput,
+  disabled = false,
 }: {
   className?: string;
   items: ContextMenuItem[];
@@ -52,6 +53,7 @@ export function ContextMenu({
   triggerContent?: ReactNode;
   triggerTone?: "brand" | "neutral" | "secondary" | "default";
   textInput?: ContextMenuTextInput;
+  disabled?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const [position, setPosition] = useState({
@@ -153,6 +155,7 @@ export function ContextMenu({
       <Trigger
         ref={triggerRef}
         type="button"
+        disabled={disabled}
         aria-expanded={open}
         aria-haspopup="menu"
         aria-label={label}
@@ -172,7 +175,7 @@ export function ContextMenu({
         )}
       </Trigger>
 
-      {open &&
+      {open && !disabled &&
         typeof document !== "undefined" &&
         createPortal(
           <DismissLayer
