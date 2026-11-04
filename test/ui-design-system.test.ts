@@ -5,11 +5,30 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import styled from "@emotion/styled";
 import GlobalStyles from "@/app/GlobalStyles";
-import { Button, PrimaryButton } from "@/shared/ui/buttons";
+import { BackButton, Button, PrimaryButton } from "@/shared/ui/buttons";
 import { inputControlStyles, screenTitleStyles } from "@/shared/ui/typography";
 import { palette } from "@/styles/tokens";
 
 const source = (path: string) => readFileSync(path, "utf8");
+
+test("뒤로가기는 공용 셰브론을 쓰고 목적지와 저장 중 보호를 유지한다", () => {
+  const html = renderToStaticMarkup(createElement(BackButton, { "aria-label": "내 책장으로 돌아가기", disabled: true }));
+  assert.match(html, /lucide-chevron-left/);
+  assert.match(html, /aria-label="내 책장으로 돌아가기"/);
+  assert.match(html, /disabled/);
+  assert.match(html, /aria-hidden="true"/);
+  const flow = source("src/features/tuti/flows/HarumadiFlow.tsx");
+  const archive = source("src/features/tuti/flows/HarumadiPdfArchiveFlow.tsx");
+  for (const file of [flow, archive]) {
+    assert.doesNotMatch(file, /\bArrowLeft\b/);
+    assert.match(file, /<BackButton/);
+    assert.match(file, /내 책장으로 돌아가기/);
+  }
+  assert.match(flow, /<BackButton onClick=\{back\} disabled=\{busy\}/);
+  assert.match(flow, /하루마디로 돌아가기/);
+  assert.match(flow, /if \(busy \|\| closingRef.current\) return/);
+  assert.match(archive, /onClick=\{\(\) => router.replace\("\/"\)\}/);
+});
 function luminance(hex: string) {
   const rgb = [1, 3, 5].map(offset => parseInt(hex.slice(offset, offset + 2), 16) / 255)
     .map(value => value <= .04045 ? value / 12.92 : ((value + .055) / 1.055) ** 2.4);

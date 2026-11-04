@@ -45,9 +45,11 @@ test("바깥 패딩만 늘리고 안전 영역·조작부·공유 서명과 페�
   assert.match(flow, /max-width: 340px.*--reader-outside-inset: 28px/);
   assert.match(flow, /var\(--reader-outside-inset\) \+ var\(--app-safe-area-right, 0px\)/);
   assert.match(flow, /--reader-vertical-inset: 48px/);
+  assert.match(flow, /--reader-top-inset: 96px/);
+  assert.match(flow, /max-height: 620px.*--reader-top-inset: 48px/);
   assert.match(flow, /max-height: 620px.*--reader-vertical-inset: 36px/);
   assert.match(flow, /var\(--reader-vertical-inset\) \+ var\(--app-safe-area-bottom, 0px\)/);
-  assert.match(flow, /\$reading \? "var\(--reader-vertical-inset\) calc/);
+  assert.match(flow, /\$reading \? "var\(--reader-top-inset\) calc/);
   assert.doesNotMatch(viewer, /grid-template-rows: minmax\(0, 1fr\) auto/);
   assert.match(viewer, /style=\{\{ height: stageHeight \}\}/);
   assert.match(viewer, /observer.observe\(controls\)/);
