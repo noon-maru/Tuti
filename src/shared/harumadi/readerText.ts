@@ -1,3 +1,5 @@
+import { HARUMADI_READING_LAYOUT } from "./readingTypography";
+
 /** CSS px, before any transform applied to the desktop app mockup. */
 export type ReaderTextMeasure = (text: string, fontSize: number, weight?: number) => number;
 
@@ -34,4 +36,11 @@ export function readerPageWidth(width: number, height: number, captionSpace = 0)
   const availableHeight = height - captionSpace;
   if (width <= 0 || availableHeight <= 0) return 0;
   return Math.max(1, Math.floor(Math.min(width, availableHeight * 419.53 / 595.28)) - 2);
+}
+
+/** Size the paper + byline stage, not the surrounding empty viewport. */
+export function readerGroupGeometry(width: number, height: number, captionSpace = 0, navigationHeight = 44) {
+  const naturalHeight = Math.max(0, width) * 595.28 / 419.53 + captionSpace;
+  const stageHeight = Math.max(0, Math.min(naturalHeight, height - navigationHeight - HARUMADI_READING_LAYOUT.viewer.gap));
+  return { stageHeight, pageWidth: readerPageWidth(width, stageHeight, captionSpace) };
 }

@@ -10,23 +10,26 @@ import { HARUMADI_READING_LAYOUT } from "@/shared/harumadi/readingTypography";
 import { welcomeHarumadiTurn } from "@/shared/tuti/welcomeHarumadi";
 import type { Harumadi } from "@/shared/api/harumadi";
 import type { TutiJournalEntry } from "@/shared/api/journal";
-import { readerPageWidth, type ReaderTextMeasure } from "@/shared/harumadi/readerText";
+import { readerGroupGeometry, type ReaderTextMeasure } from "@/shared/harumadi/readerText";
 
 export function HarumadiPageViewer({ book, entries, onClose, closing = false }: { book: Harumadi; entries: TutiJournalEntry[]; onClose: () => void; closing?: boolean }) {
   const stage = useRef<HTMLDivElement>(null);
-  const [pageWidth, setPageWidth] = useState(320);
+  const reader = useRef<HTMLDivElement>(null), navigation = useRef<HTMLElement>(null);
   const [measureText, setMeasureText] = useState<ReaderTextMeasure>();
   const captionSpace = book.shared ? HARUMADI_READING_LAYOUT.byline.gap + HARUMADI_READING_LAYOUT.byline.height : 0;
-  useEffect(() => {
-    const node = stage.current;
-    if (!node) return;
+  const [geometry, setGeometry] = useState(() => readerGroupGeometry(320, 600, captionSpace));
+  const { pageWidth, stageHeight } = geometry;
+  useLayoutEffect(() => {
+    const node = reader.current, controls = navigation.current;
+    if (!node || !controls) return;
     const measure = () => {
-      const width = readerPageWidth(node.clientWidth, node.clientHeight, captionSpace);
-      if (width > 0) setPageWidth(value => Math.abs(value - width) > 1 ? width : value);
+      if (!node.clientWidth || !node.clientHeight) return;
+      const next = readerGroupGeometry(node.clientWidth, node.clientHeight, captionSpace, controls.offsetHeight);
+      setGeometry(value => value.pageWidth === next.pageWidth && Math.abs(value.stageHeight - next.stageHeight) < .5 ? value : next);
     };
     measure();
     if (typeof ResizeObserver === "undefined") { window.addEventListener("resize", measure); return () => window.removeEventListener("resize", measure); }
-    const observer = new ResizeObserver(measure); observer.observe(node);
+    const observer = new ResizeObserver(measure); observer.observe(node); observer.observe(controls);
     return () => observer.disconnect();
   }, [captionSpace]);
   useEffect(() => {
@@ -76,10 +79,10 @@ export function HarumadiPageViewer({ book, entries, onClose, closing = false }: 
     return () => { active = false; animation.cancel(); };
   }, [current, retained]);
   const edge = (direction: number) => turn(current + direction);
-  return <Reader data-harumadi-paged-reader data-current-page-kind={pages[current].kind} onKeyDown={event => {
+  return <Reader ref={reader} data-harumadi-paged-reader data-current-page-kind={pages[current].kind} onKeyDown={event => {
     if (event.key === "ArrowLeft" || event.key === "ArrowRight") { event.preventDefault(); turn(current + (event.key === "ArrowRight" ? 1 : -1)); }
   }}>
-    <Stage ref={stage} onClickCapture={event => { if (skipClick.current) { event.preventDefault(); event.stopPropagation(); skipClick.current = false; } }} onPointerDown={event => { if (event.isPrimary && event.button === 0) { skipClick.current = false; pointer.current = { x: event.clientX, y: event.clientY, id: event.pointerId }; } }}
+    <Stage ref={stage} style={{ height: stageHeight }} onClickCapture={event => { if (skipClick.current) { event.preventDefault(); event.stopPropagation(); skipClick.current = false; } }} onPointerDown={event => { if (event.isPrimary && event.button === 0) { skipClick.current = false; pointer.current = { x: event.clientX, y: event.clientY, id: event.pointerId }; } }}
       onPointerCancel={() => { pointer.current = null; }} onPointerUp={event => {
         const start = pointer.current; pointer.current = null;
         if (!start || start.id !== event.pointerId) return;
@@ -101,17 +104,17 @@ export function HarumadiPageViewer({ book, entries, onClose, closing = false }: 
         <HarumadiByline shared={book.shared} authorName={harumadiPageAuthor(book.shared, retained.page)} />
       </Page>}
     </Stage>
-    <Navigation aria-label="하루마디 쪽 이동">
+    <Navigation ref={navigation} aria-label="하루마디 쪽 이동">
       <Turn type="button" disabled={closing || current === 0 || Boolean(retained)} onClick={() => turn(current - 1)}>이전 쪽</Turn>
       <span role="status">{current + 1} / {pages.length}</span>
       <Turn type="button" disabled={closing || Boolean(retained)} onClick={() => turn(current + 1)}>{lastPage ? "덮기" : "다음 쪽"}</Turn>
     </Navigation>
   </Reader>;
 }
-const Reader = styled.div`display: grid; grid-template-rows: minmax(0, 1fr) auto; flex: 1; min-height: 0; gap: 12px;`;
-const Stage = styled.div`display: grid; place-items: center; min-height: 0; min-width: 0; container-type: size; perspective: 1200px; touch-action: pan-y; user-select: none;`;
+const Reader = styled.div`display: flex; flex-direction: column; justify-content: center; flex: 1; min-height: 0; gap: ${HARUMADI_READING_LAYOUT.viewer.gap}px;`;
+const Stage = styled.div`display: grid; place-items: center; flex: none; min-height: 0; min-width: 0; container-type: size; perspective: 1200px; touch-action: pan-y; user-select: none;`;
 const Page = styled.div<{ $front: boolean; $captionSpace: number }>`position: relative; grid-area: 1 / 1; width: min(100cqw, calc((100cqh - ${({ $captionSpace }) => $captionSpace}px) * 419.53 / 595.28)); z-index: ${({ $front }) => $front ? 2 : 1}; backface-visibility: hidden; &[data-retained-page] { pointer-events: none; }`;
 const Paper = styled.div`position: relative; background: white; box-shadow: 0 7px 24px #1b222a10, -3px 0 0 #e8ede4; border: 1px solid #e4e9e0;`;
 const Edge = styled(BaseButton)<{ $side: "left" | "right" }>`position: absolute; top: 0; bottom: 0; ${({ $side }) => $side}: 0; width: 22%; min-width: 0; border-radius: 0; padding: 0; background: transparent; &:hover { background: transparent; } &:focus-visible { outline: 2px solid var(--color-brand-700); outline-offset: -2px; }`;
-const Navigation = styled.nav`display: flex; align-items: center; justify-content: space-between; gap: 12px; > span { color: var(--color-text-muted); font-size: 13px; font-variant-numeric: tabular-nums; }`;
+const Navigation = styled.nav`display: flex; flex: none; align-items: center; justify-content: space-between; gap: 12px; > span { color: var(--color-text-muted); font-size: 13px; font-variant-numeric: tabular-nums; }`;
 const Turn = styled(BaseButton)`min-height: 44px; padding: 8px; background: transparent; font-size: 14px; color: var(--color-text-muted); &:focus-visible { outline: 2px solid var(--color-brand-700); }`;
