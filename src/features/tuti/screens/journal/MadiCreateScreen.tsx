@@ -13,13 +13,14 @@ import { ImageCropDialog } from "@/features/tuti/components/ImageCropDialog";
 import { readImageMetadata } from "@/features/tuti/lib/readImageMetadata";
 import { ANDROID_BACK_EVENT } from "@/features/tuti/navigation/androidBack";
 import { getKoreanDateKey } from "@/lib/date/koreanDate";
-import { FIRST_JOURNAL_CONTENT_LIMIT, FIRST_JOURNAL_PLACE_LIMIT, FIRST_JOURNAL_TITLE_LIMIT, prepareFirstJournalDraft } from "@/shared/api/firstJournal";
+import { FIRST_JOURNAL_CONTENT_LIMIT, FIRST_JOURNAL_TITLE_LIMIT, getMadiFieldErrors, prepareFirstJournalDraft, type MadiFieldErrors } from "@/shared/api/firstJournal";
 import type { JournalEntryInput, TutiJournalEntry } from "@/shared/api/journal";
 import { MadiHarumadiSelection } from "./MadiHarumadiSelection";
 import { useMadiDraft } from "@/features/tuti/hooks/useMadiDraft";
 import { AppLoadingScreen } from "@/features/tuti/components/LoadingIndicator";
 import type { Harumadi } from "@/shared/api/harumadi";
 import { JournalPlacePicker } from "@/features/tuti/components/JournalPlacePicker";
+import { MadiFieldFeedback } from "@/features/tuti/components/MadiFieldFeedback";
 
 type Stage = "photo" | "write" | "preview";
 
@@ -54,6 +55,8 @@ export function MadiCreateScreen({ onBack, onSave, onCollection, onSaved, haruma
   const madiLabel = (saved ? savedAsFirstMadi : firstMadi && !continued) ? "첫 마디" : "새로운 마디";
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const [touched, setTouched] = useState<Partial<Record<keyof MadiFieldErrors, boolean>>>({});
+  const touch = (field: keyof MadiFieldErrors) => setTouched(current => ({ ...current, [field]: true }));
   const savingRef = useRef(false);
   const dateEdited = useRef(false);
   const selection = useRef(0);
@@ -64,6 +67,7 @@ export function MadiCreateScreen({ onBack, onSave, onCollection, onSaved, haruma
   const scroll = useRef<HTMLDivElement>(null);
   const today = getKoreanDateKey();
   const draft = prepareFirstJournalDraft({ image, title, content, date, place }, today);
+  const fieldErrors = getMadiFieldErrors({ image, title, content, date, place }, today);
   const localDraft = useMadiDraft({ ownerId: draftOwnerId, scope: "new", source: "new", enabled: !preview && !saved,
     value: { image, title, content, date, place, placeId, originalImage: false, stage },
     restore: value => {
@@ -156,6 +160,7 @@ export function MadiCreateScreen({ onBack, onSave, onCollection, onSaved, haruma
     selection.current += 1;
     setSaved(null); setImage(null); setTitle(""); setContent(""); setDate(getKoreanDateKey()); setPlace(""); setError("");
     setPlaceId(null);
+    setTouched({});
     dateEdited.current = false;
     setStage("photo");
   };
@@ -192,12 +197,20 @@ export function MadiCreateScreen({ onBack, onSave, onCollection, onSaved, haruma
       {!saved && stage === "write" && <Fields>
         {image && <SelectedPhoto><Image src={image} alt="마디에 담을 사진" fill unoptimized sizes="350px" /></SelectedPhoto>}
         <PhotoActions><TextButton type="button" onClick={() => photoInput.current?.click()}>{image ? "사진 바꾸기" : "사진 추가하기"}</TextButton>{image && <TextButton type="button" onClick={removePhoto}>사진 빼기</TextButton>}</PhotoActions>
-        <label><MadiFieldLabel>제목 <small>선택</small></MadiFieldLabel><input aria-label="마디 제목 (선택)" placeholder={MADI_FIELD_COPY.titlePlaceholder} maxLength={FIRST_JOURNAL_TITLE_LIMIT} value={title} onChange={event => setTitle(event.target.value)} /></label>
-        <label><MadiFieldLabel>기억하고 싶은 이야기 <small>{image ? "선택" : "필수"}</small></MadiFieldLabel><textarea aria-label="기억하고 싶은 이야기" placeholder={MADI_FIELD_COPY.storyPlaceholder} maxLength={FIRST_JOURNAL_CONTENT_LIMIT} value={content} onChange={(event) => setContent(event.target.value)} /></label>
-        <label><MadiFieldLabel>날짜</MadiFieldLabel><input aria-label="마디 날짜" type="date" max={today} value={date} onChange={(event) => { dateEdited.current = true; setDate(event.target.value); }} /></label>
+        <label><MadiFieldLabel>제목 <small>선택</small></MadiFieldLabel><input aria-label="마디 제목 (선택)" placeholder={MADI_FIELD_COPY.titlePlaceholder} maxLength={FIRST_JOURNAL_TITLE_LIMIT} value={title} onChange={event => setTitle(event.target.value)}
+          onBlur={() => touch("title")} aria-invalid={Boolean(touched.title && fieldErrors.title)} aria-describedby={fieldErrors.title ? "madi-title-feedback" : undefined} />
+          <MadiFieldFeedback id="madi-title-feedback" message={fieldErrors.title} touched={touched.title} /></label>
+        <label><MadiFieldLabel>기억하고 싶은 이야기 <small>{image ? "선택" : "필수"}</small></MadiFieldLabel><textarea aria-label="기억하고 싶은 이야기" placeholder={MADI_FIELD_COPY.storyPlaceholder} maxLength={FIRST_JOURNAL_CONTENT_LIMIT} value={content} onChange={(event) => setContent(event.target.value)}
+          aria-required={!image} onBlur={() => touch("content")} aria-invalid={Boolean(touched.content && fieldErrors.content)} aria-describedby={fieldErrors.content ? "madi-content-feedback" : undefined} />
+          <MadiFieldFeedback id="madi-content-feedback" message={fieldErrors.content} touched={touched.content} /></label>
+        <label><MadiFieldLabel>날짜</MadiFieldLabel><input aria-label="마디 날짜" type="date" max={today} value={date} onChange={(event) => { dateEdited.current = true; setDate(event.target.value); }}
+          aria-required="true" onBlur={() => touch("date")} aria-invalid={Boolean(touched.date && fieldErrors.date)} aria-describedby={fieldErrors.date ? "madi-date-feedback" : undefined} />
+          <MadiFieldFeedback id="madi-date-feedback" message={fieldErrors.date} touched={touched.date} /></label>
         <div><MadiFieldLabel>장소 <small>선택</small></MadiFieldLabel><JournalPlacePicker value={place} placeId={placeId}
+          onBlur={() => touch("place")} invalid={Boolean(touched.place && fieldErrors.place)} describedBy={fieldErrors.place ? "madi-place-feedback" : undefined}
           onTextChange={value => { setPlace(value); setPlaceId(null); }}
-          onChange={value => { setPlace(value.name); setPlaceId(value.id); }} /></div>
+          onChange={value => { setPlace(value.name); setPlaceId(value.id); }} />
+          <MadiFieldFeedback id="madi-place-feedback" message={fieldErrors.place} touched={touched.place} /></div>
         <PrivacyHint>민감정보나 주민등록번호 등은 남기지 말아주세요.</PrivacyHint>
       </Fields>}
       {(saved || stage === "preview") && <MemoryPage
@@ -247,7 +260,7 @@ const PhotoChoices = styled.div`display: grid; gap: 12px; margin-top: 8px;`;
 const PhotoActions = styled.div`display: flex; flex-wrap: wrap; gap: 4px 16px; margin-top: -12px;`;
 const SelectedPhoto = styled.div`position: relative; aspect-ratio: 4 / 3; border-radius: 5px; overflow: hidden; background: #f6f9fc; img { object-fit: contain; }`;
 const HiddenInput = styled.input`display: none;`;
-const PrivacyHint = styled.p`${captionStyles} margin: 0; word-break: keep-all;`;
+const PrivacyHint = styled.p`${captionStyles} margin: 0; min-width: 0; word-break: keep-all; overflow-wrap: anywhere;`;
 const Destination = styled.div`display: grid; gap: 4px; padding-bottom: 16px; border-bottom: 1px solid var(--color-border); strong { font-size: var(--ui-body-size); font-weight: 600; overflow-wrap: anywhere; } span { ${captionStyles} }`;
 const Fields = styled.div`
   display: grid; grid-template-columns: minmax(0, 1fr); min-width: 0; gap: 24px;

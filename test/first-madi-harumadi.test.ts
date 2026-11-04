@@ -36,7 +36,8 @@ test("첫 마디와 기본 하루마디를 함께 저장하고 동시 요청·�
     },
     harumadi: {
       findUnique: async ({ where }: { where: { id: string } }) => books.get(where.id) ?? null,
-      findFirst: async ({ where }: { where: { ownerId: string } }) => [...books.values()].find(b => b.ownerId === where.ownerId) ?? null,
+      findFirst: async ({ where }: { where: { ownerId?: string; id?: string; entries?: { some: { entryId: string } }; OR?: { ownerId: string }[] } }) => [...books.values()].find(b =>
+        where.id ? b.id === where.id && b.ownerId === where.OR?.[0].ownerId && b.entries.create.entryId === where.entries?.some.entryId : b.ownerId === where.ownerId) ?? null,
       create: async ({ data }: { data: Book }) => {
         assert.equal(lockedOwner, data.ownerId);
         if (failBook) throw new Error("book write failed");
@@ -80,6 +81,13 @@ test("첫 마디와 기본 하루마디를 함께 저장하고 동시 요청·�
     assert.equal(first.id, second.id);
     assert.deepEqual(first.savedHarumadi, second.savedHarumadi, "재시도에도 실제 연결된 책을 반환한다");
     assert.equal(first.savedHarumadi?.title, "우리의 작은 하루");
+    const book = [...books.values()].find(b => b.ownerId === "idempotent")!;
+    book.entries.create.entryId = "removed-link";
+    assert.equal((await createJournalEntry("idempotent", request)).savedHarumadi, null, "연결 해제 후에는 예전 담기 성공을 재표시하지 않는다");
+    book.entries.create.entryId = first.id;
+    book.ownerId = "different-owner";
+    assert.equal((await createJournalEntry("idempotent", request)).savedHarumadi, null, "접근할 수 없는 책 이름을 노출하지 않는다");
+    book.ownerId = "idempotent";
     assert.equal([...entries.values()].filter(e => e.ownerId === "idempotent").length, 1);
     assert.equal([...events.values()].filter(e => e.userId === "idempotent" && e.name === "madi_created").length, 1);
     await assert.rejects(createJournalEntry("idempotent", { ...request, content: "바뀐 내용" }), { status: 409 });

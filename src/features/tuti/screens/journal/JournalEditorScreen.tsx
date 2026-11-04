@@ -34,6 +34,8 @@ import { journalImageMaxWidth } from "@/styles/tokens";
 import { useMadiDraft } from "@/features/tuti/hooks/useMadiDraft";
 import { AppLoadingScreen } from "@/features/tuti/components/LoadingIndicator";
 import { ANDROID_BACK_EVENT } from "@/features/tuti/navigation/androidBack";
+import { FIRST_JOURNAL_TITLE_LIMIT, FIRST_JOURNAL_CONTENT_LIMIT, getMadiFieldErrors, type MadiFieldErrors } from "@/shared/api/firstJournal";
+import { MadiFieldFeedback } from "@/features/tuti/components/MadiFieldFeedback";
 
 type PhotoPlaceHint = {
   status: "loading" | "success" | "notice";
@@ -99,23 +101,26 @@ export function JournalEditorScreen({
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [sensitivePolicy, setSensitivePolicy] = useState<SensitiveJournalPolicyResponse | null>(null);
   const [policyError, setPolicyError] = useState<string | null>(null);
+  const [policyAttempt, setPolicyAttempt] = useState(0);
+  const [touched, setTouched] = useState<Partial<Record<keyof MadiFieldErrors, boolean>>>({});
+  const touch = (field: keyof MadiFieldErrors) => setTouched(current => ({ ...current, [field]: true }));
   const [sensitiveContent, setSensitiveContent] = useState<boolean | null>(entry?.sensitiveContent ?? false);
   const [sensitiveAgreed, setSensitiveAgreed] = useState(false);
   useEffect(() => {
     let disposed = false;
     void fetchSensitiveJournalPolicy().then((policy) => {
       if (!disposed) setSensitivePolicy(policy);
-    }).catch(() => { if (!disposed) setPolicyError("마디 보호 설정을 확인하지 못했어요. 화면을 다시 열어주세요."); });
+    }).catch(() => { if (!disposed) setPolicyError("마디 보호 설정을 확인하지 못했어요. 작성한 내용은 그대로 두고 다시 확인할 수 있어요."); });
     return () => { disposed = true; };
-  }, []);
+  }, [policyAttempt]);
+  const retryPolicy = () => {
+    setPolicyError(null); setSensitivePolicy(null); setPolicyAttempt(attempt => attempt + 1);
+  };
   const sensitiveReady = canSubmitJournalClassification(sensitivePolicy, sensitiveContent, sensitiveAgreed);
   const privateStorageAvailable = !!sensitivePolicy && canStoreSensitiveJournal(sensitivePolicy);
-  const canSubmit = Boolean(
-    title.trim() ||
-      body.trim() ||
-      imageUrl ||
-      placeName.trim(),
-  );
+  // 기존에 제목·장소만 남긴 마디도 수정할 수 있게 허용 조건은 보존한다.
+  const fieldErrors = getMadiFieldErrors({ title, content: body, image: imageUrl, date: visitDate, place: placeName }, toDateInputValue(new Date()), true);
+  const canSubmit = Object.keys(fieldErrors).length === 0;
   const originalImage = imageUrl === (entry?.image ?? null);
   const draftSource = entry ? JSON.stringify([entry.title, entry.content, entry.visitedAt, entry.placeId, entry.placeName, Boolean(entry.image)]) : "new";
   const localDraft = useMadiDraft({ ownerId: draftOwnerId, scope: entry?.id ?? "new", source: draftSource,
@@ -288,6 +293,7 @@ export function JournalEditorScreen({
     setSubmitError(null);
     setSensitiveContent(entry?.sensitiveContent ?? false);
     setSensitiveAgreed(false);
+    setTouched({});
   };
 
   const removePhoto = () => {
@@ -378,21 +384,28 @@ export function JournalEditorScreen({
         <EditorCopy>
           <EditorField><MadiFieldLabel>제목 <small>선택</small></MadiFieldLabel>
           <TitleInput aria-label="마디 제목 (선택)" placeholder={MADI_FIELD_COPY.titlePlaceholder}
-            value={title} onChange={(event) => setTitle(event.target.value)} />
+            maxLength={FIRST_JOURNAL_TITLE_LIMIT} value={title} onChange={(event) => setTitle(event.target.value)}
+            onBlur={() => touch("title")} aria-invalid={Boolean(touched.title && fieldErrors.title)} aria-describedby={fieldErrors.title ? "edit-title-feedback" : undefined} />
+            <MadiFieldFeedback id="edit-title-feedback" message={fieldErrors.title} touched={touched.title} />
           </EditorField>
-          <EditorField><MadiFieldLabel>기억하고 싶은 이야기 {imageUrl && <small>선택</small>}</MadiFieldLabel>
+          <EditorField><MadiFieldLabel>기억하고 싶은 이야기 <small>선택</small></MadiFieldLabel>
           <BodyInput aria-label="기억하고 싶은 이야기" placeholder={MADI_FIELD_COPY.storyPlaceholder}
-            value={body} onChange={(event) => setBody(event.target.value)} />
+            maxLength={FIRST_JOURNAL_CONTENT_LIMIT} value={body} onChange={(event) => setBody(event.target.value)}
+            onBlur={() => touch("content")} aria-invalid={Boolean(touched.content && fieldErrors.content)} aria-describedby={fieldErrors.content ? "edit-content-feedback" : undefined} />
+            <MadiFieldFeedback id="edit-content-feedback" message={fieldErrors.content} touched={touched.content} />
           </EditorField>
         </EditorCopy>
         <EditorField><MadiFieldLabel>날짜</MadiFieldLabel>
           <VisitDateInput type="date" aria-label="마디 날짜" max={toDateInputValue(new Date())} value={visitDate}
-            onChange={(event) => { hasEditedVisitDateRef.current = true; setVisitDate(event.target.value); }} />
+            onChange={(event) => { hasEditedVisitDateRef.current = true; setVisitDate(event.target.value); }}
+            aria-required="true" onBlur={() => touch("date")} aria-invalid={Boolean(touched.date && fieldErrors.date)} aria-describedby={fieldErrors.date ? "edit-date-feedback" : undefined} />
+            <MadiFieldFeedback id="edit-date-feedback" message={fieldErrors.date} touched={touched.date} />
         </EditorField>
         <PlaceField><MadiFieldLabel>장소 <small>선택</small></MadiFieldLabel>
           <JournalPlacePicker
           placeId={placeId}
           value={placeName}
+          onBlur={() => touch("place")} invalid={Boolean(touched.place && fieldErrors.place)} describedBy={fieldErrors.place ? "edit-place-feedback" : undefined}
           onTextChange={value => {
             hasEditedPlaceRef.current = true;
             setPlaceId(null); setPlaceName(value); setPhotoPlaceHint(null);
@@ -411,6 +424,7 @@ export function JournalEditorScreen({
             setPhotoPlaceHint(null);
           }}
           />
+          <MadiFieldFeedback id="edit-place-feedback" message={fieldErrors.place} touched={touched.place} />
         </PlaceField>
           <JournalAdditionalSettings available={privateStorageAvailable} initiallyOpen={entry?.sensitiveContent === true} includesSensitive={sensitiveContent === true}>
           <SensitiveSection>
@@ -442,7 +456,8 @@ export function JournalEditorScreen({
       </Editor>
 
       <EditorFooter>
-        {policyError && <EditorError role="alert">{policyError}</EditorError>}
+        {policyError && <div><EditorError role="alert">{policyError}</EditorError><TextButton type="button" onClick={retryPolicy}>보호 설정 다시 확인하기</TextButton></div>}
+        {!sensitivePolicy && !policyError && <p role="status">마디 보호 설정을 확인하고 있어요.</p>}
         {localDraft.notice && <p role="status">{localDraft.notice}</p>}
         {submitError && <EditorError role="alert">{submitError}</EditorError>}
         <SubmitButton

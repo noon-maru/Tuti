@@ -14,7 +14,7 @@ export async function lockSharingSecurity(tx: Prisma.TransactionClient) {
 }
 export async function requireHarumadiAccess(tx: Prisma.TransactionClient, userId: string, id: string, manage = false) {
   const book = await tx.harumadi.findUnique({ where: { id }, select: {
-    id: true, ownerId: true, revision: true, accessRevision: true, collaborationStartedAt: true,
+    id: true, title: true, ownerId: true, revision: true, accessRevision: true, collaborationStartedAt: true,
     members: { where: { userId, endedAt: null }, select: { id: true } },
   } });
   if (!book || (book.ownerId !== userId && (!harumadiTogetherEnabled() || manage || !book.members.length))) {

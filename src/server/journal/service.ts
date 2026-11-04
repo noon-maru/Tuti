@@ -25,7 +25,7 @@ import type {
 import { isCurrentJournalPublicationPolicy } from "@/shared/legal/journalPublicationPolicy";
 import { commitPrivacyReplayReceipt, preparePrivacyReplayReceipt } from "@/server/legal/privacyReplayLedger";
 import { createDefaultHarumadiForFirstMadi } from "@/server/harumadi/firstMadi";
-import { lockHarumadi, requireHarumadiAccess, requireTogether } from "@/server/harumadi/access";
+import { lockHarumadi, requireHarumadiAccess, requireTogether, harumadiTogetherEnabled } from "@/server/harumadi/access";
 import { HarumadiError } from "@/server/harumadi/errors";
 import { enqueueDataCleanup, processDataCleanupJob } from "@/server/legal/dataCleanup";
 
@@ -90,7 +90,11 @@ export async function createJournalEntry(
           const prior = receipt.entityId ? await tx.journalEntry.findFirst({ where: { id: receipt.entityId, ownerId }, select: journalEntrySelect }) : null;
           if (!prior) throw new HarumadiError("이미 처리되거나 삭제된 저장 요청이에요. 새로 작성해주세요.", 409);
           assertSensitiveJournalReadable(prior);
-          const book = receipt.bookId ? await tx.harumadi.findUnique({ where: { id: receipt.bookId }, select: { id: true, title: true } }) : null;
+          // 연결이 해제되거나 참여 권한을 잃었다면 예전 책의 이름을 다시 노출하지 않는다.
+          const book = receipt.bookId ? await tx.harumadi.findFirst({ where: {
+            id: receipt.bookId, entries: { some: { entryId: prior.id } },
+            OR: [{ ownerId }, ...(harumadiTogetherEnabled() ? [{ members: { some: { userId: ownerId, endedAt: null } } }] : [])],
+          }, select: { id: true, title: true } }) : null;
           return { ...prior, savedHarumadi: book ? { id: book.id, title: book.title } : null };
         }
       }

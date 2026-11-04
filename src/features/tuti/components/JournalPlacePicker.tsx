@@ -19,7 +19,7 @@ import type {
   PlaceSearchResponse,
   PlaceSearchResult,
 } from "@/shared/api/placeSearch";
-import { BaseButton } from "@/features/tuti/components/buttons";
+import { BaseButton, TextButton } from "@/features/tuti/components/buttons";
 
 export function JournalPlacePicker({
   placeId,
@@ -28,6 +28,7 @@ export function JournalPlacePicker({
   helperStatus,
   onChange,
   onTextChange,
+  invalid, describedBy, onBlur,
 }: {
   placeId: string | null;
   value: string;
@@ -35,6 +36,9 @@ export function JournalPlacePicker({
   helperStatus?: "loading" | "success" | "notice";
   onChange: (place: PlaceSearchResult) => void;
   onTextChange?: (value: string) => void;
+  invalid?: boolean;
+  describedBy?: string;
+  onBlur?: () => void;
 }) {
   const id = useId();
   const [open, setOpen] = useState(false);
@@ -84,8 +88,9 @@ export function JournalPlacePicker({
     <>
       <PlaceField>
         {onTextChange && <PlaceInput aria-label="장소 (선택)" value={value} maxLength={FIRST_JOURNAL_PLACE_LIMIT}
+          aria-invalid={invalid} aria-describedby={describedBy} onBlur={onBlur}
           placeholder={MADI_FIELD_COPY.placePlaceholder} onChange={event => onTextChange(event.target.value)} />}
-        <PlaceTrigger
+        <PlaceActions><PlaceTrigger
           ref={triggerRef}
           type="button"
           aria-haspopup="dialog"
@@ -100,6 +105,8 @@ export function JournalPlacePicker({
             {onTextChange ? "장소 검색" : value || "장소 추가"}
           </span>
         </PlaceTrigger>
+        {onTextChange && value && <TextButton type="button" onClick={() => onTextChange("")}>장소 빼기</TextButton>}
+        </PlaceActions>
         {helperText && (
           <PlaceHelper aria-live="polite" data-status={helperStatus}>
             {helperStatus === "loading" && <HelperDot aria-hidden="true" />}
@@ -181,6 +188,7 @@ const PlaceField = styled.div`
   gap: var(--space-1);
 `;
 const PlaceInput = styled.input`${inputControlStyles}`;
+const PlaceActions = styled.div`display: flex; flex-wrap: wrap; align-items: center; gap: 4px 16px;`;
 
 const PlacePickerIcon = styled(TutiPlaceIcon)`
   transform: translateY(-1px);

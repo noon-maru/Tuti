@@ -1,10 +1,11 @@
 import type { JournalEntryInput } from "@/shared/api/journal";
 import { LIFECYCLE_UUID } from "@/shared/api/lifecycle";
+import { FIRST_JOURNAL_TITLE_LIMIT, FIRST_JOURNAL_CONTENT_LIMIT, FIRST_JOURNAL_PLACE_LIMIT } from "@/shared/api/firstJournal";
 
 const MAX_IMAGE_INPUT_LENGTH = 7 * 1024 * 1024;
-const MAX_TITLE_LENGTH = 80;
-const MAX_CONTENT_LENGTH = 4_000;
-const MAX_PLACE_NAME_LENGTH = 120;
+const MAX_TITLE_LENGTH = FIRST_JOURNAL_TITLE_LIMIT;
+const MAX_CONTENT_LENGTH = FIRST_JOURNAL_CONTENT_LIMIT;
+const MAX_PLACE_NAME_LENGTH = FIRST_JOURNAL_PLACE_LIMIT;
 
 export function parseJournalEntryInput(
   value: unknown,
