@@ -36,9 +36,7 @@ export function SettingsFlow() {
     <SettingsScreen
       accountConnected={Boolean(account)}
       accountLabel={account?.displayName ?? account?.email}
-      notificationsAvailable={
-        process.env.NEXT_PUBLIC_TUTI_TARGET === "app"
-      }
+      notificationsAvailable={true}
       cardDisplayPreferences={cardDisplayPreferences}
       onBack={() => router.replace("/")}
       onNavigate={(destination) => router.push(settingsRoutes[destination])}

@@ -14,6 +14,7 @@ import type {
   RegisterPushDeviceRequest,
 } from "@/shared/api/push";
 import { TUTI_SERVICE_PUSH_CHANNEL_ID } from "@/shared/notifications/pushChannel";
+import * as web from "./webPushNotifications";
 
 const INSTALLATION_ID_KEY = "tuti-push-installation-id";
 const REGISTRATION_TIMEOUT_MS = 15_000;
@@ -52,10 +53,11 @@ export type PushNotificationStatus = {
 
 export function supportsServerPushNotifications() {
   const platform = Capacitor.getPlatform();
-  return platform === "android" || platform === "ios";
+  return platform === "android" || platform === "ios" || web.webPushAvailability() === "supported";
 }
 
 export async function getPushNotificationStatus(): Promise<PushNotificationStatus> {
+  if (!Capacitor.isNativePlatform()) return web.getWebPushStatus();
   if (!supportsServerPushNotifications()) {
     return { supported: false, permission: "unsupported" };
   }
@@ -70,7 +72,12 @@ export async function getPushNotificationStatus(): Promise<PushNotificationStatu
   return { supported: true, permission: receive, registered };
 }
 
-export async function enableServerPushNotifications() {
+export function enableServerPushNotifications() {
+  if (!Capacitor.isNativePlatform()) return web.enableWebPushNotifications();
+  return enableNativePushNotifications();
+}
+
+async function enableNativePushNotifications() {
   if (!supportsServerPushNotifications()) return { status: "unsupported" } as const;
   const owner = await ensureSession();
   const registered = await privacy.enable(owner.userId, async (assertActive) => {
@@ -94,6 +101,7 @@ function reportPermission(action: string, ownerId: string) {
 }
 
 export async function syncServerPushRegistration() {
+  if (!Capacitor.isNativePlatform()) return web.syncWebPushRegistration();
   if (!supportsServerPushNotifications()) return false;
   const owner = getSessionSnapshot();
   if (!owner) return null;
@@ -106,6 +114,7 @@ export async function syncServerPushRegistration() {
 }
 
 export async function disableServerPushNotifications() {
+  if (!Capacitor.isNativePlatform()) return web.disableWebPushNotifications();
   if (!supportsServerPushNotifications()) return;
   const owner = getSessionSnapshot();
   await privacy.revoke(owner?.userId ?? null);
@@ -165,6 +174,7 @@ function withNativeTimeout<T>(operation: Promise<T>): Promise<T> {
 }
 
 export async function recoverServerPushPrivacy() {
+  if (!Capacitor.isNativePlatform()) return web.recoverWebPushPrivacy();
   if (!supportsServerPushNotifications()) return false;
   const state = await preferencesStorage.getItem(PRIVACY_STATE_KEY);
   const installation = await Preferences.get({ key: INSTALLATION_ID_KEY });
@@ -179,10 +189,12 @@ export async function recoverServerPushPrivacy() {
 }
 
 export async function preparePushForAccountDeletion(ownerId: string) {
+  if (!Capacitor.isNativePlatform()) return web.prepareWebPushForDeletion(ownerId);
   if (supportsServerPushNotifications()) await privacy.prepareAccountDeletion(ownerId);
 }
 
 export async function finishPushAfterAccountDeletion() {
+  if (!Capacitor.isNativePlatform()) return web.finishWebPushAfterDeletion();
   if (!supportsServerPushNotifications()) return true;
   try { await withNativeTimeout(privacy.finishAccountDeletion()); return true; }
   catch { return false; } // 영구 pending 기록을 남겨 다음 실행 시 재시도한다.

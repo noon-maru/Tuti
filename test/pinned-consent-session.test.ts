@@ -57,7 +57,7 @@ test("위치 동의 요청을 다른 계정으로 자동 재전송하지 않는�
     });
     const result = await deleteAccount();
     assert.equal(result.deleted, true);
-    assert.equal(result.pushCleanupPending, false); // 웹은 네이티브 정리 대상이 아니다.
+    assert.equal(result.pushCleanupPending, false); // 브라우저·네이티브 런타임 없는 시험에는 정리 대상이 없다.
     assert.equal(getSessionSnapshot(), null);
     await assert.rejects(fetchWithPinnedSession("push/devices", { method: "DELETE" }, replacement.userId), /계정이 변경/);
     assert.deepEqual(requests, [apiUrl("account")]);

@@ -5,13 +5,16 @@ import { NotificationSettingsScreen } from "@/features/tuti/screens/notification
 import { readNotificationSettings, saveNotificationSettings } from "@/lib/notificationSettings";
 import { DEFAULT_NOTIFICATION_SETTINGS, type NotificationSettings } from "@/shared/notifications/preferences";
 import { disableDailyTutiReminder } from "../notifications/localNotifications";
-import { enableServerPushNotifications, disableServerPushNotifications, getPushNotificationStatus, supportsServerPushNotifications, type PushNotificationStatus } from "../notifications/pushNotifications";
+import { enableServerPushNotifications, disableServerPushNotifications, getPushNotificationStatus, type PushNotificationStatus } from "../notifications/pushNotifications";
+import { usePushEnvironment } from "../hooks/usePushEnvironment";
 import { getSessionSnapshot, subscribeToSession } from "@/lib/auth/session";
 
 export function NotificationSettingsFlow() {
   const router = useRouter();
   const [settings, setSettings] = useState(DEFAULT_NOTIFICATION_SETTINGS);
   const [status, setStatus] = useState<PushNotificationStatus | null>(null);
+  const pushEnvironment = usePushEnvironment();
+  const browser = pushEnvironment === "native" || pushEnvironment === "checking" ? null : pushEnvironment;
   const [busy, setBusy] = useState(true);
   const [loaded, setLoaded] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
@@ -47,7 +50,7 @@ export function NotificationSettingsFlow() {
     try {
       const next = { ...settings, ...patch, timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone || settings.timeZone };
       if (patch.newsEnabled === true || patch.reminderEnabled === true) {
-        if ((await enableServerPushNotifications()).status !== "registered") { setMessage("기기 설정에서 Tuti 알림을 허용해주세요."); return; }
+        if ((await enableServerPushNotifications()).status !== "registered") { setMessage(browser ? "브라우저의 사이트 설정에서 Tuti 알림을 허용해주세요." : "기기 설정에서 Tuti 알림을 허용해주세요."); return; }
         registeredHere = true;
       }
       const saved = await saveNotificationSettings(next, owner);
@@ -66,6 +69,6 @@ export function NotificationSettingsFlow() {
       if (refreshPending.current) { refreshPending.current = false; setRefreshVersion(value => value + 1); }
     }
   };
-  return <NotificationSettingsScreen settings={settings} supported={supportsServerPushNotifications()} status={status} busy={busy || !loaded} message={message}
+  return <NotificationSettingsScreen settings={settings} supported={status?.supported ?? false} browser={browser} status={status} busy={busy || !loaded} message={message}
     onBack={() => router.back()} onChange={change} />;
 }

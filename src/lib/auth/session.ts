@@ -208,6 +208,8 @@ export async function completeOAuthLogin(
 
 export async function logoutAccount() {
   const currentSession = await ensureSession();
+  // 인증을 폐기하기 전에 브라우저의 구독부터 정리한다. 실패해도 브라우저 수신은 중단하고 다음 세션에서 재시도한다.
+  await import("@/features/tuti/notifications/webPushNotifications").then(module => module.suspendWebPushForSessionChange()).catch(() => {});
   const response = await fetchWithToken(
     "auth/logout",
     currentSession.accessToken,
@@ -400,6 +402,7 @@ async function loadOrCreateSession() {
 async function clearStoredSession(expected?: TutiSession) {
   if (expected && (sessionSnapshot?.userId !== expected.userId || sessionSnapshot.accessToken !== expected.accessToken)) return;
   const previousUserId = sessionSnapshot?.userId;
+  if (previousUserId) await import("@/features/tuti/notifications/webPushNotifications").then(module => module.suspendWebPushForSessionChange()).catch(() => {});
   if (previousUserId) await harumadiReadCache.clearOwner(previousUserId).catch(() => {});
   if (previousUserId) await import("../lifecycle").then(module => module.clearLifecycleClient(previousUserId)).catch(() => {});
   if (previousUserId) await madiDraftStorage.clearOwner(previousUserId).catch(() => {});
@@ -413,6 +416,7 @@ async function clearStoredSession(expected?: TutiSession) {
 
 async function storeSession(session: TutiSession) {
   const previousUserId = sessionSnapshot?.userId;
+  if (previousUserId && previousUserId !== session.userId) await import("@/features/tuti/notifications/webPushNotifications").then(module => module.suspendWebPushForSessionChange()).catch(() => {});
   if (previousUserId && (previousUserId !== session.userId || sessionSnapshot?.accessToken !== session.accessToken)) await harumadiReadCache.clearOwner(previousUserId).catch(() => {});
   if (previousUserId && previousUserId !== session.userId) await serviceTermsAcceptanceCache.clear(previousUserId);
   if (previousUserId && previousUserId !== session.userId) await import("../lifecycle").then(module => module.clearLifecycleClient(previousUserId)).catch(() => {});

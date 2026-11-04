@@ -1,7 +1,9 @@
 {
   "name": "Tuti",
   "short_name": "Tuti",
-  "description": "오늘 가능한 만큼만, 잠깐 다른 공기로.",
+  "description": "사진과 짧은 이야기로 일상을 남기고, 하루마디로 모아보세요.",
+  "id": "/",
+  "scope": "/",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#FFFFFF",

@@ -337,7 +337,9 @@ function getNotificationHeadline(data: AdminNotificationsResponse) {
 
 function getConfigurationLabel(configuration: {
   enabled: boolean;
+  configured?: boolean;
 }) {
+  if (configuration.enabled && configuration.configured === false) return "웹 푸시 키·연락처 설정을 확인해주세요.";
   if (configuration.enabled) return "수신을 선택한 모든 사용자에게 발송 가능";
   return "서버 발송이 비활성화된 상태";
 }
