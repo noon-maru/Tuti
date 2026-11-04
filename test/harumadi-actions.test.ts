@@ -25,7 +25,10 @@ test("책장은 점 세 개 메뉴에서만 공동작성을 열고 메뉴 선택
   assert.match(shelf, /label: action.label, singleLine: true/);
   assert.match(menu, /\$singleLine \? "nowrap" : "pre-line"/);
   assert.match(shelf, /onSelect: trigger => onOpen\(book, trigger, action.mode\)/);
-  assert.match(flow, /harumadi\?\.togetherEnabled && mode === "pages" && <TogetherEntry/);
+  assert.match(flow, /mode === "pages" && harumadi && <ReaderTools/);
+  const readerTools = flow.slice(flow.indexOf('<ReaderTools aria-label="하루마디 채우기">'), flow.indexOf("</ReaderTools>"));
+  assert.match(readerTools, /harumadi.togetherEnabled && <TogetherEntry/);
+  assert.match(readerTools, /disabled=\{busy \|\| readOnly\} onClick=\{\(\) => setMode\("together"\)\}/);
   assert.doesNotMatch(flow, /함께 채우기 · 참여자 관리/);
   assert.match(flow, /mode === "together" && harumadi \? readOnly \?/);
   assert.doesNotMatch(home, /changeTogether|createInvite/);
