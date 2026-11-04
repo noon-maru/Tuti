@@ -60,3 +60,39 @@ test("책장도 ScreenFrame 여백을 쓰며 좁은 화면에서 보기 이름�
   assert.match(views, /max-width: 390px/); assert.match(views, /svg \{ display: none/);
   assert.match(views, /min-height: 44px/);
 });
+
+test("홈은 원래 제목을 작게 유지하고 권수를 제목과 묶어 책에 공간을 양보한다", () => {
+  const home = source("src/features/tuti/flows/LibraryHomeFlow.tsx");
+  assert.match(home, /<Header><Heading><h1 id="library-title">나의 하루마디<\/h1>/);
+  assert.match(home, /query\.isSuccess && <ShelfCount>[\s\S]*?<\/ShelfCount>\}[\s\S]*?<\/Heading>/);
+  assert.equal((home.match(/<ShelfCount>/g) ?? []).length, 1);
+  assert.match(home, /h1 \{ \$\{screenTitleStyles\} font-size: 1\.25rem; \}/);
+  assert.match(home, /--screen-padding-top: calc\(var\(--space-6\) \+ var\(--app-safe-area-top, 0px\)\)/);
+  assert.match(home, /max-height: 620px[\s\S]*?--screen-padding-top: calc\(var\(--space-4\)/);
+  const heading = home.match(/const Heading = styled\.div`([^`]+)`/)![1];
+  assert.match(heading, /flex-wrap: wrap/);
+  assert.match(heading, /min-width: 0/);
+});
+
+test("홈 생성·보관함 글자는 14px 역할로 분리하되 누름 영역과 경로를 유지한다", () => {
+  const home = source("src/features/tuti/flows/LibraryHomeFlow.tsx");
+  const create = home.match(/const CreateHarumadi = styled\(TextAction\)`([^`]+)`/)![1];
+  const link = home.match(/const LibraryLink = styled\(TextAction\)`([^`]+)`/)![1];
+  for (const css of [create, link]) {
+    assert.match(css, /font-size: \.875rem/);
+    assert.match(css, /min-height: 44px/);
+    assert.match(css, /line-height: 1\.5/);
+  }
+  assert.match(create, /font-weight: 500/);
+  assert.match(link, /font-weight: 400/);
+  assert.match(home, /const TextAction = [\s\S]*?:focus-visible/);
+  assert.match(home, /const Toolbar = [\s\S]*?flex-wrap: wrap/);
+  assert.match(home, /max-width: 420px[\s\S]*?\[role="group"\] svg \{ display: none/);
+  assert.match(home, /const openEditor = \(\) => router.push\("\/harumadi"\)/);
+  const links = home.match(/<LibraryLinks\b[\s\S]*?<\/LibraryLinks>/)![0];
+  assert.match(links, /\/madi/);
+  assert.match(links, /\/harumadi\/pdfs/);
+  assert.equal((links.match(/<ChevronRight size=\{14\} aria-hidden="true"/g) ?? []).length, 2);
+  assert.doesNotMatch(home.match(/const LibraryLinks = styled\.nav`([^`]+)`/)![1], /border-top/);
+  assert.match(source("src/features/tuti/components/MainNavigation.tsx"), /border-top: 1px solid var\(--color-border\)/);
+});
