@@ -11,7 +11,9 @@ type HistoryHost = {
 export function createHarumadiHistory<T>(host: HistoryHost, owner: string, change: (value: T | null) => void) {
   const href = host.location.href;
   const books = new Map<number, T>();
-  let sequence = 0, closing = false;
+  let sequence = 0, closing = false, disposed = false, checking = false;
+  let shownToken: number | null = null;
+  let closeGuard: (() => Promise<boolean>) | null = null;
   const state = () => host.history.state && typeof host.history.state === "object" ? host.history.state : {};
   const marker = (): Marker | undefined => state()[KEY];
   const strip = () => {
@@ -19,10 +21,31 @@ export function createHarumadiHistory<T>(host: HistoryHost, owner: string, chang
   };
   // 새 실행·계정에서는 예전 실행의 책 내용을 복원하지 않는다.
   if (marker()) strip();
+  const close = () => {
+    if (closing) return;
+    shownToken = null;
+    change(null);
+    const current = marker();
+    if (host.location.href === href && current?.owner === owner && books.has(current.token)) {
+      closing = true; host.history.back();
+    }
+  };
   const pop = () => {
-    closing = false;
     const current = marker();
     const book = host.location.href === href && current?.owner === owner ? books.get(current.token) : undefined;
+    if (!closing && closeGuard && shownToken !== null && current?.token !== shownToken && host.location.href === href) {
+      // Restore the current book before asking; cancel must preserve both editor and router state.
+      const heldToken = shownToken;
+      host.history.pushState({ ...state(), [KEY]: { owner, token: heldToken } }, "");
+      if (checking) return;
+      checking = true;
+      const guard = closeGuard;
+      void Promise.resolve().then(guard).then(allowed => { if (allowed && !disposed && shownToken === heldToken) close(); })
+        .catch(() => {}).finally(() => { checking = false; });
+      return;
+    }
+    closing = false;
+    shownToken = book ? current!.token : null;
     change(book ?? null);
   };
   host.addEventListener("popstate", pop);
@@ -31,18 +54,14 @@ export function createHarumadiHistory<T>(host: HistoryHost, owner: string, chang
       closing = false;
       const token = ++sequence;
       books.set(token, value);
+      shownToken = token;
       host.history.pushState({ ...state(), [KEY]: { owner, token } }, "");
       change(value);
     },
-    close() {
-      if (closing) return;
-      change(null);
-      const current = marker();
-      if (host.location.href === href && current?.owner === owner && books.has(current.token)) {
-        closing = true; host.history.back();
-      }
-    },
+    close,
+    setCloseGuard(guard: (() => Promise<boolean>) | null) { closeGuard = guard; },
     dispose() {
+      disposed = true; closeGuard = null;
       host.removeEventListener("popstate", pop);
       if (marker()?.owner === owner) strip();
       books.clear();

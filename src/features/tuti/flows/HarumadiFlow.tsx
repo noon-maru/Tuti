@@ -40,16 +40,17 @@ import { HARUMADI_BACK_COVER_TEXT_LIMIT, LEGACY_HARUMADI_BACK_COVER_TEXT, isHaru
 
 import { initialHarumadiMode, type HarumadiOpeningMode } from "../navigation/harumadiActions";
 import { readerManagementActions } from "@/shared/harumadi/readerActions";
+import { harumadiEditsDirty } from "@/shared/harumadi/editState";
 import { useCachedHarumadi } from "../hooks/useCachedHarumadi";
 
-type ReaderOptions = { bookId?: string; initialMode?: HarumadiOpeningMode; openingOrigin?: HarumadiBookRect; onClose?: () => void };
-export function HarumadiFlow({ bookId, initialMode, openingOrigin, onClose }: ReaderOptions = {}) {
+type ReaderOptions = { bookId?: string; initialMode?: HarumadiOpeningMode; openingOrigin?: HarumadiBookRect; onClose?: () => void; registerCloseGuard?: (guard: (() => Promise<boolean>) | null) => void };
+export function HarumadiFlow({ bookId, initialMode, openingOrigin, onClose, registerCloseGuard }: ReaderOptions = {}) {
   const session = useSession();
   const routeId = useSearchParams().get("harumadiId");
   const id = bookId ?? routeId;
-  return session ? <HarumadiLoader key={`${session.userId}:${id ?? "new"}`} owner={session.userId} id={id} initialMode={initialMode} openingOrigin={openingOrigin} onClose={onClose} /> : <AppLoadingScreen />;
+  return session ? <HarumadiLoader key={`${session.userId}:${id ?? "new"}`} owner={session.userId} id={id} initialMode={initialMode} openingOrigin={openingOrigin} onClose={onClose} registerCloseGuard={registerCloseGuard} /> : <AppLoadingScreen />;
 }
-function HarumadiLoader({ owner, id, initialMode, openingOrigin, onClose }: { owner: string; id: string | null } & ReaderOptions) {
+function HarumadiLoader({ owner, id, initialMode, openingOrigin, onClose, registerCloseGuard }: { owner: string; id: string | null } & ReaderOptions) {
   const router = useRouter();
   const query = useQuery({ queryKey: ["harumadi-content", owner, id], queryFn: ({ signal }) => fetchHarumadiContent(owner, id!, signal),
     enabled: Boolean(id), retry: false, staleTime: 0, refetchOnMount: "always", refetchOnWindowFocus: true,
@@ -61,10 +62,10 @@ function HarumadiLoader({ owner, id, initialMode, openingOrigin, onClose }: { ow
   if (id && !readable && (query.isPending || query.isFetching)) return <Frame>{onClose && <Header $reading><BackButton aria-label="내 책장으로 돌아가기" onClick={onClose} /></Header>}<AppLoadingScreen label="하루마디를 열고 있어요." /></Frame>;
   if (id && !readable) return <Frame><Header $reading><BackButton aria-label="내 책장으로 돌아가기" onClick={onClose ?? (() => router.replace("/"))} /></Header><Body $reading={false} role="alert"><h1>하루마디를 열지 못했어요.</h1><p>{query.error?.message ?? "연결을 확인하고 다시 열어주세요."}</p><PrimaryButton onClick={() => void query.refetch()}>다시 불러오기</PrimaryButton></Body></Frame>;
   return <HarumadiEditor key={id ?? "new"} owner={owner} initial={query.data?.content.harumadi} read={query.data}
-    verified={verified} refreshing={query.isFetching} onRefresh={() => void query.refetch()} initialMode={initialMode} openingOrigin={openingOrigin} onClose={onClose} />;
+    verified={verified} refreshing={query.isFetching} onRefresh={() => void query.refetch()} initialMode={initialMode} openingOrigin={openingOrigin} onClose={onClose} registerCloseGuard={registerCloseGuard} />;
 }
 
-function HarumadiEditor({ owner, initial, read, verified, refreshing, onRefresh, initialMode, openingOrigin, onClose }: {
+function HarumadiEditor({ owner, initial, read, verified, refreshing, onRefresh, initialMode, openingOrigin, onClose, registerCloseGuard }: {
   owner: string; initial?: Harumadi; read?: HarumadiRead; verified: boolean; refreshing: boolean; onRefresh: () => void;
 } & ReaderOptions) {
   const router = useRouter(); const client = useQueryClient();
@@ -110,6 +111,25 @@ function HarumadiEditor({ owner, initial, read, verified, refreshing, onRefresh,
   }, enabled: Boolean(harumadi) && (mode === "selection" || Boolean(addEntryId)), refetchOnWindowFocus: false });
   const isFirstMadi = read ? read.content.totalRecordCount === 0 : entries.isSuccess && entries.data.length === 0;
   const chosen = useMemo(() => orderByEntryIds((read?.content.entries ?? []).filter(entry => harumadi?.entryIds.includes(entry.id)), harumadi?.entryIds ?? []), [read, harumadi]);
+  const dirty = harumadiEditsDirty(harumadi, mode, settings, selected, orderedIds, chosen.filter(entry => entry.authorId === owner).map(entry => entry.id));
+  const leavePending = useRef(false);
+  const allowLeave = useCallback(async () => {
+    if (busy || closingRef.current || leavePending.current) return false;
+    if (!dirty) return true;
+    leavePending.current = true;
+    try { return await confirmAction("저장하지 않은 변경사항이 있어요. 버리고 나갈까요?", { title: "편집을 마칠까요?", confirmLabel: "변경사항 버리기", cancelLabel: "계속 편집", tone: "danger" }); }
+    finally { leavePending.current = false; }
+  }, [busy, dirty]);
+  useEffect(() => {
+    registerCloseGuard?.(dirty || busy ? allowLeave : null);
+    return () => registerCloseGuard?.(null);
+  }, [registerCloseGuard, dirty, busy, allowLeave]);
+  useEffect(() => {
+    if (!dirty && !busy) return;
+    const protect = (event: BeforeUnloadEvent) => { event.preventDefault(); event.returnValue = ""; };
+    window.addEventListener("beforeunload", protect);
+    return () => window.removeEventListener("beforeunload", protect);
+  }, [dirty, busy]);
   const finishClose = useCallback(() => { if (onClose) onClose(); else router.replace("/"); }, [onClose, router]);
   const closeToLibrary = useCallback(() => {
     if (busy || closingRef.current) return;
@@ -194,7 +214,14 @@ function HarumadiEditor({ owner, initial, read, verified, refreshing, onRefresh,
     freeformNonSensitiveConfirmed: confirmed,
   } : null, [harumadi, chosen, confirmed]);
   const selectRecords = () => { if (readOnly) return; setSelected(chosen.filter(entry => !harumadi?.shared || entry.authorId === owner).map(entry => entry.id)); setError(""); setMode("selection"); };
-  const back = useCallback(() => { if (busy || closingRef.current) return; if (harumadi && mode !== "pages" && !(onClose && initialMode && initialMode !== "pages" && mode === initialMode)) { setMode("pages"); setSettings(harumadi); setError(""); } else closeToLibrary(); }, [busy, harumadi, mode, onClose, initialMode, closeToLibrary]);
+  const back = useCallback(() => {
+    if (busy || closingRef.current) return;
+    void allowLeave().then(allowed => {
+      if (!allowed) return;
+      if (harumadi && mode !== "pages" && !(onClose && initialMode && initialMode !== "pages" && mode === initialMode)) { setMode("pages"); setSettings(harumadi); setError(""); }
+      else closeToLibrary();
+    });
+  }, [busy, harumadi, mode, onClose, initialMode, closeToLibrary, allowLeave]);
   useEffect(() => {
     const handleBack = (event: Event) => { event.preventDefault(); back(); };
     window.addEventListener(ANDROID_BACK_EVENT, handleBack);

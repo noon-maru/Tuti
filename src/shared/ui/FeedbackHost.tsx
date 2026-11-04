@@ -36,7 +36,7 @@ function Confirmation({ request }: { request: NonNullable<FeedbackSnapshot["conf
   return <AppDialogFrame titleId={`${id}-title`} descriptionId={`${id}-description`} initialFocus={cancel} onCancel={close}>
     <h2 id={`${id}-title`}>{request.title ?? "계속할까요?"}</h2>
     <p id={`${id}-description`}>{request.message}</p>
-    <Actions><Cancel ref={cancel} type="button" onClick={close}>취소</Cancel><Accept $danger={request.tone === "danger"} type="button" onClick={() => feedback.answer(request.id, true)}>{request.confirmLabel ?? "계속하기"}</Accept></Actions>
+    <Actions><Cancel ref={cancel} type="button" onClick={close}>{request.cancelLabel ?? "취소"}</Cancel><Accept $danger={request.tone === "danger"} type="button" onClick={() => feedback.answer(request.id, true)}>{request.confirmLabel ?? "계속하기"}</Accept></Actions>
   </AppDialogFrame>;
 }
 

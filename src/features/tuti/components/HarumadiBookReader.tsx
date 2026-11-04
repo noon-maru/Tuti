@@ -11,7 +11,7 @@ import type { HarumadiBookRect } from "@/shared/harumadi/transitionGeometry";
 export type BookOpening = { book: Harumadi; mode: HarumadiOpeningMode; origin: HarumadiBookRect };
 
 /** 책장을 교체하지 않고 같은 앱 영역 안에서 표지 뒤의 지면을 연다. */
-export function HarumadiBookReader({ opening, onClose }: { opening: BookOpening; onClose: () => void }) {
+export function HarumadiBookReader({ opening, onClose, registerCloseGuard }: { opening: BookOpening; onClose: () => void; registerCloseGuard?: (guard: (() => Promise<boolean>) | null) => void }) {
   const root = useRef<HTMLDivElement>(null);
   const paper = useRef<HTMLDivElement>(null);
   const returnFocus = useRef<HTMLElement | null>(typeof document !== "undefined" && document.activeElement instanceof HTMLElement ? document.activeElement : null);
@@ -45,7 +45,7 @@ export function HarumadiBookReader({ opening, onClose }: { opening: BookOpening;
     else if (!event.shiftKey && (document.activeElement === last || document.activeElement === root.current)) { event.preventDefault(); first.focus(); }
   };
   return <Reader ref={root} $spread={opening.mode === "pages" && opening.origin.appearance === "spread"} role="dialog" aria-modal="true" aria-label={`${opening.book.title} ${opening.mode === "settings" ? "설정" : opening.mode === "together" ? "함께 채우기" : "펼쳐보기"}`} tabIndex={-1} onKeyDown={keyDown}>
-    <Paper ref={paper}><HarumadiFlow bookId={opening.book.id} initialMode={opening.mode} openingOrigin={opening.mode === "pages" ? opening.origin : undefined} onClose={onClose} /></Paper>
+    <Paper ref={paper}><HarumadiFlow bookId={opening.book.id} initialMode={opening.mode} openingOrigin={opening.mode === "pages" ? opening.origin : undefined} onClose={onClose} registerCloseGuard={registerCloseGuard} /></Paper>
   </Reader>;
 }
 

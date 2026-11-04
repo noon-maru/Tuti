@@ -14,5 +14,6 @@ export function useHarumadiHistory(ownerId: string) {
   }, [ownerId]);
   const openBook = useCallback((book: BookOpening) => { controller.current?.open(book); }, []);
   const closeBook = useCallback(() => { controller.current?.close(); }, []);
-  return { opening, openBook, closeBook };
+  const registerCloseGuard = useCallback((guard: (() => Promise<boolean>) | null) => { controller.current?.setCloseGuard(guard); }, []);
+  return { opening, openBook, closeBook, registerCloseGuard };
 }

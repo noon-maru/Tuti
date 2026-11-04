@@ -53,3 +53,27 @@ test("새 계정·새 실행은 이전 책을 복원하지 않고 다른 주소�
   next.close(); assert.equal(b.backs, 0);
   next.dispose();
 });
+
+const settle = () => new Promise<void>(resolve => setImmediate(resolve));
+test("미저장 책의 브라우저 뒤로가기는 편집을 유지하고 명시적으로 버릴 때만 닫는다", async () => {
+  const b = browser(); let shown: string | null = null;
+  const history = createHarumadiHistory<string>(b.host, "owner", value => { shown = value; });
+  history.open("edited-book");
+  let allow = false, asked = 0;
+  history.setCloseGuard(async () => { asked++; return allow; });
+  b.back(); assert.equal(shown, "edited-book");
+  await settle(); assert.equal(shown, "edited-book"); assert.equal(asked, 1);
+  assert.equal(b.host.history.state.__NA, true);
+  allow = true; b.back(); await settle(); assert.equal(shown, null);
+  assert.equal(b.backs, 1); b.flush(); assert.equal(shown, null);
+  history.dispose();
+});
+
+test("확인 중 반복 뒤로가기나 계정 해제 뒤의 늦은 승인은 책을 추가로 닫지 않는다", async () => {
+  const b = browser(); let shown: string | null = null;
+  const history = createHarumadiHistory<string>(b.host, "owner", value => { shown = value; });
+  history.open("book"); let resolve!: (value: boolean) => void, calls = 0;
+  history.setCloseGuard(() => { calls++; return new Promise(done => { resolve = done; }); });
+  b.back(); await settle(); b.back(); assert.equal(calls, 1); assert.equal(shown, "book");
+  history.dispose(); resolve(true); await settle(); assert.equal(b.backs, 0);
+});

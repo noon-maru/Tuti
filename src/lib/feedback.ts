@@ -1,4 +1,4 @@
-export type ConfirmationOptions = { title?: string; confirmLabel?: string; tone?: "neutral" | "danger" };
+export type ConfirmationOptions = { title?: string; confirmLabel?: string; cancelLabel?: string; tone?: "neutral" | "danger" };
 export type FeedbackSnapshot = {
   confirmation: ({ id: number; message: string } & ConfirmationOptions) | null;
   toast: { id: number; message: string; tone: "info" | "error"; durationMs?: number } | null;

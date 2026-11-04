@@ -38,7 +38,7 @@ function LibraryHome({ ownerId }: { ownerId: string }) {
   const { view, chooseView } = useLibraryView(ownerId);
   const shelfScroll = useRef<HTMLDivElement>(null);
   const frame = useRef<HTMLElement>(null);
-  const { opening, openBook: showBook, closeBook } = useHarumadiHistory(ownerId);
+  const { opening, openBook: showBook, closeBook, registerCloseGuard } = useHarumadiHistory(ownerId);
   useLifecycleView("home_viewed", "home", undefined, !opening);
   const openBook = (book: Harumadi, control: HTMLElement, mode: HarumadiOpeningMode = "pages") => {
     const bounds = frame.current?.getBoundingClientRect();
@@ -93,7 +93,7 @@ function LibraryHome({ ownerId }: { ownerId: string }) {
     </ShelfScroll>
     <MainNavigation active="harumadi" />
     </HomeSurface>
-    {opening && <HarumadiBookReader opening={opening} onClose={closeBook} />}
+    {opening && <HarumadiBookReader opening={opening} onClose={closeBook} registerCloseGuard={registerCloseGuard} />}
   </Frame>;
 }
 const Frame = styled(ScreenFrame)`position: relative; height: 100%; min-height: 0; padding: 0; background: var(--color-surface); color: var(--color-text); isolation: isolate;
