@@ -47,7 +47,7 @@ test("둘러보기 후 빈 홈은 기본 표지 대신 첫 마디 작성을 안�
 
 test("가판대는 표지를 중심으로 두고 생성·보관함 동선을 중복하지 않는다", () => {
   const home = readFileSync("src/features/tuti/flows/LibraryHomeFlow.tsx", "utf8");
-  assert.match(home, /<Header><Heading><h1 id="library-title">나의 하루마디<\/h1>/);
+  assert.match(home, /<Header><LibraryViewSwitch/);
   assert.match(home, /<LibraryLinks aria-label="마디와 PDF 보관함">/);
   assert.match(home, /router.push\("\/madi"\)/);
   assert.match(home, /router.push\("\/harumadi\/pdfs"\)/);
@@ -60,7 +60,7 @@ test("메인 확대는 기존 좌우 여백과 2열 간격을 유지하고 행�
   const home = readFileSync("src/features/tuti/flows/LibraryHomeFlow.tsx", "utf8");
   const shelf = readFileSync("src/features/tuti/components/HarumadiShelf.tsx", "utf8");
   const navigation = readFileSync("src/features/tuti/components/MainNavigation.tsx", "utf8");
-  assert.match(home, /h1 \{ \$\{screenTitleStyles\} font-size: 1\.25rem; \}/);
+  assert.match(home, /<Frame ref=\{frame\} aria-label="내 책장"/);
   assert.match(shelf, /columns = spines \? spineColumns : 2/);
   assert.match(shelf, /\$spines \? 12 : 24\}px; padding: 0 8px/);
   assert.match(shelf, /\$spines \? 92 : 108\}px/);

@@ -8,7 +8,8 @@ test("책장·첫 화면·질문 상단은 워드마크를 반복하지 않는�
   for (const source of sources) assert.doesNotMatch(source, /TutiWordmark|HeaderWordmark|<Wordmark/);
   assert.match(sources[0], /aria-label="설정"/);
   assert.match(sources[0], /justify-content: space-between/);
-  assert.match(sources[0], /<h1 id="library-title">나의 하루마디<\/h1>/);
+  assert.match(sources[0], /aria-label="내 책장"/);
+  assert.doesNotMatch(sources[0], /<h1|ShelfCount/);
   assert.match(sources[1], /이용 방법 이전 화면/);
   assert.match(sources[1], /href="\/login"/);
   assert.match(sources[1], /<GuideButton type="button" onClick=\{onGuideOpen\}>이용 방법/);

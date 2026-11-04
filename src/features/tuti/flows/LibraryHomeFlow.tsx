@@ -25,7 +25,7 @@ import { setWelcomeHarumadiOrigin } from "@/lib/welcomeHarumadiNavigation";
 import { useLifecycleView } from "../hooks/useLifecycleView";
 import type { HarumadiOpeningMode } from "../navigation/harumadiActions";
 import { ScreenFrame } from "../components/ScreenFrame";
-import { screenTitleStyles, bodyCopyStyles, captionStyles } from "@/shared/ui/typography";
+import { bodyCopyStyles } from "@/shared/ui/typography";
 
 export function LibraryHomeFlow() {
   const session = useSession();
@@ -60,12 +60,10 @@ function LibraryHome({ ownerId }: { ownerId: string }) {
     return () => { active = false; };
   }, [ownerId]);
   const openEditor = () => router.push("/harumadi");
-  return <Frame ref={frame} aria-labelledby="library-title"><HomeSurface $hidePreview={opening?.mode === "pages" && opening.origin.appearance === "spread"} inert={Boolean(opening)} aria-hidden={opening ? true : undefined}>
-    <Header><Heading><h1 id="library-title">나의 하루마디</h1>
-      {query.isSuccess && <ShelfCount>하루마디 <strong>{harumadiPdfs.length}{query.hasNextPage ? "+" : ""}</strong>권</ShelfCount>}
-    </Heading><IconButton type="button" onClick={() => router.push("/settings")} aria-label="설정"><Settings2 size={24} /></IconButton></Header>
-    <Toolbar><LibraryViewSwitch view={view} onChange={value => { chooseView(value); shelfScroll.current?.scrollTo({ top: 0 }); }} />
-      <CreateHarumadi type="button" onClick={openEditor}><Plus size={17} aria-hidden="true" />새 하루마디</CreateHarumadi></Toolbar>
+  return <Frame ref={frame} aria-label="내 책장"><HomeSurface $hidePreview={opening?.mode === "pages" && opening.origin.appearance === "spread"} inert={Boolean(opening)} aria-hidden={opening ? true : undefined}>
+    <Header><LibraryViewSwitch view={view} onChange={value => { chooseView(value); shelfScroll.current?.scrollTo({ top: 0 }); }} />
+      <CreateHarumadi type="button" onClick={openEditor}><Plus size={17} aria-hidden="true" />새 하루마디</CreateHarumadi>
+      <IconButton type="button" onClick={() => router.push("/settings")} aria-label="설정"><Settings2 size={22} aria-hidden="true" /></IconButton></Header>
     {hasDraft && <DraftButton type="button" onClick={() => router.push("/harumadi/pdf/create")}><Download size={17} /><span>이전 PDF 작업 이어가기</span><ArrowUpRight size={16} /></DraftButton>}
     <ShelfScroll ref={shelfScroll} data-scroll-region data-library-layout={view} aria-label={view === "carousel" ? "내 하루마디 한 권씩 보기" : view === "spines" ? "내 하루마디 책등 책장" : "내 하루마디 가판대"}>
       {query.isPending ? <Status role="status"><LoadingIndicator /><p>책장에 하루마디를 놓고 있어요.</p></Status>
@@ -110,16 +108,10 @@ const HomeSurface = styled.div<{ $hidePreview: boolean }>`height: 100%; min-heig
   ${({ $hidePreview }) => $hidePreview && `[data-carousel-active="true"] [data-book-cover] { visibility: hidden; }`}
 `;
 const Header = styled.header`
-  flex: none; display: flex; justify-content: space-between; align-items: center; gap: 12px;
-  padding: var(--screen-padding-top) var(--screen-padding-right) 0 var(--screen-padding-left);
-  h1 { ${screenTitleStyles} font-size: 1.25rem; }
+  flex: none; display: flex; justify-content: space-between; align-items: center; gap: 8px;
+  padding: var(--screen-padding-top) var(--screen-padding-right) 8px var(--screen-padding-left);
 `;
-const Heading = styled.div`display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 12px; min-width: 0;`;
-const IconButton = styled(BaseButton)`width: 48px; height: 48px; flex: none; display: grid; place-items: center; background: transparent; color: var(--color-text-muted); border-radius: 50%; &:hover { background: var(--color-brand-100); }`;
-const Toolbar = styled.div`display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 8px; padding: 8px var(--screen-padding-right) 8px var(--screen-padding-left); flex: none;
-  @container app-viewport (max-width: 420px) { > [role="group"] svg { display: none; } }
-`;
-const ShelfCount = styled.p`${captionStyles} min-width: 0; max-width: 100%; margin: 0; overflow-wrap: anywhere; strong { color: var(--color-text); font-weight: 500; font-variant-numeric: tabular-nums; }`;
+const IconButton = styled(BaseButton)`width: 44px; height: 44px; padding: 0; flex: none; display: grid; place-items: center; background: transparent; color: var(--color-text-muted); border-radius: 50%; &:hover { background: var(--color-brand-100); }`;
 const TextAction = styled(BaseButton)`${bodyCopyStyles} display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 48px; padding: 8px 0; background: transparent; color: var(--color-text-muted); &:focus-visible { outline: 2px solid var(--color-brand-700); outline-offset: 3px; border-radius: 4px; }`;
 const CreateHarumadi = styled(TextAction)`flex: none; margin-left: auto; min-height: 44px; padding-inline: 12px; border-radius: 999px; background: var(--color-brand-100); color: var(--color-brand-1000); font-size: .875rem; font-weight: 500; line-height: 1.5; white-space: nowrap;`;
 const LibraryLink = styled(TextAction)`min-width: 0; min-height: 44px; font-size: .875rem; font-weight: 400; line-height: 1.5; svg { flex: none; }`;

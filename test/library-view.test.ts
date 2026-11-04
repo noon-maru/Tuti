@@ -41,17 +41,30 @@ test("느린 저장소 읽기는 방금 선택한 보기나 다른 계정의 선
   assert.equal(await unavailable.load("a"), "spines");
 });
 
-test("보기 선택은 명시적인 세 버튼과 선택 상태·44px 조작 영역으로 제공한다", () => {
+test("보기 선택은 현재 보기 하나만 노출하고 공용 팝오버에서 세 보기를 선택한다", () => {
   for (const view of ["covers", "spines", "carousel"] as const) {
     const html = renderToStaticMarkup(createElement(LibraryViewSwitch, { view, onChange() {} }));
-    assert.match(html, /role="group" aria-label="책장 보기 방식"/);
-    assert.equal((html.match(/<button[^>]*aria-pressed="true"/g) ?? []).length, 1);
-    assert.equal((html.match(/<button[^>]*aria-pressed="false"/g) ?? []).length, 2);
-    assert.match(html, /표지/); assert.match(html, /책등/); assert.match(html, /한 권씩/);
+    const label = { covers: "표지", spines: "책등", carousel: "한 권씩" }[view];
+    assert.ok(html.includes(`aria-label="책장 보기 방식, 현재 ${label}"`));
+    assert.match(html, /aria-haspopup="menu"/);
+    assert.match(html, /aria-expanded="false"/);
     const buttons = [...html.matchAll(/<button\b[^>]*>([\s\S]*?)<\/button>/g)].map(match => match[1].replace(/<[^>]*>/g, ""));
-    assert.deepEqual(buttons, ["한 권씩", "표지", "책등"]);
+    assert.deepEqual(buttons, [label]);
     assert.match(html, /min-height:44px/);
   }
+  const source = readFileSync("src/features/tuti/components/LibraryViewSwitch.tsx", "utf8");
+  assert.match(source, /selected: item.value === view/);
+  assert.match(source, /onSelect: \(\) => onChange\(item.value\)/);
+  for (const label of ["한 권씩", "표지", "책등"]) assert.ok(source.includes(`label: "${label}"`));
+});
+
+test("한 권씩 보기의 설명과 넘기기 행은 24px 간격을 높이 측정에 포함한다", () => {
+  const carousel = readFileSync("src/features/tuti/components/HarumadiCarousel.tsx", "utf8");
+  const controls = carousel.match(/const Controls = styled\.nav`([^`]+)`/)![1];
+  assert.match(controls, /margin-top: 24px/);
+  assert.match(carousel, /carouselStageHeight\(node.clientWidth, available, description.offsetHeight\)/);
+  assert.match(carousel, /<Details ref=\{details\}>[\s\S]*?<Controls[\s\S]*?<\/Details>/);
+  assert.match(carousel, /for \(const target of \[parent, carousel, description/);
 });
 
 test("책등은 표지 색상과 세로 제목을 쓰며 사진 요청 없이 모든 책과 공통 메뉴를 표시한다", () => {

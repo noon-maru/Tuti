@@ -1,19 +1,17 @@
 "use client";
 import styled from "@emotion/styled";
-import { GalleryHorizontalEnd, LayoutGrid, Library } from "lucide-react";
-import { BaseButton } from "./buttons";
+import { ChevronDown } from "lucide-react";
+import { ContextMenu } from "./ContextMenu";
 import type { HarumadiLibraryView } from "@/shared/harumadi/libraryView";
 
+const views = [{ value: "carousel", label: "한 권씩" }, { value: "covers", label: "표지" }, { value: "spines", label: "책등" }] as const;
+
 export function LibraryViewSwitch({ view, onChange }: { view: HarumadiLibraryView; onChange: (view: HarumadiLibraryView) => void }) {
-  return <Switch role="group" aria-label="책장 보기 방식">
-    <Choice type="button" aria-pressed={view === "carousel"} onClick={() => onChange("carousel")}><GalleryHorizontalEnd size={15} aria-hidden="true" />한 권씩</Choice>
-    <Choice type="button" aria-pressed={view === "covers"} onClick={() => onChange("covers")}><LayoutGrid size={15} aria-hidden="true" />표지</Choice>
-    <Choice type="button" aria-pressed={view === "spines"} onClick={() => onChange("spines")}><Library size={15} aria-hidden="true" />책등</Choice>
-  </Switch>;
+  const current = views.find(item => item.value === view)!;
+  return <ViewMenu label={`책장 보기 방식, 현재 ${current.label}`} triggerContent={<>{current.label}<ChevronDown size={16} aria-hidden="true" /></>}
+    items={views.map(item => ({ label: item.label, selected: item.value === view, onSelect: () => onChange(item.value) }))} />;
 }
-const Switch = styled.div`display: inline-flex; flex: none; gap: 2px; padding: 3px; border: 1px solid var(--color-brand-200); border-radius: 999px; background: var(--color-brand-100);`;
-const Choice = styled(BaseButton)`display: inline-flex; align-items: center; justify-content: center; gap: 5px; min-height: 44px; padding: 8px 10px; border-radius: 999px; font-size: var(--ui-caption-size); color: var(--color-text-muted); background: transparent;
-  &[aria-pressed="true"] { color: var(--color-text); background: white; box-shadow: 0 1px 4px #1b222a0a; }
+const ViewMenu = styled(ContextMenu)`width: auto; min-width: 0; > button { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 44px; padding: 8px; border-radius: 999px; font-size: var(--ui-body-size); font-weight: 500; color: var(--color-text); background: transparent; white-space: nowrap;
+  &:hover { background: var(--color-brand-100); }
   &:focus-visible { outline: 2px solid var(--color-brand-700); outline-offset: -2px; }
-  @container app-viewport (max-width: 390px) { padding-inline: 8px; svg { display: none; } }
-`;
+} `;

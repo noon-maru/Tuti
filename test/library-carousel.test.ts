@@ -105,7 +105,7 @@ test("포인터 취소·드래그 후 클릭·키보드·페이지 추가를 공
   const home = readFileSync("src/features/tuti/flows/LibraryHomeFlow.tsx", "utf8");
   assert.match(home, /view === "carousel" \? <HarumadiCarousel/);
   assert.match(home, /result\.data\?\.pages\.flatMap/);
-  assert.match(home, /flex-wrap: wrap/);
+  assert.match(home, /<Header><LibraryViewSwitch/);
 });
 
 test("터치 자식의 암시적 캡처가 무대로 이동해도 스와이프를 취소하지 않는다", () => {
