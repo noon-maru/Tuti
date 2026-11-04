@@ -29,6 +29,7 @@ test("생성·실제 이름 변경만 토스트를 안내하고 표지 수정·�
   assert.equal(shouldNotifyDuplicateTitle({ title: " 같은  이름 " }, saved), false);
   assert.equal(shouldNotifyDuplicateTitle(undefined, { title: "새 이름" }), false);
   assert.match(DUPLICATE_HARUMADI_TITLE_NOTICE, /보조 정보가 함께 표시/);
+  assert.equal(DUPLICATE_HARUMADI_TITLE_NOTICE.split("\n")[0], "같은 이름의 하루마디가 있어요.");
   const source = readFileSync("src/features/tuti/flows/HarumadiFlow.tsx", "utf8");
   assert.match(source, /shouldNotifyDuplicateTitle\(harumadi, saved\)\) showToast/);
   assert.ok(source.indexOf("const saved = harumadi ? await updateHarumadi") < source.indexOf("showToast(DUPLICATE_HARUMADI_TITLE_NOTICE)"));

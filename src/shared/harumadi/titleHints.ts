@@ -1,6 +1,6 @@
 import type { Harumadi } from "../api/harumadi";
 
-export const DUPLICATE_HARUMADI_TITLE_NOTICE = "같은 이름의 하루마디가 있어요. 구분을 위해 만든 날짜 같은 보조 정보가 함께 표시돼요.";
+export const DUPLICATE_HARUMADI_TITLE_NOTICE = "같은 이름의 하루마디가 있어요.\n구분을 위해 만든 날짜 같은 보조 정보가 함께 표시돼요.";
 export const normalizeHarumadiTitle = (title: string) => title.normalize("NFC").trim().replace(/\s+/g, " ").toLocaleLowerCase("ko-KR");
 
 export function markDuplicateHarumadiTitles<T extends { id: string; title: string }>(books: T[], visibleTitles: { id: string; title: string }[]): (T & { duplicateTitle?: boolean })[] {
