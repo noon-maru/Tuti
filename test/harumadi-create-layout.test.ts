@@ -22,7 +22,7 @@ test("새 하루마디는 넉넉한 세로 배치를 기본으로 하고 낮은 
 test("작은 화면에서도 입력·표지 선택·확인·만들기 버튼을 숨기지 않고 예외적인 넘침만 스크롤한다", () => {
   assert.match(flow, /<Footer \$creating=\{!harumadi && mode === "settings"\}>/);
   assert.match(flow, /const Footer = styled.footer[\s\S]*?flex: none/);
-  assert.match(flow, /overflow-y: \$\{\(\{ \$reading \}\) => \$reading \? "hidden" : "auto"\}/);
+  assert.match(flow, /const Body = styled\.div[\s\S]*?overflow-y: auto/);
   assert.match(flow, /const TitleInput = styled.input`\$\{inputControlStyles\}/);
   const globals = readFileSync("src/app/GlobalStyles.tsx", "utf8");
   assert.match(globals, /--ui-input-size: max\(1rem, var\(--font-size-200\)\)/);

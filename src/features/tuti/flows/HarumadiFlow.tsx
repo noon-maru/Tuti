@@ -58,8 +58,8 @@ function HarumadiLoader({ owner, id, initialMode, openingOrigin, onClose }: { ow
   const current = Boolean(id && query.data && harumadiReadCache.current(owner, id, query.data.ticket));
   const verified = !id || Boolean((current || query.isFetching) && query.data && !query.data.cached && query.isFetchedAfterMount && !query.isPaused && !query.error);
   const readable = Boolean(query.data && current && !authoritativeReadError(query.error) && (canCacheHarumadi(query.data.content) || verified));
-  if (id && !readable && (query.isPending || query.isFetching)) return <Frame>{onClose && <Header><BackButton aria-label="내 책장으로 돌아가기" onClick={onClose} /></Header>}<AppLoadingScreen label="하루마디를 열고 있어요." /></Frame>;
-  if (id && !readable) return <Frame><Header><BackButton aria-label="내 책장으로 돌아가기" onClick={onClose ?? (() => router.replace("/"))} /></Header><Body $reading={false} role="alert"><h1>하루마디를 열지 못했어요.</h1><p>{query.error?.message ?? "연결을 확인하고 다시 열어주세요."}</p><PrimaryButton onClick={() => void query.refetch()}>다시 불러오기</PrimaryButton></Body></Frame>;
+  if (id && !readable && (query.isPending || query.isFetching)) return <Frame>{onClose && <Header $reading><BackButton aria-label="내 책장으로 돌아가기" onClick={onClose} /></Header>}<AppLoadingScreen label="하루마디를 열고 있어요." /></Frame>;
+  if (id && !readable) return <Frame><Header $reading><BackButton aria-label="내 책장으로 돌아가기" onClick={onClose ?? (() => router.replace("/"))} /></Header><Body $reading={false} role="alert"><h1>하루마디를 열지 못했어요.</h1><p>{query.error?.message ?? "연결을 확인하고 다시 열어주세요."}</p><PrimaryButton onClick={() => void query.refetch()}>다시 불러오기</PrimaryButton></Body></Frame>;
   return <HarumadiEditor key={id ?? "new"} owner={owner} initial={query.data?.content.harumadi} read={query.data}
     verified={verified} refreshing={query.isFetching} onRefresh={() => void query.refetch()} initialMode={initialMode} openingOrigin={openingOrigin} onClose={onClose} />;
 }
@@ -211,7 +211,7 @@ function HarumadiEditor({ owner, initial, read, verified, refreshing, onRefresh,
 
   return <Frame ref={frame} $openingSpread={opening && openingOrigin?.appearance === "spread"} data-harumadi-editor aria-busy={busy || closing}>
     <BookContents ref={contents} inert={closing || opening}>
-    <Header $creating={!harumadi && mode === "settings"}><BackButton onClick={back} disabled={busy} aria-label={mode === "pages" || !harumadi || (onClose && initialMode && initialMode !== "pages" && mode === initialMode) ? "내 책장으로 돌아가기" : "하루마디로 돌아가기"} />
+    <Header $reading={mode === "pages"} $creating={!harumadi && mode === "settings"}><BackButton onClick={back} disabled={busy} aria-label={mode === "pages" || !harumadi || (onClose && initialMode && initialMode !== "pages" && mode === initialMode) ? "내 책장으로 돌아가기" : "하루마디로 돌아가기"} />
       {harumadi && mode === "pages" && <HeaderTools>
         {harumadi.shared && <Quiet type="button" disabled={busy || readOnly} onClick={() => setMode("comments")}><MessageCircle size={17} aria-hidden="true" />댓글·답글</Quiet>}
         <ReaderMenu label="하루마디 관리" disabled={busy || readOnly} triggerContent={<><Settings2 size={17} aria-hidden="true" />관리</>}
@@ -260,14 +260,14 @@ function HarumadiEditor({ owner, initial, read, verified, refreshing, onRefresh,
         {pdfInput && !readOnly && sensitivePolicy && (!sensitivePolicy.enabled || confirmed) && <HarumadiPdfPreview key={`${harumadi!.revision}:${confirmed}`} ownerId={owner} input={pdfInput} onReady={handlePdf} />}
       </> : harumadi && <>
         <HarumadiPageViewer book={harumadi} entries={chosen} onClose={closeToLibrary} closing={closing} />
-        <ReaderTools aria-label="하루마디 채우기">
-          <WriteButton type="button" disabled={busy || readOnly} onClick={() => router.push(`/madi/new?from=library&harumadiId=${encodeURIComponent(harumadi.id)}`)}><PenLine size={17} aria-hidden="true" />{isFirstMadi ? "첫 마디 남기기" : "마디 남기기"}</WriteButton>
-          {harumadi?.togetherEnabled && mode === "pages" && <TogetherEntry type="button" disabled={busy || readOnly} onClick={() => setMode("together")}><Users size={17} aria-hidden="true" />함께 채우기</TogetherEntry>}
-        </ReaderTools>
       </>}
       {policyQuery.isError && <ErrorMessage role="alert">마디 보호 설정을 불러오지 못했어요.<Quiet onClick={() => void policyQuery.refetch()}>다시 불러오기</Quiet></ErrorMessage>}
       {error && <ErrorMessage role="alert">{error}<Quiet onClick={() => window.location.reload()}>다시 불러오기</Quiet></ErrorMessage>}
     </Body>
+    {mode === "pages" && harumadi && <ReaderTools aria-label="하루마디 채우기">
+      <WriteButton type="button" disabled={busy || readOnly} onClick={() => router.push(`/madi/new?from=library&harumadiId=${encodeURIComponent(harumadi.id)}`)}><PenLine size={17} aria-hidden="true" />{isFirstMadi ? "첫 마디 남기기" : "마디 남기기"}</WriteButton>
+      {harumadi.togetherEnabled && <TogetherEntry type="button" disabled={busy || readOnly} onClick={() => setMode("together")}><Users size={17} aria-hidden="true" />함께 채우기</TogetherEntry>}
+    </ReaderTools>}
     {mode !== "pages" && mode !== "together" && mode !== "comments" && <Footer $creating={!harumadi && mode === "settings"}><PrimaryButton type="button" disabled={busy || readOnly || (mode === "settings" && (!settings.title.trim() || !backCoverTextValid || !sensitivePolicy || (titleNeedsConfirmation && !confirmed))) || (mode === "selection" && !entries.data) || (mode === "order" && orderedIds.join(",") === harumadi?.entryIds.join(",")) || (mode === "pdf" && (!pdf?.approvalToken || Boolean(sensitivePolicy?.enabled && !confirmed)))} onClick={() => void (mode === "settings" ? saveSettings() : mode === "selection" ? saveEntries() : mode === "order" ? saveOrder() : downloadPdf())}>{busy ? "저장하고 있어요." : mode === "settings" ? harumadi ? "설정 저장하기" : "빈 하루마디 만들기" : mode === "selection" ? `마디 ${selected.length}개 담기` : mode === "order" ? "이 순서로 저장하기" : "PDF 파일 저장하기"}</PrimaryButton></Footer>}
     </BookContents>
     {openingOrigin && !openingDone && mode === "pages" && !closing && harumadi && <HarumadiOpenTransition book={harumadi} entries={chosen} origin={openingOrigin} containerRef={frame} contentsRef={contents} onComplete={finishOpening} />}
@@ -282,17 +282,15 @@ const BookContents = styled.div`height: 100%; min-height: 0; display: flex; flex
 const HeaderTools = styled.div`display: flex; align-items: center; gap: 12px; min-width: 0; > span { flex: none; width: auto; }`;
 const ReaderMenu = styled(ContextMenu)`> button { display: inline-flex; align-items: center; gap: 6px; min-height: var(--ui-control-height); padding: 8px 0 8px 8px; font-size: var(--ui-body-size); color: var(--color-text-muted); &:disabled { opacity: .5; } }`;
 const TogetherEntry = styled(BaseButton)`display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: var(--ui-action-height); min-width: 0; padding: 10px 12px; border-radius: 999px; background: var(--color-secondary-200); color: var(--color-secondary-1000); font-size: var(--ui-body-size); font-weight: 600; &:disabled { opacity: .5; } &:focus-visible { outline: 2px solid var(--color-brand-700); outline-offset: -2px; }`;
-const Header = styled.header<{ $creating?: boolean }>`flex: none; display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: calc(12px + var(--app-safe-area-top, 0px)) var(--screen-padding-right) 0 var(--screen-padding-left); min-height: 50px;
+const Header = styled.header<{ $creating?: boolean; $reading?: boolean }>`flex: none; display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: calc(12px + var(--app-safe-area-top, 0px)) var(--screen-padding-right) 0 var(--screen-padding-left); min-height: 50px;
+  ${({ $reading }) => $reading && `padding-top: calc(40px + var(--app-safe-area-top, 0px)); @container app-viewport (max-height: 620px) { padding-top: calc(24px + var(--app-safe-area-top, 0px)); }`}
   ${({ $creating }) => $creating && `@container app-viewport (max-height: 719px) { padding-top: calc(6px + var(--app-safe-area-top, 0px)); min-height: 44px; }`}
 `;
 const Quiet = styled(BaseButton)`display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: var(--ui-control-height); padding: 6px 0; background: transparent; color: var(--color-text-muted); font-size: var(--ui-body-size); &:disabled { opacity: .5; } &:focus-visible { outline: 2px solid var(--color-brand-700); outline-offset: 3px; }`;
-const Body = styled.div<{ $reading: boolean; $creating?: boolean }>`flex: 1; min-height: 0; overflow-y: ${({ $reading }) => $reading ? "hidden" : "auto"}; padding: ${({ $reading, $creating }) => $reading ? "var(--reader-top-inset) calc(var(--reader-outside-inset) + var(--app-safe-area-right, 0px)) calc(var(--reader-vertical-inset) + var(--app-safe-area-bottom, 0px)) calc(var(--reader-outside-inset) + var(--app-safe-area-left, 0px))" : $creating ? "22px var(--screen-padding-right) 20px var(--screen-padding-left)" : "22px var(--screen-padding-right) 28px var(--screen-padding-left)"}; ${({ $reading }) => $reading && "display: flex; flex-direction: column;"} overscroll-behavior: contain; &:has([data-order-editor]) { overflow-anchor: none; } h1 { ${screenTitleStyles} margin: 8px 0 12px; } > p { ${bodyCopyStyles} color: var(--color-text-muted); white-space: pre-line; } .hint { ${captionStyles} }
+const Body = styled.div<{ $reading: boolean; $creating?: boolean }>`flex: 1; min-height: 0; overflow-y: auto; padding: ${({ $reading, $creating }) => $reading ? "12px calc(var(--reader-outside-inset) + var(--app-safe-area-right, 0px)) 12px calc(var(--reader-outside-inset) + var(--app-safe-area-left, 0px))" : $creating ? "22px var(--screen-padding-right) 20px var(--screen-padding-left)" : "22px var(--screen-padding-right) 28px var(--screen-padding-left)"}; ${({ $reading }) => $reading && "display: flex; flex-direction: column;"} overscroll-behavior: contain; &:has([data-order-editor]) { overflow-anchor: none; } h1 { ${screenTitleStyles} margin: 8px 0 12px; } > p { ${bodyCopyStyles} color: var(--color-text-muted); white-space: pre-line; } .hint { ${captionStyles} }
   ${({ $reading }) => $reading && `
     --reader-outside-inset: 36px;
-    --reader-top-inset: 96px;
-    --reader-vertical-inset: 48px;
     @container app-viewport (max-width: 340px) { --reader-outside-inset: 28px; }
-    @container app-viewport (max-height: 620px) { --reader-top-inset: 48px; --reader-vertical-inset: 36px; }
   `}
   ${({ $creating }) => $creating && `@container app-viewport (max-height: 719px) { padding: 10px var(--screen-padding-right) 12px var(--screen-padding-left); }`}
 `;
@@ -356,7 +354,7 @@ const NameField = styled.div<{ $creating: boolean }>`
 const Footer = styled.footer<{ $creating?: boolean }>`flex: none; padding: 12px var(--screen-padding-right) calc(16px + var(--app-safe-area-bottom, 0px)) var(--screen-padding-left); border-top: 1px solid var(--color-border); background: var(--color-surface); > button { width: 100%; }
   ${({ $creating }) => $creating && `@container app-viewport (max-height: 719px) { padding: 8px var(--screen-padding-right) calc(12px + var(--app-safe-area-bottom, 0px)) var(--screen-padding-left); }`}
 `;
-const ReaderTools = styled.nav`display: flex; flex: none; flex-wrap: wrap; gap: 10px; padding-top: 12px; > button { flex: 1 1 auto; min-width: 0; } svg { flex: none; }`;
+const ReaderTools = styled.nav`display: flex; flex: none; flex-wrap: wrap; gap: 10px; padding: 12px calc(16px + var(--app-safe-area-right, 0px)) calc(16px + var(--app-safe-area-bottom, 0px)) calc(16px + var(--app-safe-area-left, 0px)); > button { flex: 1 1 auto; min-width: 0; } svg { flex: none; }`;
 const WriteButton = styled(PrimaryButton)`display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding-inline: 12px;`;
 const RecordList = styled.div`display: grid; gap: 10px; margin: 22px 0;`;
 const RecordOption = styled.label`display: flex; gap: 12px; align-items: center; padding: 16px 12px; border: 1px solid var(--color-border); border-radius: 10px; background: white; > span { min-width: 0; display: grid; gap: 6px; } strong { font-size: 14px; font-weight: 500; overflow-wrap: anywhere; } small { font-size: 12px; color: var(--color-text-muted); }`;
