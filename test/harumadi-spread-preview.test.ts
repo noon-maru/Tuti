@@ -33,6 +33,12 @@ test("선택한 한 권만 펼치고 기존 지면을 재사용한다", () => {
   assert.match(html, /data-harumadi-page="text"/);
   assert.match(html, /data-book-opening-origin="true"/);
   assert.match(html, /산책/);
+  assert.match(html, /data-spread-ready="true"/);
+  assert.match(html, /data-spread-turning-cover="true"/);
+  assert.match(html, /rotateY\(173deg\)/);
+  assert.match(html, /rotateY\(-173deg\)/);
+  assert.match(html, /900ms cubic-bezier/);
+  assert.match(html, /prefers-reduced-motion:\s*reduce/);
   client.clear();
 });
 
@@ -45,5 +51,6 @@ test("공동작성 책의 이전 응답은 현재 마운트에서 권한 재검�
   const html = renderToStaticMarkup(createElement(QueryClientProvider, { client }, createElement(HarumadiSpreadPreview, { book: content.harumadi, ownerId: owner })));
   assert.doesNotMatch(html, /서버 재검증 전에는 보이지 않는 내용/);
   assert.match(html, /마디를 펼치는 중/);
+  assert.match(html, /data-spread-ready="false"/);
   client.clear();
 });

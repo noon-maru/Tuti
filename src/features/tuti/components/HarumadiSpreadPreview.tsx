@@ -1,7 +1,7 @@
 "use client";
 
 import { memo, useMemo } from "react";
-import { keyframes } from "@emotion/react";
+import { css, keyframes } from "@emotion/react";
 import { useQuery } from "@tanstack/react-query";
 import styled from "@emotion/styled";
 import { fetchHarumadiContent, authoritativeReadError } from "@/lib/harumadiContent";
@@ -10,6 +10,7 @@ import type { Harumadi } from "@/shared/api/harumadi";
 import type { TutiJournalEntry } from "@/shared/api/journal";
 import { buildHarumadiReaderPages } from "@/shared/harumadi/readerPages";
 import { HarumadiPageSheet } from "./HarumadiSheet";
+import { HarumadiCover } from "./HarumadiCover";
 
 /** 첫 두 마디만 조판한다. 긴 첫 마디라면 오른쪽에는 실제 이어지는 쪽이 온다. */
 export function buildHarumadiSpread(book: Harumadi, entries: TutiJournalEntry[]) {
@@ -28,24 +29,38 @@ export const HarumadiSpreadPreview = memo(function HarumadiSpreadPreview({ book,
   const readable = read && harumadiReadCache.current(ownerId, book.id, read.ticket) && !authoritativeReadError(query.error) &&
     (canCacheHarumadi(read.content) || verified);
   const pages = useMemo(() => readable && read ? buildHarumadiSpread(read.content.harumadi, read.content.entries) : [], [readable, read]);
-  return <Spread data-harumadi-spread-preview aria-hidden="true">
+  // 최초 콘텐츠 준비 시에만 펼친다. 백그라운드 갱신은 같은 DOM을 유지해 재생하지 않는다.
+  const ready = pages.length > 0 || query.isError;
+  return <Spread data-harumadi-spread-preview data-spread-ready={ready} aria-hidden="true">
     {[0, 1].map(index => <Leaf key={index} $side={index === 0 ? "left" : "right"} data-book-opening-origin={index === 1 ? true : undefined}>
       {pages[index] ? <Miniature><HarumadiPageSheet page={pages[index]} coverStyle={book.coverStyle} number={index + 1} /></Miniature>
         : <Unwritten><span>{index === 0 ? query.isError ? "열어서 확인하기" : "마디를 펼치는 중" : ""}</span></Unwritten>}
     </Leaf>)}
+    <TurningCover data-spread-turning-cover><HarumadiCover ownerId={ownerId} kind="harumadi" harumadiPdf={{ ...book,
+      entryCount: book.entryIds.length, pageCount: 0, hasCover: book.coverStyle.endsWith("-image") && book.entryIds.length > 0 }} /></TurningCover>
   </Spread>;
 });
 
-const unfold = keyframes`from { opacity: .4; transform: scaleX(.94) translateY(4px); } to { opacity: 1; transform: scaleX(1) translateY(0); }`;
+const centerSpread = keyframes`from { transform: translateX(-25%); } to { transform: translateX(0); }`;
+const unfoldLeft = keyframes`from { transform: rotateY(173deg); } to { transform: rotateY(7deg); }`;
+const turnCover = keyframes`0% { transform: rotateY(0deg); opacity: 1; } 99% { opacity: 1; } 100% { transform: rotateY(-173deg); opacity: 0; }`;
 const Spread = styled.span`position: relative; display: flex; width: 100%; aspect-ratio: 296 / 210; perspective: 900px; filter: drop-shadow(0 12px 12px #1b222a16);
-  animation: ${unfold} 560ms cubic-bezier(.22,.75,.22,1) both;
-  @media (prefers-reduced-motion: reduce) { animation: none; }
+  transform: translateX(-25%);
+  &[data-spread-ready="true"] { animation: ${centerSpread} 900ms cubic-bezier(.33,0,.2,1) both; }
+  @media (prefers-reduced-motion: reduce) { transform: none; animation: none !important; }
   &::after { content: ""; position: absolute; inset: 0 auto 0 50%; width: 1px; background: #cbd1c6; pointer-events: none; }
 `;
 const Leaf = styled.span<{ $side: "left" | "right" }>`position: relative; display: block; width: 50%; aspect-ratio: 148 / 210; overflow: hidden; background: white;
   border: 1px solid #e4e9e0; border-radius: ${({ $side }) => $side === "left" ? "5px 1px 1px 8px" : "1px 5px 8px 1px"};
-  transform: ${({ $side }) => $side === "left" ? "rotateY(7deg)" : "rotateY(-7deg)"}; transform-origin: ${({ $side }) => $side === "left" ? "right center" : "left center"};
+  transform: ${({ $side }) => $side === "left" ? "rotateY(173deg)" : "rotateY(-7deg)"}; transform-origin: ${({ $side }) => $side === "left" ? "right center" : "left center"}; backface-visibility: hidden;
+  ${({ $side }) => $side === "left" && `z-index: 1;`}
+  ${({ $side }) => $side === "left" && css`[data-spread-ready="true"] > & { animation: ${unfoldLeft} 900ms cubic-bezier(.33,0,.2,1) both; }`}
+  @media (prefers-reduced-motion: reduce) { transform: ${({ $side }) => $side === "left" ? "rotateY(7deg)" : "rotateY(-7deg)"}; animation: none !important; }
   &::after { content: ""; position: absolute; inset: 0; pointer-events: none; background: ${({ $side }) => $side === "left" ? "linear-gradient(90deg, transparent 80%, #1b222a12)" : "linear-gradient(90deg, #1b222a10, transparent 18%)"}; }
+`;
+const TurningCover = styled.span`position: absolute; top: 0; left: 50%; width: 50%; z-index: 2; transform-origin: left center; backface-visibility: hidden; pointer-events: none;
+  [data-spread-ready="true"] > & { animation: ${turnCover} 900ms cubic-bezier(.33,0,.2,1) both; }
+  @media (prefers-reduced-motion: reduce) { display: none; animation: none !important; }
 `;
 // 읽기 화면과 같은 320px 지면을 축소해 여백과 줄바꿈의 비율을 보존한다.
 const Miniature = styled.span`position: absolute; top: 0; left: 0; display: block; width: 320px; transform: scale(var(--spread-page-scale)); transform-origin: top left; pointer-events: none;`;
