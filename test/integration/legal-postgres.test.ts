@@ -56,6 +56,24 @@ test("분리된 PostgreSQL에서 약관·권리 보호 마이그레이션의 실
     assert.equal(Math.floor(serverVersion / 10000), Number(expectedMajor), "요청한 PostgreSQL 주 버전으로 시험해야 한다.");
   }
   t.diagnostic(`isolated PostgreSQL server_version_num=${serverVersion}`);
+  await t.test("웹 푸시 enum 추가는 기존 플랫폼을 보존하고 계정 삭제가 웹 구독도 함께 파기한다", () => {
+    query(`CREATE SCHEMA tuti_web_push_fixture;
+      SET search_path=tuti_web_push_fixture,public;
+      CREATE TYPE "PushPlatform" AS ENUM ('android','ios');
+      CREATE TABLE users(id text PRIMARY KEY);
+      CREATE TABLE push_devices(id text PRIMARY KEY,user_id text REFERENCES users(id) ON DELETE CASCADE,platform "PushPlatform",token text UNIQUE);
+      INSERT INTO users VALUES ('synthetic');
+      INSERT INTO push_devices VALUES ('native','synthetic','android','synthetic-native');`);
+    const scoped = (sql: string) => query(`SET search_path=tuti_web_push_fixture,public; ${sql}`).split("\n").at(-1);
+    scoped(readFileSync("prisma/migrations/20261104090000_web_push/migration.sql", "utf8"));
+    scoped(readFileSync("prisma/migrations/20261104090000_web_push/migration.sql", "utf8"));
+    scoped("INSERT INTO push_devices VALUES ('browser','synthetic','web','synthetic-web')");
+    assert.equal(scoped("SELECT count(1) FROM push_devices"), "2");
+    assert.equal(scoped("SELECT count(1) FROM push_devices WHERE platform='android'"), "1");
+    scoped("DELETE FROM users WHERE id='synthetic'");
+    assert.equal(scoped("SELECT count(1) FROM push_devices"), "0");
+    query("DROP SCHEMA tuti_web_push_fixture CASCADE");
+  });
   await t.test("라이프로그 알림은 실제 DB에서 수신 선택·묶음·권한 재검사·오늘 작성 억제를 지킨다", () => {
     const result = spawnSync(process.execPath, ["--import", "tsx", "test/integration/notifications-runtime.ts", socket], { env, encoding: "utf8", timeout: 30000 });
     assert.equal(result.status, 0, result.stderr || result.error?.message);

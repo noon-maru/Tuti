@@ -23,6 +23,19 @@ test("웹 알림 클릭 경로는 같은 출처의 정해진 화면만 허용한
   assert.equal(notificationPath("/madi/new?from=notification", "a:b"), "/madi/new?from=notification&notificationId=a%3Ab");
 });
 
+test("표준 라이브러리 요청은 표시 데이터를 암호화하고 VAPID·TTL 헤더를 만든다", () => {
+  const payload = JSON.stringify({ title: "오늘의 마디", body: "일반 안내", ownerTag: "synthetic" });
+  const details = webPush.generateRequestDetails(subscription, payload, {
+    TTL: 3600, vapidDetails: { ...vapid, subject: "mailto:synthetic@example.com" },
+  });
+  assert.equal(details.endpoint, subscription.endpoint);
+  assert.equal(details.headers.TTL, 3600);
+  assert.equal(details.headers["Content-Encoding"], "aes128gcm");
+  assert.ok(String(details.headers.Authorization).startsWith("vapid "));
+  assert.ok(Buffer.isBuffer(details.body));
+  assert.equal(details.body!.toString().includes("오늘의 마디"), false);
+});
+
 test("웹 전송은 계정별로 암호화 호출하고 404·410만 제거하며 오류 원문·구독 키를 남기지 않는다", async t => {
   const old = { ...process.env };
   Object.assign(process.env, { WEB_PUSH_ENABLED: "true", WEB_PUSH_VAPID_PUBLIC_KEY: vapid.publicKey, WEB_PUSH_VAPID_PRIVATE_KEY: vapid.privateKey, WEB_PUSH_VAPID_SUBJECT: "mailto:synthetic@example.com" });

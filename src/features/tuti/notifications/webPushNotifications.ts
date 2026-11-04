@@ -41,6 +41,10 @@ async function request(path: string, init: RequestInit, ownerId: string) {
   try { return await fetchWithPinnedSession(path, { ...init, signal: controller.signal }, ownerId); }
   finally { clearTimeout(timeout); }
 }
+function reportPermission(action: string, ownerId: string) {
+  void request("notifications/events", { method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ kind: "permission", action }) }, ownerId).catch(() => {});
+}
 async function ownRegistration() {
   if (typeof navigator === "undefined" || !("serviceWorker" in navigator)) return undefined;
   const registration = await navigator.serviceWorker.getRegistration("/");
@@ -122,16 +126,25 @@ async function register(ownerId: string, assertActive: () => void, create: boole
 
 export function requestWebPushPermission(): Promise<NotificationPermission> {
   if (webPushAvailability() !== "supported") return Promise.resolve("default");
-  return (Notification.permission !== "default" ? Promise.resolve(Notification.permission) : Notification.requestPermission()).catch(() => "denied" as const);
+  if (Notification.permission !== "default") return Promise.resolve(Notification.permission);
+  const permission = Notification.requestPermission();
+  return new Promise(resolve => {
+    const timer = setTimeout(() => resolve("default"), 30_000);
+    permission.then(resolve, () => resolve("denied")).finally(() => clearTimeout(timer));
+  });
 }
 export function enableWebPushNotifications() {
   if (webPushAvailability() !== "supported") return Promise.resolve({ status: "unsupported" } as const);
   const owner = getSessionSnapshot();
   if (!owner) return Promise.reject(new Error("계정을 확인한 뒤 알림을 켜주세요."));
   // iOS 권한 창은 사용자가 버튼을 누른 호출 스택에서 시작해야 한다.
+  const requested = Notification.permission === "default";
   const permission = requestWebPushPermission();
+  if (requested) reportPermission("permission-requested", owner.userId);
   return recoverWebPushPrivacy().then(() => privacy.enable(owner.userId, async assertActive => {
-    if (await permission !== "granted") return false;
+    const granted = await permission === "granted";
+    reportPermission(granted ? "permission-granted" : "permission-denied", owner.userId);
+    if (!granted) return false;
     return register(owner.userId, assertActive, true);
   })).then(registered => ({ status: registered ? "registered" : "denied" } as const));
 }
@@ -157,8 +170,10 @@ export async function syncWebPushRegistration() {
 export async function disableWebPushNotifications() { await privacy.revoke(getSessionSnapshot()?.userId ?? null); }
 export async function suspendWebPushForSessionChange() {
   if (Capacitor.isNativePlatform() || typeof window === "undefined") return;
-  const state = await readState();
-  if (state.status !== "disabled") await privacy.revoke(state.ownerId);
+  // 즉시 등록 세대를 취소한다. 저장소·서버가 실패해도 워커 표시와 브라우저 구독은 별도로 끈다.
+  const results = await Promise.allSettled([privacy.revoke(getSessionSnapshot()?.userId ?? null), revokeBrowser()]);
+  const failed = results.find(result => result.status === "rejected");
+  if (failed?.status === "rejected") throw failed.reason;
 }
 export async function prepareWebPushForDeletion(owner: string) {
   if (typeof window !== "undefined") await privacy.prepareAccountDeletion(owner);

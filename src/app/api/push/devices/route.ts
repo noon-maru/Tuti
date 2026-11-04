@@ -119,7 +119,7 @@ export async function DELETE(request: Request) {
     }
 
     const input = (await request.json()) as UnregisterPushDeviceRequest;
-    const installationId = normalizeInstallationId(input.installationId);
+    const installationId = normalizeInstallationId(input?.installationId);
     const subscription = input.webSubscription === undefined ? null : parseWebPushSubscription(input.webSubscription);
     if (input.webSubscription !== undefined && (!subscription || webPushInstallationId(subscription.endpoint) !== installationId)) throw new PushDeviceInputError("브라우저 알림 해제 정보를 확인해주세요.");
     await prisma.pushDevice.deleteMany({
@@ -160,6 +160,7 @@ function parseRegistration(input: RegisterPushDeviceRequest) {
   if (!platform || token.length < 16 || token.length > 4096) {
     throw new PushDeviceInputError("푸시 기기 정보를 확인해주세요.");
   }
+  if (platform !== "web" && installationId.startsWith("web_")) throw new PushDeviceInputError("웹 구독 식별자는 브라우저 등록에서만 사용할 수 있어요.");
   if (platform === "web") {
     let subscription;
     try { subscription = parseWebPushSubscription(JSON.parse(token)); } catch { /* 아래에서 동일한 입력 오류로 처리한다. */ }

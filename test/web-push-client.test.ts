@@ -39,6 +39,7 @@ test("웹 등록은 클릭 때만 권한을 요청하고 해제·응답 유실·
   } })) Object.defineProperty(globalThis, key, { configurable: true, value });
   t.mock.method(globalThis, "fetch", async (url: string | URL | Request, init?: RequestInit) => {
     assert.equal(new Headers(init?.headers).get("Authorization"), `Bearer ${"a".repeat(40)}`);
+    if (String(url).endsWith("notifications/events")) return Response.json({ ok: true });
     if (String(url).endsWith("push/web")) return Response.json({ enabled: true, publicKey: keys.publicKey });
     if (init?.method === "DELETE") { deleted.push(JSON.parse(String(init.body))); return new Response(null, { status: 204 }); }
     assert.ok(requests > 0, "명시적 사용자 동작 전에는 등록하지 않는다");

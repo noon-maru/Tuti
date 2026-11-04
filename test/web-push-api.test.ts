@@ -34,6 +34,7 @@ test("웹 등록은 계정 이전을 거절하고 전체 구독 증명으로만 
   assert.equal((await route.POST(request(input))).status, 200);
   assert.equal(device!.installationId, installationId); assert.equal(writes, 1);
   actor = "b";
+  assert.equal((await route.POST(request({ ...input, installationId, platform: "android" }))).status, 400, "네이티브 등록 경로로 웹 소유권 검사를 우회하지 못한다");
   assert.equal((await route.POST(request(input))).status, 400);
   assert.equal(writes, 1, "다른 계정의 브라우저를 자동 이전하지 않는다");
   assert.equal((await route.DELETE(request({ installationId }, "DELETE"))).status, 204);
