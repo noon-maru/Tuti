@@ -200,6 +200,7 @@ const Actions = styled.div`
 const NextButton = styled(PrimaryButton)`
   width: 100%; min-height: 52px;
   background: var(--color-brand-800);
+  color: var(--color-neutral-100);
   white-space: normal; line-height: 1.5;
   &:hover { background: var(--color-brand-900); }
 `;

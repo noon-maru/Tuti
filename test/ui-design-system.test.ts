@@ -81,6 +81,17 @@ test("책장도 ScreenFrame 여백을 쓰며 좁은 화면에서 보기 이름�
   assert.match(views, /min-height: 44px/);
 });
 
+test("첫 화면의 짙은 주요 버튼은 기본·호버 모두 흰 글자 대비를 확보한다", () => {
+  for (const background of [palette.brand[800], palette.brand[900]]) {
+    assert.ok(contrast(background, palette.neutral[100]) >= 4.5);
+  }
+  const welcome = source("src/features/tuti/screens/onboarding/WelcomeScreen.tsx");
+  const next = welcome.match(/const NextButton = styled\(PrimaryButton\)`([^`]+)`/)![1];
+  assert.match(next, /background: var\(--color-brand-800\)/);
+  assert.match(next, /color: var\(--color-neutral-100\)/);
+  assert.match(next, /:hover \{ background: var\(--color-brand-900\)/);
+});
+
 test("홈은 보기·생성·책장 메뉴를 한 줄로 묶고 제목과 권수를 반복하지 않는다", () => {
   const home = source("src/features/tuti/flows/LibraryHomeFlow.tsx");
   assert.match(home, /<Frame ref=\{frame\} aria-label="내 책장"/);
