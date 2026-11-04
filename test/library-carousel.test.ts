@@ -92,3 +92,32 @@ test("포인터 취소·드래그 후 클릭·키보드·페이지 추가를 공
   assert.match(home, /result\.data\?\.pages\.flatMap/);
   assert.match(home, /flex-wrap: wrap/);
 });
+
+test("터치 자식의 암시적 캡처가 무대로 이동해도 스와이프를 취소하지 않는다", () => {
+  // 실제 컴포넌트 핸들러로 캡처 이전 순서를 합성한다. 실기기 테스트는 아니다.
+  const source = readFileSync("src/features/tuti/components/HarumadiCarousel.tsx", "utf8");
+  const gesture = { current: { id: 1, x: 200, y: 100, dx: 0, startedAt: 0, width: 320, dragging: false, bookId: "book" } as Record<string, unknown> | null };
+  const blockedClickUntil = { current: 0 }, directions: number[] = [];
+  let captured = false;
+  const target = { setPointerCapture() { captured = true; }, hasPointerCapture() { return captured; }, releasePointerCapture() { captured = false; } };
+  const finishBody = source.match(/const finish = .*?=> \{([\s\S]*?)\n  \};/)![1];
+  const finish = new Function("gesture", "setDrag", "setDragging", "blockedClickUntil", "active", "carouselSwipeDirection", "move", `return (event, cancelled = false) => {${finishBody}}`)(gesture, () => {}, () => {}, blockedClickUntil, { id: "book" }, carouselSwipeDirection, (direction: number) => directions.push(direction));
+  const followBody = source.match(/const follow = .*?=> \{([\s\S]*?)\n  \};/)![1];
+  const follow = new Function("gesture", "setDragging", "setDrag", "carouselDragProgress", "index", "books", `return event => {${followBody}}`)(gesture, () => {}, () => {}, carouselDragProgress, 0, [{}, {}]);
+  const lostBody = source.match(/onLostPointerCapture=\{event => \{(.*?)\}\}/)![1];
+  const lost = new Function("finish", `return event => {${lostBody}}`)(finish);
+  const event = { pointerId: 1, clientX: 150, clientY: 100, timeStamp: 100, currentTarget: target };
+  follow(event);
+  lost({ ...event, target: {} });
+  assert.ok(gesture.current, "자식에서 발생해 버블링한 캡처 해제는 무시한다");
+  finish({ ...event, clientX: 120, timeStamp: 200 });
+  assert.deepEqual(directions, [1]);
+  assert.equal(captured, false);
+  assert.equal(gesture.current, null);
+  assert.equal(blockedClickUntil.current, 500);
+  gesture.current = { id: 1, x: 200, y: 100, dx: 0, startedAt: 0, width: 320, dragging: false, bookId: "book" };
+  follow(event);
+  lost({ ...event, target });
+  assert.equal(gesture.current, null, "무대 자체의 캡처 소실은 취소한다");
+  assert.deepEqual(directions, [1]);
+});

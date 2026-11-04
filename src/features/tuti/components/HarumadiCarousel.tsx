@@ -51,7 +51,7 @@ export function HarumadiCarousel({ books, ownerId, onOpen, hasNextPage = false, 
     if (active && button) onOpen(active, button, mode);
   };
   const begin = (event: PointerEvent<HTMLDivElement>) => {
-    if (!active || !event.isPrimary || event.button !== 0 || pending || loading) return;
+    if (!active || gesture.current || !event.isPrimary || event.button !== 0 || pending || loading) return;
     blockedClickUntil.current = 0;
     gesture.current = { id: event.pointerId, x: event.clientX, y: event.clientY, dx: 0, startedAt: event.timeStamp, width: event.currentTarget.getBoundingClientRect().width, dragging: false, bookId: active.id };
   };
@@ -73,7 +73,7 @@ export function HarumadiCarousel({ books, ownerId, onOpen, hasNextPage = false, 
     if (!current.dragging) return;
     blockedClickUntil.current = event.timeStamp + 300;
     if (cancelled || active?.id !== current.bookId) return;
-    const direction = carouselSwipeDirection(current.dx, current.width, event.timeStamp - current.startedAt);
+    const direction = carouselSwipeDirection(event.clientX - current.x, current.width, event.timeStamp - current.startedAt);
     if (direction) void move(direction);
   };
   if (!active) return null;
@@ -81,7 +81,7 @@ export function HarumadiCarousel({ books, ownerId, onOpen, hasNextPage = false, 
   return <Carousel data-library-view="carousel">
     <Stage ref={stage} role="region" aria-roledescription="캐러셀" aria-label="하루마디 한 권씩 보기" tabIndex={0} data-swipe-back-ignore="true"
       $dragging={dragging} onPointerDown={begin} onPointerMove={follow} onPointerUp={event => finish(event)}
-      onPointerCancel={event => finish(event, true)} onLostPointerCapture={event => finish(event, true)}
+      onPointerCancel={event => finish(event, true)} onLostPointerCapture={event => { if (event.target === event.currentTarget) finish(event, true); }}
       onDragStart={event => event.preventDefault()} onClickCapture={event => { if (event.timeStamp < blockedClickUntil.current) { event.preventDefault(); event.stopPropagation(); } }}
       onKeyDown={event => {
         if (event.altKey || event.ctrlKey || event.metaKey) return;
