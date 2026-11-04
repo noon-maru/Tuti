@@ -5,6 +5,7 @@ import styled from "@emotion/styled";
 import { MapPinOff } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { BaseButton } from "@/features/tuti/components/buttons";
+import { ToastSurface, ToastAction } from "@/shared/ui/ToastSurface";
 import { ContextMenu } from "@/features/tuti/components/ContextMenu";
 import { LoadingIndicator } from "@/features/tuti/components/LoadingIndicator";
 import { ScreenFrame } from "@/features/tuti/components/ScreenFrame";
@@ -838,6 +839,7 @@ export function RecommendationsScreen({
         </Dots>
         {activeRecommendationNotice && (
           <LimitedResultsToast
+            as="aside"
             $visible
             role="status"
             aria-live="polite"
@@ -1586,60 +1588,24 @@ const LocationModeButton = styled(BaseButton)`
   }
 `;
 
-const LimitedResultsToast = styled.aside<{ $visible: boolean }>`
+const LimitedResultsToast = styled(ToastSurface)<{ $visible: boolean }>`
   position: absolute;
   z-index: 12;
   right: 0;
   bottom: calc(var(--app-safe-area-bottom) + var(--space-10));
   left: 0;
-  width: min(100%, 340px);
-  min-height: 56px;
   margin: 0 auto;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-3);
-  padding: var(--space-3);
-  border: 1px solid var(--color-border);
-  border-radius: 14px;
-  background: rgb(var(--color-white-rgb) / 0.96);
-  color: var(--color-text-muted);
-  font-size: var(--font-size-100);
-  line-height: var(--line-height-body);
-  box-shadow: 0 12px 30px rgb(var(--color-black-rgb) / 0.12);
   opacity: ${({ $visible }) => ($visible ? 1 : 0)};
   transform: translateY(${({ $visible }) => ($visible ? 0 : 8)}px);
   pointer-events: none;
   transition: opacity 180ms ease, transform 220ms cubic-bezier(0.2, 0.8, 0.2, 1);
-
-  span {
-    min-width: 0;
-    display: grid;
-    gap: 2px;
-  }
-
-  strong {
-    color: var(--color-text);
-    font-weight: 700;
-    letter-spacing: -0.02em;
-  }
 
   @media (prefers-reduced-motion: reduce) {
     transition: none;
   }
 `;
 
-const LimitedResultsAction = styled(BaseButton)`
-  min-height: 36px;
-  flex: 0 0 auto;
-  padding: 0 var(--space-3);
-  border-radius: 999px;
-  background: var(--color-secondary-500);
-  color: var(--color-black);
-  font-size: var(--font-size-100);
-  font-weight: 700;
-  pointer-events: auto;
-`;
+const LimitedResultsAction = ToastAction;
 
 const Carousel = styled.div`
   position: relative;

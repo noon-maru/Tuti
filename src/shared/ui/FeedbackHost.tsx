@@ -4,10 +4,12 @@ import { useCallback, useEffect, useId, useRef, useState, useSyncExternalStore }
 import { usePathname, useSearchParams } from "next/navigation";
 import { createPortal } from "react-dom";
 import styled from "@emotion/styled";
+import { CircleAlert, X } from "lucide-react";
 import { feedback, type FeedbackSnapshot } from "@/lib/feedback";
 import { getSessionSnapshot, subscribeToSession } from "@/lib/auth/session";
 import { AppDialogFrame } from "./AppDialogFrame";
 import { BaseButton } from "./buttons";
+import { ToastSurface, ToastDismiss } from "./ToastSurface";
 
 export function FeedbackHost() {
   const state = useSyncExternalStore(feedback.subscribe, feedback.getSnapshot, feedback.getServerSnapshot);
@@ -45,8 +47,9 @@ function Toast({ notice }: { notice: NonNullable<FeedbackSnapshot["toast"]> }) {
   const viewport = document.querySelector<HTMLElement>("[data-app-viewport]");
   return createPortal(<ToastArea $contained={Boolean(viewport)}>
     <ToastCard onMouseEnter={() => setPaused(true)} onMouseLeave={() => setPaused(false)} onFocus={() => setPaused(true)} onBlur={() => setPaused(false)}>
+      {notice.tone === "error" && <CircleAlert size={18} color="var(--color-error)" aria-hidden="true" />}
       <span role={notice.tone === "error" ? "alert" : "status"} aria-atomic="true">{notice.message}</span>
-      <BaseButton type="button" aria-label="알림 닫기" onClick={() => feedback.dismissToast(notice.id)}>×</BaseButton>
+      <ToastDismiss type="button" aria-label="알림 닫기" onClick={() => feedback.dismissToast(notice.id)}><X size={18} aria-hidden="true" /></ToastDismiss>
     </ToastCard>
   </ToastArea>, viewport ?? document.body);
 }
@@ -54,4 +57,4 @@ const Actions = styled.div`display: grid; grid-template-columns: 1fr 1fr; gap: 1
 const Cancel = styled(BaseButton)`background: var(--color-secondary-200); color: var(--color-text);`;
 const Accept = styled(BaseButton)<{ $danger: boolean }>`background: ${({ $danger }) => $danger ? "#b84242" : "var(--color-brand-500)"}; color: ${({ $danger }) => $danger ? "white" : "var(--color-text)"};`;
 const ToastArea = styled.div<{ $contained: boolean }>`position: ${({ $contained }) => $contained ? "absolute" : "fixed"}; z-index: 2147483100; bottom: calc(88px + var(--app-safe-area-bottom, 0px)); left: 16px; right: 16px; display: flex; justify-content: center; pointer-events: none;`;
-const ToastCard = styled.div`width: min(100%, 440px); display: flex; align-items: center; gap: 12px; padding: 12px 12px 12px 16px; border-radius: 16px; background: #26312c; color: white; box-shadow: 0 8px 28px #1b222a24; pointer-events: auto; font-size: 14px; line-height: 1.7; > span { flex: 1; max-height: min(180px, 25dvh); overflow-y: auto; white-space: pre-line; overflow-wrap: anywhere; } > button { flex: none; width: 36px; height: 36px; border-radius: 50%; background: transparent; color: inherit; font-size: 23px; }`;
+const ToastCard = styled(ToastSurface)`> span { max-height: min(180px, 25dvh); overflow-y: auto; }`;
