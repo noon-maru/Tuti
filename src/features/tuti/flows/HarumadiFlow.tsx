@@ -95,7 +95,7 @@ function HarumadiEditor({ owner, initial, read, verified, refreshing, onRefresh,
     // Fast refreshes need no notice; avoid interrupting the book-opening animation.
     const timer = window.setTimeout(() => {
       cacheNotices.current.add(state);
-      showToast(refreshing ? "저장된 내용을 먼저 보여드리고 있어요." : "저장된 하루마디를 보고 있어요. 연결 후 최신 내용을 확인해주세요.");
+      showToast(refreshing ? "저장된 내용을 먼저 보여드리고 있어요." : "저장된 하루마디를 보고 있어요. 연결 후 최신 내용을 확인해주세요.", { durationMs: 1800 });
     }, 400);
     return () => window.clearTimeout(timer);
   }, [readOnly, refreshing, opening, closing]);

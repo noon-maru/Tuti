@@ -41,10 +41,9 @@ export function readerPageWidth(width: number, height: number, captionSpace = 0)
 /** Size the paper + byline stage, not the surrounding empty viewport. */
 export function readerGroupGeometry(width: number, height: number, captionSpace = 0, navigationHeight = 44, gap: number = HARUMADI_READING_LAYOUT.viewer.gap) {
   const naturalHeight = Math.max(0, width) * 595.28 / 419.53 + captionSpace;
-  // Reserve the navigation band on both sides so the stage itself stays centered.
-  const stageOffset = captionSpace / 2;
-  const minimumHeight = Math.min(Math.max(0, width), 180) * 595.28 / 419.53 + 2 * captionSpace + 2 * (navigationHeight + gap);
+  // Center the paper, reserved byline and navigation together as one reading group.
+  const minimumHeight = Math.min(Math.max(0, width), 180) * 595.28 / 419.53 + captionSpace + navigationHeight + gap;
   const availableHeight = Math.max(height, minimumHeight);
-  const stageHeight = Math.max(0, Math.min(naturalHeight, availableHeight - 2 * (navigationHeight + gap) - captionSpace));
-  return { stageHeight, stageOffset, minimumHeight, pageWidth: readerPageWidth(width, stageHeight, captionSpace), navigationOffset: stageHeight / 2 + stageOffset + gap };
+  const stageHeight = Math.max(0, Math.min(naturalHeight, availableHeight - navigationHeight - gap));
+  return { stageHeight, minimumHeight, pageWidth: readerPageWidth(width, stageHeight, captionSpace) };
 }

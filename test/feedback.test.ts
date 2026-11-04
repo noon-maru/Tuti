@@ -55,3 +55,18 @@ test("공통 호스트는 전체 경로에 한 번 연결하며 경로·계정 �
   assert.match(host, /알림 닫기/);
   assert.match(host, /viewport \?\? document.body/);
 });
+
+test("토스트별 표시 시간은 선택적으로 지정하며 다른 안내의 기본값은 유지한다", () => {
+  const ui = createFeedbackController();
+  ui.attach(() => "owner-a");
+  ui.notify("cached", "info", 1800);
+  assert.equal(ui.getSnapshot().toast!.durationMs, 1800);
+  ui.notify("normal");
+  assert.equal(ui.getSnapshot().toast!.durationMs, undefined);
+  for (const invalid of [0, -1, NaN, Infinity]) {
+    ui.notify("invalid", "info", invalid);
+    assert.equal(ui.getSnapshot().toast!.durationMs, undefined);
+  }
+  const host = readFileSync("src/shared/ui/FeedbackHost.tsx", "utf8");
+  assert.match(host, /notice.durationMs \?\? \(notice.tone === "error" \? 10000 : 6000\)/);
+});

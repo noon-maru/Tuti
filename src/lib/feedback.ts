@@ -1,7 +1,7 @@
 export type ConfirmationOptions = { title?: string; confirmLabel?: string; tone?: "neutral" | "danger" };
 export type FeedbackSnapshot = {
   confirmation: ({ id: number; message: string } & ConfirmationOptions) | null;
-  toast: { id: number; message: string; tone: "info" | "error" } | null;
+  toast: { id: number; message: string; tone: "info" | "error"; durationMs?: number } | null;
 };
 const EMPTY: FeedbackSnapshot = { confirmation: null, toast: null };
 
@@ -43,9 +43,9 @@ export function createFeedbackController() {
       request.resolve(accepted && valid);
     },
     cancelConfirmation,
-    notify(message: string, tone: "info" | "error" = "info") {
+    notify(message: string, tone: "info" | "error" = "info", durationMs?: number) {
       if (!runtime) return;
-      publish({ ...snapshot, toast: { id: ++sequence, message, tone } });
+      publish({ ...snapshot, toast: { id: ++sequence, message, tone, ...(durationMs !== undefined && Number.isFinite(durationMs) && durationMs > 0 ? { durationMs } : {}) } });
     },
     dismissToast(id: number) { if (snapshot.toast?.id === id) publish({ ...snapshot, toast: null }); },
     reset() { cancelConfirmation(); publish(EMPTY); },
@@ -53,5 +53,5 @@ export function createFeedbackController() {
 }
 export const feedback = createFeedbackController();
 export const confirmAction = (message: string, options?: ConfirmationOptions) => feedback.confirm(message, options);
-export const showToast = (message: string) => feedback.notify(message);
+export const showToast = (message: string, options?: { durationMs?: number }) => feedback.notify(message, "info", options?.durationMs);
 export const showErrorToast = (message: string) => feedback.notify(message, "error");

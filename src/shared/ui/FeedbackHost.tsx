@@ -42,7 +42,7 @@ function Confirmation({ request }: { request: NonNullable<FeedbackSnapshot["conf
 
 function Toast({ notice }: { notice: NonNullable<FeedbackSnapshot["toast"]> }) {
   const [paused, setPaused] = useState(false);
-  useEffect(() => { if (paused) return; const timer = window.setTimeout(() => feedback.dismissToast(notice.id), notice.tone === "error" ? 10000 : 6000); return () => window.clearTimeout(timer); }, [notice.id, notice.tone, paused]);
+  useEffect(() => { if (paused) return; const timer = window.setTimeout(() => feedback.dismissToast(notice.id), notice.durationMs ?? (notice.tone === "error" ? 10000 : 6000)); return () => window.clearTimeout(timer); }, [notice.id, notice.tone, notice.durationMs, paused]);
   if (typeof document === "undefined") return null;
   const viewport = document.querySelector<HTMLElement>("[data-app-viewport]");
   return createPortal(<ToastArea $contained={Boolean(viewport)}>
