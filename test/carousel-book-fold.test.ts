@@ -63,30 +63,35 @@ test("동작 줄이기·준비 중·미지원 환경에서는 이동을 기다�
   assert.equal(await foldCarouselBook(spread, new AbortController().signal), true);
 });
 
-test("옆 책 선택은 접기 완료 뒤 한 번 적용하고 연속 선택은 차단한다", async () => {
+test("옆 책 이동과 접기는 함께 시작하고 떠나는 지면은 완료까지 유지한다", async () => {
   const source = readFileSync("src/features/tuti/components/HarumadiCarousel.tsx", "utf8");
   const body = source.match(/const transitionTo = async .*?=> \{([\s\S]*?)\n  \};/)![1];
   let resolve!: (value: boolean) => void;
   const pending = new Promise<boolean>(done => { resolve = done; });
   let result = pending;
-  const turning = { current: null }, lifetime = { current: new AbortController() }, changes: unknown[] = [], states: boolean[] = [];
+  const turning = { current: null }, lifetime = { current: new AbortController() }, changes: unknown[] = [], states: boolean[] = [], outgoing: (string | null)[] = [];
   const handler = ts.transpileModule(`const run = async (next: { id: string; index: number }) => {${body}}`, { compilerOptions: { target: ts.ScriptTarget.ES2022 } }).outputText;
-  const choose = new Function("turning", "lifetime", "active", "setFolding", "stage", "window", "foldCarouselBook", "setSelection", `${handler}; return run;`)(
-    turning, lifetime, { id: "current" }, (value: boolean) => states.push(value), { current: { querySelector: () => null } }, {}, () => result, (value: unknown) => changes.push(value));
+  const choose = new Function("turning", "lifetime", "active", "setFolding", "stage", "window", "foldCarouselBook", "setSelection", "setOutgoingId", `${handler}; return run;`)(
+    turning, lifetime, { id: "current" }, (value: boolean) => states.push(value), { current: { querySelector: () => null } }, {}, () => result, (value: unknown) => changes.push(value), (value: string | null) => outgoing.push(value));
   const next = { id: "next", index: 1 };
   const transition = choose(next);
   await choose({ id: "third", index: 2 });
-  assert.deepEqual(changes, []); assert.deepEqual(states, [true]);
+  assert.deepEqual(changes, [next], "접기를 기다리지 않고 이동한다"); assert.deepEqual(states, [true]);
+  assert.deepEqual(outgoing, ["current"], "이동하는 동안 기존 지면을 제거하지 않는다");
   resolve(true); await transition;
   assert.deepEqual(changes, [next]); assert.deepEqual(states, [true, false]);
+  assert.deepEqual(outgoing, ["current", null]);
   assert.equal(turning.current, null);
   result = Promise.resolve(false);
-  await choose({ id: "cancelled", index: 2 });
-  assert.deepEqual(changes, [next], "접기가 취소되면 책을 바꾸지 않는다");
+  const interrupted = { id: "interrupted", index: 2 };
+  await choose(interrupted);
+  assert.deepEqual(changes, [next, interrupted], "접기만 중단되어도 이미 시작한 이동은 유지한다");
   await choose({ id: "current", index: 0 });
   lifetime.current.abort();
   await choose({ id: "unmounted", index: 3 });
-  assert.deepEqual(changes, [next]);
+  assert.deepEqual(changes, [next, interrupted]);
   assert.deepEqual(states, [true, false, true, false]);
   assert.match(source, /await transitionTo\(\{ id, index: index \+ 1 \}\)/);
+  assert.match(source, /selected \|\| book.id === outgoingId/);
+  assert.match(source, /Math.abs\(bookIndex - index\) <= 3 \|\| book.id === outgoingId/);
 });

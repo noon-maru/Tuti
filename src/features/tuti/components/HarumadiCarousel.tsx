@@ -28,6 +28,7 @@ export function HarumadiCarousel({ books, ownerId, onOpen, onCreateMadi, hasNext
   const [size, setSize] = useState({ width: 320, height: 300 }), [drag, setDrag] = useState(0), [dragging, setDragging] = useState(false), [pending, setPending] = useState(false);
   const [writeProgress, setWriteProgress] = useState(0);
   const [folding, setFolding] = useState(false);
+  const [outgoingId, setOutgoingId] = useState<string | null>(null);
   const turning = useRef<AbortController | null>(null);
   const lifetime = useRef<AbortController | null>(null);
   useEffect(() => {
@@ -74,13 +75,17 @@ export function HarumadiCarousel({ books, ownerId, onOpen, onCreateMadi, hasNext
     const controller = new AbortController();
     turning.current = controller;
     setFolding(true);
+    setOutgoingId(active?.id ?? null);
     try {
       const spread = stage.current?.querySelector<HTMLElement>('[data-carousel-active="true"] [data-harumadi-spread-preview]') ?? null;
       const reduced = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false;
-      if (await foldCarouselBook(spread, controller.signal, reduced) && !controller.signal.aborted) setSelection(next);
+      // 기존 지면을 유지한 채 선택·좌우 이동과 접기를 같은 프레임에 시작한다.
+      const closing = foldCarouselBook(spread, controller.signal, reduced);
+      setSelection(next);
+      await closing;
     } finally {
       if (turning.current === controller) turning.current = null;
-      if (!lifetime.current?.signal.aborted) setFolding(false);
+      if (!lifetime.current?.signal.aborted) { setFolding(false); setOutgoingId(null); }
     }
   };
   const choose = (next: number) => {
@@ -149,19 +154,19 @@ export function HarumadiCarousel({ books, ownerId, onOpen, onCreateMadi, hasNext
         else if (event.key === "Home" || event.key === "End") { event.preventDefault(); choose(event.key === "Home" ? 0 : books.length - 1); }
         else if (event.key === "Enter" && event.target === event.currentTarget) { event.preventDefault(); openSelected(); }
       }}>
-      {books.slice(Math.max(0, index - 3), index + 4).map(book => {
-        const bookIndex = books.indexOf(book), selected = book.id === active.id;
+      {books.filter((book, bookIndex) => Math.abs(bookIndex - index) <= 3 || book.id === outgoingId).map(book => {
+        const bookIndex = books.indexOf(book), selected = book.id === active.id, spread = selected || book.id === outgoingId;
         const pose = carouselPose(bookIndex - index - drag);
         return <Slide key={book.id} data-harumadi-card data-carousel-active={selected} aria-hidden={!selected} $dragging={dragging}
           style={{ width: spreadWidth, zIndex: pose.zIndex, opacity: pose.opacity, pointerEvents: pose.opacity > .1 ? "auto" : "none", transform: `translate(-50%, -50%) translateX(${pose.x * width}px) translateY(${-writeProgress * 48 * (selected ? 1 : .2)}px) scale(${pose.scale}) rotateY(${pose.rotation}deg)` }}>
-          <CoverButton $spread={selected} style={{ "--spread-page-scale": (spreadWidth / 2 - 2) / 320 } as CSSProperties} data-book-cover type="button" disabled={busy} tabIndex={selected ? 0 : -1} aria-label={`${harumadiAccessibleTitle(book)}, 마디 ${book.entryIds.length}개 ${selected ? "미리보기 열기" : "선택"}`}
+          <CoverButton $spread={spread} style={{ "--spread-page-scale": (spreadWidth / 2 - 2) / 320 } as CSSProperties} data-book-cover type="button" disabled={busy} tabIndex={selected ? 0 : -1} aria-label={`${harumadiAccessibleTitle(book)}, 마디 ${book.entryIds.length}개 ${selected ? "미리보기 열기" : "선택"}`}
             onClick={event => {
               if (turning.current || requesting.current || loading) return;
               if (!selected) { choose(bookIndex); return; }
               const direction = carouselTapDirection(event.clientX, event.currentTarget.getBoundingClientRect(), event.detail === 0);
               if (direction) void move(direction); else onOpen(book, event.currentTarget);
             }}>
-            {selected ? <HarumadiSpreadPreview book={book} ownerId={ownerId} /> : <CarouselCover book={book} ownerId={ownerId} />}
+            {spread ? <HarumadiSpreadPreview book={book} ownerId={ownerId} /> : <CarouselCover book={book} ownerId={ownerId} />}
           </CoverButton>
         </Slide>;
       })}
