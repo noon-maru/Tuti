@@ -63,7 +63,7 @@ function HarumadiLoader({ owner, id, initialMode, openingOrigin, onClose, regist
   if (id && !readable && (query.isPending || query.isFetching)) return <Frame>{onClose && <Header $reading><BackButton aria-label="내 책장으로 돌아가기" onClick={onClose} /></Header>}<AppLoadingScreen label="하루마디를 열고 있어요." /></Frame>;
   if (id && !readable) return <Frame><Header $reading><BackButton aria-label="내 책장으로 돌아가기" onClick={onClose ?? (() => router.replace("/"))} /></Header><Body $reading={false} role="alert"><h1>하루마디를 열지 못했어요.</h1><p>{query.error?.message ?? "연결을 확인하고 다시 열어주세요."}</p><PrimaryButton onClick={() => void query.refetch()}>다시 불러오기</PrimaryButton></Body></Frame>;
   return <HarumadiEditor key={id ?? "new"} owner={owner} initial={query.data?.content.harumadi} read={query.data}
-    verified={verified} refreshing={query.isFetching} onRefresh={() => void query.refetch()} initialMode={initialMode} openingOrigin={openingOrigin} onClose={onClose} registerCloseGuard={registerCloseGuard} />;
+    verified={verified} refreshing={query.isFetching} onRefresh={() => { if (id) void query.refetch(); }} initialMode={initialMode} openingOrigin={openingOrigin} onClose={onClose} registerCloseGuard={registerCloseGuard} />;
 }
 
 function HarumadiEditor({ owner, initial, read, verified, refreshing, onRefresh, initialMode, openingOrigin, onClose, registerCloseGuard }: {
@@ -301,7 +301,13 @@ function HarumadiEditor({ owner, initial, read, verified, refreshing, onRefresh,
         <HarumadiPageViewer book={harumadi} entries={chosen} onClose={closeToLibrary} closing={closing} />
       </>}
       {policyQuery.isError && <ErrorMessage role="alert">마디 보호 설정을 불러오지 못했어요.<Quiet onClick={() => void policyQuery.refetch()}>다시 불러오기</Quiet></ErrorMessage>}
-      {error && <ErrorMessage role="alert">{error}<Quiet onClick={() => window.location.reload()}>다시 불러오기</Quiet></ErrorMessage>}
+      {error && <ErrorMessage role="alert">{error}<Quiet disabled={busy || refreshing} onClick={() => {
+        setError("");
+        // 편집 중인 책의 재조회 실패로 에디터가 교체되어 미저장 값이 사라지지 않게 한다.
+        if (!dirty) onRefresh();
+        if (mode === "settings" || mode === "pdf") void policyQuery.refetch();
+        if (harumadi && (mode === "selection" || addEntryId)) void entries.refetch();
+      }}>다시 불러오기</Quiet></ErrorMessage>}
     </Body>
     {mode === "pages" && harumadi && <ReaderTools aria-label="하루마디 채우기">
       <WriteButton type="button" disabled={busy || readOnly} onClick={() => router.push(`/madi/new?from=library&harumadiId=${encodeURIComponent(harumadi.id)}`)}><PenLine size={17} aria-hidden="true" />{isFirstMadi ? "첫 마디 남기기" : "마디 남기기"}</WriteButton>

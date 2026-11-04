@@ -30,6 +30,13 @@ export function NativeAppUpdateNotice({ children }: { children: React.ReactNode 
   const [attempt, setAttempt] = useState(0);
   const [incompatible, setIncompatible] = useState<ClientUpdateRequired | null>(null);
 
+  const retryVersionCheck = () => {
+    setCheckFailed(false);
+    setIncompatible(null);
+    setChecked(false);
+    setAttempt(value => value + 1);
+  };
+
   const dismiss = useCallback(
     async (currentPolicy: AppUpdatePolicyResponse) => {
       setPolicy(null);
@@ -141,7 +148,7 @@ export function NativeAppUpdateNotice({ children }: { children: React.ReactNode 
       {incompatible ? incompatible.storeUrl ? <Button type="button" $tone="primary" onClick={() => {
         const url = incompatible.storeUrl;
         if (url?.startsWith("https://")) void openNativeAppStore(url).catch(() => window.open(url, "_blank", "noopener,noreferrer"));
-      }}>지금 업데이트하기</Button> : <Button type="button" $tone="primary" onClick={() => window.location.reload()}>새로고침하기</Button> : checkFailed && <Button type="button" onClick={() => { setCheckFailed(false); setAttempt(value => value + 1); }}>다시 확인하기</Button>}
+      }}>지금 업데이트하기</Button> : <Button type="button" $tone="primary" onClick={retryVersionCheck}>다시 확인하기</Button> : checkFailed && <Button type="button" onClick={retryVersionCheck}>다시 확인하기</Button>}
       <Link href="/login">계정·데이터 관리</Link>
       <Link href="/account-deletion">데이터 삭제 안내</Link>
       <a href="mailto:admin@tuti.today">문의</a>

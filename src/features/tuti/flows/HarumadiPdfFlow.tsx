@@ -21,7 +21,7 @@ import {
   fetchJournalEntries,
   fetchSensitiveJournalPolicy,
 } from "@/lib/tutiApi";
-import { getSessionSnapshot } from "@/lib/auth/session";
+import { ensureSession, getSessionSnapshot } from "@/lib/auth/session";
 import { ScreenFrame } from "@/features/tuti/components/ScreenFrame";
 import {
   BackButton,
@@ -95,14 +95,25 @@ const HARUMADI_PDF_STEP_EXIT_ACTIVITY = {
 
 export function HarumadiPdfFlow() {
   const session = useSession();
+  const [retrying, setRetrying] = useState(false);
+  const [sessionError, setSessionError] = useState("");
+  const retrySession = async () => {
+    if (retrying) return;
+    setRetrying(true);
+    setSessionError("");
+    try { await ensureSession(); }
+    catch { setSessionError("연결을 확인하고 다시 시도해주세요."); }
+    finally { setRetrying(false); }
+  };
   return session ? (
     <HarumadiPdfEditor key={session.userId} ownerId={session.userId} />
   ) : (
     <Frame>
       <p role="status">마디를 준비하고 있어요.</p>
-      <SmallButton type="button" onClick={() => window.location.reload()}>
-        다시 불러오기
+      <SmallButton type="button" disabled={retrying} onClick={() => void retrySession()}>
+        {retrying ? "다시 확인하고 있어요" : "다시 불러오기"}
       </SmallButton>
+      {sessionError && <p role="alert">{sessionError}</p>}
     </Frame>
   );
 }
@@ -138,6 +149,7 @@ function HarumadiPdfEditor({ ownerId }: { ownerId: string }) {
   const { data: sensitivePolicy } = useQuery({ queryKey: ["journal-sensitive-policy"], queryFn: fetchSensitiveJournalPolicy });
   const [freeformConfirmed, setFreeformConfirmed] = useState(false);
   const [loadError, setLoadError] = useState(false);
+  const [loadAttempt, setLoadAttempt] = useState(0);
   const [saveStatus, setSaveStatus] = useState("이 기기에 자동으로 저장돼요.");
   const [message, setMessage] = useState("");
   const [selectionNotice, setSelectionNotice] = useState("");
@@ -169,7 +181,7 @@ function HarumadiPdfEditor({ ownerId }: { ownerId: string }) {
     return () => {
       active = false;
     };
-  }, [ownerId]);
+  }, [ownerId, loadAttempt]);
 
   const sorted = useMemo(
     () =>
@@ -353,7 +365,7 @@ function HarumadiPdfEditor({ ownerId }: { ownerId: string }) {
     return (
       <Frame>
         <p role="alert">저장된 초안을 읽지 못했어요.</p>
-        <SmallButton onClick={() => window.location.reload()}>
+        <SmallButton onClick={() => { setLoadError(false); setMessage(""); setLoadAttempt(value => value + 1); }}>
           다시 불러오기
         </SmallButton>
         <SmallButton

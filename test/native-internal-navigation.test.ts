@@ -37,3 +37,19 @@ test("이메일 링크는 외부 처리로 유지한다", () => {
   for (const file of nativeScreens.slice(1))
     assert.match(readFileSync(file, "utf8"), /<a href="mailto:admin@tuti.today">/);
 });
+
+test("앱 오류 재시도는 전체 문서를 새로고침하지 않는다", () => {
+  const update = readFileSync("src/features/tuti/components/NativeAppUpdateNotice.tsx", "utf8");
+  const book = readFileSync("src/features/tuti/flows/HarumadiFlow.tsx", "utf8");
+  const pdf = readFileSync("src/features/tuti/flows/HarumadiPdfFlow.tsx", "utf8");
+  for (const source of [update, book, pdf]) assert.doesNotMatch(source, /window\.location\.reload/);
+  assert.match(update, /onClick=\{retryVersionCheck\}/);
+  assert.match(update, /setAttempt\(value => value \+ 1\)/);
+  assert.match(book, /if \(id\) void query.refetch\(\)/);
+  assert.match(book, /disabled=\{busy \|\| refreshing\}/);
+  assert.match(book, /if \(!dirty\) onRefresh\(\)/);
+  assert.match(pdf, /try \{ await ensureSession\(\); \}/);
+  assert.match(pdf, /setLoadAttempt\(value => value \+ 1\)/);
+  assert.match(pdf, /\[ownerId, loadAttempt\]/);
+  assert.match(pdf, /if \(active\) setDraft/);
+});
