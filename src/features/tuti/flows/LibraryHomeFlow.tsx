@@ -101,10 +101,10 @@ function LibraryHome({ ownerId }: { ownerId: string }) {
   </Frame>;
 }
 const Frame = styled(ScreenFrame)`position: relative; height: 100%; min-height: 0; padding: 0; background: var(--color-surface); color: var(--color-text); isolation: isolate;
-  --screen-padding-top: calc(var(--space-6) + var(--app-safe-area-top, 0px));
+  --screen-padding-top: calc(40px + var(--app-safe-area-top, 0px));
   --harumadi-shelf-title-size: 16px; --harumadi-shelf-brand-size: 10px; --harumadi-shelf-date-size: 11px;
   --harumadi-shelf-title-lines: 3; --harumadi-shelf-title-leading: 1.5;
-  @container app-viewport (max-height: 620px) { --screen-padding-top: calc(var(--space-4) + var(--app-safe-area-top, 0px)); }
+  @container app-viewport (max-height: 620px) { --screen-padding-top: calc(24px + var(--app-safe-area-top, 0px)); }
 `;
 const HomeSurface = styled.div<{ $hidePreview: boolean }>`height: 100%; min-height: 0; display: flex; flex-direction: column;
   ${({ $hidePreview }) => $hidePreview && `[data-carousel-active="true"] [data-book-cover] { visibility: hidden; }`}

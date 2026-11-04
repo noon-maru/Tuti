@@ -86,8 +86,8 @@ test("홈은 원래 제목을 작게 유지하고 권수를 제목과 묶어 책
   assert.match(home, /query\.isSuccess && <ShelfCount>[\s\S]*?<\/ShelfCount>\}[\s\S]*?<\/Heading>/);
   assert.equal((home.match(/<ShelfCount>/g) ?? []).length, 1);
   assert.match(home, /h1 \{ \$\{screenTitleStyles\} font-size: 1\.25rem; \}/);
-  assert.match(home, /--screen-padding-top: calc\(var\(--space-6\) \+ var\(--app-safe-area-top, 0px\)\)/);
-  assert.match(home, /max-height: 620px[\s\S]*?--screen-padding-top: calc\(var\(--space-4\)/);
+  assert.match(home, /--screen-padding-top: calc\(40px \+ var\(--app-safe-area-top, 0px\)\)/);
+  assert.match(home, /max-height: 620px[\s\S]*?--screen-padding-top: calc\(24px \+ var\(--app-safe-area-top, 0px\)\)/);
   const heading = home.match(/const Heading = styled\.div`([^`]+)`/)![1];
   assert.match(heading, /flex-wrap: wrap/);
   assert.match(heading, /min-width: 0/);
