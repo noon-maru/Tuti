@@ -2863,6 +2863,7 @@ function getFilterOptions(tab: AdminTab) {
       { value: "", label: "전체 알림" },
       { value: "platform:android", label: "Android" },
       { value: "platform:ios", label: "iOS" },
+      { value: "platform:web", label: "웹·PWA" },
       { value: "status:sent", label: "전달 성공" },
       { value: "status:failed", label: "전달 실패" },
       { value: "status:invalidated", label: "토큰 무효" },

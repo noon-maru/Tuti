@@ -9,7 +9,7 @@ export async function recordPushDeliverySafely(input: {
   userId: string;
   deviceId: string | null;
   platform: PushPlatform;
-  provider: "apns" | "fcm";
+  provider: "apns" | "fcm" | "web-push";
   message: ServerPushMessage;
   status: DeliveryStatus;
   error?: unknown;
@@ -49,7 +49,7 @@ export async function recordPushDeliverySafely(input: {
 export function normalizePushError(error: unknown, explicitCode?: string) {
   if (!error) {
     return {
-      code: explicitCode === "UNREGISTERED_TOKEN" ? explicitCode : null,
+      code: explicitCode && /^(?:UNREGISTERED_TOKEN|INVALID_SUBSCRIPTION|PROVIDER_ERROR|HTTP_[45][0-9]{2})$/.test(explicitCode) ? explicitCode : null,
       message: null,
     };
   }

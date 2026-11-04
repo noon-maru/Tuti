@@ -386,7 +386,7 @@ export type AdminOverviewResponse = {
   overview: AdminOverview;
 };
 
-export type AdminNotificationPlatform = "android" | "ios";
+export type AdminNotificationPlatform = "android" | "ios" | "web";
 export type AdminNotificationDeliveryStatus =
   | "sent"
   | "failed"
@@ -446,10 +446,7 @@ export type AdminNotificationsResponse = {
     kinds: { kind: string; sent: number; failed: number }[];
   };
   generatedAt: string;
-  configuration: Record<
-    AdminNotificationPlatform,
-    { enabled: boolean }
-  >;
+  configuration: Record<"android" | "ios", { enabled: boolean }> & { web?: { enabled: boolean; configured?: boolean } };
   summary: {
     totalDevices: number;
     activeDevices: number;

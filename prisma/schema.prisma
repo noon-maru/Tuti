@@ -38,6 +38,7 @@ enum UserRole {
 enum PushPlatform {
   android
   ios
+  web
 }
 
 enum PushDeliveryStatus {

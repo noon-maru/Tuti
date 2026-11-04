@@ -6,6 +6,7 @@ import {
   withCors,
 } from "@/server/http/cors";
 import { isPlatformPushEnabled } from "@/server/notifications/pushAccess";
+import { webPushConfiguration } from "@/server/notifications/webPush";
 import type {
   AdminNotificationDeliveryStatus,
   AdminNotificationErrorSummary,
@@ -16,7 +17,7 @@ import type {
 
 export const runtime = "nodejs";
 
-const platforms = ["android", "ios"] as const;
+const platforms = ["android", "ios", "web"] as const;
 const statuses = ["sent", "failed", "invalidated"] as const;
 
 export async function GET(request: Request) {
@@ -240,6 +241,7 @@ export async function GET(request: Request) {
       lastDispatchAt: dispatchStatus[0]?.checked_at.toISOString() ?? null, lastDispatchFailed: dispatchStatus[0]?.failed ?? 0, kinds: [...kinds.values()] },
     generatedAt: new Date().toISOString(),
     configuration: {
+      web: { enabled: isPlatformPushEnabled("web"), configured: Boolean(webPushConfiguration()) },
       android: {
         enabled: isPlatformPushEnabled("android"),
       },

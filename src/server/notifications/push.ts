@@ -2,6 +2,7 @@ import { sendIosPushToUser } from "@/server/notifications/apns";
 import { sendAndroidPushToUser } from "@/server/notifications/fcm";
 import type { ServerPushMessage } from "@/server/notifications/pushPayload";
 import { readNotificationSettings } from "./settings";
+import { sendWebPushToUser } from "./webPush";
 
 export async function sendPushToUserSafely(
   userId: string | null,
@@ -25,15 +26,16 @@ export async function sendPushToUser(
 ) {
   const settings = await readNotificationSettings(userId);
   if (message.type === "madi-reminder" ? !settings.reminderEnabled : !settings.newsEnabled) return { attempted: 0, sent: 0, failed: 0, invalidated: 0 };
-  const [android, ios] = await Promise.all([
+  const [android, ios, web] = await Promise.all([
     sendAndroidPushToUser(userId, message),
     sendIosPushToUser(userId, message),
+    sendWebPushToUser(userId, message),
   ]);
 
   return {
-    attempted: android.attempted + ios.attempted,
-    sent: android.sent + ios.sent,
-    failed: android.failed + ios.failed,
-    invalidated: android.invalidated + ios.invalidated,
+    attempted: android.attempted + ios.attempted + web.attempted,
+    sent: android.sent + ios.sent + web.sent,
+    failed: android.failed + ios.failed + web.failed,
+    invalidated: android.invalidated + ios.invalidated + web.invalidated,
   };
 }

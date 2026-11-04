@@ -121,13 +121,13 @@ export function AdminNotificationsPanel({
             </thead>
             <tbody>
               {data.platforms.map((summary) => {
-                const configuration = data.configuration[summary.platform];
+                const configuration = data.configuration[summary.platform] ?? { enabled: false };
                 return (
                   <tr key={summary.platform}>
                     <td data-label="플랫폼">
                       <PlatformIdentity>
                         <PlatformMark $platform={summary.platform} aria-hidden="true">
-                          {summary.platform === "android" ? "A" : "i"}
+                          {summary.platform === "android" ? "A" : summary.platform === "web" ? "W" : "i"}
                         </PlatformMark>
                         <strong>{getPlatformLabel(summary.platform)}</strong>
                       </PlatformIdentity>
@@ -135,13 +135,13 @@ export function AdminNotificationsPanel({
                     <td data-label="발송 범위">
                       <ConfigurationBadge
                         $state={
-                          configuration.enabled
+                          configuration.enabled && !("configured" in configuration && configuration.configured === false)
                             ? "enabled"
                             : "disabled"
                         }
                       >
                         {configuration.enabled
-                          ? "전체 사용"
+                          ? "configured" in configuration && configuration.configured === false ? "설정 확인 필요" : "전체 사용"
                           : "꺼짐"}
                       </ConfigurationBadge>
                       <TableHint>{getConfigurationLabel(configuration)}</TableHint>
@@ -343,7 +343,7 @@ function getConfigurationLabel(configuration: {
 }
 
 function getPlatformLabel(platform: AdminNotificationPlatform) {
-  return platform === "android" ? "Android" : "iOS";
+  return platform === "android" ? "Android" : platform === "web" ? "웹·PWA" : "iOS";
 }
 
 function getDeliveryStatusLabel(status: AdminNotificationDeliveryStatus) {

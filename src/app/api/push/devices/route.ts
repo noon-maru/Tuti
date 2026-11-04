@@ -2,6 +2,8 @@ import { randomUUID } from "node:crypto";
 import { authenticateUser } from "@/server/auth/session";
 import { prisma } from "@/server/db/prisma";
 import { isPushEnabledForUser } from "@/server/notifications/pushAccess";
+import { webPushConfiguration, webPushInstallationId } from "@/server/notifications/webPush";
+import { parseWebPushSubscription } from "@/shared/notifications/webPush";
 import {
   createPreflightResponse,
   isRequestOriginAllowed,
@@ -34,7 +36,7 @@ export async function POST(request: Request) {
       (await request.json()) as RegisterPushDeviceRequest,
     );
 
-    if (!(await isPushEnabledForUser(user.id, input.platform))) {
+    if (!(await isPushEnabledForUser(user.id, input.platform)) || (input.platform === "web" && !webPushConfiguration())) {
       return withCors(
         request,
         Response.json(
@@ -47,7 +49,13 @@ export async function POST(request: Request) {
     const now = new Date();
 
     await prisma.$transaction(async (transaction) => {
-      await transaction.pushDevice.deleteMany({
+      if (input.platform === "web") {
+        await transaction.$queryRaw`SELECT id FROM users WHERE id=${user.id} FOR UPDATE`;
+        await transaction.$queryRaw`SELECT pg_advisory_xact_lock(hashtextextended(${input.installationId},0))::text`;
+        const existing = await transaction.pushDevice.findUnique({ where: { installationId: input.installationId }, select: { userId: true } });
+        if (existing && existing.userId !== user.id) throw new PushDeviceInputError("이 브라우저의 이전 알림을 해제한 뒤 다시 켜주세요.");
+        if (!existing && await transaction.pushDevice.count({ where: { userId: user.id, platform: "web" } }) >= 20) throw new PushDeviceInputError("등록된 브라우저가 많아요. 사용하지 않는 브라우저의 알림을 먼저 해제해주세요.");
+      } else await transaction.pushDevice.deleteMany({
         where: {
           token: input.token,
           installationId: { not: input.installationId },
@@ -83,7 +91,7 @@ export async function POST(request: Request) {
   } catch (error) {
     const invalidInput = error instanceof PushDeviceInputError ? error : null;
     if (!invalidInput) {
-      console.error("푸시 기기를 등록하지 못했습니다.", error);
+      console.error("푸시 기기를 등록하지 못했습니다.", { error: error instanceof Error ? error.name : "UnknownError" });
     }
 
     return withCors(
@@ -112,15 +120,19 @@ export async function DELETE(request: Request) {
 
     const input = (await request.json()) as UnregisterPushDeviceRequest;
     const installationId = normalizeInstallationId(input.installationId);
+    const subscription = input.webSubscription === undefined ? null : parseWebPushSubscription(input.webSubscription);
+    if (input.webSubscription !== undefined && (!subscription || webPushInstallationId(subscription.endpoint) !== installationId)) throw new PushDeviceInputError("브라우저 알림 해제 정보를 확인해주세요.");
     await prisma.pushDevice.deleteMany({
-      where: { installationId, userId: user.id },
+      // 계정 전환 뒤에도 브라우저가 가진 구독 전체(비밀 auth 포함)로 자신의 구독만 철회한다.
+      // 다른 계정 기기 목록 조회·등록 이전이나 네이티브 토큰 삭제를 허용하지 않는다.
+      where: subscription ? { installationId, platform: "web", token: JSON.stringify(subscription) } : { installationId, userId: user.id },
     });
 
     return withCors(request, new Response(null, { status: 204 }));
   } catch (error) {
     const invalidInput = error instanceof PushDeviceInputError ? error : null;
     if (!invalidInput) {
-      console.error("푸시 기기 등록을 해제하지 못했습니다.", error);
+      console.error("푸시 기기 등록을 해제하지 못했습니다.", { error: error instanceof Error ? error.name : "UnknownError" });
     }
     return withCors(
       request,
@@ -137,8 +149,8 @@ export function OPTIONS(request: Request) {
 }
 
 function parseRegistration(input: RegisterPushDeviceRequest) {
-  const installationId = normalizeInstallationId(input?.installationId);
-  const token = typeof input?.token === "string" ? input.token.trim() : "";
+  let installationId = normalizeInstallationId(input?.installationId);
+  let token = typeof input?.token === "string" ? input.token.trim() : "";
   const platform = pushPlatforms.includes(input?.platform)
     ? input.platform
     : null;
@@ -147,6 +159,13 @@ function parseRegistration(input: RegisterPushDeviceRequest) {
 
   if (!platform || token.length < 16 || token.length > 4096) {
     throw new PushDeviceInputError("푸시 기기 정보를 확인해주세요.");
+  }
+  if (platform === "web") {
+    let subscription;
+    try { subscription = parseWebPushSubscription(JSON.parse(token)); } catch { /* 아래에서 동일한 입력 오류로 처리한다. */ }
+    if (!subscription) throw new PushDeviceInputError("브라우저 알림 구독 정보를 확인해주세요.");
+    token = JSON.stringify(subscription);
+    installationId = webPushInstallationId(subscription.endpoint);
   }
 
   return { installationId, platform, token, appVersion, locale };

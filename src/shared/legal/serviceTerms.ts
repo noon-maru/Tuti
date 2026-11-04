@@ -68,6 +68,6 @@ export function requiresServiceTerms(pathname: string, method: string) {
   if (method === "GET" || method === "HEAD") return false;
   if (/^\/api\/journal-entries\/[^/]+\/share-traces(?:\/[^/]+\/finalize)?$/.test(pathname)) return false;
   return pathname === "/api/recommendation-actions" || pathname === "/api/product-activity" || pathname === "/api/product-interactions" || pathname === "/api/lifecycle" ||
-    pathname === "/api/account" || pathname === "/api/push/devices" ||
+    pathname === "/api/account" || pathname === "/api/push/devices" || pathname === "/api/push/web" ||
     /^\/api\/(journal-entries|harumadi-pdfs|harumadis)(\/|$)/.test(pathname);
 }
