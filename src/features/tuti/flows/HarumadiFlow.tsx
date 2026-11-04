@@ -215,7 +215,7 @@ function HarumadiEditor({ owner, initial, read, verified, refreshing, onRefresh,
   // 사용자 저장 결과와 네트워크 조회 완료를 연결하는 외부 동기화다.
   useAttachNewEntry(attachNewEntry);
 
-  return <Frame ref={frame} data-harumadi-editor aria-busy={busy || closing}>
+  return <Frame ref={frame} $openingSpread={opening && openingOrigin?.appearance === "spread"} data-harumadi-editor aria-busy={busy || closing}>
     <BookContents ref={contents} inert={closing || opening}>
     <Header $creating={!harumadi && mode === "settings"}><Quiet type="button" onClick={back} disabled={busy}><ArrowLeft size={18} />{mode === "pages" || !harumadi || (onClose && initialMode && initialMode !== "pages" && mode === initialMode) ? "내 책장" : "하루마디"}</Quiet>
       {harumadi?.shared && mode === "pages" && <Quiet type="button" disabled={readOnly} onClick={() => setMode("comments")}>댓글·답글</Quiet>}
@@ -277,8 +277,8 @@ function HarumadiEditor({ owner, initial, read, verified, refreshing, onRefresh,
 
 function useAttachNewEntry(attach: () => Promise<void>) { useEffect(() => { void attach(); }, [attach]); }
 
-const Frame = styled.section`position: relative; height: 100%; min-height: 0; display: flex; flex-direction: column; background: #F8FAFC; color: var(--color-text);`;
-const BookContents = styled.div`height: 100%; min-height: 0; display: flex; flex-direction: column;`;
+const Frame = styled.section<{ $openingSpread?: boolean }>`position: relative; height: 100%; min-height: 0; display: flex; flex-direction: column; background: ${({ $openingSpread }) => $openingSpread ? "transparent" : "#F8FAFC"}; color: var(--color-text);`;
+const BookContents = styled.div`height: 100%; min-height: 0; display: flex; flex-direction: column; background: #F8FAFC;`;
 const TogetherEntry = styled(BaseButton)`flex: none; display: flex; align-items: center; gap: 10px; min-height: 48px; margin: 8px 22px 0; padding: 8px 12px; border: 1px solid #dce5d1; border-radius: 12px; background: #edf4e5; color: var(--color-brand-700); text-align: left; > span { flex: 1; font-size: 14px; font-weight: 500; } small { margin-left: 10px; font-size: 12px; font-weight: 400; color: var(--color-text-muted); } &:focus-visible { outline: 2px solid var(--color-brand-700); outline-offset: 2px; } @container app-viewport (max-width: 350px) { small { display: block; margin: 3px 0 0; } }`;
 const Header = styled.header<{ $creating?: boolean }>`flex: none; display: flex; justify-content: space-between; align-items: center; padding: calc(12px + var(--app-safe-area-top, 0px)) 22px 0; min-height: 50px;
   ${({ $creating }) => $creating && `@container app-viewport (max-height: 719px) { padding-top: calc(6px + var(--app-safe-area-top, 0px)); min-height: 44px; }`}

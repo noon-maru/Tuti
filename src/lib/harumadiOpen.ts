@@ -17,13 +17,13 @@ export function animateHarumadiSpreadOpen(book: HTMLElement, contents: HTMLEleme
   if (reducedMotion || typeof book.animate !== "function") { finish(); return cancel; }
   try {
     const zoom = book.animate([
-      { transform: `translate(${origin.x - target.x}px, ${origin.y - target.y}px) scale(${origin.width / target.width}, ${origin.height / target.height})`, opacity: 1, offset: 0 },
-      { transform: "translate(0, 0) scale(1)", opacity: 1, offset: .78 },
-      { transform: "translate(0, 0) scale(1)", opacity: 0, offset: 1 },
-    ], { duration: 820, easing: "cubic-bezier(.22,.68,.2,1)", fill: "both" });
+      { transform: `translate(${origin.x - target.x}px, ${origin.y - target.y}px) scale(${origin.width / target.width})` },
+      { transform: "translate(0, 0) scale(1)" },
+    ], { duration: 620, easing: "cubic-bezier(.22,.61,.36,1)", fill: "both" });
     animations.push(zoom);
+    animations.push(book.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 280, delay: 340, easing: "ease-in-out", fill: "both" }));
     if (typeof contents?.animate === "function") animations.push(contents.animate([{ opacity: 0 }, { opacity: 1 }],
-      { duration: 240, delay: 580, fill: "backwards" }));
+      { duration: 280, delay: 340, easing: "ease-in-out", fill: "backwards" }));
     void zoom.finished.then(finish).catch(finish);
   } catch { finish(); }
   return cancel;

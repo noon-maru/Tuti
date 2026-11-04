@@ -5,7 +5,7 @@ import styled from "@emotion/styled";
 import { HarumadiPageSheet } from "./HarumadiSheet";
 import { buildHarumadiCoverPage } from "@/shared/harumadi/readerPages";
 import { HARUMADI_PDF_LAYOUT } from "@/shared/harumadi/pdfLayout";
-import { harumadiLocalRect, type HarumadiBookRect } from "@/shared/harumadi/transitionGeometry";
+import { harumadiLocalRect, harumadiSpreadZoomTarget, type HarumadiBookRect } from "@/shared/harumadi/transitionGeometry";
 import { animateHarumadiOpen, animateHarumadiSpreadOpen, scheduleHarumadiOpen } from "@/lib/harumadiOpen";
 import { buildHarumadiSpread, HarumadiSpreadSheets } from "./HarumadiSpreadPreview";
 import type { Harumadi } from "@/shared/api/harumadi";
@@ -27,9 +27,9 @@ export function HarumadiOpenTransition({ book, entries, origin, containerRef, co
     const target = sheet ? harumadiLocalRect(bounds, sheet.getBoundingClientRect(), container.offsetWidth, container.offsetHeight)
       : { x: (container.clientWidth - width) / 2, y: Math.max(0, (container.clientHeight - width / ratio) / 2), width, height: width / ratio };
     if (origin.appearance === "spread") {
-      const spreadTarget = { ...target, width: target.width * 2 };
-      node.style.width = `${spreadTarget.width}px`; node.style.left = `${target.x}px`; node.style.top = `${target.y}px`;
-      node.style.setProperty("--spread-page-scale", String((target.width - 2) / 320));
+      const spreadTarget = harumadiSpreadZoomTarget(origin, container.clientWidth, container.clientHeight);
+      node.style.width = `${spreadTarget.width}px`; node.style.left = `${spreadTarget.x}px`; node.style.top = `${spreadTarget.y}px`;
+      node.style.setProperty("--spread-page-scale", String((spreadTarget.width / 2 - 2) / 320));
       return animateHarumadiSpreadOpen(node, contentsRef.current, origin, spreadTarget, onComplete, window.matchMedia("(prefers-reduced-motion: reduce)").matches);
     }
     node.style.width = `${target.width}px`; node.style.left = `${target.x}px`; node.style.top = `${target.y}px`;

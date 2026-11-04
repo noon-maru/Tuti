@@ -58,7 +58,7 @@ function LibraryHome({ ownerId }: { ownerId: string }) {
     return () => { active = false; };
   }, [ownerId]);
   const openEditor = () => router.push("/harumadi");
-  return <Frame ref={frame} aria-labelledby="library-title"><HomeSurface inert={Boolean(opening)} aria-hidden={opening ? true : undefined}>
+  return <Frame ref={frame} aria-labelledby="library-title"><HomeSurface $hidePreview={opening?.mode === "pages" && opening.origin.appearance === "spread"} inert={Boolean(opening)} aria-hidden={opening ? true : undefined}>
     <Header><h1 id="library-title">나의 하루마디</h1><IconButton type="button" onClick={() => router.push("/settings")} aria-label="설정"><Settings2 size={24} /></IconButton></Header>
     <Toolbar><LibraryViewSwitch view={view} onChange={value => { chooseView(value); shelfScroll.current?.scrollTo({ top: 0 }); }} />
       <TextAction type="button" onClick={openEditor}><Plus size={19} />새 하루마디</TextAction></Toolbar>
@@ -100,7 +100,9 @@ const Frame = styled.section`position: relative; height: 100%; min-height: 0; ba
   --harumadi-shelf-title-size: 16px; --harumadi-shelf-brand-size: 10px; --harumadi-shelf-date-size: 11px;
   --harumadi-shelf-title-lines: 3; --harumadi-shelf-title-leading: 1.5;
 `;
-const HomeSurface = styled.div`height: 100%; min-height: 0; display: flex; flex-direction: column;`;
+const HomeSurface = styled.div<{ $hidePreview: boolean }>`height: 100%; min-height: 0; display: flex; flex-direction: column;
+  ${({ $hidePreview }) => $hidePreview && `[data-carousel-active="true"] [data-book-cover] { visibility: hidden; }`}
+`;
 const Header = styled.header`
   flex: none; display: flex; justify-content: space-between; align-items: center; gap: 12px;
   padding: calc(var(--app-safe-area-top, 0px) + 22px) 24px 0;

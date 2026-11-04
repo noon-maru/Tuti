@@ -44,10 +44,10 @@ export function HarumadiBookReader({ opening, onClose }: { opening: BookOpening;
     if (event.shiftKey && (document.activeElement === first || document.activeElement === root.current)) { event.preventDefault(); last?.focus(); }
     else if (!event.shiftKey && (document.activeElement === last || document.activeElement === root.current)) { event.preventDefault(); first.focus(); }
   };
-  return <Reader ref={root} role="dialog" aria-modal="true" aria-label={`${opening.book.title} ${opening.mode === "settings" ? "설정" : opening.mode === "together" ? "함께 채우기" : "펼쳐보기"}`} tabIndex={-1} onKeyDown={keyDown}>
+  return <Reader ref={root} $spread={opening.mode === "pages" && opening.origin.appearance === "spread"} role="dialog" aria-modal="true" aria-label={`${opening.book.title} ${opening.mode === "settings" ? "설정" : opening.mode === "together" ? "함께 채우기" : "펼쳐보기"}`} tabIndex={-1} onKeyDown={keyDown}>
     <Paper ref={paper}><HarumadiFlow bookId={opening.book.id} initialMode={opening.mode} openingOrigin={opening.mode === "pages" ? opening.origin : undefined} onClose={onClose} /></Paper>
   </Reader>;
 }
 
-const Reader = styled.div`position: absolute; inset: 0; z-index: 30; overflow: hidden; outline: none; background: #f8fafc;`;
+const Reader = styled.div<{ $spread: boolean }>`position: absolute; inset: 0; z-index: 30; overflow: hidden; outline: none; background: ${({ $spread }) => $spread ? "transparent" : "#f8fafc"};`;
 const Paper = styled.div`height: 100%; min-height: 0;`;

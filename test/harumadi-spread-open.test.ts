@@ -6,6 +6,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { animateHarumadiSpreadOpen, scheduleHarumadiOpen } from "@/lib/harumadiOpen";
 import { HarumadiOpenTransition } from "@/features/tuti/components/HarumadiOpenTransition";
 import { harumadiContent } from "./fixtures/harumadiContent";
+import { harumadiSpreadZoomTarget } from "@/shared/harumadi/transitionGeometry";
 
 function animatedNode() {
   const calls: { frames: Keyframe[]; options: KeyframeAnimationOptions; resolve: () => void; cancelled: boolean }[] = [];
@@ -41,13 +42,26 @@ test("부모 DOM ref가 연결된 다음 프레임에 확대를 시작하고 언
 test("펼친 미리보기는 같은 비율로 확대하고 회전 없이 읽기로 연결한다", async () => {
   const book = animatedNode(), contents = animatedNode(); let completed = 0;
   const cancel = animateHarumadiSpreadOpen(book.element, contents.element, origin, target, () => { completed++; });
-  assert.match(String(book.calls[0].frames[0].transform), /translate\(20px, 80px\) scale\(0\.5, 0\.5\)/);
-  assert.equal(book.calls[0].frames[0].opacity, 1);
-  assert.equal(book.calls[0].options.duration, 820);
+  assert.match(String(book.calls[0].frames[0].transform), /translate\(20px, 80px\) scale\(0\.5\)/);
+  assert.equal(book.calls[1].frames[0].opacity, 1);
+  assert.equal(book.calls[0].options.duration, 620);
   assert.doesNotMatch(JSON.stringify(book.calls), /rotateY/);
-  assert.equal(contents.calls[0].options.delay, 580);
+  assert.equal(contents.calls[0].options.delay, 340);
+  assert.equal(book.calls[1].options.delay, contents.calls[0].options.delay);
   book.calls[0].resolve(); await flush(); assert.equal(completed, 1);
   cancel(); assert.ok([...book.calls, ...contents.calls].every(call => call.cancelled));
+});
+
+test("두 쪽은 가로·세로 비율과 중심을 유지하고 화면 밖으로 확대되지 않는다", () => {
+  for (const [width, height] of [[360, 700], [280, 480], [430, 900], [360, 260]]) {
+    const next = harumadiSpreadZoomTarget(origin, width, height);
+    assert.ok(Math.abs(next.width / next.height - 296 / 210) < .001);
+    assert.ok(Math.abs(next.x + next.width / 2 - width / 2) < .001);
+    assert.ok(next.x >= 16); assert.ok(next.y >= 16);
+    assert.ok(next.x + next.width <= width - 16);
+    assert.ok(next.y + next.height <= height - 16);
+    assert.ok(next.width <= origin.width * 1.16);
+  }
 });
 
 test("확대 취소와 동작 줄이기를 처리하고 완료는 한 번만 호출한다", async () => {
@@ -71,4 +85,9 @@ test("확대에는 같은 두 속지만 사용하며 표지나 펼침을 다시 
   const source = readFileSync("src/features/tuti/flows/LibraryHomeFlow.tsx", "utf8");
   assert.match(source, /data-harumadi-spread-preview.*data-spread-ready/);
   assert.match(source, /appearance: "spread"/);
+  assert.match(source, /\$hidePreview=\{opening\?\.mode === "pages"/);
+  assert.match(source, /visibility: hidden/);
+  const flow = readFileSync("src/features/tuti/flows/HarumadiFlow.tsx", "utf8");
+  assert.match(flow, /\$openingSpread=\{opening && openingOrigin\?\.appearance === "spread"\}/);
+  assert.match(flow, /\$openingSpread \? "transparent"/);
 });
