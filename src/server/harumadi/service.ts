@@ -9,6 +9,7 @@ import { commitPrivacyReplayReceipt, preparePrivacyReplayReceipt } from "@/serve
 import { LEGACY_HARUMADI_BACK_COVER_TEXT, pickHarumadiBackCoverText } from "@/shared/harumadi/backCover";
 import { harumadiTogetherEnabled, lockHarumadi, requireHarumadiAccess } from "./access";
 import { HarumadiError } from "./errors";
+import { withHarumadiTitleHints } from "./titleHints";
 export { HarumadiError } from "./errors";
 
 const selection = {
@@ -37,7 +38,7 @@ export async function listHarumadis(ownerId: string, cursorId: string | null) {
   const rows = await prisma.harumadi.findMany({ where: { ownerId,
     ...(cursor ? { OR: [{ createdAt: { lt: cursor.createdAt } }, { createdAt: cursor.createdAt, id: { lt: cursor.id } }] } : {}) },
     select: selection, take: 13, orderBy: [{ createdAt: "desc" }, { id: "desc" }] });
-  return { harumadis: rows.slice(0, 12).map(dto), nextCursor: rows.length > 12 ? rows[11].id : null,
+  return { harumadis: await withHarumadiTitleHints(prisma, ownerId, rows.slice(0, 12).map(dto)), nextCursor: rows.length > 12 ? rows[11].id : null,
     ...(!cursor ? { recordCount: await prisma.journalEntry.count({ where: { ownerId, sensitiveWithdrawnAt: null } }) } : {}) };
 }
 async function listTogetherLibrary(userId: string, cursorId: string | null) {
@@ -51,7 +52,7 @@ async function listTogetherLibrary(userId: string, cursorId: string | null) {
       tx.harumadiMember.findMany({ where: { userId, endedAt: null, harumadi: { ownerId: { not: userId } }, ...(at ? { OR: [{ joinedAt: { lt: at } }, { joinedAt: at, harumadiId: { lt: cursorId! } }] } : {}) }, select: { joinedAt: true, harumadi: { select: togetherSelection } }, orderBy: [{ joinedAt: "desc" }, { harumadiId: "desc" }], take: 13 }),
     ]);
     const rows = [...owned.map(book => ({ book, at: book.createdAt })), ...memberships.map(member => ({ book: member.harumadi, at: member.joinedAt }))].sort((a, b) => b.at.getTime() - a.at.getTime() || b.book.id.localeCompare(a.book.id));
-    return { harumadis: rows.slice(0, 12).map(row => togetherDto(row.book, userId)), nextCursor: rows.length > 12 ? rows[11].book.id : null,
+    return { harumadis: await withHarumadiTitleHints(tx, userId, rows.slice(0, 12).map(row => togetherDto(row.book, userId))), nextCursor: rows.length > 12 ? rows[11].book.id : null,
       ...(!cursorId ? { recordCount: await tx.journalEntry.count({ where: { ownerId: userId, sensitiveWithdrawnAt: null } }) } : {}) };
   }, { isolationLevel: "RepeatableRead" });
 }
@@ -73,7 +74,7 @@ export async function createHarumadi(ownerId: string, settings: HarumadiSettings
     const book = await tx.harumadi.create({ data: { id: randomUUID(), ownerId, title: settings.title,
       coverStyle: settings.coverStyle, backCoverText: settings.backCoverText ?? pickHarumadiBackCoverText() }, select: selection });
     await recordLifecycle(tx, ownerId, { name: "harumadi_created", key: `book:${book.id}`, entityId: book.id, bookId: book.id, origin: "manual" });
-    return dto(book);
+    return (await withHarumadiTitleHints(tx, ownerId, [dto(book)]))[0];
   });
 }
 export async function updateHarumadi(ownerId: string, id: string, input: HarumadiUpdate) {
@@ -89,7 +90,7 @@ export async function updateHarumadi(ownerId: string, id: string, input: Harumad
         if (previous.title !== input.title || (input.backCoverText !== undefined && previous.backCoverText !== input.backCoverText)) validateFreeform(input);
         const updated = await tx.harumadi.updateMany({ where: { id, ownerId, revision: input.revision }, data: { title: input.title, coverStyle: input.coverStyle, ...(input.backCoverText === undefined ? {} : { backCoverText: input.backCoverText }), revision: { increment: 1 } } });
         if (!updated.count) throw new HarumadiError("하루마디가 바뀌었어요. 다시 확인해주세요.", 409);
-        return { ...dto(await tx.harumadi.findUniqueOrThrow({ where: { id }, select: selection })), shared: true, togetherEnabled: true, role: "owner" as const };
+        return (await withHarumadiTitleHints(tx, ownerId, [{ ...dto(await tx.harumadi.findUniqueOrThrow({ where: { id }, select: selection })), shared: true, togetherEnabled: true, role: "owner" as const }]))[0];
       }
     }
     const existing = await tx.harumadi.findFirst({ where: { id, ownerId }, select: { title: true, backCoverText: true, collaborationStartedAt: true } });
@@ -112,7 +113,7 @@ export async function updateHarumadi(ownerId: string, id: string, input: Harumad
     const added = input.entryIds.filter(entryId => !priorLinks.some(link => link.entryId === entryId)).map(entryId => ({ id: randomUUID(), harumadiId: id, entryId }));
     if (added.length) await tx.harumadiEntryLink.createMany({ data: added });
     for (const link of added) await recordContribution(tx, ownerId, id, link.entryId, link.id);
-    return dto(await tx.harumadi.findFirstOrThrow({ where: { id, ownerId }, select: selection }));
+    return (await withHarumadiTitleHints(tx, ownerId, [dto(await tx.harumadi.findFirstOrThrow({ where: { id, ownerId }, select: selection }))]))[0];
   });
 }
 export async function deleteHarumadi(ownerId: string, id: string, replay = false) {

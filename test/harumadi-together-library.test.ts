@@ -16,7 +16,11 @@ test("오래전에 만든 책도 초대 수락 시 책장 앞에 놓고 개인 �
         const book = [shared, ...owned].find(book => book.id === where.id);
         return book ? { ...book, members: book.ownerId === "me" ? [] : [{ joinedAt }] } : null;
       },
-      findMany: async ({ where }: { where: { ownerId: string; OR?: [{ createdAt: { lt: Date } }, { createdAt: Date; id: { lt: string } }] } }) => {
+      findMany: async ({ where, select }: { select?: { title?: boolean; entries?: unknown }; where: { ownerId: string; OR?: [{ createdAt: { lt: Date } }, { createdAt: Date; id: { lt: string } }] } }) => {
+        if (select?.title && !select.entries) {
+          assert.deepEqual(where, { OR: [{ ownerId: "me" }, { members: { some: { userId: "me", endedAt: null } } }] });
+          return [shared, ...owned];
+        }
         assert.equal(where.ownerId, "me");
         const before = where.OR?.[0].createdAt.lt, id = where.OR?.[1].id.lt;
         return owned.filter(book => !before || book.createdAt < before || book.createdAt.getTime() === before.getTime() && book.id < id!).slice(0, 13);

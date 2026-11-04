@@ -9,6 +9,7 @@ import { BackButton, PrimaryButton, TextButton } from "@/features/tuti/component
 import { ANDROID_BACK_EVENT } from "@/features/tuti/navigation/androidBack";
 import { fetchHarumadis } from "@/lib/harumadis";
 import { addMadiToHarumadi } from "@/lib/addMadiToHarumadi";
+import { HarumadiTitleHint } from "@/features/tuti/components/HarumadiTitleHint";
 
 export function MadiHarumadiSelection({ ownerId, entryId, initialBookId, onDone, onNext }: {
   ownerId: string; entryId: string; initialBookId?: string | null;
@@ -59,7 +60,7 @@ export function MadiHarumadiSelection({ ownerId, entryId, initialBookId, onDone,
           return <Choice key={book.id} $selected={selected === book.id}>
             <input type="radio" name="madi-harumadi" value={book.id} checked={selected === book.id} disabled={busy} onChange={() => { setSelected(book.id); setError(""); }} />
             <Spine aria-hidden="true" $green={book.coverStyle.startsWith("green")}><BookOpen size={18} strokeWidth={1.3} /></Spine>
-            <span><strong>{book.title}</strong><small>마디 {book.entryIds.length}개{book.shared ? " · 함께 채우는 사람들에게 보여요" : ""}</small></span>
+            <span><strong>{book.title}</strong><small>마디 {book.entryIds.length}개{book.shared ? " · 함께 채우는 사람들에게 보여요" : ""}</small><HarumadiTitleHint book={book} />{book.role === "contributor" && <small>{book.ownerName}님의 하루마디</small>}</span>
           </Choice>;
         })}</Choices>}
       {query.isError && query.data && <Notice role="alert">목록을 새로 불러오지 못했어요.<TextButton onClick={() => void query.refetch()}>다시 불러오기</TextButton></Notice>}

@@ -9,6 +9,8 @@ import { harumadiActions, type HarumadiOpeningMode } from "../navigation/harumad
 import { HarumadiCover } from "./HarumadiCover";
 import { ContextMenu } from "./ContextMenu";
 import { BaseButton } from "./buttons";
+import { HarumadiTitleHint } from "./HarumadiTitleHint";
+import { harumadiAccessibleTitle } from "@/shared/harumadi/titleHints";
 
 type Gesture = { id: number; x: number; y: number; dx: number; startedAt: number; width: number; dragging: boolean; bookId: string };
 export function HarumadiCarousel({ books, ownerId, onOpen, hasNextPage = false, loading = false, onLoadMore }: {
@@ -89,7 +91,7 @@ export function HarumadiCarousel({ books, ownerId, onOpen, hasNextPage = false, 
         const pose = carouselPose(bookIndex - index - drag);
         return <Slide key={book.id} data-harumadi-card data-carousel-active={selected} aria-hidden={!selected} $dragging={dragging}
           style={{ zIndex: pose.zIndex, opacity: pose.opacity, pointerEvents: pose.opacity > .1 ? "auto" : "none", transform: `translate(-50%, -50%) translateX(${pose.x * width}px) scale(${pose.scale}) rotateY(${pose.rotation}deg)` }}>
-          <CoverButton data-book-cover type="button" disabled={busy} tabIndex={selected ? 0 : -1} aria-label={`${book.title}, 마디 ${book.entryIds.length}개 ${selected ? "열기" : "선택"}`}
+          <CoverButton data-book-cover type="button" disabled={busy} tabIndex={selected ? 0 : -1} aria-label={`${harumadiAccessibleTitle(book)}, 마디 ${book.entryIds.length}개 ${selected ? "열기" : "선택"}`}
             onClick={event => { if (selected) onOpen(book, event.currentTarget); else choose(bookIndex); }}>
             <CarouselCover book={book} ownerId={ownerId} />
           </CoverButton>
@@ -97,8 +99,8 @@ export function HarumadiCarousel({ books, ownerId, onOpen, hasNextPage = false, 
       })}
     </Stage>
     <Caption><div aria-live="polite" aria-atomic="true"><strong>{active.title}</strong><p>{active.entryIds.length ? `마디 ${active.entryIds.length}개` : "첫 마디를 기다려요"}{active.shared ? " · 함께 채우는 중" : ""}</p>
-      {active.role === "contributor" && <small>{active.ownerName}님의 하루마디</small>}</div>
-      <BookMenu label={`${active.title} 메뉴`} triggerContent={<MoreVertical size={22} />} items={harumadiActions(active).map(action => ({ label: action.label, singleLine: true, onSelect: () => openSelected(action.mode) }))} />
+      <HarumadiTitleHint book={active} />{active.role === "contributor" && <small>{active.ownerName}님의 하루마디</small>}</div>
+      <BookMenu label={`${harumadiAccessibleTitle(active)} 메뉴`} triggerContent={<MoreVertical size={22} />} items={harumadiActions(active).map(action => ({ label: action.label, singleLine: true, onSelect: () => openSelected(action.mode) }))} />
     </Caption>
     <Controls aria-label="하루마디 넘기기">
       <Arrow type="button" aria-label="이전 하루마디" disabled={index === 0 || busy} onClick={() => void move(-1)}><ChevronLeft size={20} /></Arrow>

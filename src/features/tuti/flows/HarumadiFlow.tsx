@@ -1,5 +1,6 @@
 "use client";
-import { confirmAction } from "@/lib/feedback";
+import { confirmAction, showToast } from "@/lib/feedback";
+import { DUPLICATE_HARUMADI_TITLE_NOTICE, shouldNotifyDuplicateTitle } from "@/shared/harumadi/titleHints";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -130,6 +131,7 @@ function HarumadiEditor({ owner, initial, read, verified, refreshing, onRefresh,
     try {
       const input = { ...settings, freeformNonSensitiveConfirmed: confirmed };
       const saved = harumadi ? await updateHarumadi(owner, harumadi.id, { ...input, revision: harumadi.revision, entryIds: harumadi.entryIds }) : await createHarumadi(owner, input);
+      if (shouldNotifyDuplicateTitle(harumadi, saved)) showToast(DUPLICATE_HARUMADI_TITLE_NOTICE);
       refreshLibrary();
       if (!harumadi) { router.replace(harumadiPath(saved.id)); return; }
       if (onClose && initialMode === "settings") { onClose(); return; }

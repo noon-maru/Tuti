@@ -8,6 +8,8 @@ import { ContextMenu } from "./ContextMenu";
 import { harumadiActions, type HarumadiOpeningMode } from "../navigation/harumadiActions";
 import type { Harumadi } from "@/shared/api/harumadi";
 import { spineColumnCount, type HarumadiLibraryView } from "@/shared/harumadi/libraryView";
+import { harumadiAccessibleTitle, harumadiHintExtraHeight } from "@/shared/harumadi/titleHints";
+import { HarumadiTitleHint } from "./HarumadiTitleHint";
 
 export function HarumadiShelf({ books, ownerId, view, onOpen }: {
   books: Harumadi[]; ownerId: string; view: Exclude<HarumadiLibraryView, "carousel">;
@@ -26,14 +28,17 @@ export function HarumadiShelf({ books, ownerId, view, onOpen }: {
   }, [view]);
   const spines = view === "spines", columns = spines ? spineColumns : 2;
   return <div ref={shelf} data-library-view={view}>
-    {Array.from({ length: Math.ceil(books.length / columns) }, (_, row) => <ShelfRow key={books[row * columns].id} $spines={spines}>
-      <HarumadiGrid $spines={spines} $columns={columns}>{books.slice(row * columns, (row + 1) * columns).map(book => <HarumadiCard key={book.id} data-harumadi-card>
-        <HarumadiButton data-book-cover type="button" aria-label={`${book.title}, 마디 ${book.entryIds.length}개 열기`} onClick={event => onOpen(book, event.currentTarget)}>
+    {Array.from({ length: Math.ceil(books.length / columns) }, (_, row) => {
+      const rowBooks = books.slice(row * columns, (row + 1) * columns);
+      const hintRows = rowBooks.some(book => book.duplicateTitle) ? (rowBooks.some(book => book.duplicateTitle && book.role === "contributor") ? 2 : 1) : 0;
+      return <ShelfRow key={rowBooks[0].id} $spines={spines} $hintRows={hintRows}>
+      <HarumadiGrid $spines={spines} $columns={columns}>{rowBooks.map(book => <HarumadiCard key={book.id} data-harumadi-card>
+        <HarumadiButton data-book-cover type="button" aria-label={`${harumadiAccessibleTitle(book)}, 마디 ${book.entryIds.length}개 열기`} onClick={event => onOpen(book, event.currentTarget)}>
           {spines ? <HarumadiSpine book={book} /> : <HarumadiCover harumadiPdf={{ ...book, entryCount: book.entryIds.length, pageCount: 0, hasCover: book.coverStyle.endsWith("-image") && book.entryIds.length > 0 }} ownerId={ownerId} kind="harumadi" />}
-          <HarumadiLabel $spines={spines}><strong>{book.title}</strong><small>{book.entryIds.length ? `마디 ${book.entryIds.length}개` : spines ? "빈 하루마디" : "첫 마디를 기다려요"}{book.shared ? " · 함께" + (spines ? "" : " 채우는 중") : ""}</small>{book.role === "contributor" && <small>{book.ownerName}님의 하루마디</small>}</HarumadiLabel>
-        </HarumadiButton><BookMenu $spines={spines} label={`${book.title} 메뉴`} triggerContent={<MoreVertical size={22} />} items={harumadiActions(book).map(action => ({ label: action.label, singleLine: true, onSelect: trigger => onOpen(book, trigger, action.mode) }))} />
+          <HarumadiLabel $spines={spines} $hintRows={hintRows}><strong>{book.title}</strong><small>{book.entryIds.length ? `마디 ${book.entryIds.length}개` : spines ? "빈 하루마디" : "첫 마디를 기다려요"}{book.shared ? " · 함께" + (spines ? "" : " 채우는 중") : ""}</small><HarumadiTitleHint book={book} />{book.role === "contributor" && <small>{book.ownerName}님의 하루마디</small>}</HarumadiLabel>
+        </HarumadiButton><BookMenu $spines={spines} $hintRows={hintRows} label={`${harumadiAccessibleTitle(book)} 메뉴`} triggerContent={<MoreVertical size={22} />} items={harumadiActions(book).map(action => ({ label: action.label, singleLine: true, onSelect: trigger => onOpen(book, trigger, action.mode) }))} />
       </HarumadiCard>)}</HarumadiGrid><ShelfEdge aria-hidden="true" />
-    </ShelfRow>)}
+    </ShelfRow>; })}
   </div>;
 }
 
@@ -54,11 +59,14 @@ const Spine = styled.span<{ $green: boolean }>`
   .spine-date { top: 15px; font-size: 9px; white-space: nowrap; }
   .spine-mark { bottom: 17px; font-size: 10px; letter-spacing: .03em; }
 `;
-const ShelfRow = styled.div<{ $spines: boolean }>`margin-bottom: 36px; position: relative; flex: none; > div:last-child { position: absolute; left: 0; right: 0; bottom: ${({ $spines }) => $spines ? 92 : 108}px; pointer-events: none; }`;
+const ShelfRow = styled.div<{ $spines: boolean; $hintRows: number }>`margin-bottom: 36px; position: relative; flex: none; > div:last-child { position: absolute; left: 0; right: 0; bottom: ${({ $spines }) => $spines ? 92 : 108}px; pointer-events: none; }
+  ${({ $spines, $hintRows }) => $hintRows > 0 && `> div:last-child { bottom: ${($spines ? 92 : 108) + harumadiHintExtraHeight($spines, $hintRows)}px; }`}
+`;
 const HarumadiGrid = styled.div<{ $spines: boolean; $columns: number }>`display: grid; grid-template-columns: repeat(${({ $columns }) => $columns}, minmax(0, 1fr)); gap: ${({ $spines }) => $spines ? 12 : 24}px; padding: 0 8px; align-items: end;`;
 const HarumadiCard = styled.div`position: relative; min-width: 0;`;
-const BookMenu = styled(ContextMenu)<{ $spines: boolean }>`position: absolute; right: -8px; bottom: 60px; width: 44px; height: 44px;
+const BookMenu = styled(ContextMenu)<{ $spines: boolean; $hintRows: number }>`position: absolute; right: -8px; bottom: 60px; width: 44px; height: 44px;
   ${({ $spines }) => $spines && "right: auto; left: 50%; bottom: 0; transform: translateX(-50%);"}
+  ${({ $spines, $hintRows }) => !$spines && $hintRows > 0 && `bottom: ${60 + harumadiHintExtraHeight(false, $hintRows)}px;`}
   > button { width: 44px; height: 44px; padding: 0; border-radius: 18px; color: var(--color-text-muted); &:hover { background: #e8ede4; } &:focus-visible { outline: 2px solid var(--color-brand-700); outline-offset: 1px; } }
 `;
 // 선반 두께 6px와 표지 아래 종이 단면 4px를 비워 책이 선반에 파묻히지 않게 한다.
@@ -68,6 +76,8 @@ const HarumadiButton = styled(BaseButton)`display: grid; gap: 10px; width: 100%;
   @media (prefers-reduced-motion: reduce) { > span:first-of-type { transition: none; } &:hover > span:first-of-type { transform: none; } }
 `;
 const ShelfEdge = styled.div`height: 6px; border-radius: 1px 1px 3px 3px; background: linear-gradient(#ffffff, #e5e9e3); border-top: 1px solid white; box-shadow: 0 6px 10px rgb(27 34 42 / 0.06);`;
-const HarumadiLabel = styled.span<{ $spines: boolean }>`min-width: 0; height: 108px; padding: 18px 0 12px 1px; display: grid; align-content: start; gap: 8px; strong { padding-right: 36px; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; overflow-wrap: anywhere; font-size: 16px; line-height: 1.4; font-weight: 500; } small { color: var(--color-text-muted); font-size: 13px; line-height: 1.5; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+const HarumadiLabel = styled.span<{ $spines: boolean; $hintRows: number }>`min-width: 0; height: 108px; padding: 18px 0 12px 1px; display: grid; align-content: start; gap: 8px; strong { padding-right: 36px; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; overflow-wrap: anywhere; font-size: 16px; line-height: 1.4; font-weight: 500; } small { color: var(--color-text-muted); font-size: 13px; line-height: 1.5; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   ${({ $spines }) => $spines && "height: 92px; padding: 12px 0 44px; gap: 3px; text-align: center; strong { display: none; } small { font-size: 11px; }"}
+  ${({ $spines, $hintRows }) => $hintRows > 0 && `height: ${($spines ? 92 : 108) + harumadiHintExtraHeight($spines, $hintRows)}px;`}
+  ${({ $spines }) => $spines && "[data-harumadi-title-hint] { white-space: normal; font-size: 10px; line-height: 1.4; > span { display: block; } }"}
 `;

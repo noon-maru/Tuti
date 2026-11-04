@@ -69,6 +69,7 @@ test("하루마디 서버는 빈 틀·소유권·낙관적 잠금·민감정보�
   t.after(() => { if (previous === undefined) delete process.env.SENSITIVE_MADI_WORKFLOW_ENABLED; else process.env.SENSITIVE_MADI_WORKFLOW_ENABLED = previous; });
   const rows = new Map<string, { id: string; ownerId: string; title: string; coverStyle: string; revision: number; createdAt: Date; updatedAt: Date }>();
   const links = new Map<string, string[]>();
+  let failTitleLookup = false;
   const records = new Map([["mine", { id: "mine", ownerId: "owner", sensitiveContent: false, sensitiveConsentVersion: null, sensitiveWithdrawnAt: null as Date | null }], ["foreign", { id: "foreign", ownerId: "someone-else", sensitiveContent: false, sensitiveConsentVersion: null, sensitiveWithdrawnAt: null as Date | null }]]);
   const find = (where: { id?: string; ownerId?: string }) => [...rows.values()].find(row => (!where.id || row.id === where.id) && (!where.ownerId || row.ownerId === where.ownerId));
   const dto = (row: NonNullable<ReturnType<typeof find>>) => ({ ...row, entries: (links.get(row.id) ?? []).filter(id => !records.get(id)?.sensitiveWithdrawnAt).map(entryId => ({ entryId, position: null, entry: { visitedAt: new Date("2026-10-01") } })) });
@@ -78,7 +79,10 @@ test("하루마디 서버는 빈 틀·소유권·낙관적 잠금·민감정보�
     },
     findFirst: async ({ where }: { where: { id?: string; ownerId?: string } }) => { const row = find(where); return row ? dto(row) : null; },
     findFirstOrThrow: async ({ where }: { where: { id?: string; ownerId?: string } }) => { const row = find(where); if (!row) throw new Error("missing"); return dto(row); },
-    findMany: async ({ where }: { where: { ownerId: string } }) => [...rows.values()].filter(row => row.ownerId === where.ownerId).map(dto),
+    findMany: async ({ where }: { where: { ownerId: string } }) => {
+      if (failTitleLookup) throw new Error("fixture title lookup failure");
+      return [...rows.values()].filter(row => row.ownerId === where.ownerId).map(dto);
+    },
     updateMany: async ({ where, data }: { where: { id: string; ownerId: string; revision: number }; data: { title: string; coverStyle: string } }) => {
       const row = find(where); if (!row || row.revision !== where.revision) return { count: 0 };
       Object.assign(row, { ...data, revision: row.revision + 1 }); return { count: 1 };
@@ -128,4 +132,16 @@ test("하루마디 서버는 빈 틀·소유권·낙관적 잠금·민감정보�
   const many = await updateHarumadi("owner", harumadiPdf.id, { ...settings, revision: blank.revision, entryIds: manyIds });
   assert.deepEqual(many.entryIds, [...manyIds].sort());
   assert.deepEqual((await readHarumadi("owner", harumadiPdf.id)).entryIds, [...manyIds].sort());
+  const duplicate = await createHarumadi("owner", { ...settings, title: many.title });
+  assert.equal(duplicate.duplicateTitle, true);
+  assert.equal(duplicate.title, many.title, "중복 이름에 번호를 강제로 붙이지 않는다");
+  assert.ok((await listHarumadis("owner", null)).harumadis.every(book => book.duplicateTitle));
+  const renamed = await updateHarumadi("owner", duplicate.id, { ...settings, title: "다른 이름", revision: duplicate.revision, entryIds: [] });
+  assert.equal(renamed.duplicateTitle, undefined);
+  assert.ok((await listHarumadis("owner", null)).harumadis.every(book => !book.duplicateTitle));
+  assert.deepEqual((await readHarumadi("owner", harumadiPdf.id)).entryIds, [...manyIds].sort());
+  const before = rows.size; failTitleLookup = true;
+  try { await assert.rejects(createHarumadi("owner", settings), /fixture title lookup failure/); }
+  finally { failTitleLookup = false; }
+  assert.equal(rows.size, before, "안내 정보 조회도 생성 트랜잭션 안에서 실패해야 재시도로 책이 늘어나지 않는다");
 });
