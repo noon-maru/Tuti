@@ -3,6 +3,7 @@
 import { keyframes } from "@emotion/react";
 import styled from "@emotion/styled";
 import Image from "next/image";
+import Link from "next/link";
 import { BookOpen } from "lucide-react";
 import { useEffect, useRef } from "react";
 import { ScreenFrame } from "@/features/tuti/components/ScreenFrame";
@@ -42,7 +43,7 @@ export function WelcomeScreen({ onRecord, onExplore, guideStep, onGuideOpen, onG
   return <Frame key={guideStep ?? "welcome"} aria-labelledby="welcome-heading" data-welcome-screen>
     <Header>
       {guide ? <BackButton aria-label="이용 방법 이전 화면" onClick={onGuideBack} /> : <GuideButton type="button" onClick={onGuideOpen}>이용 방법</GuideButton>}
-      {guide ? <StepCount>{guideStep! + 1} / {WELCOME_GUIDE.length}</StepCount> : <ButtonLink href="/login" $tone="text" $size="compact">로그인</ButtonLink>}
+      {guide ? <StepCount>{guideStep! + 1} / {WELCOME_GUIDE.length}</StepCount> : <ButtonLink as={Link} href="/login" $tone="text" $size="compact">로그인</ButtonLink>}
     </Header>
     <Copy>
       <h1 id="welcome-heading" ref={heading} tabIndex={-1}>{guide ? guide.title : "기억하고 싶은 하루를,\n한 마디씩 남겨요."}</h1>

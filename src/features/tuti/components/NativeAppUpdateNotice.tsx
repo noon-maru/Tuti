@@ -3,6 +3,7 @@
 import { Preferences } from "@capacitor/preferences";
 import styled from "@emotion/styled";
 import { ArrowUpRight } from "lucide-react";
+import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useCallback, useEffect, useLayoutEffect, useState } from "react";
 import {
@@ -141,8 +142,8 @@ export function NativeAppUpdateNotice({ children }: { children: React.ReactNode 
         const url = incompatible.storeUrl;
         if (url?.startsWith("https://")) void openNativeAppStore(url).catch(() => window.open(url, "_blank", "noopener,noreferrer"));
       }}>지금 업데이트하기</Button> : <Button type="button" $tone="primary" onClick={() => window.location.reload()}>새로고침하기</Button> : checkFailed && <Button type="button" onClick={() => { setCheckFailed(false); setAttempt(value => value + 1); }}>다시 확인하기</Button>}
-      <a href="/login">계정·데이터 관리</a>
-      <a href="/account-deletion">데이터 삭제 안내</a>
+      <Link href="/login">계정·데이터 관리</Link>
+      <Link href="/account-deletion">데이터 삭제 안내</Link>
       <a href="mailto:admin@tuti.today">문의</a>
     </Dialog>
   </Backdrop>;
@@ -204,7 +205,7 @@ export function NativeAppUpdateNotice({ children }: { children: React.ReactNode 
             </LaterButton>
           )}
         </Actions>
-        {policy.required && <a href="/login">계정·데이터 관리</a>}
+        {policy.required && <Link href="/login">계정·데이터 관리</Link>}
       </Dialog>
     </Backdrop>
     </>

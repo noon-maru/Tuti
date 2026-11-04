@@ -2,6 +2,7 @@
 
 import styled from "@emotion/styled";
 import { ChevronRight } from "lucide-react";
+import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { TutiWordmark } from "@/features/tuti/components/TutiWordmark";
@@ -183,8 +184,8 @@ export function InitialServiceTermsGate({ children, rightsChildren, renderConten
         </Content>
         <Footer>
           <nav aria-label="약관과 도움말">
-            <a href="/legal/privacy">개인정보 처리방침</a>
-            <a href="/login">계정 관리</a>
+            <Link href="/legal/privacy">개인정보 처리방침</Link>
+            <Link href="/login">계정 관리</Link>
             <a href="mailto:admin@tuti.today">문의</a>
           </nav>
         </Footer>
