@@ -14,6 +14,7 @@ import { DeparturePlanScreen } from "@/features/tuti/screens/departure/Departure
 import type { CardTransitionRect } from "@/features/tuti/screens/departure/FullscreenDeparturePlanScreen";
 import type { TutiPlace } from "@/lib/recommendations";
 import type { DepartureRoute } from "@/shared/api/departurePlan";
+import { useLayerDialogScope } from "@/shared/ui/useLayerDialogScope";
 
 const EXPAND_DURATION = 560;
 const CONTENT_INTERACTION_DELAY = 430;
@@ -31,6 +32,7 @@ export function ExpandedDeparturePlanScreen({
   onClose: () => void;
 }) {
   const animationReady = useDeferredAnimationStart();
+  const dialogRef = useRef<HTMLElement>(null);
   const [closing, setClosing] = useState(false);
   const [contentInteractive, setContentInteractive] = useState(false);
   const closingRef = useRef(false);
@@ -117,14 +119,9 @@ export function ExpandedDeparturePlanScreen({
     };
   }, [expanded]);
 
-  useEffect(() => {
-    const closeFromEscape = (event: KeyboardEvent) => {
-      if (event.key === "Escape") requestClose(true);
-    };
-
-    window.addEventListener("keydown", closeFromEscape);
-    return () => window.removeEventListener("keydown", closeFromEscape);
-  }, [requestClose]);
+  useLayerDialogScope(dialogRef, {
+    ready: contentInteractive, closing, onCancel: () => requestClose(true),
+  });
 
   useEffect(
     () => () => {
@@ -138,6 +135,8 @@ export function ExpandedDeparturePlanScreen({
 
   return (
     <Scene
+      ref={dialogRef}
+      tabIndex={-1}
       role="dialog"
       aria-modal="true"
       aria-label={`${place.name} 출발 준비`}

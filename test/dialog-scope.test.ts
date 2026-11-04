@@ -84,6 +84,41 @@ test("부모가 먼저 사라져도 중첩 잠금은 마지막 모달이 닫힐 
   releaseChild(); assert.equal(e.main.inert, false); assert.equal(e.doc.body.style.overflow, "auto");
 });
 
+test("자체 배경을 가진 애니메이션 레이어는 바깥 형제만 잠그고 내부 조작부는 유지한다", t => {
+  const e = environment(t), layer = e.layer();
+  const release = installDialogScope({
+    dialog: layer.backdrop as unknown as HTMLElement,
+    isolationRoot: layer.backdrop as unknown as HTMLElement,
+    initialFocus: () => layer.first as unknown as HTMLElement,
+    onCancel: () => {}, canDismiss: () => true,
+  });
+  t.after(release);
+  assert.equal(e.main.inert, true);
+  assert.equal(layer.dialog.inert, false);
+  assert.equal(e.doc.activeElement, layer.first);
+  layer.last.focus(); e.key("Tab");
+  assert.equal(e.doc.activeElement, layer.first);
+  release(); assert.equal(e.doc.activeElement, e.opener);
+});
+
+test("출발 준비 세 레이어는 애니메이션·히스토리를 유지하며 공통 포커스 수명을 사용한다", () => {
+  for (const name of ["DeparturePlanScreen", "ExpandedDeparturePlanScreen", "FullscreenDeparturePlanScreen"]) {
+    const source = readFileSync(`src/features/tuti/screens/departure/${name}.tsx`, "utf8");
+    assert.match(source, /useLayerDialogScope\(dialogRef/);
+    assert.match(source, /ref=\{dialogRef\}/);
+    assert.match(source, /tabIndex=\{/);
+    assert.doesNotMatch(source, /closeFromEscape/);
+    assert.match(source, /window.history.back\(\)/);
+  }
+  const source = readFileSync("src/features/tuti/screens/departure/DeparturePlanScreen.tsx", "utf8");
+  assert.match(source, /enabled: !embedded/);
+  assert.match(source, /aria-label="출발 준비 닫기" data-dialog-initial-focus/);
+  const hook = readFileSync("src/shared/ui/useLayerDialogScope.ts", "utf8");
+  assert.match(hook, /isolationRoot: node/);
+  assert.match(hook, /document.activeElement === node/);
+  assert.match(hook, /canDismiss: \(\) => !latest.current.closing/);
+});
+
 test("일반·동의·중요 확인 모달은 같은 앱 프레임과 전체 필드 포커스를 사용한다", () => {
   const source = readFileSync("src/shared/ui/dialogScope.ts", "utf8");
   assert.match(source, /textarea, select, a\[href\]/);

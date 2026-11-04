@@ -13,15 +13,17 @@ export function dialogFocusableElements(dialog: HTMLElement): HTMLElement[] {
 }
 
 /** Each layer owns its locks; only the top dialog handles focus and dismissal. */
-export function installDialogScope({ dialog, initialFocus, onCancel, canDismiss }: {
+export function installDialogScope({ dialog, isolationRoot, initialFocus, onCancel, canDismiss }: {
   dialog: HTMLElement;
+  /** Custom animated layers can be their own backdrop; never inert their content. */
+  isolationRoot?: HTMLElement;
   initialFocus: () => HTMLElement | null;
   onCancel: () => void;
   canDismiss: () => boolean;
 }) {
   const id = Symbol("dialog");
   const previous = document.activeElement;
-  const backdrop = dialog.parentElement;
+  const backdrop = isolationRoot ?? dialog.parentElement;
   const siblings = Array.from(backdrop?.parentElement?.children ?? [])
     .filter((node): node is HTMLElement => node instanceof HTMLElement && node !== backdrop);
   for (const node of siblings) {

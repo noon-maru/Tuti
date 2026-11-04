@@ -11,6 +11,7 @@ import {
   MapPin,
   Navigation,
   TrainFront,
+  X,
 } from "lucide-react";
 import {
   useEffect,
@@ -46,6 +47,8 @@ import type {
   DepartureRouteMode,
 } from "@/shared/api/departurePlan";
 import { useTutiStore } from "@/store/tuti";
+import { IconButton } from "@/shared/ui/buttons";
+import { useLayerDialogScope } from "@/shared/ui/useLayerDialogScope";
 
 const DEPARTURE_EXIT_DURATION = 420;
 const DEPARTURE_EXIT_FRAME_BUFFER = 34;
@@ -90,6 +93,7 @@ export function DeparturePlanScreen({
   respectEmbeddedTopSafeArea?: boolean;
 }) {
   const { requestLocation } = useLocationAccess();
+  const dialogRef = useRef<HTMLElement>(null);
   const userLocation = useTutiStore((state) => state.userLocation);
   const transport = useTutiStore((state) => state.answers.transport);
   const [preferredMode, setPreferredMode] =
@@ -180,6 +184,11 @@ export function DeparturePlanScreen({
     direction: "down",
     onBack: finishClose,
     exitDelay: DEPARTURE_EXIT_DURATION + DEPARTURE_EXIT_FRAME_BUFFER,
+  });
+  useLayerDialogScope(dialogRef, {
+    enabled: !embedded,
+    closing: swipeBack.isCommitting,
+    onCancel: () => swipeBack.requestBack(),
   });
 
   useLayoutEffect(() => {
@@ -411,6 +420,8 @@ export function DeparturePlanScreen({
 
   return (
     <Frame
+      ref={dialogRef}
+      tabIndex={embedded ? undefined : -1}
       role={embedded ? undefined : "dialog"}
       aria-modal={embedded ? undefined : "true"}
       aria-label={embedded ? undefined : `${place.name} 출발 준비`}
@@ -420,6 +431,7 @@ export function DeparturePlanScreen({
       {!embedded && (
         <Backdrop
           type="button"
+          tabIndex={-1}
           aria-label="출발 준비 닫기"
           onClick={() => swipeBack.requestBack()}
           $progress={swipeBack.dragProgress}
@@ -437,6 +449,10 @@ export function DeparturePlanScreen({
           <HeaderCopy>
             <h1>{place.name}</h1>
           </HeaderCopy>
+          <IconButton type="button" aria-label="출발 준비 닫기" data-dialog-initial-focus
+            onClick={() => embedded ? onClose() : swipeBack.requestBack()}>
+            <X size={20} aria-hidden="true" />
+          </IconButton>
         </Header>
 
         <ScrollContent

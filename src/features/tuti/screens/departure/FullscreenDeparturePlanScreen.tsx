@@ -7,6 +7,7 @@ import { getPlaceDisplayPhrase } from "@/features/tuti/lib/placeDisplayCopy";
 import { DeparturePlanScreen } from "@/features/tuti/screens/departure/DeparturePlanScreen";
 import type { TutiPlace } from "@/lib/recommendations";
 import type { DepartureRoute } from "@/shared/api/departurePlan";
+import { useLayerDialogScope } from "@/shared/ui/useLayerDialogScope";
 
 const FLIP_DURATION = 680;
 const DEPARTURE_FULLSCREEN_HISTORY_KEY = "__tutiDepartureFullscreen";
@@ -30,6 +31,7 @@ export function FullscreenDeparturePlanScreen({
   onClose: () => void;
 }) {
   const animationReady = useDeferredAnimationStart();
+  const dialogRef = useRef<HTMLElement>(null);
   const [closing, setClosing] = useState(false);
   const closingRef = useRef(false);
   const ownsHistoryEntry = useRef(false);
@@ -97,14 +99,9 @@ export function FullscreenDeparturePlanScreen({
     return () => window.removeEventListener("popstate", closeFromHistory);
   }, [requestClose]);
 
-  useEffect(() => {
-    const closeFromEscape = (event: KeyboardEvent) => {
-      if (event.key === "Escape") requestClose(true);
-    };
-
-    window.addEventListener("keydown", closeFromEscape);
-    return () => window.removeEventListener("keydown", closeFromEscape);
-  }, [requestClose]);
+  useLayerDialogScope(dialogRef, {
+    ready: expanded, closing, onCancel: () => requestClose(true),
+  });
 
   useEffect(
     () => () => {
@@ -115,6 +112,8 @@ export function FullscreenDeparturePlanScreen({
 
   return (
     <Scene
+      ref={dialogRef}
+      tabIndex={-1}
       role="dialog"
       aria-modal="true"
       aria-label={`${place.name} 출발 준비`}
