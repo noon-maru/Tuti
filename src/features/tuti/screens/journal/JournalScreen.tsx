@@ -1,4 +1,5 @@
 "use client";
+import { screenTitleStyles } from "@/shared/ui/typography";
 import { confirmAction, showErrorToast } from "@/lib/feedback";
 
 import { css } from "@emotion/react";
@@ -377,8 +378,7 @@ const ListHeader = styled.header`
   h1 {
     margin: 0;
     text-align: center;
-    font-size: var(--font-size-500);
-    font-weight: 700;
+    ${screenTitleStyles}
   }
 
   @container app-viewport (max-width: 360px) {

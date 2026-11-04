@@ -23,7 +23,9 @@ test("작은 화면에서도 입력·표지 선택·확인·만들기 버튼을 
   assert.match(flow, /<Footer \$creating=\{!harumadi && mode === "settings"\}>/);
   assert.match(flow, /const Footer = styled.footer[\s\S]*?flex: none/);
   assert.match(flow, /overflow-y: \$\{\(\{ \$reading \}\) => \$reading \? "hidden" : "auto"\}/);
-  assert.match(flow, /const TitleInput = styled.input`[^`]*font-size: 16px/);
+  assert.match(flow, /const TitleInput = styled.input`\$\{inputControlStyles\}/);
+  const globals = readFileSync("src/app/GlobalStyles.tsx", "utf8");
+  assert.match(globals, /--ui-input-size: max\(1rem, var\(--font-size-200\)\)/);
   assert.match(flow, /min-height: 44px; padding: 10px; font-size: 13px/);
   assert.match(flow, /titleNeedsConfirmation && <Confirmation/);
   assert.match(flow, /빈 하루마디 만들기/);

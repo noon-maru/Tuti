@@ -59,7 +59,7 @@ test("메인 확대는 기존 좌우 여백과 2열 간격을 유지하고 행�
   const home = readFileSync("src/features/tuti/flows/LibraryHomeFlow.tsx", "utf8");
   const shelf = readFileSync("src/features/tuti/components/HarumadiShelf.tsx", "utf8");
   const navigation = readFileSync("src/features/tuti/components/MainNavigation.tsx", "utf8");
-  assert.match(home, /font-size: 28px/);
+  assert.match(home, /h1 \{ \$\{sectionHeadingStyles\} \}/);
   assert.match(shelf, /columns = spines \? spineColumns : 2/);
   assert.match(shelf, /\$spines \? 12 : 24\}px; padding: 0 8px/);
   assert.match(shelf, /\$spines \? 92 : 108\}px/);

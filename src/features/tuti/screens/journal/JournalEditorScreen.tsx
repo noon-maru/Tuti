@@ -1,4 +1,5 @@
 "use client";
+import { screenTitleStyles, inputControlStyles } from "@/shared/ui/typography";
 
 import styled from "@emotion/styled";
 import { useEffect, useRef, useState } from "react";
@@ -533,8 +534,7 @@ const EditorHeader = styled.header`
   gap: var(--space-2);
 
   h1 {
-    font-size: var(--font-size-500);
-    font-weight: 700;
+    ${screenTitleStyles}
     text-align: center;
   }
 `;
@@ -667,41 +667,14 @@ const EditorCopy = styled.div`
 `;
 
 const TitleInput = styled.input`
-  width: 100%;
-  padding: 0;
-  border: 0;
-  outline: 0;
-  background: transparent;
-  color: var(--color-text);
-  font-size: var(--font-size-500);
-  font-weight: 700;
-  line-height: var(--line-height-heading);
-  letter-spacing: var(--letter-spacing-heading);
-
-  &::placeholder {
-    color: var(--color-text);
-    opacity: 1;
-  }
+  ${inputControlStyles}
 `;
 
 const BodyInput = styled.textarea`
-  width: 100%;
+  ${inputControlStyles}
   min-height: 160px;
   flex: 1;
   resize: none;
-  padding: 0;
-  border: 0;
-  outline: 0;
-  background: transparent;
-  color: var(--color-text);
-  font-size: var(--font-size-200);
-  line-height: var(--line-height-body);
-  letter-spacing: var(--letter-spacing-body);
-
-  &::placeholder {
-    color: var(--color-text-muted);
-    opacity: 1;
-  }
 `;
 
 const SubmitButton = styled(PrimaryButton)`

@@ -1,4 +1,5 @@
 "use client";
+import { sectionHeadingStyles, inputControlStyles } from "@/shared/ui/typography";
 import { confirmAction, showToast } from "@/lib/feedback";
 import { DUPLICATE_HARUMADI_TITLE_NOTICE, shouldNotifyDuplicateTitle } from "@/shared/harumadi/titleHints";
 
@@ -277,8 +278,8 @@ function HarumadiEditor({ owner, initial, read, verified, refreshing, onRefresh,
 
 function useAttachNewEntry(attach: () => Promise<void>) { useEffect(() => { void attach(); }, [attach]); }
 
-const Frame = styled.section<{ $openingSpread?: boolean }>`position: relative; height: 100%; min-height: 0; display: flex; flex-direction: column; background: ${({ $openingSpread }) => $openingSpread ? "transparent" : "#F8FAFC"}; color: var(--color-text);`;
-const BookContents = styled.div`height: 100%; min-height: 0; display: flex; flex-direction: column; background: #F8FAFC;`;
+const Frame = styled.section<{ $openingSpread?: boolean }>`position: relative; height: 100%; min-height: 0; display: flex; flex-direction: column; background: ${({ $openingSpread }) => $openingSpread ? "transparent" : "var(--color-surface)"}; color: var(--color-text);`;
+const BookContents = styled.div`height: 100%; min-height: 0; display: flex; flex-direction: column; background: var(--color-surface);`;
 const TogetherEntry = styled(BaseButton)`flex: none; display: flex; align-items: center; gap: 10px; min-height: 48px; margin: 8px 22px 0; padding: 8px 12px; border: 1px solid #dce5d1; border-radius: 12px; background: #edf4e5; color: var(--color-brand-700); text-align: left; > span { flex: 1; font-size: 14px; font-weight: 500; } small { margin-left: 10px; font-size: 12px; font-weight: 400; color: var(--color-text-muted); } &:focus-visible { outline: 2px solid var(--color-brand-700); outline-offset: 2px; } @container app-viewport (max-width: 350px) { small { display: block; margin: 3px 0 0; } }`;
 const Header = styled.header<{ $creating?: boolean }>`flex: none; display: flex; justify-content: space-between; align-items: center; padding: calc(12px + var(--app-safe-area-top, 0px)) 22px 0; min-height: 50px;
   ${({ $creating }) => $creating && `@container app-viewport (max-height: 719px) { padding-top: calc(6px + var(--app-safe-area-top, 0px)); min-height: 44px; }`}
@@ -291,9 +292,9 @@ const Eyebrow = styled.span`font-size: 13px; color: var(--color-text-muted);`;
 const ReadNotice = styled.div`display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 16px; padding: 10px 12px; border-radius: 10px; background: var(--color-brand-100); color: var(--color-text-muted); font-size: 13px; line-height: 1.7;`;
 const CoverPreview = styled(HarumadiSettingsCover)`width: 126px; min-width: 0; margin: 24px auto 28px; border-radius: 2px 5px 5px 2px; box-shadow: 3px 3px 0 #dce3d6, 5px 12px 18px #1b222a12; > span { border-radius: inherit; overflow: hidden; }`;
 const Label = styled.label`display: block; font-size: 14px; font-weight: 600; margin-bottom: 9px;`;
-const TitleInput = styled.input`width: 100%; min-height: 44px; padding: 10px 12px; border: 1px solid var(--color-border); border-radius: 10px; background: white; font: inherit; font-size: 16px; color: inherit;`;
+const TitleInput = styled.input`${inputControlStyles}`;
 const BackCoverField = styled.div`margin-top: 24px;`;
-const BackCoverInput = styled.textarea`width: 100%; resize: vertical; min-height: 96px; padding: 12px; border: 1px solid var(--color-border); border-radius: 10px; background: white; font: inherit; font-size: 16px; line-height: 1.7; color: inherit; &:focus-visible { outline: 2px solid var(--color-brand-700); outline-offset: 2px; }`;
+const BackCoverInput = styled.textarea`${inputControlStyles} resize: vertical; min-height: 96px;`;
 const BackCoverTools = styled.div`display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 4px 12px; small { font-size: 12px; color: var(--color-text-muted); } button { font-size: 13px; }`;
 const Fieldset = styled.fieldset`border: 0; padding: 0; margin: 24px 0; legend { font-size: 14px; font-weight: 600; margin-bottom: 12px; }`;
 const Choices = styled.div`display: grid; grid-template-columns: 1fr 1fr; gap: 8px;`;
@@ -322,7 +323,7 @@ const SettingsIntro = styled.div<{ $creating: boolean }>`
   display: ${({ $creating }) => $creating ? "block" : "contents"};
   > p { font-size: 14px; line-height: 1.8; color: var(--color-text-muted); white-space: pre-line; }
   ${({ $creating }) => $creating && `
-    > h1 { margin: 0; font-size: 25px; line-height: 1.4; }
+    > h1 { ${sectionHeadingStyles} }
     > p { margin: 8px 0 0; line-height: 1.6; }
     @container app-viewport (max-height: 719px) { > h1 { font-size: 22px; } > p { margin-top: 4px; } }
     @container app-viewport (max-height: 620px) { > h1 { font-size: 21px; } }

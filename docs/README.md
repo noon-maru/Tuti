@@ -41,6 +41,7 @@
 | PNG·웹 공유와 권리 대응 | [기록 공유](./journal-sharing.md) · [공개 운영](./journal-publication-operations.md) |
 | 글꼴·애니메이션 | [PDF 폰트](./pdf-fonts.md) · [모션](./cross-platform-motion.md) |
 | 확인·결과 안내 | [공통 모달·토스트](./ui-feedback.md) |
+| 사용자 화면 공통 규칙 | [글자·여백·버튼·책 UI 경계](./ui-design-system.md) |
 | 브랜드 원본 | [에셋 README](../assets/README.md) |
 
 위치 보호의 승인·작성 기록은 별도 통제 문서로 유지한다:

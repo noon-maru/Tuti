@@ -33,10 +33,10 @@ test("작성 완료는 원래 화면으로 복귀하며 하루마디 연결과 �
   assert.match(screen, /initialPlace && place.trim\(\) === initialPlace.name \? initialPlace.id : null/);
 });
 
-test("상단 작성 화면 제목만 키우고 마디 제목 입력·미리보기 크기는 원래대로 유지한다", () => {
+test("화면 제목과 입력은 공통 규칙을 사용하고 마디 지면 미리보기 크기는 따로 유지한다", () => {
   const screen = readFileSync("src/features/tuti/screens/journal/MadiCreateScreen.tsx", "utf8");
-  assert.match(screen, /> span \{ min-width: 0; font-size: 18px; font-weight: 600/);
-  assert.match(screen, /@container app-viewport \(max-width: 340px\) \{ > span \{ font-size: 16px/);
+  assert.match(screen, /> span \{ \$\{screenTitleStyles\}/);
+  assert.match(screen, /input, textarea \{ \$\{inputControlStyles\} \}/);
   assert.match(screen, /inHarumadi \? "하루마디에 남길 마디" : madiLabel/);
   assert.doesNotMatch(screen, /data-madi-title-field/);
   assert.match(screen, /const PageTitle = styled.h2`[^`]*font-size: 15px; font-weight: 600; line-height: 1\.6/);
@@ -48,7 +48,9 @@ test("iOS 날짜 입력의 기본 최소 폭이 작성 그리드를 밀어내지
   const screen = readFileSync("src/features/tuti/screens/journal/MadiCreateScreen.tsx", "utf8");
   const fields = screen.slice(screen.indexOf("const Fields ="), screen.indexOf("const Page ="));
   assert.equal(fields.match(/grid-template-columns: minmax\(0, 1fr\)/g)?.length, 2, "필드와 라벨 모두 기본 최소 폭을 해제한다");
-  assert.match(fields, /input, textarea \{ display: block; box-sizing: border-box; min-width: 0; max-width: 100%; width: 100%/);
+  assert.match(fields, /input, textarea \{ \$\{inputControlStyles\} \}/);
+  const shared = readFileSync("src/shared/ui/typography.ts", "utf8");
+  assert.match(shared, /box-sizing: border-box; width: 100%; min-width: 0; max-width: 100%/);
   assert.match(fields, /input\[type="date"\] \{ -webkit-appearance: none; appearance: none; min-inline-size: 0; inline-size: 100%; max-inline-size: 100%/);
   assert.match(fields, /::-webkit-date-and-time-value \{ min-width: 0; text-align: left/);
   assert.match(screen, /aria-label="마디 날짜" type="date" max=\{today\} value=\{date\}/);
@@ -61,8 +63,10 @@ test("iOS 날짜 입력의 기본 최소 폭이 작성 그리드를 밀어내지
 test("작성 입력창의 포커스 강조는 너비와 스크롤 여백을 바꾸지 않고 테두리 안에 표시한다", () => {
   const screen = readFileSync("src/features/tuti/screens/journal/MadiCreateScreen.tsx", "utf8");
   const fields = screen.slice(screen.indexOf("const Fields ="), screen.indexOf("const Page ="));
-  assert.match(fields, /input:focus-visible, textarea:focus-visible \{ outline: 2px solid var\(--color-accent-primary\); outline-offset: -2px; \}/);
-  assert.match(fields, /box-sizing: border-box; min-width: 0; max-width: 100%; width: 100%/);
+  assert.match(fields, /input, textarea \{ \$\{inputControlStyles\} \}/);
+  const shared = readFileSync("src/shared/ui/typography.ts", "utf8");
+  assert.match(shared, /&:focus-visible \{ outline: 2px solid var\(--color-brand-700\); outline-offset: -2px; \}/);
+  assert.match(shared, /box-sizing: border-box; width: 100%; min-width: 0; max-width: 100%/);
   assert.match(screen, /padding: 2px 2px 24px/);
   assert.doesNotMatch(fields, /outline: none|outline: 0/);
 });

@@ -1176,8 +1176,8 @@ const RecommendationStatusActions = styled.div`
 const StatusPrimaryButton = styled(BaseButton)`
   min-height: 48px;
   border-radius: 16px;
-  background: var(--color-accent-primary);
-  color: var(--color-white);
+  background: var(--color-action-primary-background);
+  color: var(--color-action-primary-text);
   font-weight: 700;
 `;
 

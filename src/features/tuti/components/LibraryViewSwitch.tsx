@@ -11,8 +11,9 @@ export function LibraryViewSwitch({ view, onChange }: { view: HarumadiLibraryVie
     <Choice type="button" aria-pressed={view === "carousel"} onClick={() => onChange("carousel")}><GalleryHorizontalEnd size={15} aria-hidden="true" />한 권씩</Choice>
   </Switch>;
 }
-const Switch = styled.div`display: inline-flex; flex: none; gap: 2px; padding: 3px; border: 1px solid #e4e9e0; border-radius: 14px; background: #edf1e9;`;
-const Choice = styled(BaseButton)`display: inline-flex; align-items: center; justify-content: center; gap: 5px; min-height: 44px; padding: 8px 10px; border-radius: 10px; font-size: 13px; color: var(--color-text-muted); background: transparent;
+const Switch = styled.div`display: inline-flex; flex: none; gap: 2px; padding: 3px; border: 1px solid var(--color-brand-200); border-radius: 999px; background: var(--color-brand-100);`;
+const Choice = styled(BaseButton)`display: inline-flex; align-items: center; justify-content: center; gap: 5px; min-height: 44px; padding: 8px 10px; border-radius: 999px; font-size: var(--ui-caption-size); color: var(--color-text-muted); background: transparent;
   &[aria-pressed="true"] { color: var(--color-text); background: white; box-shadow: 0 1px 4px #1b222a0a; }
   &:focus-visible { outline: 2px solid var(--color-brand-700); outline-offset: -2px; }
+  @container app-viewport (max-width: 390px) { padding-inline: 8px; svg { display: none; } }
 `;

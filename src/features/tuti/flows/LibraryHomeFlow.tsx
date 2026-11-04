@@ -24,6 +24,8 @@ import { welcomeHarumadiPath } from "@/shared/tuti/welcomeHarumadi";
 import { setWelcomeHarumadiOrigin } from "@/lib/welcomeHarumadiNavigation";
 import { useLifecycleView } from "../hooks/useLifecycleView";
 import type { HarumadiOpeningMode } from "../navigation/harumadiActions";
+import { ScreenFrame } from "../components/ScreenFrame";
+import { sectionHeadingStyles, bodyCopyStyles, captionStyles } from "@/shared/ui/typography";
 
 export function LibraryHomeFlow() {
   const session = useSession();
@@ -96,7 +98,7 @@ function LibraryHome({ ownerId }: { ownerId: string }) {
     {opening && <HarumadiBookReader opening={opening} onClose={closeBook} />}
   </Frame>;
 }
-const Frame = styled.section`position: relative; height: 100%; min-height: 0; background: #F8FAFC; color: var(--color-text); isolation: isolate;
+const Frame = styled(ScreenFrame)`position: relative; height: 100%; min-height: 0; padding: 0; background: var(--color-surface); color: var(--color-text); isolation: isolate;
   --harumadi-shelf-title-size: 16px; --harumadi-shelf-brand-size: 10px; --harumadi-shelf-date-size: 11px;
   --harumadi-shelf-title-lines: 3; --harumadi-shelf-title-leading: 1.5;
 `;
@@ -105,17 +107,17 @@ const HomeSurface = styled.div<{ $hidePreview: boolean }>`height: 100%; min-heig
 `;
 const Header = styled.header`
   flex: none; display: flex; justify-content: space-between; align-items: center; gap: 12px;
-  padding: calc(var(--app-safe-area-top, 0px) + 22px) 24px 0;
-  h1 { margin: 0; min-width: 0; font-size: 28px; font-weight: 600; letter-spacing: -0.045em; line-height: 1.4; }
+  padding: var(--screen-padding-top) var(--screen-padding-right) 0 var(--screen-padding-left);
+  h1 { ${sectionHeadingStyles} }
 `;
-const IconButton = styled(BaseButton)`width: 48px; height: 48px; flex: none; display: grid; place-items: center; background: transparent; color: var(--color-text-muted); border-radius: 50%; &:hover { background: var(--color-secondary-200); }`;
-const Toolbar = styled.div`display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 6px 12px; padding: 10px 24px 8px; flex: none; > button:last-child { margin-left: auto; }`;
-const ShelfCount = styled.p`flex: none; margin: 4px 24px 0; font-size: 13px; color: var(--color-text-muted); strong { color: var(--color-text); font-weight: 500; font-variant-numeric: tabular-nums; }`;
-const TextAction = styled(BaseButton)`display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 48px; padding: 8px 0; background: transparent; font-size: 16px; color: var(--color-text-muted); &:focus-visible { outline: 2px solid var(--color-brand-700); outline-offset: 3px; border-radius: 4px; }`;
+const IconButton = styled(BaseButton)`width: 48px; height: 48px; flex: none; display: grid; place-items: center; background: transparent; color: var(--color-text-muted); border-radius: 50%; &:hover { background: var(--color-brand-100); }`;
+const Toolbar = styled.div`display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 8px; padding: 12px var(--screen-padding-right) 8px var(--screen-padding-left); flex: none; > button:last-child { margin-left: auto; min-height: 44px; padding-inline: 12px; border-radius: 999px; background: var(--color-brand-100); color: var(--color-brand-1000); white-space: nowrap; }`;
+const ShelfCount = styled.p`${captionStyles} flex: none; margin: 4px var(--screen-padding-right) 0 var(--screen-padding-left); strong { color: var(--color-text); font-weight: 500; font-variant-numeric: tabular-nums; }`;
+const TextAction = styled(BaseButton)`${bodyCopyStyles} display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 48px; padding: 8px 0; background: transparent; color: var(--color-text-muted); &:focus-visible { outline: 2px solid var(--color-brand-700); outline-offset: 3px; border-radius: 4px; }`;
 const DraftButton = styled(BaseButton)`flex: none; display: flex; align-items: center; gap: 10px; margin: 8px 24px; padding: 12px 14px; background: var(--color-secondary-200); border-radius: 12px; color: var(--color-text); font-size: 16px; text-align: left; > span { flex: 1; }`;
-const ShelfScroll = styled.div`flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 30px 20px 12px; scrollbar-width: thin; &[data-library-layout="carousel"] { padding-top: 4px; padding-bottom: 8px; } &:has(> div:only-child) { display: flex; flex-direction: column; } @container app-viewport (max-height: 620px) { &:has([data-empty-shelf]) { padding-top: 16px; padding-bottom: 8px; } }`;
+const ShelfScroll = styled.div`flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 30px 20px 12px; scrollbar-width: thin; &[data-library-layout="carousel"] { container-type: size; padding-top: 4px; padding-bottom: 8px; } &:has(> div:only-child) { display: flex; flex-direction: column; } @container app-viewport (max-height: 620px) { &:has([data-empty-shelf]) { padding-top: 16px; padding-bottom: 8px; } }`;
 const EmptyShelf = styled.div`flex: 1 0 auto; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 290px; padding: 16px 0 28px; h2 { margin: 27px 0 10px; font-size: 22px; font-weight: 600; letter-spacing: -0.035em; text-align: center; } > p { margin: 0 0 14px; white-space: pre-line; text-align: center; font-size: 16px; color: var(--color-text-muted); line-height: 1.85; } > button { margin-bottom: 4px; } @container app-viewport (max-height: 620px) { min-height: 0; padding: 8px 0 12px; h2 { margin: 16px 0 8px; } > p { margin-bottom: 8px; line-height: 1.7; } }`;
 const EmptyMark = styled.span`position: relative; flex: none; width: 96px; height: 124px; display: grid; place-content: center; justify-items: center; gap: 16px; border: 1px solid #dce3d6; border-radius: 2px 6px 6px 2px; background: #ffffff; box-shadow: 3px 3px 0 #e9ede5, 6px 8px 16px rgb(27 34 42 / 0.04); color: #7d8b70; &::before { content: ""; position: absolute; top: 0; bottom: 0; left: 6px; border-left: 1px solid #edf0e9; } > span { width: 26px; border-bottom: 1px solid #dce3d6; } @container app-viewport (max-height: 620px) { width: 64px; height: 82px; gap: 10px; }`;
 const Status = styled.div`min-height: 230px; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; gap: 14px; h2 { margin: 0; font-size: 17px; } p { margin: 0; line-height: 1.8; font-size: 16px; color: var(--color-text-muted); }`;
 const MoreButton = styled(BaseButton)`display: block; margin: 4px auto 20px; padding: 12px 20px; border-radius: 20px; background: white; color: var(--color-text-muted); font-size: 16px;`;
-const LibraryLinks = styled.nav`flex: none; display: flex; justify-content: space-between; align-items: center; gap: 20px; margin: 0 24px; padding: 6px 0; border-top: 1px solid #e8ede4; > button { font-size: 15px; }`;
+const LibraryLinks = styled.nav`flex: none; display: flex; justify-content: space-between; align-items: center; gap: 16px; margin: 0 var(--screen-padding-right) 0 var(--screen-padding-left); padding: 6px 0; border-top: 1px solid var(--color-border); > button { font-size: var(--ui-body-size); }`;

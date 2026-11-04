@@ -58,8 +58,8 @@ export const buttonFrameStyles = css`
   justify-content: center;
   gap: var(--space-2);
   border-radius: 999px;
-  font-weight: 700;
-  line-height: 1;
+  font-weight: 600;
+  line-height: 1.5;
   white-space: nowrap;
   transition:
     transform 180ms ease,
@@ -98,8 +98,8 @@ const sizeStyles = ({ $size = "medium" }: ButtonStyleProps) => {
 const toneStyles = ({ $tone = "neutral" }: ButtonStyleProps) => {
   if ($tone === "primary") {
     return css`
-      background: var(--color-accent-primary);
-      color: var(--color-white);
+      background: var(--color-action-primary-background);
+      color: var(--color-action-primary-text);
 
       &:disabled,
       &[aria-disabled="true"] {
@@ -110,8 +110,8 @@ const toneStyles = ({ $tone = "neutral" }: ButtonStyleProps) => {
   }
   if ($tone === "secondary") {
     return css`
-      background: var(--color-secondary-500);
-      color: var(--color-text);
+      background: var(--color-action-secondary-background);
+      color: var(--color-action-secondary-text);
 
       &:disabled,
       &[aria-disabled="true"] {
@@ -226,11 +226,12 @@ export const PressableCard = styled(ActionRow)`
 
 export const PrimaryButton = styled(BaseButton)`
   ${buttonFrameStyles}
-  min-height: var(--space-14);
+  min-height: var(--ui-action-height);
   padding-inline: var(--space-6);
-  background: var(--color-accent-primary);
-  color: var(--color-white);
-  font-weight: 700;
+  background: var(--color-action-primary-background);
+  color: var(--color-action-primary-text);
+  font-size: var(--ui-body-size);
+  font-weight: 600;
 
   &:disabled {
     background: var(--color-border);

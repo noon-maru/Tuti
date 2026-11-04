@@ -284,7 +284,7 @@ const Screen = styled.section`
   box-sizing: border-box; background: var(--color-surface); color: var(--color-text);
 `;
 const MainPanel = styled.div`display: contents; &[hidden] { display: none; }`;
-const OptionalHint = styled.p`margin: 0 0 4px 33px; color: var(--color-text-muted); font-size: 11px; line-height: 1.65;`;
+const OptionalHint = styled.p`margin: 0 0 4px 33px; color: var(--color-text-muted); font-size: var(--ui-caption-size); line-height: 1.65;`;
 const LoadingBrand = styled.div`
   width: 100%; height: 100%; display: grid; place-items: center; background: var(--color-surface);
   img { width: 76px; height: auto; }
@@ -309,7 +309,7 @@ const Content = styled.div`
 `;
 const Form = styled.form`
   display: grid; gap: 12px; flex-shrink: 0;
-  > small { color: var(--color-text-muted); font-size: 11px; line-height: 1.6; text-align: center; }
+  > small { color: var(--color-text-muted); font-size: var(--ui-caption-size); line-height: 1.6; text-align: center; }
 `;
 const AgreementGroup = styled.div`
   padding: 6px 14px; border: 1px solid var(--color-border); border-radius: 16px;

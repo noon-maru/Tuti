@@ -1,4 +1,5 @@
 "use client";
+import { screenTitleStyles } from "@/shared/ui/typography";
 
 import styled from "@emotion/styled";
 import {
@@ -250,8 +251,7 @@ const Header = styled.header`
   padding-inline: var(--space-5);
 
   h1 {
-    font-size: var(--font-size-500);
-    font-weight: 700;
+    ${screenTitleStyles}
     text-align: center;
   }
 `;

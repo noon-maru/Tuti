@@ -65,6 +65,10 @@ const globalStyles = css`
     --color-accent-secondary: var(--color-secondary-500);
     --color-accent-bridge: ${palette.accent.bridge};
     --color-accent-soft: var(--color-secondary-200);
+    --color-action-primary-background: var(--color-brand-500);
+    --color-action-primary-text: var(--color-brand-1000);
+    --color-action-secondary-background: var(--color-secondary-500);
+    --color-action-secondary-text: var(--color-secondary-1000);
 
     /* Compatibility aliases */
     --color-black: var(--color-neutral-1300);
@@ -101,6 +105,18 @@ const globalStyles = css`
     --letter-spacing-heading: 0.005em;
     --letter-spacing-subtitle: -0.005em;
     --letter-spacing-body: -0.015em;
+
+    /* Shared app chrome, distinct from printed/scaled book typography. */
+    --ui-title-size: var(--font-size-500);
+    --ui-heading-size: var(--font-size-700);
+    --ui-body-size: var(--font-size-200);
+    --ui-caption-size: var(--font-size-100);
+    --ui-input-size: max(1rem, var(--font-size-200));
+    --ui-title-weight: 600;
+    --ui-title-tracking: -0.025em;
+    --ui-control-height: 44px;
+    --ui-action-height: 56px;
+    --ui-field-radius: 12px;
 
     /* 4px spacing grid */
     --space-0: 0;

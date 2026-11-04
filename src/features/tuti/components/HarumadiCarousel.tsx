@@ -122,7 +122,7 @@ const CarouselCover = memo(function CarouselCover({ book, ownerId }: { book: Har
   return <HarumadiCover ownerId={ownerId} kind="harumadi" harumadiPdf={{ ...book, entryCount: book.entryIds.length, pageCount: 0, hasCover: book.coverStyle.endsWith("-image") && book.entryIds.length > 0 }} />;
 });
 
-const Carousel = styled.div`--carousel-height: clamp(230px, 43cqh, 370px); width: 100%; min-width: 0; padding-bottom: 16px;`;
+const Carousel = styled.div`--carousel-height: clamp(160px, calc(100cqh - 168px), 370px); width: 100%; min-width: 0; padding-bottom: 16px;`;
 const Stage = styled.div<{ $dragging: boolean }>`position: relative; height: var(--carousel-height); overflow: hidden; perspective: 850px; touch-action: pan-y; user-select: none; cursor: ${({ $dragging }) => $dragging ? "grabbing" : "grab"}; isolation: isolate;
   &::after { content: ""; position: absolute; width: 60%; height: 12px; border-radius: 50%; background: #1b222a0a; filter: blur(10px); bottom: 5px; left: 20%; z-index: -1; }
   &:focus-visible { outline: 2px solid var(--color-brand-700); outline-offset: -3px; border-radius: 12px; }
@@ -134,8 +134,8 @@ const Slide = styled.div<{ $dragging: boolean }>`position: absolute; top: 48%; l
 const CoverButton = styled(BaseButton)<{ $spread: boolean }>`display: block; padding: 0; width: ${({ $spread }) => $spread ? "100%" : "50%"}; margin: 0 auto; background: transparent; color: inherit; cursor: inherit; -webkit-user-drag: none;
   &:focus-visible { outline: 2px solid var(--color-brand-700); outline-offset: 5px; border-radius: 4px; }
 `;
-const Caption = styled.div`display: flex; align-items: flex-start; justify-content: center; gap: 6px; margin: 4px 28px 0; min-height: 76px; text-align: center; > div { min-width: 0; flex: 1; padding-left: 44px; } strong { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere; font-size: 19px; font-weight: 600; line-height: 1.5; letter-spacing: -.03em; } p { margin: 6px 0 0; color: var(--color-text-muted); font-size: 13px; line-height: 1.5; } small { display: block; margin-top: 4px; color: var(--color-text-muted); font-size: 12px; }
+const Caption = styled.div`display: flex; align-items: flex-start; justify-content: center; gap: 6px; margin: 4px 28px 0; min-height: 76px; text-align: center; > div { min-width: 0; flex: 1; padding-left: 44px; } strong { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere; font-size: var(--font-size-400); font-weight: var(--ui-title-weight); line-height: 1.5; letter-spacing: var(--ui-title-tracking); } p { margin: 6px 0 0; color: var(--color-text-muted); font-size: var(--ui-caption-size); line-height: 1.6; } small { display: block; margin-top: 4px; color: var(--color-text-muted); font-size: var(--ui-caption-size); }
 `;
 const BookMenu = styled(ContextMenu)`flex: none; width: 44px; > button { width: 44px; height: 44px; padding: 0; border-radius: 50%; color: var(--color-text-muted); &:hover { background: #e8ede4; } }`;
 const Controls = styled.nav`display: flex; align-items: center; justify-content: center; gap: 18px; margin-top: 8px; > span { min-width: 74px; text-align: center; font-size: 12px; color: var(--color-text-muted); font-variant-numeric: tabular-nums; }`;
-const Arrow = styled(BaseButton)`width: 44px; height: 44px; display: grid; place-items: center; border-radius: 50%; background: #edf1e9; color: var(--color-text); &:hover:not(:disabled) { background: #e4ebdd; } &:disabled { opacity: .3; }`;
+const Arrow = styled(BaseButton)`width: 44px; height: 44px; display: grid; place-items: center; border-radius: 50%; background: var(--color-brand-100); color: var(--color-brand-1000); &:hover:not(:disabled) { background: var(--color-brand-200); } &:disabled { opacity: .3; }`;

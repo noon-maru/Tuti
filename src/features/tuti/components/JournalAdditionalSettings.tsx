@@ -20,7 +20,7 @@ export function JournalAdditionalSettings({ children, available = false, initial
 
 const Settings = styled.div`
   margin-top: 12px;
-  > p { margin: 0; color: var(--color-text-muted); font-size: 11px; font-weight: 400; line-height: 1.7; word-break: keep-all; }
+  > p { margin: 0; color: var(--color-text-muted); font-size: var(--ui-caption-size); font-weight: 400; line-height: 1.7; word-break: keep-all; }
   > details > summary {
     width: fit-content; min-height: 44px; display: list-item; align-content: center;
     color: var(--color-text-muted); font-size: 12px; font-weight: 400; cursor: pointer;

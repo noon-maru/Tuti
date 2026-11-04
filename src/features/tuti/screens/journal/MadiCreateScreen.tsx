@@ -1,4 +1,5 @@
 "use client";
+import { screenTitleStyles, sectionHeadingStyles, bodyCopyStyles, captionStyles, inputControlStyles } from "@/shared/ui/typography";
 
 import styled from "@emotion/styled";
 import Image from "next/image";
@@ -205,28 +206,26 @@ function MemoryPage({ title, image, content, date, place }: { title: string; ima
   </Page>;
 }
 
-const Frame = styled(ScreenFrame)`background: #fff; gap: 20px; --screen-padding-top: calc(24px + var(--app-safe-area-top, 0px));`;
+const Frame = styled(ScreenFrame)`background: var(--color-surface); gap: var(--space-5);`;
 const PageTitle = styled.h2`margin: 0; font-size: 15px; font-weight: 600; line-height: 1.6; overflow-wrap: anywhere;`;
 const Header = styled.header`flex: none; display: grid; grid-template-columns: 44px minmax(0, 1fr) 44px; align-items: center; text-align: center; gap: 8px;
-  > span { min-width: 0; font-size: 18px; font-weight: 600; line-height: 1.4; letter-spacing: -0.02em; word-break: keep-all; }
-  @container app-viewport (max-width: 340px) { > span { font-size: 16px; } }
+  > span { ${screenTitleStyles} word-break: keep-all; }
 `;
 const StepCount = styled.div`font-size: 12px; color: var(--color-text-muted); display: flex; justify-content: center;`;
 const Content = styled.div`flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 2px 2px 24px; display: flex; flex-direction: column; gap: 26px; > * { flex-shrink: 0; }`;
 const Intro = styled.div`
-  h1 { margin: 0 0 12px; font-size: 25px; font-weight: 600; line-height: 1.4; letter-spacing: -0.035em; &:focus { outline: none; } }
-  p { color: var(--color-text-muted); font-size: 13px; line-height: 1.8; word-break: keep-all; }
+  h1 { ${sectionHeadingStyles} margin-bottom: var(--space-3); &:focus { outline: none; } }
+  p { ${bodyCopyStyles} color: var(--color-text-muted); word-break: keep-all; }
 `;
 const PhotoChoices = styled.div`display: grid; gap: 12px; margin-top: 8px;`;
 const SelectedPhoto = styled.div`position: relative; aspect-ratio: 4 / 3; border-radius: 5px; overflow: hidden; background: #f6f9fc; img { object-fit: contain; }`;
 const HiddenInput = styled.input`display: none;`;
-const PrivacyHint = styled.p`margin: 0; font-size: 11px; font-weight: 400; line-height: 1.7; color: var(--color-text-muted); word-break: keep-all;`;
+const PrivacyHint = styled.p`${captionStyles} margin: 0; word-break: keep-all;`;
 const Fields = styled.div`
   display: grid; grid-template-columns: minmax(0, 1fr); min-width: 0; gap: 24px;
-  label { display: grid; grid-template-columns: minmax(0, 1fr); min-width: 0; gap: 10px; font-size: 13px; font-weight: 500; }
-  small { display: inline; font-size: 11px; font-weight: 400; color: var(--color-text-muted); }
-  input, textarea { display: block; box-sizing: border-box; min-width: 0; max-width: 100%; width: 100%; border: 1px solid var(--color-border); border-radius: 12px; padding: 14px; color: var(--color-text); background: #fff; font: inherit; font-weight: 400; line-height: 1.7; }
-  input:focus-visible, textarea:focus-visible { outline: 2px solid var(--color-accent-primary); outline-offset: -2px; }
+  label { display: grid; grid-template-columns: minmax(0, 1fr); min-width: 0; gap: 10px; font-size: var(--ui-body-size); font-weight: 500; }
+  small { ${captionStyles} display: inline; }
+  input, textarea { ${inputControlStyles} }
   /* Keep iOS's native date picker, without its intrinsic control width expanding the grid. */
   input[type="date"] { -webkit-appearance: none; appearance: none; min-inline-size: 0; inline-size: 100%; max-inline-size: 100%; text-align: left; }
   input[type="date"]::-webkit-date-and-time-value { min-width: 0; text-align: left; }
@@ -238,5 +237,5 @@ const PageMeta = styled.div`display: flex; justify-content: space-between; gap: 
 const PageImage = styled.div`position: relative; width: 100%; aspect-ratio: 4 / 3; flex: none; img { object-fit: contain; }`;
 const PageText = styled.p`white-space: pre-wrap; font-size: 12px; line-height: 1.95; overflow-wrap: anywhere; word-break: keep-all;`;
 const PageNumber = styled.span`margin-top: auto; padding-top: 20px; align-self: flex-end; font-size: 10px; color: var(--color-text-muted);`;
-const Footer = styled.footer`flex: none; display: grid; gap: 6px; > button { white-space: normal; min-height: 48px; line-height: 1.6; } > button:first-of-type { color: #173b60; }`;
+const Footer = styled.footer`flex: none; display: grid; gap: 6px; > button { white-space: normal; min-height: 48px; line-height: 1.6; }`;
 const ErrorMessage = styled.p`font-size: 13px; color: var(--color-danger, #b84242); line-height: 1.7;`;
