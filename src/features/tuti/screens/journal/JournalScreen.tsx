@@ -1,5 +1,7 @@
 "use client";
 import { screenTitleStyles } from "@/shared/ui/typography";
+import { MadiLoadNotice } from "@/features/tuti/components/MadiLoadNotice";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import { confirmAction, showErrorToast } from "@/lib/feedback";
 
 import { css } from "@emotion/react";
@@ -10,7 +12,7 @@ import { LoadingIndicator } from "@/features/tuti/components/LoadingIndicator";
 import { TutiPlaceIcon } from "@/features/tuti/components/TutiPlaceIcon";
 import { JournalShareDialog } from "@/features/tuti/components/JournalShareDialog";
 import { useJournalEntryTransitionTarget } from "@/features/tuti/components/JournalEntryTransition";
-import { BackButton, BaseButton } from "@/features/tuti/components/buttons";
+import { BackButton, BaseButton, TextButton } from "@/features/tuti/components/buttons";
 import { ScreenFrame } from "@/features/tuti/components/ScreenFrame";
 import { useTutiJournalEntries } from "@/features/tuti/hooks/useTutiJournalEntries";
 import { useJournalShareActions } from "@/features/tuti/hooks/useJournalShareActions";
@@ -45,11 +47,15 @@ export function JournalScreen({
   const [shareEntryId, setShareEntryId] = useState<string | null>(null);
   const stackPointerStart = useRef<number | null>(null);
   const selectedCardRef = useRef<HTMLButtonElement>(null);
+  const stackRef = useRef<HTMLDivElement>(null);
   const wheelLocked = useRef(false);
   const suppressCardClick = useRef(false);
   const {
     entries,
     isPending,
+    isError,
+    isFetching,
+    refetch,
     changeEntryPublication,
     removeEntry,
   } = useTutiJournalEntries();
@@ -187,9 +193,21 @@ export function JournalScreen({
         </AddButton>
       </ListHeader>
 
+      {isError && entries.length > 0 && <MadiLoadNotice compact busy={isFetching} onRetry={() => void refetch()} />}
+
       {entries.length > 0 ? (
         <MemoryStack
+          ref={stackRef}
+          role="region"
+          tabIndex={0}
           aria-label="남겨둔 마디"
+          onKeyDown={event => {
+            if (event.altKey || event.ctrlKey || event.metaKey || !event.currentTarget.contains(event.target as Node)) return;
+            if (event.key !== "ArrowUp" && event.key !== "ArrowDown" && event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
+            event.preventDefault();
+            moveStack(event.key === "ArrowUp" || event.key === "ArrowLeft" ? -1 : 1);
+            window.requestAnimationFrame(() => stackRef.current?.querySelector<HTMLButtonElement>('[aria-pressed="true"]')?.focus({ preventScroll: true }));
+          }}
           onWheel={scrollStack}
           onPointerDown={startStackDrag}
           onPointerMove={updateStackDrag}
@@ -302,11 +320,18 @@ export function JournalScreen({
         <EmptyState>
           <LoadingIndicator label="마디를 불러오고 있어요." />
         </EmptyState>
+      ) : isError ? (
+        <EmptyState><MadiLoadNotice busy={isFetching} onRetry={() => void refetch()} /></EmptyState>
       ) : (
         <EmptyState>
           <p>사진 한 장, 짧은 이야기로<br />첫 마디를 남겨보세요.</p>
         </EmptyState>
       )}
+      {entries.length > 0 && <StackNavigation aria-label="마디 이동">
+        <TextButton type="button" disabled={entries.length < 2} onClick={() => moveStack(-1)}><ChevronLeft size={18} />이전 마디</TextButton>
+        <span role="status" aria-live="polite" aria-atomic="true">{selectedEntryIndex + 1} / {entries.length}</span>
+        <TextButton type="button" disabled={entries.length < 2} onClick={() => moveStack(1)}>다음 마디<ChevronRight size={18} /></TextButton>
+      </StackNavigation>}
       {shareEntry && (
         <JournalShareDialog
           entry={shareEntry}
@@ -321,6 +346,11 @@ export function JournalScreen({
     </Frame>
   );
 }
+
+const StackNavigation = styled.nav`display: flex; flex: none; justify-content: space-between; align-items: center; gap: 8px;
+  > button { display: inline-flex; align-items: center; gap: 4px; min-height: 44px; padding: 8px 4px; }
+  > span { font-size: var(--ui-caption-size); color: var(--color-text-muted); font-variant-numeric: tabular-nums; }
+`;
 
 function formatJournalDate(value: string) {
   const date = new Date(value);
@@ -429,6 +459,7 @@ const MemoryStack = styled.div`
   min-height: 0;
   flex: 1;
   width: 100%;
+  &:focus-visible { outline: 2px solid var(--color-brand-700); outline-offset: -2px; border-radius: 12px; }
 `;
 
 const MemoryCardLayer = styled.div<{

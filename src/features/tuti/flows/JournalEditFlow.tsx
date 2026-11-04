@@ -18,7 +18,7 @@ export function JournalEditFlow() {
   const { startTransition } = useJournalEntryTransition();
   const entryId = searchParams.get("entryId");
   const source = searchParams.get("source");
-  const { entries, isPending, updateEntry } = useTutiJournalEntries();
+  const { entries, isPending, isError, refetch, updateEntry } = useTutiJournalEntries();
   const setActiveJournalEntry = useTutiStore(
     (state) => state.setActiveJournalEntry,
   );
@@ -40,6 +40,9 @@ export function JournalEditFlow() {
       />
     );
   }
+
+  if (isError && !entry) return <JournalEditorStatusScreen
+    message="수정할 마디를 불러오지 못했어요." onBack={returnToJournalFallback} onRetry={() => void refetch()} />;
 
   if (!entry) {
     return (

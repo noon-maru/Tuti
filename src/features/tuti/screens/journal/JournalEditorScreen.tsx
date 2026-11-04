@@ -1,5 +1,6 @@
 "use client";
 import { screenTitleStyles, inputControlStyles } from "@/shared/ui/typography";
+import { MadiLoadNotice } from "@/features/tuti/components/MadiLoadNotice";
 
 import styled from "@emotion/styled";
 import { useEffect, useRef, useState } from "react";
@@ -469,10 +470,12 @@ export function JournalEditorScreen({
 export function JournalEditorStatusScreen({
   message,
   onBack,
+  onRetry,
   loading = false,
 }: {
   message: string;
   onBack: () => void;
+  onRetry?: () => void;
   loading?: boolean;
 }) {
   return (
@@ -487,7 +490,7 @@ export function JournalEditorStatusScreen({
         <HeaderSpacer />
       </EditorHeader>
       <Status role={loading ? undefined : "status"}>
-        {loading ? <LoadingIndicator label={message} /> : message}
+        {loading ? <LoadingIndicator label={message} /> : onRetry ? <MadiLoadNotice title={message} onRetry={onRetry} /> : message}
       </Status>
     </Frame>
   );
