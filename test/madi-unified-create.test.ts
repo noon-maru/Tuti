@@ -45,7 +45,8 @@ test("작성 완료는 원래 화면으로 복귀하며 하루마디 연결과 �
   assert.match(flow, /action: "journal_created"/);
   const screen = readFileSync("src/features/tuti/screens/journal/MadiCreateScreen.tsx", "utf8");
   assert.match(screen, /setSavedAsFirstMadi\(firstMadi && !continued\)/);
-  assert.match(screen, /initialPlace && place.trim\(\) === initialPlace.name \? initialPlace.id : null/);
+  assert.match(screen, /const \[placeId, setPlaceId\] = useState<string \| null>\(initialPlace\?\.id \?\? null\)/);
+  assert.match(screen, /onTextChange=\{value => \{ setPlace\(value\); setPlaceId\(null\); \}\}/);
 });
 
 test("화면 제목과 입력은 공통 규칙을 사용하고 마디 지면 미리보기 크기는 따로 유지한다", () => {

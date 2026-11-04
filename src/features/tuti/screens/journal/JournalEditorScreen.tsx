@@ -10,6 +10,7 @@ import { useEffect, useRef, useState } from "react";
 import {
   BackButton,
   PrimaryButton,
+  TextButton,
 } from "@/features/tuti/components/buttons";
 import { ContextMenu } from "@/features/tuti/components/ContextMenu";
 import { ImageCropDialog } from "@/features/tuti/components/ImageCropDialog";
@@ -289,6 +290,14 @@ export function JournalEditorScreen({
     setSensitiveAgreed(false);
   };
 
+  const removePhoto = () => {
+    imageSelectionIdRef.current += 1;
+    setPendingPhotoLocationChoice(null);
+    setCropSource(null);
+    setImageUrl(null);
+    setPhotoPlaceHint(null);
+  };
+
   const submitEditor = async () => {
     if (!canSubmit || !sensitiveReady || isSubmitting || !imagePickerRef.current) return;
 
@@ -362,6 +371,9 @@ export function JournalEditorScreen({
             </span>
           </ImagePicker>
         </ImageArea>
+        {imageUrl && <PhotoActions><TextButton type="button" disabled={isSubmitting}
+          onClick={() => imagePickerRef.current?.querySelector<HTMLInputElement>("input")?.click()}>사진 바꾸기</TextButton>
+          <TextButton type="button" disabled={isSubmitting} onClick={removePhoto}>사진 빼기</TextButton></PhotoActions>}
 
         <EditorCopy>
           <EditorField><MadiFieldLabel>제목 <small>선택</small></MadiFieldLabel>
@@ -381,10 +393,14 @@ export function JournalEditorScreen({
           <JournalPlacePicker
           placeId={placeId}
           value={placeName}
+          onTextChange={value => {
+            hasEditedPlaceRef.current = true;
+            setPlaceId(null); setPlaceName(value); setPhotoPlaceHint(null);
+          }}
           helperText={
             photoPlaceHint?.message ??
-            (!placeId
-              ? "사진을 고르면 촬영 위치를 사용할지 먼저 물어봐요."
+            (!placeId && locationTermsAccepted
+              ? "사진의 촬영 위치를 사용할 때는 먼저 물어봐요."
               : undefined)
           }
           helperStatus={photoPlaceHint?.status ?? "notice"}
@@ -460,6 +476,8 @@ export function JournalEditorScreen({
     </Frame>
   );
 }
+
+const PhotoActions = styled.div`display: flex; flex-wrap: wrap; gap: 4px 16px;`;
 
 export function JournalEditorStatusScreen({
   message,

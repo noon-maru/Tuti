@@ -19,6 +19,7 @@ import { MadiHarumadiSelection } from "./MadiHarumadiSelection";
 import { useMadiDraft } from "@/features/tuti/hooks/useMadiDraft";
 import { AppLoadingScreen } from "@/features/tuti/components/LoadingIndicator";
 import type { Harumadi } from "@/shared/api/harumadi";
+import { JournalPlacePicker } from "@/features/tuti/components/JournalPlacePicker";
 
 type Stage = "photo" | "write" | "preview";
 
@@ -47,6 +48,7 @@ export function MadiCreateScreen({ onBack, onSave, onCollection, onSaved, haruma
   const [title, setTitle] = useState("");
   const [date, setDate] = useState(getKoreanDateKey);
   const [place, setPlace] = useState(initialPlace?.name ?? "");
+  const [placeId, setPlaceId] = useState<string | null>(initialPlace?.id ?? null);
   const [saved, setSaved] = useState<TutiJournalEntry | null>(null);
   const needsBookSelection = Boolean(saved && !saved.savedHarumadi && harumadiSelection && !inHarumadi);
   const madiLabel = (saved ? savedAsFirstMadi : firstMadi && !continued) ? "첫 마디" : "새로운 마디";
@@ -63,9 +65,10 @@ export function MadiCreateScreen({ onBack, onSave, onCollection, onSaved, haruma
   const today = getKoreanDateKey();
   const draft = prepareFirstJournalDraft({ image, title, content, date, place }, today);
   const localDraft = useMadiDraft({ ownerId: draftOwnerId, scope: "new", source: "new", enabled: !preview && !saved,
-    value: { image, title, content, date, place, placeId: null, originalImage: false, stage },
+    value: { image, title, content, date, place, placeId, originalImage: false, stage },
     restore: value => {
       setImage(value.image); setTitle(value.title); setContent(value.content); setDate(value.date); setPlace(value.place); setStage(value.stage ?? "write");
+      setPlaceId(value.placeId);
       dateEdited.current = true;
     } });
 
@@ -119,6 +122,13 @@ export function MadiCreateScreen({ onBack, onSave, onCollection, onSaved, haruma
       if (id === selection.current && !dateEdited.current && metadata.captureDate && metadata.captureDate <= today) setDate(metadata.captureDate);
     }).catch(() => { /* Optional EXIF must not block writing. */ });
   };
+  const removePhoto = () => {
+    selection.current += 1;
+    photoMetadata.current = null;
+    setImage(null);
+    setCropSource(null);
+    setError("");
+  };
 
   const save = async () => {
     if (!draft || savingRef.current || preview || !onSave || (inHarumadi && !destination)) return;
@@ -128,7 +138,7 @@ export function MadiCreateScreen({ onBack, onSave, onCollection, onSaved, haruma
     try {
       // 간편 작성은 일반 마디만 취급하며 별도 민감정보 동의를 추정하지 않는다.
       const entry = await onSave({ ...draft,
-        placeId: initialPlace && place.trim() === initialPlace.name ? initialPlace.id : null,
+        placeId,
         sensitiveContent: false });
       await localDraft.finish();
       setSaved(entry);
@@ -145,6 +155,7 @@ export function MadiCreateScreen({ onBack, onSave, onCollection, onSaved, haruma
     setContinued(true);
     selection.current += 1;
     setSaved(null); setImage(null); setTitle(""); setContent(""); setDate(getKoreanDateKey()); setPlace(""); setError("");
+    setPlaceId(null);
     dateEdited.current = false;
     setStage("photo");
   };
@@ -173,16 +184,20 @@ export function MadiCreateScreen({ onBack, onSave, onCollection, onSaved, haruma
         {image && <SelectedPhoto><Image src={image} alt="선택한 추억 사진" fill unoptimized sizes="350px" /></SelectedPhoto>}
         <Button type="button" $tone="secondary" onClick={() => photoInput.current?.click()}><ImagePlus size={18} aria-hidden="true" />{image ? "다른 사진 고르기" : "앨범에서 사진 고르기"}</Button>
         <Button type="button" onClick={() => cameraInput.current?.click()}><Camera size={18} aria-hidden="true" />카메라로 남기기</Button>
+        {image && <TextButton type="button" onClick={() => { removePhoto(); setStage("write"); }}>사진 빼고 글로 남기기</TextButton>}
         {!image && <TextButton type="button" onClick={() => setStage("write")}>사진 없이 글로 시작하기</TextButton>}
       </PhotoChoices>}
       <HiddenInput ref={photoInput} type="file" accept="image/*" aria-label="앨범 사진 선택" onChange={choosePhoto} />
       <HiddenInput ref={cameraInput} type="file" accept="image/*" capture="environment" aria-label="카메라 사진 촬영" onChange={choosePhoto} />
       {!saved && stage === "write" && <Fields>
         {image && <SelectedPhoto><Image src={image} alt="마디에 담을 사진" fill unoptimized sizes="350px" /></SelectedPhoto>}
+        <PhotoActions><TextButton type="button" onClick={() => photoInput.current?.click()}>{image ? "사진 바꾸기" : "사진 추가하기"}</TextButton>{image && <TextButton type="button" onClick={removePhoto}>사진 빼기</TextButton>}</PhotoActions>
         <label><MadiFieldLabel>제목 <small>선택</small></MadiFieldLabel><input aria-label="마디 제목 (선택)" placeholder={MADI_FIELD_COPY.titlePlaceholder} maxLength={FIRST_JOURNAL_TITLE_LIMIT} value={title} onChange={event => setTitle(event.target.value)} /></label>
         <label><MadiFieldLabel>기억하고 싶은 이야기 <small>{image ? "선택" : "필수"}</small></MadiFieldLabel><textarea aria-label="기억하고 싶은 이야기" placeholder={MADI_FIELD_COPY.storyPlaceholder} maxLength={FIRST_JOURNAL_CONTENT_LIMIT} value={content} onChange={(event) => setContent(event.target.value)} /></label>
         <label><MadiFieldLabel>날짜</MadiFieldLabel><input aria-label="마디 날짜" type="date" max={today} value={date} onChange={(event) => { dateEdited.current = true; setDate(event.target.value); }} /></label>
-        <label><MadiFieldLabel>장소 <small>선택</small></MadiFieldLabel><input aria-label="장소 (선택)" placeholder={MADI_FIELD_COPY.placePlaceholder} maxLength={FIRST_JOURNAL_PLACE_LIMIT} value={place} onChange={(event) => setPlace(event.target.value)} /></label>
+        <div><MadiFieldLabel>장소 <small>선택</small></MadiFieldLabel><JournalPlacePicker value={place} placeId={placeId}
+          onTextChange={value => { setPlace(value); setPlaceId(null); }}
+          onChange={value => { setPlace(value.name); setPlaceId(value.id); }} /></div>
         <PrivacyHint>민감정보나 주민등록번호 등은 남기지 말아주세요.</PrivacyHint>
       </Fields>}
       {(saved || stage === "preview") && <MemoryPage
@@ -229,6 +244,7 @@ const Intro = styled.div`
   p { ${bodyCopyStyles} color: var(--color-text-muted); word-break: keep-all; }
 `;
 const PhotoChoices = styled.div`display: grid; gap: 12px; margin-top: 8px;`;
+const PhotoActions = styled.div`display: flex; flex-wrap: wrap; gap: 4px 16px; margin-top: -12px;`;
 const SelectedPhoto = styled.div`position: relative; aspect-ratio: 4 / 3; border-radius: 5px; overflow: hidden; background: #f6f9fc; img { object-fit: contain; }`;
 const HiddenInput = styled.input`display: none;`;
 const PrivacyHint = styled.p`${captionStyles} margin: 0; word-break: keep-all;`;

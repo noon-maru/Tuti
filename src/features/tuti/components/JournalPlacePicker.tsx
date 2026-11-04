@@ -9,7 +9,9 @@ import {
   useState,
 } from "react";
 import { AppDialogFrame } from "@/shared/ui/AppDialogFrame";
-import { captionStyles } from "@/shared/ui/typography";
+import { captionStyles, inputControlStyles } from "@/shared/ui/typography";
+import { MADI_FIELD_COPY } from "@/shared/tuti/madiFields";
+import { FIRST_JOURNAL_PLACE_LIMIT } from "@/shared/api/firstJournal";
 import { LoadingIndicator } from "@/features/tuti/components/LoadingIndicator";
 import { TutiPlaceIcon } from "@/features/tuti/components/TutiPlaceIcon";
 import { fetchWithSession } from "@/lib/auth/session";
@@ -25,12 +27,14 @@ export function JournalPlacePicker({
   helperText,
   helperStatus,
   onChange,
+  onTextChange,
 }: {
   placeId: string | null;
   value: string;
   helperText?: string;
   helperStatus?: "loading" | "success" | "notice";
   onChange: (place: PlaceSearchResult) => void;
+  onTextChange?: (value: string) => void;
 }) {
   const id = useId();
   const [open, setOpen] = useState(false);
@@ -79,6 +83,8 @@ export function JournalPlacePicker({
   return (
     <>
       <PlaceField>
+        {onTextChange && <PlaceInput aria-label="장소 (선택)" value={value} maxLength={FIRST_JOURNAL_PLACE_LIMIT}
+          placeholder={MADI_FIELD_COPY.placePlaceholder} onChange={event => onTextChange(event.target.value)} />}
         <PlaceTrigger
           ref={triggerRef}
           type="button"
@@ -91,7 +97,7 @@ export function JournalPlacePicker({
         >
           <PlacePickerIcon $size="small" aria-hidden="true" />
           <span data-selected={Boolean(placeId)}>
-            {value || "장소 추가"}
+            {onTextChange ? "장소 검색" : value || "장소 추가"}
           </span>
         </PlaceTrigger>
         {helperText && (
@@ -167,11 +173,14 @@ export function JournalPlacePicker({
 }
 
 const PlaceField = styled.div`
+  width: 100%;
+  min-width: 0;
   display: flex;
   flex-direction: column;
   align-items: flex-start;
   gap: var(--space-1);
 `;
+const PlaceInput = styled.input`${inputControlStyles}`;
 
 const PlacePickerIcon = styled(TutiPlaceIcon)`
   transform: translateY(-1px);
