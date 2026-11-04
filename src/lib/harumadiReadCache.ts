@@ -20,7 +20,7 @@ export type ReadCacheStorage = {
 type Index = { id: string; savedAt: number }[];
 
 export function canCacheHarumadi(content: HarumadiContent) {
-  return content.cacheable === true && content.entries.every(entry => entry.sensitiveContent === false && !entry.sensitiveWithdrawnAt);
+  return content.cacheable === true && content.harumadi.shared !== true && content.entries.every(entry => entry.sensitiveContent === false && !entry.sensitiveWithdrawnAt);
 }
 
 export function createHarumadiReadCache(storage: ReadCacheStorage, now = Date.now) {

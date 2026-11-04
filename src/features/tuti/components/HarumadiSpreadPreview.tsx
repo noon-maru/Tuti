@@ -11,6 +11,7 @@ import type { TutiJournalEntry } from "@/shared/api/journal";
 import { buildHarumadiReaderPages, type HarumadiReaderPage } from "@/shared/harumadi/readerPages";
 import { HarumadiPageSheet } from "./HarumadiSheet";
 import { HarumadiCover } from "./HarumadiCover";
+import { useCachedHarumadi } from "../hooks/useCachedHarumadi";
 
 /** 첫 두 마디만 조판한다. 긴 첫 마디라면 오른쪽에는 실제 이어지는 쪽이 온다. */
 export function buildHarumadiSpread(book: Harumadi, entries: TutiJournalEntry[]) {
@@ -24,10 +25,11 @@ export const HarumadiSpreadPreview = memo(function HarumadiSpreadPreview({ book,
     queryFn: ({ signal }) => fetchHarumadiContent(ownerId, book.id, signal),
     retry: false, staleTime: 0, refetchOnMount: "always", refetchOnWindowFocus: true,
     refetchInterval: book.shared ? 30_000 : false });
+  useCachedHarumadi(ownerId, book.id, !book.shared);
   const read = query.data;
   const verified = query.isFetchedAfterMount && !query.isPaused && !query.error && read && !read.cached;
   const readable = read && harumadiReadCache.current(ownerId, book.id, read.ticket) && !authoritativeReadError(query.error) &&
-    (canCacheHarumadi(read.content) || verified);
+    ((!book.shared && canCacheHarumadi(read.content)) || verified);
   const pages = useMemo(() => readable && read ? buildHarumadiSpread(read.content.harumadi, read.content.entries) : [], [readable, read]);
   // 최초 콘텐츠 준비 시에만 펼친다. 백그라운드 갱신은 같은 DOM을 유지해 재생하지 않는다.
   const ready = pages.length > 0 || query.isError;

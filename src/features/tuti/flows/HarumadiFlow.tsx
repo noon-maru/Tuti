@@ -27,7 +27,7 @@ import { useLifecycleView } from "../hooks/useLifecycleView";
 import { useNotificationPresence } from "../hooks/useNotificationPresence";
 import { createHarumadi, deleteHarumadi, harumadiPath, updateHarumadi, reorderHarumadi } from "@/lib/harumadis";
 import { orderByEntryIds } from "@/shared/harumadi/order";
-import { authoritativeReadError, fetchHarumadiContent, loadCachedHarumadi, type HarumadiRead } from "@/lib/harumadiContent";
+import { authoritativeReadError, fetchHarumadiContent, type HarumadiRead } from "@/lib/harumadiContent";
 import { canCacheHarumadi, harumadiReadCache } from "@/lib/harumadiReadCache";
 import { fetchJournalEntries, fetchSensitiveJournalPolicy, createHarumadiPdf } from "@/lib/tutiApi";
 import { exportHarumadiPdf } from "@/lib/harumadiPdfExport";
@@ -40,6 +40,7 @@ import { HARUMADI_BACK_COVER_TEXT_LIMIT, LEGACY_HARUMADI_BACK_COVER_TEXT, isHaru
 
 import { initialHarumadiMode, type HarumadiOpeningMode } from "../navigation/harumadiActions";
 import { readerManagementActions } from "@/shared/harumadi/readerActions";
+import { useCachedHarumadi } from "../hooks/useCachedHarumadi";
 
 type ReaderOptions = { bookId?: string; initialMode?: HarumadiOpeningMode; openingOrigin?: HarumadiBookRect; onClose?: () => void };
 export function HarumadiFlow({ bookId, initialMode, openingOrigin, onClose }: ReaderOptions = {}) {
@@ -50,21 +51,10 @@ export function HarumadiFlow({ bookId, initialMode, openingOrigin, onClose }: Re
 }
 function HarumadiLoader({ owner, id, initialMode, openingOrigin, onClose }: { owner: string; id: string | null } & ReaderOptions) {
   const router = useRouter();
-  const client = useQueryClient();
   const query = useQuery({ queryKey: ["harumadi-content", owner, id], queryFn: ({ signal }) => fetchHarumadiContent(owner, id!, signal),
     enabled: Boolean(id), retry: false, staleTime: 0, refetchOnMount: "always", refetchOnWindowFocus: true,
     refetchInterval: query => query.state.data?.content.harumadi.shared ? 30_000 : false });
-  useEffect(() => {
-    if (!id) return;
-    let active = true;
-    void loadCachedHarumadi(owner, id).then(cached => {
-      const key = ["harumadi-content", owner, id];
-      if (active && cached && !client.getQueryData(key) && !authoritativeReadError(client.getQueryState(key)?.error)) {
-        client.setQueryData(key, cached, { updatedAt: cached.savedAt });
-      }
-    }).catch(() => {});
-    return () => { active = false; };
-  }, [owner, id, client]);
+  useCachedHarumadi(owner, id);
   const current = Boolean(id && query.data && harumadiReadCache.current(owner, id, query.data.ticket));
   const verified = !id || Boolean((current || query.isFetching) && query.data && !query.data.cached && query.isFetchedAfterMount && !query.isPaused && !query.error);
   const readable = Boolean(query.data && current && !authoritativeReadError(query.error) && (canCacheHarumadi(query.data.content) || verified));
