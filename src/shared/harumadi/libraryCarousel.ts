@@ -1,5 +1,11 @@
 const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
 
+/** Keep the book and its details together; short screens may scroll rather than shrink controls. */
+export function carouselStageHeight(width: number, availableHeight: number, detailsHeight: number) {
+  const preferred = Math.min(width * .88, 440) / 2 * 595.28 / 419.53 + 48;
+  return Math.max(140, Math.min(preferred, availableHeight - detailsHeight - 32, 360));
+}
+
 /** 선택한 책의 양끝 20%는 옆 책 이동, 가운데와 키보드 클릭은 읽기다. */
 export function carouselTapDirection(clientX: number, bounds: { left: number; width: number }, keyboard = false): -1 | 0 | 1 {
   if (keyboard || bounds.width <= 0) return 0;

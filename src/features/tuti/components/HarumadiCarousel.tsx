@@ -4,7 +4,7 @@ import styled from "@emotion/styled";
 import { memo, useEffect, useRef, useState, type CSSProperties, type PointerEvent } from "react";
 import { ChevronLeft, ChevronRight, ChevronUp, MoreVertical } from "lucide-react";
 import type { Harumadi } from "@/shared/api/harumadi";
-import { carouselDragProgress, carouselGestureAxis, carouselIndex, carouselPose, carouselShouldWrite, carouselSwipeDirection, carouselTapDirection, carouselWriteProgress } from "@/shared/harumadi/libraryCarousel";
+import { carouselDragProgress, carouselGestureAxis, carouselIndex, carouselPose, carouselShouldWrite, carouselStageHeight, carouselSwipeDirection, carouselTapDirection, carouselWriteProgress } from "@/shared/harumadi/libraryCarousel";
 import { harumadiActions, type HarumadiOpeningMode } from "../navigation/harumadiActions";
 import { HarumadiCover } from "./HarumadiCover";
 import { HarumadiSpreadPreview } from "./HarumadiSpreadPreview";
@@ -21,6 +21,7 @@ export function HarumadiCarousel({ books, ownerId, onOpen, onCreateMadi, hasNext
   hasNextPage?: boolean; loading?: boolean; onLoadMore?: () => Promise<string | null>;
 }) {
   const stage = useRef<HTMLDivElement>(null);
+  const root = useRef<HTMLDivElement>(null), details = useRef<HTMLDivElement>(null);
   const gesture = useRef<Gesture | null>(null), blockedClickUntil = useRef(0), requesting = useRef(false);
   const [selection, setSelection] = useState(() => ({ id: books[0]?.id ?? null, index: 0 }));
   const [size, setSize] = useState({ width: 320, height: 300 }), [drag, setDrag] = useState(0), [dragging, setDragging] = useState(false), [pending, setPending] = useState(false);
@@ -29,11 +30,25 @@ export function HarumadiCarousel({ books, ownerId, onOpen, onCreateMadi, hasNext
   const spreadWidth = Math.min(width * .88, height * 1.25, 440);
   const index = carouselIndex(books.map(book => book.id), selection), active = books[index];
   useEffect(() => {
-    const node = stage.current; if (!node) return;
-    const measure = () => { if (node.clientWidth && node.clientHeight) setSize(previous => previous.width === node.clientWidth && previous.height === node.clientHeight ? previous : { width: node.clientWidth, height: node.clientHeight }); }; measure();
+    const node = stage.current, carousel = root.current, description = details.current, parent = carousel?.parentElement;
+    if (!node || !carousel || !description || !parent) return;
+    const measure = () => {
+      if (!node.clientWidth || !parent.clientHeight) return;
+      const style = getComputedStyle(parent);
+      const siblings = Array.from(parent.children).filter((child): child is HTMLElement => child instanceof HTMLElement && child !== carousel);
+      const reserved = siblings.reduce((sum, child) => {
+        const css = getComputedStyle(child);
+        return sum + child.offsetHeight + (parseFloat(css.marginTop) || 0) + (parseFloat(css.marginBottom) || 0);
+      }, 0);
+      const available = parent.clientHeight - (parseFloat(style.paddingTop) || 0) - (parseFloat(style.paddingBottom) || 0) - reserved - (parseFloat(style.rowGap) || 0) * siblings.length;
+      const next = { width: node.clientWidth, height: carouselStageHeight(node.clientWidth, available, description.offsetHeight) };
+      setSize(previous => previous.width === next.width && Math.abs(previous.height - next.height) < 1 ? previous : next);
+    }; measure();
     if (typeof ResizeObserver === "undefined") { window.addEventListener("resize", measure); return () => window.removeEventListener("resize", measure); }
-    const observer = new ResizeObserver(measure); observer.observe(node); return () => observer.disconnect();
-  }, []);
+    const observer = new ResizeObserver(measure);
+    for (const target of [parent, carousel, description, ...Array.from(parent.children)]) observer.observe(target);
+    return () => observer.disconnect();
+  }, [active?.id, hasNextPage]);
   useEffect(() => {
     const cancel = () => {
       const current = gesture.current; gesture.current = null;
@@ -97,9 +112,9 @@ export function HarumadiCarousel({ books, ownerId, onOpen, onCreateMadi, hasNext
   };
   if (!active) return null;
   const busy = pending || loading;
-  return <Carousel data-library-view="carousel" $canWrite={Boolean(onCreateMadi)}>
+  return <Carousel ref={root} data-library-view="carousel">
     <Stage ref={stage} role="region" aria-roledescription="캐러셀" aria-label="하루마디 한 권씩 보기" tabIndex={0} data-swipe-back-ignore="true"
-      $dragging={dragging} $canWrite={Boolean(onCreateMadi)} onPointerDown={begin} onPointerMove={follow} onPointerUp={event => finish(event)}
+      style={{ height }} $dragging={dragging} $canWrite={Boolean(onCreateMadi)} onPointerDown={begin} onPointerMove={follow} onPointerUp={event => finish(event)}
       onPointerCancel={event => finish(event, true)} onLostPointerCapture={event => { if (event.target === event.currentTarget) finish(event, true); }}
       onDragStart={event => event.preventDefault()} onClickCapture={event => { if (event.timeStamp < blockedClickUntil.current) { event.preventDefault(); event.stopPropagation(); } }}
       onKeyDown={event => {
@@ -124,6 +139,7 @@ export function HarumadiCarousel({ books, ownerId, onOpen, onCreateMadi, hasNext
         </Slide>;
       })}
     </Stage>
+    <Details ref={details}>
     {onCreateMadi && <WriteHint type="button" disabled={busy} aria-label={`${active.title}, 이 하루마디에 마디 남기기`} $active={writeProgress > 0} onClick={() => onCreateMadi(active.id)}><ChevronUp size={16} aria-hidden="true" />위로 쓸어 마디 남기기</WriteHint>}
     <Caption><div aria-live="polite" aria-atomic="true"><strong>{active.title}</strong><p>{active.entryIds.length ? `마디 ${active.entryIds.length}개` : "첫 마디를 기다려요"}{active.shared ? " · 함께 채우는 중" : ""}</p>
       <HarumadiTitleHint book={active} />{active.role === "contributor" && <small>{active.ownerName}님의 하루마디</small>}</div>
@@ -134,6 +150,7 @@ export function HarumadiCarousel({ books, ownerId, onOpen, onCreateMadi, hasNext
       <span aria-live="polite" aria-atomic="true" aria-busy={busy}>{busy ? "불러오는 중" : `${index + 1} / ${books.length}${hasNextPage ? "+" : ""}`}</span>
       <Arrow type="button" aria-label="다음 하루마디" disabled={busy || (index === books.length - 1 && !hasNextPage)} onClick={() => void move(1)}><ChevronRight size={20} /></Arrow>
     </Controls>
+    </Details>
   </Carousel>;
 }
 
@@ -142,9 +159,10 @@ const CarouselCover = memo(function CarouselCover({ book, ownerId }: { book: Har
   return <HarumadiCover ownerId={ownerId} kind="harumadi" harumadiPdf={{ ...book, entryCount: book.entryIds.length, pageCount: 0, hasCover: book.coverStyle.endsWith("-image") && book.entryIds.length > 0 }} />;
 });
 
-const Carousel = styled.div<{ $canWrite: boolean }>`--carousel-height: clamp(160px, calc(100cqh - ${({ $canWrite }) => $canWrite ? 212 : 168}px), 370px); width: 100%; min-width: 0; padding-bottom: 16px;`;
+const Carousel = styled.div`display: flex; flex-direction: column; justify-content: center; flex: 1 0 auto; width: 100%; min-width: 0; padding: 16px 0;`;
+const Details = styled.div`display: flow-root; flex: none;`;
 // 책 영역만 단일 터치를 예약하고 핀치 확대와 바깥 영역의 세로 스크롤은 보존한다.
-const Stage = styled.div<{ $dragging: boolean; $canWrite: boolean }>`position: relative; height: var(--carousel-height); overflow: hidden; perspective: 850px; touch-action: ${({ $canWrite }) => $canWrite ? "pinch-zoom" : "pan-y"}; user-select: none; cursor: ${({ $dragging }) => $dragging ? "grabbing" : "grab"}; isolation: isolate;
+const Stage = styled.div<{ $dragging: boolean; $canWrite: boolean }>`position: relative; flex: none; overflow: hidden; perspective: 850px; touch-action: ${({ $canWrite }) => $canWrite ? "pinch-zoom" : "pan-y"}; user-select: none; cursor: ${({ $dragging }) => $dragging ? "grabbing" : "grab"}; isolation: isolate;
   &::after { content: ""; position: absolute; width: 60%; height: 12px; border-radius: 50%; background: #1b222a0a; filter: blur(10px); bottom: 5px; left: 20%; z-index: -1; }
   &:focus-visible { outline: 2px solid var(--color-brand-700); outline-offset: -3px; border-radius: 12px; }
 `;
@@ -159,7 +177,7 @@ const WriteHint = styled(BaseButton)<{ $active: boolean }>`display: flex; align-
   &:focus-visible { outline: 2px solid var(--color-brand-700); outline-offset: 2px; }
   &:disabled { opacity: .4; }
 `;
-const Caption = styled.div`display: flex; align-items: flex-start; justify-content: center; gap: 6px; margin: 4px 28px 0; min-height: 76px; text-align: center; > div { min-width: 0; flex: 1; padding-left: 44px; } strong { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere; font-size: var(--font-size-400); font-weight: var(--ui-title-weight); line-height: 1.5; letter-spacing: var(--ui-title-tracking); } p { margin: 6px 0 0; color: var(--color-text-muted); font-size: var(--ui-caption-size); line-height: 1.6; } small { display: block; margin-top: 4px; color: var(--color-text-muted); font-size: var(--ui-caption-size); }
+const Caption = styled.div`display: grid; grid-template-columns: minmax(0, 1fr) 44px; align-items: start; gap: 8px; margin: 8px 12px 0; text-align: left; > div { min-width: 0; } strong { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere; font-size: var(--font-size-400); font-weight: var(--ui-title-weight); line-height: 1.5; letter-spacing: var(--ui-title-tracking); } p { margin: 6px 0 0; color: var(--color-text-muted); font-size: var(--ui-caption-size); line-height: 1.6; } small { display: block; margin-top: 4px; color: var(--color-text-muted); font-size: var(--ui-caption-size); }
 `;
 const BookMenu = styled(ContextMenu)`flex: none; width: 44px; > button { width: 44px; height: 44px; padding: 0; border-radius: 50%; color: var(--color-text-muted); &:hover { background: #e8ede4; } }`;
 const Controls = styled.nav`display: flex; align-items: center; justify-content: center; gap: 18px; margin-top: 8px; > span { min-width: 74px; text-align: center; font-size: 12px; color: var(--color-text-muted); font-variant-numeric: tabular-nums; }`;
