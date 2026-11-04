@@ -39,8 +39,8 @@ export function readerPageWidth(width: number, height: number, captionSpace = 0)
 }
 
 /** Size the paper + byline stage, not the surrounding empty viewport. */
-export function readerGroupGeometry(width: number, height: number, captionSpace = 0, navigationHeight = 44) {
+export function readerGroupGeometry(width: number, height: number, captionSpace = 0, navigationHeight = 44, gap: number = HARUMADI_READING_LAYOUT.viewer.gap) {
   const naturalHeight = Math.max(0, width) * 595.28 / 419.53 + captionSpace;
-  const stageHeight = Math.max(0, Math.min(naturalHeight, height - navigationHeight - HARUMADI_READING_LAYOUT.viewer.gap));
+  const stageHeight = Math.max(0, Math.min(naturalHeight, height - navigationHeight - gap));
   return { stageHeight, pageWidth: readerPageWidth(width, stageHeight, captionSpace) };
 }

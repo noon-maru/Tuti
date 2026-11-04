@@ -24,7 +24,8 @@ export function HarumadiPageViewer({ book, entries, onClose, closing = false }: 
     if (!node || !controls) return;
     const measure = () => {
       if (!node.clientWidth || !node.clientHeight) return;
-      const next = readerGroupGeometry(node.clientWidth, node.clientHeight, captionSpace, controls.offsetHeight);
+      const gap = parseFloat(getComputedStyle(node).rowGap) || HARUMADI_READING_LAYOUT.viewer.gap;
+      const next = readerGroupGeometry(node.clientWidth, node.clientHeight, captionSpace, controls.offsetHeight, gap);
       setGeometry(value => value.pageWidth === next.pageWidth && Math.abs(value.stageHeight - next.stageHeight) < .5 ? value : next);
     };
     measure();
@@ -111,7 +112,7 @@ export function HarumadiPageViewer({ book, entries, onClose, closing = false }: 
     </Navigation>
   </Reader>;
 }
-const Reader = styled.div`display: flex; flex-direction: column; justify-content: center; flex: 1; min-height: 0; gap: ${HARUMADI_READING_LAYOUT.viewer.gap}px;`;
+const Reader = styled.div`display: flex; flex-direction: column; justify-content: flex-start; flex: 1; min-height: 0; gap: var(--reader-outside-inset, ${HARUMADI_READING_LAYOUT.viewer.gap}px);`;
 const Stage = styled.div`display: grid; place-items: center; flex: none; min-height: 0; min-width: 0; container-type: size; perspective: 1200px; touch-action: pan-y; user-select: none;`;
 const Page = styled.div<{ $front: boolean; $captionSpace: number }>`position: relative; grid-area: 1 / 1; width: min(100cqw, calc((100cqh - ${({ $captionSpace }) => $captionSpace}px) * 419.53 / 595.28)); z-index: ${({ $front }) => $front ? 2 : 1}; backface-visibility: hidden; &[data-retained-page] { pointer-events: none; }`;
 const Paper = styled.div`position: relative; background: white; box-shadow: 0 7px 24px #1b222a10, -3px 0 0 #e8ede4; border: 1px solid #e4e9e0;`;

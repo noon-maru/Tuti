@@ -47,7 +47,7 @@ test("서명 공간은 쪽 크기 계산에 함께 반영하고 페이지가 바
   assert.equal(readerPageWidth(400, 500, reserved), 330);
   assert.equal(readerPageWidth(340, 600, reserved), readerPageWidth(340, 600));
   const viewer = readFileSync("src/features/tuti/components/HarumadiPageViewer.tsx", "utf8");
-  assert.match(viewer, /readerGroupGeometry\(node.clientWidth, node.clientHeight, captionSpace, controls.offsetHeight\)/);
+  assert.match(viewer, /readerGroupGeometry\(node.clientWidth, node.clientHeight, captionSpace, controls.offsetHeight, gap\)/);
   assert.match(viewer, /authorName=\{harumadiPageAuthor\(book.shared, retained.page\)\}/);
   assert.match(viewer, /\}, \[captionSpace\]\)/);
 });
