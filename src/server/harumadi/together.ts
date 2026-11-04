@@ -5,6 +5,7 @@ import type { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/server/db/prisma";
 import { commitPrivacyReplayReceipt, preparePrivacyReplayReceipt } from "@/server/legal/privacyReplayLedger";
 import { INVITE_TOKEN, type HarumadiTogether } from "@/shared/api/harumadiTogether";
+import { makeHarumadiParticipant } from "@/shared/harumadi/participant";
 import { assertSensitiveJournalReadable } from "@/server/journal/sensitivePolicy";
 import { lockHarumadi, lockSharingSecurity, requireHarumadiAccess, requireLinkedAccount, requireTogether } from "./access";
 import { HarumadiError } from "./errors";
@@ -21,8 +22,8 @@ export async function readTogether(userId: string, id: string): Promise<Harumadi
     const owner = await tx.user.findUniqueOrThrow({ where: { id: book.ownerId }, select: { displayName: true } });
     const members = await tx.harumadiMember.findMany({ where: { harumadiId: id, endedAt: null }, select: { userId: true, user: { select: { displayName: true } } }, orderBy: { joinedAt: "asc" } });
     const invites = book.ownerId === userId ? await tx.harumadiInvite.findMany({ where: { harumadiId: id, acceptedAt: null, revokedAt: null, expiresAt: { gt: new Date() } }, select: inviteSelect, orderBy: { createdAt: "desc" }, take: 50 }) : [];
-    return { owner: book.ownerId === userId, shared: Boolean(book.collaborationStartedAt), participants: [{ userId: book.ownerId, name: owner.displayName || "만든 사람", owner: true },
-      ...members.map(member => ({ userId: member.userId, name: member.user.displayName || "함께하는 사람", owner: false }))],
+    return { owner: book.ownerId === userId, shared: Boolean(book.collaborationStartedAt), participants: [makeHarumadiParticipant(book.ownerId, owner.displayName, true),
+      ...members.map(member => makeHarumadiParticipant(member.userId, member.user.displayName, false))],
       invites: invites.map(invite => ({ id: invite.id, expiresAt: invite.expiresAt.toISOString(), acceptedAt: invite.acceptedAt?.toISOString() ?? null, revokedAt: invite.revokedAt?.toISOString() ?? null })) };
   }, { isolationLevel: "RepeatableRead" });
 }

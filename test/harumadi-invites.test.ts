@@ -13,10 +13,11 @@ test("한 책에 여러 명을 초대하되 링크는 1회만 사용하고 내�
   const records = [{ id: "a", ownerId: "member-a", sensitiveContent: false, sensitiveWithdrawnAt: null, sensitiveConsentVersion: null }, { id: "b", ownerId: "member-b", sensitiveContent: false, sensitiveWithdrawnAt: null, sensitiveConsentVersion: null }];
   const links = new Map<string, { id: string; harumadiId: string; entryId: string }>();
   const memberFor = (userId: string) => members.get(`${book.id}:${userId}`) ?? null;
+  let ownerDisplayName: string | null = "만든 사람";
   const db = {
     $queryRaw: async () => [],
     authIdentity: { findFirst: async () => ({ id: "identity" }) },
-    user: { findUniqueOrThrow: async () => ({ displayName: "만든 사람" }) },
+    user: { findUniqueOrThrow: async () => ({ displayName: ownerDisplayName }) },
     contentReport: { findFirst: async () => null },
     journalAuthorBlock: { findFirst: async () => null },
     journalEntry: { count: async () => 0, findFirst: async ({ where }: { where: { id: string; ownerId: string } }) => records.find(entry => entry.id === where.id && entry.ownerId === where.ownerId) ?? null },
@@ -56,6 +57,10 @@ test("한 책에 여러 명을 초대하되 링크는 1회만 사용하고 내�
   assert.equal(race.filter(result => result.status === "fulfilled").length, 1);
   const second = await createInvite("owner", "book"); await acceptInvite("member-b", second.token);
   assert.equal((await readTogether("owner", "book")).participants.length, 3);
+  assert.equal((await readTogether("owner", "book")).participants[0].nameAvailable, true);
+  ownerDisplayName = null;
+  assert.deepEqual((await readTogether("owner", "book")).participants[0], { userId: "owner", name: "만든 사람", owner: true, nameAvailable: false });
+  ownerDisplayName = "만든 사람";
   assert.deepEqual((await readTogether("member-a", "book")).invites, []);
   await assert.rejects(createInvite("member-a", "book"), { status: 404 });
   await assert.rejects(readTogether("member-a", "private-book"), { status: 404 });

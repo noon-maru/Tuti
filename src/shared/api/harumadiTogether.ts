@@ -1,4 +1,4 @@
-export type HarumadiParticipant = { userId: string; name: string; owner: boolean };
+export type HarumadiParticipant = { userId: string; name: string; owner: boolean; nameAvailable?: boolean };
 export type HarumadiInviteItem = { id: string; expiresAt: string; acceptedAt: string | null; revokedAt: string | null };
 export type HarumadiTogether = { owner: boolean; shared: boolean; participants: HarumadiParticipant[]; invites: HarumadiInviteItem[] };
 export type HarumadiComment = { id: string; authorId: string | null; authorName: string; parentId: string | null;
