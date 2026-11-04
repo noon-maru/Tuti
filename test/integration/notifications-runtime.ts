@@ -15,7 +15,7 @@ process.env.HARUMADI_TOGETHER_ENABLED = "true";
 try {
   await pool.query(`CREATE SCHEMA ${schema};
     CREATE TABLE users(id text PRIMARY KEY);
-    CREATE TABLE harumadis(id text PRIMARY KEY,owner_id text REFERENCES users(id) ON DELETE CASCADE,revision int DEFAULT 1,access_revision int DEFAULT 0,collaboration_started_at timestamp);
+    CREATE TABLE harumadis(id text PRIMARY KEY,owner_id text REFERENCES users(id) ON DELETE CASCADE,title text NOT NULL DEFAULT 'synthetic',revision int DEFAULT 1,access_revision int DEFAULT 0,collaboration_started_at timestamp);
     CREATE TABLE harumadi_members(id text,harumadi_id text,user_id text,joined_at timestamp DEFAULT now(),ended_at timestamp);
     CREATE TABLE journal_entries(id text PRIMARY KEY,owner_id text,created_at timestamp DEFAULT now(),sensitive_content boolean DEFAULT false);
     CREATE TABLE harumadi_entry_links(id text,harumadi_id text,entry_id text);

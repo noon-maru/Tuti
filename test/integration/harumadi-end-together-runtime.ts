@@ -18,7 +18,7 @@ try {
   await pool.query(`CREATE SCHEMA ${schema};
     CREATE TABLE users(id text PRIMARY KEY);
     CREATE TABLE journal_entries(id text PRIMARY KEY,owner_id text NOT NULL REFERENCES users(id));
-    CREATE TABLE harumadis(id text PRIMARY KEY,owner_id text NOT NULL REFERENCES users(id),revision integer NOT NULL DEFAULT 1,access_revision integer NOT NULL DEFAULT 1,collaboration_started_at timestamp,updated_at timestamp NOT NULL DEFAULT now());
+    CREATE TABLE harumadis(id text PRIMARY KEY,owner_id text NOT NULL REFERENCES users(id),title text NOT NULL DEFAULT 'synthetic',revision integer NOT NULL DEFAULT 1,access_revision integer NOT NULL DEFAULT 1,collaboration_started_at timestamp,updated_at timestamp NOT NULL DEFAULT now());
     CREATE TABLE harumadi_members(id text PRIMARY KEY,harumadi_id text NOT NULL REFERENCES harumadis(id),user_id text NOT NULL REFERENCES users(id),joined_at timestamp NOT NULL DEFAULT now(),ended_at timestamp);
     CREATE TABLE harumadi_invites(id text PRIMARY KEY,harumadi_id text NOT NULL REFERENCES harumadis(id),revoked_at timestamp);
     CREATE TABLE harumadi_comments(id text PRIMARY KEY,harumadi_id text NOT NULL REFERENCES harumadis(id),author_id text REFERENCES users(id),body text NOT NULL,revision integer NOT NULL DEFAULT 1,deleted_at timestamp,updated_at timestamp NOT NULL DEFAULT now());
