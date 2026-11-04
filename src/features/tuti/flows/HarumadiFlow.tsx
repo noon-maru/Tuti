@@ -87,6 +87,18 @@ function HarumadiEditor({ owner, initial, read, verified, refreshing, onRefresh,
   const [busy, setBusy] = useState(false); const [error, setError] = useState("");
   const [pdf, setPdf] = useState<{ bytes: Uint8Array; pageCount: number; approvalToken?: string } | null>(null);
   const readOnly = Boolean(harumadi && !verified);
+  const cacheNotices = useRef(new Set<string>());
+  useEffect(() => {
+    if (!readOnly || opening || closing) return;
+    const state = refreshing ? "refreshing" : "offline";
+    if (cacheNotices.current.has(state)) return;
+    // Fast refreshes need no notice; avoid interrupting the book-opening animation.
+    const timer = window.setTimeout(() => {
+      cacheNotices.current.add(state);
+      showToast(refreshing ? "저장된 내용을 먼저 보여드리고 있어요." : "저장된 하루마디를 보고 있어요. 연결 후 최신 내용을 확인해주세요.");
+    }, 400);
+    return () => window.clearTimeout(timer);
+  }, [readOnly, refreshing, opening, closing]);
   const addEntryId = useSearchParams().get("addEntryId");
   const handlePdf = useCallback((value: typeof pdf) => setPdf(value), []);
   const policyQuery = useQuery({ queryKey: ["journal-sensitive-policy"], queryFn: fetchSensitiveJournalPolicy, enabled: mode === "settings" || mode === "pdf" });
@@ -214,7 +226,7 @@ function HarumadiEditor({ owner, initial, read, verified, refreshing, onRefresh,
     <Header $reading={mode === "pages"} $creating={!harumadi && mode === "settings"}><BackButton onClick={back} disabled={busy} aria-label={mode === "pages" || !harumadi || (onClose && initialMode && initialMode !== "pages" && mode === initialMode) ? "내 책장으로 돌아가기" : "하루마디로 돌아가기"} />
       {harumadi && mode === "pages" && <HeaderTools>
         {harumadi.shared && <Quiet type="button" disabled={busy || readOnly} onClick={() => setMode("comments")}><MessageCircle size={17} aria-hidden="true" />댓글·답글</Quiet>}
-        <ReaderMenu label="하루마디 관리" disabled={busy || readOnly} triggerContent={<><Settings2 size={17} aria-hidden="true" />관리</>}
+        {readOnly ? <Quiet type="button" disabled={refreshing || busy} onClick={onRefresh}>최신 내용 확인</Quiet> : <ReaderMenu label="하루마디 관리" disabled={busy || readOnly} triggerContent={<><Settings2 size={17} aria-hidden="true" />관리</>}
           items={readerManagementActions(harumadi.role, chosen.length).map(({ action, label }) => ({ label, onSelect: () => {
             if (busy || readOnly) return;
             if (action === "selection") { selectRecords(); return; }
@@ -222,10 +234,9 @@ function HarumadiEditor({ owner, initial, read, verified, refreshing, onRefresh,
             if (action === "order") setOrderedIds(harumadi.entryIds);
             if (action === "pdf") setPdf(null);
             setMode(action);
-          } }))} />
+          } }))} />}
       </HeaderTools>}</Header>
     <Body ref={scroller} data-scroll-region={mode === "pages" ? undefined : ""} $reading={mode === "pages"} $creating={!harumadi && mode === "settings"}>
-      {readOnly && <ReadNotice role="status">{refreshing ? "저장된 내용을 먼저 보여드리고 있어요." : "저장된 하루마디를 보고 있어요. 연결 후 최신 내용을 확인해주세요."}<Quiet type="button" disabled={refreshing} onClick={onRefresh}>최신 내용 확인</Quiet></ReadNotice>}
       {read?.cached && read.missingImages > 0 && <p className="hint">일부 사진은 연결 후 볼 수 있어요.</p>}
       {mode === "comments" && harumadi ? <HarumadiComments owner={owner} bookId={harumadi.id} onExit={finishClose} /> : mode === "together" && harumadi ? readOnly ? <p>연결 후 최신 내용을 확인하면 함께 채울 수 있어요.</p> : <HarumadiTogetherPanel owner={owner} bookId={harumadi.id} entries={chosen} onExit={finishClose} /> : mode === "settings" ? <SettingsPanel $creating={!harumadi}>
         <SettingsIntro $creating={!harumadi}>
@@ -294,7 +305,6 @@ const Body = styled.div<{ $reading: boolean; $creating?: boolean }>`flex: 1; min
   `}
   ${({ $creating }) => $creating && `@container app-viewport (max-height: 719px) { padding: 10px var(--screen-padding-right) 12px var(--screen-padding-left); }`}
 `;
-const ReadNotice = styled.div`display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 16px; padding: 10px 12px; border-radius: 10px; background: var(--color-brand-100); color: var(--color-text-muted); font-size: 13px; line-height: 1.7;`;
 const CoverPreview = styled(HarumadiSettingsCover)`width: 126px; min-width: 0; margin: 24px auto 28px; border-radius: 2px 5px 5px 2px; box-shadow: 3px 3px 0 #dce3d6, 5px 12px 18px #1b222a12; > span { border-radius: inherit; overflow: hidden; }`;
 const Label = styled.label`display: block; font-size: 14px; font-weight: 600; margin-bottom: 9px;`;
 const TitleInput = styled.input`${inputControlStyles}`;

@@ -26,3 +26,15 @@ test("읽기에는 작성·함께 채우기를 남기고 관리 메뉴와 댓글
   assert.match(menu, /if \(disabled\) setOpen\(false\)/);
   assert.match(menu, /aria-expanded=\{open && !disabled\}/);
 });
+
+test("캐시 안내는 지면을 밀지 않는 공용 토스트로 알리고 재시도와 편집 보호를 유지한다", () => {
+  const source = readFileSync("src/features/tuti/flows/HarumadiFlow.tsx", "utf8");
+  assert.doesNotMatch(source, /ReadNotice/);
+  assert.match(source, /showToast\(refreshing \? "저장된 내용을 먼저 보여드리고 있어요\."/);
+  assert.match(source, /if \(!readOnly \|\| opening \|\| closing\) return/);
+  assert.match(source, /cacheNotices\.current\.has\(state\)/);
+  assert.match(source, /cacheNotices\.current\.add\(state\)/);
+  assert.match(source, /return \(\) => window\.clearTimeout\(timer\)/);
+  assert.match(source, /readOnly \? <Quiet type="button" disabled=\{refreshing \|\| busy\} onClick=\{onRefresh\}>최신 내용 확인/);
+  assert.match(source, /<WriteButton type="button" disabled=\{busy \|\| readOnly\}/);
+});
