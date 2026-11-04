@@ -40,9 +40,10 @@ function LibraryHome({ ownerId }: { ownerId: string }) {
   const openBook = (book: Harumadi, control: HTMLElement, mode: HarumadiOpeningMode = "pages") => {
     const bounds = frame.current?.getBoundingClientRect();
     const card = control.closest("[data-harumadi-card]");
-    const cover = (card?.querySelector("[data-book-opening-origin]") ?? card?.querySelector("[data-book-cover] > span"))?.getBoundingClientRect();
+    const spread = card?.querySelector('[data-harumadi-spread-preview][data-spread-ready="true"]');
+    const cover = (spread ?? card?.querySelector("[data-book-cover] > span"))?.getBoundingClientRect();
     if (!bounds || !cover) return;
-    showBook({ book, mode, origin: harumadiLocalRect(bounds, cover, frame.current!.offsetWidth, frame.current!.offsetHeight) });
+    showBook({ book, mode, origin: { ...harumadiLocalRect(bounds, cover, frame.current!.offsetWidth, frame.current!.offsetHeight), ...(spread ? { appearance: "spread" as const } : {}) } });
   };
   const query = useHarumadiLibrary(ownerId);
   const harumadiPdfs = query.data?.pages.flatMap(page => page.harumadis) ?? [];

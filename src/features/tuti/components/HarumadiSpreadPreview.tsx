@@ -8,7 +8,7 @@ import { fetchHarumadiContent, authoritativeReadError } from "@/lib/harumadiCont
 import { canCacheHarumadi, harumadiReadCache } from "@/lib/harumadiReadCache";
 import type { Harumadi } from "@/shared/api/harumadi";
 import type { TutiJournalEntry } from "@/shared/api/journal";
-import { buildHarumadiReaderPages } from "@/shared/harumadi/readerPages";
+import { buildHarumadiReaderPages, type HarumadiReaderPage } from "@/shared/harumadi/readerPages";
 import { HarumadiPageSheet } from "./HarumadiSheet";
 import { HarumadiCover } from "./HarumadiCover";
 
@@ -31,15 +31,22 @@ export const HarumadiSpreadPreview = memo(function HarumadiSpreadPreview({ book,
   const pages = useMemo(() => readable && read ? buildHarumadiSpread(read.content.harumadi, read.content.entries) : [], [readable, read]);
   // 최초 콘텐츠 준비 시에만 펼친다. 백그라운드 갱신은 같은 DOM을 유지해 재생하지 않는다.
   const ready = pages.length > 0 || query.isError;
-  return <Spread data-harumadi-spread-preview data-spread-ready={ready} aria-hidden="true">
+  return <HarumadiSpreadSheets book={book} pages={pages} ready={ready} ownerId={ownerId} failed={query.isError} />;
+});
+
+/** 책장과 확대 전환이 동일한 두 지면을 사용한다. 전환에서는 조회·펼침을 반복하지 않는다. */
+export function HarumadiSpreadSheets({ book, pages, ready = true, still = false, ownerId, failed = false }: {
+  book: Harumadi; pages: HarumadiReaderPage[]; ready?: boolean; still?: boolean; ownerId?: string; failed?: boolean;
+}) {
+  return <Spread data-harumadi-spread-preview data-spread-ready={ready} data-spread-still={still} aria-hidden="true">
     {[0, 1].map(index => <Leaf key={index} $side={index === 0 ? "left" : "right"} data-book-opening-origin={index === 1 ? true : undefined}>
       {pages[index] ? <Miniature><HarumadiPageSheet page={pages[index]} coverStyle={book.coverStyle} number={index + 1} /></Miniature>
-        : <Unwritten><span>{index === 0 ? query.isError ? "열어서 확인하기" : "마디를 펼치는 중" : ""}</span></Unwritten>}
+        : <Unwritten><span>{index === 0 ? failed ? "열어서 확인하기" : "마디를 펼치는 중" : ""}</span></Unwritten>}
     </Leaf>)}
-    <TurningCover data-spread-turning-cover><HarumadiCover ownerId={ownerId} kind="harumadi" harumadiPdf={{ ...book,
-      entryCount: book.entryIds.length, pageCount: 0, hasCover: book.coverStyle.endsWith("-image") && book.entryIds.length > 0 }} /></TurningCover>
+    {!still && ownerId && <TurningCover data-spread-turning-cover><HarumadiCover ownerId={ownerId} kind="harumadi" harumadiPdf={{ ...book,
+      entryCount: book.entryIds.length, pageCount: 0, hasCover: book.coverStyle.endsWith("-image") && book.entryIds.length > 0 }} /></TurningCover>}
   </Spread>;
-});
+}
 
 const centerSpread = keyframes`from { transform: translateX(-25%); } to { transform: translateX(0); }`;
 const unfoldLeft = keyframes`from { transform: rotateY(173deg); } to { transform: rotateY(7deg); }`;
@@ -47,6 +54,7 @@ const turnCover = keyframes`0% { transform: rotateY(0deg); opacity: 1; } 99% { o
 const Spread = styled.span`position: relative; display: flex; width: 100%; aspect-ratio: 296 / 210; perspective: 900px; filter: drop-shadow(0 12px 12px #1b222a16);
   transform: translateX(-25%);
   &[data-spread-ready="true"] { animation: ${centerSpread} 900ms cubic-bezier(.33,0,.2,1) both; }
+  &[data-spread-still="true"] { transform: none; animation: none; }
   @media (prefers-reduced-motion: reduce) { transform: none; animation: none !important; }
   &::after { content: ""; position: absolute; inset: 0 auto 0 50%; width: 1px; background: #cbd1c6; pointer-events: none; }
 `;
@@ -55,6 +63,7 @@ const Leaf = styled.span<{ $side: "left" | "right" }>`position: relative; displa
   transform: ${({ $side }) => $side === "left" ? "rotateY(173deg)" : "rotateY(-7deg)"}; transform-origin: ${({ $side }) => $side === "left" ? "right center" : "left center"}; backface-visibility: hidden;
   ${({ $side }) => $side === "left" && `z-index: 1;`}
   ${({ $side }) => $side === "left" && css`[data-spread-ready="true"] > & { animation: ${unfoldLeft} 900ms cubic-bezier(.33,0,.2,1) both; }`}
+  [data-spread-still="true"] > & { transform: ${({ $side }) => $side === "left" ? "rotateY(7deg)" : "rotateY(-7deg)"}; animation: none; }
   @media (prefers-reduced-motion: reduce) { transform: ${({ $side }) => $side === "left" ? "rotateY(7deg)" : "rotateY(-7deg)"}; animation: none !important; }
   &::after { content: ""; position: absolute; inset: 0; pointer-events: none; background: ${({ $side }) => $side === "left" ? "linear-gradient(90deg, transparent 80%, #1b222a12)" : "linear-gradient(90deg, #1b222a10, transparent 18%)"}; }
 `;

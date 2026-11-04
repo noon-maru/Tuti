@@ -1,4 +1,4 @@
-export type HarumadiBookRect = { x: number; y: number; width: number; height: number };
+export type HarumadiBookRect = { x: number; y: number; width: number; height: number; appearance?: "spread" };
 type Bounds = { left: number; top: number; width: number; height: number };
 
 /** Convert viewport rectangles back to CSS coordinates inside a scaled app. */
