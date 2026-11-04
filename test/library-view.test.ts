@@ -104,7 +104,7 @@ test("표지·책등은 남는 높이에서 중앙 배치하고 넘치는 목록
   assert.match(shelf, /> div:last-child \{ margin-bottom: 0; \}/);
   const home = readFileSync("src/features/tuti/flows/LibraryHomeFlow.tsx", "utf8");
   assert.match(home, /overflow-y: auto; overscroll-behavior: contain; padding: 12px 20px/);
-  assert.match(home, /const LibraryLinks = styled.nav`[\s\S]*?justify-content: center/);
+  assert.doesNotMatch(home, /LibraryLinks|ArchiveMenu/);
 });
 
 test("책등 열 수는 CSS 너비로 계산하고 페이지네이션·열기 이력을 두 보기에서 공유한다", () => {

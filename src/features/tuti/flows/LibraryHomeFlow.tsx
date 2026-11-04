@@ -1,7 +1,7 @@
 "use client";
 
 import styled from "@emotion/styled";
-import { Archive, BookOpen, ChevronDown, ChevronRight, Plus, Settings2, PenLine, ArrowUpRight, Download } from "lucide-react";
+import { BookOpen, ChevronRight, MoreHorizontal, Plus, PenLine, ArrowUpRight, Download } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { useSession } from "@/features/tuti/hooks/useSession";
@@ -64,7 +64,8 @@ function LibraryHome({ ownerId }: { ownerId: string }) {
   return <Frame ref={frame} aria-label="내 책장"><HomeSurface $hidePreview={opening?.mode === "pages" && opening.origin.appearance === "spread"} inert={Boolean(opening)} aria-hidden={opening ? true : undefined}>
     <Header><LibraryViewSwitch view={view} onChange={value => { chooseView(value); shelfScroll.current?.scrollTo({ top: 0 }); }} />
       <CreateHarumadi type="button" onClick={openEditor}><Plus size={17} aria-hidden="true" />새 하루마디</CreateHarumadi>
-      <IconButton type="button" onClick={() => router.push("/settings")} aria-label="설정"><Settings2 size={22} aria-hidden="true" /></IconButton></Header>
+      <LibraryMenu label="책장 메뉴" triggerContent={<MoreHorizontal size={22} aria-hidden="true" />}
+        items={[{ label: "전체 마디 보기", onSelect: () => router.push("/madi") }, { label: "저장한 PDF", onSelect: () => router.push("/harumadi/pdfs") }, { label: "설정", onSelect: () => router.push("/settings") }]} /></Header>
     {hasDraft && <DraftButton type="button" onClick={() => router.push("/harumadi/pdf/create")}><Download size={17} /><span>이전 PDF 작업 이어가기</span><ArrowUpRight size={16} /></DraftButton>}
     <ShelfScroll ref={shelfScroll} data-scroll-region data-library-layout={view} aria-label={view === "carousel" ? "내 하루마디 한 권씩 보기" : view === "spines" ? "내 하루마디 책등 책장" : "내 하루마디 가판대"}>
       {query.isPending ? <Status role="status"><LoadingIndicator /><p>책장에 하루마디를 놓고 있어요.</p></Status>
@@ -90,10 +91,6 @@ function LibraryHome({ ownerId }: { ownerId: string }) {
           </>}
         </>}
     </ShelfScroll>
-    <LibraryLinks aria-label="마디와 PDF 보관함">
-      <ArchiveMenu label="마디와 PDF 보관함" triggerContent={<><Archive size={16} aria-hidden="true" />보관함<ChevronDown size={14} aria-hidden="true" /></>}
-        items={[{ label: "전체 마디 보기", onSelect: () => router.push("/madi") }, { label: "저장한 PDF", onSelect: () => router.push("/harumadi/pdfs") }]} />
-    </LibraryLinks>
     <MainNavigation active="harumadi" />
     </HomeSurface>
     {opening && <HarumadiBookReader opening={opening} onClose={closeBook} />}
@@ -112,14 +109,12 @@ const Header = styled.header`
   flex: none; display: flex; justify-content: space-between; align-items: center; gap: 8px;
   padding: var(--screen-padding-top) var(--screen-padding-right) 8px var(--screen-padding-left);
 `;
-const IconButton = styled(BaseButton)`width: 44px; height: 44px; padding: 0; flex: none; display: grid; place-items: center; background: transparent; color: var(--color-text-muted); border-radius: 50%; &:hover { background: var(--color-brand-100); }`;
 const TextAction = styled(BaseButton)`${bodyCopyStyles} display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 48px; padding: 8px 0; background: transparent; color: var(--color-text-muted); &:focus-visible { outline: 2px solid var(--color-brand-700); outline-offset: 3px; border-radius: 4px; }`;
 const CreateHarumadi = styled(TextAction)`flex: none; margin-left: auto; min-height: 44px; padding-inline: 12px; border-radius: 999px; background: var(--color-brand-100); color: var(--color-brand-1000); font-size: .875rem; font-weight: 500; line-height: 1.5; white-space: nowrap;`;
-const ArchiveMenu = styled(ContextMenu)`width: auto; > button { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 44px; padding: 8px 16px; color: var(--color-text-muted); background: transparent; font-size: .875rem; line-height: 1.5; svg { flex: none; } &:hover { background: var(--color-brand-100); } }`;
+const LibraryMenu = styled(ContextMenu)`width: 44px; height: 44px; flex: none; > button { display: grid; place-items: center; width: 44px; height: 44px; min-height: 44px; padding: 0; color: var(--color-text-muted); background: transparent; border-radius: 50%; &:hover { background: var(--color-brand-100); } &:focus-visible { outline: 2px solid var(--color-brand-700); outline-offset: -2px; } }`;
 const DraftButton = styled(BaseButton)`flex: none; display: flex; align-items: center; gap: 10px; margin: 8px 24px; padding: 12px 14px; background: var(--color-secondary-200); border-radius: 12px; color: var(--color-text); font-size: 16px; text-align: left; > span { flex: 1; }`;
 const ShelfScroll = styled.div`display: flex; flex-direction: column; flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 12px 20px; scrollbar-width: thin; > * { flex-shrink: 0; } &[data-library-layout="carousel"] { container-type: size; padding-top: 4px; padding-bottom: 8px; } @container app-viewport (max-height: 620px) { &:has([data-empty-shelf]) { padding-top: 16px; padding-bottom: 8px; } }`;
 const EmptyShelf = styled.div`flex: 1 0 auto; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 290px; padding: 16px 0 28px; h2 { margin: 27px 0 10px; font-size: 22px; font-weight: 600; letter-spacing: -0.035em; text-align: center; } > p { margin: 0 0 14px; white-space: pre-line; text-align: center; font-size: 16px; color: var(--color-text-muted); line-height: 1.85; } > button { margin-bottom: 4px; } @container app-viewport (max-height: 620px) { min-height: 0; padding: 8px 0 12px; h2 { margin: 16px 0 8px; } > p { margin-bottom: 8px; line-height: 1.7; } }`;
 const EmptyMark = styled.span`position: relative; flex: none; width: 96px; height: 124px; display: grid; place-content: center; justify-items: center; gap: 16px; border: 1px solid #dce3d6; border-radius: 2px 6px 6px 2px; background: #ffffff; box-shadow: 3px 3px 0 #e9ede5, 6px 8px 16px rgb(27 34 42 / 0.04); color: #7d8b70; &::before { content: ""; position: absolute; top: 0; bottom: 0; left: 6px; border-left: 1px solid #edf0e9; } > span { width: 26px; border-bottom: 1px solid #dce3d6; } @container app-viewport (max-height: 620px) { width: 64px; height: 82px; gap: 10px; }`;
 const Status = styled.div`min-height: 230px; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; gap: 14px; h2 { margin: 0; font-size: 17px; } p { margin: 0; line-height: 1.8; font-size: 16px; color: var(--color-text-muted); }`;
 const MoreButton = styled(BaseButton)`display: block; margin: 4px auto 20px; padding: 12px 20px; border-radius: 20px; background: white; color: var(--color-text-muted); font-size: 16px;`;
-const LibraryLinks = styled.nav`flex: none; display: flex; justify-content: center; align-items: center; margin: 0 var(--screen-padding-right) 0 var(--screen-padding-left); padding: 0 0 8px;`;

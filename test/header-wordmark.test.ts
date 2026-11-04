@@ -6,7 +6,7 @@ test("책장·첫 화면·질문 상단은 워드마크를 반복하지 않는�
   const paths = ["flows/LibraryHomeFlow.tsx", "screens/onboarding/WelcomeScreen.tsx", "screens/intake/IntakeScreen.tsx"];
   const sources = paths.map(path => readFileSync(`src/features/tuti/${path}`, "utf8"));
   for (const source of sources) assert.doesNotMatch(source, /TutiWordmark|HeaderWordmark|<Wordmark/);
-  assert.match(sources[0], /aria-label="설정"/);
+  assert.match(sources[0], /label="책장 메뉴"/);
   assert.match(sources[0], /justify-content: space-between/);
   assert.match(sources[0], /aria-label="내 책장"/);
   assert.doesNotMatch(sources[0], /<h1|ShelfCount/);
