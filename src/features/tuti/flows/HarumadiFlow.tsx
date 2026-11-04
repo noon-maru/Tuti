@@ -251,7 +251,7 @@ function HarumadiEditor({ owner, initial, read, verified, refreshing, onRefresh,
 
   return <Frame ref={frame} $openingSpread={opening && openingOrigin?.appearance === "spread"} data-harumadi-editor aria-busy={busy || closing}>
     <BookContents ref={contents} inert={closing || opening}>
-    <Header $reading={mode === "pages"} $creating={!harumadi && mode === "settings"}><BackButton onClick={back} disabled={busy} aria-label={mode === "pages" || !harumadi || (onClose && initialMode && initialMode !== "pages" && mode === initialMode) ? "내 책장으로 돌아가기" : "하루마디로 돌아가기"} />
+    <Header $reading={mode === "pages"} $standard={mode === "together"} $creating={!harumadi && mode === "settings"}><BackButton onClick={back} disabled={busy} aria-label={mode === "pages" || !harumadi || (onClose && initialMode && initialMode !== "pages" && mode === initialMode) ? "내 책장으로 돌아가기" : "하루마디로 돌아가기"} />
       {harumadi && mode === "pages" && <HeaderTools>
         {harumadi.shared && <Quiet type="button" disabled={busy || readOnly} onClick={() => setMode("comments")}><MessageCircle size={17} aria-hidden="true" />댓글·답글</Quiet>}
         {readOnly ? <Quiet type="button" disabled={refreshing || busy} onClick={onRefresh}>최신 내용 확인</Quiet> : <ReaderMenu label="하루마디 관리" disabled={busy || readOnly} triggerContent={<><Settings2 size={17} aria-hidden="true" />관리</>}
@@ -321,8 +321,9 @@ const BookContents = styled.div`height: 100%; min-height: 0; display: flex; flex
 const HeaderTools = styled.div`display: flex; align-items: center; gap: 12px; min-width: 0; > span { flex: none; width: auto; }`;
 const ReaderMenu = styled(ContextMenu)`> button { display: inline-flex; align-items: center; gap: 6px; min-height: var(--ui-control-height); padding: 8px 0 8px 8px; font-size: var(--ui-body-size); color: var(--color-text-muted); &:disabled { opacity: .5; } }`;
 const TogetherEntry = styled(BaseButton)`display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: var(--ui-action-height); min-width: 0; padding: 10px 12px; border-radius: 999px; background: var(--color-secondary-200); color: var(--color-secondary-1000); font-size: var(--ui-body-size); font-weight: 600; &:disabled { opacity: .5; } &:focus-visible { outline: 2px solid var(--color-brand-700); outline-offset: -2px; }`;
-const Header = styled.header<{ $creating?: boolean; $reading?: boolean }>`flex: none; display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: calc(12px + var(--app-safe-area-top, 0px)) var(--screen-padding-right) 0 var(--screen-padding-left); min-height: 50px;
+const Header = styled.header<{ $creating?: boolean; $reading?: boolean; $standard?: boolean }>`flex: none; display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: calc(12px + var(--app-safe-area-top, 0px)) var(--screen-padding-right) 0 var(--screen-padding-left); min-height: 50px;
   ${({ $reading }) => $reading && `padding-top: calc(40px + var(--app-safe-area-top, 0px)); @container app-viewport (max-height: 620px) { padding-top: calc(24px + var(--app-safe-area-top, 0px)); }`}
+  ${({ $standard }) => $standard && `padding-top: var(--screen-padding-top);`}
   ${({ $creating }) => $creating && `@container app-viewport (max-height: 719px) { padding-top: calc(6px + var(--app-safe-area-top, 0px)); min-height: 44px; }`}
 `;
 const Quiet = styled(BaseButton)`display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: var(--ui-control-height); padding: 6px 0; background: transparent; color: var(--color-text-muted); font-size: var(--ui-body-size); &:disabled { opacity: .5; } &:focus-visible { outline: 2px solid var(--color-brand-700); outline-offset: 3px; }`;

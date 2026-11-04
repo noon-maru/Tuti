@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import test from "node:test";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
@@ -16,6 +17,17 @@ const props = { viewerId: "owner", bookTitle: "우리의 작은 하루", loading
   onInvite() { throw new Error("render must not invite"); }, onRevoke() {}, onConfirm() {}, onRetry() {}, onAccount() {},
 };
 const render = (data: HarumadiTogether, overrides: Partial<Parameters<typeof HarumadiTogetherView>[0]> = {}) => renderToStaticMarkup(createElement(HarumadiTogetherView, { ...props, data, ...overrides }));
+
+test("함께 채우기 셰브론은 공통 상단·좌우 여백과 작은 화면 안전 영역을 따른다", () => {
+  const flow = readFileSync("src/features/tuti/flows/HarumadiFlow.tsx", "utf8");
+  const frame = readFileSync("src/features/tuti/components/ScreenFrame.tsx", "utf8");
+  assert.match(flow, /\$standard=\{mode === "together"\}/);
+  assert.match(flow, /\$standard && `padding-top: var\(--screen-padding-top\);`/);
+  assert.match(flow, /var\(--screen-padding-right\) 0 var\(--screen-padding-left\)/);
+  assert.match(frame, /--screen-padding-top: calc\(var\(--space-11\) \+ var\(--app-safe-area-top, 0px\)\)/);
+  assert.match(frame, /max-height: 620px[\s\S]*--screen-padding-top: calc\([\s\S]*var\(--space-7\)/);
+  assert.match(flow, /<BackButton onClick=\{back\} disabled=\{busy\}/);
+});
 
 test("참여 관계·초대 대기를 구분하고 함께 채우기 플래그만으로 참여자가 생겼다고 표시하지 않는다", () => {
   assert.equal(harumadiTogetherPhase(initial), "invite");
