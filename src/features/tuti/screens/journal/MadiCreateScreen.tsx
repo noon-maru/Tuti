@@ -1,5 +1,7 @@
 "use client";
-import { screenTitleStyles, sectionHeadingStyles, bodyCopyStyles, captionStyles, inputControlStyles } from "@/shared/ui/typography";
+import { screenTitleStyles, sectionHeadingStyles, bodyCopyStyles, captionStyles, inputControlStyles, nativeDateInputStyles } from "@/shared/ui/typography";
+import { MadiFieldLabel } from "@/features/tuti/components/MadiFieldLabel";
+import { MADI_FIELD_COPY } from "@/shared/tuti/madiFields";
 
 import styled from "@emotion/styled";
 import Image from "next/image";
@@ -168,10 +170,10 @@ export function MadiCreateScreen({ onBack, onSave, onCollection, onSaved, haruma
       <HiddenInput ref={cameraInput} type="file" accept="image/*" capture="environment" aria-label="카메라 사진 촬영" onChange={choosePhoto} />
       {!saved && stage === "write" && <Fields>
         {image && <SelectedPhoto><Image src={image} alt="마디에 담을 사진" fill unoptimized sizes="350px" /></SelectedPhoto>}
-        <label><span>제목 <small>선택</small></span><input aria-label="마디 제목 (선택)" placeholder="이날을 기억할 짧은 제목" maxLength={FIRST_JOURNAL_TITLE_LIMIT} value={title} onChange={event => setTitle(event.target.value)} /></label>
-        <label><span>기억하고 싶은 이야기 <small>{image ? "선택" : "필수"}</small></span><textarea aria-label="기억하고 싶은 이야기" placeholder="함께여서 좋았던 순간을 남겨보세요." maxLength={FIRST_JOURNAL_CONTENT_LIMIT} value={content} onChange={(event) => setContent(event.target.value)} /></label>
-        <label>날짜<input aria-label="마디 날짜" type="date" max={today} value={date} onChange={(event) => { dateEdited.current = true; setDate(event.target.value); }} /></label>
-        <label><span>어디에서 함께했나요? <small>선택</small></span><input aria-label="장소 (선택)" placeholder="동네 카페, 함께 걷던 길" maxLength={FIRST_JOURNAL_PLACE_LIMIT} value={place} onChange={(event) => setPlace(event.target.value)} /></label>
+        <label><MadiFieldLabel>제목 <small>선택</small></MadiFieldLabel><input aria-label="마디 제목 (선택)" placeholder={MADI_FIELD_COPY.titlePlaceholder} maxLength={FIRST_JOURNAL_TITLE_LIMIT} value={title} onChange={event => setTitle(event.target.value)} /></label>
+        <label><MadiFieldLabel>기억하고 싶은 이야기 <small>{image ? "선택" : "필수"}</small></MadiFieldLabel><textarea aria-label="기억하고 싶은 이야기" placeholder={MADI_FIELD_COPY.storyPlaceholder} maxLength={FIRST_JOURNAL_CONTENT_LIMIT} value={content} onChange={(event) => setContent(event.target.value)} /></label>
+        <label><MadiFieldLabel>날짜</MadiFieldLabel><input aria-label="마디 날짜" type="date" max={today} value={date} onChange={(event) => { dateEdited.current = true; setDate(event.target.value); }} /></label>
+        <label><MadiFieldLabel>장소 <small>선택</small></MadiFieldLabel><input aria-label="장소 (선택)" placeholder={MADI_FIELD_COPY.placePlaceholder} maxLength={FIRST_JOURNAL_PLACE_LIMIT} value={place} onChange={(event) => setPlace(event.target.value)} /></label>
         <PrivacyHint>민감정보나 주민등록번호 등은 남기지 말아주세요.</PrivacyHint>
       </Fields>}
       {(saved || stage === "preview") && <MemoryPage
@@ -226,10 +228,7 @@ const Fields = styled.div`
   label { display: grid; grid-template-columns: minmax(0, 1fr); min-width: 0; gap: 10px; font-size: var(--ui-body-size); font-weight: 500; }
   small { ${captionStyles} display: inline; }
   input, textarea { ${inputControlStyles} }
-  /* Keep iOS's native date picker, without its intrinsic control width expanding the grid. */
-  input[type="date"] { -webkit-appearance: none; appearance: none; min-inline-size: 0; inline-size: 100%; max-inline-size: 100%; text-align: left; }
-  input[type="date"]::-webkit-date-and-time-value { min-width: 0; text-align: left; }
-  input[type="date"]::-webkit-datetime-edit { min-width: 0; padding: 0; }
+  input[type="date"] { ${nativeDateInputStyles} }
   textarea { min-height: 130px; resize: vertical; }
 `;
 const Page = styled.article`position: relative; min-height: 420px; width: 100%; display: flex; flex-direction: column; gap: 32px; padding: 28px 24px; border: 1px solid #e6edf4; border-radius: 3px; background: #fff;`;

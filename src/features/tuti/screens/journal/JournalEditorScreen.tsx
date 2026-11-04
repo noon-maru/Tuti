@@ -1,6 +1,9 @@
 "use client";
-import { screenTitleStyles, inputControlStyles } from "@/shared/ui/typography";
+import { screenTitleStyles, inputControlStyles, nativeDateInputStyles } from "@/shared/ui/typography";
 import { MadiLoadNotice } from "@/features/tuti/components/MadiLoadNotice";
+import { MadiFieldLabel } from "@/features/tuti/components/MadiFieldLabel";
+import { MADI_FIELD_COPY } from "@/shared/tuti/madiFields";
+import { ImagePlus } from "lucide-react";
 
 import styled from "@emotion/styled";
 import { useEffect, useRef, useState } from "react";
@@ -326,7 +329,7 @@ export function JournalEditorScreen({
       <EditorHeader>
         <BackButton
           type="button"
-          aria-label="지난 공간으로 돌아가기"
+          aria-label="이전 화면으로 돌아가기"
           onClick={leaveEditor}
           disabled={isSubmitting}
         />
@@ -347,30 +350,35 @@ export function JournalEditorScreen({
       </EditorHeader>
 
       <Editor data-scroll-region>
-        <ImageArea>
+        <ImageArea $hasImage={Boolean(imageUrl)}>
           <ImagePicker
             ref={imagePickerRef}
             $image={imageUrl ?? undefined}
           >
-            <input type="file" accept="image/*" onChange={selectImage} />
-            {!imageUrl && <span aria-hidden="true">+</span>}
+            <input type="file" accept="image/*" aria-label={imageUrl ? "마디 사진 바꾸기" : "마디 사진 추가하기"} onChange={selectImage} />
+            {!imageUrl && <span className="image-action" aria-hidden="true"><ImagePlus size={20} />사진 추가하기</span>}
             <span className="visually-hidden">
               {imageUrl ? "마디 이미지 변경하기" : "마디 이미지 추가하기"}
             </span>
           </ImagePicker>
-          <VisitDateInput
-            type="date"
-            aria-label="방문한 날짜"
-            max={toDateInputValue(new Date())}
-            value={visitDate}
-            onChange={(event) => {
-              hasEditedVisitDateRef.current = true;
-              setVisitDate(event.target.value);
-            }}
-          />
         </ImageArea>
 
-        <JournalPlacePicker
+        <EditorCopy>
+          <EditorField><MadiFieldLabel>제목 <small>선택</small></MadiFieldLabel>
+          <TitleInput aria-label="마디 제목 (선택)" placeholder={MADI_FIELD_COPY.titlePlaceholder}
+            value={title} onChange={(event) => setTitle(event.target.value)} />
+          </EditorField>
+          <EditorField><MadiFieldLabel>기억하고 싶은 이야기 {imageUrl && <small>선택</small>}</MadiFieldLabel>
+          <BodyInput aria-label="기억하고 싶은 이야기" placeholder={MADI_FIELD_COPY.storyPlaceholder}
+            value={body} onChange={(event) => setBody(event.target.value)} />
+          </EditorField>
+        </EditorCopy>
+        <EditorField><MadiFieldLabel>날짜</MadiFieldLabel>
+          <VisitDateInput type="date" aria-label="마디 날짜" max={toDateInputValue(new Date())} value={visitDate}
+            onChange={(event) => { hasEditedVisitDateRef.current = true; setVisitDate(event.target.value); }} />
+        </EditorField>
+        <PlaceField><MadiFieldLabel>장소 <small>선택</small></MadiFieldLabel>
+          <JournalPlacePicker
           placeId={placeId}
           value={placeName}
           helperText={
@@ -386,22 +394,8 @@ export function JournalEditorScreen({
             setPlaceName(place.name);
             setPhotoPlaceHint(null);
           }}
-        />
-
-        <EditorCopy>
-          <TitleInput
-            aria-label="마디 제목"
-            placeholder="제목"
-            value={title}
-            onChange={(event) => setTitle(event.target.value)}
           />
-          <BodyInput
-            aria-label="마디 내용"
-            placeholder="내용"
-            value={body}
-            onChange={(event) => setBody(event.target.value)}
-          />
-        </EditorCopy>
+        </PlaceField>
           <JournalAdditionalSettings available={privateStorageAvailable} initiallyOpen={entry?.sensitiveContent === true} includesSensitive={sensitiveContent === true}>
           <SensitiveSection>
             <legend>사진이나 글에 본인의 민감정보가 있나요?</legend>
@@ -557,14 +551,16 @@ const Editor = styled.div`
   padding: var(--space-2) 0;
   overscroll-behavior-y: contain;
   touch-action: pan-y;
+  > * { flex-shrink: 0; }
 `;
 
-const ImageArea = styled.div`
+const ImageArea = styled.div<{ $hasImage: boolean }>`
   position: relative;
   width: min(100%, ${journalImageMaxWidth}px);
   flex: 0 0 auto;
   align-self: center;
-  aspect-ratio: 4 / 3;
+  aspect-ratio: ${({ $hasImage }) => $hasImage ? "4 / 3" : "auto"};
+  min-height: ${({ $hasImage }) => $hasImage ? "0" : "56px"};
 
   @container app-viewport (min-width: 600px) {
     width: min(78%, 480px);
@@ -577,13 +573,15 @@ const ImagePicker = styled.label<{ $image?: string }>`
   display: grid;
   place-items: center;
   overflow: hidden;
-  border-radius: 28px;
-  background-color: var(--color-secondary-500);
+  border-radius: 16px;
+  background-color: var(--color-brand-100);
   background-image: ${({ $image }) => ($image ? `url(${$image})` : "none")};
   background-position: center;
-  background-size: cover;
-  color: var(--color-white);
+  background-size: contain;
+  background-repeat: no-repeat;
+  color: var(--color-brand-1000);
   cursor: pointer;
+  &:focus-within { outline: 2px solid var(--color-brand-700); outline-offset: -2px; }
 
   input {
     position: absolute;
@@ -595,9 +593,9 @@ const ImagePicker = styled.label<{ $image?: string }>`
     clip-path: inset(50%);
   }
 
-  > span:not(.visually-hidden) {
-    font-size: var(--font-size-700);
-    font-weight: 700;
+  .image-action {
+    display: inline-flex; align-items: center; gap: 8px;
+    font-size: var(--ui-body-size); font-weight: 600;
   }
 
   .visually-hidden {
@@ -612,30 +610,9 @@ const ImagePicker = styled.label<{ $image?: string }>`
 `;
 
 const VisitDateInput = styled.input`
-  position: absolute;
-  bottom: var(--space-3);
-  left: var(--space-3);
-  z-index: 1;
-  width: 132px;
-  min-height: var(--space-8);
-  padding: var(--space-1) var(--space-2);
-  border: 1px solid rgb(var(--color-black-rgb) / 0.08);
-  border-radius: 999px;
-  outline: 0;
-  background: rgb(var(--color-white-rgb) / 0.9);
-  color: var(--color-text);
-  font-family: var(--font-sans);
-  font-size: var(--font-size-100);
-  font-weight: 500;
-  line-height: var(--line-height-body);
-  letter-spacing: var(--letter-spacing-body);
-  box-shadow: 0 4px 12px rgb(var(--color-black-rgb) / 0.12);
+  ${inputControlStyles}
+  ${nativeDateInputStyles}
   color-scheme: light;
-
-  &:focus-visible {
-    box-shadow: 0 0 0 2px var(--color-info),
-      0 4px 12px rgb(var(--color-black-rgb) / 0.12);
-  }
 
   &::-webkit-calendar-picker-indicator {
     cursor: pointer;
@@ -663,11 +640,12 @@ const SensitiveSection = styled.fieldset`
 
 const EditorCopy = styled.div`
   min-height: 0;
-  flex: 1;
   display: flex;
   flex-direction: column;
-  gap: var(--space-4);
+  gap: 24px;
 `;
+const EditorField = styled.label`display: grid; grid-template-columns: minmax(0, 1fr); min-width: 0; gap: 10px;`;
+const PlaceField = styled.div`display: grid; grid-template-columns: minmax(0, 1fr); min-width: 0; gap: 10px;`;
 
 const TitleInput = styled.input`
   ${inputControlStyles}

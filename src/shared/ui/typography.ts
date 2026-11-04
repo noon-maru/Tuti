@@ -1,5 +1,12 @@
 import { css } from "@emotion/react";
 
+/** Keep the native iOS picker without its intrinsic width expanding a form. */
+export const nativeDateInputStyles = css`
+  -webkit-appearance: none; appearance: none; min-inline-size: 0; inline-size: 100%; max-inline-size: 100%; text-align: left;
+  &::-webkit-date-and-time-value { min-width: 0; text-align: left; }
+  &::-webkit-datetime-edit { min-width: 0; padding: 0; }
+`;
+
 /** Small-trip app language for controls around the book, never the printed page. */
 export const screenTitleStyles = css`
   margin: 0; min-width: 0; font-size: var(--ui-title-size); font-weight: var(--ui-title-weight);
