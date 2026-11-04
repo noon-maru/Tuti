@@ -39,7 +39,8 @@ function LibraryHome({ ownerId }: { ownerId: string }) {
   useLifecycleView("home_viewed", "home", undefined, !opening);
   const openBook = (book: Harumadi, control: HTMLElement, mode: HarumadiOpeningMode = "pages") => {
     const bounds = frame.current?.getBoundingClientRect();
-    const cover = control.closest("[data-harumadi-card]")?.querySelector("[data-book-cover] > span")?.getBoundingClientRect();
+    const card = control.closest("[data-harumadi-card]");
+    const cover = (card?.querySelector("[data-book-opening-origin]") ?? card?.querySelector("[data-book-cover] > span"))?.getBoundingClientRect();
     if (!bounds || !cover) return;
     showBook({ book, mode, origin: harumadiLocalRect(bounds, cover, frame.current!.offsetWidth, frame.current!.offsetHeight) });
   };

@@ -1,0 +1,52 @@
+"use client";
+
+import { memo, useMemo } from "react";
+import { keyframes } from "@emotion/react";
+import { useQuery } from "@tanstack/react-query";
+import styled from "@emotion/styled";
+import { fetchHarumadiContent, authoritativeReadError } from "@/lib/harumadiContent";
+import { canCacheHarumadi, harumadiReadCache } from "@/lib/harumadiReadCache";
+import type { Harumadi } from "@/shared/api/harumadi";
+import type { TutiJournalEntry } from "@/shared/api/journal";
+import { buildHarumadiReaderPages } from "@/shared/harumadi/readerPages";
+import { HarumadiPageSheet } from "./HarumadiSheet";
+
+/** 첫 두 마디만 조판한다. 긴 첫 마디라면 오른쪽에는 실제 이어지는 쪽이 온다. */
+export function buildHarumadiSpread(book: Harumadi, entries: TutiJournalEntry[]) {
+  const ids = book.entryIds.slice(0, 2);
+  return buildHarumadiReaderPages({ ...book, entryIds: ids }, entries.filter(entry => ids.includes(entry.id)), 320).slice(1, 3);
+}
+
+// 선택한 책만 조회한다. 드래그 프레임에서는 지면·사진을 다시 렌더하지 않는다.
+export const HarumadiSpreadPreview = memo(function HarumadiSpreadPreview({ book, ownerId }: { book: Harumadi; ownerId: string }) {
+  const query = useQuery({ queryKey: ["harumadi-content", ownerId, book.id],
+    queryFn: ({ signal }) => fetchHarumadiContent(ownerId, book.id, signal),
+    retry: false, staleTime: 0, refetchOnMount: "always", refetchOnWindowFocus: true,
+    refetchInterval: book.shared ? 30_000 : false });
+  const read = query.data;
+  const verified = query.isFetchedAfterMount && !query.isPaused && !query.error && read && !read.cached;
+  const readable = read && harumadiReadCache.current(ownerId, book.id, read.ticket) && !authoritativeReadError(query.error) &&
+    (canCacheHarumadi(read.content) || verified);
+  const pages = useMemo(() => readable && read ? buildHarumadiSpread(read.content.harumadi, read.content.entries) : [], [readable, read]);
+  return <Spread data-harumadi-spread-preview aria-hidden="true">
+    {[0, 1].map(index => <Leaf key={index} $side={index === 0 ? "left" : "right"} data-book-opening-origin={index === 1 ? true : undefined}>
+      {pages[index] ? <Miniature><HarumadiPageSheet page={pages[index]} coverStyle={book.coverStyle} number={index + 1} /></Miniature>
+        : <Unwritten><span>{index === 0 ? query.isError ? "열어서 확인하기" : "마디를 펼치는 중" : ""}</span></Unwritten>}
+    </Leaf>)}
+  </Spread>;
+});
+
+const unfold = keyframes`from { opacity: .4; transform: scaleX(.94) translateY(4px); } to { opacity: 1; transform: scaleX(1) translateY(0); }`;
+const Spread = styled.span`position: relative; display: flex; width: 100%; aspect-ratio: 296 / 210; perspective: 900px; filter: drop-shadow(0 12px 12px #1b222a16);
+  animation: ${unfold} 560ms cubic-bezier(.22,.75,.22,1) both;
+  @media (prefers-reduced-motion: reduce) { animation: none; }
+  &::after { content: ""; position: absolute; inset: 0 auto 0 50%; width: 1px; background: #cbd1c6; pointer-events: none; }
+`;
+const Leaf = styled.span<{ $side: "left" | "right" }>`position: relative; display: block; width: 50%; aspect-ratio: 148 / 210; overflow: hidden; background: white;
+  border: 1px solid #e4e9e0; border-radius: ${({ $side }) => $side === "left" ? "5px 1px 1px 8px" : "1px 5px 8px 1px"};
+  transform: ${({ $side }) => $side === "left" ? "rotateY(7deg)" : "rotateY(-7deg)"}; transform-origin: ${({ $side }) => $side === "left" ? "right center" : "left center"};
+  &::after { content: ""; position: absolute; inset: 0; pointer-events: none; background: ${({ $side }) => $side === "left" ? "linear-gradient(90deg, transparent 80%, #1b222a12)" : "linear-gradient(90deg, #1b222a10, transparent 18%)"}; }
+`;
+// 읽기 화면과 같은 320px 지면을 축소해 여백과 줄바꿈의 비율을 보존한다.
+const Miniature = styled.span`position: absolute; top: 0; left: 0; display: block; width: 320px; transform: scale(var(--spread-page-scale)); transform-origin: top left; pointer-events: none;`;
+const Unwritten = styled.span`display: grid; place-items: center; height: 100%; padding: 12px; color: var(--color-text-muted); font-size: 10px; line-height: 1.7;`;

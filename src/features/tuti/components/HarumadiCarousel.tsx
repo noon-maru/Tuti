@@ -1,12 +1,13 @@
 "use client";
 
 import styled from "@emotion/styled";
-import { memo, useEffect, useRef, useState, type PointerEvent } from "react";
+import { memo, useEffect, useRef, useState, type CSSProperties, type PointerEvent } from "react";
 import { ChevronLeft, ChevronRight, MoreVertical } from "lucide-react";
 import type { Harumadi } from "@/shared/api/harumadi";
 import { carouselDragProgress, carouselIndex, carouselPose, carouselSwipeDirection } from "@/shared/harumadi/libraryCarousel";
 import { harumadiActions, type HarumadiOpeningMode } from "../navigation/harumadiActions";
 import { HarumadiCover } from "./HarumadiCover";
+import { HarumadiSpreadPreview } from "./HarumadiSpreadPreview";
 import { ContextMenu } from "./ContextMenu";
 import { BaseButton } from "./buttons";
 import { HarumadiTitleHint } from "./HarumadiTitleHint";
@@ -21,11 +22,13 @@ export function HarumadiCarousel({ books, ownerId, onOpen, hasNextPage = false, 
   const stage = useRef<HTMLDivElement>(null);
   const gesture = useRef<Gesture | null>(null), blockedClickUntil = useRef(0), requesting = useRef(false);
   const [selection, setSelection] = useState(() => ({ id: books[0]?.id ?? null, index: 0 }));
-  const [width, setWidth] = useState(320), [drag, setDrag] = useState(0), [dragging, setDragging] = useState(false), [pending, setPending] = useState(false);
+  const [size, setSize] = useState({ width: 320, height: 300 }), [drag, setDrag] = useState(0), [dragging, setDragging] = useState(false), [pending, setPending] = useState(false);
+  const { width, height } = size;
+  const spreadWidth = Math.min(width * .88, height * 1.25, 440);
   const index = carouselIndex(books.map(book => book.id), selection), active = books[index];
   useEffect(() => {
     const node = stage.current; if (!node) return;
-    const measure = () => { if (node.clientWidth) setWidth(node.clientWidth); }; measure();
+    const measure = () => { if (node.clientWidth && node.clientHeight) setSize(previous => previous.width === node.clientWidth && previous.height === node.clientHeight ? previous : { width: node.clientWidth, height: node.clientHeight }); }; measure();
     if (typeof ResizeObserver === "undefined") { window.addEventListener("resize", measure); return () => window.removeEventListener("resize", measure); }
     const observer = new ResizeObserver(measure); observer.observe(node); return () => observer.disconnect();
   }, []);
@@ -90,10 +93,10 @@ export function HarumadiCarousel({ books, ownerId, onOpen, hasNextPage = false, 
         const bookIndex = books.indexOf(book), selected = book.id === active.id;
         const pose = carouselPose(bookIndex - index - drag);
         return <Slide key={book.id} data-harumadi-card data-carousel-active={selected} aria-hidden={!selected} $dragging={dragging}
-          style={{ zIndex: pose.zIndex, opacity: pose.opacity, pointerEvents: pose.opacity > .1 ? "auto" : "none", transform: `translate(-50%, -50%) translateX(${pose.x * width}px) scale(${pose.scale}) rotateY(${pose.rotation}deg)` }}>
-          <CoverButton data-book-cover type="button" disabled={busy} tabIndex={selected ? 0 : -1} aria-label={`${harumadiAccessibleTitle(book)}, 마디 ${book.entryIds.length}개 ${selected ? "열기" : "선택"}`}
+          style={{ width: spreadWidth, zIndex: pose.zIndex, opacity: pose.opacity, pointerEvents: pose.opacity > .1 ? "auto" : "none", transform: `translate(-50%, -50%) translateX(${pose.x * width}px) scale(${pose.scale}) rotateY(${pose.rotation}deg)` }}>
+          <CoverButton $spread={selected} style={{ "--spread-page-scale": (spreadWidth / 2 - 2) / 320 } as CSSProperties} data-book-cover type="button" disabled={busy} tabIndex={selected ? 0 : -1} aria-label={`${harumadiAccessibleTitle(book)}, 마디 ${book.entryIds.length}개 ${selected ? "미리보기 열기" : "선택"}`}
             onClick={event => { if (selected) onOpen(book, event.currentTarget); else choose(bookIndex); }}>
-            <CarouselCover book={book} ownerId={ownerId} />
+            {selected ? <HarumadiSpreadPreview book={book} ownerId={ownerId} /> : <CarouselCover book={book} ownerId={ownerId} />}
           </CoverButton>
         </Slide>;
       })}
@@ -120,11 +123,11 @@ const Stage = styled.div<{ $dragging: boolean }>`position: relative; height: var
   &::after { content: ""; position: absolute; width: 60%; height: 12px; border-radius: 50%; background: #1b222a0a; filter: blur(10px); bottom: 5px; left: 20%; z-index: -1; }
   &:focus-visible { outline: 2px solid var(--color-brand-700); outline-offset: -3px; border-radius: 12px; }
 `;
-const Slide = styled.div<{ $dragging: boolean }>`position: absolute; top: 48%; left: 50%; width: min(66%, calc(var(--carousel-height) * .62), 230px); will-change: transform; backface-visibility: hidden;
+const Slide = styled.div<{ $dragging: boolean }>`position: absolute; top: 48%; left: 50%; will-change: transform; backface-visibility: hidden;
   transition: ${({ $dragging }) => $dragging ? "none" : "transform 560ms cubic-bezier(.22,.75,.22,1), opacity 440ms ease"};
   @media (prefers-reduced-motion: reduce) { transition: none; }
 `;
-const CoverButton = styled(BaseButton)`display: block; padding: 0; width: 100%; background: transparent; color: inherit; cursor: inherit; -webkit-user-drag: none;
+const CoverButton = styled(BaseButton)<{ $spread: boolean }>`display: block; padding: 0; width: ${({ $spread }) => $spread ? "100%" : "50%"}; margin: 0 auto; background: transparent; color: inherit; cursor: inherit; -webkit-user-drag: none;
   &:focus-visible { outline: 2px solid var(--color-brand-700); outline-offset: 5px; border-radius: 4px; }
 `;
 const Caption = styled.div`display: flex; align-items: flex-start; justify-content: center; gap: 6px; margin: 4px 28px 0; min-height: 76px; text-align: center; > div { min-width: 0; flex: 1; padding-left: 44px; } strong { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere; font-size: 19px; font-weight: 600; line-height: 1.5; letter-spacing: -.03em; } p { margin: 6px 0 0; color: var(--color-text-muted); font-size: 13px; line-height: 1.5; } small { display: block; margin-top: 4px; color: var(--color-text-muted); font-size: 12px; }
