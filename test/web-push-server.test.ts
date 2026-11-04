@@ -1,11 +1,19 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { randomBytes } from "node:crypto";
+import { spawnSync } from "node:child_process";
 import webPush from "web-push";
 import { parseWebPushSubscription, notificationPath } from "@/shared/notifications/webPush";
 
 const vapid = webPush.generateVAPIDKeys();
 const subscription = { endpoint: "https://fcm.googleapis.com/fcm/send/synthetic-only", keys: { p256dh: vapid.publicKey, auth: randomBytes(16).toString("base64url") } };
+
+test("키 생성 도구는 Node ESM에서 실행되고 명시적 옵션 없이는 비밀 키를 생성·출력하지 않는다", () => {
+  const result = spawnSync(process.execPath, ["--import", "tsx", "scripts/generate-web-push-vapid.ts"], { encoding: "utf8", timeout: 15_000 });
+  assert.equal(result.status, 0);
+  assert.match(result.stdout, /--generate/);
+  assert.doesNotMatch(result.stdout, /WEB_PUSH_VAPID_PRIVATE_KEY=/);
+});
 
 test("웹 구독은 HTTPS 푸시 제공자만 허용하고 키·포트·자격 증명·가짜 하위 도메인을 거절한다", () => {
   assert.deepEqual(parseWebPushSubscription(subscription), subscription);
