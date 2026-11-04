@@ -25,6 +25,7 @@ export type ContextMenuItem = {
   label: string;
   onSelect: (trigger: HTMLButtonElement) => void | Promise<void>;
   selected?: boolean;
+  kind?: "radio";
   tone?: "default" | "danger";
   singleLine?: boolean;
 };
@@ -196,7 +197,7 @@ export function ContextMenu({
               onKeyDown={event => {
                 if (event.key === "Tab") { setOpen(false); triggerRef.current?.focus(); return; }
                 if (!["ArrowDown", "ArrowUp", "Home", "End"].includes(event.key)) return;
-                const controls = Array.from(event.currentTarget.querySelectorAll<HTMLButtonElement>('[role="menuitem"]'));
+                const controls = Array.from(event.currentTarget.querySelectorAll<HTMLButtonElement>('[role="menuitem"], [role="menuitemradio"]'));
                 if (!controls.length) return;
                 event.preventDefault();
                 const index = controls.indexOf(document.activeElement as HTMLButtonElement);
@@ -209,7 +210,8 @@ export function ContextMenu({
                   key={item.label}
                   ref={index === 0 ? firstItemRef : undefined}
                   type="button"
-                  role="menuitem"
+                  role={item.kind === "radio" ? "menuitemradio" : "menuitem"}
+                  aria-checked={item.kind === "radio" ? Boolean(item.selected) : undefined}
                   $tone={item.tone ?? "default"}
                   $singleLine={item.singleLine ?? false}
                   onClick={() => {

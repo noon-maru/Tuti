@@ -36,7 +36,7 @@ export const baseControlStyles = css`
   touch-action: manipulation;
 
   &:focus-visible {
-    outline: 2px solid var(--color-accent-primary);
+    outline: 2px solid var(--color-focus-ring);
     outline-offset: 3px;
   }
 

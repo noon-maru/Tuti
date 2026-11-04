@@ -54,8 +54,13 @@ test("보기 선택은 현재 보기 하나만 노출하고 공용 팝오버에�
   }
   const source = readFileSync("src/features/tuti/components/LibraryViewSwitch.tsx", "utf8");
   assert.match(source, /selected: item.value === view/);
+  assert.match(source, /kind: "radio"/);
   assert.match(source, /onSelect: \(\) => onChange\(item.value\)/);
   for (const label of ["한 권씩", "표지", "책등"]) assert.ok(source.includes(`label: "${label}"`));
+  const menu = readFileSync("src/features/tuti/components/ContextMenu.tsx", "utf8");
+  assert.match(menu, /role=\{item.kind === "radio" \? "menuitemradio" : "menuitem"\}/);
+  assert.match(menu, /aria-checked=\{item.kind === "radio" \? Boolean\(item.selected\) : undefined\}/);
+  assert.match(menu, /\[role="menuitem"\], \[role="menuitemradio"\]/);
 });
 
 test("한 권씩 보기의 설명과 넘기기 행은 24px 간격을 높이 측정에 포함한다", () => {

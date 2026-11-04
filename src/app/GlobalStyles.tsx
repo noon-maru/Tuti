@@ -62,6 +62,7 @@ const globalStyles = css`
     --color-text-muted: var(--color-neutral-900);
     --color-border: var(--color-neutral-500);
     --color-accent-primary: var(--color-brand-500);
+    --color-focus-ring: var(--color-brand-800);
     --color-accent-secondary: var(--color-secondary-500);
     --color-accent-bridge: ${palette.accent.bridge};
     --color-accent-soft: var(--color-secondary-200);

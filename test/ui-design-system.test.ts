@@ -92,6 +92,20 @@ test("첫 화면의 짙은 주요 버튼은 기본·호버 모두 흰 글자 대
   assert.match(next, /:hover \{ background: var\(--color-brand-900\)/);
 });
 
+test("공통 포커스는 흰색·파랑·연두 표면에서 구분되고 스위치 터치 영역은 44px 이상이다", () => {
+  for (const surface of [palette.neutral[100], palette.brand[100], palette.secondary[100]]) assert.ok(contrast(palette.brand[800], surface) >= 3);
+  const css = renderToStaticMarkup(createElement(GlobalStyles));
+  assert.match(css, /--color-focus-ring:var\(--color-brand-800\)/);
+  assert.match(source("src/shared/ui/buttons.tsx"), /outline: 2px solid var\(--color-focus-ring\)/);
+  for (const file of ["settings/SettingsScreen.tsx", "notifications/NotificationSettingsScreen.tsx"]) {
+    const screen = source(`src/features/tuti/screens/${file}`);
+    const control = screen.match(/const Switch = styled.label`([^`]+)`/)![1];
+    assert.match(control, /height: 44px/);
+    assert.match(control, /input:focus-visible \+ span/);
+    assert.match(control, /var\(--color-focus-ring\)/);
+  }
+});
+
 test("홈은 보기·생성·책장 메뉴를 한 줄로 묶고 제목과 권수를 반복하지 않는다", () => {
   const home = source("src/features/tuti/flows/LibraryHomeFlow.tsx");
   assert.match(home, /<Frame ref=\{frame\} aria-label="내 책장"/);

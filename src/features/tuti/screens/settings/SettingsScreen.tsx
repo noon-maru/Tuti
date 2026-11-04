@@ -385,7 +385,7 @@ const ToggleLabel = styled.label`
 const Switch = styled.label`
   position: relative;
   width: 50px;
-  height: 29px;
+  height: 44px;
   flex: none;
 
   input {
@@ -397,7 +397,7 @@ const Switch = styled.label`
 
   span {
     position: absolute;
-    inset: 0;
+    inset: 7.5px 0;
     border-radius: 999px;
     background: var(--color-neutral-500);
     cursor: pointer;
@@ -427,7 +427,7 @@ const Switch = styled.label`
   }
 
   input:focus-visible + span {
-    outline: 3px solid var(--color-brand-300);
+    outline: 3px solid var(--color-focus-ring);
     outline-offset: 2px;
   }
 
@@ -465,7 +465,7 @@ const SettingsRow = styled(BaseButton)`
   &:focus-visible {
     position: relative;
     z-index: 1;
-    outline: 2px solid var(--color-brand-500);
+    outline: 2px solid var(--color-focus-ring);
     outline-offset: -2px;
   }
 `;
