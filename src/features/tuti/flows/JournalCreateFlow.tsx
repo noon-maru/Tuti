@@ -7,7 +7,8 @@ import { useTutiJournalEntries } from "@/features/tuti/hooks/useTutiJournalEntri
 import { MadiCreateScreen } from "@/features/tuti/screens/journal/MadiCreateScreen";
 import { recordRecommendationAction } from "@/lib/tutiApi";
 import { useTutiStore } from "@/store/tuti";
-import { harumadiPath } from "@/lib/harumadis";
+import { fetchHarumadi, harumadiPath } from "@/lib/harumadis";
+import { useQuery } from "@tanstack/react-query";
 import { useSession } from "@/features/tuti/hooks/useSession";
 import { useLifecycleView } from "../hooks/useLifecycleView";
 import { trackLifecycle } from "@/lib/lifecycle";
@@ -19,6 +20,8 @@ export function JournalCreateFlow() {
   const ownerId = useSession()?.userId;
   const searchParams = useSearchParams();
   const harumadiId = searchParams.get("harumadiId");
+  const book = useQuery({ queryKey: ["compose-harumadi", ownerId, harumadiId],
+    queryFn: () => fetchHarumadi(ownerId!, harumadiId!), enabled: Boolean(ownerId && harumadiId), retry: false });
   useNotificationPresence(harumadiId, true);
   const savedEntryId = useRef<string | null>(null);
   const request = useRef<{ hash: string; id: string } | null>(null);
@@ -41,6 +44,9 @@ export function JournalCreateFlow() {
   return <MadiCreateScreen key={ownerId ?? "pending"} draftOwnerId={ownerId}
     firstMadi={isSuccess && entries.length === 0}
     inHarumadi={Boolean(harumadiId)}
+    destination={book.data}
+    destinationError={book.isError}
+    onRetryDestination={() => void book.refetch()}
     initialPlace={initialPlaceId && initialPlaceName ? { id: initialPlaceId, name: initialPlaceName } : undefined}
     collectionLabel={fromExplore ? "작은 여행으로 돌아가기" : fromLibrary ? "하루마디로 돌아가기" : "작성 마치기"}
     onBack={returnToSource}

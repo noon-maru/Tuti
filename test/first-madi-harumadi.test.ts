@@ -78,6 +78,8 @@ test("첫 마디와 기본 하루마디를 함께 저장하고 동시 요청·�
     const request = { ...input, requestId: "bb17e0d4-d207-4d0e-9bf0-d00604d60e8a" };
     const [first, second] = await Promise.all([createJournalEntry("idempotent", request), createJournalEntry("idempotent", request)]);
     assert.equal(first.id, second.id);
+    assert.deepEqual(first.savedHarumadi, second.savedHarumadi, "재시도에도 실제 연결된 책을 반환한다");
+    assert.equal(first.savedHarumadi?.title, "우리의 작은 하루");
     assert.equal([...entries.values()].filter(e => e.ownerId === "idempotent").length, 1);
     assert.equal([...events.values()].filter(e => e.userId === "idempotent" && e.name === "madi_created").length, 1);
     await assert.rejects(createJournalEntry("idempotent", { ...request, content: "바뀐 내용" }), { status: 409 });
@@ -103,7 +105,9 @@ test("첫 마디와 기본 하루마디를 함께 저장하고 동시 요청·�
     assert.equal(book.coverStyle, "white-plain");
     assert.equal("innerStyle" in book, false);
     assert.equal(book.entries.create.entryId, entry.id);
-    await createJournalEntry("new-owner", input);
+    assert.deepEqual(entry.savedHarumadi, { id: book.id, title: book.title });
+    const second = await createJournalEntry("new-owner", input);
+    assert.equal(second.savedHarumadi, null);
     assert.equal([...books.values()].filter(b => b.ownerId === "new-owner").length, 1);
   });
   await t.test("같은 계정에서 동시에 작성해도 기본 하루마디는 한 권만 만든다", async () => {
@@ -122,7 +126,8 @@ test("첫 마디와 기본 하루마디를 함께 저장하고 동시 요청·�
   });
   await t.test("사용자가 미리 만든 하루마디를 덮거나 기본 하루마디를 추가하지 않는다", async () => {
     books.set("manual", { id: "manual", ownerId: "prepared", title: "직접 만든 책", coverStyle: "green-plain", entries: { create: { entryId: "existing" } } });
-    await createJournalEntry("prepared", input);
+    const first = await createJournalEntry("prepared", input);
+    assert.equal(first.savedHarumadi, null, "기존 빈 책에 자동 연결됐다고 표시하지 않는다");
     assert.equal([...books.values()].filter(b => b.ownerId === "prepared").length, 1);
     assert.equal(books.get("manual")?.title, "직접 만든 책");
   });

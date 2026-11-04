@@ -22,4 +22,5 @@ export async function createDefaultHarumadiForFirstMadi(
   } });
   await recordLifecycle(tx, ownerId, { name: "harumadi_created", key: `book:${bookId}`, entityId: bookId, bookId, origin: "first_madi_auto" }, context);
   await recordContribution(tx, ownerId, bookId, entry.id, linkId, context);
+  return { id: bookId, title: "우리의 작은 하루" };
 }

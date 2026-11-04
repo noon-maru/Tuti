@@ -90,12 +90,15 @@ export async function createJournalEntry(
           const prior = receipt.entityId ? await tx.journalEntry.findFirst({ where: { id: receipt.entityId, ownerId }, select: journalEntrySelect }) : null;
           if (!prior) throw new HarumadiError("이미 처리되거나 삭제된 저장 요청이에요. 새로 작성해주세요.", 409);
           assertSensitiveJournalReadable(prior);
-          return prior;
+          const book = receipt.bookId ? await tx.harumadi.findUnique({ where: { id: receipt.bookId }, select: { id: true, title: true } }) : null;
+          return { ...prior, savedHarumadi: book ? { id: book.id, title: book.title } : null };
         }
       }
+      let savedHarumadi: { id: string; title: string } | null = null;
       if (input.harumadiId) {
         await lockHarumadi(tx, input.harumadiId);
         const book = await requireHarumadiAccess(tx, ownerId, input.harumadiId);
+        savedHarumadi = { id: book.id, title: book.title };
         if (book.collaborationStartedAt) requireTogether();
         if (book.collaborationStartedAt && sensitiveData.sensitiveContent !== false) throw new HarumadiError("민감정보가 없는 마디만 함께 채울 수 있어요.", 409);
       }
@@ -117,14 +120,14 @@ export async function createJournalEntry(
         const link = await tx.harumadiEntryLink.create({ data: { harumadiId: input.harumadiId, entryId: created.id } });
         await recordContribution(tx, ownerId, input.harumadiId, created.id, link.id, context);
         await tx.harumadi.update({ where: { id: input.harumadiId }, data: { revision: { increment: 1 } } });
-      } else await createDefaultHarumadiForFirstMadi(tx, ownerId, created, context);
-      await recordLifecycle(tx, ownerId, { name: "madi_created", key: `madi:${created.id}`, entityId: created.id, bookId: input.harumadiId, requestKey, requestHash }, context);
-      return created;
+      } else savedHarumadi = await createDefaultHarumadiForFirstMadi(tx, ownerId, created, context) ?? null;
+      await recordLifecycle(tx, ownerId, { name: "madi_created", key: `madi:${created.id}`, entityId: created.id, bookId: savedHarumadi?.id, requestKey, requestHash }, context);
+      return { ...created, savedHarumadi };
     });
 
     if (entry.id !== entryId) {
       await cleanupUploadedImage(preparedImage.uploadedKey);
-      return serializeJournalEntry(entry);
+      return { ...serializeJournalEntry(entry), savedHarumadi: entry.savedHarumadi };
     }
 
     await writeSystemLogSafely({
@@ -136,7 +139,7 @@ export async function createJournalEntry(
       targetId: entry.id,
     });
 
-    return serializeJournalEntry(entry);
+    return { ...serializeJournalEntry(entry), savedHarumadi: entry.savedHarumadi };
   } catch (error) {
     await cleanupUploadedImage(preparedImage.uploadedKey);
     throw error;

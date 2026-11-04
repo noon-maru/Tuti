@@ -1,4 +1,6 @@
 export type TutiJournalEntry = {
+  /** 작성 응답의 실제 연결 결과. 목록·수정 응답에서는 생략한다. */
+  savedHarumadi?: { id: string; title: string } | null;
   version?: string;
   authorId?: string;
   authorName?: string;

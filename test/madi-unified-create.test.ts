@@ -5,6 +5,21 @@ import { renderToStaticMarkup } from "react-dom/server";
 import test from "node:test";
 import { MadiCreateScreen } from "@/features/tuti/screens/journal/MadiCreateScreen";
 
+test("지정한 하루마디의 실제 제목과 공유 범위를 작성 시작부터 표시한다", () => {
+  for (const shared of [false, true]) {
+    const html = renderToStaticMarkup(createElement(MadiCreateScreen, {
+      inHarumadi: true, destination: { title: "함께 걷는 하루", shared }, onBack() {}, onCollection() {},
+    }));
+    assert.match(html, /함께 걷는 하루/);
+    assert.match(html, shared ? /함께 채우는 사람들에게 보여요/ : /나만 보는 하루마디에 담아요/);
+  }
+  const html = renderToStaticMarkup(createElement(MadiCreateScreen, {
+    inHarumadi: true, destinationError: true, onRetryDestination() {}, onBack() {}, onCollection() {},
+  }));
+  assert.match(html, /담을 하루마디를 확인하지 못했어요/);
+  assert.match(html, /다시 확인하기/);
+});
+
 test("첫 마디 안내는 진입 위치가 아니라 실제 마디가 없는 경우에만 사용한다", () => {
   const flow = readFileSync("src/features/tuti/flows/JournalCreateFlow.tsx", "utf8");
   assert.match(flow, /firstMadi=\{isSuccess && entries.length === 0\}/);

@@ -18,10 +18,14 @@ import type { JournalEntryInput, TutiJournalEntry } from "@/shared/api/journal";
 import { MadiHarumadiSelection } from "./MadiHarumadiSelection";
 import { useMadiDraft } from "@/features/tuti/hooks/useMadiDraft";
 import { AppLoadingScreen } from "@/features/tuti/components/LoadingIndicator";
+import type { Harumadi } from "@/shared/api/harumadi";
 
 type Stage = "photo" | "write" | "preview";
 
-export function MadiCreateScreen({ onBack, onSave, onCollection, onSaved, harumadiSelection, draftOwnerId, inHarumadi = false, firstMadi = false, initialPlace, collectionLabel = "작성 마치기", preview = false }: {
+export function MadiCreateScreen({ onBack, onSave, onCollection, onSaved, harumadiSelection, draftOwnerId, inHarumadi = false, destination, destinationError = false, onRetryDestination, firstMadi = false, initialPlace, collectionLabel = "작성 마치기", preview = false }: {
+  destination?: Pick<Harumadi, "title" | "shared">;
+  destinationError?: boolean;
+  onRetryDestination?: () => void;
   draftOwnerId?: string;
   inHarumadi?: boolean;
   firstMadi?: boolean;
@@ -44,6 +48,7 @@ export function MadiCreateScreen({ onBack, onSave, onCollection, onSaved, haruma
   const [date, setDate] = useState(getKoreanDateKey);
   const [place, setPlace] = useState(initialPlace?.name ?? "");
   const [saved, setSaved] = useState<TutiJournalEntry | null>(null);
+  const needsBookSelection = Boolean(saved && !saved.savedHarumadi && harumadiSelection && !inHarumadi);
   const madiLabel = (saved ? savedAsFirstMadi : firstMadi && !continued) ? "첫 마디" : "새로운 마디";
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -86,14 +91,14 @@ export function MadiCreateScreen({ onBack, onSave, onCollection, onSaved, haruma
     else void localDraft.leave(onBack);
   }, [cancelCrop, cropSource, onBack, onCollection, saved, stage, localDraft]);
   useEffect(() => {
-    if (preview || (saved && !savedAsFirstMadi && harumadiSelection)) return;
+    if (preview || needsBookSelection) return;
     const onAndroidBack = (event: Event) => {
       event.preventDefault();
       back();
     };
     window.addEventListener(ANDROID_BACK_EVENT, onAndroidBack);
     return () => window.removeEventListener(ANDROID_BACK_EVENT, onAndroidBack);
-  }, [back, preview, saved, savedAsFirstMadi, harumadiSelection]);
+  }, [back, preview, needsBookSelection]);
 
   const choosePhoto = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -116,7 +121,7 @@ export function MadiCreateScreen({ onBack, onSave, onCollection, onSaved, haruma
   };
 
   const save = async () => {
-    if (!draft || savingRef.current || preview || !onSave) return;
+    if (!draft || savingRef.current || preview || !onSave || (inHarumadi && !destination)) return;
     savingRef.current = true;
     setSavedAsFirstMadi(firstMadi && !continued);
     setSaving(true); setError("");
@@ -146,7 +151,7 @@ export function MadiCreateScreen({ onBack, onSave, onCollection, onSaved, haruma
 
   if (!localDraft.ready && !preview) return <AppLoadingScreen label="작성 중이던 마디를 확인하고 있어요." />;
   if (saved && inHarumadi) return <AppLoadingScreen label="하루마디에 담고 있어요." />;
-  if (saved && !savedAsFirstMadi && harumadiSelection) return <MadiHarumadiSelection key={saved.id}
+  if (saved && needsBookSelection && harumadiSelection) return <MadiHarumadiSelection key={saved.id}
     {...harumadiSelection} entryId={saved.id} onNext={startAnother} />;
 
   return <Frame aria-labelledby="madi-create-heading">
@@ -156,9 +161,13 @@ export function MadiCreateScreen({ onBack, onSave, onCollection, onSaved, haruma
       <StepCount>{saved ? <Check size={18} aria-label="저장 완료" /> : `${stage === "photo" ? 1 : stage === "write" ? 2 : 3} / 3`}</StepCount>
     </Header>
     <Content ref={scroll} data-scroll-region>
+      {!saved && inHarumadi && <Destination role="status">
+        {destination ? <><strong>{destination.title}</strong><span>{destination.shared ? "함께 채우는 사람들에게 보여요." : "나만 보는 하루마디에 담아요."}</span></>
+          : <><span>{destinationError ? "담을 하루마디를 확인하지 못했어요." : "담을 하루마디를 확인하고 있어요."}</span>{destinationError && <TextButton onClick={onRetryDestination}>다시 확인하기</TextButton>}</>}
+      </Destination>}
       <Intro>
         <h1 ref={heading} tabIndex={-1} id="madi-create-heading">{saved ? <>{madiLabel}를<br />남겼어요.</> : stage === "photo" ? <>어떤 순간을<br />오래 간직하고 싶나요?</> : stage === "write" ? <>그날의 이야기를<br />조금만 들려주세요.</> : <>{madiLabel}를<br />살펴볼까요?</>}</h1>
-        <p>{saved ? "하루의 마디들이 모여, 한 권의 이야기가 돼요." : stage === "photo" ? "사진 한 장, 짧은 이야기면 충분해요." : stage === "write" ? "길게 쓰지 않아도 괜찮아요. 사진만 남겨도 좋아요." : "이 모습으로 마디를 남겨둘게요."}</p>
+        <p>{saved ? saved.savedHarumadi ? `‘${saved.savedHarumadi.title}’에 담았어요.` : "남긴 마디는 전체 마디 보기에서 볼 수 있어요." : stage === "photo" ? "사진 한 장, 짧은 이야기면 충분해요." : stage === "write" ? "길게 쓰지 않아도 괜찮아요. 사진만 남겨도 좋아요." : "사진과 이야기를 확인해주세요."}</p>
       </Intro>
       {!saved && stage === "photo" && <PhotoChoices>
         {image && <SelectedPhoto><Image src={image} alt="선택한 추억 사진" fill unoptimized sizes="350px" /></SelectedPhoto>}
@@ -192,7 +201,7 @@ export function MadiCreateScreen({ onBack, onSave, onCollection, onSaved, haruma
         {!inHarumadi && <TextButton type="button" onClick={startAnother}>다음 마디 남기기</TextButton>}
       </> : stage === "photo" ? image && <PrimaryButton type="button" onClick={() => setStage("write")}>이 사진으로 계속하기</PrimaryButton>
         : stage === "write" ? <PrimaryButton type="button" disabled={!draft} onClick={() => { setError(""); setStage("preview"); }}>{madiLabel} 미리보기</PrimaryButton>
-          : <><PrimaryButton type="button" disabled={!draft || saving} onClick={() => void save()}>{saving ? "마디를 저장하고 있어요…" : "이대로 마디 남기기"}</PrimaryButton><TextButton type="button" disabled={saving} onClick={() => setStage("write")}>조금 더 고치기</TextButton></>}
+          : <>{inHarumadi && destination && <PrivacyHint>{destination.title} · {destination.shared ? "함께 보는 마디" : "나만 보는 마디"}</PrivacyHint>}<PrimaryButton type="button" disabled={!draft || saving || (inHarumadi && !destination)} onClick={() => void save()}>{saving ? "마디를 저장하고 있어요…" : "이대로 마디 남기기"}</PrimaryButton><TextButton type="button" disabled={saving} onClick={() => setStage("write")}>조금 더 고치기</TextButton></>}
     </Footer>
     {cropSource && <ImageCropDialog source={cropSource} onCancel={cancelCrop} onConfirm={confirmCrop} />}
   </Frame>;
@@ -223,6 +232,7 @@ const PhotoChoices = styled.div`display: grid; gap: 12px; margin-top: 8px;`;
 const SelectedPhoto = styled.div`position: relative; aspect-ratio: 4 / 3; border-radius: 5px; overflow: hidden; background: #f6f9fc; img { object-fit: contain; }`;
 const HiddenInput = styled.input`display: none;`;
 const PrivacyHint = styled.p`${captionStyles} margin: 0; word-break: keep-all;`;
+const Destination = styled.div`display: grid; gap: 4px; padding-bottom: 16px; border-bottom: 1px solid var(--color-border); strong { font-size: var(--ui-body-size); font-weight: 600; overflow-wrap: anywhere; } span { ${captionStyles} }`;
 const Fields = styled.div`
   display: grid; grid-template-columns: minmax(0, 1fr); min-width: 0; gap: 24px;
   label { display: grid; grid-template-columns: minmax(0, 1fr); min-width: 0; gap: 10px; font-size: var(--ui-body-size); font-weight: 500; }

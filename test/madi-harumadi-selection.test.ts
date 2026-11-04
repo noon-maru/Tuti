@@ -11,10 +11,11 @@ import { preferencesStorage } from "@/lib/storage/preferencesStorage";
 import { harumadiReadCache } from "@/lib/harumadiReadCache";
 import { harumadiContent } from "./fixtures/harumadiContent";
 
-test("첫 마디는 기존 완료 화면을 유지하고 두 번째부터 저장 후 선택 화면을 연다", () => {
+test("첫 마디 여부가 아니라 서버의 실제 하루마디 연결 결과로 저장 후 선택 화면을 연다", () => {
   const screen = readFileSync("src/features/tuti/screens/journal/MadiCreateScreen.tsx", "utf8");
-  assert.match(screen, /if \(saved && !savedAsFirstMadi && harumadiSelection\) return <MadiHarumadiSelection/);
-  assert.match(screen, /if \(preview \|\| \(saved && !savedAsFirstMadi && harumadiSelection\)\) return/);
+  assert.match(screen, /saved && !saved.savedHarumadi && harumadiSelection && !inHarumadi/);
+  assert.match(screen, /if \(saved && needsBookSelection && harumadiSelection\) return <MadiHarumadiSelection/);
+  assert.match(screen, /if \(preview \|\| needsBookSelection\) return/);
   const flow = readFileSync("src/features/tuti/flows/JournalCreateFlow.tsx", "utf8");
   assert.match(flow, /harumadiSelection=\{ownerId && !harumadiId \? \{ ownerId,/);
   assert.match(screen, /onNext=\{startAnother\}/);
