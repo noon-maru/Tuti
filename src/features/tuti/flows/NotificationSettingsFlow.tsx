@@ -8,6 +8,8 @@ import { disableDailyTutiReminder } from "../notifications/localNotifications";
 import { enableServerPushNotifications, disableServerPushNotifications, getPushNotificationStatus, type PushNotificationStatus } from "../notifications/pushNotifications";
 import { usePushEnvironment } from "../hooks/usePushEnvironment";
 import { getSessionSnapshot, subscribeToSession } from "@/lib/auth/session";
+import { WEB_PUSH_USER_ENABLED } from "@/shared/notifications/rollout";
+import { Capacitor } from "@capacitor/core";
 
 export function NotificationSettingsFlow() {
   const router = useRouter();
@@ -23,6 +25,10 @@ export function NotificationSettingsFlow() {
   const loadedOwner = useRef<string | null>(null);
   const refreshPending = useRef(false);
   useEffect(() => {
+    if (!WEB_PUSH_USER_ENABLED && !Capacitor.isNativePlatform()) {
+      router.replace("/settings");
+      return;
+    }
     let active = true, generation = 0;
     const refresh = () => {
       if (saving.current) { refreshPending.current = true; return; }
@@ -40,7 +46,7 @@ export function NotificationSettingsFlow() {
     const unsubscribe = subscribeToSession(() => { loadedOwner.current = null; setLoaded(false); refresh(); });
     document.addEventListener("visibilitychange", visible);
     return () => { active = false; unsubscribe(); document.removeEventListener("visibilitychange", visible); };
-  }, [refreshVersion]);
+  }, [refreshVersion, router]);
   const change = async (patch: Partial<NotificationSettings>) => {
     const owner = loadedOwner.current;
     if (!loaded || saving.current || !owner || getSessionSnapshot()?.userId !== owner) return;
@@ -69,6 +75,7 @@ export function NotificationSettingsFlow() {
       if (refreshPending.current) { refreshPending.current = false; setRefreshVersion(value => value + 1); }
     }
   };
+  if (!WEB_PUSH_USER_ENABLED && pushEnvironment !== "native") return null;
   return <NotificationSettingsScreen settings={settings} supported={status?.supported ?? false} browser={browser} status={status} busy={busy || !loaded} message={message}
     onBack={() => router.back()} onChange={change} />;
 }

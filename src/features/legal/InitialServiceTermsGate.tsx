@@ -18,6 +18,7 @@ import { rememberHarumadiInviteUrl } from "@/lib/harumadiInviteIntent";
 import { usePushEnvironment } from "@/features/tuti/hooks/usePushEnvironment";
 import { optInInitialNotifications } from "@/lib/notificationSettings";
 import { requestWebPushPermission } from "@/features/tuti/notifications/webPushNotifications";
+import { notificationSettingsAvailable } from "@/shared/notifications/rollout";
 
 // 오버레이가 아니라 진입 화면이다. 통과 전에는 children과 그 안의 effect를 마운트하지 않는다.
 export function InitialServiceTermsGate({ children, rightsChildren, renderContent = content => content }: {
@@ -202,7 +203,7 @@ function ConsentForm({ offer, onRead, onAccepted, onRefresh, onSubmittingChange 
   const [locationConfirmed, setLocationConfirmed] = useState(false);
   const [notificationConfirmed, setNotificationConfirmed] = useState(false);
   const pushEnvironment = usePushEnvironment();
-  const notificationsAvailable = pushEnvironment === "native" || pushEnvironment === "supported";
+  const notificationsAvailable = notificationSettingsAvailable(pushEnvironment);
   const [saving, setSaving] = useState(false);
   const [confirming, setConfirming] = useState(false);
   const [error, setError] = useState<string | null>(null);

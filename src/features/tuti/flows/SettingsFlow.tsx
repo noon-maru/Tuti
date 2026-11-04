@@ -7,6 +7,8 @@ import { SettingsScreen } from "@/features/tuti/screens/settings/SettingsScreen"
 import { useSession } from "@/features/tuti/hooks/useSession";
 import { logoutAccount } from "@/lib/auth/session";
 import { useTutiStore } from "@/store/tuti";
+import { usePushEnvironment } from "../hooks/usePushEnvironment";
+import { notificationSettingsAvailable } from "@/shared/notifications/rollout";
 
 const settingsRoutes = {
   account: "/login",
@@ -20,6 +22,7 @@ export function SettingsFlow() {
   const router = useRouter();
   const queryClient = useQueryClient();
   const session = useSession();
+  const notificationsAvailable = notificationSettingsAvailable(usePushEnvironment());
   const account = session?.account;
   const cardDisplayPreferences = useTutiStore(
     (state) => state.cardDisplayPreferences,
@@ -29,14 +32,16 @@ export function SettingsFlow() {
   );
 
   useEffect(() => {
-    Object.values(settingsRoutes).forEach((route) => router.prefetch(route));
-  }, [router]);
+    Object.entries(settingsRoutes).forEach(([name, route]) => {
+      if (name !== "notifications" || notificationsAvailable) router.prefetch(route);
+    });
+  }, [router, notificationsAvailable]);
 
   return (
     <SettingsScreen
       accountConnected={Boolean(account)}
       accountLabel={account?.displayName ?? account?.email}
-      notificationsAvailable={true}
+      notificationsAvailable={notificationsAvailable}
       cardDisplayPreferences={cardDisplayPreferences}
       onBack={() => router.replace("/")}
       onNavigate={(destination) => router.push(settingsRoutes[destination])}

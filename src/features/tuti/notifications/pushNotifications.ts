@@ -15,6 +15,7 @@ import type {
 } from "@/shared/api/push";
 import { TUTI_SERVICE_PUSH_CHANNEL_ID } from "@/shared/notifications/pushChannel";
 import * as web from "./webPushNotifications";
+import { WEB_PUSH_USER_ENABLED } from "@/shared/notifications/rollout";
 
 const INSTALLATION_ID_KEY = "tuti-push-installation-id";
 const REGISTRATION_TIMEOUT_MS = 15_000;
@@ -53,11 +54,11 @@ export type PushNotificationStatus = {
 
 export function supportsServerPushNotifications() {
   const platform = Capacitor.getPlatform();
-  return platform === "android" || platform === "ios" || web.webPushAvailability() === "supported";
+  return platform === "android" || platform === "ios" || (WEB_PUSH_USER_ENABLED && web.webPushAvailability() === "supported");
 }
 
 export async function getPushNotificationStatus(): Promise<PushNotificationStatus> {
-  if (!Capacitor.isNativePlatform()) return web.getWebPushStatus();
+  if (!Capacitor.isNativePlatform()) return WEB_PUSH_USER_ENABLED ? web.getWebPushStatus() : { supported: false, permission: "unsupported" };
   if (!supportsServerPushNotifications()) {
     return { supported: false, permission: "unsupported" };
   }
@@ -73,7 +74,7 @@ export async function getPushNotificationStatus(): Promise<PushNotificationStatu
 }
 
 export function enableServerPushNotifications() {
-  if (!Capacitor.isNativePlatform()) return web.enableWebPushNotifications();
+  if (!Capacitor.isNativePlatform()) return WEB_PUSH_USER_ENABLED ? web.enableWebPushNotifications() : Promise.resolve({ status: "unsupported" } as const);
   return enableNativePushNotifications();
 }
 
@@ -101,7 +102,7 @@ function reportPermission(action: string, ownerId: string) {
 }
 
 export async function syncServerPushRegistration() {
-  if (!Capacitor.isNativePlatform()) return web.syncWebPushRegistration();
+  if (!Capacitor.isNativePlatform()) return WEB_PUSH_USER_ENABLED ? web.syncWebPushRegistration() : false;
   if (!supportsServerPushNotifications()) return false;
   const owner = getSessionSnapshot();
   if (!owner) return null;
