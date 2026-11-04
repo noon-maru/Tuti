@@ -4,7 +4,7 @@ import test from "node:test";
 import { readerGroupGeometry, readerPageWidth } from "@/shared/harumadi/readerText";
 import { HARUMADI_READING_LAYOUT as layout } from "@/shared/harumadi/readingTypography";
 
-test("읽기 지면과 쪽 이동은 바깥 패딩과 같은 간격이며 남는 높이를 지면 위에 배분하지 않는다", () => {
+test("읽기 지면과 쪽 이동은 간격을 유지한 채 읽기 영역에서 세로 중앙 정렬한다", () => {
   const normal = readerGroupGeometry(318, 676);
   const tall = readerGroupGeometry(318, 800);
   assert.deepEqual(normal, tall);
@@ -14,8 +14,8 @@ test("읽기 지면과 쪽 이동은 바깥 패딩과 같은 간격이며 남는
   assert.ok(normal.stageHeight + 44 + layout.viewer.gap < 676);
   const viewer = readFileSync("src/features/tuti/components/HarumadiPageViewer.tsx", "utf8");
   const readerCss = viewer.match(/const Reader = styled.div`([^`]+)`/)![1];
-  assert.match(readerCss, /justify-content: flex-start/);
-  assert.doesNotMatch(readerCss, /justify-content: center/);
+  assert.match(readerCss, /justify-content: center/);
+  assert.doesNotMatch(readerCss, /justify-content: flex-start/);
   assert.match(readerCss, /gap: var\(--reader-outside-inset/);
   assert.match(viewer, /getComputedStyle\(node\).rowGap/);
 });
@@ -44,8 +44,10 @@ test("바깥 패딩만 늘리고 안전 영역·조작부·공유 서명과 페�
   assert.match(flow, /--reader-outside-inset: 36px/);
   assert.match(flow, /max-width: 340px.*--reader-outside-inset: 28px/);
   assert.match(flow, /var\(--reader-outside-inset\) \+ var\(--app-safe-area-right, 0px\)/);
-  assert.match(flow, /var\(--reader-outside-inset\) \+ var\(--app-safe-area-bottom, 0px\)/);
-  assert.match(flow, /\$reading \? "var\(--reader-outside-inset\) calc/);
+  assert.match(flow, /--reader-vertical-inset: 48px/);
+  assert.match(flow, /max-height: 620px.*--reader-vertical-inset: 36px/);
+  assert.match(flow, /var\(--reader-vertical-inset\) \+ var\(--app-safe-area-bottom, 0px\)/);
+  assert.match(flow, /\$reading \? "var\(--reader-vertical-inset\) calc/);
   assert.doesNotMatch(viewer, /grid-template-rows: minmax\(0, 1fr\) auto/);
   assert.match(viewer, /style=\{\{ height: stageHeight \}\}/);
   assert.match(viewer, /observer.observe\(controls\)/);
