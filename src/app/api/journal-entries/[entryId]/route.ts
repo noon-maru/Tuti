@@ -122,6 +122,7 @@ export async function DELETE(
     return withCors(request, Response.json(response));
   } catch (error) {
     if (error instanceof SensitiveJournalPolicyError) return withCors(request, Response.json({ error: error.message }, { status: error.status }));
+    if (error instanceof JournalEditConflictError) return withCors(request, Response.json({ error: error.message }, { status: error.status }));
     console.error("기록 삭제 중 오류가 발생했습니다.", error);
 
     return withCors(

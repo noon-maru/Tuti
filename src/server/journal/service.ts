@@ -274,6 +274,10 @@ export async function deleteJournalEntry(
   const replayReceipt = await preparePrivacyReplayReceipt("journal_deleted", ownerId, new Date(), entryId);
 
   const result = await prisma.$transaction(async (transaction) => {
+    await transaction.$queryRaw`SELECT id FROM journal_entries WHERE id = ${entryId} AND owner_id = ${ownerId} FOR UPDATE`;
+    const current = await transaction.journalEntry.findFirst({ where: { id: entryId, ownerId }, select: { image: true, sensitiveContent: true, sensitiveWithdrawnAt: true } });
+    if (!current) return { count: 0, cleanupJobId: null };
+    if (current.sensitiveContent === true || current.sensitiveWithdrawnAt) throw new JournalEditConflictError();
     await transaction.journalShareTrace.deleteMany({ where: { entryId } });
     await transaction.contentReport.updateMany({
       where: { entryId },
@@ -283,7 +287,7 @@ export async function deleteJournalEntry(
     const deleted = await transaction.journalEntry.deleteMany({
       where: { id: entryId, ownerId },
     });
-    const cleanupJobId = await enqueueDataCleanup(transaction, { images: entry.image ? [entry.image] : [], pdfs: [], appleTokens: [], receipt: replayReceipt });
+    const cleanupJobId = await enqueueDataCleanup(transaction, { images: current.image ? [current.image] : [], pdfs: [], appleTokens: [], receipt: replayReceipt });
     return { count: deleted.count, cleanupJobId };
   });
   if (result.cleanupJobId) await processDataCleanupJob(result.cleanupJobId).catch(() => false);
@@ -312,13 +316,17 @@ export async function forceDeleteJournalEntry(entryId: string, replay = false) {
   const replayReceipt = replay ? null : await preparePrivacyReplayReceipt("journal_deleted", entry.ownerId, new Date(), entryId);
 
   const cleanupJobId = await prisma.$transaction(async (transaction) => {
+    await transaction.$queryRaw`SELECT id FROM journal_entries WHERE id = ${entryId} FOR UPDATE`;
+    const current = await transaction.journalEntry.findUnique({ where: { id: entryId }, select: { image: true, ownerId: true } });
+    if (!current) return null;
+    if (current.ownerId !== entry.ownerId) throw new JournalEditConflictError();
     await transaction.journalShareTrace.deleteMany({ where: { entryId } });
     await transaction.contentReport.updateMany({
       where: { entryId },
       data: { entryId: null },
     });
     await transaction.journalEntry.delete({ where: { id: entryId } });
-    return enqueueDataCleanup(transaction, { images: entry.image ? [entry.image] : [], pdfs: [], appleTokens: [], receipt: replayReceipt });
+    return enqueueDataCleanup(transaction, { images: current.image ? [current.image] : [], pdfs: [], appleTokens: [], receipt: replayReceipt });
   });
   if (cleanupJobId) await processDataCleanupJob(cleanupJobId).catch(() => false);
   return true;
