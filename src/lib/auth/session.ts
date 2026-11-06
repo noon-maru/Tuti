@@ -29,13 +29,33 @@ const resetPre141Session = createSessionReset(preferencesStorage);
 
 let sessionPromise: Promise<TutiSession> | undefined;
 let sessionSnapshot: TutiSession | null = null;
+let sessionRevision = 0;
+let sessionWrites: Promise<unknown> = Promise.resolve();
 const sessionListeners = new Set<() => void>();
 
+export function isSessionCurrent(expected: TutiSession | null) {
+  return sessionSnapshot?.userId === expected?.userId && sessionSnapshot?.accessToken === expected?.accessToken;
+}
+
+function assertSessionCurrent(expected: TutiSession | null, revision?: number) {
+  if (!isSessionCurrent(expected) || (revision !== undefined && revision !== sessionRevision))
+    throw new Error("계정이 변경되었어요. 현재 계정에서 다시 시도해주세요.");
+}
+
+function serializeSessionWrite<T>(work: () => Promise<T>) {
+  const pending = sessionWrites.catch(() => {}).then(work);
+  sessionWrites = pending;
+  return pending;
+}
+
 export function ensureSession() {
-  sessionPromise ??= loadOrCreateSession().catch((error) => {
-    sessionPromise = undefined;
-    throw error;
-  });
+  if (!sessionPromise) {
+    const pending = loadOrCreateSession().catch((error) => {
+      if (sessionPromise === pending) sessionPromise = undefined;
+      throw error;
+    });
+    sessionPromise = pending;
+  }
 
   return sessionPromise;
 }
@@ -45,7 +65,9 @@ export async function fetchWithSession(
   init?: RequestInit,
 ) {
   const session = await ensureSession();
+  assertSessionCurrent(session);
   const response = await fetchWithToken(path, session.accessToken, init);
+  assertSessionCurrent(session);
 
   if (response.status !== 401) return response;
 
@@ -70,11 +92,11 @@ export async function fetchWithPinnedSession(path: string, init?: RequestInit, e
   // 푸시 정리·등록 등 이미 특정 계정에 묶인 요청은 새 익명 세션을 만들지 않는다.
   const session = expectedUserId ? sessionSnapshot : await ensureSession();
   if (!session || (expectedUserId && session.userId !== expectedUserId) ||
-      sessionSnapshot?.userId !== session.userId) {
+      !isSessionCurrent(session)) {
     throw new Error("계정이 변경되었어요. 현재 계정에서 다시 시도해주세요.");
   }
   const response = await fetchWithToken(path, session.accessToken, init);
-  if (sessionSnapshot?.userId !== session.userId) {
+  if (!isSessionCurrent(session)) {
     throw new Error("계정이 변경되었어요. 현재 계정에서 다시 시도해주세요.");
   }
   return response;
@@ -106,13 +128,14 @@ export async function requestEmailLoginCode(email: string) {
 export async function verifyEmailLoginCode(
   input: EmailCodeVerification,
 ) {
-  const response = await fetchWithSession("auth/email/verify-code", {
+  const expectedSession = await ensureSession();
+  const response = await fetchWithPinnedSession("auth/email/verify-code", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
     },
     body: JSON.stringify(input),
-  });
+  }, expectedSession.userId);
 
   if (!response.ok) {
     throw new Error(
@@ -134,7 +157,7 @@ export async function verifyEmailLoginCode(
     throw new Error("계정 응답을 확인하지 못했어요.");
   }
 
-  await storeSession(data.session);
+  await storeSession(data.session, expectedSession);
   return data;
 }
 
@@ -174,6 +197,7 @@ export async function createOAuthLoginUrl(
 export async function completeOAuthLogin(
   input: OAuthCompletionRequest,
 ) {
+  const expectedSession = await ensureSession();
   const response = await clientFetch(apiUrl("auth/oauth/complete"), {
     method: "POST",
     headers: {
@@ -202,7 +226,7 @@ export async function completeOAuthLogin(
     throw new Error("계정 응답을 확인하지 못했어요.");
   }
 
-  await storeSession(data.session);
+  await storeSession(data.session, expectedSession);
   return data;
 }
 
@@ -210,6 +234,7 @@ export async function logoutAccount() {
   const currentSession = await ensureSession();
   // 인증을 폐기하기 전에 브라우저의 구독부터 정리한다. 실패해도 브라우저 수신은 중단하고 다음 세션에서 재시도한다.
   await import("@/features/tuti/notifications/webPushNotifications").then(module => module.suspendWebPushForSessionChange()).catch(() => {});
+  assertSessionCurrent(currentSession);
   const response = await fetchWithToken(
     "auth/logout",
     currentSession.accessToken,
@@ -221,7 +246,7 @@ export async function logoutAccount() {
   }
 
   const data = (await response.json()) as SessionResponse;
-  await storeSession(data.session);
+  await storeSession(data.session, currentSession);
   return data.session;
 }
 
@@ -229,6 +254,7 @@ export async function deleteAccount() {
   const currentSession = await ensureSession();
   const pushPrivacy = await import("@/features/tuti/notifications/pushNotifications");
   await pushPrivacy.preparePushForAccountDeletion(currentSession.userId);
+  assertSessionCurrent(currentSession);
   const response = await fetchWithToken(
     "account",
     currentSession.accessToken,
@@ -252,11 +278,12 @@ export async function deleteAccount() {
     throw new Error("계정 삭제 응답을 확인하지 못했어요.");
   }
 
+  assertSessionCurrent(currentSession);
   const pushCleanupComplete = await pushPrivacy.finishPushAfterAccountDeletion();
   try {
     await removeHarumadiPdfDraft(currentSession.userId);
   } finally {
-    await clearStoredSession();
+    await clearStoredSession(currentSession);
   }
   return { ...data, pushCleanupPending: !pushCleanupComplete };
 }
@@ -282,6 +309,7 @@ export async function unblockJournalAuthor(blockedUserId: string) {
 
 export async function updateAccountDisplayName(displayName: string) {
   const currentSession = await ensureSession();
+  const revision = sessionRevision;
   const response = await fetchWithToken(
     "account",
     currentSession.accessToken,
@@ -310,12 +338,13 @@ export async function updateAccountDisplayName(displayName: string) {
       displayName: data.displayName,
     },
   };
-  await storeSession(nextSession);
+  await storeSession(nextSession, currentSession, revision);
   return data.displayName;
 }
 
 export async function refreshAccountProfile() {
   const currentSession = await ensureSession();
+  const revision = sessionRevision;
   const response = await fetchWithToken(
     "account",
     currentSession.accessToken,
@@ -336,12 +365,13 @@ export async function refreshAccountProfile() {
     ...currentSession,
     account: data.account,
   };
-  await storeSession(nextSession);
+  await storeSession(nextSession, currentSession, revision);
   return data.account;
 }
 
 export async function unlinkAccountIdentity(identityId: string) {
   const currentSession = await ensureSession();
+  const revision = sessionRevision;
   const response = await fetchWithToken(
     `account/identities/${encodeURIComponent(identityId)}`,
     currentSession.accessToken,
@@ -363,7 +393,7 @@ export async function unlinkAccountIdentity(identityId: string) {
     throw new Error("로그인 수단 연결 해제 응답을 확인하지 못했어요.");
   }
 
-  await storeSession({ ...currentSession, account: data.account });
+  await storeSession({ ...currentSession, account: data.account }, currentSession, revision);
   return data.account;
 }
 
@@ -374,10 +404,12 @@ export async function readStoredSession() {
 }
 
 async function loadOrCreateSession() {
+  const expected = sessionSnapshot;
+  const revision = sessionRevision;
   const storedSession = await readStoredSession();
 
   if (storedSession) {
-    updateSessionSnapshot(storedSession);
+    await storeSession(storedSession, expected, revision);
     return storedSession;
   }
 
@@ -395,42 +427,48 @@ async function loadOrCreateSession() {
     throw new Error("사용자 응답을 확인하지 못했어요.");
   }
 
-  await storeSession(data.session);
+  await storeSession(data.session, expected, revision);
   return data.session;
 }
 
-async function clearStoredSession(expected?: TutiSession) {
-  if (expected && (sessionSnapshot?.userId !== expected.userId || sessionSnapshot.accessToken !== expected.accessToken)) return;
-  const previousUserId = sessionSnapshot?.userId;
-  if (previousUserId) await import("@/features/tuti/notifications/webPushNotifications").then(module => module.suspendWebPushForSessionChange()).catch(() => {});
-  if (previousUserId) await harumadiReadCache.clearOwner(previousUserId).catch(() => {});
-  if (previousUserId) await import("../lifecycle").then(module => module.clearLifecycleClient(previousUserId)).catch(() => {});
-  if (previousUserId) await madiDraftStorage.clearOwner(previousUserId).catch(() => {});
-  sessionPromise = undefined;
-  await Promise.all([
-    preferencesStorage.removeItem(SESSION_STORAGE_KEY),
-    ...(previousUserId ? [serviceTermsAcceptanceCache.clear(previousUserId)] : []),
-  ]);
-  if (!expected || (sessionSnapshot?.userId === expected.userId && sessionSnapshot.accessToken === expected.accessToken)) updateSessionSnapshot(null);
+async function clearStoredSession(expected: TutiSession | null = sessionSnapshot) {
+  return serializeSessionWrite(async () => {
+    if (!isSessionCurrent(expected)) return;
+    const previousUserId = sessionSnapshot?.userId;
+    if (previousUserId) await import("@/features/tuti/notifications/webPushNotifications").then(module => module.suspendWebPushForSessionChange()).catch(() => {});
+    if (previousUserId) await harumadiReadCache.clearOwner(previousUserId).catch(() => {});
+    if (previousUserId) await import("../lifecycle").then(module => module.clearLifecycleClient(previousUserId)).catch(() => {});
+    if (previousUserId) await madiDraftStorage.clearOwner(previousUserId).catch(() => {});
+    sessionPromise = undefined;
+    await Promise.all([
+      preferencesStorage.removeItem(SESSION_STORAGE_KEY),
+      ...(previousUserId ? [serviceTermsAcceptanceCache.clear(previousUserId)] : []),
+    ]);
+    updateSessionSnapshot(null);
+  });
 }
 
-async function storeSession(session: TutiSession) {
-  const previousUserId = sessionSnapshot?.userId;
-  if (previousUserId && previousUserId !== session.userId) await import("@/features/tuti/notifications/webPushNotifications").then(module => module.suspendWebPushForSessionChange()).catch(() => {});
-  if (previousUserId && (previousUserId !== session.userId || sessionSnapshot?.accessToken !== session.accessToken)) await harumadiReadCache.clearOwner(previousUserId).catch(() => {});
-  if (previousUserId && previousUserId !== session.userId) await serviceTermsAcceptanceCache.clear(previousUserId);
-  if (previousUserId && previousUserId !== session.userId) await import("../lifecycle").then(module => module.clearLifecycleClient(previousUserId)).catch(() => {});
-  if (previousUserId && previousUserId !== session.userId) await madiDraftStorage.clearOwner(previousUserId).catch(() => {});
-  sessionPromise = Promise.resolve(session);
-  await preferencesStorage.setItem(
-    SESSION_STORAGE_KEY,
-    JSON.stringify(session),
-  );
-  updateSessionSnapshot(session);
+async function storeSession(session: TutiSession, expected: TutiSession | null = sessionSnapshot, revision?: number) {
+  return serializeSessionWrite(async () => {
+    assertSessionCurrent(expected, revision);
+    const previousUserId = sessionSnapshot?.userId;
+    if (previousUserId && previousUserId !== session.userId) await import("@/features/tuti/notifications/webPushNotifications").then(module => module.suspendWebPushForSessionChange()).catch(() => {});
+    if (previousUserId && (previousUserId !== session.userId || sessionSnapshot?.accessToken !== session.accessToken)) await harumadiReadCache.clearOwner(previousUserId).catch(() => {});
+    if (previousUserId && previousUserId !== session.userId) await serviceTermsAcceptanceCache.clear(previousUserId);
+    if (previousUserId && previousUserId !== session.userId) await import("../lifecycle").then(module => module.clearLifecycleClient(previousUserId)).catch(() => {});
+    if (previousUserId && previousUserId !== session.userId) await madiDraftStorage.clearOwner(previousUserId).catch(() => {});
+    await preferencesStorage.setItem(
+      SESSION_STORAGE_KEY,
+      JSON.stringify(session),
+    );
+    sessionPromise = Promise.resolve(session);
+    updateSessionSnapshot(session);
+  });
 }
 
 function updateSessionSnapshot(session: TutiSession | null) {
   sessionSnapshot = session;
+  sessionRevision += 1;
   sessionListeners.forEach((listener) => listener());
 }
 
