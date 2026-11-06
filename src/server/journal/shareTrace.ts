@@ -75,64 +75,40 @@ export async function finalizeJournalShareTrace({
   await validateSharePng(png);
   const imageSha256 = createHash("sha256").update(png).digest("hex");
   return prisma.$transaction(async tx => {
-  // 삭제·철회와 같은 원본 잠금 순서. 이미지 해독은 잠금 밖에서 수행한다.
-  await tx.$queryRaw`SELECT id FROM journal_entries WHERE id = ${entryId} AND owner_id = ${ownerId} FOR UPDATE`;
-  if (!await tx.journalEntry.findFirst({ where: { id: entryId, ownerId, sensitiveWithdrawnAt: null }, select: { id: true } })) return null;
-  const trace = await tx.journalShareTrace.findFirst({
-    where: {
-      traceId,
-      resolvedUserId: ownerId,
-      entryId,
-    },
-  });
+    // 삭제·철회와 같은 원본 잠금 순서. 이미지 해독은 잠금 밖에서 수행한다.
+    await tx.$queryRaw`SELECT id FROM journal_entries WHERE id = ${entryId} AND owner_id = ${ownerId} FOR UPDATE`;
+    if (!await tx.journalEntry.findFirst({ where: { id: entryId, ownerId, sensitiveWithdrawnAt: null }, select: { id: true } })) return null;
+    const trace = await tx.journalShareTrace.findFirst({
+      where: { traceId, resolvedUserId: ownerId, entryId },
+    });
+    if (!trace) return null;
 
-  if (!trace) return null;
-
-  if (trace.finalizedAt) {
-    if (
-      trace.imageSha256 !== imageSha256 ||
-      !trace.signature
-    ) {
-      throw new JournalShareTraceError(
-        "이미 완료된 공유 이미지와 내용이 달라요.",
-        "share_trace_already_finalized",
-        409,
-      );
+    if (trace.finalizedAt) {
+      if (trace.imageSha256 !== imageSha256 || !trace.signature) {
+        throw new JournalShareTraceError(
+          "이미 완료된 공유 이미지와 내용이 달라요.",
+          "share_trace_already_finalized",
+          409,
+        );
+      }
+      return serializeFinalizedTrace({ ...trace, imageSha256, signature: trace.signature, finalizedAt: trace.finalizedAt });
     }
 
-    return serializeFinalizedTrace({
-      ...trace,
+    const finalizedAt = new Date();
+    const signature = signShareTrace({
+      traceId: trace.traceId,
+      originUserId: trace.originUserId,
+      entryId: trace.entryId,
       imageSha256,
-      signature: trace.signature,
-      finalizedAt: trace.finalizedAt,
+      issuedAt: trace.issuedAt,
     });
-  }
-
-  const finalizedAt = new Date();
-  const signature = signShareTrace({
-    traceId: trace.traceId,
-    originUserId: trace.originUserId,
-    entryId: trace.entryId,
-    imageSha256,
-    issuedAt: trace.issuedAt,
-  });
-  const result = await tx.journalShareTrace.updateMany({
-    where: { traceId: trace.traceId, resolvedUserId: ownerId, entryId, finalizedAt: null },
-    data: {
-      imageSha256,
-      signature,
-      finalizedAt,
-    },
-  });
-  if (result.count !== 1) throw new JournalShareTraceError("공유 이미지 상태가 바뀌었어요. 다시 확인해주세요.", "share_trace_already_finalized", 409);
-  const finalized = await tx.journalShareTrace.findUniqueOrThrow({ where: { traceId: trace.traceId } });
-
-  return serializeFinalizedTrace({
-    ...finalized,
-    imageSha256,
-    signature,
-    finalizedAt,
-  });
+    const result = await tx.journalShareTrace.updateMany({
+      where: { traceId: trace.traceId, resolvedUserId: ownerId, entryId, finalizedAt: null },
+      data: { imageSha256, signature, finalizedAt },
+    });
+    if (result.count !== 1) throw new JournalShareTraceError("공유 이미지 상태가 바뀌었어요. 다시 확인해주세요.", "share_trace_already_finalized", 409);
+    const finalized = await tx.journalShareTrace.findUniqueOrThrow({ where: { traceId: trace.traceId } });
+    return serializeFinalizedTrace({ ...finalized, imageSha256, signature, finalizedAt });
   });
 }
 

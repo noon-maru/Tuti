@@ -30,7 +30,11 @@ try {
     INSERT INTO push_devices VALUES('owner',true,null);`);
   await pool.query(readFileSync("prisma/migrations/20261103020000_lifelog_notifications/migration.sql", "utf8"));
   await pool.query(readFileSync("prisma/migrations/20261106130000_inquiry_notification_outbox/migration.sql", "utf8"));
-  await pool.query("CREATE TABLE customer_inquiries(id text PRIMARY KEY,requester_user_id text,admin_response text,updated_at timestamp(3))");
+  await pool.query(`CREATE TYPE "InquiryCategory" AS ENUM ('account','service','place','privacy','other');
+    CREATE TYPE "InquiryStatus" AS ENUM ('pending','reviewing','answered','closed');
+    CREATE TYPE "LogLevel" AS ENUM ('info','warning','error');
+    CREATE TABLE customer_inquiries(id text PRIMARY KEY,requester_user_id text,requester_email text,category "InquiryCategory" DEFAULT 'other',subject text DEFAULT '',message text DEFAULT '',status "InquiryStatus" DEFAULT 'pending',admin_response text,handled_by_user_id text,handled_at timestamp(3),created_at timestamp(3) DEFAULT now(),updated_at timestamp(3));
+    CREATE TABLE system_logs(id text PRIMARY KEY,level "LogLevel" DEFAULT 'info',category text,action text,message text,actor_user_id text,target_type text,target_id text,metadata jsonb,created_at timestamp(3) DEFAULT now())`);
   const { readNotificationSettings, saveNotificationSettings, bookNotificationSettings } = await import("../../src/server/notifications/settings");
   const { enqueueTogetherNotification } = await import("../../src/server/notifications/outbox");
   const { dispatchNotifications } = await import("../../src/server/notifications/dispatch");
@@ -86,7 +90,7 @@ try {
   await pool.query("DELETE FROM notification_jobs");
   const { enqueueInquiryAnsweredNotification } = await import("../../src/server/notifications/outbox");
   const answerAt = new Date();
-  await pool.query("INSERT INTO customer_inquiries VALUES('inquiry','owner','synthetic answer',$1)", [answerAt.toISOString()]);
+  await pool.query("INSERT INTO customer_inquiries(id,requester_user_id,admin_response,updated_at) VALUES('inquiry','owner','synthetic answer',$1)", [answerAt.toISOString()]);
   await client.$transaction(tx => enqueueInquiryAnsweredNotification(tx, "owner", "inquiry", answerAt));
   await client.$transaction(tx => enqueueInquiryAnsweredNotification(tx, "owner", "inquiry", answerAt));
   await dispatchNotifications(true, new Date(Date.now() + 10), send);
@@ -96,6 +100,13 @@ try {
   await client.$transaction(tx => enqueueInquiryAnsweredNotification(tx, "owner", "inquiry", staleAt));
   await dispatchNotifications(true, new Date(Date.now() + 10), send);
   assert.equal(sent.length, beforeStale, "이전 답변 버전은 알리지 않는다");
+  const { createInquiry, answerInquiry } = await import("../../src/server/inquiries/service");
+  const submissions = await Promise.allSettled(Array.from({ length: 10 }, () => createInquiry("outsider", { category: "other", subject: "synthetic", message: "synthetic inquiry body" })));
+  assert.equal(submissions.filter(result => result.status === "fulfilled").length, 5, "실제 연결의 동시 문의도 5회 제한");
+  const first = await client.customerInquiry.findFirstOrThrow({ where: { requesterUserId: "outsider" } });
+  const answers = await Promise.allSettled(["one", "two"].map(body => answerInquiry("owner", first.id, "answered", body, first.updatedAt.toISOString())));
+  assert.equal(answers.filter(result => result.status === "fulfilled").length, 1, "동일 버전의 관리자 답변은 하나만 성공");
+  assert.equal((await pool.query("SELECT count(1)::int AS n FROM notification_jobs WHERE entity_id=$1", [first.id])).rows[0].n, 1);
   await pool.query("DELETE FROM users WHERE id='owner'");
   assert.equal((await pool.query("SELECT count(1)::int AS n FROM notification_jobs WHERE user_id='owner'")).rows[0].n, 0);
   console.log(JSON.stringify({ default19: true, independentPreferences: true, ownerAccess: true, grouped: true, optOutEnforced: true, membershipRechecked: true, blocksRechecked: true, reminderOnceDaily: true, writingSuppressed: true, deletionCascades: true }));
