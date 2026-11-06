@@ -1,5 +1,4 @@
-import { randomUUID } from "node:crypto";
-import { writeSystemLogSafely } from "@/server/admin/log";
+import { createInquiry, InquiryWriteError } from "@/server/inquiries/service";
 import { authenticateUser } from "@/server/auth/session";
 import { prisma } from "@/server/db/prisma";
 import {
@@ -16,8 +15,6 @@ import type {
 import { inquiryCategories } from "@/shared/api/inquiry";
 
 export const runtime = "nodejs";
-
-const MAX_INQUIRIES_PER_DAY = 5;
 
 export async function GET(request: Request) {
   if (!isRequestOriginAllowed(request)) {
@@ -90,52 +87,7 @@ export async function POST(request: Request) {
     const input = parseInquiryInput(
       (await request.json()) as CreateInquiryRequest,
     );
-    const since = new Date();
-    since.setDate(since.getDate() - 1);
-    const recentCount = await prisma.customerInquiry.count({
-      where: {
-        requesterUserId: user.id,
-        createdAt: { gte: since },
-      },
-    });
-
-    if (recentCount >= MAX_INQUIRIES_PER_DAY) {
-      return withCors(
-        request,
-        Response.json(
-          { error: "문의는 하루에 최대 5번까지 접수할 수 있어요." },
-          { status: 429 },
-        ),
-      );
-    }
-
-    const inquiry = await prisma.customerInquiry.create({
-      data: {
-        id: randomUUID(),
-        requesterUserId: user.id,
-        requesterEmail: input.email ?? user.account?.email,
-        category: input.category,
-        subject: input.subject,
-        message: input.message,
-      },
-      select: {
-        id: true,
-        status: true,
-        createdAt: true,
-      },
-    });
-
-    await writeSystemLogSafely({
-      category: "inquiry",
-      action: "inquiry.created",
-      message: "새 1:1 문의가 접수되었습니다.",
-      actorUserId: user.id,
-      targetType: "inquiry",
-      targetId: inquiry.id,
-      metadata: {
-        category: input.category,
-      },
-    });
+    const inquiry = await createInquiry(user.id, { ...input, email: input.email ?? user.account?.email ?? undefined });
 
     const response: CreateInquiryResponse = {
       inquiry: {
@@ -151,6 +103,7 @@ export async function POST(request: Request) {
     );
   } catch (error) {
     const invalidJson = error instanceof SyntaxError;
+    if (error instanceof InquiryWriteError) return withCors(request, Response.json({ error: error.message }, { status: error.status }));
     const invalidInput =
       error instanceof InquiryInputError ? error : null;
 

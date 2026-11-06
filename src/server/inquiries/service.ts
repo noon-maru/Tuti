@@ -2,9 +2,26 @@ import { prisma } from "@/server/db/prisma";
 import { writeSystemLog } from "@/server/admin/log";
 import { enqueueInquiryAnsweredNotification } from "@/server/notifications/outbox";
 import { resolveInquiryAnswerState, type InquiryStatusValue } from "./answerState";
+import { randomUUID } from "node:crypto";
+import type { InquiryCategory } from "@/shared/api/inquiry";
 
 export class InquiryWriteError extends Error {
   constructor(message: string, readonly status = 409) { super(message); }
+}
+
+export async function createInquiry(userId: string, input: { category: InquiryCategory; subject: string; message: string; email?: string }) {
+  return prisma.$transaction(async tx => {
+    const users = await tx.$queryRaw<{ id: string }[]>`SELECT id FROM users WHERE id = ${userId} FOR UPDATE`;
+    if (!users.length) throw new InquiryWriteError("계정 상태가 바뀌었어요. 다시 확인해주세요.", 409);
+    const since = new Date(Date.now() - 24 * 60 * 60 * 1000);
+    const count = await tx.customerInquiry.count({ where: { requesterUserId: userId, createdAt: { gte: since } } });
+    if (count >= 5) throw new InquiryWriteError("문의는 하루에 최대 5번까지 접수할 수 있어요.", 429);
+    const inquiry = await tx.customerInquiry.create({ data: { id: randomUUID(), requesterUserId: userId,
+      requesterEmail: input.email, category: input.category, subject: input.subject, message: input.message }, select: { id: true, status: true, createdAt: true } });
+    await writeSystemLog({ category: "inquiry", action: "inquiry.created", message: "새 1:1 문의가 접수되었습니다.",
+      actorUserId: userId, targetType: "inquiry", targetId: inquiry.id, metadata: { category: input.category } }, tx);
+    return inquiry;
+  });
 }
 
 export async function answerInquiry(actorId: string, id: string, status: InquiryStatusValue, response: string | undefined, expectedVersion: string) {
