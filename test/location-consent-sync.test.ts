@@ -66,3 +66,17 @@ test("동의 저장 대기 중 철회·계정 전환이 발생하면 늦은 응�
   complete({ consent: saved }); await flush();
   assert.equal(reads, 0); assert.equal(synced, 0);
 });
+
+test("유효한 서버 동의 응답 없이 기기 위치 조회를 시작하지 않는다", async () => {
+  for (const consent of [null, { ...saved, ageConfirmed: false }, { ...saved, status: "withdrawn" }, { ...saved, termsVersion: "old" }]) {
+    let reads = 0, synced = 0;
+    const errors: unknown[] = [];
+    const agree = callback("agreeAndRequest", {
+      consentSyncGeneration: { current: 0 }, setConsentError: (value: unknown) => errors.push(value), setRequesting() {}, getLocationTermsVersion,
+      updateLocationConsent: async () => ({ consent }), syncLocationConsent() { synced++; }, resolveDeviceLocation() { reads++; },
+    });
+    agree(); await flush();
+    assert.equal(reads, 0); assert.equal(synced, 0);
+    assert.match(String(errors.at(-1)), /현재 위치 동의/);
+  }
+});

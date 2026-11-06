@@ -72,6 +72,7 @@ type TutiState = {
   answers: IntakeAnswers;
   entryRecord?: EntryRecord;
   userLocation?: UserLocation;
+  recommendationLocationSource?: "device" | "region";
   locationConsent?: LocationConsentRecord;
   locationPermissionStatus: LocationPermissionStatus;
   preferredRegion?: PreferredRegion;
@@ -153,6 +154,7 @@ export const useTutiStore = create<TutiState>()(
       answers: { movement: "short" },
       entryRecord: undefined,
       userLocation: undefined,
+      recommendationLocationSource: undefined,
       locationConsent: undefined,
       locationPermissionStatus: "unknown",
       preferredRegion: undefined,
@@ -187,7 +189,7 @@ export const useTutiStore = create<TutiState>()(
               : {}),
           },
         })),
-      setUserLocation: (userLocation) => set({ userLocation }),
+      setUserLocation: (userLocation) => set({ userLocation, recommendationLocationSource: "device" }),
       clearUserLocation: () => set({
         userLocation: undefined,
         dailyRecommendation: undefined,
@@ -265,7 +267,17 @@ export const useTutiStore = create<TutiState>()(
         }),
       setLocationPermissionStatus: (locationPermissionStatus) =>
         set({ locationPermissionStatus }),
-      setPreferredRegion: (preferredRegion) => set({ preferredRegion }),
+      setPreferredRegion: (preferredRegion) => set(preferredRegion ? {
+        preferredRegion,
+        recommendationLocationSource: "region",
+        userLocation: undefined,
+        dailyRecommendation: undefined,
+        recommendationExcludedPlaceIds: [],
+        activeIndex: 0,
+        activePlaceId: undefined,
+        detailOverlay: { phase: "closed" },
+        pendingDeparture: undefined,
+      } : { preferredRegion, recommendationLocationSource: undefined }),
       cacheDailyRecommendation: (
         recommendationId,
         algorithmVersion,
@@ -450,6 +462,7 @@ export const useTutiStore = create<TutiState>()(
           answers: { movement: "short" },
           entryRecord: undefined,
           userLocation: undefined,
+          recommendationLocationSource: undefined,
           locationConsent: undefined,
           locationPermissionStatus: "unknown",
           preferredRegion: undefined,
@@ -484,6 +497,7 @@ export const useTutiStore = create<TutiState>()(
         answers: state.answers,
         entryRecord: state.entryRecord,
         locationConsent: state.locationConsent,
+        recommendationLocationSource: state.recommendationLocationSource,
         preferredRegion: state.preferredRegion,
         dailyRecommendation: state.dailyRecommendation,
         recommendationCycle: state.recommendationCycle,

@@ -44,6 +44,7 @@ type LocationAccessContextValue = {
   pauseLocation: () => Promise<void>;
   withdrawLocation: () => Promise<void>;
   requesting: boolean;
+  resolvingLocation: boolean;
 };
 
 const LocationAccessContext = createContext<LocationAccessContextValue | null>(
@@ -205,6 +206,8 @@ export function LocationAccessProvider({
       finishRequest({ status: "declined" });
       setRequesting(false);
       setConsentSheetOpen(false);
+      setRegionSheetOpen(false);
+      setRegionSheetDismissible(false);
     });
     return () => {
       unsubscribe();
@@ -328,6 +331,11 @@ export function LocationAccessProvider({
 
   const completeRegionPreference = useCallback(
     (region: PreferredRegion) => {
+      // 사용자가 지역을 고른 뒤 도착한 이전 GPS·동의 응답이 선택을 덮어쓰지 않는다.
+      deviceRequestGeneration.current += 1;
+      consentSyncGeneration.current += 1;
+      setRequesting(false);
+      setConsentSheetOpen(false);
       setPreferredRegion(region);
       clearLocationQueries();
       setRegionSheetOpen(false);
@@ -407,6 +415,7 @@ export function LocationAccessProvider({
       refreshLocationConsent,
       requestRegionPreference,
       requesting,
+      resolvingLocation: requesting || consentSheetOpen || regionSheetOpen || locationFailure !== null,
       pauseLocation,
       withdrawLocation,
     }),
@@ -416,6 +425,9 @@ export function LocationAccessProvider({
       refreshLocationConsent,
       requestRegionPreference,
       requesting,
+      consentSheetOpen,
+      regionSheetOpen,
+      locationFailure,
       withdrawLocation,
     ],
   );

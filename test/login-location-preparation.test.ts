@@ -66,7 +66,7 @@ test("로그인 완료는 위치 요청 없이 홈으로 가고 작은 여행에
   assert.match(explore, /<ExploreLocationGate key=\{ownerId\}>/);
   const gate = readFileSync("src/features/tuti/location/ExploreLocationGate.tsx", "utf8");
   assert.match(gate, /prepareRecommendationLocation\(useTutiStore.getState, requestLocation\)/);
-  assert.match(gate, /if \(state === "ready"\) return children/);
+  assert.match(gate, /if \(hasHydrated && state === "ready" && prepared\) return children/);
   assert.match(gate, /let active = true/);
   assert.match(gate, /active = false/);
   const intake = readFileSync("src/features/tuti/flows/IntakeFlow.tsx", "utf8");
