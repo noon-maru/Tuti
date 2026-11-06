@@ -10,6 +10,15 @@ const TTL = 7 * 86400_000;
 const LIMIT = 3 * 1024 * 1024;
 type SavedDraft = { savedAt: number; source: string; value: MadiDraft };
 const validId = (id: string) => /^[a-zA-Z0-9_-]{1,128}$/.test(id);
+
+/** Book and sharing mode are part of the draft identity, never inferred from its contents. */
+export function newMadiDraftContext(destination?: { id: string; shared?: boolean } | null) {
+  if (!destination) return { scope: "new", source: "new" };
+  const sharing = destination.shared === true ? "shared" : destination.shared === false ? "private" : "unknown";
+  return { scope: `new-book-${destination.id}-${sharing}`,
+    source: JSON.stringify(["new-book", destination.id, sharing]) };
+}
+
 export function isMadiDraft(value: unknown): value is MadiDraft {
   if (!value || typeof value !== "object") return false;
   const draft = value as MadiDraft;

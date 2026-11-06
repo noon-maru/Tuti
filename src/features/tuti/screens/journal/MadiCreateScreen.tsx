@@ -21,11 +21,12 @@ import { AppLoadingScreen } from "@/features/tuti/components/LoadingIndicator";
 import type { Harumadi } from "@/shared/api/harumadi";
 import { JournalPlacePicker } from "@/features/tuti/components/JournalPlacePicker";
 import { MadiFieldFeedback } from "@/features/tuti/components/MadiFieldFeedback";
+import { newMadiDraftContext } from "@/lib/madiDraft";
 
 type Stage = "photo" | "write" | "preview";
 
 export function MadiCreateScreen({ onBack, onSave, onCollection, onSaved, harumadiSelection, draftOwnerId, inHarumadi = false, destination, destinationError = false, onRetryDestination, firstMadi = false, initialPlace, collectionLabel = "작성 마치기", preview = false }: {
-  destination?: Pick<Harumadi, "title" | "shared">;
+  destination?: Pick<Harumadi, "id" | "title" | "shared">;
   destinationError?: boolean;
   onRetryDestination?: () => void;
   draftOwnerId?: string;
@@ -68,7 +69,8 @@ export function MadiCreateScreen({ onBack, onSave, onCollection, onSaved, haruma
   const today = getKoreanDateKey();
   const draft = prepareFirstJournalDraft({ image, title, content, date, place }, today);
   const fieldErrors = getMadiFieldErrors({ image, title, content, date, place }, today);
-  const localDraft = useMadiDraft({ ownerId: draftOwnerId, scope: "new", source: "new", enabled: !preview && !saved,
+  const draftContext = newMadiDraftContext(inHarumadi ? destination : null);
+  const localDraft = useMadiDraft({ ownerId: draftOwnerId, ...draftContext, enabled: !preview && !saved && (!inHarumadi || Boolean(destination)),
     value: { image, title, content, date, place, placeId, originalImage: false, stage },
     restore: value => {
       setImage(value.image); setTitle(value.title); setContent(value.content); setDate(value.date); setPlace(value.place); setStage(value.stage ?? "write");
@@ -169,6 +171,15 @@ export function MadiCreateScreen({ onBack, onSave, onCollection, onSaved, haruma
   if (saved && inHarumadi) return <AppLoadingScreen label="하루마디에 담고 있어요." />;
   if (saved && needsBookSelection && harumadiSelection) return <MadiHarumadiSelection key={saved.id}
     {...harumadiSelection} entryId={saved.id} onNext={startAnother} />;
+
+  if (inHarumadi && !destination) return <Frame aria-labelledby="madi-destination-heading">
+    <Header><BackButton aria-label="하루마디로 돌아가기" onClick={onBack} /><span>하루마디에 남길 마디</span><span /></Header>
+    <Content data-scroll-region>
+      <Intro><h1 id="madi-destination-heading">{destinationError ? "담을 하루마디를 확인하지 못했어요." : "담을 하루마디를 확인하고 있어요."}</h1>
+        <p role={destinationError ? "alert" : "status"}>{destinationError ? "연결과 접근 권한을 확인한 뒤 다시 시도해주세요. 저장해 둔 초안은 그대로 남아 있어요." : "담을 곳과 공유 범위를 확인한 뒤 작성할 수 있어요."}</p></Intro>
+      {destinationError && <TextButton onClick={onRetryDestination}>다시 확인하기</TextButton>}
+    </Content>
+  </Frame>;
 
   return <Frame aria-labelledby="madi-create-heading">
     <Header>

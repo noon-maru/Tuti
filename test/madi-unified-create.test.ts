@@ -8,7 +8,7 @@ import { MadiCreateScreen } from "@/features/tuti/screens/journal/MadiCreateScre
 test("지정한 하루마디의 실제 제목과 공유 범위를 작성 시작부터 표시한다", () => {
   for (const shared of [false, true]) {
     const html = renderToStaticMarkup(createElement(MadiCreateScreen, {
-      inHarumadi: true, destination: { title: "함께 걷는 하루", shared }, onBack() {}, onCollection() {},
+      inHarumadi: true, destination: { id: "book", title: "함께 걷는 하루", shared }, onBack() {}, onCollection() {},
     }));
     assert.match(html, /함께 걷는 하루/);
     assert.match(html, shared ? /함께 채우는 사람들에게 보여요/ : /나만 보는 하루마디에 담아요/);

@@ -17,6 +17,7 @@ export function useMadiDraft({ ownerId, scope, source, value, restore, enabled =
   const stopped = useRef(false);
   const epoch = useRef(0);
   const dirty = JSON.stringify(value) !== baseline;
+  const newComposition = scope === "new" || scope.startsWith("new-book-");
   useEffect(() => { restoreRef.current = restore; }, [restore]);
   useEffect(() => {
     if (!ownerId || !enabled) return;
@@ -25,7 +26,7 @@ export function useMadiDraft({ ownerId, scope, source, value, restore, enabled =
     void (privateOnly ? madiDraftStorage.remove(ownerId, scope).then(() => null) : madiDraftStorage.load(ownerId, scope, source))
       .then(draft => {
         if (!active) return;
-        if (draft) { restoreRef.current(draft); setNotice("이 기기에 남겨둔 초안을 이어서 작성해요."); if (scope === "new") trackLifecycle("draft_restored"); }
+        if (draft) { restoreRef.current(draft); setNotice("이 기기에 남겨둔 초안을 이어서 작성해요."); if (newComposition) trackLifecycle("draft_restored"); }
       }).catch(() => { if (active) setNotice("초안을 불러오지 못했어요. 이 화면을 나가기 전에 내용을 확인해주세요."); })
       .finally(() => { if (active) setReady(true); });
     return () => { active = false; };
@@ -68,7 +69,7 @@ export function useMadiDraft({ ownerId, scope, source, value, restore, enabled =
     if (dirty && !stopped.current && !(await confirmAction(privateOnly ? "작성 중인 내용은 임시 저장되지 않아요. 나갈까요?" : "작성 중인 내용을 초안으로 남겨두고 나갈까요?", {"title":"작성 화면을 나갈까요?","confirmLabel":"나가기"}))) return;
     try { await latest.current?.(); }
     catch { if (!(await confirmAction("초안을 저장하지 못했어요. 그래도 나갈까요?", {"title":"작성 화면을 나갈까요?","confirmLabel":"나가기"}))) return; }
-    if (scope === "new" && !stopped.current) trackLifecycle("compose_exited");
+    if (newComposition && !stopped.current) trackLifecycle("compose_exited");
     navigate();
   };
   return { ready, notice: privateOnly && dirty ? "이 마디는 기기에 임시 저장하지 않아요. 나가기 전에 저장을 마쳐주세요." : notice, finish, leave };

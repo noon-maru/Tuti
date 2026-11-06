@@ -14,6 +14,7 @@ import { useLifecycleView } from "../hooks/useLifecycleView";
 import { trackLifecycle } from "@/lib/lifecycle";
 import { useNotificationPresence } from "../hooks/useNotificationPresence";
 import { notificationRequest } from "@/lib/notificationSettings";
+import { newMadiDraftContext } from "@/lib/madiDraft";
 
 export function JournalCreateFlow() {
   const router = useRouter();
@@ -21,7 +22,11 @@ export function JournalCreateFlow() {
   const searchParams = useSearchParams();
   const harumadiId = searchParams.get("harumadiId");
   const book = useQuery({ queryKey: ["compose-harumadi", ownerId, harumadiId],
-    queryFn: () => fetchHarumadi(ownerId!, harumadiId!), enabled: Boolean(ownerId && harumadiId), retry: false });
+    queryFn: () => fetchHarumadi(ownerId!, harumadiId!), enabled: Boolean(ownerId && harumadiId), retry: false,
+    refetchOnWindowFocus: false, refetchOnReconnect: false });
+  // Do not restore a private draft using a cached/unknown sharing mode.
+  const destination = harumadiId && book.isSuccess && !book.isFetching && book.data.id === harumadiId ? book.data : undefined;
+  const draftContext = newMadiDraftContext(destination);
   useNotificationPresence(harumadiId, true);
   const savedEntryId = useRef<string | null>(null);
   const request = useRef<{ hash: string; id: string } | null>(null);
@@ -41,10 +46,10 @@ export function JournalCreateFlow() {
     else router.replace(fromExplore ? "/explore" : "/madi");
   };
 
-  return <MadiCreateScreen key={ownerId ?? "pending"} draftOwnerId={ownerId}
+  return <MadiCreateScreen key={`${ownerId ?? "pending"}:${draftContext.scope}`} draftOwnerId={ownerId}
     firstMadi={isSuccess && entries.length === 0}
     inHarumadi={Boolean(harumadiId)}
-    destination={book.data}
+    destination={destination}
     destinationError={book.isError}
     onRetryDestination={() => void book.refetch()}
     initialPlace={initialPlaceId && initialPlaceName ? { id: initialPlaceId, name: initialPlaceName } : undefined}
