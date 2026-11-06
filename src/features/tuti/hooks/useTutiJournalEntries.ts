@@ -4,8 +4,12 @@ import {
   useMutation,
   useQuery,
   useQueryClient,
+  type QueryClient,
 } from "@tanstack/react-query";
 import { useCallback } from "react";
+import { useSession } from "./useSession";
+import { isSessionCurrent } from "@/lib/auth/session";
+import type { TutiSession } from "@/shared/api/session";
 import {
   createJournalEntry,
   deleteJournalEntry,
@@ -18,25 +22,36 @@ import type {
   TutiJournalEntry,
 } from "@/shared/api/journal";
 
-const journalEntriesQueryKey = ["journal-entries"] as const;
+export const journalEntriesQueryKey = (owner?: string) => ["journal-entries", owner] as const;
+
+function requireOwner(session: TutiSession | null) {
+  if (!session || !isSessionCurrent(session)) throw new Error("계정이 변경되었어요. 다시 확인해주세요.");
+  return session;
+}
+
+function refreshJournalDependents(client: QueryClient, owner: string) {
+  client.removeQueries({ queryKey: ["library-cover", owner] });
+  return Promise.all(["harumadi-pdfs", "library-harumadiPdfs", "library-harumadis", "harumadi-entries"]
+    .map(prefix => client.invalidateQueries({ queryKey: [prefix, owner] })));
+}
 
 export function useTutiJournalEntries(enabled = true) {
   const queryClient = useQueryClient();
+  const session = useSession();
   const { data: entries = [], ...query } = useQuery({
-    queryKey: journalEntriesQueryKey,
-    queryFn: fetchJournalEntries,
-    enabled,
+    queryKey: journalEntriesQueryKey(session?.userId),
+    queryFn: ({ signal }) => fetchJournalEntries(requireOwner(session), signal),
+    enabled: enabled && Boolean(session),
     staleTime: Infinity,
   });
 
   const createMutation = useMutation({
-    mutationFn: createJournalEntry,
-    onSuccess: (entry) => {
-      void queryClient.invalidateQueries({ queryKey: ["library-harumadiPdfs"] });
-      void queryClient.invalidateQueries({ queryKey: ["library-harumadis"] });
-      void queryClient.invalidateQueries({ queryKey: ["harumadi-entries"] });
+    mutationFn: ({ input, session }: { input: JournalEntryInput; session: TutiSession }) => createJournalEntry(input, requireOwner(session)),
+    onSuccess: (entry, { session }) => {
+      requireOwner(session);
+      void refreshJournalDependents(queryClient, session.userId);
       queryClient.setQueryData<TutiJournalEntry[]>(
-        journalEntriesQueryKey,
+        journalEntriesQueryKey(session.userId),
         (currentEntries = []) => [entry, ...currentEntries],
       );
     },
@@ -45,15 +60,17 @@ export function useTutiJournalEntries(enabled = true) {
     mutationFn: ({
       entryId,
       input,
+      session,
     }: {
       entryId: string;
       input: JournalEntryInput;
-    }) => updateJournalEntry(entryId, input),
-    onSuccess: (entry) => {
-      void queryClient.invalidateQueries({ queryKey: ["harumadi-entries"] });
-      queryClient.removeQueries({ queryKey: ["library-cover"] });
+      session: TutiSession;
+    }) => updateJournalEntry(entryId, input, requireOwner(session)),
+    onSuccess: (entry, { session }) => {
+      requireOwner(session);
+      void refreshJournalDependents(queryClient, session.userId);
       queryClient.setQueryData<TutiJournalEntry[]>(
-        journalEntriesQueryKey,
+        journalEntriesQueryKey(session.userId),
         (currentEntries = []) =>
           currentEntries.map((currentEntry) =>
             currentEntry.id === entry.id ? entry : currentEntry,
@@ -62,24 +79,20 @@ export function useTutiJournalEntries(enabled = true) {
     },
   });
   const deleteMutation = useMutation({
-    mutationFn: deleteJournalEntry,
-    onError: async () => {
+    mutationFn: ({ entryId, session }: { entryId: string; session: TutiSession }) => deleteJournalEntry(entryId, requireOwner(session)),
+    onError: async (_error, { session }) => {
+      if (!isSessionCurrent(session)) return;
       // 철회가 접수됐지만 파일 정리가 남은 경우 예전 본문·사진을 계속 표시하지 않는다.
-      await queryClient.invalidateQueries({ queryKey: journalEntriesQueryKey });
-      await queryClient.invalidateQueries({ queryKey: ["harumadi-pdfs"] });
-      await queryClient.invalidateQueries({ queryKey: ["library-harumadiPdfs"] });
-      await queryClient.invalidateQueries({ queryKey: ["library-harumadis"] });
-      await queryClient.invalidateQueries({ queryKey: ["harumadi-entries"] });
-      queryClient.removeQueries({ queryKey: ["library-cover"] });
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: journalEntriesQueryKey(session.userId) }),
+        refreshJournalDependents(queryClient, session.userId),
+      ]);
     },
-    onSuccess: (entryId) => {
-      void queryClient.invalidateQueries({ queryKey: ["harumadi-pdfs"] });
-      void queryClient.invalidateQueries({ queryKey: ["library-harumadis"] });
-      void queryClient.invalidateQueries({ queryKey: ["harumadi-entries"] });
-      void queryClient.invalidateQueries({ queryKey: ["library-harumadiPdfs"] });
-      queryClient.removeQueries({ queryKey: ["library-cover"] });
+    onSuccess: (entryId, { session }) => {
+      requireOwner(session);
+      void refreshJournalDependents(queryClient, session.userId);
       queryClient.setQueryData<TutiJournalEntry[]>(
-        journalEntriesQueryKey,
+        journalEntriesQueryKey(session.userId),
         (currentEntries = []) =>
           currentEntries.filter((entry) => entry.id !== entryId),
       );
@@ -90,14 +103,17 @@ export function useTutiJournalEntries(enabled = true) {
       entryId,
       published,
       consentVersion,
+      session,
     }: {
       entryId: string;
       published: boolean;
       consentVersion?: string;
-    }) => setJournalEntryPublication(entryId, published, consentVersion),
-    onSuccess: (entry) => {
+      session: TutiSession;
+    }) => setJournalEntryPublication(entryId, published, consentVersion, requireOwner(session)),
+    onSuccess: (entry, { session }) => {
+      requireOwner(session);
       queryClient.setQueryData<TutiJournalEntry[]>(
-        journalEntriesQueryKey,
+        journalEntriesQueryKey(session.userId),
         (currentEntries = []) =>
           currentEntries.map((currentEntry) =>
             currentEntry.id === entry.id ? entry : currentEntry,
@@ -110,22 +126,22 @@ export function useTutiJournalEntries(enabled = true) {
   const deleteCurrentEntry = deleteMutation.mutateAsync;
   const updatePublication = publicationMutation.mutateAsync;
   const addEntry = useCallback(
-    (input: JournalEntryInput) => createEntry(input),
-    [createEntry],
+    (input: JournalEntryInput) => createEntry({ input, session: requireOwner(session) }),
+    [createEntry, session],
   );
   const updateEntry = useCallback(
     (entryId: string, input: JournalEntryInput) =>
-      updateCurrentEntry({ entryId, input }),
-    [updateCurrentEntry],
+      updateCurrentEntry({ entryId, input, session: requireOwner(session) }),
+    [updateCurrentEntry, session],
   );
   const removeEntry = useCallback(
-    (entryId: string) => deleteCurrentEntry(entryId),
-    [deleteCurrentEntry],
+    (entryId: string) => deleteCurrentEntry({ entryId, session: requireOwner(session) }),
+    [deleteCurrentEntry, session],
   );
   const changeEntryPublication = useCallback(
     (entryId: string, published: boolean, consentVersion?: string) =>
-      updatePublication({ entryId, published, consentVersion }),
-    [updatePublication],
+      updatePublication({ entryId, published, consentVersion, session: requireOwner(session) }),
+    [updatePublication, session],
   );
 
   return {

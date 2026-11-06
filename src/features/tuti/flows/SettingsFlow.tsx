@@ -53,7 +53,11 @@ export function SettingsFlow() {
       }
       onLogout={async () => {
         await logoutAccount();
-        queryClient.setQueryData(["journal-entries"], []);
+        if (session?.userId) {
+          const key = ["journal-entries", session.userId];
+          await queryClient.cancelQueries({ queryKey: key });
+          queryClient.removeQueries({ queryKey: key });
+        }
         router.replace("/");
       }}
     />

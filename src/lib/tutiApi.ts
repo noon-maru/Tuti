@@ -18,7 +18,8 @@ export async function withdrawJournalSensitiveConsent(entryId: string) {
 }
 import { RecommendationRequestError, requestRecommendationResponse } from "@/lib/api/recommendationError";
 export { RecommendationRequestError } from "@/lib/api/recommendationError";
-import { fetchWithPinnedSession, fetchWithSession } from "@/lib/auth/session";
+import { ensureSession, fetchWithPinnedSession, fetchWithSession, isSessionCurrent } from "@/lib/auth/session";
+import type { TutiSession } from "@/shared/api/session";
 import { Capacitor } from "@capacitor/core";
 import type {
   DeparturePlan,
@@ -386,44 +387,44 @@ export async function deleteHarumadiPdf(harumadiPdfId: string) {
   }
 }
 
-export async function fetchJournalEntries(): Promise<TutiJournalEntry[]> {
-  const response = await fetchWithSession("journal-entries");
+async function journalRequest<T>(path: string, init: RequestInit | undefined, session: TutiSession, failure: string): Promise<T> {
+  if (!isSessionCurrent(session)) throw new Error("계정이 변경되었어요. 다시 확인해주세요.");
+  const response = await fetchWithPinnedSession(path, init, session.userId);
+  if (!response.ok) throw new Error(await readApiError(response, failure));
+  const data = await response.json() as T;
+  if (!isSessionCurrent(session)) throw new Error("계정이 변경되었어요. 다시 확인해주세요.");
+  return data;
+}
 
-  if (!response.ok) {
-    throw new Error("마디를 불러오지 못했어요.");
-  }
-
-  const data = (await response.json()) as JournalEntriesResponse;
+export async function fetchJournalEntries(expectedSession?: TutiSession, signal?: AbortSignal): Promise<TutiJournalEntry[]> {
+  const session = expectedSession ?? await ensureSession();
+  const data = await journalRequest<JournalEntriesResponse>("journal-entries", { signal }, session, "마디를 불러오지 못했어요.");
   return data.entries.map(resolveJournalEntryImage);
 }
 
 export async function createJournalEntry(
   input: JournalEntryInput,
+  expectedSession?: TutiSession,
 ): Promise<TutiJournalEntry> {
-  const response = await fetchWithSession("journal-entries", {
+  const session = expectedSession ?? await ensureSession();
+  const data = await journalRequest<JournalEntryResponse>("journal-entries", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
       ...(await import("./lifecycle")).lifecycleHeaders(),
     },
     body: JSON.stringify(input),
-  });
-
-  if (!response.ok) {
-    throw new Error(
-      await readApiError(response, "마디를 저장하지 못했어요."),
-    );
-  }
-
-  const data = (await response.json()) as JournalEntryResponse;
+  }, session, "마디를 저장하지 못했어요.");
   return resolveJournalEntryImage(data.entry);
 }
 
 export async function updateJournalEntry(
   entryId: string,
   input: JournalEntryInput,
+  expectedSession?: TutiSession,
 ): Promise<TutiJournalEntry> {
-  const response = await fetchWithSession(
+  const session = expectedSession ?? await ensureSession();
+  const data = await journalRequest<JournalEntryResponse>(
     `journal-entries/${encodeURIComponent(entryId)}`,
     {
       method: "PATCH",
@@ -431,32 +432,18 @@ export async function updateJournalEntry(
         "Content-Type": "application/json",
       },
       body: JSON.stringify(input),
-    },
+    }, session, "마디를 수정하지 못했어요.",
   );
-
-  if (!response.ok) {
-    throw new Error(
-      await readApiError(response, "마디를 수정하지 못했어요."),
-    );
-  }
-
-  const data = (await response.json()) as JournalEntryResponse;
   return resolveJournalEntryImage(data.entry);
 }
 
-export async function deleteJournalEntry(entryId: string) {
-  const response = await fetchWithSession(
+export async function deleteJournalEntry(entryId: string, expectedSession?: TutiSession) {
+  const session = expectedSession ?? await ensureSession();
+  const data = await journalRequest<DeleteJournalEntryResponse>(
     `journal-entries/${encodeURIComponent(entryId)}`,
-    { method: "DELETE" },
+    { method: "DELETE" }, session, "마디를 삭제하지 못했어요.",
   );
 
-  if (!response.ok) {
-    throw new Error(
-      await readApiError(response, "마디를 삭제하지 못했어요."),
-    );
-  }
-
-  const data = (await response.json()) as DeleteJournalEntryResponse;
   return data.entryId;
 }
 
@@ -464,8 +451,10 @@ export async function setJournalEntryPublication(
   entryId: string,
   published: boolean,
   consentVersion?: string,
+  expectedSession?: TutiSession,
 ) {
-  const response = await fetchWithSession(
+  const session = expectedSession ?? await ensureSession();
+  const data = await journalRequest<JournalPublicationResponse>(
     `journal-entries/${encodeURIComponent(entryId)}/publication`,
     {
       method: "PATCH",
@@ -473,19 +462,8 @@ export async function setJournalEntryPublication(
         "Content-Type": "application/json",
       },
       body: JSON.stringify({ published, consentVersion }),
-    },
+    }, session, "마디 공개 설정을 변경하지 못했어요.",
   );
-
-  if (!response.ok) {
-    throw new Error(
-      await readApiError(
-        response,
-        "마디 공개 설정을 변경하지 못했어요.",
-      ),
-    );
-  }
-
-  const data = (await response.json()) as JournalPublicationResponse;
   return resolveJournalEntryImage(data.entry);
 }
 

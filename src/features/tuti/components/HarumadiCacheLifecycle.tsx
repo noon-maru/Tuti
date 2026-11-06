@@ -12,9 +12,11 @@ export function HarumadiCacheLifecycle() {
     const unsubscribe = subscribeToSession(() => {
       const next = getSessionSnapshot();
       if (previous && (previous.userId !== next?.userId || previous.accessToken !== next?.accessToken)) {
-        const key = ["harumadi-content", previous.userId];
-        void client.cancelQueries({ queryKey: key });
-        client.removeQueries({ queryKey: key });
+        for (const prefix of ["harumadi-content", "journal-entries"]) {
+          const key = [prefix, previous.userId];
+          void client.cancelQueries({ queryKey: key });
+          client.removeQueries({ queryKey: key });
+        }
       }
       previous = next;
     });
