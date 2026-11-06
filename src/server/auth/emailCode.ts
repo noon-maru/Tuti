@@ -24,6 +24,7 @@ import {
   type AuthenticatedUser,
 } from "@/server/auth/session";
 import { transferAnonymousData } from "@/server/auth/anonymousMerge";
+import { lockAnonymousDiscard } from "@/server/auth/anonymousDiscard";
 import { mergeUserIntoCurrentAccount } from "@/server/auth/accountMerge";
 import { prisma } from "@/server/db/prisma";
 import { purgeExpiredAuthRecordsIfDue } from "@/server/auth/retention";
@@ -315,19 +316,20 @@ async function verifyParsedEmailCode(
         await transferAnonymousData(tx, currentUser.id, existingIdentity.userId);
       });
     } else {
-      await prisma.$transaction([
-        prisma.customerInquiry.updateMany({
+      await prisma.$transaction(async tx => {
+        await lockAnonymousDiscard(tx, currentUser.id, existingIdentity.userId, journalResolution === "discard");
+        await tx.customerInquiry.updateMany({
           where: { requesterUserId: currentUser.id },
           data: { requesterUserId: existingIdentity.userId },
-        }),
-        prisma.emailVerificationCode.update({
+        });
+        await tx.emailVerificationCode.update({
           where: { id: challenge.id },
           data: { consumedAt: new Date() },
-        }),
-        prisma.user.delete({
+        });
+        await tx.user.delete({
           where: { id: currentUser.id },
-        }),
-      ]);
+        });
+      });
     }
   } else {
     await prisma.$transaction([

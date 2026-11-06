@@ -23,6 +23,7 @@ import {
 } from "@/server/auth/appleOAuth";
 import { readOAuthCallbackParameters } from "@/server/auth/oauthCallback";
 import { transferAnonymousData } from "@/server/auth/anonymousMerge";
+import { lockAnonymousDiscard } from "@/server/auth/anonymousDiscard";
 import { mergeUserIntoCurrentAccount } from "@/server/auth/accountMerge";
 import {
   formatKoreanOrderedName,
@@ -403,16 +404,17 @@ export async function completeOAuthLogin(input: {
         await transferAnonymousData(tx, authorization.userId, targetUserId);
       });
     } else {
-      await prisma.$transaction([
-        prisma.authIdentity.update(identityUpdateArgs),
-        prisma.customerInquiry.updateMany({
+      await prisma.$transaction(async tx => {
+        await lockAnonymousDiscard(tx, authorization.userId, targetUserId, journalResolution === "discard");
+        await tx.authIdentity.update(identityUpdateArgs);
+        await tx.customerInquiry.updateMany({
           where: { requesterUserId: authorization.userId },
           data: { requesterUserId: targetUserId },
-        }),
-        prisma.user.delete({
+        });
+        await tx.user.delete({
           where: { id: authorization.userId },
-        }),
-      ]);
+        });
+      });
     }
   } else {
     const initialDisplayName = authorization.collectDisplayName
