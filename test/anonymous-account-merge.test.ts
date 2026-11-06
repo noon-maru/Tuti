@@ -58,7 +58,7 @@ test("익명 로그인 병합은 하루마디를 삭제하지 않는다", async 
     userSignalProfile: { deleteMany: noop },
     emailVerificationCode: {
       findFirst: async () => challenge,
-      update: async () => { state.consumed = true; },
+      updateMany: async () => { if (state.consumed) return { count: 0 }; state.consumed = true; return { count: 1 }; },
     },
     authIdentity: { count: async () => sourceIdentityCount, findUnique: async () => ({ id: "identity", userId: targetId }), update: noop },
     oAuthAuthorization: { findUnique: async () => ({

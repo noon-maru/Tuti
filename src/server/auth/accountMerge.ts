@@ -1,4 +1,5 @@
 import { lockMergeAccounts } from "./mergeLock";
+import { consumeEmailChallenge } from "./emailChallenge";
 import { randomUUID } from "node:crypto";
 import { prisma } from "@/server/db/prisma";
 import { mergeTogether } from "@/server/harumadi/merge";
@@ -122,10 +123,7 @@ export async function mergeUserIntoCurrentAccount({
     }
 
     if (emailChallengeId) {
-      await transaction.emailVerificationCode.update({
-        where: { id: emailChallengeId },
-        data: { consumedAt: new Date() },
-      });
+      await consumeEmailChallenge(transaction, emailChallengeId);
     }
 
     if (oauthAuthorizationId) {

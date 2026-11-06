@@ -25,6 +25,8 @@ import {
 } from "@/server/auth/session";
 import { transferAnonymousData } from "@/server/auth/anonymousMerge";
 import { lockAnonymousDiscard } from "@/server/auth/anonymousDiscard";
+import { consumeEmailChallenge, recordFailedEmailAttempt, MAX_EMAIL_VERIFICATION_ATTEMPTS } from "./emailChallenge";
+import { lockMergeAccounts } from "./mergeLock";
 import { mergeUserIntoCurrentAccount } from "@/server/auth/accountMerge";
 import { prisma } from "@/server/db/prisma";
 import { purgeExpiredAuthRecordsIfDue } from "@/server/auth/retention";
@@ -39,7 +41,7 @@ import type {
 const CODE_LIFETIME_MINUTES = 10;
 const REQUEST_WINDOW_MINUTES = 15;
 const MAX_REQUESTS_PER_WINDOW = 5;
-const MAX_VERIFICATION_ATTEMPTS = 5;
+const MAX_VERIFICATION_ATTEMPTS = MAX_EMAIL_VERIFICATION_ATTEMPTS;
 
 export async function requestEmailCode(input: EmailCodeRequest) {
   const startedAt = Date.now();
@@ -242,10 +244,7 @@ async function verifyParsedEmailCode(
     timingSafeEqual(expectedHash, receivedHash);
 
   if (!codeMatches) {
-    await prisma.emailVerificationCode.update({
-      where: { id: challenge.id },
-      data: { attempts: { increment: 1 } },
-    });
+    await recordFailedEmailAttempt(prisma, challenge.id);
 
     throw new AccountAuthError(
       appReviewConfig
@@ -309,10 +308,8 @@ async function verifyParsedEmailCode(
 
     if (journalResolution === "merge") {
       await prisma.$transaction(async (tx) => {
-        await tx.emailVerificationCode.update({
-          where: { id: challenge.id },
-          data: { consumedAt: new Date() },
-        });
+        await lockMergeAccounts(tx, currentUser.id, existingIdentity.userId);
+        await consumeEmailChallenge(tx, challenge.id);
         await transferAnonymousData(tx, currentUser.id, existingIdentity.userId);
       });
     } else {
@@ -322,18 +319,20 @@ async function verifyParsedEmailCode(
           where: { requesterUserId: currentUser.id },
           data: { requesterUserId: existingIdentity.userId },
         });
-        await tx.emailVerificationCode.update({
-          where: { id: challenge.id },
-          data: { consumedAt: new Date() },
-        });
+        await consumeEmailChallenge(tx, challenge.id);
         await tx.user.delete({
           where: { id: currentUser.id },
         });
       });
     }
   } else {
-    await prisma.$transaction([
-      prisma.authIdentity.upsert({
+    await prisma.$transaction(async tx => {
+      await tx.$queryRaw`SELECT id FROM users WHERE id = ${currentUser.id} FOR UPDATE`;
+      await consumeEmailChallenge(tx, challenge.id);
+      // 유효 코드로 확인한 이메일이 다른 계정에 연결되었으면 덮어쓰지 않는다.
+      const identity = await tx.authIdentity.findUnique({ where: { provider_providerSubject: { provider: "email", providerSubject: email } }, select: { userId: true } });
+      if (identity && identity.userId !== currentUser.id) throw new AccountAuthError("이메일 연결 상태가 바뀌었어요. 다시 로그인해주세요.", "email_identity_changed", 409);
+      await tx.authIdentity.upsert({
         where: {
           provider_providerSubject: {
             provider: "email",
@@ -348,18 +347,14 @@ async function verifyParsedEmailCode(
           providerSubject: email,
           email,
         },
-      }),
-      prisma.emailVerificationCode.update({
-        where: { id: challenge.id },
-        data: { consumedAt: new Date() },
-      }),
-      prisma.user.update({
+      });
+      await tx.user.update({
         where: { id: currentUser.id },
         data: {
           tokenHash: hashAccessToken(createAccessToken()),
         },
-      }),
-    ]);
+      });
+    });
   }
 
   return {
