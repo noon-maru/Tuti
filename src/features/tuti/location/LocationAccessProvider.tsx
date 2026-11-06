@@ -63,9 +63,6 @@ export function LocationAccessProvider({
   const hasHydrated = useTutiStore((state) => state.hasHydrated);
   const setUserLocation = useTutiStore((state) => state.setUserLocation);
   const clearUserLocation = useTutiStore((state) => state.clearUserLocation);
-  const acceptLocationConsent = useTutiStore(
-    (state) => state.acceptLocationConsent,
-  );
   const syncLocationConsent = useTutiStore(
     (state) => state.syncLocationConsent,
   );
@@ -104,6 +101,8 @@ export function LocationAccessProvider({
 
 
   const refreshLocationConsent = useCallback(async () => {
+    // 권한 팝업에서 복귀하는 focus 이벤트가 수동 위치 요청의 세대를 바꾸면 안 된다.
+    if (requestPromiseRef.current) return;
     const generation = ++consentSyncGeneration.current;
     const serverConsent = await fetchLocationConsent();
     if (generation !== consentSyncGeneration.current) return;
@@ -284,9 +283,10 @@ export function LocationAccessProvider({
             serverConsent.ageConfirmed;
           if (acceptedOnServer) return resolveDeviceLocation();
           if (isPausedLocationConsent(consent) && serverConsent?.ageConfirmed) {
-            return updateLocationConsent("accepted", true).then(() => {
+            return updateLocationConsent("accepted", true).then(({ consent: saved }) => {
               if (generation !== consentSyncGeneration.current) return;
-              acceptLocationConsent();
+              if (saved?.status !== "accepted" || !saved.ageConfirmed || saved.termsVersion !== getLocationTermsVersion()) throw new Error("현재 위치 동의를 다시 확인해주세요.");
+              syncLocationConsent(saved);
               return resolveDeviceLocation();
             });
           }
@@ -305,7 +305,7 @@ export function LocationAccessProvider({
         });
 
     return requestPromise;
-  }, [acceptLocationConsent, resolveDeviceLocation, syncLocationConsent]);
+  }, [resolveDeviceLocation, syncLocationConsent]);
 
   const requestRegionPreference = useCallback(() => {
     pendingLocationResultRef.current = null;
@@ -347,9 +347,10 @@ export function LocationAccessProvider({
     setConsentError(null);
     setRequesting(true);
     void updateLocationConsent("accepted", true)
-      .then(() => {
+      .then(({ consent: saved }) => {
         if (generation !== consentSyncGeneration.current) return;
-        acceptLocationConsent();
+        if (saved?.status !== "accepted" || !saved.ageConfirmed || saved.termsVersion !== getLocationTermsVersion()) throw new Error("현재 위치 동의를 다시 확인해주세요.");
+        syncLocationConsent(saved);
         return resolveDeviceLocation();
       })
       .catch((error) => {
@@ -361,7 +362,7 @@ export function LocationAccessProvider({
             : "위치정보 동의를 기록하지 못했어요.",
         );
       });
-  }, [acceptLocationConsent, resolveDeviceLocation]);
+  }, [resolveDeviceLocation, syncLocationConsent]);
 
   const withdrawLocation = useCallback(async () => {
     deviceRequestGeneration.current += 1;
