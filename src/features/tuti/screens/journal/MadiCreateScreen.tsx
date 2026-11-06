@@ -1,7 +1,7 @@
 "use client";
 import { screenTitleStyles, sectionHeadingStyles, bodyCopyStyles, captionStyles, inputControlStyles, nativeDateInputStyles } from "@/shared/ui/typography";
 import { MadiFieldLabel } from "@/features/tuti/components/MadiFieldLabel";
-import { MADI_FIELD_COPY } from "@/shared/tuti/madiFields";
+import { MADI_COMPOSE_COPY, MADI_FIELD_COPY } from "@/shared/tuti/madiFields";
 
 import styled from "@emotion/styled";
 import Image from "next/image";
@@ -54,6 +54,7 @@ export function MadiCreateScreen({ onBack, onSave, onCollection, onSaved, haruma
   const [saved, setSaved] = useState<TutiJournalEntry | null>(null);
   const needsBookSelection = Boolean(saved && !saved.savedHarumadi && harumadiSelection && !inHarumadi);
   const madiLabel = (saved ? savedAsFirstMadi : firstMadi && !continued) ? "첫 마디" : "새로운 마디";
+  const photoIntro = !inHarumadi && (!firstMadi || continued) ? MADI_COMPOSE_COPY.chooseAfterSave : "사진 한 장, 짧은 이야기면 충분해요.";
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [touched, setTouched] = useState<Partial<Record<keyof MadiFieldErrors, boolean>>>({});
@@ -194,7 +195,7 @@ export function MadiCreateScreen({ onBack, onSave, onCollection, onSaved, haruma
       </Destination>}
       <Intro>
         <h1 ref={heading} tabIndex={-1} id="madi-create-heading">{saved ? <>{madiLabel}를<br />남겼어요.</> : stage === "photo" ? <>어떤 순간을<br />오래 간직하고 싶나요?</> : stage === "write" ? <>그날의 이야기를<br />조금만 들려주세요.</> : <>{madiLabel}를<br />살펴볼까요?</>}</h1>
-        <p>{saved ? saved.savedHarumadi ? `‘${saved.savedHarumadi.title}’에 담았어요.` : "남긴 마디는 전체 마디 보기에서 볼 수 있어요." : stage === "photo" ? "사진 한 장, 짧은 이야기면 충분해요." : stage === "write" ? "길게 쓰지 않아도 괜찮아요. 사진만 남겨도 좋아요." : "사진과 이야기를 확인해주세요."}</p>
+        <p>{saved ? saved.savedHarumadi ? `‘${saved.savedHarumadi.title}’에 담았어요.` : "남긴 마디는 전체 마디 보기에서 볼 수 있어요." : stage === "photo" ? photoIntro : stage === "write" ? "길게 쓰지 않아도 괜찮아요. 사진만 남겨도 좋아요." : "사진과 이야기를 확인해주세요."}</p>
       </Intro>
       {!saved && stage === "photo" && <PhotoChoices>
         {image && <SelectedPhoto><Image src={image} alt="선택한 추억 사진" fill unoptimized sizes="350px" /></SelectedPhoto>}

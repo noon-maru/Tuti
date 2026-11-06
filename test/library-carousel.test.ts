@@ -201,9 +201,10 @@ test("위로 쓰기 안내는 버튼으로도 실행할 수 있고 현재 책의
     const html = renderToStaticMarkup(createElement(QueryClientProvider, { client }, createElement(HarumadiCarousel, {
       books: [harumadiContent().harumadi], ownerId: "owner", onOpen() {}, onCreateMadi() {},
     })));
-    assert.match(html, /위로 쓸어 마디 남기기/);
+    assert.match(html, /이 하루마디에 남기기/);
+    assert.match(html, /aria-description="위로 쓸어도 이 하루마디에 남길 수 있어요\."/);
     assert.match(html, /touch-action:pinch-zoom/);
-    assert.match(html, /이 하루마디에 마디 남기기/);
+    assert.match(html, /aria-label="[^"]+, 이 하루마디에 남기기"/);
     const home = readFileSync("src/features/tuti/flows/LibraryHomeFlow.tsx", "utf8");
     assert.match(home, /onCreateMadi=\{bookId => router.push\(`\/madi\/new\?from=library&harumadiId=\$\{encodeURIComponent\(bookId\)\}/);
     const source = readFileSync("src/features/tuti/flows/JournalCreateFlow.tsx", "utf8");

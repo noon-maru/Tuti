@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { BaseButton } from "@/features/tuti/components/buttons";
 import { useSession } from "@/features/tuti/hooks/useSession";
 import { useHarumadiLibrary } from "@/features/tuti/hooks/useHarumadiLibrary";
+import { MADI_COMPOSE_COPY } from "@/shared/tuti/madiFields";
 
 export function MainNavigation({ active }: {
   active: "harumadi" | "explore";
@@ -19,8 +20,9 @@ export function MainNavigation({ active }: {
         onClick={() => { if (active !== "harumadi") router.replace("/"); }}>
         <span><BookOpen size={24} strokeWidth={1.7} /></span>하루마디
       </Destination>
-      <CreateButton type="button" onClick={() => router.push(`/madi/new?from=${active === "harumadi" ? "library" : "explore"}`)}>
-        <Plus size={18} strokeWidth={1.8} />{isFirstMadi ? "첫 마디 남기기" : "마디 남기기"}
+      <CreateButton type="button" aria-description={isFirstMadi ? undefined : MADI_COMPOSE_COPY.chooseAfterSave}
+        onClick={() => router.push(`/madi/new?from=${active === "harumadi" ? "library" : "explore"}`)}>
+        <Plus size={18} strokeWidth={1.8} />{isFirstMadi ? "첫 마디 남기기" : MADI_COMPOSE_COPY.globalAction}
       </CreateButton>
       <Destination type="button" aria-current={active === "explore" ? "page" : undefined}
         onClick={() => { if (active !== "explore") router.replace("/explore"); }}>

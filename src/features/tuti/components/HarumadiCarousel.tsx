@@ -1,4 +1,5 @@
 "use client";
+import { MADI_COMPOSE_COPY } from "@/shared/tuti/madiFields";
 
 import styled from "@emotion/styled";
 import { memo, useEffect, useRef, useState, type CSSProperties, type PointerEvent } from "react";
@@ -172,7 +173,8 @@ export function HarumadiCarousel({ books, ownerId, onOpen, onCreateMadi, hasNext
       })}
     </Stage>
     <Details ref={details}>
-    {onCreateMadi && <WriteHint type="button" disabled={busy} aria-label={`${active.title}, 이 하루마디에 마디 남기기`} $active={writeProgress > 0} onClick={() => onCreateMadi(active.id)}><ChevronUp size={16} aria-hidden="true" />위로 쓸어 마디 남기기</WriteHint>}
+    {onCreateMadi && <WriteHint type="button" disabled={busy} aria-label={`${active.title}, ${MADI_COMPOSE_COPY.bookAction}`}
+      aria-description={MADI_COMPOSE_COPY.swipeBookHint} $active={writeProgress > 0} onClick={() => onCreateMadi(active.id)}><ChevronUp size={16} aria-hidden="true" />{MADI_COMPOSE_COPY.bookAction}</WriteHint>}
     <Caption><div aria-live="polite" aria-atomic="true"><strong>{active.title}</strong><p>{active.entryIds.length ? `마디 ${active.entryIds.length}개` : "첫 마디를 기다려요"}{active.shared ? " · 함께 채우는 중" : ""}</p>
       <HarumadiTitleHint book={active} />{active.role === "contributor" && <small>{active.ownerName}님의 하루마디</small>}</div>
       <BookMenu label={`${harumadiAccessibleTitle(active)} 메뉴`} triggerContent={<MoreVertical size={22} />} items={harumadiActions(active).map(action => ({ label: action.label, singleLine: true, onSelect: () => openSelected(action.mode) }))} />

@@ -47,7 +47,7 @@ test("바 크기와 첫 마디 문구는 부모 화면이 아닌 공통 컴포�
   for (const declaration of ["label-size: 12px", "create-size: 14px", "item-height: 56px", "create-height: 52px", "icon-size: 24px"]) assert.ok(navigation.includes(`--main-navigation-${declaration}`));
   assert.match(navigation, /useHarumadiLibrary\(ownerId\)/);
   assert.match(home, /useHarumadiLibrary\(ownerId\)/);
-  assert.match(navigation, /isFirstMadi \? "첫 마디 남기기" : "마디 남기기"/);
+  assert.match(navigation, /isFirstMadi \? "첫 마디 남기기" : MADI_COMPOSE_COPY.globalAction/);
   assert.match(navigation, /minmax\(max-content, 1.65fr\)/);
   const query = read("hooks/useHarumadiLibrary.ts");
   assert.match(query, /queryKey: \["library-harumadis", ownerId\]/);
