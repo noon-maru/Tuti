@@ -1,5 +1,4 @@
 import { authenticateAdmin } from "@/server/admin/auth";
-import { writeSystemLog } from "@/server/admin/log";
 import { prisma } from "@/server/db/prisma";
 import {
   createPreflightResponse,
@@ -7,9 +6,7 @@ import {
   withCors,
 } from "@/server/http/cors";
 import type { AdminInquiriesResponse } from "@/shared/api/admin";
-import { sendPushToUserSafely } from "@/server/notifications/push";
-import { createInquiryAnsweredPushMessage } from "@/server/notifications/pushPayload";
-import { resolveInquiryAnswerState } from "@/server/inquiries/answerState";
+import { answerInquiry, InquiryWriteError } from "@/server/inquiries/service";
 
 export const runtime = "nodejs";
 
@@ -72,6 +69,7 @@ export async function PATCH(request: Request) {
       inquiryId?: unknown;
       status?: unknown;
       adminResponse?: unknown;
+      expectedVersion?: unknown;
     };
     const inquiryId =
       typeof body.inquiryId === "string" ? body.inquiryId.trim() : "";
@@ -88,72 +86,12 @@ export async function PATCH(request: Request) {
       );
     }
 
-    const previousInquiry = await prisma.customerInquiry.findUnique({
-      where: { id: inquiryId },
-      select: { adminResponse: true, status: true },
-    });
-    if (!previousInquiry) {
-      return withCors(
-        request,
-        Response.json({ error: "문의를 찾지 못했습니다." }, { status: 404 }),
-      );
-    }
-
-    const answerState = resolveInquiryAnswerState({
-      requestedStatus: status,
-      submittedResponse: adminResponse,
-      previousResponse: previousInquiry.adminResponse,
-    });
-    if (!answerState.ok) {
-      return withCors(
-        request,
-        Response.json({ error: answerState.error }, { status: 400 }),
-      );
-    }
-
-    const inquiry = await prisma.customerInquiry.update({
-      where: { id: inquiryId },
-      data: {
-        status: answerState.status,
-        adminResponse: answerState.adminResponse,
-        handledByUserId: authentication.user.id,
-        handledAt: answerState.status === "pending" ? null : new Date(),
-      },
-      select: {
-        id: true,
-        status: true,
-        requesterUserId: true,
-      },
-    });
-
-    await writeSystemLog({
-      category: "inquiry",
-      action: "inquiry.updated",
-      message: `1:1 문의 상태를 ${answerState.status}(으)로 변경했습니다.`,
-      actorUserId: authentication.user.id,
-      targetType: "inquiry",
-      targetId: inquiry.id,
-      metadata: {
-        status: answerState.status,
-        hasResponse: Boolean(answerState.adminResponse),
-      },
-    });
-
-    const responseChanged =
-      Boolean(answerState.adminResponse) &&
-      answerState.adminResponse !== previousInquiry.adminResponse;
-    const becameAnswered =
-      answerState.status === "answered" &&
-      previousInquiry.status !== "answered";
-    if (responseChanged || becameAnswered) {
-      await sendPushToUserSafely(
-        inquiry.requesterUserId,
-        createInquiryAnsweredPushMessage(inquiry.id),
-      );
-    }
+    const inquiry = await answerInquiry(authentication.user.id, inquiryId, status, adminResponse,
+      typeof body.expectedVersion === "string" ? body.expectedVersion : "");
 
     return withCors(request, Response.json({ inquiry }));
   } catch (error) {
+    if (error instanceof InquiryWriteError) return withCors(request, Response.json({ error: error.message }, { status: error.status }));
     const invalidJson = error instanceof SyntaxError;
 
     if (!invalidJson) {

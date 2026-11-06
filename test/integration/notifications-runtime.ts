@@ -29,6 +29,8 @@ try {
     INSERT INTO harumadi_entry_links VALUES('link','book','entry');
     INSERT INTO push_devices VALUES('owner',true,null);`);
   await pool.query(readFileSync("prisma/migrations/20261103020000_lifelog_notifications/migration.sql", "utf8"));
+  await pool.query(readFileSync("prisma/migrations/20261106130000_inquiry_notification_outbox/migration.sql", "utf8"));
+  await pool.query("CREATE TABLE customer_inquiries(id text PRIMARY KEY,requester_user_id text,admin_response text,updated_at timestamp(3))");
   const { readNotificationSettings, saveNotificationSettings, bookNotificationSettings } = await import("../../src/server/notifications/settings");
   const { enqueueTogetherNotification } = await import("../../src/server/notifications/outbox");
   const { dispatchNotifications } = await import("../../src/server/notifications/dispatch");
@@ -81,6 +83,19 @@ try {
   const failure = await dispatchNotifications(true, new Date(), failing);
   assert.equal("failed" in failure && failure.failed, 1);
   await dispatchNotifications(true, new Date(), send); assert.equal(sent.length, 4, "모호한 제공자 실패는 중복 재시도하지 않음");
+  await pool.query("DELETE FROM notification_jobs");
+  const { enqueueInquiryAnsweredNotification } = await import("../../src/server/notifications/outbox");
+  const answerAt = new Date();
+  await pool.query("INSERT INTO customer_inquiries VALUES('inquiry','owner','synthetic answer',$1)", [answerAt.toISOString()]);
+  await client.$transaction(tx => enqueueInquiryAnsweredNotification(tx, "owner", "inquiry", answerAt));
+  await client.$transaction(tx => enqueueInquiryAnsweredNotification(tx, "owner", "inquiry", answerAt));
+  await dispatchNotifications(true, new Date(Date.now() + 10), send);
+  assert.equal(sent.at(-1)?.type, "inquiry-answered");
+  const beforeStale = sent.length;
+  const staleAt = new Date(answerAt.getTime() - 1000);
+  await client.$transaction(tx => enqueueInquiryAnsweredNotification(tx, "owner", "inquiry", staleAt));
+  await dispatchNotifications(true, new Date(Date.now() + 10), send);
+  assert.equal(sent.length, beforeStale, "이전 답변 버전은 알리지 않는다");
   await pool.query("DELETE FROM users WHERE id='owner'");
   assert.equal((await pool.query("SELECT count(1)::int AS n FROM notification_jobs WHERE user_id='owner'")).rows[0].n, 0);
   console.log(JSON.stringify({ default19: true, independentPreferences: true, ownerAccess: true, grouped: true, optOutEnforced: true, membershipRechecked: true, blocksRechecked: true, reminderOnceDaily: true, writingSuppressed: true, deletionCascades: true }));

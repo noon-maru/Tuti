@@ -2,6 +2,12 @@ import { randomUUID } from "node:crypto";
 import type { Prisma } from "@/generated/prisma/client";
 
 export type TogetherNotificationKind = "shared-madi" | "invite-accepted" | "comment-reply";
+export async function enqueueInquiryAnsweredNotification(tx: Prisma.TransactionClient, userId: string | null, inquiryId: string, version: Date) {
+  if (!userId) return;
+  const id = `inquiry:${inquiryId}:${version.getTime()}`;
+  await tx.$executeRaw`INSERT INTO notification_jobs(id,user_id,kind,entity_id,created_at,due_at)
+    VALUES (${id},${userId},'inquiry-answered',${inquiryId},${version},${version}) ON CONFLICT(id) DO NOTHING`;
+}
 export async function enqueueTogetherNotification(tx: Prisma.TransactionClient, actorId: string, bookId: string, kind: TogetherNotificationKind, entityId: string, recipientId?: string) {
   // Domain adapters without the push subsystem do not emit notifications.
   if (!tx.pushDevice) return;

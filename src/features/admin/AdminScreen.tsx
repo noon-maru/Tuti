@@ -1006,7 +1006,7 @@ export function AdminScreen({
           <InquiriesPanel
             inquiries={inquiries}
             mutatingId={mutatingId}
-            onSave={(inquiryId, status, adminResponse) =>
+            onSave={(inquiryId, status, adminResponse, expectedVersion) =>
               void mutate(
                 "inquiries",
                 inquiryId,
@@ -1014,6 +1014,7 @@ export function AdminScreen({
                   inquiryId,
                   status,
                   adminResponse,
+                  expectedVersion,
                 }),
               )
             }
@@ -2346,6 +2347,7 @@ function InquiriesPanel({
     inquiryId: string,
     status: string,
     adminResponse: string,
+    expectedVersion: string,
   ) => void;
 }) {
   const [expandedId, setExpandedId] = useState<string | null>(null);
@@ -2395,6 +2397,7 @@ function InquiryEditor({
     inquiryId: string,
     status: string,
     adminResponse: string,
+    expectedVersion: string,
   ) => void;
 }) {
   const [status, setStatus] = useState(inquiry.status);
@@ -2476,7 +2479,7 @@ function InquiryEditor({
                 (status === "answered" && !adminResponse.trim())
               }
               onClick={() =>
-                onSave(inquiry.id, status, adminResponse.trim())
+                onSave(inquiry.id, status, adminResponse.trim(), inquiry.updatedAt)
               }
             >
               {saving ? "저장 중..." : "답변 저장"}

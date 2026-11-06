@@ -3,6 +3,7 @@ import { sendPushToUser } from "./push";
 import { notificationLocalClock } from "@/shared/notifications/preferences";
 import type { NotificationSettings } from "@/shared/notifications/preferences";
 import type { ServerPushMessage } from "./pushPayload";
+import { createInquiryAnsweredPushMessage } from "./pushPayload";
 
 type Job = { id: string; user_id: string; actor_id: string | null; book_id: string | null; kind: string; entity_id: string | null; created_at: Date };
 export async function dispatchNotifications(apply = false, now = new Date(), send = sendPushToUser) {
@@ -49,6 +50,11 @@ export async function dispatchNotifications(apply = false, now = new Date(), sen
           OR EXISTS(SELECT 1 FROM notification_presence WHERE user_id=${job.user_id} AND composing AND expires_at>${now}) AS suppress`;
         if (check.suppress) { skipped++; continue; }
         message = { type: job.kind, title: "오늘의 마디", body: "사진 한 장이나 짧은 한 줄로 오늘을 남겨볼까요?", path: "/madi/new?from=notification" };
+      } else if (job.kind === "inquiry-answered") {
+        // 이전 답변 알림이나 삭제된 문의는 발송하지 않는다.
+        const [check] = await prisma.$queryRaw<{ allowed: boolean }[]>`SELECT EXISTS(SELECT 1 FROM customer_inquiries WHERE id=${job.entity_id} AND requester_user_id=${job.user_id} AND admin_response IS NOT NULL AND updated_at=${job.created_at}) AS allowed`;
+        if (!check.allowed) { skipped++; continue; }
+        message = createInquiryAnsweredPushMessage(job.entity_id!);
       } else {
         if (process.env.HARUMADI_TOGETHER_ENABLED !== "true") { skipped++; continue; }
         const [check] = await prisma.$queryRaw<{ allowed: boolean }[]>`SELECT EXISTS(
