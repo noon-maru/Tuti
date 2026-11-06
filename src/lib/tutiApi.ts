@@ -18,7 +18,7 @@ export async function withdrawJournalSensitiveConsent(entryId: string) {
 }
 import { RecommendationRequestError, requestRecommendationResponse } from "@/lib/api/recommendationError";
 export { RecommendationRequestError } from "@/lib/api/recommendationError";
-import { ensureSession, fetchWithPinnedSession, fetchWithSession, isSessionCurrent } from "@/lib/auth/session";
+import { ensureSession, fetchWithPinnedSession, fetchWithSession, getSessionSnapshot, isSessionCurrent } from "@/lib/auth/session";
 import type { TutiSession } from "@/shared/api/session";
 import { Capacitor } from "@capacitor/core";
 import type {
@@ -87,10 +87,13 @@ export async function updateLocationConsent(
   termsVersion = getLocationTermsVersion(),
   expectedUserId?: string,
 ) {
+  const session = getSessionSnapshot() ?? (expectedUserId ? null : await ensureSession());
+  if (!session || (expectedUserId && session.userId !== expectedUserId) || !isSessionCurrent(session)) throw new Error("계정이 변경되었어요. 현재 계정에서 다시 시도해주세요.");
   if (status === "accepted") {
     await fetchServiceTerms(false);
     if (termsVersion !== getLocationTermsVersion()) throw new Error("위치 약관이 변경되었어요. 새 내용을 확인하고 다시 동의해주세요.");
   }
+  if (!isSessionCurrent(session)) throw new Error("계정이 변경되었어요. 현재 계정에서 다시 시도해주세요.");
   const platform = Capacitor.getPlatform();
   const response = await fetchWithPinnedSession("location-consent", {
     method: "POST",
@@ -102,35 +105,42 @@ export async function updateLocationConsent(
       clientPlatform:
         platform === "ios" || platform === "android" ? platform : "web",
     }),
-  }, expectedUserId);
+  }, session.userId);
   if (!response.ok) {
     throw new Error(
       await readApiError(response, "위치정보 동의를 기록하지 못했어요."),
     );
   }
-  return (await response.json()) as LocationConsentResponse;
+  const result = await response.json() as LocationConsentResponse;
+  if (!isSessionCurrent(session)) throw new Error("계정이 변경되었어요. 현재 계정에서 다시 시도해주세요.");
+  return result;
 }
 
 export async function fetchLocationConsent() {
-  const response = await fetchWithPinnedSession("location-consent", { cache: "no-store" });
+  const session = getSessionSnapshot() ?? await ensureSession();
+  const response = await fetchWithPinnedSession("location-consent", { cache: "no-store" }, session.userId);
   if (!response.ok) {
     throw new Error(
       await readApiError(response, "위치정보 동의 상태를 확인하지 못했어요."),
     );
   }
   const result = (await response.json()) as LocationConsentResponse;
+  if (!isSessionCurrent(session)) throw new Error("계정이 변경되었어요. 현재 계정에서 다시 시도해주세요.");
   syncLegalPolicyRelease(result.legalPolicyRelease);
   return result.consent;
 }
 
 export async function fetchLocationHistory() {
-  const response = await fetchWithPinnedSession("location-history", { cache: "no-store" });
+  const session = getSessionSnapshot() ?? await ensureSession();
+  const response = await fetchWithPinnedSession("location-history", { cache: "no-store" }, session.userId);
   if (!response.ok) {
     throw new Error(
       await readApiError(response, "위치정보 이용내역을 불러오지 못했어요."),
     );
   }
-  return (await response.json()) as LocationHistoryResponse;
+  const result = await response.json() as LocationHistoryResponse;
+  if (!isSessionCurrent(session)) throw new Error("계정이 변경되었어요. 현재 계정에서 다시 시도해주세요.");
+  return result;
 }
 
 export async function fetchRecommendations(
