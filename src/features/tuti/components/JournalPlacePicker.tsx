@@ -8,6 +8,8 @@ import { MADI_FIELD_COPY } from "@/shared/tuti/madiFields";
 import { FIRST_JOURNAL_PLACE_LIMIT } from "@/shared/api/firstJournal";
 import { BaseButton } from "./buttons";
 import { JournalPlaceSuggestions } from "./JournalPlaceSuggestions";
+import { JournalPlaceSuggestionPopover } from "./JournalPlaceSuggestionPopover";
+import { placeSuggestionGroups } from "./placeSuggestionLayout";
 import { useJournalPlaceSuggestions } from "../hooks/useJournalPlaceSuggestions";
 import { normalizePlaceQuery, type SelectedJournalPlace } from "@/shared/api/placeSuggestions";
 
@@ -16,22 +18,22 @@ export function JournalPlacePicker({ placeId, value, helperText, helperStatus, o
   onChange: (place: SelectedJournalPlace) => void; onTextChange: (value: string) => void;
   invalid?: boolean; describedBy?: string; onBlur?: () => void;
 }) {
-  const id = useId(), inputRef = useRef<HTMLInputElement>(null);
+  const id = useId(), inputRef = useRef<HTMLInputElement>(null), popupRef = useRef<HTMLDivElement>(null);
   const [focused, setFocused] = useState(false), [dismissed, setDismissed] = useState(false), [composing, setComposing] = useState(false);
   const [activeKey, setActiveKey] = useState<string | null>(null);
   const enabled = focused && !dismissed && !composing;
   const suggestions = useJournalPlaceSuggestions(value, enabled);
-  const items = [...suggestions.history, ...suggestions.places];
+  const items = placeSuggestionGroups(suggestions).flatMap(group => group.rows);
   const hasQuery = Boolean(normalizePlaceQuery(value));
   const expanded = enabled && !(suggestions.status === "ready" && !hasQuery && !items.length);
   const active = expanded ? items.findIndex(row => row.key === activeKey) : -1;
   const selectPlace = (place: SelectedJournalPlace) => {
     onChange({ id: place.id, name: place.name, region: place.region });
-    setDismissed(true); setActiveKey(null); inputRef.current?.focus({ preventScroll: true });
+    inputRef.current?.focus({ preventScroll: true }); setDismissed(true); setActiveKey(null);
   };
 
   return <PlaceField onBlur={event => {
-    if (event.currentTarget.contains(event.relatedTarget as Node | null)) return;
+    if (event.currentTarget.contains(event.relatedTarget as Node | null) || popupRef.current?.contains(event.relatedTarget as Node | null)) return;
     setFocused(false); setActiveKey(null); onBlur?.();
   }}>
     <InputRow>
@@ -60,8 +62,12 @@ export function JournalPlacePicker({ placeId, value, helperText, helperStatus, o
         onClick={() => { onTextChange(""); setActiveKey(null); setDismissed(false); inputRef.current?.focus(); }}><X size={18} aria-hidden="true" /></ClearButton>
         : <SearchMark size={18} aria-hidden="true" />}
     </InputRow>
-    {expanded && <JournalPlaceSuggestions id={`${id}-suggestions`} data={suggestions} activeKey={activeKey} status={suggestions.status}
-      hasQuery={hasQuery} onSelect={selectPlace} onHighlight={setActiveKey} onRetry={suggestions.retry} />}
+    {expanded && <JournalPlaceSuggestionPopover anchor={inputRef} popup={popupRef}
+      contentKey={`${normalizePlaceQuery(value)}:${suggestions.status}:${items.map(item => item.key).join(",")}`}
+      onDismiss={() => { setDismissed(true); setActiveKey(null); }}>
+      <JournalPlaceSuggestions id={`${id}-suggestions`} data={suggestions} activeKey={activeKey} status={suggestions.status}
+        hasQuery={hasQuery} onSelect={selectPlace} onHighlight={setActiveKey} onRetry={suggestions.retry} />
+    </JournalPlaceSuggestionPopover>}
     {helperText && <PlaceHelper id={`${id}-helper`} aria-live="polite" data-status={helperStatus}>{helperText}</PlaceHelper>}
   </PlaceField>;
 }

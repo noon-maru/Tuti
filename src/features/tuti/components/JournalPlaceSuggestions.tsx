@@ -4,6 +4,7 @@ import styled from "@emotion/styled";
 import { History, MapPin } from "lucide-react";
 import { BaseButton, TextButton } from "./buttons";
 import type { JournalPlaceSuggestion, PlaceSuggestionsResponse } from "@/shared/api/placeSuggestions";
+import { placeSuggestionGroups } from "./placeSuggestionLayout";
 
 export function JournalPlaceSuggestions({ id, data, activeKey, status, hasQuery, onSelect, onHighlight, onRetry }: {
   id: string; data: PlaceSuggestionsResponse; activeKey: string | null;
@@ -17,7 +18,7 @@ export function JournalPlaceSuggestions({ id, data, activeKey, status, hasQuery,
     {status === "error" && <Notice role="status">장소 제안을 불러오지 못했어요.<br />직접 입력해도 괜찮아요. <TextButton type="button" onClick={onRetry}>다시 찾기</TextButton></Notice>}
     {status === "ready" && !data.history.length && !data.places.length && <Notice role="status">일치하는 장소가 없어요.<br />입력한 이름 그대로 남길 수 있어요.</Notice>}
     <List id={id} role="listbox" aria-label="장소 제안" aria-busy={status === "loading"}>
-      {status === "ready" && ([{ source: "history", label: "전에 남긴 장소", rows: data.history }, { source: "place", label: "장소 검색 결과", rows: data.places }] as const).map(group => {
+      {status === "ready" && placeSuggestionGroups(data).map(group => {
         if (!group.rows.length) return null;
         const start = offset; offset += group.rows.length;
         const Icon = group.source === "history" ? History : MapPin;
@@ -35,10 +36,7 @@ export function JournalPlaceSuggestions({ id, data, activeKey, status, hasQuery,
 }
 
 const SuggestionPanel = styled.div`
-  width: 100%; min-width: 0; box-sizing: border-box; margin-top: var(--space-1);
-  border: 1px solid var(--color-border); border-radius: var(--ui-field-radius); background: var(--color-surface);
-  max-height: min(300px, 40dvh); overflow-y: auto; overscroll-behavior: contain;
-  scrollbar-color: var(--color-border) var(--color-surface);
+  width: 100%; min-width: 0; box-sizing: border-box;
 `;
 const List = styled.div`min-width: 0;`;
 const Group = styled.div`padding: 6px; & + & { border-top: 1px solid var(--color-border); }`;

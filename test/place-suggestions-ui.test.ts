@@ -9,16 +9,17 @@ import * as jsxRuntime from "react/jsx-runtime";
 import { renderToStaticMarkup } from "react-dom/server";
 import { JournalPlaceSuggestions } from "../src/features/tuti/components/JournalPlaceSuggestions";
 import * as suggestionTypes from "../src/shared/api/placeSuggestions";
+import * as suggestionLayout from "../src/features/tuti/components/placeSuggestionLayout";
 
 const history = { key: "history:park", id: null, name: "양평 유수지 생태공원", region: null, source: "history" as const };
 const place = { key: "place:other", id: "other", name: "양평의 다른 공원", region: "경기도 양평군", source: "place" as const };
 const data = { history: [history], places: [place] };
 
-test("제안은 개인 장소부터 표시하며 로딩·실패·직접 입력 안내를 제공한다", () => {
+test("위로 펼친 제안의 개인 장소는 입력창에 가까운 마지막 그룹이고 직접 입력을 막지 않는다", () => {
   const base = { id: "list", data, activeKey: history.key, status: "ready" as const, hasQuery: true, onSelect() {}, onHighlight() {}, onRetry() {} };
   const html = renderToStaticMarkup(React.createElement(JournalPlaceSuggestions, base));
   assert.ok(html.indexOf("전에 남긴 장소") < html.indexOf("양평 유수지 생태공원"));
-  assert.ok(html.indexOf("양평 유수지 생태공원") < html.indexOf("장소 검색 결과"));
+  assert.ok(html.indexOf("장소 검색 결과") < html.indexOf("전에 남긴 장소"));
   assert.match(html, /role="listbox"/); assert.match(html, /role="option"/); assert.match(html, /aria-selected="true"/);
   assert.match(html, /min-height:48px/);
   assert.match(renderToStaticMarkup(React.createElement(JournalPlaceSuggestions, { ...base, status: "loading" })), /찾고 있어요/);
@@ -47,6 +48,8 @@ test("한글 조합은 선택하지 않고 방향키·Enter·Escape·직접 입�
     "../hooks/useJournalPlaceSuggestions": { useJournalPlaceSuggestions: (_q: string, open: boolean) => { enabled = open; return { ...data, status: open ? "ready" : "idle", retry() {} }; } },
     "@/shared/api/placeSuggestions": suggestionTypes,
     "./JournalPlaceSuggestions": { JournalPlaceSuggestions: "suggestions" },
+    "./JournalPlaceSuggestionPopover": { JournalPlaceSuggestionPopover: "popover" },
+    "./placeSuggestionLayout": suggestionLayout,
   };
   // 실제 필드의 JSX와 이벤트 처리에 훅·DOM 대역을 주입한다.
   const requireReal = (id: string) => {
@@ -71,12 +74,12 @@ test("한글 조합은 선택하지 않고 방향키·Enter·Escape·직접 입�
   call(input(), "onKeyDown", key("Enter", true)); assert.equal(selection, undefined);
   call(input(), "onCompositionStart"); assert.equal(input()["aria-expanded"], false);
   call(input(), "onCompositionEnd");
-  call(input(), "onKeyDown", key("ArrowDown")); call(input(), "onKeyDown", key("Enter"));
+  call(input(), "onKeyDown", key("ArrowUp")); call(input(), "onKeyDown", key("Enter"));
   assert.equal((selection as unknown as { id: null }).id, null);
   assert.equal((selection as unknown as { name: string }).name, history.name);
   assert.equal(input()["aria-expanded"], false);
-  call(input(), "onFocus"); call(input(), "onKeyDown", key("ArrowUp"));
-  assert.equal(input()["aria-activedescendant"], "place-suggestions-option-1");
+  call(input(), "onFocus"); call(input(), "onKeyDown", key("ArrowDown"));
+  assert.equal(input()["aria-activedescendant"], "place-suggestions-option-0");
   call(input(), "onKeyDown", key("Escape")); assert.equal(input()["aria-expanded"], false);
   call(input(), "onKeyDown", key("ArrowDown")); assert.equal(input()["aria-expanded"], true);
   call(input(), "onChange", { target: { value: "내가 정한 장소" } }); assert.equal(value, "내가 정한 장소");
