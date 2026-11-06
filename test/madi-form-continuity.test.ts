@@ -11,7 +11,7 @@ test("수정도 제목·이야기·날짜·장소 순서로 표시하고 글 마
   const entry = { ...harumadiContent().entries[0], image: null };
   const html = renderToStaticMarkup(createElement(JournalEditorScreen, { entry, onBack() {}, onSubmit() {} }));
   const title = html.indexOf('aria-label="마디 제목 (선택)"'), body = html.indexOf('aria-label="기억하고 싶은 이야기"');
-  const date = html.indexOf('aria-label="마디 날짜"'), place = html.indexOf('aria-haspopup="dialog"');
+  const date = html.indexOf('aria-label="마디 날짜"'), place = html.indexOf('aria-label="장소 (선택)"');
   assert.ok(title >= 0 && title < body && body < date && date < place);
   assert.match(html, /사진 추가하기/); assert.match(html, /min-height:56px/);
   assert.match(html, /background-size:contain/);

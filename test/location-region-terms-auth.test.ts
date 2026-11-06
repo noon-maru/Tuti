@@ -65,8 +65,11 @@ test("위치약관을 거절해도 일반약관에 동의한 같은 세션으로
 });
 
 test("마디 장소 검색도 공개 요청 대신 세션이 포함된 요청을 사용한다", () => {
-  const source = readFileSync("src/features/tuti/components/JournalPlacePicker.tsx", "utf8");
-  assert.match(source, /fetchWithSession\(\s*`places\/search\?q=/);
-  assert.match(source, /signal: controller.signal/);
+  const source = readFileSync("src/lib/placeSuggestions.ts", "utf8");
+  const hook = readFileSync("src/features/tuti/hooks/useJournalPlaceSuggestions.ts", "utf8");
+  assert.match(source, /fetchWithPinnedSession\(`places\/suggestions\?q=/);
+  assert.match(source, /cache: "no-store"/);
+  assert.match(hook, /controller.signal/);
+  assert.match(hook, /controller.abort\(\)/);
   assert.doesNotMatch(source, /clientFetch|apiUrl/);
 });

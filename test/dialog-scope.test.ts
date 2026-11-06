@@ -125,7 +125,7 @@ test("일반·동의·중요 확인 모달은 같은 앱 프레임과 전체 필
   const frame = readFileSync("src/shared/ui/AppDialogFrame.tsx", "utf8");
   assert.match(frame, /role = "alertdialog"/); assert.match(frame, /role=\{role\}/);
   assert.match(frame, /viewport \?\? document.body/);
-  for (const name of ["ShareDialogFrame", "PhotoLocationConsentDialog", "JournalPublicationConsentDialog", "JournalPlacePicker", "HarumadiPurchaseButton"]) {
+  for (const name of ["ShareDialogFrame", "PhotoLocationConsentDialog", "JournalPublicationConsentDialog", "HarumadiPurchaseButton"]) {
     const content = readFileSync(`src/features/tuti/components/${name}.tsx`, "utf8");
     assert.match(content, /<AppDialogFrame role="dialog"/);
     assert.doesNotMatch(content, /createPortal|window.addEventListener/);

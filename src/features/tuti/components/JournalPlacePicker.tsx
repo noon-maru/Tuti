@@ -2,373 +2,75 @@
 
 import styled from "@emotion/styled";
 import { Search, X } from "lucide-react";
-import {
-  useEffect,
-  useId,
-  useRef,
-  useState,
-} from "react";
-import { AppDialogFrame } from "@/shared/ui/AppDialogFrame";
+import { useId, useRef, useState } from "react";
 import { captionStyles, inputControlStyles } from "@/shared/ui/typography";
 import { MADI_FIELD_COPY } from "@/shared/tuti/madiFields";
 import { FIRST_JOURNAL_PLACE_LIMIT } from "@/shared/api/firstJournal";
-import { LoadingIndicator } from "@/features/tuti/components/LoadingIndicator";
-import { TutiPlaceIcon } from "@/features/tuti/components/TutiPlaceIcon";
-import { fetchWithSession } from "@/lib/auth/session";
-import type {
-  PlaceSearchResponse,
-  PlaceSearchResult,
-} from "@/shared/api/placeSearch";
-import { BaseButton, TextButton } from "@/features/tuti/components/buttons";
+import { BaseButton } from "./buttons";
+import { JournalPlaceSuggestions } from "./JournalPlaceSuggestions";
+import { useJournalPlaceSuggestions } from "../hooks/useJournalPlaceSuggestions";
+import { normalizePlaceQuery, type SelectedJournalPlace } from "@/shared/api/placeSuggestions";
 
-export function JournalPlacePicker({
-  placeId,
-  value,
-  helperText,
-  helperStatus,
-  onChange,
-  onTextChange,
-  invalid, describedBy, onBlur,
-}: {
-  placeId: string | null;
-  value: string;
-  helperText?: string;
-  helperStatus?: "loading" | "success" | "notice";
-  onChange: (place: PlaceSearchResult) => void;
-  onTextChange?: (value: string) => void;
-  invalid?: boolean;
-  describedBy?: string;
-  onBlur?: () => void;
+export function JournalPlacePicker({ placeId, value, helperText, helperStatus, onChange, onTextChange, invalid, describedBy, onBlur }: {
+  placeId: string | null; value: string; helperText?: string; helperStatus?: "loading" | "success" | "notice";
+  onChange: (place: SelectedJournalPlace) => void; onTextChange: (value: string) => void;
+  invalid?: boolean; describedBy?: string; onBlur?: () => void;
 }) {
-  const id = useId();
-  const [open, setOpen] = useState(false);
-  const [query, setQuery] = useState(value);
-  const [places, setPlaces] = useState<PlaceSearchResult[]>([]);
-  const [status, setStatus] = useState<"idle" | "loading" | "error">("idle");
-  const triggerRef = useRef<HTMLButtonElement>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
-
-  useEffect(() => {
-    if (!open) return;
-
-    const controller = new AbortController();
-    const timer = window.setTimeout(async () => {
-      setStatus("loading");
-
-      try {
-        const response = await fetchWithSession(
-          `places/search?q=${encodeURIComponent(query.trim())}`,
-          { signal: controller.signal },
-        );
-
-        if (!response.ok) throw new Error("place_search_failed");
-
-        const data = (await response.json()) as PlaceSearchResponse;
-        setPlaces(data.places);
-        setStatus("idle");
-      } catch {
-        if (controller.signal.aborted) return;
-        setPlaces([]);
-        setStatus("error");
-      }
-    }, 180);
-
-    return () => {
-      window.clearTimeout(timer);
-      controller.abort();
-    };
-  }, [open, query]);
-
-  const selectPlace = (place: PlaceSearchResult) => {
-    onChange(place);
-    setOpen(false);
+  const id = useId(), inputRef = useRef<HTMLInputElement>(null);
+  const [focused, setFocused] = useState(false), [dismissed, setDismissed] = useState(false), [composing, setComposing] = useState(false);
+  const [activeKey, setActiveKey] = useState<string | null>(null);
+  const enabled = focused && !dismissed && !composing;
+  const suggestions = useJournalPlaceSuggestions(value, enabled);
+  const items = [...suggestions.history, ...suggestions.places];
+  const hasQuery = Boolean(normalizePlaceQuery(value));
+  const expanded = enabled && !(suggestions.status === "ready" && !hasQuery && !items.length);
+  const active = expanded ? items.findIndex(row => row.key === activeKey) : -1;
+  const selectPlace = (place: SelectedJournalPlace) => {
+    onChange({ id: place.id, name: place.name, region: place.region });
+    setDismissed(true); setActiveKey(null); inputRef.current?.focus({ preventScroll: true });
   };
 
-  return (
-    <>
-      <PlaceField>
-        {onTextChange && <PlaceInput aria-label="장소 (선택)" value={value} maxLength={FIRST_JOURNAL_PLACE_LIMIT}
-          aria-invalid={invalid} aria-describedby={describedBy} onBlur={onBlur}
-          placeholder={MADI_FIELD_COPY.placePlaceholder} onChange={event => onTextChange(event.target.value)} />}
-        <PlaceActions><PlaceTrigger
-          ref={triggerRef}
-          type="button"
-          aria-haspopup="dialog"
-          aria-expanded={open}
-          onClick={() => {
-            setQuery(value);
-            setOpen(true);
-          }}
-        >
-          <PlacePickerIcon $size="small" aria-hidden="true" />
-          <span data-selected={Boolean(placeId)}>
-            {onTextChange ? "장소 검색" : value || "장소 추가"}
-          </span>
-        </PlaceTrigger>
-        {onTextChange && value && <TextButton type="button" onClick={() => onTextChange("")}>장소 빼기</TextButton>}
-        </PlaceActions>
-        {helperText && (
-          <PlaceHelper aria-live="polite" data-status={helperStatus}>
-            {helperStatus === "loading" && <HelperDot aria-hidden="true" />}
-            {helperText}
-          </PlaceHelper>
-        )}
-      </PlaceField>
-
-      {open && <AppDialogFrame role="dialog" titleId={`${id}-title`} initialFocus={inputRef} onCancel={() => setOpen(false)}>
-              <PanelHeader>
-                <h2 id={`${id}-title`}>장소 검색</h2>
-                <CloseButton
-                  type="button"
-                  aria-label="장소 검색 닫기"
-                  onClick={() => setOpen(false)}
-                >
-                  <X size={20} aria-hidden="true" />
-                </CloseButton>
-              </PanelHeader>
-
-              <SearchField>
-                <input
-                  ref={inputRef}
-                  type="search"
-                  value={query}
-                  aria-label="장소 검색어"
-                  placeholder="장소를 검색해 보세요"
-                  onChange={(event) => setQuery(event.target.value)}
-                />
-                <SearchIcon aria-hidden="true" />
-              </SearchField>
-
-              <ResultList aria-live="polite">
-                {status === "loading" && (
-                  <ResultStatus>
-                    <LoadingIndicator label="장소를 찾고 있어요." compact />
-                  </ResultStatus>
-                )}
-                {status === "error" && (
-                  <ResultStatus>장소를 불러오지 못했어요.</ResultStatus>
-                )}
-                {status === "idle" && places.length === 0 && (
-                  <ResultStatus>
-                    {query.trim()
-                      ? "검색 결과가 없어요."
-                      : "검색어를 입력해 장소를 찾아보세요."}
-                  </ResultStatus>
-                )}
-                {status === "idle" &&
-                  places.map((place) => (
-                    <ResultButton
-                      key={place.id}
-                      type="button"
-                      aria-pressed={place.id === placeId}
-                      onClick={() => selectPlace(place)}
-                    >
-                      <PlacePickerIcon $size="small" aria-hidden="true" />
-                      <span>
-                        <strong>{place.name}</strong>
-                        {place.region && <small>{place.region}</small>}
-                      </span>
-                      {place.id === placeId && (
-                        <SelectedMark aria-hidden="true">✓</SelectedMark>
-                      )}
-                    </ResultButton>
-                  ))}
-              </ResultList>
-          </AppDialogFrame>}
-    </>
-  );
+  return <PlaceField onBlur={event => {
+    if (event.currentTarget.contains(event.relatedTarget as Node | null)) return;
+    setFocused(false); setActiveKey(null); onBlur?.();
+  }}>
+    <InputRow>
+      <PlaceInput ref={inputRef} role="combobox" aria-label="장소 (선택)" aria-autocomplete="list" aria-haspopup="listbox"
+        aria-expanded={expanded} aria-controls={expanded ? `${id}-suggestions` : undefined}
+        aria-activedescendant={active >= 0 ? `${id}-suggestions-option-${active}` : undefined}
+        value={value} maxLength={FIRST_JOURNAL_PLACE_LIMIT} autoComplete="off" data-selected={Boolean(placeId)}
+        aria-invalid={invalid} aria-describedby={[describedBy, helperText ? `${id}-helper` : null].filter(Boolean).join(" ") || undefined}
+        placeholder={MADI_FIELD_COPY.placePlaceholder}
+        onFocus={() => { setFocused(true); setDismissed(false); }}
+        onCompositionStart={() => setComposing(true)} onCompositionEnd={() => { setComposing(false); setActiveKey(null); }}
+        onChange={event => { onTextChange(event.target.value); setDismissed(false); setActiveKey(null); }}
+        onKeyDown={event => {
+          if (event.nativeEvent.isComposing || event.keyCode === 229 || composing) return;
+          if (event.key === "Escape" && expanded) { event.preventDefault(); event.stopPropagation(); setDismissed(true); setActiveKey(null); }
+          else if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+            event.preventDefault(); setDismissed(false);
+            if (!items.length) return;
+            const next = event.key === "ArrowDown" ? (active + 1) % items.length : active <= 0 ? items.length - 1 : active - 1;
+            setActiveKey(items[next].key);
+            window.requestAnimationFrame(() => document.getElementById(`${id}-suggestions-option-${next}`)?.scrollIntoView({ block: "nearest" }));
+          } else if (event.key === "Enter" && active >= 0) { event.preventDefault(); selectPlace(items[active]); }
+          else if (event.key === "Tab") { setDismissed(true); setActiveKey(null); }
+        }} />
+      {value ? <ClearButton type="button" aria-label="장소 빼기" onMouseDown={event => event.preventDefault()}
+        onClick={() => { onTextChange(""); setActiveKey(null); setDismissed(false); inputRef.current?.focus(); }}><X size={18} aria-hidden="true" /></ClearButton>
+        : <SearchMark size={18} aria-hidden="true" />}
+    </InputRow>
+    {expanded && <JournalPlaceSuggestions id={`${id}-suggestions`} data={suggestions} activeKey={activeKey} status={suggestions.status}
+      hasQuery={hasQuery} onSelect={selectPlace} onHighlight={setActiveKey} onRetry={suggestions.retry} />}
+    {helperText && <PlaceHelper id={`${id}-helper`} aria-live="polite" data-status={helperStatus}>{helperText}</PlaceHelper>}
+  </PlaceField>;
 }
 
-const PlaceField = styled.div`
-  width: 100%;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: var(--space-1);
-`;
-const PlaceInput = styled.input`${inputControlStyles}`;
-const PlaceActions = styled.div`display: flex; flex-wrap: wrap; align-items: center; gap: 4px 16px;`;
-
-const PlacePickerIcon = styled(TutiPlaceIcon)`
-  transform: translateY(-1px);
-`;
-
-const PlaceTrigger = styled(BaseButton)`
-  width: fit-content;
-  max-width: 100%;
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-2);
-  min-height: var(--ui-control-height);
-  padding: 8px 0;
-  background: transparent;
-  color: var(--color-text-muted);
-  font-size: var(--ui-body-size);
-  font-weight: 500;
-  line-height: var(--line-height-subtitle);
-  letter-spacing: var(--letter-spacing-subtitle);
-
-  > span:nth-of-type(2) {
-    overflow: hidden;
-    border-bottom: 1px solid currentColor;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-`;
-
-const PlaceHelper = styled.p`
-  ${captionStyles}
-  display: flex;
-  align-items: center;
-  gap: var(--space-1);
-  color: var(--color-text-muted);
-  line-height: var(--line-height-body);
-  letter-spacing: var(--letter-spacing-body);
-
-  &[data-status="success"] {
-    color: var(--color-secondary-900);
-  }
-`;
-
-const HelperDot = styled.span`
-  width: 6px;
-  height: 6px;
-  flex: 0 0 auto;
-  border-radius: 50%;
-  background: var(--color-brand-500);
-  animation: place-helper-pulse 800ms ease-in-out infinite alternate;
-
-  @keyframes place-helper-pulse {
-    from {
-      opacity: 0.35;
-      transform: scale(0.8);
-    }
-
-    to {
-      opacity: 1;
-      transform: scale(1);
-    }
-  }
-`;
-
-const PanelHeader = styled.header`
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-3);
-
-`;
-
-const CloseButton = styled(BaseButton)`
-  width: 44px;
-  height: 44px;
-  flex: 0 0 auto;
-  display: grid;
-  place-items: center;
-  padding: 0;
-  border-radius: 999px;
-  background: transparent;
-  color: var(--color-text-muted);
-`;
-
-const SearchField = styled.label`
-  min-height: 44px;
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  padding: 0 var(--space-3);
-  border-radius: 999px;
-  background: var(--color-secondary-200);
-  &:focus-within { outline: 2px solid var(--color-brand-700); outline-offset: -2px; }
-
-  input {
-    min-width: 0;
-    flex: 1;
-    border: 0;
-    outline: 0;
-    background: transparent;
-    color: var(--color-text);
-    font: inherit;
-    font-size: var(--ui-input-size);
-
-    &::placeholder {
-      color: var(--color-text-muted);
-      opacity: 1;
-    }
-
-    &::-webkit-search-cancel-button {
-      display: none;
-    }
-  }
-`;
-
-const SearchIcon = styled(Search)`
-  width: 18px;
-  height: 18px;
-  flex: 0 0 auto;
-  color: var(--color-brand-500);
-  stroke-width: 2;
-`;
-
-const ResultList = styled.div`
-  min-height: 96px;
-  max-height: min(320px, 45cqh);
-  display: grid;
-  align-content: start;
-  gap: var(--space-2);
-  overflow-y: auto;
-  overscroll-behavior: contain;
-`;
-
-const ResultButton = styled(BaseButton)`
-  width: 100%;
-  min-height: 48px;
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  padding: var(--space-2) var(--space-3);
-  border-radius: 999px;
-  background: var(--color-neutral-200);
-  color: var(--color-text);
-  text-align: left;
-
-  > span:nth-of-type(2) {
-    min-width: 0;
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    gap: 1px;
-  }
-
-  strong {
-    overflow: hidden;
-    font-size: var(--font-size-100);
-    font-weight: 500;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
-  small {
-    color: var(--color-text-muted);
-    font-size: calc(var(--font-size-100) - 2px);
-    line-height: var(--line-height-body);
-  }
-
-  &:hover {
-    background: var(--color-secondary-200);
-  }
-`;
-
-const SelectedMark = styled.span`
-  color: var(--color-secondary-900);
-  font-size: var(--font-size-200);
-  font-weight: 700;
-`;
-
-const ResultStatus = styled.div`
-  padding: var(--space-5) var(--space-2);
-  color: var(--color-text-muted);
-  font-size: var(--font-size-100);
-  text-align: center;
-`;
+const PlaceField = styled.div`width: 100%; min-width: 0;`;
+const InputRow = styled.div`position: relative; width: 100%; min-width: 0;`;
+const PlaceInput = styled.input`${inputControlStyles} padding-inline-end: 52px;`;
+const ClearButton = styled(BaseButton)`position: absolute; inset-inline-end: 4px; top: 50%; transform: translateY(-50%); display: grid; place-items: center;
+  width: 44px; height: 44px; border-radius: 8px; background: transparent; color: var(--color-text-muted);
+  &:hover { color: var(--color-text); background: var(--color-brand-100); }`;
+const SearchMark = styled(Search)`position: absolute; inset-inline-end: 16px; top: 50%; transform: translateY(-50%); color: var(--color-text-muted); pointer-events: none;`;
+const PlaceHelper = styled.p`${captionStyles} margin: var(--space-1) 0 0; &[data-status="success"] { color: var(--color-secondary-900); }`;

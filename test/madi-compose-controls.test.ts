@@ -14,7 +14,8 @@ test("장소는 검색과 별개로 직접 입력·지우기가 가능하고 길
   assert.match(html, /aria-label="장소 \(선택\)"/);
   assert.match(html, /value="우리 집 앞 벤치"/);
   assert.match(html, /maxLength="120"/);
-  assert.match(html, /장소 검색/);
+  assert.match(html, /role="combobox"/);
+  assert.match(html, /aria-haspopup="listbox"/);
   assert.match(html, /장소 빼기/);
   for (const name of ["MadiCreateScreen", "JournalEditorScreen"]) {
     const source = readFileSync(`src/features/tuti/screens/journal/${name}.tsx`, "utf8");

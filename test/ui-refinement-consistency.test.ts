@@ -20,11 +20,13 @@ test("공동작성·댓글은 같은 화면 제목과 입력 규칙을 쓰고 �
   assert.match(together, /if \(inFlight.current\) return/);
 });
 
-test("장소 검색·구매 안내를 통합해도 세션 요청과 관심 계측은 그대로 유지한다", () => {
+test("인라인 장소 검색과 구매 안내는 공통 입력 규칙·요청 취소·관심 계측을 유지한다", () => {
   const places = readFileSync("src/features/tuti/components/JournalPlacePicker.tsx", "utf8");
-  assert.match(places, /<AppDialogFrame role="dialog"[^>]*initialFocus=\{inputRef\}/);
-  assert.match(places, /signal: controller.signal/); assert.match(places, /controller.abort\(\)/);
-  assert.match(places, /font-size: var\(--ui-input-size\)/);
+  const hook = readFileSync("src/features/tuti/hooks/useJournalPlaceSuggestions.ts", "utf8");
+  assert.match(places, /role="combobox"/);
+  assert.match(places, /aria-activedescendant=/);
+  assert.match(places, /\$\{inputControlStyles\}/);
+  assert.match(hook, /controller.signal/); assert.match(hook, /controller.abort\(\)/);
   const purchase = readFileSync("src/features/tuti/components/HarumadiPurchaseButton.tsx", "utf8");
   assert.match(purchase, /recordProductInteraction\("harumadi_purchase_clicked", surface, eventId\)/);
   assert.match(purchase, /trackLifecycle\("purchase_viewed"/);
