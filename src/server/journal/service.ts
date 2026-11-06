@@ -401,8 +401,18 @@ export async function setJournalEntryPublication(
   const now = new Date();
 
   const entry = await prisma.$transaction(async (transaction) => {
+    // 계정 제한 변경은 사용자 행, 숨김·수정은 마디 행과 직렬화한다.
+    await transaction.$queryRaw`SELECT id FROM users WHERE id = ${ownerId} FOR UPDATE`;
+    await transaction.$queryRaw`SELECT id FROM journal_entries WHERE id = ${entryId} AND owner_id = ${ownerId} FOR UPDATE`;
+    const current = await transaction.journalEntry.findFirst({ where: { id: entryId, ownerId }, select: journalEntrySelect });
+    if (!current) return null;
+    if (current.publicationStatus === "hidden") throw new JournalPublicationStateError("관리자가 숨긴 마디는 공개 상태를 바꿀 수 없어요.");
+    if (published) {
+      const owner = await transaction.user.findUnique({ where: { id: ownerId }, select: { journalPublicationRestrictedAt: true } });
+      if (!owner || owner.journalPublicationRestrictedAt) throw new JournalPublicationStateError("현재는 마디를 인터넷에 공개할 수 없어요.");
+    }
     const result = await transaction.journalEntry.updateMany({
-      where: { id: entryId, ownerId, ...(published ? {
+      where: { id: entryId, ownerId, updatedAt: current.updatedAt, publicationStatus: current.publicationStatus, ...(published ? {
         sensitiveWithdrawnAt: null,
         ...(sensitiveJournalPolicyEnabled() ? { sensitiveContent: false } : { OR: [{ sensitiveContent: false }, { sensitiveContent: null }] }),
       } : {}) },
