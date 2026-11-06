@@ -67,9 +67,6 @@ export function LocationAccessProvider({
   const syncLocationConsent = useTutiStore(
     (state) => state.syncLocationConsent,
   );
-  const declineLocationConsent = useTutiStore(
-    (state) => state.declineLocationConsent,
-  );
   const setLocationPermissionStatus = useTutiStore(
     (state) => state.setLocationPermissionStatus,
   );
@@ -92,6 +89,7 @@ export function LocationAccessProvider({
   const pendingLocationResultRef = useRef<LocationRequestResult | null>(null);
   const deviceRequestGeneration = useRef(0);
   const consentSyncGeneration = useRef(0);
+  const declineWriteRef = useRef<number | null>(null);
   const previousConsentStatus = useRef(locationConsent?.status);
 
 
@@ -195,6 +193,7 @@ export function LocationAccessProvider({
       if (!previousUserId || previousUserId === nextUserId) return;
       deviceRequestGeneration.current += 1;
       consentSyncGeneration.current += 1;
+      declineWriteRef.current = null;
       clearUserLocation();
       clearLocationQueries();
       finishRequest({ status: "declined" });
@@ -311,17 +310,35 @@ export function LocationAccessProvider({
   }, []);
 
   const declineRequest = useCallback(() => {
-    void updateLocationConsent("declined")
-      .catch(() => null)
-      .then(() => {
-        declineLocationConsent();
-        clearLocationQueries();
+    if (declineWriteRef.current !== null) return;
+    const owner = getSessionSnapshot();
+    if (!owner) { setConsentError("계정을 확인한 뒤 다시 시도해주세요."); return; }
+    const generation = ++consentSyncGeneration.current;
+    declineWriteRef.current = generation;
+    deviceRequestGeneration.current += 1;
+    clearUserLocation("region");
+    clearLocationQueries();
+    setRequesting(true);
+    setConsentError(null);
+    void updateLocationConsent("declined", false, getLocationTermsVersion(), owner.userId)
+      .then(({ consent: saved }) => {
+        if (generation !== consentSyncGeneration.current || !isSessionCurrent(owner)) return;
+        if (saved?.status !== "declined") throw new Error("위치정보 거절 결과를 확인하지 못했어요.");
+        syncLocationConsent(saved);
         setConsentSheetOpen(false);
         pendingLocationResultRef.current = { status: "declined" };
         setRegionSheetDismissible(false);
         setRegionSheetOpen(true);
+      })
+      .catch(error => {
+        if (generation !== consentSyncGeneration.current || !isSessionCurrent(owner)) return;
+        setConsentError(error instanceof Error ? error.message : "위치정보 선택을 저장하지 못했어요. 다시 시도해주세요.");
+      })
+      .finally(() => {
+        if (declineWriteRef.current === generation) declineWriteRef.current = null;
+        if (generation === consentSyncGeneration.current && isSessionCurrent(owner)) setRequesting(false);
       });
-  }, [clearLocationQueries, declineLocationConsent]);
+  }, [clearLocationQueries, clearUserLocation, syncLocationConsent]);
 
   const completeRegionPreference = useCallback(
     (region: PreferredRegion) => {

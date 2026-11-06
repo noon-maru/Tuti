@@ -63,7 +63,7 @@ flowchart LR
 
 ### 사용자 세션과 저널 소유권
 
-앱 시작 시 클라이언트는 `POST /api/anonymous-session`으로 익명 사용자와 Bearer 토큰을 발급받는다. 토큰 원문은 웹과 Capacitor가 함께 사용하는 Preferences 저장소에 보관하고, 서버 DB에는 SHA-256 해시만 저장한다.
+클라이언트는 최초 명시적 동의 등 세션이 필요한 시점에 `POST /api/anonymous-session`으로 익명 사용자와 Bearer 토큰을 발급받는다. 유효한 저장 세션이 있으면 복원한다. 토큰 원문은 웹과 Capacitor가 함께 사용하는 Preferences 저장소에 보관하고, 서버 DB에는 SHA-256 해시만 저장한다.
 
 ```mermaid
 sequenceDiagram
@@ -87,6 +87,11 @@ sequenceDiagram
 - 저널 조회·생성·수정·삭제의 소유자는 Bearer 토큰으로 서버가 결정한다.
 
 - 잘못되거나 DB 초기화로 사라진 토큰이 401을 받으면 Preferences 세션을 폐기하고 한 번만 재발급해 요청을 재시도한다.
+  단, 마디 CRUD·동의·철회 등 고정 세션 요청은 새 계정으로 자동 재전송하지 않는다.
+
+- 세션 저장·삭제는 직렬화하고 요청 시작 계정·토큰을 검증한다. 프로필·이름·인증 수단의
+  갱신에는 세션 갱신 세대도 확인해 이전 응답이 최신 세션이나 새 이름을 덮어쓰지 않게 한다.
+  로그인·로그아웃·계정 삭제 응답도 해당 작업을 시작한 세션에서만 전환·정리한다.
 
 - CORS preflight는 `Authorization` 헤더와 `GET, POST, PATCH, DELETE, OPTIONS`를 허용한다.
 
