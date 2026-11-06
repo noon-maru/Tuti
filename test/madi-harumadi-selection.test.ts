@@ -63,6 +63,7 @@ test("선택 화면은 빈 책장과 기존 책을 구분하고 마디가 많아
 
 test("연결은 개수 제한 없이 최신 내용·리비전을 보존하고 중복·충돌·다른 계정을 검증한다", async t => {
   const session = { userId: "selection-owner", accessToken: "s".repeat(40) };
+  t.mock.method(preferencesStorage, "setItem", async () => {});
   t.mock.method(preferencesStorage, "getItem", async () => JSON.stringify(session));
   await ensureSession();
   t.mock.method(harumadiReadCache, "clearBook", async () => {});

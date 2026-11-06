@@ -7,6 +7,7 @@ import { CLIENT_PROTOCOL, CLIENT_PROTOCOL_HEADER } from "../src/shared/api/clien
 
 test("목업 관심 수집도 현재 규약과 계정에 고정된 인증을 사용한다", async t => {
   const owner = { userId: "lifelog-user", accessToken: "a".repeat(40) };
+  t.mock.method(preferencesStorage, "setItem", async () => {});
   t.mock.method(preferencesStorage, "getItem", async (key: string) => key === "tuti-session" ? JSON.stringify(owner) : null);
   let sent = false;
   t.mock.method(globalThis, "fetch", async (input: string | URL | Request, init?: RequestInit) => {

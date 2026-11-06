@@ -46,6 +46,7 @@ test("법적 문안·활동 기록과 기존 저장 프로토콜은 제품 용�
   assert.match(read("components/LocationHistorySection.tsx"), /위치정보를 이용한 기록/);
   const api = readFileSync("src/lib/tutiApi.ts", "utf8");
   assert.match(api, /행동을 기록하지 못했어요/);
-  assert.match(api, /fetchWithSession\("journal-entries"\)/);
+  assert.match(api, /journalRequest<JournalEntriesResponse>\("journal-entries"/);
+  assert.match(api, /fetchWithPinnedSession\(path, init, session.userId\)/);
   assert.match(api, /마디를 저장하지 못했어요/);
 });
