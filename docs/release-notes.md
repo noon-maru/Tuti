@@ -11,6 +11,7 @@ Android의 `출시 노트`와 iOS의 `이 버전에서 업그레이드된 사항
 - 위치 복원·동의 동기화, 계정별 세션·마디 캐시 격리, 앱 내부 이동과 책 넘김 애니메이션을 개선한다.
 - 서버 저장·삭제·공개·공유 확정·문의 처리 정합성 보호는 먼저 운영에 반영했다. 문의 알림 대기열 마이그레이션을 포함한 운영 소스는 `526b3bd`이며 [운영 배포](https://github.com/noon-maru/Tuti/actions/runs/42168204207)와 공개 readiness의 `526b3bdc6eda` 응답을 확인했다.
 - 빌드·Google Play 내부 테스트·App Store Connect 업로드는 Actions에서 진행한다. 심사 제출·정식 공개·최신 버전 권고값 변경·실기기 검증은 별도다.
+- 2026-11-06 앱 소스 `89972b6`의 [Google Play 내부 테스트](https://github.com/noon-maru/Tuti/actions/runs/42169906912)·[App Store Connect](https://github.com/noon-maru/Tuti/actions/runs/42169910906)에 `1.6.3 (18)` 업로드 완료. 양쪽 서명·버전 검증과 [전체 CI](https://github.com/noon-maru/Tuti/actions/runs/42169906812)가 통과했다. 스토어 후속 처리·실기기 동작·심사 승인·정식 공개는 이 결과에 포함하지 않는다.
 
 ### 공통 출시 노트
 
