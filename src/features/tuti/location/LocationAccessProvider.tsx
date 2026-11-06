@@ -31,7 +31,7 @@ import {
 } from "@/lib/tutiApi";
 import { getLocationTermsVersion } from "@/shared/location/terms";
 import { useLegalPolicyRelease } from "@/features/legal/useLegalPolicyRelease";
-import { getSessionSnapshot, subscribeToSession } from "@/lib/auth/session";
+import { getSessionSnapshot, isSessionCurrent, subscribeToSession } from "@/lib/auth/session";
 import type { PreferredRegion } from "@/shared/tuti/types";
 import { useTutiStore } from "@/store/tuti";
 import { preferencesStorage } from "@/lib/storage/preferencesStorage";
@@ -69,12 +69,6 @@ export function LocationAccessProvider({
   );
   const declineLocationConsent = useTutiStore(
     (state) => state.declineLocationConsent,
-  );
-  const pauseLocationConsent = useTutiStore(
-    (state) => state.pauseLocationConsent,
-  );
-  const withdrawLocationConsent = useTutiStore(
-    (state) => state.withdrawLocationConsent,
   );
   const setLocationPermissionStatus = useTutiStore(
     (state) => state.setLocationPermissionStatus,
@@ -373,41 +367,50 @@ export function LocationAccessProvider({
   }, [resolveDeviceLocation, syncLocationConsent]);
 
   const withdrawLocation = useCallback(async () => {
+    const owner = getSessionSnapshot();
+    if (!owner) throw new Error("계정을 확인한 뒤 다시 시도해주세요.");
     deviceRequestGeneration.current += 1;
-    consentSyncGeneration.current += 1;
-    clearUserLocation();
+    const generation = ++consentSyncGeneration.current;
+    clearUserLocation("region");
     clearLocationQueries();
     finishRequest({ status: "declined" });
     setRequesting(true);
     setConsentSheetOpen(false);
     try {
-      await updateLocationConsent("withdrawn");
-      withdrawLocationConsent();
+      const response = await updateLocationConsent("withdrawn", false, getLocationTermsVersion(), owner.userId);
+      if (generation !== consentSyncGeneration.current || !isSessionCurrent(owner)) throw new Error("계정이나 위치 설정이 변경되었어요. 다시 확인해주세요.");
+      if (response.consent?.status !== "withdrawn") throw new Error("위치 동의 철회 결과를 확인하지 못했어요.");
+      syncLocationConsent(response.consent);
       await preferencesStorage.flush();
+      if (generation !== consentSyncGeneration.current || !isSessionCurrent(owner)) throw new Error("계정이나 위치 설정이 변경되었어요. 다시 확인해주세요.");
     } finally {
-      setRequesting(false);
+      if (generation === consentSyncGeneration.current && isSessionCurrent(owner)) setRequesting(false);
     }
     setRegionSheetDismissible(true);
     setRegionSheetOpen(true);
-  }, [clearLocationQueries, clearUserLocation, finishRequest, withdrawLocationConsent]);
+  }, [clearLocationQueries, clearUserLocation, finishRequest, syncLocationConsent]);
 
   const pauseLocation = useCallback(async () => {
+    const owner = getSessionSnapshot();
+    if (!owner) throw new Error("계정을 확인한 뒤 다시 시도해주세요.");
     deviceRequestGeneration.current += 1;
-    consentSyncGeneration.current += 1;
-    clearUserLocation();
+    const generation = ++consentSyncGeneration.current;
+    clearUserLocation("region");
     clearLocationQueries();
     finishRequest({ status: "declined" });
     setRequesting(true);
     setConsentSheetOpen(false);
     try {
-      await updateLocationConsent("paused");
-      pauseLocationConsent();
+      const response = await updateLocationConsent("paused", false, getLocationTermsVersion(), owner.userId);
+      if (generation !== consentSyncGeneration.current || !isSessionCurrent(owner)) throw new Error("계정이나 위치 설정이 변경되었어요. 다시 확인해주세요.");
+      if (response.consent?.status !== "paused") throw new Error("위치 일시 중지 결과를 확인하지 못했어요.");
+      syncLocationConsent(response.consent);
     } finally {
-      setRequesting(false);
+      if (generation === consentSyncGeneration.current && isSessionCurrent(owner)) setRequesting(false);
     }
     setRegionSheetDismissible(true);
     setRegionSheetOpen(true);
-  }, [clearLocationQueries, clearUserLocation, finishRequest, pauseLocationConsent]);
+  }, [clearLocationQueries, clearUserLocation, finishRequest, syncLocationConsent]);
 
   const value = useMemo(
     () => ({

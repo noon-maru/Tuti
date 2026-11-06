@@ -21,7 +21,7 @@ export function isRecommendationLocationReady(area: RecommendationArea) {
 
 export function needsRecommendationRegionChoice(area: RecommendationArea) {
   return !hasRecommendationArea(area.userLocation, area.preferredRegion) &&
-    (area.locationConsent?.status === "paused" || area.locationConsent?.status === "withdrawn" || area.locationConsent?.status === "declined");
+    (area.recommendationLocationSource === "region" || area.locationConsent?.status === "paused" || area.locationConsent?.status === "withdrawn" || area.locationConsent?.status === "declined");
 }
 
 export async function prepareRecommendationLocation(

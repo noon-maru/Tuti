@@ -99,7 +99,7 @@ type TutiState = {
     value: IntakeAnswers[Key],
   ) => void;
   setUserLocation: (location: UserLocation) => void;
-  clearUserLocation: () => void;
+  clearUserLocation: (source?: "region") => void;
   acceptLocationConsent: () => void;
   syncLocationConsent: (consent?: LocationConsentRecord) => void;
   pauseLocationConsent: () => void;
@@ -190,7 +190,8 @@ export const useTutiStore = create<TutiState>()(
           },
         })),
       setUserLocation: (userLocation) => set({ userLocation, recommendationLocationSource: "device" }),
-      clearUserLocation: () => set({
+      clearUserLocation: (source) => set((state) => ({
+        recommendationLocationSource: source ?? state.recommendationLocationSource,
         userLocation: undefined,
         dailyRecommendation: undefined,
         recommendationExcludedPlaceIds: [],
@@ -198,7 +199,7 @@ export const useTutiStore = create<TutiState>()(
         activePlaceId: undefined,
         detailOverlay: { phase: "closed" },
         pendingDeparture: undefined,
-      }),
+      })),
       acceptLocationConsent: () =>
         set({
           locationConsent: {
