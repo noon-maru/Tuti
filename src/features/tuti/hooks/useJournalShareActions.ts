@@ -12,6 +12,7 @@ import type { TutiJournalEntry } from "@/shared/api/journal";
 import { canAccountPublishJournal } from "@/shared/features/release";
 import { getJournalPublicationPolicyVersion } from "@/shared/legal/journalPublicationPolicy";
 import { fetchServiceTerms } from "@/lib/serviceTerms";
+import { loginPath } from "@/lib/loginContinuation";
 
 type ChangeEntryPublication = (
   entryId: string,
@@ -39,7 +40,7 @@ export function useJournalShareActions({
       if (
         (await confirmAction("인터넷에 공개한 마디를 계속 관리하려면 계정 연결이 필요해요. 로그인 화면으로 이동할까요?", {"title":"로그인이 필요해요","confirmLabel":"로그인하기"}))
       ) {
-        router.push("/login");
+        router.push(loginPath(`/madi/detail?entryId=${encodeURIComponent(entry.id)}`));
       }
       return;
     }

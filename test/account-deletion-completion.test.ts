@@ -19,7 +19,7 @@ test("삭제 완료의 다시 시작은 entry로 이동하고 일반 뒤로가�
   const flow = readFileSync("src/features/tuti/flows/AccountFlow.tsx", "utf8");
   const screen = readFileSync("src/features/tuti/screens/account/AccountScreen.tsx", "utf8");
   assert.match(flow, /onRestart=\{\(\) => router.replace\("\/entry"\)\}/);
-  assert.match(flow, /onBack=\{\(\) => router.replace\("\/settings"\)\}/);
+  assert.match(flow, /router.replace\(destination \?\? "\/settings"\)/);
   assert.match(screen, /<DeletionCompleteButton type="button" onClick=\{onRestart\}>/);
 });
 

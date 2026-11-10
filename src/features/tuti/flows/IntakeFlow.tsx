@@ -1,6 +1,7 @@
 "use client";
 
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
+import { loginPath } from "@/lib/loginContinuation";
 import { useEffect, useState } from "react";
 import { getIntakeSteps } from "@/features/tuti/data/intakeSteps";
 import { useLocationAccess } from "@/features/tuti/location/LocationAccessProvider";
@@ -15,7 +16,8 @@ export function IntakeFlow() {
   const setAnswer = useTutiStore((state) => state.setAnswer);
   const finishIntake = useTutiStore((state) => state.finishIntake);
   const answers = useTutiStore((state) => state.answers);
-  const [step, setStep] = useState(0);
+  const initialStep = Number(useSearchParams().get("step") ?? 0);
+  const [step, setStep] = useState(() => Number.isInteger(initialStep) ? Math.max(0, Math.min(initialStep, getIntakeSteps(answers).length - 1)) : 0);
   const [resolvingLocation, setResolvingLocation] = useState(false);
   const activeSteps = getIntakeSteps(answers);
   const activeStep = activeSteps[step];
@@ -81,7 +83,7 @@ export function IntakeFlow() {
       onChoose={chooseAnswer}
       onNext={goToNextQuestion}
       resolvingLocation={resolvingLocation}
-      onRestoreRecords={() => router.push("/login")}
+      onRestoreRecords={() => router.push(loginPath(`/explore?mode=questions&step=${step}`))}
       onSkip={skipIntake}
       auxiliaryConditions={answers}
       onCompanionChange={(value) => setAnswer("companion", value)}

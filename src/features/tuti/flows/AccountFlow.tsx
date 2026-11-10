@@ -29,6 +29,7 @@ import type { JournalAuthorBlockItem } from "@/shared/api/journal";
 import { accountAuthEnabled } from "@/shared/auth/config";
 import { useTutiStore } from "@/store/tuti";
 import { pendingHarumadiInvite } from "@/lib/harumadiInviteIntent";
+import { loginContinuation, loginSuccessPath, safeLoginReturn } from "@/lib/loginContinuation";
 
 export function AccountFlow() {
   const router = useRouter();
@@ -42,6 +43,9 @@ export function AccountFlow() {
   const resetAllData = useTutiStore((state) => state.resetAllData);
   const oauthTicket = searchParams.get("oauthTicket");
   const oauthCallbackError = searchParams.get("oauthError");
+  const directReturn = safeLoginReturn(searchParams.get("returnTo"));
+  const resumeReturn = Boolean(oauthTicket || oauthCallbackError || searchParams.get("resume") === "1");
+  const resolveReturn = useCallback(async () => directReturn ?? (resumeReturn ? await loginContinuation.read() : null), [directReturn, resumeReturn]);
   const handledOAuthTicket = useRef<string | null>(null);
   const accountProfileRefreshed = useRef(false);
   const [accountNotice, setAccountNotice] = useState<string | null>(null);
@@ -59,8 +63,10 @@ export function AccountFlow() {
 
   const finishAccountChange = useCallback(async (linked = false) => {
     await queryClient.invalidateQueries({ queryKey: ["journal-entries"] });
+    const destination = await resolveReturn();
+    await loginContinuation.clear().catch(() => {});
 
-    if (linked) {
+    if (linked && !destination && !await pendingHarumadiInvite(true).catch(() => null)) {
       setAccountNotice("로그인 수단과 기존 데이터를 현재 계정에 연결했어요.");
       router.replace("/login");
       return;
@@ -68,13 +74,13 @@ export function AccountFlow() {
 
     queryClient.removeQueries({ queryKey: ["recommendations"] });
 
-    if (!entryRecord) {
+    if (!entryRecord && !destination?.startsWith("/explore")) {
       finishIntake("skipped");
       finishEntry();
     }
 
     skipInitialHelp();
-    router.replace(await pendingHarumadiInvite(true).catch(() => null) ? "/harumadi/invite" : "/");
+    router.replace(destination ? loginSuccessPath(destination) : await pendingHarumadiInvite(true).catch(() => null) ? "/harumadi/invite" : "/");
   }, [
     entryRecord,
     finishEntry,
@@ -82,6 +88,7 @@ export function AccountFlow() {
     queryClient,
     router,
     skipInitialHelp,
+    resolveReturn,
   ]);
 
   useEffect(() => {
@@ -109,7 +116,7 @@ export function AccountFlow() {
     }
 
     handledOAuthTicket.current = oauthTicket;
-    router.replace("/login", { scroll: false });
+    router.replace("/login?resume=1", { scroll: false });
 
     void completeOAuthLogin({ ticket: oauthTicket })
       .then(async (result) => {
@@ -138,7 +145,7 @@ export function AccountFlow() {
   useEffect(() => {
     if (!oauthCallbackError) return;
 
-    router.replace("/login", { scroll: false });
+    router.replace("/login?resume=1", { scroll: false });
     setOAuthCompletion({ pending: false, error: oauthCallbackError });
   }, [oauthCallbackError, router]);
 
@@ -197,10 +204,10 @@ export function AccountFlow() {
         onCancel: () => {
           handledOAuthTicket.current = null;
           setOAuthCompletion({ pending: false });
-          router.replace("/login", { scroll: false });
+          router.replace("/login?resume=1", { scroll: false });
         },
       }}
-      onBack={() => router.replace("/settings")}
+      onBack={() => { void resolveReturn().then(async destination => { await loginContinuation.clear().catch(() => {}); router.replace(destination ?? "/settings"); }); }}
       onRestart={() => router.replace("/entry")}
       onEmailCodeRequest={(email) => requestEmailLoginCode(email)}
       onEmailCodeVerify={async (email, code, journalResolution) => {
@@ -218,6 +225,7 @@ export function AccountFlow() {
       }}
       onOAuth={async (provider) => {
         const native = Capacitor.isNativePlatform();
+        await loginContinuation.remember(await resolveReturn());
         const authorizationUrl = await createOAuthLoginUrl(provider, {
           native,
         });
@@ -245,6 +253,7 @@ export function AccountFlow() {
         const result = await deleteAccount();
         queryClient.clear();
         resetAllData();
+        await loginContinuation.clear().catch(() => {});
         return { deletionReference: result.deletionReference, pushCleanupPending: result.pushCleanupPending };
       }}
     />

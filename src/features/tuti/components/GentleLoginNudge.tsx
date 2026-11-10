@@ -11,6 +11,7 @@ import { useSession } from "@/features/tuti/hooks/useSession";
 import { preferencesStorage } from "@/lib/storage/preferencesStorage";
 import { recordProductActivity } from "@/lib/productActivity";
 import { BaseButton } from "@/features/tuti/components/buttons";
+import { loginPath } from "@/lib/loginContinuation";
 
 const STORAGE_KEY = "tuti-login-nudge-last-shown-at";
 const NUDGE_COOLDOWN_MS = 7 * 24 * 60 * 60 * 1_000;
@@ -100,7 +101,7 @@ export function GentleLoginNudge() {
               // 권유 선택 기록 실패는 로그인을 막지 않는다.
             });
             close();
-            router.push("/login");
+            router.push(loginPath(window.location.pathname + window.location.search));
           }}
         >
           로그인해두기

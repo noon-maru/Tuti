@@ -48,9 +48,12 @@ import { useCachedHarumadi } from "../hooks/useCachedHarumadi";
 type ReaderOptions = { bookId?: string; initialMode?: HarumadiOpeningMode; openingOrigin?: HarumadiBookRect; onClose?: () => void; registerCloseGuard?: (guard: (() => Promise<boolean>) | null) => void };
 export function HarumadiFlow({ bookId, initialMode, openingOrigin, onClose, registerCloseGuard }: ReaderOptions = {}) {
   const session = useSession();
-  const routeId = useSearchParams().get("harumadiId");
+  const params = useSearchParams();
+  const routeId = params.get("harumadiId");
+  const routeMode = params.get("mode");
+  const openingMode = initialMode ?? (routeMode === "together" || routeMode === "settings" ? routeMode : "pages");
   const id = bookId ?? routeId;
-  return session ? <HarumadiLoader key={`${session.userId}:${id ?? "new"}`} owner={session.userId} id={id} initialMode={initialMode} openingOrigin={openingOrigin} onClose={onClose} registerCloseGuard={registerCloseGuard} /> : <AppLoadingScreen />;
+  return session ? <HarumadiLoader key={`${session.userId}:${id ?? "new"}`} owner={session.userId} id={id} initialMode={openingMode} openingOrigin={openingOrigin} onClose={onClose} registerCloseGuard={registerCloseGuard} /> : <AppLoadingScreen />;
 }
 function HarumadiLoader({ owner, id, initialMode, openingOrigin, onClose, registerCloseGuard }: { owner: string; id: string | null } & ReaderOptions) {
   const router = useRouter();

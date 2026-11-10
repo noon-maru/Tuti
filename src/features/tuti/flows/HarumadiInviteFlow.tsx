@@ -15,6 +15,7 @@ import { harumadiPath } from "@/lib/harumadis";
 import { logoutAccount } from "@/lib/auth/session";
 import { useLifecycleView } from "../hooks/useLifecycleView";
 import { trackLifecycle } from "@/lib/lifecycle";
+import { loginPath } from "@/lib/loginContinuation";
 export function HarumadiInviteFlow() {
   useLifecycleView("invite_viewed", "invite");
   const session = useSession(), router = useRouter(), client = useQueryClient();
@@ -36,7 +37,7 @@ export function HarumadiInviteFlow() {
   }, []);
   const accept = async () => {
     if (!session || !token || busy) return;
-    if (!session.account) { await setHarumadiInviteResume(true); router.push("/login"); return; }
+    if (!session.account) { await setHarumadiInviteResume(true); router.push(loginPath("/harumadi/invite")); return; }
     if (preview.data?.joined) { await clearHarumadiInvite(); router.replace(harumadiPath(preview.data.harumadiId)); return; }
     setBusy(true); setError("");
     try {
@@ -50,7 +51,7 @@ export function HarumadiInviteFlow() {
   const switchAccount = async () => {
     if (busy || !(await confirmAction("현재 계정에서 로그아웃하고 다른 계정으로 참여할까요? 서버에 저장한 마디는 삭제되지 않아요.", {"title":"계정을 변경할까요?","confirmLabel":"계정 변경"}))) return;
     setBusy(true); setError("");
-    try { await setHarumadiInviteResume(true); await logoutAccount(); client.clear(); router.replace("/login"); }
+    try { await setHarumadiInviteResume(true); await logoutAccount(); client.clear(); router.replace(loginPath("/harumadi/invite")); }
     catch (cause) { setError(cause instanceof Error ? cause.message : "계정을 변경하지 못했어요."); }
     finally { setBusy(false); }
   };

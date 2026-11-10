@@ -9,9 +9,10 @@ import { logoutAccount } from "@/lib/auth/session";
 import { useTutiStore } from "@/store/tuti";
 import { usePushEnvironment } from "../hooks/usePushEnvironment";
 import { notificationSettingsAvailable } from "@/shared/notifications/rollout";
+import { loginPath } from "@/lib/loginContinuation";
 
 const settingsRoutes = {
-  account: "/login",
+  account: loginPath("/settings"),
   inquiry: "/inquiry",
   legal: "/legal",
   location: "/location",

@@ -12,6 +12,7 @@ import { HarumadiNotificationToggle } from "./HarumadiNotificationToggle";
 import { HarumadiTogetherView } from "./HarumadiTogetherView";
 import { harumadiParticipantIdentity } from "@/shared/harumadi/participant";
 import { captionStyles } from "@/shared/ui/typography";
+import { loginPath } from "@/lib/loginContinuation";
 export function HarumadiTogetherPanel({ owner, bookId, bookTitle, onExit, entries = [] }: { owner: string; bookId: string; bookTitle?: string; onExit: () => void; entries?: TutiJournalEntry[] }) {
   const client = useQueryClient(), router = useRouter();
   const query = useQuery({ queryKey: ["harumadi-together", owner, bookId], queryFn: () => fetchTogether(owner, bookId), retry: false });
@@ -67,7 +68,7 @@ export function HarumadiTogetherPanel({ owner, bookId, bookTitle, onExit, entrie
     <HarumadiTogetherView viewerId={owner} bookTitle={bookTitle} data={query.data} loading={query.isPending} error={query.isError ? query.error.message : undefined}
       busy={busy} notice={notice} reuseInvite={Boolean(pendingInvite)}
       onInvite={() => void action("invite")} onRevoke={id => void action("revoke-invite", id)} onConfirm={requestConfirmation}
-      onRetry={() => void query.refetch()} onAccount={() => router.push("/login")}
+      onRetry={() => void query.refetch()} onAccount={() => router.push(loginPath(`/harumadi?harumadiId=${encodeURIComponent(bookId)}&mode=together`))}
       notification={<HarumadiNotificationToggle owner={owner} bookId={bookId} disabled={busy} />} management={management} />
     {confirmation && <HarumadiTogetherConfirmDialog action={confirmation.action} busy={busy} error={notice || undefined} onCancel={closeConfirmation} onConfirm={() => void action(confirmation.action, confirmation.target)} />}
   </>;

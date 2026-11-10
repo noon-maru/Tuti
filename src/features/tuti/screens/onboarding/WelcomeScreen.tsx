@@ -12,6 +12,7 @@ import { ANDROID_BACK_EVENT } from "@/features/tuti/navigation/androidBack";
 import { WelcomeHarumadiSample } from "./WelcomeHarumadiSample";
 import { WELCOME_GUIDE, type WelcomeGuideStep } from "@/shared/tuti/welcomeGuide";
 import type { WelcomeHarumadiOrigin } from "@/shared/tuti/welcomeHarumadi";
+import { loginPath } from "@/lib/loginContinuation";
 
 export function WelcomeScreen({ onRecord, onExplore, guideStep, onGuideOpen, onGuideNext, onGuideBack, onBookOpen }: {
   onRecord: () => void;
@@ -43,7 +44,7 @@ export function WelcomeScreen({ onRecord, onExplore, guideStep, onGuideOpen, onG
   return <Frame key={guideStep ?? "welcome"} aria-labelledby="welcome-heading" data-welcome-screen>
     <Header>
       {guide ? <BackButton aria-label="이용 방법 이전 화면" onClick={onGuideBack} /> : <GuideButton type="button" onClick={onGuideOpen}>이용 방법</GuideButton>}
-      {guide ? <StepCount>{guideStep! + 1} / {WELCOME_GUIDE.length}</StepCount> : <ButtonLink as={Link} href="/login" $tone="text" $size="compact">로그인</ButtonLink>}
+      {guide ? <StepCount>{guideStep! + 1} / {WELCOME_GUIDE.length}</StepCount> : <ButtonLink as={Link} href={loginPath("/entry")} $tone="text" $size="compact">로그인</ButtonLink>}
     </Header>
     <Copy>
       <h1 id="welcome-heading" ref={heading} tabIndex={-1}>{guide ? guide.title : "기억하고 싶은 하루를,\n한 마디씩 남겨요."}</h1>
