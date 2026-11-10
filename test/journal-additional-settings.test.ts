@@ -47,8 +47,9 @@ test("첫 작성은 고정 안내만 표시하고 정책 조회 없이 일반 �
   assert.match(first, /onSave\(\{ \.\.\.draft,/);
   assert.match(first, /sensitiveContent: false/);
   assert.doesNotMatch(first, /JournalAdditionalSettings|fetchSensitiveJournalPolicy|sensitiveReady|sensitiveConsentVersion|SensitiveSection|policyAttempt|policyFailed/);
-  assert.match(first, /disabled=\{!draft\}/);
-  assert.match(first, /disabled=\{!draft \|\| saving \|\| \(inHarumadi && !destination\)\}/);
+  assert.match(first, /disabled=\{!draft \|\| saving \|\| restoringDraft\}/);
+  assert.match(first, /disabled=\{!draft \|\| saving \|\| saveBlocked\}/);
+  assert.match(first, /const saveBlocked = restoringDraft \|\| Boolean\(inHarumadi && \(!destination \|\| !destinationVerified \|\| destinationScopeChanged\)\)/);
 });
 
 test("일반 편집은 접힌 설정을 사용하고 기존 민감정보 분류와 별도 동의는 유지한다", () => {

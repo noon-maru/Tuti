@@ -5,13 +5,14 @@ import { fetchPublicPlaceDetail } from "../src/lib/tutiApi";
 import { preferencesStorage } from "../src/lib/storage/preferencesStorage";
 import { requiresServiceTerms } from "../src/shared/legal/serviceTerms";
 import { guardClientCompatibility } from "../src/server/appUpdate/clientGuard";
+import { apiUrl } from "../src/lib/api/apiUrl";
 
 test("공개 장소 상세는 세션 저장소를 읽거나 익명 계정을 생성하지 않고 인증 헤더 없이 요청한다", async t => {
   let calls = 0;
   t.mock.method(preferencesStorage, "getItem", async () => { throw Error("must not access account storage"); });
   t.mock.method(globalThis, "fetch", async (input: string | URL | Request, init?: RequestInit) => {
     calls++;
-    assert.equal(String(input), "/api/public/places/place%2Fid/detail");
+    assert.equal(String(input), apiUrl("public/places/place%2Fid/detail"));
     assert.equal(new Headers(init?.headers).has("Authorization"), false);
     assert.equal(init?.credentials, "omit");
     return Response.json({ place: { id: "place/id" }, detail: null });
