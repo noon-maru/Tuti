@@ -124,8 +124,8 @@ Tuti 앱에 대한 테스트 트랙 출시 권한이 필요하다. Android 출�
 
 ## 버전과 R8 보호
 
-2026-10-29 기준 저장소 버전은 Android `1.5.0 (14)`이며 웹·iOS도 1.5.0이다.
-실제 빌드 전 `pnpm app:version:verify`와 네이티브 설정을 확인한다. Actions는 버전 번호를
+현재 버전·빌드 번호는 [출시 노트](./release-notes.md)와 `android/app/build.gradle`에서 확인한다.
+실제 빌드 전 `pnpm app:version:verify`와 네이티브 설정을 대조한다. Actions는 버전 번호를
 자동 증가시키지 않는다. R8 코드 축소와
 난독화는 활성화하되, 위치 권한 회귀가 발생했던 Capacitor 코어 권한 브리지,
 Geolocation 플러그인과 `IONGeolocationLib` 경계는 `proguard-rules.pro`에서

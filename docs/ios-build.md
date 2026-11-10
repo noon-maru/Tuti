@@ -59,8 +59,8 @@ GitHub Artifact 보관기간은 30일이므로 App Store에 제출한 Archive는
 
 ## 버전과 프로젝트
 
-2026-10-29 기준 저장소 버전은 `1.5.0 (14)`다. Actions에서 `pnpm app:version:verify`로
-확인한다. 이미 업로드한 빌드 번호를 재사용하지 않으며 워크플로가 자동 증가시키지 않는다.
+현재 버전·빌드 번호는 [출시 노트](./release-notes.md)와 `Tuti.xcodeproj/project.pbxproj`에서 확인한다.
+Actions에서 `pnpm app:version:verify`로 대조한다. 이미 업로드한 빌드 번호를 재사용하지 않으며 워크플로가 자동 증가시키지 않는다.
 프로젝트·target·scheme·product는 `Tuti`다. Capacitor용 `ios/App/App.xcodeproj`는
 실제 `Tuti.xcodeproj`로 연결되는 상대 심볼릭 링크이며 동기화 도구가 확인한다.
 
@@ -91,7 +91,8 @@ Actions 장애를 이유로 로컬 빌드로 우회하지 않는다.
 네이티브 OAuth는 시스템 인증 브라우저를 열고
 `com.noonmaru.tuti://oauth/callback` URL Scheme으로 앱에 복귀한다. 새 기기에서
 OAuth를 검증할 때는 공급자 페이지가 앱 WebView 안이 아니라 시스템 브라우저로
-열리는지와 성공·취소 모두 로그인 화면으로 돌아오는지 확인한다.
+열리는지와 취소 시 로그인 화면으로, 성공 시 로그인을 시작했던 화면으로 돌아오는지 확인한다.
+첫 화면에서 일반 로그인을 시작한 경우 성공 후 책장으로 간다.
 
 현재 사용자 행동의 외부 AI 전송은 비활성화한다. 공개 기록 웹 링크는 1.0.0부터
 `NEXT_PUBLIC_MADI_PUBLICATION_ENABLED=true`와
