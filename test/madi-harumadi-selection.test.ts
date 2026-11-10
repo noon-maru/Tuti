@@ -44,6 +44,7 @@ test("선택 화면은 빈 책장과 기존 책을 구분하고 마디가 많아
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     const row = { ...book, entryIds: variant === "many" ? Array.from({ length: 100 }, (_, i) => `old-${i}`) : book.entryIds };
     client.setQueryData(["library-harumadis", "owner"], { pages: [{ harumadis: variant === "empty" ? [] : [row], nextCursor: null }], pageParams: [undefined] });
+    client.setQueryData(["recent-harumadis", "owner"], { harumadis: [] });
     const html = renderToStaticMarkup(createElement(QueryClientProvider, { client }, createElement(MadiHarumadiSelection, {
       ownerId: "owner", entryId: "new-entry", initialBookId: book.id, onDone() {}, onNext() {},
     })));
@@ -106,6 +107,9 @@ test("연결은 개수 제한 없이 최신 내용·리비전을 보존하고 �
   assert.equal(book.entryIds.length, 101);
   assert.equal(book.entryIds.at(-1), "next-entry");
   assert.equal(writes, before + 1);
+  book = { ...book, shared: true };
+  await assert.rejects(addMadiToHarumadi(session.userId, book.id, "not-confirmed-for-sharing", false), /공유 범위/);
+  assert.equal(writes, before + 1, "고른 뒤 공유 범위가 달라지면 원본을 새로 연결하지 않는다");
   await assert.rejects(addMadiToHarumadi("other-owner", book.id, "entry"), /계정/);
   assert.equal(writes, before + 1);
 });

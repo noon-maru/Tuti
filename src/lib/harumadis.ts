@@ -15,6 +15,16 @@ async function request<T>(owner: string, suffix: string, init?: RequestInit): Pr
 }
 export const harumadiPath = (id: string) => `/harumadi?harumadiId=${encodeURIComponent(id)}`;
 export const fetchHarumadis = (owner: string, cursor?: string) => request<HarumadiList>(owner, cursor ? `?cursor=${encodeURIComponent(cursor)}` : "");
+export async function fetchRecentHarumadis(owner: string, signal?: AbortSignal) {
+  const controller = new AbortController();
+  const abort = () => controller.abort();
+  if (signal?.aborted) abort();
+  signal?.addEventListener("abort", abort, { once: true });
+  // Optional ranking must not hold the normal book picker indefinitely.
+  const timer = setTimeout(abort, 1200);
+  try { return await request<{ harumadis: Harumadi[] }>(owner, "/recent", { signal: controller.signal }); }
+  finally { clearTimeout(timer); signal?.removeEventListener("abort", abort); }
+}
 export const fetchHarumadi = async (owner: string, id: string) => (await request<{ harumadi: Harumadi }>(owner, `/${encodeURIComponent(id)}`)).harumadi;
 export const createHarumadi = async (owner: string, input: HarumadiSettings) => (await request<{ harumadi: Harumadi }>(owner, "", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(input) })).harumadi;
 export const updateHarumadi = async (owner: string, id: string, input: HarumadiUpdate) => {

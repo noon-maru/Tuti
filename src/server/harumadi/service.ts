@@ -10,6 +10,7 @@ import { LEGACY_HARUMADI_BACK_COVER_TEXT, pickHarumadiBackCoverText } from "@/sh
 import { harumadiTogetherEnabled, lockHarumadi, requireHarumadiAccess } from "./access";
 import { HarumadiError } from "./errors";
 import { withHarumadiTitleHints } from "./titleHints";
+import { recentHarumadiIds } from "./recent";
 export { HarumadiError } from "./errors";
 
 const selection = {
@@ -65,6 +66,19 @@ export async function readHarumadi(ownerId: string, id: string) {
   const row = await prisma.harumadi.findFirst({ where: { ownerId, id }, select: selection });
   if (!row) throw new HarumadiError("하루마디를 찾지 못했어요.", 404);
   return dto(row);
+}
+export async function listRecentHarumadis(userId: string) {
+  return prisma.$transaction(async tx => {
+    const together = harumadiTogetherEnabled();
+    const ids = (await recentHarumadiIds(tx, userId, together)).map(row => row.id);
+    if (!ids.length) return { harumadis: [] };
+    const where = { id: { in: ids }, ...(together ? { OR: [{ ownerId: userId }, { members: { some: { userId, endedAt: null } } }] } : { ownerId: userId }) };
+    const books = together
+      ? (await tx.harumadi.findMany({ where, select: togetherSelection })).map(row => togetherDto(row, userId))
+      : (await tx.harumadi.findMany({ where, select: selection })).map(dto);
+    const ordered = ids.flatMap(id => { const book = books.find(book => book.id === id); return book ? [book] : []; });
+    return { harumadis: await withHarumadiTitleHints(tx, userId, ordered) };
+  }, { isolationLevel: "RepeatableRead" });
 }
 export async function createHarumadi(ownerId: string, settings: HarumadiSettings) {
   validateFreeform(settings);
