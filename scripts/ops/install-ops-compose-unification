@@ -9,11 +9,12 @@ project_dir=/var/services/homes/Tutiadmin/source/Tuti
 source_dir="$(cd "$(dirname "$0")/../.." && pwd -P)"
 cd "$project_dir"
 project_dir="$(pwd -P)"
-git_owner() { su -s /bin/sh Tutiadmin -c 'exec git "$@"' git "$@"; }
+git_owner() { su -s /bin/sh -c 'exec git "$@"' -- Tutiadmin git "$@"; }
 if [ -L "$project_dir/.ops-state" ]; then exit 1; fi
 exec 9>"$project_dir/.ops-state/maintenance.lock"
 /usr/bin/flock --exclusive 9
-[ "$(git_owner -C "$project_dir" branch --show-current)" = main ] || { echo "운영 main 브랜치에서만 적용합니다." >&2; exit 1; }
+branch="$(git_owner -C "$project_dir" branch --show-current)" || { echo "운영 사용자 권한으로 Git 브랜치를 조회하지 못했습니다. 구성은 변경하지 않았습니다." >&2; exit 1; }
+[ "$branch" = main ] || { echo "운영 main 브랜치에서만 적용합니다." >&2; exit 1; }
 if [ -f .ops-state/restore-privacy/pending.env ] || [ -f .ops-state/privacy-activation/pending ]; then
   echo "복원·원장 전환 검토 종료 후 적용해주세요." >&2; exit 1
 fi
