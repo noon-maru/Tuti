@@ -50,6 +50,6 @@ test("지정 책 작성 제목은 실제 책 이름을 보여주고 긴 이름�
     assert.match(html, /나만 보는 하루마디에 담아요/);
   }
   const unknown = renderToStaticMarkup(createElement(MadiCreateScreen, base));
-  assert.match(unknown, /담을 하루마디를 확인하고 있어요/);
+  assert.match(unknown, /작성하는 동안 담을 곳을 확인할게요/);
   assert.doesNotMatch(unknown, /undefined에/);
 });

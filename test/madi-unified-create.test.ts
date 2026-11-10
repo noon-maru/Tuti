@@ -16,7 +16,7 @@ test("지정한 하루마디의 실제 제목과 공유 범위를 작성 시작�
   const html = renderToStaticMarkup(createElement(MadiCreateScreen, {
     inHarumadi: true, destinationError: true, onRetryDestination() {}, onBack() {}, onCollection() {},
   }));
-  assert.match(html, /담을 하루마디를 확인하지 못했어요/);
+  assert.match(html, /담을 곳을 확인하지 못했어요/);
   assert.match(html, /다시 확인하기/);
 });
 
@@ -51,9 +51,9 @@ test("작성 완료는 원래 화면으로 복귀하며 하루마디 연결과 �
 
 test("화면 제목과 입력은 공통 규칙을 사용하고 마디 지면 미리보기 크기는 따로 유지한다", () => {
   const screen = readFileSync("src/features/tuti/screens/journal/MadiCreateScreen.tsx", "utf8");
-  assert.match(screen, /> span \{ \$\{screenTitleStyles\}/);
+  assert.match(screen, /const HeaderTitle = styled.span[^`]*`\$\{screenTitleStyles\}/);
   assert.match(screen, /input, textarea \{ \$\{inputControlStyles\} \}/);
-  assert.match(screen, /inHarumadi \? "하루마디에 남길 마디" : madiLabel/);
+  assert.match(screen, /destination\.title\}에 남길 마디` : "하루마디에 남길 마디" : madiLabel/);
   assert.doesNotMatch(screen, /data-madi-title-field/);
   assert.match(screen, /const PageTitle = styled.h2`[^`]*font-size: 15px; font-weight: 600; line-height: 1\.6/);
   assert.match(screen, /\{title && <PageTitle>\{title\}<\/PageTitle>\}/);

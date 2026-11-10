@@ -104,6 +104,9 @@ export async function createJournalEntry(
       if (input.harumadiId) {
         await lockHarumadi(tx, input.harumadiId);
         const book = await requireHarumadiAccess(tx, ownerId, input.harumadiId);
+        if (input.expectedHarumadiShared !== undefined && input.expectedHarumadiShared !== Boolean(book.collaborationStartedAt)) {
+          throw new HarumadiError("하루마디의 공유 범위가 바뀌었어요. 작성 중인 내용은 그대로 두고 담을 곳을 다시 확인해주세요.", 409);
+        }
         savedHarumadi = { id: book.id, title: book.title };
         if (book.collaborationStartedAt) requireTogether();
         if (book.collaborationStartedAt && sensitiveData.sensitiveContent !== false) throw new HarumadiError("민감정보가 없는 마디만 함께 채울 수 있어요.", 409);

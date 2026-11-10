@@ -33,6 +33,7 @@ export type JournalEntryInput = Pick<
   expectedVersion?: string;
   requestId?: string;
   harumadiId?: string;
+  expectedHarumadiShared?: boolean;
   placeId?: string | null;
   visitedAt?: string;
   sensitiveContent?: boolean;

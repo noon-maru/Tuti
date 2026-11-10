@@ -11,6 +11,7 @@ export function parseJournalEntryInput(
   value: unknown,
 ): JournalEntryInput | null {
   if (!isRecord(value)) return null;
+  if (value.expectedHarumadiShared !== undefined && (typeof value.expectedHarumadiShared !== "boolean" || typeof value.harumadiId !== "string")) return null;
   if (value.expectedVersion !== undefined && (typeof value.expectedVersion !== "string" || !Number.isFinite(Date.parse(value.expectedVersion)) || new Date(value.expectedVersion).toISOString() !== value.expectedVersion)) return null;
   if (value.requestId !== undefined && (typeof value.requestId !== "string" || !LIFECYCLE_UUID.test(value.requestId))) return null;
   if (value.harumadiId !== undefined && (typeof value.harumadiId !== "string" || !/^[a-zA-Z0-9_-]{1,128}$/.test(value.harumadiId))) return null;
@@ -58,6 +59,7 @@ export function parseJournalEntryInput(
     ...(typeof value.expectedVersion === "string" ? { expectedVersion: value.expectedVersion } : {}),
     ...(typeof value.requestId === "string" ? { requestId: value.requestId } : {}),
     ...(typeof value.harumadiId === "string" ? { harumadiId: value.harumadiId } : {}),
+    ...(typeof value.expectedHarumadiShared === "boolean" ? { expectedHarumadiShared: value.expectedHarumadiShared } : {}),
     title: title.trim(),
     content: content.trim(),
     image,
