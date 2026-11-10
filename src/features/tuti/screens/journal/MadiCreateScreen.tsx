@@ -25,7 +25,7 @@ import { newMadiDraftContext } from "@/lib/madiDraft";
 
 type Stage = "photo" | "write" | "preview";
 
-export function MadiCreateScreen({ onBack, onSave, onCollection, onSaved, harumadiSelection, draftOwnerId, inHarumadi = false, destination, destinationError = false, onRetryDestination, firstMadi = false, initialPlace, collectionLabel = "작성 마치기", preview = false }: {
+export function MadiCreateScreen({ onBack, onSave, onCollection, onSaved, onStartAnother, onContinueInHarumadi, continueInHarumadi = false, harumadiSelection, draftOwnerId, inHarumadi = false, destination, destinationError = false, onRetryDestination, firstMadi = false, initialPlace, collectionLabel = "작성 마치기", preview = false }: {
   destination?: Pick<Harumadi, "id" | "title" | "shared">;
   destinationError?: boolean;
   onRetryDestination?: () => void;
@@ -39,6 +39,9 @@ export function MadiCreateScreen({ onBack, onSave, onCollection, onSaved, haruma
   onSave?: (input: JournalEntryInput) => Promise<TutiJournalEntry>;
   onCollection: () => void;
   onSaved?: (entry: TutiJournalEntry) => void;
+  onStartAnother?: () => void;
+  onContinueInHarumadi?: (bookId: string) => void;
+  continueInHarumadi?: boolean;
   harumadiSelection?: { ownerId: string; initialBookId?: string | null; onDone: () => void };
 }) {
   const [stage, setStage] = useState<Stage>("photo");
@@ -152,13 +155,14 @@ export function MadiCreateScreen({ onBack, onSave, onCollection, onSaved, haruma
       onSaved?.(entry);
       // 이 화면에 들어오기 전에 담을 하루마디를 이미 정했다.
       // 저장된 ID를 전달한 뒤 바로 연결·복귀하며 완료 버튼을 다시 요구하지 않는다.
-      if (inHarumadi) onCollection();
+      if (inHarumadi && !continueInHarumadi) onCollection();
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "마디를 저장하지 못했어요. 다시 시도해주세요.");
     } finally { savingRef.current = false; setSaving(false); }
   };
 
   const startAnother = () => {
+    onStartAnother?.();
     setContinued(true);
     selection.current += 1;
     setSaved(null); setImage(null); setTitle(""); setContent(""); setDate(getKoreanDateKey()); setPlace(""); setError("");
@@ -167,11 +171,15 @@ export function MadiCreateScreen({ onBack, onSave, onCollection, onSaved, haruma
     dateEdited.current = false;
     setStage("photo");
   };
+  const nextMadi = (bookId?: string) => {
+    if (bookId && onContinueInHarumadi) onContinueInHarumadi(bookId);
+    else startAnother();
+  };
 
   if (!localDraft.ready && !preview) return <AppLoadingScreen label="작성 중이던 마디를 확인하고 있어요." />;
-  if (saved && inHarumadi) return <AppLoadingScreen label="하루마디에 담고 있어요." />;
+  if (saved && inHarumadi && !continueInHarumadi) return <AppLoadingScreen label="하루마디에 담고 있어요." />;
   if (saved && needsBookSelection && harumadiSelection) return <MadiHarumadiSelection key={saved.id}
-    {...harumadiSelection} entryId={saved.id} onNext={startAnother} />;
+    {...harumadiSelection} entryId={saved.id} onNext={nextMadi} />;
 
   if (inHarumadi && !destination) return <Frame aria-labelledby="madi-destination-heading">
     <Header><BackButton aria-label="하루마디로 돌아가기" onClick={onBack} /><span>하루마디에 남길 마디</span><span /></Header>
@@ -237,8 +245,10 @@ export function MadiCreateScreen({ onBack, onSave, onCollection, onSaved, haruma
     </Content>
     <Footer>
       {saved ? <>
-        <PrimaryButton type="button" onClick={onCollection}>{inHarumadi ? "하루마디에 담기" : collectionLabel} <ArrowRight size={16} aria-hidden="true" /></PrimaryButton>
-        {!inHarumadi && <TextButton type="button" onClick={startAnother}>다음 마디 남기기</TextButton>}
+        <PrimaryButton type="button" onClick={onCollection}>{inHarumadi ? "하루마디로 돌아가기" : collectionLabel} <ArrowRight size={16} aria-hidden="true" /></PrimaryButton>
+        {inHarumadi ? <TextButton type="button" onClick={startAnother}>이 하루마디에 다음 마디 남기기</TextButton>
+          : saved.savedHarumadi && onContinueInHarumadi ? <TextButton type="button" onClick={() => onContinueInHarumadi(saved.savedHarumadi!.id)}>같은 하루마디에 다음 마디 남기기</TextButton>
+            : <TextButton type="button" onClick={startAnother}>다음 마디 남기기</TextButton>}
       </> : stage === "photo" ? image && <PrimaryButton type="button" onClick={() => setStage("write")}>이 사진으로 계속하기</PrimaryButton>
         : stage === "write" ? <>
           {inHarumadi && destination && <PrivacyHint>{destination.title} · {destination.shared ? "함께 보는 마디" : "나만 보는 마디"}</PrivacyHint>}

@@ -30,6 +30,7 @@ export function JournalCreateFlow() {
   useNotificationPresence(harumadiId, true);
   const savedEntryId = useRef<string | null>(null);
   const request = useRef<{ hash: string; id: string } | null>(null);
+  const resetComposition = () => { request.current = null; savedEntryId.current = null; };
   const { addEntry, entries, isSuccess } = useTutiJournalEntries();
   const setActiveJournalEntry = useTutiStore(state => state.setActiveJournalEntry);
   const source = searchParams.get("from");
@@ -49,6 +50,12 @@ export function JournalCreateFlow() {
   return <MadiCreateScreen key={`${ownerId ?? "pending"}:${draftContext.scope}`} draftOwnerId={ownerId}
     firstMadi={isSuccess && entries.length === 0}
     inHarumadi={Boolean(harumadiId)}
+    continueInHarumadi={Boolean(harumadiId && searchParams.get("continue") === "1")}
+    onStartAnother={resetComposition}
+    onContinueInHarumadi={bookId => {
+      resetComposition();
+      router.replace(`/madi/new?from=library&harumadiId=${encodeURIComponent(bookId)}&continue=1`);
+    }}
     destination={destination}
     destinationError={book.isError}
     onRetryDestination={() => void book.refetch()}

@@ -54,7 +54,9 @@ export function madiCreateHarness(props: ComponentProps<typeof MadiCreateScreen>
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.ReactJSX, esModuleInterop: true },
   }).outputText, { exports, require: (id: string) => { if (!(id in deps)) throw Error(`Unexpected dependency ${id}`); return deps[id]; }, Date, URL });
   const render = () => { cursor = 0; refCursor = 0; return exports.MadiCreateScreen!(props); };
-  const control = (label: string) => findMadiControl(render(), p => p["aria-label"] === label || p.children === label)!;
+  const text = (node: unknown): string => typeof node === "string" ? node : Array.isArray(node) ? node.map(text).join("") :
+    node && typeof node === "object" ? text((node as Element).props?.children) : "";
+  const control = (label: string) => findMadiControl(render(), p => p["aria-label"] === label || Boolean(p.onClick && text(p.children).trim() === label))!;
   return { render, control, finished: () => finished,
     change: (label: string, value: string) => (control(label).onChange as (e: unknown) => void)({ target: { value } }),
     click: (label: string) => { const node = control(label); if (!node || node.disabled) throw Error(`Missing/enabled control: ${label}`); (node.onClick as () => void)(); },

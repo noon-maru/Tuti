@@ -13,7 +13,7 @@ import { HarumadiTitleHint } from "@/features/tuti/components/HarumadiTitleHint"
 
 export function MadiHarumadiSelection({ ownerId, entryId, initialBookId, onDone, onNext }: {
   ownerId: string; entryId: string; initialBookId?: string | null;
-  onDone: () => void; onNext: () => void;
+  onDone: () => void; onNext: (bookId?: string) => void;
 }) {
   const client = useQueryClient();
   const [selected, setSelected] = useState<string | null>(initialBookId ?? null);
@@ -43,7 +43,7 @@ export function MadiHarumadiSelection({ ownerId, entryId, initialBookId, onDone,
       void client.invalidateQueries({ queryKey: ["library-harumadis", ownerId] });
       void client.invalidateQueries({ queryKey: ["harumadi-content", ownerId] });
       client.removeQueries({ queryKey: ["library-cover", ownerId] });
-      if (next) onNext(); else onDone();
+      if (next) onNext(selected); else onDone();
     } catch (cause) {
       setError(`마디는 저장되어 있어요. ${cause instanceof Error ? cause.message : "하루마디에 담지 못했어요. 다시 시도해주세요."}`);
     } finally { saving.current = false; setBusy(false); }
@@ -70,7 +70,7 @@ export function MadiHarumadiSelection({ ownerId, entryId, initialBookId, onDone,
     <Footer>
       <PrimaryButton disabled={busy || !canAdd} onClick={() => void complete(false)}>{busy ? "담고 있어요…" : "선택한 하루마디에 담고 마치기"}</PrimaryButton>
       <TextButton disabled={busy} onClick={onDone}>담지 않고 마치기</TextButton>
-      <TextButton disabled={busy || Boolean(selected && !canAdd)} onClick={() => { if (selected) void complete(true); else onNext(); }}>{selected ? "담고 다음 마디 남기기" : "담지 않고 다음 마디 남기기"}</TextButton>
+      <TextButton disabled={busy || Boolean(selected && !canAdd)} onClick={() => { if (selected) void complete(true); else onNext(); }}>{selected ? "담고 같은 하루마디에 계속 쓰기" : "담지 않고 다음 마디 남기기"}</TextButton>
     </Footer>
   </Frame>;
 }
