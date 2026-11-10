@@ -4,6 +4,7 @@ import { Capacitor } from "@capacitor/core";
 
 import { apiUrl } from "@/lib/api/apiUrl";
 import type { TutiJournalEntry } from "@/shared/api/journal";
+import { createLinkShareContent, shareContent } from "@/lib/shareContent";
 
 export function isNativeSharePlatform() {
   return Capacitor.isNativePlatform();
@@ -92,18 +93,7 @@ export async function shareJournalPublicUrl(
     return "shared" as const;
   }
 
-  if (navigator.share) {
-    try {
-      await navigator.share(shareData);
-      return "shared" as const;
-    } catch (error) {
-      if (isShareCancellation(error)) return "cancelled" as const;
-      throw error;
-    }
-  }
-
-  await copyJournalPublicUrl(publicId);
-  return "copied" as const;
+  return shareContent(shareData);
 }
 
 export function createJournalPublicShareData(
@@ -112,10 +102,11 @@ export function createJournalPublicShareData(
 ) {
   const subject = entry.title.trim() || entry.placeName.trim() || "지난 공간";
 
-  return {
+  return createLinkShareContent({
     title: `${subject} | Tuti`,
+    text: "",
     url,
-  };
+  });
 }
 
 export function downloadJournalPng(

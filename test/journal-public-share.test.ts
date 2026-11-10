@@ -3,7 +3,7 @@ import test from "node:test";
 
 import { createJournalPublicShareData } from "../src/lib/journalShare.ts";
 
-test("공개 기록 웹 링크에는 제목과 URL만 담는다", () => {
+test("공개 마디 공유는 제목과 URL을 빈 줄로 구분한 한 본문으로 전달한다", () => {
   assert.deepEqual(
     createJournalPublicShareData(
       "https://tuti.today/shared/abcdefghijklmnopqrstuvwxyzABCDEF",
@@ -14,7 +14,7 @@ test("공개 기록 웹 링크에는 제목과 URL만 담는다", () => {
     ),
     {
       title: "바람이 좋았던 오후 | Tuti",
-      url: "https://tuti.today/shared/abcdefghijklmnopqrstuvwxyzABCDEF",
+      text: "바람이 좋았던 오후 | Tuti\n\nhttps://tuti.today/shared/abcdefghijklmnopqrstuvwxyzABCDEF",
     },
   );
 });
@@ -27,7 +27,7 @@ test("제목과 장소가 비어 있어도 공유 문구에 안전한 기본값�
     }),
     {
       title: "지난 공간 | Tuti",
-      url: "https://tuti.today/shared/example",
+      text: "지난 공간 | Tuti\n\nhttps://tuti.today/shared/example",
     },
   );
 });

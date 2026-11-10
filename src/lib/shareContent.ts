@@ -4,10 +4,17 @@ type ShareContent = {
   url?: string;
 };
 
+/** Keep the URL on its own final line; share targets concatenate separate text/url fields differently. */
+export function createLinkShareContent(content: ShareContent & { url: string }) {
+  const title = content.title.trim();
+  return { title, text: [title, content.text.trim(), content.url.trim()].filter(Boolean).join("\n\n") };
+}
+
 export async function shareContent(content: ShareContent) {
+  const payload = content.url ? createLinkShareContent({ ...content, url: content.url }) : content;
   if (navigator.share) {
     try {
-      await navigator.share(content);
+      await navigator.share(payload);
       return "shared" as const;
     } catch (error) {
       if (error instanceof DOMException && error.name === "AbortError") {
@@ -16,13 +23,8 @@ export async function shareContent(content: ShareContent) {
     }
   }
 
-  const fallbackText = [
-    content.title,
-    content.text,
-    content.url,
-  ]
-    .filter(Boolean)
-    .join("\n");
+  const fallbackText = payload.text === payload.title || payload.text.startsWith(`${payload.title}\n`)
+    ? payload.text : [payload.title, payload.text].filter(Boolean).join("\n");
 
   if (navigator.clipboard?.writeText) {
     await navigator.clipboard.writeText(fallbackText);
