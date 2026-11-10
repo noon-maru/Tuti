@@ -18,7 +18,11 @@ test("앱 진입·약관·업데이트의 내부 링크는 Next 라우터를 사
     function visit(node: ts.Node) {
       if (ts.isJsxOpeningElement(node) || ts.isJsxSelfClosingElement(node)) {
         const href = node.attributes.properties.find(attribute => ts.isJsxAttribute(attribute) && attribute.name.getText(tree) === "href");
-        if (href && ts.isJsxAttribute(href) && href.initializer && ts.isStringLiteral(href.initializer) && href.initializer.text.startsWith("/")) {
+        const initializer = href && ts.isJsxAttribute(href) ? href.initializer : undefined;
+        const expression = initializer && ts.isJsxExpression(initializer) ? initializer.expression : undefined;
+        const loginReturn = expression && ts.isCallExpression(expression) && expression.expression.getText(tree) === "loginPath"
+          && expression.arguments.length === 1 && ts.isStringLiteral(expression.arguments[0]) && expression.arguments[0].text.startsWith("/");
+        if (initializer && ((ts.isStringLiteral(initializer) && initializer.text.startsWith("/")) || loginReturn)) {
           internalLinks++;
           const tag = node.tagName.getText(tree);
           assert.notEqual(tag, "a", `${file}: 일반 내부 링크 금지`);
