@@ -12,6 +12,8 @@ Android의 `출시 노트`와 iOS의 `이 버전에서 업그레이드된 사항
 - 서버는 `71678c7`을 운영 중이며, 사진 크기 보존 마이그레이션을 포함한 선행 배포와 DB·객체 저장소 readiness를 확인했다. 워커 Compose 통합은 별도 운영 구성 변경이며 앱 기능·권한을 추가하지 않는다.
 - Google Play 내부 테스트·App Store Connect에 Actions로 빌드·업로드한다. 처리 완료·실기기 검증·심사 제출·정식 공개와 최신 버전 권고값 변경은 별도다.
 - iOS 심사 사전 점검은 이번 변경의 버전·출시 문구·기존 동의 및 권한 경로에 한정한다. 네이티브 권한·개인정보 매니페스트·결제 설정 변경은 없으며, 실기기 동작과 심사 승인을 보증하는 검사는 아니다.
+- 2026-11-10 앱 소스 `76cc75f`의 [Google Play 내부 테스트](https://github.com/noon-maru/Tuti/actions/runs/42776907340)에 `1.6.4 (19)` 업로드 완료. 서명 AAB·APK 검증과 [전체 CI](https://github.com/noon-maru/Tuti/actions/runs/42776895359)가 통과했다.
+- [iOS 빌드](https://github.com/noon-maru/Tuti/actions/runs/42776911155)는 Archive 자동 서명에서 Apple Development 인증서 발급 한도 오류와 연결된 개발 프로파일 미발견으로 중단됐다. App Store Connect에는 아직 업로드되지 않았으며, 기존 인증서를 임의로 폐기하지 않는다. 계정의 인증서 사용처 확인 후 서명 재사용 또는 미사용 인증서 정리가 필요하다.
 
 ### 공통 출시 노트
 
