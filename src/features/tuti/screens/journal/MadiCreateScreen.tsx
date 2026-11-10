@@ -186,7 +186,7 @@ export function MadiCreateScreen({ onBack, onSave, onCollection, onSaved, haruma
     <Header>
       <BackButton aria-label={saved ? inHarumadi ? "하루마디로" : collectionLabel : "이전으로"} onClick={back} disabled={saving} />
       <span>{inHarumadi ? "하루마디에 남길 마디" : madiLabel}</span>
-      <StepCount>{saved ? <Check size={18} aria-label="저장 완료" /> : `${stage === "photo" ? 1 : stage === "write" ? 2 : 3} / 3`}</StepCount>
+      <StepCount>{saved ? <Check size={18} aria-label="저장 완료" /> : stage === "preview" ? "미리보기" : `${stage === "photo" ? 1 : 2} / 2`}</StepCount>
     </Header>
     <Content ref={scroll} data-scroll-region>
       {!saved && inHarumadi && <Destination role="status">
@@ -206,7 +206,7 @@ export function MadiCreateScreen({ onBack, onSave, onCollection, onSaved, haruma
       </PhotoChoices>}
       <HiddenInput ref={photoInput} type="file" accept="image/*" aria-label="앨범 사진 선택" onChange={choosePhoto} />
       <HiddenInput ref={cameraInput} type="file" accept="image/*" capture="environment" aria-label="카메라 사진 촬영" onChange={choosePhoto} />
-      {!saved && stage === "write" && <Fields>
+      {!saved && stage === "write" && <Fields disabled={saving} aria-label="마디 내용" aria-busy={saving}>
         {image && <SelectedPhoto><Image src={image} alt="마디에 담을 사진" fill unoptimized sizes="350px" /></SelectedPhoto>}
         <PhotoActions><TextButton type="button" onClick={() => photoInput.current?.click()}>{image ? "사진 바꾸기" : "사진 추가하기"}</TextButton>{image && <TextButton type="button" onClick={removePhoto}>사진 빼기</TextButton>}</PhotoActions>
         <label><MadiFieldLabel>제목 <small>선택</small></MadiFieldLabel><input aria-label="마디 제목 (선택)" placeholder={MADI_FIELD_COPY.titlePlaceholder} maxLength={FIRST_JOURNAL_TITLE_LIMIT} value={title} onChange={event => setTitle(event.target.value)}
@@ -240,7 +240,11 @@ export function MadiCreateScreen({ onBack, onSave, onCollection, onSaved, haruma
         <PrimaryButton type="button" onClick={onCollection}>{inHarumadi ? "하루마디에 담기" : collectionLabel} <ArrowRight size={16} aria-hidden="true" /></PrimaryButton>
         {!inHarumadi && <TextButton type="button" onClick={startAnother}>다음 마디 남기기</TextButton>}
       </> : stage === "photo" ? image && <PrimaryButton type="button" onClick={() => setStage("write")}>이 사진으로 계속하기</PrimaryButton>
-        : stage === "write" ? <PrimaryButton type="button" disabled={!draft} onClick={() => { setError(""); setStage("preview"); }}>{madiLabel} 미리보기</PrimaryButton>
+        : stage === "write" ? <>
+          {inHarumadi && destination && <PrivacyHint>{destination.title} · {destination.shared ? "함께 보는 마디" : "나만 보는 마디"}</PrivacyHint>}
+          <PrimaryButton type="button" disabled={!draft || saving || (inHarumadi && !destination)} onClick={() => void save()}>{saving ? "마디를 저장하고 있어요…" : `${madiLabel} 남기기`}</PrimaryButton>
+          <TextButton type="button" disabled={!draft || saving} onClick={() => { setError(""); setStage("preview"); }}>미리보기</TextButton>
+        </>
           : <>{inHarumadi && destination && <PrivacyHint>{destination.title} · {destination.shared ? "함께 보는 마디" : "나만 보는 마디"}</PrivacyHint>}<PrimaryButton type="button" disabled={!draft || saving || (inHarumadi && !destination)} onClick={() => void save()}>{saving ? "마디를 저장하고 있어요…" : "이대로 마디 남기기"}</PrimaryButton><TextButton type="button" disabled={saving} onClick={() => setStage("write")}>조금 더 고치기</TextButton></>}
     </Footer>
     {cropSource && <ImageCropDialog source={cropSource} onCancel={cancelCrop} onConfirm={confirmCrop} />}
@@ -274,8 +278,8 @@ const SelectedPhoto = styled.div`position: relative; aspect-ratio: 4 / 3; border
 const HiddenInput = styled.input`display: none;`;
 const PrivacyHint = styled.p`${captionStyles} margin: 0; min-width: 0; word-break: keep-all; overflow-wrap: anywhere;`;
 const Destination = styled.div`display: grid; gap: 4px; padding-bottom: 16px; border-bottom: 1px solid var(--color-border); strong { font-size: var(--ui-body-size); font-weight: 600; overflow-wrap: anywhere; } span { ${captionStyles} }`;
-const Fields = styled.div`
-  display: grid; grid-template-columns: minmax(0, 1fr); min-width: 0; gap: 24px;
+const Fields = styled.fieldset`
+  margin: 0; padding: 0; border: 0; display: grid; grid-template-columns: minmax(0, 1fr); min-width: 0; min-inline-size: 0; gap: 24px;
   label { display: grid; grid-template-columns: minmax(0, 1fr); min-width: 0; gap: 10px; font-size: var(--ui-body-size); font-weight: 500; }
   small { ${captionStyles} display: inline; }
   input, textarea { ${inputControlStyles} }
