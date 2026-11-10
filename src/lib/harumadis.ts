@@ -14,12 +14,30 @@ async function request<T>(owner: string, suffix: string, init?: RequestInit): Pr
   return body as T;
 }
 export const harumadiPath = (id: string) => `/harumadi?harumadiId=${encodeURIComponent(id)}`;
-export const fetchHarumadis = (owner: string, cursor?: string, search = "") => {
+export const fetchHarumadis = (owner: string, cursor?: string, search = "", signal?: AbortSignal) => {
   const params = new URLSearchParams();
   if (cursor) params.set("cursor", cursor);
   if (search.trim()) params.set("q", search.trim().slice(0, 100));
-  return request<HarumadiList>(owner, params.size ? `?${params}` : "");
+  return request<HarumadiList>(owner, params.size ? `?${params}` : "", { signal });
 };
+/** Commit a complete library to Query only after every page succeeds. */
+export async function collectHarumadiPages(load: (cursor?: string) => Promise<HarumadiList>, signal?: AbortSignal) {
+  const pages: HarumadiList[] = [], cursors = new Set<string>(), ids = new Set<string>();
+  const assertActive = () => { if (signal?.aborted) throw Object.assign(new Error("책장 조회를 취소했어요."), { name: "AbortError" }); };
+  let cursor: string | undefined;
+  do {
+    assertActive();
+    const page = await load(cursor);
+    assertActive();
+    const harumadis = page.harumadis.filter(book => { if (ids.has(book.id)) return false; ids.add(book.id); return true; });
+    pages.push({ ...page, harumadis });
+    cursor = page.nextCursor ?? undefined;
+    if (cursor && cursors.has(cursor)) throw new Error("책장 목록을 끝까지 불러오지 못했어요. 다시 불러와주세요.");
+    if (cursor) cursors.add(cursor);
+  } while (cursor);
+  return { pages };
+}
+export const fetchAllHarumadis = (owner: string, signal?: AbortSignal) => collectHarumadiPages(cursor => fetchHarumadis(owner, cursor, "", signal), signal);
 export async function fetchRecentHarumadis(owner: string, signal?: AbortSignal) {
   const controller = new AbortController();
   const abort = () => controller.abort();
