@@ -19,10 +19,16 @@ export function PublicJournalScreen({
   entry,
   loading,
   onBlockAuthor,
+  loadError = false,
+  imageFailed = false,
+  onRetry,
 }: {
   entry: PublicJournalEntry | null;
   loading: boolean;
   onBlockAuthor: () => Promise<void>;
+  loadError?: boolean;
+  imageFailed?: boolean;
+  onRetry?: () => void;
 }) {
   const [reportOpen, setReportOpen] = useState(false);
   const [reportReason, setReportReason] = useState("inappropriate");
@@ -62,7 +68,9 @@ export function PublicJournalScreen({
       <Page>
         <Shell>
           <Header><Wordmark src="/brand/tuti-wordmark.svg" alt="Tuti" /></Header>
-          <Card><Content><h1>{loading ? "공유된 마디를 불러오고 있어요." : "공개된 마디를 찾지 못했어요."}</h1></Content></Card>
+          <Card><Content aria-live="polite"><h1>{loading ? "공유된 마디를 불러오고 있어요." : loadError ? "공유된 마디를 불러오지 못했어요." : "공개된 마디를 찾지 못했어요."}</h1>
+            {loadError && <><p>연결을 확인하고 다시 시도해주세요.</p><BaseButton type="button" onClick={onRetry}>다시 불러오기</BaseButton></>}
+          </Content></Card>
         </Shell>
       </Page>
     );
@@ -127,6 +135,7 @@ export function PublicJournalScreen({
           </Hero>
 
           <Content>
+            {imageFailed && <div role="status"><p>사진을 불러오지 못했어요. 이야기는 그대로 볼 수 있어요.</p><BaseButton type="button" onClick={onRetry}>다시 불러오기</BaseButton></div>}
             <DateText>{formatPublicDate(entry.visitedAt)}</DateText>
             <h1>{entry.title || "남겨둔 공간"}</h1>
             <JournalLocationLabel placeName={entry.placeName} />

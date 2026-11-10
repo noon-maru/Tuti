@@ -4,57 +4,44 @@ import { useCallback, useEffect, useState } from "react";
 
 import { PublicJournalScreen } from "@/features/tuti/screens/journal/PublicJournalScreen";
 import { fetchWithSession } from "@/lib/auth/session";
-import type {
-  PublicJournalEntry,
-  PublicJournalEntryResponse,
-} from "@/shared/api/journal";
+import type { PublicJournalEntry } from "@/shared/api/journal";
+import { PublicMadiUnavailable, readPublicMadi } from "@/lib/publicMadiRead";
 
 export function PublicJournalFlow({ publicId }: { publicId: string }) {
+  return <PublicJournalContent key={publicId} publicId={publicId} />;
+}
+
+function PublicJournalContent({ publicId }: { publicId: string }) {
   const [entry, setEntry] = useState<PublicJournalEntry | null>(null);
-  const [status, setStatus] = useState<"loading" | "ready" | "missing">("loading");
+  const [status, setStatus] = useState<"loading" | "ready" | "missing" | "error">("loading");
+  const [imageFailed, setImageFailed] = useState(false);
+  const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
     let active = true;
     let imageUrl: string | null = null;
+    const controller = new AbortController();
 
     const load = async () => {
       try {
-        const response = await fetchWithSession(
-          `public/journal-entries/${encodeURIComponent(publicId)}`,
-        );
-        if (!response.ok) throw new Error("missing");
-        const data = (await response.json()) as PublicJournalEntryResponse;
-        let nextEntry = data.entry;
-
-        if (nextEntry.image) {
-          const imageResponse = await fetchWithSession(
-            nextEntry.image.replace(/^\/api\//, ""),
-          );
-          if (imageResponse.ok) {
-            imageUrl = URL.createObjectURL(await imageResponse.blob());
-            nextEntry = { ...nextEntry, image: imageUrl };
-          } else {
-            nextEntry = { ...nextEntry, image: null };
-          }
-        }
-
-        if (!active) {
-          if (imageUrl) URL.revokeObjectURL(imageUrl);
-          return;
-        }
-        setEntry(nextEntry);
+        const result = await readPublicMadi(publicId, fetchWithSession, controller.signal);
+        if (!active) return;
+        if (result.image) imageUrl = URL.createObjectURL(result.image);
+        setEntry({ ...result.entry, image: imageUrl });
+        setImageFailed(result.imageFailed);
         setStatus("ready");
-      } catch {
-        if (active) setStatus("missing");
+      } catch (error) {
+        if (active) setStatus(error instanceof PublicMadiUnavailable ? "missing" : "error");
       }
     };
 
     void load();
     return () => {
       active = false;
+      controller.abort();
       if (imageUrl) URL.revokeObjectURL(imageUrl);
     };
-  }, [publicId]);
+  }, [publicId, attempt]);
 
   const blockAuthor = useCallback(async () => {
     const response = await fetchWithSession("journal-author-blocks", {
@@ -71,6 +58,9 @@ export function PublicJournalFlow({ publicId }: { publicId: string }) {
     <PublicJournalScreen
       entry={entry}
       loading={status === "loading"}
+      loadError={status === "error"}
+      imageFailed={imageFailed}
+      onRetry={() => { setEntry(null); setStatus("loading"); setImageFailed(false); setAttempt(value => value + 1); }}
       onBlockAuthor={blockAuthor}
     />
   );
