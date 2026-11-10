@@ -39,3 +39,17 @@ test("일반 작성에만 저장 후 담기를 안내하고 첫 마디·지정 �
   assert.match(shared, /함께 쓰는 책/); assert.match(shared, /함께 채우는 사람들에게 보여요/);
   assert.doesNotMatch(shared, new RegExp(MADI_COMPOSE_COPY.chooseAfterSave));
 });
+
+test("지정 책 작성 제목은 실제 책 이름을 보여주고 긴 이름도 생략하지 않는다", () => {
+  const base = { onBack() {}, onCollection() {}, inHarumadi: true };
+  for (const title of ["우리의 작은 하루", "긴이름".repeat(20), "혼자 남기는 하루 🌿"]) {
+    const html = renderToStaticMarkup(createElement(MadiCreateScreen, { ...base, destination: { id: "book", title, shared: false } }));
+    assert.ok(html.includes(`${title}에 남길 마디`));
+    assert.match(html, /font-size:16px/); assert.match(html, /overflow-wrap:anywhere/);
+    assert.doesNotMatch(html, /<strong>우리의 작은 하루<\/strong>/);
+    assert.match(html, /나만 보는 하루마디에 담아요/);
+  }
+  const unknown = renderToStaticMarkup(createElement(MadiCreateScreen, base));
+  assert.match(unknown, /담을 하루마디를 확인하고 있어요/);
+  assert.doesNotMatch(unknown, /undefined에/);
+});

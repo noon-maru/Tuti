@@ -182,7 +182,7 @@ export function MadiCreateScreen({ onBack, onSave, onCollection, onSaved, onStar
     {...harumadiSelection} entryId={saved.id} onNext={nextMadi} />;
 
   if (inHarumadi && !destination) return <Frame aria-labelledby="madi-destination-heading">
-    <Header><BackButton aria-label="하루마디로 돌아가기" onClick={onBack} /><span>하루마디에 남길 마디</span><span /></Header>
+    <Header><BackButton aria-label="하루마디로 돌아가기" onClick={onBack} /><HeaderTitle>하루마디에 남길 마디</HeaderTitle><span /></Header>
     <Content data-scroll-region>
       <Intro><h1 id="madi-destination-heading">{destinationError ? "담을 하루마디를 확인하지 못했어요." : "담을 하루마디를 확인하고 있어요."}</h1>
         <p role={destinationError ? "alert" : "status"}>{destinationError ? "연결과 접근 권한을 확인한 뒤 다시 시도해주세요. 저장해 둔 초안은 그대로 남아 있어요." : "담을 곳과 공유 범위를 확인한 뒤 작성할 수 있어요."}</p></Intro>
@@ -193,12 +193,12 @@ export function MadiCreateScreen({ onBack, onSave, onCollection, onSaved, onStar
   return <Frame aria-labelledby="madi-create-heading">
     <Header>
       <BackButton aria-label={saved ? inHarumadi ? "하루마디로" : collectionLabel : "이전으로"} onClick={back} disabled={saving} />
-      <span>{inHarumadi ? "하루마디에 남길 마디" : madiLabel}</span>
+      <HeaderTitle $book={Boolean(inHarumadi && destination)}>{inHarumadi && destination ? `${destination.title}에 남길 마디` : madiLabel}</HeaderTitle>
       <StepCount>{saved ? <Check size={18} aria-label="저장 완료" /> : stage === "preview" ? "미리보기" : `${stage === "photo" ? 1 : 2} / 2`}</StepCount>
     </Header>
     <Content ref={scroll} data-scroll-region>
       {!saved && inHarumadi && <Destination role="status">
-        {destination ? <><strong>{destination.title}</strong><span>{destination.shared ? "함께 채우는 사람들에게 보여요." : "나만 보는 하루마디에 담아요."}</span></>
+        {destination ? <span>{destination.shared ? "함께 채우는 사람들에게 보여요." : "나만 보는 하루마디에 담아요."}</span>
           : <><span>{destinationError ? "담을 하루마디를 확인하지 못했어요." : "담을 하루마디를 확인하고 있어요."}</span>{destinationError && <TextButton onClick={onRetryDestination}>다시 확인하기</TextButton>}</>}
       </Destination>}
       <Intro>
@@ -274,7 +274,9 @@ function MemoryPage({ title, image, content, date, place }: { title: string; ima
 const Frame = styled(ScreenFrame)`background: var(--color-surface); gap: var(--space-5);`;
 const PageTitle = styled.h2`margin: 0; font-size: 15px; font-weight: 600; line-height: 1.6; overflow-wrap: anywhere;`;
 const Header = styled.header`flex: none; display: grid; grid-template-columns: 44px minmax(0, 1fr) 44px; align-items: center; text-align: center; gap: 8px;
-  > span { ${screenTitleStyles} word-break: keep-all; }
+`;
+const HeaderTitle = styled.span<{ $book?: boolean }>`${screenTitleStyles} min-width: 0; word-break: keep-all; overflow-wrap: anywhere;
+  ${({ $book }) => $book && `font-size: 16px; font-weight: 600; line-height: 1.5;`}
 `;
 const StepCount = styled.div`font-size: 12px; color: var(--color-text-muted); display: flex; justify-content: center;`;
 const Content = styled.div`flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 2px 2px 24px; display: flex; flex-direction: column; gap: 26px; > * { flex-shrink: 0; }`;
