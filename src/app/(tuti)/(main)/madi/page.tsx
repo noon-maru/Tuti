@@ -6,6 +6,7 @@ import { useJournalEntryTransition } from "@/features/tuti/components/JournalEnt
 import { JournalScreen } from "@/features/tuti/screens/journal/JournalScreen";
 import { useSession } from "@/features/tuti/hooks/useSession";
 import { rememberMadiEditOrigin } from "@/lib/madiEditReturn";
+import { rememberMadiDetailOrigin } from "@/lib/madiDetailReturn";
 
 export default function JournalPage() {
   return <Suspense fallback={null}><JournalPageContent /></Suspense>;
@@ -34,6 +35,7 @@ function JournalPageContent() {
         );
       }}
       onOpenEntry={(entryId, image, sourceElement) => {
+        rememberMadiDetailOrigin(ownerId, entryId);
         startTransition({
           entryId,
           image: image ?? undefined,

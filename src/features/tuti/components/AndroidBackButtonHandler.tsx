@@ -10,6 +10,8 @@ import {
   resolveAndroidBackDestination,
 } from "@/features/tuti/navigation/androidBack";
 import { palette } from "@/styles/tokens";
+import { resolveMadiDetailReturn } from "@/lib/madiDetailReturn";
+import { getSessionSnapshot } from "@/lib/auth/session";
 
 const EXIT_CONFIRMATION_WINDOW_MS = 2_000;
 
@@ -35,6 +37,14 @@ export function AndroidBackButtonHandler() {
       if (!dispatchAndroidBackEvent()) {
         lastBackPressedAt.current = 0;
         hideMessage();
+        return;
+      }
+
+      if (pathname === "/madi/detail") {
+        lastBackPressedAt.current = 0;
+        hideMessage();
+        const destination = resolveMadiDetailReturn(getSessionSnapshot()?.userId, new URLSearchParams(window.location.search).get("entryId"));
+        if (destination.back) window.history.back(); else router.replace(destination.path);
         return;
       }
 

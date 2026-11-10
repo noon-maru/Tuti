@@ -14,6 +14,8 @@ import {
 import { useTutiStore } from "@/store/tuti";
 import { useSession } from "@/features/tuti/hooks/useSession";
 import { rememberMadiEditOrigin } from "@/lib/madiEditReturn";
+import { resolveMadiDetailReturn } from "@/lib/madiDetailReturn";
+import { useCallback } from "react";
 
 export function JournalDetailFlow() {
   const router = useRouter();
@@ -33,7 +35,10 @@ export function JournalDetailFlow() {
     (state) => state.setActiveJournalEntry,
   );
   const entry = entries.find((candidate) => candidate.id === entryId);
-  const returnToJournal = () => router.back();
+  const returnToJournal = useCallback(() => {
+    const destination = resolveMadiDetailReturn(ownerId, entryId);
+    if (destination.back) router.back(); else router.replace(destination.path);
+  }, [ownerId, entryId, router]);
   const returnToJournalFallback = () => router.replace("/madi");
   const shareActions = useJournalShareActions({
     entry,
