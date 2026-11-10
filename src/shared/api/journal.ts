@@ -11,6 +11,9 @@ export type TutiJournalEntry = {
   title: string;
   content: string;
   image: string | null;
+  /** Actual saved pixels, measured by the server; absent on legacy photos. */
+  imageWidth?: number | null;
+  imageHeight?: number | null;
   placeId: string | null;
   placeName: string;
   visitedAt: string;

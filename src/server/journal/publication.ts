@@ -50,6 +50,8 @@ export async function getPublicJournalEntry(
       title: true,
       content: true,
       image: true,
+      imageWidth: true,
+      imageHeight: true,
       placeName: true,
       visitedAt: true,
       publicId: true,
@@ -74,6 +76,7 @@ export async function getPublicJournalEntry(
     title: entry.title,
     content: entry.content,
     image: serializePublicImage(entry.image, entry.publicId),
+    ...(entry.imageWidth && entry.imageHeight ? { imageWidth: entry.imageWidth, imageHeight: entry.imageHeight } : {}),
     placeName: entry.placeName,
     visitedAt: entry.visitedAt.toISOString(),
   };

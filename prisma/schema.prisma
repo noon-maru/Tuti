@@ -703,6 +703,8 @@ model JournalEntry {
   title       String
   content     String
   image       String?
+  imageWidth  Int?      @map("image_width")
+  imageHeight Int?      @map("image_height")
   placeId     String?   @map("place_id")
   placeName   String    @map("place_name")
   visitedAt   DateTime  @map("visited_at")

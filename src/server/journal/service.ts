@@ -45,6 +45,8 @@ export async function getJournalEntries(
       title: true,
       content: true,
       image: true,
+      imageWidth: true,
+      imageHeight: true,
       placeId: true,
       placeName: true,
       visitedAt: true,
@@ -114,6 +116,8 @@ export async function createJournalEntry(
           title: input.title,
           content: input.content,
           image: preparedImage.image,
+          imageWidth: preparedImage.imageWidth,
+          imageHeight: preparedImage.imageHeight,
           placeId: selectedPlace.id,
           placeName: selectedPlace.name,
           visitedAt: input.visitedAt ? new Date(input.visitedAt) : new Date(),
@@ -160,6 +164,8 @@ export async function updateJournalEntry(
     where: { id: entryId, ownerId },
     select: {
       image: true,
+      imageWidth: true,
+      imageHeight: true,
       publicationStatus: true,
       sensitiveWithdrawnAt: true,
       sensitiveContent: true,
@@ -181,6 +187,7 @@ export async function updateJournalEntry(
     entryId,
     image: input.image,
     currentImage: currentEntry.image,
+    currentSize: currentEntry,
   });
 
   let result: { count: number; cleanupJobId: string | null };
@@ -199,6 +206,8 @@ export async function updateJournalEntry(
         title: input.title,
         content: input.content,
         image: preparedImage.image,
+        imageWidth: preparedImage.imageWidth,
+        imageHeight: preparedImage.imageHeight,
         placeId: selectedPlace.id,
         placeName: selectedPlace.name,
         ...(currentEntry.publicationStatus !== "private"
@@ -478,6 +487,8 @@ export const journalEntrySelect = {
   title: true,
   content: true,
   image: true,
+  imageWidth: true,
+  imageHeight: true,
   placeId: true,
   placeName: true,
   visitedAt: true,
@@ -509,6 +520,7 @@ export function serializeJournalEntry(
   return {
     id: entry.id,
     version: entry.updatedAt.toISOString(),
+    ...(entry.image && entry.imageWidth && entry.imageHeight ? { imageWidth: entry.imageWidth, imageHeight: entry.imageHeight } : {}),
     sensitiveContent: entry.sensitiveContent,
     sensitiveConsentVersion: entry.sensitiveConsentVersion,
     sensitiveWithdrawnAt: entry.sensitiveWithdrawnAt?.toISOString() ?? null,

@@ -12,7 +12,7 @@ const JOURNAL_IMAGE_API_PREFIX = "/api/journal-entry-images/";
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 const MAX_IMAGE_PIXELS = 16_000_000;
 const MAX_OUTPUT_WIDTH = 1200;
-const MAX_OUTPUT_HEIGHT = 900;
+const MAX_OUTPUT_HEIGHT = 1200;
 const WEBP_QUALITY = 82;
 
 /** 읽기 캐시에만 쓰는 작은 사진. */
@@ -32,6 +32,8 @@ type JournalImageIdentity = {
 type PreparedJournalImage = {
   image: string | null;
   uploadedKey: string | null;
+  imageWidth: number | null;
+  imageHeight: number | null;
 };
 
 export async function prepareJournalImage({
@@ -39,16 +41,18 @@ export async function prepareJournalImage({
   entryId,
   image,
   currentImage = null,
+  currentSize,
 }: {
   ownerId: string;
   entryId: string;
   image: string | null;
   currentImage?: string | null;
+  currentSize?: { imageWidth?: number | null; imageHeight?: number | null };
 }): Promise<PreparedJournalImage> {
-  if (!image) return { image: null, uploadedKey: null };
+  if (!image) return { image: null, uploadedKey: null, imageWidth: null, imageHeight: null };
 
   if (currentImage && image === currentImage) {
-    return { image: currentImage, uploadedKey: null };
+    return { image: currentImage, uploadedKey: null, imageWidth: currentSize?.imageWidth ?? null, imageHeight: currentSize?.imageHeight ?? null };
   }
 
   if (
@@ -56,7 +60,7 @@ export async function prepareJournalImage({
     isStoredJournalImage(currentImage) &&
     isJournalImageApiUrl(image, entryId)
   ) {
-    return { image: currentImage, uploadedKey: null };
+    return { image: currentImage, uploadedKey: null, imageWidth: currentSize?.imageWidth ?? null, imageHeight: currentSize?.imageHeight ?? null };
   }
 
   const parsedImage = parseImageDataUrl(image);
@@ -92,11 +96,11 @@ export async function prepareJournalImage({
 
   await putObject({
     key,
-    body: webpImage,
+    body: webpImage.data,
     contentType: "image/webp",
   });
 
-  return { image: key, uploadedKey: key };
+  return { image: key, uploadedKey: key, imageWidth: webpImage.info.width, imageHeight: webpImage.info.height };
 }
 
 export async function deleteStoredJournalImage(image: string | null) {
@@ -216,7 +220,7 @@ async function convertToWebp(bytes: Buffer) {
         effort: 4,
         smartSubsample: true,
       })
-      .toBuffer();
+      .toBuffer({ resolveWithObject: true });
   } catch {
     throw new JournalImageError(
       "이미지를 WebP로 변환하지 못했어요.",
