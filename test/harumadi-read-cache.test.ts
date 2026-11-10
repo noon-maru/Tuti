@@ -16,6 +16,17 @@ function fixture() {
   return { files, blocked, storage, cache: createHarumadiReadCache(storage, () => clock), advance: (amount: number) => { clock += amount; }, fail: (value: boolean) => { failClear = value; } };
 }
 
+test("기기 읽기 캐시도 선택 사진의 실제 크기를 보존한다", async () => {
+  const { cache } = fixture();
+  const content = harumadiContent();
+  content.entries[0].imageWidth = 675; content.entries[0].imageHeight = 1200;
+  content.entries[0].image = "/synthetic.webp";
+  await cache.put("owner", "book-a", "binding", content);
+  const restored = await cache.get("owner", "book-a", "binding");
+  assert.equal(restored?.content.entries[0].imageWidth, 675);
+  assert.equal(restored?.content.entries[0].imageHeight, 1200);
+});
+
 test("12개를 넘는 마디도 기존 용량 보호 안에서 캐시에 저장하고 다시 읽는다", async () => {
   const { cache } = fixture();
   const content = harumadiContent();

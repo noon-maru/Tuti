@@ -74,7 +74,9 @@ export function createHarumadiReadCache(storage: ReadCacheStorage, now = Date.no
       const savedAt = now();
       // 서명 URL·인증 토큰·동의 영수증은 저장하지 않고 표시용 일반 마디만 복제한다.
       const entries = content.entries.map(entry => ({ id: entry.id, title: entry.title, content: entry.content,
-        image: isCachedImage(images[entry.id]) ? images[entry.id] : null, placeId: entry.placeId, placeName: entry.placeName,
+        image: isCachedImage(images[entry.id]) ? images[entry.id] : null,
+        ...(entry.imageWidth && entry.imageHeight ? { imageWidth: entry.imageWidth, imageHeight: entry.imageHeight } : {}),
+        placeId: entry.placeId, placeName: entry.placeName,
         visitedAt: entry.visitedAt, sensitiveContent: false as const, publicationStatus: "private" as const, publication: null }));
       const missingImages = content.entries.filter(entry => entry.image && !images[entry.id]).length;
       const raw = JSON.stringify({ schema: 2, owner, binding, savedAt, missingImages, content: { ...content, entries } });

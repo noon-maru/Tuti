@@ -8,6 +8,8 @@ import {
   View,
   renderToBuffer,
 } from "@react-pdf/renderer";
+import sharp from "sharp";
+import { fitHarumadiPhoto } from "@/shared/harumadi/imageGeometry";
 import {
   PDFDocument as EditablePdfDocument,
   StandardFonts,
@@ -32,6 +34,8 @@ export type HarumadiPdfEntry = {
   placeName: string;
   visitedAt: Date;
   image: string | null;
+  imageWidth?: number | null;
+  imageHeight?: number | null;
 };
 
 export type PreparedHarumadiPdfEntry = Omit<HarumadiPdfEntry, "image"> & {
@@ -245,6 +249,12 @@ export async function renderHarumadiPdf(
   input: HarumadiPdfInput,
   entries: PreparedHarumadiPdfEntry[],
 ) {
+  // Shared and personal PDF paths both use actual decoded dimensions, including legacy photos.
+  entries = await Promise.all(entries.map(async entry => {
+    if (!entry.image) return entry;
+    const size = await sharp(entry.image, { limitInputPixels: 16_000_000 }).metadata();
+    return { ...entry, imageWidth: size.width, imageHeight: size.height };
+  }));
   registerPdfFonts();
   await Font.load({ fontFamily: PDF_FONT_FAMILY, fontWeight: 400 });
   const font = Font.getFont({ fontFamily: PDF_FONT_FAMILY, fontWeight: 400 });
@@ -342,6 +352,9 @@ export async function renderHarumadiPdf(
       )}
       {entries.map((entry) => {
         const layout = getHarumadiPdfEntryLayout(entry);
+        const photoSize = fitHarumadiPhoto(entry,
+          HARUMADI_PDF_LAYOUT.page.width - 2 * HARUMADI_PDF_LAYOUT.photo.padding,
+          layout === "photo-only" ? HARUMADI_PDF_LAYOUT.page.height - HARUMADI_PDF_LAYOUT.photo.padding - HARUMADI_PDF_LAYOUT.photo.paddingBottom - HARUMADI_PDF_LAYOUT.photo.headerHeight : HARUMADI_PDF_LAYOUT.photo.maxStoryImageHeight);
         const title = printable(entry.title);
         const content = printable(entry.content);
         const meta = `${harumadiPdfDate(entry.visitedAt)} · ${printable(entry.placeName)}`;
@@ -358,7 +371,7 @@ export async function renderHarumadiPdf(
               <View style={styles.photoOnlyBody}>
                 <PdfImage
                   src={{ data: entry.image!, format: "jpg" }}
-                  style={styles.photoOnlyImage}
+                  style={[styles.photoOnlyImage, { width: photoSize.width, height: photoSize.height, alignSelf: "center", objectFit: "contain" }]}
                 />
               </View>
             </Page>
@@ -378,7 +391,7 @@ export async function renderHarumadiPdf(
                 <View style={styles.photoStoryLead}>
                   <PdfImage
                     src={{ data: entry.image!, format: "jpg" }}
-                    style={styles.photoStoryImage}
+                    style={[styles.photoStoryImage, { width: photoSize.width, height: photoSize.height, alignSelf: "center", objectFit: "contain" }]}
                   />
                 </View>
               </View>

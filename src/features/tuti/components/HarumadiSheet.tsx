@@ -11,9 +11,10 @@ import { HARUMADI_READING_LAYOUT as readingLayout } from "@/shared/harumadi/read
 import { readerMetaLabel } from "@/shared/harumadi/readerText";
 
 /** 인쇄 예시의 지면 기하는 공유하되 실제 읽기의 글자·배치는 화면용 규칙을 쓴다. */
-export function HarumadiPageSheet({ page, coverStyle, number, compactCover = false }: { page: HarumadiReaderPage; coverStyle: HarumadiPdfCoverStyle; number: number; compactCover?: boolean }) {
+export function HarumadiPageSheet({ page, coverStyle, number, compactCover = false, preview = false }: { page: HarumadiReaderPage; coverStyle: HarumadiPdfCoverStyle; number: number; compactCover?: boolean; preview?: boolean }) {
   const palette = getHarumadiPdfCoverPalette(coverStyle);
   const photo = page.image ? <Image src={page.image} alt="마디에 남긴 사진" fill unoptimized sizes="(max-width: 600px) 85vw, 400px" /> : null;
+  const photoStyle = page.photoSize ? { width: pt(page.photoSize.width), height: pt(page.photoSize.height) } : undefined;
   if (page.kind === "cover" || page.kind === "back") return <Sheet $reading $compactCover={compactCover} data-harumadi-page={page.kind}
     data-cover-preview={compactCover ? coverStyle.endsWith("-image") ? "photo" : "plain" : undefined}>
     <CoverPaper $cover data-cover-paper style={{ background: palette.background, color: palette.foreground }}>
@@ -22,10 +23,10 @@ export function HarumadiPageSheet({ page, coverStyle, number, compactCover = fal
   </Sheet>;
   if (page.kind === "empty") return <Sheet $reading data-harumadi-page="empty"><TextPaper $cover={false}><TextFrame><TextTitle>첫 마디를 채워보세요</TextTitle><TextBody>사진 한 장, 짧은 이야기부터.</TextBody></TextFrame></TextPaper></Sheet>;
   if (page.kind === "photo-only") return <Sheet $reading data-harumadi-page="photo-only"><PhotoOnlyPaper $cover={false}>
-    <PhotoHeader date={page.date.replaceAll("-", ".")} place={page.place} height={page.headerHeight} /><PhotoOnlyBody><PhotoOnly>{photo}</PhotoOnly></PhotoOnlyBody><Folio number={number} />
+    <PhotoHeader date={page.date.replaceAll("-", ".")} place={page.place} height={page.headerHeight} /><PhotoOnlyBody><PhotoOnly style={photoStyle} $preview={preview}>{photo}</PhotoOnly></PhotoOnlyBody><Folio number={number} />
   </PhotoOnlyPaper></Sheet>;
   if (page.kind === "photo") return <Sheet $reading data-harumadi-page="photo"><PhotoPaper $cover={false}>
-    <PhotoHeader date={page.date.replaceAll("-", ".")} place={page.place} height={page.headerHeight} /><Photo>{photo}</Photo>
+    <PhotoHeader date={page.date.replaceAll("-", ".")} place={page.place} height={page.headerHeight} /><Photo style={photoStyle} $preview={preview}>{photo}</Photo>
     <Story style={{ marginTop: `${page.storyGap ?? readingLayout.photo.shortGap}px` }}>{page.title && <Title>{page.title}</Title>}<Body>{page.content}</Body></Story><Folio number={number} />
   </PhotoPaper></Sheet>;
   if (page.kind === "continuation") return <Sheet $reading data-harumadi-page="continuation"><LongPaper $cover={false}>
@@ -152,10 +153,11 @@ const PlaceMark = styled.span`
   display: inline-block; flex: none; width: ${pt(layout.photo.placeMarkSize)}; height: ${pt(layout.photo.placeMarkSize)}; border-radius: 50%;
   background: linear-gradient(to bottom, #c7e887 50%, #8cbdef 50%);
 `;
-const Photo = styled.span`
+const Photo = styled.span<{ $preview?: boolean }>`
   display: block; position: relative; margin-top: ${pt(layout.photo.lead)};
   width: 100%; height: ${pt(layout.photo.imageHeight)}; border-radius: ${pt(layout.photo.imageRadius)}; overflow: hidden;
-  img { object-fit: cover; }
+  margin-left: auto; margin-right: auto;
+  img { object-fit: ${({ $preview }) => $preview ? "cover" : "contain"}; }
 `;
 const PhotoOnlyPaper = styled(PhotoPaper)`display: flex; flex-direction: column;`;
 const PhotoOnlyBody = styled.span`display: flex; flex: 1; flex-direction: column; justify-content: center;`;

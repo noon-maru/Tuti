@@ -7,6 +7,7 @@ import { HARUMADI_READING_LAYOUT as readingLayout } from "./readingTypography";
 import { readerMetaLabel, readerTextLines, takeReaderText, type ReaderTextMeasure } from "./readerText";
 import { LEGACY_HARUMADI_BACK_COVER_TEXT } from "./backCover";
 import { orderByEntryIds } from "./order";
+import { fitHarumadiPhoto } from "./imageGeometry";
 
 export type HarumadiReaderPage = {
   entryId?: string;
@@ -14,6 +15,7 @@ export type HarumadiReaderPage = {
   kind: "cover" | "photo" | "photo-only" | "text" | "continuation" | "back" | "empty";
   title: string; content: string; image: string | null; date: string; place: string; long?: boolean;
   headerHeight?: number; storyGap?: number;
+  photoSize?: { width: number; height: number };
   continuation?: { title: string; image: string | null };
 };
 
@@ -63,10 +65,14 @@ export function buildHarumadiReaderPages(book: Harumadi, entries: TutiJournalEnt
     const placeWidth = photoWidth * .6 - (layout.photo.placeMarkSize + layout.photo.placeMarkGap) * scale;
     const placeLines = entry.placeName ? Math.min(readingLayout.photo.metaLines, readerTextLines(entry.placeName, placeWidth, type.meta, measure).length) : 0;
     const headerHeight = Math.max(readingLayout.headerHeight, placeLines * type.meta * readingLayout.photo.metaLineHeight);
-    if (image && !entry.content.trim() && !entry.title.trim()) { pages.push({ ...data, kind: "photo-only", headerHeight }); continue; }
+    if (image && !entry.content.trim() && !entry.title.trim()) {
+      const photoSize = fitHarumadiPhoto(entry, photoWidth / scale, (height - (layout.photo.padding + layout.photo.paddingBottom) * scale - headerHeight - readingLayout.safety) / scale);
+      pages.push({ ...data, kind: "photo-only", headerHeight, photoSize }); continue;
+    }
+    const photoSize = fitHarumadiPhoto(entry, photoWidth / scale, layout.photo.maxStoryImageHeight);
     const photoTitleLines = entry.title ? readerTextLines(entry.title, photoWidth, type.photoTitle, measure, 600).length : 0;
     const photoTitleHeight = photoTitleLines * type.photoTitle * type.titleLineHeight + readingLayout.copyGap;
-    const photoSpace = (gap: number) => height - (layout.photo.padding + layout.photo.paddingBottom + layout.photo.lead + layout.photo.imageHeight) * scale - headerHeight - gap;
+    const photoSpace = (gap: number) => height - (layout.photo.padding + layout.photo.paddingBottom + layout.photo.lead + photoSize.height) * scale - headerHeight - gap;
     // 긴 제목은 별도 지면에 보존해 본문과 사진을 밀어내지 않게 한다.
     if (entry.title && ((image ? photoTitleLines : titleLines) > 2 || (!image && titleHeight > textSpace / 2) || (image && photoTitleHeight > photoSpace(readingLayout.photo.longGap)))) {
       const titlePageLines = Math.max(1, Math.floor(shortSpace / (type.title * type.titleLineHeight)) - 1);
@@ -81,7 +87,7 @@ export function buildHarumadiReaderPages(book: Harumadi, entries: TutiJournalEnt
     if (image) long = storyGap < readingLayout.photo.shortGap;
     const firstLines = image ? photoLines(storyGap) : Math.max(1, lineCount(textSpace - (data.title ? titleHeight : 0), type.body));
     const [first, remaining] = takeReaderText(entry.content, image ? photoWidth : bodyWidth, image ? type.photoBody : type.body, firstLines, measure);
-    pages.push({ ...data, content: first, kind: image ? "photo" : "text", long, ...(image ? { headerHeight, storyGap } : {}) });
+    pages.push({ ...data, content: first, kind: image ? "photo" : "text", long, ...(image ? { headerHeight, storyGap, photoSize } : {}) });
     // Continuations identify the original madi, not a disconnected fragment of text.
     const continued = readingLayout.continuation;
     const continuedWidth = width - 2 * layout.page.padding * scale;

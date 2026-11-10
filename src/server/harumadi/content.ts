@@ -38,7 +38,7 @@ export async function readHarumadiContent(ownerId: string, id: string): Promise<
       } : {}) })), totalRecordCount,
       cacheable: !shared && rows.every(entry => entry.sensitiveContent === false),
       // 책 revision이 같아도 원본 마디의 제목·본문·사진 수정은 별도 버전이다.
-      version: createHash("sha256").update(JSON.stringify({ layout: "automatic", revision: book.revision, updatedAt: book.updatedAt, accessRevision: access?.accessRevision,
+      version: createHash("sha256").update(JSON.stringify({ layout: "photo-ratios-v1", revision: book.revision, updatedAt: book.updatedAt, accessRevision: access?.accessRevision,
         entries: rows.map(entry => [entry.id, entry.updatedAt]).sort((a, b) => String(a[0]).localeCompare(String(b[0]))), totalRecordCount })).digest("hex"),
     };
   }, { isolationLevel: "RepeatableRead" });

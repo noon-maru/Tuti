@@ -21,7 +21,7 @@ test("서버가 실제 변환 사진의 비율·크기를 확인하고 유지·�
   const prepare = exports.prepareJournalImage as (input: Record<string, unknown>) => Promise<Prepared>;
   for (const [width, height] of [[1600, 1200], [1200, 1600], [900, 1600], [1000, 1000]]) {
     const bytes = await sharp({ create: { width, height, channels: 3, background: "#5a7d64" } }).jpeg().toBuffer();
-    const result = await prepare({ ownerId: "synthetic-owner", entryId: "synthetic-entry", image: `data:image/jpeg;base64,${bytes.toString("base64")}` });
+    const result = await prepare({ ownerId: "synthetic-owner", entryId: "synthetic-entry", image: `data:image/jpeg;base64,${bytes.toString("base64")}`, imageWidth: 1, imageHeight: 999999 });
     const actual = await sharp(objects.at(-1)!).metadata();
     assert.equal(result.imageWidth, actual.width); assert.equal(result.imageHeight, actual.height);
     assert.ok(Math.abs(result.imageWidth! / result.imageHeight! - width / height) < .002);
@@ -31,5 +31,8 @@ test("서버가 실제 변환 사진의 비율·크기를 확인하고 유지·�
     assert.equal(objects.length, count); assert.equal(unchanged.imageHeight, result.imageHeight);
     assert.equal(unchanged.uploadedKey, null);
   }
+  const rotatedBytes = await sharp({ create: { width: 1600, height: 900, channels: 3, background: "#5a7d64" } }).withMetadata({ orientation: 6 }).jpeg().toBuffer();
+  const rotated = await prepare({ ownerId: "synthetic-owner", entryId: "synthetic-entry", image: `data:image/jpeg;base64,${rotatedBytes.toString("base64")}` });
+  assert.equal(rotated.imageWidth, 675); assert.equal(rotated.imageHeight, 1200);
   assert.deepEqual(JSON.parse(JSON.stringify(await prepare({ image: null }))), { image: null, uploadedKey: null, imageWidth: null, imageHeight: null });
 });
