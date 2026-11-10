@@ -51,7 +51,7 @@ test("선택 화면은 빈 책장과 기존 책을 구분하고 마디가 많아
     assert.match(html, /담지 않고 마치기/);
     assert.match(html, /마디 저장 완료/);
     assert.doesNotMatch(html, /민감정보가 있나요/);
-    if (variant === "empty") assert.match(html, /아직 하루마디가 없어요/);
+    if (variant === "empty") assert.match(html, /새 하루마디 만들어 담기/);
     else assert.match(html, /type="radio"[^>]*checked/);
     if (variant === "many") {
       assert.match(html, /마디 100개/);

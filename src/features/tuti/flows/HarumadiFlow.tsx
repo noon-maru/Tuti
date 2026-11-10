@@ -160,7 +160,7 @@ function HarumadiEditor({ owner, initial, read, verified, refreshing, onRefresh,
       const saved = harumadi ? await updateHarumadi(owner, harumadi.id, { ...input, revision: harumadi.revision, entryIds: harumadi.entryIds }) : await createHarumadi(owner, input);
       if (shouldNotifyDuplicateTitle(harumadi, saved)) showToast(DUPLICATE_HARUMADI_TITLE_NOTICE);
       refreshLibrary();
-      if (!harumadi) { router.replace(harumadiPath(saved.id)); return; }
+      if (!harumadi) { router.replace(`${harumadiPath(saved.id)}${addEntryId ? `&addEntryId=${encodeURIComponent(addEntryId)}` : ""}`); return; }
       if (onClose && initialMode === "settings") { onClose(); return; }
       setHarumadi(saved); setSettings(saved); setMode("pages");
     } catch (cause) { setError(cause instanceof Error ? cause.message : "하루마디를 저장하지 못했어요."); }
@@ -292,7 +292,7 @@ function HarumadiEditor({ owner, initial, read, verified, refreshing, onRefresh,
         {harumadi && <HarumadiDeleteSection disabled={busy || readOnly} onDelete={() => void remove()} />}
       </SettingsPanel> : mode === "order" ? <HarumadiOrderEditor entries={chosen} ids={orderedIds} onChange={setOrderedIds} disabled={busy || readOnly} scrollRef={scroller} /> : mode === "selection" ? <>
         <h1>어떤 순간을 담을까요?</h1><p>원본 마디는 그대로 두고 이 하루마디에 담아요.</p>
-        {entries.isPending ? <p role="status">마디를 불러오고 있어요.</p> : entries.isError ? <Quiet onClick={() => void entries.refetch()}>마디 다시 불러오기</Quiet> : !entries.data?.length ? <p>아직 남긴 마디가 없어요. 먼저 한 페이지를 써볼까요?</p> : <HarumadiEntryPicker entries={entries.data} selected={selected} onChange={setSelected} disabled={busy || readOnly} />}
+        {entries.isPending ? <p role="status">마디를 불러오고 있어요.</p> : entries.isError ? <Quiet onClick={() => void entries.refetch()}>마디 다시 불러오기</Quiet> : !entries.data?.length ? <div><p>아직 남긴 마디가 없어요.</p><Quiet disabled={busy || readOnly} onClick={() => router.push(`/madi/new?from=library&harumadiId=${encodeURIComponent(harumadi!.id)}`)}>이 하루마디에 첫 마디 남기기</Quiet></div> : <HarumadiEntryPicker entries={entries.data} selected={selected} onChange={setSelected} disabled={busy || readOnly} />}
       </> : mode === "pdf" ? <>
         <h1>PDF로 저장하기</h1><p>지금 담긴 마디로 PDF를 만들어요.<br />저장 후 하루마디를 바꿔도 이미 만든 PDF는 바뀌지 않아요.</p>
         {sensitivePolicy?.enabled && <Confirmation><input type="checkbox" checked={confirmed} onChange={event => setConfirmed(event.target.checked)} />이름과 뒷표지 문구에 민감정보가 없음을 확인해요.</Confirmation>}

@@ -21,11 +21,12 @@ function fixture(add: (...args: unknown[]) => Promise<unknown>, recentError = fa
       return [states[i], (value: unknown) => { states[i] = value; }];
     }, useRef: (initial: unknown) => refs[refIndex++] ?? (refs[refIndex - 1] = { current: initial }), useEffect() {} },
     "react/jsx-runtime": jsx, "@emotion/styled": { __esModule: true, default: styled }, "lucide-react": { BookOpen: "svg", Check: "svg" },
+    "next/link": { __esModule: true, default: "a" },
     "@tanstack/react-query": { useQueryClient: () => ({ invalidateQueries() {}, removeQueries() {} }),
       useInfiniteQuery: () => ({ data: { pages: [{ harumadis: [book] }] }, isPending: false, isError: false, refetch() {} }),
       useQuery: () => ({ data: recentError ? undefined : { harumadis: [book] }, isPending: false, isError: recentError, refetch() {} }) },
     "@/features/tuti/components/ScreenFrame": { ScreenFrame: "div" },
-    "@/features/tuti/components/buttons": { BackButton: "button", PrimaryButton: "button", TextButton: "button" },
+    "@/features/tuti/components/buttons": { BackButton: "button", PrimaryButton: styled.button({}), TextButton: "button" },
     "@/features/tuti/navigation/androidBack": { ANDROID_BACK_EVENT: "back" },
     "@/lib/harumadis": { fetchHarumadis() {}, fetchRecentHarumadis() {} },
     "@/lib/addMadiToHarumadi": { addMadiToHarumadi: add },

@@ -337,6 +337,7 @@ export function JournalScreen({
       ) : (
         <EmptyState>
           <p>사진 한 장, 짧은 이야기로<br />첫 마디를 남겨보세요.</p>
+          {onCreateEntry && <TextButton type="button" onClick={onCreateEntry}>첫 마디 남기기</TextButton>}
         </EmptyState>
       )}
       {entries.length > 0 && !search.trim() && <StackNavigation aria-label="마디 이동">
