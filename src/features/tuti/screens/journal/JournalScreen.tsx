@@ -8,6 +8,7 @@ import { css } from "@emotion/react";
 import styled from "@emotion/styled";
 import { useMemo, useRef, useState } from "react";
 import { MadiSearchField } from "@/features/tuti/components/MadiSearchField";
+import { MadiSearchResults } from "@/features/tuti/components/MadiSearchResults";
 import { filterJournalEntries } from "@/shared/tuti/journalSearch";
 import { ContextMenu } from "@/features/tuti/components/ContextMenu";
 import { LoadingIndicator } from "@/features/tuti/components/LoadingIndicator";
@@ -200,7 +201,8 @@ export function JournalScreen({
       {allEntries.length > 0 && <MadiSearchField value={search} onChange={setSearch} />}
       {isError && allEntries.length > 0 && <MadiLoadNotice compact busy={isFetching} onRetry={() => void refetch()} />}
 
-      {entries.length > 0 ? (
+      {entries.length > 0 && search.trim() ? <MadiSearchResults entries={entries} selectedId={selectedEntryId} selectedRef={selectedCardRef}
+        onOpen={(entry, target) => { setActiveJournalEntry(entry.id); onOpenEntry?.(entry.id, entry.image, target); }} /> : entries.length > 0 ? (
         <MemoryStack
           ref={stackRef}
           role="region"
@@ -337,7 +339,7 @@ export function JournalScreen({
           <p>사진 한 장, 짧은 이야기로<br />첫 마디를 남겨보세요.</p>
         </EmptyState>
       )}
-      {entries.length > 0 && <StackNavigation aria-label="마디 이동">
+      {entries.length > 0 && !search.trim() && <StackNavigation aria-label="마디 이동">
         <TextButton type="button" disabled={entries.length < 2} onClick={() => moveStack(-1)}><ChevronLeft size={18} />이전 마디</TextButton>
         <span role="status" aria-live="polite" aria-atomic="true">{selectedEntryIndex + 1} / {entries.length}</span>
         <TextButton type="button" disabled={entries.length < 2} onClick={() => moveStack(1)}>다음 마디<ChevronRight size={18} /></TextButton>

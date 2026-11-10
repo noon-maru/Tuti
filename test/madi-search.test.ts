@@ -5,6 +5,7 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { filterJournalEntries } from "@/shared/tuti/journalSearch";
 import { MadiSearchField } from "@/features/tuti/components/MadiSearchField";
+import { MadiSearchResults } from "@/features/tuti/components/MadiSearchResults";
 import { harumadiContent } from "./fixtures/harumadiContent";
 
 test("마디 검색은 순서를 보존하고 제목·본문·장소·작성자·한국 날짜를 교차 검색한다", () => {
@@ -19,6 +20,19 @@ test("마디 검색은 순서를 보존하고 제목·본문·장소·작성자�
   assert.deepEqual(filterJournalEntries(entries, "공원").map(entry => entry.id), ["a", "b"]);
   assert.deepEqual(filterJournalEntries(entries, "없는 글"), []);
   assert.deepEqual(entries.map(entry => entry.id), ["a", "b"]);
+});
+
+test("검색 결과는 모든 결과를 순서대로 열 수 있는 압축 목록으로 표시한다", () => {
+  const entry = harumadiContent().entries[0];
+  const entries = [entry, { ...entry, id: "second", title: "다음 마디", image: "/example.webp" }];
+  const html = renderToStaticMarkup(createElement(MadiSearchResults, { entries, onOpen() {} }));
+  assert.match(html, /마디 2개/); assert.match(html, /마디 검색 결과/);
+  assert.match(html, /산책/); assert.match(html, /동네 공원/); assert.match(html, /2026-10-26/);
+  assert.ok(html.indexOf('data-journal-transition-entry-id="entry-a"') < html.indexOf('data-journal-transition-entry-id="second"'));
+  assert.equal((html.match(/data-journal-transition-surface="journal"/g) ?? []).length, 2);
+  assert.doesNotMatch(html, /aria-pressed|tabindex="-1"/);
+  const source = readFileSync("src/features/tuti/screens/journal/JournalScreen.tsx", "utf8");
+  assert.match(source, /entries.length > 0 && !search.trim\(\) && <StackNavigation/);
 });
 
 test("검색 필드는 명확한 이름과 지우기를 제공하고 검색 결과가 없어도 원본 삭제로 안내하지 않는다", () => {
