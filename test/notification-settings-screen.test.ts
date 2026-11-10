@@ -19,6 +19,17 @@ test("미지원 환경에서는 대체 안내와 비활성 제어를 표시한�
   }));
   assert.match(html, /지원 브라우저/); assert.equal((html.match(/disabled=""/g) ?? []).length, 3);
 });
+
+test("설정 조회 실패에도 재시도는 활성 상태이고 설정 변경 제어만 잠근다", () => {
+  const html = renderToStaticMarkup(createElement(NotificationSettingsScreen, {
+    settings: DEFAULT_NOTIFICATION_SETTINGS, supported: false, status: null, busy: true,
+    message: "알림 설정을 불러오지 못했어요.", onBack() {}, async onChange() {}, onRetry() {},
+  }));
+  assert.match(html, /role="alert"/);
+  assert.match(html, /<button(?=[^>]*type="button")(?![^>]*disabled)[^>]*>다시 불러오기<\/button>/);
+  assert.equal((html.match(/disabled=""/g) ?? []).length, 3);
+  assert.doesNotMatch(html, /지원 브라우저/);
+});
 test("웹·PWA는 지원·HTTPS·iPhone 홈 화면 설치·권한 차단을 구분한다", () => {
   for (const browser of ["supported", "install-required", "insecure", "unsupported"] as const) {
     const html = renderToStaticMarkup(createElement(NotificationSettingsScreen, {

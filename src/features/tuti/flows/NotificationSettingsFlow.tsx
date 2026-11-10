@@ -35,10 +35,10 @@ export function NotificationSettingsFlow() {
       const version = ++generation;
       const owner = getSessionSnapshot()?.userId;
       loadedOwner.current = null;
-      setLoaded(false); setBusy(true);
+      setLoaded(false); setBusy(true); setMessage(null);
       void Promise.all([readNotificationSettings(owner), getPushNotificationStatus()]).then(([next, permission]) => {
         if (active && version === generation) { loadedOwner.current = owner ?? null; setSettings(next); setStatus(permission); setLoaded(true); setMessage(null); }
-      }).catch(() => { if (active && version === generation) setMessage("알림 설정을 불러오지 못했어요. 다시 열어주세요."); })
+      }).catch(() => { if (active && version === generation) setMessage("알림 설정을 불러오지 못했어요. 연결을 확인하고 다시 불러와주세요."); })
         .finally(() => { if (active && version === generation) setBusy(false); });
     };
     refresh();
@@ -77,5 +77,6 @@ export function NotificationSettingsFlow() {
   };
   if (!WEB_PUSH_USER_ENABLED && pushEnvironment !== "native") return null;
   return <NotificationSettingsScreen settings={settings} supported={status?.supported ?? false} browser={browser} status={status} busy={busy || !loaded} message={message}
+    onRetry={!loaded && !busy ? () => { if (!saving.current) setRefreshVersion(value => value + 1); } : undefined}
     onBack={() => router.back()} onChange={change} />;
 }

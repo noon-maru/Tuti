@@ -8,14 +8,16 @@ import { nativeDateInputStyles, screenTitleStyles } from "@/shared/ui/typography
 import type { NotificationSettings } from "@/shared/notifications/preferences";
 import type { PushNotificationStatus } from "../../notifications/pushNotifications";
 import type { WebPushAvailability } from "../../notifications/webPushNotifications";
-export function NotificationSettingsScreen({ settings, supported, browser = null, status, busy, message, onBack, onChange }: {
+export function NotificationSettingsScreen({ settings, supported, browser = null, status, busy, message, onBack, onChange, onRetry }: {
   browser?: WebPushAvailability | null;
   settings: NotificationSettings; supported: boolean; status: PushNotificationStatus | null;
   busy: boolean; message: string | null; onBack: () => void; onChange: (patch: Partial<NotificationSettings>) => Promise<void>;
+  onRetry?: () => void;
 }) {
   return <Frame>
     <Header><BackButton aria-label="이전 화면으로" onClick={onBack} /><h1>알림</h1><span /></Header>
     <Content data-scroll-region>
+      {onRetry && <><Notice role="alert">{message}</Notice><Button type="button" $tone="neutral" onClick={onRetry}>다시 불러오기</Button></>}
       {browser === "install-required" ? <Notice><strong>홈 화면에서 알림을 켜주세요.</strong><br />브라우저의 공유 메뉴에서 ‘홈 화면에 추가’를 선택한 뒤, Tuti 아이콘으로 열어 알림을 켜주세요. iPhone·iPad는 iOS 16.4 이상이 필요해요.</Notice>
         : browser === "insecure" ? <Notice>보안을 위해 HTTPS로 접속해야 웹 알림을 켤 수 있어요.</Notice>
         : browser === "unsupported" ? <Notice>이 브라우저에서는 알림을 지원하지 않아요. 지원하는 브라우저나 Tuti 앱에서 켜주세요.</Notice>
@@ -32,7 +34,7 @@ export function NotificationSettingsScreen({ settings, supported, browser = null
       {status?.permission === "denied" && <Notice role="alert">{browser ? "브라우저에서 알림이 차단되어 있어요. 사이트 설정에서 Tuti 알림을 허용해주세요." : "기기에서 알림이 꺼져 있어요. 기기 설정에서 Tuti 알림을 허용해주세요."}</Notice>}
       {supported && (settings.newsEnabled || settings.reminderEnabled) && status && !status.registered &&
         <Button type="button" $tone="neutral" disabled={busy} onClick={() => void onChange({ newsEnabled: settings.newsEnabled, reminderEnabled: settings.reminderEnabled })}>{browser ? "이 브라우저에서도 알림 받기" : "이 기기에서도 알림 받기"}</Button>}
-      {message && <Notice role="status">{message}</Notice>}
+      {message && !onRetry && <Notice role="status">{message}</Notice>}
       <Hint>함께 채우는 하루마디별로도 알림을 끌 수 있어요.<br />사진과 글은 알림에 표시하지 않아요.</Hint>
     </Content>
   </Frame>;
