@@ -3,6 +3,7 @@ import { screenTitleStyles } from "@/shared/ui/typography";
 import { MadiLoadNotice } from "@/features/tuti/components/MadiLoadNotice";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { confirmAction, showErrorToast } from "@/lib/feedback";
+import { madiDeletionMessage } from "@/shared/tuti/deletionCopy";
 
 import { css } from "@emotion/react";
 import styled from "@emotion/styled";
@@ -89,7 +90,7 @@ export function JournalScreen({
 
   const deleteEntry = async (entryId: string) => {
     const target = entries.find((entry) => entry.id === entryId);
-    if (!(await confirmAction(target?.sensitiveContent ? "이 마디와 사진, 이 마디를 포함한 서버 하루마디를 함께 삭제할까요? 민감정보 처리 동의도 철회돼요." : "이 마디를 삭제할까요?", {"title":"삭제 전 확인","confirmLabel":"삭제하기","tone":"danger"}))) return;
+    if (!(await confirmAction(madiDeletionMessage(Boolean(target?.sensitiveContent)), {"title":"원본 마디 삭제","confirmLabel":"삭제하기","tone":"danger"}))) return;
 
     const remainingEntries = entries.filter(
       (entry) => entry.id !== entryId,

@@ -26,7 +26,8 @@ test("저장·읽기 전용 상태에는 삭제를 막고 기존 삭제 확인 �
   const flow = readFileSync("src/features/tuti/flows/HarumadiFlow.tsx", "utf8");
   assert.match(flow, /harumadi && <HarumadiDeleteSection disabled=\{busy \|\| readOnly\} onDelete=\{\(\) => void remove\(\)\}/);
   assert.match(flow, /if \(!harumadi \|\| readOnly \|\| busy \|\| !\(await confirmAction/);
-  assert.match(flow, /이 작업은 되돌릴 수 없어요/);
+  assert.match(flow, /confirmAction\(harumadiDeletionMessage\(Boolean\(harumadi.shared\)\),/);
+  assert.match(readFileSync("src/shared/tuti/deletionCopy.ts", "utf8"), /이 작업은 되돌릴 수 없어요/);
   assert.match(flow, /await deleteHarumadi\(owner, harumadi.id\)/);
   assert.doesNotMatch(flow, /<Quiet[^>]*onClick=\{\(\) => void remove\(\)\}/);
 });

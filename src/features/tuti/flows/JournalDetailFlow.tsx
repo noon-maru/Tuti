@@ -1,4 +1,5 @@
 "use client";
+import { madiDeletionMessage } from "@/shared/tuti/deletionCopy";
 import { confirmAction, showErrorToast, showToast } from "@/lib/feedback";
 
 import { useRouter, useSearchParams } from "next/navigation";
@@ -39,7 +40,7 @@ export function JournalDetailFlow() {
     changeEntryPublication,
   });
   const deleteEntry = async () => {
-    if (!entry || !(await confirmAction(entry.sensitiveContent ? "이 마디와 사진, 이 마디를 포함한 서버 하루마디를 함께 삭제할까요? 민감정보 처리 동의도 철회돼요." : "이 마디를 삭제할까요?", {"title":"삭제 전 확인","confirmLabel":"삭제하기","tone":"danger"}))) return;
+    if (!entry || !(await confirmAction(madiDeletionMessage(Boolean(entry.sensitiveContent)), {"title":"원본 마디 삭제","confirmLabel":"삭제하기","tone":"danger"}))) return;
 
     const deletedIndex = entries.findIndex(
       (candidate) => candidate.id === entry.id,

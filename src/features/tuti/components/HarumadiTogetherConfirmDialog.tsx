@@ -8,10 +8,10 @@ import { AppDialogFrame } from "@/shared/ui/AppDialogFrame";
 
 export type TogetherConfirmationAction = "end-together" | "remove-member" | "leave" | "remove-entry";
 const copy = {
-  "end-together": { title: "함께 채우기를 종료할까요?", description: "모든 초대가 취소되고 참여자의 책장에서 이 하루마디가 사라져요. 다른 사람이 담은 마디와 공유 댓글 본문을 정리하고, 나만의 하루마디로 돌아가요.", confirm: "종료하기" },
-  "remove-member": { title: "이 사람을 내보낼까요?", description: "상대의 책장에서 이 하루마디가 사라지고, 상대가 담은 마디와 댓글은 이 책에서 빠져요.", confirm: "내보내기" },
-  leave: { title: "함께 채우기에서 나갈까요?", description: "내 책장에서 이 하루마디가 사라지고, 내가 담은 마디와 댓글은 이 책에서 빠져요.", confirm: "나가기" },
-  "remove-entry": { title: "이 책에서 마디를 뺄까요?", description: "이 하루마디에서만 마디를 빼요. 다른 하루마디에 담긴 마디는 바뀌지 않아요.", confirm: "책에서 빼기" },
+  "end-together": { title: "함께 채우기를 종료할까요?", description: "모든 초대가 취소되고 참여자의 책장에서 이 하루마디가 사라져요. 다른 사람이 담은 마디는 이 책에서 빠지고, 공유 댓글 본문은 삭제돼요. 내가 담은 마디는 남아 나만의 하루마디로 돌아가요.", confirm: "종료하기" },
+  "remove-member": { title: "이 사람을 내보낼까요?", description: "상대의 책장에서 이 하루마디가 사라지고, 상대가 담은 마디는 이 책에서 빠져요. 상대의 댓글 본문은 삭제돼요. 다시 참여하려면 새 초대가 필요해요.", confirm: "내보내기" },
+  leave: { title: "함께 채우기에서 나갈까요?", description: "내 책장에서 이 하루마디가 사라지고, 내가 담은 마디는 이 책에서 빠져요. 내 댓글 본문은 삭제돼요. 다시 참여하려면 새 초대가 필요해요.", confirm: "나가기" },
+  "remove-entry": { title: "이 책에서 마디를 뺄까요?", description: "이 하루마디에서만 마디를 빼요. 다른 하루마디에 담긴 마디는 바뀌지 않아요. 원본을 삭제하는 것은 아니며, 작성자가 다시 담을 수 있어요.", confirm: "책에서 빼기" },
 } satisfies Record<TogetherConfirmationAction, { title: string; description: string; confirm: string }>;
 type Props = { action: TogetherConfirmationAction; busy: boolean; error?: string; onCancel: () => void; onConfirm: () => void };
 
