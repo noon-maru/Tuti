@@ -13,7 +13,8 @@ Android의 `출시 노트`와 iOS의 `이 버전에서 업그레이드된 사항
 - Google Play 내부 테스트·App Store Connect에 Actions로 빌드·업로드한다. 처리 완료·실기기 검증·심사 제출·정식 공개와 최신 버전 권고값 변경은 별도다.
 - iOS 심사 사전 점검은 이번 변경의 버전·출시 문구·기존 동의 및 권한 경로에 한정한다. 네이티브 권한·개인정보 매니페스트·결제 설정 변경은 없으며, 실기기 동작과 심사 승인을 보증하는 검사는 아니다.
 - 2026-11-10 앱 소스 `76cc75f`의 [Google Play 내부 테스트](https://github.com/noon-maru/Tuti/actions/runs/42776907340)에 `1.6.4 (19)` 업로드 완료. 서명 AAB·APK 검증과 [전체 CI](https://github.com/noon-maru/Tuti/actions/runs/42776895359)가 통과했다.
-- [iOS 빌드](https://github.com/noon-maru/Tuti/actions/runs/42776911155)는 Archive 자동 서명에서 Apple Development 인증서 발급 한도 오류와 연결된 개발 프로파일 미발견으로 중단됐다. App Store Connect에는 아직 업로드되지 않았으며, 기존 인증서를 임의로 폐기하지 않는다. 계정의 인증서 사용처 확인 후 서명 재사용 또는 미사용 인증서 정리가 필요하다.
+- [iOS 빌드](https://github.com/noon-maru/Tuti/actions/runs/42776911155)는 첫 실행에서 Apple Development 인증서 발급 한도로 중단됐으나, 운영자가 인증서를 정리한 뒤 같은 앱 소스로 재실행해 `1.6.4 (19)`의 서명·버전 검증과 App Store Connect 업로드를 완료했다. 인증서의 Actions 재사용은 아직 구현하지 않았으며 별도 개선 대상이다.
+- 양쪽 업로드 성공은 스토어 후속 처리·TestFlight/실기기 검증·심사 제출·승인·정식 공개를 포함하지 않는다. iOS 출시 노트·프로모션 문구도 App Store Connect에서 별도로 입력한다.
 
 ### 공통 출시 노트
 
