@@ -6,7 +6,7 @@ const TTL = 30 * 60_000;
 const routes: Record<string, string[]> = {
   "/": [], "/entry": ["mode", "step", "next"], "/explore": ["mode", "step"], "/settings": [],
   "/madi": [], "/madi/detail": ["entryId"], "/madi/edit": ["entryId", "source"],
-  "/madi/new": ["from", "harumadiId"], "/harumadi": ["harumadiId", "mode"],
+  "/madi/new": ["from", "harumadiId", "savedEntryId"], "/harumadi": ["harumadiId", "mode"],
   "/harumadi/invite": [], "/harumadi/pdfs": [], "/harumadi/pdf/view": ["harumadiPdfId", "from"],
   "/inquiry": [], "/location": [], "/notifications": [], "/legal": [], "/account-deletion": [],
 };

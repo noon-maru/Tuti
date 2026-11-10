@@ -15,11 +15,32 @@ import { trackLifecycle } from "@/lib/lifecycle";
 import { useNotificationPresence } from "../hooks/useNotificationPresence";
 import { notificationRequest } from "@/lib/notificationSettings";
 import { cachedMadiDestination, madiDestinationScopeChanged } from "@/lib/madiComposeDestination";
+import { MadiHarumadiSelection } from "@/features/tuti/screens/journal/MadiHarumadiSelection";
+import { JournalDetailStatusScreen } from "@/features/tuti/screens/journal/JournalDetailScreen";
+import { savedMadiSelectionPath } from "@/lib/savedMadiSelection";
 
 export function JournalCreateFlow() {
   const ownerId = useSession()?.userId;
-  const harumadiId = useSearchParams().get("harumadiId");
+  const params = useSearchParams();
+  const harumadiId = params.get("harumadiId");
+  const savedId = params.get("savedEntryId");
+  if (savedId) return <SavedMadiSelection key={`${ownerId}:${savedId}`} ownerId={ownerId} entryId={savedId} />;
   return <JournalComposer key={`${ownerId ?? "pending"}:${harumadiId ?? "new"}`} ownerId={ownerId} harumadiId={harumadiId} />;
+}
+
+function SavedMadiSelection({ ownerId, entryId }: { ownerId?: string; entryId: string }) {
+  const router = useRouter();
+  const source = useSearchParams().get("from");
+  const query = useTutiJournalEntries();
+  const done = () => { requestLoginNudge("journal_created"); router.replace(source === "explore" ? "/explore" : source === "library" || source === "welcome" ? "/" : "/madi"); };
+  if (!ownerId || query.isPending) return <JournalDetailStatusScreen loading message="저장한 마디를 확인하고 있어요." onBack={done} />;
+  if (query.isError) return <JournalDetailStatusScreen message="저장한 마디를 확인하지 못했어요." onBack={done} onRetry={() => void query.refetch()} />;
+  // Resolve only within the current account's permission-filtered query; never recreate a missing entry.
+  if (!query.entries.some(entry => entry.id === entryId)) return <JournalDetailStatusScreen message="이 계정에서 마디를 찾지 못했어요. 전체 마디에서 확인해주세요." onBack={done} />;
+  return <MadiHarumadiSelection ownerId={ownerId} entryId={entryId} onDone={done} onNext={bookId => {
+    router.replace(bookId ? `/madi/new?from=library&harumadiId=${encodeURIComponent(bookId)}&continue=1`
+      : `/madi/new${source === "explore" ? "?from=explore" : source === "library" || source === "welcome" ? "?from=library" : ""}`);
+  }} />;
 }
 
 function JournalComposer({ ownerId, harumadiId }: { ownerId?: string; harumadiId: string | null }) {
@@ -99,6 +120,7 @@ function JournalComposer({ ownerId, harumadiId }: { ownerId?: string; harumadiId
       if (source === "notification" && notificationId) void notificationRequest("notifications/events", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ notificationId, action: "written" }) }).catch(() => {});
       savedEntryId.current = entry.id;
       setActiveJournalEntry(entry.id);
+      if (!harumadiId && !entry.savedHarumadi) router.replace(savedMadiSelectionPath(entry.id, source));
     }}
     // 하루마디 안에서 시작했다면 담을 곳은 이미 정해져 있다.
     // 완료 후 기존 addEntryId 경로로 해당 하루마디에 연결한다.
