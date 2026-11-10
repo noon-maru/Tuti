@@ -66,7 +66,8 @@ test("표지·책등·한 권씩과 담기 선택 화면에만 필요한 생성 
   }
   assert.match(render(createElement(HarumadiCarousel, { books: [book], ownerId: "owner", onOpen() {} })), /data-harumadi-title-hint="true"/);
   const client = new QueryClient();
-  client.setQueryData(["library-harumadis", "owner"], { pages: [{ harumadis: [book], nextCursor: null }], pageParams: [undefined] });
+  client.setQueryData(["library-harumadis", "owner", "all"], { pages: [{ harumadis: [book], nextCursor: null }], pageParams: [undefined] });
+  client.setQueryData(["recent-harumadis", "owner"], { harumadis: [] });
   assert.match(render(createElement(MadiHarumadiSelection, { ownerId: "owner", entryId: "entry", onDone() {}, onNext() {} }), client), /data-harumadi-title-hint="true"/);
   client.clear();
 });

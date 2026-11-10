@@ -117,8 +117,9 @@ test("포인터 취소·드래그 후 클릭·키보드·페이지 추가를 공
   assert.match(component, /onLoadMore\(\)/); assert.match(component, /requesting\.current = true/);
   assert.match(component, /harumadiActions\(active\)/); assert.match(component, /onOpen\(active, button, mode\)/);
   const home = readFileSync("src/features/tuti/flows/LibraryHomeFlow.tsx", "utf8");
-  assert.match(home, /view === "carousel" \? <HarumadiCarousel/);
-  assert.match(home, /result\.data\?\.pages\.flatMap/);
+  assert.match(home, /view === "carousel" && !search.searching \? <HarumadiCarousel/);
+  assert.match(home, /useHarumadiSearch\(query.data\?\.pages\.flatMap/);
+  assert.doesNotMatch(home, /onLoadMore=|fetchNextPage/);
   assert.match(home, /<Header><LibraryViewSwitch/);
 });
 

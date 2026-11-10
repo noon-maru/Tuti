@@ -51,9 +51,9 @@ function LibraryHome({ ownerId }: { ownerId: string }) {
     showBook({ book, mode, origin: { ...harumadiLocalRect(bounds, cover, frame.current!.offsetWidth, frame.current!.offsetHeight), ...(spread ? { appearance: "spread" as const } : {}) } });
   };
   const library = useHarumadiLibrary(ownerId);
-  const search = useHarumadiSearch(ownerId);
-  const query = search.searching ? search.query : library;
-  const harumadiPdfs = query.data?.pages.flatMap(page => page.harumadis) ?? [];
+  const query = library;
+  const search = useHarumadiSearch(query.data?.pages.flatMap(page => page.harumadis) ?? []);
+  const harumadiPdfs = search.books;
   const isFirstMadi = library.isFirstMadi;
   useEffect(() => {
     let active = true;
@@ -73,7 +73,7 @@ function LibraryHome({ ownerId }: { ownerId: string }) {
     {hasDraft && <DraftButton type="button" onClick={() => router.push("/harumadi/pdf/create")}><Download size={17} /><span>이전 PDF 작업 이어가기</span><ArrowUpRight size={16} /></DraftButton>}
     <SearchRow><MadiSearchField value={search.search} onChange={search.setSearch} label="하루마디 이름 검색" placeholder="하루마디 이름으로 찾기" /></SearchRow>
     <ShelfScroll ref={shelfScroll} data-scroll-region data-library-layout={search.searching ? "covers" : view} aria-label="내 하루마디">
-      {query.isPending || (search.searching && search.waiting) ? <Status role="status"><LoadingIndicator /><p>책장에 하루마디를 놓고 있어요.</p></Status>
+      {query.isPending ? <Status role="status"><LoadingIndicator /><p>책장에 하루마디를 놓고 있어요.</p></Status>
         : query.isError && !query.data ? <Status role="alert"><BookOpen size={28} /><h2>책장을 불러오지 못했어요.</h2><p>하루마디가 없어진 건 아니에요.<br />연결을 확인하고 다시 불러와주세요.</p><TextAction onClick={() => void query.refetch()}>다시 불러오기<ChevronRight size={14} /></TextAction></Status>
         : <>
           {harumadiPdfs.length === 0 && search.searching ? <Status role="status"><p>이름이 일치하는 하루마디가 없어요.</p><TextAction onClick={() => search.setSearch("")}>전체 하루마디 보기</TextAction></Status> : harumadiPdfs.length === 0 ? <EmptyShelf data-empty-shelf>
@@ -84,16 +84,9 @@ function LibraryHome({ ownerId }: { ownerId: string }) {
             <TextAction onClick={() => { setWelcomeHarumadiOrigin(null); router.push(welcomeHarumadiPath(1, "library")); }}>하루마디 예시 펼쳐보기<ChevronRight size={14} /></TextAction>
           </EmptyShelf> : <>
             {view === "carousel" && !search.searching ? <HarumadiCarousel books={harumadiPdfs} ownerId={ownerId} onOpen={openBook}
-              onCreateMadi={bookId => router.push(`/madi/new?from=library&harumadiId=${encodeURIComponent(bookId)}`)}
-              hasNextPage={query.hasNextPage} loading={query.isFetchingNextPage}
-              onLoadMore={async () => {
-                const result = await query.fetchNextPage();
-                return result.data?.pages.flatMap(page => page.harumadis)[harumadiPdfs.length]?.id ?? null;
-              }} /> : <HarumadiShelf books={harumadiPdfs} ownerId={ownerId} view={!search.searching && view === "spines" ? "spines" : "covers"} onOpen={openBook} />}
-            {query.isError && <LibraryLoadNotice nextPage={query.isFetchNextPageError} busy={query.isFetching}
-              onRetry={() => { if (query.isFetchNextPageError) void query.fetchNextPage(); else void query.refetch(); }} />}
-            {query.hasNextPage && !query.isError && <MoreButton disabled={query.isFetchingNextPage} onClick={() => void query.fetchNextPage()}>{query.isFetchingNextPage ? "불러오고 있어요" : "하루마디 더 보기"}</MoreButton>}
+              onCreateMadi={bookId => router.push(`/madi/new?from=library&harumadiId=${encodeURIComponent(bookId)}`)} /> : <HarumadiShelf books={harumadiPdfs} ownerId={ownerId} view={!search.searching && view === "spines" ? "spines" : "covers"} onOpen={openBook} />}
           </>}
+          {query.isError && <LibraryLoadNotice nextPage={false} busy={query.isFetching} onRetry={() => void query.refetch()} />}
         </>}
     </ShelfScroll>
     <MainNavigation active="harumadi" />
@@ -123,4 +116,3 @@ const ShelfScroll = styled.div`display: flex; flex-direction: column; flex: 1; m
 const EmptyShelf = styled.div`flex: 1 0 auto; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 290px; padding: 16px 0 28px; h2 { margin: 27px 0 10px; font-size: 22px; font-weight: 600; letter-spacing: -0.035em; text-align: center; } > p { margin: 0 0 14px; white-space: pre-line; text-align: center; font-size: 16px; color: var(--color-text-muted); line-height: 1.85; } > button { margin-bottom: 4px; } @container app-viewport (max-height: 620px) { min-height: 0; padding: 8px 0 12px; h2 { margin: 16px 0 8px; } > p { margin-bottom: 8px; line-height: 1.7; } }`;
 const EmptyMark = styled.span`position: relative; flex: none; width: 96px; height: 124px; display: grid; place-content: center; justify-items: center; gap: 16px; border: 1px solid #dce3d6; border-radius: 2px 6px 6px 2px; background: #ffffff; box-shadow: 3px 3px 0 #e9ede5, 6px 8px 16px rgb(27 34 42 / 0.04); color: #7d8b70; &::before { content: ""; position: absolute; top: 0; bottom: 0; left: 6px; border-left: 1px solid #edf0e9; } > span { width: 26px; border-bottom: 1px solid #dce3d6; } @container app-viewport (max-height: 620px) { width: 64px; height: 82px; gap: 10px; }`;
 const Status = styled.div`flex: 1 0 auto; min-height: 230px; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; gap: 14px; h2 { margin: 0; font-size: 17px; } p { margin: 0; line-height: 1.8; font-size: 16px; color: var(--color-text-muted); }`;
-const MoreButton = styled(BaseButton)`display: block; margin: 4px auto 20px; padding: 12px 20px; border-radius: 20px; background: white; color: var(--color-text-muted); font-size: 16px;`;

@@ -1,20 +1,12 @@
 "use client";
-import { useEffect, useState } from "react";
-import { useInfiniteQuery } from "@tanstack/react-query";
-import { fetchHarumadis } from "@/lib/harumadis";
+import { useState } from "react";
+import type { Harumadi } from "@/shared/api/harumadi";
 
-export function useHarumadiSearch(ownerId: string) {
+export function filterHarumadis(books: Harumadi[], search: string) {
+  const term = search.normalize("NFC").trim().toLocaleLowerCase("ko-KR");
+  return term ? books.filter(book => book.title.normalize("NFC").toLocaleLowerCase("ko-KR").includes(term)) : books;
+}
+export function useHarumadiSearch(books: Harumadi[]) {
   const [search, setSearch] = useState("");
-  const [settled, setSettled] = useState("");
-  useEffect(() => {
-    const timer = setTimeout(() => setSettled(search.trim().slice(0, 100)), 250);
-    return () => clearTimeout(timer);
-  }, [search]);
-  const query = useInfiniteQuery({
-    queryKey: ["harumadi-search", ownerId, settled], initialPageParam: undefined as string | undefined,
-    queryFn: ({ pageParam }) => fetchHarumadis(ownerId, pageParam, settled),
-    getNextPageParam: page => page.nextCursor ?? undefined,
-    enabled: Boolean(settled), retry: false, gcTime: 0,
-  });
-  return { search, setSearch, query, searching: Boolean(search.trim()), waiting: search.trim().slice(0, 100) !== settled };
+  return { search, setSearch, books: filterHarumadis(books, search), searching: Boolean(search.trim()) };
 }

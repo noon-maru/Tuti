@@ -124,8 +124,8 @@ test("책등 열 수는 CSS 너비로 계산하고 페이지네이션·열기 �
   assert.match(shelf, /onOpen\(book, trigger, action.mode\)/);
   const home = readFileSync("src/features/tuti/flows/LibraryHomeFlow.tsx", "utf8");
   assert.match(home, /useLibraryView\(ownerId\)/);
-  assert.match(home, /<HarumadiShelf books=\{harumadiPdfs\} ownerId=\{ownerId\} view=\{view\} onOpen=\{openBook\}/);
-  assert.match(home, /query.fetchNextPage\(\)/);
+  assert.match(home, /<HarumadiShelf books=\{harumadiPdfs\} ownerId=\{ownerId\} view=\{!search.searching && view === "spines" \? "spines" : "covers"\} onOpen=\{openBook\}/);
+  assert.doesNotMatch(home, /query.fetchNextPage\(\)/);
   assert.match(home, /harumadiLocalRect\(bounds, cover/);
 });
 

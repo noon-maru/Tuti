@@ -8,7 +8,7 @@ import { MadiHarumadiSelection } from "../src/features/tuti/screens/journal/Madi
 
 test("저장한 마디를 담을 책이 없으면 해당 마디 ID로 새 책 만들기를 바로 연결한다", () => {
   const client = new QueryClient();
-  client.setQueryData(["library-harumadis", "owner"], { pages: [{ harumadis: [], nextCursor: null }], pageParams: [undefined] });
+  client.setQueryData(["library-harumadis", "owner", "all"], { pages: [{ harumadis: [], nextCursor: null }], pageParams: [undefined] });
   client.setQueryData(["recent-harumadis", "owner"], { harumadis: [] });
   const html = renderToStaticMarkup(createElement(QueryClientProvider, { client }, createElement(MadiHarumadiSelection, { ownerId: "owner", entryId: "saved-entry", onDone() {}, onNext() {} })));
   assert.match(html, /href="\/harumadi\?addEntryId=saved-entry"/);

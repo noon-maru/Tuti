@@ -18,13 +18,13 @@ test("책장 도달 이력은 계정별로 분리하고 메모리에서도 유�
   assert.equal(await readLibraryEntryCompleted("a"), true);
 });
 
-test("홈은 탐색을 마운트하지 않고 페이지네이션·소유자별 캐시·작은 표지만 사용한다", () => {
+test("홈은 탐색을 마운트하지 않고 전체 목록·소유자별 캐시·작은 표지만 사용한다", () => {
   const main = readFileSync("src/features/tuti/flows/MainFlow.tsx", "utf8");
   const home = readFileSync("src/features/tuti/flows/LibraryHomeFlow.tsx", "utf8");
   assert.doesNotMatch(main, /RecommendationsFlow|router\.replace/);
   assert.doesNotMatch(home, /useTutiRecommendations|requestLocation|HarumadiPdfPreview/);
-  assert.match(readFileSync("src/features/tuti/hooks/useHarumadiLibrary.ts", "utf8"), /\["library-harumadis", ownerId\]/);
-  assert.match(readFileSync("src/features/tuti/hooks/useHarumadiLibrary.ts", "utf8"), /getNextPageParam/);
+  assert.match(readFileSync("src/features/tuti/hooks/useHarumadiLibrary.ts", "utf8"), /\["library-harumadis", ownerId, "all"\]/);
+  assert.match(readFileSync("src/features/tuti/hooks/useHarumadiLibrary.ts", "utf8"), /fetchAllHarumadis/);
   assert.match(home, /<MainNavigation active="harumadi"/);
   assert.match(readFileSync("src/app/(tuti)/(main)/page.tsx", "utf8"), /<LibraryHomeFlow/);
   assert.match(readFileSync("src/features/tuti/components/HarumadiCover.tsx", "utf8"), /URL\.revokeObjectURL/);
@@ -34,10 +34,10 @@ test("둘러보기 후 빈 홈은 기본 표지 대신 첫 마디 작성을 안�
   const home = readFileSync("src/features/tuti/flows/LibraryHomeFlow.tsx", "utf8");
   const entry = readFileSync("src/features/tuti/flows/EntryFlow.tsx", "utf8");
   assert.doesNotMatch(home, /EmptyHarumadi|기억하고 싶은 하루<\/i>|createHarumadi\(/);
-  assert.match(home, /const isFirstMadi = query.isFirstMadi/);
+  assert.match(home, /const isFirstMadi = library.isFirstMadi/);
   assert.match(home, /useHarumadiLibrary\(ownerId\)/);
   const navigation = readFileSync("src/features/tuti/components/MainNavigation.tsx", "utf8");
-  assert.match(navigation, /isFirstMadi \? "첫 마디 남기기" : "마디 남기기"/);
+  assert.match(navigation, /isFirstMadi \? "첫 마디 남기기" : MADI_COMPOSE_COPY.globalAction/);
   assert.match(navigation, /`\/madi\/new\?from=\$\{active === "harumadi" \? "library" : "explore"\}`/);
   assert.match(home, /새 하루마디<\/CreateHarumadi>/);
   assert.match(home, /<HarumadiShelf books=\{harumadiPdfs\}/);

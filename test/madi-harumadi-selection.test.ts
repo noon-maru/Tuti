@@ -43,7 +43,7 @@ test("선택 화면은 빈 책장과 기존 책을 구분하고 마디가 많아
   for (const variant of ["empty", "book", "many"] as const) {
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     const row = { ...book, entryIds: variant === "many" ? Array.from({ length: 100 }, (_, i) => `old-${i}`) : book.entryIds };
-    client.setQueryData(["library-harumadis", "owner"], { pages: [{ harumadis: variant === "empty" ? [] : [row], nextCursor: null }], pageParams: [undefined] });
+    client.setQueryData(["library-harumadis", "owner", "all"], { pages: [{ harumadis: variant === "empty" ? [] : [row], nextCursor: null }], pageParams: [undefined] });
     client.setQueryData(["recent-harumadis", "owner"], { harumadis: [] });
     const html = renderToStaticMarkup(createElement(QueryClientProvider, { client }, createElement(MadiHarumadiSelection, {
       ownerId: "owner", entryId: "new-entry", initialBookId: book.id, onDone() {}, onNext() {},

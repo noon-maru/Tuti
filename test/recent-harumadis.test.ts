@@ -16,8 +16,8 @@ test("최근 책은 중복 없이 앞에 두되 선택하지 않고 더 최신�
   const grouped = groupHarumadiChoices([recent, recent], [other, newer]);
   assert.deepEqual(grouped.recent, [newer]); assert.deepEqual(grouped.other, [other]);
   const client = new QueryClient();
-  // 최근 책은 목록 첫 페이지 밖에 있어도 선택할 수 있다.
-  client.setQueryData(["library-harumadis", "owner"], { pages: [{ harumadis: [other], nextCursor: "more" }], pageParams: [undefined] });
+  // 전체 캐시의 최근 책은 순서를 앞당기되 자동 선택하지 않는다.
+  client.setQueryData(["library-harumadis", "owner", "all"], { pages: [{ harumadis: [other, recent], nextCursor: null }], pageParams: [undefined] });
   client.setQueryData(["recent-harumadis", "owner"], { harumadis: [recent] });
   const html = renderToStaticMarkup(createElement(QueryClientProvider, { client }, createElement(MadiHarumadiSelection, { ownerId: "owner", entryId: "entry", onDone() {}, onNext() {} })));
   assert.ok(html.indexOf("자주 담는 책") < html.indexOf("다른 책"));
@@ -30,7 +30,7 @@ test("최근 책은 중복 없이 앞에 두되 선택하지 않고 더 최신�
 test("최근 추천이 없어도 일반 책을 고를 수 있고 실패는 계속 쓰기를 실행하지 않는다", () => {
   const base = harumadiContent().harumadi;
   const client = new QueryClient();
-  client.setQueryData(["library-harumadis", "owner"], { pages: [{ harumadis: [base], nextCursor: null }], pageParams: [undefined] });
+  client.setQueryData(["library-harumadis", "owner", "all"], { pages: [{ harumadis: [base], nextCursor: null }], pageParams: [undefined] });
   client.setQueryData(["recent-harumadis", "owner"], { harumadis: [] });
   const html = renderToStaticMarkup(createElement(QueryClientProvider, { client }, createElement(MadiHarumadiSelection, { ownerId: "owner", entryId: "entry", onDone() {}, onNext() {} })));
   assert.match(html, new RegExp(base.title)); assert.doesNotMatch(html, /최근 담은 하루마디/);

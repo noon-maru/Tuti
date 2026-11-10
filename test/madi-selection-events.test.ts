@@ -23,7 +23,6 @@ function fixture(add: (...args: unknown[]) => Promise<unknown>, recentError = fa
     "react/jsx-runtime": jsx, "@emotion/styled": { __esModule: true, default: styled }, "lucide-react": { BookOpen: "svg", Check: "svg" },
     "next/link": { __esModule: true, default: "a" },
     "@tanstack/react-query": { useQueryClient: () => ({ invalidateQueries() {}, removeQueries() {} }),
-      useInfiniteQuery: () => ({ data: { pages: [{ harumadis: [book] }] }, isPending: false, isError: false, refetch() {} }),
       useQuery: () => ({ data: recentError ? undefined : { harumadis: [book] }, isPending: false, isError: recentError, refetch() {} }) },
     "@/features/tuti/components/ScreenFrame": { ScreenFrame: "div" },
     "@/features/tuti/components/buttons": { BackButton: "button", PrimaryButton: styled.button({}), TextButton: "button" },
@@ -32,7 +31,8 @@ function fixture(add: (...args: unknown[]) => Promise<unknown>, recentError = fa
     "@/lib/addMadiToHarumadi": { addMadiToHarumadi: add },
     "@/features/tuti/components/HarumadiTitleHint": { HarumadiTitleHint: "span" },
     "@/shared/harumadi/recentChoices": { groupHarumadiChoices },
-    "@/features/tuti/hooks/useHarumadiSearch": { useHarumadiSearch: () => ({ search: "", searching: false, waiting: false, setSearch() {} }) },
+    "@/features/tuti/hooks/useHarumadiLibrary": { useHarumadiLibrary: () => ({ data: { pages: [{ harumadis: [book] }] }, isPending: false, isError: false, refetch() {} }) },
+    "@/features/tuti/hooks/useHarumadiSearch": { useHarumadiSearch: (books: unknown[]) => ({ search: "", books, searching: false, setSearch() {} }) },
     "@/features/tuti/components/MadiSearchField": { MadiSearchField: "input" },
   };
   const exports: { MadiHarumadiSelection?: (props: unknown) => unknown } = {};

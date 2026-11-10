@@ -14,9 +14,9 @@ test("공유 목록 상태는 확인된 0개만 첫 마디로 판단하고 다�
     return createElement("span", null, isFirstMadi ? "첫 마디" : "마디");
   }
   const client = new QueryClient();
-  client.setQueryData(["library-harumadis", "empty"], { pages: [{ harumadis: [], nextCursor: null, recordCount: 0 }], pageParams: [undefined] });
-  client.setQueryData(["library-harumadis", "existing"], { pages: [{ harumadis: [], nextCursor: null, recordCount: 1 }], pageParams: [undefined] });
-  client.setQueryData(["library-harumadis", "unknown-count"], { pages: [{ harumadis: [], nextCursor: null }], pageParams: [undefined] });
+  client.setQueryData(["library-harumadis", "empty", "all"], { pages: [{ harumadis: [], nextCursor: null, recordCount: 0 }], pageParams: [undefined] });
+  client.setQueryData(["library-harumadis", "existing", "all"], { pages: [{ harumadis: [], nextCursor: null, recordCount: 1 }], pageParams: [undefined] });
+  client.setQueryData(["library-harumadis", "unknown-count", "all"], { pages: [{ harumadis: [], nextCursor: null }], pageParams: [undefined] });
   for (const ownerId of ["empty", "existing", "unknown-count", "not-loaded", undefined]) {
     const html = renderToStaticMarkup(createElement(QueryClientProvider, { client }, createElement(Status, { ownerId })));
     assert.equal(html, ownerId === "empty" ? "<span>첫 마디</span>" : "<span>마디</span>");
@@ -50,7 +50,7 @@ test("바 크기와 첫 마디 문구는 부모 화면이 아닌 공통 컴포�
   assert.match(navigation, /isFirstMadi \? "첫 마디 남기기" : MADI_COMPOSE_COPY.globalAction/);
   assert.match(navigation, /minmax\(max-content, 1.65fr\)/);
   const query = read("hooks/useHarumadiLibrary.ts");
-  assert.match(query, /queryKey: \["library-harumadis", ownerId\]/);
+  assert.match(query, /queryKey: \["library-harumadis", ownerId, "all"\]/);
   assert.match(query, /enabled: Boolean\(ownerId\)/);
   assert.match(query, /query.isSuccess && query.data\?\.pages\[0\]\?\.recordCount === 0/);
   assert.doesNotMatch(query, /fetchJournalEntries|fetchRecommendations/);

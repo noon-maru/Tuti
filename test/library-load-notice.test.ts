@@ -24,9 +24,9 @@ test("추가 페이지 오류와 기존 책장 갱신 오류를 구분하고 재
   assert.match(html, /<button[^>]*disabled/);
   assert.match(html, /불러오는 중/);
   const flow = readFileSync("src/features/tuti/flows/LibraryHomeFlow.tsx", "utf8");
-  assert.match(flow, /nextPage=\{query.isFetchNextPageError\}/);
-  assert.match(flow, /if \(query.isFetchNextPageError\) void query.fetchNextPage\(\); else void query.refetch\(\)/);
-  assert.match(flow, /query.hasNextPage && !query.isError/);
+  assert.match(flow, /nextPage=\{false\}/);
+  assert.match(flow, /onRetry=\{\(\) => void query.refetch\(\)\}/);
+  assert.doesNotMatch(flow, /fetchNextPage|query.hasNextPage/);
   assert.doesNotMatch(flow, /InlineError|다음 하루마디를 불러오지/);
   assert.match(flow, /query.isError && !query.data \? <Status role="alert"/);
 });
