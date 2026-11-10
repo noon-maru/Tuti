@@ -137,6 +137,34 @@ sudo -n /usr/local/sbin/tuti-journal-moderation-purge
 운영 명령 스크립트를 변경한 뒤에는 위 설치 명령으로 root 소유 명령도 갱신해야
 새로운 배포 사전 검사가 실제 운영 명령에 적용된다.
 
+## 운영 워커와 Compose 구성
+
+`tuti-ops-maintenance`(개인정보·권리 대응·알림), `tuti-ops-recovery`(원장 백업·복구 보조),
+`tuti-ops-retention`(보관기간 정리·백업 검증)은 삭제 대상이 아닌 상시 예약 작업 컨테이너다.
+정의는 `docker-compose.prod.yml` 한 곳에 두며, `ops-workers` 프로필에서만 활성화한다.
+기본 실행은 앱·DB만, `ops` 프로필은 일회성 운영 도구만 선택한다.
+[Compose 프로필](https://docs.docker.com/compose/how-tos/profiles/)을 통해 기본 파일에서도
+워커를 알고 있게 하므로 고아 경고를 숨기거나 `--remove-orphans`로 워커를 지우지 않는다.
+`docker-compose.ops-workers.yml`은 설치된 root 도구의 파일 참조와 해시 검증을 위해
+`services: {}`인 호환 진입점으로 유지한다. 새 정의를 이 파일에 중복 추가하지 않는다.
+
+이미 워커가 설치된 운영 체크아웃에서는 두 파일이 설정 해시에 포함된다. 직접 수정하거나
+먼저 fast-forward하면 예약 작업이 변경된 해시를 거부하므로, 검증한 별도 worktree에서
+아래 전환 도구를 실행한다. 실제 env는 읽어 출력하지 않으며 내부 Compose 검증에만 사용한다.
+
+```sh
+sudo sh /volume1/homes/Tutiadmin/source/Tuti-ops-compose-unification/scripts/ops/install-ops-compose-unification --apply COMMIT_SHA
+```
+
+`COMMIT_SHA`는 해당 worktree에서 검증·커밋한 전체 40자리 해시다. 도구는 root 권한,
+소스 커밋·깨끗한 체크아웃·main fast-forward 가능 여부·복원/원장 전환 상태를 확인한다.
+유지보수 배타 잠금 안에서 Compose 검증과 이전 구성 보관 후, Git은 Tutiadmin 권한으로
+fast-forward하고 설치된 워커 도구의 `--refresh-locked`·`--check`를 실행한다.
+앱·DB를 재시작하거나 이미지를 빌드·다운로드하지 않는다. 워커 3개는 새 해시 적용을 위해
+재생성될 수 있으며 마운트한 원장·백업은 보존한다. 예약 주기와 env는 변경하지 않는다.
+갱신 실패는 성공으로 취급하지 않는다. 이 경우 안내된 이전 구성과 로그를 확인하고
+`sudo /usr/local/sbin/tuti-ops-workers --refresh`로 재검증해야 한다.
+
 ## GitHub Actions 원격 운영 배포
 
 `.github/workflows/web-production-deploy.yml`은 수동 실행 전용이다. GitHub-hosted

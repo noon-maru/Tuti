@@ -140,11 +140,16 @@ test("래퍼는 기존 잠금과 실패 알림을 유지하고 복구/백업 볼
     assert.match(source, /maintenance.lock/); assert.match(source, /pending.env/);
     assert.doesNotMatch(source, /run --rm/); assert.match(source, /exec \/usr\/local\/sbin\/tuti-ops-workers/);
   }
-  const compose = await readFile("docker-compose.ops-workers.yml", "utf8");
-  assert.match(compose, /read_only: true/);
-  assert.doesNotMatch(compose, /docker.sock|privileged:|ports:/);
-  assert.ok(compose.indexOf("ops-recovery:") < compose.indexOf(":/recovery"));
-  assert.ok(compose.indexOf("ops-retention:") < compose.indexOf(":/backup-retention"));
+  const compose = await readFile("docker-compose.prod.yml", "utf8");
+  const workers = compose.slice(compose.indexOf("\n  ops-maintenance:"), compose.indexOf("\n  db:"));
+  assert.match(workers, /read_only: true/);
+  assert.match(workers, /profiles: \[ops-workers\]/);
+  assert.doesNotMatch(workers, /docker.sock|privileged:|ports:/);
+  assert.ok(workers.indexOf("ops-recovery:") < workers.indexOf(":/recovery"));
+  assert.ok(workers.indexOf("ops-retention:") < workers.indexOf(":/backup-retention"));
+  const compatibility = await readFile("docker-compose.ops-workers.yml", "utf8");
+  assert.match(compatibility, /services: \{\}/);
+  assert.doesNotMatch(compatibility, /^  ops-/m);
   for (const service of ["tuti-journal-rights", "tuti-privacy-maintenance", "tuti-privacy-ledger-backup", "tuti-backup-retention"]) assert.match(await readFile(`scripts/ops/systemd/${service}.service`, "utf8"), /OnFailure=/);
   const deploy = await readFile("scripts/ops/tuti-prod-deploy", "utf8");
   assert.ok(deploy.indexOf('docker tag "$ops_image" tuti:ops') < deploy.indexOf("tuti-ops-workers --refresh-locked"));

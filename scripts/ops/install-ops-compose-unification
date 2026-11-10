@@ -1,0 +1,41 @@
+#!/bin/sh
+# Apply a committed, staged configuration and refresh its worker digest under one lock.
+set -eu
+case "$#:${1:-}" in 2:--apply) ;; *) echo "사용법: install-ops-compose-unification --apply COMMIT_SHA" >&2; exit 1 ;; esac
+revision="$2"
+printf '%s\n' "$revision" | LC_ALL=C grep -Eq '^[a-f0-9]{40}$' || exit 1
+[ "$(id -u)" = 0 ] || { echo "NAS 관리자 권한이 필요합니다." >&2; exit 1; }
+project_dir=/var/services/homes/Tutiadmin/source/Tuti
+source_dir="$(cd "$(dirname "$0")/../.." && pwd -P)"
+cd "$project_dir"
+project_dir="$(pwd -P)"
+git_owner() { su -s /bin/sh Tutiadmin -c 'exec git "$@"' git "$@"; }
+if [ -L "$project_dir/.ops-state" ]; then exit 1; fi
+exec 9>"$project_dir/.ops-state/maintenance.lock"
+/usr/bin/flock --exclusive 9
+[ "$(git_owner -C "$project_dir" branch --show-current)" = main ] || { echo "운영 main 브랜치에서만 적용합니다." >&2; exit 1; }
+if [ -f .ops-state/restore-privacy/pending.env ] || [ -f .ops-state/privacy-activation/pending ]; then
+  echo "복원·원장 전환 검토 종료 후 적용해주세요." >&2; exit 1
+fi
+[ "$(git_owner -C "$source_dir" rev-parse HEAD)" = "$revision" ] || { echo "검증한 소스 커밋과 다릅니다." >&2; exit 1; }
+for checkout in "$source_dir" "$project_dir"; do
+  [ -z "$(git_owner -C "$checkout" status --porcelain)" ] || { echo "커밋되지 않은 변경이 있어 적용하지 않습니다." >&2; exit 1; }
+done
+git_owner -C "$project_dir" merge-base --is-ancestor HEAD "$revision" || { echo "운영 체크아웃을 fast-forward할 수 없습니다." >&2; exit 1; }
+[ -x /usr/local/sbin/tuti-ops-workers ] || exit 1
+# Resolve the real environment internally but never print its values.
+docker compose --project-directory "$project_dir" --env-file "$project_dir/.env.production" \
+  -f "$source_dir/docker-compose.prod.yml" -f "$source_dir/docker-compose.ops-workers.yml" \
+  --profile ops-workers config --quiet
+snapshot="$project_dir/.ops-state/compose-unification/$(date +%Y%m%d-%H%M%S)-$$"
+install -d -o root -g root -m 0700 "$snapshot"
+cp -p docker-compose.prod.yml docker-compose.ops-workers.yml "$snapshot/"
+git_owner -C "$project_dir" rev-parse HEAD > "$snapshot/previous-revision"
+git_owner -C "$project_dir" merge --ff-only "$revision"
+if ! /usr/local/sbin/tuti-ops-workers --refresh-locked; then
+  echo "구성 전환 후 워커 확인에 실패했습니다. 예약 작업은 설정 검증을 통과해야 재개됩니다. --refresh로 재점검해주세요. 이전 구성: $snapshot" >&2
+  exit 1
+fi
+/usr/local/sbin/tuti-ops-workers --check
+echo "운영 Compose 통합 완료. 워커 3개의 설정 검증값을 갱신했습니다. 이전 구성: $snapshot"
+echo "앱·DB 재시작, 이미지 빌드·다운로드, 예약 주기·env 변경과 고아 컨테이너 삭제는 실행하지 않았습니다."
