@@ -9,11 +9,12 @@ export function PublicPlaceFlow({ place }: { place: TutiPlace }) {
 
   return (
     <DetailScreen
+      publicView
       place={place}
       travelTimeLabel="공유된 공간"
       backLabel="Tuti에서 다른 공간 찾기"
       showBackMenuItem
-      onBack={() => router.push("/explore")}
+      onBack={() => router.push("/entry?next=explore")}
     />
   );
 }

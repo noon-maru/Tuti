@@ -35,7 +35,7 @@ test("재진입 확인 전에는 소개를 그리지 않고 도달 후에는 가
   const explore = readFileSync("src/features/tuti/flows/ExploreFlow.tsx", "utf8");
   assert.match(entry, /completion\?\.ownerId === ownerId/);
   assert.match(entry, /entryCompleted \|\| \(Boolean\(entryRecord\)/);
-  assert.match(entry, /if \(!hasHydrated \|\| !completionReady \|\| shouldRedirectToMain \|\| legacyExample\) return null/);
+  assert.match(entry, /if \(!hasHydrated \|\| !completionReady \|\| continueToExplore \|\| shouldRedirectToMain \|\| legacyExample\) return null/);
   assert.match(entry, /router.replace\("\/explore"\)/);
   assert.match(entry, /router.replace\("\/madi\/new\?from=welcome"\)/);
   assert.doesNotMatch(entry, /router.push\(welcomeGuidePath/);

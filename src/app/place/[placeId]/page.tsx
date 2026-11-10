@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { TutiAppShell } from "@/features/tuti/components/TutiAppShell";
+import { PublicPlaceShell } from "@/features/tuti/components/PublicPlaceShell";
 import { PublicPlaceFlow } from "@/features/tuti/flows/PublicPlaceFlow";
 import { findPublicPlace } from "@/server/places/publicPlace";
 
@@ -53,8 +53,8 @@ export default async function PublicPlacePage({
   if (!place) notFound();
 
   return (
-    <TutiAppShell>
+    <PublicPlaceShell>
       <PublicPlaceFlow place={place} />
-    </TutiAppShell>
+    </PublicPlaceShell>
   );
 }

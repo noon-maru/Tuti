@@ -17,6 +17,9 @@ import { useSession } from "@/features/tuti/hooks/useSession";
 export function EntryFlow() {
   const router = useRouter();
   const params = useSearchParams();
+  // A shared-place visitor chose to start exploring. Consent runs before this flow mounts.
+  // Use a fixed destination, never an arbitrary return URL.
+  const continueToExplore = params.get("next") === "explore";
   const ownerId = useSession()?.userId;
   const [completion, setCompletion] = useState<{ ownerId: string; completed: boolean } | null>(null);
   const completionReady = Boolean(ownerId && completion?.ownerId === ownerId);
@@ -47,6 +50,10 @@ export function EntryFlow() {
 
   useEffect(() => {
     if (!hasHydrated || !completionReady) return;
+    if (continueToExplore) {
+      router.replace("/explore");
+      return;
+    }
     if (legacyExample) {
       router.replace(welcomeHarumadiPath(parseWelcomeHarumadiPage(params.get("page"))));
       return;
@@ -58,10 +65,10 @@ export function EntryFlow() {
     if (shouldRedirectToMain) {
       router.replace("/");
     }
-  }, [router, shouldRedirectToMain, questionsRequested, entryStage, legacyExample, params, hasHydrated, completionReady]);
+  }, [router, shouldRedirectToMain, questionsRequested, entryStage, legacyExample, params, hasHydrated, completionReady, continueToExplore]);
 
   useEffect(() => {
-    if (!hasHydrated || !completionReady || shouldRedirectToMain || legacyExample || entryStage === "recommendation-ready") return;
+    if (!hasHydrated || !completionReady || continueToExplore || shouldRedirectToMain || legacyExample || entryStage === "recommendation-ready") return;
 
     if (!questionsRequested) {
       if (guideStep === null) {
@@ -73,9 +80,9 @@ export function EntryFlow() {
     void recordProductActivity("entry_started").catch(() => {
       // 분석 기록 실패가 질문 흐름을 막지 않도록 한다.
     });
-  }, [legacyExample, entryStage, guideStep, hasHydrated, questionsRequested, shouldRedirectToMain, completionReady]);
+  }, [legacyExample, entryStage, guideStep, hasHydrated, questionsRequested, shouldRedirectToMain, completionReady, continueToExplore]);
 
-  if (!hasHydrated || !completionReady || shouldRedirectToMain || legacyExample) return null;
+  if (!hasHydrated || !completionReady || continueToExplore || shouldRedirectToMain || legacyExample) return null;
 
   if (entryStage !== "recommendation-ready" && !questionsRequested) {
     return <WelcomeScreen

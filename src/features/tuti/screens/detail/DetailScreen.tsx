@@ -94,6 +94,7 @@ export function DetailScreen({
   onExitStart,
   historyActive = false,
   revealProgress = 1,
+  publicView = false,
 }: {
   place: TutiPlace;
   travelTimeLabel: string;
@@ -105,8 +106,9 @@ export function DetailScreen({
   onExitStart?: () => void;
   historyActive?: boolean;
   revealProgress?: number;
+  publicView?: boolean;
 }) {
-  const detailQuery = usePlaceDetail(place.id);
+  const detailQuery = usePlaceDetail(place.id, true, publicView);
   const detailResponse = detailQuery.data;
   const detail = detailResponse?.detail ?? null;
   const locationLabel =

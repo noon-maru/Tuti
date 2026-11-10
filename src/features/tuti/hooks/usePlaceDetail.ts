@@ -2,16 +2,16 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { useEffect } from "react";
-import { fetchPlaceDetail } from "@/lib/tutiApi";
+import { fetchPlaceDetail, fetchPublicPlaceDetail } from "@/lib/tutiApi";
 
 const DETAIL_CACHE_TIME = 6 * 60 * 60 * 1_000;
 const MAX_PRELOADED_IMAGES = 24;
 const preloadedImages = new Map<string, HTMLImageElement>();
 
-export function usePlaceDetail(placeId: string, enabled = true) {
+export function usePlaceDetail(placeId: string, enabled = true, publicView = false) {
   const query = useQuery({
-    queryKey: ["place-detail", placeId],
-    queryFn: () => fetchPlaceDetail(placeId),
+    queryKey: [publicView ? "public-place-detail" : "place-detail", placeId],
+    queryFn: () => publicView ? fetchPublicPlaceDetail(placeId) : fetchPlaceDetail(placeId),
     enabled,
     staleTime: 30 * 60 * 1_000,
     gcTime: DETAIL_CACHE_TIME,

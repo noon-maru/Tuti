@@ -245,6 +245,15 @@ export async function fetchPlaceDetail(
   return data;
 }
 
+/** Shared-place reading never creates a session or sends an existing account token. */
+export async function fetchPublicPlaceDetail(placeId: string): Promise<PlaceDetailResponse> {
+  const response = await clientFetch(apiUrl(`public/places/${encodeURIComponent(placeId)}/detail`), {
+    credentials: "omit",
+  });
+  if (!response.ok) throw new Error(await readApiError(response, "장소 정보를 불러오지 못했어요."));
+  return await response.json() as PlaceDetailResponse;
+}
+
 export async function fetchDeparturePlan(
   placeId: string,
   origin: UserLocation,
