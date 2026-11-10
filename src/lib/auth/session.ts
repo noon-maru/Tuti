@@ -439,6 +439,7 @@ async function clearStoredSession(expected: TutiSession | null = sessionSnapshot
     if (previousUserId) await harumadiReadCache.clearOwner(previousUserId).catch(() => {});
     if (previousUserId) await import("../lifecycle").then(module => module.clearLifecycleClient(previousUserId)).catch(() => {});
     if (previousUserId) await madiDraftStorage.clearOwner(previousUserId).catch(() => {});
+    if (previousUserId) await import("../harumadiReadingPosition").then(module => module.harumadiReadingPositions.clearOwner(previousUserId)).catch(() => {});
     sessionPromise = undefined;
     await Promise.all([
       preferencesStorage.removeItem(SESSION_STORAGE_KEY),
@@ -488,7 +489,10 @@ async function fetchWithToken(
   try {
     response = await clientFetch(apiUrl(path), { ...init, headers });
   } finally {
-    if (owner && path === "account" && method === "DELETE") await madiDraftStorage.clearOwner(owner).catch(() => {});
+    if (owner && path === "account" && method === "DELETE") {
+      await madiDraftStorage.clearOwner(owner).catch(() => {});
+      await import("../harumadiReadingPosition").then(module => module.harumadiReadingPositions.clearOwner(owner)).catch(() => {});
+    }
     if (owner && path === "account" && method === "DELETE") await import("../lifecycle").then(module => module.clearLifecycleClient(owner)).catch(() => {});
     const deletedMadi = method === "DELETE" ? /^journal-entries\/([^/]+)(?:\/sensitive-consent)?$/.exec(path)?.[1] : null;
     if (owner && deletedMadi) await madiDraftStorage.remove(owner, decodeURIComponent(deletedMadi)).catch(() => {});

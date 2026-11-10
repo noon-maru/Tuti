@@ -11,8 +11,9 @@ import { welcomeHarumadiTurn } from "@/shared/tuti/welcomeHarumadi";
 import type { Harumadi } from "@/shared/api/harumadi";
 import type { TutiJournalEntry } from "@/shared/api/journal";
 import { readerGroupGeometry, type ReaderTextMeasure } from "@/shared/harumadi/readerText";
+import { harumadiReadingPositions, readingIndex, readingPosition, type ReadingPosition } from "@/lib/harumadiReadingPosition";
 
-export function HarumadiPageViewer({ book, entries, onClose, closing = false }: { book: Harumadi; entries: TutiJournalEntry[]; onClose: () => void; closing?: boolean }) {
+export function HarumadiPageViewer({ book, entries, onClose, closing = false, ownerId }: { book: Harumadi; entries: TutiJournalEntry[]; onClose: () => void; closing?: boolean; ownerId?: string }) {
   const stage = useRef<HTMLDivElement>(null);
   const reader = useRef<HTMLDivElement>(null), navigation = useRef<HTMLElement>(null);
   const [measureText, setMeasureText] = useState<ReaderTextMeasure>();
@@ -55,7 +56,17 @@ export function HarumadiPageViewer({ book, entries, onClose, closing = false }: 
   const pages = useMemo(() => buildHarumadiReaderPages(book, entries, pageWidth, measureText), [book, entries, pageWidth, measureText]);
   // 책장에서 표지를 이미 열었으므로 첫 지면부터 보여준다. 이전 쪽으로 표지를 볼 수 있다.
   const [index, setIndex] = useState(1);
-  const current = Math.min(index, pages.length - 1);
+  const [position, setPosition] = useState<ReadingPosition | null>(null);
+  const interacted = useRef(false);
+  useEffect(() => {
+    if (!ownerId) return;
+    let active = true;
+    void harumadiReadingPositions.load(ownerId, book.id).then(saved => {
+      if (active && !interacted.current) setPosition(saved);
+    });
+    return () => { active = false; };
+  }, [ownerId, book.id]);
+  const current = position ? readingIndex(pages, position) : Math.min(index, pages.length - 1);
   const lastPage = current === pages.length - 1;
   const [retained, setRetained] = useState<{ page: HarumadiReaderPage; index: number } | null>(null);
   const sheet = useRef<HTMLDivElement>(null), old = useRef<HTMLDivElement>(null);
@@ -64,6 +75,10 @@ export function HarumadiPageViewer({ book, entries, onClose, closing = false }: 
   const turn = (next: number) => {
     if (locked.current || closing || next < 0 || next === current) return;
     if (next >= pages.length) { onClose(); return; }
+    interacted.current = true;
+    const nextPosition = readingPosition(pages, next);
+    setPosition(nextPosition);
+    if (ownerId && (nextPosition || next === 0)) void harumadiReadingPositions.save(ownerId, book.id, nextPosition);
     if (!window.matchMedia("(prefers-reduced-motion: reduce)").matches && typeof sheet.current?.animate === "function") {
       locked.current = true; setRetained({ page: pages[current], index: current });
     }
@@ -109,6 +124,7 @@ export function HarumadiPageViewer({ book, entries, onClose, closing = false }: 
       <Turn type="button" disabled={closing || current === 0 || Boolean(retained)} onClick={() => turn(current - 1)}>이전 쪽</Turn>
       <span role="status">{current + 1} / {pages.length}</span>
       <Turn type="button" disabled={closing || Boolean(retained)} onClick={() => turn(current + 1)}>{lastPage ? "덮기" : "다음 쪽"}</Turn>
+      <Restart type="button" disabled={closing || Boolean(retained) || current === 1} onClick={() => turn(1)}>처음부터 보기</Restart>
     </Navigation>
   </Reader>;
 }
@@ -117,5 +133,6 @@ const Stage = styled.div`display: grid; place-items: start center; flex: none; m
 const Page = styled.div<{ $front: boolean; $captionSpace: number }>`position: relative; grid-area: 1 / 1; width: min(100cqw, calc((100cqh - ${({ $captionSpace }) => $captionSpace}px) * 419.53 / 595.28)); z-index: ${({ $front }) => $front ? 2 : 1}; backface-visibility: hidden; &[data-retained-page] { pointer-events: none; }`;
 const Paper = styled.div`position: relative; background: white; box-shadow: 0 7px 24px #1b222a10, -3px 0 0 #e8ede4; border: 1px solid #e4e9e0;`;
 const Edge = styled(BaseButton)<{ $side: "left" | "right" }>`position: absolute; top: 0; bottom: 0; ${({ $side }) => $side}: 0; width: 22%; min-width: 0; border-radius: 0; padding: 0; background: transparent; &:hover { background: transparent; } &:focus-visible { outline: 2px solid var(--color-brand-700); outline-offset: -2px; }`;
-const Navigation = styled.nav`display: flex; flex: none; align-items: center; justify-content: space-between; gap: 12px; > span { color: var(--color-text-muted); font-size: 13px; font-variant-numeric: tabular-nums; }`;
+const Navigation = styled.nav`display: grid; grid-template-columns: 1fr auto 1fr; flex: none; align-items: center; gap: 0 12px; > button:first-child { justify-self: start; } > button:nth-child(3) { justify-self: end; } > span { color: var(--color-text-muted); font-size: 13px; font-variant-numeric: tabular-nums; }`;
 const Turn = styled(BaseButton)`min-height: 44px; padding: 8px; background: transparent; font-size: 14px; color: var(--color-text-muted); &:focus-visible { outline: 2px solid var(--color-brand-700); }`;
+const Restart = styled(Turn)`grid-column: 1 / -1; justify-self: center; font-size: 12px;`;

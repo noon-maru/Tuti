@@ -9,6 +9,7 @@ import { LEGACY_HARUMADI_BACK_COVER_TEXT } from "./backCover";
 import { orderByEntryIds } from "./order";
 
 export type HarumadiReaderPage = {
+  entryId?: string;
   authorName?: string;
   kind: "cover" | "photo" | "photo-only" | "text" | "continuation" | "back" | "empty";
   title: string; content: string; image: string | null; date: string; place: string; long?: boolean;
@@ -49,7 +50,7 @@ export function buildHarumadiReaderPages(book: Harumadi, entries: TutiJournalEnt
   if (!sorted.length) pages.push({ ...base, kind: "empty" });
   for (const entry of sorted) {
     const image = entry.image;
-    const data = { title: entry.title, content: entry.content, image, date: harumadiPdfDate(entry.visitedAt), place: entry.placeName, ...(entry.authorName ? { authorName: entry.authorName } : {}) };
+    const data = { entryId: entry.id, title: entry.title, content: entry.content, image, date: harumadiPdfDate(entry.visitedAt), place: entry.placeName, ...(entry.authorName ? { authorName: entry.authorName } : {}) };
     let long = !image && entry.content.trim().length > 240;
     const shortSpace = height - 2 * layout.shortText.paddingVertical * scale - metaHeight(readerMetaLabel(data.date, data.place), textWidth);
     const longHeaderExtra = readingLayout.longText;

@@ -298,7 +298,7 @@ function HarumadiEditor({ owner, initial, read, verified, refreshing, onRefresh,
         {sensitivePolicy?.enabled && <Confirmation><input type="checkbox" checked={confirmed} onChange={event => setConfirmed(event.target.checked)} />이름과 뒷표지 문구에 민감정보가 없음을 확인해요.</Confirmation>}
         {pdfInput && !readOnly && sensitivePolicy && (!sensitivePolicy.enabled || confirmed) && <HarumadiPdfPreview key={`${harumadi!.revision}:${confirmed}`} ownerId={owner} input={pdfInput} onReady={handlePdf} />}
       </> : harumadi && <>
-        <HarumadiPageViewer book={harumadi} entries={chosen} onClose={closeToLibrary} closing={closing} />
+        <HarumadiPageViewer book={harumadi} entries={chosen} onClose={closeToLibrary} closing={closing} ownerId={owner} />
       </>}
       {policyQuery.isError && <ErrorMessage role="alert">마디 보호 설정을 불러오지 못했어요.<Quiet onClick={() => void policyQuery.refetch()}>다시 불러오기</Quiet></ErrorMessage>}
       {error && <ErrorMessage role="alert">{error}<Quiet disabled={busy || refreshing} onClick={() => {

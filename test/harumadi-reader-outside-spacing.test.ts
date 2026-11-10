@@ -17,7 +17,8 @@ test("지면과 쪽 이동 행을 같은 흐름에 두어 묶음 전체를 읽�
   assert.match(readerCss, /justify-content: center/);
   assert.doesNotMatch(readerCss, /justify-content: flex-start/);
   assert.match(readerCss, /position: relative/);
-  assert.match(viewer, /const Navigation = styled.nav`display: flex; flex: none/);
+  assert.match(viewer, /const Navigation = styled.nav`display: grid; grid-template-columns: 1fr auto 1fr; flex: none/);
+  assert.match(viewer, /<Restart type="button"/);
   assert.doesNotMatch(viewer, /navigationOffset|stageOffset/);
   assert.match(viewer, /getComputedStyle\(node\).rowGap/);
 });
