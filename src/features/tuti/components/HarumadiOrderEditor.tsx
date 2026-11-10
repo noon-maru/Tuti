@@ -80,6 +80,7 @@ const Row = styled.li`
 `;
 const Thumbnail = styled.span`
   position: relative; display: block; width: 100%; aspect-ratio: 3 / 4;
+  &:has(img) { aspect-ratio: 4 / 3; }
   overflow: hidden; border-radius: 7px; background: var(--color-secondary-100); color: var(--color-text-muted);
   box-shadow: inset 0 0 0 1px rgb(27 34 42 / .04);
   img { object-fit: cover; }

@@ -15,8 +15,7 @@ import {
   PrimaryButton,
 } from "@/features/tuti/components/buttons";
 
-const CROP_ASPECT_RATIO = 4 / 3;
-const MAX_OUTPUT_WIDTH = 1200;
+import { IMAGE_CROP_RATIOS, cropAspectRatio, cropOutputSize, type ImageCropRatio } from "@/shared/harumadi/imageGeometry";
 const MIN_ZOOM = 1;
 const MAX_ZOOM = 3;
 
@@ -57,6 +56,8 @@ export function ImageCropDialog({
   });
   const [offset, setOffset] = useState<Offset>({ x: 0, y: 0 });
   const [zoom, setZoom] = useState(MIN_ZOOM);
+  const [ratioMode, setRatioMode] = useState<ImageCropRatio>("landscape");
+  const aspect = cropAspectRatio(ratioMode, imageSize.width, imageSize.height);
   const [processing, setProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const geometry = useMemo(
@@ -64,6 +65,7 @@ export function ImageCropDialog({
     [imageSize, viewportSize, zoom],
   );
   const displayOffset = clampOffset(offset, geometry);
+  const cropReady = Boolean(geometry && viewportSize.height > 0 && Math.abs(viewportSize.height - viewportSize.width / aspect) < 1);
 
   useEffect(() => {
     const viewport = viewportRef.current;
@@ -71,9 +73,10 @@ export function ImageCropDialog({
     if (!viewport) return;
 
     const updateViewportSize = () => {
+      const style = getComputedStyle(viewport);
       setViewportSize({
-        width: viewport.clientWidth,
-        height: viewport.clientHeight,
+        width: parseFloat(style.width) || viewport.clientWidth,
+        height: parseFloat(style.height) || viewport.clientHeight,
       });
     };
 
@@ -116,7 +119,7 @@ export function ImageCropDialog({
 
     if (
       !image ||
-      !geometry ||
+      !geometry || !cropReady ||
       viewportSize.width === 0 ||
       processing
     ) {
@@ -138,14 +141,7 @@ export function ImageCropDialog({
         imageSize.height / 2 -
         displayOffset.y / displayScale -
         sourceHeight / 2;
-      const outputWidth = Math.max(
-        1,
-        Math.min(MAX_OUTPUT_WIDTH, Math.round(sourceWidth)),
-      );
-      const outputHeight = Math.max(
-        1,
-        Math.round(outputWidth / CROP_ASPECT_RATIO),
-      );
+      const { width: outputWidth, height: outputHeight } = cropOutputSize(sourceWidth, sourceHeight);
       const canvas = document.createElement("canvas");
       const context = canvas.getContext("2d");
 
@@ -184,7 +180,7 @@ export function ImageCropDialog({
         <h2 id={`${id}-title`}>사진 맞추기</h2>
         <HeaderButton
           type="button"
-          disabled={!geometry || processing}
+          disabled={!cropReady || processing}
           onClick={confirmCrop}
         >
           {processing ? "처리 중" : "완료"}
@@ -193,6 +189,7 @@ export function ImageCropDialog({
 
       <CropContent>
         <CropViewport
+          style={{ aspectRatio: aspect, width: `min(100%, 344px, calc(max(60px, 100cqh - 180px) * ${aspect}))` }}
           ref={viewportRef}
           tabIndex={0}
           aria-label="사진을 드래그해 보일 영역을 조절하세요"
@@ -263,6 +260,8 @@ export function ImageCropDialog({
           <CropGuide aria-hidden="true" />
         </CropViewport>
 
+        <RatioOptions role="group" aria-label="사진 비율">{IMAGE_CROP_RATIOS.map(option => <RatioButton key={option.id} type="button" aria-pressed={ratioMode === option.id} disabled={processing || !geometry}
+          onClick={() => { setRatioMode(option.id); setZoom(MIN_ZOOM); setOffset({ x: 0, y: 0 }); }}><span>{option.label}</span><small>{option.detail}</small></RatioButton>)}</RatioOptions>
         <CropHint id={`${id}-description`}>사진을 움직여 남기고 싶은 부분을 맞춰주세요.</CropHint>
         <ZoomControl>
           <span aria-hidden="true">−</span>
@@ -294,7 +293,7 @@ export function ImageCropDialog({
 
       <MobileConfirmButton
         type="button"
-        disabled={!geometry || processing}
+        disabled={!cropReady || processing}
         onClick={confirmCrop}
       >
         {processing ? "사진을 준비하고 있어요" : "이대로 사용하기"}
@@ -393,6 +392,7 @@ const HeaderButton = styled(BaseButton)`
 `;
 
 const CropContent = styled.div`
+  container-type: size;
   min-height: 0;
   flex: 1;
   display: flex;
@@ -405,7 +405,8 @@ const CropViewport = styled.div`
   position: relative;
   width: min(100%, 344px);
   align-self: center;
-  aspect-ratio: ${CROP_ASPECT_RATIO};
+  aspect-ratio: 4 / 3;
+  flex-shrink: 0;
   overflow: hidden;
   border-radius: 28px;
   outline: none;
@@ -484,11 +485,14 @@ const CropGuide = styled.div`
 `;
 
 const CropHint = styled.p`
+  margin: 0;
   color: var(--color-text-muted);
   font-size: var(--font-size-100);
   line-height: var(--line-height-body);
   text-align: center;
 `;
+const RatioOptions = styled.div`display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; width: min(100%, 344px); align-self: center; flex: none;`;
+const RatioButton = styled(BaseButton)`display: grid; justify-items: center; gap: 2px; min-height: 48px; padding: 6px 2px; border-radius: 12px; background: var(--color-neutral-200); color: var(--color-text-muted); font-size: 13px; small { font-size: 11px; } &[aria-pressed="true"] { background: var(--color-brand-100); color: var(--color-brand-1000); box-shadow: inset 0 0 0 1px var(--color-brand-700); } &:focus-visible { outline: 2px solid var(--color-brand-700); outline-offset: 2px; } &:disabled { opacity: .5; cursor: default; }`;
 
 const ZoomControl = styled.label`
   width: min(100%, 304px);

@@ -1,4 +1,5 @@
 "use client";
+import { imageAspectRatio } from "@/shared/harumadi/imageGeometry";
 import { confirmAction, showErrorToast } from "@/lib/feedback";
 
 import styled from "@emotion/styled";
@@ -116,7 +117,7 @@ export function PublicJournalScreen({
         </Header>
 
         <Card>
-          <Hero $hasImage={Boolean(entry.image)}>
+          <Hero $hasImage={Boolean(entry.image)} style={{ aspectRatio: imageAspectRatio(entry) }}>
             {entry.image && (
               <HeroImage
                 src={entry.image}
@@ -310,7 +311,7 @@ const HeroImage = styled.img`
   width: 100%;
   height: 100%;
   display: block;
-  object-fit: cover;
+  object-fit: contain;
 `;
 
 const Content = styled.div`

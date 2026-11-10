@@ -1,4 +1,5 @@
 "use client";
+import { imageAspectRatio } from "@/shared/harumadi/imageGeometry";
 
 import styled from "@emotion/styled";
 import { useRef, useState } from "react";
@@ -102,6 +103,7 @@ export function JournalDetailScreen({
 
       <Detail data-scroll-region>
         {entry.image && <DetailImage
+          style={{ aspectRatio: imageAspectRatio(entry) }}
           ref={imageRef}
           role="img"
           $image={entry.image ?? undefined}

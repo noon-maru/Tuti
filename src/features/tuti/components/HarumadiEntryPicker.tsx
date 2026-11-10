@@ -52,10 +52,10 @@ const Group = styled.section`margin-top: 24px; h2 { font-size: 14px; font-weight
 const List = styled.div`display: grid; gap: 10px;`;
 const Row = styled.div`padding: 10px 12px; border: 1px solid var(--color-border); border-radius: 12px; &[data-selected="true"] { border-color: var(--color-brand-700); background: var(--color-brand-100); } &:has(input:focus-visible) { outline: 2px solid var(--color-brand-800); outline-offset: -2px; }`;
 const Choice = styled.label`display: flex; align-items: center; gap: 12px; min-height: 80px; cursor: pointer; input { width: 18px; height: 18px; flex: none; margin: 0; accent-color: var(--color-brand-800); } &:has(input:disabled) { cursor: default; opacity: .6; }`;
-const Thumbnail = styled.span`position: relative; display: block; width: 60px; height: 80px; flex: none; overflow: hidden; border-radius: 6px; background: var(--color-secondary-100); img { object-fit: cover; }`;
+const Thumbnail = styled.span`position: relative; display: block; width: 60px; height: 80px; flex: none; overflow: hidden; border-radius: 6px; background: var(--color-secondary-100); &:has(img) { height: 45px; } img { object-fit: cover; }`;
 const TextThumbnail = styled.span`display: block; padding: 8px; color: var(--color-secondary-1000); font-size: 8px; line-height: 1.7; strong { display: block; margin-bottom: 4px; }`;
 const Copy = styled.span`display: grid; gap: 4px; min-width: 0; > strong { font-size: 15px; font-weight: 500; line-height: 1.5; overflow-wrap: anywhere; } small { color: var(--color-text-muted); font-size: 12px; line-height: 1.5; overflow-wrap: anywhere; }`;
 const Excerpt = styled.span`display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; color: var(--color-text-muted); font-size: 13px; line-height: 1.6; overflow-wrap: anywhere;`;
 const Preview = styled(BaseButton)`display: block; min-height: 44px; margin: 4px 0 -6px auto; padding: 8px; color: var(--color-brand-900); background: transparent; font-size: 13px;`;
 const Empty = styled.p`padding: 20px 0; font-size: 14px; line-height: 1.7; color: var(--color-text-muted);`;
-const PreviewImage = styled.div`position: relative; height: min(340px, 40dvh); img { object-fit: contain; }`;
+const PreviewImage = styled.div`position: relative; width: min(100%, calc(40dvh * 4 / 3)); aspect-ratio: 4 / 3; margin-inline: auto; img { object-fit: cover; }`;
