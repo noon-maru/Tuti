@@ -17,6 +17,8 @@ import { MainNavigation } from "@/features/tuti/components/MainNavigation";
 import { LibraryLoadNotice } from "@/features/tuti/components/LibraryLoadNotice";
 import { BaseButton, PrimaryButton } from "@/features/tuti/components/buttons";
 import { useHarumadiLibrary } from "@/features/tuti/hooks/useHarumadiLibrary";
+import { useHarumadiSearch } from "@/features/tuti/hooks/useHarumadiSearch";
+import { MadiSearchField } from "@/features/tuti/components/MadiSearchField";
 import type { Harumadi } from "@/shared/api/harumadi";
 import { markLibraryEntryCompleted } from "@/lib/libraryPreferences";
 import { loadHarumadiPdfDraft } from "@/lib/harumadiPdfDraft";
@@ -48,9 +50,11 @@ function LibraryHome({ ownerId }: { ownerId: string }) {
     if (!bounds || !cover) return;
     showBook({ book, mode, origin: { ...harumadiLocalRect(bounds, cover, frame.current!.offsetWidth, frame.current!.offsetHeight), ...(spread ? { appearance: "spread" as const } : {}) } });
   };
-  const query = useHarumadiLibrary(ownerId);
+  const library = useHarumadiLibrary(ownerId);
+  const search = useHarumadiSearch(ownerId);
+  const query = search.searching ? search.query : library;
   const harumadiPdfs = query.data?.pages.flatMap(page => page.harumadis) ?? [];
-  const isFirstMadi = query.isFirstMadi;
+  const isFirstMadi = library.isFirstMadi;
   useEffect(() => {
     let active = true;
     void markLibraryEntryCompleted(ownerId);
@@ -67,24 +71,25 @@ function LibraryHome({ ownerId }: { ownerId: string }) {
       <LibraryMenu label="책장 메뉴" triggerContent={<MoreHorizontal size={22} aria-hidden="true" />}
         items={[{ label: "전체 마디 보기", onSelect: () => router.push("/madi") }, { label: "저장한 PDF", onSelect: () => router.push("/harumadi/pdfs") }, { label: "설정", onSelect: () => router.push("/settings") }]} /></Header>
     {hasDraft && <DraftButton type="button" onClick={() => router.push("/harumadi/pdf/create")}><Download size={17} /><span>이전 PDF 작업 이어가기</span><ArrowUpRight size={16} /></DraftButton>}
-    <ShelfScroll ref={shelfScroll} data-scroll-region data-library-layout={view} aria-label={view === "carousel" ? "내 하루마디 한 권씩 보기" : view === "spines" ? "내 하루마디 책등 책장" : "내 하루마디 가판대"}>
-      {query.isPending ? <Status role="status"><LoadingIndicator /><p>책장에 하루마디를 놓고 있어요.</p></Status>
+    <SearchRow><MadiSearchField value={search.search} onChange={search.setSearch} label="하루마디 이름 검색" placeholder="하루마디 이름으로 찾기" /></SearchRow>
+    <ShelfScroll ref={shelfScroll} data-scroll-region data-library-layout={search.searching ? "covers" : view} aria-label="내 하루마디">
+      {query.isPending || (search.searching && search.waiting) ? <Status role="status"><LoadingIndicator /><p>책장에 하루마디를 놓고 있어요.</p></Status>
         : query.isError && !query.data ? <Status role="alert"><BookOpen size={28} /><h2>책장을 불러오지 못했어요.</h2><p>하루마디가 없어진 건 아니에요.<br />연결을 확인하고 다시 불러와주세요.</p><TextAction onClick={() => void query.refetch()}>다시 불러오기<ChevronRight size={14} /></TextAction></Status>
         : <>
-          {harumadiPdfs.length === 0 ? <EmptyShelf data-empty-shelf>
+          {harumadiPdfs.length === 0 && search.searching ? <Status role="status"><p>이름이 일치하는 하루마디가 없어요.</p><TextAction onClick={() => search.setSearch("")}>전체 하루마디 보기</TextAction></Status> : harumadiPdfs.length === 0 ? <EmptyShelf data-empty-shelf>
             <EmptyMark aria-hidden="true"><PenLine size={25} strokeWidth={1.25} /><span /></EmptyMark>
             <h2>{isFirstMadi ? "첫 마디를 채워넣어보세요" : "모아둔 마디를 한 권으로"}</h2>
             <p>{isFirstMadi ? <>사진 한 장이나 짧은 이야기로<br />오늘의 순간을 가볍게 남겨보세요.</> : <>소중한 마디들을 담을<br />하루마디의 표지를 골라보세요.</>}</p>
             {!isFirstMadi && <PrimaryButton type="button" onClick={openEditor}>새 하루마디 만들기<ArrowUpRight size={16} /></PrimaryButton>}
             <TextAction onClick={() => { setWelcomeHarumadiOrigin(null); router.push(welcomeHarumadiPath(1, "library")); }}>하루마디 예시 펼쳐보기<ChevronRight size={14} /></TextAction>
           </EmptyShelf> : <>
-            {view === "carousel" ? <HarumadiCarousel books={harumadiPdfs} ownerId={ownerId} onOpen={openBook}
+            {view === "carousel" && !search.searching ? <HarumadiCarousel books={harumadiPdfs} ownerId={ownerId} onOpen={openBook}
               onCreateMadi={bookId => router.push(`/madi/new?from=library&harumadiId=${encodeURIComponent(bookId)}`)}
               hasNextPage={query.hasNextPage} loading={query.isFetchingNextPage}
               onLoadMore={async () => {
                 const result = await query.fetchNextPage();
                 return result.data?.pages.flatMap(page => page.harumadis)[harumadiPdfs.length]?.id ?? null;
-              }} /> : <HarumadiShelf books={harumadiPdfs} ownerId={ownerId} view={view} onOpen={openBook} />}
+              }} /> : <HarumadiShelf books={harumadiPdfs} ownerId={ownerId} view={!search.searching && view === "spines" ? "spines" : "covers"} onOpen={openBook} />}
             {query.isError && <LibraryLoadNotice nextPage={query.isFetchNextPageError} busy={query.isFetching}
               onRetry={() => { if (query.isFetchNextPageError) void query.fetchNextPage(); else void query.refetch(); }} />}
             {query.hasNextPage && !query.isError && <MoreButton disabled={query.isFetchingNextPage} onClick={() => void query.fetchNextPage()}>{query.isFetchingNextPage ? "불러오고 있어요" : "하루마디 더 보기"}</MoreButton>}
@@ -109,6 +114,7 @@ const Header = styled.header`
   flex: none; display: flex; justify-content: space-between; align-items: center; gap: 8px;
   padding: var(--screen-padding-top) var(--screen-padding-right) 8px var(--screen-padding-left);
 `;
+const SearchRow = styled.div`flex: none; padding: 4px var(--screen-padding-right) 8px var(--screen-padding-left);`;
 const TextAction = styled(BaseButton)`${bodyCopyStyles} display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 48px; padding: 8px 0; background: transparent; color: var(--color-text-muted); &:focus-visible { outline: 2px solid var(--color-brand-700); outline-offset: 3px; border-radius: 4px; }`;
 const CreateHarumadi = styled(TextAction)`flex: none; margin-left: auto; min-height: 44px; padding-inline: 12px; border-radius: 999px; background: var(--color-brand-100); color: var(--color-brand-1000); font-size: .875rem; font-weight: 500; line-height: 1.5; white-space: nowrap;`;
 const LibraryMenu = styled(ContextMenu)`width: 44px; height: 44px; flex: none; > button { display: grid; place-items: center; width: 44px; height: 44px; min-height: 44px; padding: 0; color: var(--color-text-muted); background: transparent; border-radius: 50%; &:hover { background: var(--color-brand-100); } &:focus-visible { outline: 2px solid var(--color-brand-700); outline-offset: -2px; } }`;

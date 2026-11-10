@@ -12,6 +12,8 @@ import { addMadiToHarumadi } from "@/lib/addMadiToHarumadi";
 import { HarumadiTitleHint } from "@/features/tuti/components/HarumadiTitleHint";
 import { groupHarumadiChoices } from "@/shared/harumadi/recentChoices";
 import type { Harumadi } from "@/shared/api/harumadi";
+import { useHarumadiSearch } from "@/features/tuti/hooks/useHarumadiSearch";
+import { MadiSearchField } from "@/features/tuti/components/MadiSearchField";
 
 export function MadiHarumadiSelection({ ownerId, entryId, initialBookId, onDone, onNext }: {
   ownerId: string; entryId: string; initialBookId?: string | null;
@@ -23,15 +25,17 @@ export function MadiHarumadiSelection({ ownerId, entryId, initialBookId, onDone,
   const [error, setError] = useState("");
   const saving = useRef(false);
   const heading = useRef<HTMLHeadingElement>(null);
-  const query = useInfiniteQuery({ queryKey: ["library-harumadis", ownerId], initialPageParam: undefined as string | undefined,
+  const search = useHarumadiSearch(ownerId);
+  const library = useInfiniteQuery({ queryKey: ["library-harumadis", ownerId], initialPageParam: undefined as string | undefined,
     queryFn: ({ pageParam }) => fetchHarumadis(ownerId, pageParam), getNextPageParam: page => page.nextCursor ?? undefined,
     staleTime: 0, retry: false, refetchOnWindowFocus: false, refetchOnReconnect: false });
   const recentQuery = useQuery({ queryKey: ["recent-harumadis", ownerId], queryFn: ({ signal }) => fetchRecentHarumadis(ownerId, signal),
     staleTime: 0, gcTime: 0, retry: false, refetchOnWindowFocus: false, refetchOnReconnect: false });
-  const groups = groupHarumadiChoices(recentQuery.data?.harumadis ?? [], query.data?.pages.flatMap(page => page.harumadis) ?? []);
+  const query = search.searching ? search.query : library;
+  const groups = groupHarumadiChoices(search.searching ? [] : recentQuery.data?.harumadis ?? [], query.data?.pages.flatMap(page => page.harumadis) ?? []);
   const books = [...groups.recent, ...groups.other];
   const selectedBook = books.find(book => book.id === selected);
-  const canAdd = Boolean(selectedBook);
+  const canAdd = Boolean(selectedBook) && !search.waiting;
 
   useEffect(() => { heading.current?.focus({ preventScroll: true }); }, []);
   useEffect(() => {
@@ -64,9 +68,10 @@ export function MadiHarumadiSelection({ ownerId, entryId, initialBookId, onDone,
     <Header><BackButton aria-label="담지 않고 마치기" disabled={busy} onClick={onDone} /><span><Check size={16} />마디 저장 완료</span></Header>
     <Content data-scroll-region>
       <Intro><h1 id="madi-collection-heading" ref={heading} tabIndex={-1}>어느 하루마디에<br />담아둘까요?</h1><p>지금 담지 않아도 괜찮아요.<br />남긴 마디는 ‘전체 마디 보기’에서 다시 볼 수 있어요.</p></Intro>
-      {query.isPending || recentQuery.isPending ? <Notice role="status">하루마디를 불러오고 있어요.</Notice>
+      <MadiSearchField value={search.search} onChange={value => { setSelected(null); search.setSearch(value); }} label="하루마디 이름 검색" placeholder="하루마디 이름으로 찾기" />
+      {query.isPending || (search.searching ? search.waiting : recentQuery.isPending) ? <Notice role="status">하루마디를 불러오고 있어요.</Notice>
         : query.isError && !query.data ? <Notice role="alert">하루마디를 불러오지 못했어요.<TextButton onClick={() => void query.refetch()}>다시 불러오기</TextButton></Notice>
-        : !books.length ? <Notice><BookOpen size={28} strokeWidth={1.3} /><p>아직 하루마디가 없어요.<br />내 책장에서 한 권을 만든 뒤 담을 수 있어요.</p></Notice>
+        : !books.length ? <Notice><BookOpen size={28} strokeWidth={1.3} /><p>{search.searching ? "이름이 일치하는 하루마디가 없어요." : "아직 하루마디가 없어요. 내 책장에서 한 권을 만든 뒤 담을 수 있어요."}</p>{search.searching && <TextButton onClick={() => search.setSearch("")}>전체 하루마디 보기</TextButton>}</Notice>
         : <Choices aria-label="마디를 담을 하루마디">
           {groups.recent.length > 0 && <ChoiceGroup aria-label="최근 담은 하루마디"><h2>최근 담은 하루마디</h2>{groups.recent.map(renderChoice)}</ChoiceGroup>}
           {groups.other.length > 0 && <ChoiceGroup aria-label="내 하루마디">{groups.recent.length > 0 && <h2>내 하루마디</h2>}{groups.other.map(renderChoice)}</ChoiceGroup>}

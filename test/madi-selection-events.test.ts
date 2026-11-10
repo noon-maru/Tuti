@@ -31,6 +31,8 @@ function fixture(add: (...args: unknown[]) => Promise<unknown>, recentError = fa
     "@/lib/addMadiToHarumadi": { addMadiToHarumadi: add },
     "@/features/tuti/components/HarumadiTitleHint": { HarumadiTitleHint: "span" },
     "@/shared/harumadi/recentChoices": { groupHarumadiChoices },
+    "@/features/tuti/hooks/useHarumadiSearch": { useHarumadiSearch: () => ({ search: "", searching: false, waiting: false, setSearch() {} }) },
+    "@/features/tuti/components/MadiSearchField": { MadiSearchField: "input" },
   };
   const exports: { MadiHarumadiSelection?: (props: unknown) => unknown } = {};
   vm.runInNewContext(ts.transpileModule(readFileSync("src/features/tuti/screens/journal/MadiHarumadiSelection.tsx", "utf8"), {

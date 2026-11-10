@@ -4,7 +4,8 @@ import { createHarumadi, listHarumadis, HarumadiError } from "@/server/harumadi/
 import { parseHarumadiSettings } from "@/shared/api/harumadi";
 export const runtime = "nodejs";
 export function GET(request: Request) {
-  return harumadiRequest(request, owner => listHarumadis(owner, new URL(request.url).searchParams.get("cursor")));
+  const params = new URL(request.url).searchParams;
+  return harumadiRequest(request, owner => listHarumadis(owner, params.get("cursor"), params.get("q") ?? ""));
 }
 export function POST(request: Request) {
   return harumadiRequest(request, async owner => {

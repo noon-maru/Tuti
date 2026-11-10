@@ -14,7 +14,12 @@ async function request<T>(owner: string, suffix: string, init?: RequestInit): Pr
   return body as T;
 }
 export const harumadiPath = (id: string) => `/harumadi?harumadiId=${encodeURIComponent(id)}`;
-export const fetchHarumadis = (owner: string, cursor?: string) => request<HarumadiList>(owner, cursor ? `?cursor=${encodeURIComponent(cursor)}` : "");
+export const fetchHarumadis = (owner: string, cursor?: string, search = "") => {
+  const params = new URLSearchParams();
+  if (cursor) params.set("cursor", cursor);
+  if (search.trim()) params.set("q", search.trim().slice(0, 100));
+  return request<HarumadiList>(owner, params.size ? `?${params}` : "");
+};
 export async function fetchRecentHarumadis(owner: string, signal?: AbortSignal) {
   const controller = new AbortController();
   const abort = () => controller.abort();

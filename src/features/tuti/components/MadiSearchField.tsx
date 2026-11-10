@@ -5,10 +5,10 @@ import { Search, X } from "lucide-react";
 import { inputControlStyles } from "@/shared/ui/typography";
 import { BaseButton } from "./buttons";
 
-export function MadiSearchField({ value, onChange }: { value: string; onChange: (value: string) => void }) {
-  return <Field role="search" aria-label="마디 찾기">
+export function MadiSearchField({ value, onChange, label = "마디 검색", placeholder = "제목, 이야기, 장소, 날짜 검색" }: { value: string; onChange: (value: string) => void; label?: string; placeholder?: string }) {
+  return <Field role="search" aria-label={label}>
     <Search size={17} aria-hidden="true" />
-    <Input type="search" aria-label="마디 검색" placeholder="제목, 이야기, 장소, 날짜 검색" value={value} onChange={event => onChange(event.target.value)} />
+    <Input type="search" aria-label={label} placeholder={placeholder} value={value} maxLength={100} onChange={event => onChange(event.target.value)} />
     {value && <Clear type="button" aria-label="검색 지우기" onClick={() => onChange("")}><X size={17} aria-hidden="true" /></Clear>}
   </Field>;
 }

@@ -32,25 +32,26 @@ function dto(row: HarumadiRow): Harumadi {
 function validateFreeform(settings: HarumadiSettings) {
   assertHarumadiPdfFreeform({ ...settings, entryIds: [], letter: "", coverEntryId: null });
 }
-export async function listHarumadis(ownerId: string, cursorId: string | null) {
-  if (harumadiTogetherEnabled()) return listTogetherLibrary(ownerId, cursorId);
+export async function listHarumadis(ownerId: string, cursorId: string | null, search = "") {
+  const title = search.trim().slice(0, 100);
+  if (harumadiTogetherEnabled()) return listTogetherLibrary(ownerId, cursorId, title);
   const cursor = cursorId ? await prisma.harumadi.findFirst({ where: { id: cursorId, ownerId }, select: { id: true, createdAt: true } }) : null;
   if (cursorId && !cursor) throw new HarumadiError("책장 위치를 다시 확인해주세요.");
-  const rows = await prisma.harumadi.findMany({ where: { ownerId,
+  const rows = await prisma.harumadi.findMany({ where: { ownerId, ...(title ? { title: { contains: title, mode: "insensitive" as const } } : {}),
     ...(cursor ? { OR: [{ createdAt: { lt: cursor.createdAt } }, { createdAt: cursor.createdAt, id: { lt: cursor.id } }] } : {}) },
     select: selection, take: 13, orderBy: [{ createdAt: "desc" }, { id: "desc" }] });
   return { harumadis: await withHarumadiTitleHints(prisma, ownerId, rows.slice(0, 12).map(dto)), nextCursor: rows.length > 12 ? rows[11].id : null,
     ...(!cursor ? { recordCount: await prisma.journalEntry.count({ where: { ownerId, sensitiveWithdrawnAt: null } }) } : {}) };
 }
-async function listTogetherLibrary(userId: string, cursorId: string | null) {
+async function listTogetherLibrary(userId: string, cursorId: string | null, title = "") {
   return prisma.$transaction(async tx => {
     const cursor = cursorId ? await tx.harumadi.findFirst({ where: { id: cursorId, OR: [{ ownerId: userId }, { members: { some: { userId, endedAt: null } } }] }, select: { ownerId: true, createdAt: true, members: { where: { userId, endedAt: null }, select: { joinedAt: true } } } }) : null;
     if (cursorId && !cursor) throw new HarumadiError("책장 위치를 다시 확인해주세요.", 409);
     const at = cursor ? cursor.ownerId === userId ? cursor.createdAt : cursor.members[0]?.joinedAt : null;
     if (cursor && !at) throw new HarumadiError("참여 상태가 바뀌었어요. 책장을 다시 열어주세요.", 409);
     const [owned, memberships] = await Promise.all([
-      tx.harumadi.findMany({ where: { ownerId: userId, ...(at ? { OR: [{ createdAt: { lt: at } }, { createdAt: at, id: { lt: cursorId! } }] } : {}) }, select: togetherSelection, orderBy: [{ createdAt: "desc" }, { id: "desc" }], take: 13 }),
-      tx.harumadiMember.findMany({ where: { userId, endedAt: null, harumadi: { ownerId: { not: userId } }, ...(at ? { OR: [{ joinedAt: { lt: at } }, { joinedAt: at, harumadiId: { lt: cursorId! } }] } : {}) }, select: { joinedAt: true, harumadi: { select: togetherSelection } }, orderBy: [{ joinedAt: "desc" }, { harumadiId: "desc" }], take: 13 }),
+      tx.harumadi.findMany({ where: { ownerId: userId, ...(title ? { title: { contains: title, mode: "insensitive" as const } } : {}), ...(at ? { OR: [{ createdAt: { lt: at } }, { createdAt: at, id: { lt: cursorId! } }] } : {}) }, select: togetherSelection, orderBy: [{ createdAt: "desc" }, { id: "desc" }], take: 13 }),
+      tx.harumadiMember.findMany({ where: { userId, endedAt: null, harumadi: { ownerId: { not: userId }, ...(title ? { title: { contains: title, mode: "insensitive" as const } } : {}) }, ...(at ? { OR: [{ joinedAt: { lt: at } }, { joinedAt: at, harumadiId: { lt: cursorId! } }] } : {}) }, select: { joinedAt: true, harumadi: { select: togetherSelection } }, orderBy: [{ joinedAt: "desc" }, { harumadiId: "desc" }], take: 13 }),
     ]);
     const rows = [...owned.map(book => ({ book, at: book.createdAt })), ...memberships.map(member => ({ book: member.harumadi, at: member.joinedAt }))].sort((a, b) => b.at.getTime() - a.at.getTime() || b.book.id.localeCompare(a.book.id));
     return { harumadis: await withHarumadiTitleHints(tx, userId, rows.slice(0, 12).map(row => togetherDto(row.book, userId))), nextCursor: rows.length > 12 ? rows[11].book.id : null,
