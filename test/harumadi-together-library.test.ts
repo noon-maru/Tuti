@@ -16,20 +16,24 @@ test("오래전에 만든 책도 초대 수락 시 책장 앞에 놓고 개인 �
         const book = [shared, ...owned].find(book => book.id === where.id);
         return book ? { ...book, members: book.ownerId === "me" ? [] : [{ joinedAt }] } : null;
       },
-      findMany: async ({ where, select }: { select?: { title?: boolean; entries?: unknown }; where: { ownerId: string; OR?: [{ createdAt: { lt: Date } }, { createdAt: Date; id: { lt: string } }] } }) => {
+      findMany: async ({ where, select }: { select?: { title?: boolean; entries?: unknown }; where: { ownerId: string; title?: { contains: string; mode: string }; OR?: [{ createdAt: { lt: Date } }, { createdAt: Date; id: { lt: string } }] } }) => {
         if (select?.title && !select.entries) {
           assert.deepEqual(where, { OR: [{ ownerId: "me" }, { members: { some: { userId: "me", endedAt: null } } }] });
           return [shared, ...owned];
         }
         assert.equal(where.ownerId, "me");
         const before = where.OR?.[0].createdAt.lt, id = where.OR?.[1].id.lt;
-        return owned.filter(book => !before || book.createdAt < before || book.createdAt.getTime() === before.getTime() && book.id < id!).slice(0, 13);
+        if (where.title) assert.equal(where.title.mode, "insensitive");
+        return owned.filter(book => (!where.title || book.title.toLowerCase().includes(where.title.contains.toLowerCase())) && (!before || book.createdAt < before || book.createdAt.getTime() === before.getTime() && book.id < id!)).slice(0, 13);
       },
     },
-    harumadiMember: { findMany: async ({ where }: { where: { userId: string; endedAt: null; OR?: [{ joinedAt: { lt: Date } }, { joinedAt: Date; harumadiId: { lt: string } }] } }) => {
+    harumadiMember: { findMany: async ({ where }: { where: { userId: string; endedAt: null; harumadi: { ownerId: { not: string }; title?: { contains: string; mode: string } }; OR?: [{ joinedAt: { lt: Date } }, { joinedAt: Date; harumadiId: { lt: string } }] } }) => {
       assert.equal(where.userId, "me"); assert.equal(where.endedAt, null);
       const before = where.OR?.[0].joinedAt.lt, id = where.OR?.[1].harumadiId.lt;
-      return !before || joinedAt < before || joinedAt.getTime() === before.getTime() && shared.id < id! ? [{ joinedAt, harumadi: shared }] : [];
+      assert.equal(where.harumadi.ownerId.not, "me");
+      const title = where.harumadi.title;
+      if (title) assert.equal(title.mode, "insensitive");
+      return (!title || shared.title.toLowerCase().includes(title.contains.toLowerCase())) && (!before || joinedAt < before || joinedAt.getTime() === before.getTime() && shared.id < id!) ? [{ joinedAt, harumadi: shared }] : [];
     } },
     journalEntry: { count: async ({ where }: { where: { ownerId: string } }) => { assert.equal(where.ownerId, "me"); return 3; } },
   };
@@ -49,4 +53,10 @@ test("오래전에 만든 책도 초대 수락 시 책장 앞에 놓고 개인 �
   assert.equal(ids.length, 14); assert.equal(new Set(ids).size, 14);
   assert.equal(second.nextCursor, null);
   await assert.rejects(listHarumadis("me", "another-private-book"), { status: 409 });
+  const searched = await listHarumadis("me", null, "  OWNED-12  ");
+  assert.deepEqual(searched.harumadis.map(book => book.id), ["owned-12"], "첫 페이지 밖의 소유 책도 검색한다");
+  assert.equal(searched.nextCursor, null);
+  const sharedSearch = await listHarumadis("me", null, "OLD-SHARED");
+  assert.deepEqual(sharedSearch.harumadis.map(book => book.id), ["old-shared"]);
+  assert.deepEqual((await listHarumadis("me", null, "없는 이름")).harumadis, []);
 });
