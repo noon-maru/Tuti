@@ -26,6 +26,12 @@ function JournalPageContent() {
 
   return (
     <JournalScreen
+      view={params.get("view") === "list" ? "list" : "cards"}
+      onChangeView={view => {
+        const next = new URLSearchParams(params.toString());
+        if (view === "list") next.set("view", "list"); else next.delete("view");
+        router.replace(`/madi${next.size ? `?${next}` : ""}`);
+      }}
       onlyUnfiled={params.get("filter") === "unfiled"}
       onChangeFilter={onlyUnfiled => {
         const next = new URLSearchParams(params.toString());

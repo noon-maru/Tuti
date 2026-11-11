@@ -7,12 +7,13 @@ import type { TutiJournalEntry } from "@/shared/api/journal";
 import { journalCardPreview } from "@/shared/tuti/journalCard";
 import { getKoreanDateKeyFromIso } from "@/lib/date/koreanDate";
 
-export function MadiSearchResults({ entries, selectedId, selectedRef, onOpen, onCollect }: {
+export function MadiSearchResults({ entries, selectedId, selectedRef, onOpen, onCollect, label = "마디 검색 결과" }: {
   entries: TutiJournalEntry[]; selectedId?: string; selectedRef?: Ref<HTMLButtonElement>;
   onOpen: (entry: TutiJournalEntry, target: HTMLButtonElement) => void;
   onCollect?: (entryId: string) => void;
+  label?: string;
 }) {
-  return <Results data-scroll-region aria-label="마디 검색 결과">
+  return <Results data-scroll-region aria-label={label}>
     <p role="status">마디 {entries.length}개</p>
     {entries.map(entry => {
       const preview = journalCardPreview(entry);

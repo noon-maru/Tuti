@@ -32,7 +32,21 @@ test("검색 결과는 모든 결과를 순서대로 열 수 있는 압축 목�
   assert.equal((html.match(/data-journal-transition-surface="journal"/g) ?? []).length, 2);
   assert.doesNotMatch(html, /aria-pressed|tabindex="-1"/);
   const source = readFileSync("src/features/tuti/screens/journal/JournalScreen.tsx", "utf8");
-  assert.match(source, /entries.length > 0 && !search.trim\(\) && !onlyUnfiled && <StackNavigation/);
+  assert.match(source, /entries.length > 0 && !search.trim\(\) && !onlyUnfiled && view === "cards" && <StackNavigation/);
+});
+
+test("검색 없이도 목록을 선택하며 보기·미담기 필터를 URL에 함께 보존한다", () => {
+  const screen = readFileSync("src/features/tuti/screens/journal/JournalScreen.tsx", "utf8");
+  const page = readFileSync("src/app/(tuti)/(main)/madi/page.tsx", "utf8");
+  assert.match(screen, /search.trim\(\) \|\| onlyUnfiled \|\| view === "list"/);
+  assert.match(screen, /aria-label=\{view === "cards" \? "목록으로 보기" : "카드로 보기"\}/);
+  assert.match(page, /new URLSearchParams\(params.toString\(\)\)/);
+  assert.match(page, /next.set\("view", "list"\)/);
+  assert.match(page, /next.set\("filter", "unfiled"\)/);
+  const html = renderToStaticMarkup(createElement(MadiSearchResults, { entries: harumadiContent().entries, label: "마디 목록", onOpen() {}, onCollect() {} }));
+  assert.match(html, /aria-label="마디 목록"/);
+  assert.match(html, /하루마디에 담기/);
+  assert.doesNotMatch(html, /aria-label="마디 검색 결과"/);
 });
 
 test("검색 필드는 명확한 이름과 지우기를 제공하고 검색 결과가 없어도 원본 삭제로 안내하지 않는다", () => {

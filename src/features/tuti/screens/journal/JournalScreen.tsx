@@ -1,7 +1,7 @@
 "use client";
 import { screenTitleStyles } from "@/shared/ui/typography";
 import { MadiLoadNotice } from "@/features/tuti/components/MadiLoadNotice";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, Layers, List } from "lucide-react";
 import { confirmAction, showErrorToast } from "@/lib/feedback";
 import { madiDeletionMessage } from "@/shared/tuti/deletionCopy";
 
@@ -43,12 +43,16 @@ export function JournalScreen({
   onOpenEntry,
   onlyUnfiled = false,
   onChangeFilter,
+  view = "cards",
+  onChangeView,
 }: {
   onBack: () => void;
   onCreateEntry?: () => void;
   onEditEntry?: (entryId: string) => void;
   onlyUnfiled?: boolean;
   onChangeFilter?: (onlyUnfiled: boolean) => void;
+  view?: "cards" | "list";
+  onChangeView?: (view: "cards" | "list") => void;
   onOpenEntry?: (
     entryId: string,
     image: string | null,
@@ -220,10 +224,13 @@ export function JournalScreen({
       {allEntries.length > 0 && <FilterBar aria-label="마디 필터">
         <TextButton aria-pressed={!onlyUnfiled} onClick={() => onChangeFilter?.(false)}>전체</TextButton>
         <TextButton aria-pressed={onlyUnfiled} disabled={!onlyUnfiled && unfiled === null} onClick={() => onChangeFilter?.(true)}>아직 담지 않은 마디</TextButton>
+        <ViewButton type="button" title={view === "cards" ? "목록으로 보기" : "카드로 보기"} aria-label={view === "cards" ? "목록으로 보기" : "카드로 보기"} onClick={() => { cancelStackDrag(); onChangeView?.(view === "cards" ? "list" : "cards"); }}>
+          {view === "cards" ? <List size={20} aria-hidden="true" /> : <Layers size={20} aria-hidden="true" />}
+        </ViewButton>
       </FilterBar>}
       {isError && allEntries.length > 0 && <MadiLoadNotice compact busy={isFetching} onRetry={() => void refetch()} />}
 
-      {allEntries.length > 0 && onlyUnfiled && unfiled === null ? <EmptyState>{library.isError ? <><p>담긴 하루마디를 확인하지 못했어요.</p><TextButton onClick={() => void library.refetch()}>다시 확인하기</TextButton></> : <LoadingIndicator label="담긴 하루마디를 확인하고 있어요." />}</EmptyState> : entries.length > 0 && (search.trim() || onlyUnfiled) ? <MadiSearchResults entries={entries} selectedId={selectedEntryId} selectedRef={selectedCardRef}
+      {allEntries.length > 0 && onlyUnfiled && unfiled === null ? <EmptyState>{library.isError ? <><p>담긴 하루마디를 확인하지 못했어요.</p><TextButton onClick={() => void library.refetch()}>다시 확인하기</TextButton></> : <LoadingIndicator label="담긴 하루마디를 확인하고 있어요." />}</EmptyState> : entries.length > 0 && (search.trim() || onlyUnfiled || view === "list") ? <MadiSearchResults entries={entries} selectedId={selectedEntryId} selectedRef={selectedCardRef} label={search.trim() ? "마디 검색 결과" : "마디 목록"}
         onCollect={setCollectEntryId} onOpen={(entry, target) => { setActiveJournalEntry(entry.id); onOpenEntry?.(entry.id, entry.image, target); }} /> : entries.length > 0 ? (
         <MemoryStack
           ref={stackRef}
@@ -367,7 +374,7 @@ export function JournalScreen({
           {onCreateEntry && <TextButton type="button" onClick={onCreateEntry}>첫 마디 남기기</TextButton>}
         </EmptyState>
       )}
-      {entries.length > 0 && !search.trim() && !onlyUnfiled && <StackNavigation aria-label="마디 이동">
+      {entries.length > 0 && !search.trim() && !onlyUnfiled && view === "cards" && <StackNavigation aria-label="마디 이동">
         <TextButton type="button" disabled={entries.length < 2} onClick={() => moveStack(-1)}><ChevronLeft size={18} />이전 마디</TextButton>
         <span role="status" aria-live="polite" aria-atomic="true">{selectedEntryIndex + 1} / {entries.length}</span>
         <TextButton type="button" disabled={entries.length < 2} onClick={() => moveStack(1)}>다음 마디<ChevronRight size={18} /></TextButton>
@@ -393,6 +400,7 @@ const StackNavigation = styled.nav`display: flex; flex: none; justify-content: s
   > span { font-size: var(--ui-caption-size); color: var(--color-text-muted); font-variant-numeric: tabular-nums; }
 `;
 const FilterBar = styled.div`flex: none; display: flex; flex-wrap: wrap; gap: 4px 8px; > button { min-height: 44px; padding: 8px 12px; border-radius: 999px; font-size: 13px; &[aria-pressed="true"] { color: var(--color-brand-1000); background: var(--color-brand-100); } }`;
+const ViewButton = styled(BaseButton)`margin-left: auto; flex: none; min-width: 44px; min-height: 44px; display: grid; place-items: center; background: transparent; color: var(--color-text-muted); &:hover { background: var(--color-brand-100); }`;
 
 function formatJournalDate(value: string) {
   const date = new Date(value);
