@@ -24,8 +24,8 @@ test("함께 채우기 셰브론은 공통 상단·좌우 여백과 작은 화�
   assert.match(flow, /\$standard=\{mode === "together"\}/);
   assert.match(flow, /\$standard && `padding-top: var\(--screen-padding-top\);`/);
   assert.match(flow, /var\(--screen-padding-right\) 0 var\(--screen-padding-left\)/);
-  assert.match(frame, /--screen-padding-top: calc\(var\(--space-11\) \+ var\(--app-safe-area-top, 0px\)\)/);
-  assert.match(frame, /max-height: 620px[\s\S]*--screen-padding-top: calc\([\s\S]*var\(--space-7\)/);
+  assert.match(frame, /--screen-padding-top: calc\(var\(--app-header-top-space, var\(--space-11\)\) \+ var\(--app-safe-area-top, 0px\)\)/);
+  assert.match(frame, /max-height: 620px[\s\S]*--screen-padding-top: calc\(\s*var\(--app-header-top-space, var\(--space-7\)\) \+ var\(--app-safe-area-top, 0px\)/);
   assert.match(flow, /<BackButton onClick=\{back\} disabled=\{busy\}/);
 });
 

@@ -114,8 +114,9 @@ test("홈은 보기·생성·책장 메뉴를 한 줄로 묶고 제목과 권수
   assert.match(header, /<CreateHarumadi/);
   assert.match(header, /<LibraryMenu label="책장 메뉴"/);
   assert.doesNotMatch(home, /ShelfCount|<Heading>|<Toolbar>|library-title/);
-  assert.match(home, /--screen-padding-top: calc\(40px \+ var\(--app-safe-area-top, 0px\)\)/);
-  assert.match(home, /max-height: 620px[\s\S]*?--screen-padding-top: calc\(24px \+ var\(--app-safe-area-top, 0px\)\)/);
+  assert.match(home, /--screen-padding-top: calc\(var\(--app-header-top-space, 24px\) \+ var\(--app-safe-area-top, 0px\)\)/);
+  assert.match(header, /<SearchToggle[\s\S]*?aria-expanded=\{searchOpen\}/);
+  assert.match(header, /aria-controls="library-name-search"/);
   const headerCss = home.match(/const Header = styled\.header`([^`]+)`/)![1];
   assert.match(headerCss, /display: flex/);
   assert.doesNotMatch(headerCss, /flex-wrap: wrap/);
