@@ -63,13 +63,13 @@ test("보기 선택은 현재 보기 하나만 노출하고 공용 팝오버에�
   assert.match(menu, /\[role="menuitem"\], \[role="menuitemradio"\]/);
 });
 
-test("한 권씩 보기의 설명과 넘기기 행은 24px 간격을 높이 측정에 포함한다", () => {
+test("한 권씩 보기의 설명과 넘기기 행은 자연 높이를 유지하고 책 영역만 남은 공간을 채운다", () => {
   const carousel = readFileSync("src/features/tuti/components/HarumadiCarousel.tsx", "utf8");
   const controls = carousel.match(/const Controls = styled\.nav`([^`]+)`/)![1];
   assert.match(controls, /margin-top: 24px/);
-  assert.match(carousel, /carouselStageHeight\(node.clientWidth, available, description.offsetHeight\)/);
-  assert.match(carousel, /<Details ref=\{details\}>[\s\S]*?<Controls[\s\S]*?<\/Details>/);
-  assert.match(carousel, /for \(const target of \[parent, carousel, description/);
+  assert.match(carousel, /const Details = styled.div`display: flow-root; flex: none;/);
+  assert.match(carousel, /<Details>[\s\S]*?<Controls[\s\S]*?<\/Details>/);
+  assert.match(carousel, /flex: 1 0 140px; min-height: 140px/);
 });
 
 test("책등은 표지 색상과 세로 제목을 쓰며 사진 요청 없이 모든 책과 공통 메뉴를 표시한다", () => {

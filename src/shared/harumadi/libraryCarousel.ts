@@ -1,10 +1,5 @@
 const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
 
-/** Fill the exhibition area, leaving actual details and outer padding at the bottom. */
-export function carouselStageHeight(width: number, availableHeight: number, detailsHeight: number) {
-  return Math.max(Math.min(140, Math.max(0, width)), availableHeight - detailsHeight - 32);
-}
-
 /** 선택한 책의 양끝 20%는 옆 책 이동, 가운데와 키보드 클릭은 읽기다. */
 export function carouselTapDirection(clientX: number, bounds: { left: number; width: number }, keyboard = false): -1 | 0 | 1 {
   if (keyboard || bounds.width <= 0) return 0;

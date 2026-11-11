@@ -5,7 +5,7 @@ import styled from "@emotion/styled";
 import { memo, useEffect, useRef, useState, type CSSProperties, type PointerEvent } from "react";
 import { ChevronLeft, ChevronRight, ChevronUp, MoreVertical } from "lucide-react";
 import type { Harumadi } from "@/shared/api/harumadi";
-import { carouselDragProgress, carouselGestureAxis, carouselIndex, carouselPose, carouselShouldWrite, carouselStageHeight, carouselSwipeDirection, carouselTapDirection, carouselWriteProgress } from "@/shared/harumadi/libraryCarousel";
+import { carouselDragProgress, carouselGestureAxis, carouselIndex, carouselPose, carouselShouldWrite, carouselSwipeDirection, carouselTapDirection, carouselWriteProgress } from "@/shared/harumadi/libraryCarousel";
 import { harumadiActions, type HarumadiOpeningMode } from "../navigation/harumadiActions";
 import { HarumadiCover } from "./HarumadiCover";
 import { HarumadiSpreadPreview } from "./HarumadiSpreadPreview";
@@ -23,7 +23,6 @@ export function HarumadiCarousel({ books, ownerId, onOpen, onCreateMadi, hasNext
   hasNextPage?: boolean; loading?: boolean; onLoadMore?: () => Promise<string | null>;
 }) {
   const stage = useRef<HTMLDivElement>(null);
-  const root = useRef<HTMLDivElement>(null), details = useRef<HTMLDivElement>(null);
   const gesture = useRef<Gesture | null>(null), blockedClickUntil = useRef(0), requesting = useRef(false);
   const [selection, setSelection] = useState(() => ({ id: books[0]?.id ?? null, index: 0 }));
   const [size, setSize] = useState({ width: 320, height: 300 }), [drag, setDrag] = useState(0), [dragging, setDragging] = useState(false), [pending, setPending] = useState(false);
@@ -42,23 +41,17 @@ export function HarumadiCarousel({ books, ownerId, onOpen, onCreateMadi, hasNext
   const bookHeight = spreadWidth / 2 * 595.28 / 419.53;
   const index = carouselIndex(books.map(book => book.id), selection), active = books[index];
   useEffect(() => {
-    const node = stage.current, carousel = root.current, description = details.current, parent = carousel?.parentElement;
-    if (!node || !carousel || !description || !parent) return;
+    const node = stage.current;
+    if (!node) return;
     const measure = () => {
-      if (!node.clientWidth || !parent.clientHeight) return;
-      const style = getComputedStyle(parent);
-      const siblings = Array.from(parent.children).filter((child): child is HTMLElement => child instanceof HTMLElement && child !== carousel);
-      const reserved = siblings.reduce((sum, child) => {
-        const css = getComputedStyle(child);
-        return sum + child.offsetHeight + (parseFloat(css.marginTop) || 0) + (parseFloat(css.marginBottom) || 0);
-      }, 0);
-      const available = parent.clientHeight - (parseFloat(style.paddingTop) || 0) - (parseFloat(style.paddingBottom) || 0) - reserved - (parseFloat(style.rowGap) || 0) * siblings.length;
-      const next = { width: node.clientWidth, height: carouselStageHeight(node.clientWidth, available, description.offsetHeight) };
+      if (!node.clientWidth || !node.clientHeight) return;
+      // 배치는 CSS가 결정한다. 측정값은 책의 비율·크기에만 사용한다.
+      const next = { width: node.clientWidth, height: node.clientHeight };
       setSize(previous => previous.width === next.width && Math.abs(previous.height - next.height) < 1 ? previous : next);
     }; measure();
     if (typeof ResizeObserver === "undefined") { window.addEventListener("resize", measure); return () => window.removeEventListener("resize", measure); }
     const observer = new ResizeObserver(measure);
-    for (const target of [parent, carousel, description, ...Array.from(parent.children)]) observer.observe(target);
+    observer.observe(node);
     return () => observer.disconnect();
   }, [active?.id, hasNextPage]);
   useEffect(() => {
@@ -144,9 +137,9 @@ export function HarumadiCarousel({ books, ownerId, onOpen, onCreateMadi, hasNext
   };
   if (!active) return null;
   const busy = pending || loading || folding;
-  return <Carousel ref={root} data-library-view="carousel">
+  return <Carousel data-library-view="carousel">
     <Stage ref={stage} role="region" aria-roledescription="캐러셀" aria-label="하루마디 한 권씩 보기" tabIndex={0} data-swipe-back-ignore="true"
-      style={{ height, "--carousel-book-half-height": `${bookHeight / 2}px` } as CSSProperties} $dragging={dragging} $canWrite={Boolean(onCreateMadi)} onPointerDown={begin} onPointerMove={follow} onPointerUp={event => finish(event)}
+      style={{ "--carousel-book-half-height": `${bookHeight / 2}px` } as CSSProperties} $dragging={dragging} $canWrite={Boolean(onCreateMadi)} onPointerDown={begin} onPointerMove={follow} onPointerUp={event => finish(event)}
       onPointerCancel={event => finish(event, true)} onLostPointerCapture={event => { if (event.target === event.currentTarget) finish(event, true); }}
       onDragStart={event => event.preventDefault()} onClickCapture={event => { if (event.timeStamp < blockedClickUntil.current) { event.preventDefault(); event.stopPropagation(); } }}
       onKeyDown={event => {
@@ -172,7 +165,7 @@ export function HarumadiCarousel({ books, ownerId, onOpen, onCreateMadi, hasNext
         </Slide>;
       })}
     </Stage>
-    <Details ref={details}>
+    <Details>
     {onCreateMadi && <WriteHint type="button" disabled={busy} aria-label={`${active.title}, ${MADI_COMPOSE_COPY.bookAction}`}
       aria-description={MADI_COMPOSE_COPY.swipeBookHint} $active={writeProgress > 0} onClick={() => onCreateMadi(active.id)}><ChevronUp size={16} aria-hidden="true" />{MADI_COMPOSE_COPY.bookAction}</WriteHint>}
     <Caption><div aria-live="polite" aria-atomic="true"><strong>{active.title}</strong><p>{active.entryIds.length ? `마디 ${active.entryIds.length}개` : "첫 마디를 기다려요"}{active.shared ? " · 함께 채우는 중" : ""}</p>
@@ -193,10 +186,12 @@ const CarouselCover = memo(function CarouselCover({ book, ownerId }: { book: Har
   return <HarumadiCover ownerId={ownerId} kind="harumadi" harumadiPdf={{ ...book, entryCount: book.entryIds.length, pageCount: 0, hasCover: book.coverStyle.endsWith("-image") && book.entryIds.length > 0 }} />;
 });
 
+// 설명은 자연 높이로 하단에 두고 전시 영역만 남은 높이를 흡수한다.
+// 최소 전시 높이도 확보할 수 없는 화면에서는 부모의 스크롤을 사용한다.
 const Carousel = styled.div`display: flex; flex-direction: column; flex: 1 0 auto; width: 100%; min-width: 0; padding: 16px 0;`;
 const Details = styled.div`display: flow-root; flex: none;`;
 // 책 영역만 단일 터치를 예약하고 핀치 확대와 바깥 영역의 세로 스크롤은 보존한다.
-const Stage = styled.div<{ $dragging: boolean; $canWrite: boolean }>`position: relative; flex: none; overflow: hidden; perspective: 850px; touch-action: ${({ $canWrite }) => $canWrite ? "pinch-zoom" : "pan-y"}; user-select: none; cursor: ${({ $dragging }) => $dragging ? "grabbing" : "grab"}; isolation: isolate;
+const Stage = styled.div<{ $dragging: boolean; $canWrite: boolean }>`position: relative; flex: 1 0 140px; min-height: 140px; overflow: hidden; perspective: 850px; touch-action: ${({ $canWrite }) => $canWrite ? "pinch-zoom" : "pan-y"}; user-select: none; cursor: ${({ $dragging }) => $dragging ? "grabbing" : "grab"}; isolation: isolate;
   &::after { content: ""; position: absolute; width: 60%; height: 12px; border-radius: 50%; background: #1b222a0a; filter: blur(10px); top: calc(50% + var(--carousel-book-half-height) - 6px); left: 20%; z-index: -1; }
   &:focus-visible { outline: 2px solid var(--color-brand-700); outline-offset: -3px; border-radius: 12px; }
 `;

@@ -5,20 +5,16 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { HarumadiCarousel } from "@/features/tuti/components/HarumadiCarousel";
-import { carouselDragProgress, carouselGestureAxis, carouselIndex, carouselPose, carouselShouldWrite, carouselStageHeight, carouselSwipeDirection, carouselTapDirection, carouselWriteProgress } from "@/shared/harumadi/libraryCarousel";
+import { carouselDragProgress, carouselGestureAxis, carouselIndex, carouselPose, carouselShouldWrite, carouselSwipeDirection, carouselTapDirection, carouselWriteProgress } from "@/shared/harumadi/libraryCarousel";
 import { createLibraryViewPreferences } from "@/lib/libraryViewPreferences";
 import { harumadiContent } from "./fixtures/harumadiContent";
 
-test("책 전시 높이는 종이 비율과 실제 설명·추가 UI 높이를 반영한다", () => {
-  const normal = carouselStageHeight(350, 561, 170);
-  assert.equal(normal, 359);
-  assert.equal(carouselStageHeight(350, 649, 170), 447, "긴 화면에서는 전시 영역을 채우고 설명은 하단에 둔다");
-  assert.equal(carouselStageHeight(350, 384, 170), 182);
-  assert.equal(carouselStageHeight(350, 384, 200), 152, "긴 제목·작성자에 필요한 높이를 회수한다");
-  assert.equal(carouselStageHeight(280, 280, 200), 140, "좁은 화면은 최소 전시 공간을 유지하고 스크롤한다");
+test("책 전시 영역은 CSS로 남는 공간을 채우고 실제 측정은 책 비율에만 사용한다", () => {
   const source = readFileSync("src/features/tuti/components/HarumadiCarousel.tsx", "utf8");
-  assert.match(source, /description.offsetHeight/);
-  assert.match(source, /child.offsetHeight/);
+  assert.match(source, /flex: 1 0 140px; min-height: 140px/);
+  assert.match(source, /const next = \{ width: node.clientWidth, height: node.clientHeight \}/);
+  assert.match(source, /observer.observe\(node\)/);
+  assert.doesNotMatch(source, /description.offsetHeight|child.offsetHeight|carouselStageHeight|style=\{\{ height/);
   assert.doesNotMatch(source, /min-height: 76px|padding-left: 44px/);
   const home = readFileSync("src/features/tuti/flows/LibraryHomeFlow.tsx", "utf8");
   assert.doesNotMatch(home, /div:only-child/);
@@ -34,7 +30,7 @@ test("책만 전시 영역 중앙에 놓고 설명·쪽번호의 하단 배치�
   assert.match(source, /translate\(-50%, -50%\)/);
   assert.match(source, /top: calc\(50% \+ var\(--carousel-book-half-height\) - 6px\)/);
   assert.doesNotMatch(source, /carouselBookCenter|--carousel-book-center/);
-  assert.match(source, /<\/Stage>\s*<Details ref=\{details\}>/);
+  assert.match(source, /<\/Stage>\s*<Details>/);
   assert.match(source, /const Controls = styled.nav`[^`]*margin-top: 24px/);
 });
 
