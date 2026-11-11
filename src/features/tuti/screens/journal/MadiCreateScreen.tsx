@@ -11,6 +11,7 @@ import { ScreenFrame } from "@/features/tuti/components/ScreenFrame";
 import { BackButton, Button, PrimaryButton, TextButton } from "@/features/tuti/components/buttons";
 import { ImageCropDialog } from "@/features/tuti/components/ImageCropDialog";
 import { readImageMetadata } from "@/features/tuti/lib/readImageMetadata";
+import { prepareMadiPhoto } from "@/features/tuti/lib/prepareMadiPhoto";
 import { ANDROID_BACK_EVENT } from "@/features/tuti/navigation/androidBack";
 import { getKoreanDateKey } from "@/lib/date/koreanDate";
 import { FIRST_JOURNAL_CONTENT_LIMIT, FIRST_JOURNAL_TITLE_LIMIT, getMadiFieldErrors, prepareFirstJournalDraft, type MadiFieldErrors } from "@/shared/api/firstJournal";
@@ -52,6 +53,7 @@ export function MadiCreateScreen({ onBack, onSave, onCollection, onSaved, onStar
   const [continued, setContinued] = useState(false);
   const [savedAsFirstMadi, setSavedAsFirstMadi] = useState(false);
   const [image, setImage] = useState<string | null>(null);
+  const [preparingPhoto, setPreparingPhoto] = useState(false);
   const [cropSource, setCropSource] = useState<string | null>(null);
   const [content, setContent] = useState("");
   const [title, setTitle] = useState("");
@@ -69,7 +71,6 @@ export function MadiCreateScreen({ onBack, onSave, onCollection, onSaved, onStar
   const savingRef = useRef(false);
   const dateEdited = useRef(false);
   const selection = useRef(0);
-  const photoMetadata = useRef<ReturnType<typeof readImageMetadata> | null>(null);
   const photoInput = useRef<HTMLInputElement>(null);
   const cameraInput = useRef<HTMLInputElement>(null);
   const heading = useRef<HTMLHeadingElement>(null);
@@ -86,7 +87,7 @@ export function MadiCreateScreen({ onBack, onSave, onCollection, onSaved, onStar
       dateEdited.current = true;
     } });
   const restoringDraft = !localDraft.ready && !preview;
-  const saveBlocked = restoringDraft || Boolean(inHarumadi && (!destination || !destinationVerified || destinationScopeChanged));
+  const saveBlocked = restoringDraft || preparingPhoto || Boolean(inHarumadi && (!destination || !destinationVerified || destinationScopeChanged));
 
   useEffect(() => () => { if (cropSource) URL.revokeObjectURL(cropSource); }, [cropSource]);
   useEffect(() => () => { selection.current += 1; }, []);
@@ -98,12 +99,13 @@ export function MadiCreateScreen({ onBack, onSave, onCollection, onSaved, onStar
 
   const cancelCrop = useCallback(() => {
     selection.current += 1;
-    photoMetadata.current = null;
     setCropSource(null);
   }, []);
   const back = useCallback(() => {
     if (cropSource) { cancelCrop(); return; }
     if (savingRef.current) return;
+    selection.current += 1;
+    setPreparingPhoto(false);
     if (saved) { onCollection(); return; }
     if (stage === "preview") setStage("write");
     else if (stage === "write") setStage("photo");
@@ -119,28 +121,35 @@ export function MadiCreateScreen({ onBack, onSave, onCollection, onSaved, onStar
     return () => window.removeEventListener(ANDROID_BACK_EVENT, onAndroidBack);
   }, [back, preview, needsBookSelection]);
 
-  const choosePhoto = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const choosePhoto = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     event.target.value = "";
-    if (!file) return;
+    if (!file || savingRef.current) return;
     setError("");
-    selection.current += 1;
-    setCropSource(URL.createObjectURL(file));
+    const id = ++selection.current;
+    setPreparingPhoto(true);
     // 새 마디 작성에서 GPS는 읽지 않는다. 촬영일만 선택적으로 가져온다.
-    photoMetadata.current = readImageMetadata(file);
+    const metadata = readImageMetadata(file);
+    try {
+      const photo = await prepareMadiPhoto(file);
+      if (id !== selection.current) return;
+      setImage(photo); setStage("write");
+      void metadata.then(value => {
+        if (id === selection.current && !dateEdited.current && !savingRef.current && value.captureDate && value.captureDate <= today) setDate(value.captureDate);
+      }).catch(() => {});
+    } catch {
+      if (id === selection.current) setError("사진을 불러오지 못했어요. 다른 사진을 선택하거나 글로 남겨주세요.");
+    } finally {
+      if (id === selection.current) setPreparingPhoto(false);
+    }
   };
 
   const confirmCrop = (photo: string) => {
-    const id = selection.current;
     setImage(photo); setCropSource(null); setStage("write");
-    // A canceled selection must never change the date of the retained photo.
-    void photoMetadata.current?.then((metadata) => {
-      if (id === selection.current && !dateEdited.current && metadata.captureDate && metadata.captureDate <= today) setDate(metadata.captureDate);
-    }).catch(() => { /* Optional EXIF must not block writing. */ });
   };
   const removePhoto = () => {
     selection.current += 1;
-    photoMetadata.current = null;
+    setPreparingPhoto(false);
     setImage(null);
     setCropSource(null);
     setError("");
@@ -149,6 +158,7 @@ export function MadiCreateScreen({ onBack, onSave, onCollection, onSaved, onStar
   const save = async () => {
     if (!draft || savingRef.current || preview || !onSave || saveBlocked) return;
     savingRef.current = true;
+    selection.current += 1;
     setSavedAsFirstMadi(firstMadi && !continued);
     setSaving(true); setError("");
     try {
@@ -205,16 +215,16 @@ export function MadiCreateScreen({ onBack, onSave, onCollection, onSaved, onStar
       </Intro>
       {!saved && stage === "photo" && <PhotoChoices>
         {image && <SelectedPhoto><Image src={image} alt="선택한 추억 사진" fill unoptimized sizes="350px" /></SelectedPhoto>}
-        <Button type="button" disabled={restoringDraft} $tone="secondary" onClick={() => photoInput.current?.click()}><ImagePlus size={18} aria-hidden="true" />{image ? "다른 사진 고르기" : "앨범에서 사진 고르기"}</Button>
-        <Button type="button" disabled={restoringDraft} onClick={() => cameraInput.current?.click()}><Camera size={18} aria-hidden="true" />카메라로 남기기</Button>
+        <Button type="button" disabled={restoringDraft || preparingPhoto} $tone="secondary" onClick={() => photoInput.current?.click()}><ImagePlus size={18} aria-hidden="true" />{image ? "다른 사진 고르기" : "앨범에서 사진 고르기"}</Button>
+        <Button type="button" disabled={restoringDraft || preparingPhoto} onClick={() => cameraInput.current?.click()}><Camera size={18} aria-hidden="true" />카메라로 남기기</Button>
         {image && <TextButton type="button" disabled={restoringDraft} onClick={() => { removePhoto(); setStage("write"); }}>사진 빼고 글로 남기기</TextButton>}
-        {!image && <WriteStart type="button" $tone="neutral" disabled={restoringDraft} onClick={() => setStage("write")}><PenLine size={18} aria-hidden="true" />사진 없이 글로 시작하기</WriteStart>}
+        {!image && <WriteStart type="button" $tone="neutral" disabled={restoringDraft || preparingPhoto} onClick={() => setStage("write")}><PenLine size={18} aria-hidden="true" />사진 없이 글로 시작하기</WriteStart>}
       </PhotoChoices>}
       <HiddenInput ref={photoInput} type="file" accept="image/*" aria-label="앨범 사진 선택" onChange={choosePhoto} />
       <HiddenInput ref={cameraInput} type="file" accept="image/*" capture="environment" aria-label="카메라 사진 촬영" onChange={choosePhoto} />
-      {!saved && stage === "write" && <Fields disabled={saving || restoringDraft} aria-label="마디 내용" aria-busy={saving || restoringDraft}>
+      {!saved && stage === "write" && <Fields disabled={saving || restoringDraft || preparingPhoto} aria-label="마디 내용" aria-busy={saving || restoringDraft || preparingPhoto}>
         {image && <SelectedPhoto><Image src={image} alt="마디에 담을 사진" fill unoptimized sizes="350px" /></SelectedPhoto>}
-        <PhotoActions><TextButton type="button" onClick={() => photoInput.current?.click()}>{image ? "사진 바꾸기" : "사진 추가하기"}</TextButton>{image && <TextButton type="button" onClick={removePhoto}>사진 빼기</TextButton>}</PhotoActions>
+        <PhotoActions><TextButton type="button" onClick={() => photoInput.current?.click()}>{image ? "사진 바꾸기" : "사진 추가하기"}</TextButton>{image && <><TextButton type="button" onClick={() => setCropSource(image)}>사진 맞추기</TextButton><TextButton type="button" onClick={removePhoto}>사진 빼기</TextButton></>}</PhotoActions>
         <label><MadiFieldLabel>제목 <small>선택</small></MadiFieldLabel><input aria-label="마디 제목 (선택)" placeholder={MADI_FIELD_COPY.titlePlaceholder} maxLength={FIRST_JOURNAL_TITLE_LIMIT} value={title} onChange={event => setTitle(event.target.value)}
           onBlur={() => touch("title")} aria-invalid={Boolean(touched.title && fieldErrors.title)} aria-describedby={fieldErrors.title ? "madi-title-feedback" : undefined} />
           <MadiFieldFeedback id="madi-title-feedback" message={fieldErrors.title} touched={touched.title} /></label>
@@ -239,6 +249,7 @@ export function MadiCreateScreen({ onBack, onSave, onCollection, onSaved, onStar
         place={saved ? (saved.placeName === "남긴 공간" ? "" : saved.placeName) : place.trim()}
       />}
       {error && <ErrorMessage role="alert">{error}</ErrorMessage>}
+      {preparingPhoto && <PrivacyHint role="status">사진을 준비하고 있어요.</PrivacyHint>}
       {!saved && localDraft.notice && <PrivacyHint role="status">{localDraft.notice}</PrivacyHint>}
     </Content>
     <Footer>

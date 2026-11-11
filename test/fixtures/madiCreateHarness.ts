@@ -21,7 +21,7 @@ export function findMadiControl(root: unknown, predicate: (props: Record<string,
 }
 
 /** Drive the real screen handlers, substituting only hooks, browser APIs and child surfaces. */
-export function madiCreateHarness(props: ComponentProps<typeof MadiCreateScreen>, stage = "write") {
+export function madiCreateHarness(props: ComponentProps<typeof MadiCreateScreen>, stage = "write", overrides: Record<string, unknown> = {}) {
   const states: unknown[] = [], refs: Array<{ current: unknown }> = [];
   let cursor = 0, refCursor = 0, finished = 0;
   const tag = "div";
@@ -41,6 +41,7 @@ export function madiCreateHarness(props: ComponentProps<typeof MadiCreateScreen>
     "@/features/tuti/components/buttons": { BackButton: "button", Button: "button", PrimaryButton: "button", TextButton: "button" },
     "@/features/tuti/components/ImageCropDialog": { ImageCropDialog: tag },
     "@/features/tuti/lib/readImageMetadata": { readImageMetadata: async () => ({}) },
+    "@/features/tuti/lib/prepareMadiPhoto": { prepareMadiPhoto: async () => "data:image/jpeg;base64,synthetic" },
     "@/features/tuti/navigation/androidBack": { ANDROID_BACK_EVENT: "back" },
     "@/lib/date/koreanDate": dates, "@/shared/api/firstJournal": fields,
     "./MadiHarumadiSelection": { MadiHarumadiSelection: "selection" },
@@ -50,6 +51,7 @@ export function madiCreateHarness(props: ComponentProps<typeof MadiCreateScreen>
     "@/features/tuti/components/MadiFieldFeedback": { MadiFieldFeedback: tag },
     "@/lib/madiDraft": { newMadiDraftContext },
     "@/shared/harumadi/sharingAudience": { harumadiSharingNotice },
+    ...overrides,
   };
   const exports: { MadiCreateScreen?: (props: unknown) => unknown } = {};
   vm.runInNewContext(ts.transpileModule(readFileSync("src/features/tuti/screens/journal/MadiCreateScreen.tsx", "utf8"), {
