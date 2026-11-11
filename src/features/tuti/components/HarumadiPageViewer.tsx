@@ -99,6 +99,7 @@ export function HarumadiPageViewer({ book, entries, onClose, closing = false, ow
   }, [current, retained]);
   const edge = (direction: number) => turn(current + direction);
   return <Reader ref={reader} style={{ minHeight: minimumHeight }} data-harumadi-paged-reader data-current-page-kind={pages[current].kind} onKeyDown={event => {
+    if (event.defaultPrevented || (event.target instanceof Element && event.target.closest('[role="menu"], [aria-haspopup="menu"]'))) return;
     if (event.key === "ArrowLeft" || event.key === "ArrowRight") { event.preventDefault(); turn(current + (event.key === "ArrowRight" ? 1 : -1)); }
   }}>
     <Stage ref={stage} style={{ height: stageHeight }} onClickCapture={event => { if (skipClick.current) { event.preventDefault(); event.stopPropagation(); skipClick.current = false; } }} onPointerDown={event => { if (event.isPrimary && event.button === 0) { skipClick.current = false; pointer.current = { x: event.clientX, y: event.clientY, id: event.pointerId }; } }}
@@ -145,5 +146,5 @@ const Paper = styled.div`position: relative; background: white; box-shadow: 0 7p
 const Edge = styled(BaseButton)<{ $side: "left" | "right" }>`position: absolute; top: 0; bottom: 0; ${({ $side }) => $side}: 0; width: 22%; min-width: 0; border-radius: 0; padding: 0; background: transparent; &:hover { background: transparent; } &:focus-visible { outline: 2px solid var(--color-brand-700); outline-offset: -2px; }`;
 const Navigation = styled.nav`display: grid; grid-template-columns: 1fr auto 1fr; flex: none; align-items: center; gap: 0 12px; > button:first-child { justify-self: start; } > button:nth-child(3) { justify-self: end; } > span { color: var(--color-text-muted); font-size: 13px; font-variant-numeric: tabular-nums; }`;
 const Turn = styled(BaseButton)`min-height: 44px; padding: 8px; background: transparent; font-size: 14px; color: var(--color-text-muted); &:focus-visible { outline: 2px solid var(--color-brand-700); }`;
-const ReaderActions = styled.div`grid-column: 1 / -1; min-height: 44px; display: flex; align-items: center; justify-content: center; gap: 16px; > div > button { min-height: 44px; padding: 8px; background: transparent; color: var(--color-text-muted); font-size: 12px; }`;
+const ReaderActions = styled.div`grid-column: 1 / -1; min-height: 44px; display: flex; align-items: center; justify-content: center; gap: 16px; > span { width: auto; } > span > button { min-height: 44px; padding: 8px; background: transparent; color: var(--color-text-muted); font-size: 12px; } > button { white-space: nowrap; }`;
 const Restart = styled(Turn)`font-size: 12px;`;

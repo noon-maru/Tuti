@@ -23,4 +23,9 @@ test("수정 진입 전에 읽던 마디·분할 쪽을 저장하고 최신 권�
   const flow = readFileSync("src/features/tuti/flows/HarumadiFlow.tsx", "utf8");
   assert.match(flow, /onEditEntry=\{readOnly \? undefined/);
   assert.match(flow, /rememberMadiEditOrigin\(owner, entryId, "harumadi", harumadi.id\)/);
+  assert.match(flow, /if \(getSessionSnapshot\(\)\?\.userId !== owner\) return;/);
+  assert.match(viewer, /event.defaultPrevented/);
+  assert.match(viewer, /> span \{ width: auto; \}/);
+  assert.match(viewer, /> span > button \{ min-height: 44px;/);
+  assert.match(viewer, /closest\('\[role="menu"\], \[aria-haspopup="menu"\]'\)/);
 });

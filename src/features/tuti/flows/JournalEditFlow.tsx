@@ -30,7 +30,7 @@ export function JournalEditFlow() {
     if (destination.back) router.back();
     else router.replace(destination.path);
   };
-  const returnToJournalFallback = () => router.replace("/madi");
+  const returnToJournalFallback = returnToJournal;
 
   if (isPending) {
     return (

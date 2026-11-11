@@ -305,6 +305,7 @@ function HarumadiEditor({ owner, initial, read, verified, refreshing, onRefresh,
       </> : harumadi && <>
         <HarumadiPageViewer book={harumadi} entries={chosen} onClose={closeToLibrary} closing={closing} ownerId={owner}
           onEditEntry={readOnly ? undefined : entryId => {
+            if (getSessionSnapshot()?.userId !== owner) return;
             rememberMadiEditOrigin(owner, entryId, "harumadi", harumadi.id);
             router.push(`/madi/edit?entryId=${encodeURIComponent(entryId)}&source=harumadi&harumadiId=${encodeURIComponent(harumadi.id)}`);
           }} />
