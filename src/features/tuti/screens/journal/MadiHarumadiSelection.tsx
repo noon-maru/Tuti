@@ -25,6 +25,8 @@ export function MadiHarumadiSelection({ ownerId, entryId, initialBookId, onDone,
   const [selected, setSelected] = useState<string | null>(initialBookId ?? null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [completion, setCompletion] = useState<{ id: string; title: string } | null>();
+  const finished = completion !== undefined;
   const saving = useRef(false);
   const heading = useRef<HTMLHeadingElement>(null);
   const query = useHarumadiLibrary(ownerId);
@@ -38,15 +40,15 @@ export function MadiHarumadiSelection({ ownerId, entryId, initialBookId, onDone,
   const selectedBook = books.find(book => book.id === selected);
   const canAdd = Boolean(selectedBook);
 
-  useEffect(() => { heading.current?.focus({ preventScroll: true }); }, []);
+  useEffect(() => { heading.current?.focus({ preventScroll: true }); }, [finished]);
   useEffect(() => {
     const back = (event: Event) => { event.preventDefault(); if (!saving.current) onDone(); };
     window.addEventListener(ANDROID_BACK_EVENT, back);
     return () => window.removeEventListener(ANDROID_BACK_EVENT, back);
   }, [onDone]);
 
-  const complete = async (next: boolean) => {
-    if (saving.current || !selected || !canAdd) return;
+  const complete = async () => {
+    if (saving.current || finished || !selected || !selectedBook) return;
     saving.current = true; setBusy(true); setError("");
     try {
       await addMadiToHarumadi(ownerId, selected, entryId, Boolean(selectedBook?.shared));
@@ -54,7 +56,7 @@ export function MadiHarumadiSelection({ ownerId, entryId, initialBookId, onDone,
       void client.invalidateQueries({ queryKey: ["harumadi-content", ownerId] });
       client.removeQueries({ queryKey: ["recent-harumadis", ownerId] });
       client.removeQueries({ queryKey: ["library-cover", ownerId] });
-      if (next) onNext(selected); else onDone();
+      setCompletion({ id: selectedBook.id, title: selectedBook.title });
     } catch (cause) {
       setError(`마디는 저장되어 있어요. ${cause instanceof Error ? cause.message : "하루마디에 담지 못했어요. 다시 시도해주세요."}`);
     } finally { saving.current = false; setBusy(false); }
@@ -64,6 +66,17 @@ export function MadiHarumadiSelection({ ownerId, entryId, initialBookId, onDone,
     <Spine aria-hidden="true" $green={book.coverStyle.startsWith("green")}><BookOpen size={18} strokeWidth={1.3} /></Spine>
     <span><strong>{book.title}</strong><small>마디 {book.entryIds.length}개{book.shared ? " · 함께 채우는 사람들에게 보여요" : ""}</small><HarumadiTitleHint book={book} />{book.role === "contributor" && <small>{book.ownerName}님의 하루마디</small>}</span>
   </Choice>;
+
+  if (finished) return <Frame aria-labelledby="madi-collection-heading">
+    <Header><BackButton aria-label="작성 마치기" onClick={onDone} /></Header>
+    <Completion role="status"><Check size={30} aria-hidden="true" />
+      <h1 id="madi-collection-heading" ref={heading} tabIndex={-1}>마디를 남겼어요.</h1>
+      <p>{completion ? `‘${completion.title}’에 담았어요.` : "전체 마디 보기에서 언제든 다시 볼 수 있어요."}</p>
+    </Completion>
+    <Footer><PrimaryButton onClick={onDone}>작성 마치기</PrimaryButton>
+      <TextButton onClick={() => onNext(completion?.id)}>{completion ? "같은 하루마디에 다음 마디 남기기" : "다음 마디 남기기"}</TextButton>
+    </Footer>
+  </Frame>;
 
   return <Frame aria-labelledby="madi-collection-heading" aria-busy={busy}>
     <Header><BackButton aria-label="담지 않고 마치기" disabled={busy} onClick={onDone} /><span><Check size={16} />마디 저장 완료</span></Header>
@@ -81,9 +94,8 @@ export function MadiHarumadiSelection({ ownerId, entryId, initialBookId, onDone,
       {error && <ErrorMessage role="alert">{error}<TextButton disabled={busy} onClick={() => { setSelected(null); void query.refetch(); void recentQuery.refetch(); }}>목록 다시 확인하기</TextButton></ErrorMessage>}
     </Content>
     <Footer>
-      {!search.searching && query.isSuccess && !books.length ? <CreateLink href={`/harumadi?addEntryId=${encodeURIComponent(entryId)}`}>새 하루마디 만들어 담기</CreateLink> : <PrimaryButton disabled={busy || !canAdd} onClick={() => void complete(false)}>{busy ? "담고 있어요…" : "선택한 하루마디에 담고 마치기"}</PrimaryButton>}
-      <TextButton disabled={busy} onClick={onDone}>담지 않고 마치기</TextButton>
-      <TextButton disabled={busy || Boolean(selected && !canAdd)} onClick={() => { if (selected) void complete(true); else onNext(); }}>{selected ? "담고 같은 하루마디에 계속 쓰기" : "담지 않고 다음 마디 남기기"}</TextButton>
+      {!search.searching && query.isSuccess && !books.length ? <CreateLink href={`/harumadi?addEntryId=${encodeURIComponent(entryId)}`}>새 하루마디 만들어 담기</CreateLink> : <PrimaryButton disabled={busy || !canAdd} onClick={() => void complete()}>{busy ? "담고 있어요…" : "이 하루마디에 담기"}</PrimaryButton>}
+      <TextButton disabled={busy} onClick={() => setCompletion(null)}>지금은 담지 않기</TextButton>
     </Footer>
   </Frame>;
 }
@@ -99,4 +111,5 @@ const Choice = styled.label<{ $selected: boolean }>`display: flex; align-items: 
 const Spine = styled.span<{ $green: boolean }>`width: 38px; height: 52px; flex: none; display: grid; place-items: center; border: 1px solid var(--color-border); border-left: 3px solid #dce3d6; border-radius: 1px 4px 4px 1px; background: ${({ $green }) => $green ? "#EBF5D5" : "#fff"}; color: var(--color-text-muted);`;
 const Notice = styled.div`padding: 24px 0; display: grid; justify-items: center; gap: 12px; text-align: center; color: var(--color-text-muted); font-size: 14px; line-height: 1.8; p { margin: 0; }`;
 const ErrorMessage = styled.p`font-size: 13px; line-height: 1.7; color: var(--color-danger, #b84242);`;
-const Footer = styled.footer`flex: none; display: grid; gap: 4px; > button, > a { min-height: 44px; white-space: normal; line-height: 1.6; } > button:last-child { font-size: 12px; color: var(--color-text-muted); }`;
+const Completion = styled.div`flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 20px; text-align: center; padding: 24px 0; > svg { flex: none; color: var(--color-brand-800); } h1 { margin: 0; font-size: 25px; font-weight: 600; line-height: 1.4; &:focus { outline: none; } } p { margin: 0; color: var(--color-text-muted); font-size: 15px; line-height: 1.8; overflow-wrap: anywhere; }`;
+const Footer = styled.footer`flex: none; display: grid; gap: 4px; > button, > a { min-height: 44px; white-space: normal; line-height: 1.6; } > button:last-child { font-size: 14px; color: var(--color-text-muted); }`;

@@ -53,17 +53,22 @@ test("최근 제안도 자동 선택하지 않고 명시적으로 고른 책을 
   });
   assert.equal(findMadiControl(screen.render(), p => p.type === "radio")!.checked, false);
   screen.choose();
-  const click = screen.control("담고 같은 하루마디에 계속 쓰기").onClick as () => void;
+  const click = screen.control("이 하루마디에 담기").onClick as () => void;
   click(); click(); assert.equal(calls, 1); assert.deepEqual(screen.next, []);
-  resolve(); await flush(); assert.deepEqual(screen.next, [screen.book.id]); assert.equal(screen.done(), 0);
+  resolve(); await flush(); assert.deepEqual(screen.next, []); assert.equal(screen.done(), 0);
+  assert.ok(screen.control("작성 마치기"));
+  (screen.control("같은 하루마디에 다음 마디 남기기").onClick as () => void)();
+  assert.deepEqual(screen.next, [screen.book.id]); assert.equal(calls, 1);
 });
 test("추천 조회 실패·담기 실패에도 원본 저장 상태와 직접 선택 경로를 유지한다", async () => {
   const screen = fixture(async () => { throw Error("담기에 실패했어요."); }, true);
-  screen.choose(); (screen.control("담고 같은 하루마디에 계속 쓰기").onClick as () => void)(); await flush();
+  screen.choose(); (screen.control("이 하루마디에 담기").onClick as () => void)(); await flush();
   assert.deepEqual(screen.next, []); assert.equal(screen.done(), 0);
   const alert = findMadiControl(screen.render(), p => p.role === "alert")!;
   assert.match(String((alert.children as unknown[])[0]), /마디는 저장되어 있어요/);
   const noSelection = fixture(async () => { throw Error("호출되면 안 됨"); });
-  (noSelection.control("담지 않고 다음 마디 남기기").onClick as () => void)();
+  (noSelection.control("지금은 담지 않기").onClick as () => void)();
+  assert.deepEqual(noSelection.next, []);
+  (noSelection.control("다음 마디 남기기").onClick as () => void)();
   assert.deepEqual(noSelection.next, [undefined]);
 });
