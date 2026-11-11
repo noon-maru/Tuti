@@ -13,7 +13,8 @@ import { HarumadiTogetherView } from "./HarumadiTogetherView";
 import { harumadiParticipantIdentity } from "@/shared/harumadi/participant";
 import { captionStyles } from "@/shared/ui/typography";
 import { loginPath } from "@/lib/loginContinuation";
-export function HarumadiTogetherPanel({ owner, bookId, bookTitle, onExit, entries = [] }: { owner: string; bookId: string; bookTitle?: string; onExit: () => void; entries?: TutiJournalEntry[] }) {
+import type { HarumadiPeriod } from "@/shared/harumadi/period";
+export function HarumadiTogetherPanel({ owner, bookId, bookTitle, period, onKeep, onExit, entries = [] }: { owner: string; bookId: string; bookTitle?: string; period?: HarumadiPeriod; onKeep?: () => void; onExit: () => void; entries?: TutiJournalEntry[] }) {
   const client = useQueryClient(), router = useRouter();
   const query = useQuery({ queryKey: ["harumadi-together", owner, bookId], queryFn: () => fetchTogether(owner, bookId), retry: false });
   const [busy, setBusy] = useState(false), [notice, setNotice] = useState("");
@@ -38,7 +39,7 @@ export function HarumadiTogetherPanel({ owner, bookId, bookTitle, onExit, entrie
         const invite = pendingInvite ?? await changeTogether<{ id: string; token: string }>(owner, bookId, "invite", undefined, { sharingConfirmed: true });
         setPendingInvite(invite);
         void refresh();
-        const result = await shareHarumadiInvite(invite.token);
+        const result = await shareHarumadiInvite(invite.token, { title: bookTitle, ...period });
         if (result !== "cancelled") setPendingInvite(null);
         setNotice(result === "copied" ? "초대 링크를 복사했어요." : result === "cancelled" ? "공유를 취소했어요. 아래에서 초대도 취소할 수 있어요." : "수락하면 상대방 책장에도 같은 하루마디가 보여요.");
       } else {
@@ -65,7 +66,7 @@ export function HarumadiTogetherPanel({ owner, bookId, bookTitle, onExit, entrie
     {entries.length === 0 && <EmptyManagement>아직 이 하루마디에 담긴 마디가 없어요.</EmptyManagement>}
   </>;
   return <>
-    <HarumadiTogetherView viewerId={owner} bookTitle={bookTitle} data={query.data} loading={query.isPending} error={query.isError ? query.error.message : undefined}
+    <HarumadiTogetherView viewerId={owner} bookTitle={bookTitle} period={period} onKeep={entries.length ? onKeep : undefined} data={query.data} loading={query.isPending} error={query.isError ? query.error.message : undefined}
       busy={busy} notice={notice} reuseInvite={Boolean(pendingInvite)}
       onInvite={() => void action("invite")} onRevoke={id => void action("revoke-invite", id)} onConfirm={requestConfirmation}
       onRetry={() => void query.refetch()} onAccount={() => router.push(loginPath(`/harumadi?harumadiId=${encodeURIComponent(bookId)}&mode=together`))}

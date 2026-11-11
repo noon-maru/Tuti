@@ -11,9 +11,11 @@ import { BaseButton, PrimaryButton, TextButton } from "./buttons";
 import { LoadingIndicator } from "./LoadingIndicator";
 import { HarumadiParticipantList } from "./HarumadiParticipantList";
 import type { TogetherConfirmationAction } from "./HarumadiTogetherConfirmDialog";
+import { harumadiPeriodLabel, type HarumadiPeriod } from "@/shared/harumadi/period";
 
 type Props = {
   viewerId: string; bookTitle?: string; data?: HarumadiTogether;
+  period?: HarumadiPeriod; onKeep?: () => void;
   loading: boolean; error?: string; busy: boolean; notice: string; reuseInvite: boolean;
   notification?: ReactNode; management?: ReactNode;
   onInvite: () => void; onRevoke: (id: string) => void;
@@ -21,7 +23,7 @@ type Props = {
   onRetry: () => void; onAccount: () => void;
 };
 
-export function HarumadiTogetherView({ viewerId, bookTitle, data, loading, error, busy, notice, reuseInvite,
+export function HarumadiTogetherView({ viewerId, bookTitle, period, onKeep, data, loading, error, busy, notice, reuseInvite,
   notification, management, onInvite, onRevoke, onConfirm, onRetry, onAccount,
 }: Props) {
   const phase = data ? harumadiTogetherPhase(data) : null;
@@ -31,6 +33,7 @@ export function HarumadiTogetherView({ viewerId, bookTitle, data, loading, error
   return <Panel aria-labelledby="together-title" aria-busy={busy || loading}>
     <Heading><h1 id="together-title">함께 채우기</h1>
       {bookTitle?.trim() && <BookContext><BookOpen size={16} aria-hidden="true" /><span>{bookTitle}</span></BookContext>}
+      {period && harumadiPeriodLabel(period) && <PeriodContext>담고 싶은 기간 · {harumadiPeriodLabel(period)}<small>기간이 지나도 계속 채울 수 있어요.</small></PeriodContext>}
     </Heading>
     {loading ? <Status><LoadingIndicator label="함께할 사람을 확인하고 있어요." /></Status> : error || !data ?
       <Status role="alert"><h2>함께 채우기를 불러오지 못했어요.</h2><p>{error || "연결을 확인하고 다시 시도해주세요."}</p><PrimaryButton type="button" onClick={onRetry}>다시 불러오기</PrimaryButton></Status> : <>
@@ -49,6 +52,7 @@ export function HarumadiTogetherView({ viewerId, bookTitle, data, loading, error
           {data.owner && <><AddPerson type="button" disabled={busy} onClick={onInvite}><Plus size={18} aria-hidden="true" />{reuseInvite ? "초대 링크 다시 보내기" : "함께할 사람 추가"}</AddPerson><InviteHint /></>}
         </People>}
         {notice && <Notice role="status">{notice}</Notice>}
+        {phase === "together" && onKeep && <KeepSection><h2>함께 모은 순간을 한 권으로</h2><p>지금 담긴 마디를 PDF로 남겨요.<br />원래 하루마디는 계속 채울 수 있어요.</p><PrimaryButton type="button" disabled={busy} onClick={onKeep}>한 권으로 남기기</PrimaryButton></KeepSection>}
         <Preferences>
           {data.owner && data.invites.length > 0 && <Fold>
             <summary><span>보낸 초대 <Count>{data.invites.length}</Count></span><ChevronDown size={17} aria-hidden="true" /></summary>
@@ -77,6 +81,8 @@ function InviteHint() {
 }
 
 const Panel = styled.section`display: flex; flex-direction: column; min-width: 0; padding: 8px 0 24px; color: var(--color-text);`;
+const PeriodContext = styled.p`${captionStyles} margin: 0; small { display: block; margin-top: 4px; font-size: inherit; }`;
+const KeepSection = styled.section`display: grid; gap: 12px; margin-top: 28px; h2 { margin: 0; font-size: 16px; font-weight: 600; } p { ${captionStyles} margin: 0; } button { min-height: 48px; }`;
 const Heading = styled.header`display: grid; gap: 10px; margin-bottom: 32px; h1 { ${screenTitleStyles} }`;
 const BookContext = styled.p`display: flex; align-items: flex-start; gap: 8px; margin: 0; color: var(--color-text-muted); font-size: 14px; line-height: 1.6; svg { flex: none; margin-top: 3px; } span { min-width: 0; overflow-wrap: anywhere; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; }`;
 const Invitation = styled.section`display: grid; gap: 0; min-width: 0;`;

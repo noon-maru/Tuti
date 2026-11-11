@@ -16,12 +16,13 @@ import { logoutAccount } from "@/lib/auth/session";
 import { useLifecycleView } from "../hooks/useLifecycleView";
 import { trackLifecycle } from "@/lib/lifecycle";
 import { loginPath } from "@/lib/loginContinuation";
+import { harumadiPeriodLabel, type HarumadiPeriod } from "@/shared/harumadi/period";
 export function HarumadiInviteFlow() {
   useLifecycleView("invite_viewed", "invite");
   const session = useSession(), router = useRouter(), client = useQueryClient();
   const [token, setToken] = useState<string | null>(null), [busy, setBusy] = useState(false), [error, setError] = useState("");
   const [fingerprint, setFingerprint] = useState("");
-  const preview = useQuery({ queryKey: ["harumadi-invite-preview", session?.userId, fingerprint], queryFn: () => changeTogether<{ harumadiId: string; title: string; inviterName: string; joined: boolean }>(session!.userId, "invitation", "inspect-invite", undefined, { token }), enabled: Boolean(session?.account && token && fingerprint), retry: false, gcTime: 0 });
+  const preview = useQuery({ queryKey: ["harumadi-invite-preview", session?.userId, fingerprint], queryFn: () => changeTogether<HarumadiPeriod & { harumadiId: string; title: string; inviterName: string; joined: boolean }>(session!.userId, "invitation", "inspect-invite", undefined, { token }), enabled: Boolean(session?.account && token && fingerprint), retry: false, gcTime: 0 });
   useEffect(() => {
     let active = true;
     let generation = 0;
@@ -60,6 +61,7 @@ export function HarumadiInviteFlow() {
     <Notice>이 책에 담은 마디는 현재·앞으로 참여하는 사람들에게 보여요. 참여자는 PDF로 저장할 수 있어요. 나가면 내 마디는 이 책에서 빠지고, 내 계정의 원본과 이미 저장한 PDF는 남아요.</Notice>
     {session?.account && <p>{session.account.displayName || "로그인한 계정"}으로 참여해요.</p>}
     {preview.data && <p><strong>{preview.data.inviterName}</strong>님의<br />‘{preview.data.title}’</p>}
+    {preview.data && harumadiPeriodLabel(preview.data) && <Notice>담고 싶은 기간 · {harumadiPeriodLabel(preview.data)}<br />기간이 지나도 계속 채울 수 있어요.</Notice>}
     {preview.isError && <p role="alert">{preview.error.message}<TextButton onClick={() => void preview.refetch()}>초대 다시 확인하기</TextButton></p>}
     {error && <p role="alert">{error}</p>}
     <PrimaryButton disabled={!token || !session || busy || Boolean(session.account && !preview.data)} onClick={() => void accept()}>{busy ? "책장에 놓고 있어요…" : preview.data?.joined ? "하루마디 펼치기" : session?.account ? "함께 채우기" : "로그인하고 함께 채우기"}</PrimaryButton>
@@ -68,6 +70,6 @@ export function HarumadiInviteFlow() {
     <TextButton disabled={busy} onClick={() => { void clearHarumadiInvite().then(() => router.replace("/")); }}>지금은 참여하지 않기</TextButton>
   </Frame>;
 }
-const Frame = styled(ScreenFrame)`justify-content: center; gap: 20px; overflow-y: auto; h1 { font-size: 26px; line-height: 1.45; font-weight: 600; letter-spacing: -.04em; margin: 0; } p { margin: 0; font-size: 15px; line-height: 1.8; color: var(--color-text-muted); } > button, > a { flex-shrink: 0; }`;
+const Frame = styled(ScreenFrame)`justify-content: flex-start; gap: 20px; overflow-y: auto; > * { flex-shrink: 0; } > :first-child { margin-top: auto; } > :last-child { margin-bottom: auto; } h1 { font-size: 26px; line-height: 1.45; font-weight: 600; letter-spacing: -.04em; margin: 0; } p { margin: 0; font-size: 15px; line-height: 1.8; color: var(--color-text-muted); } > button, > a { flex-shrink: 0; }`;
 const Mark = styled.div`position: relative; width: 76px; padding: 8px 0 18px; color: var(--color-text); > svg:last-child { position: absolute; right: 0; bottom: 8px; padding: 4px; width: 32px; height: 32px; border-radius: 50%; background: var(--color-brand-100); }`;
 const Notice = styled.div`font-size: 12px; line-height: 1.9; color: var(--color-text-muted); padding: 16px; border-radius: 12px; background: var(--color-brand-100);`;

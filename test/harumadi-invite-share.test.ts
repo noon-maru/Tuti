@@ -14,7 +14,7 @@ test("초대 안내 다음 빈 줄에 링크를 한 번만 넣고 URL 끝에 문
   assert.equal(new URL(content.text.split("\n").at(-1)!).hash, `#${token}`);
   assert.equal("url" in content, false);
   const source = readFileSync("src/lib/harumadiTogether.ts", "utf8");
-  assert.match(source, /const data = harumadiInviteShareContent\(url\)/);
+  assert.match(source, /const data = harumadiInviteShareContent\(url, context\)/);
   assert.match(source, /Share.share\(\{ \.\.\.data, dialogTitle:/);
   assert.match(source, /shareContent\(data\)/);
 });

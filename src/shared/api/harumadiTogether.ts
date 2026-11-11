@@ -1,3 +1,4 @@
+import { harumadiPeriodLabel, type HarumadiPeriod } from "../harumadi/period";
 export type HarumadiParticipant = { userId: string; name: string; owner: boolean; nameAvailable?: boolean };
 export type HarumadiInviteItem = { id: string; expiresAt: string; acceptedAt: string | null; revokedAt: string | null };
 export type HarumadiTogether = { owner: boolean; shared: boolean; participants: HarumadiParticipant[]; invites: HarumadiInviteItem[] };
@@ -12,10 +13,13 @@ export function harumadiInviteUrl(token: string, apiBase: string, localOrigin: s
   url.hash = token;
   return url.toString();
 }
-export function harumadiInviteShareContent(url: string) {
+export function harumadiInviteShareContent(url: string, context?: HarumadiPeriod & { title?: string }) {
   // 공유 대상마다 text와 url을 합치는 순서·구분자가 달라 초대 토큰이 오염될 수 있다.
   // URL을 별도 필드로 보내지 않고 안내 뒤 한 본문에 담아 경계를 고정한다.
-  return { title: "하루마디 함께 채우기", text: `각자의 순간을 하나의 하루마디에 담아보세요.\n\n${url}` };
+  const title = context?.title?.replace(/[\r\n]/g, " ").trim().slice(0, 80);
+  const period = context ? harumadiPeriodLabel(context) : "";
+  const message = title ? `‘${title}’에 함께한 순간을 모아보세요.${period ? `\n담고 싶은 기간: ${period}` : ""}` : "각자의 순간을 하나의 하루마디에 담아보세요.";
+  return { title: "하루마디 함께 채우기", text: `${message}\n\n${url}` };
 }
 export function parseTogetherComment(value: unknown) {
   if (!value || typeof value !== "object") return null;

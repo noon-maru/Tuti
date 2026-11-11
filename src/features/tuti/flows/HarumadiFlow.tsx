@@ -18,6 +18,8 @@ import { HarumadiPdfPreview } from "@/features/tuti/components/HarumadiPdfPrevie
 import { HarumadiPageViewer } from "@/features/tuti/components/HarumadiPageViewer";
 import { HarumadiSettingsCover } from "@/features/tuti/components/HarumadiSettingsCover";
 import { HarumadiPurchaseButton } from "@/features/tuti/components/HarumadiPurchaseButton";
+import { HarumadiPeriodFields, HarumadiTitleIdeas } from "@/features/tuti/components/HarumadiMemoryContext";
+import { parseHarumadiPeriod } from "@/shared/harumadi/period";
 import { HarumadiDeleteSection } from "@/features/tuti/components/HarumadiDeleteSection";
 import { HarumadiCloseTransition } from "@/features/tuti/components/HarumadiCloseTransition";
 import { HarumadiOpenTransition } from "@/features/tuti/components/HarumadiOpenTransition";
@@ -151,6 +153,7 @@ function HarumadiEditor({ owner, initial, read, verified, refreshing, onRefresh,
   const titleNeedsConfirmation = Boolean(sensitivePolicy?.enabled && (!harumadi || settings.title.trim() !== harumadi.title ||
     (settings.backCoverText ?? LEGACY_HARUMADI_BACK_COVER_TEXT).trim() !== (harumadi.backCoverText ?? LEGACY_HARUMADI_BACK_COVER_TEXT)));
   const backCoverTextValid = settings.backCoverText === undefined || isHarumadiBackCoverText(settings.backCoverText);
+  const periodValid = Boolean(parseHarumadiPeriod({ periodStart: settings.periodStart, periodEnd: settings.periodEnd }));
   const refreshLibrary = useCallback(() => { void client.invalidateQueries({ queryKey: ["library-harumadis", owner] }); void client.invalidateQueries({ queryKey: ["harumadi-content", owner] }); client.removeQueries({ queryKey: ["library-cover", owner] }); }, [client, owner]);
   const savedEntry = useRef<string | null>(null);
   useEffect(() => { scroller.current?.scrollTo({ top: 0 }); }, [mode]);
@@ -162,7 +165,7 @@ function HarumadiEditor({ owner, initial, read, verified, refreshing, onRefresh,
   }, [initial, verified, mode, busy, closing, harumadi?.revision, harumadi?.updatedAt, harumadi?.entryIds]);
 
   async function saveSettings() {
-    if (readOnly || busy || !settings.title.trim() || !backCoverTextValid || (titleNeedsConfirmation && !confirmed) || !sensitivePolicy) return;
+    if (readOnly || busy || !settings.title.trim() || !backCoverTextValid || !periodValid || (titleNeedsConfirmation && !confirmed) || !sensitivePolicy) return;
     setBusy(true); setError("");
     try {
       const input = { ...settings, freeformNonSensitiveConfirmed: confirmed };
@@ -285,7 +288,7 @@ function HarumadiEditor({ owner, initial, read, verified, refreshing, onRefresh,
       </HeaderTools>}</Header>
     <Body ref={scroller} data-scroll-region={mode === "pages" ? undefined : ""} $reading={mode === "pages"} $creating={!harumadi && mode === "settings"}>
       {read?.cached && read.missingImages > 0 && <p className="hint">일부 사진은 연결 후 볼 수 있어요.</p>}
-      {mode === "comments" && harumadi ? <HarumadiComments owner={owner} bookId={harumadi.id} onExit={finishClose} /> : mode === "together" && harumadi ? readOnly ? <p>연결 후 최신 내용을 확인하면 함께 채울 수 있어요.</p> : <HarumadiTogetherPanel owner={owner} bookId={harumadi.id} bookTitle={harumadi.title} entries={chosen} onExit={finishClose} /> : mode === "settings" ? <SettingsPanel $creating={!harumadi}>
+      {mode === "comments" && harumadi ? <HarumadiComments owner={owner} bookId={harumadi.id} onExit={finishClose} /> : mode === "together" && harumadi ? readOnly ? <p>연결 후 최신 내용을 확인하면 함께 채울 수 있어요.</p> : <HarumadiTogetherPanel owner={owner} bookId={harumadi.id} bookTitle={harumadi.title} period={harumadi} entries={chosen} onKeep={() => { if (busy || readOnly) return; setError(""); setConfirmed(false); setPdf(null); setMode("pdf"); }} onExit={finishClose} /> : mode === "settings" ? <SettingsPanel $creating={!harumadi}>
         <SettingsIntro $creating={!harumadi}>
         <h1>{harumadi ? "이름과 표지" : "어떤 하루를 담을까요?"}</h1>
         <p>{harumadi ? <>표지를 고르고,<br />기억하고 싶은 순간을 천천히 채워보세요.</> : "이름과 표지를 고르면 준비 끝이에요."}</p>
@@ -297,6 +300,8 @@ function HarumadiEditor({ owner, initial, read, verified, refreshing, onRefresh,
             {!harumadi && <small>{settings.coverStyle.endsWith("-image") ? "마디를 담으면 첫 사진이 표지가 돼요." : "이름과 표지는 나중에도 바꿀 수 있어요."}</small>}
           </NameField>
         </CoverSetup>
+        {!harumadi && <HarumadiTitleIdeas disabled={busy || readOnly} onChoose={title => { setSettings({ ...settings, title }); setConfirmed(false); }} />}
+        <HarumadiPeriodFields value={settings} disabled={busy || readOnly} onChange={period => setSettings({ ...settings, ...period })} />
         <Fieldset><legend>표지</legend><Choices>{(["white-plain", "green-plain", "white-image", "green-image"] as const).map((style, index) => <Choice key={style} type="button" aria-pressed={settings.coverStyle === style} $selected={settings.coverStyle === style} onClick={() => setSettings({ ...settings, coverStyle: style })}><Swatch $green={style.startsWith("green")} $photo={style.endsWith("image")} />{["흰색", "연두색", "흰색 · 사진", "연두색 · 사진"][index]}{settings.coverStyle === style && <Check size={12} />}</Choice>)}</Choices></Fieldset>
         {harumadi && <BackCoverField>
           <Label htmlFor="harumadi-back-cover">뒷표지 문구</Label>
@@ -339,7 +344,7 @@ function HarumadiEditor({ owner, initial, read, verified, refreshing, onRefresh,
       <WriteButton type="button" disabled={busy || readOnly} onClick={() => router.push(`/madi/new?from=library&harumadiId=${encodeURIComponent(harumadi.id)}`)}><PenLine size={17} aria-hidden="true" />{isFirstMadi ? "첫 마디 남기기" : "마디 남기기"}</WriteButton>
       {harumadi.togetherEnabled && <TogetherEntry type="button" disabled={busy || readOnly} onClick={() => setMode("together")}><Users size={17} aria-hidden="true" />함께 채우기</TogetherEntry>}
     </ReaderTools>}
-    {mode !== "pages" && mode !== "together" && mode !== "comments" && <Footer $creating={!harumadi && mode === "settings"}><PrimaryButton type="button" disabled={busy || readOnly || (mode === "settings" && (!settings.title.trim() || !backCoverTextValid || !sensitivePolicy || (titleNeedsConfirmation && !confirmed))) || (mode === "selection" && !entries.data) || (mode === "order" && orderedIds.join(",") === harumadi?.entryIds.join(",")) || (mode === "pdf" && (!pdf?.approvalToken || Boolean(sensitivePolicy?.enabled && !confirmed)))} onClick={() => void (mode === "settings" ? saveSettings() : mode === "selection" ? saveEntries() : mode === "order" ? saveOrder() : downloadPdf())}>{busy ? mode === "pdf" ? pdfStage === "storing" ? "Tuti에 보관하고 있어요." : "파일을 준비하고 있어요." : "저장하고 있어요." : mode === "settings" ? harumadi ? "설정 저장하기" : "빈 하루마디 만들기" : mode === "selection" ? `마디 ${selected.length}개 담기` : mode === "order" ? "이 순서로 저장하기" : "PDF 파일 저장하기"}</PrimaryButton></Footer>}
+    {mode !== "pages" && mode !== "together" && mode !== "comments" && <Footer $creating={!harumadi && mode === "settings"}><PrimaryButton type="button" disabled={busy || readOnly || (mode === "settings" && (!settings.title.trim() || !backCoverTextValid || !periodValid || !sensitivePolicy || (titleNeedsConfirmation && !confirmed))) || (mode === "selection" && !entries.data) || (mode === "order" && orderedIds.join(",") === harumadi?.entryIds.join(",")) || (mode === "pdf" && (!pdf?.approvalToken || Boolean(sensitivePolicy?.enabled && !confirmed)))} onClick={() => void (mode === "settings" ? saveSettings() : mode === "selection" ? saveEntries() : mode === "order" ? saveOrder() : downloadPdf())}>{busy ? mode === "pdf" ? pdfStage === "storing" ? "Tuti에 보관하고 있어요." : "파일을 준비하고 있어요." : "저장하고 있어요." : mode === "settings" ? harumadi ? "설정 저장하기" : "빈 하루마디 만들기" : mode === "selection" ? `마디 ${selected.length}개 담기` : mode === "order" ? "이 순서로 저장하기" : "PDF 파일 저장하기"}</PrimaryButton></Footer>}
     </BookContents>
     {openingOrigin && !openingDone && mode === "pages" && !closing && harumadi && <HarumadiOpenTransition book={harumadi} entries={chosen} origin={openingOrigin} containerRef={frame} contentsRef={contents} onComplete={finishOpening} />}
     {closing && harumadi && <HarumadiCloseTransition book={harumadi} entries={chosen} containerRef={frame} contentsRef={contents} fadeOnly={closeFromCover} onComplete={finishClose} />}

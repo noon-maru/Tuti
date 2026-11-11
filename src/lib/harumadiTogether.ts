@@ -6,6 +6,7 @@ import type { HarumadiTogether, HarumadiComment } from "@/shared/api/harumadiTog
 import { harumadiInviteShareContent, harumadiInviteUrl } from "@/shared/api/harumadiTogether";
 import { apiUrl } from "./api/apiUrl";
 import { shareContent } from "./shareContent";
+import type { HarumadiPeriod } from "@/shared/harumadi/period";
 
 export async function togetherRequest<T>(owner: string, bookId: string, area: string, init?: RequestInit): Promise<T> {
   const response = await fetchWithPinnedSession(`harumadis/${encodeURIComponent(bookId)}/${area}`, { cache: "no-store", ...init }, owner);
@@ -22,9 +23,9 @@ export async function changeTogether<T = { added?: boolean }>(owner: string, id:
 export type CommentsPage = { comments: (HarumadiComment & { replyCount: number })[]; nextCursor: string | null };
 export const fetchComments = (owner: string, id: string, parentId: string | null, cursor?: string) => togetherRequest<CommentsPage>(owner, id, `comments?${new URLSearchParams({ ...(parentId ? { parentId } : {}), ...(cursor ? { cursor } : {}) })}`);
 
-export async function shareHarumadiInvite(token: string) {
+export async function shareHarumadiInvite(token: string, context?: HarumadiPeriod & { title?: string }) {
   const url = harumadiInviteUrl(token, apiUrl(""), window.location.origin);
-  const data = harumadiInviteShareContent(url);
+  const data = harumadiInviteShareContent(url, context);
   try {
     if (Capacitor.isNativePlatform()) { const { Share } = await import("@capacitor/share"); await Share.share({ ...data, dialogTitle: "함께할 사람 초대하기" }); return "shared"; }
     return await shareContent(data);
