@@ -3,6 +3,7 @@
 import { Capacitor } from "@capacitor/core";
 import { createHarumadiPdfFilename } from "@/shared/api/harumadiPdf";
 import { trackLifecycle } from "./lifecycle";
+import { isPdfExportCancelled } from "@/shared/harumadi/pdfExportStatus";
 
 export async function exportHarumadiPdf(bytes: Uint8Array, title: string) {
   const filename = createHarumadiPdfFilename(title);
@@ -45,8 +46,9 @@ export async function exportHarumadiPdf(bytes: Uint8Array, title: string) {
     });
     trackLifecycle("pdf_exported", { origin: "share_sheet", source: "book" });
   } catch (error) {
-    const cancelled = error instanceof Error && /cancel|abort/i.test(`${error.name} ${error.message}`);
+    const cancelled = isPdfExportCancelled(error);
     trackLifecycle("pdf_failed", { origin: cancelled ? "cancelled" : "request_failed", source: "book" });
+    if (cancelled) return "cancelled" as const;
     throw error;
   } finally {
     try {

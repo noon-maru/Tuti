@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import styled from "@emotion/styled";
 import { BaseButton } from "./buttons";
 import { ContextMenu } from "./ContextMenu";
@@ -15,7 +15,7 @@ import type { TutiJournalEntry } from "@/shared/api/journal";
 import { readerGroupGeometry, type ReaderTextMeasure } from "@/shared/harumadi/readerText";
 import { harumadiReadingPositions, readingIndex, readingPosition, type ReadingPosition } from "@/lib/harumadiReadingPosition";
 
-export function HarumadiPageViewer({ book, entries, onClose, closing = false, ownerId, onEditEntry }: { book: Harumadi; entries: TutiJournalEntry[]; onClose: () => void; closing?: boolean; ownerId?: string; onEditEntry?: (entryId: string) => void }) {
+export function HarumadiPageViewer({ book, entries, onClose, closing = false, ownerId, onEditEntry, keepsakeAction }: { book: Harumadi; entries: TutiJournalEntry[]; onClose: () => void; closing?: boolean; ownerId?: string; onEditEntry?: (entryId: string) => void; keepsakeAction?: ReactNode }) {
   const stage = useRef<HTMLDivElement>(null);
   const reader = useRef<HTMLDivElement>(null), navigation = useRef<HTMLElement>(null);
   const [measureText, setMeasureText] = useState<ReaderTextMeasure>();
@@ -99,7 +99,7 @@ export function HarumadiPageViewer({ book, entries, onClose, closing = false, ow
   }, [current, retained]);
   const edge = (direction: number) => turn(current + direction);
   return <Reader ref={reader} style={{ minHeight: minimumHeight }} data-harumadi-paged-reader data-current-page-kind={pages[current].kind} onKeyDown={event => {
-    if (event.defaultPrevented || (event.target instanceof Element && event.target.closest('[role="menu"], [aria-haspopup="menu"]'))) return;
+    if (event.defaultPrevented || (event.target instanceof Element && event.target.closest('[role="menu"], [aria-haspopup="menu"], [role="dialog"], [role="alertdialog"]'))) return;
     if (event.key === "ArrowLeft" || event.key === "ArrowRight") { event.preventDefault(); turn(current + (event.key === "ArrowRight" ? 1 : -1)); }
   }}>
     <Stage ref={stage} style={{ height: stageHeight }} onClickCapture={event => { if (skipClick.current) { event.preventDefault(); event.stopPropagation(); skipClick.current = false; } }} onPointerDown={event => { if (event.isPrimary && event.button === 0) { skipClick.current = false; pointer.current = { x: event.clientX, y: event.clientY, id: event.pointerId }; } }}
@@ -136,6 +136,7 @@ export function HarumadiPageViewer({ book, entries, onClose, closing = false, ow
           onEditEntry?.(editableId);
         } }]} />}
       </ReaderActions>
+      {lastPage && entries.length > 0 && !closing && !retained && keepsakeAction && <KeepsakeAction>{keepsakeAction}</KeepsakeAction>}
     </Navigation>
   </Reader>;
 }
@@ -148,3 +149,4 @@ const Navigation = styled.nav`display: grid; grid-template-columns: 1fr auto 1fr
 const Turn = styled(BaseButton)`min-height: 44px; padding: 8px; background: transparent; font-size: 14px; color: var(--color-text-muted); &:focus-visible { outline: 2px solid var(--color-brand-700); }`;
 const ReaderActions = styled.div`grid-column: 1 / -1; min-height: 44px; display: flex; align-items: center; justify-content: center; gap: 16px; > span { width: auto; } > span > button { min-height: 44px; padding: 8px; background: transparent; color: var(--color-text-muted); font-size: 12px; } > button { white-space: nowrap; }`;
 const Restart = styled(Turn)`font-size: 12px;`;
+const KeepsakeAction = styled.div`grid-column: 1 / -1; padding-top: 8px;`;

@@ -27,5 +27,5 @@ test("수정 진입 전에 읽던 마디·분할 쪽을 저장하고 최신 권�
   assert.match(viewer, /event.defaultPrevented/);
   assert.match(viewer, /> span \{ width: auto; \}/);
   assert.match(viewer, /> span > button \{ min-height: 44px;/);
-  assert.match(viewer, /closest\('\[role="menu"\], \[aria-haspopup="menu"\]'\)/);
+  assert.match(viewer, /closest\('\[role="menu"\], \[aria-haspopup="menu"\], \[role="dialog"\], \[role="alertdialog"\]'\)/);
 });

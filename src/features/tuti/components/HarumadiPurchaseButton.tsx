@@ -1,7 +1,7 @@
 "use client";
 
 import styled from "@emotion/styled";
-import { useEffect, useId, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 import { BaseButton, PrimaryButton, TextButton } from "@/features/tuti/components/buttons";
 import { recordProductInteraction } from "@/lib/productInteraction";
 import type { ProductInteractionSurface } from "@/shared/api/productInteraction";
@@ -10,7 +10,7 @@ import { captionStyles } from "@/shared/ui/typography";
 import { trackLifecycle } from "@/lib/lifecycle";
 import { useSession } from "../hooks/useSession";
 
-export function HarumadiPurchaseButton({ surface }: { surface: ProductInteractionSurface }) {
+export function HarumadiPurchaseButton({ surface, bookTitle, preview }: { surface: ProductInteractionSurface; bookTitle?: string; preview?: ReactNode }) {
   const id = useId();
   const owner = useSession()?.userId;
   const observed = useRef("");
@@ -20,13 +20,13 @@ export function HarumadiPurchaseButton({ surface }: { surface: ProductInteractio
   const close = useRef<HTMLButtonElement>(null);
   const latestEvent = useRef<string | null>(null);
   const observe = () => {
-    if (surface !== "completed_harumadi" || !owner || observed.current === owner) return;
+    if (surface === "welcome" || !owner || observed.current === owner) return;
     observed.current = owner;
     trackLifecycle("purchase_viewed", { source: "book" });
   };
   useEffect(() => {
     const control = trigger.current;
-    if (!control || !owner || surface !== "completed_harumadi" || typeof IntersectionObserver === "undefined") return;
+    if (!control || !owner || surface === "welcome" || typeof IntersectionObserver === "undefined") return;
     const observer = new IntersectionObserver(items => {
       if (items.some(item => item.isIntersecting && item.intersectionRatio >= 0.5) && document.visibilityState === "visible" && observed.current !== owner) {
         observed.current = owner; trackLifecycle("purchase_viewed", { source: "book" });
@@ -45,19 +45,20 @@ export function HarumadiPurchaseButton({ surface }: { surface: ProductInteractio
     <PurchaseAction>
       <PurchaseButton ref={trigger} type="button" onClick={() => {
         observe();
-        if (surface === "completed_harumadi") trackLifecycle("purchase_clicked", { source: "book" });
+        if (surface !== "welcome") trackLifecycle("purchase_clicked", { source: "book" });
         setOpen(true);
         setTrackingFailed(false);
         const eventId = crypto.randomUUID();
         latestEvent.current = eventId;
         track(eventId);
-      }}>실물 하루마디 구매하기</PurchaseButton>
+      }}>{surface === "harumadi_reader" ? "실물로 소장하기" : "실물 하루마디 구매하기"}</PurchaseButton>
       <small>실물 제작은 준비 중이에요.</small>
     </PurchaseAction>
     {open && <AppDialogFrame role="dialog" titleId={`${id}-title`} descriptionId={`${id}-description`} initialFocus={close} onCancel={() => setOpen(false)}>
           <h2 id={`${id}-title`}>실물 하루마디를 준비하고 있어요</h2>
+          {preview && <BookPreview><div>{preview}</div><figcaption>{bookTitle}</figcaption></BookPreview>}
           <p id={`${id}-description`}>남긴 하루를 손에 쥘 수 있도록 준비하고 있어요. 아직 주문하거나 결제할 수는 없어요.</p>
-          <p>그동안 마디와 디지털 하루마디는 무료로 만들어보세요.</p>
+          <p>{preview ? "위 표지는 디지털 예시예요. 실제 제작 사양과 가격·배송은 확정되면 안내할게요." : "그동안 마디와 디지털 하루마디는 무료로 만들어보세요."}</p>
           {trackingFailed && <Notice role="status">관심 표시를 전송하지 못했어요. 연결되면 다시 전송할게요.
             <TextButton type="button" onClick={() => { if (latestEvent.current) track(latestEvent.current); }}>다시 전송</TextButton>
           </Notice>}
@@ -84,3 +85,4 @@ const PurchaseButton = styled(BaseButton)`
 const Notice = styled.div`
   ${captionStyles}
 `;
+const BookPreview = styled.figure`margin: 0; display: grid; justify-items: center; gap: 10px; > div { width: 100px; container-type: inline-size; } figcaption { ${captionStyles} max-width: 100%; overflow-wrap: anywhere; text-align: center; }`;

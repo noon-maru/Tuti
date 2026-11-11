@@ -17,6 +17,7 @@ import { ScreenFrame } from "@/features/tuti/components/ScreenFrame";
 import { HarumadiPdfPreview } from "@/features/tuti/components/HarumadiPdfPreview";
 import { HarumadiPageViewer } from "@/features/tuti/components/HarumadiPageViewer";
 import { HarumadiSettingsCover } from "@/features/tuti/components/HarumadiSettingsCover";
+import { HarumadiPurchaseButton } from "@/features/tuti/components/HarumadiPurchaseButton";
 import { HarumadiDeleteSection } from "@/features/tuti/components/HarumadiDeleteSection";
 import { HarumadiCloseTransition } from "@/features/tuti/components/HarumadiCloseTransition";
 import { HarumadiOpenTransition } from "@/features/tuti/components/HarumadiOpenTransition";
@@ -34,6 +35,7 @@ import { authoritativeReadError, fetchHarumadiContent, type HarumadiRead } from 
 import { canCacheHarumadi, harumadiReadCache } from "@/lib/harumadiReadCache";
 import { fetchJournalEntries, fetchSensitiveJournalPolicy, createHarumadiPdf } from "@/lib/tutiApi";
 import { exportHarumadiPdf } from "@/lib/harumadiPdfExport";
+import { pdfExportStatus } from "@/shared/harumadi/pdfExportStatus";
 import { getSessionSnapshot } from "@/lib/auth/session";
 import { HARUMADI_PDF_TITLE_LIMIT, type HarumadiPdfInput } from "@/shared/api/harumadiPdf";
 import type { Harumadi, HarumadiSettings } from "@/shared/api/harumadi";
@@ -93,6 +95,8 @@ function HarumadiEditor({ owner, initial, read, verified, refreshing, onRefresh,
   const [confirmed, setConfirmed] = useState(false);
   const [busy, setBusy] = useState(false); const [error, setError] = useState("");
   const [pdf, setPdf] = useState<{ bytes: Uint8Array; pageCount: number; approvalToken?: string } | null>(null);
+  const [pdfStage, setPdfStage] = useState<"storing" | "exporting" | null>(null);
+  const pdfExporting = useRef(false);
   const readOnly = Boolean(harumadi && !verified);
   const cacheNotices = useRef(new Set<string>());
   useEffect(() => {
@@ -187,14 +191,24 @@ function HarumadiEditor({ owner, initial, read, verified, refreshing, onRefresh,
     finally { setBusy(false); }
   }
   async function downloadPdf() {
+    if (pdfExporting.current) return;
     if (!pdf?.approvalToken || !harumadi || readOnly || busy) return;
+    pdfExporting.current = true;
+    setPdfStage("storing");
     setBusy(true); setError("");
+    let stored = false;
     try {
       await createHarumadiPdf(pdf.bytes, pdf.approvalToken);
-      await exportHarumadiPdf(pdf.bytes, harumadi.title);
+      stored = true;
+      setPdfStage("exporting");
       void client.invalidateQueries({ queryKey: ["library-exports", owner] });
-    } catch (cause) { setError(cause instanceof Error ? cause.message : "PDF를 저장하지 못했어요."); }
-    finally { setBusy(false); }
+      if (getSessionSnapshot()?.userId !== owner) return;
+      const result = await exportHarumadiPdf(pdf.bytes, harumadi.title);
+      if (getSessionSnapshot()?.userId === owner) showToast(pdfExportStatus(result));
+    } catch {
+      setError(stored ? "PDF는 Tuti에 보관됐어요. 기기로 내보내지 못했으니 ‘저장한 PDF’에서 다시 시도해주세요." : "PDF 보관 여부를 확인하지 못했어요. ‘저장한 PDF’를 확인한 뒤 다시 시도해주세요.");
+    }
+    finally { pdfExporting.current = false; setPdfStage(null); setBusy(false); }
   }
   async function saveOrder() {
     if (!harumadi || harumadi.role === "contributor" || readOnly || busy) return;
@@ -299,11 +313,13 @@ function HarumadiEditor({ owner, initial, read, verified, refreshing, onRefresh,
         <h1>어떤 순간을 담을까요?</h1><p>원본 마디는 그대로 두고 이 하루마디에 담아요.</p>
         {entries.isPending ? <p role="status">마디를 불러오고 있어요.</p> : entries.isError ? <Quiet onClick={() => void entries.refetch()}>마디 다시 불러오기</Quiet> : !entries.data?.length ? <div><p>아직 남긴 마디가 없어요.</p><Quiet disabled={busy || readOnly} onClick={() => router.push(`/madi/new?from=library&harumadiId=${encodeURIComponent(harumadi!.id)}`)}>이 하루마디에 첫 마디 남기기</Quiet></div> : <HarumadiEntryPicker entries={entries.data} selected={selected} onChange={setSelected} disabled={busy || readOnly} />}
       </> : mode === "pdf" ? <>
-        <h1>PDF로 저장하기</h1><p>지금 담긴 마디로 PDF를 만들어요.<br />저장 후 하루마디를 바꿔도 이미 만든 PDF는 바뀌지 않아요.</p>
+        <h1>PDF로 저장하기</h1><p>지금 담긴 마디로 PDF를 만들어 Tuti에 보관하고, 파일로도 가져갈 수 있어요.<br />하루마디를 바꿔도 이미 만든 PDF는 바뀌지 않아요.</p>
         {sensitivePolicy?.enabled && <Confirmation><input type="checkbox" checked={confirmed} onChange={event => setConfirmed(event.target.checked)} />이름과 뒷표지 문구에 민감정보가 없음을 확인해요.</Confirmation>}
         {pdfInput && !readOnly && sensitivePolicy && (!sensitivePolicy.enabled || confirmed) && <HarumadiPdfPreview key={`${harumadi!.revision}:${confirmed}`} ownerId={owner} input={pdfInput} onReady={handlePdf} />}
       </> : harumadi && <>
         <HarumadiPageViewer book={harumadi} entries={chosen} onClose={closeToLibrary} closing={closing} ownerId={owner}
+          keepsakeAction={!readOnly ? <HarumadiPurchaseButton key={harumadi.id} surface="harumadi_reader" bookTitle={harumadi.title}
+            preview={<HarumadiSettingsCover title={harumadi.title} coverStyle={harumadi.coverStyle} entries={chosen} />} /> : undefined}
           onEditEntry={readOnly ? undefined : entryId => {
             if (getSessionSnapshot()?.userId !== owner) return;
             rememberMadiEditOrigin(owner, entryId, "harumadi", harumadi.id);
@@ -323,7 +339,7 @@ function HarumadiEditor({ owner, initial, read, verified, refreshing, onRefresh,
       <WriteButton type="button" disabled={busy || readOnly} onClick={() => router.push(`/madi/new?from=library&harumadiId=${encodeURIComponent(harumadi.id)}`)}><PenLine size={17} aria-hidden="true" />{isFirstMadi ? "첫 마디 남기기" : "마디 남기기"}</WriteButton>
       {harumadi.togetherEnabled && <TogetherEntry type="button" disabled={busy || readOnly} onClick={() => setMode("together")}><Users size={17} aria-hidden="true" />함께 채우기</TogetherEntry>}
     </ReaderTools>}
-    {mode !== "pages" && mode !== "together" && mode !== "comments" && <Footer $creating={!harumadi && mode === "settings"}><PrimaryButton type="button" disabled={busy || readOnly || (mode === "settings" && (!settings.title.trim() || !backCoverTextValid || !sensitivePolicy || (titleNeedsConfirmation && !confirmed))) || (mode === "selection" && !entries.data) || (mode === "order" && orderedIds.join(",") === harumadi?.entryIds.join(",")) || (mode === "pdf" && (!pdf?.approvalToken || Boolean(sensitivePolicy?.enabled && !confirmed)))} onClick={() => void (mode === "settings" ? saveSettings() : mode === "selection" ? saveEntries() : mode === "order" ? saveOrder() : downloadPdf())}>{busy ? "저장하고 있어요." : mode === "settings" ? harumadi ? "설정 저장하기" : "빈 하루마디 만들기" : mode === "selection" ? `마디 ${selected.length}개 담기` : mode === "order" ? "이 순서로 저장하기" : "PDF 파일 저장하기"}</PrimaryButton></Footer>}
+    {mode !== "pages" && mode !== "together" && mode !== "comments" && <Footer $creating={!harumadi && mode === "settings"}><PrimaryButton type="button" disabled={busy || readOnly || (mode === "settings" && (!settings.title.trim() || !backCoverTextValid || !sensitivePolicy || (titleNeedsConfirmation && !confirmed))) || (mode === "selection" && !entries.data) || (mode === "order" && orderedIds.join(",") === harumadi?.entryIds.join(",")) || (mode === "pdf" && (!pdf?.approvalToken || Boolean(sensitivePolicy?.enabled && !confirmed)))} onClick={() => void (mode === "settings" ? saveSettings() : mode === "selection" ? saveEntries() : mode === "order" ? saveOrder() : downloadPdf())}>{busy ? mode === "pdf" ? pdfStage === "storing" ? "Tuti에 보관하고 있어요." : "파일을 준비하고 있어요." : "저장하고 있어요." : mode === "settings" ? harumadi ? "설정 저장하기" : "빈 하루마디 만들기" : mode === "selection" ? `마디 ${selected.length}개 담기` : mode === "order" ? "이 순서로 저장하기" : "PDF 파일 저장하기"}</PrimaryButton></Footer>}
     </BookContents>
     {openingOrigin && !openingDone && mode === "pages" && !closing && harumadi && <HarumadiOpenTransition book={harumadi} entries={chosen} origin={openingOrigin} containerRef={frame} contentsRef={contents} onComplete={finishOpening} />}
     {closing && harumadi && <HarumadiCloseTransition book={harumadi} entries={chosen} containerRef={frame} contentsRef={contents} fadeOnly={closeFromCover} onComplete={finishClose} />}

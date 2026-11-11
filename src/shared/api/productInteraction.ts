@@ -8,7 +8,7 @@ export const PRODUCT_INTERACTION_ACTIONS = [
   "harumadi_purchase_clicked",
 ] as const;
 export type ProductInteractionAction = (typeof PRODUCT_INTERACTION_ACTIONS)[number];
-export type ProductInteractionSurface = "welcome" | "completed_harumadi";
+export type ProductInteractionSurface = "welcome" | "completed_harumadi" | "harumadi_reader";
 export type ProductInteractionInput = {
   eventId: string;
   action: ProductInteractionAction;
@@ -25,8 +25,8 @@ export function normalizeProductInteraction(input: unknown): ProductInteractionI
     !/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value.eventId) ||
     !PRODUCT_INTERACTION_ACTIONS.includes(value.action as ProductInteractionAction) ||
     !PRODUCT_ACTIVITY_PLATFORMS.includes(value.platform as ProductActivityPlatform) ||
-    (value.surface !== "welcome" && value.surface !== "completed_harumadi") ||
-    (value.surface === "completed_harumadi" && value.action !== "harumadi_purchase_clicked")
+    (value.surface !== "welcome" && value.surface !== "completed_harumadi" && value.surface !== "harumadi_reader") ||
+    (value.surface !== "welcome" && value.action !== "harumadi_purchase_clicked")
   ) return null;
   return {
     eventId: value.eventId,

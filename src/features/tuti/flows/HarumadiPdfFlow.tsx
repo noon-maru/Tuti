@@ -50,6 +50,7 @@ import {
 } from "@/shared/api/harumadiPdf";
 import { LoadingIndicator } from "@/features/tuti/components/LoadingIndicator";
 import { exportHarumadiPdf } from "@/lib/harumadiPdfExport";
+import { pdfExportStatus } from "@/shared/harumadi/pdfExportStatus";
 import type { StoredHarumadiPdf } from "@/shared/api/harumadiPdf";
 import { recordProductActivity } from "@/lib/productActivity";
 import type { ProductActivityType } from "@/shared/api/productActivity";
@@ -964,6 +965,7 @@ export function StoredHarumadiPdfViewer({
     coverThumbnail?: Uint8Array;
   } | null>(null);
   const [busy, setBusy] = useState<"download" | "delete" | null>(null);
+  const downloading = useRef(false);
   const [message, setMessage] = useState("");
   const handleReady = useCallback(
     (result: {
@@ -981,15 +983,20 @@ export function StoredHarumadiPdfViewer({
   );
 
   async function download() {
+    if (downloading.current) return;
     if (!pdf || busy) return;
+    downloading.current = true;
     setBusy("download");
     setMessage("");
     try {
-      await exportHarumadiPdf(pdf.bytes, harumadiPdf.title);
-      recordHarumadiActivity("harumadi_saved");
+      const result = await exportHarumadiPdf(pdf.bytes, harumadiPdf.title);
+      if (getSessionSnapshot()?.userId !== ownerId) return;
+      setMessage(pdfExportStatus(result));
+      if (result !== "cancelled") recordHarumadiActivity("harumadi_saved");
     } catch {
-      setMessage("하루마디 파일을 준비하지 못했어요. 다시 시도해주세요.");
+      setMessage("PDF는 Tuti에 보관돼요. 파일을 내보내지 못했으니 다시 시도해주세요.");
     } finally {
+      downloading.current = false;
       setBusy(null);
     }
   }
@@ -1036,7 +1043,7 @@ export function StoredHarumadiPdfViewer({
           onReady={handleReady}
           captureCover={!harumadiPdf.hasCover}
         />
-        {message && <Notice role="alert">{message}</Notice>}
+        {message && <Notice role="status">{message}</Notice>}
         <HarumadiPurchaseButton surface="completed_harumadi" />
         <DeleteButton
           type="button"
@@ -1048,7 +1055,7 @@ export function StoredHarumadiPdfViewer({
         </DeleteButton>
       </Content>
       <Footer>
-        <SaveStatus>계정에 안전하게 보관된 하루마디예요.</SaveStatus>
+        <SaveStatus>Tuti에 보관된 PDF예요. 파일로도 가져갈 수 있어요.</SaveStatus>
         <PrimaryButton
           disabled={!pdf || busy !== null}
           onClick={() => void download()}
