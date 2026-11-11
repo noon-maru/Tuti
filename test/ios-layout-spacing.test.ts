@@ -58,7 +58,8 @@ test("공통 화면·책장·작은 화면은 플랫폼 여백을 사용하고 �
   const navigation = read("components/MainNavigation.tsx");
   assert.match(frame, /var\(--app-header-top-space, var\(--space-11\)\) \+ var\(--app-safe-area-top, 0px\)/);
   assert.match(frame, /var\(--app-header-top-space, var\(--space-7\)\) \+ var\(--app-safe-area-top, 0px\)/);
-  for (const fallback of [40, 24]) assert.ok(home.includes(`var(--app-header-top-space, ${fallback}px) + var(--app-safe-area-top, 0px)`));
+  assert.ok(home.includes("var(--app-header-top-space, 24px) + var(--app-safe-area-top, 0px)"));
+  assert.ok(!home.includes("var(--app-header-top-space, 40px)"));
   assert.match(navigation, /var\(--app-navigation-bottom-space, 10px\) \+ var\(--app-safe-area-bottom, 0px\)/);
   assert.match(navigation, /--main-navigation-item-height: 56px/);
   assert.match(navigation, /--main-navigation-create-height: 52px/);
