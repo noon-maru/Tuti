@@ -37,7 +37,8 @@ test("최근 추천이 없어도 일반 책을 고를 수 있고 실패는 계�
   assert.doesNotMatch(html, /type="radio"[^>]*checked/); client.clear();
   const source = readFileSync("src/features/tuti/screens/journal/MadiHarumadiSelection.tsx", "utf8");
   assert.match(source, /await addMadiToHarumadi\(ownerId, selected, entryId, Boolean\(selectedBook\?\.shared\)\)/);
-  assert.ok(source.indexOf("await addMadiToHarumadi") < source.indexOf("if (next) onNext(selected)"));
+  assert.ok(source.indexOf("await addMadiToHarumadi") < source.indexOf("setCompletion({ id: selectedBook.id"));
+  assert.match(source, /onNext\(completion\?\.id\)/);
   assert.match(source, /gcTime: 0, retry: false/);
   const route = readFileSync("src/app/api/harumadis/recent/route.ts", "utf8");
   assert.match(route, /harumadiRequest\(request, userId => listRecentHarumadis\(userId\)\)/);

@@ -8,6 +8,7 @@ import * as fields from "../../src/shared/api/firstJournal";
 import * as copy from "../../src/shared/tuti/madiFields";
 import * as dates from "../../src/lib/date/koreanDate";
 import { newMadiDraftContext } from "../../src/lib/madiDraft";
+import { harumadiSharingNotice } from "../../src/shared/harumadi/sharingAudience";
 import type { ComponentProps } from "react";
 import type { MadiCreateScreen } from "../../src/features/tuti/screens/journal/MadiCreateScreen";
 
@@ -48,6 +49,7 @@ export function madiCreateHarness(props: ComponentProps<typeof MadiCreateScreen>
     "@/features/tuti/components/JournalPlacePicker": { JournalPlacePicker: tag },
     "@/features/tuti/components/MadiFieldFeedback": { MadiFieldFeedback: tag },
     "@/lib/madiDraft": { newMadiDraftContext },
+    "@/shared/harumadi/sharingAudience": { harumadiSharingNotice },
   };
   const exports: { MadiCreateScreen?: (props: unknown) => unknown } = {};
   vm.runInNewContext(ts.transpileModule(readFileSync("src/features/tuti/screens/journal/MadiCreateScreen.tsx", "utf8"), {

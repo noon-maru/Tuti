@@ -22,12 +22,13 @@ import type { Harumadi } from "@/shared/api/harumadi";
 import { JournalPlacePicker } from "@/features/tuti/components/JournalPlacePicker";
 import { MadiFieldFeedback } from "@/features/tuti/components/MadiFieldFeedback";
 import { newMadiDraftContext } from "@/lib/madiDraft";
+import { harumadiSharingNotice } from "@/shared/harumadi/sharingAudience";
 
 type Stage = "photo" | "write" | "preview";
 
 export function MadiCreateScreen({ onBack, onSave, onCollection, onSaved, onStartAnother, onContinueInHarumadi, continueInHarumadi = false, harumadiSelection, draftOwnerId, inHarumadi = false, destination, draftDestination, destinationVerified = Boolean(destination), destinationScopeChanged = false, destinationError = false, onRetryDestination, firstMadi = false, initialPlace, collectionLabel = "작성 마치기", preview = false }: {
-  destination?: Pick<Harumadi, "id" | "title" | "shared">;
-  draftDestination?: Pick<Harumadi, "id" | "title" | "shared">;
+  destination?: Pick<Harumadi, "id" | "title" | "shared" | "sharingAudience">;
+  draftDestination?: Pick<Harumadi, "id" | "title" | "shared" | "sharingAudience">;
   destinationVerified?: boolean;
   destinationScopeChanged?: boolean;
   destinationError?: boolean;
@@ -196,7 +197,7 @@ export function MadiCreateScreen({ onBack, onSave, onCollection, onSaved, onStar
         {destinationScopeChanged ? <><span>공유 범위가 바뀌었어요. 초안은 보관돼요. 하루마디에서 다시 열어주세요.</span><TextButton onClick={() => void localDraft.leave(onBack)}>하루마디로 돌아가기</TextButton></>
           : destinationError ? <><span>담을 곳을 확인하지 못했어요. 작성은 계속할 수 있어요.</span><TextButton onClick={onRetryDestination}>다시 확인하기</TextButton></>
             : !destinationVerified ? <span>작성하는 동안 담을 곳을 확인할게요.</span>
-              : <span>{destination?.shared ? "함께 채우는 사람들에게 보여요." : "나만 보는 하루마디에 담아요."}</span>}
+              : <span>{harumadiSharingNotice(destination ?? {})}</span>}
       </Destination>}
       <Intro>
         <h1 ref={heading} tabIndex={-1} id="madi-create-heading">{saved ? <>{madiLabel}를<br />남겼어요.</> : stage === "photo" ? <>어떤 순간을<br />오래 간직하고 싶나요?</> : stage === "write" ? <>그날의 이야기를<br />조금만 들려주세요.</> : <>{madiLabel}를<br />살펴볼까요?</>}</h1>
@@ -248,11 +249,11 @@ export function MadiCreateScreen({ onBack, onSave, onCollection, onSaved, onStar
             : <TextButton type="button" onClick={startAnother}>다음 마디 남기기</TextButton>}
       </> : stage === "photo" ? image && <PrimaryButton type="button" disabled={restoringDraft} onClick={() => setStage("write")}>이 사진으로 계속하기</PrimaryButton>
         : stage === "write" ? <>
-          {inHarumadi && destinationVerified && destination && <PrivacyHint>{destination.title} · {destination.shared ? "함께 보는 마디" : "나만 보는 마디"}</PrivacyHint>}
+          {inHarumadi && destinationVerified && destination && <PrivacyHint>{destination.title} · {harumadiSharingNotice(destination)}</PrivacyHint>}
           <PrimaryButton type="button" disabled={!draft || saving || saveBlocked} onClick={() => void save()}>{saving ? "마디를 저장하고 있어요…" : `${madiLabel} 남기기`}</PrimaryButton>
           <TextButton type="button" disabled={!draft || saving || restoringDraft} onClick={() => { setError(""); setStage("preview"); }}>미리보기</TextButton>
         </>
-          : <>{inHarumadi && destinationVerified && destination && <PrivacyHint>{destination.title} · {destination.shared ? "함께 보는 마디" : "나만 보는 마디"}</PrivacyHint>}<PrimaryButton type="button" disabled={!draft || saving || saveBlocked} onClick={() => void save()}>{saving ? "마디를 저장하고 있어요…" : "이대로 마디 남기기"}</PrimaryButton><TextButton type="button" disabled={saving} onClick={() => setStage("write")}>조금 더 고치기</TextButton></>}
+          : <>{inHarumadi && destinationVerified && destination && <PrivacyHint>{destination.title} · {harumadiSharingNotice(destination)}</PrivacyHint>}<PrimaryButton type="button" disabled={!draft || saving || saveBlocked} onClick={() => void save()}>{saving ? "마디를 저장하고 있어요…" : "이대로 마디 남기기"}</PrimaryButton><TextButton type="button" disabled={saving} onClick={() => setStage("write")}>조금 더 고치기</TextButton></>}
     </Footer>
     {cropSource && <ImageCropDialog source={cropSource} onCancel={cancelCrop} onConfirm={confirmCrop} />}
   </Frame>;

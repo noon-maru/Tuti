@@ -6,7 +6,7 @@ test("오래전에 만든 책도 초대 수락 시 책장 앞에 놓고 개인 �
   process.env.HARUMADI_TOGETHER_ENABLED = "true";
   const make = (id: string, ownerId: string, at: string) => ({ id, ownerId, title: id, coverStyle: "white-plain", backCoverText: "", revision: 1,
     createdAt: new Date(at), updatedAt: new Date(at), entries: [], collaborationStartedAt: ownerId === "me" ? null : new Date(at),
-    owner: { displayName: ownerId }, members: ownerId === "me" ? [] : [{ userId: "me" }] });
+    owner: { displayName: ownerId }, members: ownerId === "me" ? [] : [{ userId: "me", user: { displayName: "me" } }] });
   const owned = Array.from({ length: 13 }, (_, i) => make(`owned-${i}`, "me", new Date(Date.UTC(2026, 9, 28) - i * 86400000).toISOString()));
   const shared = make("old-shared", "friend", "2025-01-01T00:00:00Z");
   const joinedAt = new Date("2026-10-29T00:00:00Z");
@@ -45,6 +45,8 @@ test("오래전에 만든 책도 초대 수락 시 책장 앞에 놓고 개인 �
   assert.equal(first.harumadis[0].id, "old-shared");
   assert.equal(first.harumadis[0].role, "contributor");
   assert.equal(first.harumadis[0].ownerName, "friend");
+  assert.deepEqual(first.harumadis[0].sharingAudience, { count: 1, names: ["friend"] });
+  assert.equal(first.harumadis[1].sharingAudience, undefined, "개인 책에는 공유 대상 정보를 붙이지 않는다");
   assert.equal(first.recordCount, 3);
   assert.equal(first.harumadis.length, 12);
   assert.ok(first.nextCursor);

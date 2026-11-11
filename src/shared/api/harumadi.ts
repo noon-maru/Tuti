@@ -15,6 +15,7 @@ export type Harumadi = HarumadiSettings & {
   role?: "owner" | "contributor";
   ownerName?: string;
   participantCount?: number;
+  sharingAudience?: { count: number; names: string[] };
   id: string;
   revision: number;
   entryIds: string[];

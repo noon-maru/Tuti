@@ -14,6 +14,7 @@ import { BaseButton } from "./buttons";
 import { HarumadiTitleHint } from "./HarumadiTitleHint";
 import { harumadiAccessibleTitle } from "@/shared/harumadi/titleHints";
 import { foldCarouselBook } from "@/lib/carouselBookFold";
+import { harumadiSharingLabel } from "@/shared/harumadi/sharingAudience";
 
 type Gesture = { id: number; x: number; y: number; dx: number; startedAt: number; width: number; dragging: boolean; bookId: string; axis?: "horizontal" | "up" };
 export function HarumadiCarousel({ books, ownerId, onOpen, onCreateMadi, hasNextPage = false, loading = false, onLoadMore }: {
@@ -168,7 +169,7 @@ export function HarumadiCarousel({ books, ownerId, onOpen, onCreateMadi, hasNext
     <Details>
     {onCreateMadi && <WriteHint type="button" disabled={busy} aria-label={`${active.title}, ${MADI_COMPOSE_COPY.bookAction}`}
       aria-description={MADI_COMPOSE_COPY.swipeBookHint} $active={writeProgress > 0} onClick={() => onCreateMadi(active.id)}><ChevronUp size={16} aria-hidden="true" />{MADI_COMPOSE_COPY.bookAction}</WriteHint>}
-    <Caption><div aria-live="polite" aria-atomic="true"><strong>{active.title}</strong><p>{active.entryIds.length ? `마디 ${active.entryIds.length}개` : "첫 마디를 기다려요"}{active.shared ? " · 함께 채우는 중" : ""}</p>
+    <Caption><div aria-live="polite" aria-atomic="true"><strong>{active.title}</strong><p>{active.entryIds.length ? `마디 ${active.entryIds.length}개` : "첫 마디를 기다려요"}{active.shared ? ` · ${harumadiSharingLabel(active)}` : ""}</p>
       <HarumadiTitleHint book={active} />{active.role === "contributor" && <small>{active.ownerName}님의 하루마디</small>}</div>
       <BookMenu label={`${harumadiAccessibleTitle(active)} 메뉴`} triggerContent={<MoreVertical size={22} />} items={harumadiActions(active).map(action => ({ label: action.label, singleLine: true, onSelect: () => openSelected(action.mode) }))} />
     </Caption>

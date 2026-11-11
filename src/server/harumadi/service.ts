@@ -11,6 +11,7 @@ import { harumadiTogetherEnabled, lockHarumadi, requireHarumadiAccess } from "./
 import { HarumadiError } from "./errors";
 import { withHarumadiTitleHints } from "./titleHints";
 import { recentHarumadiIds } from "./recent";
+import { makeHarumadiAudience } from "@/shared/harumadi/sharingAudience";
 export { HarumadiError } from "./errors";
 
 const selection = {
@@ -18,10 +19,12 @@ const selection = {
   entries: { where: { entry: { sensitiveWithdrawnAt: null } }, select: { entryId: true, position: true, entry: { select: { visitedAt: true } } } },
 } as const;
 type HarumadiRow = Prisma.HarumadiGetPayload<{ select: typeof selection }>;
-const togetherSelection = { ...selection, ownerId: true, owner: { select: { displayName: true } }, collaborationStartedAt: true, members: { where: { endedAt: null }, select: { userId: true } } } as const;
+const participantOrder: Prisma.HarumadiMemberOrderByWithRelationInput[] = [{ joinedAt: "asc" }, { userId: "asc" }];
+const togetherSelection = { ...selection, ownerId: true, owner: { select: { displayName: true } }, collaborationStartedAt: true, members: { where: { endedAt: null }, orderBy: participantOrder, select: { userId: true, user: { select: { displayName: true } } } } } as const;
 type TogetherRow = Prisma.HarumadiGetPayload<{ select: typeof togetherSelection }>;
 function togetherDto(row: TogetherRow, userId: string): Harumadi {
-  return { ...dto(row), togetherEnabled: true, role: row.ownerId === userId ? "owner" : "contributor", shared: Boolean(row.collaborationStartedAt), ownerName: row.owner.displayName || "만든 사람", participantCount: row.members.length + 1 };
+  return { ...dto(row), togetherEnabled: true, role: row.ownerId === userId ? "owner" : "contributor", shared: Boolean(row.collaborationStartedAt), ownerName: row.owner.displayName || "만든 사람", participantCount: row.members.length + 1,
+    ...(row.collaborationStartedAt ? { sharingAudience: makeHarumadiAudience(userId, [{ userId: row.ownerId, displayName: row.owner.displayName }, ...row.members.map(member => ({ userId: member.userId, displayName: member.user.displayName }))]) } : {}) };
 }
 function dto(row: HarumadiRow): Harumadi {
   return { id: row.id, title: row.title, coverStyle: row.coverStyle as Harumadi["coverStyle"],
@@ -60,9 +63,9 @@ async function listTogetherLibrary(userId: string, cursorId: string | null, titl
 }
 export async function readHarumadi(ownerId: string, id: string) {
   if (harumadiTogetherEnabled()) return prisma.$transaction(async tx => {
-    const book = await requireHarumadiAccess(tx, ownerId, id);
-    const row = await tx.harumadi.findUniqueOrThrow({ where: { id }, select: selection });
-    return { ...dto(row), togetherEnabled: true, shared: Boolean(book.collaborationStartedAt), role: book.ownerId === ownerId ? "owner" as const : "contributor" as const };
+    await requireHarumadiAccess(tx, ownerId, id);
+    const row = await tx.harumadi.findUniqueOrThrow({ where: { id }, select: togetherSelection });
+    return togetherDto(row, ownerId);
   });
   const row = await prisma.harumadi.findFirst({ where: { ownerId, id }, select: selection });
   if (!row) throw new HarumadiError("하루마디를 찾지 못했어요.", 404);

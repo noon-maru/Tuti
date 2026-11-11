@@ -16,6 +16,7 @@ import type { Harumadi } from "@/shared/api/harumadi";
 import { useHarumadiSearch } from "@/features/tuti/hooks/useHarumadiSearch";
 import { useHarumadiLibrary } from "@/features/tuti/hooks/useHarumadiLibrary";
 import { MadiSearchField } from "@/features/tuti/components/MadiSearchField";
+import { harumadiSharingNotice } from "@/shared/harumadi/sharingAudience";
 
 export function MadiHarumadiSelection({ ownerId, entryId, initialBookId, onDone, onNext }: {
   ownerId: string; entryId: string; initialBookId?: string | null;
@@ -64,7 +65,7 @@ export function MadiHarumadiSelection({ ownerId, entryId, initialBookId, onDone,
   const renderChoice = (book: Harumadi) => <Choice key={book.id} $selected={selected === book.id}>
     <input type="radio" name="madi-harumadi" value={book.id} checked={selected === book.id} disabled={busy} onChange={() => { setSelected(book.id); setError(""); }} />
     <Spine aria-hidden="true" $green={book.coverStyle.startsWith("green")}><BookOpen size={18} strokeWidth={1.3} /></Spine>
-    <span><strong>{book.title}</strong><small>마디 {book.entryIds.length}개{book.shared ? " · 함께 채우는 사람들에게 보여요" : ""}</small><HarumadiTitleHint book={book} />{book.role === "contributor" && <small>{book.ownerName}님의 하루마디</small>}</span>
+    <span><strong>{book.title}</strong><small>마디 {book.entryIds.length}개{book.shared ? ` · ${harumadiSharingNotice(book)}` : ""}</small><HarumadiTitleHint book={book} />{book.role === "contributor" && <small>{book.ownerName}님의 하루마디</small>}</span>
   </Choice>;
 
   if (finished) return <Frame aria-labelledby="madi-collection-heading">

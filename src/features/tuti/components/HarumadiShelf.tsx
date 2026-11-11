@@ -10,6 +10,7 @@ import type { Harumadi } from "@/shared/api/harumadi";
 import { spineColumnCount, type HarumadiLibraryView } from "@/shared/harumadi/libraryView";
 import { harumadiAccessibleTitle, harumadiHintExtraHeight } from "@/shared/harumadi/titleHints";
 import { HarumadiTitleHint } from "./HarumadiTitleHint";
+import { harumadiSharingLabel } from "@/shared/harumadi/sharingAudience";
 
 export function HarumadiShelf({ books, ownerId, view, onOpen }: {
   books: Harumadi[]; ownerId: string; view: Exclude<HarumadiLibraryView, "carousel">;
@@ -35,7 +36,7 @@ export function HarumadiShelf({ books, ownerId, view, onOpen }: {
       <HarumadiGrid $spines={spines} $columns={columns}>{rowBooks.map(book => <HarumadiCard key={book.id} data-harumadi-card>
         <HarumadiButton data-book-cover type="button" aria-label={`${harumadiAccessibleTitle(book)}, 마디 ${book.entryIds.length}개 열기`} onClick={event => onOpen(book, event.currentTarget)}>
           {spines ? <HarumadiSpine book={book} /> : <HarumadiCover harumadiPdf={{ ...book, entryCount: book.entryIds.length, pageCount: 0, hasCover: book.coverStyle.endsWith("-image") && book.entryIds.length > 0 }} ownerId={ownerId} kind="harumadi" />}
-          <HarumadiLabel $spines={spines} $hintRows={hintRows}><strong>{book.title}</strong><small>{book.entryIds.length ? `마디 ${book.entryIds.length}개` : spines ? "빈 하루마디" : "첫 마디를 기다려요"}{book.shared ? " · 함께" + (spines ? "" : " 채우는 중") : ""}</small><HarumadiTitleHint book={book} />{book.role === "contributor" && <small>{book.ownerName}님의 하루마디</small>}</HarumadiLabel>
+          <HarumadiLabel $spines={spines} $hintRows={hintRows}><strong>{book.title}</strong><small title={harumadiSharingLabel(book) ?? undefined}>{book.entryIds.length ? `마디 ${book.entryIds.length}개` : spines ? "빈 하루마디" : "첫 마디를 기다려요"}{book.shared ? ` · ${harumadiSharingLabel(book)}` : ""}</small><HarumadiTitleHint book={book} />{book.role === "contributor" && <small>{book.ownerName}님의 하루마디</small>}</HarumadiLabel>
         </HarumadiButton><BookMenu $spines={spines} $hintRows={hintRows} label={`${harumadiAccessibleTitle(book)} 메뉴`} triggerContent={<MoreVertical size={22} />} items={harumadiActions(book).map(action => ({ label: action.label, singleLine: true, onSelect: trigger => onOpen(book, trigger, action.mode) }))} />
       </HarumadiCard>)}</HarumadiGrid><ShelfEdge aria-hidden="true" />
     </ShelfRow>; })}

@@ -9,6 +9,7 @@ import * as jsx from "react/jsx-runtime";
 import { groupHarumadiChoices } from "../src/shared/harumadi/recentChoices";
 import { findMadiControl } from "./fixtures/madiCreateHarness";
 import { harumadiContent } from "./fixtures/harumadiContent";
+import { harumadiSharingNotice } from "../src/shared/harumadi/sharingAudience";
 
 function fixture(add: (...args: unknown[]) => Promise<unknown>, recentError = false) {
   const book = { ...harumadiContent().harumadi, shared: true };
@@ -34,6 +35,7 @@ function fixture(add: (...args: unknown[]) => Promise<unknown>, recentError = fa
     "@/features/tuti/hooks/useHarumadiLibrary": { useHarumadiLibrary: () => ({ data: { pages: [{ harumadis: [book] }] }, isPending: false, isError: false, refetch() {} }) },
     "@/features/tuti/hooks/useHarumadiSearch": { useHarumadiSearch: (books: unknown[]) => ({ search: "", books, searching: false, setSearch() {} }) },
     "@/features/tuti/components/MadiSearchField": { MadiSearchField: "input" },
+    "@/shared/harumadi/sharingAudience": { harumadiSharingNotice },
   };
   const exports: { MadiHarumadiSelection?: (props: unknown) => unknown } = {};
   vm.runInNewContext(ts.transpileModule(readFileSync("src/features/tuti/screens/journal/MadiHarumadiSelection.tsx", "utf8"), {
