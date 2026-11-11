@@ -128,6 +128,16 @@ test("분리된 PostgreSQL에서 약관·권리 보호 마이그레이션의 실
     const { verifyTogetherSchema } = await import("./harumadi-together-scenario");
     verifyTogetherSchema(query, rejected, socket);
   });
+  await t.test("담고 싶은 기간은 기존 책을 바꾸지 않고 날짜 쌍과 순서만 제한한다", () => {
+    query("CREATE SCHEMA memory_period_fixture; SET search_path=memory_period_fixture; CREATE TABLE harumadis(id text PRIMARY KEY); INSERT INTO harumadis VALUES('old')");
+    const scoped = (sql: string) => query(`SET search_path=memory_period_fixture; ${sql}`).split("\n").at(-1);
+    scoped(readFileSync("prisma/migrations/20261111010000_add_harumadi_memory_period/migration.sql", "utf8"));
+    assert.equal(scoped("SELECT count(1) FROM harumadis WHERE period_start IS NULL AND period_end IS NULL"), "1");
+    scoped("UPDATE harumadis SET period_start='2026-11-20',period_end='2026-11-22'");
+    for (const sql of ["UPDATE harumadis SET period_end='2026-11-19'", "UPDATE harumadis SET period_end=NULL", "UPDATE harumadis SET period_end='infinity'"]) rejected(`SET search_path=memory_period_fixture; ${sql}`, /check constraint/i);
+    scoped("UPDATE harumadis SET period_start=NULL,period_end=NULL");
+    query("DROP SCHEMA memory_period_fixture CASCADE");
+  });
   query('CREATE TABLE users(id text PRIMARY KEY); CREATE TABLE content_reports(id text PRIMARY KEY);');
   await t.test("처리 요청 시퀀스는 중복 없이 증가하고 계정 삭제 시 요청만 정리한다", () => {
     query(readFileSync(join(process.cwd(), "prisma/migrations/20261101000000_add_admin_processing_cases/migration.sql"), "utf8"));

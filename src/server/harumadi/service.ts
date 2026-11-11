@@ -12,10 +12,11 @@ import { HarumadiError } from "./errors";
 import { withHarumadiTitleHints } from "./titleHints";
 import { recentHarumadiIds } from "./recent";
 import { makeHarumadiAudience } from "@/shared/harumadi/sharingAudience";
+import { harumadiPeriodData, serializeHarumadiPeriod } from "@/shared/harumadi/period";
 export { HarumadiError } from "./errors";
 
 const selection = {
-  id: true, title: true, coverStyle: true, backCoverText: true, revision: true, createdAt: true, updatedAt: true,
+  id: true, title: true, coverStyle: true, backCoverText: true, periodStart: true, periodEnd: true, revision: true, createdAt: true, updatedAt: true,
   entries: { where: { entry: { sensitiveWithdrawnAt: null } }, select: { entryId: true, position: true, entry: { select: { visitedAt: true } } } },
 } as const;
 type HarumadiRow = Prisma.HarumadiGetPayload<{ select: typeof selection }>;
@@ -27,7 +28,7 @@ function togetherDto(row: TogetherRow, userId: string): Harumadi {
     ...(row.collaborationStartedAt ? { sharingAudience: makeHarumadiAudience(userId, [{ userId: row.ownerId, displayName: row.owner.displayName }, ...row.members.map(member => ({ userId: member.userId, displayName: member.user.displayName }))]) } : {}) };
 }
 function dto(row: HarumadiRow): Harumadi {
-  return { id: row.id, title: row.title, coverStyle: row.coverStyle as Harumadi["coverStyle"],
+  return { ...serializeHarumadiPeriod(row), id: row.id, title: row.title, coverStyle: row.coverStyle as Harumadi["coverStyle"],
     backCoverText: row.backCoverText,
     revision: row.revision,
     entryIds: orderedLinks(row.entries).map(link => link.entryId), createdAt: row.createdAt.toISOString(), updatedAt: row.updatedAt.toISOString() };
@@ -90,7 +91,7 @@ export async function createHarumadi(ownerId: string, settings: HarumadiSettings
     // 첫 마디의 기본 하루마디 생성과 수동 생성을 같은 소유자 잠금으로 조정한다.
     await tx.$queryRaw`SELECT id FROM users WHERE id = ${ownerId} FOR UPDATE`;
     const book = await tx.harumadi.create({ data: { id: randomUUID(), ownerId, title: settings.title,
-      coverStyle: settings.coverStyle, backCoverText: settings.backCoverText ?? pickHarumadiBackCoverText() }, select: selection });
+      coverStyle: settings.coverStyle, backCoverText: settings.backCoverText ?? pickHarumadiBackCoverText(), ...harumadiPeriodData(settings) }, select: selection });
     await recordLifecycle(tx, ownerId, { name: "harumadi_created", key: `book:${book.id}`, entityId: book.id, bookId: book.id, origin: "manual" });
     return (await withHarumadiTitleHints(tx, ownerId, [dto(book)]))[0];
   });
@@ -106,7 +107,7 @@ export async function updateHarumadi(ownerId: string, id: string, input: Harumad
         if (links.length !== input.entryIds.length || links.some(link => !input.entryIds.includes(link.entryId))) throw new HarumadiError("함께 채우는 마디는 추가·빼기 기능으로 변경해주세요.", 409);
         const previous = await tx.harumadi.findUniqueOrThrow({ where: { id }, select: { title: true, backCoverText: true } });
         if (previous.title !== input.title || (input.backCoverText !== undefined && previous.backCoverText !== input.backCoverText)) validateFreeform(input);
-        const updated = await tx.harumadi.updateMany({ where: { id, ownerId, revision: input.revision }, data: { title: input.title, coverStyle: input.coverStyle, ...(input.backCoverText === undefined ? {} : { backCoverText: input.backCoverText }), revision: { increment: 1 } } });
+        const updated = await tx.harumadi.updateMany({ where: { id, ownerId, revision: input.revision }, data: { title: input.title, coverStyle: input.coverStyle, ...harumadiPeriodData(input), ...(input.backCoverText === undefined ? {} : { backCoverText: input.backCoverText }), revision: { increment: 1 } } });
         if (!updated.count) throw new HarumadiError("하루마디가 바뀌었어요. 다시 확인해주세요.", 409);
         return (await withHarumadiTitleHints(tx, ownerId, [{ ...dto(await tx.harumadi.findUniqueOrThrow({ where: { id }, select: selection })), shared: true, togetherEnabled: true, role: "owner" as const }]))[0];
       }
@@ -117,7 +118,7 @@ export async function updateHarumadi(ownerId: string, id: string, input: Harumad
     if (existing.title !== input.title || (input.backCoverText !== undefined &&
         input.backCoverText !== (existing.backCoverText ?? LEGACY_HARUMADI_BACK_COVER_TEXT))) validateFreeform(input);
     const updated = await tx.harumadi.updateMany({ where: { id, ownerId, revision: input.revision },
-      data: { title: input.title, coverStyle: input.coverStyle,
+      data: { title: input.title, coverStyle: input.coverStyle, ...harumadiPeriodData(input),
         ...(input.backCoverText !== undefined ? { backCoverText: input.backCoverText } : {}), revision: { increment: 1 } } });
     if (!updated.count) throw new HarumadiError("다른 화면에서 하루마디가 바뀌었어요. 다시 불러온 후 수정해주세요.", 409);
     // 선택한 원본을 잠가 철회/삭제된 기록이나 다른 계정의 기록을 연결하지 않는다.

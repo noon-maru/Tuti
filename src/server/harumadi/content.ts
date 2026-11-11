@@ -7,6 +7,7 @@ import type { HarumadiContent } from "@/shared/api/harumadi";
 import { harumadiTogetherEnabled, requireHarumadiAccess } from "./access";
 import { sharedImageUrl } from "./media";
 import { orderedLinks } from "./order";
+import { serializeHarumadiPeriod } from "@/shared/harumadi/period";
 
 export async function readHarumadiContent(ownerId: string, id: string): Promise<HarumadiContent> {
   // 제목·연결·본문을 같은 스냅샷에서 읽어 도중의 삭제나 연결 변경을 섞지 않는다.
@@ -14,7 +15,7 @@ export async function readHarumadiContent(ownerId: string, id: string): Promise<
     const access = harumadiTogetherEnabled() ? await requireHarumadiAccess(tx, ownerId, id) : null;
     const shared = Boolean(access?.collaborationStartedAt);
     const book = await tx.harumadi.findFirst({ where: { id, ...(access ? {} : { ownerId }) }, select: {
-      id: true, title: true, coverStyle: true, backCoverText: true, revision: true, createdAt: true, updatedAt: true,
+      id: true, title: true, coverStyle: true, backCoverText: true, periodStart: true, periodEnd: true, revision: true, createdAt: true, updatedAt: true,
       entries: { select: { entryId: true, position: true, entry: { select: { ...journalEntrySelect, ...(shared ? { owner: { select: { displayName: true } } } : {}) } } } },
     } });
     if (!book) throw new HarumadiError("하루마디를 찾지 못했어요.", 404);
@@ -27,7 +28,7 @@ export async function readHarumadiContent(ownerId: string, id: string): Promise<
     });
     const totalRecordCount = await tx.journalEntry.count({ where: { ownerId, sensitiveWithdrawnAt: null } });
     return {
-      harumadi: { id: book.id, title: book.title, coverStyle: book.coverStyle as HarumadiContent["harumadi"]["coverStyle"],
+      harumadi: { ...serializeHarumadiPeriod(book), id: book.id, title: book.title, coverStyle: book.coverStyle as HarumadiContent["harumadi"]["coverStyle"],
         ...(access ? { togetherEnabled: true, shared, role: access.ownerId === ownerId ? "owner" as const : "contributor" as const } : {}),
         revision: book.revision,
         backCoverText: book.backCoverText,

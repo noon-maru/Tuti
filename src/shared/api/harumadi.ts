@@ -1,8 +1,9 @@
 import { HARUMADI_PDF_COVER_STYLES, HARUMADI_PDF_TITLE_LIMIT, type HarumadiPdfCoverStyle } from "./harumadiPdf";
 import type { TutiJournalEntry } from "./journal";
 import { isHarumadiBackCoverText } from "../harumadi/backCover";
+import { parseHarumadiPeriod, type HarumadiPeriod } from "../harumadi/period";
 
-export type HarumadiSettings = {
+export type HarumadiSettings = HarumadiPeriod & {
   title: string;
   coverStyle: HarumadiPdfCoverStyle;
   backCoverText?: string;
@@ -36,11 +37,13 @@ export type HarumadiContent = {
 export function parseHarumadiSettings(value: unknown): HarumadiSettings | null {
   if (!value || typeof value !== "object") return null;
   const input = value as Record<string, unknown>;
+  const period = parseHarumadiPeriod(input);
+  if (!period) return null;
   if (typeof input.title !== "string" || !input.title.trim() || input.title.length > HARUMADI_PDF_TITLE_LIMIT ||
       !HARUMADI_PDF_COVER_STYLES.includes(input.coverStyle as HarumadiPdfCoverStyle) ||
       (input.backCoverText !== undefined && !isHarumadiBackCoverText(input.backCoverText)) ||
       (input.freeformNonSensitiveConfirmed !== undefined && typeof input.freeformNonSensitiveConfirmed !== "boolean")) return null;
-  return { title: input.title.trim(), coverStyle: input.coverStyle as HarumadiPdfCoverStyle,
+  return { ...period, title: input.title.trim(), coverStyle: input.coverStyle as HarumadiPdfCoverStyle,
     ...(typeof input.backCoverText === "string" ? { backCoverText: input.backCoverText.trim() } : {}),
     ...(typeof input.freeformNonSensitiveConfirmed === "boolean" ? { freeformNonSensitiveConfirmed: input.freeformNonSensitiveConfirmed } : {}) };
 }

@@ -27,8 +27,13 @@ try {
     INSERT INTO harumadi_entry_links VALUES('link-a','book','a'),('link-b','book','b'),('other-a','other','a');
     INSERT INTO harumadi_members VALUES('membership','book','member',null);`);
   await pool.query(readFileSync("prisma/migrations/20261102180000_harumadi_entry_order/migration.sql", "utf8"));
+  await pool.query("ALTER TABLE users ADD COLUMN display_name text; ALTER TABLE harumadi_members ADD COLUMN joined_at timestamp NOT NULL DEFAULT now(); ALTER TABLE journal_entries ADD COLUMN owner_id text NOT NULL DEFAULT 'maker'");
+  await pool.query(readFileSync("prisma/migrations/20261111010000_add_harumadi_memory_period/migration.sql", "utf8"));
   const { reorderHarumadi, readHarumadi } = await import("../../src/server/harumadi/service");
   assert.deepEqual((await readHarumadi("maker", "book")).entryIds, ["b", "a"]);
+  assert.equal((await readHarumadi("maker", "book")).periodStart, undefined);
+  await pool.query("UPDATE harumadis SET period_start='2026-11-20',period_end='2026-11-22' WHERE id='book'");
+  assert.equal((await readHarumadi("maker", "book")).periodStart, "2026-11-20");
   await assert.rejects(reorderHarumadi("member", "book", { revision: 1, entryIds: ["a", "b"] }), { status: 404 });
   await assert.rejects(reorderHarumadi("outsider", "book", { revision: 1, entryIds: ["a", "b"] }), { status: 404 });
   for (const entryIds of [["a"], ["a", "c"], ["a", "a"]]) await assert.rejects(reorderHarumadi("maker", "book", { revision: 1, entryIds }), { status: 409 });

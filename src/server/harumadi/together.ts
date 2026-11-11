@@ -1,4 +1,5 @@
 import { createHash, randomBytes, randomUUID } from "node:crypto";
+import { serializeHarumadiPeriod } from "@/shared/harumadi/period";
 import { enqueueTogetherNotification } from "@/server/notifications/outbox";
 import { recordContribution, recordLifecycle } from "@/server/analytics/lifecycle";
 import type { Prisma } from "@/generated/prisma/client";
@@ -76,12 +77,12 @@ export async function inspectInvite(userId: string, token: string) {
   requireTogether();
   return prisma.$transaction(async tx => {
     await requireLinkedAccount(tx, userId);
-    const invite = await tx.harumadiInvite.findUnique({ where: { tokenHash: hashInvite(token) }, include: { harumadi: { select: { id: true, ownerId: true, title: true, owner: { select: { displayName: true } } } } } });
+    const invite = await tx.harumadiInvite.findUnique({ where: { tokenHash: hashInvite(token) }, include: { harumadi: { select: { id: true, ownerId: true, title: true, periodStart: true, periodEnd: true, owner: { select: { displayName: true } } } } } });
     if (!invite) throw new HarumadiError("초대를 찾지 못했어요. 링크를 다시 확인해주세요.", 410);
     const member = await tx.harumadiMember.findUnique({ where: { harumadiId_userId: { harumadiId: invite.harumadiId, userId } } });
     const joined = invite.harumadi.ownerId === userId || Boolean(member && !member.endedAt);
     if (!joined && (invite.revokedAt || invite.expiresAt <= new Date() || invite.acceptedAt || (member?.endedAt && invite.createdAt <= member.endedAt))) throw new HarumadiError("사용할 수 없는 초대예요. 새 초대를 부탁해주세요.", 410);
-    return { harumadiId: invite.harumadi.id, title: invite.harumadi.title, inviterName: invite.harumadi.owner.displayName || "함께할 사람", joined };
+    return { ...serializeHarumadiPeriod(invite.harumadi), harumadiId: invite.harumadi.id, title: invite.harumadi.title, inviterName: invite.harumadi.owner.displayName || "함께할 사람", joined };
   });
 }
 export async function revokeInvite(userId: string, id: string, inviteId: string) {
