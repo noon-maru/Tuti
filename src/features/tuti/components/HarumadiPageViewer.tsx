@@ -3,6 +3,8 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import styled from "@emotion/styled";
 import { BaseButton } from "./buttons";
+import { ContextMenu } from "./ContextMenu";
+import { editableReaderEntry } from "@/shared/harumadi/readerEditing";
 import { HarumadiPageSheet } from "./HarumadiSheet";
 import { HarumadiByline } from "./HarumadiByline";
 import { buildHarumadiReaderPages, harumadiPageAuthor, type HarumadiReaderPage } from "@/shared/harumadi/readerPages";
@@ -13,7 +15,7 @@ import type { TutiJournalEntry } from "@/shared/api/journal";
 import { readerGroupGeometry, type ReaderTextMeasure } from "@/shared/harumadi/readerText";
 import { harumadiReadingPositions, readingIndex, readingPosition, type ReadingPosition } from "@/lib/harumadiReadingPosition";
 
-export function HarumadiPageViewer({ book, entries, onClose, closing = false, ownerId }: { book: Harumadi; entries: TutiJournalEntry[]; onClose: () => void; closing?: boolean; ownerId?: string }) {
+export function HarumadiPageViewer({ book, entries, onClose, closing = false, ownerId, onEditEntry }: { book: Harumadi; entries: TutiJournalEntry[]; onClose: () => void; closing?: boolean; ownerId?: string; onEditEntry?: (entryId: string) => void }) {
   const stage = useRef<HTMLDivElement>(null);
   const reader = useRef<HTMLDivElement>(null), navigation = useRef<HTMLElement>(null);
   const [measureText, setMeasureText] = useState<ReaderTextMeasure>();
@@ -68,6 +70,7 @@ export function HarumadiPageViewer({ book, entries, onClose, closing = false, ow
   }, [ownerId, book.id]);
   const current = position ? readingIndex(pages, position) : Math.min(index, pages.length - 1);
   const lastPage = current === pages.length - 1;
+  const editableId = onEditEntry ? editableReaderEntry(book, entries, pages[current].entryId, ownerId) : null;
   const [retained, setRetained] = useState<{ page: HarumadiReaderPage; index: number } | null>(null);
   const sheet = useRef<HTMLDivElement>(null), old = useRef<HTMLDivElement>(null);
   const locked = useRef(false), skipClick = useRef(false);
@@ -124,7 +127,14 @@ export function HarumadiPageViewer({ book, entries, onClose, closing = false, ow
       <Turn type="button" disabled={closing || current === 0 || Boolean(retained)} onClick={() => turn(current - 1)}>이전 쪽</Turn>
       <span role="status">{current + 1} / {pages.length}</span>
       <Turn type="button" disabled={closing || Boolean(retained)} onClick={() => turn(current + 1)}>{lastPage ? "덮기" : "다음 쪽"}</Turn>
-      <Restart type="button" disabled={closing || Boolean(retained) || current === 1} onClick={() => turn(1)}>처음부터 보기</Restart>
+      <ReaderActions><Restart type="button" disabled={closing || Boolean(retained) || current === 1} onClick={() => turn(1)}>처음부터 보기</Restart>
+        {editableId && <ContextMenu label="이 마디 메뉴" disabled={closing || Boolean(retained)} triggerContent="마디 메뉴" items={[{ label: "이 마디 수정", onSelect: async () => {
+          if (locked.current || closing || !ownerId) return;
+          interacted.current = true;
+          await harumadiReadingPositions.save(ownerId, book.id, readingPosition(pages, current));
+          onEditEntry?.(editableId);
+        } }]} />}
+      </ReaderActions>
     </Navigation>
   </Reader>;
 }
@@ -135,4 +145,5 @@ const Paper = styled.div`position: relative; background: white; box-shadow: 0 7p
 const Edge = styled(BaseButton)<{ $side: "left" | "right" }>`position: absolute; top: 0; bottom: 0; ${({ $side }) => $side}: 0; width: 22%; min-width: 0; border-radius: 0; padding: 0; background: transparent; &:hover { background: transparent; } &:focus-visible { outline: 2px solid var(--color-brand-700); outline-offset: -2px; }`;
 const Navigation = styled.nav`display: grid; grid-template-columns: 1fr auto 1fr; flex: none; align-items: center; gap: 0 12px; > button:first-child { justify-self: start; } > button:nth-child(3) { justify-self: end; } > span { color: var(--color-text-muted); font-size: 13px; font-variant-numeric: tabular-nums; }`;
 const Turn = styled(BaseButton)`min-height: 44px; padding: 8px; background: transparent; font-size: 14px; color: var(--color-text-muted); &:focus-visible { outline: 2px solid var(--color-brand-700); }`;
-const Restart = styled(Turn)`grid-column: 1 / -1; justify-self: center; font-size: 12px;`;
+const ReaderActions = styled.div`grid-column: 1 / -1; min-height: 44px; display: flex; align-items: center; justify-content: center; gap: 16px; > div > button { min-height: 44px; padding: 8px; background: transparent; color: var(--color-text-muted); font-size: 12px; }`;
+const Restart = styled(Turn)`font-size: 12px;`;

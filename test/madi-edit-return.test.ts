@@ -33,11 +33,20 @@ test("직접 접속·새로고침·다른 계정과 이전 브라우저 이동�
 });
 test("저장 완료와 수정 취소는 같은 안전한 복귀 경로를 사용한다", () => {
   const flow = readFileSync("src/features/tuti/flows/JournalEditFlow.tsx", "utf8");
-  assert.match(flow, /resolveMadiEditReturn\(ownerId, entryId, source\)/);
+  assert.match(flow, /resolveMadiEditReturn\(ownerId, entryId, source, bookId\)/);
   assert.match(flow, /onBack=\{returnToJournal\}/);
   assert.match(flow, /navigate: returnToJournal/);
   assert.match(flow, /else router.replace\(destination.path\)/);
   for (const path of ["src/features/tuti/flows/JournalDetailFlow.tsx", "src/app/(tuti)/(main)/madi/page.tsx"]) {
     assert.match(readFileSync(path, "utf8"), /rememberMadiEditOrigin\(ownerId, entry/);
   }
+});
+
+test("책에서 수정한 마디는 메모리 전용 펼침 이력 대신 해당 책으로 안전하게 돌아간다", t => {
+  installWindow(new EventTarget(), cleanup => t.after(cleanup));
+  rememberMadiEditOrigin("owner", "entry", "harumadi", "book");
+  assert.deepEqual(resolveMadiEditReturn("owner", "entry", "harumadi", "book"), { back: false, path: "/harumadi?harumadiId=book" });
+  rememberMadiEditOrigin("owner", "entry", "harumadi", "book");
+  assert.equal(resolveMadiEditReturn("other", "entry", "harumadi", "book").path, "/madi");
+  assert.equal(resolveMadiEditReturn("owner", "entry", "harumadi", "https://outside.test").path, "/madi");
 });

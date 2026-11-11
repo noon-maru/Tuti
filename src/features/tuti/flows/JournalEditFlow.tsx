@@ -18,6 +18,7 @@ export function JournalEditFlow() {
   const { startTransition } = useJournalEntryTransition();
   const entryId = searchParams.get("entryId");
   const source = searchParams.get("source");
+  const bookId = searchParams.get("harumadiId");
   const { entries, isPending, isError, refetch, updateEntry } = useTutiJournalEntries();
   const setActiveJournalEntry = useTutiStore(
     (state) => state.setActiveJournalEntry,
@@ -25,7 +26,7 @@ export function JournalEditFlow() {
   const entry = entries.find((candidate) => candidate.id === entryId);
   const returnToJournal = () => {
     if (!entryId) { router.replace("/madi"); return; }
-    const destination = resolveMadiEditReturn(ownerId, entryId, source);
+    const destination = resolveMadiEditReturn(ownerId, entryId, source, bookId);
     if (destination.back) router.back();
     else router.replace(destination.path);
   };
@@ -62,6 +63,8 @@ export function JournalEditFlow() {
         const updatedEntry = await updateEntry(entry.id, draft);
 
         setActiveJournalEntry(updatedEntry.id);
+        // 책 지면에는 마디 상세 전환의 대상 요소가 없으므로 원래 책으로 바로 복귀한다.
+        if (source === "harumadi") { returnToJournal(); return; }
         startTransition({
           entryId: updatedEntry.id,
           image: updatedEntry.image ?? undefined,

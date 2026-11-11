@@ -5,7 +5,7 @@ const KEY = "tuti-login-continuation-v1";
 const TTL = 30 * 60_000;
 const routes: Record<string, string[]> = {
   "/": [], "/entry": ["mode", "step", "next"], "/explore": ["mode", "step"], "/settings": [],
-  "/madi": [], "/madi/detail": ["entryId"], "/madi/edit": ["entryId", "source"],
+  "/madi": [], "/madi/detail": ["entryId"], "/madi/edit": ["entryId", "source", "harumadiId"],
   "/madi/new": ["from", "harumadiId", "savedEntryId"], "/harumadi": ["harumadiId", "mode"],
   "/harumadi/invite": [], "/harumadi/pdfs": [], "/harumadi/pdf/view": ["harumadiPdfId", "from"],
   "/inquiry": [], "/location": [], "/notifications": [], "/legal": [], "/account-deletion": [],
@@ -24,7 +24,7 @@ export function safeLoginReturn(value: string | null | undefined): string | null
       : key === "step" ? /^\d{1,2}$/.test(item)
         : key === "mode" ? ["questions", "guide", "together", "settings", "pages"].includes(item)
           : key === "next" ? item === "explore"
-            : key === "source" ? ["detail", "journal"].includes(item)
+            : key === "source" ? ["detail", "journal", "harumadi"].includes(item)
               : ["entry", "welcome", "library", "explore", "pdfs"].includes(item);
     if (valid) params.set(key, item);
   }
