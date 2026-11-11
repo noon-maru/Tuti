@@ -37,7 +37,7 @@ const Bar = styled.footer`
   --main-navigation-item-height: 56px; --main-navigation-create-height: 52px;
   --main-navigation-icon-size: 24px;
   flex: none; border-top: 1px solid var(--color-border); background: var(--color-surface);
-  padding: 8px max(16px, var(--app-safe-area-right, 0px)) calc(10px + var(--app-safe-area-bottom, 0px)) max(16px, var(--app-safe-area-left, 0px));
+  padding: 8px max(16px, var(--app-safe-area-right, 0px)) calc(var(--app-navigation-bottom-space, 10px) + var(--app-safe-area-bottom, 0px)) max(16px, var(--app-safe-area-left, 0px));
 `;
 const Navigation = styled.nav`
   display: grid; grid-template-columns: minmax(56px, 1fr) minmax(max-content, 1.65fr) minmax(56px, 1fr);

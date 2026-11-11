@@ -4,7 +4,7 @@ import styled from "@emotion/styled";
 import { breakpoints } from "@/styles/tokens";
 
 export const ScreenFrame = styled.section`
-  --screen-padding-top: calc(var(--space-11) + var(--app-safe-area-top, 0px));
+  --screen-padding-top: calc(var(--app-header-top-space, var(--space-11)) + var(--app-safe-area-top, 0px));
   --screen-padding-right: calc(
     var(--space-6) + var(--app-safe-area-right, 0px)
   );
@@ -45,7 +45,7 @@ export const ScreenFrame = styled.section`
 
   @container app-viewport (max-height: 620px) {
     --screen-padding-top: calc(
-      var(--space-7) + var(--app-safe-area-top, 0px)
+      var(--app-header-top-space, var(--space-7)) + var(--app-safe-area-top, 0px)
     );
     --screen-padding-bottom: calc(
       var(--space-5) + var(--app-safe-area-bottom, 0px)

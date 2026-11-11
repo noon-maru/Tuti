@@ -1,6 +1,8 @@
 "use client";
 
 import styled from "@emotion/styled";
+import { Capacitor } from "@capacitor/core";
+import { useSyncExternalStore } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { Download } from "lucide-react";
@@ -9,8 +11,14 @@ import { TutiWordmark } from "@/features/tuti/components/TutiWordmark";
 import { breakpoints } from "@/styles/tokens";
 import { baseControlStyles } from "@/features/tuti/components/buttons";
 
+// 플랫폼은 앱 실행 중 바뀌지 않는다. 서버에서는 web으로 시작해 hydration을 맞춘다.
+const subscribePlatform = () => () => {};
+const getPlatform = () => Capacitor.getPlatform();
+const getServerPlatform = () => "web";
+
 export function AppFrame({ children }: { children: React.ReactNode }) {
   const nativeApp = process.env.NEXT_PUBLIC_TUTI_TARGET === "app";
+  const platform = useSyncExternalStore(subscribePlatform, getPlatform, getServerPlatform);
 
   return (
     <Shell $nativeApp={nativeApp}>
@@ -50,6 +58,7 @@ export function AppFrame({ children }: { children: React.ReactNode }) {
         $nativeApp={nativeApp}
         aria-label="Tuti 앱 화면"
         data-app-viewport
+        data-native-platform={nativeApp ? platform : "web"}
       >
         {children}
       </AppViewport>
@@ -228,6 +237,12 @@ const AppViewport = styled.section<{ $nativeApp: boolean }>`
   background: var(--color-surface);
   box-shadow: 0 24px 80px rgb(var(--color-black-rgb) / 0.14);
   isolation: isolate;
+
+  /* 안전 영역은 그대로 두고 iOS 앱의 추가 장식 여백만 줄인다. */
+  &[data-native-platform="ios"] {
+    --app-header-top-space: 16px;
+    --app-navigation-bottom-space: 4px;
+  }
 
   @media (max-width: ${breakpoints.mobile}px) {
     --app-safe-area-top: var(
