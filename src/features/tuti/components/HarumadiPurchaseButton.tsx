@@ -85,4 +85,4 @@ const PurchaseButton = styled(BaseButton)`
 const Notice = styled.div`
   ${captionStyles}
 `;
-const BookPreview = styled.figure`margin: 0; display: grid; justify-items: center; gap: 10px; > div { width: 100px; container-type: inline-size; } figcaption { ${captionStyles} max-width: 100%; overflow-wrap: anywhere; text-align: center; }`;
+const BookPreview = styled.figure`margin: 0; display: grid; justify-items: center; gap: 10px; > div { width: 100px; container-type: inline-size; border: 1px solid var(--color-border); } figcaption { ${captionStyles} max-width: 100%; overflow-wrap: anywhere; text-align: center; }`;
