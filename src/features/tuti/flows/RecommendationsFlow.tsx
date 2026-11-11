@@ -37,6 +37,7 @@ import { getLocationTermsVersion } from "@/shared/location/terms";
 import type { DepartureRoute } from "@/shared/api/departurePlan";
 import type { RecommendationActionInput } from "@/shared/api/recommendationActions";
 import type { IntakeAnswers } from "@/shared/tuti/types";
+import { placeMadiPath } from "@/shared/tuti/placeMadiPath";
 import {
   type SavedDeparturePlace,
   useTutiStore,
@@ -467,6 +468,10 @@ export function RecommendationsFlow({ interactive }: { interactive: boolean }) {
             recordAction({ journeyId: recommendationId, action: "journal_started" });
           }
           router.push(`/madi/new?${search.toString()}`);
+        }}
+        onCreatePlaceMadi={place => {
+          if (recommendationId) recordAction({ journeyId: recommendationId, action: "journal_started", placeId: place.id });
+          router.push(placeMadiPath(place, recommendationId));
         }}
         onAdmin={() => router.push("/admin")}
         onDownload={() => router.push("/download")}

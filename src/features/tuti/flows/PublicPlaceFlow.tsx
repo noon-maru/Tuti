@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { DetailScreen } from "@/features/tuti/screens/detail/DetailScreen";
 import type { TutiPlace } from "@/lib/recommendations";
+import { placeMadiPath } from "@/shared/tuti/placeMadiPath";
 
 export function PublicPlaceFlow({ place }: { place: TutiPlace }) {
   const router = useRouter();
@@ -14,6 +15,7 @@ export function PublicPlaceFlow({ place }: { place: TutiPlace }) {
       travelTimeLabel="공유된 공간"
       backLabel="Tuti에서 다른 공간 찾기"
       showBackMenuItem
+      onCreateMadi={() => router.push(placeMadiPath(place))}
       onBack={() => router.push("/entry?next=explore")}
     />
   );

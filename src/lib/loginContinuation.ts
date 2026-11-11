@@ -6,7 +6,7 @@ const TTL = 30 * 60_000;
 const routes: Record<string, string[]> = {
   "/": [], "/entry": ["mode", "step", "next"], "/explore": ["mode", "step"], "/settings": [],
   "/madi": ["filter", "view"], "/madi/detail": ["entryId"], "/madi/edit": ["entryId", "source", "harumadiId"],
-  "/madi/new": ["from", "harumadiId", "savedEntryId"], "/harumadi": ["harumadiId", "mode"],
+  "/madi/new": ["from", "harumadiId", "savedEntryId", "placeId", "placeName", "journeyId"], "/harumadi": ["harumadiId", "mode"],
   "/harumadi/invite": [], "/harumadi/pdfs": [], "/harumadi/pdf/view": ["harumadiPdfId", "from"],
   "/inquiry": [], "/location": [], "/notifications": [], "/legal": [], "/account-deletion": [],
 };
@@ -20,7 +20,8 @@ export function safeLoginReturn(value: string | null | undefined): string | null
   for (const key of routes[url.pathname]) {
     const item = url.searchParams.get(key);
     if (!item) continue;
-    const valid = key.endsWith("Id") ? /^[a-zA-Z0-9_-]{1,128}$/.test(item)
+    const valid = key === "placeName" ? /^[a-zA-Z0-9_-]{1,128}$/.test(url.searchParams.get("placeId") ?? "") && item.length <= 100 && !/[\u0000-\u001f\u007f]/u.test(item)
+      : key.endsWith("Id") ? /^[a-zA-Z0-9_-]{1,128}$/.test(item)
       : key === "step" ? /^\d{1,2}$/.test(item)
         : key === "filter" ? item === "unfiled"
           : key === "view" ? ["cards", "list"].includes(item)

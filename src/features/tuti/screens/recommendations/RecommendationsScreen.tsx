@@ -90,6 +90,7 @@ export function RecommendationsScreen({
   onDetailExitStart,
   onDetailClose,
   onCreateMadi,
+  onCreatePlaceMadi,
   onAdmin,
   onDownload,
   onSettings,
@@ -131,6 +132,7 @@ export function RecommendationsScreen({
   onDetailExitStart: () => void;
   onDetailClose: () => void;
   onCreateMadi: () => void;
+  onCreatePlaceMadi?: (place: TutiPlace) => void;
   onAdmin: () => void;
   onDownload: () => void;
   onSettings: () => void;
@@ -869,6 +871,7 @@ export function RecommendationsScreen({
               place={presentedDetailPlace}
               travelTimeLabel={activeTravelTimeLabel}
               onBack={onDetailClose}
+              onCreateMadi={onCreatePlaceMadi ? () => onCreatePlaceMadi(presentedDetailPlace) : undefined}
               savedForLater={savedPlaceIds.includes(presentedDetailPlace.id)}
               onToggleSavedForLater={() =>
                 onToggleSavedPlace(presentedDetailPlace)

@@ -9,6 +9,7 @@ import {
   ChevronRight,
   Clock3,
   Ticket,
+  PenLine,
 } from "lucide-react";
 import {
   useCallback,
@@ -95,6 +96,7 @@ export function DetailScreen({
   historyActive = false,
   revealProgress = 1,
   publicView = false,
+  onCreateMadi,
 }: {
   place: TutiPlace;
   travelTimeLabel: string;
@@ -107,6 +109,7 @@ export function DetailScreen({
   historyActive?: boolean;
   revealProgress?: number;
   publicView?: boolean;
+  onCreateMadi?: () => void;
 }) {
   const detailQuery = usePlaceDetail(place.id, true, publicView);
   const detailResponse = detailQuery.data;
@@ -852,6 +855,8 @@ export function DetailScreen({
               )}
             </Section>
 
+            {onCreateMadi && <CreateMadi type="button" onClick={onCreateMadi}><PenLine size={18} aria-hidden="true" />이 장소에서 마디 남기기</CreateMadi>}
+
             {facts.length > 0 && (
               <Section>
                 <SectionTitle>이 정도만 알고 가세요.</SectionTitle>
@@ -947,6 +952,8 @@ export function DetailScreen({
     </Frame>
   );
 }
+
+const CreateMadi = styled(BaseButton)`display: flex; align-items: center; justify-content: center; gap: 8px; min-height: 48px; width: 100%; padding: 12px 16px; border-radius: 999px; background: var(--color-brand-100); color: var(--color-brand-1000); font-size: 14px; font-weight: 500; &:hover { background: var(--color-brand-200); } &:focus-visible { outline: 2px solid var(--color-brand-700); outline-offset: -2px; }`;
 
 function PhotoPreviewStrip({
   images,

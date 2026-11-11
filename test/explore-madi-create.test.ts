@@ -25,7 +25,7 @@ test("작성 전환 미리보기는 비활성이고 정책 요청을 발생시�
 
 test("둘러보기 작성은 방문 장소를 추정하지 않고 저장 후 추천 화면으로 복귀한다", () => {
   const flow = readFileSync("src/features/tuti/flows/RecommendationsFlow.tsx", "utf8");
-  const callback = flow.slice(flow.indexOf("onCreateMadi="), flow.indexOf("onAdmin="));
+  const callback = flow.slice(flow.indexOf("onCreateMadi="), flow.indexOf("onCreatePlaceMadi="));
   assert.doesNotMatch(callback, /activePlace|placeId|placeName|return_confirmed/);
   assert.match(callback, /action: "journal_started"/);
   const create = readFileSync("src/features/tuti/flows/JournalCreateFlow.tsx", "utf8");
