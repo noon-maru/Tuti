@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { readFileSync } from "node:fs";
 import { Children, isValidElement, type ReactElement, type ReactNode } from "react";
 import styled from "@emotion/styled";
 import { clientFlowHarness } from "./fixtures/clientFlowHarness";
@@ -37,11 +38,15 @@ test("책장 검색은 기본 접힘, 열기·입력·닫기·Escape·IME 및 �
   const parent = flow.render();
   const render = () => nodes(flow.render(parent.props, parent.type as never));
   const toggle = () => render().find(node => node.props["aria-expanded"] !== undefined)!;
-  const input = () => render().find(node => node.type === "MadiSearchField");
+  const input = () => render().find(node => node.props.id === "library-name-search")?.props.inert
+    ? undefined : render().find(node => node.type === "MadiSearchField");
   const click = () => (toggle().props.onClick as () => void)();
   (toggle().props.ref as { current: unknown }).current = { focus() { focuses++; } };
   assert.equal(toggle().props["aria-expanded"], false);
   assert.equal(input(), undefined);
+  const closedField = render().find(node => node.type === "MadiSearchField")!;
+  (closedField.props.inputRef as (input: unknown) => void)({ focus() { throw new Error("Closed search must not focus"); } });
+  assert.equal(render().find(node => node.props.id === "library-name-search")?.props["aria-hidden"], true);
   click();
   assert.equal(toggle().props["aria-expanded"], true);
   assert.equal(toggle().props["aria-controls"], "library-name-search");
@@ -62,4 +67,15 @@ test("책장 검색은 기본 접힘, 열기·입력·닫기·Escape·IME 및 �
   };
   assert.equal(escape(true), false); assert.ok(input());
   assert.equal(escape(false), true); assert.equal(input(), undefined); assert.equal(focuses, 2);
+  for (let i = 0; i < 4; i++) click();
+  assert.equal(input(), undefined); assert.equal(term, "");
+});
+
+test("검색 패널은 양방향 공간 전환을 유지하고 동작 줄이기에서는 페이드만 남긴다", () => {
+  const source = readFileSync("src/features/tuti/flows/LibraryHomeFlow.tsx", "utf8");
+  assert.doesNotMatch(source, /searchOpen && <SearchRow/);
+  assert.match(source, /inert=\{!searchOpen\} aria-hidden=\{!searchOpen\}/);
+  assert.match(source, /grid-template-rows:.*\$open.*"1fr" : "0fr"/);
+  assert.match(source, /\$open \? "280ms" : "200ms"/);
+  assert.match(source, /prefers-reduced-motion: reduce.*transition: opacity 100ms ease; > div \{ transform: none; transition: none;/);
 });
