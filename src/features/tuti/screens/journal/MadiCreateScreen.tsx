@@ -5,7 +5,7 @@ import { MADI_COMPOSE_COPY, MADI_FIELD_COPY } from "@/shared/tuti/madiFields";
 
 import styled from "@emotion/styled";
 import Image from "next/image";
-import { Camera, ImagePlus, Check, ArrowRight } from "lucide-react";
+import { Camera, ImagePlus, Check, ArrowRight, PenLine } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ScreenFrame } from "@/features/tuti/components/ScreenFrame";
 import { BackButton, Button, PrimaryButton, TextButton } from "@/features/tuti/components/buttons";
@@ -207,7 +207,7 @@ export function MadiCreateScreen({ onBack, onSave, onCollection, onSaved, onStar
         <Button type="button" disabled={restoringDraft} $tone="secondary" onClick={() => photoInput.current?.click()}><ImagePlus size={18} aria-hidden="true" />{image ? "다른 사진 고르기" : "앨범에서 사진 고르기"}</Button>
         <Button type="button" disabled={restoringDraft} onClick={() => cameraInput.current?.click()}><Camera size={18} aria-hidden="true" />카메라로 남기기</Button>
         {image && <TextButton type="button" disabled={restoringDraft} onClick={() => { removePhoto(); setStage("write"); }}>사진 빼고 글로 남기기</TextButton>}
-        {!image && <TextButton type="button" disabled={restoringDraft} onClick={() => setStage("write")}>사진 없이 글로 시작하기</TextButton>}
+        {!image && <WriteStart type="button" $tone="neutral" disabled={restoringDraft} onClick={() => setStage("write")}><PenLine size={18} aria-hidden="true" />사진 없이 글로 시작하기</WriteStart>}
       </PhotoChoices>}
       <HiddenInput ref={photoInput} type="file" accept="image/*" aria-label="앨범 사진 선택" onChange={choosePhoto} />
       <HiddenInput ref={cameraInput} type="file" accept="image/*" capture="environment" aria-label="카메라 사진 촬영" onChange={choosePhoto} />
@@ -282,6 +282,7 @@ const Intro = styled.div`
   p { ${bodyCopyStyles} color: var(--color-text-muted); word-break: keep-all; }
 `;
 const PhotoChoices = styled.div`display: grid; gap: 12px; margin-top: 8px;`;
+const WriteStart = styled(Button)`min-height: 56px; margin-top: 8px; border: 1px solid var(--color-border); background: var(--color-brand-100); color: var(--color-brand-1000); &:hover:not(:disabled) { background: var(--color-brand-200); }`;
 const PhotoActions = styled.div`display: flex; flex-wrap: wrap; gap: 4px 16px; margin-top: -12px;`;
 const SelectedPhoto = styled.div`position: relative; aspect-ratio: 4 / 3; border-radius: 5px; overflow: hidden; background: #f6f9fc; img { object-fit: contain; }`;
 const HiddenInput = styled.input`display: none;`;

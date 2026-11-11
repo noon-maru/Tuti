@@ -4,6 +4,7 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import test from "node:test";
 import { MadiCreateScreen } from "@/features/tuti/screens/journal/MadiCreateScreen";
+import { madiCreateHarness } from "./fixtures/madiCreateHarness";
 
 test("지정한 하루마디의 실제 제목과 공유 범위를 작성 시작부터 표시한다", () => {
   for (const shared of [false, true]) {
@@ -47,6 +48,16 @@ test("작성 완료는 원래 화면으로 복귀하며 하루마디 연결과 �
   assert.match(screen, /setSavedAsFirstMadi\(firstMadi && !continued\)/);
   assert.match(screen, /const \[placeId, setPlaceId\] = useState<string \| null>\(initialPlace\?\.id \?\? null\)/);
   assert.match(screen, /onTextChange=\{value => \{ setPlace\(value\); setPlaceId\(null\); \}\}/);
+});
+
+test("글 시작은 사진 선택과 같은 버튼으로 노출하고 사진 권한 없이 입력 단계로 이동한다", () => {
+  const screen = madiCreateHarness({ onBack() {}, onCollection() {} }, "photo");
+  screen.click("사진 없이 글로 시작하기");
+  assert.ok(screen.control("기억하고 싶은 이야기"));
+  assert.ok(screen.control("사진 추가하기"));
+  const source = readFileSync("src/features/tuti/screens/journal/MadiCreateScreen.tsx", "utf8");
+  assert.match(source, /!image && <WriteStart[^>]*disabled=\{restoringDraft\}[^>]*onClick=\{\(\) => setStage\("write"\)\}/);
+  assert.match(source, /const WriteStart = styled\(Button\)`min-height: 56px/);
 });
 
 test("화면 제목과 입력은 공통 규칙을 사용하고 마디 지면 미리보기 크기는 따로 유지한다", () => {

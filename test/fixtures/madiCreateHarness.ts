@@ -32,7 +32,7 @@ export function madiCreateHarness(props: ComponentProps<typeof MadiCreateScreen>
     }, useRef: (initial: unknown) => refs[refCursor++] ?? (refs[refCursor - 1] = { current: initial }), useEffect() {}, useCallback: (fn: unknown) => fn },
     "react/jsx-runtime": jsx, "@emotion/styled": { __esModule: true, default: styled },
     "next/image": { __esModule: true, default: tag },
-    "lucide-react": { Camera: tag, ImagePlus: tag, Check: tag, ArrowRight: tag },
+    "lucide-react": { Camera: tag, ImagePlus: tag, Check: tag, ArrowRight: tag, PenLine: tag },
     "@/shared/ui/typography": Object.fromEntries(["screenTitleStyles", "sectionHeadingStyles", "bodyCopyStyles", "captionStyles", "inputControlStyles", "nativeDateInputStyles"].map(key => [key, ""])),
     "@/features/tuti/components/MadiFieldLabel": { MadiFieldLabel: tag },
     "@/shared/tuti/madiFields": copy,
