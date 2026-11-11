@@ -18,9 +18,10 @@ import { useHarumadiLibrary } from "@/features/tuti/hooks/useHarumadiLibrary";
 import { MadiSearchField } from "@/features/tuti/components/MadiSearchField";
 import { harumadiSharingNotice } from "@/shared/harumadi/sharingAudience";
 
-export function MadiHarumadiSelection({ ownerId, entryId, initialBookId, onDone, onNext }: {
+export function MadiHarumadiSelection({ ownerId, entryId, initialBookId, onDone, onNext, existingEntry = false, onBusyChange }: {
   ownerId: string; entryId: string; initialBookId?: string | null;
   onDone: () => void; onNext: (bookId?: string) => void;
+  existingEntry?: boolean; onBusyChange?: (busy: boolean) => void;
 }) {
   const client = useQueryClient();
   const [selected, setSelected] = useState<string | null>(initialBookId ?? null);
@@ -50,7 +51,7 @@ export function MadiHarumadiSelection({ ownerId, entryId, initialBookId, onDone,
 
   const complete = async () => {
     if (saving.current || finished || !selected || !selectedBook) return;
-    saving.current = true; setBusy(true); setError("");
+    saving.current = true; setBusy(true); onBusyChange?.(true); setError("");
     try {
       await addMadiToHarumadi(ownerId, selected, entryId, Boolean(selectedBook?.shared));
       void client.invalidateQueries({ queryKey: ["library-harumadis", ownerId] });
@@ -60,7 +61,7 @@ export function MadiHarumadiSelection({ ownerId, entryId, initialBookId, onDone,
       setCompletion({ id: selectedBook.id, title: selectedBook.title });
     } catch (cause) {
       setError(`마디는 저장되어 있어요. ${cause instanceof Error ? cause.message : "하루마디에 담지 못했어요. 다시 시도해주세요."}`);
-    } finally { saving.current = false; setBusy(false); }
+    } finally { saving.current = false; setBusy(false); onBusyChange?.(false); }
   };
   const renderChoice = (book: Harumadi) => <Choice key={book.id} $selected={selected === book.id}>
     <input type="radio" name="madi-harumadi" value={book.id} checked={selected === book.id} disabled={busy} onChange={() => { setSelected(book.id); setError(""); }} />
@@ -71,16 +72,16 @@ export function MadiHarumadiSelection({ ownerId, entryId, initialBookId, onDone,
   if (finished) return <Frame aria-labelledby="madi-collection-heading">
     <Header><BackButton aria-label="작성 마치기" onClick={onDone} /></Header>
     <Completion role="status"><Check size={30} aria-hidden="true" />
-      <h1 id="madi-collection-heading" ref={heading} tabIndex={-1}>마디를 남겼어요.</h1>
+      <h1 id="madi-collection-heading" ref={heading} tabIndex={-1}>{existingEntry ? "하루마디에 담았어요." : "마디를 남겼어요."}</h1>
       <p>{completion ? `‘${completion.title}’에 담았어요.` : "전체 마디 보기에서 언제든 다시 볼 수 있어요."}</p>
     </Completion>
-    <Footer><PrimaryButton onClick={onDone}>작성 마치기</PrimaryButton>
-      <TextButton onClick={() => onNext(completion?.id)}>{completion ? "같은 하루마디에 다음 마디 남기기" : "다음 마디 남기기"}</TextButton>
+    <Footer><PrimaryButton onClick={onDone}>{existingEntry ? "목록으로 돌아가기" : "작성 마치기"}</PrimaryButton>
+      {!existingEntry && <TextButton onClick={() => onNext(completion?.id)}>{completion ? "같은 하루마디에 다음 마디 남기기" : "다음 마디 남기기"}</TextButton>}
     </Footer>
   </Frame>;
 
   return <Frame aria-labelledby="madi-collection-heading" aria-busy={busy}>
-    <Header><BackButton aria-label="담지 않고 마치기" disabled={busy} onClick={onDone} /><span><Check size={16} />마디 저장 완료</span></Header>
+    <Header><BackButton aria-label="담지 않고 마치기" disabled={busy} onClick={onDone} /><span>{!existingEntry && <Check size={16} />}{existingEntry ? "마디 담기" : "마디 저장 완료"}</span></Header>
     <Content data-scroll-region>
       <Intro><h1 id="madi-collection-heading" ref={heading} tabIndex={-1}>어느 하루마디에<br />담아둘까요?</h1><p>지금 담지 않아도 괜찮아요.<br />남긴 마디는 ‘전체 마디 보기’에서 다시 볼 수 있어요.</p></Intro>
       <MadiSearchField value={search.search} onChange={value => { setSelected(null); search.setSearch(value); }} label="하루마디 이름 검색" placeholder="하루마디 이름으로 찾기" />
@@ -96,7 +97,7 @@ export function MadiHarumadiSelection({ ownerId, entryId, initialBookId, onDone,
     </Content>
     <Footer>
       {!search.searching && query.isSuccess && !books.length ? <CreateLink href={`/harumadi?addEntryId=${encodeURIComponent(entryId)}`}>새 하루마디 만들어 담기</CreateLink> : <PrimaryButton disabled={busy || !canAdd} onClick={() => void complete()}>{busy ? "담고 있어요…" : "이 하루마디에 담기"}</PrimaryButton>}
-      <TextButton disabled={busy} onClick={() => setCompletion(null)}>지금은 담지 않기</TextButton>
+      <TextButton disabled={busy} onClick={() => { if (existingEntry) onDone(); else setCompletion(null); }}>지금은 담지 않기</TextButton>
     </Footer>
   </Frame>;
 }

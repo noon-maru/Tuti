@@ -32,7 +32,7 @@ test("검색 결과는 모든 결과를 순서대로 열 수 있는 압축 목�
   assert.equal((html.match(/data-journal-transition-surface="journal"/g) ?? []).length, 2);
   assert.doesNotMatch(html, /aria-pressed|tabindex="-1"/);
   const source = readFileSync("src/features/tuti/screens/journal/JournalScreen.tsx", "utf8");
-  assert.match(source, /entries.length > 0 && !search.trim\(\) && <StackNavigation/);
+  assert.match(source, /entries.length > 0 && !search.trim\(\) && !onlyUnfiled && <StackNavigation/);
 });
 
 test("검색 필드는 명확한 이름과 지우기를 제공하고 검색 결과가 없어도 원본 삭제로 안내하지 않는다", () => {

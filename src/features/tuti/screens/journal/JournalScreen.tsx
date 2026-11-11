@@ -10,6 +10,10 @@ import styled from "@emotion/styled";
 import { useMemo, useRef, useState } from "react";
 import { MadiSearchField } from "@/features/tuti/components/MadiSearchField";
 import { MadiSearchResults } from "@/features/tuti/components/MadiSearchResults";
+import { useSession } from "@/features/tuti/hooks/useSession";
+import { useHarumadiLibrary } from "@/features/tuti/hooks/useHarumadiLibrary";
+import { MadiCollectionDialog } from "@/features/tuti/components/MadiCollectionDialog";
+import { unfiledMadi } from "@/shared/tuti/unfiledMadi";
 import { filterJournalEntries } from "@/shared/tuti/journalSearch";
 import { ContextMenu } from "@/features/tuti/components/ContextMenu";
 import { LoadingIndicator } from "@/features/tuti/components/LoadingIndicator";
@@ -37,10 +41,14 @@ export function JournalScreen({
   onCreateEntry,
   onEditEntry,
   onOpenEntry,
+  onlyUnfiled = false,
+  onChangeFilter,
 }: {
   onBack: () => void;
   onCreateEntry?: () => void;
   onEditEntry?: (entryId: string) => void;
+  onlyUnfiled?: boolean;
+  onChangeFilter?: (onlyUnfiled: boolean) => void;
   onOpenEntry?: (
     entryId: string,
     image: string | null,
@@ -49,6 +57,9 @@ export function JournalScreen({
 }) {
   const [stackDragY, setStackDragY] = useState(0);
   const [search, setSearch] = useState("");
+  const [collectEntryId, setCollectEntryId] = useState<string | null>(null);
+  const ownerId = useSession()?.userId;
+  const library = useHarumadiLibrary(ownerId);
   const [shareEntryId, setShareEntryId] = useState<string | null>(null);
   const stackPointerStart = useRef<number | null>(null);
   const selectedCardRef = useRef<HTMLButtonElement>(null);
@@ -64,7 +75,13 @@ export function JournalScreen({
     changeEntryPublication,
     removeEntry,
   } = useTutiJournalEntries();
-  const entries = useMemo(() => filterJournalEntries(allEntries, search), [allEntries, search]);
+  const unfiled = useMemo(() => unfiledMadi(allEntries, library.isSuccess && !library.isFetching ? library.data?.pages.flatMap(page => page.harumadis) : undefined), [allEntries, library.isSuccess, library.isFetching, library.data]);
+  const entries = useMemo(() => {
+    const found = filterJournalEntries(allEntries, search);
+    const available = new Set(unfiled?.map(entry => entry.id));
+    return onlyUnfiled ? found.filter(entry => available.has(entry.id)) : found;
+  }, [allEntries, search, onlyUnfiled, unfiled]);
+  const collectEntry = allEntries.find(entry => entry.id === collectEntryId);
   const shareEntry = allEntries.find((entry) => entry.id === shareEntryId);
   const shareActions = useJournalShareActions({
     entry: shareEntry,
@@ -200,10 +217,14 @@ export function JournalScreen({
       </ListHeader>
 
       {allEntries.length > 0 && <MadiSearchField value={search} onChange={setSearch} />}
+      {allEntries.length > 0 && <FilterBar aria-label="마디 필터">
+        <TextButton aria-pressed={!onlyUnfiled} onClick={() => onChangeFilter?.(false)}>전체</TextButton>
+        <TextButton aria-pressed={onlyUnfiled} disabled={!onlyUnfiled && unfiled === null} onClick={() => onChangeFilter?.(true)}>아직 담지 않은 마디</TextButton>
+      </FilterBar>}
       {isError && allEntries.length > 0 && <MadiLoadNotice compact busy={isFetching} onRetry={() => void refetch()} />}
 
-      {entries.length > 0 && search.trim() ? <MadiSearchResults entries={entries} selectedId={selectedEntryId} selectedRef={selectedCardRef}
-        onOpen={(entry, target) => { setActiveJournalEntry(entry.id); onOpenEntry?.(entry.id, entry.image, target); }} /> : entries.length > 0 ? (
+      {allEntries.length > 0 && onlyUnfiled && unfiled === null ? <EmptyState>{library.isError ? <><p>담긴 하루마디를 확인하지 못했어요.</p><TextButton onClick={() => void library.refetch()}>다시 확인하기</TextButton></> : <LoadingIndicator label="담긴 하루마디를 확인하고 있어요." />}</EmptyState> : entries.length > 0 && (search.trim() || onlyUnfiled) ? <MadiSearchResults entries={entries} selectedId={selectedEntryId} selectedRef={selectedCardRef}
+        onCollect={setCollectEntryId} onOpen={(entry, target) => { setActiveJournalEntry(entry.id); onOpenEntry?.(entry.id, entry.image, target); }} /> : entries.length > 0 ? (
         <MemoryStack
           ref={stackRef}
           role="region"
@@ -304,6 +325,10 @@ export function JournalScreen({
                           },
                         },
                         {
+                          label: "하루마디에 담기",
+                          onSelect: () => setCollectEntryId(entry.id),
+                        },
+                        {
                           label: "수정하기",
                           onSelect: () => onEditEntry?.(entry.id),
                         },
@@ -326,7 +351,8 @@ export function JournalScreen({
         </MemoryStack>
       ) : allEntries.length > 0 ? (
         <EmptyState>
-          <p role="status">검색한 마디가 없어요.</p>
+          <p role="status">{onlyUnfiled && !search.trim() ? "모든 마디를 하루마디에 담았어요." : "검색한 마디가 없어요."}</p>
+          {onlyUnfiled && <TextButton onClick={() => onChangeFilter?.(false)}>모든 마디 보기</TextButton>}
           <TextButton type="button" onClick={() => setSearch("")}>전체 마디 보기</TextButton>
         </EmptyState>
       ) : isPending ? (
@@ -341,7 +367,7 @@ export function JournalScreen({
           {onCreateEntry && <TextButton type="button" onClick={onCreateEntry}>첫 마디 남기기</TextButton>}
         </EmptyState>
       )}
-      {entries.length > 0 && !search.trim() && <StackNavigation aria-label="마디 이동">
+      {entries.length > 0 && !search.trim() && !onlyUnfiled && <StackNavigation aria-label="마디 이동">
         <TextButton type="button" disabled={entries.length < 2} onClick={() => moveStack(-1)}><ChevronLeft size={18} />이전 마디</TextButton>
         <span role="status" aria-live="polite" aria-atomic="true">{selectedEntryIndex + 1} / {entries.length}</span>
         <TextButton type="button" disabled={entries.length < 2} onClick={() => moveStack(1)}>다음 마디<ChevronRight size={18} /></TextButton>
@@ -357,6 +383,7 @@ export function JournalScreen({
           onUnpublish={shareActions.unpublish}
         />
       )}
+      {ownerId && collectEntry && <MadiCollectionDialog key={`${ownerId}:${collectEntry.id}`} ownerId={ownerId} entryId={collectEntry.id} onClose={() => setCollectEntryId(null)} />}
     </Frame>
   );
 }
@@ -365,6 +392,7 @@ const StackNavigation = styled.nav`display: flex; flex: none; justify-content: s
   > button { display: inline-flex; align-items: center; gap: 4px; min-height: 44px; padding: 8px 4px; }
   > span { font-size: var(--ui-caption-size); color: var(--color-text-muted); font-variant-numeric: tabular-nums; }
 `;
+const FilterBar = styled.div`flex: none; display: flex; flex-wrap: wrap; gap: 4px 8px; > button { min-height: 44px; padding: 8px 12px; border-radius: 999px; font-size: 13px; &[aria-pressed="true"] { color: var(--color-brand-1000); background: var(--color-brand-100); } }`;
 
 function formatJournalDate(value: string) {
   const date = new Date(value);

@@ -26,6 +26,12 @@ function JournalPageContent() {
 
   return (
     <JournalScreen
+      onlyUnfiled={params.get("filter") === "unfiled"}
+      onChangeFilter={onlyUnfiled => {
+        const next = new URLSearchParams(params.toString());
+        if (onlyUnfiled) next.set("filter", "unfiled"); else next.delete("filter");
+        router.replace(`/madi${next.size ? `?${next}` : ""}`);
+      }}
       onBack={() => window.history.length > 1 ? router.back() : router.replace(backPath)}
       onCreateEntry={() => router.push("/madi/new")}
       onEditEntry={(entryId) => {
