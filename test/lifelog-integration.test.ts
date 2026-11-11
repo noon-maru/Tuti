@@ -30,7 +30,7 @@ test("새 마디 간편 작성은 일반 마디로 저장하며 미동의 권리
   const first = readFileSync("src/features/tuti/screens/journal/MadiCreateScreen.tsx", "utf8");
   assert.match(first, /sensitiveContent: false/);
   assert.match(first, /if \(!draft \|\| savingRef.current \|\| preview \|\| !onSave \|\| saveBlocked\) return/);
-  assert.match(first, /const saveBlocked = restoringDraft \|\| Boolean\(inHarumadi && \(!destination \|\| !destinationVerified \|\| destinationScopeChanged\)\)/);
+  assert.match(first, /const saveBlocked = restoringDraft \|\| preparingPhoto \|\| Boolean\(inHarumadi && \(!destination \|\| !destinationVerified \|\| destinationScopeChanged\)\)/);
   assert.doesNotMatch(first, /sensitiveConsentVersion|fetchSensitiveJournalPolicy/);
   const main = readFileSync("src/features/tuti/flows/MainFlow.tsx", "utf8");
   assert.doesNotMatch(main, /<RecommendationsFlow|router\.replace/);

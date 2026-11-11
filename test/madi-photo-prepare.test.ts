@@ -41,9 +41,44 @@ test("사진 선택은 맞추기를 열지 않고 글 없는 마디를 저장하
   const crop = findMadiControl(screen.render(), p => Boolean(p.source && p.onConfirm))!;
   assert.equal(crop.source, "data:image/jpeg;base64,synthetic");
   (crop.onCancel as () => void)();
-  screen.click("새로운 마디 남기기");
+  assert.equal(screen.control("이야기 덧붙이기선택")["aria-expanded"], false);
+  screen.click("사진으로 마디 남기기");
   await new Promise(resolve => setImmediate(resolve));
   assert.equal(saved?.image, "data:image/jpeg;base64,synthetic"); assert.equal(saved?.content, "");
+});
+test("사진의 선택 입력을 접어도 이야기·제목은 보존하고 사진을 빼면 글 입력이 다시 보인다", async () => {
+  const screen = madiCreateHarness(props, "photo");
+  await choose(screen);
+  screen.click("이야기 덧붙이기선택");
+  assert.equal(screen.control("이야기 접기선택")["aria-expanded"], true);
+  screen.change("마디 제목 (선택)", "오래 남길 제목");
+  screen.change("기억하고 싶은 이야기", "접어도 남길 이야기");
+  screen.click("이야기 접기선택");
+  assert.equal(screen.control("기억하고 싶은 이야기").value, "접어도 남길 이야기");
+  assert.equal(findMadiControl(screen.render(), p => p.id === "madi-story-fields")?.hidden, true);
+  screen.click("사진 빼기");
+  assert.equal(findMadiControl(screen.render(), p => p.id === "madi-story-fields")?.hidden, false);
+  assert.equal(screen.control("마디 제목 (선택)").value, "오래 남길 제목");
+  assert.equal(screen.control("기억하고 싶은 이야기").value, "접어도 남길 이야기");
+});
+test("늦은 촬영일은 직접 고친 날짜·저장 시작 이후의 날짜를 변경하지 않는다", async () => {
+  let metadata!: (value: { captureDate: string }) => void;
+  const screen = madiCreateHarness(props, "photo", {
+    "@/features/tuti/lib/readImageMetadata": { readImageMetadata: () => new Promise(resolve => { metadata = resolve; }) },
+  });
+  await choose(screen);
+  screen.change("마디 날짜", "2026-01-02");
+  metadata({ captureDate: "2025-01-01" }); await new Promise(resolve => setImmediate(resolve));
+  assert.equal(screen.control("마디 날짜").value, "2026-01-02");
+  let late!: (value: { captureDate: string }) => void;
+  const saving = madiCreateHarness({ ...props, onSave: async () => { throw Error("저장 실패"); } }, "photo", {
+    "@/features/tuti/lib/readImageMetadata": { readImageMetadata: () => new Promise(resolve => { late = resolve; }) },
+  });
+  await choose(saving);
+  const date = saving.control("마디 날짜").value;
+  saving.click("사진으로 마디 남기기"); await new Promise(resolve => setImmediate(resolve));
+  late({ captureDate: "2025-01-01" }); await new Promise(resolve => setImmediate(resolve));
+  assert.equal(saving.control("마디 날짜").value, date);
 });
 test("사진 준비 실패·이전 선택의 늦은 응답은 사진과 글을 덮어쓰지 않는다", async () => {
   const pending: Array<{ resolve: (image: string) => void; reject: () => void }> = [];
@@ -59,4 +94,17 @@ test("사진 준비 실패·이전 선택의 늦은 응답은 사진과 글을 �
   assert.ok(findMadiControl(screen.render(), p => p.src === "data:image/jpeg;base64,current"));
   assert.equal(screen.control("기억하고 싶은 이야기").value, "보존할 글");
   assert.ok(findMadiControl(screen.render(), p => p.role === "alert"));
+});
+test("사진 처리 시작 직전의 저장 콜백도 저장을 막고 뒤로가기 이후 사진 응답은 버린다", async () => {
+  let resolve!: (photo: string) => void, saved = 0;
+  const screen = madiCreateHarness({ ...props, onSave: async () => { saved++; return harumadiContent().entries[0]; } }, "write", {
+    "@/features/tuti/lib/prepareMadiPhoto": { prepareMadiPhoto: () => new Promise<string>(done => { resolve = done; }) },
+  });
+  screen.change("기억하고 싶은 이야기", "남겨둘 글");
+  const staleSave = screen.control("새로운 마디 남기기").onClick as () => void;
+  const pending = choose(screen);
+  staleSave(); assert.equal(saved, 0);
+  screen.click("이전으로");
+  resolve("data:image/jpeg;base64,late"); await pending;
+  assert.equal(findMadiControl(screen.render(), p => p.src === "data:image/jpeg;base64,late"), undefined);
 });

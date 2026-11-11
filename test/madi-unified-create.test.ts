@@ -56,7 +56,7 @@ test("글 시작은 사진 선택과 같은 버튼으로 노출하고 사진 권
   assert.ok(screen.control("기억하고 싶은 이야기"));
   assert.ok(screen.control("사진 추가하기"));
   const source = readFileSync("src/features/tuti/screens/journal/MadiCreateScreen.tsx", "utf8");
-  assert.match(source, /!image && <WriteStart[^>]*disabled=\{restoringDraft\}[^>]*onClick=\{\(\) => setStage\("write"\)\}/);
+  assert.match(source, /!image && <WriteStart[^>]*disabled=\{restoringDraft \|\| preparingPhoto\}[^>]*onClick=\{\(\) => setStage\("write"\)\}/);
   assert.match(source, /const WriteStart = styled\(Button\)`min-height: 56px/);
 });
 

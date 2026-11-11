@@ -60,6 +60,8 @@ export function MadiCreateScreen({ onBack, onSave, onCollection, onSaved, onStar
   const [date, setDate] = useState(getKoreanDateKey);
   const [place, setPlace] = useState(initialPlace?.name ?? "");
   const [placeId, setPlaceId] = useState<string | null>(initialPlace?.id ?? null);
+  const [storyOpen, setStoryOpen] = useState(false);
+  const [placeOpen, setPlaceOpen] = useState(false);
   const [saved, setSaved] = useState<TutiJournalEntry | null>(null);
   const needsBookSelection = Boolean(saved && !saved.savedHarumadi && harumadiSelection && !inHarumadi);
   const madiLabel = (saved ? savedAsFirstMadi : firstMadi && !continued) ? "첫 마디" : "새로운 마디";
@@ -69,6 +71,7 @@ export function MadiCreateScreen({ onBack, onSave, onCollection, onSaved, onStar
   const [touched, setTouched] = useState<Partial<Record<keyof MadiFieldErrors, boolean>>>({});
   const touch = (field: keyof MadiFieldErrors) => setTouched(current => ({ ...current, [field]: true }));
   const savingRef = useRef(false);
+  const preparingPhotoRef = useRef(false);
   const dateEdited = useRef(false);
   const selection = useRef(0);
   const photoInput = useRef<HTMLInputElement>(null);
@@ -84,6 +87,7 @@ export function MadiCreateScreen({ onBack, onSave, onCollection, onSaved, onStar
     restore: value => {
       setImage(value.image); setTitle(value.title); setContent(value.content); setDate(value.date); setPlace(value.place); setStage(value.stage ?? "write");
       setPlaceId(value.placeId);
+      setStoryOpen(Boolean(value.title || value.content)); setPlaceOpen(Boolean(value.place));
       dateEdited.current = true;
     } });
   const restoringDraft = !localDraft.ready && !preview;
@@ -105,6 +109,7 @@ export function MadiCreateScreen({ onBack, onSave, onCollection, onSaved, onStar
     if (cropSource) { cancelCrop(); return; }
     if (savingRef.current) return;
     selection.current += 1;
+    preparingPhotoRef.current = false;
     setPreparingPhoto(false);
     if (saved) { onCollection(); return; }
     if (stage === "preview") setStage("write");
@@ -127,6 +132,7 @@ export function MadiCreateScreen({ onBack, onSave, onCollection, onSaved, onStar
     if (!file || savingRef.current) return;
     setError("");
     const id = ++selection.current;
+    preparingPhotoRef.current = true;
     setPreparingPhoto(true);
     // 새 마디 작성에서 GPS는 읽지 않는다. 촬영일만 선택적으로 가져온다.
     const metadata = readImageMetadata(file);
@@ -134,13 +140,14 @@ export function MadiCreateScreen({ onBack, onSave, onCollection, onSaved, onStar
       const photo = await prepareMadiPhoto(file);
       if (id !== selection.current) return;
       setImage(photo); setStage("write");
+      if (title || content) setStoryOpen(true);
       void metadata.then(value => {
         if (id === selection.current && !dateEdited.current && !savingRef.current && value.captureDate && value.captureDate <= today) setDate(value.captureDate);
       }).catch(() => {});
     } catch {
       if (id === selection.current) setError("사진을 불러오지 못했어요. 다른 사진을 선택하거나 글로 남겨주세요.");
     } finally {
-      if (id === selection.current) setPreparingPhoto(false);
+      if (id === selection.current) { preparingPhotoRef.current = false; setPreparingPhoto(false); }
     }
   };
 
@@ -149,6 +156,7 @@ export function MadiCreateScreen({ onBack, onSave, onCollection, onSaved, onStar
   };
   const removePhoto = () => {
     selection.current += 1;
+    preparingPhotoRef.current = false;
     setPreparingPhoto(false);
     setImage(null);
     setCropSource(null);
@@ -156,6 +164,7 @@ export function MadiCreateScreen({ onBack, onSave, onCollection, onSaved, onStar
   };
 
   const save = async () => {
+    if (preparingPhotoRef.current) return;
     if (!draft || savingRef.current || preview || !onSave || saveBlocked) return;
     savingRef.current = true;
     selection.current += 1;
@@ -183,6 +192,7 @@ export function MadiCreateScreen({ onBack, onSave, onCollection, onSaved, onStar
     selection.current += 1;
     setSaved(null); setImage(null); setTitle(""); setContent(""); setDate(getKoreanDateKey()); setPlace(""); setError("");
     setPlaceId(null);
+    setStoryOpen(false); setPlaceOpen(false);
     setTouched({});
     dateEdited.current = false;
     setStage("photo");
@@ -209,8 +219,8 @@ export function MadiCreateScreen({ onBack, onSave, onCollection, onSaved, onStar
             : !destinationVerified ? <span>작성하는 동안 담을 곳을 확인할게요.</span>
               : <span>{harumadiSharingNotice(destination ?? {})}</span>}
       </Destination>}
-      <Intro>
-        <h1 ref={heading} tabIndex={-1} id="madi-create-heading">{saved ? <>{madiLabel}를<br />남겼어요.</> : stage === "photo" ? <>어떤 순간을<br />오래 간직하고 싶나요?</> : stage === "write" ? <>그날의 이야기를<br />조금만 들려주세요.</> : <>{madiLabel}를<br />살펴볼까요?</>}</h1>
+      <Intro $compact={Boolean(image && stage === "write" && !saved)}>
+        <h1 ref={heading} tabIndex={-1} id="madi-create-heading">{saved ? <>{madiLabel}를<br />남겼어요.</> : stage === "photo" ? <>어떤 순간을<br />오래 간직하고 싶나요?</> : stage === "write" ? image ? "이 순간을 남겨볼까요?" : <>그날의 이야기를<br />조금만 들려주세요.</> : <>{madiLabel}를<br />살펴볼까요?</>}</h1>
         <p>{saved ? saved.savedHarumadi ? `‘${saved.savedHarumadi.title}’에 담았어요.` : "남긴 마디는 전체 마디 보기에서 볼 수 있어요." : stage === "photo" ? photoIntro : stage === "write" ? "길게 쓰지 않아도 괜찮아요. 사진만 남겨도 좋아요." : "사진과 이야기를 확인해주세요."}</p>
       </Intro>
       {!saved && stage === "photo" && <PhotoChoices>
@@ -222,23 +232,26 @@ export function MadiCreateScreen({ onBack, onSave, onCollection, onSaved, onStar
       </PhotoChoices>}
       <HiddenInput ref={photoInput} type="file" accept="image/*" aria-label="앨범 사진 선택" onChange={choosePhoto} />
       <HiddenInput ref={cameraInput} type="file" accept="image/*" capture="environment" aria-label="카메라 사진 촬영" onChange={choosePhoto} />
-      {!saved && stage === "write" && <Fields disabled={saving || restoringDraft || preparingPhoto} aria-label="마디 내용" aria-busy={saving || restoringDraft || preparingPhoto}>
+      {!saved && stage === "write" && <Fields $photo={Boolean(image)} disabled={saving || restoringDraft || preparingPhoto} aria-label="마디 내용" aria-busy={saving || restoringDraft || preparingPhoto}>
         {image && <SelectedPhoto><Image src={image} alt="마디에 담을 사진" fill unoptimized sizes="350px" /></SelectedPhoto>}
         <PhotoActions><TextButton type="button" onClick={() => photoInput.current?.click()}>{image ? "사진 바꾸기" : "사진 추가하기"}</TextButton>{image && <><TextButton type="button" onClick={() => setCropSource(image)}>사진 맞추기</TextButton><TextButton type="button" onClick={removePhoto}>사진 빼기</TextButton></>}</PhotoActions>
+        {image && <OptionalAction type="button" aria-expanded={storyOpen} aria-controls="madi-story-fields" onClick={() => setStoryOpen(value => !value)}><PenLine size={16} aria-hidden="true" />{storyOpen ? "이야기 접기" : title || content ? "이야기 수정하기" : "이야기 덧붙이기"}<small>선택</small></OptionalAction>}
+        <StoryFields id="madi-story-fields" hidden={Boolean(image && !storyOpen)}>
         <label><MadiFieldLabel>제목 <small>선택</small></MadiFieldLabel><input aria-label="마디 제목 (선택)" placeholder={MADI_FIELD_COPY.titlePlaceholder} maxLength={FIRST_JOURNAL_TITLE_LIMIT} value={title} onChange={event => setTitle(event.target.value)}
           onBlur={() => touch("title")} aria-invalid={Boolean(touched.title && fieldErrors.title)} aria-describedby={fieldErrors.title ? "madi-title-feedback" : undefined} />
           <MadiFieldFeedback id="madi-title-feedback" message={fieldErrors.title} touched={touched.title} /></label>
         <label><MadiFieldLabel>기억하고 싶은 이야기 <small>{image ? "선택" : "필수"}</small></MadiFieldLabel><textarea aria-label="기억하고 싶은 이야기" placeholder={MADI_FIELD_COPY.storyPlaceholder} maxLength={FIRST_JOURNAL_CONTENT_LIMIT} value={content} onChange={(event) => setContent(event.target.value)}
           aria-required={!image} onBlur={() => touch("content")} aria-invalid={Boolean(touched.content && fieldErrors.content)} aria-describedby={fieldErrors.content ? "madi-content-feedback" : undefined} />
           <MadiFieldFeedback id="madi-content-feedback" message={fieldErrors.content} touched={touched.content} /></label>
-        <label><MadiFieldLabel>날짜</MadiFieldLabel><input aria-label="마디 날짜" type="date" max={today} value={date} onChange={(event) => { dateEdited.current = true; setDate(event.target.value); }}
+        </StoryFields>
+        <DateField $compact={Boolean(image)}><MadiFieldLabel>날짜</MadiFieldLabel><input aria-label="마디 날짜" type="date" max={today} value={date} onChange={(event) => { dateEdited.current = true; setDate(event.target.value); }}
           aria-required="true" onBlur={() => touch("date")} aria-invalid={Boolean(touched.date && fieldErrors.date)} aria-describedby={fieldErrors.date ? "madi-date-feedback" : undefined} />
-          <MadiFieldFeedback id="madi-date-feedback" message={fieldErrors.date} touched={touched.date} /></label>
-        <div><MadiFieldLabel>장소 <small>선택</small></MadiFieldLabel><JournalPlacePicker value={place} placeId={placeId}
+          <MadiFieldFeedback id="madi-date-feedback" message={fieldErrors.date} touched={touched.date} /></DateField>
+        <div>{placeOpen || place ? <><MadiFieldLabel>장소 <small>선택</small></MadiFieldLabel><JournalPlacePicker value={place} placeId={placeId}
           onBlur={() => touch("place")} invalid={Boolean(touched.place && fieldErrors.place)} describedBy={fieldErrors.place ? "madi-place-feedback" : undefined}
           onTextChange={value => { setPlace(value); setPlaceId(null); }}
           onChange={value => { setPlace(value.name); setPlaceId(value.id); }} />
-          <MadiFieldFeedback id="madi-place-feedback" message={fieldErrors.place} touched={touched.place} /></div>
+          <MadiFieldFeedback id="madi-place-feedback" message={fieldErrors.place} touched={touched.place} /></> : <OptionalAction type="button" onClick={() => setPlaceOpen(true)}>장소 추가<small>선택</small></OptionalAction>}</div>
         <PrivacyHint>민감정보나 주민등록번호 등은 남기지 말아주세요.</PrivacyHint>
       </Fields>}
       {(saved || stage === "preview") && <MemoryPage
@@ -261,7 +274,7 @@ export function MadiCreateScreen({ onBack, onSave, onCollection, onSaved, onStar
       </> : stage === "photo" ? image && <PrimaryButton type="button" disabled={restoringDraft} onClick={() => setStage("write")}>이 사진으로 계속하기</PrimaryButton>
         : stage === "write" ? <>
           {inHarumadi && destinationVerified && destination && <PrivacyHint>{destination.title} · {harumadiSharingNotice(destination)}</PrivacyHint>}
-          <PrimaryButton type="button" disabled={!draft || saving || saveBlocked} onClick={() => void save()}>{saving ? "마디를 저장하고 있어요…" : `${madiLabel} 남기기`}</PrimaryButton>
+          <PrimaryButton type="button" disabled={!draft || saving || saveBlocked} onClick={() => void save()}>{saving ? "마디를 저장하고 있어요…" : image && !title.trim() && !content.trim() ? "사진으로 마디 남기기" : `${madiLabel} 남기기`}</PrimaryButton>
           <TextButton type="button" disabled={!draft || saving || restoringDraft} onClick={() => { setError(""); setStage("preview"); }}>미리보기</TextButton>
         </>
           : <>{inHarumadi && destinationVerified && destination && <PrivacyHint>{destination.title} · {harumadiSharingNotice(destination)}</PrivacyHint>}<PrimaryButton type="button" disabled={!draft || saving || saveBlocked} onClick={() => void save()}>{saving ? "마디를 저장하고 있어요…" : "이대로 마디 남기기"}</PrimaryButton><TextButton type="button" disabled={saving} onClick={() => setStage("write")}>조금 더 고치기</TextButton></>}
@@ -289,24 +302,31 @@ const HeaderTitle = styled.span<{ $book?: boolean }>`${screenTitleStyles} min-wi
 `;
 const StepCount = styled.div`font-size: 12px; color: var(--color-text-muted); display: flex; justify-content: center;`;
 const Content = styled.div`flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 2px 2px 24px; display: flex; flex-direction: column; gap: 26px; > * { flex-shrink: 0; }`;
-const Intro = styled.div`
+const Intro = styled.div<{ $compact?: boolean }>`
   h1 { ${sectionHeadingStyles} margin-bottom: var(--space-3); &:focus { outline: none; } }
   p { ${bodyCopyStyles} color: var(--color-text-muted); word-break: keep-all; }
+  ${({ $compact }) => $compact && `h1 { font-size: 20px; line-height: 1.5; margin-bottom: 8px; }`}
 `;
 const PhotoChoices = styled.div`display: grid; gap: 12px; margin-top: 8px;`;
 const WriteStart = styled(Button)`min-height: 56px; margin-top: 8px; border: 1px solid var(--color-border); background: var(--color-brand-100); color: var(--color-brand-1000); &:hover:not(:disabled) { background: var(--color-brand-200); }`;
 const PhotoActions = styled.div`display: flex; flex-wrap: wrap; gap: 4px 16px; margin-top: -12px;`;
+const OptionalAction = styled(TextButton)`min-height: 44px; display: flex; align-items: center; justify-content: flex-start; gap: 8px; width: fit-content; padding: 8px 0; color: var(--color-brand-1000); small { ${captionStyles} }`;
+const StoryFields = styled.div`display: grid; gap: 24px; min-width: 0; &[hidden] { display: none; }`;
+const DateField = styled.label<{ $compact: boolean }>`
+  ${({ $compact }) => $compact && `&& { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 12px; } && input { width: min(190px, 100%); min-height: 44px; padding: 8px 12px; }`}
+`;
 const SelectedPhoto = styled.div`position: relative; aspect-ratio: 4 / 3; border-radius: 5px; overflow: hidden; background: #f6f9fc; img { object-fit: contain; }`;
 const HiddenInput = styled.input`display: none;`;
 const PrivacyHint = styled.p`${captionStyles} margin: 0; min-width: 0; word-break: keep-all; overflow-wrap: anywhere;`;
 const Destination = styled.div`display: grid; gap: 4px; padding-bottom: 16px; border-bottom: 1px solid var(--color-border); strong { font-size: var(--ui-body-size); font-weight: 600; overflow-wrap: anywhere; } span { ${captionStyles} }`;
-const Fields = styled.fieldset`
+const Fields = styled.fieldset<{ $photo?: boolean }>`
   margin: 0; padding: 0; border: 0; display: grid; grid-template-columns: minmax(0, 1fr); min-width: 0; min-inline-size: 0; gap: 24px;
   label { display: grid; grid-template-columns: minmax(0, 1fr); min-width: 0; gap: 10px; font-size: var(--ui-body-size); font-weight: 500; }
   small { ${captionStyles} display: inline; }
   input, textarea { ${inputControlStyles} }
   input[type="date"] { ${nativeDateInputStyles} }
   textarea { min-height: 130px; resize: vertical; }
+  ${({ $photo }) => $photo && `gap: 12px;`}
 `;
 const Page = styled.article`position: relative; min-height: 420px; width: 100%; display: flex; flex-direction: column; gap: 32px; padding: 28px 24px; border: 1px solid #e6edf4; border-radius: 3px; background: #fff;`;
 const PageMeta = styled.div`display: flex; justify-content: space-between; gap: 20px; font-size: 10px; line-height: 1.7; > span { min-width: 0; overflow-wrap: anywhere; }`;
