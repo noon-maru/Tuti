@@ -31,8 +31,8 @@ import {
 import {
   getKoreanDateKey,
   isKoreanDateBefore,
-  isCurrentKoreanDate,
 } from "@/lib/date/koreanDate";
+import { isIntakePreferenceCurrent } from "@/lib/intakePreferences";
 import { getLocationTermsVersion } from "@/shared/location/terms";
 import type { DepartureRoute } from "@/shared/api/departurePlan";
 import type { RecommendationActionInput } from "@/shared/api/recommendationActions";
@@ -107,7 +107,7 @@ export function RecommendationsFlow({ interactive }: { interactive: boolean }) {
   const snoozeDailyCheckIn = useTutiStore(
     (state) => state.snoozeDailyCheckIn,
   );
-  const dailyRecordCurrent = isCurrentKoreanDate(entryRecord, currentDate);
+  const dailyRecordCurrent = isIntakePreferenceCurrent(entryRecord, currentDate);
   const dailyCheckInSnoozed = isKoreanDateBefore(
     currentDate,
     dailyCheckInSnoozedUntil,

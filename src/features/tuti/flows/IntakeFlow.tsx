@@ -9,6 +9,7 @@ import { prepareRecommendationLocation } from "@/features/tuti/location/prepareR
 import { IntakeScreen } from "@/features/tuti/screens/intake/IntakeScreen";
 import { recordProductActivity } from "@/lib/productActivity";
 import { useTutiStore } from "@/store/tuti";
+import { withDefaultIntakeAnswers } from "@/lib/intakePreferences";
 
 export function IntakeFlow() {
   const router = useRouter();
@@ -23,8 +24,10 @@ export function IntakeFlow() {
   const activeStep = activeSteps[step];
 
   useEffect(() => {
-    if (!answers.movement) setAnswer("movement", "short");
-  }, [answers.movement, setAnswer]);
+    const defaults = withDefaultIntakeAnswers(answers);
+    if (!answers.movement) setAnswer("movement", defaults.movement);
+    if (!answers.transport) setAnswer("transport", defaults.transport);
+  }, [answers, setAnswer]);
 
   const chooseAnswer = (value: string) => {
     setAnswer(activeStep.key, value as never);

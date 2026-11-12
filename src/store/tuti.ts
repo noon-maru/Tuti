@@ -5,11 +5,11 @@ import {
   getKoreanDateKeyAfterDays,
 } from "@/lib/date/koreanDate";
 import { preferencesStorage } from "@/lib/storage/preferencesStorage";
+import { withDefaultIntakeAnswers } from "@/lib/intakePreferences";
 import type { TutiPlace } from "@/lib/recommendations";
 import type { DepartureRouteMode } from "@/shared/api/departurePlan";
 import { getLocationTermsVersion } from "@/shared/location/terms";
 import {
-  toActiveIntakeAnswers,
   type IntakeAnswers,
   type LocationConsentRecord,
   type LocationPermissionStatus,
@@ -151,7 +151,7 @@ type TutiState = {
 export const useTutiStore = create<TutiState>()(
   persist(
     (set) => ({
-      answers: { movement: "short" },
+      answers: withDefaultIntakeAnswers(),
       entryRecord: undefined,
       userLocation: undefined,
       recommendationLocationSource: undefined,
@@ -358,8 +358,8 @@ export const useTutiStore = create<TutiState>()(
         set((state) => ({
           answers:
             status === "skipped"
-              ? {}
-              : toActiveIntakeAnswers(state.answers),
+              ? withDefaultIntakeAnswers()
+              : withDefaultIntakeAnswers(state.answers),
           entryRecord: {
             status,
             effectiveDate: getKoreanDateKey(),
@@ -379,8 +379,8 @@ export const useTutiStore = create<TutiState>()(
         set((state) => ({
           answers:
             status === "answered" && answers
-              ? toActiveIntakeAnswers(answers)
-              : toActiveIntakeAnswers(state.answers),
+              ? withDefaultIntakeAnswers(answers)
+              : withDefaultIntakeAnswers(state.answers),
           entryRecord: {
             status,
             effectiveDate: getKoreanDateKey(),
@@ -445,7 +445,7 @@ export const useTutiStore = create<TutiState>()(
       markHydrated: () => set({ hasHydrated: true }),
       resetIntake: () =>
         set((state) => ({
-          answers: { movement: "short" },
+          answers: withDefaultIntakeAnswers(),
           entryRecord: undefined,
           dailyRecommendation: undefined,
           recommendationCycle: state.recommendationCycle + 1,
@@ -460,7 +460,7 @@ export const useTutiStore = create<TutiState>()(
         })),
       resetAllData: () =>
         set({
-          answers: { movement: "short" },
+          answers: withDefaultIntakeAnswers(),
           entryRecord: undefined,
           userLocation: undefined,
           recommendationLocationSource: undefined,

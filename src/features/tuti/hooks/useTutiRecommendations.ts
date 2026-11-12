@@ -6,12 +6,11 @@ import { createRecommendationInputFingerprint } from "@/features/tuti/recommenda
 import { fetchRecommendations } from "@/lib/tutiApi";
 import {
   getKoreanDateKey,
-  isCurrentKoreanDate,
 } from "@/lib/date/koreanDate";
 import { interpretState } from "@/lib/recommendations";
 import { hasRecommendationArea } from "@/shared/location/recommendationArea";
 import { RECOMMENDATION_ALGORITHM_VERSION } from "@/shared/api/recommendations";
-import { toActiveIntakeAnswers } from "@/shared/tuti/types";
+import { withDefaultIntakeAnswers } from "@/lib/intakePreferences";
 import { useTutiStore } from "@/store/tuti";
 
 export function useTutiRecommendations({ enabled = true } = {}) {
@@ -35,11 +34,9 @@ export function useTutiRecommendations({ enabled = true } = {}) {
     (state) => state.cacheDailyRecommendation,
   );
   const recommendationDate = getKoreanDateKey();
-  const skippedToday =
-    isCurrentKoreanDate(entryRecord) && entryRecord?.status === "skipped";
   const answers = useMemo(
-    () => (skippedToday ? {} : toActiveIntakeAnswers(storedAnswers)),
-    [skippedToday, storedAnswers],
+    () => withDefaultIntakeAnswers(storedAnswers),
+    [storedAnswers],
   );
   const feature = useMemo(() => interpretState(answers), [answers]);
   const inputFingerprint = useMemo(

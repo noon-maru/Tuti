@@ -20,6 +20,7 @@ import {
   getIntakeSteps,
 } from "@/features/tuti/data/intakeSteps";
 import { useDeferredAnimationStart } from "@/features/tuti/hooks/useDeferredAnimationStart";
+import { withDefaultIntakeAnswers } from "@/lib/intakePreferences";
 import {
   toActiveIntakeAnswers,
   type IntakeAnswers,
@@ -51,10 +52,7 @@ export function DailyCheckInScreen({
   const [mode, setMode] = useState<CheckInMode>(initialMode);
   const [step, setStep] = useState(0);
   const [draftAnswers, setDraftAnswers] =
-    useState<IntakeAnswers>({
-      movement: "short",
-      ...toActiveIntakeAnswers(previousAnswers),
-    });
+    useState<IntakeAnswers>(() => withDefaultIntakeAnswers(previousAnswers));
   const [dragY, setDragY] = useState(0);
   const [dragging, setDragging] = useState(false);
   const [closing, setClosing] = useState(false);
@@ -300,10 +298,7 @@ export function DailyCheckInScreen({
                 <ReviseButton
                   type="button"
                   onClick={() => {
-                    setDraftAnswers({
-                      movement: "short",
-                      ...toActiveIntakeAnswers(previousAnswers),
-                    });
+                    setDraftAnswers(withDefaultIntakeAnswers(previousAnswers));
                     setStep(0);
                     setMode("questions");
                   }}
