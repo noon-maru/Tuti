@@ -241,7 +241,7 @@ const AppViewport = styled.section<{ $nativeApp: boolean }>`
   /* 안전 영역은 그대로 두고 iOS 앱의 추가 장식 여백만 줄인다. */
   &[data-native-platform="ios"] {
     --app-header-top-space: 16px;
-    --app-navigation-bottom-space: 4px;
+    --app-navigation-bottom-space: 0px;
   }
 
   @media (max-width: ${breakpoints.mobile}px) {

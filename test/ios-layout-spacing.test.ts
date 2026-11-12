@@ -44,7 +44,7 @@ test("간격 조정은 iOS 앱에만 표시하고 웹·Android에는 적용하�
   ]) {
     const html = renderFrame(target, platform);
     assert.ok(html.includes(`data-native-platform="${expected}"`));
-    assert.match(html, /\[data-native-platform="ios"\]\{--app-header-top-space:16px;--app-navigation-bottom-space:4px;/);
+    assert.match(html, /\[data-native-platform="ios"\]\{--app-header-top-space:16px;--app-navigation-bottom-space:0px;/);
   }
 });
 
