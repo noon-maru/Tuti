@@ -314,7 +314,7 @@ async function updatePlaceLocation(
   `;
 }
 
-function normalizeTourApiPlace(
+export function normalizeTourApiPlace(
   item: TourApiPlaceItem,
 ): NormalizedTourApiPlace | null {
   const contentId = item.contentid?.trim();

@@ -26,7 +26,7 @@
 | 관리자·권한·로그 | [관리자 콘솔](./admin-console.md) · [라이프로그 지표](./admin-lifelog-metrics.md) · [처리 요청 자동 채번](./admin-processing-cases.md) |
 | 상주 ops worker·예약 실행 | [운영 작업 컨테이너](./ops-workers.md) |
 | 객체 스토리지 | [오브젝트 스토리지](./object-storage.md) |
-| 공공데이터 | [관광 데이터 동기화](./tourism-data-sync.md) · [장소 체류시간 전처리](./place-visit-time-preprocessing.md) |
+| 공공데이터 | [관광 데이터 동기화](./tourism-data-sync.md) · [카페·찻집 확충](./cafe-place-expansion.md) · [장소 체류시간 전처리](./place-visit-time-preprocessing.md) |
 | 알림 | [알림 설정·발송·운영](./local-notifications.md) · [Android 푸시](./android-push-notifications.md) · [iOS 푸시](./ios-push-notifications.md) · [웹·PWA 푸시](./web-push-notifications.md) |
 | 개인정보 예약 정리·원장·보관 | [자동화](./legal/privacy-automation-operations.md) · [복원 방지](./legal/privacy-replay-operations.md) · [보관기한](./legal/operational-retention.md) |
 
