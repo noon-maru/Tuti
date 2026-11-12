@@ -5,6 +5,7 @@ import {
   type PlaceCandidateInput,
 } from "@/server/recommendations/placeCandidateSelection";
 import { derivePlaceRecommendationFeatures } from "@/server/recommendations/placeRecommendationFeatures";
+import { cafeCategoryFromPayload } from "@/server/tourism/cafeClassification";
 
 export type AssessedPlace = {
   place: PlaceCandidateInput;
@@ -49,6 +50,7 @@ export async function loadPlaceCandidateAssessments(): Promise<AssessedPlace[]> 
         seoulRealtimeAreaLink: { select: { areaCode: true } },
         tourismSourceRecord: {
           select: {
+            rawPayload: true,
             sidoName: true,
             sigunguName: true,
             detailRecord: {
@@ -99,6 +101,7 @@ export async function loadPlaceCandidateAssessments(): Promise<AssessedPlace[]> 
       ? sourceRegionByContentId.get(row.sourceId)
       : undefined;
     const recommendationFeatures = derivePlaceRecommendationFeatures({
+      ...cafeCategoryFromPayload(row.tourismSourceRecord?.rawPayload),
       name: row.name,
       address: row.sourceAddress,
       contentTypeId: row.sourceContentType,
@@ -108,6 +111,7 @@ export async function loadPlaceCandidateAssessments(): Promise<AssessedPlace[]> 
       stayTypicalMinutes: row.visitTimeProfile?.stayTypicalMinutes,
     });
     const place: PlaceCandidateInput = {
+      ...cafeCategoryFromPayload(row.tourismSourceRecord?.rawPayload),
       id: row.id,
       name: row.name,
       image: row.image,

@@ -1,8 +1,11 @@
 import type { PlaceExperienceType, TutiPlace } from "@/lib/recommendations";
+import { classifyCafe } from "@/server/tourism/cafeClassification";
 
 type ExperienceTypeInput = Pick<TutiPlace, "name" | "phrase" | "note" | "sourceContentType" | "moodTags"> & {
   overview?: string | null;
   experienceGuide?: string | null;
+  categoryCode?: string | null;
+  legacyCategoryCode?: string | null;
 };
 
 export type PlaceExperienceTypeAssessment = {
@@ -59,6 +62,9 @@ export function assessPlaceExperienceType(place: ExperienceTypeInput): PlaceExpe
       evidence: [`장소명: ${overridden.label}`],
     };
   }
+  const cafe = classifyCafe({ name: place.name, contentTypeId: place.sourceContentType, overview: place.overview,
+    categoryCode: place.categoryCode, legacyCategoryCode: place.legacyCategoryCode });
+  if (cafe.kind === "venue") return { type: "cafe", confidence: 90, evidence: [cafe.evidence] };
   if (/대교|해안도로|일주도로|관광안내소|탐방안내소/u.test(normalizedName)) {
     return {
       type: /전망대|전시관|홍보관|공원/u.test(normalizedName)

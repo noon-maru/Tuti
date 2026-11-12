@@ -769,7 +769,7 @@ function createPlaceCharacterPhrase(place: MovementFatigueInput) {
     ],
   } as const;
   const type = place.experienceType ?? "other";
-  return pickPhrase(name, phrasesByExperience[type]);
+  return pickPhrase(name, type === "cafe" ? ["음료 한 잔과 함께 잠시 머무는 시간", "잠깐 앉아 오늘의 이야기를 나누는 시간"] : phrasesByExperience[type]);
 }
 
 function pickPhrase(seed: string, phrases: readonly string[]) {
@@ -980,6 +980,7 @@ function createMoodHeadline(
     neighborhood: "낯선 동네의 기척",
     activity: "가볍게 몸을 움직이는 흐름",
     wellness: "몸의 긴장을 늦추는 따뜻한 쉼",
+    cafe: "음료 한 잔과 머무는 시간",
     other: "익숙한 하루와 다른 장면",
   }[place.experienceType ?? "other"];
   if (air === "open") return `${character}을 만나며 시야를 바꾸기 좋아요.`;
@@ -1001,6 +1002,7 @@ function createCrowdHeadline(
     neighborhood: "동네 풍경을",
     activity: "가벼운 활동을",
     wellness: "따뜻한 쉼을",
+    cafe: "음료와 쉼을",
     other: "공간을",
   }[place.experienceType ?? "other"];
   if (density === "quiet") return `비교적 한적하게 ${activity} 만날 수 있어요.`;

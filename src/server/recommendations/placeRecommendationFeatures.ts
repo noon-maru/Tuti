@@ -3,7 +3,7 @@ import { assessPlaceExperienceType } from "@/server/recommendations/experienceTy
 import { getDefaultStayDuration } from "@/server/recommendations/placeVisitTimeProfile";
 import { derivePlaceMoodTags } from "@/server/tourism/placeMoodTags";
 
-export const PLACE_RECOMMENDATION_FEATURE_VERSION = "place-features-v4";
+export const PLACE_RECOMMENDATION_FEATURE_VERSION = "place-features-v5";
 
 export type RecommendationFeatureSource = {
   name: string;
@@ -13,6 +13,8 @@ export type RecommendationFeatureSource = {
   experienceGuide?: string | null;
   reservation?: string | null;
   stayTypicalMinutes?: number | null;
+  categoryCode?: string | null;
+  legacyCategoryCode?: string | null;
 };
 
 export function derivePlaceRecommendationFeatures(source: RecommendationFeatureSource) {
@@ -25,6 +27,8 @@ export function derivePlaceRecommendationFeatures(source: RecommendationFeatureS
     moodTags,
     overview: source.overview,
     experienceGuide: source.experienceGuide,
+    categoryCode: source.categoryCode,
+    legacyCategoryCode: source.legacyCategoryCode,
   });
   const duration = source.stayTypicalMinutes ?? getDefaultStayDuration({
     name: source.name,
@@ -75,6 +79,10 @@ function isFlexibleBriefVisit(
 
 function getActivityBurden(source: RecommendationFeatureSource, type: PlaceExperienceType) {
   const text = `${source.name} ${source.overview ?? ""} ${source.experienceGuide ?? ""}`;
+  if (type === "cafe") {
+    // 선택 체험·주변 산책 언급만으로 앉아 쉬는 카페를 고부담 장소로 바꾸지 않는다.
+    return /사전\s*예약|예약제/u.test(source.reservation ?? "") ? 1 : 0;
+  }
   if (/패러글라이딩|래프팅|스키|스노보드|클라이밍|ATV|번지|승마/u.test(text)) return 4;
   if (/등산|트레킹|장거리|코스|체험|레저|캠핑|야영/u.test(text)) return 3;
   if (type === "activity") return 2;

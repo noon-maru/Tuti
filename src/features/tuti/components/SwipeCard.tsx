@@ -178,6 +178,7 @@ function stopCardActionPointer(event: PointerEvent<HTMLButtonElement>) {
 
 function createFallbackAction(place: TutiPlace): PlaceSuggestedStep {
   const titleByType = {
+    cafe: "음료 한 잔과 함께 잠시 머물러보기",
     waterside: "물가를 따라 부담 없는 만큼만 걸어보기",
     forest_garden: "마음이 편해지는 길 하나만 천천히 걸어보기",
     art_exhibition: "마음이 가는 작품 한 점부터 바라보기",

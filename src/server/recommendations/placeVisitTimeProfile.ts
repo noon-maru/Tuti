@@ -158,6 +158,7 @@ export function getDefaultStayDurationProfile(
   }
 
   const byExperienceType: Partial<Record<PlaceExperienceType, StayDurationRange>> = {
+    cafe: range(15, 30, 90),
     waterside: range(20, 50, 90),
     forest_garden: range(20, 45, 90),
     art_exhibition: range(30, 60, 90),

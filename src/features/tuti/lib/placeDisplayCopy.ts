@@ -11,6 +11,7 @@ const collectionDefaultPhrases = new Set([
 ]);
 
 const fallbackByExperience: Record<PlaceExperienceType, string> = {
+  cafe: "음료 한 잔과 함께 잠시 머무는 시간",
   waterside: "물가에 시선을 두고 천천히 숨을 고르는 시간",
   forest_garden: "초록 사이를 천천히 걸으며 호흡을 고르는 시간",
   art_exhibition: "낯선 장면 앞에서 생각의 방향을 바꾸는 시간",

@@ -732,6 +732,7 @@ function isPlaceExperienceType(
   value: string | null,
 ): value is NonNullable<TutiPlace["experienceType"]> {
   return value !== null && [
+    "cafe",
     "waterside",
     "forest_garden",
     "art_exhibition",

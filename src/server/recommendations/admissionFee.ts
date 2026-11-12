@@ -55,6 +55,7 @@ export function filterPlacesByAdmissionBudget(
   if (budget !== "free") return places;
 
   return places.filter(
-    (place) => classifyAdmissionFee(place.admissionFee) === "confirmed-free",
+    // 입장료 무료여도 음료 주문 비용까지 무료라는 뜻은 아니다.
+    (place) => place.experienceType !== "cafe" && classifyAdmissionFee(place.admissionFee) === "confirmed-free",
   );
 }

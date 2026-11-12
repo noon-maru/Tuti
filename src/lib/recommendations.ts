@@ -65,6 +65,7 @@ export type PlaceVisitTimeProfile = {
 };
 
 export type PlaceExperienceType =
+  | "cafe"
   | "waterside"
   | "forest_garden"
   | "art_exhibition"

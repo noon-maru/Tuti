@@ -1,3 +1,5 @@
+import { classifyCafe } from "@/server/tourism/cafeClassification";
+
 export type PlaceCandidateStatus =
   | "selected"
   | "enrich"
@@ -19,6 +21,8 @@ export type PlaceCandidateInput = {
   sidoName: string | null;
   sigunguName: string | null;
   copyright: string | null;
+  categoryCode?: string | null;
+  legacyCategoryCode?: string | null;
   hasWellnessSource: boolean;
   hasCoreTourismSource: boolean;
   hasSeoulRealtimeArea: boolean;
@@ -47,7 +51,7 @@ export type PlaceCandidateAssessment = {
   hardExclusions: string[];
 };
 
-export const PLACE_CANDIDATE_ALGORITHM_VERSION = "low-burden-v4";
+export const PLACE_CANDIDATE_ALGORITHM_VERSION = "low-burden-v5";
 
 const SELECTED_SCORE = 70;
 const ENRICH_SCORE = 55;
@@ -90,10 +94,15 @@ export function assessPlaceCandidate(
     score >= FIT_LED_SELECTED_SCORE &&
     tutiFit >= FIT_LED_MINIMUM_TUTI_FIT &&
     executionEase >= FIT_LED_MINIMUM_EXECUTION_EASE;
+  const cafeNeedsDetail = classifyCafe({ ...place, overview: place.detail?.overview }).kind === "venue" &&
+    !place.detail?.overview?.trim();
+  if (cafeNeedsDetail) reasons.push("카페 정보 보강: 공식 소개 확인 필요");
 
   return {
     status: hardExclusions.length > 0
       ? "invalid"
+      : cafeNeedsDetail
+        ? "enrich"
       : hasHighActivityBurden && executionEase < 12
         ? "low_burden_mismatch"
         : score >= SELECTED_SCORE || isFitLedCandidate
@@ -138,6 +147,11 @@ function scoreTutiFit(
   reasons: string[],
 ) {
   let score = 4;
+
+  if (classifyCafe({ ...place, overview: place.detail?.overview }).kind === "venue") {
+    score += 24;
+    reasons.push("Tuti 적합성: 카페·찻집에서 짧게 머무는 경험");
+  }
 
   if (place.hasWellnessSource) {
     score += 18;
