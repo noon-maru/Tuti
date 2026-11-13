@@ -1,11 +1,22 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { readFileSync } from "node:fs";
 import { classifyCafe } from "@/server/tourism/cafeClassification";
 import { assessPlaceExperienceType } from "@/server/recommendations/experienceType";
 import { derivePlaceRecommendationFeatures } from "@/server/recommendations/placeRecommendationFeatures";
 import { assessPlaceCandidate, type PlaceCandidateInput } from "@/server/recommendations/placeCandidateSelection";
 import { filterPlacesByAdmissionBudget } from "@/server/recommendations/admissionFee";
 import type { TutiPlace } from "@/lib/recommendations";
+
+test("기존 카페가 재선정될 때도 마린데크의 요약·행동 입력을 제공한다", () => {
+  for (const [file, field] of [["place-overview-summaries", "summary"], ["place-suggested-actions", "action"]]) {
+    const rows = readFileSync(`data/${file}/2026-10-01.jsonl`, "utf8").split(/\r?\n/).filter(Boolean).map(line => JSON.parse(line) as Record<string, string>);
+    const matches = rows.filter(row => row.contentId === "2717286");
+    assert.equal(matches.length, 1);
+    assert.ok(matches[0][field].trim());
+    assert.ok(matches[0][field].length <= (field === "summary" ? 180 : 60));
+  }
+});
 
 test("관광공사 카페·찻집 신분류는 상호에 카페가 없어도 판별한다", () => {
   for (const categoryCode of ["FD050100", "FD050200"]) assert.equal(classifyCafe({ name: "가는곶 세화", contentTypeId: "39", categoryCode }).kind, "venue");
