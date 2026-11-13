@@ -15,6 +15,7 @@ Android의 `출시 노트`와 iOS의 `이 버전에서 업그레이드된 사항
 - 2026-11-13 서버 `5d6d512`의 [운영 배포](https://github.com/noon-maru/Tuti/actions/runs/43376110470)와 `20261113010000_place_familiarity` 마이그레이션을 완료했다. 공개 readiness의 새 릴리스·DB·객체 저장소 정상과 운영 워커 3개의 갱신을 확인했다.
 - App Store Review 스킬과 [Apple 지침](https://developer.apple.com/app-store/review/guidelines/)의 완성도·정확한 문구·개인정보 경계를 변경 범위에서 대조했다. 기존 위치 동의·계정 삭제·공유 보호는 유지한다. 실기기 검증·스토어 개인정보 신고의 실제 입력 상태·심사 승인을 대신하는 검토는 아니다.
 - 빌드·Google Play 내부 테스트·App Store Connect 업로드는 Actions에서 수행한다. 심사 제출·정식 공개·최신/최소 지원 버전 환경변수 변경은 별도다.
+- 2026-11-13 앱 소스 `d4da1fc`의 [전체 CI](https://github.com/noon-maru/Tuti/actions/runs/43378630118) 통과 후 `1.7.1 (21)`을 [Google Play 내부 테스트](https://github.com/noon-maru/Tuti/actions/runs/43378640371)와 [App Store Connect](https://github.com/noon-maru/Tuti/actions/runs/43378644419)에 업로드했다. Android AAB·APK 서명/R8 검증과 iOS 아카이브 버전·서명 검증을 통과했다. 스토어 후속 처리·실기기 검증·심사 제출·승인·정식 공개는 별도이며, iOS 출시 문안은 App Store Connect에 별도 입력해야 한다.
 
 ### 공통 출시 노트
 
