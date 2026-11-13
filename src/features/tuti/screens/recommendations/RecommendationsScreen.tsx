@@ -80,6 +80,7 @@ export function RecommendationsScreen({
   recommendationErrorCode,
   hideRecommendationStatus,
   onRetryRecommendations,
+  familiarity,
   activeIndex,
   activePlace,
   onSelect,
@@ -122,6 +123,7 @@ export function RecommendationsScreen({
   recommendationErrorCode?: RecommendationErrorCode;
   hideRecommendationStatus?: boolean;
   onRetryRecommendations: () => void;
+  familiarity?: { familiar: boolean; ready: boolean; failed: boolean; pending: boolean; toggle: () => Promise<void>; retry: () => void };
   activeIndex: number;
   activePlace?: TutiPlace;
   onSelect: (index: number) => void;
@@ -714,6 +716,8 @@ export function RecommendationsScreen({
             label="메인 메뉴"
             items={
               [
+                    ...(activePlace && familiarity?.ready ? [{ group: "이 장소", label: familiarity.pending ? "표시 저장 중…" : familiarity.familiar ? "익숙한 장소 표시 취소" : "익숙한 곳이에요", disabled: familiarity.pending, onSelect: familiarity.toggle }] : []),
+                    ...(activePlace && familiarity?.failed ? [{ group: "이 장소", label: "장소 표시 다시 확인", onSelect: familiarity.retry }] : []),
                     {
                       group: "작은 여행",
                       label: "오늘 다시 고르기",

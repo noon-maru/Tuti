@@ -23,7 +23,9 @@ test("그룹 머리글은 초점 순서에서 제외하고 메뉴 높이에 포�
   assert.match(source, /groupHeadingCount \* MENU_GROUP_HEADING_HEIGHT/);
   assert.match(source, /role=\{group.label \? "group" : undefined\} aria-label=\{group.label\}/);
   assert.match(source, /GroupHeading aria-hidden="true"/);
-  assert.match(source, /ref=\{item === items\[0\] \? firstItemRef : undefined\}/);
+  assert.match(source, /ref=\{item === firstEnabledItem \? firstItemRef : undefined\}/);
+  assert.match(source, /disabled=\{item.disabled\}/);
+  assert.match(source, /menuitem.*:not\(:disabled\)/);
   const travel = readFileSync("src/features/tuti/screens/recommendations/RecommendationsScreen.tsx", "utf8");
   assert.match(travel, /group: "작은 여행"/);
   assert.match(travel, /group: "도움말 · 설정"/);

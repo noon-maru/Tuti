@@ -30,6 +30,7 @@ export type ContextMenuItem = {
   group?: string;
   tone?: "default" | "danger";
   singleLine?: boolean;
+  disabled?: boolean;
 };
 
 export function groupContextMenuItems(items: ContextMenuItem[]) {
@@ -83,6 +84,7 @@ export function ContextMenu({
   const hasTextInput = textInput !== undefined;
   const initialTextInputValue = textInput?.value ?? "";
   const groups = groupContextMenuItems(items);
+  const firstEnabledItem = items.find(item => !item.disabled);
   const groupHeadingCount = groups.filter(group => group.label).length;
 
   useEffect(() => {
@@ -215,7 +217,7 @@ export function ContextMenu({
               onKeyDown={event => {
                 if (event.key === "Tab") { setOpen(false); triggerRef.current?.focus(); return; }
                 if (!["ArrowDown", "ArrowUp", "Home", "End"].includes(event.key)) return;
-                const controls = Array.from(event.currentTarget.querySelectorAll<HTMLButtonElement>('[role="menuitem"], [role="menuitemradio"]'));
+                const controls = Array.from(event.currentTarget.querySelectorAll<HTMLButtonElement>('[role="menuitem"]:not(:disabled), [role="menuitemradio"]:not(:disabled)'));
                 if (!controls.length) return;
                 event.preventDefault();
                 const index = controls.indexOf(document.activeElement as HTMLButtonElement);
@@ -228,13 +230,15 @@ export function ContextMenu({
                 {group.items.map(item => (
                 <MenuItem
                   key={item.label}
-                  ref={item === items[0] ? firstItemRef : undefined}
+                  ref={item === firstEnabledItem ? firstItemRef : undefined}
                   type="button"
+                  disabled={item.disabled}
                   role={item.kind === "radio" ? "menuitemradio" : "menuitem"}
                   aria-checked={item.kind === "radio" ? Boolean(item.selected) : undefined}
                   $tone={item.tone ?? "default"}
                   $singleLine={item.singleLine ?? false}
                   onClick={() => {
+                    if (item.disabled) return;
                     setOpen(false);
                     if (triggerRef.current) {
                       triggerRef.current.focus();

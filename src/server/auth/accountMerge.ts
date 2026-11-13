@@ -4,6 +4,7 @@ import { randomUUID } from "node:crypto";
 import { prisma } from "@/server/db/prisma";
 import { mergeTogether } from "@/server/harumadi/merge";
 import { AccountAuthError } from "@/server/auth/session";
+import { mergePlaceFamiliarities } from "@/server/recommendations/familiarity";
 
 type MergeIdentityUpdate = {
   identityId: string;
@@ -289,6 +290,7 @@ export async function mergeUserIntoCurrentAccount({
         },
       },
     });
+    await mergePlaceFamiliarities(transaction, sourceUserId, targetUserId);
     await transaction.user.delete({ where: { id: sourceUserId } });
   });
 }

@@ -35,6 +35,8 @@ export type TutiPlace = {
   visitTimeProfile?: PlaceVisitTimeProfile;
   distanceMeters?: number;
   rankingScore?: number;
+  /** 새롭거나 덜 본 장소의 비음수 순위 가점. 피로도·후보 자격은 바꾸지 않는다. */
+  noveltyBoost?: number;
   fatigueScore?: number;
   reason?: string;
   reasonDetail?: string;

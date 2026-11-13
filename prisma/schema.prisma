@@ -193,6 +193,7 @@ enum LocationSecurityEventResult {
 }
 
 model Place {
+  familiarities             PlaceFamiliarity[]
   id                        String                                @id
   name                      String
   phrase                    String
@@ -872,6 +873,7 @@ model JournalShareTrace {
 }
 
 model User {
+  placeFamiliarities PlaceFamiliarity[]
   notificationPreference NotificationPreference?
   notificationBookSettings NotificationBookSetting[]
   notificationPresence NotificationPresence[]
@@ -1225,6 +1227,20 @@ model RecommendationAction {
   @@index([placeId, action, createdAt])
   @@index([action, createdAt])
   @@map("recommendation_actions")
+}
+
+// 사용자가 직접 표시한 장소 익숙함. 취향 비선호나 방문 사실을 뜻하지 않는다.
+model PlaceFamiliarity {
+  userId String @map("user_id")
+  placeId String @map("place_id")
+  markedAt DateTime @default(now()) @map("marked_at")
+  expiresAt DateTime @map("expires_at")
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  place Place @relation(fields: [placeId], references: [id], onDelete: Cascade)
+
+  @@id([userId, placeId])
+  @@index([expiresAt])
+  @@map("place_familiarities")
 }
 
 model ProductActivityEvent {

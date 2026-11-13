@@ -25,6 +25,7 @@ export async function purgeExpiredAuthRecords(now = new Date()) {
     productInteractions,
     lifecycleEvents,
     adminProcessingCases,
+    placeFamiliarities,
   ] =
     await prisma.$transaction([
       prisma.userSession.deleteMany({
@@ -76,6 +77,7 @@ export async function purgeExpiredAuthRecords(now = new Date()) {
       }),
       prisma.lifecycleEvent.deleteMany({ where: { retentionUntil: { lte: now } } }),
       prisma.$executeRaw`DELETE FROM admin_processing_cases WHERE created_at < ${adminJournalAccessAuditCutoff(now)}`,
+      prisma.placeFamiliarity.deleteMany({ where: { expiresAt: { lte: now } } }),
     ]);
 
   return {
@@ -91,6 +93,7 @@ export async function purgeExpiredAuthRecords(now = new Date()) {
     productInteractions: productInteractions.count,
     lifecycleEvents: lifecycleEvents.count,
     adminProcessingCases,
+    placeFamiliarities: placeFamiliarities.count,
   };
 }
 

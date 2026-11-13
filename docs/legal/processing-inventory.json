@@ -71,6 +71,14 @@
       "sources": ["src/server/location/compliance.ts", "src/server/location/securityAudit.ts", "scripts/purge-location-compliance.ts"]
     },
     {
+      "id": "place-familiarity",
+      "implementationState": "disabled-pending-rollout",
+      "models": ["PlaceFamiliarity"],
+      "items": "계정·공개 장소 식별값과 이용자가 직접 선택한 익숙함 표시·표시/만료 시각. 방문 사실이나 부정적 취향으로 추론하지 않음. 기존 추천 노출 및 본인 마디의 장소 식별값만 내부 비교하며 본문·사진은 읽거나 외부 LLM으로 보내지 않음",
+      "retention": "표시 후 180일 유효, 기존 인증자료 정리 작업에서 만료 삭제. 취소 시 즉시 삭제, 계정·장소 삭제 Cascade. 이용자 승인 계정 병합 시 유효 표시만 보존. 개발 적용·운영 미적용이며 기존 법적 승인을 확장하지 않음",
+      "sources": ["src/server/recommendations/familiarity.ts", "src/server/recommendations/novelty.ts", "src/server/auth/retention.ts", "prisma/schema.prisma"]
+    },
+    {
       "id": "recommendations-personalization",
       "models": ["RecommendationRun", "RecommendationAction", "UserSignalProfile"],
       "items": "추천 답변·상태·후보·선택/찜/이동 행동·교통수단·메타데이터, 취향 프로필/신뢰도/생성 근거",

@@ -2,6 +2,7 @@ import type { Prisma } from "@/generated/prisma/client";
 import { mergeTogether } from "@/server/harumadi/merge";
 import { lockMergeAccounts } from "./mergeLock";
 import { AccountAuthError } from "./session";
+import { mergePlaceFamiliarities } from "@/server/recommendations/familiarity";
 
 /** 인증 트랜잭션 안에서 호출한다. 임시 계정 삭제는 모든 이전이 끝난 뒤 수행한다. */
 export async function transferAnonymousData(
@@ -46,5 +47,6 @@ export async function transferAnonymousData(
     where: { userId: sourceId }, data: { userId: targetId },
   });
   await tx.userSignalProfile.deleteMany({ where: { userId: sourceId } });
+  await mergePlaceFamiliarities(tx, sourceId, targetId);
   await tx.user.delete({ where: { id: sourceId } });
 }

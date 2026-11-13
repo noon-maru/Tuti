@@ -1,5 +1,6 @@
 import type { TutiPlace } from "@/lib/recommendations";
 import { getPlaceExperienceType } from "@/server/recommendations/experienceType";
+import { noveltyRankingScore } from "@/server/recommendations/novelty";
 
 const QUALITY_WINDOW = 24;
 const MAX_PER_EXPERIENCE = 2;
@@ -93,7 +94,7 @@ function adjustedScore(place: TutiPlace, selected: TutiPlace[]) {
   );
 
   return (
-    getScore(place) +
+    noveltyRankingScore(place) +
     sameExperience * 9 +
     sameDistrict * 2 +
     samePhrase * 4 +

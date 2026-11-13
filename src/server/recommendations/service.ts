@@ -20,6 +20,7 @@ import {
   requireNearbyMovement,
 } from "@/server/recommendations/longDistanceAvailability";
 import { getExternalLocationProcessingMode } from "@/server/location/externalProcessing";
+import { loadPlaceNoveltySignals, rankWithNovelty } from "@/server/recommendations/novelty";
 import {
   enrichPlacesWithAdmissionFees,
   enrichPlacesWithKnownExecutionFeasibility,
@@ -255,20 +256,22 @@ async function evaluateRecommendations(
       feature,
       budgetEligiblePlaces.length,
     );
+    const noveltySignals = await loadPlaceNoveltySignals(userId, conditionedPlaces.map(place => place.id), evaluationTime);
     const personalization = await personalizeRecommendationRanking(
       conditionedPlaces,
       answers,
       userId,
       preferencePlaceIds,
     );
+    const noveltyRanking = rankWithNovelty(personalization.places, noveltySignals);
     return {
       feature,
       sourceCandidateCount: longDistancePlaces.length,
       eligibleCandidateCount: budgetEligiblePlaces.length,
       initialRanking: conditionedPlaces,
-      finalRanking: personalization.places,
+      finalRanking: noveltyRanking,
       recommendedPlaces: selectDiverseRecommendations(
-        personalization.places,
+        noveltyRanking,
         RECOMMENDATION_LIMIT,
       ),
       personalization: personalization.audit,
@@ -287,6 +290,7 @@ async function evaluateRecommendations(
 
   const { eligiblePlaces, candidatePlaces, fallbackPlaces } =
     selectRecommendationCandidatePool(places, excludePlaceIds);
+  const noveltySignals = await loadPlaceNoveltySignals(userId, places.map(place => place.id), evaluationTime);
   const operationDetailByPlaceId = new Map(
     places.map((place) => [place.id, toOperationDetail(place)] as const),
   );
@@ -298,7 +302,7 @@ async function evaluateRecommendations(
     (place) => !preferencePlaceIdSet.has(place.id),
   );
   const rankCandidatePlaces = (candidateRows: PlaceRow[]) =>
-    prioritizePlacesByRequestedMood(
+    rankWithNovelty(prioritizePlacesByRequestedMood(
       rankByMovementFatigue(
         candidateRows.map(toTutiPlace),
         answers,
@@ -306,7 +310,7 @@ async function evaluateRecommendations(
         candidateRows.length,
       ),
       answers.air,
-    );
+    ), noveltySignals);
   const rankedPlaces = rankCandidatePlaces(recommendationPlaces);
   const rankedFallbackPlaces = rankCandidatePlaces(
     fallbackRecommendationPlaces,
@@ -412,8 +416,9 @@ async function evaluateRecommendations(
     userId,
     preferencePlaceIds,
   );
+  const noveltyRanking = rankWithNovelty(personalization.places, noveltySignals);
   const recommendedPlaces = selectDiverseRecommendationsWithBackfill(
-    personalization.places,
+    noveltyRanking,
     excludePlaceIds,
     RECOMMENDATION_LIMIT,
   );
@@ -423,7 +428,7 @@ async function evaluateRecommendations(
     sourceCandidateCount: places.length,
     eligibleCandidateCount: eligiblePlaces.length,
     initialRanking: rankedPlaces,
-    finalRanking: personalization.places,
+    finalRanking: noveltyRanking,
     recommendedPlaces,
     personalization: personalization.audit,
   };

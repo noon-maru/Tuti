@@ -6,6 +6,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { requestLoginNudge } from "@/features/tuti/auth/loginNudge";
 import { DepartureReturnSheet } from "@/features/tuti/components/DepartureReturnSheet";
 import { useTutiRecommendations } from "@/features/tuti/hooks/useTutiRecommendations";
+import { usePlaceFamiliarity } from "@/features/tuti/hooks/usePlaceFamiliarity";
 import { useTravelTime } from "@/features/tuti/hooks/useTravelTime";
 import { useSession } from "@/features/tuti/hooks/useSession";
 import { useTutiJournalEntries } from "@/features/tuti/hooks/useTutiJournalEntries";
@@ -219,6 +220,7 @@ export function RecommendationsFlow({ interactive }: { interactive: boolean }) {
       console.warn("추천 행동을 기록하지 못했습니다.", error);
     });
   }, []);
+  const familiarity = usePlaceFamiliarity(session?.userId, activePlace?.id, interactive && isSuccess);
 
   useEffect(() => {
     const refreshCurrentState = () => {
@@ -452,6 +454,7 @@ export function RecommendationsFlow({ interactive }: { interactive: boolean }) {
         }
         hideRecommendationStatus={dailyCheckInVisible}
         onRetryRecommendations={() => void refetch()}
+        familiarity={familiarity}
         activeIndex={displayedActiveIndex}
         activePlace={activePlace}
         onSelect={selectCard}

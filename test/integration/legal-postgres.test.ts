@@ -56,6 +56,10 @@ test("분리된 PostgreSQL에서 약관·권리 보호 마이그레이션의 실
     assert.equal(Math.floor(serverVersion / 10000), Number(expectedMajor), "요청한 PostgreSQL 주 버전으로 시험해야 한다.");
   }
   t.diagnostic(`isolated PostgreSQL server_version_num=${serverVersion}`);
+  await t.test("새 장소 가점과 익숙함 표시는 계정 격리·취소·만료·연쇄 파기를 지킨다", () => {
+    const result = spawnSync(process.execPath, ["--import", "tsx", "test/integration/place-novelty-runtime.ts", socket], { env, encoding: "utf8", timeout: 20_000 });
+    assert.equal(result.status, 0, result.stderr || result.stdout);
+  });
   await t.test("웹 푸시 enum 추가는 기존 플랫폼을 보존하고 계정 삭제가 웹 구독도 함께 파기한다", () => {
     query(`CREATE SCHEMA tuti_web_push_fixture;
       SET search_path=tuti_web_push_fixture,public;

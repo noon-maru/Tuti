@@ -60,7 +60,7 @@ test("보기 선택은 현재 보기 하나만 노출하고 공용 팝오버에�
   const menu = readFileSync("src/features/tuti/components/ContextMenu.tsx", "utf8");
   assert.match(menu, /role=\{item.kind === "radio" \? "menuitemradio" : "menuitem"\}/);
   assert.match(menu, /aria-checked=\{item.kind === "radio" \? Boolean\(item.selected\) : undefined\}/);
-  assert.match(menu, /\[role="menuitem"\], \[role="menuitemradio"\]/);
+  assert.match(menu, /\[role="menuitem"\]:not\(:disabled\), \[role="menuitemradio"\]:not\(:disabled\)/);
 });
 
 test("한 권씩 보기의 설명과 넘기기 행은 자연 높이를 유지하고 책 영역만 남은 공간을 채운다", () => {

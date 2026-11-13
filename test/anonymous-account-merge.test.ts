@@ -31,6 +31,12 @@ test("익명 로그인 병합은 하루마디를 삭제하지 않는다", async 
   const noop = async () => ({ count: 0 });
   const prismaMock = {
     $queryRaw: async () => [{ id: sourceId }, { id: targetId }],
+    $executeRaw: async (sql: TemplateStringsArray, ...values: unknown[]) => {
+      assert.match(sql.join("?"), /INSERT INTO place_familiarities/);
+      assert.equal(values[0], targetId);
+      assert.equal(values[1], sourceId);
+      return 0;
+    },
     journalEntry: {
       count: async () => state.entries.length,
       updateMany: async ({ data }: { data: { ownerId: string } }) => updateOwners(state.entries, data.ownerId),
