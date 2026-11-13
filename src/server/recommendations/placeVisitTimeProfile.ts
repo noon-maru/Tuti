@@ -220,9 +220,13 @@ export function deriveVisitAccessProfile(source: PlaceVisitTimeSource) {
       : parkingText && !/정보\s*없|문의|확인\s*필요/u.test(parkingText)
         ? "onsite"
         : "unknown";
-  const reservationRequirement = /사전\s*예약\s*(필수|제)|예약제|예약\s*필수/u.test(text)
+  // 선택 티클래스의 예약을 일반 차·음료 이용 전체의 예약 의무로 확대하지 않는다.
+  const reservationText = source.experienceType === "cafe"
+    ? `${source.reservation ?? ""} ${text.replace(/[^.!?。]*(?:티\s*클래스|원데이\s*클래스|쿠키\s*만들기)[^.!?。]*(?:[.!?。]|$)/gu, " ")}`
+    : text;
+  const reservationRequirement = /사전\s*예약\s*(필수|제)|예약제|예약\s*필수/u.test(reservationText)
     ? "required"
-    : /예약\s*(권장|가능)|사전\s*신청/u.test(text)
+    : /예약\s*(권장|가능)|사전\s*신청/u.test(reservationText)
       ? "recommended"
       : "none";
   const accessConstraint = isRestrictedAccess(accessText)
