@@ -1,0 +1,58 @@
+{
+  "batch": "harumadi-demo-20261114",
+  "photos": [
+    { "placeId": "tourapi-128611", "name": "서울숲", "url": "https://tong.visitkorea.or.kr/cms/resource_photo/99/3580599_image2_1.jpg", "sha256": "fab5be995967da2749dd04e6bcb5171798299f6f67ef0d8d84e5a8903c38dc02", "copyright": "Type1" },
+    { "placeId": "tourapi-2661405", "name": "선유도공원", "url": "https://tong.visitkorea.or.kr/cms/resource/83/3512483_image2_1.jpg", "sha256": "34e22fa9fda8af2facd98f3a2e8dfe1c0a4df4596bf055e75711d93132108b83", "copyright": "Type1" },
+    { "placeId": "tourapi-1059877", "name": "양화한강공원", "url": "https://tong.visitkorea.or.kr/cms/resource_photo/46/3551346_image2_1.jpg", "sha256": "a0b8b810bb89f323f13e08f5859af57a08e3969248b14c6f90419e8417652b21", "copyright": "Type1" },
+    { "placeId": "tourapi-127955", "name": "여의도공원", "url": "https://tong.visitkorea.or.kr/cms/resource/19/3558719_image2_1.jpg", "sha256": "caf6d178635b4b69153f24e75053ad3cb828a7e41108873698d04192ed5f30cd", "copyright": "Type1" },
+    { "placeId": "tourapi-2037020", "name": "서촌마을", "url": "https://tong.visitkorea.or.kr/cms/resource/97/3497497_image2_1.jpg", "sha256": "c3f71700d4d928ccdb0d6b8e565bb72f78d6c8e652fcd0aa7a61351c9ab62792", "copyright": "Type1" },
+    { "placeId": "tourapi-2553819", "name": "경의선숲길", "url": "https://tong.visitkorea.or.kr/cms/resource/29/4067529_image2_1.jpg", "sha256": "0463b2a354fe16a94bdd93def4555832b94d5edea8772de0b17e1b4244e04735", "copyright": "Type1" },
+    { "placeId": "tourapi-126509", "name": "덕수궁", "url": "https://tong.visitkorea.or.kr/cms/resource/44/3584644_image2_1.jpg", "sha256": "1e931711bbec4ee7512d6876369e45b34064e68bf824fc38c094241baa55419f", "copyright": "Type1" },
+    { "placeId": "tourapi-2662855", "name": "광교호수공원", "url": "https://tong.visitkorea.or.kr/cms/resource/60/3588560_image2_1.jpg", "sha256": "8288e2b2a8b168cad961036788fbac6f2ebd8a48fbdd7a9c194367e3f4389438", "copyright": "Type1" },
+    { "placeId": "tourapi-741658", "name": "한밭수목원", "url": "https://tong.visitkorea.or.kr/cms/resource_photo/22/3514122_image2_1.jpg", "sha256": "9f8c7f7ccd22269153d0cb4126a307d8adb3ad2c382b41186122ea8f6d63bc4c", "copyright": "Type1" },
+    { "placeId": "tourapi-822384", "name": "북서울꿈의숲", "url": "https://tong.visitkorea.or.kr/cms/resource/44/3540144_image2_1.jpg", "sha256": "3614145ead168540b3e8057caf4354f638e78d4f5c3378c72c5f3065610af899", "copyright": "Type1" },
+    { "placeId": "tourapi-129501", "name": "낙산공원", "url": "https://tong.visitkorea.or.kr/cms/resource/28/3506728_image2_1.jpg", "sha256": "76124f2f9b7a831862791df00eea54020deef5b8dfa78a3f013b7e22b62fb90f", "copyright": "Type1" }
+  ],
+  "books": [
+    {
+      "slug": "slow-walk", "title": "산책은 천천히", "coverStyle": "white-image", "backCoverText": "작은 하루도, 오래 남을 이야기.\n시연용으로 구성한 예시예요.",
+      "entries": [
+        { "title": "도시 한가운데 초록", "content": "멀리 가지 않아도 풍경은 달라졌다. 오늘은 초록을 오래 보기로 했다.", "date": "2026-05-09", "photoPlaceId": "tourapi-128611" },
+        { "title": "나무 그늘을 따라", "content": "길 위에 드리운 그림자까지 마음에 들던 오후. 서두를 이유가 없었다.", "date": "2026-05-10", "photoPlaceId": "tourapi-2661405" },
+        { "title": "사진을 찍지 않은 순간", "content": "돌아오는 길에는 휴대폰을 주머니에 넣었다. 바람이 나뭇잎을 흔드는 소리만 들으면서 걸었다.\n\n사진은 없지만, 그때의 느긋한 기분은 이렇게 남겨두고 싶다.", "date": "2026-05-11", "placeName": "집으로 돌아오는 길" }
+      ]
+    },
+    {
+      "slug": "waterside", "title": "물가에 두고 온 하루", "coverStyle": "green-image", "backCoverText": "잠시 멈춰 보니, 남기고 싶은 하루였어요.\n시연용으로 구성한 예시예요.",
+      "entries": [
+        { "title": "걷기 좋은 쪽으로", "content": "정해둔 코스 없이 걸었다. 길이 갈라질 때마다 조금 더 걷고 싶은 쪽을 골랐다.", "date": "2026-06-06", "photoPlaceId": "tourapi-1059877" },
+        { "title": "빌딩 사이의 다른 속도", "content": "물 위에 비친 초록을 보고 있으니 도시의 소음도 조금 멀어지는 것 같았다.", "date": "2026-06-07", "photoPlaceId": "tourapi-127955" },
+        { "title": "다음에도 이 정도면", "content": "거창한 계획은 없었다. 걸을 수 있는 신발과 잠깐 비워둔 시간만 있으면 충분했다.\n\n다음 주말에도 이 정도의 하루를 한 번 더 보내고 싶다.", "date": "2026-06-08", "placeName": "산책을 마친 저녁" }
+      ]
+    },
+    {
+      "slug": "neighborhood", "title": "골목이 들려준 이야기", "coverStyle": "white-plain", "backCoverText": "평범해서 더 오래 기억하고 싶은 날들.\n시연용으로 구성한 예시예요.",
+      "entries": [
+        { "title": "처음 걸어본 익숙한 동네", "content": "지도에서 보던 길을 두 발로 걸으니 전혀 다르게 느껴졌다. 낮은 담장과 작은 골목이 오래 남았다.", "date": "2026-09-12", "photoPlaceId": "tourapi-2037020" },
+        { "title": "선로 옆의 초록", "content": "오래된 선로와 오늘의 나무들이 나란히 놓여 있었다. 같은 길도 걷는 속도에 따라 다른 모습이 된다.", "date": "2026-09-13", "photoPlaceId": "tourapi-2553819" },
+        { "title": "시간이 조금 느려지는 곳", "content": "도심 바로 옆에서 오래된 풍경을 만났다. 돌길을 걷는 동안만큼은 할 일을 잠깐 잊어도 괜찮았다.", "date": "2026-09-19", "photoPlaceId": "tourapi-126509" }
+      ]
+    },
+    {
+      "slug": "weekend", "title": "조금 멀리 간 주말", "coverStyle": "green-plain", "backCoverText": "내가 좋아한 순간들을, 여기에.\n시연용으로 구성한 예시예요.",
+      "entries": [
+        { "title": "호수를 한 바퀴", "content": "새로운 동네의 물가를 걸었다. 익숙한 산책과 비슷한데도, 다른 풍경이 주는 설렘이 있었다.", "date": "2026-10-03", "photoPlaceId": "tourapi-2662855" },
+        { "title": "오래 바라본 색들", "content": "꽃의 이름은 다 알지 못해도 좋았다. 마음에 드는 색 앞에서 조금씩 오래 머물렀다.", "date": "2026-10-04", "photoPlaceId": "tourapi-741658" },
+        { "title": "돌아오는 길의 메모", "content": "많은 곳을 둘러보기보다 마음에 드는 한 곳에 오래 있는 편이 좋았다. 다음에는 목적지를 조금 덜 정하고 떠나보기로.\n\n사진을 다시 보니 걸었던 시간까지 함께 떠오른다.", "date": "2026-10-05", "placeName": "집으로 돌아오는 길" }
+      ]
+    },
+    {
+      "slug": "landscapes", "title": "다시 펼쳐볼 풍경", "coverStyle": "white-image", "backCoverText": "돌아보면, 이런 날들이 나를 채웠어요.\n시연용으로 구성한 예시예요.",
+      "entries": [
+        { "title": "다시 생각나는 초록", "content": "좋았던 풍경은 꼭 특별한 장소일 필요가 없었다. 가까운 공원도 다시 펼쳐볼 한 장이 되었다.", "date": "2026-11-07", "photoPlaceId": "tourapi-822384" },
+        { "title": "성곽을 따라 걷는 마음", "content": "길을 따라 걷다가 한 번씩 뒤를 돌아봤다. 걸어온 풍경이 달라 보이는 순간이 좋았다.", "date": "2026-11-08", "photoPlaceId": "tourapi-129501" },
+        { "title": "다음 장은 비워두기", "content": "모든 날을 빠짐없이 남기지 않아도 괜찮다. 기억하고 싶은 순간이 생기면 그때 다음 마디를 채우면 된다.\n\n지금은 이만큼의 하루를 모아둔 것만으로도 충분하다.", "date": "2026-11-13", "placeName": "나의 책장 앞" }
+      ]
+    }
+  ]
+}

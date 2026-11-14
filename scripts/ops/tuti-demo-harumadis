@@ -1,0 +1,45 @@
+#!/bin/sh
+set -eu
+project_dir=/var/services/homes/Tutiadmin/source/Tuti
+cd "$project_dir"
+project_dir="$(pwd -P)"
+if [ "$(id -u)" -ne 0 ]; then
+  echo "NAS 관리자 실행 필요: sudo sh scripts/ops/tuti-demo-harumadis --check" >&2
+  exit 1
+fi
+for source in scripts/seed-demo-harumadis.ts data/demo-harumadis/2026-11-14.json scripts/ops/tuti-demo-harumadis; do
+  if ! git -c safe.directory="$project_dir" ls-files --error-unmatch "$source" >/dev/null ||
+     ! git -c safe.directory="$project_dir" diff --quiet HEAD -- "$source"; then
+    echo "시연 코드·문구가 커밋된 원문과 다릅니다. 실행을 중단합니다." >&2
+    exit 1
+  fi
+done
+code_dir="$(mktemp -d /tmp/tuti-demo-seed-code.XXXXXX)"
+cleanup() {
+  rm -f "$code_dir/seed-demo-harumadis.ts" "$code_dir/2026-11-14.json"
+  rmdir "$code_dir"
+}
+trap cleanup EXIT
+trap 'exit 130' INT
+trap 'exit 143' TERM
+chmod 0755 "$code_dir"
+install -m 0644 scripts/seed-demo-harumadis.ts "$code_dir/seed-demo-harumadis.ts"
+install -m 0644 data/demo-harumadis/2026-11-14.json "$code_dir/2026-11-14.json"
+for pair in scripts/seed-demo-harumadis.ts:seed-demo-harumadis.ts data/demo-harumadis/2026-11-14.json:2026-11-14.json; do
+  source="${pair%:*}"
+  copy="${pair#*:}"
+  expected="$(git -c safe.directory="$project_dir" rev-parse "HEAD:$source")"
+  actual="$(git -c safe.directory="$project_dir" hash-object --no-filters "$code_dir/$copy")"
+  if [ "$expected" != "$actual" ]; then echo "시연 코드 사본의 해시가 다릅니다." >&2; exit 1; fi
+done
+exec 9>"$project_dir/.ops-state/maintenance.lock"
+/usr/bin/flock --exclusive 9
+if [ -f "$project_dir/.ops-state/restore-privacy/pending.env" ] || [ -f "$project_dir/.ops-state/privacy-activation/pending" ]; then
+  echo "복원·원장 전환 확인 대기 중에는 시연 자료를 추가하지 않습니다." >&2
+  exit 1
+fi
+echo "시연용 카카오 계정·공개 사진을 확인합니다. --apply 없이는 추가하지 않습니다."
+docker compose --env-file .env.production -f docker-compose.prod.yml run --rm --no-deps -T --user 1000:1000 \
+  --volume "$code_dir/seed-demo-harumadis.ts:/app/scripts/seed-demo-harumadis.ts:ro" \
+  --volume "$code_dir/2026-11-14.json:/app/data/demo-harumadis/2026-11-14.json:ro" \
+  ops node_modules/.bin/tsx scripts/seed-demo-harumadis.ts "$@"

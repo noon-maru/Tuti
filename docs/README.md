@@ -24,6 +24,7 @@
 | 네이티브 빌드·스토어 업로드 | [Android](./android-build.md) · [iOS](./ios-build.md) |
 | 스토어 제출 점검 | [iOS 심사 체크리스트](./ios-app-review.md) · [위치정보 공개](./store-location-disclosures.md) |
 | 관리자·권한·로그 | [관리자 콘솔](./admin-console.md) · [라이프로그 지표](./admin-lifelog-metrics.md) · [처리 요청 자동 채번](./admin-processing-cases.md) |
+| 비공개 시연 자료 추가 | [시연용 하루마디 5권](./demo-harumadis.md) |
 | 상주 ops worker·예약 실행 | [운영 작업 컨테이너](./ops-workers.md) |
 | 객체 스토리지 | [오브젝트 스토리지](./object-storage.md) |
 | 공공데이터 | [관광 데이터 동기화](./tourism-data-sync.md) · [카페·찻집 확충](./cafe-place-expansion.md) · [장소 체류시간 전처리](./place-visit-time-preprocessing.md) |
