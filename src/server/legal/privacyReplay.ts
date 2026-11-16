@@ -27,6 +27,10 @@ export async function settleCurrentPrivacyRequests() {
   for (const record of snapshot.pending ?? []) {
     const userId = subjects.get(record.subject);
     let fulfilled = record.kind === "account_deleted" && !userId;
+    if (record.kind === "pet_deleted") {
+      const pets = await prisma.petProfile.findMany({ select: { id: true } });
+      fulfilled = !pets.some(pet => privacyReplayTarget("pet", pet.id) === record.target);
+    }
     if (record.kind === "location_withdrawn" && userId) {
       const current = await getCurrentLocationConsent(userId);
       if (current?.status === "withdrawn") {
@@ -63,7 +67,7 @@ export async function replayPrivacyRequests(backupAt: Date, apply = false, legac
     const at = new Date(record.effectiveAt);
     if (!previous || previous < at) withdrawn.set(record.subject, at);
   }
-  const result = { dryRun: !apply, scanned: 0, accounts: 0, withdrawals: 0, newerConsent: 0, entries: 0, harumadiPdfs: 0, unpublished: 0, objects: 0 };
+  const result = { dryRun: !apply, scanned: 0, accounts: 0, withdrawals: 0, newerConsent: 0, entries: 0, harumadiPdfs: 0, unpublished: 0, objects: 0, petProfiles: 0 };
   let after: string | undefined;
   while (true) {
     const users = await prisma.user.findMany({ where: after ? { id: { gt: after } } : {}, select: { id: true }, orderBy: { id: "asc" }, take: 250 });
@@ -84,6 +88,14 @@ export async function replayPrivacyRequests(backupAt: Date, apply = false, legac
     after = users.at(-1)!.id;
   }
   const targetReceipts = snapshot.committed.filter((record) => record.kind.startsWith("journal_") || isHarumadiDeletion(record.kind));
+  const deletedPets = new Set(snapshot.committed.filter(record => record.kind === "pet_deleted").map(record => record.target));
+  if (deletedPets.size) {
+    const pets = await prisma.petProfile.findMany({ select: { id: true } });
+    for (const pet of pets) if (deletedPets.has(privacyReplayTarget("pet", pet.id))) {
+      result.petProfiles++;
+      if (apply) await prisma.petProfile.delete({ where: { id: pet.id } });
+    }
+  }
   if (targetReceipts.some((record) => !isHarumadiDeletion(record.kind))) {
     let afterEntry: string | undefined;
     while (true) {

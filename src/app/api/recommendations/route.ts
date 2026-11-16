@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { parseDogOuting } from "@/shared/pets/dogAccess";
 import { writeDiagnosticLogSafely } from "@/server/admin/log";
 import { after } from "next/server";
 import { authenticateUser } from "@/server/auth/session";
@@ -62,10 +63,11 @@ export async function POST(request: Request) {
         excludePlaceIds,
         user?.id,
         preferencePlaceIds,
+        body.dogOuting,
       );
     const recommendationStartedAt = performance.now();
     const locationConsent = location ? await requireCurrentLocationConsent(user) : null;
-    const { places, personalization } = location
+    const result = location
       ? await runWithLocationUsage({
           user: user!,
           consent: locationConsent!,
@@ -75,6 +77,7 @@ export async function POST(request: Request) {
           operation: createRecommendations,
         })
       : await createRecommendations();
+    const { personalization, places } = result;
     const recommendationCompletedAt = performance.now();
     const response: RecommendationResponse = {
       recommendationId,
@@ -213,9 +216,13 @@ function parseRecommendationRequest(value: unknown): RecommendationRequest {
     "excludePlaceIds",
     "preferencePlaceIds",
     "entryStatus",
+    "dogOuting",
   ]);
 
+  const dogOuting = value.dogOuting === undefined ? undefined : parseDogOuting(value.dogOuting);
+  if (dogOuting === null) throw new InvalidRecommendationRequestError("반려견 동반 조건을 확인해주세요.");
   return {
+    ...(dogOuting ? { dogOuting } : {}),
     answers: normalizeAnswers(value.answers),
     location: normalizeLocation(value.location),
     preferredRegion: normalizePreferredRegion(value.preferredRegion),

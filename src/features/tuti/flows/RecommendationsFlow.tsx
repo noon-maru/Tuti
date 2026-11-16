@@ -39,12 +39,13 @@ import type { DepartureRoute } from "@/shared/api/departurePlan";
 import type { RecommendationActionInput } from "@/shared/api/recommendationActions";
 import type { IntakeAnswers } from "@/shared/tuti/types";
 import { placeMadiPath } from "@/shared/tuti/placeMadiPath";
+import type { DogOuting } from "@/shared/pets/dogAccess";
 import {
   type SavedDeparturePlace,
   useTutiStore,
 } from "@/store/tuti";
 
-export function RecommendationsFlow({ interactive }: { interactive: boolean }) {
+export function RecommendationsFlow({ interactive, dogOuting }: { interactive: boolean; dogOuting?: DogOuting }) {
   const router = useRouter();
   const queryClient = useQueryClient();
   const { requestLocation } = useLocationAccess();
@@ -143,6 +144,7 @@ export function RecommendationsFlow({ interactive }: { interactive: boolean }) {
     error,
     refetch,
   } = useTutiRecommendations({
+    dogOuting,
     enabled:
       (dailyRecordCurrent || dailyCheckInSnoozed) &&
       !waitingForLocationRestore,

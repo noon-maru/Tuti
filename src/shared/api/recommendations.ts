@@ -25,6 +25,7 @@ export type RecommendationErrorResponse = {
 };
 
 export type RecommendationRequest = {
+  dogOuting?: import("@/shared/pets/dogAccess").DogOuting;
   answers?: IntakeAnswers;
   location?: UserLocation;
   preferredRegion?: PreferredRegion;

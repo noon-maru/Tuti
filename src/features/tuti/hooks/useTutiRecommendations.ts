@@ -12,8 +12,11 @@ import { hasRecommendationArea } from "@/shared/location/recommendationArea";
 import { RECOMMENDATION_ALGORITHM_VERSION } from "@/shared/api/recommendations";
 import { withDefaultIntakeAnswers } from "@/lib/intakePreferences";
 import { useTutiStore } from "@/store/tuti";
+import type { DogOuting } from "@/shared/pets/dogAccess";
+import { useSession } from "./useSession";
 
-export function useTutiRecommendations({ enabled = true } = {}) {
+export function useTutiRecommendations({ enabled = true, dogOuting }: { enabled?: boolean; dogOuting?: DogOuting } = {}) {
+  const ownerId = useSession()?.userId;
   const storedAnswers = useTutiStore((state) => state.answers);
   const entryRecord = useTutiStore((state) => state.entryRecord);
   const userLocation = useTutiStore((state) => state.userLocation);
@@ -57,7 +60,7 @@ export function useTutiRecommendations({ enabled = true } = {}) {
     ],
   );
   const cachedRecommendation =
-    dailyRecommendation?.effectiveDate === recommendationDate &&
+    !dogOuting && dailyRecommendation?.effectiveDate === recommendationDate &&
     dailyRecommendation.cycle === recommendationCycle &&
     dailyRecommendation.algorithmVersion ===
       RECOMMENDATION_ALGORITHM_VERSION &&
@@ -76,6 +79,8 @@ export function useTutiRecommendations({ enabled = true } = {}) {
       recommendationCycle,
       RECOMMENDATION_ALGORITHM_VERSION,
       inputFingerprint,
+      dogOuting ?? null,
+      dogOuting ? ownerId : null,
     ],
     queryFn: ({ signal }) =>
       fetchRecommendations(
@@ -86,14 +91,17 @@ export function useTutiRecommendations({ enabled = true } = {}) {
         recommendationExcludedPlaceIds,
         savedDeparturePlaces.map((place) => place.placeId),
         signal,
+        dogOuting,
       ),
     enabled: enabled && !regionSelectionRequired,
     initialData: cachedRecommendation,
-    staleTime: Infinity,
+    staleTime: dogOuting ? 0 : Infinity,
+    ...(dogOuting ? { gcTime: 0 } : {}),
   });
 
   useEffect(() => {
     const current = useTutiStore.getState();
+    if (dogOuting) return;
     if (userLocation && (current.userLocation !== userLocation || current.locationConsent?.status !== "accepted")) return;
     if (
       !data?.recommendationId ||
@@ -120,6 +128,7 @@ export function useTutiRecommendations({ enabled = true } = {}) {
     recommendationCycle,
     recommendationDate,
     userLocation,
+    dogOuting,
   ]);
 
   return {

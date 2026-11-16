@@ -28,6 +28,7 @@ import { createDefaultHarumadiForFirstMadi } from "@/server/harumadi/firstMadi";
 import { lockHarumadi, requireHarumadiAccess, requireTogether, harumadiTogetherEnabled } from "@/server/harumadi/access";
 import { HarumadiError } from "@/server/harumadi/errors";
 import { enqueueDataCleanup, processDataCleanupJob } from "@/server/legal/dataCleanup";
+import { linkMadiPets } from "@/server/pets/service";
 
 export class JournalEditConflictError extends Error {
   readonly status = 409;
@@ -41,6 +42,7 @@ export async function getJournalEntries(
     where: { ownerId },
     orderBy: [{ visitedAt: "desc" }, { id: "asc" }],
     select: {
+      pets: { select: { pet: { select: { id: true, name: true, species: true, weightKg: true } } } },
       id: true,
       title: true,
       content: true,
@@ -62,7 +64,7 @@ export async function getJournalEntries(
     },
   });
 
-  return entries.map(serializeJournalEntry);
+  return entries.map(entry => ({ ...serializeJournalEntry(entry), pets: (entry.pets ?? []).map(link => ({ ...link.pet, species: link.pet.species as "dog" | "cat" })) }));
 }
 
 export async function createJournalEntry(
@@ -127,6 +129,7 @@ export async function createJournalEntry(
         },
         select: journalEntrySelect,
       });
+      await linkMadiPets(tx, ownerId, created.id, input.petIds);
       if (input.harumadiId) {
         const link = await tx.harumadiEntryLink.create({ data: { harumadiId: input.harumadiId, entryId: created.id } });
         await recordContribution(tx, ownerId, input.harumadiId, created.id, link.id, context);
@@ -197,6 +200,7 @@ export async function updateJournalEntry(
 
   try {
     result = await prisma.$transaction(async tx => {
+      await tx.$queryRaw`SELECT id FROM users WHERE id = ${ownerId} FOR UPDATE`;
       await tx.$queryRaw`SELECT id FROM journal_entries WHERE id = ${entryId} AND owner_id = ${ownerId} FOR UPDATE`;
       const locked = await tx.journalEntry.findFirst({ where: { id: entryId, ownerId }, select: { updatedAt: true } });
       if (!locked || locked.updatedAt.toISOString() !== expectedVersion) throw new JournalEditConflictError();
@@ -234,6 +238,7 @@ export async function updateJournalEntry(
         } : {}),
       },
     });
+      if (changed.count) await linkMadiPets(tx, ownerId, entryId, input.petIds);
       const cleanupJobId = changed.count && currentEntry.image && currentEntry.image !== preparedImage.image
         ? await enqueueDataCleanup(tx, { images: [currentEntry.image], pdfs: [], appleTokens: [], receipt: null }) : null;
       return { count: changed.count, cleanupJobId };
@@ -508,7 +513,7 @@ export const journalEntrySelect = {
 export function serializeJournalEntry(
   entry: Omit<
     TutiJournalEntry,
-    "visitedAt" | "publication" | "publicationStatus" | "sensitiveWithdrawnAt"
+    "visitedAt" | "publication" | "publicationStatus" | "sensitiveWithdrawnAt" | "pets"
   > & {
     ownerId: string;
     publicId: string | null;

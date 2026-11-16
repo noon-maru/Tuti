@@ -18,6 +18,7 @@ import { TutiWordmark } from "@/features/tuti/components/TutiWordmark";
 import type { CardDisplayPreferences } from "@/store/tuti";
 
 type SettingsDestination =
+  | "pets"
   | "account"
   | "location"
   | "notifications"
@@ -89,6 +90,7 @@ export function SettingsScreen({
         <SettingsSection aria-labelledby="settings-account-heading">
           <SectionLabel id="settings-account-heading">내 정보</SectionLabel>
           <SettingsList>
+            <SettingsRow type="button" onClick={() => onNavigate("pets")}><RowIcon $tone="brand"><UserRound aria-hidden="true" /></RowIcon><RowCopy><strong>함께하는 반려동물</strong><span>선택 프로필을 등록하고 관리해요.</span></RowCopy><ChevronRight aria-hidden="true" /></SettingsRow>
             <SettingsRow
               type="button"
               onClick={() => onNavigate("account")}

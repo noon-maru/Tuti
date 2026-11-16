@@ -9,6 +9,7 @@ import { ToastSurface, ToastAction } from "@/shared/ui/ToastSurface";
 import { ContextMenu } from "@/features/tuti/components/ContextMenu";
 import { LoadingIndicator } from "@/features/tuti/components/LoadingIndicator";
 import { ScreenFrame } from "@/features/tuti/components/ScreenFrame";
+import { DogAccessNotice } from "@/features/tuti/components/DogAccessNotice";
 import { SwipeCard } from "@/features/tuti/components/SwipeCard";
 import { DeparturePlanScreen } from "@/features/tuti/screens/departure/DeparturePlanScreen";
 import { ExpandedDeparturePlanScreen } from "@/features/tuti/screens/departure/ExpandedDeparturePlanScreen";
@@ -753,6 +754,7 @@ export function RecommendationsScreen({
         <Copy $progress={verticalProgress}>
           <h1>다음 마디가 될 작은 여행</h1>
           <p>가까운 곳에서, 남기고 싶은 하루를 만나보세요.</p>
+          {activePlace?.dogAccess && <DogAccessNotice access={activePlace.dogAccess} />}
           {!locationAvailable && (
             <LocationModeButton
               type="button"

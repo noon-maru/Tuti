@@ -48,5 +48,6 @@ export async function transferAnonymousData(
   });
   await tx.userSignalProfile.deleteMany({ where: { userId: sourceId } });
   await mergePlaceFamiliarities(tx, sourceId, targetId);
+  await tx.petProfile.updateMany({ where: { ownerId: sourceId }, data: { ownerId: targetId } });
   await tx.user.delete({ where: { id: sourceId } });
 }

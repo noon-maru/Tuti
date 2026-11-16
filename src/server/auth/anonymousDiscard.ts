@@ -13,6 +13,7 @@ export async function lockAnonymousDiscard(tx: Prisma.TransactionClient, sourceI
       tx.journalEntry.count({ where: { ownerId: sourceId } }),
       tx.harumadi.count({ where: { ownerId: sourceId } }),
       tx.harumadiPdf.count({ where: { ownerId: sourceId } }),
+      tx.petProfile.count({ where: { ownerId: sourceId } }),
     ]);
     if (counts.some(count => count > 0)) throw new AccountAuthError("다른 화면에서 기록이 추가됐어요. 로그인 전에 기록을 합칠지 다시 선택해주세요.", "account_discard_content_changed", 409);
   }

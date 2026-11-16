@@ -27,6 +27,17 @@ test("복원 방지 원장은 비활성 시 파일을 생성하거나 설정을 
   delete process.env.PRIVACY_REPLAY_HMAC_SECRET;
   assert.equal(await preparePrivacyReplayReceipt("account_deleted", "private-user"), null);
 });
+test("프로필 삭제 원장은 별도 pet 대상을 서명하고 기록 삭제와 구별한다", async t => {
+  const directory = await fixture(t);
+  await initializePrivacyReplayLedger(start);
+  await assert.rejects(preparePrivacyReplayReceipt("pet_deleted", "owner", after(1)));
+  const receipt = await preparePrivacyReplayReceipt("pet_deleted", "owner", after(1), "pet-private-id");
+  await commitPrivacyReplayReceipt(receipt, after(2));
+  const snapshot = await readPrivacyReplaySnapshot();
+  assert.equal(snapshot.committed[0].kind, "pet_deleted");
+  assert.equal(snapshot.unresolved, 0);
+  for (const name of await readdir(directory)) assert.doesNotMatch(await readFile(join(directory, name), "utf8"), /pet-private-id/);
+});
 test("초기화 전에는 처리하지 않고 서명된 원장에는 원문 사용자 ID를 저장하지 않는다", async (t) => {
   const directory = await fixture(t);
   await assert.rejects(preparePrivacyReplayReceipt("account_deleted", "private-user"));

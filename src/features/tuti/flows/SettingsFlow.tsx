@@ -12,6 +12,7 @@ import { notificationSettingsAvailable } from "@/shared/notifications/rollout";
 import { loginPath } from "@/lib/loginContinuation";
 
 const settingsRoutes = {
+  pets: "/pets",
   account: loginPath("/settings"),
   inquiry: "/inquiry",
   legal: "/legal",

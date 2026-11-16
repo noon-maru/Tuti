@@ -8,6 +8,7 @@ const MAIN_CHILD_ROUTES = new Set([
   "/location",
   "/login",
   "/notifications",
+  "/pets",
   "/settings",
 ]);
 
@@ -40,6 +41,7 @@ export function resolveAndroidBackDestination(pathname: string) {
     normalizedPathname === "/location" ||
     normalizedPathname === "/login" ||
     normalizedPathname === "/notifications" ||
+    normalizedPathname === "/pets" ||
     normalizedPathname === "/legal"
   ) {
     return "/settings";

@@ -2,6 +2,7 @@ import { preferencesStorage } from "./storage/preferencesStorage";
 import type { StateStorage } from "zustand/middleware";
 
 export type MadiDraft = {
+  petIds?: string[];
   title: string; content: string; date: string; place: string; placeId: string | null;
   image: string | null; originalImage: boolean; stage?: "photo" | "write" | "preview";
 };
@@ -22,7 +23,7 @@ export function newMadiDraftContext(destination?: { id: string; shared?: boolean
 export function isMadiDraft(value: unknown): value is MadiDraft {
   if (!value || typeof value !== "object") return false;
   const draft = value as MadiDraft;
-  return typeof draft.title === "string" && draft.title.length <= 80 && typeof draft.content === "string" && draft.content.length <= 4000 &&
+  return (draft.petIds === undefined || Array.isArray(draft.petIds) && draft.petIds.length <= 20 && draft.petIds.every(id => typeof id === "string" && validId(id))) && typeof draft.title === "string" && draft.title.length <= 80 && typeof draft.content === "string" && draft.content.length <= 4000 &&
     typeof draft.place === "string" && draft.place.length <= 120 && typeof draft.date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(draft.date) &&
     (draft.placeId === null || (typeof draft.placeId === "string" && draft.placeId.length <= 128)) && typeof draft.originalImage === "boolean" &&
     (draft.image === null || (typeof draft.image === "string" && draft.image.length <= LIMIT && /^data:image\/(jpeg|png|webp);base64,[a-zA-Z0-9+/=]+$/.test(draft.image))) &&

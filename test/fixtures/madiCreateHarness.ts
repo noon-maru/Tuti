@@ -49,6 +49,7 @@ export function madiCreateHarness(props: ComponentProps<typeof MadiCreateScreen>
     "@/features/tuti/components/LoadingIndicator": { AppLoadingScreen: tag },
     "@/features/tuti/components/JournalPlacePicker": { JournalPlacePicker: tag },
     "@/features/tuti/components/MadiFieldFeedback": { MadiFieldFeedback: tag },
+    "@/features/tuti/components/PetProfiles": { PetProfiles: tag },
     "@/lib/madiDraft": { newMadiDraftContext },
     "@/shared/harumadi/sharingAudience": { harumadiSharingNotice },
     ...overrides,

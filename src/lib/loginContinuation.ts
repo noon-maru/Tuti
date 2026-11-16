@@ -4,6 +4,7 @@ import type { StateStorage } from "zustand/middleware";
 const KEY = "tuti-login-continuation-v1";
 const TTL = 30 * 60_000;
 const routes: Record<string, string[]> = {
+  "/pets": [],
   "/": [], "/entry": ["mode", "step", "next"], "/explore": ["mode", "step", "harumadiId", "ownerId"], "/settings": [],
   "/madi": ["filter", "view"], "/madi/detail": ["entryId"], "/madi/edit": ["entryId", "source", "harumadiId"],
   "/madi/new": ["from", "harumadiId", "savedEntryId", "placeId", "placeName", "journeyId"], "/harumadi": ["harumadiId", "mode", "focusEntryId"],

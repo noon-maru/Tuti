@@ -76,7 +76,7 @@ test("격리 DB에서 계정 병합과 신규 작성이 직렬화된다", { time
     await assert.rejects(orm.$transaction(async tx => { await consumeEmailChallenge(tx, "code"); throw new Error('synthetic rollback'); }), /synthetic rollback/);
     assert.equal((await a.query("SELECT consumed_at FROM email_verification_codes")).rows[0].consumed_at, null);
 
-    await a.query("INSERT INTO users VALUES('source'); CREATE TABLE auth_identities(id text PRIMARY KEY,user_id text); CREATE TABLE journal_entries(id text PRIMARY KEY,owner_id text REFERENCES users); CREATE TABLE harumadis(id text PRIMARY KEY,owner_id text); CREATE TABLE harumadi_pdfs(id text PRIMARY KEY,owner_id text)");
+    await a.query("INSERT INTO users VALUES('source'); CREATE TABLE auth_identities(id text PRIMARY KEY,user_id text); CREATE TABLE journal_entries(id text PRIMARY KEY,owner_id text REFERENCES users); CREATE TABLE harumadis(id text PRIMARY KEY,owner_id text); CREATE TABLE harumadi_pdfs(id text PRIMARY KEY,owner_id text); CREATE TABLE pet_profiles(id text PRIMARY KEY, owner_id text REFERENCES users)");
     await b.query("BEGIN; SELECT id FROM users WHERE id='source' FOR UPDATE; INSERT INTO journal_entries VALUES('late','source')");
     const discard = orm.$transaction(tx => lockAnonymousDiscard(tx, "source", "target", false));
     const rejection = assert.rejects(discard, { code: "account_discard_content_changed" });

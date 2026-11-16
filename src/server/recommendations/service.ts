@@ -1,5 +1,7 @@
 import type { PlaceVisitTimeProfile, TutiPlace } from "@/lib/recommendations";
 import { prisma } from "@/server/db/prisma";
+import { eligibleDogPlaces } from "@/server/pets/dogAccess";
+import type { DogOuting } from "@/shared/pets/dogAccess";
 import { interpretState } from "@/lib/recommendations";
 import {
   personalizeRecommendationRanking,
@@ -58,6 +60,7 @@ import type {
 } from "@/shared/tuti/types";
 
 type PlaceRow = {
+  dogAccess?: import("@/shared/pets/dogAccess").DogAccess;
   id: string;
   name: string;
   phrase: string;
@@ -216,6 +219,7 @@ async function evaluateRecommendations(
   userId?: string,
   preferencePlaceIds: string[] = [],
   evaluationTime: Date = new Date(),
+  dogOuting?: DogOuting,
 ) {
   // 오늘 사용자가 명시적으로 고른 값은 항상 결정론적으로 해석한다.
   // LLM 프로필은 아래의 후보 순위 보정 단계에서만 비동기로 활용된다.
@@ -230,7 +234,7 @@ async function evaluateRecommendations(
     location &&
     getExternalLocationProcessingMode() !== "pending"
   ) {
-    const longDistancePlaces = requireLongDistanceRecommendations(
+    const rawLongDistancePlaces = requireLongDistanceRecommendations(
       await createLongDistanceRecommendations(
         answers,
         location,
@@ -238,6 +242,7 @@ async function evaluateRecommendations(
       ),
     );
 
+    const longDistancePlaces = dogOuting ? await eligibleDogPlaces(rawLongDistancePlaces, dogOuting) : rawLongDistancePlaces;
     const [admissionEnrichedPlaces, weatherEnrichedPlaces] = await Promise.all([
       enrichPlacesWithAdmissionFees(longDistancePlaces),
       enrichPlacesWithWeatherForecast(longDistancePlaces),
@@ -278,7 +283,7 @@ async function evaluateRecommendations(
     };
   }
 
-  const places = location
+  const sourcePlaces = location
     ? await findPlacesNearLocation(
         location,
         feature.movement === "far"
@@ -288,6 +293,7 @@ async function evaluateRecommendations(
       )
     : await findPlacesByBaseFatigue(preferredRegion);
 
+  const places = dogOuting ? await eligibleDogPlaces(sourcePlaces, dogOuting) : sourcePlaces;
   const { eligiblePlaces, candidatePlaces, fallbackPlaces } =
     selectRecommendationCandidatePool(places, excludePlaceIds);
   const noveltySignals = await loadPlaceNoveltySignals(userId, places.map(place => place.id), evaluationTime);
@@ -441,6 +447,7 @@ export async function createRecommendationsWithAudit(
   excludePlaceIds: string[] = [],
   userId?: string,
   preferencePlaceIds: string[] = [],
+  dogOuting?: DogOuting,
 ): Promise<{ places: TutiPlace[]; personalization: PersonalizationAudit }> {
   const evaluation = await evaluateRecommendations(
     answers,
@@ -449,6 +456,8 @@ export async function createRecommendationsWithAudit(
     excludePlaceIds,
     userId,
     preferencePlaceIds,
+    new Date(),
+    dogOuting,
   );
   return {
     places: evaluation.recommendedPlaces,
@@ -639,6 +648,7 @@ function toTutiPlace(place: PlaceRow): TutiPlace {
       })
     : place.moodTags;
   return {
+    ...(place.dogAccess ? { dogAccess: place.dogAccess } : {}),
     id: place.id,
     name: toPublicPlaceName(
       place.name,

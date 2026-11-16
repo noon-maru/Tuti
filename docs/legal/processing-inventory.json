@@ -5,6 +5,22 @@
   "legalApproval": false,
   "groups": [
     {
+      "id": "optional-pet-profiles",
+      "implementationState": "disabled-pending-rollout",
+      "models": ["PetProfile", "MadiPetLink"],
+      "items": "2026-11-16 추가형 구현: 본인 계정의 선택 반려동물 이름·종류·선택 몸무게·수정 번호와 마디 연결. 프로필 연결로 공유 권한을 부여하지 않으며 공개·공동 책 직렬화에 자동 포함하지 않음. 운영 미적용",
+      "retention": "프로필·계정 삭제까지. 프로필 삭제는 연결만 제거하고 원본 마디·책·PDF 유지. 계정 병합 시 프로필 소유권 이전. 프로필 단독 삭제는 pet_deleted 서명 원장과 백업 복원 재반영으로 통제. 새 법적 승인을 뜻하지 않음",
+      "sources": ["src/server/pets/service.ts", "src/server/journal/service.ts", "src/server/auth/anonymousMerge.ts", "src/server/auth/accountMerge.ts", "src/server/legal/privacyReplay.ts", "prisma/schema.prisma"]
+    },
+    {
+      "id": "public-dog-access",
+      "implementationState": "disabled-pending-rollout",
+      "models": ["DogPlaceAccess"],
+      "items": "공개 장소의 확인된 동반 여부·허용 구역·조건·출처 URL·확인일·유효기간. 운영자 검토 자료만 입력하며 개인 마디·반려동물 이름을 읽어 추정하지 않음. 실제 운영 자료 미입력",
+      "retention": "공개 장소 자료를 갱신·삭제할 때까지. 유효기간 지난 정보는 동반 추천 자격으로 사용하지 않음. 사용자별 조건 요청은 기존 추천 실행의 처리·위치 철회·계정 파기 범위를 따름",
+      "sources": ["src/server/pets/dogAccess.ts", "src/shared/pets/dogAccess.ts", "scripts/import-dog-place-access.ts", "src/server/recommendations/service.ts", "prisma/schema.prisma"]
+    },
+    {
       "id": "accounts-authentication",
       "models": ["User", "AuthIdentity", "EmailVerificationCode", "OAuthAuthorization", "UserSession"],
       "items": "계정/로그인 제공자 식별값, 표시 이름·이메일, 토큰 검증값, 권한·접속시각, OAuth state·PKCE 검증자료·암호화 Apple 갱신 토큰",

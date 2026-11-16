@@ -1,4 +1,5 @@
 import type { JournalEntryInput } from "@/shared/api/journal";
+import { validPetIds } from "@/shared/pets/profile";
 import { LIFECYCLE_UUID } from "@/shared/api/lifecycle";
 import { FIRST_JOURNAL_TITLE_LIMIT, FIRST_JOURNAL_CONTENT_LIMIT, FIRST_JOURNAL_PLACE_LIMIT } from "@/shared/api/firstJournal";
 
@@ -11,6 +12,7 @@ export function parseJournalEntryInput(
   value: unknown,
 ): JournalEntryInput | null {
   if (!isRecord(value)) return null;
+  if (value.petIds !== undefined && !validPetIds(value.petIds)) return null;
   if (value.expectedHarumadiShared !== undefined && (typeof value.expectedHarumadiShared !== "boolean" || typeof value.harumadiId !== "string")) return null;
   if (value.expectedVersion !== undefined && (typeof value.expectedVersion !== "string" || !Number.isFinite(Date.parse(value.expectedVersion)) || new Date(value.expectedVersion).toISOString() !== value.expectedVersion)) return null;
   if (value.requestId !== undefined && (typeof value.requestId !== "string" || !LIFECYCLE_UUID.test(value.requestId))) return null;
@@ -56,6 +58,7 @@ export function parseJournalEntryInput(
   }
 
   return {
+    ...(value.petIds !== undefined ? { petIds: value.petIds as string[] } : {}),
     ...(typeof value.expectedVersion === "string" ? { expectedVersion: value.expectedVersion } : {}),
     ...(typeof value.requestId === "string" ? { requestId: value.requestId } : {}),
     ...(typeof value.harumadiId === "string" ? { harumadiId: value.harumadiId } : {}),

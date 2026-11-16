@@ -32,6 +32,7 @@ test("책장 검색은 기본 접힘, 열기·입력·닫기·Escape·IME 및 �
     "../hooks/useLifecycleView": { useLifecycleView() {} },
     "../components/ScreenFrame": { ScreenFrame: "section" }, "../components/ContextMenu": { ContextMenu: "div" },
     "@/shared/ui/typography": { bodyCopyStyles: "" },
+    "../components/PendingMadiNotice": { PendingMadiNotice: "PendingMadiNotice" },
   };
   for (const name of components) deps[`@/features/tuti/components/${name}`] = { [name]: name };
   const flow = clientFlowHarness("src/features/tuti/flows/LibraryHomeFlow.tsx", "LibraryHomeFlow", deps);

@@ -151,8 +151,10 @@ export async function fetchRecommendations(
   excludePlaceIds?: string[],
   preferencePlaceIds?: string[],
   signal?: AbortSignal,
+  dogOuting?: RecommendationRequest["dogOuting"],
 ): Promise<RecommendationResponse> {
   const request: RecommendationRequest = {
+    ...(dogOuting ? { dogOuting } : {}),
     answers,
     location,
     entryStatus,

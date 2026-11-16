@@ -20,6 +20,7 @@ test("익명 로그인 병합은 하루마디를 삭제하지 않는다", async 
   function initialState(journals = 2, books = 1, pdfs = 1) {
     return {
       sourceExists: true, consumed: false,
+      pets: [{ id: "pet", ownerId: sourceId }],
       entries: Array.from({ length: journals }, (_, i) => ({ id: `entry-${i}`, ownerId: sourceId })),
       books: Array.from({ length: books }, () => ({ id: "book", ownerId: sourceId, title: "나의 하루마디", accessRevision: 0 })),
       pdfs: Array.from({ length: pdfs }, () => ({ id: "pdf", ownerId: sourceId, objectKey: "original-key" })),
@@ -30,6 +31,7 @@ test("익명 로그인 병합은 하루마디를 삭제하지 않는다", async 
   const updateOwners = (rows: { ownerId: string }[], ownerId: string) => rows.forEach(row => { row.ownerId = ownerId; });
   const noop = async () => ({ count: 0 });
   const prismaMock = {
+    petProfile: { count: async () => state.pets.length, updateMany: async ({ data }: { data: { ownerId: string } }) => { updateOwners(state.pets, data.ownerId); return { count: state.pets.length }; } },
     $queryRaw: async () => [{ id: sourceId }, { id: targetId }],
     $executeRaw: async (sql: TemplateStringsArray, ...values: unknown[]) => {
       assert.match(sql.join("?"), /INSERT INTO place_familiarities/);
@@ -76,6 +78,7 @@ test("익명 로그인 병합은 하루마디를 삭제하지 않는다", async 
     user: {
       delete: async () => {
         state.sourceExists = false;
+        state.pets = state.pets.filter(row => row.ownerId !== sourceId);
         state.entries = state.entries.filter(row => row.ownerId !== sourceId);
         state.books = state.books.filter(row => row.ownerId !== sourceId);
         state.pdfs = state.pdfs.filter(row => row.ownerId !== sourceId);
@@ -124,6 +127,7 @@ test("익명 로그인 병합은 하루마디를 삭제하지 않는다", async 
       assert.equal(result.status, "authenticated");
       assert.equal(state.sourceExists, false);
       assert.deepEqual(state.entries.map(row => row.ownerId), [targetId, targetId]);
+      assert.deepEqual(state.pets, [{ id: "pet", ownerId: targetId }]);
       assert.deepEqual(state.books, [{ id: "book", ownerId: targetId, title: "나의 하루마디", accessRevision: 1 }]);
       assert.deepEqual(state.links, links);
       assert.deepEqual(state.pdfs, [{ id: "pdf", ownerId: targetId, objectKey: "original-key" }]);
@@ -139,6 +143,12 @@ test("익명 로그인 병합은 하루마디를 삭제하지 않는다", async 
         assert.deepEqual(state, before);
       });
     }
+    await t.test(`${provider}: 반려동물 프로필만 있어도 삭제 전에 선택을 요청`, async () => {
+      state = initialState(0, 0, 0);
+      const before = structuredClone(state);
+      assert.equal((await login()).status, "journal-resolution-required");
+      assert.deepEqual(state, before);
+    });
     await t.test(`${provider}: 이전 실패 시 계정·데이터·인증 소비를 모두 롤백`, async () => {
       state = initialState();
       const before = structuredClone(state);

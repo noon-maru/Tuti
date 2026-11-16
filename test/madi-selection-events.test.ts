@@ -28,7 +28,7 @@ function fixture(add: (...args: unknown[]) => Promise<unknown>, recentError = fa
     "@/features/tuti/components/ScreenFrame": { ScreenFrame: "div" },
     "@/features/tuti/components/buttons": { BackButton: "button", PrimaryButton: styled.button({}), TextButton: "button" },
     "@/features/tuti/navigation/androidBack": { ANDROID_BACK_EVENT: "back" },
-    "@/lib/harumadis": { fetchHarumadis() {}, fetchRecentHarumadis() {} },
+    "@/lib/harumadis": { fetchHarumadis() {}, fetchRecentHarumadis() {}, harumadiPath: (id: string) => `/harumadi?harumadiId=${encodeURIComponent(id)}` },
     "@/lib/addMadiToHarumadi": { addMadiToHarumadi: add },
     "@/features/tuti/components/HarumadiTitleHint": { HarumadiTitleHint: "span" },
     "@/shared/harumadi/recentChoices": { groupHarumadiChoices },

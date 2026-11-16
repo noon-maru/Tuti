@@ -193,6 +193,7 @@ enum LocationSecurityEventResult {
 }
 
 model Place {
+  dogAccess DogPlaceAccess?
   familiarities             PlaceFamiliarity[]
   id                        String                                @id
   name                      String
@@ -695,6 +696,7 @@ model ExternalDataSyncCheckpoint {
 }
 
 model JournalEntry {
+  pets MadiPetLink[]
   id          String    @id
   sensitiveContent Boolean? @map("sensitive_content")
   sensitiveConsentVersion String? @map("sensitive_consent_version")
@@ -873,6 +875,7 @@ model JournalShareTrace {
 }
 
 model User {
+  pets PetProfile[]
   placeFamiliarities PlaceFamiliarity[]
   notificationPreference NotificationPreference?
   notificationBookSettings NotificationBookSetting[]
@@ -920,6 +923,45 @@ model User {
   @@index([analyticsExcludedAt])
   @@index([journalPublicationRestrictedAt])
   @@map("users")
+}
+
+model PetProfile {
+  revision Int @default(0)
+  id String @id
+  ownerId String @map("owner_id")
+  name String
+  species String
+  weightKg Float? @map("weight_kg")
+  createdAt DateTime @default(now()) @map("created_at")
+  owner User @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  entries MadiPetLink[]
+  @@index([ownerId])
+  @@map("pet_profiles")
+}
+
+model DogPlaceAccess {
+  placeId String @id @map("place_id")
+  allowed Boolean
+  areas String
+  rules String
+  maxWeightKg Float? @map("max_weight_kg")
+  leashRequired Boolean @map("leash_required")
+  carrierRequired Boolean @map("carrier_required")
+  sourceUrl String @map("source_url")
+  checkedAt DateTime @map("checked_at")
+  validUntil DateTime @map("valid_until")
+  place Place @relation(fields: [placeId], references: [id], onDelete: Cascade)
+  @@map("dog_place_access")
+}
+
+model MadiPetLink {
+  entryId String @map("entry_id")
+  petId String @map("pet_id")
+  entry JournalEntry @relation(fields: [entryId], references: [id], onDelete: Cascade)
+  pet PetProfile @relation(fields: [petId], references: [id], onDelete: Cascade)
+  @@id([entryId, petId])
+  @@index([petId])
+  @@map("madi_pet_links")
 }
 
 // 공고 원문은 시행/동의 대상과 별도로 보관한다. 사용자 식별정보를 포함하지 않는다.

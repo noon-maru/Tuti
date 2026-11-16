@@ -291,6 +291,7 @@ export async function mergeUserIntoCurrentAccount({
       },
     });
     await mergePlaceFamiliarities(transaction, sourceUserId, targetUserId);
+    await transaction.petProfile.updateMany({ where: { ownerId: sourceUserId }, data: { ownerId: targetUserId } });
     await transaction.user.delete({ where: { id: sourceUserId } });
   });
 }

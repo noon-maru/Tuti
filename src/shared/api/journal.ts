@@ -1,4 +1,6 @@
 export type TutiJournalEntry = {
+  /** Owner-only metadata; not included in public or collaborative book serializers. */
+  pets?: import("@/shared/pets/profile").PetProfile[];
   /** 작성 응답의 실제 연결 결과. 목록·수정 응답에서는 생략한다. */
   savedHarumadi?: { id: string; title: string } | null;
   version?: string;
@@ -30,6 +32,7 @@ export type JournalEntryInput = Pick<
   TutiJournalEntry,
   "content" | "image" | "placeName" | "title"
 > & {
+  petIds?: string[];
   expectedVersion?: string;
   requestId?: string;
   harumadiId?: string;
@@ -79,7 +82,7 @@ export type JournalShareTraceFinalizationResponse = {
 
 export type PublicJournalEntry = Omit<
   TutiJournalEntry,
-  "id" | "placeId" | "publication" | "publicationStatus"
+  "id" | "placeId" | "publication" | "publicationStatus" | "pets"
 > & {
   publicId: string;
   publishedAt: string;

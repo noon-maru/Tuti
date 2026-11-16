@@ -24,6 +24,7 @@ import { JournalPlacePicker } from "@/features/tuti/components/JournalPlacePicke
 import { MadiFieldFeedback } from "@/features/tuti/components/MadiFieldFeedback";
 import { newMadiDraftContext } from "@/lib/madiDraft";
 import { harumadiSharingNotice } from "@/shared/harumadi/sharingAudience";
+import { PetProfiles } from "@/features/tuti/components/PetProfiles";
 
 type Stage = "photo" | "write" | "preview";
 
@@ -60,6 +61,8 @@ export function MadiCreateScreen({ onBack, onSave, onCollection, onSaved, onStar
   const [date, setDate] = useState(getKoreanDateKey);
   const [place, setPlace] = useState(initialPlace?.name ?? "");
   const [placeId, setPlaceId] = useState<string | null>(initialPlace?.id ?? null);
+  const [petIds, setPetIds] = useState<string[]>([]);
+  const [petsOpen, setPetsOpen] = useState(false);
   const [storyOpen, setStoryOpen] = useState(false);
   const [placeOpen, setPlaceOpen] = useState(false);
   const [saved, setSaved] = useState<TutiJournalEntry | null>(null);
@@ -83,10 +86,11 @@ export function MadiCreateScreen({ onBack, onSave, onCollection, onSaved, onStar
   const fieldErrors = getMadiFieldErrors({ image, title, content, date, place }, today);
   const draftContext = newMadiDraftContext(inHarumadi ? draftDestination ?? destination : null);
   const localDraft = useMadiDraft({ ownerId: draftOwnerId, ...draftContext, enabled: !preview && !saved && (!inHarumadi || Boolean(draftDestination ?? destination)),
-    value: { image, title, content, date, place, placeId, originalImage: false, stage },
+    value: { image, title, content, date, place, placeId, petIds, originalImage: false, stage },
     restore: value => {
       setImage(value.image); setTitle(value.title); setContent(value.content); setDate(value.date); setPlace(value.place); setStage(value.stage ?? "write");
       setPlaceId(value.placeId);
+      setPetIds(value.petIds ?? []);
       setStoryOpen(Boolean(value.title || value.content)); setPlaceOpen(Boolean(value.place));
       dateEdited.current = true;
     } });
@@ -173,6 +177,7 @@ export function MadiCreateScreen({ onBack, onSave, onCollection, onSaved, onStar
     try {
       // 간편 작성은 일반 마디만 취급하며 별도 민감정보 동의를 추정하지 않는다.
       const entry = await onSave({ ...draft,
+        petIds,
         placeId,
         sensitiveContent: false });
       await localDraft.finish();
@@ -187,6 +192,7 @@ export function MadiCreateScreen({ onBack, onSave, onCollection, onSaved, onStar
   };
 
   const startAnother = () => {
+    setPetIds([]); setPetsOpen(false);
     onStartAnother?.();
     setContinued(true);
     selection.current += 1;
@@ -253,6 +259,7 @@ export function MadiCreateScreen({ onBack, onSave, onCollection, onSaved, onStar
           onChange={value => { setPlace(value.name); setPlaceId(value.id); }} />
           <MadiFieldFeedback id="madi-place-feedback" message={fieldErrors.place} touched={touched.place} /></> : <OptionalAction type="button" onClick={() => setPlaceOpen(true)}>장소 추가<small>선택</small></OptionalAction>}</div>
         <PrivacyHint>민감정보나 주민등록번호 등은 남기지 말아주세요.</PrivacyHint>
+        <details onToggle={event => setPetsOpen(event.currentTarget.open)}><summary>함께한 반려동물 · 선택</summary>{petsOpen && <PetProfiles selected={petIds} onChange={setPetIds} disabled={saving} />}</details>
       </Fields>}
       {(saved || stage === "preview") && <MemoryPage
         title={saved ? saved.title : title.trim()}

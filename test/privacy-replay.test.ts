@@ -16,6 +16,7 @@ let entries = [
 ];
 let harumadiPdfs = [{ id: "harumadiPdf-delete", ownerId: "unrelated", objectKey: "" }];
 let harumadis = [{ id: "harumadi-delete", ownerId: "unrelated" }];
+let pets = [{ id: "pet-deleted", ownerId: "unrelated" }, { id: "pet-kept", ownerId: "unrelated" }];
 const entryModel = {
   findMany: async ({ where }: { where: { id?: { gt: string }; ownerId?: string } }) => entries.filter((entry) => (!where.id || entry.id > where.id.gt) && (!where.ownerId || entry.ownerId === where.ownerId)).sort((a, b) => a.id.localeCompare(b.id)),
   findUnique: async ({ where }: { where: { id: string } }) => entries.find((entry) => entry.id === where.id) ?? null,
@@ -47,6 +48,7 @@ const transaction = new Proxy({
   },
 }, { get(target, key) { return Reflect.get(target, key) ?? { deleteMany: async () => ({ count: 0 }), updateMany: async () => ({ count: 0 }) }; } });
 (globalThis as { prisma?: unknown }).prisma = {
+  petProfile: { findMany: async () => pets, delete: async ({ where }: { where: { id: string } }) => { pets = pets.filter(pet => pet.id !== where.id); } },
   userDataCleanupJob: { updateMany: async () => ({ count: 0 }) },
   journalEntry: entryModel,
   harumadiPdf: harumadiModel,
@@ -74,7 +76,7 @@ test("복원 재반영은 삭제 계정과 철회만 처리하고 새 동의·�
     await commitPrivacyReplayReceipt(receipt, at(10));
   }
   const dryRun = await replayPrivacyRequests(at(100));
-  assert.deepEqual(dryRun, { dryRun: true, scanned: 4, accounts: 1, withdrawals: 1, newerConsent: 1, entries: 0, harumadiPdfs: 0, unpublished: 0, objects: 0 });
+  assert.deepEqual(dryRun, { dryRun: true, scanned: 4, accounts: 1, withdrawals: 1, newerConsent: 1, entries: 0, harumadiPdfs: 0, unpublished: 0, objects: 0, petProfiles: 0 });
   assert.deepEqual(deleted, []);
   assert.deepEqual(withdrawals, []);
   const applied = await replayPrivacyRequests(at(100), true);
@@ -104,4 +106,12 @@ test("복원 재반영은 삭제 계정과 철회만 처리하고 새 동의·�
   const harumadiReplay = await replayPrivacyRequests(at(100), true);
   assert.equal(harumadiReplay.harumadiPdfs, 1);
   assert.equal(harumadis.length, 0);
+  const petReceipt = await preparePrivacyReplayReceipt("pet_deleted", "unrelated", at(1), "pet-deleted");
+  await commitPrivacyReplayReceipt(petReceipt, at(10));
+  const beforePetReplay = structuredClone(entries);
+  assert.equal((await replayPrivacyRequests(at(100))).petProfiles, 1);
+  assert.equal(pets.length, 2, "조회는 삭제하지 않는다");
+  assert.equal((await replayPrivacyRequests(at(100), true)).petProfiles, 1);
+  assert.deepEqual(pets.map(pet => pet.id), ["pet-kept"]);
+  assert.deepEqual(entries, beforePetReplay, "프로필 삭제 재반영은 원본 마디를 보존");
 });

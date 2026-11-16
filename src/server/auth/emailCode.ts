@@ -291,13 +291,14 @@ async function verifyParsedEmailCode(
       where: { ownerId: currentUser.id },
     });
 
-    const [currentBookCount, currentPdfCount] = await Promise.all([
+    const [currentBookCount, currentPdfCount, currentPetCount] = await Promise.all([
       prisma.harumadi.count({ where: { ownerId: currentUser.id } }),
       prisma.harumadiPdf.count({ where: { ownerId: currentUser.id } }),
+      prisma.petProfile.count({ where: { ownerId: currentUser.id } }),
     ]);
 
     if (
-      (currentJournalCount > 0 || currentBookCount > 0 || currentPdfCount > 0) &&
+      (currentJournalCount > 0 || currentBookCount > 0 || currentPdfCount > 0 || currentPetCount > 0) &&
       !journalResolution
     ) {
       return {

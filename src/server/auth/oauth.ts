@@ -366,13 +366,14 @@ export async function completeOAuthLogin(input: {
       where: { ownerId: authorization.userId },
     });
 
-    const [currentBookCount, currentPdfCount] = await Promise.all([
+    const [currentBookCount, currentPdfCount, currentPetCount] = await Promise.all([
       prisma.harumadi.count({ where: { ownerId: authorization.userId } }),
       prisma.harumadiPdf.count({ where: { ownerId: authorization.userId } }),
+      prisma.petProfile.count({ where: { ownerId: authorization.userId } }),
     ]);
 
     if (
-      (currentJournalCount > 0 || currentBookCount > 0 || currentPdfCount > 0) &&
+      (currentJournalCount > 0 || currentBookCount > 0 || currentPdfCount > 0 || currentPetCount > 0) &&
       !journalResolution
     ) {
       return {
