@@ -18,6 +18,7 @@ export async function createPet(ownerId: string, body: unknown) {
 /** Caller holds the account lock. Linking never grants access to another person's pet or book. */
 export async function linkMadiPets(tx: Prisma.TransactionClient, ownerId: string, entryId: string, petIds: string[] | undefined) {
   if (petIds === undefined) return;
+  if (!await tx.journalEntry.findFirst({ where: { id: entryId, ownerId }, select: { id: true } })) throw new HarumadiError("이 계정의 마디를 찾지 못했어요.", 404);
   const pets = await tx.petProfile.findMany({ where: { ownerId, id: { in: petIds } }, select: { id: true } });
   if (pets.length !== petIds.length) throw new HarumadiError("선택한 반려동물 정보가 바뀌었어요. 연결을 다시 확인해주세요.", 409);
   await tx.madiPetLink.deleteMany({ where: { entryId } });

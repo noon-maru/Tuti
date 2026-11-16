@@ -16,7 +16,7 @@ test("격리 PostgreSQL에서 프로필·마디 연결 원자성·삭제·병합
   }
   const root = mkdtempSync(join(tmpdir(), "tuti-pets-")), data = join(root, "data"), socket = join(root, "socket");
   mkdirSync(socket, { mode: 0o700 });
-  const env = { PATH: process.env.PATH, LANG: "C", LC_ALL: "C" };
+  const env = { PATH: process.env.PATH, LANG: "C", LC_ALL: "C", NODE_ENV: "test" as const };
   let started = false;
   const db = new pg.Client({ host: socket, port: 15493, user: "fixture", database: "postgres" });
   const orm = new PrismaClient({ adapter: new PrismaPg({ host: socket, port: 15493, user: "fixture", database: "postgres" }) });

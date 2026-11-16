@@ -15,10 +15,12 @@ test("선택 프로필은 이름·종·선택 몸무게만 받고 0~N 연결을 
 
 test("마디의 반려동물 연결은 본인 프로필만 허용하고 검증 실패 때 연결을 건드리지 않는다", async () => {
   const writes: unknown[] = [];
-  const tx = { petProfile: { findMany: async ({ where }: { where: { ownerId: string; id: { in: string[] } } }) => where.ownerId === "owner" ? where.id.in.filter(id => id !== "other").map(id => ({ id })) : [] }, madiPetLink: { deleteMany: async (arg: unknown) => { writes.push(arg); }, createMany: async (arg: unknown) => { writes.push(arg); } } } as unknown as Prisma.TransactionClient;
+  const tx = { journalEntry: { findFirst: async ({ where }: { where: { id: string; ownerId: string } }) => where.ownerId === "owner" && where.id === "entry" ? { id: "entry" } : null }, petProfile: { findMany: async ({ where }: { where: { ownerId: string; id: { in: string[] } } }) => where.ownerId === "owner" ? where.id.in.filter(id => id !== "other").map(id => ({ id })) : [] }, madiPetLink: { deleteMany: async (arg: unknown) => { writes.push(arg); }, createMany: async (arg: unknown) => { writes.push(arg); } } } as unknown as Prisma.TransactionClient;
   await linkMadiPets(tx, "owner", "entry", undefined);
   assert.equal(writes.length, 0, "구버전 수정 요청은 기존 연결 보존");
   await assert.rejects(linkMadiPets(tx, "owner", "entry", ["other"]));
+  assert.equal(writes.length, 0);
+  await assert.rejects(linkMadiPets(tx, "owner", "someone-elses-entry", ["a"]));
   assert.equal(writes.length, 0);
   await linkMadiPets(tx, "owner", "entry", ["a", "b"]);
   assert.equal(writes.length, 2);
@@ -29,6 +31,9 @@ test("동반 판단은 확인됨·불충족·미확인을 구분하고 모든 �
   const access: DogAccess = { allowed: true, areas: "야외 테라스", rules: "실내 제외", maxWeightKg: 10, leashRequired: true, carrierRequired: false, sourceUrl: "https://venue.example/notice", checkedAt: "2026-11-15T00:00:00Z", validUntil: "2026-12-01T00:00:00Z" };
   const outing = { weightsKg: [5, 8], leash: true, carrier: false };
   assert.ok(parseDogAccess(access));
+  assert.equal(parseDogAccess({ ...access, checkedAt: 0 }), null);
+  assert.equal(parseDogAccess({ ...access, checkedAt: "11/15/2026" }), null);
+  assert.equal(parseDogAccess({ ...access, sourceUrl: [access.sourceUrl] }), null);
   assert.equal(dogAccessStatus(access, outing, now), "eligible");
   assert.equal(dogAccessStatus(access, { ...outing, weightsKg: [5, 12] }, now), "ineligible");
   assert.equal(dogAccessStatus(access, { ...outing, weightsKg: [] }, now), "unknown");

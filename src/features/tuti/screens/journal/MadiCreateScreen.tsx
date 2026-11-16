@@ -177,7 +177,7 @@ export function MadiCreateScreen({ onBack, onSave, onCollection, onSaved, onStar
     try {
       // 간편 작성은 일반 마디만 취급하며 별도 민감정보 동의를 추정하지 않는다.
       const entry = await onSave({ ...draft,
-        petIds,
+        ...(petIds.length ? { petIds } : {}),
         placeId,
         sensitiveContent: false });
       await localDraft.finish();

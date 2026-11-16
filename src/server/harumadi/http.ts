@@ -4,7 +4,7 @@ import { guardServiceTerms } from "@/server/legal/requestGuard";
 import { SensitiveJournalPolicyError } from "@/server/journal/sensitivePolicy";
 import { HarumadiError } from "./service";
 
-export async function harumadiRequest(request: Request, action: (ownerId: string) => Promise<unknown>) {
+export async function harumadiRequest(request: Request, action: (ownerId: string) => Promise<unknown>, failureMessage = "하루마디를 저장하거나 불러오지 못했어요. 잠시 후 다시 시도해주세요.") {
   const respond = (body: unknown, status = 200) => withCors(request, Response.json(body, { status, headers: { "Cache-Control": "private, no-store" } }));
   if (!isRequestOriginAllowed(request)) return respond({ error: "허용되지 않은 요청 출처예요." }, 403);
   try {
@@ -15,7 +15,7 @@ export async function harumadiRequest(request: Request, action: (ownerId: string
     return respond(await action(user.id));
   } catch (error) {
     if (error instanceof HarumadiError || error instanceof SensitiveJournalPolicyError) return respond({ error: error.message }, error.status);
-    return respond({ error: "하루마디를 저장하거나 불러오지 못했어요. 잠시 후 다시 시도해주세요." }, 503);
+    return respond({ error: failureMessage }, 503);
   }
 }
 export async function readHarumadiBody(request: Request) {
