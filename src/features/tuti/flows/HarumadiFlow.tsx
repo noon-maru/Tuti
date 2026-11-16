@@ -113,6 +113,7 @@ function HarumadiEditor({ owner, initial, read, verified, refreshing, onRefresh,
     return () => window.clearTimeout(timer);
   }, [readOnly, refreshing, opening, closing]);
   const addEntryId = useSearchParams().get("addEntryId");
+  const focusEntryId = useSearchParams().get("focusEntryId");
   const handlePdf = useCallback((value: typeof pdf) => setPdf(value), []);
   const policyQuery = useQuery({ queryKey: ["journal-sensitive-policy"], queryFn: fetchSensitiveJournalPolicy, enabled: mode === "settings" || mode === "pdf" });
   const sensitivePolicy = policyQuery.data;
@@ -277,14 +278,14 @@ function HarumadiEditor({ owner, initial, read, verified, refreshing, onRefresh,
       {harumadi && mode === "pages" && <HeaderTools>
         {harumadi.shared && <Quiet type="button" disabled={busy || readOnly} onClick={() => setMode("comments")}><MessageCircle size={17} aria-hidden="true" />댓글·답글</Quiet>}
         {readOnly ? <Quiet type="button" disabled={refreshing || busy} onClick={onRefresh}>최신 내용 확인</Quiet> : <ReaderMenu label="하루마디 관리" disabled={busy || readOnly} triggerContent={<><Settings2 size={17} aria-hidden="true" />관리</>}
-          items={readerManagementActions(harumadi.role, chosen.length).map(({ action, label }) => ({ label, onSelect: () => {
+          items={[{ label: "다음에 보낼 하루 찾아보기", onSelect: () => router.push(`/explore?${new URLSearchParams({ harumadiId: harumadi.id, ownerId: owner })}`) }, ...readerManagementActions(harumadi.role, chosen.length).map(({ action, label }) => ({ label, onSelect: () => {
             if (busy || readOnly) return;
             if (action === "selection") { selectRecords(); return; }
             setError(""); setConfirmed(false);
             if (action === "order") setOrderedIds(harumadi.entryIds);
             if (action === "pdf") setPdf(null);
             setMode(action);
-          } }))} />}
+          } }))]} />}
       </HeaderTools>}</Header>
     <Body ref={scroller} data-scroll-region={mode === "pages" ? undefined : ""} $reading={mode === "pages"} $creating={!harumadi && mode === "settings"}>
       {read?.cached && read.missingImages > 0 && <p className="hint">일부 사진은 연결 후 볼 수 있어요.</p>}
@@ -322,7 +323,7 @@ function HarumadiEditor({ owner, initial, read, verified, refreshing, onRefresh,
         {sensitivePolicy?.enabled && <Confirmation><input type="checkbox" checked={confirmed} onChange={event => setConfirmed(event.target.checked)} />이름과 뒷표지 문구에 민감정보가 없음을 확인해요.</Confirmation>}
         {pdfInput && !readOnly && sensitivePolicy && (!sensitivePolicy.enabled || confirmed) && <HarumadiPdfPreview key={`${harumadi!.revision}:${confirmed}`} ownerId={owner} input={pdfInput} onReady={handlePdf} />}
       </> : harumadi && <>
-        <HarumadiPageViewer book={harumadi} entries={chosen} onClose={closeToLibrary} closing={closing} ownerId={owner}
+        <HarumadiPageViewer book={harumadi} entries={chosen} onClose={closeToLibrary} closing={closing} ownerId={owner} focusEntryId={focusEntryId}
           keepsakeAction={!readOnly ? <HarumadiPurchaseButton key={harumadi.id} surface="harumadi_reader" bookTitle={harumadi.title}
             preview={<HarumadiSettingsCover title={harumadi.title} coverStyle={harumadi.coverStyle} entries={chosen} />} /> : undefined}
           onEditEntry={readOnly ? undefined : entryId => {

@@ -33,6 +33,8 @@ export type DetailOverlayState = {
 };
 
 export type PendingDeparture = {
+  ownerId?: string;
+  harumadiId?: string;
   journeyId: string;
   placeId: string;
   placeName: string;

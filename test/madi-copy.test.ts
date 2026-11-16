@@ -13,8 +13,8 @@ test("둘러보기의 계정 복원 동선은 마디에 한정하지 않고 기�
 
 test("첫 마디는 사진·이야기로 설명하고 시작 동작과 빈 하루마디에 연결한다", () => {
   const welcome = read("screens/onboarding/WelcomeScreen.tsx");
-  assert.match(welcome, /사진 한 장, 짧은 이야기면 충분해요/);
-  assert.match(welcome, /한 마디씩 남겨요/);
+  assert.match(welcome, /반려동물과 살아가는 우리를 위한 기록/);
+  assert.match(welcome, /일상을 추억으로/);
   assert.match(welcome, />첫 마디 남기기</);
   assert.doesNotMatch(welcome, /첫 페이지 만들기/);
   assert.match(read("screens/onboarding/WelcomeHarumadiPreview.tsx"), />첫 마디 남기기</);

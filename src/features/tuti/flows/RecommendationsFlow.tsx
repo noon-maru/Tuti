@@ -1,7 +1,7 @@
 "use client";
 
 import { useQueryClient } from "@tanstack/react-query";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { requestLoginNudge } from "@/features/tuti/auth/loginNudge";
 import { DepartureReturnSheet } from "@/features/tuti/components/DepartureReturnSheet";
@@ -49,6 +49,9 @@ export function RecommendationsFlow({ interactive }: { interactive: boolean }) {
   const queryClient = useQueryClient();
   const { requestLocation } = useLocationAccess();
   const session = useSession();
+  const context = useSearchParams();
+  // Navigation context is account-bound, never a grant of book write access.
+  const destinationId = context.get("ownerId") === session?.userId ? context.get("harumadiId") : null;
   const automaticLocationRequest = useRef(false);
   const recordedRecommendationIds = useRef(new Set<string>());
   const [currentDate, setCurrentDate] = useState(getKoreanDateKey);
@@ -116,6 +119,7 @@ export function RecommendationsFlow({ interactive }: { interactive: boolean }) {
   const returnCheckInVisible = Boolean(
     interactive &&
       pendingDeparture &&
+      (!pendingDeparture.ownerId || pendingDeparture.ownerId === session?.userId) &&
       new Date(pendingDeparture.promptAfter).getTime() <= returnCheckInNow,
   );
   const dailyCheckInVisible =
@@ -403,6 +407,8 @@ export function RecommendationsFlow({ interactive }: { interactive: boolean }) {
     );
 
     setPendingDeparture({
+      ownerId: session?.userId,
+      harumadiId: destinationId ?? undefined,
       journeyId,
       placeId: place.id,
       placeName: place.name,
@@ -466,6 +472,7 @@ export function RecommendationsFlow({ interactive }: { interactive: boolean }) {
         onDetailClose={finishDetailClose}
         onCreateMadi={() => {
           const search = new URLSearchParams({ from: "explore" });
+          if (destinationId) search.set("harumadiId", destinationId);
           if (recommendationId) {
             search.set("journeyId", recommendationId);
             recordAction({ journeyId: recommendationId, action: "journal_started" });
@@ -474,7 +481,7 @@ export function RecommendationsFlow({ interactive }: { interactive: boolean }) {
         }}
         onCreatePlaceMadi={place => {
           if (recommendationId) recordAction({ journeyId: recommendationId, action: "journal_started", placeId: place.id });
-          router.push(placeMadiPath(place, recommendationId));
+          router.push(placeMadiPath(place, recommendationId, destinationId));
         }}
         onAdmin={() => router.push("/admin")}
         onDownload={() => router.push("/download")}
@@ -600,6 +607,7 @@ export function RecommendationsFlow({ interactive }: { interactive: boolean }) {
               placeName: pendingDeparture.placeName,
               journeyId: pendingDeparture.journeyId,
             });
+            if (pendingDeparture.ownerId === session?.userId && pendingDeparture.harumadiId) search.set("harumadiId", pendingDeparture.harumadiId);
             completePendingDeparture();
             router.push(`/madi/new?${search.toString()}`);
           }}

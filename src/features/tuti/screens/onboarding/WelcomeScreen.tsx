@@ -47,8 +47,8 @@ export function WelcomeScreen({ onRecord, onExplore, guideStep, onGuideOpen, onG
       {guide ? <StepCount>{guideStep! + 1} / {WELCOME_GUIDE.length}</StepCount> : <ButtonLink as={Link} href={loginPath("/entry")} $tone="text" $size="compact">로그인</ButtonLink>}
     </Header>
     <Copy>
-      <h1 id="welcome-heading" ref={heading} tabIndex={-1}>{guide ? guide.title : "기억하고 싶은 하루를,\n한 마디씩 남겨요."}</h1>
-      <p>{guide ? guide.description : "사진 한 장, 짧은 이야기면 충분해요."}</p>
+      <h1 id="welcome-heading" ref={heading} tabIndex={-1}>{guide ? guide.title : "일상을 추억으로,\n추억을 한 권으로"}</h1>
+      <p>{guide ? guide.description : "반려동물과 살아가는 우리를 위한 기록.\n함께한 순간도, 나만의 하루도 남겨보세요."}</p>
     </Copy>
     <Visual>
       {guideStep === 1 ? <StoryExample aria-label="사진과 짧은 이야기 예시">

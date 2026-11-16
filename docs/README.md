@@ -11,6 +11,7 @@
 | --- | --- |
 | 서비스·개발 시작 | [저장소 README](../README.md) |
 | 2.0.0 브랜드·타깃·말투·시각 방향 | [브랜드 정의서 v1.0](./brand-definition.md) |
+| 2.0 구현 범위·진행 상태 | [구현 진행](./tuti-2-implementation.md) |
 | 제품 방향·고객 가설 | [2.0 브랜드 기준](./brand-definition.md) · [1.x 방향·기존 가설](./product-direction.md) |
 | 화면 흐름·마디·하루마디·PDF | [마디 작성](./madi.md) · [하루마디 구현](./harumadi.md) |
 | 웹·앱·서버 경계·인증 | [Capacitor API 구조](./capacitor-api-architecture.md) |

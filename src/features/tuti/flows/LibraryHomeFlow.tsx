@@ -29,6 +29,7 @@ import type { HarumadiOpeningMode } from "../navigation/harumadiActions";
 import { ScreenFrame } from "../components/ScreenFrame";
 import { ContextMenu } from "../components/ContextMenu";
 import { bodyCopyStyles } from "@/shared/ui/typography";
+import { PendingMadiNotice } from "../components/PendingMadiNotice";
 
 export function LibraryHomeFlow() {
   const session = useSession();
@@ -90,6 +91,7 @@ function LibraryHome({ ownerId }: { ownerId: string }) {
     <SearchRow $open={searchOpen} id="library-name-search" inert={!searchOpen} aria-hidden={!searchOpen} onKeyDown={event => {
       if (event.key === "Escape" && !event.nativeEvent.isComposing) { event.preventDefault(); closeSearch(); }
     }}><SearchReveal><MadiSearchField inputRef={focusSearchInput} value={search.search} onChange={search.setSearch} label="하루마디 이름 검색" placeholder="하루마디 이름으로 찾기" /></SearchReveal></SearchRow>
+    <PendingMadiNotice ownerId={ownerId} />
     <ShelfScroll ref={shelfScroll} data-scroll-region data-library-layout={search.searching ? "covers" : view} aria-label="내 하루마디">
       {query.isPending ? <Status role="status"><LoadingIndicator /><p>책장에 하루마디를 놓고 있어요.</p></Status>
         : query.isError && !query.data ? <Status role="alert"><BookOpen size={28} /><h2>책장을 불러오지 못했어요.</h2><p>하루마디가 없어진 건 아니에요.<br />연결을 확인하고 다시 불러와주세요.</p><TextAction onClick={() => void query.refetch()}>다시 불러오기<ChevronRight size={14} /></TextAction></Status>

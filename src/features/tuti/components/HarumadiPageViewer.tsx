@@ -15,7 +15,7 @@ import type { TutiJournalEntry } from "@/shared/api/journal";
 import { readerGroupGeometry, type ReaderTextMeasure } from "@/shared/harumadi/readerText";
 import { harumadiReadingPositions, readingIndex, readingPosition, type ReadingPosition } from "@/lib/harumadiReadingPosition";
 
-export function HarumadiPageViewer({ book, entries, onClose, closing = false, ownerId, onEditEntry, keepsakeAction }: { book: Harumadi; entries: TutiJournalEntry[]; onClose: () => void; closing?: boolean; ownerId?: string; onEditEntry?: (entryId: string) => void; keepsakeAction?: ReactNode }) {
+export function HarumadiPageViewer({ book, entries, onClose, closing = false, ownerId, onEditEntry, keepsakeAction, focusEntryId }: { book: Harumadi; entries: TutiJournalEntry[]; onClose: () => void; closing?: boolean; ownerId?: string; onEditEntry?: (entryId: string) => void; keepsakeAction?: ReactNode; focusEntryId?: string | null }) {
   const stage = useRef<HTMLDivElement>(null);
   const reader = useRef<HTMLDivElement>(null), navigation = useRef<HTMLElement>(null);
   const [measureText, setMeasureText] = useState<ReaderTextMeasure>();
@@ -58,16 +58,18 @@ export function HarumadiPageViewer({ book, entries, onClose, closing = false, ow
   const pages = useMemo(() => buildHarumadiReaderPages(book, entries, pageWidth, measureText), [book, entries, pageWidth, measureText]);
   // 책장에서 표지를 이미 열었으므로 첫 지면부터 보여준다. 이전 쪽으로 표지를 볼 수 있다.
   const [index, setIndex] = useState(1);
-  const [position, setPosition] = useState<ReadingPosition | null>(null);
+  const requestedPosition = focusEntryId && entries.some(entry => entry.id === focusEntryId) ? { entryId: focusEntryId, part: 0 } : null;
+  const hasRequestedPosition = Boolean(requestedPosition);
+  const [position, setPosition] = useState<ReadingPosition | null>(requestedPosition);
   const interacted = useRef(false);
   useEffect(() => {
-    if (!ownerId) return;
+    if (!ownerId || hasRequestedPosition) return;
     let active = true;
     void harumadiReadingPositions.load(ownerId, book.id).then(saved => {
       if (active && !interacted.current) setPosition(saved);
     });
     return () => { active = false; };
-  }, [ownerId, book.id]);
+  }, [ownerId, book.id, hasRequestedPosition]);
   const current = position ? readingIndex(pages, position) : Math.min(index, pages.length - 1);
   const lastPage = current === pages.length - 1;
   const editableId = onEditEntry ? editableReaderEntry(book, entries, pages[current].entryId, ownerId) : null;
