@@ -3,6 +3,7 @@ import { resolve, join, dirname } from "node:path";
 import { collectPetTourism } from "../src/server/tourism/collectPetTourism";
 import { TourApiError } from "../src/server/tourism/tourApiClient";
 import type { PetSource } from "../src/server/tourism/petTourClient";
+import { fetchPetTourPage } from "../src/server/tourism/petTourClient";
 
 const args = process.argv.slice(2);
 const value = (name: string, fallback: string) => { const index = args.indexOf(name); return index < 0 ? fallback : args[index + 1]; };
@@ -33,6 +34,14 @@ try {
         await artifact.writeFile(records.map(row => JSON.stringify(row)).join("\n") + (records.length ? "\n" : "")); await artifact.sync();
         if (save) await save(records);
         await progress!.writeFile(JSON.stringify(checkpoint) + "\n"); await progress!.sync();
+      }, fetchPetTourPage, async (records, pageNo) => {
+        const partial = await open(join(output, `${source}-partial-page-${pageNo}.jsonl`), "wx", 0o600);
+        try {
+          await partial.chmod(0o600);
+          await partial.writeFile(records.map(row => JSON.stringify(row)).join("\n") + "\n");
+          await partial.sync();
+          console.error(JSON.stringify({ source, incompletePage: pageNo, partialRecordsPreserved: records.length, databaseChangedForPartialPage: false, output }));
+        } finally { await partial.close(); }
       });
       console.log(JSON.stringify({ ...result, mode: save ? "database-and-artifact" : "artifact-only", output, credentialsPrinted: false, automaticEligibilityPublished: false }));
     } finally { await artifact.close(); await progress?.close(); }

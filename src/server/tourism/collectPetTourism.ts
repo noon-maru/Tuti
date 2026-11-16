@@ -2,7 +2,7 @@ import { fetchPetTourPage, type PetSource } from "./petTourClient";
 import { petContentId, petTourRecord, type PetTourRecord } from "./petTourRecord";
 
 type FetchPage = typeof fetchPetTourPage;
-export async function collectPetTourism(input: { source: PetSource; startPage: number; pages: number; rows: number; maxRequests: number }, save: (records: PetTourRecord[], checkpoint: { nextPage: number; complete: boolean }) => Promise<void>, fetchPage: FetchPage = fetchPetTourPage) {
+export async function collectPetTourism(input: { source: PetSource; startPage: number; pages: number; rows: number; maxRequests: number }, save: (records: PetTourRecord[], checkpoint: { nextPage: number; complete: boolean }) => Promise<void>, fetchPage: FetchPage = fetchPetTourPage, savePartial?: (records: PetTourRecord[], pageNo: number) => Promise<void>) {
   const { source, startPage, pages, rows, maxRequests } = input;
   if ((source !== "kor" && source !== "pet") || ![startPage, pages, rows, maxRequests].every(n => Number.isSafeInteger(n) && n > 0) || pages > 1000 || rows > 100 || maxRequests > 1000) throw new Error("INVALID_COLLECTION_LIMITS");
   const result = { source, requests: 0, received: 0, totalAvailable: 0, pages: 0, nextPage: startPage, complete: false };
@@ -20,9 +20,15 @@ export async function collectPetTourism(input: { source: PetSource; startPage: n
       seen.add(contentId);
       if (source === "kor") records.push(petTourRecord(source, item, new Date()));
       else {
-        const detail = await fetchPage(source, 1, 100, contentId); result.requests++;
-        if (detail.items.length !== 1 || petContentId(detail.items[0]) !== contentId) throw new Error("PET_DETAIL_MISSING_OR_MISMATCHED");
-        records.push(petTourRecord(source, detail.items[0], new Date(), item));
+        try {
+          const detail = await fetchPage(source, 1, 100, contentId); result.requests++;
+          if (detail.items.length !== 1 || petContentId(detail.items[0]) !== contentId) throw new Error("PET_DETAIL_MISSING_OR_MISMATCHED");
+          records.push(petTourRecord(source, detail.items[0], new Date(), item));
+        } catch (error) {
+          // Preserve successful details without marking or applying a partial page as complete.
+          if (records.length) await savePartial?.(records, pageNo);
+          throw error;
+        }
       }
     }
     if (!page.items.length && (pageNo - 1) * rows < page.totalCount) throw new Error("PET_PAGE_UNEXPECTEDLY_EMPTY");

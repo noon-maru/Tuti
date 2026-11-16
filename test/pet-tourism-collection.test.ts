@@ -28,6 +28,14 @@ test("요청 예산이 부족하면 반쪽 페이지를 수집하지 않는다",
   const result = await collectPetTourism({ source: "pet", startPage: 2, pages: 10, rows: 2, maxRequests: 2 }, async () => { throw Error("no save"); }, async () => { called = true; return page([]); });
   assert.equal(called, false); assert.equal(result.nextPage, 2); assert.equal(result.complete, false);
 });
+test("상세 수집이 막히면 성공한 원문만 별도 보존하고 완료·DB 적용은 하지 않는다", async () => {
+  let partial: PetTourRecord[] = [], pendingPage = 0;
+  await assert.rejects(collectPetTourism({ source: "pet", startPage: 1, pages: 1, rows: 2, maxRequests: 3 }, async () => { assert.fail("partial page must not apply"); }, async (_s, _p, _r, id) => {
+    if (id === "2") throw new TourApiError("호출 제한", "LIMIT");
+    return id ? page([{ contentid: id }]) : page([{ contentid: "1" }, { contentid: "2" }]);
+  }, async (records, pageNo) => { partial = records; pendingPage = pageNo; }), error => error instanceof TourApiError && error.code === "LIMIT");
+  assert.equal(partial.length, 1); assert.equal(partial[0].contentId, "1"); assert.equal(pendingPage, 1);
+});
 test("누락·중복·다른 콘텐츠 상세는 완료나 체크포인트로 기록하지 않는다", async () => {
   for (const items of [[], [{ contentid: "1" }], [{ contentid: "1" }, { contentid: "1" }]]) {
     await assert.rejects(collectPetTourism({ source: "kor", startPage: 1, pages: 1, rows: 2, maxRequests: 3 }, async () => { assert.fail("must not save"); }, async () => page(items, 10)));
