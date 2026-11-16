@@ -965,7 +965,7 @@ model TourismPetSourceRecord {
   fetchedAt DateTime @map("fetched_at")
   providerModifiedAt String? @map("provider_modified_at")
   facilityVerifiedAt DateTime? @map("facility_verified_at")
-  place Place? @relation(fields: [placeId], references: [id], onDelete: SetNull)
+  place Place? @relation(fields: [placeId], references: [id], onDelete: SetNull, onUpdate: NoAction)
   @@id([source, contentId])
   @@index([placeId])
   @@map("tourism_pet_source_records")

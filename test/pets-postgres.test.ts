@@ -70,7 +70,7 @@ test("격리 PostgreSQL에서 프로필·마디 연결 원자성·삭제·병합
   assert.equal(await orm.tourismPetSourceRecord.count(), 3, "출처별 원문·미매칭 장소 보존");
   assert.equal((await orm.tourismPetSourceRecord.findUniqueOrThrow({ where: { source_contentId: { source: "pet", contentId: "999" } } })).placeId, null);
   await savePetTourism([petTourRecord("kor", { contentid: "1", acmpyNeedMtr: "과거" }, new Date("2026-11-15T00:00:00Z"))]);
-  assert.equal((await orm.tourismPetSourceRecord.findUniqueOrThrow({ where: { source_contentId: { source: "kor", contentId: "1" } } })).rawPayload && (await db.query("SELECT raw_payload->>'acmpyNeedMtr' v FROM tourism_pet_source_records WHERE source='kor'")).rows[0].v, "목줄");
+  assert.equal((await db.query("SELECT raw_payload->>'acmpyNeedMtr' v FROM tourism_pet_source_records WHERE source='kor'")).rows[0].v, "목줄", "오래된 응답으로 최신 조건을 덮어쓰지 않음");
   assert.equal((await orm.dogPlaceAccess.findUniqueOrThrow({ where: { placeId: "place" } })).rules, "실내 제외", "검토된 추천 조건은 덮어쓰지 않음");
   await assert.rejects(savePetTourism([petTourRecord("kor", { contentid: "2" }, new Date()), { ...petTourRecord("kor", { contentid: "3" }, new Date()), source: "invalid" as "kor" }]));
   assert.equal(await orm.tourismPetSourceRecord.count(), 3, "페이지 저장 실패는 전체 롤백");

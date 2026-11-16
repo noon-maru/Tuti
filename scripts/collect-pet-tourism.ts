@@ -1,5 +1,5 @@
-import { mkdir, open, lstat } from "node:fs/promises";
-import { resolve, join } from "node:path";
+import { mkdir, open, chmod } from "node:fs/promises";
+import { resolve, join, dirname } from "node:path";
 import { collectPetTourism } from "../src/server/tourism/collectPetTourism";
 import { TourApiError } from "../src/server/tourism/tourApiClient";
 import type { PetSource } from "../src/server/tourism/petTourClient";
@@ -7,7 +7,8 @@ import type { PetSource } from "../src/server/tourism/petTourClient";
 const args = process.argv.slice(2);
 const value = (name: string, fallback: string) => { const index = args.indexOf(name); return index < 0 ? fallback : args[index + 1]; };
 const accepted = new Set(["--source", "--start-page", "--pages", "--rows", "--max-requests", "--output", "--apply"]);
-for (let i = 0; i < args.length; i++) { if (!accepted.has(args[i])) throw new Error("INVALID_ARGUMENT"); if (args[i] !== "--apply") { if (!args[i + 1] || args[i + 1].startsWith("--")) throw new Error("MISSING_ARGUMENT"); i++; } }
+const seen = new Set<string>();
+for (let i = 0; i < args.length; i++) { if (!accepted.has(args[i]) || seen.has(args[i])) throw new Error("INVALID_OR_DUPLICATE_ARGUMENT"); seen.add(args[i]); if (args[i] !== "--apply") { if (!args[i + 1] || args[i + 1].startsWith("--")) throw new Error("MISSING_ARGUMENT"); i++; } }
 const source = value("--source", "both");
 if (!["kor", "pet", "both"].includes(source)) throw new Error("INVALID_SOURCE");
 const output = resolve(value("--output", join(".tourism-data", "pet-tourism", new Date().toISOString().replace(/[:.]/g, "-") + "-" + crypto.randomUUID().slice(0, 8))));
@@ -15,13 +16,17 @@ const sources: PetSource[] = source === "both" ? ["kor", "pet"] : [source as Pet
 let disconnect: (() => Promise<void>) | undefined;
 try {
   // Exclusive artifact directory: reruns never overwrite another collection/checkpoint.
-  await mkdir(output, { recursive: true, mode: 0o700 });
-  if ((await lstat(output)).isSymbolicLink()) throw new Error("OUTPUT_SYMLINK");
+  await mkdir(dirname(output), { recursive: true, mode: 0o700 });
+  await mkdir(output, { mode: 0o700 });
+  // DSM inherited ACLs can override creation modes; tighten the new run directory explicitly.
+  await chmod(output, 0o700);
   for (const source of sources) {
     const artifact = await open(join(output, `${source}.jsonl`), "wx", 0o600);
     let progress: Awaited<ReturnType<typeof open>> | undefined;
     try {
+      await artifact.chmod(0o600);
       progress = await open(join(output, `${source}-progress.jsonl`), "wx", 0o600);
+      await progress.chmod(0o600);
       const save = args.includes("--apply") ? (await import("../src/server/tourism/savePetTourism")).savePetTourism : undefined;
       if (save) { const { prisma } = await import("../src/server/db/prisma"); disconnect = () => prisma.$disconnect(); }
       const result = await collectPetTourism({ source, startPage: Number(value("--start-page", "1")), pages: Number(value("--pages", "1")), rows: Number(value("--rows", "10")), maxRequests: Number(value("--max-requests", "200")) }, async (records, checkpoint) => {
