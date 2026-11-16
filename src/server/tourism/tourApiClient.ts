@@ -1,5 +1,4 @@
-const TOUR_API_BASE_URL =
-  "https://apis.data.go.kr/B551011/KorService2";
+export type TourApiService = "KorService2" | "KorPetTourService2";
 const TOUR_API_SUCCESS_CODE = "0000";
 
 export type TourApiPlaceItem = {
@@ -102,6 +101,7 @@ export async function fetchTourismAccommodations({
 export async function fetchTourApiPage<T>(
   operation: string,
   parameters: Record<string, string>,
+  service: TourApiService = "KorService2",
 ): Promise<{
   items: T[];
   pageNo: number;
@@ -124,14 +124,15 @@ export async function fetchTourApiPage<T>(
       "tour_api_invalid_operation",
     );
   }
+  if (service !== "KorService2" && service !== "KorPetTourService2") throw new TourApiError("지원하지 않는 TourAPI 서비스입니다.", "tour_api_invalid_service");
 
-  const url = new URL(`${TOUR_API_BASE_URL}/${operation}`);
+  const url = new URL(`https://apis.data.go.kr/B551011/${service}/${operation}`);
   url.search = new URLSearchParams({
+    ...parameters,
     serviceKey,
     MobileOS: "ETC",
     MobileApp: "Tuti",
     _type: "json",
-    ...parameters,
   }).toString();
 
   let response: Response;
@@ -178,10 +179,8 @@ export async function fetchTourApiPage<T>(
 
   if (header?.resultCode !== TOUR_API_SUCCESS_CODE || !body) {
     throw new TourApiError(
-      header?.resultMsg
-        ? `TourAPI 요청이 실패했습니다: ${header.resultMsg}`
-        : "TourAPI 응답 형식을 확인하지 못했습니다.",
-      header?.resultCode ?? "tour_api_invalid_response",
+      "TourAPI 요청이 실패했습니다. 활용 승인·호출 한도와 응답 형식을 확인해주세요.",
+      typeof header?.resultCode === "string" && /^[A-Za-z0-9_]{1,80}$/.test(header.resultCode) ? header.resultCode : "tour_api_invalid_response",
     );
   }
 

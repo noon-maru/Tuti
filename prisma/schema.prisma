@@ -193,6 +193,7 @@ enum LocationSecurityEventResult {
 }
 
 model Place {
+  petSources TourismPetSourceRecord[]
   dogAccess DogPlaceAccess?
   familiarities             PlaceFamiliarity[]
   id                        String                                @id
@@ -952,6 +953,22 @@ model DogPlaceAccess {
   validUntil DateTime @map("valid_until")
   place Place @relation(fields: [placeId], references: [id], onDelete: Cascade)
   @@map("dog_place_access")
+}
+
+model TourismPetSourceRecord {
+  source String
+  contentId String @map("content_id")
+  placeId String? @map("place_id")
+  rawPayload Json @map("raw_payload")
+  listPayload Json? @map("list_payload")
+  sourceUrl String @map("source_url")
+  fetchedAt DateTime @map("fetched_at")
+  providerModifiedAt String? @map("provider_modified_at")
+  facilityVerifiedAt DateTime? @map("facility_verified_at")
+  place Place? @relation(fields: [placeId], references: [id], onDelete: SetNull)
+  @@id([source, contentId])
+  @@index([placeId])
+  @@map("tourism_pet_source_records")
 }
 
 model MadiPetLink {

@@ -26,6 +26,7 @@
 /.ops-backups/
 /.ops-state/
 /.compliance-evidence/
+/.tourism-data/
 
 # misc
 .DS_Store

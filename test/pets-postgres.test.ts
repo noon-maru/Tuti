@@ -34,7 +34,8 @@ test("격리 PostgreSQL에서 프로필·마디 연결 원자성·삭제·병합
   started = true;
   await db.connect();
   await db.query("CREATE TABLE users(id text PRIMARY KEY); CREATE TABLE journal_entries(id text PRIMARY KEY,owner_id text REFERENCES users(id) ON DELETE CASCADE); CREATE TABLE places(id text PRIMARY KEY); INSERT INTO users VALUES('owner'),('other'),('target'); INSERT INTO journal_entries VALUES('original','owner'); INSERT INTO places VALUES('place');");
-  for (const path of ["20261116010000_optional_pet_profiles", "20261116020000_dog_place_access"]) await db.query(readFileSync(`prisma/migrations/${path}/migration.sql`, "utf8"));
+  for (const path of ["20261116010000_optional_pet_profiles", "20261116020000_dog_place_access", "20261116030000_tourism_pet_sources"]) await db.query(readFileSync(`prisma/migrations/${path}/migration.sql`, "utf8"));
+  await db.query("ALTER TABLE places ADD COLUMN source text, ADD COLUMN source_id text; UPDATE places SET source='tourapi',source_id='1' WHERE id='place'");
   globalDb.prisma = orm; process.env.PRIVACY_REPLAY_LEDGER_ENABLED = "false";
   const { createPet, updatePet, deletePet, linkMadiPets } = await import("../src/server/pets/service");
   const pet = await createPet("owner", { name: "모모", species: "dog", weightKg: 8 });
@@ -59,6 +60,20 @@ test("격리 PostgreSQL에서 프로필·마디 연결 원자성·삭제·병합
   const places = [{ id: "place" }, { id: "unknown" }];
   assert.equal((await eligibleDogPlaces(places, { weightsKg: [8], leash: true, carrier: false })).length, 1);
   assert.equal((await eligibleDogPlaces(places, { weightsKg: [8, 15], leash: true, carrier: false })).length, 0);
+  const { savePetTourism } = await import("../src/server/tourism/savePetTourism");
+  const { petTourRecord } = await import("../src/server/tourism/petTourRecord");
+  await savePetTourism([
+    petTourRecord("kor", { contentid: "1", acmpyNeedMtr: "목줄" }, new Date("2026-11-16T00:00:00Z")),
+    petTourRecord("pet", { contentid: "1" }, new Date("2026-11-16T00:00:00Z")),
+    petTourRecord("pet", { contentid: "999" }, new Date("2026-11-16T00:00:00Z")),
+  ]);
+  assert.equal(await orm.tourismPetSourceRecord.count(), 3, "출처별 원문·미매칭 장소 보존");
+  assert.equal((await orm.tourismPetSourceRecord.findUniqueOrThrow({ where: { source_contentId: { source: "pet", contentId: "999" } } })).placeId, null);
+  await savePetTourism([petTourRecord("kor", { contentid: "1", acmpyNeedMtr: "과거" }, new Date("2026-11-15T00:00:00Z"))]);
+  assert.equal((await orm.tourismPetSourceRecord.findUniqueOrThrow({ where: { source_contentId: { source: "kor", contentId: "1" } } })).rawPayload && (await db.query("SELECT raw_payload->>'acmpyNeedMtr' v FROM tourism_pet_source_records WHERE source='kor'")).rows[0].v, "목줄");
+  assert.equal((await orm.dogPlaceAccess.findUniqueOrThrow({ where: { placeId: "place" } })).rules, "실내 제외", "검토된 추천 조건은 덮어쓰지 않음");
+  await assert.rejects(savePetTourism([petTourRecord("kor", { contentid: "2" }, new Date()), { ...petTourRecord("kor", { contentid: "3" }, new Date()), source: "invalid" as "kor" }]));
+  assert.equal(await orm.tourismPetSourceRecord.count(), 3, "페이지 저장 실패는 전체 롤백");
   await db.query("DELETE FROM users WHERE id='other'");
   assert.equal(await orm.petProfile.count(), 0, "계정 삭제 시 프로필 제거");
 });
