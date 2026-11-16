@@ -1,14 +1,17 @@
 # Tuti 문서 안내
 
-정리 기준: 2026-10-29. 현재 제품은 **마디를 하루마디에 채워 소장하는 라이프로그 서비스**다.
+브랜드 기준 갱신: 2026-11-16. 현재 제품은 **마디를 하루마디에 채워 소장하는 라이프로그 서비스**다.
 홈은 책장이며 작은 여행은 별도 화면이다. 실물 주문·결제·배송과 사용자 LLM 개인화는 제공하지 않는다.
+2.0.0은 반려동물 보호자를 중심으로 기록 경험을 설명하고, 작은 여행을 반려견 동반 외출에
+전문화하는 방향이다. 이 목표와 현재 구현·출시는 구분한다.
 
 ## 문서를 읽는 순서
 
 | 목적 | 기준 문서 |
 | --- | --- |
 | 서비스·개발 시작 | [저장소 README](../README.md) |
-| 제품 방향·고객 가설 | [제품 방향](./product-direction.md) |
+| 2.0.0 브랜드·타깃·말투·시각 방향 | [브랜드 정의서 v1.0](./brand-definition.md) |
+| 제품 방향·고객 가설 | [2.0 브랜드 기준](./brand-definition.md) · [1.x 방향·기존 가설](./product-direction.md) |
 | 화면 흐름·마디·하루마디·PDF | [마디 작성](./madi.md) · [하루마디 구현](./harumadi.md) |
 | 웹·앱·서버 경계·인증 | [Capacitor API 구조](./capacitor-api-architecture.md) |
 | 시행 원문·선택 동의·개인정보 | [법적 문서 안내](./legal/README.md) |
@@ -43,7 +46,7 @@
 | 글꼴·애니메이션 | [PDF 폰트](./pdf-fonts.md) · [모션](./cross-platform-motion.md) |
 | 확인·결과 안내 | [공통 모달·토스트](./ui-feedback.md) |
 | 사용자 화면 공통 규칙 | [글자·여백·버튼·책 UI 경계](./ui-design-system.md) |
-| 브랜드 원본 | [에셋 README](../assets/README.md) |
+| 브랜드 기준·공식 에셋 | [브랜드 정의서](./brand-definition.md) · [에셋 README](../assets/README.md) |
 
 위치 보호의 승인·작성 기록은 별도 통제 문서로 유지한다:
 [내부관리계획](./compliance/location-information-protection-plan.md),
@@ -54,7 +57,7 @@
 
 ## 계획과 과거 기록
 
-- [하루마디 BM 검증 계획](./harumadi-bm-validation-plan.md): 실물 상품·자동 초안·주문 등 **미구현 계획**.
+- [하루마디 BM 검증 계획](./harumadi-bm-validation-plan.md): 실물 상품·자동 초안·주문 등 **미구현 계획**. 1.x 고객 가설·P0 모집안은 2.0 기준으로 재검토한다.
 - [향후 검토 사양](./future-product-specs.md): 미제공 후보. 실행 약속이나 출시 일정이 아니다.
 - [함께 채우기](./harumadi-together.md): 여러 명의 하루마디 공동작성 구현·전환 기준. 운영 제공 여부는 별도다.
 - [과거 기록 안내](./archive/README.md): 이전 BM을 통합한 요약, 앱 전환, 공모전·QA·약관 검토 이력.
