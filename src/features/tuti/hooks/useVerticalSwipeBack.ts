@@ -314,6 +314,6 @@ function canScrollInDirection(element: HTMLElement | null, direction: Direction)
 function isInteractiveTarget(target: EventTarget | null) {
   return (
     target instanceof Element &&
-    Boolean(target.closest("button, a, input, textarea, select, [data-swipe-back-ignore]"))
+    Boolean(target.closest("button, a, input, textarea, select, summary, [data-swipe-back-ignore]"))
   );
 }
