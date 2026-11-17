@@ -12,7 +12,7 @@ const queries: Array<Record<string, unknown>> = [];
   return [{ id: "place-1", name: "테스트 공원", sourceSidoName: "서울특별시", sourceSigunguName: "성동구", image: "https://example.test/park.jpg", latitude: 37.5, longitude: 127, sourceContentType: "12" }];
 } } };
 const { GET } = await import("../src/app/api/places/search/route");
-test("작은 여행 검색은 상세 열람이 가능한 범위만 검색하고 이미지·좌표를 함께 제공한다", async () => {
+test("작은 여행 검색은 동반 카탈로그의 준비 완료 장소만 검색하고 일반 후보로 확장하지 않는다", async () => {
   const response = await GET(new Request("https://tuti.today/api/places/search?scope=explore&q=공원"));
   assert.equal(response.status, 200);
   const body = await response.json();
@@ -22,6 +22,12 @@ test("작은 여행 검색은 상세 열람이 가능한 범위만 검색하고 
   const where = JSON.stringify(queries.at(-1)?.where);
   assert.match(where, /공원/); assert.match(where, /dogCatalog/);
   assert.doesNotMatch(where, /"OR":\[\{"isActive":true,"reviewStatus":"approved"\}/);
+  const filter = queries.at(-1)?.where as Record<string, unknown>;
+  assert.equal(filter.source, "tourapi");
+  assert.deepEqual(filter.dogCatalog, { is: { status: "ready" } });
+  assert.deepEqual(filter.visibilityOverride, { not: "hide" });
+  assert.deepEqual(filter.candidateOverride, { not: "exclude" });
+  assert.equal("AND" in filter, false, "일반 추천 풀과 OR로 결합하지 않는다");
 });
 test("기존 마디 자동완성의 응답과 후보 범위는 유지한다", async () => {
   const response = await GET(new Request("https://tuti.today/api/places/search?q=공원"));
@@ -70,4 +76,7 @@ test("검색은 지연·취소·감속 모션과 앱 내부 공용 포커스 경
   assert.match(source, /queryFn: \(\{ signal \}\) => fetchExplorePlaces\(query, signal\)/);
   assert.match(source, /prefers-reduced-motion/); assert.match(source, /initialFocus=\{input\}/);
   assert.match(source, /onCancel=\{onClose\}/);
+  assert.match(source, /"explore-place-search", "dog-catalog", query/);
+  assert.match(source, /반려견 동반 등록 장소에서 찾아요/);
+  assert.doesNotMatch(source, /저장된 장소 전체에서 찾아요/);
 });

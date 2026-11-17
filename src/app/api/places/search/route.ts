@@ -1,5 +1,5 @@
 import { prisma } from "@/server/db/prisma";
-import { recordablePlaceWhere, readablePlaceWhere } from "@/server/recommendations/dogPlaceWhere";
+import { recordablePlaceWhere, dogCatalogPlaceWhere } from "@/server/recommendations/dogPlaceWhere";
 import {
   createPreflightResponse,
   isRequestOriginAllowed,
@@ -34,7 +34,7 @@ export async function GET(request: Request) {
     if (explore && !query) return withCors(request, Response.json({ places: [] } satisfies PlaceSearchResponse));
     const places = await prisma.place.findMany({
       where: {
-        ...(explore ? readablePlaceWhere : recordablePlaceWhere),
+        ...(explore ? dogCatalogPlaceWhere : recordablePlaceWhere),
         ...(query
           ? {
               OR: [
