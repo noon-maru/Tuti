@@ -59,6 +59,22 @@ test("닫힌 검색은 아이콘만 표시하고 새 요청을 하지 않는다"
   assert.match(markup, /aria-expanded="false"/);
   assert.doesNotMatch(markup, /type="search"/);
 });
+test("상세 뒤의 검색 아이콘은 유지하되 비활성 상태에서는 클릭으로 검색을 열지 않는다", () => {
+  const harness = searchHarness("ExplorePlaceSearch", async () => { throw Error("unexpected fetch"); });
+  const tree = harness.render({ disabled: true, onSelect() {} });
+  const markup = renderToStaticMarkup(tree);
+  assert.match(markup, /aria-label="장소 검색"/);
+  assert.match(markup, /disabled=""/);
+  assert.match(markup, /aria-expanded="false"/);
+  const button = (tree.props.children as Array<{ props: { onClick: () => void } }>)[0];
+  button.props.onClick();
+  assert.match(renderToStaticMarkup(harness.render({ disabled: true, onSelect() {} })), /aria-expanded="false"/);
+  const screen = readFileSync("src/features/tuti/screens/recommendations/RecommendationsScreen.tsx", "utf8");
+  assert.match(screen, /interactive && !departurePresentation && <SearchMenu/);
+  assert.match(screen, /inert=\{searchInactive\} aria-hidden=\{searchInactive\}/);
+  assert.match(screen, /<ExplorePlaceSearch disabled=\{searchInactive\}/);
+  assert.doesNotMatch(screen, /detailPhase === "closed"[^\n]*<SearchMenu/);
+});
 test("검색은 공용 세션 전송·쿼리 인코딩·AbortSignal을 사용하고 실패를 구분한다", async () => {
   let captured: unknown[] = [];
   const harness = searchHarness("fetchExplorePlaces", async (...args) => { captured = args; return Response.json({ places: [] }); });

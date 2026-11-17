@@ -22,7 +22,7 @@ export async function fetchExplorePlaces(query: string, signal?: AbortSignal): P
   if (!response.ok) throw Error("장소를 검색하지 못했어요.");
   return response.json() as Promise<PlaceSearchResponse>;
 }
-export function ExplorePlaceSearch({ onSelect }: { onSelect: (place: TutiPlace) => void }) {
+export function ExplorePlaceSearch({ onSelect, disabled = false }: { onSelect: (place: TutiPlace) => void; disabled?: boolean }) {
   const [open, setOpen] = useState(false);
   const [closing, setClosing] = useState(false);
   useEffect(() => {
@@ -31,8 +31,8 @@ export function ExplorePlaceSearch({ onSelect }: { onSelect: (place: TutiPlace) 
     return () => clearTimeout(timer);
   }, [closing]);
   return <>
-    <IconButton type="button" aria-label="장소 검색" aria-haspopup="dialog" aria-expanded={open && !closing} onClick={() => { setClosing(false); setOpen(true); }}><Search size={21} aria-hidden="true" /></IconButton>
-    {open && <SearchPanel closing={closing} onClose={() => setClosing(true)} onSelect={place => { setOpen(false); setClosing(false); onSelect(place); }} />}
+    <IconButton type="button" disabled={disabled} aria-label="장소 검색" aria-haspopup="dialog" aria-expanded={open && !closing && !disabled} onClick={() => { if (disabled) return; setClosing(false); setOpen(true); }}><Search size={21} aria-hidden="true" /></IconButton>
+    {open && !disabled && <SearchPanel closing={closing} onClose={() => setClosing(true)} onSelect={place => { setOpen(false); setClosing(false); onSelect(place); }} />}
   </>;
 }
 function SearchPanel({ onClose, onSelect, closing }: { onClose: () => void; onSelect: (place: TutiPlace) => void; closing: boolean }) {

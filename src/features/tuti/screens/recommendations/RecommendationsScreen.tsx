@@ -196,6 +196,7 @@ export function RecommendationsScreen({
   const transitionTarget = dragOffset.y < 0 ? "detail" : "journal";
   const detailOpen = detailPhase === "open";
   const detailVisible = detailPhase !== "closed";
+  const searchInactive = detailVisible || Boolean(searchPlace) || verticalProgress > 0;
   const recommendationStatus = getRecommendationStatus({
     loading,
     recommendationError,
@@ -1035,7 +1036,7 @@ export function RecommendationsScreen({
           </RecommendationStatusCard>
         )}
       </RecommendationStatusOverlay>
-      {interactive && detailPhase === "closed" && !departurePresentation && !searchPlace && <SearchMenu onPointerDown={event => event.stopPropagation()}><ExplorePlaceSearch onSelect={setSearchPlace} /></SearchMenu>}
+      {interactive && !departurePresentation && <SearchMenu $inactive={searchInactive} inert={searchInactive} aria-hidden={searchInactive} onPointerDown={event => event.stopPropagation()}><ExplorePlaceSearch disabled={searchInactive} onSelect={setSearchPlace} /></SearchMenu>}
       {searchPlace && <SearchDetailLayer onPointerDown={event => event.stopPropagation()}>
         <DetailScreen place={searchPlace} travelTimeLabel="검색한 공간" historyActive onBack={() => setSearchPlace(null)} onCreateMadi={onCreatePlaceMadi ? () => onCreatePlaceMadi(searchPlace) : undefined} />
       </SearchDetailLayer>}
@@ -1219,8 +1220,8 @@ const AccountMenu = styled.div`
   z-index: 10;
 `;
 
-const SearchMenu = styled.div`position: absolute; top: calc(var(--screen-padding-top) - var(--space-3)); left: calc(var(--screen-padding-left) - var(--space-3)); z-index: 40;`;
-const SearchDetailLayer = styled.div`position: absolute; inset: 0; z-index: 45; background: var(--color-surface);`;
+const SearchMenu = styled.div<{ $inactive: boolean }>`position: absolute; top: calc(var(--screen-padding-top) - var(--space-3)); left: calc(var(--screen-padding-left) - var(--space-3)); z-index: ${({ $inactive }) => $inactive ? 10 : 40}; pointer-events: ${({ $inactive }) => $inactive ? "none" : "auto"};`;
+const SearchDetailLayer = styled.div`position: absolute; inset: 0; z-index: 45;`;
 
 const TransitionLayer = styled.div<{ $progress: number; $from: number }>`
   position: absolute;
