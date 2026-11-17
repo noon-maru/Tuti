@@ -31,3 +31,15 @@ test("조건 미입력은 준비물을 미지참했다고 추정하지 않으며
   assert.equal(result.audit.algorithmVersion, "dog-outing-v2"); assert.equal(result.audit.conditionsProvided, false);
   assert.ok(result.places.every(p => p.dogAccess?.kind === "tourapi"));
 });
+
+test("이전 클라이언트의 명시적 동반 한 시간 요청도 서버에서 한두 시간 범위로 계산한다", async () => {
+  const location = { latitude: 37.5, longitude: 127 };
+  const old = await createDogRecommendations({ answers: { petCompanion: "dog", movement: "near", transport: "transit" }, location });
+  const oldQuery = structuredClone(query);
+  const current = await createDogRecommendations({ answers: { petCompanion: "dog", movement: "short", transport: "transit" }, location });
+  assert.deepEqual(oldQuery, query);
+  assert.deepEqual(old.audit, current.audit);
+  assert.deepEqual(old.places.map(place => place.id), current.places.map(place => place.id));
+  const where = (query as { where: { AND: Array<{ latitude?: { gte: number } }> } }).where;
+  assert.ok(where.AND.some(condition => condition.latitude?.gte === location.latitude - 20_000 / 110_000));
+});

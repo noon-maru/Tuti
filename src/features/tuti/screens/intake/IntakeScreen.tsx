@@ -150,12 +150,13 @@ function MovementSlider({
     (option) => option.value === selectedValue,
   );
   const [sliderPosition, setSliderPosition] = useState(
-    selectedIndex >= 0 ? selectedIndex : 1,
+    selectedIndex >= 0 ? selectedIndex : 0,
   );
   const [dragging, setDragging] = useState(false);
   const activeIndex = Math.round(sliderPosition);
   const activeOption = activeStep.options[activeIndex];
   const dragOriginRef = useRef(activeIndex);
+  const visualLevel = (value: string) => ["near", "short", "half", "far"].indexOf(value);
 
   const chooseAt = (index: number) => {
     const option = activeStep.options[index];
@@ -189,14 +190,14 @@ function MovementSlider({
       <SliderControl data-slider-control>
         <ScaleTrack aria-hidden="true" />
         <ScaleTicks aria-hidden="true">
-          {activeStep.options.map((option, index) => (
-            <ScalePoint key={option.value} $level={index} />
+          {activeStep.options.map((option) => (
+            <ScalePoint key={option.value} $level={visualLevel(option.value)} />
           ))}
         </ScaleTicks>
         <SliderThumb
           $dragging={dragging}
-          $level={activeIndex}
-          $position={sliderPosition}
+          $level={visualLevel(activeOption.value)}
+          $position={sliderPosition / Math.max(1, activeStep.options.length - 1)}
           aria-hidden="true"
         />
         <RangeInput
@@ -235,7 +236,7 @@ function MovementSlider({
           }}
         />
       </SliderControl>
-      <ScaleLabels>
+      <ScaleLabels $count={activeStep.options.length}>
         {activeStep.options.map((option, index) => (
           <ScaleOption
             key={option.value}
@@ -381,7 +382,7 @@ const SliderThumb = styled.i<{
   z-index: 1;
   top: 50%;
   left: ${({ $position }) =>
-    `calc(12px + (100% - 24px) * ${$position / 3})`};
+    `calc(12px + (100% - 24px) * ${$position})`};
   width: 24px;
   height: 24px;
   border: 3px solid var(--color-surface);
@@ -464,9 +465,9 @@ const RangeInput = styled.input`
   }
 `;
 
-const ScaleLabels = styled.div`
+const ScaleLabels = styled.div<{ $count: number }>`
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(${({ $count }) => $count}, minmax(0, 1fr));
 `;
 
 const ScaleOption = styled(BaseButton)<{ $active: boolean }>`

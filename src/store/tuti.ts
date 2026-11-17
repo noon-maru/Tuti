@@ -196,14 +196,14 @@ export const useTutiStore = create<TutiState>()(
       },
       setAnswer: (key, value) =>
         set((state) => ({
-          answers: {
+          answers: withDefaultIntakeAnswers({
             ...state.answers,
             [key]: value,
             ...(key === "petCompanion" && value !== "dog" ? { placeCategories: undefined } : {}),
             ...(key === "movement" && value !== "far"
               ? { longDistanceTiming: undefined }
               : {}),
-          },
+          }),
         })),
       setUserLocation: (userLocation) => set(state => ({
         userLocation, recommendationLocationSource: "device",

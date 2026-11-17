@@ -14,6 +14,7 @@ import { loadPlaceNoveltySignals } from "./novelty";
 import { rankDogPlaces, selectDogPlaces } from "./dogRanking";
 import { enrichPlacesWithCachedWeather } from "@/server/weather/kmaVilageForecast";
 import { requireLocationForLongDistance } from "./longDistanceAvailability";
+import { outingMovement } from "@/shared/tuti/movementTimeBudget";
 
 export const DOG_ENGINE_VERSION = "dog-outing-v2";
 export class DogCatalogNotReadyError extends Error {
@@ -28,7 +29,8 @@ export function dogDistanceMeters(a: UserLocation, b: UserLocation) {
 }
 
 export async function createDogRecommendations(input: { answers: IntakeAnswers; location?: UserLocation; preferredRegion?: PreferredRegion; excludePlaceIds?: string[]; preferencePlaceIds?: string[]; userId?: string; dogOuting?: DogOuting; now?: Date; allowGlobal?: boolean }) {
-  const { answers, location, preferredRegion } = input, now = input.now ?? new Date();
+  const { location, preferredRegion } = input, now = input.now ?? new Date();
+  const answers = { ...input.answers, movement: outingMovement(input.answers) };
   const withDog = answers.petCompanion !== "none";
   const dogOuting = withDog ? (answers.placeCategories !== undefined ? { weightsKg: [], leash: null, carrier: null, ...input.dogOuting, purpose: undefined, categories: answers.placeCategories } : input.dogOuting) : undefined;
   const movement = answers.movement ?? "near", radius = dogDistancePolicy[movement];

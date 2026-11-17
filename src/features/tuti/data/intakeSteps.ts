@@ -83,10 +83,10 @@ export const categoryStep = {
 } as const;
 
 export function getIntakeSteps(answers: { movement?: string; petCompanion?: string }) {
-  return [...intakeSteps, ...(answers.movement === "far" ? [longDistanceTimingStep] : []), ...(answers.petCompanion === "dog" ? [categoryStep] : [])];
+  const steps = intakeSteps.map(step => step.key === "movement" && answers.petCompanion === "dog"
+    ? { ...step, options: step.options.filter(option => option.value !== "near") }
+    : step);
+  return [...steps, ...(answers.movement === "far" ? [longDistanceTimingStep] : []), ...(answers.petCompanion === "dog" ? [categoryStep] : [])];
 }
 
-export type IntakeStep =
-  | (typeof intakeSteps)[number]
-  | typeof categoryStep
-  | typeof longDistanceTimingStep;
+export type IntakeStep = ReturnType<typeof getIntakeSteps>[number];

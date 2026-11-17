@@ -611,7 +611,7 @@ export function RecommendationsFlow({ interactive, dogOuting, onDogOutingChange 
       {dailyCheckInVisible && (
         <DailyCheckInScreen
           dogOuting={dogOuting}
-          previousAnswers={storedAnswers}
+          previousAnswers={withDefaultIntakeAnswers(storedAnswers)}
           initialMode={dailyCheckInRequested ? "questions" : "summary"}
           dismissible={dailyCheckInRequested || dailyRecordCurrent}
           onReuse={() => replaceDailyRecommendation("reused")}

@@ -28,7 +28,7 @@ export function IntakeFlow({ dogOuting, onDogOutingChange }: { dogOuting?: DogOu
 
   useEffect(() => {
     const defaults = withDefaultIntakeAnswers(answers);
-    if (!answers.movement) setAnswer("movement", defaults.movement);
+    if (answers.movement !== defaults.movement) setAnswer("movement", defaults.movement);
     if (!answers.transport) setAnswer("transport", defaults.transport);
   }, [answers, setAnswer]);
 

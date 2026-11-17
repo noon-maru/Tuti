@@ -1,4 +1,10 @@
-import type { MovementAnswer } from "@/shared/tuti/types";
+import type { IntakeAnswers, MovementAnswer } from "@/shared/tuti/types";
+
+/** 반려견 동반 외출은 왕복·체류를 포함해 최소 한두 시간으로 안내한다. */
+export function outingMovement(answers: Pick<IntakeAnswers, "petCompanion" | "movement">): MovementAnswer {
+  if (answers.petCompanion === "dog" && (!answers.movement || answers.movement === "near")) return "short";
+  return answers.movement ?? "near";
+}
 
 export const movementTimeBudget: Record<
   MovementAnswer,

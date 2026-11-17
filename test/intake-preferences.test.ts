@@ -15,6 +15,29 @@ test("신규·빈 답변은 한 시간 안에·차 없이를 기본 선택한다
   }
 });
 
+test("동반 기본값·기존 한 시간 선택은 한두 시간으로 보정하고 더 긴 선택과 비동반은 보존한다", () => {
+  for (const movement of [undefined, "near"] as const) assert.equal(withDefaultIntakeAnswers({ petCompanion: "dog", movement }).movement, "short");
+  for (const movement of ["short", "half", "far"] as const) assert.equal(withDefaultIntakeAnswers({ petCompanion: "dog", movement }).movement, movement);
+  assert.equal(withDefaultIntakeAnswers({ petCompanion: "none", movement: "near" }).movement, "near");
+  assert.equal(withDefaultIntakeAnswers({ movement: "near" }).movement, "near");
+});
+
+test("최초 질문 동반 선택과 주간 재질문 초안은 같은 시간 보정 규칙을 사용한다", () => {
+  useTutiStore.persist.setOptions({ storage: createJSONStorage(() => ({ getItem: () => null, setItem() {}, removeItem() {} })) });
+  useTutiStore.getState().resetAllData();
+  useTutiStore.getState().setAnswer("petCompanion", "dog");
+  assert.equal(useTutiStore.getState().answers.movement, "short");
+  useTutiStore.getState().setAnswer("movement", "near");
+  assert.equal(useTutiStore.getState().answers.movement, "short", "숨겨진 예전 값을 다시 넣어도 동반 한 시간으로 돌아가지 않는다");
+  useTutiStore.getState().setAnswer("petCompanion", "none");
+  useTutiStore.getState().setAnswer("movement", "near");
+  assert.equal(useTutiStore.getState().answers.movement, "near");
+  const weekly = readFileSync("src/features/tuti/screens/intake/DailyCheckInScreen.tsx", "utf8");
+  assert.match(weekly, /return withDefaultIntakeAnswers\(next\)/);
+  const flow = readFileSync("src/features/tuti/flows/RecommendationsFlow.tsx", "utf8");
+  assert.match(flow, /previousAnswers=\{withDefaultIntakeAnswers\(storedAnswers\)\}/);
+});
+
 test("이전 선택과 오늘 하루의 출발 시점은 기본값으로 덮어쓰지 않는다", () => {
   const saved = { movement: "far", transport: "car", longDistanceTiming: "overnight_trip", budget: "free" } as const;
   const result = withDefaultIntakeAnswers(saved);

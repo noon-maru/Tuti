@@ -180,7 +180,7 @@ export function DailyCheckInScreen({
           delete next.longDistanceTiming;
         }
         if (activeStep.key === "petCompanion" && value !== "dog") delete next.placeCategories;
-        return next;
+        return withDefaultIntakeAnswers(next);
       },
     );
   };

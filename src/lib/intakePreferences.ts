@@ -1,11 +1,12 @@
 import { getKoreanDateKey, getKoreanDateKeyAfterDays, getKoreanDateKeyFromIso } from "@/lib/date/koreanDate";
 import { toActiveIntakeAnswers, type IntakeAnswers } from "@/shared/tuti/types";
+import { outingMovement } from "@/shared/tuti/movementTimeBudget";
 
 export const INTAKE_REASK_INTERVAL_DAYS = 7;
 
 export function withDefaultIntakeAnswers(answers: IntakeAnswers = {}): IntakeAnswers {
   const active = toActiveIntakeAnswers(answers);
-  return { ...active, petCompanion: active.petCompanion ?? "none", movement: active.movement ?? "near", transport: active.transport ?? "transit" };
+  return { ...active, petCompanion: active.petCompanion ?? "none", movement: outingMovement(active), transport: active.transport ?? "transit" };
 }
 
 // 답변 재확인 간격만 늘린다. 추천 자체의 날짜·위치·날씨 유효기간은 변경하지 않는다.
