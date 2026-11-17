@@ -46,19 +46,14 @@ export function tourApiDogAccess(raw: unknown, fetchedAt: Date, now = Date.now()
   const extra = text("etcAcmpyInfo"), risks = text("relaAcdntRiskMtr"), facilities = text("relaPosesFclty");
   if ([animals, preparations, extra, risks, facilities].some(value => value.length > 5000)) return null;
   if (/(?:반려견|강아지|애견)\s*(?:동반|출입|입장)?\s*(?:불가|금지)|고양이만|반려묘\s*전용/.test(animals)) return null;
-  // Only explicit numeric upper bounds in the companion-animal field are structured.
-  // Other free-text/breed/area conditions remain visible and require confirmation.
-  const bounds = [...animals.matchAll(/(\d+(?:\.\d+)?)\s*(?:kg|㎏|킬로그램)\s*(이하|미만)/gi)]
-    .map(match => ({ weight: Number(match[1]), exclusive: match[2] === "미만" }))
-    .filter(bound => bound.weight > 0 && bound.weight <= 150)
-    .sort((a, b) => a.weight - b.weight || Number(b.exclusive) - Number(a.exclusive));
+  // Explicit bounds across condition fields are structured; unsupported conditions stay visible.
   const tokens = preparations.split(",").map(value => value.trim());
   const free = preparations === "자유이용";
   const conditions = dogConditions(areas, [areas, animals, preparations, extra, risks].join("\n"));
   return {
     kind: "tourapi", source: "kor", areas, animals: animals || null, preparations: preparations || null, facilities: facilities || null,
     rules: [extra, risks && risks !== animals ? risks : ""].filter(Boolean).join("\n"),
-    conditions, maxWeightKg: conditions.maxWeightKg ?? bounds[0]?.weight ?? null, weightLimitExclusive: conditions.weightLimitExclusive,
+    conditions, maxWeightKg: conditions.maxWeightKg, weightLimitExclusive: conditions.weightLimitExclusive,
     leashRequired: tokens.includes("목줄 착용") ? true : free ? false : null,
     carrierRequired: tokens.includes("이동장(켄넬)사용") ? true : free ? false : null,
     sourceUrl: KOR_PET_SOURCE_URL, collectedAt: fetchedAt.toISOString(),
@@ -68,8 +63,8 @@ export function tourApiDogAccess(raw: unknown, fetchedAt: Date, now = Date.now()
 
 export function tourApiDogAccessStatus(access: TourApiDogAccess, outing?: DogOuting, now = Date.now()): "needs-confirmation" | "blocked" | "unavailable" {
   if (access.source !== "kor" || access.sourceUrl !== KOR_PET_SOURCE_URL || !Number.isFinite(Date.parse(access.collectedAt)) || Date.parse(access.collectedAt) > now || !Number.isFinite(Date.parse(access.freshUntil)) || Date.parse(access.freshUntil) <= now) return "unavailable";
-  if (!outing) return "needs-confirmation";
   if (dogConditionsBlocked(access.conditions ?? dogConditions(access.areas, [access.areas, access.animals, access.preparations, access.rules].join("\n")), outing)) return "blocked";
+  if (!outing) return "needs-confirmation";
   if (access.maxWeightKg !== null && outing.weightsKg.some(weight => access.weightLimitExclusive ? weight >= access.maxWeightKg! : weight > access.maxWeightKg!)) return "blocked";
   if (access.leashRequired === true && outing.leash === false || access.carrierRequired === true && outing.carrier === false) return "blocked";
   return "needs-confirmation";

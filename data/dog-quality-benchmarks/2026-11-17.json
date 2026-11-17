@@ -1,0 +1,17 @@
+{
+  "status": "source-reviewed-seed-not-release-approval",
+  "reference": "2026-11-17 stored Korean detail responses and basic metadata; no facility inspection",
+  "cases": [
+    {"id":"4012705","name":"호수약국","contentType":"38","eligible":false,"type":"other","evidence":"공식 쇼핑 분류 SH040300. 약국 상호의 호수는 수변 근거가 아니다."},
+    {"id":"2925738","name":"스파오 제주중앙로점","contentType":"38","eligible":false,"type":"other","evidence":"공식 쇼핑 분류 SH040300. 스파오 상호는 스파 시설이 아니다."},
+    {"id":"4026063","name":"광우사","contentType":"38","eligible":false,"type":"other","evidence":"공식 쇼핑 분류 SH040300. 사로 끝나는 상호를 사찰로 분류하지 않는다."},
+    {"id":"3305607","name":"피오체옴므 시티스타몰점","contentType":"38","eligible":false,"type":"other","evidence":"몰 자체가 아닌 공식 쇼핑 분류의 개별 매장."},
+    {"id":"4025583","name":"카페 베이지크","contentType":"38","eligible":false,"type":"other","evidence":"국문 상세 원문은 비건 스킨케어 브랜드·향수/화장품 판매를 설명. 카페 운영 근거 미확인."},
+    {"id":"4027247","name":"편강 율 플래그십&티하우스","contentType":"38","eligible":false,"type":"other","evidence":"국문 상세 원문은 식품·뷰티 제품 브랜드와 판매 상품 설명. 티하우스 명칭만으로 카페 승격하지 않음."},
+    {"id":"3401751","name":"카페에벤에셀","contentType":"39","eligible":true,"type":"cafe","evidence":"국문 상세는 카페·식사·반려견 운동 공간을 명시. 실내 입장 조건은 별도 미확인."},
+    {"id":"3450526","name":"카페우리","contentType":"39","eligible":true,"type":"cafe","evidence":"국문 상세는 복지관 내 커피·바리스타 운영 카페를 명시."},
+    {"id":"2913223","name":"단우물카페","contentType":"39","eligible":true,"type":"cafe","evidence":"국문 상세는 정원·음료·디저트와 반려견 동반 카페를 명시."},
+    {"id":"2783352","name":"스태픽스","contentType":"39","category":"FD050100","eligible":true,"type":"cafe","evidence":"공식 카페 분류와 국문 상세의 카페·음료 메뉴 설명 일치."},
+    {"id":"2804347","name":"스테이 앤드 스튜디오 여여재","contentType":"32","eligible":true,"type":"other","evidence":"국문 상세는 펜션·애견 동반 객실 설명. 일반 산책·카페 목적과는 불일치이며 일상 외출 엔진에서는 제외."}
+  ]
+}
