@@ -2,19 +2,13 @@
 
 import styled from "@emotion/styled";
 import {
-  CalendarDays,
-  Car,
-  ChevronDown,
   ChevronLeft,
   ChevronRight,
   Clock3,
-  Ticket,
-  PenLine,
 } from "lucide-react";
 import {
   useCallback,
   useEffect,
-  useId,
   useLayoutEffect,
   useRef,
   useState,
@@ -25,28 +19,15 @@ import {
 import { BaseButton } from "@/features/tuti/components/buttons";
 import { ContextMenu } from "@/features/tuti/components/ContextMenu";
 import { PlaceShareDialog } from "@/features/tuti/components/PlaceShareDialog";
-import { DogAccessNotice } from "@/features/tuti/components/DogAccessNotice";
+import { PlaceDetailBody } from "./PlaceDetailBody";
 import { TutiPlaceIcon } from "@/features/tuti/components/TutiPlaceIcon";
 import { useDeferredAnimationStart } from "@/features/tuti/hooks/useDeferredAnimationStart";
 import { usePlaceDetail } from "@/features/tuti/hooks/usePlaceDetail";
 import { useVerticalSwipeBack } from "@/features/tuti/hooks/useVerticalSwipeBack";
 import {
   getPlaceDisplayPhrase,
-  getPlaceReasonHeadline,
 } from "@/features/tuti/lib/placeDisplayCopy";
-import { createOverviewPreview } from "@/features/tuti/lib/placeOverviewSummary";
-import {
-  createOperationBadge,
-  createVisitInformationFacts,
-  type VisitInformationFact,
-} from "@/features/tuti/lib/visitInformation";
-import {
-  getCrowdForecastBasisLabel,
-  getCrowdForecastKindLabel,
-  getCrowdForecastLevelLabel,
-  getWeatherForecastLabel,
-  type TutiPlace,
-} from "@/lib/recommendations";
+import type { TutiPlace } from "@/lib/recommendations";
 import type { TourismPlaceDetailImage } from "@/shared/api/placeDetails";
 import { fluidByViewportHeight } from "@/styles/tokens";
 
@@ -117,37 +98,10 @@ export function DetailScreen({
   const detail = detailResponse?.detail ?? null;
   const locationLabel =
     detailResponse?.place.region ?? detailResponse?.place.address;
-  const facts = detailQuery.isPending
-    ? []
-    : createVisitInformationFacts(detail);
-  const crowdBadge = createCrowdBadge(place);
-  const operationBadge = detailQuery.isPending
-    ? null
-    : createOperationBadge(detail);
-  const hasUncertainVisitInformation = facts.some(
-    (fact) => fact.needsVerification,
-  );
-  const weatherBadge = place.weatherForecast
-    ? getWeatherForecastLabel(place.weatherForecast)
-    : null;
   const subtitle = createPlaceSubtitle(place);
-  const overviewRegionId = useId();
-  const rawOverview = detail?.overview?.trim() ?? null;
-  const overviewSummary = createOverviewPreview(
-    detail?.overviewSummary?.trim() ?? null,
-    rawOverview,
-    getFallbackDescription(place),
-  );
-  const canShowRawOverview =
-    Boolean(rawOverview) &&
-    rawOverview?.replace(/\s+/g, " ").trim() !== overviewSummary.trim();
   const [selectedPhoto, setSelectedPhoto] =
     useState<TourismPlaceDetailImage | null>(null);
   const [shareOpen, setShareOpen] = useState(false);
-  const [expandedOverviewPlaceId, setExpandedOverviewPlaceId] = useState<
-    string | null
-  >(null);
-  const rawOverviewExpanded = expandedOverviewPlaceId === place.id;
   const [readingProgress, setReadingProgress] = useState(0);
   const [pointerDismissY, setPointerDismissY] = useState(0);
   const [pointerDismissDragging, setPointerDismissDragging] = useState(false);
@@ -802,140 +756,22 @@ export function DetailScreen({
               {subtitle && <p>{subtitle}</p>}
             </Heading>
 
-            <Tags aria-label="장소 정보">
-              <Tag $tone="brand">{travelTimeLabel}</Tag>
-              {crowdBadge && <Tag $tone="secondary">{crowdBadge}</Tag>}
-              {weatherBadge && <Tag $tone="secondary">{weatherBadge}</Tag>}
-              {operationBadge && <Tag $tone="neutral">{operationBadge}</Tag>}
-            </Tags>
+            <TravelContext><Clock3 size={14} aria-hidden="true" />{travelTimeLabel}</TravelContext>
           </Summary>
 
           <Description
             ref={descriptionRef}
             $readingProgress={readingProgress}
           >
-            <ReasonCard>
-              <small>오늘 이곳을 고른 이유</small>
-              <strong>{getPlaceReasonHeadline(place)}</strong>
-              <p>{createBurdenCopy(place)}</p>
-            </ReasonCard>
-
-            <Section>
-              <SectionTitle>어떤 곳인가요?</SectionTitle>
-              <Overview>{overviewSummary}</Overview>
-              {canShowRawOverview && (
-                <OriginalDisclosure>
-                  <OriginalToggle
-                    type="button"
-                    aria-controls={overviewRegionId}
-                    aria-expanded={rawOverviewExpanded}
-                    $expanded={rawOverviewExpanded}
-                    onClick={() =>
-                      setExpandedOverviewPlaceId((expandedPlaceId) =>
-                        expandedPlaceId === place.id ? null : place.id,
-                      )
-                    }
-                  >
-                    {rawOverviewExpanded ? "원문 접기" : "원문 보기"}
-                    <ChevronDown aria-hidden="true" />
-                  </OriginalToggle>
-                  {rawOverviewExpanded && (
-                    <OriginalOverview id={overviewRegionId}>
-                      {rawOverview}
-                    </OriginalOverview>
-                  )}
-                </OriginalDisclosure>
-              )}
-              {detailQuery.isError && (
-                <InlineRetry
-                  type="button"
-                  onClick={() => void detailQuery.refetch()}
-                >
-                  상세정보 다시 불러오기
-                </InlineRetry>
-              )}
-            </Section>
-
-            {onCreateMadi && <CreateMadi type="button" onClick={onCreateMadi}><PenLine size={18} aria-hidden="true" />이 장소에서 마디 남기기</CreateMadi>}
-
-            {place.dogAccess && <Section><DogAccessNotice access={place.dogAccess} /></Section>}
-
-            {facts.length > 0 && (
-              <Section>
-                <SectionTitle>이 정도만 알고 가세요.</SectionTitle>
-                <FactGrid>
-                  {facts.map((fact) => {
-                    const Icon = getVisitInformationIcon(fact.key);
-                    return (
-                      <FactCard
-                        key={fact.label}
-                        title={fact.value}
-                        $needsVerification={fact.needsVerification}
-                      >
-                        <Icon aria-hidden="true" />
-                        <span>{fact.label}</span>
-                        {fact.needsVerification && <em>확인 필요</em>}
-                        <strong>{fact.value}</strong>
-                      </FactCard>
-                    );
-                  })}
-                </FactGrid>
-              </Section>
-            )}
-
-            {detail && detail.images.length > 0 && (
-              <Section>
-                <SectionTitle>미리 보는 풍경</SectionTitle>
-                <PhotoPreviewStrip
-                  images={detail.images.slice(0, 4)}
-                  placeName={place.name}
-                  onSelect={setSelectedPhoto}
-                />
-              </Section>
-            )}
-
-            <DataNotice>
-              {hasUncertainVisitInformation && (
-                <>
-                  <strong>비용·운영 정보 확인 필요</strong>
-                  <span>
-                    확인 필요로 표시된 항목은 방문 전에 장소의 공식 안내를
-                    확인해주세요.
-                  </span>
-                </>
-              )}
-              {place.crowdForecast ? (
-                <>
-                  <strong>
-                    {getCrowdForecastBasisLabel(place.crowdForecast)}
-                  </strong>
-                  <span>{getCrowdForecastDescription(place.crowdForecast)}</span>
-                </>
-              ) : (
-                <span>현장 상황은 시간과 날씨에 따라 달라질 수 있어요.</span>
-              )}
-              {place.weatherForecast && (
-                <>
-                  <strong>기상청 단기예보</strong>
-                  <span>
-                    도착 예상 시각의 강수·기온·바람을 반영했어요. 실제
-                    날씨는 달라질 수 있어요.
-                  </span>
-                </>
-              )}
-              {detail?.isStale && (
-                <span>
-                  비용·운영 정보는 최근 저장된 내용이며 지금과 다를 수
-                  있어요.
-                </span>
-              )}
-            </DataNotice>
-
-            <SourceAttribution>
-              <span>장소·사진 정보 출처</span>
-              <strong>ⓒ한국관광공사</strong>
-              <p>운영 정보와 현장 상황은 달라질 수 있어요.</p>
-            </SourceAttribution>
+            <PlaceDetailBody
+              place={place}
+              response={detailResponse}
+              pending={detailQuery.isPending}
+              failed={detailQuery.isError}
+              onRetry={() => void detailQuery.refetch()}
+              onCreateMadi={onCreateMadi}
+              photos={detail && detail.images.length > 0 ? <PhotoPreviewStrip images={detail.images.slice(0, 4)} placeName={place.name} onSelect={setSelectedPhoto} /> : undefined}
+            />
           </Description>
         </Content>
       </Sheet>
@@ -955,8 +791,6 @@ export function DetailScreen({
     </Frame>
   );
 }
-
-const CreateMadi = styled(BaseButton)`display: flex; align-items: center; justify-content: center; gap: 8px; min-height: 48px; width: 100%; padding: 12px 16px; border-radius: 999px; background: var(--color-brand-100); color: var(--color-brand-1000); font-size: 14px; font-weight: 500; &:hover { background: var(--color-brand-200); } &:focus-visible { outline: 2px solid var(--color-brand-700); outline-offset: -2px; }`;
 
 function PhotoPreviewStrip({
   images,
@@ -1193,63 +1027,10 @@ function PhotoViewer({
   );
 }
 
-function getVisitInformationIcon(key: VisitInformationFact["key"]) {
-  if (key === "restDate") return CalendarDays;
-  if (key === "admissionFee") return Ticket;
-  if (key === "parking") return Car;
-  return Clock3;
-}
-
-function createCrowdBadge(place: TutiPlace) {
-  if (place.crowdForecast) {
-    return `${getCrowdForecastKindLabel(place.crowdForecast)} · ${getCrowdForecastLevelLabel(place.crowdForecast)}`;
-  }
-
-  const value = place.crowd.trim();
-  return value && value !== "정보 없음" ? `혼잡도 · ${value}` : null;
-}
-
-function getCrowdForecastDescription(
-  forecast: NonNullable<TutiPlace["crowdForecast"]>,
-) {
-  if (forecast.provider === "seoul_citydata") {
-    return "서울시 실시간 인구 추정치를 바탕으로 하며 실제 현장과 다를 수 있어요.";
-  }
-  if (forecast.provider === "regional_visitors") {
-    return "지역 방문 패턴을 바탕으로 한 평시 예상값이에요.";
-  }
-  if (forecast.provider === "tuti_estimate") {
-    return "지역 방문량과 장소 수요를 함께 살펴 계산한 예상값이에요.";
-  }
-  return "한국관광공사의 방문 패턴을 바탕으로 한 예상값이며 실제 현장과 다를 수 있어요.";
-}
-
 function createPlaceSubtitle(place: TutiPlace) {
   const phrase = getPlaceDisplayPhrase(place);
   if (phrase === place.reason?.trim()) return null;
   return phrase;
-}
-
-function getFallbackDescription(place: TutiPlace) {
-  if (
-    /노출 전 상세 내용을 확인|TourAPI에서 가져온 장소/.test(place.note)
-  ) {
-    return `${place.name}에서 오늘 필요한 만큼만 천천히 머물러 보세요. 자세한 운영 정보는 확인되는 대로 덧붙여드릴게요.`;
-  }
-
-  return place.note;
-}
-
-function createBurdenCopy(place: TutiPlace) {
-  if (place.reasonDetail) return place.reasonDetail;
-
-  if (place.movementLevel === "near") {
-    return "멀리 준비하지 않아도 닿을 수 있는 쪽으로 골랐어요.";
-  }
-  if (place.movementLevel === "half") {
-    return "조금 여유를 내어 천천히 다녀오기 좋은 선택이에요.";
-  }
-  return "오늘 가능한 정도 안에서 가볍게 다녀올 수 있어요.";
 }
 
 function clamp(value: number, minimum: number, maximum: number) {
@@ -1263,7 +1044,7 @@ function lerp(start: number, end: number, progress: number) {
 function isDetailInteractiveTarget(target: EventTarget | null) {
   return (
     target instanceof Element &&
-    Boolean(target.closest("button, a, input, textarea, select"))
+    Boolean(target.closest("button, a, input, textarea, select, summary"))
   );
 }
 
@@ -1481,38 +1262,7 @@ const LocationLabel = styled.div`
   }
 `;
 
-const Tags = styled.div`
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: var(--space-2);
-  padding-block: 2px;
-  overflow: hidden;
-`;
-
-const Tag = styled.span<{ $tone: "brand" | "neutral" | "secondary" }>`
-  min-width: 0;
-  min-height: var(--space-7);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  flex: 0 0 auto;
-  padding: 2px var(--space-2);
-  overflow: hidden;
-  border-radius: 999px;
-  background: ${({ $tone }) =>
-    $tone === "brand"
-      ? "var(--color-brand-300)"
-      : $tone === "secondary"
-        ? "var(--color-secondary-300)"
-        : "var(--color-neutral-300)"};
-  color: var(--color-text);
-  font-size: var(--font-size-100);
-  font-weight: 400;
-  line-height: 1.2;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-`;
+const TravelContext = styled.p`display: flex; align-items: center; gap: 6px; margin: 0; font-size: 13px; line-height: 1.6; color: var(--color-text-muted); > svg { flex: none; }`;
 
 const Heading = styled.header<{ $readingProgress: number }>`
   display: grid;
@@ -1568,192 +1318,6 @@ const Description = styled.div<{ $readingProgress: number }>`
     display: none;
   }
 
-`;
-
-const ReasonCard = styled.section`
-  display: grid;
-  gap: var(--space-3);
-  padding: var(--space-5);
-  border: 1px solid var(--color-secondary-300);
-  border-radius: 20px;
-  background: linear-gradient(
-    145deg,
-    var(--color-secondary-100),
-    var(--color-secondary-200)
-  );
-
-  > small {
-    color: var(--color-secondary-900);
-    font-size: var(--font-size-100);
-    font-weight: 600;
-    line-height: var(--line-height-body);
-    letter-spacing: var(--letter-spacing-body);
-  }
-
-  > strong {
-    font-size: var(--font-size-300);
-    font-weight: 650;
-    line-height: var(--line-height-subtitle);
-    letter-spacing: var(--letter-spacing-subtitle);
-  }
-
-  > p {
-    color: var(--color-text-muted);
-    font-size: var(--font-size-100);
-    line-height: var(--line-height-body);
-    letter-spacing: var(--letter-spacing-body);
-  }
-`;
-
-const Section = styled.section`
-  width: 100%;
-  min-width: 0;
-  display: grid;
-  gap: var(--space-4);
-`;
-
-const SectionTitle = styled.h2`
-  font-size: var(--font-size-300);
-  font-weight: 650;
-  line-height: var(--line-height-subtitle);
-  letter-spacing: var(--letter-spacing-subtitle);
-`;
-
-const Overview = styled.p`
-  color: var(--color-text-muted);
-  font-size: var(--font-size-200);
-  line-height: var(--line-height-body);
-  letter-spacing: var(--letter-spacing-body);
-  white-space: pre-line;
-`;
-
-const OriginalDisclosure = styled.div`
-  display: grid;
-  justify-items: start;
-  gap: var(--space-3);
-`;
-
-const OriginalToggle = styled(BaseButton)<{ $expanded: boolean }>`
-  display: inline-flex;
-  align-items: center;
-  gap: 2px;
-  padding: 4px 0;
-  background: transparent;
-  color: var(--color-text-muted);
-  font-size: var(--font-size-100);
-  font-weight: 550;
-  line-height: 1.2;
-
-  svg {
-    width: 14px;
-    height: 14px;
-    transform: rotate(${({ $expanded }) => ($expanded ? 180 : 0)}deg);
-    transition: transform 180ms ease;
-  }
-
-  &:hover {
-    color: var(--color-text);
-  }
-`;
-
-const OriginalOverview = styled.p`
-  padding-left: var(--space-3);
-  border-left: 2px solid var(--color-brand-300);
-  color: var(--color-text-muted);
-  font-size: var(--font-size-100);
-  line-height: var(--line-height-body);
-  letter-spacing: var(--letter-spacing-body);
-  white-space: pre-line;
-  animation: reveal-original-overview 180ms ease-out both;
-
-  @keyframes reveal-original-overview {
-    from {
-      opacity: 0;
-      transform: translateY(-4px);
-    }
-    to {
-      opacity: 1;
-      transform: translateY(0);
-    }
-  }
-
-  @media (prefers-reduced-motion: reduce) {
-    & {
-      animation: none;
-    }
-  }
-`;
-
-const InlineRetry = styled(BaseButton)`
-  justify-self: start;
-  padding: 0;
-  color: var(--color-brand-800);
-  background: transparent;
-  font-size: var(--font-size-100);
-  font-weight: 600;
-  text-decoration: underline;
-  text-underline-offset: 3px;
-`;
-
-const FactGrid = styled.div`
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: var(--space-2);
-`;
-
-const FactCard = styled.div<{ $needsVerification: boolean }>`
-  min-width: 0;
-  min-height: 92px;
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
-  align-content: start;
-  gap: var(--space-1) var(--space-2);
-  padding: var(--space-3);
-  border: 1px solid var(--color-neutral-300);
-  border-radius: 16px;
-  background: ${({ $needsVerification }) =>
-    $needsVerification
-      ? "var(--color-secondary-100)"
-      : "var(--color-neutral-200)"};
-
-  svg {
-    width: var(--space-4);
-    height: var(--space-4);
-    color: var(--color-brand-700);
-    stroke-width: 2;
-  }
-
-  span {
-    color: var(--color-text-muted);
-    font-size: var(--font-size-100);
-    line-height: var(--line-height-body);
-  }
-
-  em {
-    align-self: start;
-    padding: 1px var(--space-2);
-    border-radius: 999px;
-    background: var(--color-secondary-300);
-    color: var(--color-secondary-1000);
-    font-size: calc(var(--font-size-100) - 2px);
-    font-style: normal;
-    font-weight: 650;
-    line-height: var(--line-height-body);
-    white-space: nowrap;
-  }
-
-  strong {
-    grid-column: 1 / -1;
-    display: -webkit-box;
-    overflow: hidden;
-    color: var(--color-text);
-    font-size: var(--font-size-100);
-    font-weight: 600;
-    line-height: var(--line-height-body);
-    letter-spacing: var(--letter-spacing-body);
-    -webkit-box-orient: vertical;
-    -webkit-line-clamp: 3;
-  }
 `;
 
 const PhotoStripFrame = styled.div`
@@ -1924,48 +1488,5 @@ const PhotoViewerHint = styled.p<{ $visible: boolean }>`
 
   @media (prefers-reduced-motion: reduce) {
     transform: none;
-  }
-`;
-
-const DataNotice = styled.aside`
-  display: grid;
-  gap: 2px;
-  padding: var(--space-3);
-  border-radius: 14px;
-  background: var(--color-brand-100);
-  color: var(--color-text-muted);
-  font-size: var(--font-size-100);
-  line-height: var(--line-height-body);
-  letter-spacing: var(--letter-spacing-body);
-
-  strong {
-    color: var(--color-brand-900);
-    font-weight: 600;
-  }
-`;
-
-const SourceAttribution = styled.footer`
-  display: flex;
-  align-items: baseline;
-  flex-wrap: wrap;
-  gap: 2px var(--space-2);
-  padding: 0 var(--space-1);
-  color: var(--color-text-muted);
-  font-size: var(--font-size-100);
-  line-height: var(--line-height-body);
-  letter-spacing: var(--letter-spacing-body);
-
-  span {
-    color: var(--color-neutral-800);
-  }
-
-  strong {
-    color: var(--color-text-muted);
-    font-weight: 600;
-  }
-
-  p {
-    flex-basis: 100%;
-    color: var(--color-neutral-700);
   }
 `;
