@@ -1,8 +1,22 @@
 import { prisma } from "@/server/db/prisma";
-import { dogAccessStatus, type DogAccess, type DogOuting } from "@/shared/pets/dogAccess";
-export async function eligibleDogPlaces<T extends { id: string }>(places: T[], outing: DogOuting): Promise<(T & { dogAccess: DogAccess })[]> {
-  const rows = await prisma.dogPlaceAccess.findMany({ where: { placeId: { in: places.map(place => place.id) } } });
-  const access = new Map(rows.map(row => [row.placeId, { ...row, checkedAt: row.checkedAt.toISOString(), validUntil: row.validUntil.toISOString() }]));
+import { dogAccessStatus, type DogAccessInfo, type DogOuting } from "@/shared/pets/dogAccess";
+import { tourApiDogAccess, tourApiDogAccessStatus } from "@/shared/pets/tourApiDogAccess";
+export async function dogOutingPlaces<T extends { id: string }>(places: T[], outing: DogOuting): Promise<(T & { dogAccess: DogAccessInfo })[]> {
+  if (!places.length) return [];
+  const ids = places.map(place => place.id);
+  const [rows, sources] = await Promise.all([
+    prisma.dogPlaceAccess.findMany({ where: { placeId: { in: ids } } }),
+    prisma.tourismPetSourceRecord.findMany({ where: { source: "kor", placeId: { in: ids } }, select: { placeId: true, rawPayload: true, fetchedAt: true } }),
+  ]);
+  const reviewed = new Map(rows.map(row => [row.placeId, { ...row, checkedAt: row.checkedAt.toISOString(), validUntil: row.validUntil.toISOString() }]));
+  const official = new Map(sources.map(row => [row.placeId, row]));
   const now = Date.now();
-  return places.filter(place => dogAccessStatus(access.get(place.id), outing, now) === "eligible").map(place => ({ ...place, dogAccess: access.get(place.id)! }));
+  return places.flatMap((place): (T & { dogAccess: DogAccessInfo })[] => {
+    const access = reviewed.get(place.id);
+    // Negative, expired or mismatching reviewed restrictions cannot be bypassed by an API listing.
+    if (access) return dogAccessStatus(access, outing, now) === "eligible" ? [{ ...place, dogAccess: access }] : [];
+    const record = official.get(place.id);
+    const listed = record ? tourApiDogAccess(record.rawPayload, record.fetchedAt, now) : null;
+    return listed && tourApiDogAccessStatus(listed, outing, now) === "needs-confirmation" ? [{ ...place, dogAccess: listed }] : [];
+  });
 }

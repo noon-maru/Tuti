@@ -1,6 +1,6 @@
 import type { PlaceVisitTimeProfile, TutiPlace } from "@/lib/recommendations";
 import { prisma } from "@/server/db/prisma";
-import { eligibleDogPlaces } from "@/server/pets/dogAccess";
+import { dogOutingPlaces } from "@/server/pets/dogAccess";
 import type { DogOuting } from "@/shared/pets/dogAccess";
 import { interpretState } from "@/lib/recommendations";
 import {
@@ -60,7 +60,7 @@ import type {
 } from "@/shared/tuti/types";
 
 type PlaceRow = {
-  dogAccess?: import("@/shared/pets/dogAccess").DogAccess;
+  dogAccess?: import("@/shared/pets/dogAccess").DogAccessInfo;
   id: string;
   name: string;
   phrase: string;
@@ -242,7 +242,7 @@ async function evaluateRecommendations(
       ),
     );
 
-    const longDistancePlaces = dogOuting ? await eligibleDogPlaces(rawLongDistancePlaces, dogOuting) : rawLongDistancePlaces;
+    const longDistancePlaces = dogOuting ? await dogOutingPlaces(rawLongDistancePlaces, dogOuting) : rawLongDistancePlaces;
     const [admissionEnrichedPlaces, weatherEnrichedPlaces] = await Promise.all([
       enrichPlacesWithAdmissionFees(longDistancePlaces),
       enrichPlacesWithWeatherForecast(longDistancePlaces),
@@ -293,7 +293,7 @@ async function evaluateRecommendations(
       )
     : await findPlacesByBaseFatigue(preferredRegion);
 
-  const places = dogOuting ? await eligibleDogPlaces(sourcePlaces, dogOuting) : sourcePlaces;
+  const places = dogOuting ? await dogOutingPlaces(sourcePlaces, dogOuting) : sourcePlaces;
   const { eligiblePlaces, candidatePlaces, fallbackPlaces } =
     selectRecommendationCandidatePool(places, excludePlaceIds);
   const noveltySignals = await loadPlaceNoveltySignals(userId, places.map(place => place.id), evaluationTime);

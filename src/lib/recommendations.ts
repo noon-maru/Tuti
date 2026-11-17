@@ -10,7 +10,7 @@ export type StateFeature = {
 };
 
 export type TutiPlace = {
-  dogAccess?: import("@/shared/pets/dogAccess").DogAccess;
+  dogAccess?: import("@/shared/pets/dogAccess").DogAccessInfo;
   id: string;
   name: string;
   phrase: string;

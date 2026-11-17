@@ -56,10 +56,10 @@ test("격리 PostgreSQL에서 프로필·마디 연결 원자성·삭제·병합
   assert.equal(await orm.madiPetLink.count(), 0);
   assert.equal((await db.query("SELECT count(1)::int n FROM journal_entries WHERE id='original'")).rows[0].n, 1);
   await orm.dogPlaceAccess.create({ data: { placeId: "place", allowed: true, areas: "야외", rules: "실내 제외", maxWeightKg: 10, leashRequired: true, carrierRequired: false, sourceUrl: "https://fixture.example/notice", checkedAt: new Date(Date.now() - 1000), validUntil: new Date(Date.now() + 3600000) } });
-  const { eligibleDogPlaces } = await import("../src/server/pets/dogAccess");
+  const { dogOutingPlaces } = await import("../src/server/pets/dogAccess");
   const places = [{ id: "place" }, { id: "unknown" }];
-  assert.equal((await eligibleDogPlaces(places, { weightsKg: [8], leash: true, carrier: false })).length, 1);
-  assert.equal((await eligibleDogPlaces(places, { weightsKg: [8, 15], leash: true, carrier: false })).length, 0);
+  assert.equal((await dogOutingPlaces(places, { weightsKg: [8], leash: true, carrier: false })).length, 1);
+  assert.equal((await dogOutingPlaces(places, { weightsKg: [8, 15], leash: true, carrier: false })).length, 0);
   const { savePetTourism } = await import("../src/server/tourism/savePetTourism");
   const { petTourRecord } = await import("../src/server/tourism/petTourRecord");
   await savePetTourism([
@@ -74,6 +74,19 @@ test("격리 PostgreSQL에서 프로필·마디 연결 원자성·삭제·병합
   assert.equal((await orm.dogPlaceAccess.findUniqueOrThrow({ where: { placeId: "place" } })).rules, "실내 제외", "검토된 추천 조건은 덮어쓰지 않음");
   await assert.rejects(savePetTourism([petTourRecord("kor", { contentid: "2" }, new Date()), { ...petTourRecord("kor", { contentid: "3" }, new Date()), source: "invalid" as "kor" }]));
   assert.equal(await orm.tourismPetSourceRecord.count(), 3, "페이지 저장 실패는 전체 롤백");
+  await db.query("INSERT INTO places VALUES ('listed','tourapi','2'),('pet-only','tourapi','3'),('stale','tourapi','4')");
+  await savePetTourism([
+    petTourRecord("kor", { contentid: "1", acmpyTypeCd: "전구역 동반가능" }, new Date()),
+    petTourRecord("kor", { contentid: "2", acmpyTypeCd: "전구역 동반가능" }, new Date()),
+    petTourRecord("pet", { contentid: "3", acmpyTypeCd: "전구역 동반가능" }, new Date()),
+    petTourRecord("kor", { contentid: "4", acmpyTypeCd: "전구역 동반가능" }, new Date(Date.now() - 31 * 86400000)),
+  ]);
+  const officialCandidates = [{ id: "place" }, { id: "listed" }, { id: "pet-only" }, { id: "stale" }, { id: "unknown" }];
+  const recommended = await dogOutingPlaces(officialCandidates, { weightsKg: [15], leash: true, carrier: false });
+  assert.deepEqual(recommended.map(place => place.id), ["listed"], "검토 제한을 우회하지 않고 국문·최신·등록 자료만 포함");
+  assert.equal(recommended[0].dogAccess.kind, "tourapi");
+  await orm.dogPlaceAccess.update({ where: { placeId: "place" }, data: { allowed: false } });
+  assert.equal((await dogOutingPlaces([{ id: "place" }], { weightsKg: [5], leash: true, carrier: true })).length, 0, "동반 불가 검토 자료를 원문으로 우회하지 않음");
   await db.query("DELETE FROM users WHERE id='other'");
   assert.equal(await orm.petProfile.count(), 0, "계정 삭제 시 프로필 제거");
 });

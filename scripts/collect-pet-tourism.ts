@@ -10,7 +10,7 @@ const value = (name: string, fallback: string) => { const index = args.indexOf(n
 const accepted = new Set(["--source", "--start-page", "--pages", "--rows", "--max-requests", "--output", "--apply"]);
 const seen = new Set<string>();
 for (let i = 0; i < args.length; i++) { if (!accepted.has(args[i]) || seen.has(args[i])) throw new Error("INVALID_OR_DUPLICATE_ARGUMENT"); seen.add(args[i]); if (args[i] !== "--apply") { if (!args[i + 1] || args[i + 1].startsWith("--")) throw new Error("MISSING_ARGUMENT"); i++; } }
-const source = value("--source", "both");
+const source = value("--source", "kor");
 if (!["kor", "pet", "both"].includes(source)) throw new Error("INVALID_SOURCE");
 const output = resolve(value("--output", join(".tourism-data", "pet-tourism", new Date().toISOString().replace(/[:.]/g, "-") + "-" + crypto.randomUUID().slice(0, 8))));
 const sources: PetSource[] = source === "both" ? ["kor", "pet"] : [source as PetSource];
