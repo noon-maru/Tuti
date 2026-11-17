@@ -13,6 +13,13 @@ export class RecommendationRequestError extends Error {
 
 export type RecommendationErrorKind = "network" | "location" | "server" | "unknown";
 
+export function shouldRetryRecommendation(failureCount: number, error: unknown) {
+  // 잘못된 요청·동의/인증 문제·후보 부족은 같은 입력으로 반복해도 해결되지 않는다.
+  if (error instanceof RecommendationRequestError &&
+    ((error.status >= 400 && error.status < 500) || error.code === "long_distance_unavailable")) return false;
+  return failureCount < 1;
+}
+
 export function getRecommendationErrorKind(error: unknown): RecommendationErrorKind {
   if (!(error instanceof RecommendationRequestError)) return "unknown";
   if (error.code === "network_error") return "network";

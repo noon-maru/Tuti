@@ -1,5 +1,6 @@
 import { apiUrl } from "@/lib/api/apiUrl";
 import { clientFetch } from "@/lib/api/clientFetch";
+import { requestCoordinates } from "@/shared/location/requestCoordinates";
 import type { SensitiveJournalPolicyResponse } from "@/shared/legal/sensitiveJournalPolicy";
 
 export async function fetchSensitiveJournalPolicy(): Promise<SensitiveJournalPolicyResponse> {
@@ -156,7 +157,7 @@ export async function fetchRecommendations(
   const request: RecommendationRequest = {
     ...(dogOuting ? { dogOuting } : {}),
     answers,
-    location,
+    location: location ? requestCoordinates(location) : undefined,
     entryStatus,
     preferredRegion: location ? undefined : preferredRegion,
     excludePlaceIds,
@@ -267,7 +268,7 @@ export async function fetchDeparturePlan(
     {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ origin, transport }),
+      body: JSON.stringify({ origin: requestCoordinates(origin), transport }),
       signal,
     },
   );
@@ -293,7 +294,7 @@ export async function fetchDepartureRoute(
     {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ origin, mode }),
+      body: JSON.stringify({ origin: requestCoordinates(origin), mode }),
       signal,
     },
   );
@@ -330,7 +331,7 @@ export async function fetchTravelTime(
     {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ origin, transport }),
+      body: JSON.stringify({ origin: requestCoordinates(origin), transport }),
       signal,
     },
   );
@@ -351,7 +352,7 @@ export async function fetchNearbyPlaces(
   const response = await fetchWithSession("places/nearby", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ location }),
+    body: JSON.stringify({ location: requestCoordinates(location) }),
   });
 
   if (!response.ok) {

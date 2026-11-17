@@ -12,6 +12,7 @@ import { getLocationTermsVersion } from "@/shared/location/terms";
 import { interpretState } from "@/lib/recommendations";
 import { readFileSync } from "node:fs";
 import ts from "typescript";
+import { shouldRetryRecommendation } from "@/lib/api/recommendationError";
 
 const anchor = { latitude: 37.5665, longitude: 126.978, accuracy: 15 };
 const nearby = { ...anchor, latitude: 37.569 };
@@ -85,6 +86,7 @@ test("실제 훅과 QueryObserver: 작성 왕복·새 QueryClient 복원은 요�
       } },
       "@/features/tuti/recommendationSnapshot": snapshotPolicy,
       "@/lib/tutiApi": { fetchRecommendations: async () => { requests++; return { recommendationId: `run-${requests}`, algorithmVersion: "test", places: [] }; } },
+      "@/lib/api/recommendationError": { shouldRetryRecommendation },
       "@/lib/auth/session": { isSessionCurrent: (session: { userId: string }) => session.userId === owner },
       "@/shared/location/terms": { getLocationTermsVersion },
       "@/lib/recommendations": { interpretState },

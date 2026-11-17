@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useEffect, useMemo } from "react";
 import { recommendationConditionsKey, recommendationRegionKey, reusableRecommendation } from "@/features/tuti/recommendationSnapshot";
 import { fetchRecommendations } from "@/lib/tutiApi";
+import { shouldRetryRecommendation } from "@/lib/api/recommendationError";
 import { interpretState } from "@/lib/recommendations";
 import { hasRecommendationArea } from "@/shared/location/recommendationArea";
 import { isSessionCurrent } from "@/lib/auth/session";
@@ -86,6 +87,7 @@ export function useTutiRecommendations({ enabled = true, dogOuting }: { enabled?
     refetchOnMount: false,
     refetchOnWindowFocus: false,
     refetchOnReconnect: false,
+    retry: shouldRetryRecommendation,
   });
 
   useEffect(() => {

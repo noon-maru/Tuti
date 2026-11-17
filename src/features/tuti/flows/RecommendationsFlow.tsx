@@ -144,7 +144,7 @@ export function RecommendationsFlow({ interactive, dogOuting, onDogOutingChange 
     places,
     recommendationId,
     isSuccess,
-    isPending,
+    isLoading,
     isError,
     error,
     refetch,
@@ -485,7 +485,7 @@ export function RecommendationsFlow({ interactive, dogOuting, onDogOutingChange 
         dogConditionsSelected={storedAnswers.petCompanion === "dog"}
         places={places}
         answers={withDefaultIntakeAnswers(storedAnswers)}
-        loading={isPending && !dailyCheckInVisible}
+        loading={isLoading && !dailyCheckInVisible}
         recommendationError={isError}
         recommendationErrorKind={getRecommendationErrorKind(error)}
         recommendationErrorCode={
