@@ -25,6 +25,7 @@ import {
 import { BaseButton } from "@/features/tuti/components/buttons";
 import { ContextMenu } from "@/features/tuti/components/ContextMenu";
 import { PlaceShareDialog } from "@/features/tuti/components/PlaceShareDialog";
+import { DogAccessNotice } from "@/features/tuti/components/DogAccessNotice";
 import { TutiPlaceIcon } from "@/features/tuti/components/TutiPlaceIcon";
 import { useDeferredAnimationStart } from "@/features/tuti/hooks/useDeferredAnimationStart";
 import { usePlaceDetail } from "@/features/tuti/hooks/usePlaceDetail";
@@ -856,6 +857,8 @@ export function DetailScreen({
             </Section>
 
             {onCreateMadi && <CreateMadi type="button" onClick={onCreateMadi}><PenLine size={18} aria-hidden="true" />이 장소에서 마디 남기기</CreateMadi>}
+
+            {place.dogAccess && <Section><DogAccessNotice access={place.dogAccess} /></Section>}
 
             {facts.length > 0 && (
               <Section>

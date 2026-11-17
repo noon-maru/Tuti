@@ -16,6 +16,8 @@ import {
   TextButton,
 } from "@/features/tuti/components/buttons";
 import { AuxiliaryConditions } from "@/features/tuti/components/AuxiliaryConditions";
+import { DogOutingControls } from "@/features/tuti/components/DogOutingControls";
+import type { DogOuting } from "@/shared/pets/dogAccess";
 import {
   getIntakeSteps,
 } from "@/features/tuti/data/intakeSteps";
@@ -39,17 +41,20 @@ export function DailyCheckInScreen({
   onSnooze,
   onSubmit,
   onDismiss,
+  dogOuting,
 }: {
+  dogOuting?: DogOuting;
   previousAnswers: IntakeAnswers;
   initialMode?: CheckInMode;
   dismissible: boolean;
   onReuse: () => void;
   onSkip: () => void;
   onSnooze: () => void;
-  onSubmit: (answers: IntakeAnswers) => void;
+  onSubmit: (answers: IntakeAnswers, dogOuting?: DogOuting) => void;
   onDismiss: () => void;
 }) {
   const [mode, setMode] = useState<CheckInMode>(initialMode);
+  const [draftDogOuting, setDraftDogOuting] = useState(dogOuting);
   const [step, setStep] = useState(0);
   const [draftAnswers, setDraftAnswers] =
     useState<IntakeAnswers>(() => withDefaultIntakeAnswers(previousAnswers));
@@ -197,7 +202,7 @@ export function DailyCheckInScreen({
       return;
     }
 
-    closeWith(() => onSubmit(toActiveIntakeAnswers(draftAnswers)));
+    closeWith(() => onSubmit(toActiveIntakeAnswers(draftAnswers), draftAnswers.petCompanion === "dog" ? draftDogOuting : undefined));
   };
 
   const startSheetDrag = (event: React.PointerEvent<HTMLButtonElement>) => {
@@ -310,6 +315,7 @@ export function DailyCheckInScreen({
                   type="button"
                   onClick={() => {
                     setDraftAnswers(withDefaultIntakeAnswers(previousAnswers));
+                    setDraftDogOuting(dogOuting);
                     setStep(0);
                     setMode("questions");
                   }}
@@ -358,6 +364,7 @@ export function DailyCheckInScreen({
                   </Option>
                 ))}
               </Options>
+              {activeStep.key === "placeCategories" && <DogOutingControls value={draftDogOuting} onChange={setDraftDogOuting} />}
               {step === activeSteps.length - 1 && (
                 <AuxiliaryConditions
                   companion={draftAnswers.companion}

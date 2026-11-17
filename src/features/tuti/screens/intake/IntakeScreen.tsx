@@ -10,6 +10,8 @@ import {
 } from "@/features/tuti/components/buttons";
 import { AuxiliaryConditions } from "@/features/tuti/components/AuxiliaryConditions";
 import { ScreenFrame } from "@/features/tuti/components/ScreenFrame";
+import { DogOutingControls } from "@/features/tuti/components/DogOutingControls";
+import type { DogOuting } from "@/shared/pets/dogAccess";
 import type { IntakeStep } from "@/features/tuti/data/intakeSteps";
 import type {
   BudgetAnswer,
@@ -32,7 +34,11 @@ export function IntakeScreen({
   auxiliaryConditions,
   onCompanionChange,
   onBudgetChange,
+  dogOuting,
+  onDogOutingChange,
 }: {
+  dogOuting?: DogOuting;
+  onDogOutingChange?: (value?: DogOuting) => void;
   step: number;
   total: number;
   activeStep: IntakeStep;
@@ -96,6 +102,7 @@ export function IntakeScreen({
           ))}
         </OptionList>
       )}
+      {activeStep.key === "placeCategories" && onDogOutingChange && <DogOutingControls value={dogOuting} onChange={onDogOutingChange} />}
       {step === total - 1 && (
         <AuxiliaryConditions
           companion={auxiliaryConditions.companion}

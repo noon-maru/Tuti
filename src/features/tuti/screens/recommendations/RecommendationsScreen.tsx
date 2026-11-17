@@ -9,7 +9,6 @@ import { ToastSurface, ToastAction } from "@/shared/ui/ToastSurface";
 import { ContextMenu } from "@/features/tuti/components/ContextMenu";
 import { LoadingIndicator } from "@/features/tuti/components/LoadingIndicator";
 import { ScreenFrame } from "@/features/tuti/components/ScreenFrame";
-import { DogAccessNotice } from "@/features/tuti/components/DogAccessNotice";
 import { ExplorePlaceSearch } from "@/features/tuti/components/ExplorePlaceSearch";
 import { SwipeCard } from "@/features/tuti/components/SwipeCard";
 import { DeparturePlanScreen } from "@/features/tuti/screens/departure/DeparturePlanScreen";
@@ -227,7 +226,7 @@ export function RecommendationsScreen({
     : answers.movement === "near"
       ? "잠깐의 시간 동안 다녀올 만한 공간을 찾지 못했어요."
       : "오늘의 여유에 맞는 공간을 찾지 못했어요.";
-  const emptyRecommendationMessage = dogConditionsSelected ? "현재 자료에서 조건을 확인할 수 있는 곳이 부족해요. 위의 외출 조건이나 이동 범위를 바꿔보세요." : answers.budget === "free"
+  const emptyRecommendationMessage = dogConditionsSelected ? "현재 자료에서 조건을 확인할 수 있는 곳이 부족해요. 다시 들려주기에서 동반 조건이나 이동 범위를 바꿔보세요." : answers.budget === "free"
     ? "지금 확인된 무료 공간이 없어요. 오늘의 여유나 원하는 분위기를 조금 바꿔볼까요?"
     : "다녀오는 데 조금 더 여유를 내거나, 원하는 분위기를 바꿔볼까요?";
   const presentedDetailPlace = detailVisible ? detailPlace : activePlace;
@@ -759,7 +758,6 @@ export function RecommendationsScreen({
         <Copy $progress={verticalProgress}>
           <h1>{answers.petCompanion === "none" ? "다음 마디가 될 작은 여행" : "반려견과 함께할 작은 여행"}</h1>
           <p>함께 보낼 다음 하루를 찾아보세요.</p>
-          {activePlace?.dogAccess && <DogAccessNotice access={activePlace.dogAccess} />}
           {!locationAvailable && (
             <LocationModeButton
               type="button"

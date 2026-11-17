@@ -46,7 +46,7 @@ import {
   useTutiStore,
 } from "@/store/tuti";
 
-export function RecommendationsFlow({ interactive, dogOuting }: { interactive: boolean; dogOuting?: DogOuting }) {
+export function RecommendationsFlow({ interactive, dogOuting, onDogOutingChange }: { interactive: boolean; dogOuting?: DogOuting; onDogOutingChange?: (value?: DogOuting) => void }) {
   const router = useRouter();
   const queryClient = useQueryClient();
   const { requestLocation } = useLocationAccess();
@@ -580,15 +580,17 @@ export function RecommendationsFlow({ interactive, dogOuting }: { interactive: b
       />
       {dailyCheckInVisible && (
         <DailyCheckInScreen
+          dogOuting={dogOuting}
           previousAnswers={storedAnswers}
           initialMode={dailyCheckInRequested ? "questions" : "summary"}
           dismissible={dailyCheckInRequested || dailyRecordCurrent}
           onReuse={() => replaceDailyRecommendation("reused")}
-          onSkip={() => replaceDailyRecommendation("skipped")}
+          onSkip={() => { onDogOutingChange?.(undefined); replaceDailyRecommendation("skipped"); }}
           onSnooze={snoozeDailyCheckIn}
-          onSubmit={(answers) =>
-            replaceDailyRecommendation("answered", answers)
-          }
+          onSubmit={(answers, outing) => {
+            onDogOutingChange?.(answers.petCompanion === "dog" ? outing : undefined);
+            replaceDailyRecommendation("answered", answers);
+          }}
           onDismiss={cancelDailyCheckIn}
         />
       )}

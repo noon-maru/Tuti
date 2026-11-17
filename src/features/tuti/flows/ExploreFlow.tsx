@@ -9,7 +9,6 @@ import { MainNavigation } from "@/features/tuti/components/MainNavigation";
 import { useTutiStore } from "@/store/tuti";
 import { useEffect, useState } from "react";
 import type { DogOuting } from "@/shared/pets/dogAccess";
-import { DogOutingControls } from "../components/DogOutingControls";
 import { useSession } from "@/features/tuti/hooks/useSession";
 import { markLibraryEntryCompleted } from "@/lib/libraryPreferences";
 import { ExploreLocationGate } from "@/features/tuti/location/ExploreLocationGate";
@@ -24,12 +23,11 @@ export function ExploreFlow() {
     if (ownerId) void markLibraryEntryCompleted(ownerId);
   }, [ownerId]);
   const entryRecord = useTutiStore(state => state.entryRecord);
-  const withDog = useTutiStore(state => state.answers.petCompanion === "dog");
   const stage = useTutiStore(state => state.entryStage);
   const questions = params.get("mode") === "questions";
+  const updateDogOuting = (value?: DogOuting) => setDogOuting(ownerId && value ? { ownerId, value } : undefined);
   return <Frame>
-    {ownerId && withDog && entryRecord && !questions && stage !== "recommendation-ready" && <DogOutingControls key={ownerId} value={currentDogOuting} onChange={value => setDogOuting(value ? { ownerId, value } : undefined)} />}
-    <Content>{ownerId ? <ExploreLocationGate key={ownerId}>{stage === "recommendation-ready" ? <RecommendationReadyFlow /> : !entryRecord || questions ? <IntakeFlow /> : <RecommendationsFlow interactive dogOuting={currentDogOuting} />}</ExploreLocationGate> : <AppLoadingScreen />}</Content>
+    <Content>{ownerId ? <ExploreLocationGate key={ownerId}>{stage === "recommendation-ready" ? <RecommendationReadyFlow dogOuting={currentDogOuting} /> : !entryRecord || questions ? <IntakeFlow dogOuting={currentDogOuting} onDogOutingChange={updateDogOuting} /> : <RecommendationsFlow interactive dogOuting={currentDogOuting} onDogOutingChange={updateDogOuting} />}</ExploreLocationGate> : <AppLoadingScreen />}</Content>
     <MainNavigation active="explore" />
   </Frame>;
 }

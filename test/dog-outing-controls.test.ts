@@ -14,7 +14,7 @@ test("동반 조건은 명시적으로 적용하고 미등록·다중 반려견�
     "./buttons": { PrimaryButton: "button", TextButton: "button" }, "@/shared/ui/typography": { inputControlStyles: "" },
   });
   const render = () => nodes(flow.render({ onChange: (value?: DogOuting) => calls.push(value), value: calls.at(-1) }));
-  const apply = () => (render().find(node => node.props.children === "이 조건으로 찾기")!.props.onClick as () => void)();
+  const apply = () => (render().find(node => node.props.children === "세부 조건 적용")!.props.onClick as () => void)();
   const weights = (value: string) => (render().find(node => node.props.inputMode === "decimal")!.props.onChange as (event: unknown) => void)({ target: { value } });
   render(); assert.equal(calls.length, 0);
   apply(); assert.deepEqual(JSON.parse(JSON.stringify(calls)), [{ weightsKg: [], leash: null, carrier: null, space: "any", muzzle: null }]);

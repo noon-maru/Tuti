@@ -10,8 +10,10 @@ import { IntakeScreen } from "@/features/tuti/screens/intake/IntakeScreen";
 import { recordProductActivity } from "@/lib/productActivity";
 import { useTutiStore } from "@/store/tuti";
 import { withDefaultIntakeAnswers } from "@/lib/intakePreferences";
+import type { DogOuting } from "@/shared/pets/dogAccess";
 
-export function IntakeFlow() {
+export function IntakeFlow({ dogOuting, onDogOutingChange }: { dogOuting?: DogOuting; onDogOutingChange?: (value?: DogOuting) => void } = {}) {
+  const [draftDogOuting, setDraftDogOuting] = useState(dogOuting);
   const router = useRouter();
   const { requestLocation } = useLocationAccess();
   const setAnswer = useTutiStore((state) => state.setAnswer);
@@ -54,6 +56,7 @@ export function IntakeFlow() {
       void recordProductActivity("entry_completed").catch(() => {
         // 분석 기록 실패가 질문 완료를 막지 않도록 한다.
       });
+      onDogOutingChange?.(answers.petCompanion === "dog" ? draftDogOuting : undefined);
       finishIntake("answered");
     } finally {
       setResolvingLocation(false);
@@ -69,6 +72,7 @@ export function IntakeFlow() {
       void recordProductActivity("entry_skipped").catch(() => {
         // 분석 기록 실패가 둘러보기를 막지 않도록 한다.
       });
+      onDogOutingChange?.(undefined);
       finishIntake("skipped");
     } finally {
       setResolvingLocation(false);
@@ -87,6 +91,8 @@ export function IntakeFlow() {
     <IntakeScreen
       step={step}
       total={activeSteps.length}
+      dogOuting={draftDogOuting}
+      onDogOutingChange={setDraftDogOuting}
       activeStep={activeStep}
       selectedValue={answers[activeStep.key]}
       onBack={goToPreviousQuestion}
