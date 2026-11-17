@@ -9,6 +9,7 @@ test("새 동반 점수는 기존 피로도·저부담 점수와 무관하며 �
   assert.deepEqual(scoreDogPlace(place("a")), scoreDogPlace({ ...place("a"), fatigue: 0, fatigueScore: 0, rankingScore: -999, moodTags: ["quiet"] }));
   const score = scoreDogPlace(place("a"));
   assert.equal(score.access, 0); assert.equal(score.weather, 0); assert.equal(score.purpose, 0);
+  assert.equal(scoreDogPlace({ ...place("unknown"), executionFeasibility: { fitStatus: "unknown", fitsAvailableTime: true } as TutiPlace["executionFeasibility"] }).time, 0);
   assert.ok(scoreDogPlace(place("cafe", "cafe"), { weightsKg: [], leash: false, carrier: false, purpose: "cafe" }).purpose > score.purpose);
 });
 test("같은 입력 순위는 결정적이고 다시 고르기는 기존 결과로 부족분만 채운다", () => {

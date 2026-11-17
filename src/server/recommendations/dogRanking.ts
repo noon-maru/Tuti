@@ -13,7 +13,7 @@ export function scoreDogPlace(place: TutiPlace, outing?: DogOuting, novelty?: Om
   const purpose = outing?.purpose === "cafe" && place.experienceType === "cafe" || outing?.purpose === "walk" && walkTypes.includes(place.experienceType ?? "") ? 18 : outing?.purpose === "outing" && place.experienceType && !["cafe", "other"].includes(place.experienceType) ? 12 : 0;
   const distance = place.distanceMeters === undefined ? 0 : 30 / (1 + Math.max(0, place.distanceMeters) / 5000);
   const fit = place.executionFeasibility;
-  const time = fit?.fitStatus === "comfortable" ? 12 : fit?.fitsAvailableTime ? 6 : 0;
+  const time = fit?.fitStatus === "comfortable" ? 12 : fit?.fitStatus === "possible" ? 6 : 0;
   // No inference that a cafe is indoor or a park has shade. Unknown/poor weather receives no bonus.
   const weather = place.weatherForecast?.suitability === "good" ? 4 : 0;
   const fresh = novelty ? noveltyBoost(novelty) : 0;
