@@ -15,11 +15,11 @@
     {
       "id": "public-dog-access",
       "implementationState": "disabled-pending-rollout",
-      "models": ["DogPlaceAccess", "TourismPetSourceRecord"],
+      "models": ["DogPlaceAccess", "TourismPetSourceRecord", "DogPlaceCatalog"],
       "items": "공개 장소의 검토된 동반 조건·출처·확인일과 공식 API 원문·수집일을 분리. 국문 공식 등록 장소는 미확인 조건 안내와 함께 추천에 포함할 수 있으며 개인 마디·반려동물 이름으로 추정하지 않음. 2026-11-17 개발 DB 적용, 운영 미적용",
       "retention": "공개 장소 자료를 갱신·삭제할 때까지. 유효기간 지난 정보는 동반 추천 자격으로 사용하지 않음. 사용자별 조건 요청은 기존 추천 실행의 처리·위치 철회·계정 파기 범위를 따름",
-      "sources": ["src/server/pets/dogAccess.ts", "src/shared/pets/dogAccess.ts", "src/shared/pets/tourApiDogAccess.ts", "scripts/import-dog-place-access.ts", "src/server/tourism/savePetTourism.ts", "scripts/collect-pet-tourism.ts", "scripts/import-pet-tourism.ts", "src/server/recommendations/service.ts", "prisma/schema.prisma"],
-      "collection": "국문 TourAPI를 기본 원본으로, 전용 API는 비교·보완 원문으로 별도 보존. 기존 승인 장소와 매칭된 국문 등록 자료만 미확인 표시와 함께 추천하며 미매칭 장소의 신규 승인·조건 검토 완료로 자동 승격하지 않음. 수집일은 시설 확인일이 아님"
+      "sources": ["src/server/pets/dogAccess.ts", "src/shared/pets/dogAccess.ts", "src/shared/pets/tourApiDogAccess.ts", "scripts/import-dog-place-access.ts", "src/server/tourism/savePetTourism.ts", "scripts/collect-pet-tourism.ts", "scripts/import-pet-tourism.ts", "scripts/register-dog-place-catalog.ts", "src/server/tourism/registerDogPlace.ts", "src/server/recommendations/dogEngine.ts", "src/server/recommendations/service.ts", "prisma/schema.prisma"],
+      "collection": "국문 TourAPI 동반 정보를 기본 원본으로 보존하고 전용 목록의 이름·좌표는 기본 정보 보완에만 사용. 콘텐츠 ID가 일치하고 기본 정보·공식 동반 근거가 유효한 신규 장소를 독립 카탈로그에 등록하되 기존 일반 후보 승인·수동 편집·명시적 제외를 덮어쓰지 않음. 미확인 조건은 방문 전 확인 표시를 유지하며 수집일을 시설 확인일로 승격하지 않음"
     },
     {
       "id": "accounts-authentication",
