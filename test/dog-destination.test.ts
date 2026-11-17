@@ -20,6 +20,6 @@ test("목적에 맞는 장소를 다양성이나 가까운 대체 후보 때문�
   const chosen = selectDogPlaces(ranked, ["7"], 6, outing);
   assert.equal(chosen.length, 6); assert.ok(chosen.every(p => p.experienceType === "cafe"));
   const limited = selectDogPlaces(rankDogPlaces(places.slice(0, 4), outing), [], 6, outing);
-  assert.equal(limited.length, 4); assert.equal(limited[0].experienceType, "cafe");
-  assert.match(limited.find(p => p.experienceType !== "cafe")!.reasonDetail!, /다른 동반 장소/);
+  assert.equal(limited.length, 2); assert.ok(limited.every(p => p.experienceType === "cafe"));
+  assert.equal(selectDogPlaces(rankDogPlaces(places.slice(0,2), outing), [], 6, outing).length, 0);
 });

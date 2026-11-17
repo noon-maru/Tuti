@@ -36,8 +36,7 @@ export function rankDogPlaces(places: TutiPlace[], outing?: DogOuting, signals: 
 export function selectDogPlaces(places: TutiPlace[], previousIds: string[], limit = 6, outing?: DogOuting) {
   const previous = new Set(previousIds), result: TutiPlace[] = [], counts = new Map<string, number>();
   const matching = places.filter(p => matchesDogPurpose(p, outing));
-  const alternatives = places.filter(p => !matchesDogPurpose(p, outing));
-  for (const group of [matching.filter(p => !previous.has(p.id)), matching.filter(p => previous.has(p.id)), alternatives.filter(p => !previous.has(p.id)), alternatives.filter(p => previous.has(p.id))]) {
+  for (const group of [matching.filter(p => !previous.has(p.id)), matching.filter(p => previous.has(p.id))]) {
     const deferred: TutiPlace[] = [];
     for (const place of group) {
       const type = place.experienceType ?? "other";
