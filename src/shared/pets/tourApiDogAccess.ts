@@ -5,7 +5,7 @@ export function officialDogRestriction(raw: unknown): string | null {
   const text = raw && typeof raw === "object" ? (raw as Record<string, unknown>).acmpyPsblCpam : null;
   if (typeof text !== "string") return null;
   if (/^(?:동반\s*)?(?:불가|금지)\s*[.!]?$/u.test(text.trim())) return "official_pet_denial";
-  if (/^(?:맹인\s*)?안내견(?:만|\s*전용)?$/u.test(text.trim())) return "official_assistance_dogs_only";
+  if (/^(?:(?:맹인|장애인)\s*)?(?:안내견|보조견)(?:만|\s*전용)?(?:\s*동반)?(?:\s*(?:입장|출입))?(?:\s*가능)?$/u.test(text.trim())) return "official_assistance_dogs_only";
   return null;
 }
 

@@ -64,7 +64,7 @@ export async function createDogRecommendations(input: { answers: IntakeAnswers; 
   const companions = await dogOutingPlaces(destinations, dogOuting);
   const forecastTarget = dogVisitDate(answers, now);
   const enriched = enrichPlacesWithCachedWeather(companions, now, forecastTarget).map(place => dogFeasibility(place, answers, operationDetails.get(place.id), now)).filter(fitsDogTimeBudget);
-  // Unknown/estimated time is not grounds for silently deleting a candidate. Known admission limits remain hard constraints.
+  // Time estimates are evaluated above; known admission limits remain separate constraints.
   const budgetEligible = filterPlacesByAdmissionBudget(enriched, answers.budget);
   const signals = await loadPlaceNoveltySignals(input.userId, budgetEligible.map(p => p.id), now);
   const ranked = rankDogPlaces(budgetEligible, dogOuting, signals);
