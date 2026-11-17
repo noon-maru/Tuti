@@ -12,10 +12,14 @@ test("동반 입력은 별도 적용 없이 초안에 반영하며 잘못된 몸
   const flow = clientFlowHarness("src/features/tuti/components/DogOutingControls.tsx", "DogOutingControls", {
     "@emotion/styled": styled, "@/shared/pets/dogAccess": { parseDogOuting },
     "./buttons": { BaseButton: "button", TextButton: "button" }, "@/shared/ui/typography": { inputControlStyles: "" },
+    "./DogProfileWeights": { DogProfileWeights: "dog-profile-weights" },
   });
   const render = () => nodes(flow.render({ onChange: (value?: DogOuting) => calls.push(value), onValidityChange: (valid: boolean) => validity.push(valid), value: calls.at(-1) }));
   const weights = (value: string) => (render().find(node => node.props.inputMode === "decimal")!.props.onChange as (event: unknown) => void)({ target: { value } });
   render(); assert.equal(calls.length, 0);
+  (render().find(node => node.type === "dog-profile-weights")!.props.onApply as (weights: number[]) => void)([8, 12]);
+  assert.deepEqual(JSON.parse(JSON.stringify(calls.at(-1)?.weightsKg)), [8, 12]);
+  assert.equal(render().find(node => node.props.inputMode === "decimal")!.props.value, "8, 12");
   assert.equal(render().some(node => node.type === "select" || node.type === "details"), false);
   weights("5, 12");
   assert.deepEqual(JSON.parse(JSON.stringify(calls.at(-1))), { weightsKg: [5, 12], leash: null, carrier: null, space: "any", muzzle: null });

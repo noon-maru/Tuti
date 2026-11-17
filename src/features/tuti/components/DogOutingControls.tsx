@@ -4,6 +4,7 @@ import styled from "@emotion/styled";
 import { parseDogOuting, type DogOuting } from "@/shared/pets/dogAccess";
 import { BaseButton, TextButton } from "./buttons";
 import { inputControlStyles } from "@/shared/ui/typography";
+import { DogProfileWeights } from "./DogProfileWeights";
 
 const preparations = [{ key: "leash", label: "목줄" }, { key: "carrier", label: "이동장" }, { key: "muzzle", label: "입마개" }] as const;
 const spaces = [{ value: "any", label: "상관없어요" }, { value: "indoor", label: "실내" }, { value: "outdoor", label: "야외·테라스" }] as const;
@@ -29,6 +30,7 @@ export function DogOutingControls({ value, onChange, onValidityChange }: {
       {spaces.map(option => <Choice key={option.value} type="button" $active={selection.space === option.value} aria-pressed={selection.space === option.value} onClick={() => choose({ ...selection, space: option.value })}>{option.label}</Choice>)}
     </Choices><Hint>실내·야외를 고르면 해당 구역의 동반 안내가 확인되는 곳만 찾아요.</Hint></Group>
     <Group><legend>함께 가는 반려견</legend>
+      <DogProfileWeights onApply={nextWeights => { const text = nextWeights.join(", "); setWeights(text); publish(selection, text); }} />
       <WeightLabel htmlFor={`${id}-weights`}>몸무게 <span>kg</span></WeightLabel>
       <WeightInput id={`${id}-weights`} inputMode="decimal" value={weights} placeholder="예: 5 또는 5, 12" aria-invalid={Boolean(error)} aria-describedby={`${id}-weight-hint${error ? ` ${id}-error` : ""}`} onChange={event => {
         const text = event.target.value; setWeights(text); publish(selection, text);
