@@ -14,11 +14,14 @@ test("로그인 복귀 경로는 허용한 내부 화면과 식별자만 보존�
 
 test("약관과 로그인을 차례로 거쳐도 원래 책·장소·추천 의도를 복원한다", () => {
   const destination = "/madi/new?from=explore&harumadiId=book&placeId=p1&placeName=%EA%B3%B5%EC%9B%90&journeyId=j1";
+  assert.equal(consentEntryPath("/"), "/entry", "일반 첫 진입은 소개 흐름을 건너뛰지 않는다");
   const consent = consentEntryPath(destination);
   assert.equal(new URL(consent, "https://tuti.test").searchParams.get("returnTo"), destination);
   const login = loginPath(consent);
   const resumed = new URL(login, "https://tuti.test").searchParams.get("returnTo")!;
   assert.equal(loginSuccessPath(resumed), destination);
+  assert.equal(loginSuccessPath("/explore?harumadiId=book&ownerId=anonymous", "merged-owner"), "/explore?harumadiId=book&ownerId=merged-owner");
+  assert.equal(loginSuccessPath("/explore?harumadiId=book&ownerId=anonymous"), "/explore?harumadiId=book&ownerId=anonymous", "로그인 취소·일반 이동은 계정을 바꾸지 않는다");
   for (const unsafe of ["https://evil.test", "//evil.test", "/api/account", "/admin", "/entry?returnTo=%2Fentry"]) assert.equal(consentEntryPath(unsafe), "/entry");
   assert.equal(safeLoginReturn("/entry?returnTo=https%3A%2F%2Fevil.test"), "/entry");
 });

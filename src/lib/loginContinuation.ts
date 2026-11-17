@@ -45,15 +45,23 @@ export function loginPath(returnTo: string) {
   const path = safeLoginReturn(returnTo);
   return path ? `/login?${new URLSearchParams({ returnTo: path })}` : "/login";
 }
-export function loginSuccessPath(path: string) {
-  if (path.split("?")[0] !== "/entry") return path;
-  const params = new URL(path, "https://tuti.invalid").searchParams;
-  return safeLoginReturn(params.get("returnTo")) ?? (params.get("next") === "explore" ? "/explore" : "/");
+export function loginSuccessPath(path: string, ownerId?: string) {
+  const safe = safeLoginReturn(path) ?? "/";
+  const params = new URL(safe, "https://tuti.invalid").searchParams;
+  const destination = safe.split("?")[0] === "/entry" ? safeLoginReturn(params.get("returnTo")) ?? (params.get("next") === "explore" ? "/explore" : "/") : safe;
+  const url = new URL(destination, "https://tuti.invalid");
+  // Auth may merge an anonymous owner into a different account ID. This is only
+  // a navigation hint; the destination still fetches and checks book permissions.
+  if (ownerId && /^[a-zA-Z0-9_-]{1,128}$/.test(ownerId) && url.pathname === "/explore" && url.searchParams.has("harumadiId")) {
+    url.searchParams.set("ownerId", ownerId);
+    return `${url.pathname}?${url.searchParams}`;
+  }
+  return destination;
 }
 
 export function consentEntryPath(path: string) {
   const target = safeLoginReturn(path);
-  return target && target.split("?")[0] !== "/entry" ? `/entry?${new URLSearchParams({ returnTo: target })}` : "/entry";
+  return target && !["/", "/entry"].includes(target.split("?")[0]) ? `/entry?${new URLSearchParams({ returnTo: target })}` : "/entry";
 }
 
 export function createLoginContinuation(storage: StateStorage, now = Date.now) {

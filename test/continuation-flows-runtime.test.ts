@@ -56,18 +56,18 @@ test("실제 로그인 핸들러는 이메일·소셜·취소 후 원래 작업�
     "@tanstack/react-query": { useQueryClient: () => ({ invalidateQueries: async () => {}, removeQueries() {} }) },
     "@/features/tuti/screens/account/AccountScreen": { AccountScreen: "account" },
     "@/features/tuti/hooks/useSession": { useSession: () => ({ userId: "owner" }) },
-    "@/lib/auth/session": { verifyEmailLoginCode: async () => ({ status: "authenticated", linked }), completeOAuthLogin: async () => ({ status: "authenticated", linked: true }), createOAuthLoginUrl: async () => "https://provider.test" },
+    "@/lib/auth/session": { getSessionSnapshot: () => ({ userId: "owner" }), verifyEmailLoginCode: async () => ({ status: "authenticated", linked }), completeOAuthLogin: async () => ({ status: "authenticated", linked: true }), createOAuthLoginUrl: async () => "https://provider.test" },
     "@/shared/auth/config": { accountAuthEnabled: true },
     "@/store/tuti": { useTutiStore: (select: (value: unknown) => unknown) => select(store) },
     "@/lib/harumadiInviteIntent": { pendingHarumadiInvite: async () => invite ? "pending-token" : null },
     "@/lib/loginContinuation": { loginContinuation: continuation, loginSuccessPath, safeLoginReturn },
   };
   const create = () => clientFlowHarness("src/features/tuti/flows/AccountFlow.tsx", "AccountFlow", deps);
-  for (const path of ["/settings", "/madi/detail?entryId=entry", "/harumadi?harumadiId=book&mode=together", "/explore?mode=questions&step=1", "/entry"]) {
+  for (const path of ["/settings", "/madi/detail?entryId=entry", "/harumadi?harumadiId=book&mode=together", "/explore?mode=questions&step=1", "/explore?harumadiId=book&ownerId=anonymous", "/entry"]) {
     params = new URLSearchParams({ returnTo: path }); linked = true;
     const screen = create().render();
     await (screen.props.onEmailCodeVerify as (...args: string[]) => Promise<unknown>)("test", "code");
-    assert.equal(paths.at(-1), loginSuccessPath(path));
+    assert.equal(paths.at(-1), loginSuccessPath(path, "owner"));
   }
   params = new URLSearchParams({ returnTo: "/harumadi/invite" });
   await (create().render().props.onOAuth as (provider: string) => Promise<void>)("apple");

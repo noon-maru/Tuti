@@ -14,6 +14,7 @@ import { AccountScreen } from "@/features/tuti/screens/account/AccountScreen";
 import { useSession } from "@/features/tuti/hooks/useSession";
 import {
   completeOAuthLogin,
+  getSessionSnapshot,
   createOAuthLoginUrl,
   deleteAccount,
   fetchJournalAuthorBlocks,
@@ -80,7 +81,7 @@ export function AccountFlow() {
     }
 
     skipInitialHelp();
-    router.replace(destination ? loginSuccessPath(destination) : await pendingHarumadiInvite(true).catch(() => null) ? "/harumadi/invite" : "/");
+    router.replace(destination ? loginSuccessPath(destination, getSessionSnapshot()?.userId) : await pendingHarumadiInvite(true).catch(() => null) ? "/harumadi/invite" : "/");
   }, [
     entryRecord,
     finishEntry,
