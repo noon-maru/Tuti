@@ -103,6 +103,7 @@ export function RecommendationsScreen({
   onDepartureOpen,
   onNavigationStart,
   onRestartIntake,
+  dogConditionsSelected = false,
   onReplayInitialHelp,
   onSkipInitialHelp,
   accountConnected,
@@ -149,6 +150,7 @@ export function RecommendationsScreen({
   ) => void;
   onNavigationStart: (place: TutiPlace, route: DepartureRoute) => void;
   onRestartIntake: () => void;
+  dogConditionsSelected?: boolean;
   onReplayInitialHelp: () => void;
   onSkipInitialHelp: () => void;
   accountConnected: boolean;
@@ -218,12 +220,12 @@ export function RecommendationsScreen({
   const recoveryAction = (action: RecommendationRecoveryAction) =>
     action === "location" ? onLocationSettings :
       action === "restart" ? onRestartIntake : onRetryRecommendations;
-  const emptyRecommendationTitle = answers.budget === "free"
+  const emptyRecommendationTitle = dogConditionsSelected ? "선택한 조건에 맞는 동반 장소를 찾지 못했어요." : answers.budget === "free"
     ? "비용 걱정을 덜고 다녀올 공간을 아직 찾지 못했어요."
     : answers.movement === "near"
       ? "잠깐의 시간 동안 다녀올 만한 공간을 찾지 못했어요."
       : "오늘의 여유에 맞는 공간을 찾지 못했어요.";
-  const emptyRecommendationMessage = answers.budget === "free"
+  const emptyRecommendationMessage = dogConditionsSelected ? "위의 외출 조건에서 목적이나 공간을 바꾸거나, 이동 범위를 다시 정해보세요. 다른 유형의 장소를 임의로 채우지 않아요." : answers.budget === "free"
     ? "지금 확인된 무료 공간이 없어요. 오늘의 여유나 원하는 분위기를 조금 바꿔볼까요?"
     : "다녀오는 데 조금 더 여유를 내거나, 원하는 분위기를 바꿔볼까요?";
   const presentedDetailPlace = detailVisible ? detailPlace : activePlace;

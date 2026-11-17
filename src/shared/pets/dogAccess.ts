@@ -1,11 +1,13 @@
-export type DogOuting = { weightsKg: number[]; leash: boolean; carrier: boolean; purpose?: "walk" | "cafe" | "outing" };
+export type DogOuting = { weightsKg: number[]; leash: boolean | null; carrier: boolean | null; muzzle?: boolean | null; space?: "any" | "indoor" | "outdoor"; purpose?: "walk" | "cafe" | "outing" };
 export type DogAccess = { kind?: "reviewed"; requiresOutingConfirmation?: boolean; allowed: boolean; areas: string; rules: string; maxWeightKg: number | null; leashRequired: boolean; carrierRequired: boolean; sourceUrl: string; checkedAt: string; validUntil: string };
 export type DogAccessInfo = DogAccess | import("./tourApiDogAccess").TourApiDogAccess;
 export function parseDogOuting(value: unknown): DogOuting | null {
   if (!value || typeof value !== "object") return null;
   const v = value as DogOuting;
+  if (v.space !== undefined && !["any", "indoor", "outdoor"].includes(v.space)) return null;
+  if (v.muzzle !== undefined && v.muzzle !== null && typeof v.muzzle !== "boolean") return null;
   if (v.purpose !== undefined && !["walk", "cafe", "outing"].includes(v.purpose)) return null;
-  return Array.isArray(v.weightsKg) && v.weightsKg.length <= 20 && v.weightsKg.every(w => typeof w === "number" && Number.isFinite(w) && w > 0 && w <= 150) && typeof v.leash === "boolean" && typeof v.carrier === "boolean" ? { weightsKg: v.weightsKg, leash: v.leash, carrier: v.carrier, ...(v.purpose ? { purpose: v.purpose } : {}) } : null;
+  return Array.isArray(v.weightsKg) && v.weightsKg.length <= 20 && v.weightsKg.every(w => typeof w === "number" && Number.isFinite(w) && w > 0 && w <= 150) && (v.leash === null || typeof v.leash === "boolean") && (v.carrier === null || typeof v.carrier === "boolean") ? { weightsKg: v.weightsKg, leash: v.leash, carrier: v.carrier, ...(v.purpose ? { purpose: v.purpose } : {}), ...(v.space ? { space: v.space } : {}), ...(v.muzzle !== undefined ? { muzzle: v.muzzle } : {}) } : null;
 }
 export function parseDogAccess(value: unknown): DogAccess | null {
   if (!value || typeof value !== "object") return null;
@@ -24,6 +26,7 @@ export function dogAccessStatus(access: DogAccess | null | undefined, outing: Do
   if (!access.allowed) return "ineligible";
   if (access.maxWeightKg !== null && !outing.weightsKg.length) return "unknown";
   if (access.maxWeightKg !== null && outing.weightsKg.some(w => w > access.maxWeightKg!)) return "ineligible";
-  if ((access.leashRequired && !outing.leash) || (access.carrierRequired && !outing.carrier)) return "ineligible";
+  if ((access.leashRequired && outing.leash === false) || (access.carrierRequired && outing.carrier === false)) return "ineligible";
+  if ((access.leashRequired && outing.leash === null) || (access.carrierRequired && outing.carrier === null)) return "unknown";
   return "eligible";
 }

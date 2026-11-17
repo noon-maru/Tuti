@@ -17,11 +17,11 @@ test("동반 조건은 명시적으로 적용하고 미등록·다중 반려견�
   const apply = () => (render().find(node => node.props.children === "이 조건으로 찾기")!.props.onClick as () => void)();
   const weights = (value: string) => (render().find(node => node.props.inputMode === "decimal")!.props.onChange as (event: unknown) => void)({ target: { value } });
   render(); assert.equal(calls.length, 0);
-  apply(); assert.deepEqual(JSON.parse(JSON.stringify(calls)), [{ weightsKg: [], leash: false, carrier: false }]);
+  apply(); assert.deepEqual(JSON.parse(JSON.stringify(calls)), [{ weightsKg: [], leash: null, carrier: null, space: "any", muzzle: null }]);
   weights("5, 12"); assert.equal(calls.length, 1, "입력만으로 질의하지 않는다");
-  const leash = render().find(node => node.props.type === "checkbox")!;
-  (leash.props.onChange as (event: unknown) => void)({ target: { checked: true } });
-  apply(); assert.deepEqual(JSON.parse(JSON.stringify(calls.at(-1))), { weightsKg: [5, 12], leash: true, carrier: false });
+  const leash = render().filter(node => node.type === "select")[2];
+  (leash.props.onChange as (event: unknown) => void)({ target: { value: "true" } });
+  apply(); assert.deepEqual(JSON.parse(JSON.stringify(calls.at(-1))), { weightsKg: [5, 12], leash: true, carrier: null, space: "any", muzzle: null });
   weights("-5"); apply(); assert.equal(calls.length, 2); assert.ok(render().some(node => node.props.role === "alert"));
   (render().find(node => node.props.children === "조건 없이 둘러보기")!.props.onClick as () => void)();
   assert.equal(calls.at(-1), undefined);

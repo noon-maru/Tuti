@@ -452,6 +452,7 @@ export function RecommendationsFlow({ interactive, dogOuting }: { interactive: b
   return (
     <>
       <RecommendationsScreen
+        dogConditionsSelected={Boolean(dogOuting)}
         places={places}
         answers={storedAnswers}
         loading={isPending && !dailyCheckInVisible}

@@ -1,4 +1,5 @@
 import type { DogOuting } from "./dogAccess";
+import { dogConditions, dogConditionsBlocked } from "./dogConditions";
 
 export function officialDogRestriction(raw: unknown): string | null {
   const text = raw && typeof raw === "object" ? (raw as Record<string, unknown>).acmpyPsblCpam : null;
@@ -25,6 +26,7 @@ export type TourApiDogAccess = {
   collectedAt: string;
   freshUntil: string;
   needsConfirmation: true;
+  conditions?: ReturnType<typeof dogConditions>;
 };
 export const TOUR_API_PET_FRESHNESS_MS = 30 * 24 * 60 * 60 * 1000;
 export const KOR_PET_SOURCE_URL = "https://www.data.go.kr/data/15101578/openapi.do";
@@ -52,10 +54,11 @@ export function tourApiDogAccess(raw: unknown, fetchedAt: Date, now = Date.now()
     .sort((a, b) => a.weight - b.weight || Number(b.exclusive) - Number(a.exclusive));
   const tokens = preparations.split(",").map(value => value.trim());
   const free = preparations === "자유이용";
+  const conditions = dogConditions(areas, [areas, animals, preparations, extra, risks].join("\n"));
   return {
     kind: "tourapi", source: "kor", areas, animals: animals || null, preparations: preparations || null, facilities: facilities || null,
     rules: [extra, risks && risks !== animals ? risks : ""].filter(Boolean).join("\n"),
-    maxWeightKg: bounds[0]?.weight ?? null, weightLimitExclusive: bounds[0]?.exclusive ?? false,
+    conditions, maxWeightKg: conditions.maxWeightKg ?? bounds[0]?.weight ?? null, weightLimitExclusive: conditions.weightLimitExclusive,
     leashRequired: tokens.includes("목줄 착용") ? true : free ? false : null,
     carrierRequired: tokens.includes("이동장(켄넬)사용") ? true : free ? false : null,
     sourceUrl: KOR_PET_SOURCE_URL, collectedAt: fetchedAt.toISOString(),
@@ -66,7 +69,8 @@ export function tourApiDogAccess(raw: unknown, fetchedAt: Date, now = Date.now()
 export function tourApiDogAccessStatus(access: TourApiDogAccess, outing?: DogOuting, now = Date.now()): "needs-confirmation" | "blocked" | "unavailable" {
   if (access.source !== "kor" || access.sourceUrl !== KOR_PET_SOURCE_URL || !Number.isFinite(Date.parse(access.collectedAt)) || Date.parse(access.collectedAt) > now || !Number.isFinite(Date.parse(access.freshUntil)) || Date.parse(access.freshUntil) <= now) return "unavailable";
   if (!outing) return "needs-confirmation";
+  if (dogConditionsBlocked(access.conditions ?? dogConditions(access.areas, [access.areas, access.animals, access.preparations, access.rules].join("\n")), outing)) return "blocked";
   if (access.maxWeightKg !== null && outing.weightsKg.some(weight => access.weightLimitExclusive ? weight >= access.maxWeightKg! : weight > access.maxWeightKg!)) return "blocked";
-  if (access.leashRequired === true && !outing.leash || access.carrierRequired === true && !outing.carrier) return "blocked";
+  if (access.leashRequired === true && outing.leash === false || access.carrierRequired === true && outing.carrier === false) return "blocked";
   return "needs-confirmation";
 }
