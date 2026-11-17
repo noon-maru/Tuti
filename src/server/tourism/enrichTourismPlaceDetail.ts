@@ -167,6 +167,9 @@ export function normalizeTourApiPlaceDetail(payload: TourApiPlaceDetailPayload) 
         "infocenterculture",
         "infocentertourcourse",
         "infocenterleports",
+        "infocenterfood",
+        "infocentershopping",
+        "infocenterlodging",
       ]),
       openingHours: firstText(intro, common, [
         "usetime",
@@ -174,12 +177,14 @@ export function normalizeTourApiPlaceDetail(payload: TourApiPlaceDetailPayload) 
         "usetimeleports",
         "opentimefood",
         "checkintime",
+        "opentime",
       ]),
       restDate: firstText(intro, common, [
         "restdate",
         "restdateculture",
         "restdateleports",
         "restdatefood",
+        "restdateshopping",
       ]),
       admissionFee:
         firstText(intro, common, ["usefee", "usefeeleports"]) ??
@@ -189,11 +194,14 @@ export function normalizeTourApiPlaceDetail(payload: TourApiPlaceDetailPayload) 
         "parkingculture",
         "parkingleports",
         "parkingfood",
+        "parkingshopping",
+        "parkinglodging",
       ]),
       reservation: firstText(intro, common, [
         "reservation",
         "reservationurl",
         "reservationlodging",
+        "reservationfood",
       ]),
       usageDuration: firstText(intro, common, [
         "spendtime",

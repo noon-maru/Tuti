@@ -8,7 +8,7 @@ type Destination = Pick<TutiPlace, "name" | "sourceContentType" | "phrase" | "no
 export function assessDogDestination(place: Destination) {
   const category = cafeCategoryFromPayload(place.basicPayload);
   const cafe = classifyCafe({ ...category, name: place.name, contentTypeId: place.sourceContentType, overview: place.overview });
-  if (cafe.kind === "venue") return { eligible: true, type: "cafe" as const };
+  if (cafe.kind === "venue" && (place.sourceContentType !== "38" || ["FD050100", "FD050200"].includes(category.categoryCode ?? ""))) return { eligible: true, type: "cafe" as const };
   if (place.sourceContentType === "38") {
     // A branch inside a market/mall is not the market/mall itself.
     const destination = /(?:시장|상점가|쇼핑거리|쇼핑몰|아울렛|백화점)(?:\s*\([^)]*\))?$/u.test(place.name.trim());

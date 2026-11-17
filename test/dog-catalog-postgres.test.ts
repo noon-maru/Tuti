@@ -56,4 +56,10 @@ test("격리 DB에서 동반 장소 등록·재실행·동시 실행·연결 충
   await registerDogPlace("1", basic("1"), true);
   assert.equal((await orm.dogPlaceCatalog.findUniqueOrThrow({ where: { placeId: "tourapi-1" } })).status, "excluded");
   assert.equal((await db.query("SELECT name FROM places WHERE id='tourapi-1'")).rows[0].name, "운영자 편집");
+  await db.query("UPDATE places SET latitude=19,longitude=117 WHERE id='tourapi-1'");
+  assert.equal((await registerDogPlace("1", basic("1"), true)).status, "invalid_basic");
+  assert.equal((await db.query("SELECT latitude::float lat FROM places WHERE id='tourapi-1'")).rows[0].lat, 19);
+  await registerDogPlace("1", basic("1"), true, true);
+  assert.equal((await db.query("SELECT latitude::float lat FROM places WHERE id='tourapi-1'")).rows[0].lat, 37.5);
+  assert.equal((await orm.dogPlaceCatalog.findUniqueOrThrow({ where: { placeId: "tourapi-1" } })).status, "excluded");
 });

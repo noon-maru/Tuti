@@ -6,7 +6,7 @@ import type { TutiPlace } from "@/lib/recommendations";
 
 const base = { phrase: "", note: "", moodTags: [] };
 test("동반 등록 상점의 상호를 산책·수변·사찰로 오인하지 않는다", () => {
-  for (const name of ["호수약국", "스파오 제주중앙로점", "광우사", "피오체옴므 시티스타몰점", "올리브영 남대문시장점"]) {
+  for (const name of ["호수약국", "스파오 제주중앙로점", "광우사", "피오체옴므 시티스타몰점", "올리브영 남대문시장점", "카페 베이지크", "편강 율 플래그십&티하우스"]) {
     assert.deepEqual(assessDogDestination({ ...base, name, sourceContentType: "38" }), { eligible: false, type: "other" });
   }
   assert.deepEqual(assessDogDestination({ ...base, name: "남대문시장", sourceContentType: "38" }), { eligible: true, type: "neighborhood" });
