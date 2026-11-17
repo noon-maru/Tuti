@@ -58,7 +58,7 @@ test("책장 로딩과 오류는 남는 콘텐츠 높이를 채워 세로 중앙
 test("가판대는 표지를 중심으로 두고 생성·보관함 동선을 중복하지 않는다", () => {
   const home = readFileSync("src/features/tuti/flows/LibraryHomeFlow.tsx", "utf8");
   assert.match(home, /<Header><LibraryViewSwitch/);
-  assert.match(home, /<LibraryMenu label="책장 메뉴"/);
+  assert.match(home, /<MainMenu label="책장 메뉴"/);
   assert.match(home, /router.push\("\/madi"\)/);
   assert.match(home, /router.push\("\/harumadi\/pdfs"\)/);
   assert.equal((home.match(/<CreateHarumadi\b/g) ?? []).length, 1);

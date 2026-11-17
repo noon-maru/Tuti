@@ -6,7 +6,7 @@ import { MapPinOff } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { BaseButton } from "@/features/tuti/components/buttons";
 import { ToastSurface, ToastAction } from "@/shared/ui/ToastSurface";
-import { ContextMenu } from "@/features/tuti/components/ContextMenu";
+import { MainMenu } from "@/features/tuti/components/MainMenu";
 import { LoadingIndicator } from "@/features/tuti/components/LoadingIndicator";
 import { ScreenFrame } from "@/features/tuti/components/ScreenFrame";
 import { ExplorePlaceSearch } from "@/features/tuti/components/ExplorePlaceSearch";
@@ -722,8 +722,13 @@ export function RecommendationsScreen({
         inert={!mainInteractive}
       >
         <AccountMenu>
-          <ContextMenu
+          <MainMenu
             label="메인 메뉴"
+            adminAccess={accountConnected && adminAccess}
+            onDownload={onDownload}
+            onSettings={onSettings}
+            onAdmin={onAdmin}
+            helpItems={[{ label: "튜토리얼 다시보기", onSelect: replayInitialHelp }]}
             items={
               [
                     ...(activePlace && familiarity?.ready ? [{ group: "이 장소", label: familiarity.pending ? "표시 저장 중…" : familiarity.familiar ? "익숙한 장소 표시 취소" : "익숙한 곳이에요", disabled: familiarity.pending, onSelect: familiarity.toggle }] : []),
@@ -739,24 +744,6 @@ export function RecommendationsScreen({
                       label: "다음에 갈 공간",
                       onSelect: onSavedPlaces,
                     },
-                    {
-                      group: "도움말 · 설정",
-                      label: "튜토리얼 다시보기",
-                      onSelect: replayInitialHelp,
-                    },
-                    ...(process.env.NEXT_PUBLIC_TUTI_TARGET === "web"
-                      ? [{ group: "도움말 · 설정", label: "앱 다운로드", onSelect: onDownload }]
-                      : []),
-                    { group: "도움말 · 설정", label: "설정", onSelect: onSettings },
-                    ...(accountConnected && adminAccess
-                      ? [
-                          {
-                            group: "운영",
-                            label: "관리자 페이지",
-                            onSelect: onAdmin,
-                          },
-                        ]
-                      : []),
                   ]
             }
           />

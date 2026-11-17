@@ -30,7 +30,7 @@ test("책장 검색은 기본 접힘, 열기·입력·닫기·Escape·IME 및 �
     "@/features/tuti/hooks/useHarumadiSearch": { useHarumadiSearch: () => ({ search: term, setSearch: (next: string) => { term = next; }, books: filterHarumadis(books, term), searching: Boolean(term.trim()) }) },
     "@/lib/libraryPreferences": {}, "@/lib/harumadiPdfDraft": {}, "@/shared/tuti/welcomeHarumadi": {}, "@/lib/welcomeHarumadiNavigation": {},
     "../hooks/useLifecycleView": { useLifecycleView() {} },
-    "../components/ScreenFrame": { ScreenFrame: "section" }, "../components/ContextMenu": { ContextMenu: "div" },
+    "../components/ScreenFrame": { ScreenFrame: "section" }, "../components/MainMenu": { MainMenu: "div" },
     "@/shared/ui/typography": { bodyCopyStyles: "" },
     "../components/PendingMadiNotice": { PendingMadiNotice: "PendingMadiNotice" },
   };

@@ -28,6 +28,7 @@ test("그룹 머리글은 초점 순서에서 제외하고 메뉴 높이에 포�
   assert.match(source, /menuitem.*:not\(:disabled\)/);
   const travel = readFileSync("src/features/tuti/screens/recommendations/RecommendationsScreen.tsx", "utf8");
   assert.match(travel, /group: "작은 여행"/);
-  assert.match(travel, /group: "도움말 · 설정"/);
+  assert.match(travel, /<MainMenu/);
+  assert.match(readFileSync("src/features/tuti/navigation/mainMenuItems.ts", "utf8"), /group: "도움말 · 설정"/);
   assert.match(travel, /accountConnected && adminAccess/);
 });
