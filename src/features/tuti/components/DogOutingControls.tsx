@@ -5,11 +5,11 @@ import { parseDogOuting, type DogOuting } from "@/shared/pets/dogAccess";
 import { PrimaryButton, TextButton } from "./buttons";
 import { inputControlStyles } from "@/shared/ui/typography";
 export function DogOutingControls({ value, onChange }: { value?: DogOuting; onChange: (value?: DogOuting) => void }) {
-  const [weights, setWeights] = useState("");
-  const [leash, setLeash] = useState<boolean | null>(null);
-  const [carrier, setCarrier] = useState<boolean | null>(null);
-  const [space, setSpace] = useState<DogOuting["space"]>("any");
-  const [muzzle, setMuzzle] = useState<boolean | null>(null);
+  const [weights, setWeights] = useState(() => value?.weightsKg.join(", ") ?? "");
+  const [leash, setLeash] = useState<boolean | null>(value?.leash ?? null);
+  const [carrier, setCarrier] = useState<boolean | null>(value?.carrier ?? null);
+  const [space, setSpace] = useState<DogOuting["space"]>(value?.space ?? "any");
+  const [muzzle, setMuzzle] = useState<boolean | null>(value?.muzzle ?? null);
   const [error, setError] = useState("");
   return <Panel><details><summary>{value ? "동반 조건 변경" : "외출 조건 선택"}</summary><div>
     <p>세부 동반 조건을 골라보세요. 프로필 등록은 필요하지 않아요.</p>
@@ -25,7 +25,7 @@ export function DogOutingControls({ value, onChange }: { value?: DogOuting; onCh
       if (!parsed) { setError("몸무게를 숫자로 확인해주세요. 여러 마리는 쉼표로 구분해요."); return; }
       setError(""); onChange(parsed);
     }}>이 조건으로 찾기</PrimaryButton>
-    {value && <TextButton type="button" onClick={() => { setWeights(""); setSpace("any"); setLeash(null); setCarrier(null); setMuzzle(null); onChange(undefined); }}>세부 동반 조건 지우기</TextButton>}
+    {value && <TextButton type="button" onClick={() => { setWeights(""); setSpace("any"); setLeash(null); setCarrier(null); setMuzzle(null); setError(""); onChange(undefined); }}>세부 동반 조건 지우기</TextButton>}
     {error && <p role="alert">{error}</p>}
   </div></details>{value && <p role="status">공식 등록 정보와 확인된 조건으로 찾아요. 미확인 조건은 방문 전에 확인해주세요.</p>}</Panel>;
 }

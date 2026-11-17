@@ -14,6 +14,8 @@ export function clientFlowHarness(file: string, name: string, deps: Record<strin
       return [states[index], (next: unknown) => { states[index] = typeof next === "function" ? next(states[index]) : next; }]; },
     useRef(initial: unknown) { const index = refIndex++; return refs[index] ?? (refs[index] = { current: initial }); },
     useCallback: (callback: unknown) => callback,
+    useMemo: (factory: () => unknown) => factory(),
+    useLayoutEffect(run: () => void | (() => void), dependencies?: unknown[]) { hooks.useEffect(run, dependencies); },
     useEffect(run: () => void | (() => void), dependencies?: unknown[]) {
       const index = effectIndex++, old = effects[index];
       if (!old || !dependencies || dependencies.some((value, i) => value !== old.deps?.[i])) {

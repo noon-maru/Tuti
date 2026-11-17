@@ -74,6 +74,10 @@ export function DailyCheckInScreen({
     () =>
       getIntakeSteps(previousAnswers).flatMap((intakeStep) => {
         const value = previousAnswers[intakeStep.key];
+        if (intakeStep.key === "placeCategories") {
+          const labels = intakeStep.options.filter(option => previousAnswers.placeCategories?.includes(option.value)).map(option => option.label);
+          return [labels.length ? labels.join(" · ") : "모두 둘러보기"];
+        }
         const option = intakeStep.options.find(
           (candidate) => candidate.value === value,
         );
@@ -157,6 +161,12 @@ export function DailyCheckInScreen({
   const chooseAnswer = (value: string) => {
     setDraftAnswers(
       (current) => {
+        if (activeStep.key === "placeCategories") {
+          const category = activeStep.options.find(option => option.value === value)?.value;
+          if (!category) return current;
+          const selected = current.placeCategories ?? [];
+          return { ...current, placeCategories: selected.includes(category) ? selected.filter(item => item !== category) : [...selected, category] };
+        }
         const next = ({
           ...current,
           [activeStep.key]: value,
@@ -164,6 +174,7 @@ export function DailyCheckInScreen({
         if (activeStep.key === "movement" && value !== "far") {
           delete next.longDistanceTiming;
         }
+        if (activeStep.key === "petCompanion" && value !== "dog") delete next.placeCategories;
         return next;
       },
     );
@@ -179,7 +190,7 @@ export function DailyCheckInScreen({
   };
 
   const goNext = () => {
-    if (!selectedValue) return;
+    if (activeStep.key !== "placeCategories" && !selectedValue) return;
 
     if (step < activeSteps.length - 1) {
       setStep((current) => current + 1);
@@ -338,12 +349,12 @@ export function DailyCheckInScreen({
                   <Option
                     key={option.value}
                     type="button"
-                    $active={selectedValue === option.value}
-                    aria-pressed={selectedValue === option.value}
+                    $active={Array.isArray(selectedValue) ? selectedValue.some(value => value === option.value) : selectedValue === option.value}
+                    aria-pressed={Array.isArray(selectedValue) ? selectedValue.some(value => value === option.value) : selectedValue === option.value}
                     onClick={() => chooseAnswer(option.value)}
                   >
                     <span>{option.label}</span>
-                    <small>{option.hint}</small>
+                    {option.hint && <small>{option.hint}</small>}
                   </Option>
                 ))}
               </Options>
@@ -367,7 +378,7 @@ export function DailyCheckInScreen({
               )}
               <QuestionAction
                 type="button"
-                disabled={!selectedValue}
+                disabled={activeStep.key !== "placeCategories" && !selectedValue}
                 onClick={goNext}
               >
                 {step === activeSteps.length - 1

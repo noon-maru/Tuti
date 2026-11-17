@@ -191,7 +191,7 @@ function MovementSlider({
           max={activeStep.options.length - 1}
           step={0.01}
           value={sliderPosition}
-          aria-label="오늘 이동할 수 있는 거리"
+          aria-label="오늘 외출에 쓸 수 있는 시간"
           aria-valuetext={`${activeOption.label}, ${activeOption.hint}`}
           onChange={(event) =>
             setSliderPosition(Number(event.currentTarget.value))
