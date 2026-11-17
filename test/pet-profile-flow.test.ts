@@ -20,8 +20,8 @@ test("선택한 개 모두의 몸무게가 있어야 불러오며 반려묘·없
   assert.deepEqual(selectedDogWeights([...dogs, { ...dogs[1], id: "other", weightKg: 12 }], ["dog-a", "other"]), [8, 12]);
 });
 
-function editorFixture(options: { selection?: boolean; request?: (path: string, init?: RequestInit, owner?: string) => Promise<unknown>; confirm?: () => Promise<boolean> } = {}) {
-  let pets = dogs.map(pet => ({ ...pet }));
+function editorFixture(options: { selection?: boolean; registrationOnly?: boolean; onRegistered?: () => void; onBusyChange?: (busy: boolean) => void; request?: (path: string, init?: RequestInit, owner?: string) => Promise<unknown>; confirm?: () => Promise<boolean> } = {}) {
+  let pets = options.registrationOnly ? [] : dogs.map(pet => ({ ...pet }));
   const calls: Array<{ path: string; init?: RequestInit; owner?: string }> = [];
   const changes: string[][] = [];
   const query = { get data() { return { pets }; }, isPending: false, isError: false, refetch: async () => ({ data: { pets } }) };
@@ -43,15 +43,46 @@ function editorFixture(options: { selection?: boolean; request?: (path: string, 
     "./buttons": { PrimaryButton: "button", TextButton: "button" }, "@/shared/ui/typography": { inputControlStyles: "" },
   });
   const render = (disabled = false) => {
-    const shell = flow.render({ ...(options.selection ? { selected: [], onChange: (ids: string[]) => changes.push(ids) } : {}), disabled });
+    const shell = flow.render({ ...(options.selection ? { selected: [], onChange: (ids: string[]) => changes.push(ids) } : {}), registrationOnly: options.registrationOnly, onRegistered: options.onRegistered, onBusyChange: options.onBusyChange, disabled });
     return nodes(flow.render(shell.props, shell.type as (props: unknown) => ReactElement<Record<string, unknown>>));
   };
   const change = (predicate: (node: ReactElement<Record<string, unknown>>) => boolean, value: string) => (render().find(predicate)!.props.onChange as (event: unknown) => void)({ target: { value } });
   const submit = () => (render().find(node => node.type === "form")!.props.onSubmit as (event: unknown) => void)({ preventDefault() {} });
   const click = (label: string) => (render().find(node => node.props.children === label)!.props.onClick as () => unknown)();
-  return { render, change, submit, click, calls, changes, setPets: (next: PetProfile[]) => { pets = next; } };
+  return { render, change, submit, click, calls, changes, query, effects: flow.effects, setPets: (next: PetProfile[]) => { pets = next; } };
 }
 const tick = () => new Promise(resolve => setImmediate(resolve));
+
+test("첫 시작 등록은 실제 서버 저장 성공 후에만 이어가며 실패 시 입력을 보존한다", async () => {
+  let completed = 0;
+  const working: boolean[] = [];
+  let failed = true;
+  const f = editorFixture({ registrationOnly: true, onRegistered: () => { completed++; }, onBusyChange: value => working.push(value), request: async () => {
+    if (failed) throw new Error("not saved");
+    return { pet: { id: "new-onboarding", name: "구름", species: "dog", weightKg: null } };
+  } });
+  assert.equal(f.render().some(node => node.props.children === "수정" || node.props.children === "삭제"), false);
+  assert.ok(f.render().some(node => node.props.children === "등록하고 시작하기"));
+  f.change(node => node.props.maxLength === 60, "구름");
+  f.submit(); await tick();
+  assert.equal(completed, 0); assert.equal(f.render().find(node => node.props.maxLength === 60)!.props.value, "구름");
+  failed = false; f.submit(); await tick();
+  assert.equal(completed, 1); assert.deepEqual(working, [true, false, true, false]);
+});
+
+test("기존 프로필은 등록을 재요청하지 않고 조회 실패·재확인에도 입력 상태를 유지한다", () => {
+  let completed = 0;
+  const f = editorFixture({ registrationOnly: true, onRegistered: () => { completed++; } });
+  f.render(); f.effects(); assert.equal(completed, 0);
+  f.query.isError = true;
+  f.change(node => node.props.maxLength === 60, "직접 입력");
+  f.query.isPending = true;
+  assert.equal(f.render().find(node => node.type === "form")!.props.hidden, true);
+  f.query.isPending = false; f.query.isError = false;
+  assert.equal(f.render().find(node => node.props.maxLength === 60)!.props.value, "직접 입력");
+  f.setPets(dogs); f.render(); f.effects(); assert.equal(completed, 1);
+  assert.equal(f.calls.length, 0, "기존 프로필 확인이나 건너뛰기가 프로필을 생성하지 않는다");
+});
 
 test("마디 연결란에서 바로 등록하되 자동 연결하지 않고 중복 등록을 막는다", async () => {
   let finish!: (value: unknown) => void;

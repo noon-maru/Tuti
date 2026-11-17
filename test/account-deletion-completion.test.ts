@@ -6,7 +6,7 @@ import { deleteAccount, ensureSession, getSessionSnapshot } from "@/lib/auth/ses
 
 test("일반 이용과 권리 행사 모드의 화면 키를 고정해 삭제 완료 상태와 세션 훅을 유지한다", () => {
   const shell = readFileSync("src/features/tuti/components/TutiAppShell.tsx", "utf8");
-  const providers = [...shell.matchAll(/<LocationAccessProvider([^>]*)>\{children\}<\/LocationAccessProvider>/g)];
+  const providers = [...shell.matchAll(/<LocationAccessProvider([^>]*)><PetOnboardingGate>\{children\}<\/PetOnboardingGate><\/LocationAccessProvider>/g)];
   assert.equal(providers.length, 2);
   for (const provider of providers) assert.match(provider[1], /key="tuti-content"/);
   assert.doesNotMatch(providers.map(provider => provider[1]).join(""), /userId|accessToken/);
@@ -29,6 +29,7 @@ test("삭제 실패는 기존 세션을 유지하고 성공 시 한 요청으로
     ["tuti-session", JSON.stringify(session)],
     ["tuti-harumadi-pdf-v1:delete-user", "draft"],
     ["tuti-service-terms-acceptance:delete-user", "receipt"],
+    ["tuti-pet-onboarding:delete-user", "complete"],
   ]);
   t.mock.method(preferencesStorage, "getItem", async (key: string) => stored.get(key) ?? null);
   t.mock.method(preferencesStorage, "setItem", async (key: string, value: string) => { stored.set(key, value); });
@@ -58,4 +59,5 @@ test("삭제 실패는 기존 세션을 유지하고 성공 시 한 요청으로
   assert.equal(stored.has("tuti-session"), false);
   assert.equal(stored.has("tuti-harumadi-pdf-v1:delete-user"), false);
   assert.equal(stored.has("tuti-service-terms-acceptance:delete-user"), false);
+  assert.equal(stored.has("tuti-pet-onboarding:delete-user"), false);
 });
