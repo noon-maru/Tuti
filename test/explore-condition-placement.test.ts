@@ -14,5 +14,5 @@ test("탐색 메인에는 조건 패널·동반 고지를 두지 않고 질문�
   }
   assert.match(read("components/ExplorePreferences.tsx"), /withDog && onDogOutingChange && <DogOutingControls/);
   assert.match(read("flows/RecommendationReadyFlow.tsx"), /enabled: recommendationRequested, dogOuting/);
-  assert.match(read("screens/recommendations/RecommendationsScreen.tsx"), /label: "오늘 다시 고르기",\s+onSelect: onRestartIntake/);
+  assert.match(read("screens/recommendations/RecommendationsScreen.tsx"), /label: "외출 조건 변경",\s+onSelect: onRestartIntake/);
 });

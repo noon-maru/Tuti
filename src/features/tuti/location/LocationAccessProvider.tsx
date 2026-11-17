@@ -36,8 +36,10 @@ import type { PreferredRegion } from "@/shared/tuti/types";
 import { useTutiStore } from "@/store/tuti";
 import { preferencesStorage } from "@/lib/storage/preferencesStorage";
 import { clearLocationQueryCache } from "./clearLocationQueries";
+import { hasMovedRecommendationOrigin, distanceMeters } from "@/features/tuti/recommendationSnapshot";
 
 type LocationAccessContextValue = {
+  refreshDeviceLocation: () => Promise<LocationRequestResult | undefined>;
   requestLocation: () => Promise<LocationRequestResult>;
   refreshLocationConsent: () => Promise<void>;
   requestRegionPreference: () => void;
@@ -245,6 +247,41 @@ export function LocationAccessProvider({
     setUserLocation,
   ]);
 
+  const quietLocationRequest = useRef<Promise<LocationRequestResult | undefined> | null>(null);
+  const refreshDeviceLocation = useCallback(() => {
+    if (quietLocationRequest.current) return quietLocationRequest.current;
+    const work = (async () => {
+      const state = useTutiStore.getState();
+      const sessionAtStart = getSessionSnapshot();
+      if (!sessionAtStart || requestPromiseRef.current || state.recommendationLocationSource === "region" ||
+        state.locationConsent?.status !== "accepted" || state.locationConsent.termsVersion !== getLocationTermsVersion()) return;
+      const generation = deviceRequestGeneration.current;
+      const consentGeneration = consentSyncGeneration.current;
+      // 최초 동의나 OS 권한 팝업을 자동으로 띄우지 않는다.
+      if (await readLocationPermission() !== "granted") return;
+      const consent = await fetchLocationConsent();
+      if (!isSessionCurrent(sessionAtStart) || generation !== deviceRequestGeneration.current || consentGeneration !== consentSyncGeneration.current || requestPromiseRef.current) return;
+      syncLocationConsent(consent ? { status: consent.status, termsVersion: consent.termsVersion, updatedAt: consent.updatedAt } : undefined);
+      if (consent?.status !== "accepted" || consent.termsVersion !== getLocationTermsVersion()) return;
+      let result = await requestDeviceLocation({ maximumAge: 0 });
+      const anchor = useTutiStore.getState().dailyRecommendation?.locationAnchor;
+      if (anchor && result.status === "ready" && hasMovedRecommendationOrigin(anchor, result.location)) {
+        const confirmation = await requestDeviceLocation({ maximumAge: 0 });
+        if (confirmation.status !== "ready" || !hasMovedRecommendationOrigin(anchor, confirmation.location) ||
+          distanceMeters(result.location, confirmation.location) > 500) return;
+        result = confirmation;
+      }
+      if (!isSessionCurrent(sessionAtStart) || generation !== deviceRequestGeneration.current || requestPromiseRef.current ||
+        useTutiStore.getState().locationConsent?.updatedAt !== consent.updatedAt) return;
+      if (result.status === "ready") setUserLocation(result.location);
+      // 일시 실패는 마지막 위치·추천 목록을 삭제하거나 지역 모드를 열지 않는다.
+      return result;
+    })().catch(() => undefined);
+    quietLocationRequest.current = work;
+    void work.finally(() => { quietLocationRequest.current = null; });
+    return work;
+  }, [setUserLocation, syncLocationConsent]);
+
   const chooseRegionAfterFailure = useCallback(() => {
     if (requesting) return;
     setLocationFailure(null);
@@ -431,6 +468,7 @@ export function LocationAccessProvider({
 
   const value = useMemo(
     () => ({
+      refreshDeviceLocation,
       requestLocation,
       refreshLocationConsent,
       requestRegionPreference,
@@ -440,6 +478,7 @@ export function LocationAccessProvider({
       withdrawLocation,
     }),
     [
+      refreshDeviceLocation,
       pauseLocation,
       requestLocation,
       refreshLocationConsent,

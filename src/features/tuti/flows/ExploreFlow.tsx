@@ -7,7 +7,7 @@ import { RecommendationReadyFlow } from "./RecommendationReadyFlow";
 import { RecommendationsFlow } from "./RecommendationsFlow";
 import { MainNavigation } from "@/features/tuti/components/MainNavigation";
 import { useTutiStore } from "@/store/tuti";
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import type { DogOuting } from "@/shared/pets/dogAccess";
 import { useSession } from "@/features/tuti/hooks/useSession";
 import { markLibraryEntryCompleted } from "@/lib/libraryPreferences";
@@ -17,7 +17,8 @@ import { AppLoadingScreen } from "@/features/tuti/components/LoadingIndicator";
 export function ExploreFlow() {
   const params = useSearchParams();
   const ownerId = useSession()?.userId;
-  const [dogOuting, setDogOuting] = useState<{ ownerId: string; value: DogOuting }>();
+  const dogOuting = useTutiStore(state => state.recommendationDogOuting);
+  const setDogOuting = useTutiStore(state => state.setRecommendationDogOuting);
   const currentDogOuting = dogOuting?.ownerId === ownerId ? dogOuting?.value : undefined;
   useEffect(() => {
     if (ownerId) void markLibraryEntryCompleted(ownerId);
@@ -25,7 +26,7 @@ export function ExploreFlow() {
   const entryRecord = useTutiStore(state => state.entryRecord);
   const stage = useTutiStore(state => state.entryStage);
   const questions = params.get("mode") === "questions";
-  const updateDogOuting = (value?: DogOuting) => setDogOuting(ownerId && value ? { ownerId, value } : undefined);
+  const updateDogOuting = (value?: DogOuting) => { if (ownerId) setDogOuting(ownerId, value); };
   return <Frame>
     <Content>{ownerId ? <ExploreLocationGate key={ownerId}>{stage === "recommendation-ready" ? <RecommendationReadyFlow dogOuting={currentDogOuting} /> : !entryRecord || questions ? <IntakeFlow dogOuting={currentDogOuting} onDogOutingChange={updateDogOuting} /> : <RecommendationsFlow interactive dogOuting={currentDogOuting} onDogOutingChange={updateDogOuting} />}</ExploreLocationGate> : <AppLoadingScreen />}</Content>
     <MainNavigation active="explore" />

@@ -7,6 +7,8 @@ import {
 import { preferencesStorage } from "@/lib/storage/preferencesStorage";
 import { withDefaultIntakeAnswers } from "@/lib/intakePreferences";
 import type { TutiPlace } from "@/lib/recommendations";
+import type { DogOuting } from "@/shared/pets/dogAccess";
+import { hasMovedRecommendationOrigin } from "@/features/tuti/recommendationSnapshot";
 import type { DepartureRouteMode } from "@/shared/api/departurePlan";
 import { getLocationTermsVersion } from "@/shared/location/terms";
 import {
@@ -59,6 +61,10 @@ export type SavedDeparturePlace = {
 export type SavedDeparturePlaceInput = Omit<SavedDeparturePlace, "savedAt">;
 
 export type DailyRecommendationSnapshot = {
+  snapshotVersion?: 1;
+  ownerId?: string;
+  locationAnchor?: UserLocation;
+  regionKey?: string;
   effectiveDate: string;
   cycle: number;
   recommendationId: string;
@@ -73,6 +79,8 @@ export type CardDisplayPreferences = {
 };
 
 type TutiState = {
+  recommendationDogOuting?: { ownerId: string; value: DogOuting };
+  setRecommendationDogOuting: (ownerId: string, value?: DogOuting) => void;
   answers: IntakeAnswers;
   entryRecord?: EntryRecord;
   userLocation?: UserLocation;
@@ -116,6 +124,7 @@ type TutiState = {
     algorithmVersion: string,
     places: TutiPlace[],
     inputFingerprint: string,
+    context?: Pick<DailyRecommendationSnapshot, "ownerId" | "locationAnchor" | "regionKey">,
   ) => void;
   refreshDailyRecommendation: () => void;
   setActivePlace: (index: number, placeId: string) => void;
@@ -155,6 +164,8 @@ type TutiState = {
 export const useTutiStore = create<TutiState>()(
   persist(
     (set) => ({
+      recommendationDogOuting: undefined,
+      setRecommendationDogOuting: (ownerId, value) => set({ recommendationDogOuting: value ? { ownerId, value } : undefined }),
       answers: withDefaultIntakeAnswers(),
       entryRecord: undefined,
       userLocation: undefined,
@@ -194,8 +205,19 @@ export const useTutiStore = create<TutiState>()(
               : {}),
           },
         })),
-      setUserLocation: (userLocation) => set({ userLocation, recommendationLocationSource: "device" }),
+      setUserLocation: (userLocation) => set(state => ({
+        userLocation, recommendationLocationSource: "device",
+        ...(state.dailyRecommendation?.locationAnchor && hasMovedRecommendationOrigin(state.dailyRecommendation.locationAnchor, userLocation) ? {
+          dailyRecommendation: undefined,
+          recommendationCycle: state.recommendationCycle + 1,
+          recommendationExcludedPlaceIds: [],
+          activeIndex: 0,
+          activePlaceId: undefined,
+          detailOverlay: { phase: "closed" as const },
+        } : {}),
+      })),
       clearUserLocation: (source) => set((state) => ({
+        recommendationCycle: state.recommendationCycle + 1,
         recommendationLocationSource: source ?? state.recommendationLocationSource,
         userLocation: undefined,
         dailyRecommendation: undefined,
@@ -214,11 +236,15 @@ export const useTutiStore = create<TutiState>()(
           },
         }),
       syncLocationConsent: (locationConsent) =>
-        set((state) =>
-          locationConsent?.status === "accepted" &&
+        set((state) => {
+          // 위치 미제공 사용자의 지역 추천은 동의 상태 재조회로 초기화하지 않는다.
+          const regionSnapshot = state.recommendationLocationSource !== "device" &&
+            state.dailyRecommendation?.snapshotVersion === 1 && !state.dailyRecommendation.locationAnchor;
+          return locationConsent?.status === "accepted" &&
           (state.locationConsent?.status !== "accepted" || state.locationConsent.updatedAt === locationConsent.updatedAt)
             ? { locationConsent }
             : {
+                recommendationCycle: regionSnapshot ? state.recommendationCycle : state.recommendationCycle + (state.userLocation || state.dailyRecommendation ? 1 : 0),
                 userLocation: undefined,
                 locationPermissionStatus: "unknown",
                 dailyRecommendation: undefined,
@@ -227,11 +253,18 @@ export const useTutiStore = create<TutiState>()(
                 activePlaceId: undefined,
                 detailOverlay: { phase: "closed" },
                 pendingDeparture: undefined,
+                ...(regionSnapshot ? {
+                  dailyRecommendation: state.dailyRecommendation,
+                  activeIndex: state.activeIndex,
+                  activePlaceId: state.activePlaceId,
+                  detailOverlay: state.detailOverlay,
+                } : {}),
                 locationConsent,
-              },
-        ),
+              };
+        }),
       pauseLocationConsent: () =>
-        set({
+        set((state) => ({
+          recommendationCycle: state.recommendationCycle + 1,
           userLocation: undefined,
           locationPermissionStatus: "unknown",
           dailyRecommendation: undefined,
@@ -245,18 +278,21 @@ export const useTutiStore = create<TutiState>()(
             termsVersion: getLocationTermsVersion(),
             updatedAt: new Date().toISOString(),
           },
-        }),
+        })),
       declineLocationConsent: () =>
-        set({
+        set((state) => ({
+          recommendationCycle: state.recommendationCycle + 1,
           userLocation: undefined,
+          dailyRecommendation: undefined,
           locationConsent: {
             status: "declined",
             termsVersion: getLocationTermsVersion(),
             updatedAt: new Date().toISOString(),
           },
-        }),
+        })),
       withdrawLocationConsent: () =>
-        set({
+        set((state) => ({
+          recommendationCycle: state.recommendationCycle + 1,
           userLocation: undefined,
           locationPermissionStatus: "unknown",
           dailyRecommendation: undefined,
@@ -270,7 +306,7 @@ export const useTutiStore = create<TutiState>()(
             termsVersion: getLocationTermsVersion(),
             updatedAt: new Date().toISOString(),
           },
-        }),
+        })),
       setLocationPermissionStatus: (locationPermissionStatus) =>
         set({ locationPermissionStatus }),
       setPreferredRegion: (preferredRegion) => set(preferredRegion ? {
@@ -289,9 +325,11 @@ export const useTutiStore = create<TutiState>()(
         algorithmVersion,
         places,
         inputFingerprint,
+        context,
       ) =>
         set((state) => ({
           dailyRecommendation: {
+            ...(context ? { ...context, snapshotVersion: 1 as const } : {}),
             effectiveDate: getKoreanDateKey(),
             cycle: state.recommendationCycle,
             recommendationId,
@@ -452,6 +490,7 @@ export const useTutiStore = create<TutiState>()(
       markHydrated: () => set({ hasHydrated: true }),
       resetIntake: () =>
         set((state) => ({
+          recommendationDogOuting: undefined,
           answers: withDefaultIntakeAnswers(),
           entryRecord: undefined,
           dailyRecommendation: undefined,
@@ -467,6 +506,7 @@ export const useTutiStore = create<TutiState>()(
         })),
       resetAllData: () =>
         set({
+          recommendationDogOuting: undefined,
           answers: withDefaultIntakeAnswers(),
           entryRecord: undefined,
           userLocation: undefined,
@@ -502,6 +542,7 @@ export const useTutiStore = create<TutiState>()(
       storage: createJSONStorage(() => preferencesStorage),
       skipHydration: true,
       partialize: (state) => ({
+        recommendationDogOuting: state.recommendationDogOuting,
         answers: state.answers,
         entryRecord: state.entryRecord,
         locationConsent: state.locationConsent,

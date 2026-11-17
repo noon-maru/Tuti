@@ -1,6 +1,8 @@
 "use client";
 
 import { useQueryClient } from "@tanstack/react-query";
+import { showToast } from "@/lib/feedback";
+import { getSessionSnapshot } from "@/lib/auth/session";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { requestLoginNudge } from "@/features/tuti/auth/loginNudge";
@@ -49,7 +51,9 @@ import {
 export function RecommendationsFlow({ interactive, dogOuting, onDogOutingChange }: { interactive: boolean; dogOuting?: DogOuting; onDogOutingChange?: (value?: DogOuting) => void }) {
   const router = useRouter();
   const queryClient = useQueryClient();
-  const { requestLocation } = useLocationAccess();
+  const { requestLocation, refreshDeviceLocation } = useLocationAccess();
+  const [refreshingRecommendations, setRefreshingRecommendations] = useState(false);
+  const manualRecommendationPending = useRef(false);
   const session = useSession();
   const context = useSearchParams();
   // Navigation context is account-bound, never a grant of book write access.
@@ -69,6 +73,8 @@ export function RecommendationsFlow({ interactive, dogOuting, onDogOutingChange 
     (state) => state.locationPermissionStatus,
   );
   const locationConsent = useTutiStore((state) => state.locationConsent);
+  const savedRecommendation = useTutiStore(state => state.dailyRecommendation);
+  const hasSavedRecommendation = savedRecommendation?.snapshotVersion === 1 && savedRecommendation.ownerId === session?.userId;
   const entryRecord = useTutiStore((state) => state.entryRecord);
   const dailyCheckInRequested = useTutiStore(
     (state) => state.dailyCheckInRequested,
@@ -124,7 +130,7 @@ export function RecommendationsFlow({ interactive, dogOuting, onDogOutingChange 
   );
   const dailyCheckInVisible =
     interactive && !returnCheckInVisible &&
-    (dailyCheckInRequested || (!dailyRecordCurrent && !dailyCheckInSnoozed));
+    (dailyCheckInRequested || (!hasSavedRecommendation && !dailyRecordCurrent && !dailyCheckInSnoozed));
   const waitingForLocationRestore = Boolean(
     !userLocation &&
       !preferredRegion?.sigunguName &&
@@ -145,7 +151,7 @@ export function RecommendationsFlow({ interactive, dogOuting, onDogOutingChange 
   } = useTutiRecommendations({
     dogOuting,
     enabled:
-      (dailyRecordCurrent || dailyCheckInSnoozed) &&
+      (hasSavedRecommendation || dailyRecordCurrent || dailyCheckInSnoozed) &&
       !waitingForLocationRestore,
   });
   const similarVisitedPlaces = findSimilarVisitedPlaces({
@@ -286,6 +292,7 @@ export function RecommendationsFlow({ interactive, dogOuting, onDogOutingChange 
   useEffect(() => {
     const shouldRestoreLocation =
       interactive &&
+      !hasSavedRecommendation &&
       !userLocation &&
       !preferredRegion?.sigunguName &&
       locationConsent?.status === "accepted" &&
@@ -304,6 +311,7 @@ export function RecommendationsFlow({ interactive, dogOuting, onDogOutingChange 
     });
   }, [
     interactive,
+    hasSavedRecommendation,
     locationConsent,
     preferredRegion,
     requestLocation,
@@ -445,13 +453,35 @@ export function RecommendationsFlow({ interactive, dogOuting, onDogOutingChange 
     answers?: IntakeAnswers,
   ) => {
     completeDailyCheckIn(status, answers);
-    refreshDailyRecommendation();
-    queryClient.removeQueries({ queryKey: ["recommendations"] });
+    // 같은 답변 재사용·질문 건너뛰기는 재추천 요청이 아니다.
+  };
+
+  const recommendFromCurrentLocation = async () => {
+    if (manualRecommendationPending.current) return;
+    const owner = session?.userId;
+    if (!owner) return;
+    manualRecommendationPending.current = true;
+    setRefreshingRecommendations(true);
+    try {
+      const state = useTutiStore.getState();
+      const regionMode = state.recommendationLocationSource === "region" || state.locationConsent?.status !== "accepted";
+      const result = regionMode ? undefined : await refreshDeviceLocation();
+      if (owner !== getSessionSnapshot()?.userId) return;
+      if (regionMode ? !state.preferredRegion?.sigunguName : result?.status !== "ready") {
+        showToast("현재 위치를 확인하지 못했어요. 위치 설정을 확인해주세요.");
+        return;
+      }
+      await queryClient.cancelQueries({ queryKey: ["recommendations"] });
+      if (owner !== getSessionSnapshot()?.userId) return;
+      refreshDailyRecommendation();
+    } finally { manualRecommendationPending.current = false; setRefreshingRecommendations(false); }
   };
 
   return (
     <>
       <RecommendationsScreen
+        onRefreshFromCurrentLocation={() => void recommendFromCurrentLocation()}
+        refreshingRecommendations={refreshingRecommendations}
         dogConditionsSelected={storedAnswers.petCompanion === "dog"}
         places={places}
         answers={withDefaultIntakeAnswers(storedAnswers)}

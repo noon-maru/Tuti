@@ -44,6 +44,8 @@ export function toActiveIntakeAnswers(
 export type UserLocation = {
   latitude: number;
   longitude: number;
+  /** 기기가 보고한 수평 오차(m). 추천 이동 판정에만 사용한다. */
+  accuracy?: number;
 };
 
 export type PreferredRegion = {

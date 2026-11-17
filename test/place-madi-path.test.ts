@@ -47,7 +47,9 @@ test("명시적 장소 작성은 장소명·ID만 안전하게 채우고 로그�
   assert.ok(!safeLoginReturn("/madi/new?placeName=x%0Ay")?.includes("placeName"));
   assert.ok(!safeLoginReturn(`/madi/new?placeName=${"x".repeat(101)}`)?.includes("placeName"));
   const detail = readFileSync("src/features/tuti/screens/detail/DetailScreen.tsx", "utf8");
-  assert.match(detail, /onCreateMadi && <CreateMadi type="button" onClick=\{onCreateMadi\}/);
+  assert.match(detail, /<PlaceDetailBody[\s\S]*?onCreateMadi=\{onCreateMadi\}/);
+  const body = readFileSync("src/features/tuti/screens/detail/PlaceDetailBody.tsx", "utf8");
+  assert.match(body, /onClick=\{onCreateMadi\}/);
   const flow = readFileSync("src/features/tuti/flows/RecommendationsFlow.tsx", "utf8");
   const general = flow.slice(flow.indexOf("onCreateMadi={() =>"), flow.indexOf("onCreatePlaceMadi={"));
   assert.doesNotMatch(general, /placeName|placeMadiPath/);

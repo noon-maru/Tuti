@@ -40,13 +40,14 @@ test("기존 저장 이력은 완료 시각의 한국 날짜를 사용하고 월
   assert.equal(isIntakePreferenceCurrent(record, "2027-01-08"), false);
 });
 
-test("질문은 주간 정책을 유지하되 동반 추천은 구 일일 스냅샷을 재사용하지 않는다", () => {
+test("기존 추천이 있으면 주간 질문으로 가리지 않고 계정별 현재 목록을 재사용한다", () => {
   const flow = readFileSync("src/features/tuti/flows/RecommendationsFlow.tsx", "utf8");
   const query = readFileSync("src/features/tuti/hooks/useTutiRecommendations.ts", "utf8");
   assert.ok(flow.includes("isIntakePreferenceCurrent(entryRecord, currentDate)"));
   assert.ok(flow.includes("dailyCheckInRequested ||"));
-  assert.ok(!query.includes("dailyRecommendation"));
-  assert.ok(query.includes("gcTime: 0"));
+  assert.ok(flow.includes("!hasSavedRecommendation && !dailyRecordCurrent"));
+  assert.ok(query.includes("reusableRecommendation(snapshot"));
+  assert.ok(query.includes("staleTime: Infinity"));
   assert.ok(query.includes("ownerId ?? null"));
   assert.ok(query.includes("withDefaultIntakeAnswers(storedAnswers)"));
   assert.ok(!query.includes("skippedToday ? {}"));

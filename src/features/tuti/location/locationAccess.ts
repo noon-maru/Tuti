@@ -70,7 +70,7 @@ export async function readLocationPermission(): Promise<LocationPermissionStatus
   }
 }
 
-async function requestNativeDeviceLocation(): Promise<DeviceLocationRequestResult> {
+async function requestNativeDeviceLocation(maximumAge: number): Promise<DeviceLocationRequestResult> {
   try {
     const permission = await Geolocation.requestPermissions({
       permissions: ["location"],
@@ -82,7 +82,7 @@ async function requestNativeDeviceLocation(): Promise<DeviceLocationRequestResul
 
     const position = await Geolocation.getCurrentPosition({
       enableHighAccuracy: false,
-      maximumAge: 10 * 60 * 1_000,
+      maximumAge,
       timeout: 8_000,
     });
 
@@ -91,6 +91,7 @@ async function requestNativeDeviceLocation(): Promise<DeviceLocationRequestResul
       location: {
         latitude: position.coords.latitude,
         longitude: position.coords.longitude,
+        ...(Number.isFinite(position.coords.accuracy) ? { accuracy: position.coords.accuracy } : {}),
       },
     };
   } catch (error) {
@@ -98,9 +99,9 @@ async function requestNativeDeviceLocation(): Promise<DeviceLocationRequestResul
   }
 }
 
-export function requestDeviceLocation(): Promise<DeviceLocationRequestResult> {
+export function requestDeviceLocation({ maximumAge = 10 * 60 * 1_000 }: { maximumAge?: number } = {}): Promise<DeviceLocationRequestResult> {
   if (Capacitor.isNativePlatform()) {
-    return requestNativeDeviceLocation();
+    return requestNativeDeviceLocation(maximumAge);
   }
 
   if (typeof navigator === "undefined" || !navigator.geolocation) {
@@ -115,6 +116,7 @@ export function requestDeviceLocation(): Promise<DeviceLocationRequestResult> {
           location: {
             latitude: position.coords.latitude,
             longitude: position.coords.longitude,
+            ...(Number.isFinite(position.coords.accuracy) ? { accuracy: position.coords.accuracy } : {}),
           },
         });
       },
@@ -133,7 +135,7 @@ export function requestDeviceLocation(): Promise<DeviceLocationRequestResult> {
       },
       {
         enableHighAccuracy: false,
-        maximumAge: 10 * 60 * 1_000,
+        maximumAge,
         timeout: 8_000,
       },
     );
