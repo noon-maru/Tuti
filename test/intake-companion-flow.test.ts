@@ -34,6 +34,10 @@ test("실제 질문 핸들러로 동반·시간·차량 이후 여러 카테고�
   const draft: DogOuting = { weightsKg: [8], leash: true, carrier: false };
   (props().onDogOutingChange as (value: DogOuting) => void)(draft);
   assert.equal(committedOuting, undefined, "질문 완료 전에는 실제 추천 조건을 바꾸지 않는다");
+  (props().onDogValidityChange as (valid: boolean) => void)(false);
+  await (props().onNext as () => Promise<void>)();
+  assert.equal(completed, false);
+  (props().onDogValidityChange as (valid: boolean) => void)(true);
   await (props().onNext as () => Promise<void>)();
   assert.ok(completed);
   assert.deepEqual(committedOuting, draft);

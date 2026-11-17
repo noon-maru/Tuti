@@ -83,7 +83,7 @@
 
 수정 기준: 필수 입장료와 선택 체험비, 일반 요금과 면제 대상을 구분한다. 명시적 무료 선택에는 일반 입장료 0원 확인 결과를 사용하고, 요금 미확인은 별도로 알린다. 요금 데이터는 추천과 상세에서 일관되게 사용한다.
 
-관련 코드: [AuxiliaryConditions.tsx](../../src/features/tuti/components/AuxiliaryConditions.tsx), [fatigue.ts](../../src/server/recommendations/fatigue.ts), [executionFeasibility.ts](../../src/server/recommendations/executionFeasibility.ts).
+관련 코드: [ExplorePreferences.tsx](../../src/features/tuti/components/ExplorePreferences.tsx) (당시 AuxiliaryConditions, 이후 선택 조건 UI로 통합), [fatigue.ts](../../src/server/recommendations/fatigue.ts), [executionFeasibility.ts](../../src/server/recommendations/executionFeasibility.ts).
 
 **5. P1 — 첫 방문에 ‘눌러서 출발 준비’가 작동하지 않는다. 운영 웹 재현**
 

@@ -15,8 +15,7 @@ import {
   PrimaryButton,
   TextButton,
 } from "@/features/tuti/components/buttons";
-import { AuxiliaryConditions } from "@/features/tuti/components/AuxiliaryConditions";
-import { DogOutingControls } from "@/features/tuti/components/DogOutingControls";
+import { ExplorePreferences } from "@/features/tuti/components/ExplorePreferences";
 import type { DogOuting } from "@/shared/pets/dogAccess";
 import {
   getIntakeSteps,
@@ -55,6 +54,7 @@ export function DailyCheckInScreen({
 }) {
   const [mode, setMode] = useState<CheckInMode>(initialMode);
   const [draftDogOuting, setDraftDogOuting] = useState(dogOuting);
+  const [dogConditionsValid, setDogConditionsValid] = useState(true);
   const [step, setStep] = useState(0);
   const [draftAnswers, setDraftAnswers] =
     useState<IntakeAnswers>(() => withDefaultIntakeAnswers(previousAnswers));
@@ -186,6 +186,7 @@ export function DailyCheckInScreen({
   };
 
   const goBack = () => {
+    setDogConditionsValid(true);
     if (step > 0) {
       setStep((current) => current - 1);
       return;
@@ -195,6 +196,7 @@ export function DailyCheckInScreen({
   };
 
   const goNext = () => {
+    if (activeStep.key === "placeCategories" && !dogConditionsValid) return;
     if (activeStep.key !== "placeCategories" && !selectedValue) return;
 
     if (step < activeSteps.length - 1) {
@@ -316,6 +318,7 @@ export function DailyCheckInScreen({
                   onClick={() => {
                     setDraftAnswers(withDefaultIntakeAnswers(previousAnswers));
                     setDraftDogOuting(dogOuting);
+                    setDogConditionsValid(true);
                     setStep(0);
                     setMode("questions");
                   }}
@@ -364,9 +367,13 @@ export function DailyCheckInScreen({
                   </Option>
                 ))}
               </Options>
-              {activeStep.key === "placeCategories" && <DogOutingControls value={draftDogOuting} onChange={setDraftDogOuting} />}
               {step === activeSteps.length - 1 && (
-                <AuxiliaryConditions
+                <ExplorePreferences
+                  withDog={draftAnswers.petCompanion === "dog"}
+                  dogOuting={draftDogOuting}
+                  onDogOutingChange={setDraftDogOuting}
+                  onDogValidityChange={setDogConditionsValid}
+                  dogConditionsValid={dogConditionsValid}
                   companion={draftAnswers.companion}
                   budget={draftAnswers.budget}
                   onCompanionChange={(value) =>
@@ -385,7 +392,7 @@ export function DailyCheckInScreen({
               )}
               <QuestionAction
                 type="button"
-                disabled={activeStep.key !== "placeCategories" && !selectedValue}
+                disabled={(activeStep.key !== "placeCategories" && !selectedValue) || (activeStep.key === "placeCategories" && !dogConditionsValid)}
                 onClick={goNext}
               >
                 {step === activeSteps.length - 1

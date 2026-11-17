@@ -17,8 +17,7 @@ test("재질문도 여러 카테고리를 선택하고 해제한 뒤 저장하�
   const flow = clientFlowHarness("src/features/tuti/screens/intake/DailyCheckInScreen.tsx", "DailyCheckInScreen", {
     "@emotion/styled": styled,
     "@/features/tuti/components/buttons": { BackButton: "button", BaseButton: "button", PrimaryButton: "button", TextButton: "button" },
-    "@/features/tuti/components/AuxiliaryConditions": { AuxiliaryConditions: "aside" },
-    "@/features/tuti/components/DogOutingControls": { DogOutingControls: "dog-controls" },
+    "@/features/tuti/components/ExplorePreferences": { ExplorePreferences: "preferences" },
     "@/features/tuti/data/intakeSteps": { getIntakeSteps },
     "@/features/tuti/hooks/useDeferredAnimationStart": { useDeferredAnimationStart: () => true },
     "@/lib/intakePreferences": { withDefaultIntakeAnswers },
@@ -32,16 +31,20 @@ test("재질문도 여러 카테고리를 선택하고 해제한 뒤 저장하�
     (node.props.onClick as () => void)();
   };
   assert.ok(render().some(item => item.props.children === "이대로 볼게요"));
-  assert.equal(render().some(item => item.type === "dog-controls"), false);
+  assert.equal(render().some(item => item.type === "preferences"), false);
   click("오늘 상태 다시 고르기");
   click("다음"); click("다음"); click("다음");
   // A selected option is removed; a second selection is independently retained.
   const option = render().find(item => item.props["aria-pressed"] === true && nodes(item).some(child => child.props.children === "쇼핑"));
   assert.ok(option); (option.props.onClick as () => void)();
-  const controls = render().find(item => item.type === "dog-controls");
+  const controls = render().find(item => item.type === "preferences");
   assert.ok(controls);
   const draft: DogOuting = { weightsKg: [12], leash: true, carrier: false };
-  (controls.props.onChange as (value: DogOuting) => void)(draft);
+  (controls.props.onDogOutingChange as (value: DogOuting) => void)(draft);
+  (controls.props.onDogValidityChange as (valid: boolean) => void)(false);
+  click("오늘 상태로 보기");
+  assert.equal(Boolean(submitted), false, "잘못된 몸무게 입력을 이전 조건으로 조용히 저장하지 않는다");
+  (controls.props.onDogValidityChange as (valid: boolean) => void)(true);
   assert.equal(submittedOuting, undefined);
   click("오늘 상태로 보기");
   assert.deepEqual(Array.from(submitted?.placeCategories ?? []), ["cafe"]);

@@ -14,6 +14,7 @@ import type { DogOuting } from "@/shared/pets/dogAccess";
 
 export function IntakeFlow({ dogOuting, onDogOutingChange }: { dogOuting?: DogOuting; onDogOutingChange?: (value?: DogOuting) => void } = {}) {
   const [draftDogOuting, setDraftDogOuting] = useState(dogOuting);
+  const [dogConditionsValid, setDogConditionsValid] = useState(true);
   const router = useRouter();
   const { requestLocation } = useLocationAccess();
   const setAnswer = useTutiStore((state) => state.setAnswer);
@@ -42,6 +43,7 @@ export function IntakeFlow({ dogOuting, onDogOutingChange }: { dogOuting?: DogOu
   };
 
   const goToNextQuestion = async () => {
+    if (activeStep.key === "placeCategories" && !dogConditionsValid) return;
     if ((activeStep.key !== "placeCategories" && !answers[activeStep.key]) || resolvingLocation) return;
     if (activeStep.key === "placeCategories" && !answers.placeCategories) setAnswer("placeCategories", []);
 
@@ -80,6 +82,7 @@ export function IntakeFlow({ dogOuting, onDogOutingChange }: { dogOuting?: DogOu
   };
 
   const goToPreviousQuestion = () => {
+    setDogConditionsValid(true);
     if (step === 0) {
       router.replace("/");
       return;
@@ -93,6 +96,8 @@ export function IntakeFlow({ dogOuting, onDogOutingChange }: { dogOuting?: DogOu
       total={activeSteps.length}
       dogOuting={draftDogOuting}
       onDogOutingChange={setDraftDogOuting}
+      dogConditionsValid={dogConditionsValid}
+      onDogValidityChange={setDogConditionsValid}
       activeStep={activeStep}
       selectedValue={answers[activeStep.key]}
       onBack={goToPreviousQuestion}

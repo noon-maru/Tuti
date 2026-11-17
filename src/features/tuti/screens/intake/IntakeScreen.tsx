@@ -8,9 +8,8 @@ import {
   PrimaryButton,
   TextButton,
 } from "@/features/tuti/components/buttons";
-import { AuxiliaryConditions } from "@/features/tuti/components/AuxiliaryConditions";
+import { ExplorePreferences } from "@/features/tuti/components/ExplorePreferences";
 import { ScreenFrame } from "@/features/tuti/components/ScreenFrame";
-import { DogOutingControls } from "@/features/tuti/components/DogOutingControls";
 import type { DogOuting } from "@/shared/pets/dogAccess";
 import type { IntakeStep } from "@/features/tuti/data/intakeSteps";
 import type {
@@ -36,7 +35,11 @@ export function IntakeScreen({
   onBudgetChange,
   dogOuting,
   onDogOutingChange,
+  onDogValidityChange,
+  dogConditionsValid = true,
 }: {
+  dogConditionsValid?: boolean;
+  onDogValidityChange?: (valid: boolean) => void;
   dogOuting?: DogOuting;
   onDogOutingChange?: (value?: DogOuting) => void;
   step: number;
@@ -102,9 +105,13 @@ export function IntakeScreen({
           ))}
         </OptionList>
       )}
-      {activeStep.key === "placeCategories" && onDogOutingChange && <DogOutingControls value={dogOuting} onChange={onDogOutingChange} />}
       {step === total - 1 && (
-        <AuxiliaryConditions
+        <ExplorePreferences
+          withDog={activeStep.key === "placeCategories"}
+          dogOuting={dogOuting}
+          onDogOutingChange={onDogOutingChange}
+          onDogValidityChange={onDogValidityChange}
+          dogConditionsValid={dogConditionsValid}
           companion={auxiliaryConditions.companion}
           budget={auxiliaryConditions.budget}
           onCompanionChange={onCompanionChange}
@@ -113,7 +120,7 @@ export function IntakeScreen({
       )}
       <QuestionActions>
         <NextButton
-          disabled={(activeStep.key !== "placeCategories" && !selectedValue) || resolvingLocation}
+          disabled={(activeStep.key !== "placeCategories" && !selectedValue) || (activeStep.key === "placeCategories" && !dogConditionsValid) || resolvingLocation}
           onClick={onNext}
         >
           {step === total - 1
