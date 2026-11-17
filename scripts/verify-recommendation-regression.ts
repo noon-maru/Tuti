@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { prisma } from "@/server/db/prisma";
-import { createRecommendations } from "@/server/recommendations/service";
-import { RECOMMENDATION_ALGORITHM_VERSION } from "@/shared/api/recommendations";
+import { createLegacyRecommendations as createRecommendations } from "@/server/recommendations/service";
+const RECOMMENDATION_ALGORITHM_VERSION = "legacy-experience-intent-v26";
 import type { PreferredRegion } from "@/shared/tuti/types";
 
 const cases: Array<{ label: string; region: PreferredRegion }> = [

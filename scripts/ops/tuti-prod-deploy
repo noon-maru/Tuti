@@ -94,7 +94,7 @@ if [ -f "$project_dir/.ops-state/restore-privacy/pending.env" ] || [ -f "$projec
   exit 0
 fi
 docker compose --env-file .env.production -f docker-compose.prod.yml \
-  run --rm --no-deps ops pnpm db:derived:check
+  run --rm --no-deps ops pnpm db:derived:check --require-data
 
 echo "배포 직전 전체 백업"
 sh scripts/ops/tuti-prod-backup
