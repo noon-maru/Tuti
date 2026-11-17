@@ -225,7 +225,7 @@ export function RecommendationsScreen({
     : answers.movement === "near"
       ? "잠깐의 시간 동안 다녀올 만한 공간을 찾지 못했어요."
       : "오늘의 여유에 맞는 공간을 찾지 못했어요.";
-  const emptyRecommendationMessage = dogConditionsSelected ? "위의 외출 조건에서 목적이나 공간을 바꾸거나, 이동 범위를 다시 정해보세요. 다른 유형의 장소를 임의로 채우지 않아요." : answers.budget === "free"
+  const emptyRecommendationMessage = dogConditionsSelected ? "현재 자료에서 조건을 확인할 수 있는 곳이 부족해요. 위의 외출 조건이나 이동 범위를 바꿔보세요." : answers.budget === "free"
     ? "지금 확인된 무료 공간이 없어요. 오늘의 여유나 원하는 분위기를 조금 바꿔볼까요?"
     : "다녀오는 데 조금 더 여유를 내거나, 원하는 분위기를 바꿔볼까요?";
   const presentedDetailPlace = detailVisible ? detailPlace : activePlace;
