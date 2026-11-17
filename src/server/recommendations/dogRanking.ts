@@ -2,6 +2,7 @@ import type { TutiPlace } from "@/lib/recommendations";
 import type { DogOuting } from "@/shared/pets/dogAccess";
 import type { PlaceNoveltySignal } from "./novelty";
 import { noveltyBoost } from "./novelty";
+import { matchesDogPurpose } from "./dogDestination";
 
 export type DogScore = { access: number; facility: number; purpose: number; distance: number; time: number; weather: number; novelty: number; total: number };
 /** Positive evidence bonuses only. Legacy fatigue/energy/low-burden scores never enter this function. */
@@ -25,16 +26,18 @@ export function rankDogPlaces(places: TutiPlace[], outing?: DogOuting, signals: 
     const score = scoreDogPlace(place, outing, byId.get(place.id));
     return { ...place, dogRecommendationScore: score, rankingScore: -score.total,
       reason: outing?.purpose === "cafe" && place.experienceType === "cafe" ? "함께 쉬어갈 카페를 찾고 있다면" : outing?.purpose === "walk" && ["forest_garden", "waterside", "neighborhood"].includes(place.experienceType ?? "") ? "함께 걸을 다음 길을 찾고 있다면" : "반려견과 함께할 다음 하루",
-      reasonDetail: place.dogAccess?.kind === "tourapi" ? "공식 동반 등록 장소예요. 방문 전 동반 구역과 세부 조건을 확인해주세요." : "안내된 동반 조건과 준비물을 확인하고 골라보세요.",
+      reasonDetail: `${outing?.purpose && !matchesDogPurpose(place, outing) ? "선택한 목적의 장소가 부족해 다른 동반 장소도 함께 보여드려요. " : ""}${place.dogAccess?.kind === "tourapi" ? "공식 동반 등록 장소예요. 방문 전 동반 구역과 세부 조건을 확인해주세요." : "안내된 동반 조건과 준비물을 확인하고 골라보세요."}`,
       reasonFactors: ["companion", ...(place.distanceMeters === undefined ? [] : ["distance"])] as TutiPlace["reasonFactors"],
       cardPhrase: outing?.purpose === "cafe" && place.experienceType === "cafe" ? "함께 쉬어갈 다음 공간" : "함께할 다음 하루를 찾아서",
     };
   }).sort((a, b) => b.dogRecommendationScore.total - a.dogRecommendationScore.total || a.id.localeCompare(b.id));
 }
 
-export function selectDogPlaces(places: TutiPlace[], previousIds: string[], limit = 6) {
+export function selectDogPlaces(places: TutiPlace[], previousIds: string[], limit = 6, outing?: DogOuting) {
   const previous = new Set(previousIds), result: TutiPlace[] = [], counts = new Map<string, number>();
-  for (const group of [places.filter(p => !previous.has(p.id)), places.filter(p => previous.has(p.id))]) {
+  const matching = places.filter(p => matchesDogPurpose(p, outing));
+  const alternatives = places.filter(p => !matchesDogPurpose(p, outing));
+  for (const group of [matching.filter(p => !previous.has(p.id)), matching.filter(p => previous.has(p.id)), alternatives.filter(p => !previous.has(p.id)), alternatives.filter(p => previous.has(p.id))]) {
     const deferred: TutiPlace[] = [];
     for (const place of group) {
       const type = place.experienceType ?? "other";

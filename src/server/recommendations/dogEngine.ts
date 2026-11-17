@@ -6,7 +6,7 @@ import type { IntakeAnswers, PreferredRegion, UserLocation } from "@/shared/tuti
 import type { PersonalizationAudit } from "@/server/personalization/ranking";
 import { getPreferredRegionWhere } from "./regionFallback";
 import { dogCatalogPlaceWhere } from "./dogPlaceWhere";
-import { derivePlaceExperienceType } from "./experienceType";
+import { assessDogDestination } from "./dogDestination";
 import { enrichPlacesWithKnownExecutionFeasibility, type OperationDetail } from "./executionFeasibility";
 import { filterPlacesByAdmissionBudget } from "./admissionFee";
 import { loadPlaceNoveltySignals } from "./novelty";
@@ -39,7 +39,7 @@ export async function createDogRecommendations(input: { answers: IntakeAnswers; 
     prisma.place.findMany({ where, orderBy: { id: "asc" }, select: {
       id: true, name: true, image: true, sourceContentType: true, sourceSidoName: true, sourceSigunguName: true,
       latitude: true, longitude: true, experienceType: true, visitTimeProfile: true,
-      tourismSourceRecord: { select: { detailRecord: { select: { overview: true, openingHours: true, restDate: true, admissionFee: true } } } },
+      tourismSourceRecord: { select: { rawPayload: true, detailRecord: { select: { overview: true, openingHours: true, restDate: true, admissionFee: true } } } },
     } }),
   ]);
   if (!catalogReady) throw new DogCatalogNotReadyError();
@@ -53,7 +53,9 @@ export async function createDogRecommendations(input: { answers: IntakeAnswers; 
     if (/폐업|영구\s*폐쇄|운영\s*종료/.test(`${row.name} ${row.tourismSourceRecord?.detailRecord?.overview ?? ""}`)) return [];
     if (row.tourismSourceRecord?.detailRecord) operationDetails.set(row.id, row.tourismSourceRecord.detailRecord);
     const base: TutiPlace = { id: row.id, name: row.name, image: row.image, phrase: "반려견과 함께할 다음 하루", note: "방문 전 동반 구역과 세부 조건을 확인해주세요.", travelTime: "이동 시간 확인 필요", crowd: "정보 없음", today: "운영 정보 확인 필요", fatigue: 0, movementLevel: "near", moodTags: [], latitude: Number(row.latitude), longitude: Number(row.longitude), distanceMeters: distance, sourceContentType: row.sourceContentType ?? undefined, sourceSidoName: row.sourceSidoName ?? undefined, sourceSigunguName: row.sourceSigunguName ?? undefined, ...(row.visitTimeProfile ? { visitTimeProfile: row.visitTimeProfile } : {}) };
-    base.experienceType = derivePlaceExperienceType({ ...base, overview: row.tourismSourceRecord?.detailRecord?.overview });
+    const destination = assessDogDestination({ ...base, overview: row.tourismSourceRecord?.detailRecord?.overview, basicPayload: row.tourismSourceRecord?.rawPayload });
+    if (!destination.eligible) return [];
+    base.experienceType = destination.type;
     return [base];
   });
   const companions = await dogOutingPlaces(distanceCandidates, dogOuting);
@@ -63,7 +65,7 @@ export async function createDogRecommendations(input: { answers: IntakeAnswers; 
   const budgetEligible = filterPlacesByAdmissionBudget(enriched, answers.budget);
   const signals = await loadPlaceNoveltySignals(input.userId, budgetEligible.map(p => p.id), now);
   const ranked = rankDogPlaces(budgetEligible, dogOuting, signals);
-  const places = selectDogPlaces(ranked, input.excludePlaceIds ?? [], 6);
+  const places = selectDogPlaces(ranked, input.excludePlaceIds ?? [], 6, dogOuting);
   const audit: DogRecommendationAudit = { algorithmVersion: DOG_ENGINE_VERSION, catalogReady, areaCandidates: rows.length, distanceEligible: distanceCandidates.length, companionEligible: companions.length, budgetEligible: budgetEligible.length, returned: places.length, conditionsProvided: Boolean(dogOuting) };
   const personalization: PersonalizationAudit = { mode: "off", profileVersion: DOG_ENGINE_VERSION, applied: false, scoredPlaceCount: 0, originalPlaceIds: ranked.slice(0, 12).map(p => p.id) };
   return { places, personalization, audit, ranked };
