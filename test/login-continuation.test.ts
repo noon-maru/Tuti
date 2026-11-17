@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { createLoginContinuation, loginPath, loginSuccessPath, safeLoginReturn } from "@/lib/loginContinuation";
+import { consentEntryPath, createLoginContinuation, loginPath, loginSuccessPath, safeLoginReturn } from "@/lib/loginContinuation";
 
 test("로그인 복귀 경로는 허용한 내부 화면과 식별자만 보존한다", () => {
   for (const unsafe of ["https://evil.test", "//evil.test", "/\\evil.test", "/admin", "/api/account", "/login", "/madi\n"]) assert.equal(safeLoginReturn(unsafe), null);
@@ -10,6 +10,17 @@ test("로그인 복귀 경로는 허용한 내부 화면과 식별자만 보존�
   assert.equal(loginSuccessPath("/entry"), "/");
   assert.equal(loginSuccessPath("/entry?next=explore"), "/explore");
   assert.equal(loginSuccessPath("/madi/detail?entryId=m1"), "/madi/detail?entryId=m1");
+});
+
+test("약관과 로그인을 차례로 거쳐도 원래 책·장소·추천 의도를 복원한다", () => {
+  const destination = "/madi/new?from=explore&harumadiId=book&placeId=p1&placeName=%EA%B3%B5%EC%9B%90&journeyId=j1";
+  const consent = consentEntryPath(destination);
+  assert.equal(new URL(consent, "https://tuti.test").searchParams.get("returnTo"), destination);
+  const login = loginPath(consent);
+  const resumed = new URL(login, "https://tuti.test").searchParams.get("returnTo")!;
+  assert.equal(loginSuccessPath(resumed), destination);
+  for (const unsafe of ["https://evil.test", "//evil.test", "/api/account", "/admin", "/entry?returnTo=%2Fentry"]) assert.equal(consentEntryPath(unsafe), "/entry");
+  assert.equal(safeLoginReturn("/entry?returnTo=https%3A%2F%2Fevil.test"), "/entry");
 });
 
 test("소셜 로그인 복귀는 재마운트에서도 유지하되 만료·완료 후 폐기한다", async () => {

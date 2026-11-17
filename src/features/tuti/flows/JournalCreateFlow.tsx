@@ -25,7 +25,7 @@ export function JournalCreateFlow() {
   const harumadiId = params.get("harumadiId");
   const savedId = params.get("savedEntryId");
   if (savedId) return <SavedMadiSelection key={`${ownerId}:${savedId}`} ownerId={ownerId} entryId={savedId} />;
-  return <JournalComposer key={`${ownerId ?? "pending"}:${harumadiId ?? "new"}`} ownerId={ownerId} harumadiId={harumadiId} />;
+  return <JournalComposer key={`${ownerId ?? "pending"}:${harumadiId ?? "new"}:${params.get("placeId") ?? "general"}`} ownerId={ownerId} harumadiId={harumadiId} />;
 }
 
 function SavedMadiSelection({ ownerId, entryId }: { ownerId?: string; entryId: string }) {
@@ -66,13 +66,14 @@ function JournalComposer({ ownerId, harumadiId }: { ownerId?: string; harumadiId
   const source = searchParams.get("from");
   const fromLibrary = source === "welcome" || source === "library";
   const fromExplore = source === "explore";
-  useLifecycleView("compose_started", harumadiId ? "book" : fromExplore ? "explore" : "home");
+  useLifecycleView("compose_started", fromExplore ? "explore" : harumadiId ? "book" : "home");
   const initialPlaceId = searchParams.get("placeId");
   const initialPlaceName = searchParams.get("placeName");
   const recommendationId = searchParams.get("journeyId");
   const returnToSource = () => {
     if (harumadiId) { router.replace(harumadiPath(harumadiId)); return; }
     if (fromLibrary) { router.replace("/"); return; }
+    if (fromExplore) { router.replace("/explore"); return; }
     if (window.history.length > 1) router.back();
     else router.replace(fromExplore ? "/explore" : "/madi");
   };
@@ -93,7 +94,7 @@ function JournalComposer({ ownerId, harumadiId }: { ownerId?: string; harumadiId
     destinationError={book.isError}
     onRetryDestination={() => void book.refetch()}
     initialPlace={initialPlaceId && initialPlaceName ? { id: initialPlaceId, name: initialPlaceName } : undefined}
-    collectionLabel={fromExplore ? "작은 여행으로 돌아가기" : fromLibrary ? "하루마디로 돌아가기" : "작성 마치기"}
+    collectionLabel={harumadiId ? "하루마디로 돌아가기" : fromExplore ? "작은 여행으로 돌아가기" : fromLibrary ? "내 책장으로 돌아가기" : "작성 마치기"}
     onBack={returnToSource}
     onSave={async draft => {
       if (harumadiId && !destinationVerified) throw new Error("담을 하루마디를 다시 확인해주세요. 작성 중인 내용은 그대로 남아 있어요.");
@@ -123,12 +124,12 @@ function JournalComposer({ ownerId, harumadiId }: { ownerId?: string; harumadiId
       if (!harumadiId && !entry.savedHarumadi) router.replace(savedMadiSelectionPath(entry.id, source));
     }}
     // 하루마디 안에서 시작했다면 담을 곳은 이미 정해져 있다.
-    // 완료 후 기존 addEntryId 경로로 해당 하루마디에 연결한다.
+    // 저장 API가 연결까지 원자적으로 완료했으므로 읽기 위치만 전달한다.
     harumadiSelection={ownerId && !harumadiId ? { ownerId,
       onDone: () => { requestLoginNudge("journal_created"); returnToSource(); } } : undefined}
     onCollection={() => {
       requestLoginNudge("journal_created");
-      if (harumadiId) router.replace(`${harumadiPath(harumadiId)}${savedEntryId.current ? `&addEntryId=${encodeURIComponent(savedEntryId.current)}` : ""}`);
+      if (harumadiId) router.replace(`${harumadiPath(harumadiId)}${savedEntryId.current ? `&focusEntryId=${encodeURIComponent(savedEntryId.current)}` : ""}`);
       else returnToSource();
     }}
   />;

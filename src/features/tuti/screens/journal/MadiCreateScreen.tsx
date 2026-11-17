@@ -84,7 +84,7 @@ export function MadiCreateScreen({ onBack, onSave, onCollection, onSaved, onStar
   const today = getKoreanDateKey();
   const draft = prepareFirstJournalDraft({ image, title, content, date, place }, today);
   const fieldErrors = getMadiFieldErrors({ image, title, content, date, place }, today);
-  const draftContext = newMadiDraftContext(inHarumadi ? draftDestination ?? destination : null);
+  const draftContext = newMadiDraftContext(inHarumadi ? draftDestination ?? destination : null, initialPlace?.id);
   const localDraft = useMadiDraft({ ownerId: draftOwnerId, ...draftContext, enabled: !preview && !saved && (!inHarumadi || Boolean(draftDestination ?? destination)),
     value: { image, title, content, date, place, placeId, petIds, originalImage: false, stage },
     restore: value => {

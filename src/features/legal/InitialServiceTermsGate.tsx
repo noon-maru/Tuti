@@ -20,6 +20,7 @@ import { usePushEnvironment } from "@/features/tuti/hooks/usePushEnvironment";
 import { optInInitialNotifications } from "@/lib/notificationSettings";
 import { requestWebPushPermission } from "@/features/tuti/notifications/webPushNotifications";
 import { notificationSettingsAvailable } from "@/shared/notifications/rollout";
+import { consentEntryPath } from "@/lib/loginContinuation";
 
 // 오버레이가 아니라 진입 화면이다. 통과 전에는 children과 그 안의 effect를 마운트하지 않는다.
 export function InitialServiceTermsGate({ children, rightsChildren, renderContent = content => content }: {
@@ -44,7 +45,7 @@ export function InitialServiceTermsGate({ children, rightsChildren, renderConten
 
   useEffect(() => {
     let active = true;
-    if (entryRedirect) void rememberHarumadiInviteUrl(window.location.href).catch(() => null).then(() => { if (active) router.replace(entryRedirect); });
+    if (entryRedirect) void rememberHarumadiInviteUrl(window.location.href).catch(() => null).then(() => { if (active) router.replace(consentEntryPath(`${window.location.pathname}${window.location.search}`)); });
     return () => { active = false; };
   }, [entryRedirect, router]);
 

@@ -38,7 +38,8 @@ import { getLocationTermsVersion } from "@/shared/location/terms";
 import type { DepartureRoute } from "@/shared/api/departurePlan";
 import type { RecommendationActionInput } from "@/shared/api/recommendationActions";
 import type { IntakeAnswers } from "@/shared/tuti/types";
-import { placeMadiPath } from "@/shared/tuti/placeMadiPath";
+import { placeMadiPath, savedDepartureDestination } from "@/shared/tuti/placeMadiPath";
+import { pendingMadiPath } from "@/shared/tuti/pendingMadi";
 import type { DogOuting } from "@/shared/pets/dogAccess";
 import {
   type SavedDeparturePlace,
@@ -119,9 +120,7 @@ export function RecommendationsFlow({ interactive, dogOuting }: { interactive: b
   );
   const returnCheckInVisible = Boolean(
     interactive &&
-      pendingDeparture &&
-      (!pendingDeparture.ownerId || pendingDeparture.ownerId === session?.userId) &&
-      new Date(pendingDeparture.promptAfter).getTime() <= returnCheckInNow,
+      session?.userId && pendingMadiPath(pendingDeparture, session.userId, returnCheckInNow),
   );
   const dailyCheckInVisible =
     interactive && !returnCheckInVisible &&
@@ -398,6 +397,7 @@ export function RecommendationsFlow({ interactive, dogOuting }: { interactive: b
     place: DeparturePlace,
     route: DepartureRoute,
     journeyId = recommendationId,
+    bookId: string | null = destinationId,
   ) => {
     if (!journeyId) return;
 
@@ -410,7 +410,7 @@ export function RecommendationsFlow({ interactive, dogOuting }: { interactive: b
 
     setPendingDeparture({
       ownerId: session?.userId,
-      harumadiId: destinationId ?? undefined,
+      harumadiId: bookId ?? undefined,
       journeyId,
       placeId: place.id,
       placeName: place.name,
@@ -502,6 +502,8 @@ export function RecommendationsFlow({ interactive, dogOuting }: { interactive: b
           }
 
           addSavedDeparturePlace({
+            ownerId: session?.userId,
+            harumadiId: destinationId ?? undefined,
             journeyId: recommendationId ?? crypto.randomUUID(),
             placeId: place.id,
             placeName: place.name,
@@ -660,6 +662,8 @@ export function RecommendationsFlow({ interactive, dogOuting }: { interactive: b
             });
             setSavedPlacesOpen(false);
             setSelectedSavedPlace({
+              ownerId: session?.userId,
+              harumadiId: destinationId ?? undefined,
               journeyId,
               placeId: place.id,
               placeName: place.name,
@@ -695,6 +699,7 @@ export function RecommendationsFlow({ interactive, dogOuting }: { interactive: b
               },
               route,
               selectedSavedPlace.journeyId,
+              savedDepartureDestination(selectedSavedPlace, session?.userId),
             )
           }
           onClose={() => setSelectedSavedPlace(null)}

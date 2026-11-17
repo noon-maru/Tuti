@@ -13,6 +13,7 @@ import { parseWelcomeHarumadiPage, welcomeHarumadiPath } from "@/shared/tuti/wel
 import { setWelcomeHarumadiOrigin } from "@/lib/welcomeHarumadiNavigation";
 import { readLibraryEntryCompleted } from "@/lib/libraryPreferences";
 import { useSession } from "@/features/tuti/hooks/useSession";
+import { safeLoginReturn } from "@/lib/loginContinuation";
 
 export function EntryFlow() {
   const router = useRouter();
@@ -20,6 +21,8 @@ export function EntryFlow() {
   // A shared-place visitor chose to start exploring. Consent runs before this flow mounts.
   // Use a fixed destination, never an arbitrary return URL.
   const continueToExplore = params.get("next") === "explore";
+  const safeTarget = safeLoginReturn(params.get("returnTo"));
+  const returnTarget = safeTarget?.split("?")[0] !== "/entry" ? safeTarget : null;
   const ownerId = useSession()?.userId;
   const [completion, setCompletion] = useState<{ ownerId: string; completed: boolean } | null>(null);
   const completionReady = Boolean(ownerId && completion?.ownerId === ownerId);
@@ -50,6 +53,7 @@ export function EntryFlow() {
 
   useEffect(() => {
     if (!hasHydrated || !completionReady) return;
+    if (returnTarget) { router.replace(returnTarget); return; }
     if (continueToExplore) {
       router.replace("/explore");
       return;
@@ -65,10 +69,10 @@ export function EntryFlow() {
     if (shouldRedirectToMain) {
       router.replace("/");
     }
-  }, [router, shouldRedirectToMain, questionsRequested, entryStage, legacyExample, params, hasHydrated, completionReady, continueToExplore]);
+  }, [router, shouldRedirectToMain, questionsRequested, entryStage, legacyExample, params, hasHydrated, completionReady, continueToExplore, returnTarget]);
 
   useEffect(() => {
-    if (!hasHydrated || !completionReady || continueToExplore || shouldRedirectToMain || legacyExample || entryStage === "recommendation-ready") return;
+    if (!hasHydrated || !completionReady || returnTarget || continueToExplore || shouldRedirectToMain || legacyExample || entryStage === "recommendation-ready") return;
 
     if (!questionsRequested) {
       if (guideStep === null) {
@@ -80,9 +84,9 @@ export function EntryFlow() {
     void recordProductActivity("entry_started").catch(() => {
       // 분석 기록 실패가 질문 흐름을 막지 않도록 한다.
     });
-  }, [legacyExample, entryStage, guideStep, hasHydrated, questionsRequested, shouldRedirectToMain, completionReady, continueToExplore]);
+  }, [legacyExample, entryStage, guideStep, hasHydrated, questionsRequested, shouldRedirectToMain, completionReady, continueToExplore, returnTarget]);
 
-  if (!hasHydrated || !completionReady || continueToExplore || shouldRedirectToMain || legacyExample) return null;
+  if (!hasHydrated || !completionReady || returnTarget || continueToExplore || shouldRedirectToMain || legacyExample) return null;
 
   if (entryStage !== "recommendation-ready" && !questionsRequested) {
     return <WelcomeScreen

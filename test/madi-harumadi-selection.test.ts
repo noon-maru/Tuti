@@ -29,7 +29,7 @@ test("하루마디 안에서 작성하면 선택 화면 없이 원래 하루마�
   assert.match(flow, /harumadiSelection=\{ownerId && !harumadiId \?/);
   assert.doesNotMatch(flow, /initialBookId: harumadiId/);
   assert.match(flow, /if \(harumadiId\) router.replace\(`\$\{harumadiPath\(harumadiId\)\}/);
-  assert.match(flow, /&addEntryId=\$\{encodeURIComponent\(savedEntryId.current\)\}/);
+  assert.match(flow, /&focusEntryId=\$\{encodeURIComponent\(savedEntryId.current\)\}/);
   const screen = readFileSync("src/features/tuti/screens/journal/MadiCreateScreen.tsx", "utf8");
   // 저장 ID를 먼저 전달해야 자동 복귀 요청에 새 마디 ID가 포함된다.
   assert.match(screen, /setSaved\(entry\);\s*onSaved\?\.\(entry\);[\s\S]*?if \(inHarumadi && !continueInHarumadi\) onCollection\(\);/);

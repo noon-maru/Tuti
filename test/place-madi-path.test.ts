@@ -1,9 +1,23 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { readFileSync } from "node:fs";
-import { placeMadiPath } from "@/shared/tuti/placeMadiPath";
+import { placeMadiPath, savedDepartureDestination } from "@/shared/tuti/placeMadiPath";
 import { safeLoginReturn } from "@/lib/loginContinuation";
 import { pendingMadiPath } from "@/shared/tuti/pendingMadi";
+import { useTutiStore } from "@/store/tuti";
+import { createJSONStorage } from "zustand/middleware";
+
+test("나중에 갈 공간으로 미뤄도 선택 책을 보존하고 다른 계정에는 이어주지 않는다", t => {
+  useTutiStore.persist.setOptions({ storage: createJSONStorage(() => ({ getItem: () => null, setItem() {}, removeItem() {} })) });
+  const previous = useTutiStore.getState(); t.after(() => useTutiStore.setState(previous, true));
+  useTutiStore.setState({ savedDeparturePlaces: [], pendingDeparture: { ownerId: "owner", harumadiId: "book", journeyId: "journey", placeId: "place", placeName: "산책길", placeImage: "", placePhrase: "", routeMode: "walking", startedAt: new Date().toISOString(), promptAfter: new Date().toISOString() } });
+  useTutiStore.getState().deferPendingDeparture();
+  const saved = useTutiStore.getState().savedDeparturePlaces[0];
+  assert.equal(savedDepartureDestination(saved, "owner"), "book");
+  assert.equal(savedDepartureDestination(saved, "other"), null);
+  assert.equal(savedDepartureDestination({ harumadiId: "old-book" }, "owner"), null);
+  assert.equal(useTutiStore.getState().pendingDeparture, undefined);
+});
 
 test("본인이 선택한 책과 장소는 로그인 경유에도 유지되며 임의 목적지 URL은 전달하지 않는다", () => {
   const path = placeMadiPath({ id: "p-1", name: "함께 걸은 길" }, "j-1", "book-1");

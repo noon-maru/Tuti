@@ -6,15 +6,16 @@ import ts from "typescript";
 import * as jsx from "react/jsx-runtime";
 import * as guide from "../src/shared/tuti/welcomeGuide";
 import * as example from "../src/shared/tuti/welcomeHarumadi";
+import { safeLoginReturn } from "@/lib/loginContinuation";
 
 test("약관 게이트를 통과한 공유 방문자는 신규·기존 여부와 관계없이 소개 화면 없이 선택한 작은 여행으로 간다", () => {
-  for (const completed of [false, true]) {
+  for (const completed of [false, true]) for (const target of ["/explore", "/madi/new?from=explore&placeId=p1&placeName=%EA%B3%B5%EC%9B%90&journeyId=j1&harumadiId=b1", "/explore?harumadiId=b1&ownerId=synthetic"]) {
     const effects: Array<() => void> = [], paths: string[] = [], events: string[] = [];
     const state = { hasHydrated: true, entryRecord: completed ? {} : null, entryStage: "welcome" };
     const deps: Record<string, unknown> = {
       "react/jsx-runtime": jsx,
       react: { useState: () => [{ ownerId: "synthetic", completed }, () => {}], useEffect: (fn: () => void) => effects.push(fn) },
-      "next/navigation": { useRouter: () => ({ replace: (path: string) => paths.push(path) }), useSearchParams: () => new URLSearchParams("next=explore") },
+      "next/navigation": { useRouter: () => ({ replace: (path: string) => paths.push(path) }), useSearchParams: () => target === "/explore" ? new URLSearchParams("next=explore") : new URLSearchParams({ returnTo: target }) },
       "@/features/tuti/flows/RecommendationReadyFlow": { RecommendationReadyFlow: "ready" },
       "@/features/tuti/flows/IntakeFlow": { IntakeFlow: "intake" },
       "@/features/tuti/screens/onboarding/WelcomeScreen": { WelcomeScreen: "welcome" },
@@ -25,6 +26,7 @@ test("약관 게이트를 통과한 공유 방문자는 신규·기존 여부와
       "@/shared/tuti/welcomeHarumadi": example,
       "@/lib/welcomeHarumadiNavigation": { setWelcomeHarumadiOrigin() {} },
       "@/lib/libraryPreferences": { readLibraryEntryCompleted: async () => completed },
+      "@/lib/loginContinuation": { safeLoginReturn },
       "@/features/tuti/hooks/useSession": { useSession: () => ({ userId: "synthetic" }) },
     };
     const exports: { EntryFlow?: () => unknown } = {};
@@ -36,7 +38,7 @@ test("약관 게이트를 통과한 공유 방문자는 신규·기존 여부와
     } });
     assert.equal(exports.EntryFlow!(), null, "소개나 홈을 중간에 그리지 않는다");
     effects.forEach(effect => effect());
-    assert.deepEqual(paths, ["/explore"]);
+    assert.deepEqual(paths, [safeLoginReturn(target)]);
     assert.deepEqual(events, [], "소개 화면을 보지 않은 사용자를 소개 노출로 기록하지 않는다");
   }
 });

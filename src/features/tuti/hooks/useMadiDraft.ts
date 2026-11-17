@@ -17,7 +17,7 @@ export function useMadiDraft({ ownerId, scope, source, value, restore, enabled =
   const stopped = useRef(false);
   const epoch = useRef(0);
   const dirty = JSON.stringify(value) !== baseline;
-  const newComposition = scope === "new" || scope.startsWith("new-book-");
+  const newComposition = scope === "new" || scope.startsWith("new-book-") || scope.startsWith("new-place-");
   useEffect(() => { restoreRef.current = restore; }, [restore]);
   useEffect(() => {
     if (!ownerId || !enabled) return;

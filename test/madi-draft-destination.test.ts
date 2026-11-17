@@ -7,6 +7,16 @@ import { createMadiDraftStorage, newMadiDraftContext, type MadiDraft } from "../
 import { MadiCreateScreen } from "../src/features/tuti/screens/journal/MadiCreateScreen";
 
 const value: MadiDraft = { title: "개인 초안", content: "아직 공유하지 않은 이야기", date: "2026-11-06", place: "", placeId: null, image: null, originalImage: false, stage: "write" };
+test("장소에서 시작한 초안은 다른 장소·일반 작성·다른 책으로 복원되지 않는다", async () => {
+  const values = new Map<string, string>();
+  const storage = createMadiDraftStorage({ getItem: key => values.get(key) ?? null, setItem: (key, raw) => { values.set(key, raw); }, removeItem: key => { values.delete(key); } });
+  const first = newMadiDraftContext(null, "place-a");
+  await storage.save("owner", first.scope, first.source, value, storage.ticket("owner"));
+  assert.deepEqual(await storage.load("owner", first.scope, first.source), value);
+  for (const other of [newMadiDraftContext(), newMadiDraftContext(null, "place-b"), newMadiDraftContext({ id: "book", shared: true }, "place-a")]) assert.equal(await storage.load("owner", other.scope, other.source), null);
+  const long = newMadiDraftContext({ id: "b".repeat(128), shared: true }, "p".repeat(128));
+  assert.ok(long.scope.length <= 128);
+});
 test("공통 new 슬롯의 기존 재현과 달리 책·공유 범위별 초안은 서로 복원되지 않는다", async () => {
   const values = new Map<string, string>();
   const storage = createMadiDraftStorage({ getItem: key => values.get(key) ?? null, setItem: (key, raw) => { values.set(key, raw); }, removeItem: key => { values.delete(key); } });
@@ -38,9 +48,9 @@ test("책 확인 전·권한 조회 실패에도 작성 화면을 유지하고 �
   }
   const flow = readFileSync("src/features/tuti/flows/JournalCreateFlow.tsx", "utf8");
   assert.match(flow, /book.isSuccess && book.isFetchedAfterMount/);
-  assert.match(flow, /key=\{`\$\{ownerId \?\? "pending"\}:\$\{harumadiId \?\? "new"\}`\}/);
+  assert.match(flow, /key=\{`\$\{ownerId \?\? "pending"\}:\$\{harumadiId \?\? "new"\}:\$\{params.get\("placeId"\)/);
   assert.match(flow, /refetchOnWindowFocus: false, refetchOnReconnect: false/);
   const screen = readFileSync("src/features/tuti/screens/journal/MadiCreateScreen.tsx", "utf8");
-  assert.match(screen, /newMadiDraftContext\(inHarumadi \? draftDestination \?\? destination : null\)/);
+  assert.match(screen, /newMadiDraftContext\(inHarumadi \? draftDestination \?\? destination : null, initialPlace\?\.id\)/);
   assert.match(screen, /enabled: !preview && !saved && \(!inHarumadi \|\| Boolean\(draftDestination \?\? destination\)\)/);
 });

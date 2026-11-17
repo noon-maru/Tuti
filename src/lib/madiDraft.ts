@@ -13,7 +13,13 @@ type SavedDraft = { savedAt: number; source: string; value: MadiDraft };
 const validId = (id: string) => /^[a-zA-Z0-9_-]{1,128}$/.test(id);
 
 /** Book and sharing mode are part of the draft identity, never inferred from its contents. */
-export function newMadiDraftContext(destination?: { id: string; shared?: boolean } | null) {
+export function newMadiDraftContext(destination?: { id: string; shared?: boolean } | null, placeId?: string | null) {
+  if (placeId && validId(placeId)) {
+    const source = JSON.stringify(["new-place", destination?.id ?? null, destination?.shared ?? null, placeId]);
+    let hash = 0xcbf29ce484222325n;
+    for (const byte of new TextEncoder().encode(source)) hash = BigInt.asUintN(64, (hash ^ BigInt(byte)) * 0x100000001b3n);
+    return { scope: `${destination ? "new-book" : "new"}-place-${hash.toString(16)}`, source };
+  }
   if (!destination) return { scope: "new", source: "new" };
   const sharing = destination.shared === true ? "shared" : destination.shared === false ? "private" : "unknown";
   return { scope: `new-book-${destination.id}-${sharing}`,

@@ -46,6 +46,8 @@ export type PendingDeparture = {
 };
 
 export type SavedDeparturePlace = {
+  ownerId?: string;
+  harumadiId?: string;
   journeyId: string;
   placeId: string;
   placeName: string;
@@ -409,6 +411,8 @@ export const useTutiStore = create<TutiState>()(
           if (!state.pendingDeparture) return state;
 
           const savedPlace: SavedDeparturePlace = {
+            ownerId: state.pendingDeparture.ownerId,
+            harumadiId: state.pendingDeparture.harumadiId,
             journeyId: state.pendingDeparture.journeyId,
             placeId: state.pendingDeparture.placeId,
             placeName: state.pendingDeparture.placeName,

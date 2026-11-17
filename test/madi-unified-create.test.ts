@@ -40,7 +40,7 @@ test("작성 완료는 원래 화면으로 복귀하며 하루마디 연결과 �
   const flow = readFileSync("src/features/tuti/flows/JournalCreateFlow.tsx", "utf8");
   assert.match(flow, /onBack=\{returnToSource\}/);
   assert.match(flow, /fromExplore \? "작은 여행으로 돌아가기"/);
-  assert.match(flow, /&addEntryId=\$\{encodeURIComponent\(savedEntryId.current\)\}/);
+  assert.match(flow, /&focusEntryId=\$\{encodeURIComponent\(savedEntryId.current\)\}/);
   assert.match(flow, /harumadiSelection=\{ownerId/);
   assert.match(flow, /onDone: \(\) => \{ requestLoginNudge\("journal_created"\); returnToSource\(\); \}/);
   assert.match(flow, /action: "journal_created"/);

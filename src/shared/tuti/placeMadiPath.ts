@@ -5,3 +5,7 @@ export function placeMadiPath(place: { id: string; name: string }, journeyId?: s
   if (harumadiId) params.set("harumadiId", harumadiId);
   return `/madi/new?${params}`;
 }
+
+export function savedDepartureDestination(saved: { ownerId?: string; harumadiId?: string }, ownerId?: string) {
+  return ownerId && saved.ownerId === ownerId ? saved.harumadiId ?? null : null;
+}

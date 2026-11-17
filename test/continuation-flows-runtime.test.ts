@@ -7,6 +7,43 @@ import { savedMadiSelectionPath } from "@/lib/savedMadiSelection";
 import { PublicMadiUnavailable, readPublicMadi } from "@/lib/publicMadiRead";
 
 const flush = () => new Promise(resolve => setImmediate(resolve));
+test("작은 여행에서 선택한 책의 마디는 저장과 연결을 한 번만 요청하고 방금 쓴 쪽으로 복귀한다", async () => {
+  let params = new URLSearchParams({ from: "explore", harumadiId: "book", placeId: "park", placeName: "공원", journeyId: "journey" });
+  const paths: string[] = [], writes: Record<string, unknown>[] = [], origins: string[] = [], actions: Record<string, unknown>[] = [];
+  const book = { id: "book", title: "함께한 하루", shared: false };
+  const deps = {
+    "next/navigation": { useSearchParams: () => params, useRouter: () => ({ replace: (path: string) => paths.push(path), back: () => paths.push("unexpected-history") }) },
+    "@/features/tuti/hooks/useSession": { useSession: () => ({ userId: "owner" }) },
+    "@/features/tuti/hooks/useTutiJournalEntries": { useTutiJournalEntries: () => ({ entries: [], isSuccess: true, addEntry: async (input: Record<string, unknown>) => { writes.push(input); return { id: "saved", placeId: "park", savedHarumadi: book }; } }) },
+    "@/features/tuti/screens/journal/MadiCreateScreen": { MadiCreateScreen: "composer" },
+    "@/features/tuti/screens/journal/MadiHarumadiSelection": { MadiHarumadiSelection: "selection" },
+    "@/features/tuti/screens/journal/JournalDetailScreen": { JournalDetailStatusScreen: "status" },
+    "@tanstack/react-query": { useQuery: () => ({ isSuccess: true, isFetchedAfterMount: true, isFetching: false, data: book }), useQueryClient: () => ({}) },
+    "@/lib/madiComposeDestination": { cachedMadiDestination: () => book, madiDestinationScopeChanged: () => false },
+    "@/features/tuti/auth/loginNudge": { requestLoginNudge() {} },
+    "@/store/tuti": { useTutiStore: (select: (value: unknown) => unknown) => select({ setActiveJournalEntry() {} }) },
+    "@/lib/harumadis": { harumadiPath: (id: string) => `/harumadi?harumadiId=${id}` },
+    "@/lib/tutiApi": { recordRecommendationAction: async (action: Record<string, unknown>) => { actions.push(action); } },
+    "../hooks/useLifecycleView": { useLifecycleView: (_event: string, origin: string) => origins.push(origin) },
+    "@/lib/lifecycle": { trackLifecycle() {} }, "../hooks/useNotificationPresence": { useNotificationPresence() {} }, "@/lib/notificationSettings": {},
+    "@/lib/savedMadiSelection": { savedMadiSelectionPath },
+  };
+  const create = () => clientFlowHarness("src/features/tuti/flows/JournalCreateFlow.tsx", "JournalCreateFlow", deps, { TextEncoder, window: { history: { length: 12 } } });
+  const flow = create(), parent = flow.render(), composer = flow.render(parent.props, parent.type as never);
+  assert.deepEqual(JSON.parse(JSON.stringify(composer.props.initialPlace)), { id: "park", name: "공원" });
+  assert.equal(composer.props.collectionLabel, "하루마디로 돌아가기");
+  const saved = await (composer.props.onSave as (draft: object) => Promise<object>)({ content: "함께 걸었다", placeId: "park" });
+  (composer.props.onSaved as (entry: object) => void)(saved);
+  (composer.props.onCollection as () => void)();
+  assert.equal(writes.length, 1); assert.equal(writes[0].harumadiId, "book"); assert.equal(writes[0].expectedHarumadiShared, false);
+  assert.equal(actions[0].journeyId, "journey"); assert.equal(actions[0].action, "journal_created");
+  assert.equal(origins.at(-1), "explore");
+  assert.equal(paths.at(-1), "/harumadi?harumadiId=book&focusEntryId=saved");
+  params = new URLSearchParams({ from: "explore" });
+  const standalone = create(), next = standalone.render();
+  (standalone.render(next.props, next.type as never).props.onBack as () => void)();
+  assert.equal(paths.at(-1), "/explore", "중간 로그인 화면으로 history.back하지 않는다");
+});
 test("실제 로그인 핸들러는 이메일·소셜·취소 후 원래 작업으로 돌아간다", async () => {
   const paths: string[] = []; let params = new URLSearchParams(); let linked = false, invite = false;
   const data = new Map<string, string>();

@@ -5,7 +5,7 @@ const KEY = "tuti-login-continuation-v1";
 const TTL = 30 * 60_000;
 const routes: Record<string, string[]> = {
   "/pets": [],
-  "/": [], "/entry": ["mode", "step", "next"], "/explore": ["mode", "step", "harumadiId", "ownerId"], "/settings": [],
+  "/": [], "/entry": ["mode", "step", "next", "returnTo"], "/explore": ["mode", "step", "harumadiId", "ownerId"], "/settings": [],
   "/madi": ["filter", "view"], "/madi/detail": ["entryId"], "/madi/edit": ["entryId", "source", "harumadiId"],
   "/madi/new": ["from", "harumadiId", "savedEntryId", "placeId", "placeName", "journeyId"], "/harumadi": ["harumadiId", "mode", "focusEntryId"],
   "/harumadi/invite": [], "/harumadi/pdfs": [], "/harumadi/pdf/view": ["harumadiPdfId", "from"],
@@ -21,6 +21,13 @@ export function safeLoginReturn(value: string | null | undefined): string | null
   for (const key of routes[url.pathname]) {
     const item = url.searchParams.get(key);
     if (!item) continue;
+    if (key === "returnTo") {
+      // A consent screen may wrap one action, never a chain of entry screens.
+      if (item.startsWith("/entry") || item.includes("returnTo=")) continue;
+      const target = safeLoginReturn(item);
+      if (target) params.set(key, target);
+      continue;
+    }
     const valid = key === "placeName" ? /^[a-zA-Z0-9_-]{1,128}$/.test(url.searchParams.get("placeId") ?? "") && item.length <= 100 && !/[\u0000-\u001f\u007f]/u.test(item)
       : key.endsWith("Id") ? /^[a-zA-Z0-9_-]{1,128}$/.test(item)
       : key === "step" ? /^\d{1,2}$/.test(item)
@@ -39,7 +46,14 @@ export function loginPath(returnTo: string) {
   return path ? `/login?${new URLSearchParams({ returnTo: path })}` : "/login";
 }
 export function loginSuccessPath(path: string) {
-  return path.split("?")[0] === "/entry" ? new URL(path, "https://tuti.invalid").searchParams.get("next") === "explore" ? "/explore" : "/" : path;
+  if (path.split("?")[0] !== "/entry") return path;
+  const params = new URL(path, "https://tuti.invalid").searchParams;
+  return safeLoginReturn(params.get("returnTo")) ?? (params.get("next") === "explore" ? "/explore" : "/");
+}
+
+export function consentEntryPath(path: string) {
+  const target = safeLoginReturn(path);
+  return target && target.split("?")[0] !== "/entry" ? `/entry?${new URLSearchParams({ returnTo: target })}` : "/entry";
 }
 
 export function createLoginContinuation(storage: StateStorage, now = Date.now) {

@@ -12,7 +12,7 @@ test("미동의·약관 조회 실패 화면은 entry로 모으고 보호된 페
   }
   const gate = readFileSync("src/features/legal/InitialServiceTermsGate.tsx", "utf8");
   assert.match(gate, /if \(entryRedirect\) void rememberHarumadiInviteUrl\(window\.location\.href\)/);
-  assert.match(gate, /if \(active\) router.replace\(entryRedirect\)/);
+  assert.match(gate, /if \(active\) router.replace\(consentEntryPath\(/);
   assert.match(gate, /entryRedirect \|\| \(!state && !error\)/);
   assert.match(gate, /reconsent && pathname !== "\/entry"/);
 });
