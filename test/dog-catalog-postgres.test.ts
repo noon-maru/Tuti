@@ -55,6 +55,10 @@ test("격리 DB에서 동반 장소 등록·재실행·동시 실행·연결 충
   await db.query("UPDATE places SET name='운영자 편집',visibility_override='hide' WHERE id='tourapi-1'");
   await registerDogPlace("1", basic("1"), true);
   assert.equal((await orm.dogPlaceCatalog.findUniqueOrThrow({ where: { placeId: "tourapi-1" } })).status, "excluded");
+  await orm.tourismPetSourceRecord.create({ data: { source: "kor", contentId: "3", rawPayload: { contentid: "3", acmpyTypeCd: "일부구역 동반가능", acmpyPsblCpam: "불가" }, sourceUrl: "https://www.data.go.kr/data/15101578/openapi.do", fetchedAt: new Date(Date.now() - 1000) } });
+  assert.equal((await registerDogPlace("3", basic("3"), true)).status, "excluded", "동반 구역이 있어도 명시적인 불가를 무시하지 않는다");
+  await orm.tourismPetSourceRecord.update({ where: { source_contentId: { source: "kor", contentId: "3" } }, data: { rawPayload: { contentid: "3", acmpyTypeCd: "전구역 동반가능", acmpyPsblCpam: "전 견종 동반 가능" } } });
+  assert.equal((await registerDogPlace("3", basic("3"), true)).status, "ready", "자동 원문 제외는 공식 정보 수정 후 재평가하되 운영자 제외와 혼동하지 않는다");
   assert.equal((await db.query("SELECT name FROM places WHERE id='tourapi-1'")).rows[0].name, "운영자 편집");
   await db.query("UPDATE places SET latitude=19,longitude=117 WHERE id='tourapi-1'");
   assert.equal((await registerDogPlace("1", basic("1"), true)).status, "invalid_basic");

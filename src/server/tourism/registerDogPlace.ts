@@ -1,17 +1,11 @@
 import { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/server/db/prisma";
-import { tourApiDogAccess } from "@/shared/pets/tourApiDogAccess";
+import { tourApiDogAccess, officialDogRestriction } from "@/shared/pets/tourApiDogAccess";
+export { officialDogRestriction } from "@/shared/pets/tourApiDogAccess";
 import { normalizeDogPlaceBasic, type DogPlaceBasicRecord } from "./dogPlaceBasic";
 
 export const DOG_CATALOG_VERSION = "dog-outing-v1";
 export type DogCatalogState = { status: "ready" | "review_required" | "excluded"; reason: string };
-export function officialDogRestriction(raw: unknown): string | null {
-  const text = raw && typeof raw === "object" ? (raw as Record<string, unknown>).acmpyPsblCpam : null;
-  if (typeof text !== "string") return null;
-  if (/^(?:동반\s*)?(?:불가|금지)\s*[.!]?$/u.test(text.trim())) return "official_pet_denial";
-  if (/^(?:맹인\s*)?안내견(?:만|\s*전용)?$/u.test(text.trim())) return "official_assistance_dogs_only";
-  return null;
-}
 export function dogCatalogState(place: { name: string; reviewStatus: string; visibilityOverride: string; candidateOverride: string }, official: boolean): DogCatalogState {
   if (place.visibilityOverride === "hide" || place.candidateOverride === "exclude") return { status: "excluded", reason: "operator_exclusion" };
   if (/폐업|영구\s*폐쇄|운영\s*종료/.test(place.name)) return { status: "excluded", reason: "closed" };
@@ -45,7 +39,7 @@ export async function registerDogPlace(contentId: string, basicRecord: DogPlaceB
     if (coordinates.latitude < 32 || coordinates.latitude > 40 || coordinates.longitude < 124 || coordinates.longitude > 133 || !Number.isFinite(coordinates.latitude) || !Number.isFinite(coordinates.longitude)) return { status: "invalid_basic", created: false };
     const state = dogCatalogState(place ?? { name: basic!.name, reviewStatus: "pending", visibilityOverride: "auto", candidateOverride: "auto" }, Boolean(tourApiDogAccess(source.rawPayload, source.fetchedAt)));
     const restriction = officialDogRestriction(source.rawPayload);
-    if (state.reason === "official_listing_missing_or_stale" && restriction) { state.status = "excluded"; state.reason = restriction; }
+    if (["official_listing_missing_or_stale", "official_listing_and_valid_basic_data"].includes(state.reason) && restriction) { state.status = "excluded"; state.reason = restriction; }
     if (!apply) return { ...state, created };
     if (!place) {
       const p = basic!;
@@ -62,7 +56,7 @@ export async function registerDogPlace(contentId: string, basicRecord: DogPlaceB
       await tx.$executeRaw`UPDATE places SET location=ST_SetSRID(ST_MakePoint(${p.longitude},${p.latitude}),4326) WHERE id=${place.id}`;
     }
     const prior = await tx.dogPlaceCatalog.findUnique({ where: { placeId: place.id } });
-    const safeState = prior?.status === "excluded" ? { status: "excluded", reason: prior.reason } : state;
+    const safeState = prior?.status === "excluded" && !["official_pet_denial", "official_assistance_dogs_only"].includes(prior.reason) ? { status: "excluded", reason: prior.reason } : state;
     if (basicRecord && basic) {
       const priorSource = await tx.tourismPlaceSourceRecord.findUnique({ where: { contentId }, select: { linkedPlaceId: true } });
       if (priorSource?.linkedPlaceId && priorSource.linkedPlaceId !== place.id) throw Error("PLACE_LINK_CONFLICT");
