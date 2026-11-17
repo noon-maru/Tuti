@@ -541,6 +541,11 @@ export const useTutiStore = create<TutiState>()(
       name: "tuti-ui",
       storage: createJSONStorage(() => preferencesStorage),
       skipHydration: true,
+      merge: (persistedState, currentState) => {
+        const restored = persistedState && typeof persistedState === "object" && !Array.isArray(persistedState)
+          ? persistedState as Partial<TutiState> : {};
+        return { ...currentState, ...restored, answers: withDefaultIntakeAnswers(restored.answers ?? currentState.answers) };
+      },
       partialize: (state) => ({
         recommendationDogOuting: state.recommendationDogOuting,
         answers: state.answers,

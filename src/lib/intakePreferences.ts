@@ -1,11 +1,25 @@
 import { getKoreanDateKey, getKoreanDateKeyAfterDays, getKoreanDateKeyFromIso } from "@/lib/date/koreanDate";
 import { toActiveIntakeAnswers, type IntakeAnswers } from "@/shared/tuti/types";
 import { outingMovement } from "@/shared/tuti/movementTimeBudget";
+import { parseOutingCategories } from "@/shared/pets/outingCategories";
 
 export const INTAKE_REASK_INTERVAL_DAYS = 7;
 
 export function withDefaultIntakeAnswers(answers: IntakeAnswers = {}): IntakeAnswers {
-  const active = toActiveIntakeAnswers(answers);
+  // Persisted JSON is not guaranteed to match today's TypeScript union.
+  const stored = answers && typeof answers === "object" && !Array.isArray(answers) ? answers : {};
+  const optional = <T extends string>(value: unknown, allowed: readonly T[]): T | undefined =>
+    allowed.includes(value as T) ? value as T : undefined;
+  const active = toActiveIntakeAnswers({
+    petCompanion: optional(stored.petCompanion, ["dog", "none"]),
+    movement: optional(stored.movement, ["near", "short", "half", "far"]),
+    transport: optional(stored.transport, ["car", "transit"]),
+    companion: optional(stored.companion, ["solo", "friend", "partner", "family"]),
+    budget: optional(stored.budget, ["free", "under_20000"]),
+    longDistanceTiming: optional(stored.longDistanceTiming, ["tomorrow_day_trip", "overnight_trip"]),
+    ...(stored.petCompanion === "dog" && stored.placeCategories !== undefined
+      ? { placeCategories: parseOutingCategories(stored.placeCategories) ?? [] } : {}),
+  });
   return { ...active, petCompanion: active.petCompanion ?? "none", movement: outingMovement(active), transport: active.transport ?? "transit" };
 }
 

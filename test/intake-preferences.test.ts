@@ -6,12 +6,46 @@ import { getIntakeSteps } from "@/features/tuti/data/intakeSteps";
 import { createJSONStorage } from "zustand/middleware";
 import { useTutiStore } from "@/store/tuti";
 import { getKoreanDateKeyAfterDays } from "@/lib/date/koreanDate";
+import type { IntakeAnswers } from "@/shared/tuti/types";
 
 test("신규·빈 답변은 한 시간 안에·차 없이를 기본 선택한다", () => {
   for (const answers of [undefined, {}, { movement: undefined, transport: undefined }]) {
     const result = withDefaultIntakeAnswers(answers);
     assert.equal(result.movement, "near");
     assert.equal(result.transport, "transit");
+  }
+});
+
+test("이전 저장소의 알 수 없는 조건·잘못된 카테고리는 기본값으로 복구해 400 반복을 막는다", () => {
+  for (const value of [null, [], "old", { movement: "old-movement", transport: "bus", petCompanion: "cat", budget: "unknown" }]) {
+    const result = withDefaultIntakeAnswers(value as IntakeAnswers);
+    assert.equal(result.petCompanion, "none");
+    assert.equal(result.movement, "near");
+    assert.equal(result.transport, "transit");
+    assert.equal(result.budget, undefined);
+  }
+  const dog = withDefaultIntakeAnswers({ petCompanion: "dog", movement: "near", placeCategories: ["unknown"], longDistanceTiming: "overnight_trip" } as unknown as IntakeAnswers);
+  assert.equal(dog.movement, "short");
+  assert.deepEqual(dog.placeCategories, []);
+  assert.equal(dog.longDistanceTiming, undefined);
+});
+
+test("실제 persist 복원에서 잘못된 질문 값을 정리하고 정상 추천·마디 맥락은 보존한다", async t => {
+  const previous = useTutiStore.getState(), options = useTutiStore.persist.getOptions();
+  t.after(() => { useTutiStore.setState(previous, true); useTutiStore.persist.setOptions(options); });
+  const snapshot = { recommendationId: "keep-list" };
+  for (const answers of [null, { petCompanion: "dog", movement: "near", transport: "invalid", placeCategories: ["unknown"] }]) {
+    useTutiStore.persist.setOptions({ storage: createJSONStorage(() => ({
+      getItem: () => JSON.stringify({ state: { answers, dailyRecommendation: snapshot, activePlaceId: "kept-card", pendingDeparture: { placeId: "pending" } }, version: 0 }),
+      setItem() {}, removeItem() {},
+    })) });
+    await useTutiStore.persist.rehydrate();
+    const state = useTutiStore.getState();
+    assert.equal(state.answers.transport, "transit");
+    assert.equal(state.answers.movement, answers ? "short" : "near");
+    assert.equal(state.dailyRecommendation?.recommendationId, "keep-list");
+    assert.equal(state.activePlaceId, "kept-card");
+    assert.equal(state.pendingDeparture?.placeId, "pending");
   }
 });
 

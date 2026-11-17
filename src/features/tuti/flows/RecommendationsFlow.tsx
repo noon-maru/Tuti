@@ -14,6 +14,7 @@ import { useSession } from "@/features/tuti/hooks/useSession";
 import { useTutiJournalEntries } from "@/features/tuti/hooks/useTutiJournalEntries";
 import { useLocationAccess } from "@/features/tuti/location/LocationAccessProvider";
 import { getRecommendationErrorKind } from "@/lib/api/recommendationError";
+import { isValidRecommendationSnapshot } from "@/features/tuti/recommendationSnapshot";
 import { getPlaceDisplayPhrase } from "@/features/tuti/lib/placeDisplayCopy";
 import { findSimilarVisitedPlaces } from "@/features/tuti/lib/similarVisitedPlaces";
 import {
@@ -74,7 +75,7 @@ export function RecommendationsFlow({ interactive, dogOuting, onDogOutingChange 
   );
   const locationConsent = useTutiStore((state) => state.locationConsent);
   const savedRecommendation = useTutiStore(state => state.dailyRecommendation);
-  const hasSavedRecommendation = savedRecommendation?.snapshotVersion === 1 && savedRecommendation.ownerId === session?.userId;
+  const hasSavedRecommendation = isValidRecommendationSnapshot(savedRecommendation) && savedRecommendation.ownerId === session?.userId;
   const entryRecord = useTutiStore((state) => state.entryRecord);
   const dailyCheckInRequested = useTutiStore(
     (state) => state.dailyCheckInRequested,

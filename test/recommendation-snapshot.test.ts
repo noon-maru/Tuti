@@ -4,7 +4,7 @@ import { createJSONStorage } from "zustand/middleware";
 import { QueryClient, QueryObserver, type QueryObserverOptions } from "@tanstack/react-query";
 import { clientFlowHarness } from "./fixtures/clientFlowHarness";
 import { useTutiStore } from "@/store/tuti";
-import { recommendationConditionsKey, recommendationRegionKey, reusableRecommendation, hasMovedRecommendationOrigin } from "@/features/tuti/recommendationSnapshot";
+import { recommendationConditionsKey, recommendationRegionKey, reusableRecommendation, hasMovedRecommendationOrigin, isValidRecommendationSnapshot } from "@/features/tuti/recommendationSnapshot";
 import * as snapshotPolicy from "@/features/tuti/recommendationSnapshot";
 import { withDefaultIntakeAnswers } from "@/lib/intakePreferences";
 import { hasRecommendationArea } from "@/shared/location/recommendationArea";
@@ -13,6 +13,8 @@ import { interpretState } from "@/lib/recommendations";
 import { readFileSync } from "node:fs";
 import ts from "typescript";
 import { shouldRetryRecommendation } from "@/lib/api/recommendationError";
+import type { DailyRecommendationSnapshot } from "@/store/tuti";
+import type { DogOuting } from "@/shared/pets/dogAccess";
 
 const anchor = { latitude: 37.5665, longitude: 126.978, accuracy: 15 };
 const nearby = { ...anchor, latitude: 37.569 };
@@ -22,6 +24,31 @@ const conditions = withDefaultIntakeAnswers();
 const inputFingerprint = recommendationConditionsKey(conditions);
 const snapshot = { snapshotVersion: 1 as const, ownerId: "owner", cycle: 0, effectiveDate: "2000-01-01", recommendationId: "original", algorithmVersion: "old", inputFingerprint,
   locationAnchor: anchor, regionKey: recommendationRegionKey(region), places: [] };
+
+test("구버전·손상된 목록은 안전하게 무시하되 정상 목록은 날짜나 알고리즘 변경만으로 버리지 않는다", () => {
+  const input = { ownerId: "owner", cycle: 0, conditionsKey: inputFingerprint, location: anchor, region };
+  assert.equal(isValidRecommendationSnapshot(snapshot), true);
+  const place = { id: "p", name: "공원", image: "", phrase: "", note: "", travelTime: "", crowd: "", today: "", fatigue: 0, movementLevel: "near", moodTags: [] };
+  assert.equal(isValidRecommendationSnapshot({ ...snapshot, places: [place] }), true);
+  for (const broken of [
+    { ...snapshot, snapshotVersion: undefined }, { ...snapshot, cycle: -1 },
+    { ...snapshot, places: null }, { ...snapshot, places: "old-format" },
+    { ...snapshot, places: [null] }, { ...snapshot, places: [{ ...place, moodTags: null }] },
+    { ...snapshot, places: [place, place] },
+    { ...snapshot, locationAnchor: { latitude: "37", longitude: 127 } },
+    { ...snapshot, locationAnchor: { ...anchor, accuracy: -1 } },
+  ]) {
+    assert.equal(isValidRecommendationSnapshot(broken), false);
+    assert.equal(reusableRecommendation(broken as DailyRecommendationSnapshot, input), undefined);
+  }
+});
+
+test("손상된 이전 반려견 조건은 캐시 키 생성과 복원 화면을 깨뜨리지 않는다", () => {
+  const answers = { petCompanion: "dog" as const, movement: "short" as const };
+  for (const value of [null, { weightsKg: null }, { weightsKg: "8", leash: true, carrier: false }, { weightsKg: [8], leash: "yes", carrier: false }]) {
+    assert.equal(recommendationConditionsKey(answers, value as unknown as DogOuting), recommendationConditionsKey(answers));
+  }
+});
 
 function reset() {
   useTutiStore.persist.setOptions({ storage: createJSONStorage(() => ({ getItem: () => null, setItem() {}, removeItem() {} })) });
@@ -128,6 +155,17 @@ test("실제 훅과 QueryObserver: 작성 왕복·새 QueryClient 복원은 요�
     assert.equal(switched.observer.getCurrentResult().data, undefined, "다른 계정의 저장 목록을 노출하지 않는다");
     await switched.observer.refetch();
     switched.stop();
+
+    reset();
+    useTutiStore.setState({ dailyRecommendation: { ...snapshot, ownerId: owner, places: null } as unknown as DailyRecommendationSnapshot });
+    const damaged = mount(client());
+    assert.equal(damaged.observer.getCurrentResult().data, undefined, "손상된 목록을 initialData로 넘기지 않는다");
+    const beforeDamagedRequest = requests;
+    await damaged.observer.refetch();
+    assert.ok(requests >= beforeDamagedRequest);
+    assert.notEqual(useTutiStore.getState().dailyRecommendation?.recommendationId, "original");
+    assert.equal(isValidRecommendationSnapshot(useTutiStore.getState().dailyRecommendation), true);
+    damaged.stop();
 
     reset();
     useTutiStore.getState().setPreferredRegion(region);

@@ -11,6 +11,7 @@ import { PrimaryButton } from "@/features/tuti/components/buttons";
 import { useTutiStore } from "@/store/tuti";
 import { useLocationAccess } from "./LocationAccessProvider";
 import { isRecommendationLocationReady, needsRecommendationRegionChoice, prepareRecommendationLocation } from "./prepareRecommendationLocation";
+import { isValidRecommendationSnapshot } from "@/features/tuti/recommendationSnapshot";
 
 /** 홈·로그인은 위치 없이 이용하고, 작은 여행을 열 때만 추천 지역을 준비한다. */
 export function ExploreLocationGate({ children }: { children: ReactNode }) {
@@ -18,7 +19,7 @@ export function ExploreLocationGate({ children }: { children: ReactNode }) {
   const ownerId = useSession()?.userId;
   const cached = useTutiStore(state => state.dailyRecommendation);
   const consent = useTutiStore(state => state.locationConsent);
-  const canShowCache = cached?.snapshotVersion === 1 && cached.ownerId === ownerId &&
+  const canShowCache = isValidRecommendationSnapshot(cached) && cached.ownerId === ownerId &&
     (!cached.locationAnchor || (consent?.status === "accepted" && consent.termsVersion === getLocationTermsVersion()));
   const prepared = useTutiStore(isRecommendationLocationReady);
   const hasHydrated = useTutiStore(state => state.hasHydrated);

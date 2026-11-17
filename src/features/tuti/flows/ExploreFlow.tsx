@@ -8,7 +8,7 @@ import { RecommendationsFlow } from "./RecommendationsFlow";
 import { MainNavigation } from "@/features/tuti/components/MainNavigation";
 import { useTutiStore } from "@/store/tuti";
 import { useEffect } from "react";
-import type { DogOuting } from "@/shared/pets/dogAccess";
+import { parseDogOuting, type DogOuting } from "@/shared/pets/dogAccess";
 import { useSession } from "@/features/tuti/hooks/useSession";
 import { markLibraryEntryCompleted } from "@/lib/libraryPreferences";
 import { ExploreLocationGate } from "@/features/tuti/location/ExploreLocationGate";
@@ -19,7 +19,7 @@ export function ExploreFlow() {
   const ownerId = useSession()?.userId;
   const dogOuting = useTutiStore(state => state.recommendationDogOuting);
   const setDogOuting = useTutiStore(state => state.setRecommendationDogOuting);
-  const currentDogOuting = dogOuting?.ownerId === ownerId ? dogOuting?.value : undefined;
+  const currentDogOuting = dogOuting && dogOuting.ownerId === ownerId ? parseDogOuting(dogOuting.value) ?? undefined : undefined;
   useEffect(() => {
     if (ownerId) void markLibraryEntryCompleted(ownerId);
   }, [ownerId]);
