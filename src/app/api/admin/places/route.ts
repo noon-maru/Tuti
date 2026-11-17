@@ -51,7 +51,7 @@ export async function GET(request: Request) {
     AND: [
       getCandidateWhere(candidate),
       {
-        ...(reviewStatus ? { reviewStatus } : {}),
+        ...(reviewStatus ? { reviewStatus, isActive: reviewStatus === "approved", visibilityOverride: reviewStatus === "approved" ? ("show" as const) : ("hide" as const) } : {}),
         ...(source ? { source } : {}),
         ...(contentType ? { sourceContentType: contentType } : {}),
         ...(sido ? { sourceSidoName: sido } : {}),

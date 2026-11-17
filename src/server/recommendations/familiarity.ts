@@ -1,6 +1,6 @@
 import { prisma } from "@/server/db/prisma";
 import { PLACE_FAMILIARITY_RETENTION_DAYS } from "@/shared/api/placeFamiliarity";
-import { recommendablePlaceWhere } from "./recommendablePlaceWhere";
+import { readablePlaceWhere as recommendablePlaceWhere } from "./dogPlaceWhere";
 import type { Prisma } from "@/generated/prisma/client";
 
 export async function readPlaceFamiliarity(userId: string, placeId: string, now = new Date(), database = prisma) {

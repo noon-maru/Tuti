@@ -10,6 +10,7 @@ export type StateFeature = {
 };
 
 export type TutiPlace = {
+  dogRecommendationScore?: import("@/server/recommendations/dogRanking").DogScore;
   dogAccess?: import("@/shared/pets/dogAccess").DogAccessInfo;
   id: string;
   name: string;

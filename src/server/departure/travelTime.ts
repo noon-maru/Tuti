@@ -3,7 +3,7 @@ import { fetchCachedRoute } from "@/server/departure/cachedRoute";
 import { isWalkingDistance } from "@/server/departure/routeSelection";
 import { toTravelTimeSummary } from "@/server/departure/travelTimeSummary";
 import { getTravelTimeRoutePriority } from "@/server/departure/travelTimeRoutePriority";
-import { recommendablePlaceWhere } from "@/server/recommendations/recommendablePlaceWhere";
+import { readablePlaceWhere as recommendablePlaceWhere } from "@/server/recommendations/dogPlaceWhere";
 import type { DepartureRoute } from "@/shared/api/departurePlan";
 import type { TravelTimeSummary } from "@/shared/api/travelTime";
 import type {

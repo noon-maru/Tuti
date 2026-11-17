@@ -1,7 +1,7 @@
 import { cache } from "react";
 import type { TutiPlace } from "@/lib/recommendations";
 import { prisma } from "@/server/db/prisma";
-import { recommendablePlaceWhere } from "@/server/recommendations/recommendablePlaceWhere";
+import { readablePlaceWhere as recommendablePlaceWhere } from "@/server/recommendations/dogPlaceWhere";
 import {
   toPublicPlaceName,
   toPublicSidoName,

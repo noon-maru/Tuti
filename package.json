@@ -48,6 +48,8 @@
     "tourism:pets:probe": "tsx scripts/probe-pet-tourism.ts",
     "tourism:pets:collect": "tsx scripts/collect-pet-tourism.ts",
     "tourism:pets:import": "tsx scripts/import-pet-tourism.ts",
+    "tourism:dogs:basics": "tsx scripts/collect-dog-place-basics.ts",
+    "tourism:dogs:register": "tsx scripts/register-dog-place-catalog.ts",
     "tourism:crowd:refresh": "pnpm db:generate && tsx scripts/refresh-tourist-spot-concentration.ts",
     "tourism:timeseries:refresh": "pnpm db:generate && tsx scripts/refresh-tourism-timeseries.ts",
     "tourism:crowd:estimate": "pnpm db:generate && tsx scripts/refresh-crowd-estimates.ts",

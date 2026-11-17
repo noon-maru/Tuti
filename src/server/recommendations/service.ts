@@ -2,6 +2,7 @@ import type { PlaceVisitTimeProfile, TutiPlace } from "@/lib/recommendations";
 import { prisma } from "@/server/db/prisma";
 import { dogOutingPlaces } from "@/server/pets/dogAccess";
 import type { DogOuting } from "@/shared/pets/dogAccess";
+import { createDogRecommendations } from "./dogEngine";
 import { interpretState } from "@/lib/recommendations";
 import {
   personalizeRecommendationRanking,
@@ -133,17 +134,8 @@ export async function createRecommendations(
   preferencePlaceIds: string[] = [],
   evaluationTime: Date = new Date(),
 ): Promise<TutiPlace[]> {
-  const evaluation = await evaluateRecommendations(
-    answers,
-    location,
-    preferredRegion,
-    excludePlaceIds,
-    userId,
-    preferencePlaceIds,
-    evaluationTime,
-  );
-
-  return evaluation.recommendedPlaces;
+  const result = await createDogRecommendations({ answers, location, preferredRegion, excludePlaceIds, userId, preferencePlaceIds, now: evaluationTime });
+  return result.places;
 }
 
 export type RecommendationSimulationCandidate = {
@@ -448,21 +440,8 @@ export async function createRecommendationsWithAudit(
   userId?: string,
   preferencePlaceIds: string[] = [],
   dogOuting?: DogOuting,
-): Promise<{ places: TutiPlace[]; personalization: PersonalizationAudit }> {
-  const evaluation = await evaluateRecommendations(
-    answers,
-    location,
-    preferredRegion,
-    excludePlaceIds,
-    userId,
-    preferencePlaceIds,
-    new Date(),
-    dogOuting,
-  );
-  return {
-    places: evaluation.recommendedPlaces,
-    personalization: evaluation.personalization,
-  };
+): Promise<{ places: TutiPlace[]; personalization: PersonalizationAudit; audit: import("./dogEngine").DogRecommendationAudit }> {
+  return createDogRecommendations({ answers, location, preferredRegion, excludePlaceIds, userId, preferencePlaceIds, dogOuting });
 }
 
 async function findPlacesByBaseFatigue(

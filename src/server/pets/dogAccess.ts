@@ -1,7 +1,7 @@
 import { prisma } from "@/server/db/prisma";
-import { dogAccessStatus, type DogAccessInfo, type DogOuting } from "@/shared/pets/dogAccess";
+import { dogAccessStatus, parseDogAccess, type DogAccessInfo, type DogOuting } from "@/shared/pets/dogAccess";
 import { tourApiDogAccess, tourApiDogAccessStatus } from "@/shared/pets/tourApiDogAccess";
-export async function dogOutingPlaces<T extends { id: string }>(places: T[], outing: DogOuting): Promise<(T & { dogAccess: DogAccessInfo })[]> {
+export async function dogOutingPlaces<T extends { id: string }>(places: T[], outing?: DogOuting): Promise<(T & { dogAccess: DogAccessInfo })[]> {
   if (!places.length) return [];
   const ids = places.map(place => place.id);
   const [rows, sources] = await Promise.all([
@@ -14,7 +14,10 @@ export async function dogOutingPlaces<T extends { id: string }>(places: T[], out
   return places.flatMap((place): (T & { dogAccess: DogAccessInfo })[] => {
     const access = reviewed.get(place.id);
     // Negative, expired or mismatching reviewed restrictions cannot be bypassed by an API listing.
-    if (access) return dogAccessStatus(access, outing, now) === "eligible" ? [{ ...place, dogAccess: access }] : [];
+    if (access) {
+      if (!outing) return parseDogAccess(access) && access.allowed && Date.parse(access.checkedAt) <= now && Date.parse(access.validUntil) > now ? [{ ...place, dogAccess: { ...access, requiresOutingConfirmation: true } }] : [];
+      return dogAccessStatus(access, outing, now) === "eligible" ? [{ ...place, dogAccess: access }] : [];
+    }
     const record = official.get(place.id);
     const listed = record ? tourApiDogAccess(record.rawPayload, record.fetchedAt, now) : null;
     return listed && tourApiDogAccessStatus(listed, outing, now) === "needs-confirmation" ? [{ ...place, dogAccess: listed }] : [];

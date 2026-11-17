@@ -5,7 +5,7 @@ import type {
   UserLocation,
 } from "@/shared/tuti/types";
 
-export const RECOMMENDATION_ALGORITHM_VERSION = "experience-intent-v26";
+export const RECOMMENDATION_ALGORITHM_VERSION = "dog-outing-v1";
 
 export type RecommendationErrorCode =
   | "long_distance_unavailable"
@@ -35,6 +35,7 @@ export type RecommendationRequest = {
 };
 
 export type RecommendationResponse = {
+  audit?: import("@/server/recommendations/dogEngine").DogRecommendationAudit;
   recommendationId: string;
   algorithmVersion: string;
   places: TutiPlace[];

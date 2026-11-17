@@ -77,12 +77,13 @@ export async function POST(request: Request) {
           operation: createRecommendations,
         })
       : await createRecommendations();
-    const { personalization, places } = result;
+    const { personalization, places, audit } = result;
     const recommendationCompletedAt = performance.now();
     const response: RecommendationResponse = {
       recommendationId,
       algorithmVersion: RECOMMENDATION_ALGORITHM_VERSION,
       places,
+      ...(audit ? { audit } : {}),
     };
 
     const snapshotScheduleStartedAt = performance.now();
@@ -97,6 +98,7 @@ export async function POST(request: Request) {
           locationConsentId: locationConsent?.id,
           stateTextUsed: false,
           personalization,
+          audit,
         });
       });
     }

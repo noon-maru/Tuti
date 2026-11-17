@@ -8,7 +8,7 @@ import {
   isWalkingDistance,
 } from "@/server/departure/routeSelection";
 import { createDepartureSuggestedPlan } from "@/server/departure/departureSuggestedPlan";
-import { recommendablePlaceWhere } from "@/server/recommendations/recommendablePlaceWhere";
+import { readablePlaceWhere as recommendablePlaceWhere } from "@/server/recommendations/dogPlaceWhere";
 import { ensureTourismPlaceDetail } from "@/server/tourism/enrichTourismPlaceDetail";
 import type {
   DeparturePlan,

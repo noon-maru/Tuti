@@ -6,7 +6,7 @@ import {
 } from "@/server/http/cors";
 import { ensureTourismPlaceDetail } from "@/server/tourism/enrichTourismPlaceDetail";
 import type { PlaceDetailResponse } from "@/shared/api/placeDetails";
-import { recommendablePlaceWhere } from "@/server/recommendations/recommendablePlaceWhere";
+import { readablePlaceWhere as recommendablePlaceWhere } from "@/server/recommendations/dogPlaceWhere";
 import { createDepartureSuggestedPlan } from "@/server/departure/departureSuggestedPlan";
 import {
   toPublicPlaceAddress,

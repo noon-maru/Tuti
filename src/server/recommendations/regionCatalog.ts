@@ -1,5 +1,5 @@
 import { prisma } from "@/server/db/prisma";
-import { recommendablePlaceWhere } from "@/server/recommendations/recommendablePlaceWhere";
+import { dogCatalogPlaceWhere as recommendablePlaceWhere } from "@/server/recommendations/dogPlaceWhere";
 import type {
   RecommendationRegionOption,
   RecommendationRegionsResponse,

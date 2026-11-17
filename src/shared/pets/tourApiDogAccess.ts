@@ -53,8 +53,9 @@ export function tourApiDogAccess(raw: unknown, fetchedAt: Date, now = Date.now()
   };
 }
 
-export function tourApiDogAccessStatus(access: TourApiDogAccess, outing: DogOuting, now = Date.now()): "needs-confirmation" | "blocked" | "unavailable" {
+export function tourApiDogAccessStatus(access: TourApiDogAccess, outing?: DogOuting, now = Date.now()): "needs-confirmation" | "blocked" | "unavailable" {
   if (access.source !== "kor" || access.sourceUrl !== KOR_PET_SOURCE_URL || !Number.isFinite(Date.parse(access.collectedAt)) || Date.parse(access.collectedAt) > now || !Number.isFinite(Date.parse(access.freshUntil)) || Date.parse(access.freshUntil) <= now) return "unavailable";
+  if (!outing) return "needs-confirmation";
   if (access.maxWeightKg !== null && outing.weightsKg.some(weight => access.weightLimitExclusive ? weight >= access.maxWeightKg! : weight > access.maxWeightKg!)) return "blocked";
   if (access.leashRequired === true && !outing.leash || access.carrierRequired === true && !outing.carrier) return "blocked";
   return "needs-confirmation";

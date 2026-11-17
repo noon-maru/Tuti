@@ -8,6 +8,7 @@ import type { RecommendationRequest } from "@/shared/api/recommendations";
 import type { PersonalizationAudit } from "@/server/personalization/ranking";
 
 type RecordRecommendationRunInput = {
+  audit?: import("./dogEngine").DogRecommendationAudit;
   id: string;
   userId: string;
   request: RecommendationRequest;
@@ -27,6 +28,7 @@ export async function recordRecommendationRunSafely({
   locationConsentId,
   stateTextUsed,
   personalization,
+  audit,
 }: RecordRecommendationRunInput) {
   try {
     const answers = request.answers ?? {};
@@ -47,7 +49,7 @@ export async function recordRecommendationRunSafely({
           userId,
           algorithmVersion: RECOMMENDATION_ALGORITHM_VERSION,
           answers: toJson(answers),
-          state: toJson(interpretState(answers)),
+          state: toJson(audit ? { algorithmVersion: audit.algorithmVersion, audit } : interpretState(answers)),
           entryStatus: request.entryStatus,
           locationUsed,
           stateTextUsed,
@@ -63,6 +65,8 @@ export async function recordRecommendationRunSafely({
               rankingScore: place.rankingScore ?? null,
               distanceBand: toDistanceBand(place.distanceMeters),
               crowdForecast: place.crowdForecast ?? null,
+              dogRecommendationScore: place.dogRecommendationScore ?? null,
+              dogConditionStatus: place.dogAccess?.kind === "tourapi" || place.dogAccess?.requiresOutingConfirmation ? "needs_confirmation" : place.dogAccess ? "reviewed_conditions" : null,
             })),
           ),
           personalization: personalization ? toJson(personalization) : undefined,

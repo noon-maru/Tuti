@@ -9,6 +9,18 @@ const forecastCache = new Map<string, CachedForecast>();
 const forecastRequests = new Map<string, Promise<KmaForecastSeries | null>>();
 let providerUnavailableUntil = 0;
 
+/** Cached-only enrichment for the first recommendation: no API request or network wait. */
+export function enrichPlacesWithCachedWeather(places: TutiPlace[], now = new Date()) {
+  const issue = getLatestForecastIssue(now);
+  return places.map(place => {
+    if (!Number.isFinite(place.latitude) || !Number.isFinite(place.longitude)) return place;
+    const grid = toKmaGrid(place.latitude!, place.longitude!);
+    const cached = forecastCache.get(`${grid.nx},${grid.ny}:${issue.baseDate}:${issue.baseTime}`);
+    const weatherForecast = cached && cached.expiresAt > Date.now() ? selectForecast(cached.value, getForecastTarget(place, now)) : null;
+    return weatherForecast ? { ...place, weatherForecast } : place;
+  });
+}
+
 type CachedForecast = {
   expiresAt: number;
   value: KmaForecastSeries;
