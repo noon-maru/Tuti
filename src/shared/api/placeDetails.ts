@@ -38,6 +38,8 @@ export type PlaceDetailSummary = {
   region: string | null;
   latitude: number;
   longitude: number;
+  /** 원문에서 검토해 별도 저장한 행동 문구. 일반적인 출발 단계 fallback과 구분한다. */
+  suggestedAction?: string | null;
 };
 
 export type PlaceSuggestedStep = {

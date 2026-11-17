@@ -21,6 +21,7 @@ export function PlaceDetailBody({ place, response, pending, failed, onRetry, onC
 }) {
   const detail = response?.detail ?? null;
   const rawOverview = detail?.overview?.trim();
+  const activity = detail?.experienceGuide?.trim() || response?.place.suggestedAction?.trim();
   const summary = createOverviewPreview(detail?.overviewSummary ?? null, rawOverview ?? null, /노출 전 상세 내용을 확인|TourAPI에서 가져온 장소/.test(place.note) ? "자세한 장소 소개는 아직 준비되지 않았어요." : place.note);
   const facts = createVisitInformationFacts(detail);
   const direction = createDestinationGuidanceUrl({ name: place.name, latitude: response?.place.latitude ?? place.latitude, longitude: response?.place.longitude ?? place.longitude });
@@ -31,9 +32,9 @@ export function PlaceDetailBody({ place, response, pending, failed, onRetry, onC
     {failed && <RequestStatus role="alert"><p>방문 정보를 불러오지 못했어요.</p><Retry type="button" onClick={onRetry}>다시 불러오기</Retry></RequestStatus>}
     {place.dogAccess && <Block><DogAccessNotice access={place.dogAccess} /></Block>}
 
-    {detail?.experienceGuide?.trim() && <Activity>
+    {activity && <Activity>
       <h2>{place.dogAccess ? "함께 보낼 시간" : "여기서 보낼 시간"}</h2>
-      <p>{detail.experienceGuide}</p>
+      <p>{activity}</p>
     </Activity>}
 
     <Block aria-labelledby={`visit-${place.id}`}>

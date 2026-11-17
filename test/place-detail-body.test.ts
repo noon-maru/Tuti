@@ -37,6 +37,18 @@ test("저장된 활동이 없으면 제안으로 채우지 않고 긴 운영 정
   const source = readFileSync("src/features/tuti/screens/detail/PlaceDetailBody.tsx", "utf8");
   assert.doesNotMatch(source, /line-clamp|overflow-y|dangerouslySetInnerHTML/);
 });
+
+test("체험 원문이 비어도 저장된 행동 문구는 표시하고 일반 출발 단계 문구로 대신 채우지 않는다", () => {
+  const saved = { ...response, place: { ...response.place, suggestedAction: "연못 가장자리를 따라 천천히 걷기" }, detail: { ...detail, experienceGuide: null } };
+  const html = render({ response: saved });
+  assert.match(html, /여기서 보낼 시간/);
+  assert.match(html, /연못 가장자리를 따라 천천히 걷기/);
+  const withoutSaved = render({ response: { ...saved, place: { ...response.place, suggestedAction: null }, suggestedPlan: [{ kind: "arrival", title: "도착", description: "일반 출발 단계 문구" }] } });
+  assert.doesNotMatch(withoutSaved, /여기서 보낼 시간|일반 출발 단계 문구/);
+  const original = render({ response: { ...saved, detail } });
+  assert.ok(original.includes(detail.experienceGuide!));
+  assert.doesNotMatch(original, /연못 가장자리를 따라 천천히 걷기/);
+});
 test("실패·미기재·오래된 정보와 유효하지 않은 좌표를 사실대로 표시한다", () => {
   const html = render({ response: undefined, failed: true, place: { ...place, latitude: NaN, longitude: undefined } });
   assert.match(html, /방문 정보를 불러오지 못했어요/); assert.match(html, /다시 불러오기/);

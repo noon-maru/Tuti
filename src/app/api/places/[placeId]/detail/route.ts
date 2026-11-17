@@ -73,6 +73,7 @@ export async function GET(
         ),
         latitude: Number(place.latitude),
         longitude: Number(place.longitude),
+        suggestedAction: place.suggestedAction,
       },
       detail,
       suggestedPlan: createDepartureSuggestedPlan({
