@@ -34,7 +34,7 @@ test("격리 PostgreSQL에서 프로필·마디 연결 원자성·삭제·병합
   started = true;
   await db.connect();
   await db.query("CREATE TABLE users(id text PRIMARY KEY); CREATE TABLE journal_entries(id text PRIMARY KEY,owner_id text REFERENCES users(id) ON DELETE CASCADE); CREATE TABLE places(id text PRIMARY KEY); INSERT INTO users VALUES('owner'),('other'),('target'); INSERT INTO journal_entries VALUES('original','owner'); INSERT INTO places VALUES('place');");
-  for (const path of ["20261116010000_optional_pet_profiles", "20261116020000_dog_place_access", "20261116030000_tourism_pet_sources"]) await db.query(readFileSync(`prisma/migrations/${path}/migration.sql`, "utf8"));
+  for (const path of ["20261116010000_optional_pet_profiles", "20261116020000_dog_place_access", "20261116030000_tourism_pet_sources", "20261117010000_dog_place_catalog"]) await db.query(readFileSync(`prisma/migrations/${path}/migration.sql`, "utf8"));
   await db.query("ALTER TABLE places ADD COLUMN source text, ADD COLUMN source_id text; UPDATE places SET source='tourapi',source_id='1' WHERE id='place'");
   globalDb.prisma = orm; process.env.PRIVACY_REPLAY_LEDGER_ENABLED = "false";
   const { createPet, updatePet, deletePet, linkMadiPets } = await import("../src/server/pets/service");

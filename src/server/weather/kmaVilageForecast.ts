@@ -10,13 +10,15 @@ const forecastRequests = new Map<string, Promise<KmaForecastSeries | null>>();
 let providerUnavailableUntil = 0;
 
 /** Cached-only enrichment for the first recommendation: no API request or network wait. */
-export function enrichPlacesWithCachedWeather(places: TutiPlace[], now = new Date()) {
+export function enrichPlacesWithCachedWeather(places: TutiPlace[], now = new Date(), targetAt?: Date) {
   const issue = getLatestForecastIssue(now);
   return places.map(place => {
     if (!Number.isFinite(place.latitude) || !Number.isFinite(place.longitude)) return place;
     const grid = toKmaGrid(place.latitude!, place.longitude!);
     const cached = forecastCache.get(`${grid.nx},${grid.ny}:${issue.baseDate}:${issue.baseTime}`);
-    const weatherForecast = cached && cached.expiresAt > Date.now() ? selectForecast(cached.value, getForecastTarget(place, now)) : null;
+    const target = targetAt ?? getForecastTarget(place, now);
+    const weatherForecast = cached && cached.expiresAt > Date.now() ? selectForecast(cached.value, target) : null;
+    if (weatherForecast && Date.parse(weatherForecast.forecastAt) < target.getTime()) return place;
     return weatherForecast ? { ...place, weatherForecast } : place;
   });
 }
@@ -57,6 +59,7 @@ type KmaForecastSeries = {
 export async function enrichPlacesWithWeatherForecast(
   places: TutiPlace[],
   now = new Date(),
+  targetAt?: Date,
 ) {
   if (!getServiceKey() || providerUnavailableUntil > Date.now()) return places;
 
@@ -68,8 +71,8 @@ export async function enrichPlacesWithWeatherForecast(
       return [];
     }
     const grid = toKmaGrid(place.latitude!, place.longitude!);
-    const targetAt = getForecastTarget(place, now);
-    return [{ place, grid, targetAt }];
+    const target = targetAt ?? getForecastTarget(place, now);
+    return [{ place, grid, targetAt: target }];
   });
   const gridKeys = new Map(
     contexts.map((context) => [

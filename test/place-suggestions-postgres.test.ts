@@ -47,6 +47,7 @@ test("장소 제안은 실제 DB에서 본인 기록만 검색하고 민감·철
     ('h','owner','   ',null,'2026-11-06',false,null),
     ('i','owner','양평 예전 장소','inactive','2026-11-02',null,null),
     ('j','owner','양평 100% 공원',null,'2026-11-02',false,null)`);
+  await client.query("CREATE TYPE \"PlaceVisibilityOverride\" AS ENUM ('auto','show','hide'); CREATE TYPE \"PlaceCandidateOverride\" AS ENUM ('auto','include','exclude'); ALTER TABLE places ADD COLUMN source text DEFAULT 'tourapi', ADD COLUMN visibility_override \"PlaceVisibilityOverride\" DEFAULT 'auto', ADD COLUMN candidate_override \"PlaceCandidateOverride\" DEFAULT 'auto', ADD COLUMN candidate_status text DEFAULT 'selected'; CREATE TABLE dog_place_catalog(place_id text PRIMARY KEY REFERENCES places(id),status text)");
   globals.prisma = orm; process.env.SENSITIVE_MADI_WORKFLOW_ENABLED = "false";
   const { suggestJournalPlaces } = await import("../src/server/places/suggestions");
   const result = await suggestJournalPlaces("owner", "양평");

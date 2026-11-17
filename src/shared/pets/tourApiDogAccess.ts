@@ -7,6 +7,7 @@ export type TourApiDogAccess = {
   areas: string;
   animals: string | null;
   preparations: string | null;
+  facilities: string | null;
   rules: string;
   maxWeightKg: number | null;
   weightLimitExclusive: boolean;
@@ -31,8 +32,8 @@ export function tourApiDogAccess(raw: unknown, fetchedAt: Date, now = Date.now()
   if (!Number.isFinite(collected) || collected > now || collected + TOUR_API_PET_FRESHNESS_MS <= now) return null;
   const animals = text("acmpyPsblCpam");
   const preparations = text("acmpyNeedMtr");
-  const extra = text("etcAcmpyInfo"), risks = text("relaAcdntRiskMtr");
-  if ([animals, preparations, extra, risks].some(value => value.length > 5000)) return null;
+  const extra = text("etcAcmpyInfo"), risks = text("relaAcdntRiskMtr"), facilities = text("relaPosesFclty");
+  if ([animals, preparations, extra, risks, facilities].some(value => value.length > 5000)) return null;
   if (/(?:반려견|강아지|애견)\s*(?:동반|출입|입장)?\s*(?:불가|금지)|고양이만|반려묘\s*전용/.test(animals)) return null;
   // Only explicit numeric upper bounds in the companion-animal field are structured.
   // Other free-text/breed/area conditions remain visible and require confirmation.
@@ -43,7 +44,7 @@ export function tourApiDogAccess(raw: unknown, fetchedAt: Date, now = Date.now()
   const tokens = preparations.split(",").map(value => value.trim());
   const free = preparations === "자유이용";
   return {
-    kind: "tourapi", source: "kor", areas, animals: animals || null, preparations: preparations || null,
+    kind: "tourapi", source: "kor", areas, animals: animals || null, preparations: preparations || null, facilities: facilities || null,
     rules: [extra, risks && risks !== animals ? risks : ""].filter(Boolean).join("\n"),
     maxWeightKg: bounds[0]?.weight ?? null, weightLimitExclusive: bounds[0]?.exclusive ?? false,
     leashRequired: tokens.includes("목줄 착용") ? true : free ? false : null,

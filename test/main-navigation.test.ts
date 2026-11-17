@@ -58,8 +58,8 @@ test("바 크기와 첫 마디 문구는 부모 화면이 아닌 공통 컴포�
 
 test("작은 여행은 다음 마디로 남길 경험을 발견하는 화면으로 안내한다", () => {
   const recommendations = read("screens/recommendations/RecommendationsScreen.tsx");
-  assert.match(recommendations, /<h1>다음 마디가 될 작은 여행<\/h1>/);
-  assert.match(recommendations, /가까운 곳에서, 남기고 싶은 하루를 만나보세요\./);
+  assert.match(recommendations, /<h1>반려견과 함께할 작은 여행<\/h1>/);
+  assert.match(recommendations, /함께 보낼 다음 하루를 찾아보세요\./);
   assert.match(read("screens/onboarding/WelcomeScreen.tsx"), /작은 여행 찾아보기/);
   assert.match(read("screens/intake/IntakeScreen.tsx"), /기록 불러오기/);
   assert.match(read("flows/JournalCreateFlow.tsx"), /작은 여행으로 돌아가기/);

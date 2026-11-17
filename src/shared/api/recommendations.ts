@@ -8,6 +8,7 @@ import type {
 export const RECOMMENDATION_ALGORITHM_VERSION = "dog-outing-v1";
 
 export type RecommendationErrorCode =
+  | "dog_catalog_not_ready"
   | "long_distance_unavailable"
   | "long_distance_location_required"
   | "recommendation_location_required"

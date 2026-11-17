@@ -2089,7 +2089,7 @@ function PlacesPanel({
                       <ToggleLabel>
                         <input
                           type="checkbox"
-                          checked={place.isActive}
+                          checked={place.isActive || place.dogCatalog?.status === "ready" && place.visibilityOverride !== "hide" && place.candidateOverride !== "exclude"}
                           disabled={mutatingId === place.id}
                           onChange={(event) =>
                             onChange(place.id, {
@@ -2097,7 +2097,7 @@ function PlacesPanel({
                             })
                           }
                         />
-                        {place.isActive ? "허용" : "숨김"}
+                        {place.isActive || place.dogCatalog?.status === "ready" && place.visibilityOverride !== "hide" && place.candidateOverride !== "exclude" ? "허용" : "숨김"}
                       </ToggleLabel>
                       <Small>정책 {getVisibilityOverrideLabel(place.visibilityOverride)}</Small>
                     </td>
@@ -3010,12 +3010,15 @@ function getVisibilityOverrideLabel(value: AdminPlaceItem["visibilityOverride"])
 }
 
 function isCandidatePoolPlace(place: AdminPlaceItem) {
-  return place.candidateOverride === "include" ||
+  return place.dogCatalog?.status === "ready" && place.visibilityOverride !== "hide" && place.candidateOverride !== "exclude" || place.candidateOverride === "include" ||
     (place.candidateOverride === "auto" &&
       place.candidateStatus === "selected");
 }
 
 function getCandidateStatusLabel(place: AdminPlaceItem) {
+  if (place.dogCatalog?.status === "ready") return "공식 동반 후보 · 조건 확인 필요";
+  if (place.dogCatalog?.status === "excluded") return "동반 후보 제외";
+  if (place.dogCatalog?.status === "review_required") return "동반 후보 검토 필요";
   if (place.candidateOverride === "include") return "수동 추천풀 포함";
   if (place.candidateOverride === "exclude") return "수동 추천풀 제외";
   if (place.candidateStatus === "selected") return "추천풀 선정";

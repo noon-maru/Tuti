@@ -6,11 +6,12 @@ import { showToast } from "@/lib/feedback";
 import type { DogAccessInfo } from "@/shared/pets/dogAccess";
 export function DogAccessNotice({ access }: { access: DogAccessInfo }) {
   const official = access.kind === "tourapi";
-  return <Notice><summary>{official ? "동반 등록 장소 · 방문 전 조건 확인 필요" : "반려견 동반 조건"}</summary><div>
+  return <Notice><summary>{official ? "동반 등록 장소 · 방문 전 조건 확인 필요" : access.requiresOutingConfirmation ? "반려견 동반 조건 · 준비물 확인 필요" : "반려견 동반 조건"}</summary><div>
     {official ? <>
       <p>{access.areas}</p>
       <p>동반견 조건: {access.animals || "미기재 · 크기와 견종 제한을 확인해주세요."}</p>
       <p>준비물: {access.preparations || "미기재 · 필요한 준비물을 확인해주세요."}</p>
+      {access.facilities && <p>등록된 동반 시설: {access.facilities}</p>}
       {access.rules && <p>{access.rules}</p>}
       <p>한국관광공사 등록 정보 · 수집일 {access.collectedAt.slice(0, 10)}</p>
     </> : <>

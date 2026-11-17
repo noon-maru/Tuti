@@ -143,10 +143,16 @@ export type RecommendationSimulationCandidate = {
   selected: boolean;
   initialRank: number | null;
   finalRank: number;
-  breakdown: FatigueBreakdown;
+  breakdown: FatigueBreakdown | import("./dogRanking").DogScore;
 };
 
+/** Comparison/regression only. The live API calls the dog engine above. */
+export async function createLegacyRecommendations(answers: IntakeAnswers, location?: UserLocation, preferredRegion?: PreferredRegion, excludePlaceIds: string[] = [], userId?: string, preferencePlaceIds: string[] = [], evaluationTime: Date = new Date()) {
+  return (await evaluateRecommendations(answers, location, preferredRegion, excludePlaceIds, userId, preferencePlaceIds, evaluationTime)).recommendedPlaces;
+}
+
 export type RecommendationSimulation = {
+  dogAudit?: import("./dogEngine").DogRecommendationAudit;
   feature: ReturnType<typeof interpretState>;
   sourceCandidateCount: number;
   eligibleCandidateCount: number;
@@ -155,7 +161,7 @@ export type RecommendationSimulation = {
   candidates: RecommendationSimulationCandidate[];
 };
 
-export async function simulateRecommendations(
+export async function simulateLegacyRecommendations(
   answers: IntakeAnswers,
   location?: UserLocation,
   preferredRegion?: PreferredRegion,
@@ -201,6 +207,15 @@ export async function simulateRecommendations(
       };
     }),
   };
+}
+
+export async function simulateRecommendations(answers: IntakeAnswers, location?: UserLocation, preferredRegion?: PreferredRegion, excludePlaceIds: string[] = [], dogOuting?: DogOuting): Promise<RecommendationSimulation> {
+  const result = await createDogRecommendations({ answers, location, preferredRegion, excludePlaceIds, dogOuting, allowGlobal: true });
+  const selectedIds = new Set(result.places.map(p => p.id));
+  const initial = new Map(result.ranked.map((p, index) => [p.id, index + 1]));
+  const ordered = [...result.places, ...result.ranked.filter(p => !selectedIds.has(p.id))].slice(0, 60);
+  return { feature: interpretState(answers), dogAudit: result.audit, sourceCandidateCount: result.audit.areaCandidates, eligibleCandidateCount: result.audit.companionEligible, shortlistCount: result.audit.budgetEligible, recommendedPlaces: result.places,
+    candidates: ordered.map((place, index) => ({ place, selected: selectedIds.has(place.id), initialRank: initial.get(place.id) ?? null, finalRank: index + 1, breakdown: place.dogRecommendationScore! })) };
 }
 
 async function evaluateRecommendations(

@@ -3,10 +3,11 @@ import type { DogOuting } from "@/shared/pets/dogAccess";
 import type { PlaceNoveltySignal } from "./novelty";
 import { noveltyBoost } from "./novelty";
 
-export type DogScore = { access: number; purpose: number; distance: number; time: number; weather: number; novelty: number; total: number };
+export type DogScore = { access: number; facility: number; purpose: number; distance: number; time: number; weather: number; novelty: number; total: number };
 /** Positive evidence bonuses only. Legacy fatigue/energy/low-burden scores never enter this function. */
 export function scoreDogPlace(place: TutiPlace, outing?: DogOuting, novelty?: Omit<PlaceNoveltySignal, "placeId">): DogScore {
   const access = place.dogAccess?.kind !== "tourapi" && place.dogAccess ? 6 : 0;
+  const facility = place.dogAccess?.kind === "tourapi" && /반려견.*(?:놀이터|운동장)|도그런|애견.*운동장/.test(place.dogAccess.facilities ?? "") ? 6 : 0;
   const walkTypes = ["forest_garden", "waterside", "neighborhood"];
   const purpose = outing?.purpose === "cafe" && place.experienceType === "cafe" || outing?.purpose === "walk" && walkTypes.includes(place.experienceType ?? "") ? 18 : outing?.purpose === "outing" && place.experienceType && !["cafe", "other"].includes(place.experienceType) ? 12 : 0;
   const distance = place.distanceMeters === undefined ? 0 : 30 / (1 + Math.max(0, place.distanceMeters) / 5000);
@@ -15,7 +16,7 @@ export function scoreDogPlace(place: TutiPlace, outing?: DogOuting, novelty?: Om
   // No inference that a cafe is indoor or a park has shade. Unknown/poor weather receives no bonus.
   const weather = place.weatherForecast?.suitability === "good" ? 4 : 0;
   const fresh = novelty ? noveltyBoost(novelty) : 0;
-  return { access, purpose, distance, time, weather, novelty: fresh, total: access + purpose + distance + time + weather + fresh };
+  return { access, facility, purpose, distance, time, weather, novelty: fresh, total: access + facility + purpose + distance + time + weather + fresh };
 }
 
 export function rankDogPlaces(places: TutiPlace[], outing?: DogOuting, signals: PlaceNoveltySignal[] | null = null) {

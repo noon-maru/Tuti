@@ -8,6 +8,7 @@ import { simulateRecommendations } from "@/server/recommendations/service";
 import { LongDistanceRecommendationsUnavailableError } from "@/server/recommendations/longDistanceAvailability";
 import type { AdminRecommendationSimulationRequest } from "@/shared/api/admin";
 import { RECOMMENDATION_ALGORITHM_VERSION } from "@/shared/api/recommendations";
+import { parseDogOuting } from "@/shared/pets/dogAccess";
 import type {
   BudgetAnswer,
   CompanionAnswer,
@@ -65,6 +66,7 @@ export async function POST(request: Request) {
       input.value.location,
       input.value.preferredRegion,
       input.value.excludePlaceIds,
+      input.value.dogOuting,
     );
 
     return withCors(
@@ -78,6 +80,7 @@ export async function POST(request: Request) {
         eligibleCandidateCount: simulation.eligibleCandidateCount,
         shortlistCount: simulation.shortlistCount,
         candidates: simulation.candidates,
+        ...(simulation.dogAudit ? { dogAudit: simulation.dogAudit } : {}),
       }),
     );
   } catch (error) {
@@ -186,6 +189,11 @@ async function readInput(
     },
   };
 
+  if (body.dogOuting !== undefined) {
+    const outing = parseDogOuting(body.dogOuting);
+    if (!outing) return { ok: false, error: "반려견 동반 조건을 확인해주세요." };
+    value.dogOuting = outing;
+  }
   if (body.location !== undefined) {
     if (!isRecord(body.location)) {
       return { ok: false, error: "출발 위치를 확인해주세요." };

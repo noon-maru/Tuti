@@ -2,6 +2,7 @@ import { prisma } from "@/server/db/prisma";
 import { sensitiveJournalPolicyEnabled } from "@/server/journal/sensitivePolicy";
 import { distinctPlaceSuggestions, normalizePlaceQuery, placeNameIdentity, type JournalPlaceSuggestion } from "@/shared/api/placeSuggestions";
 import { toPublicPlaceName, toPublicRegionLabel } from "./publicPlaceLabels";
+import { recordablePlaceWhere } from "@/server/recommendations/dogPlaceWhere";
 
 type PreviousPlace = { name: string; placeId: string | null };
 
@@ -22,17 +23,17 @@ export async function suggestJournalPlaces(ownerId: string, value: string) {
         ORDER BY lower(regexp_replace(btrim(place_name), '[[:space:]]+', '', 'g')), updated_at DESC, id DESC
       ) recent ORDER BY updated_at DESC, id DESC LIMIT 5`;
     const linkedIds = previous.flatMap(row => row.placeId ? [row.placeId] : []);
-    const linked = linkedIds.length ? await tx.place.findMany({ where: { id: { in: linkedIds }, isActive: true, reviewStatus: "approved" },
+    const linked = linkedIds.length ? await tx.place.findMany({ where: { AND: [recordablePlaceWhere, { id: { in: linkedIds } }] },
       select: { id: true, sourceSidoName: true, sourceSigunguName: true } }) : [];
     const history: JournalPlaceSuggestion[] = previous.map(row => {
       const place = linked.find(place => place.id === row.placeId);
       return { key: `history:${placeNameIdentity(row.name)}`, source: "history", id: place?.id ?? null, name: row.name,
         region: place ? toPublicRegionLabel(place.sourceSidoName, place.sourceSigunguName) : null };
     });
-    const matches = query ? await tx.place.findMany({ where: { isActive: true, reviewStatus: "approved", OR: [
+    const matches = query ? await tx.place.findMany({ where: { AND: [recordablePlaceWhere, { OR: [
       { name: { contains: query, mode: "insensitive" } }, { sourceAddress: { contains: query, mode: "insensitive" } },
       { sourceSidoName: { contains: query, mode: "insensitive" } }, { sourceSigunguName: { contains: query, mode: "insensitive" } },
-    ] }, orderBy: [{ name: "asc" }, { id: "asc" }], take: 8, select: { id: true, name: true, sourceSidoName: true, sourceSigunguName: true } }) : [];
+    ] }] }, orderBy: [{ name: "asc" }, { id: "asc" }], take: 8, select: { id: true, name: true, sourceSidoName: true, sourceSigunguName: true } }) : [];
     return distinctPlaceSuggestions(history, matches.map(place => ({ key: `place:${place.id}`, source: "place", id: place.id,
       name: toPublicPlaceName(place.name, place.sourceSidoName, place.sourceSigunguName), region: toPublicRegionLabel(place.sourceSidoName, place.sourceSigunguName) })));
   }, { isolationLevel: "RepeatableRead" });

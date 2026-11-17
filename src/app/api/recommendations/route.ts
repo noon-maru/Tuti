@@ -25,6 +25,9 @@ import type {
   RecommendationResponse,
 } from "@/shared/api/recommendations";
 import { RECOMMENDATION_ALGORITHM_VERSION } from "@/shared/api/recommendations";
+import { enrichPlacesWithWeatherForecast } from "@/server/weather/kmaVilageForecast";
+import { getExternalLocationProcessingMode } from "@/server/location/externalProcessing";
+import { DogCatalogNotReadyError } from "@/server/recommendations/dogEngine";
 import type {
   IntakeAnswers,
   PreferredRegion,
@@ -87,6 +90,11 @@ export async function POST(request: Request) {
     };
 
     const snapshotScheduleStartedAt = performance.now();
+    if (places.length && getExternalLocationProcessingMode() !== "pending") {
+      const weatherNow = new Date();
+      const targetAt = body.answers?.movement === "far" && body.answers.longDistanceTiming === "tomorrow_day_trip" ? new Date(weatherNow.getTime() + 86400000) : weatherNow;
+      after(async () => { await enrichPlacesWithWeatherForecast(places, weatherNow, targetAt).catch(() => undefined); });
+    }
     if (user) {
       after(async () => {
         await recordRecommendationRunSafely({
@@ -120,6 +128,7 @@ export async function POST(request: Request) {
       }),
     );
   } catch (error) {
+    if (error instanceof DogCatalogNotReadyError) return withCors(request, Response.json({ error: error.message, code: "dog_catalog_not_ready" }, { status: 503 }));
     const invalidJson = error instanceof SyntaxError;
     const invalidRequest = error instanceof InvalidRecommendationRequestError;
     const longDistanceUnavailable =

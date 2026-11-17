@@ -8,9 +8,8 @@ import {
   withCors,
 } from "@/server/http/cors";
 import type { AdminPlacesResponse } from "@/shared/api/admin";
-import {
-  candidatePoolPlaceWhere,
-} from "@/server/recommendations/recommendablePlaceWhere";
+import { dogCatalogPlaceWhere } from "@/server/recommendations/dogPlaceWhere";
+const candidatePoolPlaceWhere: Prisma.PlaceWhereInput = dogCatalogPlaceWhere;
 
 export const runtime = "nodejs";
 
@@ -51,7 +50,7 @@ export async function GET(request: Request) {
     AND: [
       getCandidateWhere(candidate),
       {
-        ...(reviewStatus ? { reviewStatus, isActive: reviewStatus === "approved", visibilityOverride: reviewStatus === "approved" ? ("show" as const) : ("hide" as const) } : {}),
+        ...(reviewStatus ? { reviewStatus } : {}),
         ...(source ? { source } : {}),
         ...(contentType ? { sourceContentType: contentType } : {}),
         ...(sido ? { sourceSidoName: sido } : {}),
@@ -122,6 +121,7 @@ export async function GET(request: Request) {
         isActive: true,
         visibilityOverride: true,
         candidateStatus: true,
+        dogCatalog: { select: { status: true, reason: true } },
         candidateScore: true,
         candidateOverride: true,
         candidateReasons: true,
@@ -302,10 +302,11 @@ export async function PATCH(request: Request) {
       );
     }
 
-    const place = await prisma.place.update({
+    const place = await prisma.$transaction(async tx => {
+      const place = await tx.place.update({
       where: { id: placeId },
       data: {
-        ...(reviewStatus ? { reviewStatus } : {}),
+        ...(reviewStatus ? { reviewStatus, isActive: reviewStatus === "approved", visibilityOverride: reviewStatus === "approved" ? ("show" as const) : ("hide" as const) } : {}),
         ...(hasActiveValue
           ? {
               isActive: body.isActive as boolean,
@@ -326,6 +327,10 @@ export async function PATCH(request: Request) {
       },
     });
 
+    if (reviewStatus || hasActiveValue) await tx.dogPlaceCatalog.updateMany({ where: { placeId }, data: {
+      status: hasActiveValue ? body.isActive ? "ready" : "excluded" : reviewStatus === "approved" ? "ready" : reviewStatus === "rejected" ? "excluded" : "review_required",
+      reason: "operator_review", updatedAt: new Date(),
+    } });
     await writeSystemLog({
       category: "place",
       action: "place.review.updated",
@@ -340,6 +345,8 @@ export async function PATCH(request: Request) {
         candidateStatus: place.candidateStatus,
         editorialUpdated: Boolean(editorial),
       },
+    }, tx);
+    return place;
     });
 
     return withCors(request, Response.json({ place }));
@@ -386,7 +393,8 @@ export async function POST(request: Request) {
       );
     }
 
-    const result = await prisma.place.updateMany({
+    const result = await prisma.$transaction(async tx => {
+      const result = await tx.place.updateMany({
       where: {
         id: { in: placeIds },
         source: "tourapi",
@@ -403,6 +411,9 @@ export async function POST(request: Request) {
       },
     });
 
+    await tx.dogPlaceCatalog.updateMany({ where: { placeId: { in: placeIds } }, data: {
+      status: reviewStatus === "approved" ? "ready" : reviewStatus === "rejected" ? "excluded" : "review_required", reason: "operator_bulk_review", updatedAt: new Date(),
+    } });
     await writeSystemLog({
       category: "place",
       action: "place.review.bulk-updated",
@@ -414,6 +425,8 @@ export async function POST(request: Request) {
         reviewStatus,
         isActive: reviewStatus === "approved",
       },
+    }, tx);
+    return result;
     });
 
     return withCors(

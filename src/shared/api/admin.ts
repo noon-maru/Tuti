@@ -83,6 +83,7 @@ export type AdminLocationSecurityEventItem = {
 };
 
 export type AdminPlaceItem = {
+  dogCatalog?: { status: string; reason: string } | null;
   id: string;
   name: string;
   source: string;
@@ -494,6 +495,7 @@ export type AdminRecommendationFunnelResponse = {
 };
 
 export type AdminRecommendationSimulationRequest = {
+  dogOuting?: import("@/shared/pets/dogAccess").DogOuting;
   answers: IntakeAnswers;
   location?: UserLocation;
   preferredRegion?: PreferredRegion;
@@ -521,10 +523,11 @@ export type AdminRecommendationSimulationCandidate = {
   selected: boolean;
   initialRank: number | null;
   finalRank: number;
-  breakdown: AdminRecommendationScoreBreakdown;
+  breakdown: AdminRecommendationScoreBreakdown | import("@/server/recommendations/dogRanking").DogScore;
 };
 
 export type AdminRecommendationSimulationResponse = {
+  dogAudit?: import("@/server/recommendations/dogEngine").DogRecommendationAudit;
   algorithmVersion: string;
   generatedAt: string;
   elapsedMs: number;

@@ -752,8 +752,8 @@ export function RecommendationsScreen({
           />
         </AccountMenu>
         <Copy $progress={verticalProgress}>
-          <h1>다음 마디가 될 작은 여행</h1>
-          <p>가까운 곳에서, 남기고 싶은 하루를 만나보세요.</p>
+          <h1>반려견과 함께할 작은 여행</h1>
+          <p>함께 보낼 다음 하루를 찾아보세요.</p>
           {activePlace?.dogAccess && <DogAccessNotice access={activePlace.dogAccess} />}
           {!locationAvailable && (
             <LocationModeButton

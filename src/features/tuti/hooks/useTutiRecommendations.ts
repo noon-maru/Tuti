@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { useEffect, useMemo } from "react";
+import { useMemo } from "react";
 import { createRecommendationInputFingerprint } from "@/features/tuti/recommendationInputFingerprint";
 import { fetchRecommendations } from "@/lib/tutiApi";
 import {
@@ -21,9 +21,6 @@ export function useTutiRecommendations({ enabled = true, dogOuting }: { enabled?
   const entryRecord = useTutiStore((state) => state.entryRecord);
   const userLocation = useTutiStore((state) => state.userLocation);
   const preferredRegion = useTutiStore((state) => state.preferredRegion);
-  const dailyRecommendation = useTutiStore(
-    (state) => state.dailyRecommendation,
-  );
   const recommendationCycle = useTutiStore(
     (state) => state.recommendationCycle,
   );
@@ -32,9 +29,6 @@ export function useTutiRecommendations({ enabled = true, dogOuting }: { enabled?
   );
   const savedDeparturePlaces = useTutiStore(
     (state) => state.savedDeparturePlaces,
-  );
-  const cacheDailyRecommendation = useTutiStore(
-    (state) => state.cacheDailyRecommendation,
   );
   const recommendationDate = getKoreanDateKey();
   const answers = useMemo(
@@ -59,18 +53,6 @@ export function useTutiRecommendations({ enabled = true, dogOuting }: { enabled?
       userLocation,
     ],
   );
-  const cachedRecommendation =
-    !dogOuting && dailyRecommendation?.effectiveDate === recommendationDate &&
-    dailyRecommendation.cycle === recommendationCycle &&
-    dailyRecommendation.algorithmVersion ===
-      RECOMMENDATION_ALGORITHM_VERSION &&
-    dailyRecommendation.inputFingerprint === inputFingerprint
-      ? {
-          recommendationId: dailyRecommendation.recommendationId,
-          algorithmVersion: dailyRecommendation.algorithmVersion,
-          places: dailyRecommendation.places,
-        }
-      : undefined;
   const regionSelectionRequired = !hasRecommendationArea(userLocation, preferredRegion);
   const { data, ...query } = useQuery({
     queryKey: [
@@ -80,7 +62,7 @@ export function useTutiRecommendations({ enabled = true, dogOuting }: { enabled?
       RECOMMENDATION_ALGORITHM_VERSION,
       inputFingerprint,
       dogOuting ?? null,
-      dogOuting ? ownerId : null,
+      ownerId ?? null,
     ],
     queryFn: ({ signal }) =>
       fetchRecommendations(
@@ -93,43 +75,10 @@ export function useTutiRecommendations({ enabled = true, dogOuting }: { enabled?
         signal,
         dogOuting,
       ),
-    enabled: enabled && !regionSelectionRequired,
-    initialData: cachedRecommendation,
-    staleTime: dogOuting ? 0 : Infinity,
-    ...(dogOuting ? { gcTime: 0 } : {}),
+    enabled: enabled && Boolean(ownerId) && !regionSelectionRequired,
+    staleTime: 0,
+    gcTime: 0,
   });
-
-  useEffect(() => {
-    const current = useTutiStore.getState();
-    if (dogOuting) return;
-    if (userLocation && (current.userLocation !== userLocation || current.locationConsent?.status !== "accepted")) return;
-    if (
-      !data?.recommendationId ||
-      (dailyRecommendation?.effectiveDate === recommendationDate &&
-        dailyRecommendation.cycle === recommendationCycle &&
-        dailyRecommendation.recommendationId === data.recommendationId &&
-        dailyRecommendation.algorithmVersion === data.algorithmVersion &&
-        dailyRecommendation.inputFingerprint === inputFingerprint)
-    ) {
-      return;
-    }
-
-    cacheDailyRecommendation(
-      data.recommendationId,
-      data.algorithmVersion,
-      data.places,
-      inputFingerprint,
-    );
-  }, [
-    cacheDailyRecommendation,
-    dailyRecommendation,
-    data,
-    inputFingerprint,
-    recommendationCycle,
-    recommendationDate,
-    userLocation,
-    dogOuting,
-  ]);
 
   return {
     answers,

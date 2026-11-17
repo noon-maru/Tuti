@@ -23,6 +23,6 @@ test("동반 조건은 명시적으로 적용하고 미등록·다중 반려견�
   (leash.props.onChange as (event: unknown) => void)({ target: { checked: true } });
   apply(); assert.deepEqual(JSON.parse(JSON.stringify(calls.at(-1))), { weightsKg: [5, 12], leash: true, carrier: false });
   weights("-5"); apply(); assert.equal(calls.length, 2); assert.ok(render().some(node => node.props.role === "alert"));
-  (render().find(node => node.props.children === "일반 장소로 보기")!.props.onClick as () => void)();
+  (render().find(node => node.props.children === "조건 없이 둘러보기")!.props.onClick as () => void)();
   assert.equal(calls.at(-1), undefined);
 });

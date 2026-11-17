@@ -11,3 +11,8 @@ export const readablePlaceWhere: Prisma.PlaceWhereInput = { AND: [
   { visibilityOverride: { not: "hide" }, candidateOverride: { not: "exclude" } },
   { OR: [recommendablePlaceWhere, dogCatalogPlaceWhere] },
 ] };
+/** Journal autocomplete is wider than recommendation eligibility. */
+export const recordablePlaceWhere: Prisma.PlaceWhereInput = { AND: [
+  { visibilityOverride: { not: "hide" }, candidateOverride: { not: "exclude" } },
+  { OR: [{ isActive: true, reviewStatus: "approved" }, dogCatalogPlaceWhere] },
+] };

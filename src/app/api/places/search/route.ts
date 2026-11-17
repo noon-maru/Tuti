@@ -1,4 +1,5 @@
 import { prisma } from "@/server/db/prisma";
+import { recordablePlaceWhere } from "@/server/recommendations/dogPlaceWhere";
 import {
   createPreflightResponse,
   isRequestOriginAllowed,
@@ -30,8 +31,7 @@ export async function GET(request: Request) {
       .slice(0, MAX_QUERY_LENGTH);
     const places = await prisma.place.findMany({
       where: {
-        isActive: true,
-        reviewStatus: "approved",
+        ...recordablePlaceWhere,
         ...(query
           ? {
               OR: [

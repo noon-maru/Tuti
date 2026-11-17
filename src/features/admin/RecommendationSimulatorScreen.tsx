@@ -1,5 +1,8 @@
 "use client";
 
+import { DogOutingControls } from "@/features/tuti/components/DogOutingControls";
+import type { DogOuting } from "@/shared/pets/dogAccess";
+
 import styled from "@emotion/styled";
 import {
   Activity,
@@ -19,7 +22,6 @@ import {
 import { fetchRecommendationRegions } from "@/lib/tutiApi";
 import type { TutiPlace } from "@/lib/recommendations";
 import type {
-  AdminRecommendationScoreBreakdown,
   AdminRecommendationSimulationRequest,
   AdminRecommendationSimulationResponse,
   AdminOverviewResponse,
@@ -76,7 +78,8 @@ const transportOptions: Array<{ value: TransportAnswer; label: string }> = [
   { value: "transit", label: "대중교통·도보" },
 ];
 
-const scoreLabels: Record<keyof AdminRecommendationScoreBreakdown, string> = {
+const scoreLabels: Record<string, string> = {
+  access: "확인된 동반 안내", facility: "등록된 동반 시설", purpose: "외출 목적", distance: "거리 적합성", time: "시간 적합성", weather: "확인된 날씨", novelty: "새로움", total: "동반 추천 총점",
   base: "기본 피로도",
   physicalDistance: "직선거리",
   travelTime: "이동시간",
@@ -99,6 +102,7 @@ const dateFormatter = new Intl.DateTimeFormat("ko-KR", {
 });
 
 export function RecommendationSimulatorScreen() {
+  const [dogOuting, setDogOuting] = useState<DogOuting>();
   const [locationMode, setLocationMode] = useState<LocationMode>("location");
   const [movement, setMovement] = useState<MovementAnswer>("short");
   const [transport, setTransport] = useState<TransportAnswer>("transit");
@@ -176,6 +180,7 @@ export function RecommendationSimulatorScreen() {
     setError(null);
 
     const request: AdminRecommendationSimulationRequest = {
+      ...(dogOuting ? { dogOuting } : {}),
       answers: {
         movement,
         transport,
@@ -503,6 +508,7 @@ export function RecommendationSimulatorScreen() {
                 </CompactButton>
               ))}
             </OptionalOptions>
+            <DogOutingControls value={dogOuting} onChange={setDogOuting} />
             <LabeledInput>
               <span>직전 추천에서 제외할 장소 ID · 최대 20개</span>
               <textarea
@@ -556,12 +562,12 @@ export function RecommendationSimulatorScreen() {
                     </time>{" "}
                     · {result.algorithmVersion} · {result.elapsedMs.toLocaleString()}ms
                   </p>
-                  <ScoreGuide>총점은 낮을수록 부담이 낮고, 음수 항목은 추천 보너스예요.</ScoreGuide>
+                  <ScoreGuide>{result.dogAudit ? "동반 추천은 가점 합계가 높을수록 우선해요. 구 피로도는 사용하지 않아요." : "총점은 낮을수록 부담이 낮고, 음수 항목은 추천 보너스예요."}</ScoreGuide>
                 </div>
                 <FeatureSummary>
-                  <span>에너지 {featureLabel(result.feature.energy)}</span>
+                  {!result.dogAudit && <span>에너지 {featureLabel(result.feature.energy)}</span>}
                   <span>이동 {movementLabel(result.feature.movement)}</span>
-                  <span>혼잡 허용 {crowdToleranceLabel(result.feature.crowdTolerance)}</span>
+                  {result.dogAudit ? <span>동반 카탈로그 {result.dogAudit.catalogReady.toLocaleString()}곳</span> : <span>혼잡 허용 {crowdToleranceLabel(result.feature.crowdTolerance)}</span>}
                 </FeatureSummary>
               </ResultHeader>
 
@@ -629,7 +635,7 @@ export function RecommendationSimulatorScreen() {
                           </td>
                           <td>
                             <Score>
-                              {candidate.place.fatigueScore ?? "—"}
+                              {candidate.place.dogRecommendationScore?.total.toFixed(1) ?? candidate.place.fatigueScore ?? "—"}
                               <small>점</small>
                             </Score>
                           </td>
@@ -698,7 +704,7 @@ export function RecommendationSimulatorScreen() {
                           </small>
                         </div>
                         <Score data-mobile-score>
-                          {candidate.place.fatigueScore ?? "—"}
+                          {candidate.place.dogRecommendationScore?.total.toFixed(1) ?? candidate.place.fatigueScore ?? "—"}
                           <small>점</small>
                         </Score>
                       </MobileCandidateHeader>
@@ -769,9 +775,9 @@ function CandidateScoreDetails({
         {Object.entries(candidate.breakdown).map(([key, value]) => (
           <div key={key}>
             <dt>
-              {scoreLabels[key as keyof AdminRecommendationScoreBreakdown]}
+              {scoreLabels[key] ?? key}
             </dt>
-            <dd data-tone={value < 0 ? "bonus" : value > 0 ? "penalty" : "zero"}>
+            <dd data-tone={candidate.place.dogRecommendationScore ? value > 0 ? "bonus" : "zero" : value < 0 ? "bonus" : value > 0 ? "penalty" : "zero"}>
               {formatScoreValue(value)}
             </dd>
           </div>
@@ -782,7 +788,8 @@ function CandidateScoreDetails({
 }
 
 function formatScoreValue(value: number) {
-  return value > 0 ? `+${value}` : String(value);
+  const formatted = new Intl.NumberFormat("ko-KR", { maximumFractionDigits: 1 }).format(value);
+  return value > 0 ? `+${formatted}` : formatted;
 }
 
 function getExclusionReason(locationMode: LocationMode) {
@@ -1101,7 +1108,7 @@ const PresetButton = styled(BaseButton)`
 
 const ModeNotice = styled.p`
   padding: var(--space-3);
-  border-left: 3px solid var(--color-brand-500);
+  border-left: 1px solid var(--color-brand-500);
   background: var(--color-brand-100);
   color: var(--color-text-muted);
   font-size: var(--font-size-100);
@@ -1173,7 +1180,7 @@ const RunButton = styled(BaseButton)`
 
 const ErrorNotice = styled.p`
   padding: var(--space-3);
-  border-left: 3px solid var(--color-error);
+  border-left: 1px solid var(--color-error);
   border-radius: 4px;
   background: color-mix(in srgb, var(--color-error) 8%, var(--color-white));
   color: var(--color-text);

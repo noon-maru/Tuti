@@ -13,7 +13,7 @@ const row = {
 (globalThis as { prisma?: unknown }).prisma = {
   $queryRaw: async () => [row],
 };
-const { createRecommendations } = await import("../src/server/recommendations/service");
+const { createLegacyRecommendations: createRecommendations } = await import("../src/server/recommendations/service");
 const location = { latitude: 33.4996, longitude: 126.5312 };
 const recommendAt = (at: string) => createRecommendations(
   { movement: "near", transport: "transit" }, location,
