@@ -16,11 +16,13 @@ const DISMISS_THRESHOLD = 72;
 export function DepartureReturnSheet({
   placeName,
   onVisited,
+  onVisitedLater,
   onNotYet,
   onLater,
 }: {
   placeName: string;
   onVisited: () => void;
+  onVisitedLater: () => void;
   onNotYet: () => void;
   onLater: () => void;
 }) {
@@ -126,14 +128,15 @@ export function DepartureReturnSheet({
           <Heading>
             <small>{placeName}</small>
             <h2 id="departure-return-title">
-              잠깐 다른 공기를 만나고 오셨나요?
+              이곳에 다녀오셨나요?
             </h2>
-            <p>다녀온 순간을 짧게 남겨두면 다음 추천이 더 또렷해져요.</p>
+            <p>다녀온 순간은 원할 때 마디로 남겨보세요.</p>
           </Heading>
           <Actions>
             <VisitedButton type="button" onClick={() => closeWith(onVisited)}>
-              다녀왔어요
+              다녀온 마디 남기기
             </VisitedButton>
+            <VisitedLaterButton type="button" onClick={() => closeWith(onVisitedLater)}>다녀왔어요 · 기록은 나중에</VisitedLaterButton>
             <NotYetButton type="button" onClick={() => closeWith(onNotYet)}>
               아직이에요
             </NotYetButton>
@@ -165,6 +168,9 @@ const Sheet = styled.section<{
   $dragY: number;
 }>`
   width: 100%;
+  max-height: 100%;
+  display: flex;
+  flex-direction: column;
   overflow: hidden;
   border-radius: 30px 30px 0 0;
   background: linear-gradient(
@@ -189,6 +195,7 @@ const Sheet = styled.section<{
 `;
 
 const DragHandle = styled(BaseButton)`
+  flex: none;
   width: 80px;
   height: 30px;
   display: grid;
@@ -207,6 +214,8 @@ const DragHandle = styled(BaseButton)`
 `;
 
 const Content = styled.div`
+  min-height: 0;
+  overflow-y: auto;
   display: grid;
   gap: var(--space-5);
   padding: var(--space-1) var(--space-5)
@@ -253,7 +262,7 @@ const Heading = styled.div`
 
 const Actions = styled.div`
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: 1fr;
   gap: var(--space-2);
 `;
 
@@ -261,13 +270,14 @@ const VisitedButton = styled(PrimaryButton)`
   min-height: var(--space-12);
 `;
 
-const NotYetButton = styled(BaseButton)`
+const VisitedLaterButton = styled(BaseButton)`
   min-height: var(--space-12);
   border: 1px solid var(--color-border);
   border-radius: 999px;
   background: var(--color-surface);
   font-weight: 600;
 `;
+const NotYetButton = styled(TextButton)`min-height: 44px; font-size: var(--font-size-100);`;
 
 const LaterButton = styled(TextButton)`
   grid-column: 1 / -1;

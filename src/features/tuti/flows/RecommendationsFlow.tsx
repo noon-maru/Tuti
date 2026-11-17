@@ -43,6 +43,7 @@ import type { RecommendationActionInput } from "@/shared/api/recommendationActio
 import type { IntakeAnswers } from "@/shared/tuti/types";
 import { placeMadiPath, savedDepartureDestination } from "@/shared/tuti/placeMadiPath";
 import { pendingMadiPath } from "@/shared/tuti/pendingMadi";
+import { handleDepartureReturn } from "@/lib/departureReturn";
 import type { DogOuting } from "@/shared/pets/dogAccess";
 import {
   type SavedDeparturePlace,
@@ -93,6 +94,7 @@ export function RecommendationsFlow({ interactive, dogOuting, onDogOutingChange 
   const completePendingDeparture = useTutiStore(
     (state) => state.completePendingDeparture,
   );
+  const confirmPendingDepartureReturn = useTutiStore(state => state.confirmPendingDepartureReturn);
   const deferPendingDeparture = useTutiStore(
     (state) => state.deferPendingDeparture,
   );
@@ -126,7 +128,7 @@ export function RecommendationsFlow({ interactive, dogOuting, onDogOutingChange 
     dailyCheckInSnoozedUntil,
   );
   const returnCheckInVisible = Boolean(
-    interactive &&
+    interactive && !pendingDeparture?.returnConfirmed &&
       session?.userId && pendingMadiPath(pendingDeparture, session.userId, returnCheckInNow),
   );
   const dailyCheckInVisible =
@@ -232,6 +234,13 @@ export function RecommendationsFlow({ interactive, dogOuting, onDogOutingChange 
       console.warn("추천 행동을 기록하지 못했습니다.", error);
     });
   }, []);
+  const confirmReturn = (writeNow: boolean) => {
+    if (getSessionSnapshot()?.userId !== session?.userId || useTutiStore.getState().pendingDeparture !== pendingDeparture) return;
+    handleDepartureReturn({ departure: pendingDeparture, ownerId: session?.userId, writeNow, now: Date.now() }, {
+      record: recordAction, complete: completePendingDeparture,
+      postponeWriting: confirmPendingDepartureReturn, navigate: path => router.push(path),
+    });
+  };
   const familiarity = usePlaceFamiliarity(session?.userId, activePlace?.id, interactive && isSuccess);
 
   useEffect(() => {
@@ -627,28 +636,8 @@ export function RecommendationsFlow({ interactive, dogOuting, onDogOutingChange 
       {returnCheckInVisible && pendingDeparture && (
         <DepartureReturnSheet
           placeName={pendingDeparture.placeName}
-          onVisited={() => {
-            recordAction({
-              journeyId: pendingDeparture.journeyId,
-              action: "return_confirmed",
-              placeId: pendingDeparture.placeId,
-              routeMode: pendingDeparture.routeMode,
-            });
-            recordAction({
-              journeyId: pendingDeparture.journeyId,
-              action: "journal_started",
-              placeId: pendingDeparture.placeId,
-            });
-            const search = new URLSearchParams({
-              from: "explore",
-              placeId: pendingDeparture.placeId,
-              placeName: pendingDeparture.placeName,
-              journeyId: pendingDeparture.journeyId,
-            });
-            if (pendingDeparture.ownerId === session?.userId && pendingDeparture.harumadiId) search.set("harumadiId", pendingDeparture.harumadiId);
-            completePendingDeparture();
-            router.push(`/madi/new?${search.toString()}`);
-          }}
+          onVisited={() => confirmReturn(true)}
+          onVisitedLater={() => confirmReturn(false)}
           onNotYet={() => {
             recordAction({
               journeyId: pendingDeparture.journeyId,

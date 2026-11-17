@@ -35,6 +35,7 @@ export type DetailOverlayState = {
 };
 
 export type PendingDeparture = {
+  returnConfirmed?: boolean;
   ownerId?: string;
   harumadiId?: string;
   journeyId: string;
@@ -149,6 +150,7 @@ type TutiState = {
   setPendingDeparture: (departure: PendingDeparture) => void;
   postponePendingDeparture: () => void;
   completePendingDeparture: () => void;
+  confirmPendingDepartureReturn: () => void;
   deferPendingDeparture: () => void;
   addSavedDeparturePlace: (place: SavedDeparturePlaceInput) => void;
   removeSavedDeparturePlace: (placeId: string) => void;
@@ -445,6 +447,9 @@ export const useTutiStore = create<TutiState>()(
             : undefined,
         })),
       completePendingDeparture: () => set({ pendingDeparture: undefined }),
+      confirmPendingDepartureReturn: () => set(state => ({
+        pendingDeparture: state.pendingDeparture ? { ...state.pendingDeparture, returnConfirmed: true } : undefined,
+      })),
       deferPendingDeparture: () =>
         set((state) => {
           if (!state.pendingDeparture) return state;
