@@ -16,10 +16,18 @@ export async function dogOutingPlaces<T extends { id: string }>(places: T[], out
     const access = reviewed.get(place.id);
     // Negative, expired or mismatching reviewed restrictions cannot be bypassed by an API listing.
     if (access) {
-      if (dogConditionsBlocked(dogConditions(access.areas, `${access.areas}\n${access.rules}`, true), outing)) return [];
+      const conditions = dogConditions(access.areas, `${access.areas}\n${access.rules}`, true);
+      if (dogConditionsBlocked(conditions, outing)) return [];
       if (!outing) return parseDogAccess(access) && access.allowed && Date.parse(access.checkedAt) <= now && Date.parse(access.validUntil) > now ? [{ ...place, dogAccess: { ...access, requiresOutingConfirmation: true } }] : [];
       const status = dogAccessStatus(access, outing, now);
-      if (status === "eligible") return [{ ...place, dogAccess: access }];
+      if (status === "eligible") {
+        const scoped = outing.space === "indoor" || outing.space === "outdoor" ? conditions.zoneRequirements[outing.space] : null;
+        const unknown = (conditions.muzzleRequired || scoped?.muzzle) && outing.muzzle !== true
+          || (conditions.carrierRequired || scoped?.carrier) && outing.carrier === null
+          || (conditions.leashRequired || scoped?.leash) && outing.leash === null
+          || conditions.maxDogs !== null && !outing.weightsKg.length;
+        return [{ ...place, dogAccess: { ...access, ...(unknown ? { requiresOutingConfirmation: true } : {}) } }];
+      }
       return status === "unknown" && parseDogAccess(access) && access.allowed && Date.parse(access.checkedAt) <= now && Date.parse(access.validUntil) > now ? [{ ...place, dogAccess: { ...access, requiresOutingConfirmation: true } }] : [];
     }
     const record = official.get(place.id);

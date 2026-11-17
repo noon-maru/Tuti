@@ -14,4 +14,6 @@ test("익일 선택은 방문 날짜와 휴무 판정을 동일하게 익일로 
   assert.equal(dogVisitDate({longDistanceTiming:"tomorrow_day_trip"},now).getTime()-now.getTime(),86400000);
   const result=dogFeasibility(place,{movement:"far",longDistanceTiming:"tomorrow_day_trip"},{openingHours:null,restDate:"매주 수요일",admissionFee:null},now);
   assert.equal(fitsDogTimeBudget(result),false);
+  const conditional=dogFeasibility(place,{movement:"far",longDistanceTiming:"tomorrow_day_trip"},{openingHours:null,restDate:"매월 마지막 수요일 (공휴일 제외)",admissionFee:null},now);
+  assert.equal(conditional.executionFeasibility?.operationStatus,"unknown", "조건부 휴무를 매주 휴무로 단정하지 않는다");
 });
