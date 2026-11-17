@@ -49,6 +49,7 @@ import type {
 import { useTutiStore } from "@/store/tuti";
 import { IconButton } from "@/shared/ui/buttons";
 import { useLayerDialogScope } from "@/shared/ui/useLayerDialogScope";
+import { DepartureDogAccessNotice } from "@/features/tuti/components/DepartureDogAccessNotice";
 
 const DEPARTURE_EXIT_DURATION = 420;
 const DEPARTURE_EXIT_FRAME_BUFFER = 34;
@@ -76,7 +77,7 @@ export type DeparturePlace = Pick<
   | "longDistanceJourney"
 > &
   Partial<
-    Pick<TutiPlace, "cardPhrase" | "reason" | "experienceType" | "moodTags">
+    Pick<TutiPlace, "cardPhrase" | "reason" | "experienceType" | "moodTags" | "dogAccess">
   >;
 
 export function DeparturePlanScreen({
@@ -96,6 +97,7 @@ export function DeparturePlanScreen({
   const dialogRef = useRef<HTMLElement>(null);
   const userLocation = useTutiStore((state) => state.userLocation);
   const transport = useTutiStore((state) => state.answers.transport);
+  const withDog = useTutiStore((state) => state.answers.petCompanion === "dog");
   const [preferredMode, setPreferredMode] =
     useState<DepartureRouteMode | null>(null);
   const [locationStatus, setLocationStatus] = useState<
@@ -474,6 +476,8 @@ export function DeparturePlanScreen({
               </p>
             </div>
           </PlaceSummary>
+
+          {withDog && <DepartureDogAccessNotice access={place.dogAccess} />}
 
           {!userLocation ? (
             <LocationRequest>
