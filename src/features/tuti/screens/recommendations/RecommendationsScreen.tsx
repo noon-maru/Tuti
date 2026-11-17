@@ -1036,7 +1036,7 @@ export function RecommendationsScreen({
           </RecommendationStatusCard>
         )}
       </RecommendationStatusOverlay>
-      {interactive && !departurePresentation && <SearchMenu $inactive={searchInactive} inert={searchInactive} aria-hidden={searchInactive} onPointerDown={event => event.stopPropagation()}><ExplorePlaceSearch disabled={searchInactive} onSelect={setSearchPlace} /></SearchMenu>}
+      {interactive && !departurePresentation && <SearchMenu $inactive={searchInactive} inert={searchInactive} aria-hidden={searchInactive} onPointerDown={event => event.stopPropagation()}><ExplorePlaceSearch petCompanion={answers.petCompanion} disabled={searchInactive} onSelect={setSearchPlace} /></SearchMenu>}
       {searchPlace && <SearchDetailLayer onPointerDown={event => event.stopPropagation()}>
         <DetailScreen place={searchPlace} travelTimeLabel="검색한 공간" historyActive onBack={() => setSearchPlace(null)} onCreateMadi={onCreatePlaceMadi ? () => onCreatePlaceMadi(searchPlace) : undefined} />
       </SearchDetailLayer>}

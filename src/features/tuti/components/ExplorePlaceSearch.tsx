@@ -7,6 +7,8 @@ import { Search, X } from "lucide-react";
 import { AppDialogFrame } from "@/shared/ui/AppDialogFrame";
 import { fetchWithSession } from "@/lib/auth/session";
 import type { PlaceSearchResponse, PlaceSearchResult } from "@/shared/api/placeSearch";
+import { explorePlaceSearchKey, explorePlaceSearchScope } from "@/shared/api/placeSearch";
+import type { IntakeAnswers } from "@/shared/tuti/types";
 import { IconButton, BaseButton } from "./buttons";
 import { MadiSearchField } from "./MadiSearchField";
 import type { TutiPlace } from "@/lib/recommendations";
@@ -17,12 +19,12 @@ export function searchResultPlace(result: PlaceSearchResult): TutiPlace {
     phrase: "남기고 싶은 다음 하루", note: "방문 전 이용 안내를 확인해주세요.", travelTime: "이동 시간 확인 필요",
     today: "운영 정보 확인 필요", crowd: "정보 없음", fatigue: 0, movementLevel: "near", moodTags: [] };
 }
-export async function fetchExplorePlaces(query: string, signal?: AbortSignal): Promise<PlaceSearchResponse> {
-  const response = await fetchWithSession(`places/search?scope=explore&q=${encodeURIComponent(query)}`, { signal });
+export async function fetchExplorePlaces(query: string, signal?: AbortSignal, petCompanion?: IntakeAnswers["petCompanion"]): Promise<PlaceSearchResponse> {
+  const response = await fetchWithSession(`places/search?scope=explore&petCompanion=${petCompanion === "dog" ? "dog" : "none"}&q=${encodeURIComponent(query)}`, { signal });
   if (!response.ok) throw Error("장소를 검색하지 못했어요.");
   return response.json() as Promise<PlaceSearchResponse>;
 }
-export function ExplorePlaceSearch({ onSelect, disabled = false }: { onSelect: (place: TutiPlace) => void; disabled?: boolean }) {
+export function ExplorePlaceSearch({ onSelect, disabled = false, petCompanion }: { onSelect: (place: TutiPlace) => void; disabled?: boolean; petCompanion?: IntakeAnswers["petCompanion"] }) {
   const [open, setOpen] = useState(false);
   const [closing, setClosing] = useState(false);
   useEffect(() => {
@@ -32,19 +34,19 @@ export function ExplorePlaceSearch({ onSelect, disabled = false }: { onSelect: (
   }, [closing]);
   return <>
     <IconButton type="button" disabled={disabled} aria-label="장소 검색" aria-haspopup="dialog" aria-expanded={open && !closing && !disabled} onClick={() => { if (disabled) return; setClosing(false); setOpen(true); }}><Search size={21} aria-hidden="true" /></IconButton>
-    {open && !disabled && <SearchPanel closing={closing} onClose={() => setClosing(true)} onSelect={place => { setOpen(false); setClosing(false); onSelect(place); }} />}
+    {open && !disabled && <SearchPanel key={explorePlaceSearchScope(petCompanion)} petCompanion={petCompanion} closing={closing} onClose={() => setClosing(true)} onSelect={place => { setOpen(false); setClosing(false); onSelect(place); }} />}
   </>;
 }
-function SearchPanel({ onClose, onSelect, closing }: { onClose: () => void; onSelect: (place: TutiPlace) => void; closing: boolean }) {
+function SearchPanel({ onClose, onSelect, closing, petCompanion }: { onClose: () => void; onSelect: (place: TutiPlace) => void; closing: boolean; petCompanion?: IntakeAnswers["petCompanion"] }) {
   const id = useId(), input = useRef<HTMLInputElement>(null);
   const [text, setText] = useState(""), [query, setQuery] = useState("");
   useEffect(() => { const timer = setTimeout(() => setQuery(text.trim()), 250); return () => clearTimeout(timer); }, [text]);
-  const results = useQuery({ queryKey: ["explore-place-search", "dog-catalog", query], queryFn: ({ signal }) => fetchExplorePlaces(query, signal), enabled: Boolean(query), staleTime: 60_000, retry: 1 });
+  const results = useQuery({ queryKey: explorePlaceSearchKey(query, petCompanion), queryFn: ({ signal }) => fetchExplorePlaces(query, signal, petCompanion), enabled: Boolean(query), staleTime: 60_000, retry: 1 });
   const waiting = text.trim() !== query;
   return <Panel role="dialog" closing={closing} titleId={`${id}-title`} descriptionId={`${id}-scope`} initialFocus={input} onCancel={onClose}>
     <Heading><h2 id={`${id}-title`}>장소 찾기</h2><IconButton type="button" aria-label="검색 닫기" onClick={onClose}><X size={20} aria-hidden="true" /></IconButton></Heading>
     <MadiSearchField value={text} onChange={value => setText(value.slice(0, 80))} inputRef={input} label="장소 이름 또는 지역 검색" placeholder="장소 이름이나 지역을 입력하세요" />
-    <p id={`${id}-scope`}>반려견 동반 등록 장소에서 찾아요. 몸무게 등 세부 조건은 방문 전 확인해주세요.</p>
+    <p id={`${id}-scope`}>{petCompanion === "dog" ? "반려견 동반 등록 장소에서 찾아요. 몸무게 등 세부 조건은 방문 전 확인해주세요." : "동반 조건 없이 전체 장소에서 찾아요."}</p>
     <Results aria-live="polite" aria-busy={Boolean(text.trim() && (waiting || results.isFetching))}>
       {!text.trim() ? <p>찾고 싶은 장소가 있나요?</p> : waiting || results.isPending ? <p>장소를 찾고 있어요.</p> : results.isError ? <><p>검색하지 못했어요. 다시 시도해주세요.</p><BaseButton type="button" onClick={() => void results.refetch()}>다시 검색하기</BaseButton></> : results.data?.places.length ? results.data.places.map(place => <Result key={place.id} type="button" onClick={() => onSelect(searchResultPlace(place))}><strong>{place.name}</strong>{place.region && <span>{place.region}</span>}</Result>) : <p>검색한 장소가 없어요. 이름이나 지역을 바꿔보세요.</p>}
     </Results>

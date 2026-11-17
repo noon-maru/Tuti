@@ -1,11 +1,12 @@
 import { prisma } from "@/server/db/prisma";
-import { recordablePlaceWhere, dogCatalogPlaceWhere } from "@/server/recommendations/dogPlaceWhere";
+import { recordablePlaceWhere, dogCatalogPlaceWhere, readablePlaceWhere } from "@/server/recommendations/dogPlaceWhere";
 import {
   createPreflightResponse,
   isRequestOriginAllowed,
   withCors,
 } from "@/server/http/cors";
 import type { PlaceSearchResponse } from "@/shared/api/placeSearch";
+import { explorePlaceSearchScope } from "@/shared/api/placeSearch";
 import {
   toPublicPlaceName,
   toPublicRegionLabel,
@@ -27,6 +28,7 @@ export async function GET(request: Request) {
   try {
     const params = new URL(request.url).searchParams;
     const explore = params.get("scope") === "explore";
+    const dogOnly = explorePlaceSearchScope(params.get("petCompanion")) === "dog-catalog";
     const query = params
       .get("q")
       ?.trim()
@@ -34,7 +36,7 @@ export async function GET(request: Request) {
     if (explore && !query) return withCors(request, Response.json({ places: [] } satisfies PlaceSearchResponse));
     const places = await prisma.place.findMany({
       where: {
-        ...(explore ? dogCatalogPlaceWhere : recordablePlaceWhere),
+        ...(explore ? dogOnly ? dogCatalogPlaceWhere : readablePlaceWhere : recordablePlaceWhere),
         ...(query
           ? {
               OR: [
