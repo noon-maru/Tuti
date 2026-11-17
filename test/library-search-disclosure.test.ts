@@ -15,18 +15,20 @@ function nodes(tree: ReactNode): ReactElement<Record<string, unknown>>[] {
 test("책장 검색은 기본 접힘, 열기·입력·닫기·Escape·IME 및 포커스 복귀를 처리한다", () => {
   let term = "", focuses = 0;
   const books = [{ ...harumadiContent().harumadi, title: "우리의 하루" }];
+  const page = { harumadis: books, recordCount: 0 };
+  const paths: string[] = [];
   const components = ["HarumadiShelf", "HarumadiCarousel", "LibraryViewSwitch", "HarumadiBookReader", "MainNavigation", "LibraryLoadNotice", "MadiSearchField"];
   const deps: Record<string, unknown> = {
     "@emotion/styled": styled,
     "lucide-react": Object.fromEntries(["BookOpen", "ChevronRight", "MoreHorizontal", "Plus", "PenLine", "ArrowUpRight", "Download", "Search", "X"].map(name => [name, name])),
-    "next/navigation": { useRouter: () => ({ push() {} }) },
+    "next/navigation": { useRouter: () => ({ push(path: string) { paths.push(path); } }) },
     "@/features/tuti/hooks/useSession": { useSession: () => ({ userId: "owner" }) },
     "@/features/tuti/components/LoadingIndicator": { AppLoadingScreen: "loading", LoadingIndicator: "indicator" },
     "@/features/tuti/hooks/useLibraryView": { useLibraryView: () => ({ view: "carousel", chooseView() {} }) },
     "@/shared/harumadi/transitionGeometry": {},
     "@/features/tuti/hooks/useHarumadiHistory": { useHarumadiHistory: () => ({ opening: null }) },
     "@/features/tuti/components/buttons": { BaseButton: "button", PrimaryButton: "button" },
-    "@/features/tuti/hooks/useHarumadiLibrary": { useHarumadiLibrary: () => ({ data: { pages: [{ harumadis: books }] }, isFirstMadi: false }) },
+    "@/features/tuti/hooks/useHarumadiLibrary": { useHarumadiLibrary: () => ({ data: { pages: [page] }, isFirstMadi: false }) },
     "@/features/tuti/hooks/useHarumadiSearch": { useHarumadiSearch: () => ({ search: term, setSearch: (next: string) => { term = next; }, books: filterHarumadis(books, term), searching: Boolean(term.trim()) }) },
     "@/lib/libraryPreferences": {}, "@/lib/harumadiPdfDraft": {}, "@/shared/tuti/welcomeHarumadi": {}, "@/lib/welcomeHarumadiNavigation": {},
     "../hooks/useLifecycleView": { useLifecycleView() {} },
@@ -70,6 +72,14 @@ test("책장 검색은 기본 접힘, 열기·입력·닫기·Escape·IME 및 �
   assert.equal(escape(false), true); assert.equal(input(), undefined); assert.equal(focuses, 2);
   for (let i = 0; i < 4; i++) click();
   assert.equal(input(), undefined); assert.equal(term, "");
+  books.length = 0; page.recordCount = 3;
+  const label = (node: ReactElement<Record<string, unknown>>) => Children.toArray(node.props.children as ReactNode).filter(value => typeof value === "string" || typeof value === "number").join("");
+  const reread = render().find(node => label(node) === "남긴 마디 3개 보기")!;
+  assert.ok(reread, "책은 없어도 저장한 마디의 실제 수와 재열람 행동을 보여준다");
+  (reread.props.onClick as () => void)();
+  assert.deepEqual(paths, ["/madi"]);
+  page.recordCount = 0;
+  assert.equal(render().some(node => label(node).startsWith("남긴 마디 0개 보기")), false);
 });
 
 test("검색 패널은 양방향 공간 전환을 유지하고 동작 줄이기에서는 페이드만 남긴다", () => {

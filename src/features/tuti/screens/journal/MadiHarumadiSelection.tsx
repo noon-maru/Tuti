@@ -75,7 +75,9 @@ export function MadiHarumadiSelection({ ownerId, entryId, initialBookId, onDone,
       <h1 id="madi-collection-heading" ref={heading} tabIndex={-1}>{existingEntry ? "하루마디에 담았어요." : "마디를 남겼어요."}</h1>
       <p>{completion ? `‘${completion.title}’에 담았어요.` : "전체 마디 보기에서 언제든 다시 볼 수 있어요."}</p>
     </Completion>
-    <Footer>{completion && !existingEntry && <CreateLink href={`${harumadiPath(completion.id)}&focusEntryId=${encodeURIComponent(entryId)}`}>방금 남긴 쪽 보기</CreateLink>}
+    <Footer>{!existingEntry && (completion
+      ? <CreateLink href={`${harumadiPath(completion.id)}&focusEntryId=${encodeURIComponent(entryId)}`}>방금 남긴 쪽 보기</CreateLink>
+      : <CreateLink href={`/madi/detail?entryId=${encodeURIComponent(entryId)}`}>방금 남긴 마디 보기</CreateLink>)}
       <PrimaryButton onClick={onDone}>{existingEntry ? "목록으로 돌아가기" : "작성 마치기"}</PrimaryButton>
       {!existingEntry && <TextButton onClick={() => onNext(completion?.id)}>{completion ? "같은 하루마디에 다음 마디 남기기" : "다음 마디 남기기"}</TextButton>}
     </Footer>

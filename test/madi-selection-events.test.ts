@@ -58,6 +58,7 @@ test("최근 제안도 자동 선택하지 않고 명시적으로 고른 책을 
   const click = screen.control("이 하루마디에 담기").onClick as () => void;
   click(); click(); assert.equal(calls, 1); assert.deepEqual(screen.next, []);
   resolve(); await flush(); assert.deepEqual(screen.next, []); assert.equal(screen.done(), 0);
+  assert.match(String(screen.control("방금 남긴 쪽 보기").href), /harumadiId=book-a&focusEntryId=entry/);
   assert.ok(screen.control("작성 마치기"));
   (screen.control("같은 하루마디에 다음 마디 남기기").onClick as () => void)();
   assert.deepEqual(screen.next, [screen.book.id]); assert.equal(calls, 1);
@@ -70,6 +71,8 @@ test("추천 조회 실패·담기 실패에도 원본 저장 상태와 직접 �
   assert.match(String((alert.children as unknown[])[0]), /마디는 저장되어 있어요/);
   const noSelection = fixture(async () => { throw Error("호출되면 안 됨"); });
   (noSelection.control("지금은 담지 않기").onClick as () => void)();
+  assert.equal(noSelection.control("방금 남긴 마디 보기").href, "/madi/detail?entryId=entry");
+  assert.equal(noSelection.done(), 0, "재열람 전에도 원본을 재생성하거나 임의로 연결하지 않는다");
   assert.deepEqual(noSelection.next, []);
   (noSelection.control("다음 마디 남기기").onClick as () => void)();
   assert.deepEqual(noSelection.next, [undefined]);

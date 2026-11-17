@@ -61,6 +61,7 @@ function LibraryHome({ ownerId, adminAccess = false }: { ownerId: string; adminA
   const search = useHarumadiSearch(query.data?.pages.flatMap(page => page.harumadis) ?? []);
   const harumadiPdfs = search.books;
   const isFirstMadi = library.isFirstMadi;
+  const recordCount = query.data?.pages[0]?.recordCount ?? 0;
   const closeSearch = () => {
     search.setSearch("");
     setSearchOpen(false);
@@ -102,8 +103,11 @@ function LibraryHome({ ownerId, adminAccess = false }: { ownerId: string; adminA
           {harumadiPdfs.length === 0 && search.searching ? <Status role="status"><p>이름이 일치하는 하루마디가 없어요.</p><TextAction onClick={() => search.setSearch("")}>전체 하루마디 보기</TextAction></Status> : harumadiPdfs.length === 0 ? <EmptyShelf data-empty-shelf>
             <EmptyMark aria-hidden="true"><PenLine size={25} strokeWidth={1.25} /><span /></EmptyMark>
             <h2>{isFirstMadi ? "첫 마디를 채워넣어보세요" : "모아둔 마디를 한 권으로"}</h2>
-            <p>{isFirstMadi ? <>사진 한 장이나 짧은 이야기로<br />오늘의 순간을 가볍게 남겨보세요.</> : <>소중한 마디들을 담을<br />하루마디의 표지를 골라보세요.</>}</p>
-            {!isFirstMadi && <PrimaryButton type="button" onClick={openEditor}>새 하루마디 만들기<ArrowUpRight size={16} /></PrimaryButton>}
+            <p>{isFirstMadi ? <>사진 한 장이나 짧은 이야기로<br />오늘의 순간을 가볍게 남겨보세요.</> : recordCount > 0 ? <>남긴 마디는 그대로 있어요.<br />먼저 다시 읽거나 하루마디에 모아보세요.</> : <>소중한 마디들을 담을<br />하루마디의 표지를 골라보세요.</>}</p>
+            {recordCount > 0 ? <>
+              <PrimaryButton type="button" onClick={() => router.push("/madi")}>남긴 마디 {recordCount}개 보기<ChevronRight size={16} /></PrimaryButton>
+              <TextAction type="button" onClick={openEditor}>새 하루마디 만들기<ArrowUpRight size={16} /></TextAction>
+            </> : !isFirstMadi && <PrimaryButton type="button" onClick={openEditor}>새 하루마디 만들기<ArrowUpRight size={16} /></PrimaryButton>}
             <TextAction onClick={openExample}>하루마디 예시 펼쳐보기<ChevronRight size={14} /></TextAction>
           </EmptyShelf> : <>
             {view === "carousel" && !search.searching ? <HarumadiCarousel books={harumadiPdfs} ownerId={ownerId} onOpen={openBook}
