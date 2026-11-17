@@ -24,10 +24,11 @@ export function ExploreFlow() {
     if (ownerId) void markLibraryEntryCompleted(ownerId);
   }, [ownerId]);
   const entryRecord = useTutiStore(state => state.entryRecord);
+  const withDog = useTutiStore(state => state.answers.petCompanion === "dog");
   const stage = useTutiStore(state => state.entryStage);
   const questions = params.get("mode") === "questions";
   return <Frame>
-    {ownerId && entryRecord && !questions && stage !== "recommendation-ready" && <DogOutingControls key={ownerId} value={currentDogOuting} onChange={value => setDogOuting(value ? { ownerId, value } : undefined)} />}
+    {ownerId && withDog && entryRecord && !questions && stage !== "recommendation-ready" && <DogOutingControls key={ownerId} value={currentDogOuting} onChange={value => setDogOuting(value ? { ownerId, value } : undefined)} />}
     <Content>{ownerId ? <ExploreLocationGate key={ownerId}>{stage === "recommendation-ready" ? <RecommendationReadyFlow /> : !entryRecord || questions ? <IntakeFlow /> : <RecommendationsFlow interactive dogOuting={currentDogOuting} />}</ExploreLocationGate> : <AppLoadingScreen />}</Content>
     <MainNavigation active="explore" />
   </Frame>;

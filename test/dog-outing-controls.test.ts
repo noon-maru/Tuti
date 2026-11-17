@@ -19,10 +19,10 @@ test("동반 조건은 명시적으로 적용하고 미등록·다중 반려견�
   render(); assert.equal(calls.length, 0);
   apply(); assert.deepEqual(JSON.parse(JSON.stringify(calls)), [{ weightsKg: [], leash: null, carrier: null, space: "any", muzzle: null }]);
   weights("5, 12"); assert.equal(calls.length, 1, "입력만으로 질의하지 않는다");
-  const leash = render().filter(node => node.type === "select")[2];
+  const leash = render().filter(node => node.type === "select")[1];
   (leash.props.onChange as (event: unknown) => void)({ target: { value: "true" } });
   apply(); assert.deepEqual(JSON.parse(JSON.stringify(calls.at(-1))), { weightsKg: [5, 12], leash: true, carrier: null, space: "any", muzzle: null });
   weights("-5"); apply(); assert.equal(calls.length, 2); assert.ok(render().some(node => node.props.role === "alert"));
-  (render().find(node => node.props.children === "조건 없이 둘러보기")!.props.onClick as () => void)();
+  (render().find(node => node.props.children === "세부 동반 조건 지우기")!.props.onClick as () => void)();
   assert.equal(calls.at(-1), undefined);
 });

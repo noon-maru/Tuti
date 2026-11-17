@@ -1,6 +1,16 @@
 import { movementTimeBudget } from "@/shared/tuti/movementTimeBudget";
+import { outingCategories } from "@/shared/pets/outingCategories";
 
 export const intakeSteps = [
+  {
+    key: "petCompanion",
+    question: "이번 작은 여행,\n반려견과 함께 가나요?",
+    subtitle: "함께하는지에 맞춰 갈 수 있는 곳을 찾아볼게요.",
+    options: [
+      { value: "dog", label: "반려견과 함께 가요", hint: "동반 등록 장소에서 찾아요" },
+      { value: "none", label: "이번에는 함께 가지 않아요", hint: "동반 여부와 관계없이 찾아요" },
+    ],
+  },
   {
     key: "movement",
     question: "오늘,\n바깥에 시간을 낼 수 있을까요?",
@@ -65,12 +75,18 @@ export const longDistanceTimingStep = {
   ],
 } as const;
 
-export function getIntakeSteps(answers: { movement?: string }) {
-  return answers.movement === "far"
-    ? [...intakeSteps, longDistanceTimingStep]
-    : [...intakeSteps];
+export const categoryStep = {
+  key: "placeCategories",
+  question: "함께 어디에\n가고 싶나요?",
+  subtitle: "여러 개 골라도 좋아요. 고르지 않으면 모두 둘러봐요.",
+  options: outingCategories.map(category => ({ ...category, hint: "" })),
+} as const;
+
+export function getIntakeSteps(answers: { movement?: string; petCompanion?: string }) {
+  return [...intakeSteps, ...(answers.movement === "far" ? [longDistanceTimingStep] : []), ...(answers.petCompanion === "dog" ? [categoryStep] : [])];
 }
 
 export type IntakeStep =
   | (typeof intakeSteps)[number]
+  | typeof categoryStep
   | typeof longDistanceTimingStep;

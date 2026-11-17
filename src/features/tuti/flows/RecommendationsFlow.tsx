@@ -33,7 +33,7 @@ import {
   getKoreanDateKey,
   isKoreanDateBefore,
 } from "@/lib/date/koreanDate";
-import { isIntakePreferenceCurrent } from "@/lib/intakePreferences";
+import { isIntakePreferenceCurrent, withDefaultIntakeAnswers } from "@/lib/intakePreferences";
 import { getLocationTermsVersion } from "@/shared/location/terms";
 import type { DepartureRoute } from "@/shared/api/departurePlan";
 import type { RecommendationActionInput } from "@/shared/api/recommendationActions";
@@ -452,9 +452,9 @@ export function RecommendationsFlow({ interactive, dogOuting }: { interactive: b
   return (
     <>
       <RecommendationsScreen
-        dogConditionsSelected={Boolean(dogOuting)}
+        dogConditionsSelected={storedAnswers.petCompanion === "dog"}
         places={places}
-        answers={storedAnswers}
+        answers={withDefaultIntakeAnswers(storedAnswers)}
         loading={isPending && !dailyCheckInVisible}
         recommendationError={isError}
         recommendationErrorKind={getRecommendationErrorKind(error)}

@@ -29,7 +29,7 @@ function place(overrides: Partial<TutiPlace>): TutiPlace {
 }
 
 test("한 시간 외출 계산과 선택 문구가 같은 기준을 사용한다", () => {
-  const nearOption = intakeSteps[0].options.find(
+  const nearOption = intakeSteps.find(step => step.key === "movement")!.options.find(
     (option) => option.value === "near",
   );
 

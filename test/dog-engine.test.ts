@@ -10,6 +10,11 @@ let query: unknown;
   tourismPetSourceRecord: { findMany: async () => rows.map((row, i) => ({ placeId: row.id, fetchedAt: new Date(Date.now() - 1000), rawPayload: { contentid: String(i), acmpyTypeCd: "전구역 동반가능", acmpyPsblCpam: i === 180 ? "전 견종 동반 가능" : "10kg 이하 동반 가능" } })) },
 };
 const { createDogRecommendations } = await import("../src/server/recommendations/dogEngine");
+test("동반하지 않을 때는 동반 제한을 적용하지 않고 일반 장소 안내를 사용한다", async () => {
+  const result = await createDogRecommendations({ answers: { movement: "near", transport: "transit", petCompanion: "none" }, location: { latitude: 37.5, longitude: 127 }, dogOuting: { weightsKg: [15], leash: false, carrier: false } });
+  assert.equal(result.audit.companionEligible, 181);
+  assert.ok(result.places.every(place => !place.dogAccess && !place.reason?.includes("반려견")));
+});
 test("일반 180곳 절단 없이 동반 조건부터 판정하고 최초 추천은 외부 API를 기다리지 않는다", async t => {
   let network = false;
   t.mock.method(globalThis, "fetch", async () => { network = true; throw Error("network forbidden"); });

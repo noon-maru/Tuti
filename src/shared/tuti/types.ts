@@ -1,3 +1,4 @@
+import type { OutingCategory } from "@/shared/pets/outingCategories";
 export type MovementAnswer = "near" | "short" | "half" | "far";
 export type TransportAnswer = "car" | "transit";
 /** @deprecated 신규 질문에서는 사용하지 않으며 이전 추천 기록 호환용으로만 남긴다. */
@@ -11,6 +12,8 @@ export type LongDistanceTimingAnswer =
   | "overnight_trip";
 
 export type IntakeAnswers = {
+  petCompanion?: "dog" | "none";
+  placeCategories?: OutingCategory[];
   movement?: MovementAnswer;
   transport?: TransportAnswer;
   /** @deprecated 이전 앱 버전의 저장값 및 추천 기록 호환용 */
@@ -26,6 +29,8 @@ export function toActiveIntakeAnswers(
   answers: IntakeAnswers,
 ): IntakeAnswers {
   return {
+    ...(answers.petCompanion ? { petCompanion: answers.petCompanion } : {}),
+    ...(answers.petCompanion === "dog" && answers.placeCategories ? { placeCategories: answers.placeCategories } : {}),
     movement: answers.movement,
     transport: answers.transport,
     companion: answers.companion,

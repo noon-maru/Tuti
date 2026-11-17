@@ -11,12 +11,8 @@ export function DogOutingControls({ value, onChange }: { value?: DogOuting; onCh
   const [space, setSpace] = useState<DogOuting["space"]>("any");
   const [muzzle, setMuzzle] = useState<boolean | null>(null);
   const [error, setError] = useState("");
-  const [purpose, setPurpose] = useState<DogOuting["purpose"]>();
   return <Panel><details><summary>{value ? "동반 조건 변경" : "외출 조건 선택"}</summary><div>
-    <p>원하는 목적과 동반 조건을 골라보세요. 프로필 등록은 필요하지 않아요.</p>
-    <label>어떤 하루를 보내고 싶나요? · 선택<select value={purpose ?? ""} onChange={event => setPurpose((event.target.value || undefined) as DogOuting["purpose"])}>
-      <option value="">정하지 않고 둘러보기</option><option value="walk">함께 걷기</option><option value="cafe">카페에서 쉬기</option><option value="outing">새로운 곳 나들이</option>
-    </select></label>
+    <p>세부 동반 조건을 골라보세요. 프로필 등록은 필요하지 않아요.</p>
     <label>어떤 공간을 찾고 있나요? · 선택<select value={space} onChange={event => setSpace(event.target.value as DogOuting["space"])}>
       <option value="any">상관없어요</option><option value="indoor">실내</option><option value="outdoor">야외 · 테라스</option>
     </select></label>
@@ -25,11 +21,11 @@ export function DogOutingControls({ value, onChange }: { value?: DogOuting; onCh
     <p>확인된 몸무게 제한을 넘는 곳은 제외해요. 미입력·미기재 조건은 방문 전에 확인해주세요.</p>
     {([{ label: "목줄", value: leash, set: setLeash }, { label: "이동장", value: carrier, set: setCarrier }, { label: "입마개", value: muzzle, set: setMuzzle }] as const).map(item => <label key={item.label}>{item.label}<select value={item.value === null ? "unknown" : String(item.value)} onChange={event => item.set(event.target.value === "unknown" ? null : event.target.value === "true")}><option value="unknown">아직 정하지 않았어요</option><option value="true">사용해요</option><option value="false">사용하지 않아요</option></select></label>)}
     <PrimaryButton type="button" onClick={() => {
-      const parsed = parseDogOuting({ weightsKg: weights.trim() ? weights.split(",").map(item => Number(item.trim())) : [], leash, carrier, space, muzzle, ...(purpose ? { purpose } : {}) });
+      const parsed = parseDogOuting({ weightsKg: weights.trim() ? weights.split(",").map(item => Number(item.trim())) : [], leash, carrier, space, muzzle });
       if (!parsed) { setError("몸무게를 숫자로 확인해주세요. 여러 마리는 쉼표로 구분해요."); return; }
       setError(""); onChange(parsed);
     }}>이 조건으로 찾기</PrimaryButton>
-    {value && <TextButton type="button" onClick={() => { setWeights(""); setPurpose(undefined); setSpace("any"); setLeash(null); setCarrier(null); setMuzzle(null); onChange(undefined); }}>조건 없이 둘러보기</TextButton>}
+    {value && <TextButton type="button" onClick={() => { setWeights(""); setSpace("any"); setLeash(null); setCarrier(null); setMuzzle(null); onChange(undefined); }}>세부 동반 조건 지우기</TextButton>}
     {error && <p role="alert">{error}</p>}
   </div></details>{value && <p role="status">공식 등록 정보와 확인된 조건으로 찾아요. 미확인 조건은 방문 전에 확인해주세요.</p>}</Panel>;
 }

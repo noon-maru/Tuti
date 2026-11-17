@@ -30,11 +30,18 @@ export function IntakeFlow() {
   }, [answers, setAnswer]);
 
   const chooseAnswer = (value: string) => {
+    if (activeStep.key === "placeCategories") {
+      const selected = answers.placeCategories ?? [];
+      const category = activeStep.options.find(option => option.value === value)?.value;
+      if (category) setAnswer("placeCategories", selected.includes(category) ? selected.filter(item => item !== category) : [...selected, category]);
+      return;
+    }
     setAnswer(activeStep.key, value as never);
   };
 
   const goToNextQuestion = async () => {
-    if (!answers[activeStep.key] || resolvingLocation) return;
+    if ((activeStep.key !== "placeCategories" && !answers[activeStep.key]) || resolvingLocation) return;
+    if (activeStep.key === "placeCategories" && !answers.placeCategories) setAnswer("placeCategories", []);
 
     if (step < activeSteps.length - 1) {
       setStep((current) => current + 1);

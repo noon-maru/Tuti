@@ -3,6 +3,7 @@ import type {
   PreferredRegion,
   UserLocation,
 } from "@/shared/tuti/types";
+import { parseOutingCategories } from "@/shared/pets/outingCategories";
 
 type RecommendationInput = {
   answers: IntakeAnswers;
@@ -21,6 +22,8 @@ export function createRecommendationInputFingerprint({
 }: RecommendationInput) {
   const canonicalInput = JSON.stringify({
     answers: {
+      petCompanion: answers.petCompanion ?? null,
+      placeCategories: answers.petCompanion === "dog" ? parseOutingCategories(answers.placeCategories ?? []) : null,
       movement: answers.movement ?? null,
       transport: answers.transport ?? null,
       companion: answers.companion ?? null,

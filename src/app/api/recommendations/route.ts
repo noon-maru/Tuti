@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { parseDogOuting } from "@/shared/pets/dogAccess";
+import { parseOutingCategories } from "@/shared/pets/outingCategories";
 import { writeDiagnosticLogSafely } from "@/server/admin/log";
 import { after } from "next/server";
 import { authenticateUser } from "@/server/auth/session";
@@ -255,6 +256,8 @@ function normalizeAnswers(value: unknown): IntakeAnswers {
   }
 
   assertOnlyKeys(value, [
+    "petCompanion",
+    "placeCategories",
     "movement",
     "transport",
     "air",
@@ -265,6 +268,7 @@ function normalizeAnswers(value: unknown): IntakeAnswers {
   ]);
 
   const answers: IntakeAnswers = {
+    petCompanion: normalizeOptionalEnum(value.petCompanion, ["dog", "none"], "반려견 동반 여부"),
     movement: normalizeOptionalEnum(
       value.movement,
       ["near", "short", "half", "far"],
@@ -315,6 +319,11 @@ function normalizeAnswers(value: unknown): IntakeAnswers {
     );
   }
 
+  if (value.placeCategories !== undefined) {
+    const categories = parseOutingCategories(value.placeCategories);
+    if (!categories || answers.petCompanion !== "dog") throw new InvalidRecommendationRequestError("동반 장소 카테고리를 확인해주세요.");
+    answers.placeCategories = categories;
+  }
   return answers;
 }
 

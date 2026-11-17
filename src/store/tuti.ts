@@ -188,6 +188,7 @@ export const useTutiStore = create<TutiState>()(
           answers: {
             ...state.answers,
             [key]: value,
+            ...(key === "petCompanion" && value !== "dog" ? { placeCategories: undefined } : {}),
             ...(key === "movement" && value !== "far"
               ? { longDistanceTiming: undefined }
               : {}),

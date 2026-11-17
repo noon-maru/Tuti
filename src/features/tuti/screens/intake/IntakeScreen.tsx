@@ -36,7 +36,7 @@ export function IntakeScreen({
   step: number;
   total: number;
   activeStep: IntakeStep;
-  selectedValue?: string;
+  selectedValue?: string | string[];
   onBack: () => void;
   onChoose: (value: string) => void;
   onNext: () => void;
@@ -76,22 +76,22 @@ export function IntakeScreen({
       {activeStep.key === "movement" ? (
         <MovementSlider
           activeStep={activeStep}
-          selectedValue={selectedValue}
+          selectedValue={typeof selectedValue === "string" ? selectedValue : undefined}
           onChoose={onChoose}
         />
       ) : (
-        <OptionList>
+        <OptionList $multiple={activeStep.key === "placeCategories"}>
           {activeStep.options.map((option) => (
             <OptionCard
               key={option.value}
-              $tinted={false}
-              $active={option.value === selectedValue}
+              $tinted={activeStep.key === "placeCategories"}
+              $active={Array.isArray(selectedValue) ? selectedValue.includes(option.value) : option.value === selectedValue}
               type="button"
-              aria-pressed={option.value === selectedValue}
+              aria-pressed={Array.isArray(selectedValue) ? selectedValue.includes(option.value) : option.value === selectedValue}
               onClick={() => onChoose(option.value)}
             >
               <span>{option.label}</span>
-              <small>{option.hint}</small>
+              {option.hint && <small>{option.hint}</small>}
             </OptionCard>
           ))}
         </OptionList>
@@ -106,7 +106,7 @@ export function IntakeScreen({
       )}
       <QuestionActions>
         <NextButton
-          disabled={!selectedValue || resolvingLocation}
+          disabled={(activeStep.key !== "placeCategories" && !selectedValue) || resolvingLocation}
           onClick={onNext}
         >
           {step === total - 1
@@ -494,8 +494,9 @@ const ScaleOption = styled(BaseButton)<{ $active: boolean }>`
   }
 `;
 
-const OptionList = styled.div`
+const OptionList = styled.div<{ $multiple?: boolean }>`
   display: grid;
+  grid-template-columns: ${({ $multiple }) => $multiple ? "repeat(2, minmax(0, 1fr))" : "1fr"};
   gap: var(--space-3);
 
   @container app-viewport (min-width: 600px) {
