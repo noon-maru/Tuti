@@ -31,7 +31,8 @@ export function dogDistanceMeters(a: UserLocation, b: UserLocation) {
 export async function createDogRecommendations(input: { answers: IntakeAnswers; location?: UserLocation; preferredRegion?: PreferredRegion; excludePlaceIds?: string[]; preferencePlaceIds?: string[]; userId?: string; dogOuting?: DogOuting; now?: Date; allowGlobal?: boolean }) {
   const { location, preferredRegion } = input, now = input.now ?? new Date();
   const answers = { ...input.answers, movement: outingMovement(input.answers) };
-  const withDog = answers.petCompanion !== "none";
+  // Missing legacy answers are not evidence of dog companionship (same default as intake/search).
+  const withDog = answers.petCompanion === "dog";
   const dogOuting = withDog ? (answers.placeCategories !== undefined ? { weightsKg: [], leash: null, carrier: null, ...input.dogOuting, purpose: undefined, categories: answers.placeCategories } : input.dogOuting) : undefined;
   const movement = answers.movement ?? "near", radius = dogDistancePolicy[movement];
   requireLocationForLongDistance(movement, location);

@@ -6,6 +6,7 @@ import { dogAccessStatus } from "../src/shared/pets/dogAccess";
 import { tourApiDogAccessStatus } from "../src/shared/pets/tourApiDogAccess";
 import type { DogOuting } from "../src/shared/pets/dogAccess";
 import type { IntakeAnswers } from "../src/shared/tuti/types";
+import { outingMovement } from "../src/shared/tuti/movementTimeBudget";
 
 // Fixed public coordinates only. Never reads account history or writes visits/recommendation runs.
 try {
@@ -13,7 +14,7 @@ try {
   for (const [area, latitude, longitude] of [["seoul",37.5665,126.978],["gyeongju",35.79,129.33],["jeju",33.4996,126.5312]] as const) {
     for (const purpose of ["walk", "cafe", "outing"] as const) {
       const dogOuting = { weightsKg: [8], leash: true, carrier: false, purpose };
-      const result = await createDogRecommendations({ answers: { movement: "short", transport: "transit" }, location: { latitude, longitude }, dogOuting });
+      const result = await createDogRecommendations({ answers: { petCompanion: "dog", movement: "short", transport: "transit" }, location: { latitude, longitude }, dogOuting });
       const matches = result.ranked.filter(place => matchesDogPurpose(place, dogOuting));
       assert.equal(result.places.filter(place => matchesDogPurpose(place, dogOuting)).length, Math.min(6, matches.length));
       for (const place of result.places) { selected.add(place.id); assert.ok(place.dogAccess); }
@@ -38,10 +39,11 @@ try {
   globalThis.fetch = async () => { externalRequests++; throw Error("UNEXPECTED_EXTERNAL_REQUEST"); };
   try {
     for (const [latitude, longitude] of [[37.5665,126.978],[35.79,129.33],[33.4996,126.5312]]) for (const scenario of scenarios) {
-      const result = await createDogRecommendations({ ...scenario, location: { latitude, longitude } });
+      const answers = { ...scenario.answers, petCompanion: "dog" as const };
+      const result = await createDogRecommendations({ ...scenario, answers, location: { latitude, longitude } });
       assert.ok(result.places.length <= 6);
       for (const place of result.places) {
-        assert.ok(place.distanceMeters! <= dogDistancePolicy[scenario.answers.movement ?? "near"]);
+        assert.ok(place.distanceMeters! <= dogDistancePolicy[outingMovement(answers)]);
         if (scenario.answers.transport === "car") assert.ok(place.distanceMeters! >= 2000);
         assert.ok(scenario.answers.longDistanceTiming === "overnight_trip" || place.sourceContentType !== "32");
         const access = place.dogAccess!;
