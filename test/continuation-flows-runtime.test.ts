@@ -3,7 +3,7 @@ import test from "node:test";
 import { clientFlowHarness } from "./fixtures/clientFlowHarness";
 import { createLoginContinuation, loginSuccessPath, safeLoginReturn } from "@/lib/loginContinuation";
 import { DEFAULT_NOTIFICATION_SETTINGS } from "@/shared/notifications/preferences";
-import { savedMadiSelectionPath } from "@/lib/savedMadiSelection";
+import { publicPlaceReturnPath, savedMadiSelectionPath } from "@/lib/savedMadiSelection";
 import { PublicMadiUnavailable, readPublicMadi } from "@/lib/publicMadiRead";
 
 const flush = () => new Promise(resolve => setImmediate(resolve));
@@ -26,7 +26,7 @@ test("작은 여행에서 선택한 책의 마디는 저장과 연결을 한 번
     "@/lib/tutiApi": { recordRecommendationAction: async (action: Record<string, unknown>) => { actions.push(action); } },
     "../hooks/useLifecycleView": { useLifecycleView: (_event: string, origin: string) => origins.push(origin) },
     "@/lib/lifecycle": { trackLifecycle() {} }, "../hooks/useNotificationPresence": { useNotificationPresence() {} }, "@/lib/notificationSettings": {},
-    "@/lib/savedMadiSelection": { savedMadiSelectionPath },
+    "@/lib/savedMadiSelection": { publicPlaceReturnPath, savedMadiSelectionPath },
   };
   const create = () => clientFlowHarness("src/features/tuti/flows/JournalCreateFlow.tsx", "JournalCreateFlow", deps, { TextEncoder, window: { history: { length: 12 } } });
   const flow = create(), parent = flow.render(), composer = flow.render(parent.props, parent.type as never);
@@ -43,6 +43,14 @@ test("작은 여행에서 선택한 책의 마디는 저장과 연결을 한 번
   const standalone = create(), next = standalone.render();
   (standalone.render(next.props, next.type as never).props.onBack as () => void)();
   assert.equal(paths.at(-1), "/explore", "중간 로그인 화면으로 history.back하지 않는다");
+  params = new URLSearchParams({ from: "place", placeId: "tourapi-1", placeName: "공유된 공원" });
+  const shared = create(), sharedParent = shared.render();
+  const sharedComposer = shared.render(sharedParent.props, sharedParent.type as never);
+  assert.equal(sharedComposer.props.collectionLabel, "공유된 장소로 돌아가기");
+  (sharedComposer.props.onBack as () => void)();
+  assert.equal(paths.at(-1), "/place/tourapi-1");
+  (sharedComposer.props.onCollection as () => void)();
+  assert.equal(paths.at(-1), "/place/tourapi-1");
 });
 test("실제 로그인 핸들러는 이메일·소셜·취소 후 원래 작업으로 돌아간다", async () => {
   const paths: string[] = []; let params = new URLSearchParams(); let linked = false, invite = false;
@@ -99,7 +107,7 @@ test("실제 작성 흐름은 저장 후 URL에서 선택을 복원하고 다른
     "@/store/tuti": { useTutiStore: (select: (value: unknown) => unknown) => select({ setActiveJournalEntry() {} }) },
     "@/lib/harumadis": {}, "@/lib/tutiApi": {}, "../hooks/useLifecycleView": { useLifecycleView() {} },
     "@/lib/lifecycle": {}, "../hooks/useNotificationPresence": { useNotificationPresence() {} }, "@/lib/notificationSettings": {},
-    "@/lib/savedMadiSelection": { savedMadiSelectionPath },
+    "@/lib/savedMadiSelection": { publicPlaceReturnPath, savedMadiSelectionPath },
   };
   const create = () => clientFlowHarness("src/features/tuti/flows/JournalCreateFlow.tsx", "JournalCreateFlow", deps);
   const first = create(), parent = first.render();
@@ -111,6 +119,11 @@ test("실제 작성 흐름은 저장 후 URL에서 선택을 복원하고 다른
   const selection = reload.render(node.props, node.type as never); assert.equal(selection.type, "selection"); assert.equal(creates, 0);
   (selection.props.onDone as () => void)(); assert.equal(paths.at(-1), "/explore");
   (selection.props.onNext as () => void)(); assert.equal(paths.at(-1), "/madi/new?from=explore");
+  params = new URLSearchParams({ savedEntryId: "saved", from: "place", placeId: "tourapi-1" });
+  const sharedReload = create(), sharedNode = sharedReload.render();
+  const sharedSelection = sharedReload.render(sharedNode.props, sharedNode.type as never);
+  (sharedSelection.props.onDone as () => void)(); assert.equal(paths.at(-1), "/place/tourapi-1");
+  assert.equal(creates, 0, "선택 완료는 마디를 다시 생성하지 않는다");
   query.isError = true; assert.equal(reload.render(node.props, node.type as never).type, "status");
   query.isError = false; query.entries = []; owner = "other";
   const switched = create(), switchedNode = switched.render();

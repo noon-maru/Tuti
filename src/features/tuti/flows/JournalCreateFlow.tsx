@@ -17,7 +17,7 @@ import { notificationRequest } from "@/lib/notificationSettings";
 import { cachedMadiDestination, madiDestinationScopeChanged } from "@/lib/madiComposeDestination";
 import { MadiHarumadiSelection } from "@/features/tuti/screens/journal/MadiHarumadiSelection";
 import { JournalDetailStatusScreen } from "@/features/tuti/screens/journal/JournalDetailScreen";
-import { savedMadiSelectionPath } from "@/lib/savedMadiSelection";
+import { publicPlaceReturnPath, savedMadiSelectionPath } from "@/lib/savedMadiSelection";
 
 export function JournalCreateFlow() {
   const ownerId = useSession()?.userId;
@@ -30,9 +30,11 @@ export function JournalCreateFlow() {
 
 function SavedMadiSelection({ ownerId, entryId }: { ownerId?: string; entryId: string }) {
   const router = useRouter();
-  const source = useSearchParams().get("from");
+  const params = useSearchParams();
+  const source = params.get("from");
+  const sharedPlaceReturn = publicPlaceReturnPath(source, params.get("placeId"));
   const query = useTutiJournalEntries();
-  const done = () => { requestLoginNudge("journal_created"); router.replace(source === "explore" ? "/explore" : source === "library" || source === "welcome" ? "/" : "/madi"); };
+  const done = () => { requestLoginNudge("journal_created"); router.replace(sharedPlaceReturn ?? (source === "explore" ? "/explore" : source === "library" || source === "welcome" ? "/" : "/madi")); };
   if (!ownerId || query.isPending) return <JournalDetailStatusScreen loading message="저장한 마디를 확인하고 있어요." onBack={done} />;
   if (query.isError) return <JournalDetailStatusScreen message="저장한 마디를 확인하지 못했어요." onBack={done} onRetry={() => void query.refetch()} />;
   // Resolve only within the current account's permission-filtered query; never recreate a missing entry.
@@ -70,8 +72,10 @@ function JournalComposer({ ownerId, harumadiId }: { ownerId?: string; harumadiId
   const initialPlaceId = searchParams.get("placeId");
   const initialPlaceName = searchParams.get("placeName");
   const recommendationId = searchParams.get("journeyId");
+  const sharedPlaceReturn = publicPlaceReturnPath(source, initialPlaceId);
   const returnToSource = () => {
     if (harumadiId) { router.replace(harumadiPath(harumadiId)); return; }
+    if (sharedPlaceReturn) { router.replace(sharedPlaceReturn); return; }
     if (fromLibrary) { router.replace("/"); return; }
     if (fromExplore) { router.replace("/explore"); return; }
     if (window.history.length > 1) router.back();
@@ -94,7 +98,7 @@ function JournalComposer({ ownerId, harumadiId }: { ownerId?: string; harumadiId
     destinationError={book.isError}
     onRetryDestination={() => void book.refetch()}
     initialPlace={initialPlaceId && initialPlaceName ? { id: initialPlaceId, name: initialPlaceName } : undefined}
-    collectionLabel={harumadiId ? "하루마디로 돌아가기" : fromExplore ? "나들이로 돌아가기" : fromLibrary ? "내 책장으로 돌아가기" : "작성 마치기"}
+    collectionLabel={harumadiId ? "하루마디로 돌아가기" : sharedPlaceReturn ? "공유된 장소로 돌아가기" : fromExplore ? "나들이로 돌아가기" : fromLibrary ? "내 책장으로 돌아가기" : "작성 마치기"}
     onBack={returnToSource}
     onSave={async draft => {
       if (harumadiId && !destinationVerified) throw new Error("담을 하루마디를 다시 확인해주세요. 작성 중인 내용은 그대로 남아 있어요.");
@@ -121,7 +125,7 @@ function JournalComposer({ ownerId, harumadiId }: { ownerId?: string; harumadiId
       if (source === "notification" && notificationId) void notificationRequest("notifications/events", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ notificationId, action: "written" }) }).catch(() => {});
       savedEntryId.current = entry.id;
       setActiveJournalEntry(entry.id);
-      if (!harumadiId && !entry.savedHarumadi) router.replace(savedMadiSelectionPath(entry.id, source));
+      if (!harumadiId && !entry.savedHarumadi) router.replace(savedMadiSelectionPath(entry.id, source, initialPlaceId));
     }}
     // 하루마디 안에서 시작했다면 담을 곳은 이미 정해져 있다.
     // 저장 API가 연결까지 원자적으로 완료했으므로 읽기 위치만 전달한다.

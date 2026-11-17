@@ -15,7 +15,7 @@ export function PublicPlaceFlow({ place }: { place: TutiPlace }) {
       travelTimeLabel="공유된 공간"
       backLabel="Tuti에서 다른 공간 찾기"
       showBackMenuItem
-      onCreateMadi={() => router.push(placeMadiPath(place))}
+      onCreateMadi={() => router.push(placeMadiPath(place, undefined, undefined, "place"))}
       onBack={() => router.push("/entry?next=explore")}
     />
   );

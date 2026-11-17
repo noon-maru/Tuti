@@ -36,7 +36,7 @@ export function safeLoginReturn(value: string | null | undefined): string | null
         : key === "mode" ? ["questions", "guide", "together", "settings", "pages"].includes(item)
           : key === "next" ? item === "explore"
             : key === "source" ? ["detail", "journal", "harumadi"].includes(item)
-              : ["entry", "welcome", "library", "explore", "pdfs"].includes(item);
+              : ["entry", "welcome", "library", "explore", "place", "pdfs"].includes(item);
     if (valid) params.set(key, item);
   }
   return url.pathname + (params.size ? `?${params}` : "");
