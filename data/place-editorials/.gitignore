@@ -1,0 +1,2 @@
+# 개발 DB에서 재생성 가능한 대용량 미수집 대상 목록은 로컬 점검용으로 유지한다.
+source/*/unsupported.jsonl
