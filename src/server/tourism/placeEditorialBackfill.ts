@@ -105,17 +105,22 @@ export async function applyEditorialBackfill(plan: ReturnType<typeof prepareEdit
   }, { maxWait: 30_000, timeout: 300_000 });
 }
 
-export type ReviewedEditorial = { contentId: string; sourceFingerprint: string; existingSummary: string; approved: boolean; reason: string };
+export type ReviewedEditorial = { contentId: string; sourceFingerprint: string; existingSummary: string; approved: boolean; reason: string; replacementSummary?: string };
 
 export function parseReviewedEditorials(contents: string): ReviewedEditorial[] {
   const seen = new Set<string>();
   return contents.split(/\r?\n/).filter(line => line.trim()).map((line, index) => {
     const item = JSON.parse(line) as ReviewedEditorial;
-    if (!item || Object.keys(item).sort().join(",") !== "approved,contentId,existingSummary,reason,sourceFingerprint" ||
+    const keys = item && Object.keys(item).sort().join(",");
+    if (!item || !["approved,contentId,existingSummary,reason,sourceFingerprint", "approved,contentId,existingSummary,reason,replacementSummary,sourceFingerprint"].includes(keys as string) ||
       typeof item.contentId !== "string" || !/^\d+$/.test(item.contentId) || seen.has(item.contentId) ||
       typeof item.sourceFingerprint !== "string" || !/^[a-f0-9]{64}$/.test(item.sourceFingerprint) ||
       typeof item.existingSummary !== "string" || !item.existingSummary.trim() || typeof item.approved !== "boolean" ||
       typeof item.reason !== "string" || !item.reason.trim() || item.reason.length > 200) throw new Error(`검토 ${index + 1}행 형식/중복 오류`);
+    if ("replacementSummary" in item && (!item.approved || typeof item.replacementSummary !== "string" ||
+      !item.replacementSummary.trim() || item.replacementSummary.length > 180 || item.replacementSummary !== item.replacementSummary.replace(/\s+/g, " ").trim())) {
+      throw new Error(`검토 ${index + 1}행 교정 문구 오류`);
+    }
     seen.add(item.contentId);
     return item;
   });
@@ -127,12 +132,17 @@ export function prepareReviewedEditorials(rows: EditorialBackfillRow[], reviews:
     const matches = rows.filter(row => row.sourceId === review.contentId);
     if (matches.length !== 1) throw new Error(`검토 추천 범위 불일치: ${review.contentId}`);
     const row = matches[0], detail = row.tourismSourceRecord?.detailRecord;
-    if (!detail || detail.overviewSummary !== review.existingSummary || editorialSourceFingerprint(row) !== review.sourceFingerprint) throw new Error(`검토 이후 원문/문구 변경: ${review.contentId}`);
-    const fingerprint = createPlaceOverviewSummaryFingerprint(detail);
-    return fingerprint !== detail.summarySourceFingerprint ? [{ row, review, fingerprint }] : [];
+    const alreadyCorrected = Boolean(review.replacementSummary && detail?.overviewSummary === review.replacementSummary);
+    if (!detail || (!alreadyCorrected && detail.overviewSummary !== review.existingSummary) || editorialSourceFingerprint(row) !== review.sourceFingerprint) throw new Error(`검토 이후 원문/문구 변경: ${review.contentId}`);
+    const overview = review.replacementSummary ? detail.overview?.trim() ? detail.overview : editorialSource(row).overview : detail.overview;
+    if (review.replacementSummary && !overview) throw new Error(`교정 소개 근거 부족: ${review.contentId}`);
+    const restoreOverview = review.replacementSummary && !detail.overview?.trim() && overview ? overview : undefined;
+    const fingerprint = createPlaceOverviewSummaryFingerprint({ ...detail, overview });
+    const summary = !alreadyCorrected ? review.replacementSummary : undefined;
+    return summary || restoreOverview || fingerprint !== detail.summarySourceFingerprint ? [{ row, review, fingerprint, summary, restoreOverview }] : [];
   });
-  const planHash = createHash("sha256").update(JSON.stringify(updates.map(({ row, review, fingerprint }) => ({
-    id: row.id, placeUpdatedAt: row.updatedAt, detailUpdatedAt: row.tourismSourceRecord!.detailRecord!.updatedAt, review, fingerprint,
+  const planHash = createHash("sha256").update(JSON.stringify(updates.map(({ row, review, fingerprint, restoreOverview }) => ({
+    id: row.id, placeUpdatedAt: row.updatedAt, detailUpdatedAt: row.tourismSourceRecord!.detailRecord!.updatedAt, review, fingerprint, restoreOverview,
   })))).digest("hex");
   return { updates, planHash, supplied: reviews.length, approved: reviews.filter(review => review.approved).length, needsReview: reviews.filter(review => !review.approved).length };
 }
@@ -144,13 +154,16 @@ export async function applyReviewedEditorials(plan: ReturnType<typeof prepareRev
     await lockEditorialSources(transaction, plan.updates.map(update => update.row));
     const eligible = await transaction.place.count({ where: { AND: [readablePlaceWhere, { id: { in: plan.updates.map(update => update.row.id) } }] } });
     if (eligible !== plan.updates.length) throw new Error("검토 반영 전 추천 범위 변경");
-    for (const { row, review, fingerprint } of plan.updates) {
+    const generatedAt = new Date();
+    for (const { row, review, fingerprint, summary, restoreOverview } of plan.updates) {
       const detail = row.tourismSourceRecord!.detailRecord!;
       const result = await transaction.tourismPlaceDetailRecord.updateMany({ where: {
-        contentId: review.contentId, updatedAt: detail.updatedAt, overviewSummary: review.existingSummary, summarySourceFingerprint: detail.summarySourceFingerprint,
-      }, data: { summarySourceFingerprint: fingerprint } });
+        contentId: review.contentId, updatedAt: detail.updatedAt, overviewSummary: detail.overviewSummary, summarySourceFingerprint: detail.summarySourceFingerprint,
+      }, data: { summarySourceFingerprint: fingerprint, ...(restoreOverview ? { overview: restoreOverview } : {}), ...(summary ? { overviewSummary: summary, summaryModel: PLACE_OVERVIEW_SUMMARY_MODEL,
+        summaryVersion: PLACE_OVERVIEW_SUMMARY_VERSION, summaryGeneratedAt: generatedAt } : {}) } });
       if (result.count !== 1) throw new Error(`검토 요약 동시 수정: ${review.contentId}`);
     }
-    return { revalidated: plan.updates.length, existingSummaryTextChanged: false, needsReview: plan.needsReview };
+    const corrected = plan.updates.filter(update => update.summary).length;
+    return { revalidated: plan.updates.length, corrected, existingSummaryTextChanged: corrected > 0, needsReview: plan.needsReview };
   }, { maxWait: 30_000, timeout: 300_000 });
 }
