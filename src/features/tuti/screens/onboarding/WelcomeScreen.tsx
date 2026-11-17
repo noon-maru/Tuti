@@ -52,10 +52,10 @@ export function WelcomeScreen({ onRecord, onExplore, guideStep, onGuideOpen, onG
     </Copy>
     <Visual>
       {guideStep === 1 ? <StoryExample aria-label="사진과 짧은 이야기 예시">
-        <StoryPhoto><Image src="/welcome/shared-afternoon-example.webp" alt="함께 커피를 마신 오후의 사진 예시" fill sizes="220px" /></StoryPhoto>
-        <p>별일 없던 오후도,<br />함께라서 좋았어.</p>
+        <StoryPhoto><Image src="/welcome/cat-at-home-example-v2.webp" alt="창가에서 쉬는 반려묘의 일상 예시" fill sizes="220px" /></StoryPhoto>
+        <p>네가 좋아하는 창가에<br />오늘도 햇살이 들었어.</p>
       </StoryExample> : guideStep === 0 ? <PhotoExample>
-        <Image src="/welcome/shared-afternoon-example.webp" alt="두 사람이 함께한 오후의 사진 예시" fill sizes="(max-width: 600px) 70vw, 280px" />
+        <Image src="/welcome/dog-walk-example-v2.webp" alt="반려견과 동네를 산책하는 사진 예시" fill sizes="(max-width: 600px) 70vw, 280px" />
       </PhotoExample> : <HarumadiFigure>
         <HarumadiButton ref={harumadiPdf} type="button" aria-label="하루마디 예시 펼쳐보기" onClick={() => {
           const sheet = harumadiPdf.current?.querySelector('[data-harumadi-pdf-sample]');

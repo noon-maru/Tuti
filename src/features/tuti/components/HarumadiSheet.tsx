@@ -45,9 +45,9 @@ export function HarumadiPageSheet({ page, coverStyle, number, compactCover = fal
 }
 
 const sample = {
-  title: "함께라서 좋았던 오후",
-  content: "별다른 계획 없이 걸었는데,\n같이여서 오래 기억하고 싶은 하루.\n\n다음에도 이렇게 천천히 걷자.",
-  photo: "/welcome/shared-afternoon-example.webp",
+  title: "네가 고른 산책길",
+  content: "오늘은 네가 멈추는 곳마다\n나도 잠깐 멈춰 섰다.\n\n익숙한 길에 새로운 냄새가 많았나 봐.",
+  photo: "/welcome/dog-walk-example-v2.webp",
 };
 const coverPalette = getHarumadiPdfCoverPalette("green-image");
 
@@ -55,29 +55,29 @@ const coverPalette = getHarumadiPdfCoverPalette("green-image");
 export function WelcomeHarumadiSample({ page, priority = false }: { page: "cover" | "page" | "photo" | "text"; priority?: boolean }) {
   if (page === "photo") return <Sheet data-harumadi-pdf-sample="photo">
     <PhotoOnlyPaper $cover={false}>
-      <PhotoHeader date="2026.06.25" place="동네 카페" />
-      <PhotoOnlyBody><PhotoOnly><Image src={sample.photo} alt="함께 커피를 나눈 오후를 사진만으로 담은 마디 예시" fill sizes="(max-width: 600px) 80vw, 400px" priority={priority} /></PhotoOnly></PhotoOnlyBody>
+      <PhotoHeader date="2026.06.25" place="우리 집 창가" />
+      <PhotoOnlyBody><PhotoOnly><Image src="/welcome/cat-at-home-example-v2.webp" alt="창가에서 쉬는 반려묘를 사진만으로 담은 마디 예시" fill sizes="(max-width: 600px) 80vw, 400px" priority={priority} /></PhotoOnly></PhotoOnlyBody>
       <Folio number={2} />
     </PhotoOnlyPaper>
   </Sheet>;
   if (page === "text") return <Sheet data-harumadi-pdf-sample="text">
     <TextPaper $cover={false}>
       <TextFrame>
-        <TextMeta>2026-06-28 · 동네 산책길</TextMeta>
-        <TextTitle>집까지 조금 더 천천히</TextTitle>
-        <TextBody>{"금방 들어가기 아쉬워서\n익숙한 길을 한 바퀴 더 걸었다.\n\n별일 없던 하루도\n같이 걸으면 남기고 싶어진다."}</TextBody>
+        <TextMeta>2026-06-28 · 퇴근길</TextMeta>
+        <TextTitle>오늘은 나를 위한 한 바퀴</TextTitle>
+        <TextBody>{"바로 집에 가기 아쉬워\n혼자 동네를 조금 걸었다.\n\n아무 일 없던 날에도\n나에게 남겨둘 순간이 있었다."}</TextBody>
       </TextFrame>
       <Folio number={3} />
     </TextPaper>
   </Sheet>;
   return <Sheet data-harumadi-pdf-sample={page}>
     {page === "cover" ? <CoverPaper $cover>
-      <CoverHeader><span>2026.06.23<br />- 2026.06.28</span><span>함께 남긴 하루</span></CoverHeader>
-      <CoverBody><CoverPhoto><Image src={sample.photo} alt="함께 커피를 나눈 오후의 예시 사진" fill sizes="200px" priority={priority} /></CoverPhoto></CoverBody>
+      <CoverHeader><span>2026.06.23<br />- 2026.06.28</span><span>함께 살아가는 날들</span></CoverHeader>
+      <CoverBody><CoverPhoto><Image src={sample.photo} alt="반려견과 산책한 오후의 예시 사진" fill sizes="200px" priority={priority} /></CoverPhoto></CoverBody>
       <CoverMark>Tuti</CoverMark>
     </CoverPaper> : <PhotoPaper $cover={false}>
-      <PhotoHeader date="2026.06.23" place="동네 카페" />
-      <Photo><Image src={sample.photo} alt="함께 커피를 나눈 오후의 예시 사진" fill sizes="(max-width: 600px) 60vw, 320px" priority={priority} /></Photo>
+      <PhotoHeader date="2026.06.23" place="동네 산책길" />
+      <Photo><Image src={sample.photo} alt="반려견과 산책한 오후의 예시 사진" fill sizes="(max-width: 600px) 60vw, 320px" priority={priority} /></Photo>
       <Story><Title>{sample.title}</Title><Body>{sample.content}</Body></Story>
       <Folio number={1} />
     </PhotoPaper>}

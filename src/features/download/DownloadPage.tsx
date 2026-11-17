@@ -30,11 +30,10 @@ export function DownloadPage() {
 
       <Main>
         <Intro>
-          <Eyebrow>앱 다운로드</Eyebrow>
           <h1>
-            오늘의 다른 공기를
+            함께 살아가는 날들을
             <br />
-            더 가까이 두세요.
+            한 권의 추억으로.
           </h1>
           <p>
             Tuti를 설치하면 알림을 받고,
@@ -186,12 +185,6 @@ const Intro = styled.section`
       font-size: clamp(1.8rem, 9vw, 2.35rem);
     }
   }
-`;
-
-const Eyebrow = styled.span`
-  color: var(--color-brand-700);
-  font-size: var(--font-size-100);
-  font-weight: 700;
 `;
 
 const StoreRail = styled.section`

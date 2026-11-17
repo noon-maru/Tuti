@@ -4,6 +4,21 @@ import { readFileSync } from "node:fs";
 import { parseWelcomeHarumadiPage, welcomeHarumadiPath, welcomeHarumadiTurn, welcomeHarumadiNeighbor, WELCOME_HARUMADI_LAST_PAGE, WELCOME_HARUMADI_PAGE_COUNT } from "../src/shared/tuti/welcomeHarumadi";
 import { getWelcomeHarumadiOrigin, setWelcomeHarumadiOrigin, takeWelcomeHarumadiOrigin } from "../src/lib/welcomeHarumadiNavigation";
 
+test("2.0 예시는 반려견 외출·반려묘 실내·나 자신의 하루를 함께 보여준다", () => {
+  const source = readFileSync("src/features/tuti/components/HarumadiSheet.tsx", "utf8");
+  assert.match(source, /네가 고른 산책길/);
+  assert.match(source, /우리 집 창가/);
+  assert.match(source, /오늘은 나를 위한 한 바퀴/);
+  for (const asset of ["dog-walk-example-v2", "cat-at-home-example-v2"]) {
+    assert.ok(readFileSync(`public/welcome/${asset}.webp`).length > 0);
+    assert.match(source, new RegExp(asset));
+  }
+  assert.doesNotMatch(source, /shared-afternoon-example/);
+  const layout = readFileSync("src/app/layout.tsx", "utf8");
+  assert.match(layout, /라이프로그 서비스/);
+  assert.doesNotMatch(layout, /친구와의 하루도/);
+});
+
 test("예시 화면의 DOM 속성과 클릭·레이어 선택자는 소문자 data 속성을 공유한다", () => {
   const read = (file: string) => readFileSync(`src/features/tuti/screens/onboarding/${file}.tsx`, "utf8");
   const sample = readFileSync("src/features/tuti/components/HarumadiSheet.tsx", "utf8");
@@ -45,7 +60,7 @@ test("사진 전용 예시는 실제 PDF처럼 날짜·장소·쪽번호와 고�
   const photo = sample.slice(sample.indexOf('if (page === "photo")'), sample.indexOf('if (page === "text")'));
   assert.match(photo, /data-harumadi-pdf-sample="photo"/);
   assert.equal((photo.match(/<Image /g) ?? []).length, 1);
-  assert.match(photo, /<PhotoHeader date="2026.06.25" place="동네 카페"/);
+  assert.match(photo, /<PhotoHeader date="2026.06.25" place="우리 집 창가"/);
   assert.match(photo, /<Folio number=\{2\}/);
   assert.match(sample, /height: \$\{pt\(layout.photo.imageHeight\)\}/);
   assert.match(sample, /img \{ object-fit: cover; \}/);

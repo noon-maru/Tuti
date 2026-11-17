@@ -11,7 +11,7 @@ export const metadata: Metadata = {
   metadataBase: new URL("https://tuti.today"),
   title: "Tuti | 일상을 추억으로, 추억을 한 권으로",
   description:
-    "친구와의 하루도, 연인과의 작은 여행도. 사진과 짧은 이야기로 함께한 순간을 기록하고 나만의 하루마디로 모아보세요.",
+    "반려동물과 함께한 순간도, 나만의 하루도. 사진과 짧은 이야기로 일상을 기록하고 한 권의 하루마디로 모으는 라이프로그 서비스예요.",
   applicationName: "Tuti",
   category: "lifestyle",
   manifest: "/manifest.json",
@@ -21,13 +21,13 @@ export const metadata: Metadata = {
     siteName: "Tuti",
     title: "Tuti | 일상을 추억으로, 추억을 한 권으로",
     description:
-      "함께한 순간들이, 한 권의 추억이 되도록. 사진과 짧은 이야기로 소중한 하루를 남겨보세요.",
+      "반려견과의 산책, 반려묘와의 집 안 일상, 나만의 하루까지. 소중한 순간을 남기고 한 권의 하루마디로 모아보세요.",
   },
   twitter: {
     card: "summary",
     title: "Tuti | 일상을 추억으로, 추억을 한 권으로",
     description:
-      "함께한 순간들이, 한 권의 추억이 되도록. 사진과 짧은 이야기로 소중한 하루를 남겨보세요.",
+      "반려견과의 산책, 반려묘와의 집 안 일상, 나만의 하루까지. 소중한 순간을 남기고 한 권의 하루마디로 모아보세요.",
   },
   appleWebApp: {
     capable: true,
