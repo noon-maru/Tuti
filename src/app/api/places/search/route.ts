@@ -1,5 +1,5 @@
 import { prisma } from "@/server/db/prisma";
-import { recordablePlaceWhere } from "@/server/recommendations/dogPlaceWhere";
+import { recordablePlaceWhere, readablePlaceWhere } from "@/server/recommendations/dogPlaceWhere";
 import {
   createPreflightResponse,
   isRequestOriginAllowed,
@@ -25,13 +25,16 @@ export async function GET(request: Request) {
   }
 
   try {
-    const query = new URL(request.url).searchParams
+    const params = new URL(request.url).searchParams;
+    const explore = params.get("scope") === "explore";
+    const query = params
       .get("q")
       ?.trim()
       .slice(0, MAX_QUERY_LENGTH);
+    if (explore && !query) return withCors(request, Response.json({ places: [] } satisfies PlaceSearchResponse));
     const places = await prisma.place.findMany({
       where: {
-        ...recordablePlaceWhere,
+        ...(explore ? readablePlaceWhere : recordablePlaceWhere),
         ...(query
           ? {
               OR: [
@@ -65,11 +68,13 @@ export async function GET(request: Request) {
         name: true,
         sourceSidoName: true,
         sourceSigunguName: true,
+        ...(explore ? { image: true, latitude: true, longitude: true, sourceContentType: true } : {}),
       },
     });
     const response: PlaceSearchResponse = {
       places: places.map((place) => ({
         id: place.id,
+        ...(explore ? { image: place.image, latitude: Number(place.latitude), longitude: Number(place.longitude), sourceContentType: place.sourceContentType ?? undefined } : {}),
         name: toPublicPlaceName(
           place.name,
           place.sourceSidoName,

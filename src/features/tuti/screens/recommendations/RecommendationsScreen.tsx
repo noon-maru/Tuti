@@ -10,6 +10,7 @@ import { ContextMenu } from "@/features/tuti/components/ContextMenu";
 import { LoadingIndicator } from "@/features/tuti/components/LoadingIndicator";
 import { ScreenFrame } from "@/features/tuti/components/ScreenFrame";
 import { DogAccessNotice } from "@/features/tuti/components/DogAccessNotice";
+import { ExplorePlaceSearch } from "@/features/tuti/components/ExplorePlaceSearch";
 import { SwipeCard } from "@/features/tuti/components/SwipeCard";
 import { DeparturePlanScreen } from "@/features/tuti/screens/departure/DeparturePlanScreen";
 import { ExpandedDeparturePlanScreen } from "@/features/tuti/screens/departure/ExpandedDeparturePlanScreen";
@@ -165,6 +166,7 @@ export function RecommendationsScreen({
   onInitialHelpShown: (kind: HelpKind) => void;
 }) {
   const [dragStart, setDragStart] = useState<Point | null>(null);
+  const [searchPlace, setSearchPlace] = useState<TutiPlace | null>(null);
   const [dragOffset, setDragOffset] = useState<Point>({ x: 0, y: 0 });
   const [dragAxis, setDragAxis] = useState<DragAxis>(null);
   const [committing, setCommitting] = useState(false);
@@ -232,6 +234,7 @@ export function RecommendationsScreen({
   const mainInteractive =
     interactive &&
     !detailOpen &&
+    !searchPlace &&
     !departurePresentation &&
     !loading &&
     !recommendationStatusVisible;
@@ -754,7 +757,7 @@ export function RecommendationsScreen({
           />
         </AccountMenu>
         <Copy $progress={verticalProgress}>
-          <h1>반려견과 함께할 작은 여행</h1>
+          <h1>{answers.petCompanion === "none" ? "다음 마디가 될 작은 여행" : "반려견과 함께할 작은 여행"}</h1>
           <p>함께 보낼 다음 하루를 찾아보세요.</p>
           {activePlace?.dogAccess && <DogAccessNotice access={activePlace.dogAccess} />}
           {!locationAvailable && (
@@ -1034,6 +1037,10 @@ export function RecommendationsScreen({
           </RecommendationStatusCard>
         )}
       </RecommendationStatusOverlay>
+      {interactive && detailPhase === "closed" && !departurePresentation && !searchPlace && <SearchMenu onPointerDown={event => event.stopPropagation()}><ExplorePlaceSearch onSelect={setSearchPlace} /></SearchMenu>}
+      {searchPlace && <SearchDetailLayer onPointerDown={event => event.stopPropagation()}>
+        <DetailScreen place={searchPlace} travelTimeLabel="검색한 공간" historyActive onBack={() => setSearchPlace(null)} onCreateMadi={onCreatePlaceMadi ? () => onCreatePlaceMadi(searchPlace) : undefined} />
+      </SearchDetailLayer>}
     </Frame>
   );
 }
@@ -1213,6 +1220,9 @@ const AccountMenu = styled.div`
   right: calc(var(--space-3) * -1);
   z-index: 10;
 `;
+
+const SearchMenu = styled.div`position: absolute; top: calc(var(--screen-padding-top) - var(--space-3)); left: calc(var(--screen-padding-left) - var(--space-3)); z-index: 40;`;
+const SearchDetailLayer = styled.div`position: absolute; inset: 0; z-index: 45; background: var(--color-surface);`;
 
 const TransitionLayer = styled.div<{ $progress: number; $from: number }>`
   position: absolute;
@@ -1551,7 +1561,7 @@ const Copy = styled.div<{ $progress: number }>`
     $progress > 0 ? "none" : "opacity 220ms ease, transform 240ms ease"};
 
   h1 {
-    max-width: calc(100% - 48px);
+    max-width: calc(100% - 88px);
     font-size: clamp(18px, 5cqw, 22px);
     font-weight: 600;
     line-height: var(--line-height-subtitle);

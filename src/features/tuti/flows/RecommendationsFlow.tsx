@@ -483,8 +483,9 @@ export function RecommendationsFlow({ interactive, dogOuting }: { interactive: b
           router.push(`/madi/new?${search.toString()}`);
         }}
         onCreatePlaceMadi={place => {
-          if (recommendationId) recordAction({ journeyId: recommendationId, action: "journal_started", placeId: place.id });
-          router.push(placeMadiPath(place, recommendationId, destinationId));
+          const sourceRecommendationId = places.some(candidate => candidate.id === place.id) ? recommendationId : undefined;
+          if (sourceRecommendationId) recordAction({ journeyId: sourceRecommendationId, action: "journal_started", placeId: place.id });
+          router.push(placeMadiPath(place, sourceRecommendationId, destinationId));
         }}
         onAdmin={() => router.push("/admin")}
         onDownload={() => router.push("/download")}
