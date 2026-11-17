@@ -130,7 +130,7 @@ export function RecommendationsFlow({ interactive, dogOuting, onDogOutingChange 
   );
   const dailyCheckInVisible =
     interactive && !returnCheckInVisible &&
-    (dailyCheckInRequested || (!hasSavedRecommendation && !dailyRecordCurrent && !dailyCheckInSnoozed));
+    (dailyCheckInRequested || (!dailyRecordCurrent && !dailyCheckInSnoozed));
   const waitingForLocationRestore = Boolean(
     !userLocation &&
       !preferredRegion?.sigunguName &&
@@ -615,7 +615,7 @@ export function RecommendationsFlow({ interactive, dogOuting, onDogOutingChange 
           initialMode={dailyCheckInRequested ? "questions" : "summary"}
           dismissible={dailyCheckInRequested || dailyRecordCurrent}
           onReuse={() => replaceDailyRecommendation("reused")}
-          onSkip={() => { onDogOutingChange?.(undefined); replaceDailyRecommendation("skipped"); }}
+          onSkip={() => replaceDailyRecommendation("skipped")}
           onSnooze={snoozeDailyCheckIn}
           onSubmit={(answers, outing) => {
             onDogOutingChange?.(answers.petCompanion === "dog" ? outing : undefined);

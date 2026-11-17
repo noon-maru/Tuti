@@ -5,6 +5,7 @@ import { isIntakePreferenceCurrent, withDefaultIntakeAnswers } from "@/lib/intak
 import { getIntakeSteps } from "@/features/tuti/data/intakeSteps";
 import { createJSONStorage } from "zustand/middleware";
 import { useTutiStore } from "@/store/tuti";
+import { getKoreanDateKeyAfterDays } from "@/lib/date/koreanDate";
 
 test("신규·빈 답변은 한 시간 안에·차 없이를 기본 선택한다", () => {
   for (const answers of [undefined, {}, { movement: undefined, transport: undefined }]) {
@@ -40,17 +41,43 @@ test("기존 저장 이력은 완료 시각의 한국 날짜를 사용하고 월
   assert.equal(isIntakePreferenceCurrent(record, "2027-01-08"), false);
 });
 
-test("기존 추천이 있으면 주간 질문으로 가리지 않고 계정별 현재 목록을 재사용한다", () => {
+test("기존 추천이 있어도 주간 질문은 표시하고 답변 재사용·생략만으로 목록을 교체하지 않는다", () => {
   const flow = readFileSync("src/features/tuti/flows/RecommendationsFlow.tsx", "utf8");
   const query = readFileSync("src/features/tuti/hooks/useTutiRecommendations.ts", "utf8");
   assert.ok(flow.includes("isIntakePreferenceCurrent(entryRecord, currentDate)"));
   assert.ok(flow.includes("dailyCheckInRequested ||"));
-  assert.ok(flow.includes("!hasSavedRecommendation && !dailyRecordCurrent"));
+  assert.ok(flow.includes("dailyCheckInRequested || (!dailyRecordCurrent && !dailyCheckInSnoozed)"));
+  assert.ok(!flow.includes("!hasSavedRecommendation && !dailyRecordCurrent"));
+  assert.ok(flow.includes('onSkip={() => replaceDailyRecommendation("skipped")}'));
   assert.ok(query.includes("reusableRecommendation(snapshot"));
   assert.ok(query.includes("staleTime: Infinity"));
   assert.ok(query.includes("ownerId ?? null"));
   assert.ok(query.includes("withDefaultIntakeAnswers(storedAnswers)"));
   assert.ok(!query.includes("skippedToday ? {}"));
+});
+
+test("주간 재질문의 재사용·생략은 추천·출발 기준·반려견 세부 조건을 보존하고 다음 확인일만 연장한다", () => {
+  useTutiStore.persist.setOptions({ storage: createJSONStorage(() => ({ getItem: () => null, setItem() {}, removeItem() {} })) });
+  for (const status of ["reused", "skipped"] as const) {
+    useTutiStore.getState().resetAllData();
+    useTutiStore.getState().setAnswer("petCompanion", "dog");
+    useTutiStore.getState().setAnswer("transport", "car");
+    useTutiStore.getState().setRecommendationDogOuting("owner", { weightsKg: [8], leash: true, carrier: false, space: "outdoor" });
+    useTutiStore.getState().cacheDailyRecommendation("original", "test", [], "unchanged", {
+      ownerId: "owner", locationAnchor: { latitude: 37.5, longitude: 127 },
+    });
+    const before = useTutiStore.getState();
+    useTutiStore.getState().completeDailyCheckIn(status);
+    const after = useTutiStore.getState();
+    assert.equal(after.dailyRecommendation, before.dailyRecommendation);
+    assert.equal(after.recommendationCycle, before.recommendationCycle);
+    assert.equal(after.recommendationDogOuting, before.recommendationDogOuting);
+    assert.deepEqual(after.answers, before.answers);
+    assert.equal(after.entryRecord?.status, status);
+    const date = after.entryRecord!.effectiveDate!;
+    assert.equal(isIntakePreferenceCurrent(after.entryRecord, getKoreanDateKeyAfterDays(6, date)), true);
+    assert.equal(isIntakePreferenceCurrent(after.entryRecord, getKoreanDateKeyAfterDays(7, date)), false);
+  }
 });
 
 test("질문 생략·초기화도 같은 기본 조건을 저장하고 기존 응답 재사용은 보존한다", () => {
