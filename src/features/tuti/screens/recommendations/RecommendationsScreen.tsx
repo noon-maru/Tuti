@@ -734,13 +734,13 @@ export function RecommendationsScreen({
                     ...(activePlace && familiarity?.ready ? [{ group: "이 장소", label: familiarity.pending ? "표시 저장 중…" : familiarity.familiar ? "익숙한 장소 표시 취소" : "익숙한 곳이에요", disabled: familiarity.pending, onSelect: familiarity.toggle }] : []),
                     ...(activePlace && familiarity?.failed ? [{ group: "이 장소", label: "장소 표시 다시 확인", onSelect: familiarity.retry }] : []),
                     {
-                      group: "작은 여행",
+                      group: "나들이",
                       label: "외출 조건 변경",
                       onSelect: onRestartIntake,
                     },
-                    ...(onRefreshFromCurrentLocation ? [{ group: "작은 여행", label: refreshingRecommendations ? "다시 추천 준비 중…" : locationAvailable ? "지금 위치에서 다시 추천" : "선택한 지역에서 다시 추천", disabled: refreshingRecommendations, onSelect: onRefreshFromCurrentLocation }] : []),
+                    ...(onRefreshFromCurrentLocation ? [{ group: "나들이", label: refreshingRecommendations ? "다시 추천 준비 중…" : locationAvailable ? "지금 위치에서 다시 추천" : "선택한 지역에서 다시 추천", disabled: refreshingRecommendations, onSelect: onRefreshFromCurrentLocation }] : []),
                     {
-                      group: "작은 여행",
+                      group: "나들이",
                       label: "다음에 갈 공간",
                       onSelect: onSavedPlaces,
                     },
@@ -749,7 +749,7 @@ export function RecommendationsScreen({
           />
         </AccountMenu>
         <Copy $progress={verticalProgress}>
-          <h1>{answers.petCompanion === "none" ? "다음 마디가 될 작은 여행" : "반려견과 함께할 작은 여행"}</h1>
+          <h1>{answers.petCompanion === "none" ? "다음 마디가 될 나들이" : "반려견과 함께할 나들이"}</h1>
           <p>함께 보낼 다음 하루를 찾아보세요.</p>
           {!locationAvailable && (
             <LocationModeButton
@@ -974,7 +974,7 @@ export function RecommendationsScreen({
               onPointerDown={(event) => event.stopPropagation()}
               onClick={skipInitialHelp}
             >
-              작은 여행 보기
+              나들이 보기
             </HelpSkipButton>
           </HelpContent>
         )}

@@ -37,7 +37,7 @@ test("둘러보기 후 빈 홈은 기본 표지 대신 첫 마디 작성을 안�
   assert.match(home, /const isFirstMadi = library.isFirstMadi/);
   assert.match(home, /useHarumadiLibrary\(ownerId\)/);
   const navigation = readFileSync("src/features/tuti/components/MainNavigation.tsx", "utf8");
-  assert.match(navigation, /isFirstMadi \? "첫 마디 남기기" : MADI_COMPOSE_COPY.globalAction/);
+  assert.match(navigation, />마디 남기기/);
   assert.match(navigation, /`\/madi\/new\?from=\$\{active === "harumadi" \? "library" : "explore"\}`/);
   assert.match(home, /새 하루마디<\/CreateHarumadi>/);
   assert.match(home, /<HarumadiShelf books=\{harumadiPdfs\}/);

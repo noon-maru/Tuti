@@ -18,15 +18,15 @@ export function MainNavigation({ active }: {
     <Navigation aria-label="주요 화면">
       <Destination type="button" aria-current={active === "harumadi" ? "page" : undefined}
         onClick={() => { if (active !== "harumadi") router.replace("/"); }}>
-        <span><BookOpen size={24} strokeWidth={1.7} /></span>하루마디
+        <span><BookOpen size={24} strokeWidth={1.7} aria-hidden="true" /></span>책장
       </Destination>
       <CreateButton type="button" aria-description={isFirstMadi ? undefined : MADI_COMPOSE_COPY.chooseAfterSave}
         onClick={() => router.push(`/madi/new?from=${active === "harumadi" ? "library" : "explore"}`)}>
-        <Plus size={18} strokeWidth={1.8} />{isFirstMadi ? "첫 마디 남기기" : MADI_COMPOSE_COPY.globalAction}
+        <Plus size={18} strokeWidth={1.8} aria-hidden="true" />마디 남기기
       </CreateButton>
       <Destination type="button" aria-current={active === "explore" ? "page" : undefined}
         onClick={() => { if (active !== "explore") router.replace("/explore"); }}>
-        <span><Compass size={24} strokeWidth={1.7} /></span>작은 여행
+        <span><Compass size={24} strokeWidth={1.7} aria-hidden="true" /></span>나들이
       </Destination>
     </Navigation>
   </Bar>;

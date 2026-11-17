@@ -58,11 +58,11 @@ export function ExploreLocationGate({ children }: { children: ReactNode }) {
   if (hasHydrated && canShowCache) return children;
   if (hasHydrated && state === "ready" && prepared) return children;
   if (state === "error") return <ScreenFrame role="alert">
-    <p>작은 여행을 찾을 지역을 확인하지 못했어요.</p>
+    <p>나들이를 찾을 지역을 확인하지 못했어요.</p>
     <PrimaryButton onClick={() => {
       if (needsRecommendationRegionChoice(useTutiStore.getState())) { requestRegionPreference(); return; }
       setState("pending"); setAttempt(value => value + 1);
     }}>다시 확인하기</PrimaryButton>
   </ScreenFrame>;
-  return <AppLoadingScreen label="작은 여행을 찾을 지역을 확인하고 있어요." />;
+  return <AppLoadingScreen label="나들이를 찾을 지역을 확인하고 있어요." />;
 }

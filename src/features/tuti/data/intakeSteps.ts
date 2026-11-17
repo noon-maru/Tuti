@@ -4,7 +4,7 @@ import { outingCategories } from "@/shared/pets/outingCategories";
 export const intakeSteps = [
   {
     key: "petCompanion",
-    question: "이번 작은 여행,\n반려견과 함께 가나요?",
+    question: "이번 나들이,\n반려견과 함께 가나요?",
     subtitle: "함께하는지에 맞춰 갈 수 있는 곳을 찾아볼게요.",
     options: [
       { value: "dog", label: "반려견과 함께 가요", hint: "동반 등록 장소에서 찾아요" },

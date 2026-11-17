@@ -240,7 +240,7 @@ export function LocationConsentSheet({
                 disabled={requesting}
                 onClick={closeWithoutLocation}
               >
-                위치 없이 작은 여행 찾기
+                위치 없이 나들이 찾기
               </DeclineButton>
             </Actions>
           </SummaryContent>
