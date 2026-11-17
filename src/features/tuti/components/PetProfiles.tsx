@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import styled from "@emotion/styled";
 import { useSession } from "../hooks/useSession";
@@ -20,7 +20,7 @@ export function PetProfiles(props: PetProfilesProps) {
 }
 function PetProfilesEditor({ owner, selected, onChange, disabled = false, registrationOnly = false, onRegistered, onBusyChange }: PetProfilesProps & { owner: string }) {
   const client = useQueryClient();
-  const query = usePetProfiles(owner);
+  const query = usePetProfiles(owner, !registrationOnly);
   const inFlight = useRef(false);
   const nameInput = useRef<HTMLInputElement>(null);
   const [name, setName] = useState("");
@@ -31,9 +31,6 @@ function PetProfilesEditor({ owner, selected, onChange, disabled = false, regist
   const [notice, setNotice] = useState("");
   const [adding, setAdding] = useState(false);
   const [editing, setEditing] = useState<PetProfile | null>(null);
-  useEffect(() => {
-    if (registrationOnly && query.data?.pets.length && !busy && !error) onRegistered?.();
-  }, [registrationOnly, query.data, busy, error, onRegistered]);
   const setWorking = (value: boolean) => { setBusy(value); onBusyChange?.(value); };
   const reset = () => { setName(""); setWeight(""); setSpecies("dog"); setEditing(null); setAdding(false); };
   const refresh = () => {
@@ -88,8 +85,6 @@ function PetProfilesEditor({ owner, selected, onChange, disabled = false, regist
     finally { inFlight.current = false; setWorking(false); }
   };
   return <Panel aria-busy={busy}>
-    {registrationOnly && query.isPending && <p role="status">등록한 프로필을 확인하고 있어요.</p>}
-    {registrationOnly && query.isError && <p role="status">프로필을 확인하지 못했어요. 직접 등록하거나 건너뛸 수 있어요.<TextButton type="button" disabled={busy} onClick={() => void query.refetch()}>다시 확인</TextButton></p>}
     {!registrationOnly && (query.isPending ? <p role="status">프로필을 불러오고 있어요.</p> : query.isError && !query.data ? <p role="alert">프로필을 불러오지 못했어요. 기록은 연결 없이 남길 수 있어요.<TextButton type="button" onClick={() => void query.refetch()}>다시 확인</TextButton></p> : <>
       {query.isError && <p role="status">저장된 프로필을 보여드리고 있어요.<TextButton type="button" disabled={busy || disabled} onClick={() => void query.refetch()}>목록 다시 확인</TextButton></p>}
       {!query.data?.pets.length && <p>등록한 반려동물이 없어요. 프로필 없이도 마디를 남길 수 있어요.</p>}
@@ -98,7 +93,7 @@ function PetProfilesEditor({ owner, selected, onChange, disabled = false, regist
       {query.data?.pets.map(pet => <Row key={pet.id}>{onChange ? <label><input type="checkbox" disabled={disabled || busy || (!selected?.includes(pet.id) && (selected?.length ?? 0) >= 20)} checked={selected?.includes(pet.id) ?? false} onChange={e => onChange(e.target.checked ? [...(selected ?? []), pet.id] : (selected ?? []).filter(id => id !== pet.id))} /><span>{pet.name}<small>{pet.species === "dog" ? "반려견" : "반려묘"}{pet.weightKg !== null ? ` · ${pet.weightKg}kg` : ""}</small></span></label> : <><span>{pet.name}<small>{pet.species === "dog" ? "반려견" : "반려묘"}{pet.weightKg !== null ? ` · ${pet.weightKg}kg` : " · 몸무게 미입력"}</small></span><TextButton type="button" disabled={busy} onClick={() => { setEditing(pet); setName(pet.name); setSpecies(pet.species); setWeight(pet.weightKg === null ? "" : String(pet.weightKg)); setError(""); setNotice(""); nameInput.current?.focus(); }}>수정</TextButton><TextButton type="button" disabled={busy} onClick={() => void remove(pet)}>삭제</TextButton></>}</Row>)}
     </>)}
     {onChange && !adding && <TextButton type="button" disabled={disabled || busy} onClick={() => { setAdding(true); setError(""); }}>새 반려동물 등록</TextButton>}
-    {(!onChange || adding) && <form hidden={registrationOnly && query.isPending} onSubmit={event => { event.preventDefault(); void create(); }}>
+    {(!onChange || adding) && <form onSubmit={event => { event.preventDefault(); void create(); }}>
       {!registrationOnly && <h2>{editing ? `${editing.name} 프로필 수정` : "새 반려동물"}</h2>}
       <label>이름<input ref={nameInput} value={name} onChange={e => setName(e.target.value)} maxLength={60} required disabled={busy || disabled} autoComplete="off" /></label>
       <label>종류<select value={species} onChange={e => setSpecies(e.target.value)} disabled={busy || disabled}><option value="dog">반려견</option><option value="cat">반려묘</option></select></label>
@@ -108,8 +103,8 @@ function PetProfilesEditor({ owner, selected, onChange, disabled = false, regist
       {(editing || adding) && <TextButton type="button" disabled={busy} onClick={() => { reset(); setError(""); }}>{editing ? "수정 취소" : "등록 취소"}</TextButton>}
     </form>}
     {notice && <p role="status">{notice}</p>}
-    {error && <div role="alert"><p>{error}</p><TextButton type="button" disabled={busy || disabled} onClick={() => void reload()}>{editing ? "최신 내용으로 다시 채우기" : "목록 다시 확인"}</TextButton></div>}
+    {error && <div role="alert"><p>{error}</p>{!registrationOnly && <TextButton type="button" disabled={busy || disabled} onClick={() => void reload()}>{editing ? "최신 내용으로 다시 채우기" : "목록 다시 확인"}</TextButton>}</div>}
   </Panel>;
 }
-const Panel = styled.div`display: grid; min-width: 0; gap: 16px; p { margin: 0; font-size: 14px; line-height: 1.7; } h2 { font-size: 16px; margin: 8px 0 0; overflow-wrap: anywhere; } form { display: grid; gap: 16px; } form[hidden] { display: none; } form label { display: grid; gap: 8px; font-size: 14px; } form input, select { ${inputControlStyles} width: 100%; min-width: 0; } small { font-size: 13px; line-height: 1.7; color: var(--color-text-muted); }`;
+const Panel = styled.div`display: grid; min-width: 0; gap: 16px; p { margin: 0; font-size: 14px; line-height: 1.7; } h2 { font-size: 16px; margin: 8px 0 0; overflow-wrap: anywhere; } form { display: grid; gap: 16px; } form label { display: grid; gap: 8px; font-size: 14px; } form input, select { ${inputControlStyles} width: 100%; min-width: 0; } small { font-size: 13px; line-height: 1.7; color: var(--color-text-muted); }`;
 const Row = styled.div`display: flex; align-items: center; gap: 8px; min-height: 64px; border-bottom: 1px solid var(--color-border); > span, label { flex: 1; min-width: 0; overflow-wrap: anywhere; } label { display: flex; align-items: center; gap: 10px; min-height: 48px; } small { display: block; } button { flex: none; min-height: 44px; } input { flex: none; width: 20px; height: 20px; accent-color: var(--color-brand-700); }`;

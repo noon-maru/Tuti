@@ -24,6 +24,7 @@ function editorFixture(options: { selection?: boolean; registrationOnly?: boolea
   let pets = options.registrationOnly ? [] : dogs.map(pet => ({ ...pet }));
   const calls: Array<{ path: string; init?: RequestInit; owner?: string }> = [];
   const changes: string[][] = [];
+  const queryEnabled: boolean[] = [];
   const query = { get data() { return { pets }; }, isPending: false, isError: false, refetch: async () => ({ data: { pets } }) };
   const flow = clientFlowHarness("src/features/tuti/components/PetProfiles.tsx", "PetProfiles", {
     "@emotion/styled": styled,
@@ -32,7 +33,7 @@ function editorFixture(options: { selection?: boolean; registrationOnly?: boolea
       setQueryData: (_: unknown, update: (previous: { pets: PetProfile[] }) => { pets: PetProfile[] }) => { pets = update({ pets }).pets; },
     }) },
     "../hooks/useSession": { useSession: () => ({ userId: "owner" }) },
-    "../hooks/usePetProfiles": { petProfilesKey: (owner: string) => ["pet-profiles", owner], usePetProfiles: () => query },
+    "../hooks/usePetProfiles": { petProfilesKey: (owner: string) => ["pet-profiles", owner], usePetProfiles: (_owner: string, enabled = true) => { queryEnabled.push(enabled); return query; } },
     "@/lib/notificationSettings": { notificationRequest: async (path: string, init?: RequestInit, owner?: string) => {
       calls.push({ path, init, owner });
       if (options.request) return options.request(path, init, owner);
@@ -49,7 +50,7 @@ function editorFixture(options: { selection?: boolean; registrationOnly?: boolea
   const change = (predicate: (node: ReactElement<Record<string, unknown>>) => boolean, value: string) => (render().find(predicate)!.props.onChange as (event: unknown) => void)({ target: { value } });
   const submit = () => (render().find(node => node.type === "form")!.props.onSubmit as (event: unknown) => void)({ preventDefault() {} });
   const click = (label: string) => (render().find(node => node.props.children === label)!.props.onClick as () => unknown)();
-  return { render, change, submit, click, calls, changes, query, effects: flow.effects, setPets: (next: PetProfile[]) => { pets = next; } };
+  return { render, change, submit, click, calls, changes, query, queryEnabled, effects: flow.effects, setPets: (next: PetProfile[]) => { pets = next; } };
 }
 const tick = () => new Promise(resolve => setImmediate(resolve));
 
@@ -70,18 +71,23 @@ test("첫 시작 등록은 실제 서버 저장 성공 후에만 이어가며 �
   assert.equal(completed, 1); assert.deepEqual(working, [true, false, true, false]);
 });
 
-test("기존 프로필은 등록을 재요청하지 않고 조회 실패·재확인에도 입력 상태를 유지한다", () => {
+test("첫 시작은 프로필을 조회하지 않고 캐시 유무·조회 상태와 무관하게 즉시 폼을 보여준다", () => {
   let completed = 0;
   const f = editorFixture({ registrationOnly: true, onRegistered: () => { completed++; } });
   f.render(); f.effects(); assert.equal(completed, 0);
+  assert.equal(f.queryEnabled.at(-1), false);
   f.query.isError = true;
   f.change(node => node.props.maxLength === 60, "직접 입력");
   f.query.isPending = true;
-  assert.equal(f.render().find(node => node.type === "form")!.props.hidden, true);
+  assert.notEqual(f.render().find(node => node.type === "form")!.props.hidden, true);
+  assert.equal(f.render().some(node => node.props.role === "status"), false);
   f.query.isPending = false; f.query.isError = false;
   assert.equal(f.render().find(node => node.props.maxLength === 60)!.props.value, "직접 입력");
-  f.setPets(dogs); f.render(); f.effects(); assert.equal(completed, 1);
-  assert.equal(f.calls.length, 0, "기존 프로필 확인이나 건너뛰기가 프로필을 생성하지 않는다");
+  f.setPets(dogs); f.render(); f.effects(); assert.equal(completed, 0, "캐시된 프로필로 자동 진행하지 않는다");
+  assert.equal(f.queryEnabled.every(enabled => enabled === false), true);
+  assert.equal(f.calls.length, 0, "폼 표시만으로 조회·등록 요청을 하지 않는다");
+  const settings = editorFixture(); settings.render();
+  assert.equal(settings.queryEnabled.at(-1), true, "설정의 목록 조회는 유지한다");
 });
 
 test("마디 연결란에서 바로 등록하되 자동 연결하지 않고 중복 등록을 막는다", async () => {
