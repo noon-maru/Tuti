@@ -11,6 +11,7 @@ export type LifelogMetricsResponse = {
   engagement?: import("./engagementMetrics").EngagementMetrics;
 };
 export type LifelogActivity = {
+  laterReaderUsers?: number;
   retainedSince: string | null; writerUsers: number; newMadis: number; repeatWriters30d: number;
   readerUsers: number; repeatReaders30d: number; manualBooks: number; automaticBooks: number;
   saveFailedUsers: number; draftResumedUsers: number; composeExitedUsers: number; pdfFailedUsers: number; inviteFailedUsers: number;

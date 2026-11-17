@@ -101,6 +101,16 @@ export async function GET(request: Request) {
   ]);
   const response: AdminOverviewResponse = {
     overview: {
+      rights: await prisma.$transaction(async tx => {
+        const now = new Date(), soon = new Date(now.getTime() + 7 * 86400_000);
+        const active = { state: { notIn: ["closed", "expired"] } };
+        const [dueCases, upcomingCases, pendingNotices] = await Promise.all([
+          tx.journalRightsCase.count({ where: { ...active, nextReviewAt: { lte: now } } }),
+          tx.journalRightsCase.count({ where: { ...active, nextReviewAt: { gt: now, lte: soon } } }),
+          tx.journalRightsNotice.count({ where: { status: { not: "manual_confirmed" } } }),
+        ]);
+        return { dueCases, upcomingCases, pendingNotices };
+      }, { isolationLevel: "RepeatableRead" }).catch(() => undefined),
       jobs: await readJobHealth(),
       lifelog: await readLifelogStock(),
       users,
@@ -134,7 +144,7 @@ export async function GET(request: Request) {
     },
   });
 
-  return withCors(request, Response.json(response));
+  return withCors(request, Response.json(response, { headers: { "Cache-Control": "private, no-store" } }));
 }
 
 export function OPTIONS(request: Request) {

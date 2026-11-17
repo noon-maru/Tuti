@@ -21,7 +21,7 @@ import { AdminSecurityTrafficPanel } from "@/features/admin/AdminSecurityTraffic
 import { AdminUserActivityPanel } from "@/features/admin/AdminUserActivityPanel";
 import { AdminUserJournalsPanel } from "@/features/admin/AdminUserJournalsPanel";
 import { AdminLifelogMetricsPanel } from "@/features/admin/AdminLifelogMetricsPanel";
-import { AdminJobHealthPanel } from "@/features/admin/AdminJobHealthPanel";
+import { AdminOperationsHome } from "./AdminOperationsHome";
 import type { LifelogMetricsResponse } from "@/shared/api/lifelogMetrics";
 import { TutiWordmark } from "@/features/tuti/components/TutiWordmark";
 import { BaseButton, baseControlStyles } from "@/shared/ui/buttons";
@@ -51,88 +51,8 @@ import type {
   AdminUsersResponse,
 } from "@/shared/api/admin";
 
-export type AdminTab =
-  | "overview"
-  | "business"
-  | "activity"
-  | "security"
-  | "notifications"
-  | "funnel"
-  | "logs"
-  | "location"
-  | "places"
-  | "reports"
-  | "inquiries"
-  | "users"
-  | "admins"
-  | "settings";
-
-const tabs: Array<{ id: AdminTab; label: string }> = [
-  { id: "overview", label: "운영 현황" },
-  { id: "business", label: "제품 성과" },
-  { id: "activity", label: "사용자 활동" },
-  { id: "security", label: "트래픽·보안" },
-  { id: "notifications", label: "알림 전달" },
-  { id: "funnel", label: "작은 여행 성과" },
-  { id: "logs", label: "시스템 로그" },
-  { id: "location", label: "위치정보 감사" },
-  { id: "places", label: "장소 운영" },
-  { id: "reports", label: "신고" },
-  { id: "inquiries", label: "문의" },
-  { id: "users", label: "사용자 계정" },
-  { id: "admins", label: "관리자" },
-  { id: "settings", label: "운영 설정" },
-];
-
-const navigationGroups: Array<{
-  label: string;
-  items: Array<{ id: AdminTab; label: string }>;
-}> = [
-  {
-    label: "운영",
-    items: tabs.filter((item) =>
-      ["overview", "inquiries", "reports", "places"].includes(item.id),
-    ),
-  },
-  {
-    label: "분석",
-    items: tabs.filter((item) =>
-      ["business", "funnel", "activity"].includes(item.id),
-    ),
-  },
-  {
-    label: "관측",
-    items: tabs.filter((item) =>
-      ["security", "notifications", "logs", "location"].includes(item.id),
-    ),
-  },
-  {
-    label: "관리",
-    items: tabs.filter((item) =>
-      ["users", "admins", "settings"].includes(item.id),
-    ),
-  },
-];
-
-const mobilePrimaryTabs: Array<{ id: AdminTab; label: string }> = [
-  { id: "overview", label: "홈" },
-  { id: "inquiries", label: "문의" },
-  { id: "reports", label: "신고" },
-  { id: "business", label: "제품 성과" },
-];
-
-const mobileMoreTabs: Array<{ id: AdminTab; label: string }> = [
-  { id: "places", label: "장소 운영" },
-  { id: "activity", label: "사용자 활동" },
-  { id: "security", label: "트래픽 및 보안 관제" },
-  { id: "funnel", label: "작은 여행 성과" },
-  { id: "notifications", label: "알림 전달" },
-  { id: "users", label: "사용자 계정" },
-  { id: "admins", label: "관리자" },
-  { id: "logs", label: "시스템 로그" },
-  { id: "location", label: "위치정보 확인자료" },
-  { id: "settings", label: "운영 설정" },
-];
+export type { AdminTab } from "./adminNavigation";
+import { tabs, navigationGroups, mobilePrimaryTabs, mobileMoreTabs, type AdminTab } from "./adminNavigation";
 
 const dateFormatter = new Intl.DateTimeFormat("ko-KR", {
   timeZone: "Asia/Seoul",
@@ -711,7 +631,7 @@ export function AdminScreen({
       <Sidebar>
         <Brand>
           <AdminWordmark priority />
-          <span>관리자 콘솔</span>
+          <span>운영 센터</span>
         </Brand>
         <Navigation aria-label="관리자 메뉴">
           {navigationGroups.map((group) => (
@@ -728,16 +648,9 @@ export function AdminScreen({
                   <span>{item.label}</span>
                 </NavButton>
               ))}
+              {group.links.map(link => <NavLink key={link.href} href={link.href}>{link.label}</NavLink>)}
             </NavGroup>
           ))}
-          <NavGroup>
-            <NavGroupLabel>도구</NavGroupLabel>
-            <NavLink href="/admin/recommendation-simulator">
-              추천 시뮬레이터
-            </NavLink>
-            <NavLink href="/admin/tourism-data">관광 데이터</NavLink>
-            <NavLink href="/admin/journal-rights">공개 기록 권리 보호</NavLink>
-          </NavGroup>
         </Navigation>
         <HomeLink href="/">서비스로 돌아가기</HomeLink>
       </Sidebar>
@@ -777,7 +690,7 @@ export function AdminScreen({
               setPlacePage(1);
             }}
           />
-        ) : tab !== "overview" &&
+        ) : !["overview", "business", "funnel", "activity", "security"].includes(tab) &&
           tab !== "business" &&
           tab !== "funnel" &&
           tab !== "activity" &&
@@ -817,7 +730,7 @@ export function AdminScreen({
         {loading ? (
           <StatePanel>관리 데이터를 불러오고 있어요.</StatePanel>
         ) : tab === "overview" ? (
-          <OverviewPanel
+          <AdminOperationsHome
             overview={overview}
             notifications={notifications}
             onNavigate={changeTab}
@@ -1156,20 +1069,7 @@ export function AdminScreen({
                 <span aria-hidden="true">›</span>
               </MobileMenuButton>
             ))}
-            <MobileServiceLink
-              href="/admin/recommendation-simulator"
-              onClick={closeMobileMenu}
-            >
-              <span>추천 시뮬레이터</span>
-              <span aria-hidden="true">›</span>
-            </MobileServiceLink>
-            <MobileServiceLink
-              href="/admin/tourism-data"
-              onClick={closeMobileMenu}
-            >
-              <span>관광 데이터 관리</span>
-              <span aria-hidden="true">›</span>
-            </MobileServiceLink>
+            {navigationGroups.flatMap(group => group.links).map(link => <MobileServiceLink key={link.href} href={link.href} onClick={closeMobileMenu}><span>{link.label}</span><span aria-hidden="true">›</span></MobileServiceLink>)}
             <MobileServiceLink href="/" onClick={closeMobileMenu}>
               <span>Tuti 서비스로 돌아가기</span>
               <span aria-hidden="true">›</span>
@@ -1181,155 +1081,6 @@ export function AdminScreen({
   );
 }
 
-function OverviewPanel({
-  overview,
-  notifications,
-  onNavigate,
-  onNavigatePendingPlaces,
-}: {
-  overview: AdminOverview | null;
-  notifications: AdminNotificationsResponse | null;
-  onNavigate: (tab: AdminTab) => void;
-  onNavigatePendingPlaces: () => void;
-}) {
-  const pendingTotal =
-    (overview?.pendingInquiries ?? 0) +
-    (overview?.pendingReports ?? 0) +
-    (overview?.pendingPlaces ?? 0);
-  const failedNotifications = notifications?.summary.failed24h ?? 0;
-  const jobFailures = overview?.jobs?.jobs.filter(job => job.state === "failed" || job.state === "overdue").length ?? 0;
-  const jobUnknown = !overview?.jobs?.fresh || overview.jobs.jobs.some(job => job.state === "unknown" || job.state === "disabled");
-  const cards = [
-    ["마디 보유 계정", overview?.lifelog?.writers ?? "—"],
-    ["현재 원본 마디", overview?.lifelog?.madis ?? "—"],
-    ["채워진 하루마디", overview?.lifelog?.filledBooks ?? "—"],
-    ["실제 공동작성 책", overview?.lifelog?.collaborativeBooks ?? "—"],
-  ];
-
-  return (
-    <OverviewContent>
-      <OperationsHero>
-        <HeroCopy>
-          <h2>
-            {jobFailures > 0
-              ? `예약 작업 실패·지연 ${jobFailures}개`
-              : failedNotifications > 0
-              ? "알림 실패 확인 필요"
-              : jobUnknown
-                ? "예약 작업 관측 확인 필요"
-                : pendingTotal > 0
-                ? `처리 대기 ${pendingTotal}건`
-                : "확인된 처리 대기 없음"}
-          </h2>
-        </HeroCopy>
-        <HeroStatusSummary aria-label="운영 신호 요약">
-          <div>
-            <span>처리 대기</span>
-            <strong>{pendingTotal.toLocaleString("ko-KR")}</strong>
-          </div>
-          <div>
-            <span>알림 실패</span>
-            <strong data-alert={failedNotifications > 0 || undefined}>
-              {failedNotifications.toLocaleString("ko-KR")}
-            </strong>
-          </div>
-        </HeroStatusSummary>
-      </OperationsHero>
-
-      <AdminJobHealthPanel report={overview?.jobs} />
-
-      <OverviewSplit>
-        <OverviewSection>
-          <SectionTitle>지금 처리할 일</SectionTitle>
-          <QueueList>
-            <QueueRow type="button" onClick={() => onNavigate("inquiries")}>
-              <span>답변을 기다리는 문의</span>
-              <strong>{overview?.pendingInquiries ?? 0}</strong>
-              <i aria-hidden="true">›</i>
-            </QueueRow>
-            <QueueRow type="button" onClick={() => onNavigate("reports")}>
-              <span>확인이 필요한 신고</span>
-              <strong>{overview?.pendingReports ?? 0}</strong>
-              <i aria-hidden="true">›</i>
-            </QueueRow>
-            <QueueRow type="button" onClick={onNavigatePendingPlaces}>
-              <span>검토 대기 장소</span>
-              <strong>{overview?.pendingPlaces ?? 0}</strong>
-              <i aria-hidden="true">›</i>
-            </QueueRow>
-          </QueueList>
-        </OverviewSection>
-        <OverviewSection>
-          <SectionTitle>알림 전달</SectionTitle>
-          <NotificationGlance
-            type="button"
-            onClick={() => onNavigate("notifications")}
-          >
-            <GlanceHeader>
-              <span>최근 24시간</span>
-              <strong>
-                {notifications?.summary.successRate === null ||
-                notifications?.summary.successRate === undefined
-                  ? "전송 없음"
-                  : `${notifications.summary.successRate}% 성공`}
-              </strong>
-            </GlanceHeader>
-            <GlanceTrack>
-              <span
-                style={{
-                  width: `${notifications?.summary.successRate ?? 0}%`,
-                }}
-              />
-            </GlanceTrack>
-            <GlanceMeta>
-              활성 기기 {notifications?.summary.activeDevices ?? 0} · 성공{" "}
-              {notifications?.summary.sent24h ?? 0} · 실패 {failedNotifications}
-            </GlanceMeta>
-          </NotificationGlance>
-        </OverviewSection>
-      </OverviewSplit>
-      <section>
-        <SectionTitle>운영 현황</SectionTitle>
-        <MetricGrid>
-          {cards.map(([label, value]) => (
-            <MetricCard key={label}>
-              <span>{label}</span>
-              <strong>{value}</strong>
-            </MetricCard>
-          ))}
-        </MetricGrid>
-      </section>
-      <section>
-        <SectionTitle>위치정보 준수 현황</SectionTitle>
-        <MetricGrid>
-          <MetricCard>
-            <span>현행 약관 동의</span>
-            <strong>{overview?.locationCompliance.activeConsents ?? 0}</strong>
-          </MetricCard>
-          <MetricCard>
-            <span>오늘 이용 기록</span>
-            <strong>{overview?.locationCompliance.usageLogsToday ?? 0}</strong>
-          </MetricCard>
-          <MetricCard>
-            <span>오늘 외부 전달</span>
-            <strong>
-              {overview?.locationCompliance.externalTransfersToday ?? 0}
-            </strong>
-          </MetricCard>
-          <MetricCard>
-            <span>7일 내 파기 예정</span>
-            <strong>
-              {overview?.locationCompliance.expiringWithinSevenDays ?? 0}
-            </strong>
-          </MetricCard>
-        </MetricGrid>
-        <ComplianceMode>
-          외부 좌표 처리 모드: {overview?.locationCompliance.externalProcessingMode ?? "pending"}
-        </ComplianceMode>
-      </section>
-    </OverviewContent>
-  );
-}
 
 function RecommendationFunnelPanel({
   funnel,
@@ -3590,288 +3341,6 @@ const StatePanel = styled.div`
   box-shadow: none;
 `;
 
-const OverviewContent = styled.div`
-  display: grid;
-  gap: var(--space-6);
-
-  section {
-    display: grid;
-    gap: var(--space-3);
-  }
-`;
-
-const OperationsHero = styled.section`
-  display: grid;
-  grid-template-columns: minmax(200px, 1fr) minmax(260px, 1fr);
-  align-items: center;
-  gap: 24px;
-  padding: 24px;
-  border: 1px solid var(--color-border);
-  border-radius: var(--admin-card-radius);
-  background: var(--admin-card-background);
-
-  @media (max-width: 760px) {
-    grid-template-columns: 1fr;
-    padding: 18px 14px;
-    gap: 18px;
-  }
-`;
-
-const HeroCopy = styled.div`
-  h2 {
-    font-size: 18px;
-    font-weight: 600;
-    line-height: 1.6;
-    letter-spacing: -.025em;
-  }
-`;
-
-const HeroStatusSummary = styled.div`
-  align-self: stretch;
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  border: 1px solid var(--color-border);
-  border-radius: var(--admin-card-radius);
-  background: var(--color-white);
-
-  > div {
-    display: grid;
-    align-content: center;
-    gap: var(--space-2);
-    padding: var(--space-5);
-    border-right: 1px solid var(--color-border);
-  }
-
-  > div:last-child {
-    border-right: 0;
-  }
-
-  span {
-    color: var(--color-text-muted);
-    font-size: var(--font-size-100);
-    font-weight: 600;
-  }
-
-  strong {
-    font-size: var(--font-size-700);
-    font-variant-numeric: tabular-nums;
-    line-height: 1;
-
-    &[data-alert="true"] {
-      color: var(--color-error);
-    }
-  }
-`;
-
-const OverviewSplit = styled.div`
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: var(--space-5);
-
-  @media (max-width: 760px) {
-    grid-template-columns: 1fr;
-  }
-`;
-
-const OverviewSection = styled.section`
-  min-width: 0;
-  display: grid;
-  align-content: start;
-  gap: var(--space-3);
-`;
-
-const SectionTitle = styled.h2`
-  font-size: 18px;
-  font-weight: 600;
-  line-height: 1.6;
-  letter-spacing: -.025em;
-`;
-
-const QueueList = styled.div`
-  overflow: hidden;
-  border: 1px solid var(--color-border);
-  border-radius: var(--admin-card-radius);
-  background: var(--admin-card-background);
-  box-shadow: none;
-`;
-
-const QueueRow = styled(BaseButton)`
-  width: 100%;
-  min-height: 66px;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto auto;
-  align-items: center;
-  gap: var(--space-3);
-  padding: var(--space-4) var(--space-5);
-  border: 0;
-  border-bottom: 1px solid var(--color-border);
-  background: transparent;
-  color: var(--color-text);
-  font: inherit;
-  text-align: left;
-  cursor: pointer;
-
-  &:last-child {
-    border-bottom: 0;
-  }
-
-  span {
-    font-size: var(--font-size-100);
-    font-weight: 600;
-  }
-
-  strong {
-    min-width: 32px;
-    height: 32px;
-    display: grid;
-    place-items: center;
-    border-radius: 999px;
-    background: var(--color-secondary-200);
-    font-size: var(--font-size-200);
-  }
-
-  i {
-    color: var(--color-text-muted);
-    font-style: normal;
-    font-size: var(--font-size-400);
-  }
-
-  &:hover {
-    background: var(--color-white);
-  }
-
-  &:focus-visible {
-    position: relative;
-    outline: 3px solid var(--color-brand-900);
-    outline-offset: -3px;
-  }
-`;
-
-const NotificationGlance = styled(BaseButton)`
-  min-height: 198px;
-  display: grid;
-  align-content: center;
-  gap: var(--space-5);
-  padding: var(--space-5);
-  border: 1px solid var(--color-border);
-  border-radius: var(--admin-card-radius);
-  background: var(--admin-card-background);
-  color: var(--color-text);
-  font: inherit;
-  text-align: left;
-  cursor: pointer;
-  box-shadow: none;
-
-  &:hover {
-    border-color: var(--color-brand-300);
-  }
-
-  &:focus-visible {
-    outline: 3px solid var(--color-brand-900);
-    outline-offset: 2px;
-  }
-`;
-
-const GlanceHeader = styled.div`
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: var(--space-4);
-
-  span {
-    color: var(--color-text-muted);
-    font-size: var(--font-size-100);
-  }
-
-  strong {
-    font-size: var(--font-size-400);
-  }
-`;
-
-const GlanceTrack = styled.div`
-  height: 10px;
-  overflow: hidden;
-  border-radius: 999px;
-  background: var(--color-neutral-300);
-
-  span {
-    height: 100%;
-    display: block;
-    border-radius: inherit;
-    background: var(--color-brand-800);
-  }
-`;
-
-const GlanceMeta = styled.p`
-  color: var(--color-text-muted);
-  font-size: 12px;
-`;
-
-const MetricGrid = styled.section`
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 0;
-  overflow: hidden;
-  border: 1px solid var(--color-border);
-  border-radius: var(--admin-card-radius);
-  background: var(--admin-card-background);
-
-  @media (max-width: 900px) {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  @media (max-width: 360px) {
-    grid-template-columns: 1fr;
-  }
-
-  @media (min-width: 361px) and (max-width: 520px) {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: var(--space-3);
-  }
-`;
-
-const ComplianceMode = styled.p`
-  justify-self: start;
-  padding: var(--space-2) var(--space-3);
-  border-radius: 999px;
-  background: var(--color-secondary-200);
-  color: var(--color-text-muted);
-  font-size: var(--font-size-100);
-`;
-
-const MetricCard = styled.article`
-  display: grid;
-  gap: var(--space-3);
-  padding: var(--space-4);
-  border: 0;
-  border-right: 1px solid var(--color-border);
-  border-bottom: 1px solid var(--color-border);
-  border-radius: 0;
-  background: transparent;
-  box-shadow: none;
-
-  span {
-    color: var(--color-text-muted);
-    font-size: var(--font-size-200);
-  }
-
-  strong {
-    font-size: var(--font-size-600);
-    line-height: 1;
-  }
-
-  @media (max-width: 520px) {
-    gap: var(--space-3);
-    padding: var(--space-4);
-    border-radius: 0;
-    box-shadow: none;
-
-    strong {
-      font-size: var(--font-size-700);
-    }
-
-  }
-`;
 
 const FunnelContent = styled.section`
   display: grid;

@@ -12,6 +12,7 @@ type InquiryCategory = "account" | "service" | "place" | "privacy" | "other";
 type InquiryStatus = "pending" | "reviewing" | "answered" | "closed";
 
 export type AdminOverview = {
+  rights?: { dueCases: number; upcomingCases: number; pendingNotices: number };
   jobs?: JobHealthReport;
   lifelog?: LifelogStock;
   users: number;
