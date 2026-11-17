@@ -4,9 +4,11 @@ import {
   getRecommendationErrorKind,
   RecommendationRequestError,
   requestRecommendationResponse,
+  shouldRetryRecommendation,
 } from "@/lib/api/recommendationError";
-import { getRecommendationFailure } from "@/features/tuti/lib/recommendationFailure";
+import { getEmptyRecommendation, getRecommendationFailure } from "@/features/tuti/lib/recommendationFailure";
 import type { RecommendationErrorCode } from "@/shared/api/recommendations";
+import { readFileSync } from "node:fs";
 
 test("전송 실패는 네트워크 오류로 구분하고 원인을 모르는 예외는 보존한다", async () => {
   await assert.rejects(
@@ -72,4 +74,24 @@ test("알 수 없는 코드·400·401·403·429는 임의로 위치나 네트워
   const failure = getRecommendationFailure();
   assert.equal(failure.primary.action, "retry");
   assert.equal(failure.secondary?.action, "restart");
+});
+
+test("동반 카탈로그 미준비는 조건 변경 대신 수동 재확인으로 안내하고 자동 재시도하지 않는다", () => {
+  const error = new RecommendationRequestError("준비 중", 503, "dog_catalog_not_ready");
+  const failure = getRecommendationFailure(getRecommendationErrorKind(error), error.code);
+  assert.match(failure.title, /동반 장소 안내/);
+  assert.match(failure.message, /조건의 문제가 아니/);
+  assert.equal(failure.primary.action, "retry");
+  assert.equal(failure.secondary, undefined);
+  assert.equal(shouldRetryRecommendation(0, error), false);
+});
+
+test("빈 후보는 실제 장소 부재로 단정하지 않으며 사라진 분위기 질문으로 안내하지 않는다", () => {
+  assert.match(getEmptyRecommendation({ petCompanion: "dog" }).message, /단정할 수는 없/);
+  for (const answers of [{ petCompanion: "dog" as const }, { budget: "free" as const }, { movement: "near" as const }, {}]) {
+    assert.doesNotMatch(getEmptyRecommendation(answers).message, /분위기|공기/);
+  }
+  const screen = readFileSync("src/features/tuti/screens/recommendations/RecommendationsScreen.tsx", "utf8");
+  assert.match(screen, /!recommendationError && onRefreshFromCurrentLocation &&[\s\S]*?disabled=\{refreshingRecommendations\} onClick=\{onRefreshFromCurrentLocation\}/);
+  assert.match(screen, /이 조건으로 다시 찾기/);
 });

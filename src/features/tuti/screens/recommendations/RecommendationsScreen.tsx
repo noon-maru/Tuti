@@ -26,7 +26,7 @@ import {
   type RecommendationNotice,
 } from "@/features/tuti/lib/recommendationStatus";
 import type { TutiPlace } from "@/lib/recommendations";
-import { getRecommendationFailure, type RecommendationRecoveryAction } from "@/features/tuti/lib/recommendationFailure";
+import { getEmptyRecommendation, getRecommendationFailure, type RecommendationRecoveryAction } from "@/features/tuti/lib/recommendationFailure";
 import type { RecommendationErrorKind } from "@/lib/api/recommendationError";
 import type { DepartureRoute } from "@/shared/api/departurePlan";
 import type { RecommendationErrorCode } from "@/shared/api/recommendations";
@@ -105,7 +105,6 @@ export function RecommendationsScreen({
   onDepartureOpen,
   onNavigationStart,
   onRestartIntake,
-  dogConditionsSelected = false,
   onReplayInitialHelp,
   onSkipInitialHelp,
   accountConnected,
@@ -154,7 +153,6 @@ export function RecommendationsScreen({
   ) => void;
   onNavigationStart: (place: TutiPlace, route: DepartureRoute) => void;
   onRestartIntake: () => void;
-  dogConditionsSelected?: boolean;
   onReplayInitialHelp: () => void;
   onSkipInitialHelp: () => void;
   accountConnected: boolean;
@@ -226,14 +224,7 @@ export function RecommendationsScreen({
   const recoveryAction = (action: RecommendationRecoveryAction) =>
     action === "location" ? onLocationSettings :
       action === "restart" ? onRestartIntake : onRetryRecommendations;
-  const emptyRecommendationTitle = dogConditionsSelected ? "선택한 조건에 맞는 동반 장소를 찾지 못했어요." : answers.budget === "free"
-    ? "비용 걱정을 덜고 다녀올 공간을 아직 찾지 못했어요."
-    : answers.movement === "near"
-      ? "잠깐의 시간 동안 다녀올 만한 공간을 찾지 못했어요."
-      : "오늘의 여유에 맞는 공간을 찾지 못했어요.";
-  const emptyRecommendationMessage = dogConditionsSelected ? "현재 자료에서 조건을 확인할 수 있는 곳이 부족해요. 다시 들려주기에서 동반 조건이나 이동 범위를 바꿔보세요." : answers.budget === "free"
-    ? "지금 확인된 무료 공간이 없어요. 오늘의 여유나 원하는 분위기를 조금 바꿔볼까요?"
-    : "다녀오는 데 조금 더 여유를 내거나, 원하는 분위기를 바꿔볼까요?";
+  const emptyRecommendation = getEmptyRecommendation(answers);
   const presentedDetailPlace = detailVisible ? detailPlace : activePlace;
   const mainInteractive =
     interactive &&
@@ -997,10 +988,10 @@ export function RecommendationsScreen({
             </span>
             <div>
               <h2>
-                {recommendationError ? failure.title : emptyRecommendationTitle}
+                {recommendationError ? failure.title : emptyRecommendation.title}
               </h2>
               <p>
-                {recommendationError ? failure.message : emptyRecommendationMessage}
+                {recommendationError ? failure.message : emptyRecommendation.message}
               </p>
             </div>
             <RecommendationStatusActions>
@@ -1010,8 +1001,13 @@ export function RecommendationsScreen({
                   recommendationError ? recoveryAction(failure.primary.action) : onRestartIntake
                 }
               >
-                {recommendationError ? failure.primary.label : "다시 들려주기"}
+                {recommendationError ? failure.primary.label : "외출 조건 변경"}
               </StatusPrimaryButton>
+              {!recommendationError && onRefreshFromCurrentLocation && (
+                <StatusSecondaryButton type="button" disabled={refreshingRecommendations} onClick={onRefreshFromCurrentLocation}>
+                  {refreshingRecommendations ? "다시 찾고 있어요…" : "이 조건으로 다시 찾기"}
+                </StatusSecondaryButton>
+              )}
               {(!recommendationError || failure.secondary) && (
                 <StatusSecondaryButton
                   type="button"

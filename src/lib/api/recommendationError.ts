@@ -16,7 +16,7 @@ export type RecommendationErrorKind = "network" | "location" | "server" | "unkno
 export function shouldRetryRecommendation(failureCount: number, error: unknown) {
   // 잘못된 요청·동의/인증 문제·후보 부족은 같은 입력으로 반복해도 해결되지 않는다.
   if (error instanceof RecommendationRequestError &&
-    ((error.status >= 400 && error.status < 500) || error.code === "long_distance_unavailable")) return false;
+    ((error.status >= 400 && error.status < 500) || error.code === "long_distance_unavailable" || error.code === "dog_catalog_not_ready")) return false;
   return failureCount < 1;
 }
 

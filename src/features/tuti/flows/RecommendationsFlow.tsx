@@ -482,7 +482,6 @@ export function RecommendationsFlow({ interactive, dogOuting, onDogOutingChange 
       <RecommendationsScreen
         onRefreshFromCurrentLocation={() => void recommendFromCurrentLocation()}
         refreshingRecommendations={refreshingRecommendations}
-        dogConditionsSelected={storedAnswers.petCompanion === "dog"}
         places={places}
         answers={withDefaultIntakeAnswers(storedAnswers)}
         loading={isLoading && !dailyCheckInVisible}
