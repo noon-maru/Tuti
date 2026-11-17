@@ -23,6 +23,6 @@ test("일반 180곳 절단 없이 동반 조건부터 판정하고 최초 추천
 test("조건 미입력은 준비물을 미지참했다고 추정하지 않으며 새 엔진만 실행한다", async () => {
   const result = await createDogRecommendations({ answers: { movement: "near", transport: "transit" }, location: { latitude: 37.5, longitude: 127 } });
   assert.equal(result.places.length, 6); assert.equal(result.audit.companionEligible, 181);
-  assert.equal(result.audit.algorithmVersion, "dog-outing-v1"); assert.equal(result.audit.conditionsProvided, false);
+  assert.equal(result.audit.algorithmVersion, "dog-outing-v2"); assert.equal(result.audit.conditionsProvided, false);
   assert.ok(result.places.every(p => p.dogAccess?.kind === "tourapi"));
 });

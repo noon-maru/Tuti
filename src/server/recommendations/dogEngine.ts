@@ -6,19 +6,20 @@ import type { IntakeAnswers, PreferredRegion, UserLocation } from "@/shared/tuti
 import type { PersonalizationAudit } from "@/server/personalization/ranking";
 import { getPreferredRegionWhere } from "./regionFallback";
 import { dogCatalogPlaceWhere } from "./dogPlaceWhere";
-import { assessDogDestination } from "./dogDestination";
-import { enrichPlacesWithKnownExecutionFeasibility, type OperationDetail } from "./executionFeasibility";
+import { assessDogDestination, matchesDogPurpose } from "./dogDestination";
+import { type OperationDetail } from "./executionFeasibility";
+import { dogFeasibility, fitsDogTimeBudget, dogVisitDate } from "./dogFeasibility";
 import { filterPlacesByAdmissionBudget } from "./admissionFee";
 import { loadPlaceNoveltySignals } from "./novelty";
 import { rankDogPlaces, selectDogPlaces } from "./dogRanking";
 import { enrichPlacesWithCachedWeather } from "@/server/weather/kmaVilageForecast";
 import { requireLocationForLongDistance } from "./longDistanceAvailability";
 
-export const DOG_ENGINE_VERSION = "dog-outing-v1";
+export const DOG_ENGINE_VERSION = "dog-outing-v2";
 export class DogCatalogNotReadyError extends Error {
   constructor() { super("반려견 동반 추천 데이터를 준비하고 있어요. 잠시 후 다시 시도해주세요."); }
 }
-export type DogRecommendationAudit = { algorithmVersion: string; catalogReady: number; areaCandidates: number; distanceEligible: number; destinationEligible: number; companionEligible: number; budgetEligible: number; returned: number; conditionsProvided: boolean };
+export type DogRecommendationAudit = { algorithmVersion: string; catalogReady: number; areaCandidates: number; distanceEligible: number; destinationEligible: number; companionEligible: number; timeEligible: number; purposeEligible: number; budgetEligible: number; returned: number; conditionsProvided: boolean };
 export const dogDistancePolicy = { near: 5000, short: 20000, half: 60000, far: 200000 } as const;
 export function dogDistanceMeters(a: UserLocation, b: UserLocation) {
   const radians = (value: number) => value * Math.PI / 180;
@@ -61,14 +62,14 @@ export async function createDogRecommendations(input: { answers: IntakeAnswers; 
   });
   const destinations = distanceCandidates.filter(place => !nonDestinations.has(place.id));
   const companions = await dogOutingPlaces(destinations, dogOuting);
-  const forecastTarget = movement === "far" && answers.longDistanceTiming === "tomorrow_day_trip" ? new Date(now.getTime() + 86400000) : now;
-  const enriched = enrichPlacesWithKnownExecutionFeasibility(enrichPlacesWithCachedWeather(companions, now, forecastTarget), answers, operationDetails, now);
+  const forecastTarget = dogVisitDate(answers, now);
+  const enriched = enrichPlacesWithCachedWeather(companions, now, forecastTarget).map(place => dogFeasibility(place, answers, operationDetails.get(place.id), now)).filter(fitsDogTimeBudget);
   // Unknown/estimated time is not grounds for silently deleting a candidate. Known admission limits remain hard constraints.
   const budgetEligible = filterPlacesByAdmissionBudget(enriched, answers.budget);
   const signals = await loadPlaceNoveltySignals(input.userId, budgetEligible.map(p => p.id), now);
   const ranked = rankDogPlaces(budgetEligible, dogOuting, signals);
   const places = selectDogPlaces(ranked, input.excludePlaceIds ?? [], 6, dogOuting);
-  const audit: DogRecommendationAudit = { algorithmVersion: DOG_ENGINE_VERSION, catalogReady, areaCandidates: rows.length, distanceEligible: distanceCandidates.length, destinationEligible: destinations.length, companionEligible: companions.length, budgetEligible: budgetEligible.length, returned: places.length, conditionsProvided: Boolean(dogOuting) };
+  const audit: DogRecommendationAudit = { algorithmVersion: DOG_ENGINE_VERSION, catalogReady, areaCandidates: rows.length, distanceEligible: distanceCandidates.length, destinationEligible: destinations.length, companionEligible: companions.length, timeEligible: enriched.length, purposeEligible: ranked.filter(place => matchesDogPurpose(place, dogOuting)).length, budgetEligible: budgetEligible.length, returned: places.length, conditionsProvided: Boolean(dogOuting) };
   const personalization: PersonalizationAudit = { mode: "off", profileVersion: DOG_ENGINE_VERSION, applied: false, scoredPlaceCount: 0, originalPlaceIds: ranked.slice(0, 12).map(p => p.id) };
   return { places, personalization, audit, ranked };
 }

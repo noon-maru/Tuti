@@ -5,7 +5,7 @@ import type {
   UserLocation,
 } from "@/shared/tuti/types";
 
-export const RECOMMENDATION_ALGORITHM_VERSION = "dog-outing-v1";
+export const RECOMMENDATION_ALGORITHM_VERSION = "dog-outing-v2";
 
 export type RecommendationErrorCode =
   | "dog_catalog_not_ready"

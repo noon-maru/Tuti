@@ -381,7 +381,7 @@ function toMinutes(
   return hour * 60 + minute;
 }
 
-function isRestDay(restDate: string, date: Date) {
+export function isRestDay(restDate: string, date: Date) {
   if (/연중\s*무휴|연중무휴|없음/.test(restDate)) return false;
   const parts = getKoreanDateParts(date);
   if (
