@@ -3,7 +3,7 @@
 import styled from "@emotion/styled";
 import { BookOpen, Check } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type MouseEvent } from "react";
 import Link from "next/link";
 import { ScreenFrame } from "@/features/tuti/components/ScreenFrame";
 import { BackButton, PrimaryButton, TextButton } from "@/features/tuti/components/buttons";
@@ -41,6 +41,9 @@ export function MadiHarumadiSelection({ ownerId, entryId, initialBookId, onDone,
   const books = [...groups.recent, ...groups.other];
   const selectedBook = books.find(book => book.id === selected);
   const canAdd = Boolean(selectedBook);
+  const emptyLibrary = !search.searching && query.isSuccess && !books.length;
+  const createBookHref = `/harumadi?addEntryId=${encodeURIComponent(entryId)}`;
+  const guardBookCreation = (event: MouseEvent<HTMLElement>) => { if (saving.current) event.preventDefault(); };
 
   useEffect(() => { heading.current?.focus({ preventScroll: true }); }, [finished]);
   useEffect(() => {
@@ -99,7 +102,8 @@ export function MadiHarumadiSelection({ ownerId, entryId, initialBookId, onDone,
       {error && <ErrorMessage role="alert">{error}<TextButton disabled={busy} onClick={() => { setSelected(null); void query.refetch(); void recentQuery.refetch(); }}>목록 다시 확인하기</TextButton></ErrorMessage>}
     </Content>
     <Footer>
-      {!search.searching && query.isSuccess && !books.length ? <CreateLink href={`/harumadi?addEntryId=${encodeURIComponent(entryId)}`}>새 하루마디 만들어 담기</CreateLink> : <PrimaryButton disabled={busy || !canAdd} onClick={() => void complete()}>{busy ? "담고 있어요…" : "이 하루마디에 담기"}</PrimaryButton>}
+      {emptyLibrary ? <CreateLink href={createBookHref} aria-disabled={busy} tabIndex={busy ? -1 : undefined} onClick={guardBookCreation}>새 하루마디 만들어 담기</CreateLink> : <PrimaryButton disabled={busy || !canAdd} onClick={() => void complete()}>{busy ? "담고 있어요…" : "이 하루마디에 담기"}</PrimaryButton>}
+      {!emptyLibrary && <NewBookLink href={createBookHref} aria-disabled={busy} tabIndex={busy ? -1 : undefined} onClick={guardBookCreation}>새 하루마디 만들어 담기</NewBookLink>}
       <TextButton disabled={busy} onClick={() => { if (existingEntry) onDone(); else setCompletion(null); }}>지금은 담지 않기</TextButton>
     </Footer>
   </Frame>;
@@ -107,6 +111,7 @@ export function MadiHarumadiSelection({ ownerId, entryId, initialBookId, onDone,
 
 const Frame = styled(ScreenFrame)`background: var(--color-surface); gap: 20px; --screen-padding-top: calc(24px + var(--app-safe-area-top, 0px));`;
 const CreateLink = PrimaryButton.withComponent(Link);
+const NewBookLink = styled(TextButton)`justify-content: center; min-height: 44px; font-size: 14px; color: var(--color-brand-1000); &[aria-disabled="true"] { opacity: .5; cursor: default; }`.withComponent(Link);
 const Header = styled.header`display: flex; align-items: center; justify-content: space-between; flex: none; > span { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--color-text-muted); }`;
 const Content = styled.div`flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 2px 2px 20px;`;
 const Intro = styled.div`margin-bottom: 24px; h1 { margin: 0 0 12px; font-size: 25px; font-weight: 600; letter-spacing: -0.035em; line-height: 1.4; &:focus { outline: none; } } p { margin: 0; font-size: 13px; line-height: 1.8; color: var(--color-text-muted); word-break: keep-all; }`;

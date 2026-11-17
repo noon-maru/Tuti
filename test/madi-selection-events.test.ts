@@ -11,7 +11,7 @@ import { findMadiControl } from "./fixtures/madiCreateHarness";
 import { harumadiContent } from "./fixtures/harumadiContent";
 import { harumadiSharingNotice } from "../src/shared/harumadi/sharingAudience";
 
-function fixture(add: (...args: unknown[]) => Promise<unknown>, recentError = false) {
+function fixture(add: (...args: unknown[]) => Promise<unknown>, recentError = false, searchTerm = "") {
   const book = { ...harumadiContent().harumadi, shared: true };
   const states: unknown[] = [], refs: Array<{ current: unknown }> = [];
   let index = 0, refIndex = 0, done = 0;
@@ -33,7 +33,7 @@ function fixture(add: (...args: unknown[]) => Promise<unknown>, recentError = fa
     "@/features/tuti/components/HarumadiTitleHint": { HarumadiTitleHint: "span" },
     "@/shared/harumadi/recentChoices": { groupHarumadiChoices },
     "@/features/tuti/hooks/useHarumadiLibrary": { useHarumadiLibrary: () => ({ data: { pages: [{ harumadis: [book] }] }, isPending: false, isError: false, refetch() {} }) },
-    "@/features/tuti/hooks/useHarumadiSearch": { useHarumadiSearch: (books: unknown[]) => ({ search: "", books, searching: false, setSearch() {} }) },
+    "@/features/tuti/hooks/useHarumadiSearch": { useHarumadiSearch: (books: unknown[]) => ({ search: searchTerm, books: searchTerm ? [] : books, searching: Boolean(searchTerm), setSearch() {} }) },
     "@/features/tuti/components/MadiSearchField": { MadiSearchField: "input" },
     "@/shared/harumadi/sharingAudience": { harumadiSharingNotice },
   };
@@ -57,6 +57,11 @@ test("최근 제안도 자동 선택하지 않고 명시적으로 고른 책을 
   screen.choose();
   const click = screen.control("이 하루마디에 담기").onClick as () => void;
   click(); click(); assert.equal(calls, 1); assert.deepEqual(screen.next, []);
+  let prevented = false;
+  const newBook = screen.control("새 하루마디 만들어 담기");
+  assert.equal(newBook["aria-disabled"], true);
+  (newBook.onClick as (event: unknown) => void)({ preventDefault() { prevented = true; } });
+  assert.equal(prevented, true, "기존 책에 담는 중에는 새 책 생성으로 이탈하지 않는다");
   resolve(); await flush(); assert.deepEqual(screen.next, []); assert.equal(screen.done(), 0);
   assert.match(String(screen.control("방금 남긴 쪽 보기").href), /harumadiId=book-a&focusEntryId=entry/);
   assert.ok(screen.control("작성 마치기"));
@@ -76,4 +81,13 @@ test("추천 조회 실패·담기 실패에도 원본 저장 상태와 직접 �
   assert.deepEqual(noSelection.next, []);
   (noSelection.control("다음 마디 남기기").onClick as () => void)();
   assert.deepEqual(noSelection.next, [undefined]);
+});
+
+test("기존 책이 있거나 검색 결과가 없어도 저장한 마디를 새 책 만들기에 이어준다", () => {
+  for (const term of ["", "일치하지 않는 이름"]) {
+    let writes = 0;
+    const screen = fixture(async () => { writes++; }, false, term);
+    assert.equal(screen.control("새 하루마디 만들어 담기").href, "/harumadi?addEntryId=entry");
+    assert.equal(screen.done(), 0); assert.equal(writes, 0, "단순히 선택지를 보여주는 동안 새 책이나 연결을 만들지 않는다");
+  }
 });
