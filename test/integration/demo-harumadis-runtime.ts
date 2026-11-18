@@ -22,7 +22,7 @@ try {
     CREATE TABLE users(id text PRIMARY KEY,display_name text,role "UserRole");
     CREATE TABLE auth_identities(id text PRIMARY KEY,user_id text REFERENCES users(id) ON DELETE CASCADE,provider "AuthProvider");
     CREATE TABLE places(id text PRIMARY KEY,name text,image text,source_copyright text);
-    CREATE TABLE harumadis(id text PRIMARY KEY,owner_id text REFERENCES users(id) ON DELETE CASCADE,title text,cover_style text,
+    CREATE TABLE harumadis(paper_color text NOT NULL DEFAULT 'white',id text PRIMARY KEY,owner_id text REFERENCES users(id) ON DELETE CASCADE,title text,cover_style text,
       back_cover_text text,period_start date,period_end date,revision integer DEFAULT 1,access_revision integer DEFAULT 0,
       collaboration_started_at timestamp,created_at timestamp DEFAULT now(),updated_at timestamp DEFAULT now());
     CREATE TABLE journal_entries(id text PRIMARY KEY,owner_id text REFERENCES users(id) ON DELETE CASCADE,title text,content text,

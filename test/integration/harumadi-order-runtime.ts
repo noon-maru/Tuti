@@ -18,7 +18,7 @@ try {
   await pool.query(`CREATE SCHEMA ${schema};
     CREATE TABLE users(id text PRIMARY KEY);
     CREATE TABLE journal_entries(id text PRIMARY KEY,visited_at timestamp NOT NULL,sensitive_withdrawn_at timestamp);
-    CREATE TABLE harumadis(id text PRIMARY KEY,owner_id text NOT NULL REFERENCES users(id),title text NOT NULL DEFAULT 'synthetic',cover_style text NOT NULL DEFAULT 'white-plain',back_cover_text text NOT NULL DEFAULT 'synthetic',revision integer NOT NULL DEFAULT 1,access_revision integer NOT NULL DEFAULT 0,collaboration_started_at timestamp,created_at timestamp NOT NULL DEFAULT now(),updated_at timestamp NOT NULL DEFAULT now());
+    CREATE TABLE harumadis(paper_color text NOT NULL DEFAULT 'white',id text PRIMARY KEY,owner_id text NOT NULL REFERENCES users(id),title text NOT NULL DEFAULT 'synthetic',cover_style text NOT NULL DEFAULT 'white-plain',back_cover_text text NOT NULL DEFAULT 'synthetic',revision integer NOT NULL DEFAULT 1,access_revision integer NOT NULL DEFAULT 0,collaboration_started_at timestamp,created_at timestamp NOT NULL DEFAULT now(),updated_at timestamp NOT NULL DEFAULT now());
     CREATE TABLE harumadi_members(id text PRIMARY KEY,harumadi_id text REFERENCES harumadis(id),user_id text,ended_at timestamp);
     CREATE TABLE harumadi_entry_links(id text UNIQUE,harumadi_id text REFERENCES harumadis(id),entry_id text REFERENCES journal_entries(id),PRIMARY KEY(harumadi_id,entry_id));
     INSERT INTO users VALUES('maker'),('member'),('outsider');

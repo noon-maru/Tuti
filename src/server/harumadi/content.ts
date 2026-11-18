@@ -15,7 +15,7 @@ export async function readHarumadiContent(ownerId: string, id: string): Promise<
     const access = harumadiTogetherEnabled() ? await requireHarumadiAccess(tx, ownerId, id) : null;
     const shared = Boolean(access?.collaborationStartedAt);
     const book = await tx.harumadi.findFirst({ where: { id, ...(access ? {} : { ownerId }) }, select: {
-      id: true, title: true, coverStyle: true, backCoverText: true, periodStart: true, periodEnd: true, revision: true, createdAt: true, updatedAt: true,
+      id: true, title: true, coverStyle: true, paperColor: true, backCoverText: true, periodStart: true, periodEnd: true, revision: true, createdAt: true, updatedAt: true,
       entries: { select: { entryId: true, position: true, entry: { select: { ...journalEntrySelect, ...(shared ? { owner: { select: { displayName: true } } } : {}) } } } },
     } });
     if (!book) throw new HarumadiError("하루마디를 찾지 못했어요.", 404);
@@ -31,7 +31,7 @@ export async function readHarumadiContent(ownerId: string, id: string): Promise<
       harumadi: { ...serializeHarumadiPeriod(book), id: book.id, title: book.title, coverStyle: book.coverStyle as HarumadiContent["harumadi"]["coverStyle"],
         ...(access ? { togetherEnabled: true, shared, role: access.ownerId === ownerId ? "owner" as const : "contributor" as const } : {}),
         revision: book.revision,
-        backCoverText: book.backCoverText,
+        paperColor: (book.paperColor ?? "white") as HarumadiContent["harumadi"]["paperColor"], backCoverText: book.backCoverText,
         entryIds: rows.map(entry => entry.id), createdAt: book.createdAt.toISOString(), updatedAt: book.updatedAt.toISOString() },
       entries: rows.map(entry => ({ ...serializeJournalEntry(entry), ...(shared ? {
         authorId: entry.ownerId, authorName: entry.owner?.displayName || "함께하는 사람", image: entry.image ? sharedImageUrl(ownerId, id, entry.id, access!.accessRevision, entry.updatedAt.toISOString()) : null,
@@ -39,7 +39,7 @@ export async function readHarumadiContent(ownerId: string, id: string): Promise<
       } : {}) })), totalRecordCount,
       cacheable: !shared && rows.every(entry => entry.sensitiveContent === false),
       // 책 revision이 같아도 원본 마디의 제목·본문·사진 수정은 별도 버전이다.
-      version: createHash("sha256").update(JSON.stringify({ layout: "photo-ratios-v1", revision: book.revision, updatedAt: book.updatedAt, accessRevision: access?.accessRevision,
+      version: createHash("sha256").update(JSON.stringify({ layout: "paper-colors-v1", revision: book.revision, updatedAt: book.updatedAt, accessRevision: access?.accessRevision,
         entries: rows.map(entry => [entry.id, entry.updatedAt]).sort((a, b) => String(a[0]).localeCompare(String(b[0]))), totalRecordCount })).digest("hex"),
     };
   }, { isolationLevel: "RepeatableRead" });

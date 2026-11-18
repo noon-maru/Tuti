@@ -159,8 +159,8 @@ test("하루마디 표지 네 가지 조합의 배경과 이미지 대체색을 
   });
   assert.deepEqual(getHarumadiPdfCoverPalette("green-image"), {
     background: "#EBF5D5",
-    foreground: "#4098EE",
-    placeholder: "#8CBDEF",
+    foreground: "#36553A",
+    placeholder: "#D6E5BD",
   });
   assert.equal(harumadiPdfCoverUsesImage("white-plain"), false);
   assert.equal(harumadiPdfCoverUsesImage("green-image"), true);

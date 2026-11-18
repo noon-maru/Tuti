@@ -136,6 +136,21 @@ test("분리된 PostgreSQL에서 약관·권리 보호 마이그레이션의 실
     const { verifyTogetherSchema } = await import("./harumadi-together-scenario");
     verifyTogetherSchema(query, rejected, socket);
   });
+  await t.test("색상 확장은 기존 흰 속지를 유지하고 책·PDF의 허용 색상을 함께 갱신한다", () => {
+    query(`CREATE SCHEMA paper_color_fixture; SET search_path=paper_color_fixture;
+      CREATE TABLE harumadis(id text PRIMARY KEY, cover_style text NOT NULL CONSTRAINT harumadis_cover_style_check CHECK (cover_style IN ('white-plain','green-plain','white-image','green-image')));
+      CREATE TABLE harumadi_pdfs(id text PRIMARY KEY, cover_style text CONSTRAINT harumadi_pdf_cover_style_check CHECK (cover_style IS NULL OR cover_style IN ('white-plain','green-plain','white-image','green-image')));
+      INSERT INTO harumadis VALUES('old','green-image'); INSERT INTO harumadi_pdfs VALUES('old','white-plain');`);
+    const scoped = (sql: string) => query(`SET search_path=paper_color_fixture; ${sql}`).split("\n").at(-1);
+    scoped(readFileSync("prisma/migrations/20261118020000_add_harumadi_paper_color/migration.sql", "utf8"));
+    assert.equal(scoped("SELECT paper_color || ':' || cover_style FROM harumadis WHERE id='old'"), "white:green-image");
+    for (const color of ["white", "green", "blue", "peach", "pink", "lavender"]) for (const layout of ["plain", "image"]) {
+      scoped(`UPDATE harumadis SET cover_style='${color}-${layout}'; UPDATE harumadi_pdfs SET cover_style='${color}-${layout}'`);
+    }
+    for (const color of ["white", "ivory", "green", "blue", "pink", "lavender"]) scoped(`UPDATE harumadis SET paper_color='${color}'`);
+    for (const sql of ["UPDATE harumadis SET paper_color='custom'", "UPDATE harumadis SET cover_style='black-image'", "UPDATE harumadi_pdfs SET cover_style='custom'"]) rejected(`SET search_path=paper_color_fixture; ${sql}`, /check constraint/i);
+    query("DROP SCHEMA paper_color_fixture CASCADE");
+  });
   await t.test("담고 싶은 기간은 기존 책을 바꾸지 않고 날짜 쌍과 순서만 제한한다", () => {
     query("CREATE SCHEMA memory_period_fixture; SET search_path=memory_period_fixture; CREATE TABLE harumadis(id text PRIMARY KEY); INSERT INTO harumadis VALUES('old')");
     const scoped = (sql: string) => query(`SET search_path=memory_period_fixture; ${sql}`).split("\n").at(-1);

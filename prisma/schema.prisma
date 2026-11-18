@@ -753,6 +753,7 @@ model Harumadi {
   ownerId    String @map("owner_id")
   title      String
   coverStyle String @map("cover_style")
+  paperColor String @default("white") @map("paper_color")
   backCoverText String @default("오늘 가능한 만큼만,") @map("back_cover_text")
   periodStart DateTime? @db.Date @map("period_start")
   periodEnd DateTime? @db.Date @map("period_end")

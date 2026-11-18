@@ -10,6 +10,7 @@ import {
 } from "@react-pdf/renderer";
 import sharp from "sharp";
 import { fitHarumadiPhoto } from "@/shared/harumadi/imageGeometry";
+import { getHarumadiPaperPalette } from "@/shared/harumadi/colors";
 import {
   PDFDocument as EditablePdfDocument,
   StandardFonts,
@@ -273,6 +274,7 @@ export async function renderHarumadiPdf(
       .join("");
   const cover = entries.find((entry) => entry.id === input.coverEntryId);
   const coverPalette = getHarumadiPdfCoverPalette(input.coverStyle);
+  const paperBackground = { backgroundColor: getHarumadiPaperPalette(input.paperColor).background };
   const imageCover = harumadiPdfCoverUsesImage(input.coverStyle);
   const dates = entries.map(entry => entry.visitedAt).sort((a, b) => a.getTime() - b.getTime());
   const firstDate = harumadiPdfDate(dates[0]).replaceAll("-", ".");
@@ -328,6 +330,7 @@ export async function renderHarumadiPdf(
             styles.page,
             styles.letterPage,
             ...(shortLetter ? [styles.shortLetterPage] : []),
+            paperBackground,
           ]}
           wrap
         >
@@ -366,7 +369,7 @@ export async function renderHarumadiPdf(
             <Page
               key={entry.id}
               size={HARUMADI_PDF_PAGE_SIZE}
-              style={[styles.page, styles.photoPage]}
+              style={[styles.page, styles.photoPage, paperBackground]}
             >
               <PhotoEntryHeader date={photoDate} placeName={placeName} />
               <View style={styles.photoOnlyBody}>
@@ -383,7 +386,7 @@ export async function renderHarumadiPdf(
             <Page
               key={entry.id}
               size={HARUMADI_PDF_PAGE_SIZE}
-              style={[styles.page, styles.photoPage]}
+              style={[styles.page, styles.photoPage, paperBackground]}
               wrap
             >
               <ContinuationLabel label={title} />
@@ -419,7 +422,7 @@ export async function renderHarumadiPdf(
             <Page
               key={entry.id}
               size={HARUMADI_PDF_PAGE_SIZE}
-              style={[styles.page, styles.shortTextPage]}
+              style={[styles.page, styles.shortTextPage, paperBackground]}
             >
               <View style={styles.shortTextFrame} wrap={false}>
                 <Text style={styles.caption}>{meta}</Text>
@@ -434,7 +437,7 @@ export async function renderHarumadiPdf(
             <Page
               key={entry.id}
               size={HARUMADI_PDF_PAGE_SIZE}
-              style={styles.page}
+              style={[styles.page, paperBackground]}
               wrap
             >
               <ContinuationLabel label={title} />

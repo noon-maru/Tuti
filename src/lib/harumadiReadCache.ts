@@ -1,4 +1,6 @@
 import type { HarumadiContent } from "@/shared/api/harumadi";
+import { HARUMADI_PDF_COVER_STYLES } from "@/shared/api/harumadiPdf";
+import { isHarumadiPaperColor } from "@/shared/harumadi/colors";
 import { preferencesStorage } from "./storage/preferencesStorage";
 import { isHarumadiBackCoverText } from "@/shared/harumadi/backCover";
 
@@ -121,7 +123,7 @@ export function isReadContent(value: unknown): value is HarumadiContent {
   if (!value || typeof value !== "object") return false;
   const data = value as HarumadiContent, book = data.harumadi;
   return Boolean(book && validId(book.id) && typeof book.title === "string" && book.title.length <= 80 &&
-    ["white-plain", "white-image", "green-plain", "green-image"].includes(book.coverStyle) &&
+    HARUMADI_PDF_COVER_STYLES.includes(book.coverStyle) && (book.paperColor === undefined || isHarumadiPaperColor(book.paperColor)) &&
     (book.backCoverText === undefined || isHarumadiBackCoverText(book.backCoverText)) &&
     Number.isSafeInteger(book.revision) && book.revision > 0 && typeof book.createdAt === "string" && Number.isFinite(Date.parse(book.createdAt)) &&
     typeof book.updatedAt === "string" && Number.isFinite(Date.parse(book.updatedAt)) &&

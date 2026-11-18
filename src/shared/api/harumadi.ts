@@ -2,10 +2,12 @@ import { HARUMADI_PDF_COVER_STYLES, HARUMADI_PDF_TITLE_LIMIT, type HarumadiPdfCo
 import type { TutiJournalEntry } from "./journal";
 import { isHarumadiBackCoverText } from "../harumadi/backCover";
 import { parseHarumadiPeriod, type HarumadiPeriod } from "../harumadi/period";
+import { isHarumadiPaperColor, type HarumadiPaperColor } from "../harumadi/colors";
 
 export type HarumadiSettings = HarumadiPeriod & {
   title: string;
   coverStyle: HarumadiPdfCoverStyle;
+  paperColor?: HarumadiPaperColor;
   backCoverText?: string;
   freeformNonSensitiveConfirmed?: boolean;
 };
@@ -39,11 +41,13 @@ export function parseHarumadiSettings(value: unknown): HarumadiSettings | null {
   const input = value as Record<string, unknown>;
   const period = parseHarumadiPeriod(input);
   if (!period) return null;
+  if (input.paperColor !== undefined && !isHarumadiPaperColor(input.paperColor)) return null;
   if (typeof input.title !== "string" || !input.title.trim() || input.title.length > HARUMADI_PDF_TITLE_LIMIT ||
       !HARUMADI_PDF_COVER_STYLES.includes(input.coverStyle as HarumadiPdfCoverStyle) ||
       (input.backCoverText !== undefined && !isHarumadiBackCoverText(input.backCoverText)) ||
       (input.freeformNonSensitiveConfirmed !== undefined && typeof input.freeformNonSensitiveConfirmed !== "boolean")) return null;
   return { ...period, title: input.title.trim(), coverStyle: input.coverStyle as HarumadiPdfCoverStyle,
+    ...(isHarumadiPaperColor(input.paperColor) ? { paperColor: input.paperColor } : {}),
     ...(typeof input.backCoverText === "string" ? { backCoverText: input.backCoverText.trim() } : {}),
     ...(typeof input.freeformNonSensitiveConfirmed === "boolean" ? { freeformNonSensitiveConfirmed: input.freeformNonSensitiveConfirmed } : {}) };
 }

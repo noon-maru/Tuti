@@ -1,4 +1,5 @@
 import { isHarumadiBackCoverText } from "../harumadi/backCover";
+import { harumadiCoverPalette, isHarumadiPaperColor, type HarumadiPaperColor } from "../harumadi/colors";
 
 export const HARUMADI_PDF_TITLE_LIMIT = 80;
 export const HARUMADI_PDF_LETTER_LIMIT = 1200;
@@ -34,6 +35,10 @@ export const HARUMADI_PDF_COVER_STYLES = [
   "green-plain",
   "white-image",
   "green-image",
+  "blue-plain", "blue-image",
+  "peach-plain", "peach-image",
+  "pink-plain", "pink-image",
+  "lavender-plain", "lavender-image",
 ] as const;
 
 export type HarumadiPdfCoverStyle =
@@ -44,12 +49,8 @@ export function harumadiPdfCoverUsesImage(style: HarumadiPdfCoverStyle) {
 }
 
 export function getHarumadiPdfCoverPalette(style: HarumadiPdfCoverStyle) {
-  const green = style.startsWith("green-");
-  return {
-    background: green ? "#EBF5D5" : "#FFFFFF",
-    foreground: green ? "#4098EE" : "#202020",
-    placeholder: green ? "#8CBDEF" : "#EBF5D5",
-  };
+  const { background, foreground, placeholder } = harumadiCoverPalette(style);
+  return { background, foreground, placeholder };
 }
 
 export type HarumadiPdfInput = {
@@ -62,6 +63,7 @@ export type HarumadiPdfInput = {
   letter: string;
   coverEntryId: string | null;
   coverStyle: HarumadiPdfCoverStyle;
+  paperColor?: HarumadiPaperColor;
 };
 
 export type StoredHarumadiPdf = {
@@ -111,6 +113,7 @@ export function parseHarumadiPdfInput(value: unknown): HarumadiPdfInput | null {
   if (input.harumadiId !== undefined && (typeof input.harumadiId !== "string" || !/^[a-zA-Z0-9_-]{1,128}$/.test(input.harumadiId) || !Number.isSafeInteger(input.harumadiRevision) || Number(input.harumadiRevision) < 1)) return null;
   if (input.backCoverText !== undefined && !isHarumadiBackCoverText(input.backCoverText)) return null;
   if (input.freeformNonSensitiveConfirmed !== undefined && typeof input.freeformNonSensitiveConfirmed !== "boolean") return null;
+  if (input.paperColor !== undefined && !isHarumadiPaperColor(input.paperColor)) return null;
   const coverStyle = HARUMADI_PDF_COVER_STYLES.includes(
     input.coverStyle as HarumadiPdfCoverStyle,
   )
@@ -147,6 +150,7 @@ export function parseHarumadiPdfInput(value: unknown): HarumadiPdfInput | null {
     letter: input.letter,
     coverEntryId: input.coverEntryId,
     coverStyle,
+    ...(isHarumadiPaperColor(input.paperColor) ? { paperColor: input.paperColor } : {}),
     ...(typeof input.backCoverText === "string" ? { backCoverText: input.backCoverText.trim() } : {}),
     ...(typeof input.freeformNonSensitiveConfirmed === "boolean" ? { freeformNonSensitiveConfirmed: input.freeformNonSensitiveConfirmed } : {}),
   };
