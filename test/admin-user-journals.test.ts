@@ -37,6 +37,10 @@ function filteredEntries(where: EntryWhere) {
 
 // 이 파일의 테스트 프로세스 안에서만 사용한다. 실제 DB에는 연결하지 않는다.
 const fakePrisma = {
+  harumadi: { count: async () => 2 },
+  harumadiMember: { count: async () => 1 },
+  harumadiEntryLink: { count: async () => 4 },
+  harumadiPdf: { count: async () => 1 },
   $queryRaw: async (_sql: TemplateStringsArray, number: bigint, subjectUserId: string) =>
     caseExists && number === 123n && subjectUserId === userId
       ? [{ number: 123n, purpose: "support", createdAt: new Date() }] : [],
@@ -200,5 +204,20 @@ test("관리자 기록 조회의 접근 제어·페이지 이동·감사 기록"
     assert.equal(response.status, 500);
     assert.equal((await response.json()).entries, undefined);
     dedicatedAuditFails = false;
+  });
+  await t.test("구조 진단은 같은 목적·감사를 거치되 제목·본문·사진을 조회하거나 반환하지 않는다", async t => {
+    const before = queries.length;
+    const response = await POST(request(`userId=${userId}&view=structure`));
+    assert.equal(response.status, 200);
+    const body = await response.json();
+    assert.equal(body.structure.ownedBooks, 2); assert.equal(body.structure.bookLinks, 4);
+    assert.equal(queries.length, before, "원문 findMany를 실행하지 않는다");
+    assert.doesNotMatch(JSON.stringify(body), /signature|개인 기록 본문|비공개 기록 제목/);
+    assert.equal(body.entries, undefined);
+    t.mock.method(console, "error", () => {});
+    auditFails = true;
+    const denied = await POST(request(`userId=${userId}&view=structure`));
+    assert.equal(denied.status, 500); assert.equal((await denied.json()).structure, undefined);
+    auditFails = false;
   });
 });

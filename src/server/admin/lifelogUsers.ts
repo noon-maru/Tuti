@@ -10,7 +10,7 @@ export function lifelogUsersSql(period: ReturnType<typeof analyticsPeriod>, curs
     journals AS (SELECT owner_id,created_at FROM journal_entries j,p WHERE created_at>=p.since AND created_at<p.until AND sensitive_withdrawn_at IS NULL),
     runs AS (SELECT user_id,created_at FROM recommendation_runs r,p WHERE created_at>=p.since AND created_at<p.until),
     actions AS (SELECT user_id,created_at FROM recommendation_actions a,p WHERE created_at>=p.since AND created_at<p.until),
-    signals AS (SELECT user_id,occurred_at AS at,name IN('madi_created','book_opened','madi_added','pdf_created') AS meaningful,name='madi_created' AS written FROM life
+    signals AS (SELECT user_id,occurred_at AS at,name IN('madi_created','book_opened','madi_opened','madi_added','pdf_created') AS meaningful,name='madi_created' AS written FROM life
       UNION ALL SELECT user_id,created_at,false,false FROM old
       UNION ALL SELECT owner_id,created_at,true,true FROM journals),
     recent AS (SELECT u.id,u.role,u.created_at,u.display_name,u.last_accessed_at,u.analytics_excluded_at,u.analytics_exclusion_reason FROM users u,p WHERE (u.created_at>=p.since AND u.created_at<p.until) OR EXISTS(SELECT 1 FROM signals s WHERE s.user_id=u.id)
@@ -20,12 +20,12 @@ export function lifelogUsersSql(period: ReturnType<typeof analyticsPeriod>, curs
       ORDER BY u.created_at DESC,u.id DESC LIMIT 101),
     counts AS (SELECT user_id,count(1) FILTER(WHERE name='madi_created') AS writes,
       count(DISTINCT (occurred_at+interval '9 hours')::date) FILTER(WHERE name='madi_created') AS days,
-      count(1) FILTER(WHERE name='book_opened') AS opens,count(1) FILTER(WHERE name='madi_added') AS contributions,
+      count(1) FILTER(WHERE name='book_opened') AS opens,count(1) FILTER(WHERE name='madi_opened') AS madi_opens,count(1) FILTER(WHERE name='madi_added') AS contributions,
       count(1) FILTER(WHERE name='pdf_created') AS pdfs,count(DISTINCT session_id) FILTER(WHERE name='session_started') AS sessions FROM life GROUP BY user_id),
     items AS (SELECT u.id AS "userId",u.display_name AS "displayName",
       CASE WHEN u.role='admin' THEN 'admin' WHEN EXISTS(SELECT 1 FROM auth_identities a WHERE a.user_id=u.id) THEN 'authenticated' ELSE 'anonymous' END AS "accountType",
       CASE WHEN EXISTS(SELECT 1 FROM journals j WHERE j.owner_id=u.id) OR coalesce(c.writes,0)>0 THEN 'converted'
-        WHEN coalesce(c.opens,0)+coalesce(c.contributions,0)>0 THEN 'engaged'
+        WHEN coalesce(c.opens,0)+coalesce(c.madi_opens,0)+coalesce(c.contributions,0)>0 THEN 'engaged'
         WHEN EXISTS(SELECT 1 FROM runs r WHERE r.user_id=u.id) THEN 'recommended'
         WHEN EXISTS(SELECT 1 FROM signals s WHERE s.user_id=u.id) THEN 'visited' ELSE 'created' END AS stage,
       u.role='admin' OR u.analytics_excluded_at IS NOT NULL AS excluded,
@@ -41,7 +41,7 @@ export function lifelogUsersSql(period: ReturnType<typeof analyticsPeriod>, curs
       u.created_at AT TIME ZONE 'UTC' AS "createdAt",
       coalesce((SELECT min(at) FROM signals s WHERE s.user_id=u.id),u.created_at) AT TIME ZONE 'UTC' AS "firstActivityAt",
       greatest(u.last_accessed_at,(SELECT max(at) FROM signals s WHERE s.user_id=u.id)) AT TIME ZONE 'UTC' AS "lastActivityAt",
-      json_build_object('writes',coalesce(c.writes,0),'writeDays',coalesce(c.days,0),'bookOpens',coalesce(c.opens,0),'contributions',coalesce(c.contributions,0),'pdfs',coalesce(c.pdfs,0)) AS lifelog
+      json_build_object('writes',coalesce(c.writes,0),'writeDays',coalesce(c.days,0),'bookOpens',coalesce(c.opens,0),'madiOpens',coalesce(c.madi_opens,0),'contributions',coalesce(c.contributions,0),'pdfs',coalesce(c.pdfs,0)) AS lifelog
       FROM (SELECT * FROM page ORDER BY created_at DESC,id DESC LIMIT 100) u LEFT JOIN counts c ON c.user_id=u.id),
     daily AS (SELECT to_char(d.day,'YYYY-MM-DD') AS date,
       (SELECT count(1) FROM eligible u WHERE (u.created_at+interval '9 hours')::date=d.day::date) AS "newUsers",

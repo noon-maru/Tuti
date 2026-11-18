@@ -36,7 +36,7 @@ export function JournalDetailFlow() {
     (state) => state.setActiveJournalEntry,
   );
   const entry = entries.find((candidate) => candidate.id === entryId);
-  useLifecycleView("madi_opened", "book", entry?.id, Boolean(entry && !isPending));
+  useLifecycleView("madi_opened", "unknown", entry?.id, Boolean(entry && !isPending));
   const returnToJournal = useCallback(() => {
     const destination = resolveMadiDetailReturn(ownerId, entryId);
     if (destination.back) router.back(); else router.replace(destination.path);

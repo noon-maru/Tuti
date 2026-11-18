@@ -5,7 +5,7 @@ import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
 import { adminJsonRequest, fetchAdminJson } from "@/lib/adminApi";
 import { BackButton, Button } from "@/shared/ui/buttons";
-import type { AdminProcessingCase, AdminUserItem, AdminUserJournalsResponse } from "@/shared/api/admin";
+import type { AdminProcessingCase, AdminUserItem, AdminUserJournalsResponse, AdminRecordStructure } from "@/shared/api/admin";
 import { ADMIN_JOURNAL_ACCESS_PURPOSES, parseAdminJournalAccess, type AdminJournalAccessPurpose } from "@/shared/legal/adminJournalAccess";
 
 const dateFormatter = new Intl.DateTimeFormat("ko-KR", {
@@ -38,6 +38,8 @@ function UserJournalsPanel({ user, onBack, backLabel }: PanelProps) {
   const [page, setPage] = useState(1);
   const [attempt, setAttempt] = useState(0);
   const [data, setData] = useState<AdminUserJournalsResponse | null>(null);
+  const [view, setView] = useState<"structure" | "content">("structure");
+  const [structure, setStructure] = useState<AdminRecordStructure>();
   const [error, setError] = useState<string | null>(null);
   const headingRef = useRef<HTMLHeadingElement>(null);
   const [purpose, setPurpose] = useState<AdminJournalAccessPurpose>("support");
@@ -94,16 +96,16 @@ function UserJournalsPanel({ user, onBack, backLabel }: PanelProps) {
   useEffect(() => {
     if (!authorization || authorization.userId !== user.id) return;
     let active = true;
-    void fetchAdminJson<AdminUserJournalsResponse>(
-      `user-journals?${new URLSearchParams({ userId: user.id, page: String(page) })}`,
+    void fetchAdminJson<AdminUserJournalsResponse & { structure?: AdminRecordStructure }>(
+      `user-journals?${new URLSearchParams({ userId: user.id, page: String(page), view })}`,
       { ...adminJsonRequest("POST", authorization), cache: "no-store" },
     ).then((response) => {
-      if (active) setData(response);
+      if (active) { if (view === "structure") setStructure(response.structure); else setData(response); }
     }).catch((fetchError) => {
       if (active) setError(fetchError instanceof Error ? fetchError.message : "기록을 불러오지 못했습니다.");
     });
     return () => { active = false; };
-  }, [attempt, authorization, page, user.id]);
+  }, [attempt, authorization, page, user.id, view]);
 
   const changePage = (nextPage: number) => {
     setData(null);
@@ -125,7 +127,7 @@ function UserJournalsPanel({ user, onBack, backLabel }: PanelProps) {
       {!authorization || authorization.userId !== user.id ? (
         <AccessForm onSubmit={(event) => {
           event.preventDefault();
-          if (access && !creating && !caseLoading) setAuthorization({ ...access, userId: user.id });
+          if (access && !creating && !caseLoading) { setView("structure"); setStructure(undefined); setData(null); setAuthorization({ ...access, userId: user.id }); }
         }}>
           <p>업무에 필요한 기록만 확인해주세요. 조회 목적과 처리 번호가 감사 기록에 남습니다.</p>
           <label htmlFor="journal-access-reference">등록된 처리 요청</label>
@@ -140,7 +142,7 @@ function UserJournalsPanel({ user, onBack, backLabel }: PanelProps) {
           </select>
           <Button type="button" $size="compact" disabled={creating || caseLoading || !!caseError} onClick={() => void createCase()}>{creating ? "처리 번호 발급 중…" : "새 요청 등록·번호 자동 발급"}</Button>
           {caseError && <p role="alert">{caseError}</p>}
-          <Button type="submit" $size="compact" disabled={!access || creating || caseLoading}>선택한 요청으로 기록 조회</Button>
+          <Button type="submit" $size="compact" disabled={!access || creating || caseLoading}>선택한 요청으로 구조 진단</Button>
         </AccessForm>
       ) : error ? (
         <State role="alert">
@@ -149,6 +151,17 @@ function UserJournalsPanel({ user, onBack, backLabel }: PanelProps) {
             setError(null);
             setAttempt((current) => current + 1);
           }}>다시 시도</Button>
+        </State>
+      ) : view === "structure" ? (
+        !structure ? <State role="status">기록 연결을 확인하고 있어요.</State> : <State>
+          <h3>기록·연결 상태</h3>
+          <Meta>처리 번호 {authorization.reference} · {ADMIN_JOURNAL_ACCESS_PURPOSES[authorization.purpose]}</Meta>
+          <p>원본 마디 {structure.madis}개 · 이미지 참조 {structure.imageReferences}개</p>
+          <p>만든 하루마디 {structure.ownedBooks}권 · 참여한 하루마디 {structure.participatingBooks}권</p>
+          <p>원본의 책 연결 {structure.bookLinks}개 · 보관 PDF {structure.pdfs}개</p>
+          <Meta>본문·제목·사진은 조회하지 않았어요. 이미지 참조 수는 실제 파일 존재·해독 성공을 뜻하지 않습니다.</Meta>
+          <Button type="button" $size="compact" onClick={() => setView("content")}>업무에 필요한 원문 확인</Button>
+          <Button type="button" $size="compact" onClick={() => { setAuthorization(null); setStructure(undefined); setError(null); }}>다른 처리 요청 선택</Button>
         </State>
       ) : !data ? (
         <State role="status">기록을 불러오고 있어요.</State>

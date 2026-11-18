@@ -29,7 +29,7 @@ export function AdminOperationsHome({ overview, notifications, onNavigate, onNav
   const a = metrics?.activity;
   const observed = status === "ready" && Boolean(a?.retainedSince);
   const number = (n?: number) => n == null ? "미확인" : n.toLocaleString("ko-KR");
-  const value = (n?: number) => !observed ? "미계측" : number(n);
+  const value = (n?: number) => !observed || n == null ? "미계측" : number(n);
   return <Layout>
     {(failures || unknownJobs || (rights?.dueCases ?? 0) > 0) ? <Attention role="status">
       {failures ? `예약 작업 실패·지연 ${failures}개. ` : ""}{unknownJobs ? "예약 작업 관측 확인 필요. " : ""}
@@ -52,6 +52,7 @@ export function AdminOperationsHome({ overview, notifications, onNavigate, onNav
       <Section aria-labelledby="operations-queue-heading">
         <Heading><h2 id="operations-queue-heading">지금 처리할 일</h2></Heading>
         <Queue>
+          <li><span>기록</span><button type="button" onClick={() => onNavigate("business")}>저장 오류 관측 계정 · {days}일<strong>{status === "ready" && a?.saveFailedUsers != null ? number(a.saveFailedUsers) : "미확인"}</strong></button></li>
           <li><span>기한</span><Link href="/admin/journal-rights">검토 기한 도달 권리 요청<strong>{number(rights?.dueCases)}</strong></Link></li>
           <li><span>기한</span><Link href="/admin/journal-rights">7일 내 검토 예정<strong>{number(rights?.upcomingCases)}</strong></Link></li>
           <li><span>통지</span><Link href="/admin/journal-rights">전달 확인 대기<strong>{number(rights?.pendingNotices)}</strong></Link></li>

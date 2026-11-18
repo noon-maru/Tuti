@@ -192,7 +192,7 @@ export function AdminUserActivityPanel({
                       </UserIdentity>
                     </td>
                     <td data-label="라이프로그 활동">
-                      {user.lifelog ? <><StageBadge data-stage={user.lifelog.writes ? "converted" : "visited"}>작성 {user.lifelog.writes} · {user.lifelog.writeDays}일</StageBadge><Subtle>책 열람 {user.lifelog.bookOpens} · 담기 {user.lifelog.contributions} · PDF {user.lifelog.pdfs}</Subtle></> : <StageBadge data-stage={user.stage}>{getStageLabel(user.stage)}</StageBadge>}
+                      {user.lifelog ? <><StageBadge data-stage={user.lifelog.writes ? "converted" : "visited"}>작성 {user.lifelog.writes} · {user.lifelog.writeDays}일</StageBadge><Subtle>책 열람 {user.lifelog.bookOpens} · 마디 열람 {user.lifelog.madiOpens ?? "미계측"} · 담기 {user.lifelog.contributions} · PDF {user.lifelog.pdfs}</Subtle></> : <StageBadge data-stage={user.stage}>{getStageLabel(user.stage)}</StageBadge>}
                     </td>
                     <td data-label="환경">
                       {getPlatformLabel(user.platform)}

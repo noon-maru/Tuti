@@ -8,7 +8,7 @@ import {
   withCors,
 } from "@/server/http/cors";
 import { serializeJournalImage } from "@/server/journal/imageStorage";
-import type { AdminUserJournalsResponse } from "@/shared/api/admin";
+import type { AdminUserJournalsResponse, AdminRecordStructure } from "@/shared/api/admin";
 import { parseAdminJournalAccess } from "@/shared/legal/adminJournalAccess";
 
 export const runtime = "nodejs";
@@ -54,6 +54,24 @@ export async function POST(request: Request) {
     const processingCase = await resolveProcessingCase(userId, access.reference);
     if (!processingCase || processingCase.purpose !== access.purpose) {
       return respond({ error: "해당 사용자의 등록된 처리 요청을 선택해주세요." }, 400);
+    }
+
+    if (params.get("view") === "structure") {
+      const structure = await prisma.$transaction(async tx => {
+        const original = { ownerId: userId, sensitiveWithdrawnAt: null };
+        const [madis, imageReferences, ownedBooks, participatingBooks, bookLinks, pdfs] = await Promise.all([
+          tx.journalEntry.count({ where: original }),
+          tx.journalEntry.count({ where: { ...original, image: { not: "" } } }),
+          tx.harumadi.count({ where: { ownerId: userId } }),
+          tx.harumadiMember.count({ where: { userId } }),
+          tx.harumadiEntryLink.count({ where: { entry: original } }),
+          tx.harumadiPdf.count({ where: { ownerId: userId } }),
+        ]);
+        return { madis, imageReferences, ownedBooks, participatingBooks, bookLinks, pdfs } satisfies AdminRecordStructure;
+      }, { isolationLevel: "RepeatableRead" });
+      await writeAdminJournalAccessAudit({ actorUserId: authentication.user.id, subjectUserId: userId,
+        ...access, page: 1, resultCount: 0, total: structure.madis, entryIds: [] });
+      return respond({ structure });
     }
 
     const total = await prisma.journalEntry.count({ where: { ownerId: userId, sensitiveWithdrawnAt: null } });
