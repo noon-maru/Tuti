@@ -5,7 +5,7 @@ import styled from "@emotion/styled";
 import { memo, useEffect, useRef, useState, type CSSProperties, type PointerEvent } from "react";
 import { ChevronLeft, ChevronRight, ChevronUp, MoreVertical } from "lucide-react";
 import type { Harumadi } from "@/shared/api/harumadi";
-import { carouselDragProgress, carouselGestureAxis, carouselIndex, carouselPose, carouselPreviewSize, carouselShouldWrite, carouselSwipeDirection, carouselTapDirection, carouselVisibleTapBounds, carouselWriteProgress } from "@/shared/harumadi/libraryCarousel";
+import { carouselDragProgress, carouselDraggedPose, carouselGestureAxis, carouselIndex, carouselPreviewSize, carouselShouldWrite, carouselSwipeDirection, carouselTapDirection, carouselVisibleTapBounds, carouselWriteProgress } from "@/shared/harumadi/libraryCarousel";
 import { harumadiActions, type HarumadiOpeningMode } from "../navigation/harumadiActions";
 import { HarumadiCover } from "./HarumadiCover";
 import { HarumadiSpreadPreview } from "./HarumadiSpreadPreview";
@@ -150,7 +150,7 @@ export function HarumadiCarousel({ books, ownerId, onOpen, onCreateMadi, hasNext
       }}>
       {books.filter((book, bookIndex) => Math.abs(bookIndex - index) <= 3 || book.id === outgoingId).map(book => {
         const bookIndex = books.indexOf(book), selected = book.id === active.id, spread = selected || book.id === outgoingId;
-        const pose = carouselPose(bookIndex - index - drag);
+        const pose = carouselDraggedPose(bookIndex - index, drag, index, books.length);
         return <Slide key={book.id} data-harumadi-card data-carousel-active={selected} aria-hidden={!selected} $dragging={dragging}
           style={{ width: spreadWidth, zIndex: pose.zIndex, opacity: pose.opacity, pointerEvents: "none", transform: `translate(-50%, -50%) translateX(${pose.x * width}px) translateY(${-writeProgress * 48 * (selected ? 1 : .2)}px) scale(${pose.scale}) rotateY(${pose.rotation}deg)` }}>
           <CoverButton $spread={spread} style={{ "--spread-page-scale": (spreadWidth / 2 - 2) / 320, pointerEvents: pose.opacity > .1 ? "auto" : "none" } as CSSProperties} data-book-cover type="button" disabled={busy} tabIndex={selected ? 0 : -1} aria-label={`${harumadiAccessibleTitle(book)}, 마디 ${book.entryIds.length}개 ${selected ? "미리보기 열기" : "선택"}`}

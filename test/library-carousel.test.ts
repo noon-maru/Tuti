@@ -5,7 +5,7 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { HarumadiCarousel } from "@/features/tuti/components/HarumadiCarousel";
-import { carouselDragProgress, carouselGestureAxis, carouselIndex, carouselPose, carouselPreviewSize, carouselShouldWrite, carouselSwipeDirection, carouselTapDirection, carouselVisibleTapBounds, carouselWriteProgress } from "@/shared/harumadi/libraryCarousel";
+import { carouselDragProgress, carouselDraggedPose, carouselGestureAxis, carouselIndex, carouselPose, carouselPreviewSize, carouselShouldWrite, carouselSwipeDirection, carouselTapDirection, carouselVisibleTapBounds, carouselWriteProgress } from "@/shared/harumadi/libraryCarousel";
 import { createLibraryViewPreferences } from "@/lib/libraryViewPreferences";
 import { harumadiContent } from "./fixtures/harumadiContent";
 
@@ -138,6 +138,32 @@ test("양끝에서 계속 당기면 이동은 늘어나고 저항은 점점 커�
   const after = carouselDragProgress(-63.001, 350, 2, 5);
   assert.ok(Math.abs(after - before) < .001, "한 권 간격 경계에서도 위치가 연속적이다");
   assert.ok(carouselDragProgress(-120, 350, 2, 5) > carouselDragProgress(-80, 350, 2, 5));
+});
+
+test("아무리 당겨도 다다음 책이 앞서지 않고 초과 당김은 책 묶음의 위치만 바꾼다", () => {
+  for (const direction of [-1, 1]) {
+    for (const distance of [64, 120, 350, 3500]) {
+      const drag = carouselDragProgress(-distance * direction, 350, 3, 7);
+      const neighbor = carouselDraggedPose(direction, drag, 3, 7);
+      const nextNeighbor = carouselDraggedPose(direction * 2, drag, 3, 7);
+      assert.ok(neighbor.zIndex > nextNeighbor.zIndex);
+      assert.ok(neighbor.scale > nextNeighbor.scale);
+      assert.equal(neighbor.zIndex, 100);
+      assert.equal(neighbor.scale, 1);
+      const atLimit = carouselDraggedPose(direction, direction, 3, 7);
+      assert.equal(neighbor.rotation, atLimit.rotation);
+      assert.ok(direction * (neighbor.x - atLimit.x) < 0, "초과 당김은 순서 변경 대신 평행 이동한다");
+    }
+  }
+  for (const [index, count, drag] of [[0, 7, -.7], [6, 7, .7], [0, 1, -.7], [0, 1, .7]]) {
+    const pose = carouselDraggedPose(0, drag, index, count);
+    assert.equal(pose.scale, 1);
+    assert.equal(pose.zIndex, 100);
+    assert.ok(Math.abs(pose.rotation) === 0, "양끝에서는 없는 책을 향해 순서를 바꾸지 않는다");
+    assert.notEqual(pose.x, 0, "끝에서도 탄성 이동은 유지한다");
+  }
+  const source = readFileSync("src/features/tuti/components/HarumadiCarousel.tsx", "utf8");
+  assert.match(source, /carouselDraggedPose\(bookIndex - index, drag, index, books.length\)/);
 });
 
 test("많은 책도 주변 표지만 렌더하고 현재 책 열기·공동작성 메뉴·단일 책 경계를 지킨다", () => {

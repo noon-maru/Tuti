@@ -68,3 +68,10 @@ export function carouselPose(distance: number) {
     zIndex: 100 - Math.round(depth * 20),
   };
 }
+
+/** 한 번의 드래그는 옆 책까지만 순서를 바꾸고, 초과 당김은 묶음 전체 이동으로 표현한다. */
+export function carouselDraggedPose(offset: number, drag: number, index: number, count: number) {
+  const selectionProgress = clamp(drag, Math.max(-1, -index), Math.min(1, Math.max(0, count - index - 1)));
+  const pose = carouselPose(offset - selectionProgress);
+  return { ...pose, x: pose.x - (drag - selectionProgress) * .24 };
+}
