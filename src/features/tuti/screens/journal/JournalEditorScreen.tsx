@@ -510,10 +510,10 @@ export function JournalEditorStatusScreen({
       <EditorHeader>
         <BackButton
           type="button"
-          aria-label="지난 공간으로 돌아가기"
+          aria-label="이전 화면으로 돌아가기"
           onClick={onBack}
         />
-        <h1>고치는 공간</h1>
+        <h1>마디 다듬기</h1>
         <HeaderSpacer />
       </EditorHeader>
       <Status role={loading ? undefined : "status"}>

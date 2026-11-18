@@ -2,13 +2,14 @@
 
 import styled from "@emotion/styled";
 import { Check } from "lucide-react";
-import { bodyCopyStyles, inputControlStyles, screenTitleStyles } from "@/shared/ui/typography";
+import { bodyCopyStyles, captionStyles, inputControlStyles, screenTitleStyles } from "@/shared/ui/typography";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import {
   BackButton,
   BaseButton,
   PrimaryButton,
+  TextButton,
 } from "@/features/tuti/components/buttons";
 import { LoadingIndicator } from "@/features/tuti/components/LoadingIndicator";
 import { ScreenFrame } from "@/features/tuti/components/ScreenFrame";
@@ -150,6 +151,9 @@ export function InquiryScreen({
         <InquiryHistory
           inquiries={inquiriesQuery.data ?? []}
           loading={inquiriesQuery.isLoading}
+          refreshing={inquiriesQuery.isFetching}
+          onRetry={() => void inquiriesQuery.refetch()}
+          onWrite={() => setView("write")}
           error={
             inquiriesQuery.error instanceof Error
               ? inquiriesQuery.error.message
@@ -276,16 +280,22 @@ export function InquiryScreen({
   );
 }
 
-function InquiryHistory({
+export function InquiryHistory({
   inquiries,
   loading,
   error,
+  refreshing = false,
+  onRetry,
+  onWrite,
 }: {
   inquiries: UserInquiryItem[];
   loading: boolean;
   error: string | null;
+  refreshing?: boolean;
+  onRetry: () => void;
+  onWrite: () => void;
 }) {
-  if (loading) {
+  if (loading && inquiries.length === 0) {
     return (
       <HistoryState>
         <LoadingIndicator
@@ -296,16 +306,15 @@ function InquiryHistory({
     );
   }
 
-  if (error) {
-    return <HistoryError role="alert">{error}</HistoryError>;
-  }
+  const failure = error && <HistoryFeedback role="alert"><p>{error}</p><TextButton type="button" disabled={refreshing} onClick={onRetry}>{refreshing ? "불러오는 중…" : "다시 불러오기"}</TextButton></HistoryFeedback>;
 
   if (inquiries.length === 0) {
-    return <HistoryState>아직 남긴 문의가 없어요.</HistoryState>;
+    return <HistoryState>{failure || <><p>아직 남긴 문의가 없어요.</p><TextButton type="button" onClick={onWrite}>문의 남기기</TextButton></>}</HistoryState>;
   }
 
   return (
     <HistoryList data-scroll-region>
+      {failure}
       {inquiries.map((inquiry) => (
         <InquiryCard key={inquiry.id}>
           <InquiryCardTop>
@@ -501,7 +510,7 @@ const Complete = styled.div`
   text-align: center;
 
   h2 {
-    font-size: var(--font-size-600);
+    ${screenTitleStyles}
   }
 
   p {
@@ -538,16 +547,12 @@ const CompleteActions = styled.div`
   margin-top: var(--space-4);
 `;
 
-const HistoryButton = styled(BaseButton)`
-  min-height: var(--space-11);
-  border: 1px solid var(--color-border);
-  border-radius: var(--space-3);
-  background: var(--color-white);
-  color: var(--color-text);
-  font-weight: 600;
+const HistoryButton = styled(TextButton)`
+  min-height: 44px;
 `;
 
 const HistoryList = styled.div`
+  flex: 1;
   min-height: 0;
   display: grid;
   align-content: start;
@@ -559,22 +564,27 @@ const HistoryList = styled.div`
 const HistoryState = styled.div`
   flex: 1;
   display: grid;
-  place-items: center;
+  align-content: center;
+  justify-items: center;
+  gap: 12px;
+  p { margin: 0; }
   color: var(--color-text-muted);
   font-size: var(--font-size-200);
 `;
 
-const HistoryError = styled(HistoryState)`
+const HistoryFeedback = styled.div`
+  ${bodyCopyStyles}
   color: var(--color-error);
+  text-align: center;
+  p { margin: 0; }
 `;
 
 const InquiryCard = styled.article`
   display: grid;
   gap: var(--space-3);
-  padding: var(--space-4);
-  border: 1px solid var(--color-border);
-  border-radius: var(--space-4);
-  background: var(--color-white);
+  min-width: 0;
+  padding: 20px 0;
+  & + & { border-top: 1px solid var(--color-border); }
 
   > small {
     color: var(--color-brand-800);
@@ -583,13 +593,14 @@ const InquiryCard = styled.article`
   }
 
   h2 {
-    font-size: var(--font-size-300);
-    line-height: var(--line-height-subtitle);
+    ${screenTitleStyles}
+    font-size: var(--ui-body-size);
   }
 `;
 
 const InquiryCardTop = styled.div`
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
   gap: var(--space-3);
@@ -617,26 +628,23 @@ const Status = styled.span<{ $status: UserInquiryItem["status"] }>`
 `;
 
 const UserMessage = styled.p`
+  ${bodyCopyStyles}
   color: var(--color-text-muted);
-  font-size: var(--font-size-200);
-  line-height: var(--line-height-body);
   white-space: pre-wrap;
 `;
 
 const Answer = styled.div`
   display: grid;
   gap: var(--space-2);
-  padding: var(--space-4);
-  border-radius: var(--space-3);
-  background: var(--color-secondary-200);
+  padding-top: 16px;
+  border-top: 1px solid var(--color-border);
 
   strong {
     font-size: var(--font-size-100);
   }
 
   p {
-    font-size: var(--font-size-200);
-    line-height: var(--line-height-body);
+    ${bodyCopyStyles}
     white-space: pre-wrap;
   }
 
@@ -647,10 +655,6 @@ const Answer = styled.div`
 `;
 
 const Waiting = styled.p`
-  padding: var(--space-3);
-  border-radius: var(--space-3);
-  background: var(--color-neutral-200);
-  color: var(--color-text-muted);
-  font-size: var(--font-size-100);
-  line-height: var(--line-height-body);
+  ${captionStyles}
+  margin: 0;
 `;
