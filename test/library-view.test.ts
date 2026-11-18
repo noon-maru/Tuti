@@ -7,7 +7,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { createLibraryViewPreferences } from "@/lib/libraryViewPreferences";
 import { parseLibraryView, spineColumnCount } from "@/shared/harumadi/libraryView";
 import { HarumadiShelf, HarumadiSpine } from "@/features/tuti/components/HarumadiShelf";
-import { LibraryViewSwitch } from "@/features/tuti/components/LibraryViewSwitch";
+import { libraryViewItems } from "@/features/tuti/navigation/libraryViewItems";
 import { harumadiContent } from "./fixtures/harumadiContent";
 
 test("한 권씩 보기가 기본이고 기존 선택은 계정별 기기 저장소와 메모리에 유지한다", async () => {
@@ -41,22 +41,19 @@ test("느린 저장소 읽기는 방금 선택한 보기나 다른 계정의 선
   assert.equal(await unavailable.load("a"), "spines");
 });
 
-test("보기 선택은 현재 보기 하나만 노출하고 공용 팝오버에서 세 보기를 선택한다", () => {
+test("세 보기 선택은 공용 더보기 메뉴의 라디오 항목으로 통합한다", () => {
   for (const view of ["covers", "spines", "carousel"] as const) {
-    const html = renderToStaticMarkup(createElement(LibraryViewSwitch, { view, onChange() {} }));
+    let chosen = "";
+    const items = libraryViewItems(view, value => { chosen = value; });
     const label = { covers: "표지", spines: "책등", carousel: "한 권씩" }[view];
-    assert.ok(html.includes(`aria-label="책장 보기 방식, 현재 ${label}"`));
-    assert.match(html, /aria-haspopup="menu"/);
-    assert.match(html, /aria-expanded="false"/);
-    const buttons = [...html.matchAll(/<button\b[^>]*>([\s\S]*?)<\/button>/g)].map(match => match[1].replace(/<[^>]*>/g, ""));
-    assert.deepEqual(buttons, [label]);
-    assert.match(html, /min-height:44px/);
+    assert.deepEqual(items.map(item => item.label), ["한 권씩", "표지", "책등"]);
+    assert.deepEqual(items.filter(item => item.selected).map(item => item.label), [label]);
+    assert.ok(items.every(item => item.kind === "radio" && item.group === "책장 보기"));
+    items.find(item => item.selected)!.onSelect({} as HTMLButtonElement);
+    assert.equal(chosen, view);
   }
-  const source = readFileSync("src/features/tuti/components/LibraryViewSwitch.tsx", "utf8");
-  assert.match(source, /selected: item.value === view/);
-  assert.match(source, /kind: "radio"/);
-  assert.match(source, /onSelect: \(\) => onChange\(item.value\)/);
-  for (const label of ["한 권씩", "표지", "책등"]) assert.ok(source.includes(`label: "${label}"`));
+  const home = readFileSync("src/features/tuti/flows/LibraryHomeFlow.tsx", "utf8");
+  assert.match(home, /items=\{\[\.\.\.libraryViewItems\(view,/);
   const menu = readFileSync("src/features/tuti/components/ContextMenu.tsx", "utf8");
   assert.match(menu, /role=\{item.kind === "radio" \? "menuitemradio" : "menuitem"\}/);
   assert.match(menu, /aria-checked=\{item.kind === "radio" \? Boolean\(item.selected\) : undefined\}/);

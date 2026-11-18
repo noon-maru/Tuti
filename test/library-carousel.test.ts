@@ -218,7 +218,7 @@ test("포인터 취소·드래그 후 클릭·키보드·페이지 추가를 공
   assert.match(home, /view === "carousel" && !search.searching \? <HarumadiCarousel/);
   assert.match(home, /useHarumadiSearch\(query.data\?\.pages\.flatMap/);
   assert.doesNotMatch(home, /onLoadMore=|fetchNextPage/);
-  assert.match(home, /<Header><LibraryViewSwitch/);
+  assert.match(home, /<Header><HeaderActions/);
 });
 
 test("터치 자식의 암시적 캡처가 무대로 이동해도 스와이프를 취소하지 않는다", () => {

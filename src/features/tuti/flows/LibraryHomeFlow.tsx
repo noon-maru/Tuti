@@ -9,7 +9,7 @@ import { useSession } from "@/features/tuti/hooks/useSession";
 import { AppLoadingScreen, LoadingIndicator } from "@/features/tuti/components/LoadingIndicator";
 import { HarumadiShelf } from "@/features/tuti/components/HarumadiShelf";
 import { HarumadiCarousel } from "@/features/tuti/components/HarumadiCarousel";
-import { LibraryViewSwitch } from "@/features/tuti/components/LibraryViewSwitch";
+import { libraryViewItems } from "../navigation/libraryViewItems";
 import { useLibraryView } from "@/features/tuti/hooks/useLibraryView";
 import { harumadiLocalRect } from "@/shared/harumadi/transitionGeometry";
 import { HarumadiBookReader } from "@/features/tuti/components/HarumadiBookReader";
@@ -46,6 +46,7 @@ function LibraryHome({ ownerId, adminAccess = false }: { ownerId: string; adminA
   }, [searchOpen]);
   const { view, chooseView } = useLibraryView(ownerId);
   const shelfScroll = useRef<HTMLDivElement>(null);
+  useEffect(() => { shelfScroll.current?.scrollTo({ top: 0 }); }, [view]);
   const frame = useRef<HTMLElement>(null);
   const { opening, openBook: showBook, closeBook, registerCloseGuard } = useHarumadiHistory(ownerId);
   useLifecycleView("home_viewed", "home", undefined, !opening);
@@ -67,6 +68,7 @@ function LibraryHome({ ownerId, adminAccess = false }: { ownerId: string; adminA
     search.setSearch("");
     setSearchOpen(false);
     searchButton.current?.focus({ preventScroll: true });
+    if (typeof requestAnimationFrame === "function") requestAnimationFrame(() => searchButton.current?.focus({ preventScroll: true }));
   };
   useEffect(() => {
     let active = true;
@@ -80,25 +82,24 @@ function LibraryHome({ ownerId, adminAccess = false }: { ownerId: string; adminA
   const openEditor = () => router.push("/harumadi");
   const openExample = () => { setWelcomeHarumadiOrigin(null); router.push(welcomeHarumadiPath(1, "library")); };
   return <Frame ref={frame} aria-label="내 책장"><HomeSurface $hidePreview={opening?.mode === "pages" && opening.origin.appearance === "spread"} inert={Boolean(opening)} aria-hidden={opening ? true : undefined}>
-    <Header><LibraryViewSwitch view={view} onChange={value => { chooseView(value); shelfScroll.current?.scrollTo({ top: 0 }); }} />
-      <CreateHarumadi type="button" onClick={openEditor}><Plus size={17} aria-hidden="true" />새 하루마디</CreateHarumadi>
-      <MainMenu label="책장 메뉴" adminAccess={adminAccess}
-        items={[{ group: "보관함", label: "저장한 PDF", onSelect: () => router.push("/harumadi/pdfs") }]}
-        helpItems={[{ label: "하루마디 예시 펼쳐보기", onSelect: openExample }]}
-        onDownload={() => router.push("/download")} onSettings={() => router.push("/settings")} onAdmin={() => router.push("/admin")} /></Header>
-    <LibraryTools>
+    <Header><HeaderActions inert={searchOpen} aria-hidden={searchOpen}>
       <MadiShortcut type="button" onClick={() => router.push("/madi")}>나의 마디<ArrowUpRight size={16} aria-hidden="true" /></MadiShortcut>
+      <CreateHarumadi type="button" onClick={openEditor}><Plus size={17} aria-hidden="true" />새 하루마디</CreateHarumadi>
       <SearchToggle ref={searchButton} type="button" aria-label={searchOpen ? "하루마디 검색 닫기" : "하루마디 검색"}
         aria-expanded={searchOpen} aria-controls="library-name-search"
         onClick={() => { if (searchOpen) closeSearch(); else setSearchOpen(true); }}>
-        <span data-search-icon="open"><Search size={21} aria-hidden="true" /></span>
-        <span data-search-icon="close"><X size={21} aria-hidden="true" /></span>
+        <Search size={21} aria-hidden="true" />
       </SearchToggle>
-    </LibraryTools>
-    {hasDraft && <DraftButton type="button" onClick={() => router.push("/harumadi/pdf/create")}><Download size={17} /><span>이전 PDF 작업 이어가기</span><ArrowUpRight size={16} /></DraftButton>}
+      <MainMenu label="책장 메뉴" adminAccess={adminAccess}
+        items={[...libraryViewItems(view, chooseView), { group: "보관함", label: "저장한 PDF", onSelect: () => router.push("/harumadi/pdfs") }]}
+        helpItems={[{ label: "하루마디 예시 펼쳐보기", onSelect: openExample }]}
+        onDownload={() => router.push("/download")} onSettings={() => router.push("/settings")} onAdmin={() => router.push("/admin")} />
+    </HeaderActions>
     <SearchRow $open={searchOpen} id="library-name-search" inert={!searchOpen} aria-hidden={!searchOpen} onKeyDown={event => {
       if (event.key === "Escape" && !event.nativeEvent.isComposing) { event.preventDefault(); closeSearch(); }
-    }}><SearchReveal><MadiSearchField inputRef={focusSearchInput} value={search.search} onChange={search.setSearch} label="하루마디 이름 검색" placeholder="하루마디 이름으로 찾기" /></SearchReveal></SearchRow>
+    }}><MadiSearchField inputRef={focusSearchInput} value={search.search} onChange={search.setSearch} label="하루마디 이름 검색" placeholder="하루마디 이름으로 찾기" /><SearchClose type="button" aria-label="하루마디 검색 닫기" onClick={closeSearch}><X size={21} aria-hidden="true" /></SearchClose></SearchRow>
+    </Header>
+    {hasDraft && <DraftButton type="button" onClick={() => router.push("/harumadi/pdf/create")}><Download size={17} /><span>이전 PDF 작업 이어가기</span><ArrowUpRight size={16} /></DraftButton>}
     <PendingMadiNotice ownerId={ownerId} />
     <ShelfScroll ref={shelfScroll} data-scroll-region data-library-layout={search.searching ? "covers" : view} aria-label="내 하루마디">
       {query.isPending ? <Status role="status"><LoadingIndicator /><p>책장에 하루마디를 놓고 있어요.</p></Status>
@@ -136,34 +137,30 @@ const HomeSurface = styled.div<{ $hidePreview: boolean }>`height: 100%; min-heig
   ${({ $hidePreview }) => $hidePreview && `[data-carousel-active="true"] [data-book-cover] { visibility: hidden; }`}
 `;
 const Header = styled.header`
-  flex: none; display: flex; justify-content: space-between; align-items: center; gap: 8px;
+  position: relative; z-index: 2; flex: none; display: flex; align-items: center;
   padding: var(--screen-padding-top) var(--screen-padding-right) 8px var(--screen-padding-left);
-  @container app-viewport (max-width: 380px) {
-    gap: 4px;
-    > :first-child > button { padding-inline: 4px; font-size: 14px; }
-  }
+`;
+const HeaderActions = styled.div`display: flex; align-items: center; gap: 8px; width: 100%; min-width: 0;
+  &[aria-hidden="true"] { visibility: hidden; }
+  @container app-viewport (max-width: 380px) { gap: 4px; }
 `;
 const SearchRow = styled.div<{ $open: boolean }>`
   --search-reveal-duration: ${({ $open }) => $open ? "280ms" : "200ms"};
-  flex: none; display: grid; grid-template-rows: ${({ $open }) => $open ? "1fr" : "0fr"};
-  padding: ${({ $open }) => $open ? "4px" : "0"} var(--screen-padding-right) ${({ $open }) => $open ? "8px" : "0"} var(--screen-padding-left);
+  position: absolute; z-index: 1; top: var(--screen-padding-top); left: var(--screen-padding-left); right: var(--screen-padding-right);
+  display: grid; grid-template-columns: minmax(0, 1fr) 44px; align-items: center; gap: 8px; min-height: 44px; background: var(--library-background);
   opacity: ${({ $open }) => $open ? 1 : 0};
-  transition: grid-template-rows var(--search-reveal-duration) cubic-bezier(0.22, 1, 0.36, 1), padding-block var(--search-reveal-duration) cubic-bezier(0.22, 1, 0.36, 1), opacity 180ms ease;
-  > div { transform: translateY(${({ $open }) => $open ? "0" : "-6px"}); transition: transform var(--search-reveal-duration) cubic-bezier(0.22, 1, 0.36, 1); }
+  pointer-events: ${({ $open }) => $open ? "auto" : "none"};
+  > div { min-width: 0; transform: scaleX(${({ $open }) => $open ? 1 : .92}); transform-origin: right center; transition: transform var(--search-reveal-duration) cubic-bezier(0.22, 1, 0.36, 1); }
+  transition: opacity var(--search-reveal-duration) ease;
   @media (prefers-reduced-motion: reduce) { transition: opacity 100ms ease; > div { transform: none; transition: none; } }
 `;
-const SearchReveal = styled.div`min-height: 0; overflow: hidden; padding-inline: 3px; margin-inline: -3px;`;
 const TextAction = styled(BaseButton)`${bodyCopyStyles} display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 48px; padding: 8px 0; background: transparent; color: var(--color-text-muted); &:focus-visible { outline: 2px solid var(--color-brand-700); outline-offset: 3px; border-radius: 4px; }`;
-const LibraryTools = styled.div`display: flex; flex: none; align-items: center; justify-content: space-between; gap: 12px; padding: 0 var(--screen-padding-right) 0 var(--screen-padding-left);`;
-const MadiShortcut = styled(TextAction)`min-height: 44px; font-size: 14px; font-weight: 500; color: var(--color-text);`;
-const CreateHarumadi = styled(TextAction)`flex: none; margin-left: auto; min-height: 44px; padding-inline: 12px; border-radius: 999px; background: var(--color-brand-100); color: var(--color-brand-1000); font-size: .875rem; font-weight: 500; line-height: 1.5; white-space: nowrap; @container app-viewport (max-width: 380px) { padding-inline: 8px; font-size: 12px; gap: 4px; }`;
+const MadiShortcut = styled(TextAction)`flex: none; min-height: 44px; font-size: 14px; font-weight: 500; color: var(--color-text); white-space: nowrap; @container app-viewport (max-width: 340px) { font-size: 12px; gap: 4px; > svg { display: none; } }`;
+const CreateHarumadi = styled(TextAction)`flex: none; margin-left: auto; min-height: 44px; padding-inline: 12px; border-radius: 999px; background: var(--color-brand-100); color: var(--color-brand-1000); font-size: .875rem; font-weight: 500; line-height: 1.5; white-space: nowrap; @container app-viewport (max-width: 380px) { padding-inline: 8px; font-size: 12px; gap: 4px; } @container app-viewport (max-width: 320px) { > svg { display: none; } }`;
 const SearchToggle = styled(BaseButton)`flex: none; width: 44px; height: 44px; padding: 0; display: grid; place-items: center; border-radius: 50%; background: transparent; color: var(--color-text-muted); transition: background-color 180ms ease, color 180ms ease;
-  > span { grid-area: 1 / 1; display: grid; place-items: center; transition: opacity 160ms ease, transform 240ms cubic-bezier(0.22, 1, 0.36, 1); }
-  [data-search-icon="close"] { opacity: 0; transform: rotate(-45deg) scale(.85); }
-  &[aria-expanded="true"] { background: var(--color-brand-100); color: var(--color-brand-1000); [data-search-icon="open"] { opacity: 0; transform: rotate(35deg) scale(.85); } [data-search-icon="close"] { opacity: 1; transform: none; } }
   &:hover { background: var(--color-brand-100); } &:focus-visible { outline: 2px solid var(--color-brand-700); outline-offset: -2px; }
-  @media (prefers-reduced-motion: reduce) { > span { transition: opacity 100ms ease; } && [data-search-icon] { transform: none; } }
 `;
+const SearchClose = styled(SearchToggle)``;
 const DraftButton = styled(BaseButton)`flex: none; display: flex; align-items: center; gap: 10px; margin: 8px 24px; padding: 12px 14px; background: var(--color-secondary-200); border-radius: 12px; color: var(--color-text); font-size: 16px; text-align: left; > span { flex: 1; }`;
 const ShelfScroll = styled.div`display: flex; flex-direction: column; flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 12px 20px; scrollbar-width: thin; > * { flex-shrink: 0; } &[data-library-layout="carousel"] { container-type: size; padding-top: 4px; padding-bottom: 8px; } @container app-viewport (max-height: 620px) { &:has([data-empty-shelf]) { padding-top: 16px; padding-bottom: 8px; } }`;
 const EmptyShelf = styled.div`flex: 1 0 auto; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 290px; padding: 16px 0 28px; h2 { font-family: var(--font-emotional); margin: 27px 0 10px; font-size: 22px; font-weight: 600; letter-spacing: -0.035em; text-align: center; } > p { margin: 0 0 14px; white-space: pre-line; text-align: center; font-size: 16px; color: var(--color-text-muted); line-height: 1.85; } > button { margin-bottom: 4px; } @container app-viewport (max-height: 620px) { min-height: 0; padding: 8px 0 12px; h2 { margin: 16px 0 8px; } > p { margin-bottom: 8px; line-height: 1.7; } }`;

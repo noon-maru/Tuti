@@ -7,6 +7,7 @@ import { clientFlowHarness } from "./fixtures/clientFlowHarness";
 import { filterHarumadis } from "@/features/tuti/hooks/useHarumadiSearch";
 import { harumadiContent } from "./fixtures/harumadiContent";
 import { palette } from "@/styles/tokens";
+import { libraryViewItems } from "@/features/tuti/navigation/libraryViewItems";
 
 function nodes(tree: ReactNode): ReactElement<Record<string, unknown>>[] {
   return Children.toArray(tree).flatMap(node => isValidElement<Record<string, unknown>>(node)
@@ -18,7 +19,8 @@ test("책장 검색은 기본 접힘, 열기·입력·닫기·Escape·IME 및 �
   const books = [{ ...harumadiContent().harumadi, title: "우리의 하루" }];
   const page = { harumadis: books, recordCount: 0 };
   const paths: string[] = [];
-  const components = ["HarumadiShelf", "HarumadiCarousel", "LibraryViewSwitch", "HarumadiBookReader", "MainNavigation", "LibraryLoadNotice", "MadiSearchField"];
+  let selectedView = "carousel";
+  const components = ["HarumadiShelf", "HarumadiCarousel", "HarumadiBookReader", "MainNavigation", "LibraryLoadNotice", "MadiSearchField"];
   const deps: Record<string, unknown> = {
     "@/styles/tokens": { palette },
     "@emotion/styled": styled,
@@ -26,7 +28,8 @@ test("책장 검색은 기본 접힘, 열기·입력·닫기·Escape·IME 및 �
     "next/navigation": { useRouter: () => ({ push(path: string) { paths.push(path); } }) },
     "@/features/tuti/hooks/useSession": { useSession: () => ({ userId: "owner" }) },
     "@/features/tuti/components/LoadingIndicator": { AppLoadingScreen: "loading", LoadingIndicator: "indicator" },
-    "@/features/tuti/hooks/useLibraryView": { useLibraryView: () => ({ view: "carousel", chooseView() {} }) },
+    "@/features/tuti/hooks/useLibraryView": { useLibraryView: () => ({ view: selectedView, chooseView(value: string) { selectedView = value; } }) },
+    "../navigation/libraryViewItems": { libraryViewItems },
     "@/shared/harumadi/transitionGeometry": {},
     "@/features/tuti/hooks/useHarumadiHistory": { useHarumadiHistory: () => ({ opening: null }) },
     "@/features/tuti/components/buttons": { BaseButton: "button", PrimaryButton: "button" },
@@ -46,10 +49,21 @@ test("책장 검색은 기본 접힘, 열기·입력·닫기·Escape·IME 및 �
   assert.ok(shortcut, "메뉴를 열지 않아도 나의 마디로 이동할 수 있다");
   (shortcut.props.onClick as () => void)();
   assert.deepEqual(paths.splice(0), ["/madi"]);
+  const menu = render().find(node => node.props.label === "책장 메뉴")!;
+  const views = (menu.props.items as { label: string; onSelect(): void }[]);
+  views.find(item => item.label === "책등")!.onSelect();
+  assert.equal(selectedView, "spines");
+  views.find(item => item.label === "한 권씩")!.onSelect();
+  assert.equal(selectedView, "carousel");
   const toggle = () => render().find(node => node.props["aria-expanded"] !== undefined)!;
   const input = () => render().find(node => node.props.id === "library-name-search")?.props.inert
     ? undefined : render().find(node => node.type === "MadiSearchField");
-  const click = () => (toggle().props.onClick as () => void)();
+  const click = () => {
+    const button = toggle().props["aria-expanded"]
+      ? render().find(node => node.props["aria-label"] === "하루마디 검색 닫기" && node.props["aria-expanded"] === undefined)!
+      : toggle();
+    (button.props.onClick as () => void)();
+  };
   (toggle().props.ref as { current: unknown }).current = { focus() { focuses++; } };
   assert.equal(toggle().props["aria-expanded"], false);
   assert.equal(input(), undefined);
@@ -58,6 +72,7 @@ test("책장 검색은 기본 접힘, 열기·입력·닫기·Escape·IME 및 �
   assert.equal(render().find(node => node.props.id === "library-name-search")?.props["aria-hidden"], true);
   click();
   assert.equal(toggle().props["aria-expanded"], true);
+  assert.ok(render().some(node => node.props.inert === true && node.props["aria-hidden"] === true && !node.props.id), "검색 중 원래 헤더 조작부를 키보드 탐색에서 제외한다");
   assert.equal(toggle().props["aria-controls"], "library-name-search");
   let inputFocused = false;
   (input()!.props.inputRef as (input: unknown) => void)({ focus() { inputFocused = true; } });
@@ -88,11 +103,12 @@ test("책장 검색은 기본 접힘, 열기·입력·닫기·Escape·IME 및 �
   assert.equal(render().some(node => label(node).startsWith("남긴 마디 0개 보기")), false);
 });
 
-test("검색 패널은 양방향 공간 전환을 유지하고 동작 줄이기에서는 페이드만 남긴다", () => {
+test("검색 패널은 헤더 위에 겹쳐 열리고 책을 밀지 않으며 동작 줄이기를 지원한다", () => {
   const source = readFileSync("src/features/tuti/flows/LibraryHomeFlow.tsx", "utf8");
   assert.doesNotMatch(source, /searchOpen && <SearchRow/);
   assert.match(source, /inert=\{!searchOpen\} aria-hidden=\{!searchOpen\}/);
-  assert.match(source, /grid-template-rows:.*\$open.*"1fr" : "0fr"/);
+  assert.match(source, /position: absolute; z-index: 1; top: var\(--screen-padding-top\)/);
+  assert.doesNotMatch(source, /grid-template-rows|padding-block var\(--search-reveal-duration\)/);
   assert.match(source, /\$open \? "280ms" : "200ms"/);
   assert.match(source, /prefers-reduced-motion: reduce.*transition: opacity 100ms ease; > div \{ transform: none; transition: none;/);
 });

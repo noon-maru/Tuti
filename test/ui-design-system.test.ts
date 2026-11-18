@@ -75,10 +75,8 @@ test("책장도 ScreenFrame 여백을 쓰며 좁은 화면에서 보기 이름�
   assert.match(home, /const Frame = styled\(ScreenFrame\)/);
   assert.match(home, /padding: var\(--screen-padding-top\) var\(--screen-padding-right\)/);
   assert.match(home, /container-type: size/);
-  const views = source("src/features/tuti/components/LibraryViewSwitch.tsx");
-  assert.match(views, /styled\(ContextMenu\)/);
-  assert.match(views, /white-space: nowrap/);
-  assert.match(views, /min-height: 44px/);
+  assert.match(home, /const MadiShortcut =[^`]*`[^`]*white-space: nowrap/);
+  assert.match(home, /min-height: 44px/);
 });
 
 test("첫 화면의 짙은 주요 버튼은 기본·호버 모두 흰 글자 대비를 확보한다", () => {
@@ -106,19 +104,19 @@ test("공통 포커스는 흰색·파랑·연두 표면에서 구분되고 스�
   }
 });
 
-test("홈은 보기·생성·책장 메뉴를 한 줄로 묶고 제목과 권수를 반복하지 않는다", () => {
+test("홈은 마디·생성·검색·책장 메뉴를 한 줄로 묶고 보기 선택은 메뉴에 통합한다", () => {
   const home = source("src/features/tuti/flows/LibraryHomeFlow.tsx");
   assert.match(home, /<Frame ref=\{frame\} aria-label="내 책장"/);
   const header = home.match(/<Header>[\s\S]*?<\/Header>/)![0];
-  assert.match(header, /<LibraryViewSwitch/);
+  assert.match(header, /<MadiShortcut/);
+  assert.doesNotMatch(home, /LibraryViewSwitch|LibraryTools/);
+  assert.match(header, /libraryViewItems\(view,/);
   assert.match(header, /<CreateHarumadi/);
   assert.match(header, /<MainMenu label="책장 메뉴"/);
   assert.doesNotMatch(home, /ShelfCount|<Heading>|<Toolbar>|library-title/);
   assert.match(home, /--screen-padding-top: calc\(var\(--app-header-top-space, 24px\) \+ var\(--app-safe-area-top, 0px\)\)/);
-  const tools = home.match(/<LibraryTools>[\s\S]*?<\/LibraryTools>/)![0];
-  assert.match(tools, /<MadiShortcut/);
-  assert.match(tools, /<SearchToggle[\s\S]*?aria-expanded=\{searchOpen\}/);
-  assert.match(tools, /aria-controls="library-name-search"/);
+  assert.match(header, /<SearchToggle[\s\S]*?aria-expanded=\{searchOpen\}/);
+  assert.match(header, /aria-controls="library-name-search"/);
   const headerCss = home.match(/const Header = styled\.header`([^`]+)`/)![1];
   assert.match(headerCss, /display: flex/);
   assert.doesNotMatch(headerCss, /flex-wrap: wrap/);
