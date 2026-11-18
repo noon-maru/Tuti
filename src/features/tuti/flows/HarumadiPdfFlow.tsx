@@ -55,6 +55,7 @@ import type { StoredHarumadiPdf } from "@/shared/api/harumadiPdf";
 import { recordProductActivity } from "@/lib/productActivity";
 import type { ProductActivityType } from "@/shared/api/productActivity";
 import { saveLibraryCover } from "@/lib/harumadiPdfLibrary";
+import { captionStyles, screenTitleStyles } from "@/shared/ui/typography";
 
 const HARUMADI_PDF_STEPS = [
   { value: "selection", label: "마디 고르기" },
@@ -927,7 +928,7 @@ export function StoredHarumadiPdfViewer({
   async function remove() {
     if (
       busy ||
-      !(await confirmAction("이 하루마디를 삭제할까요? 삭제하면 다시 복구할 수 없어요.", {"title":"삭제 전 확인","confirmLabel":"삭제하기","tone":"danger"}))
+      !(await confirmAction("Tuti에 보관한 이 PDF 사본을 삭제해요. 원본 하루마디와 마디는 남지만, 삭제한 PDF는 복구할 수 없어요.", {"title":"PDF 사본을 삭제할까요?","confirmLabel":"PDF 사본 삭제","tone":"danger"}))
     )
       return;
     setBusy("delete");
@@ -937,29 +938,29 @@ export function StoredHarumadiPdfViewer({
       onDeleted();
     } catch (error) {
       setMessage(
-        error instanceof Error ? error.message : "하루마디를 삭제하지 못했어요.",
+        error instanceof Error ? error.message : "PDF 사본을 삭제하지 못했어요.",
       );
       setBusy(null);
     }
   }
 
   return (
-    <Frame aria-label="완성한 하루마디">
-      <Header>
+    <Frame aria-label="저장한 PDF 열람">
+      <StoredHeader>
         <BackButton
           onClick={onBack}
-          aria-label="하루마디 목록으로 돌아가기"
+          disabled={busy !== null}
+          aria-label="저장한 PDF 목록으로 돌아가기"
         />
-        <h1>하루마디</h1>
-        <HeaderSpacer aria-hidden="true" />
-      </Header>
+        <h1>저장한 PDF</h1>
+      </StoredHeader>
       <Content>
-        <CompletedHeading>
+        <StoredHeading>
           <h2>{harumadiPdf.title}</h2>
           <p>
             {formatHarumadiDate(harumadiPdf.createdAt)} · 마디 {harumadiPdf.entryCount}개 · {harumadiPdf.pageCount}쪽
           </p>
-        </CompletedHeading>
+        </StoredHeading>
         <HarumadiPdfPreview
           harumadiPdfId={harumadiPdf.id}
           ownerId={ownerId}
@@ -967,18 +968,20 @@ export function StoredHarumadiPdfViewer({
           captureCover={!harumadiPdf.hasCover}
         />
         {message && <Notice role="status">{message}</Notice>}
-        <HarumadiPurchaseButton surface="completed_harumadi" />
+        <StoredManagement>
+          <summary>PDF 관리</summary>
+          <HarumadiPurchaseButton surface="completed_harumadi" disabled={busy !== null} />
         <DeleteButton
           type="button"
           disabled={busy !== null}
           onClick={() => void remove()}
         >
           <Trash2 size={16} aria-hidden="true" />
-          {busy === "delete" ? "삭제하는 중…" : "하루마디 삭제"}
+          {busy === "delete" ? "삭제하는 중…" : "PDF 사본 삭제"}
         </DeleteButton>
+        </StoredManagement>
       </Content>
       <Footer>
-        <SaveStatus>Tuti에 보관된 PDF예요. 파일로도 가져갈 수 있어요.</SaveStatus>
         <PrimaryButton
           disabled={!pdf || busy !== null}
           onClick={() => void download()}
@@ -990,6 +993,21 @@ export function StoredHarumadiPdfViewer({
     </Frame>
   );
 }
+
+const StoredHeader = styled.header`
+  display: flex; align-items: center; gap: 8px; flex: none;
+  h1 { ${screenTitleStyles} }
+`;
+const StoredHeading = styled.div`
+  margin-bottom: 16px; display: grid; gap: 6px;
+  h2 { ${screenTitleStyles} font-size: var(--ui-body-size); }
+  p { ${captionStyles} margin: 0; }
+`;
+const StoredManagement = styled.details`
+  margin-top: 20px;
+  summary { ${captionStyles} min-height: 44px; display: list-item; align-content: center; cursor: pointer; }
+  summary:focus-visible { outline: 2px solid var(--color-focus-ring); outline-offset: 2px; }
+`;
 
 function formatHarumadiDate(value: string) {
   return new Intl.DateTimeFormat("ko-KR", {
@@ -1771,35 +1789,17 @@ const EditButton = styled(BaseButton)`
   cursor: pointer;
 `;
 
-const CompletedHeading = styled.div`
-  margin: var(--space-2) 0 var(--space-7);
-
-  h2 {
-    margin: 0;
-    font-size: var(--font-size-500);
-    font-weight: 700;
-    line-height: var(--line-height-heading);
-    overflow-wrap: anywhere;
-  }
-
-  p {
-    margin: var(--space-2) 0 0;
-    color: var(--color-text-muted);
-    font-size: var(--font-size-100);
-  }
-`;
-
 const DeleteButton = styled(BaseButton)`
   min-height: 44px;
   display: flex;
   align-items: center;
   justify-content: center;
   gap: var(--space-2);
-  margin: var(--space-7) auto 0;
+  margin: var(--space-2) auto 0;
   padding: var(--space-2) var(--space-4);
   border: 0;
   background: transparent;
-  color: var(--color-text-muted);
+  color: var(--color-error);
   font-size: var(--font-size-100);
   cursor: pointer;
 `;
