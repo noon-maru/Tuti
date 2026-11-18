@@ -4,6 +4,7 @@ import { MadiFieldLabel } from "@/features/tuti/components/MadiFieldLabel";
 import { MADI_COMPOSE_COPY, MADI_FIELD_COPY } from "@/shared/tuti/madiFields";
 
 import styled from "@emotion/styled";
+import { css, keyframes } from "@emotion/react";
 import Image from "next/image";
 import { Camera, ImagePlus, Check, ArrowRight, PenLine } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -28,7 +29,7 @@ import { PetProfiles } from "@/features/tuti/components/PetProfiles";
 
 type Stage = "photo" | "write" | "preview";
 
-export function MadiCreateScreen({ onBack, onSave, onCollection, onSaved, onStartAnother, onContinueInHarumadi, continueInHarumadi = false, harumadiSelection, draftOwnerId, inHarumadi = false, destination, draftDestination, destinationVerified = Boolean(destination), destinationScopeChanged = false, destinationError = false, onRetryDestination, firstMadi = false, initialPlace, collectionLabel = "작성 마치기", preview = false }: {
+export function MadiCreateScreen({ onBack, onSave, onCollection, onSaved, onStartAnother, onContinueInHarumadi, continueInHarumadi = false, harumadiSelection, draftOwnerId, inHarumadi = false, destination, draftDestination, destinationVerified = Boolean(destination), destinationScopeChanged = false, destinationError = false, onRetryDestination, firstMadi = false, initialPlace, collectionLabel = "작성 마치기", preview = false, enterFromTop = false }: {
   destination?: Pick<Harumadi, "id" | "title" | "shared" | "sharingAudience">;
   draftDestination?: Pick<Harumadi, "id" | "title" | "shared" | "sharingAudience">;
   destinationVerified?: boolean;
@@ -41,6 +42,7 @@ export function MadiCreateScreen({ onBack, onSave, onCollection, onSaved, onStar
   initialPlace?: { id: string; name: string };
   collectionLabel?: string;
   preview?: boolean;
+  enterFromTop?: boolean;
   onBack: () => void;
   onSave?: (input: JournalEntryInput) => Promise<TutiJournalEntry>;
   onCollection: () => void;
@@ -212,7 +214,7 @@ export function MadiCreateScreen({ onBack, onSave, onCollection, onSaved, onStar
   if (saved && needsBookSelection && harumadiSelection) return <MadiHarumadiSelection key={saved.id}
     {...harumadiSelection} entryId={saved.id} onNext={nextMadi} />;
 
-  return <Frame aria-labelledby="madi-create-heading">
+  return <Frame $enterFromTop={enterFromTop && !preview} aria-labelledby="madi-create-heading">
     <Header>
       <BackButton aria-label={saved ? inHarumadi ? "하루마디로" : collectionLabel : "이전으로"} onClick={back} disabled={saving} />
       <HeaderTitle $book={inHarumadi}>{inHarumadi ? destination?.title ? `${destination.title}에 남길 마디` : "하루마디에 남길 마디" : madiLabel}</HeaderTitle>
@@ -300,7 +302,14 @@ function MemoryPage({ title, image, content, date, place }: { title: string; ima
   </Page>;
 }
 
-const Frame = styled(ScreenFrame)`background: var(--color-surface); gap: var(--space-5);`;
+const enterDown = keyframes`from { transform: translateY(-100%); } to { transform: translateY(0); }`;
+const enterFade = keyframes`from { opacity: .7; } to { opacity: 1; }`;
+const Frame = styled(ScreenFrame)<{ $enterFromTop: boolean }>`background: var(--color-surface); gap: var(--space-5);
+  ${({ $enterFromTop }) => $enterFromTop && css`
+    animation: ${enterDown} 420ms cubic-bezier(.22,.75,.22,1) backwards;
+    @media (prefers-reduced-motion: reduce) { animation: ${enterFade} 100ms ease backwards; }
+  `}
+`;
 const PageTitle = styled.h2`margin: 0; font-size: 15px; font-weight: 600; line-height: 1.6; overflow-wrap: anywhere;`;
 const Header = styled.header`flex: none; display: grid; grid-template-columns: 44px minmax(0, 1fr) 44px; align-items: center; text-align: center; gap: 8px;
 `;

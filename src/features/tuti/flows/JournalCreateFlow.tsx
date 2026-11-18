@@ -85,6 +85,7 @@ function JournalComposer({ ownerId, harumadiId }: { ownerId?: string; harumadiId
   };
 
   return <MadiCreateScreen draftOwnerId={ownerId}
+    enterFromTop={fromExplore || (fromLibrary && searchParams.get("cancelTo") === "library")}
     firstMadi={isSuccess && entries.length === 0}
     inHarumadi={Boolean(harumadiId)}
     continueInHarumadi={Boolean(harumadiId && searchParams.get("continue") === "1")}

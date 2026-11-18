@@ -32,6 +32,7 @@ test("작은 여행에서 선택한 책의 마디는 저장과 연결을 한 번
   const flow = create(), parent = flow.render(), composer = flow.render(parent.props, parent.type as never);
   assert.deepEqual(JSON.parse(JSON.stringify(composer.props.initialPlace)), { id: "park", name: "공원" });
   assert.equal(composer.props.collectionLabel, "하루마디로 돌아가기");
+  assert.equal(composer.props.enterFromTop, true, "나들이에서 시작한 작성은 위에서 내려온다");
   const saved = await (composer.props.onSave as (draft: object) => Promise<object>)({ content: "함께 걸었다", placeId: "park" });
   (composer.props.onSaved as (entry: object) => void)(saved);
   (composer.props.onCollection as () => void)();
@@ -54,6 +55,7 @@ test("작은 여행에서 선택한 책의 마디는 저장과 연결을 한 번
   params = new URLSearchParams({ from: "library", harumadiId: "book", cancelTo: "library" });
   const shelf = create(), shelfParent = shelf.render();
   const shelfComposer = shelf.render(shelfParent.props, shelfParent.type as never);
+  assert.equal(shelfComposer.props.enterFromTop, true, "책장 끌어내리기도 같은 진입 전환을 사용한다");
   const beforeWrites = writes.length;
   (shelfComposer.props.onBack as () => void)();
   assert.equal(paths.at(-1), "/", "책장에서 내린 뒤 저장 없이 취소하면 책장으로 돌아간다");
@@ -66,7 +68,9 @@ test("작은 여행에서 선택한 책의 마디는 저장과 연결을 한 번
     params = new URLSearchParams({ from: "library", harumadiId: "book" });
     if (cancelTo) params.set("cancelTo", cancelTo);
     const reader = create(), readerParent = reader.render();
-    (reader.render(readerParent.props, readerParent.type as never).props.onBack as () => void)();
+    const readerComposer = reader.render(readerParent.props, readerParent.type as never);
+    assert.equal(readerComposer.props.enterFromTop, false, "책 안에서 시작하는 기존 작성에는 추가 진입 전환을 강제하지 않는다");
+    (readerComposer.props.onBack as () => void)();
     assert.equal(paths.at(-1), "/harumadi?harumadiId=book", "펼친 책 안에서 시작했거나 취소 힌트가 잘못되면 기존 책 복귀를 유지한다");
   }
   assert.equal(safeLoginReturn("/madi/new?from=library&harumadiId=book&cancelTo=library"), "/madi/new?from=library&harumadiId=book&cancelTo=library");

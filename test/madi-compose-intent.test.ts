@@ -21,7 +21,7 @@ test("전역 작성과 선택 책 작성을 공통 문구로 구분하고 기존
   }
   client.clear();
   const carousel = readFileSync("src/features/tuti/components/HarumadiCarousel.tsx", "utf8");
-  assert.match(carousel, /<ChevronUp[^>]*\/>\{MADI_COMPOSE_COPY.bookAction\}/);
+  assert.match(carousel, /<ChevronDown[^>]*\/>\{MADI_COMPOSE_COPY.bookAction\}/);
   assert.match(carousel, /aria-description=\{MADI_COMPOSE_COPY.swipeBookHint\}/);
   assert.match(carousel, /onCreateMadi\(active.id\)/);
   const navigation = readFileSync("src/features/tuti/components/MainNavigation.tsx", "utf8");
