@@ -275,7 +275,8 @@ function HarumadiEditor({ owner, initial, read, verified, refreshing, onRefresh,
 
   return <Frame ref={frame} $openingSpread={opening && openingOrigin?.appearance === "spread"} data-harumadi-editor aria-busy={busy || closing}>
     <BookContents ref={contents} inert={closing || opening}>
-    <Header $reading={mode === "pages"} $standard={mode === "together"} $creating={!harumadi && mode === "settings"}><BackButton onClick={back} disabled={busy} aria-label={mode === "pages" || !harumadi || (onClose && initialMode && initialMode !== "pages" && mode === initialMode) ? "내 책장으로 돌아가기" : "하루마디로 돌아가기"} />
+    <Header $reading={mode === "pages"} $standard={mode === "together" || mode === "pdf"} $pdf={mode === "pdf"} $creating={!harumadi && mode === "settings"}><BackButton onClick={back} disabled={busy} aria-label={mode === "pages" || !harumadi || (onClose && initialMode && initialMode !== "pages" && mode === initialMode) ? "내 책장으로 돌아가기" : "하루마디로 돌아가기"} />
+      {mode === "pdf" && <PdfHeading>PDF로 저장하기</PdfHeading>}
       {harumadi && mode === "pages" && <HeaderTools>
         {harumadi.shared && <Quiet type="button" disabled={busy || readOnly} onClick={() => setMode("comments")}><MessageCircle size={17} aria-hidden="true" />댓글·답글</Quiet>}
         {readOnly ? <Quiet type="button" disabled={refreshing || busy} onClick={onRefresh}>최신 내용 확인</Quiet> : <ReaderMenu label="하루마디 관리" disabled={busy || readOnly} triggerContent={<><Settings2 size={17} aria-hidden="true" />관리</>}
@@ -288,7 +289,7 @@ function HarumadiEditor({ owner, initial, read, verified, refreshing, onRefresh,
             setMode(action);
           } }))]} />}
       </HeaderTools>}</Header>
-    <Body ref={scroller} data-scroll-region={mode === "pages" ? undefined : ""} $reading={mode === "pages"} $creating={!harumadi && mode === "settings"}>
+    <Body ref={scroller} data-scroll-region={mode === "pages" ? undefined : ""} $reading={mode === "pages"} $pdf={mode === "pdf"} $creating={!harumadi && mode === "settings"}>
       {read?.cached && read.missingImages > 0 && <p className="hint">일부 사진은 연결 후 볼 수 있어요.</p>}
       {mode === "comments" && harumadi ? <HarumadiComments owner={owner} bookId={harumadi.id} onExit={finishClose} /> : mode === "together" && harumadi ? readOnly ? <p>연결 후 최신 내용을 확인하면 함께 채울 수 있어요.</p> : <HarumadiTogetherPanel owner={owner} bookId={harumadi.id} bookTitle={harumadi.title} period={harumadi} entries={chosen} onKeep={() => { if (busy || readOnly) return; setError(""); setConfirmed(false); setPdf(null); setMode("pdf"); }} onExit={finishClose} /> : mode === "settings" ? <SettingsPanel $creating={!harumadi}>
         <SettingsIntro $creating={!harumadi}>
@@ -320,7 +321,7 @@ function HarumadiEditor({ owner, initial, read, verified, refreshing, onRefresh,
         <h1>어떤 순간을 담을까요?</h1><p>원본 마디는 그대로 두고 이 하루마디에 담아요.</p>
         {entries.isPending ? <p role="status">마디를 불러오고 있어요.</p> : entries.isError ? <Quiet onClick={() => void entries.refetch()}>마디 다시 불러오기</Quiet> : !entries.data?.length ? <div><p>아직 남긴 마디가 없어요.</p><Quiet disabled={busy || readOnly} onClick={() => router.push(`/madi/new?from=library&harumadiId=${encodeURIComponent(harumadi!.id)}`)}>이 하루마디에 첫 마디 남기기</Quiet></div> : <HarumadiEntryPicker entries={entries.data} selected={selected} onChange={setSelected} disabled={busy || readOnly} />}
       </> : mode === "pdf" ? <>
-        <h1>PDF로 저장하기</h1><p>지금 담긴 마디로 PDF를 만들어 Tuti에 보관하고, 파일로도 가져갈 수 있어요.<br />하루마디를 바꿔도 이미 만든 PDF는 바뀌지 않아요.</p>
+        <PdfNote>Tuti에 보관한 PDF는 하루마디를 수정해도 바뀌지 않아요.</PdfNote>
         {sensitivePolicy?.enabled && <Confirmation><input type="checkbox" checked={confirmed} onChange={event => setConfirmed(event.target.checked)} />이름과 뒷표지 문구에 민감정보가 없음을 확인해요.</Confirmation>}
         {pdfInput && !readOnly && sensitivePolicy && (!sensitivePolicy.enabled || confirmed) && <HarumadiPdfPreview key={`${harumadi!.revision}:${confirmed}`} ownerId={owner} input={pdfInput} onReady={handlePdf} />}
       </> : harumadi && <>
@@ -360,13 +361,17 @@ const BookContents = styled.div`height: 100%; min-height: 0; display: flex; flex
 const HeaderTools = styled.div`display: flex; align-items: center; gap: 12px; min-width: 0; > span { flex: none; width: auto; }`;
 const ReaderMenu = styled(ContextMenu)`> button { display: inline-flex; align-items: center; gap: 6px; min-height: var(--ui-control-height); padding: 8px 0 8px 8px; font-size: var(--ui-body-size); color: var(--color-text-muted); &:disabled { opacity: .5; } }`;
 const TogetherEntry = styled(BaseButton)`display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: var(--ui-action-height); min-width: 0; padding: 10px 12px; border-radius: 999px; background: var(--color-secondary-200); color: var(--color-secondary-1000); font-size: var(--ui-body-size); font-weight: 600; &:disabled { opacity: .5; } &:focus-visible { outline: 2px solid var(--color-brand-700); outline-offset: -2px; }`;
-const Header = styled.header<{ $creating?: boolean; $reading?: boolean; $standard?: boolean }>`flex: none; display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: calc(12px + var(--app-safe-area-top, 0px)) var(--screen-padding-right) 0 var(--screen-padding-left); min-height: 50px;
+const Header = styled.header<{ $creating?: boolean; $reading?: boolean; $standard?: boolean; $pdf?: boolean }>`flex: none; display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: calc(12px + var(--app-safe-area-top, 0px)) var(--screen-padding-right) 0 var(--screen-padding-left); min-height: 50px;
   ${({ $reading }) => $reading && `padding-top: calc(40px + var(--app-safe-area-top, 0px)); @container app-viewport (max-height: 620px) { padding-top: calc(24px + var(--app-safe-area-top, 0px)); }`}
   ${({ $standard }) => $standard && `padding-top: var(--screen-padding-top);`}
+  ${({ $pdf }) => $pdf && `justify-content: flex-start; gap: 4px;`}
   ${({ $creating }) => $creating && `@container app-viewport (max-height: 719px) { padding-top: calc(6px + var(--app-safe-area-top, 0px)); min-height: 44px; }`}
 `;
 const Quiet = styled(BaseButton)`display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: var(--ui-control-height); padding: 6px 0; background: transparent; color: var(--color-text-muted); font-size: var(--ui-body-size); &:disabled { opacity: .5; } &:focus-visible { outline: 2px solid var(--color-brand-700); outline-offset: 3px; }`;
-const Body = styled.div<{ $reading: boolean; $creating?: boolean }>`flex: 1; min-height: 0; overflow-y: auto; padding: ${({ $reading, $creating }) => $reading ? "12px calc(var(--reader-outside-inset) + var(--app-safe-area-right, 0px)) 12px calc(var(--reader-outside-inset) + var(--app-safe-area-left, 0px))" : $creating ? "22px var(--screen-padding-right) 20px var(--screen-padding-left)" : "22px var(--screen-padding-right) 28px var(--screen-padding-left)"}; ${({ $reading }) => $reading && "display: flex; flex-direction: column;"} overscroll-behavior: contain; &:has([data-order-editor]) { overflow-anchor: none; } h1 { ${screenTitleStyles} margin: 8px 0 12px; } > p { ${bodyCopyStyles} color: var(--color-text-muted); white-space: pre-line; } .hint { ${captionStyles} }
+const PdfHeading = styled.h1`${screenTitleStyles}`;
+const PdfNote = styled.p`${captionStyles} margin: 0 0 12px;`;
+const Body = styled.div<{ $reading: boolean; $creating?: boolean; $pdf?: boolean }>`flex: 1; min-height: 0; overflow-y: auto; padding: ${({ $reading, $creating }) => $reading ? "12px calc(var(--reader-outside-inset) + var(--app-safe-area-right, 0px)) 12px calc(var(--reader-outside-inset) + var(--app-safe-area-left, 0px))" : $creating ? "22px var(--screen-padding-right) 20px var(--screen-padding-left)" : "22px var(--screen-padding-right) 28px var(--screen-padding-left)"}; ${({ $reading }) => $reading && "display: flex; flex-direction: column;"} overscroll-behavior: contain; &:has([data-order-editor]) { overflow-anchor: none; } h1 { ${screenTitleStyles} margin: 8px 0 12px; } > p { ${bodyCopyStyles} color: var(--color-text-muted); white-space: pre-line; } .hint { ${captionStyles} }
+  ${({ $pdf }) => $pdf && `padding-top: 12px; > p { font-size: var(--ui-caption-size); line-height: 1.6; }`}
   ${({ $reading }) => $reading && `
     --reader-outside-inset: 36px;
     @container app-viewport (max-width: 340px) { --reader-outside-inset: 28px; }

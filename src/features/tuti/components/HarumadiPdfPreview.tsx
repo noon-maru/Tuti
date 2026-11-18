@@ -369,13 +369,10 @@ const PreviewToolbar = styled.div`
   align-items: center;
   justify-content: space-between;
   gap: var(--space-2);
-  min-height: 48px;
-  margin-bottom: var(--space-4);
-  padding: 4px;
-  border: 1px solid var(--color-neutral-300);
-  border-radius: 999px;
+  min-height: 44px;
+  margin-bottom: var(--space-3);
+  padding: 0;
   background: var(--color-surface);
-  box-shadow: 0 3px 10px rgb(var(--color-black-rgb) / 0.035);
 `;
 
 const ToolGroup = styled.div`
@@ -385,8 +382,8 @@ const ToolGroup = styled.div`
 `;
 
 const ToolButton = styled(BaseButton)`
-  min-width: 40px;
-  min-height: 40px;
+  min-width: 44px;
+  min-height: 44px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -412,6 +409,7 @@ const ToolLabel = styled.span`
   @media (max-width: 360px) {
     display: none;
   }
+  @container app-viewport (max-width: 340px) { display: none; }
 `;
 
 const ZoomValue = styled.span`
@@ -525,7 +523,7 @@ const Sheet = styled.div`
   background: white;
   aspect-ratio: 148 / 210;
   border: 1px solid var(--color-neutral-300);
-  border-radius: 14px;
+  border-radius: 2px;
 
   canvas {
     display: block;
