@@ -17,3 +17,29 @@ test("저장한 PDF는 사본 삭제를 명시하고 관리만 접으며 저장�
   assert.match(viewer, /surface="completed_harumadi" disabled=\{busy !== null\}/);
   assert.match(viewer, /disabled=\{!pdf \|\| busy !== null\}/);
 });
+
+test("담기 화면 검색은 헤더에서만 펼치고 닫기·키보드 복귀와 저장 보호를 유지한다", () => {
+  const source = readFileSync("src/features/tuti/screens/journal/MadiHarumadiSelection.tsx", "utf8");
+  assert.match(source, /useState\(false\)/);
+  assert.match(source, /searchOpen && <SearchOverlay>/);
+  assert.match(source, /<HeaderControls inert=\{searchOpen\}/);
+  assert.match(source, /event.key === "Escape"/);
+  assert.match(source, /searchTrigger.current\?\.focus\(\)/);
+  assert.doesNotMatch(source, /--screen-padding-top:/);
+  assert.match(source, /지금은 담지 않기/);
+  assert.match(source, /if \(saving.current \|\| finished/);
+  assert.match(source, /await addMadiToHarumadi\(ownerId, selected, entryId/);
+});
+
+test("초대는 실제 초대한 사람과 책을 먼저 보여주고 참여 전 공유 범위를 명시한다", () => {
+  const source = readFileSync("src/features/tuti/flows/HarumadiInviteFlow.tsx", "utf8");
+  assert.ok(source.indexOf("{preview.data.inviterName}님이 초대했어요.") < source.indexOf("<ScopeNotice>"));
+  assert.match(source, /<h2>\{preview.data.title\}<\/h2>/);
+  assert.match(source, /현재·앞으로 참여하는 사람들에게 보여요/);
+  assert.match(source, /내 계정의 원본과 이미 저장한 PDF는 남아요/);
+  assert.match(source, /<summary>다른 방법으로 참여하기<\/summary>/);
+  assert.match(source, /다른 계정으로 참여하기/);
+  assert.match(source, /로그인하고 함께 채우기/);
+  assert.match(source, /Boolean\(session.account && !preview.data\)/);
+  assert.match(source, /changeTogether<\{ harumadiId: string \}>/);
+});

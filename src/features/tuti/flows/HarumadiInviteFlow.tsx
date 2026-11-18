@@ -5,9 +5,10 @@ import { useRouter } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Capacitor } from "@capacitor/core";
 import styled from "@emotion/styled";
-import { BookOpen, Users } from "lucide-react";
+import { BookOpen } from "lucide-react";
 import { useSession } from "@/features/tuti/hooks/useSession";
-import { PrimaryButton, TextButton } from "@/features/tuti/components/buttons";
+import { BackButton, PrimaryButton, TextButton } from "@/features/tuti/components/buttons";
+import { bodyCopyStyles, captionStyles, screenTitleStyles } from "@/shared/ui/typography";
 import { ScreenFrame } from "@/features/tuti/components/ScreenFrame";
 import { changeTogether } from "@/lib/harumadiTogether";
 import { clearHarumadiInvite, pendingHarumadiInvite, rememberHarumadiInviteUrl, setHarumadiInviteResume, HARUMADI_INVITE_CHANGED } from "@/lib/harumadiInviteIntent";
@@ -56,20 +57,37 @@ export function HarumadiInviteFlow() {
     catch (cause) { setError(cause instanceof Error ? cause.message : "계정을 변경하지 못했어요."); }
     finally { setBusy(false); }
   };
-  return <Frame><Mark aria-hidden="true"><BookOpen size={50} strokeWidth={1.2} /><Users size={24} /></Mark>
-    <h1>같이 채울 하루마디가<br />기다리고 있어요.</h1><p>각자의 순간을 한 권에 담고,<br />함께한 날의 이야기를 나눠보세요.</p>
-    <Notice>이 책에 담은 마디는 현재·앞으로 참여하는 사람들에게 보여요. 참여자는 PDF로 저장할 수 있어요. 나가면 내 마디는 이 책에서 빠지고, 내 계정의 원본과 이미 저장한 PDF는 남아요.</Notice>
-    {session?.account && <p>{session.account.displayName || "로그인한 계정"}으로 참여해요.</p>}
-    {preview.data && <p><strong>{preview.data.inviterName}</strong>님의<br />‘{preview.data.title}’</p>}
+  const decline = () => { if (!busy) void clearHarumadiInvite().then(() => router.replace("/")); };
+  return <Frame aria-label="함께 채우기 초대">
+    <Header><BackButton aria-label="참여하지 않고 책장으로" disabled={busy} onClick={decline} /><h1>함께 채우기</h1></Header>
+    <Content data-scroll-region>
+    <Invitation>
+      <BookOpen size={32} strokeWidth={1.3} aria-hidden="true" />
+      {preview.data ? <><p>{preview.data.inviterName}님이 초대했어요.</p><h2>{preview.data.title}</h2></> : <h2>함께 채울 하루마디가 기다리고 있어요.</h2>}
+      <p>각자의 순간을 한 권에 담아보세요.</p>
+    </Invitation>
+    {preview.isFetching && !preview.data && <Notice role="status">초대를 확인하고 있어요.</Notice>}
     {preview.data && harumadiPeriodLabel(preview.data) && <Notice>담고 싶은 기간 · {harumadiPeriodLabel(preview.data)}<br />기간이 지나도 계속 채울 수 있어요.</Notice>}
+    <ScopeNotice>이 책에 담은 마디는 현재·앞으로 참여하는 사람들에게 보여요. 참여자는 PDF로 저장할 수 있어요. 나가면 내 마디는 이 책에서 빠지고, 내 계정의 원본과 이미 저장한 PDF는 남아요.</ScopeNotice>
     {preview.isError && <p role="alert">{preview.error.message}<TextButton onClick={() => void preview.refetch()}>초대 다시 확인하기</TextButton></p>}
     {error && <p role="alert">{error}</p>}
+    </Content>
+    <Actions>
+    {session?.account && <Notice>{session.account.displayName || "로그인한 계정"}으로 참여해요.</Notice>}
     <PrimaryButton disabled={!token || !session || busy || Boolean(session.account && !preview.data)} onClick={() => void accept()}>{busy ? "책장에 놓고 있어요…" : preview.data?.joined ? "하루마디 펼치기" : session?.account ? "함께 채우기" : "로그인하고 함께 채우기"}</PrimaryButton>
-    {!Capacitor.isNativePlatform() && token && typeof window !== "undefined" && window.location.origin === "https://tuti.today" && <TextButton onClick={() => window.location.assign(`com.noonmaru.tuti://harumadi/invite#${token}`)}>앱에서 열기</TextButton>}
-    {session?.account && <TextButton disabled={busy} onClick={() => void switchAccount()}>다른 계정으로 참여하기</TextButton>}
-    <TextButton disabled={busy} onClick={() => { void clearHarumadiInvite().then(() => router.replace("/")); }}>지금은 참여하지 않기</TextButton>
+    {((!Capacitor.isNativePlatform() && token && typeof window !== "undefined" && window.location.origin === "https://tuti.today") || session?.account) && <Alternatives>
+      <summary>다른 방법으로 참여하기</summary>
+      {!Capacitor.isNativePlatform() && token && typeof window !== "undefined" && window.location.origin === "https://tuti.today" && <TextButton disabled={busy} onClick={() => window.location.assign(`com.noonmaru.tuti://harumadi/invite#${token}`)}>앱에서 열기</TextButton>}
+      {session?.account && <TextButton disabled={busy} onClick={() => void switchAccount()}>다른 계정으로 참여하기</TextButton>}
+    </Alternatives>}
+    </Actions>
   </Frame>;
 }
-const Frame = styled(ScreenFrame)`justify-content: flex-start; gap: 20px; overflow-y: auto; > * { flex-shrink: 0; } > :first-child { margin-top: auto; } > :last-child { margin-bottom: auto; } h1 { font-size: 26px; line-height: 1.45; font-weight: 600; letter-spacing: -.04em; margin: 0; } p { margin: 0; font-size: 15px; line-height: 1.8; color: var(--color-text-muted); } > button, > a { flex-shrink: 0; }`;
-const Mark = styled.div`position: relative; width: 76px; padding: 8px 0 18px; color: var(--color-text); > svg:last-child { position: absolute; right: 0; bottom: 8px; padding: 4px; width: 32px; height: 32px; border-radius: 50%; background: var(--color-brand-100); }`;
-const Notice = styled.div`font-size: 12px; line-height: 1.9; color: var(--color-text-muted); padding: 16px; border-radius: 12px; background: var(--color-brand-100);`;
+const Frame = styled(ScreenFrame)`background: var(--color-surface); gap: 24px;`;
+const Header = styled.header`display: flex; align-items: center; gap: 8px; flex: none; h1 { ${screenTitleStyles} }`;
+const Content = styled.div`flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; display: flex; flex-direction: column; gap: 20px; padding: 2px; p[role="alert"] { ${bodyCopyStyles} margin: 0; color: var(--color-error); }`;
+const Invitation = styled.div`display: grid; gap: 12px; margin-block: auto; padding-block: 24px; > svg { color: var(--color-brand-800); } h2 { ${screenTitleStyles} font-family: var(--font-emotional); } p { ${bodyCopyStyles} margin: 0; color: var(--color-text-muted); }`;
+const Notice = styled.div`${captionStyles}`;
+const ScopeNotice = styled.p`${captionStyles} margin: 0;`;
+const Actions = styled.footer`flex: none; display: grid; gap: 12px; > div { text-align: center; }`;
+const Alternatives = styled.details`text-align: center; summary { ${captionStyles} min-height: 44px; align-content: center; cursor: pointer; } summary:focus-visible { outline: 2px solid var(--color-focus-ring); outline-offset: 2px; } button { width: 100%; min-height: 44px; }`;

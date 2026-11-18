@@ -1,12 +1,13 @@
 "use client";
 
 import styled from "@emotion/styled";
-import { BookOpen, Check } from "lucide-react";
+import { BookOpen, Check, Search, X } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState, type MouseEvent } from "react";
 import Link from "next/link";
 import { ScreenFrame } from "@/features/tuti/components/ScreenFrame";
-import { BackButton, PrimaryButton, TextButton } from "@/features/tuti/components/buttons";
+import { BackButton, BaseButton, PrimaryButton, TextButton, quietIconButtonStyles } from "@/features/tuti/components/buttons";
+import { captionStyles, screenTitleStyles } from "@/shared/ui/typography";
 import { ANDROID_BACK_EVENT } from "@/features/tuti/navigation/androidBack";
 import { fetchRecentHarumadis, harumadiPath } from "@/lib/harumadis";
 import { addMadiToHarumadi } from "@/lib/addMadiToHarumadi";
@@ -32,6 +33,9 @@ export function MadiHarumadiSelection({ ownerId, entryId, initialBookId, onDone,
   const finished = completion !== undefined;
   const saving = useRef(false);
   const heading = useRef<HTMLHeadingElement>(null);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const searchInput = useRef<HTMLInputElement>(null);
+  const searchTrigger = useRef<HTMLButtonElement>(null);
   const query = useHarumadiLibrary(ownerId);
   const search = useHarumadiSearch(query.data?.pages.flatMap(page => page.harumadis) ?? []);
   const recentQuery = useQuery({ queryKey: ["recent-harumadis", ownerId], queryFn: ({ signal }) => fetchRecentHarumadis(ownerId, signal),
@@ -47,6 +51,8 @@ export function MadiHarumadiSelection({ ownerId, entryId, initialBookId, onDone,
   const guardBookCreation = (event: MouseEvent<HTMLElement>) => { if (saving.current) event.preventDefault(); };
 
   useEffect(() => { heading.current?.focus({ preventScroll: true }); }, [finished]);
+  useEffect(() => { if (searchOpen) searchInput.current?.focus(); }, [searchOpen]);
+  const closeSearch = () => { search.setSearch(""); setSearchOpen(false); requestAnimationFrame(() => searchTrigger.current?.focus()); };
   useEffect(() => {
     const back = (event: Event) => { event.preventDefault(); if (!saving.current) onDone(); };
     window.addEventListener(ANDROID_BACK_EVENT, back);
@@ -88,10 +94,19 @@ export function MadiHarumadiSelection({ ownerId, entryId, initialBookId, onDone,
   </Frame>;
 
   return <Frame aria-labelledby="madi-collection-heading" aria-busy={busy}>
-    <Header><BackButton aria-label="담지 않고 마치기" disabled={busy} onClick={onDone} /><span>{!existingEntry && <Check size={16} />}{existingEntry ? "마디 담기" : "마디 저장 완료"}</span></Header>
+    <Header onKeyDown={event => { if (searchOpen && event.key === "Escape") { event.preventDefault(); closeSearch(); } }}>
+      <HeaderControls inert={searchOpen} aria-hidden={searchOpen || undefined}>
+      <BackButton aria-label="담지 않고 마치기" disabled={busy} onClick={onDone} />
+      <span>{!existingEntry && <Check size={16} aria-hidden="true" />}{existingEntry ? "마디 담기" : "마디 저장 완료"}</span>
+      <SearchButton ref={searchTrigger} type="button" aria-label="하루마디 이름 검색" aria-expanded={searchOpen} disabled={busy} onClick={() => setSearchOpen(true)}><Search size={20} aria-hidden="true" /></SearchButton>
+      </HeaderControls>
+      {searchOpen && <SearchOverlay>
+        <MadiSearchField inputRef={searchInput} value={search.search} onChange={value => { setSelected(null); search.setSearch(value); }} label="하루마디 이름 검색" placeholder="하루마디 이름으로 찾기" />
+        <SearchButton type="button" aria-label="검색 닫기" onClick={closeSearch}><X size={20} aria-hidden="true" /></SearchButton>
+      </SearchOverlay>}
+    </Header>
     <Content data-scroll-region>
-      <Intro><h1 id="madi-collection-heading" ref={heading} tabIndex={-1}>어느 하루마디에<br />담아둘까요?</h1><p>지금 담지 않아도 괜찮아요.<br />남긴 마디는 ‘전체 마디 보기’에서 다시 볼 수 있어요.</p></Intro>
-      <MadiSearchField value={search.search} onChange={value => { setSelected(null); search.setSearch(value); }} label="하루마디 이름 검색" placeholder="하루마디 이름으로 찾기" />
+      <Intro><h1 id="madi-collection-heading" ref={heading} tabIndex={-1}>어느 하루마디에 담아둘까요?</h1><p>지금 담지 않아도 남긴 마디는 ‘나의 마디’에 있어요.</p></Intro>
       {query.isPending || (!search.searching && recentQuery.isPending) ? <Notice role="status">하루마디를 불러오고 있어요.</Notice>
         : query.isError && !query.data ? <Notice role="alert">하루마디를 불러오지 못했어요.<TextButton onClick={() => void query.refetch()}>다시 불러오기</TextButton></Notice>
         : !books.length ? <Notice><BookOpen size={28} strokeWidth={1.3} /><p>{search.searching ? "이름이 일치하는 하루마디가 없어요." : "이 마디를 담을 새 하루마디를 만들어보세요."}</p>{search.searching && <TextButton onClick={() => search.setSearch("")}>전체 하루마디 보기</TextButton>}</Notice>
@@ -99,23 +114,26 @@ export function MadiHarumadiSelection({ ownerId, entryId, initialBookId, onDone,
           {groups.recent.length > 0 && <ChoiceGroup aria-label="최근 담은 하루마디"><h2>최근 담은 하루마디</h2>{groups.recent.map(renderChoice)}</ChoiceGroup>}
           {groups.other.length > 0 && <ChoiceGroup aria-label="내 하루마디">{groups.recent.length > 0 && <h2>내 하루마디</h2>}{groups.other.map(renderChoice)}</ChoiceGroup>}
         </Choices>}
+      {!emptyLibrary && <NewBookLink href={createBookHref} aria-disabled={busy} tabIndex={busy ? -1 : undefined} onClick={guardBookCreation}>새 하루마디 만들어 담기</NewBookLink>}
       {query.isError && query.data && <Notice role="alert">목록을 새로 불러오지 못했어요.<TextButton onClick={() => void query.refetch()}>다시 불러오기</TextButton></Notice>}
       {error && <ErrorMessage role="alert">{error}<TextButton disabled={busy} onClick={() => { setSelected(null); void query.refetch(); void recentQuery.refetch(); }}>목록 다시 확인하기</TextButton></ErrorMessage>}
     </Content>
     <Footer>
       {emptyLibrary ? <CreateLink href={createBookHref} aria-disabled={busy} tabIndex={busy ? -1 : undefined} onClick={guardBookCreation}>새 하루마디 만들어 담기</CreateLink> : <PrimaryButton disabled={busy || !canAdd} onClick={() => void complete()}>{busy ? "담고 있어요…" : "이 하루마디에 담기"}</PrimaryButton>}
-      {!emptyLibrary && <NewBookLink href={createBookHref} aria-disabled={busy} tabIndex={busy ? -1 : undefined} onClick={guardBookCreation}>새 하루마디 만들어 담기</NewBookLink>}
       <TextButton disabled={busy} onClick={() => { if (existingEntry) onDone(); else setCompletion(null); }}>지금은 담지 않기</TextButton>
     </Footer>
   </Frame>;
 }
 
-const Frame = styled(ScreenFrame)`background: var(--color-surface); gap: 20px; --screen-padding-top: calc(24px + var(--app-safe-area-top, 0px));`;
+const Frame = styled(ScreenFrame)`background: var(--color-surface); gap: 20px;`;
 const CreateLink = PrimaryButton.withComponent(Link);
 const NewBookLink = styled(TextButton)`justify-content: center; min-height: 44px; font-size: 14px; color: var(--color-brand-1000); &[aria-disabled="true"] { opacity: .5; cursor: default; }`.withComponent(Link);
-const Header = styled.header`display: flex; align-items: center; justify-content: space-between; flex: none; > span { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--color-text-muted); }`;
+const Header = styled.header`position: relative; flex: none; min-height: 56px; display: flex; align-items: center;`;
+const HeaderControls = styled.div`display: flex; align-items: center; gap: 8px; width: 100%; &[inert] { visibility: hidden; } > span { ${captionStyles} flex: 1; display: flex; align-items: center; gap: 6px; }`;
+const SearchButton = styled(BaseButton)`${quietIconButtonStyles}`;
+const SearchOverlay = styled.div`position: absolute; inset: 0; z-index: 1; display: grid; grid-template-columns: minmax(0, 1fr) 44px; gap: 4px; background: var(--color-surface); animation: collection-search 180ms ease-out; @keyframes collection-search { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: translateY(0); } } @media(prefers-reduced-motion: reduce) { animation: none; }`;
 const Content = styled.div`flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 2px 2px 20px;`;
-const Intro = styled.div`margin-bottom: 24px; h1 { margin: 0 0 12px; font-size: 25px; font-weight: 600; letter-spacing: -0.035em; line-height: 1.4; &:focus { outline: none; } } p { margin: 0; font-size: 13px; line-height: 1.8; color: var(--color-text-muted); word-break: keep-all; }`;
+const Intro = styled.div`margin-bottom: 24px; h1 { ${screenTitleStyles} margin-bottom: 10px; &:focus { outline: none; } } p { ${captionStyles} margin: 0; word-break: keep-all; }`;
 const Choices = styled.div`display: grid; gap: 10px;`;
 const ChoiceGroup = styled.section`display: grid; gap: 10px; min-width: 0; & + & { margin-top: 14px; } h2 { margin: 0; font-size: 14px; font-weight: 500; color: var(--color-text-muted); line-height: 1.6; }`;
 const Choice = styled.label<{ $selected: boolean }>`display: flex; align-items: center; gap: 12px; min-height: 84px; padding: 12px; border: 1px solid ${({ $selected }) => $selected ? "var(--color-brand-700)" : "var(--color-border)"}; border-radius: 12px; background: ${({ $selected }) => $selected ? "var(--color-brand-100)" : "var(--color-surface)"}; cursor: pointer; input { flex: none; accent-color: var(--color-brand-800); width: 18px; height: 18px; margin: 0; } &:has(input:disabled) { opacity: .6; cursor: default; } &:has(input:focus-visible) { outline: 2px solid var(--color-brand-700); outline-offset: 3px; } > span:last-child { min-width: 0; display: grid; gap: 5px; } strong { font-size: 15px; font-weight: 500; overflow-wrap: anywhere; line-height: 1.5; } small { color: var(--color-text-muted); font-size: 12px; line-height: 1.5; }`;
