@@ -107,12 +107,37 @@ test("스와이프는 거리·속도를 구분하고 양 끝은 탄성 이동만
   assert.equal(carouselSwipeDirection(27, 350, 500), -1);
   assert.equal(carouselSwipeDirection(-19, 350, 500), 0);
   assert.equal(carouselDragProgress(-40, 350, 2, 5), carouselDragProgress(-20, 175, 2, 5));
-  assert.ok(Math.abs(carouselDragProgress(60, 350, 0, 5)) < .2);
-  assert.ok(Math.abs(carouselDragProgress(-60, 350, 4, 5)) < .2);
+  assert.ok(Math.abs(carouselDragProgress(60, 350, 0, 5)) < .4);
+  assert.ok(Math.abs(carouselDragProgress(-60, 350, 4, 5)) < .4);
   assert.equal(carouselIndex(["new", "a", "b"], { id: "b", index: 1 }), 2);
   assert.equal(carouselIndex(["a", "b"], { id: "next-page", index: 2 }), 1);
   assert.equal(carouselIndex(["a", "b", "next-page"], { id: "next-page", index: 2 }), 2);
   assert.equal(carouselIndex([], { id: null, index: 8 }), 0);
+});
+
+test("양끝에서 계속 당기면 이동은 늘어나고 저항은 점점 커지며 단단한 정지점이 없다", () => {
+  for (const count of [1, 5]) {
+    let previous = 0, previousIncrement = Infinity;
+    for (const dx of [0, 40, 80, 120, 160, 200, 240, 280, 320]) {
+      const left = carouselDragProgress(dx, 350, 0, count);
+      const right = carouselDragProgress(-dx, 350, count - 1, count);
+      assert.equal(Math.abs(left), Math.abs(right));
+      const distance = Math.abs(left);
+      if (dx) {
+        assert.ok(distance > previous, "더 끌면 계속 늘어난다");
+        assert.ok(distance - previous < previousIncrement, "같은 거리의 추가 당김에는 저항이 증가한다");
+        previousIncrement = distance - previous;
+      }
+      assert.ok(distance < .75, "과도하게 화면 밖으로 끌려가지 않는다");
+      previous = distance;
+      assert.equal(left, carouselDragProgress(dx / 2, 175, 0, count));
+    }
+  }
+  assert.equal(carouselDragProgress(0, 350, 0, 5), 0, "놓고 드래그를 초기화하면 원점으로 복귀한다");
+  const before = carouselDragProgress(-62.999, 350, 2, 5);
+  const after = carouselDragProgress(-63.001, 350, 2, 5);
+  assert.ok(Math.abs(after - before) < .001, "한 권 간격 경계에서도 위치가 연속적이다");
+  assert.ok(carouselDragProgress(-120, 350, 2, 5) > carouselDragProgress(-80, 350, 2, 5));
 });
 
 test("많은 책도 주변 표지만 렌더하고 현재 책 열기·공동작성 메뉴·단일 책 경계를 지킨다", () => {

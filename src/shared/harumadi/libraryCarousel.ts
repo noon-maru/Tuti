@@ -26,8 +26,14 @@ export function carouselIndex(ids: string[], selection: { id: string | null; ind
 
 /** 손가락 이동량은 실제 뷰포트 너비로 정규화해 PC 목업 배율과 무관하게 한다. */
 export function carouselDragProgress(dx: number, width: number, index: number, count: number) {
-  const progress = clamp(-dx / Math.max(1, width * .18), -1, 1);
-  return (index === 0 && progress < 0) || (index === count - 1 && progress > 0) ? progress * .18 : progress;
+  if (dx === 0) return 0;
+  const progress = -dx / Math.max(1, width * .18);
+  // 먼저 잘라내면 계속 끌어도 멈추므로, 이동량에 따라 저항을 늘린다.
+  const rubber = (distance: number) => .75 * distance / (1.5 + distance);
+  const edge = (index === 0 && progress < 0) || (index === count - 1 && progress > 0);
+  if (edge) return Math.sign(progress) * rubber(Math.abs(progress));
+  // 한 권 간격을 넘어도 급정지하지 않는다. 실제 선택은 옆 책 한 권으로 제한한다.
+  return Math.abs(progress) <= 1 ? progress : Math.sign(progress) * (1 + rubber(Math.abs(progress) - 1));
 }
 
 export function carouselSwipeDirection(dx: number, width: number, elapsed: number): -1 | 0 | 1 {
