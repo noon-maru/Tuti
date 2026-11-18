@@ -5,7 +5,7 @@ import styled from "@emotion/styled";
 import { memo, useEffect, useRef, useState, type CSSProperties, type PointerEvent } from "react";
 import { ChevronLeft, ChevronRight, ChevronUp, MoreVertical } from "lucide-react";
 import type { Harumadi } from "@/shared/api/harumadi";
-import { carouselDragProgress, carouselGestureAxis, carouselIndex, carouselPose, carouselShouldWrite, carouselSwipeDirection, carouselTapDirection, carouselWriteProgress } from "@/shared/harumadi/libraryCarousel";
+import { carouselDragProgress, carouselGestureAxis, carouselIndex, carouselPose, carouselPreviewSize, carouselShouldWrite, carouselSwipeDirection, carouselTapDirection, carouselVisibleTapBounds, carouselWriteProgress } from "@/shared/harumadi/libraryCarousel";
 import { harumadiActions, type HarumadiOpeningMode } from "../navigation/harumadiActions";
 import { HarumadiCover } from "./HarumadiCover";
 import { HarumadiSpreadPreview } from "./HarumadiSpreadPreview";
@@ -38,8 +38,7 @@ export function HarumadiCarousel({ books, ownerId, onOpen, onCreateMadi, hasNext
     return () => { controller.abort(); turning.current?.abort(); };
   }, [ownerId]);
   const { width, height } = size;
-  const spreadWidth = Math.min(width * .88, height * 1.25, 440);
-  const bookHeight = spreadWidth / 2 * 595.28 / 419.53;
+  const { spreadWidth, bookHeight } = carouselPreviewSize(width, height);
   const index = carouselIndex(books.map(book => book.id), selection), active = books[index];
   useEffect(() => {
     const node = stage.current;
@@ -158,7 +157,9 @@ export function HarumadiCarousel({ books, ownerId, onOpen, onCreateMadi, hasNext
             onClick={event => {
               if (turning.current || requesting.current || loading) return;
               if (!selected) { choose(bookIndex); return; }
-              const direction = carouselTapDirection(event.clientX, event.currentTarget.getBoundingClientRect(), event.detail === 0);
+              const bounds = event.currentTarget.getBoundingClientRect();
+              const visible = carouselVisibleTapBounds(bounds, stage.current?.getBoundingClientRect() ?? bounds);
+              const direction = carouselTapDirection(event.clientX, visible, event.detail === 0);
               if (direction) void move(direction); else onOpen(book, event.currentTarget);
             }}>
             {spread ? <HarumadiSpreadPreview book={book} ownerId={ownerId} /> : <CarouselCover book={book} ownerId={ownerId} />}

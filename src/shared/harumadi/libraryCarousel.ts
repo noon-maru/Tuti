@@ -1,5 +1,17 @@
 const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
 
+/** 책장 전시용 크기다. 양옆은 잘라도 세로는 전시 영역 안에 둔다. 실제 지면은 바꾸지 않는다. */
+export function carouselPreviewSize(width: number, height: number) {
+  const spreadWidth = Math.max(1, Math.min(width * 1.35, height * 1.3, 640));
+  return { spreadWidth, bookHeight: spreadWidth * 210 / 296 };
+}
+
+/** 확대되어 잘린 책도 화면에 보이는 양끝을 누를 수 있도록 교집합을 쓴다. */
+export function carouselVisibleTapBounds(book: { left: number; width: number }, stage: { left: number; width: number }) {
+  const left = Math.max(book.left, stage.left), right = Math.min(book.left + book.width, stage.left + stage.width);
+  return { left, width: Math.max(0, right - left) };
+}
+
 /** 선택한 책의 양끝 20%는 옆 책 이동, 가운데와 키보드 클릭은 읽기다. */
 export function carouselTapDirection(clientX: number, bounds: { left: number; width: number }, keyboard = false): -1 | 0 | 1 {
   if (keyboard || bounds.width <= 0) return 0;
@@ -14,12 +26,12 @@ export function carouselIndex(ids: string[], selection: { id: string | null; ind
 
 /** 손가락 이동량은 실제 뷰포트 너비로 정규화해 PC 목업 배율과 무관하게 한다. */
 export function carouselDragProgress(dx: number, width: number, index: number, count: number) {
-  const progress = clamp(-dx / Math.max(1, width * .24), -1, 1);
+  const progress = clamp(-dx / Math.max(1, width * .18), -1, 1);
   return (index === 0 && progress < 0) || (index === count - 1 && progress > 0) ? progress * .18 : progress;
 }
 
 export function carouselSwipeDirection(dx: number, width: number, elapsed: number): -1 | 0 | 1 {
-  if (Math.abs(dx) < Math.min(48, Math.max(28, width * .12)) && !(Math.abs(dx) >= 12 && Math.abs(dx) / Math.max(1, elapsed) > .45)) return 0;
+  if (Math.abs(dx) < Math.min(32, Math.max(20, width * .075)) && !(Math.abs(dx) >= 12 && Math.abs(dx) / Math.max(1, elapsed) > .45)) return 0;
   return dx < 0 ? 1 : -1;
 }
 

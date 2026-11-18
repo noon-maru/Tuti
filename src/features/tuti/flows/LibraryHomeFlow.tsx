@@ -82,16 +82,19 @@ function LibraryHome({ ownerId, adminAccess = false }: { ownerId: string; adminA
   return <Frame ref={frame} aria-label="내 책장"><HomeSurface $hidePreview={opening?.mode === "pages" && opening.origin.appearance === "spread"} inert={Boolean(opening)} aria-hidden={opening ? true : undefined}>
     <Header><LibraryViewSwitch view={view} onChange={value => { chooseView(value); shelfScroll.current?.scrollTo({ top: 0 }); }} />
       <CreateHarumadi type="button" onClick={openEditor}><Plus size={17} aria-hidden="true" />새 하루마디</CreateHarumadi>
+      <MainMenu label="책장 메뉴" adminAccess={adminAccess}
+        items={[{ group: "보관함", label: "저장한 PDF", onSelect: () => router.push("/harumadi/pdfs") }]}
+        helpItems={[{ label: "하루마디 예시 펼쳐보기", onSelect: openExample }]}
+        onDownload={() => router.push("/download")} onSettings={() => router.push("/settings")} onAdmin={() => router.push("/admin")} /></Header>
+    <LibraryTools>
+      <MadiShortcut type="button" onClick={() => router.push("/madi")}>나의 마디<ArrowUpRight size={16} aria-hidden="true" /></MadiShortcut>
       <SearchToggle ref={searchButton} type="button" aria-label={searchOpen ? "하루마디 검색 닫기" : "하루마디 검색"}
         aria-expanded={searchOpen} aria-controls="library-name-search"
         onClick={() => { if (searchOpen) closeSearch(); else setSearchOpen(true); }}>
         <span data-search-icon="open"><Search size={21} aria-hidden="true" /></span>
         <span data-search-icon="close"><X size={21} aria-hidden="true" /></span>
       </SearchToggle>
-      <MainMenu label="책장 메뉴" adminAccess={adminAccess}
-        items={[{ group: "보관함", label: "전체 마디 보기", onSelect: () => router.push("/madi") }, { group: "보관함", label: "저장한 PDF", onSelect: () => router.push("/harumadi/pdfs") }]}
-        helpItems={[{ label: "하루마디 예시 펼쳐보기", onSelect: openExample }]}
-        onDownload={() => router.push("/download")} onSettings={() => router.push("/settings")} onAdmin={() => router.push("/admin")} /></Header>
+    </LibraryTools>
     {hasDraft && <DraftButton type="button" onClick={() => router.push("/harumadi/pdf/create")}><Download size={17} /><span>이전 PDF 작업 이어가기</span><ArrowUpRight size={16} /></DraftButton>}
     <SearchRow $open={searchOpen} id="library-name-search" inert={!searchOpen} aria-hidden={!searchOpen} onKeyDown={event => {
       if (event.key === "Escape" && !event.nativeEvent.isComposing) { event.preventDefault(); closeSearch(); }
@@ -151,6 +154,8 @@ const SearchRow = styled.div<{ $open: boolean }>`
 `;
 const SearchReveal = styled.div`min-height: 0; overflow: hidden; padding-inline: 3px; margin-inline: -3px;`;
 const TextAction = styled(BaseButton)`${bodyCopyStyles} display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 48px; padding: 8px 0; background: transparent; color: var(--color-text-muted); &:focus-visible { outline: 2px solid var(--color-brand-700); outline-offset: 3px; border-radius: 4px; }`;
+const LibraryTools = styled.div`display: flex; flex: none; align-items: center; justify-content: space-between; gap: 12px; padding: 0 var(--screen-padding-right) 0 var(--screen-padding-left);`;
+const MadiShortcut = styled(TextAction)`min-height: 44px; font-size: 14px; font-weight: 500; color: var(--color-text);`;
 const CreateHarumadi = styled(TextAction)`flex: none; margin-left: auto; min-height: 44px; padding-inline: 12px; border-radius: 999px; background: var(--color-brand-100); color: var(--color-brand-1000); font-size: .875rem; font-weight: 500; line-height: 1.5; white-space: nowrap; @container app-viewport (max-width: 380px) { padding-inline: 8px; font-size: 12px; gap: 4px; }`;
 const SearchToggle = styled(BaseButton)`flex: none; width: 44px; height: 44px; padding: 0; display: grid; place-items: center; border-radius: 50%; background: transparent; color: var(--color-text-muted); transition: background-color 180ms ease, color 180ms ease;
   > span { grid-area: 1 / 1; display: grid; place-items: center; transition: opacity 160ms ease, transform 240ms cubic-bezier(0.22, 1, 0.36, 1); }

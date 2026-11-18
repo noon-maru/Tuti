@@ -115,14 +115,16 @@ test("홈은 보기·생성·책장 메뉴를 한 줄로 묶고 제목과 권수
   assert.match(header, /<MainMenu label="책장 메뉴"/);
   assert.doesNotMatch(home, /ShelfCount|<Heading>|<Toolbar>|library-title/);
   assert.match(home, /--screen-padding-top: calc\(var\(--app-header-top-space, 24px\) \+ var\(--app-safe-area-top, 0px\)\)/);
-  assert.match(header, /<SearchToggle[\s\S]*?aria-expanded=\{searchOpen\}/);
-  assert.match(header, /aria-controls="library-name-search"/);
+  const tools = home.match(/<LibraryTools>[\s\S]*?<\/LibraryTools>/)![0];
+  assert.match(tools, /<MadiShortcut/);
+  assert.match(tools, /<SearchToggle[\s\S]*?aria-expanded=\{searchOpen\}/);
+  assert.match(tools, /aria-controls="library-name-search"/);
   const headerCss = home.match(/const Header = styled\.header`([^`]+)`/)![1];
   assert.match(headerCss, /display: flex/);
   assert.doesNotMatch(headerCss, /flex-wrap: wrap/);
 });
 
-test("홈 생성은 글자를 유지하고 전체 자료와 설정은 상단 공용 메뉴로 통합한다", () => {
+test("홈 생성과 나의 마디는 직접 보이고 PDF와 설정은 상단 공용 메뉴로 통합한다", () => {
   const home = source("src/features/tuti/flows/LibraryHomeFlow.tsx");
   const create = home.match(/const CreateHarumadi = styled\(TextAction\)`([^`]+)`/)![1];
   assert.match(create, /font-size: \.875rem/);
@@ -133,9 +135,9 @@ test("홈 생성은 글자를 유지하고 전체 자료와 설정은 상단 공
   assert.match(source("src/features/tuti/components/MainMenu.tsx"), /const Menu = styled\(ContextMenu\)`\s*width: 44px; height: 44px/);
   assert.match(home, /const openEditor = \(\) => router.push\("\/harumadi"\)/);
   const links = home.match(/<MainMenu\b[\s\S]*?<\/Header>/)![0];
-  assert.match(links, /\/madi/);
+  assert.match(home, /<MadiShortcut[^>]*onClick=\{\(\) => router.push\("\/madi"\)\}>나의 마디/);
   assert.match(links, /\/harumadi\/pdfs/);
-  assert.match(links, /label: "전체 마디 보기"/);
+  assert.doesNotMatch(links, /label: "전체 마디 보기"/);
   assert.match(links, /label: "저장한 PDF"/);
   assert.match(links, /onSettings=\{\(\) => router.push\("\/settings"\)/);
   assert.match(source("src/features/tuti/components/MainMenu.tsx"), /<MoreVertical size=\{22\} aria-hidden="true"/);

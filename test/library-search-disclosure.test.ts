@@ -42,6 +42,10 @@ test("책장 검색은 기본 접힘, 열기·입력·닫기·Escape·IME 및 �
   const flow = clientFlowHarness("src/features/tuti/flows/LibraryHomeFlow.tsx", "LibraryHomeFlow", deps);
   const parent = flow.render();
   const render = () => nodes(flow.render(parent.props, parent.type as never));
+  const shortcut = render().find(node => Children.toArray(node.props.children as ReactNode).includes("나의 마디"))!;
+  assert.ok(shortcut, "메뉴를 열지 않아도 나의 마디로 이동할 수 있다");
+  (shortcut.props.onClick as () => void)();
+  assert.deepEqual(paths.splice(0), ["/madi"]);
   const toggle = () => render().find(node => node.props["aria-expanded"] !== undefined)!;
   const input = () => render().find(node => node.props.id === "library-name-search")?.props.inert
     ? undefined : render().find(node => node.type === "MadiSearchField");

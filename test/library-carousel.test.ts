@@ -5,7 +5,7 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { HarumadiCarousel } from "@/features/tuti/components/HarumadiCarousel";
-import { carouselDragProgress, carouselGestureAxis, carouselIndex, carouselPose, carouselShouldWrite, carouselSwipeDirection, carouselTapDirection, carouselWriteProgress } from "@/shared/harumadi/libraryCarousel";
+import { carouselDragProgress, carouselGestureAxis, carouselIndex, carouselPose, carouselPreviewSize, carouselShouldWrite, carouselSwipeDirection, carouselTapDirection, carouselVisibleTapBounds, carouselWriteProgress } from "@/shared/harumadi/libraryCarousel";
 import { createLibraryViewPreferences } from "@/lib/libraryViewPreferences";
 import { harumadiContent } from "./fixtures/harumadiContent";
 
@@ -22,9 +22,13 @@ test("책 전시 영역은 CSS로 남는 공간을 채우고 실제 측정은 �
 
 test("책만 전시 영역 중앙에 놓고 설명·쪽번호의 하단 배치를 유지한다", () => {
   for (const [width, stage] of [[350, 500], [350, 359], [280, 182], [280, 140]]) {
-    const bookHeight = Math.min(width * .88, stage * 1.25, 440) / 2 * 595.28 / 419.53;
+    const { bookHeight, spreadWidth } = carouselPreviewSize(width, stage);
     assert.ok((stage - bookHeight) / 2 >= 0, "중앙 배치한 책이 전시 영역을 벗어나지 않는다");
+    assert.ok(Math.abs(spreadWidth / bookHeight - 296 / 210) < .001);
   }
+  assert.ok(Math.abs(carouselPreviewSize(350, 500).spreadWidth - 472.5) < .001);
+  assert.ok(carouselPreviewSize(350, 500).spreadWidth > 350, "가로는 잘려도 미리보기를 크게 보여준다");
+  assert.equal(carouselPreviewSize(1000, 1000).spreadWidth, 640);
   const source = readFileSync("src/features/tuti/components/HarumadiCarousel.tsx", "utf8");
   assert.match(source, /const Slide = styled.div[^`]*`position: absolute; top: 50%; left: 50%/);
   assert.match(source, /translate\(-50%, -50%\)/);
@@ -32,6 +36,19 @@ test("책만 전시 영역 중앙에 놓고 설명·쪽번호의 하단 배치�
   assert.doesNotMatch(source, /carouselBookCenter|--carousel-book-center/);
   assert.match(source, /<\/Stage>\s*<Details>/);
   assert.match(source, /const Controls = styled.nav`[^`]*margin-top: 24px/);
+});
+
+test("잘린 미리보기는 실제 보이는 양끝에서 이동하고 중앙에서는 책을 연다", () => {
+  for (const scale of [1, .5]) {
+    const visible = carouselVisibleTapBounds({ left: -60 * scale, width: 470 * scale }, { left: 0, width: 350 * scale });
+    assert.deepEqual(visible, { left: 0, width: 350 * scale });
+    assert.equal(carouselTapDirection(35 * scale, visible), -1);
+    assert.equal(carouselTapDirection(315 * scale, visible), 1);
+    assert.equal(carouselTapDirection(175 * scale, visible), 0);
+    assert.equal(carouselTapDirection(0, visible, true), 0);
+  }
+  assert.deepEqual(carouselVisibleTapBounds({ left: 100, width: 200 }, { left: 0, width: 250 }), { left: 100, width: 150 });
+  assert.equal(carouselVisibleTapBounds({ left: 400, width: 100 }, { left: 0, width: 350 }).width, 0);
 });
 
 test("선택한 책의 양끝은 옆 책 이동, 가운데·키보드는 열기이며 목업 배율에 독립적이다", () => {
@@ -77,6 +94,9 @@ test("스와이프는 거리·속도를 구분하고 양 끝은 탄성 이동만
   assert.equal(carouselSwipeDirection(60, 350, 400), -1);
   assert.equal(carouselSwipeDirection(-15, 350, 20), 1);
   assert.equal(carouselSwipeDirection(-15, 350, 500), 0);
+  assert.equal(carouselSwipeDirection(-27, 350, 500), 1);
+  assert.equal(carouselSwipeDirection(27, 350, 500), -1);
+  assert.equal(carouselSwipeDirection(-19, 350, 500), 0);
   assert.equal(carouselDragProgress(-40, 350, 2, 5), carouselDragProgress(-20, 175, 2, 5));
   assert.ok(Math.abs(carouselDragProgress(60, 350, 0, 5)) < .2);
   assert.ok(Math.abs(carouselDragProgress(-60, 350, 4, 5)) < .2);
