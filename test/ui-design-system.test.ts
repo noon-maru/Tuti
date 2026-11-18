@@ -112,7 +112,7 @@ test("홈은 보기·생성·책장 메뉴를 한 줄로 묶고 제목과 권수
   const header = home.match(/<Header>[\s\S]*?<\/Header>/)![0];
   assert.match(header, /<LibraryViewSwitch/);
   assert.match(header, /<CreateHarumadi/);
-  assert.match(header, /<LibraryMenu label="책장 메뉴"/);
+  assert.match(header, /<MainMenu label="책장 메뉴"/);
   assert.doesNotMatch(home, /ShelfCount|<Heading>|<Toolbar>|library-title/);
   assert.match(home, /--screen-padding-top: calc\(var\(--app-header-top-space, 24px\) \+ var\(--app-safe-area-top, 0px\)\)/);
   assert.match(header, /<SearchToggle[\s\S]*?aria-expanded=\{searchOpen\}/);
@@ -130,15 +130,15 @@ test("홈 생성은 글자를 유지하고 전체 자료와 설정은 상단 공
   assert.match(create, /line-height: 1\.5/);
   assert.match(create, /font-weight: 500/);
   assert.match(home, /const TextAction = [\s\S]*?:focus-visible/);
-  assert.match(home, /const LibraryMenu = styled\(ContextMenu\)`width: 44px; height: 44px/);
+  assert.match(source("src/features/tuti/components/MainMenu.tsx"), /const Menu = styled\(ContextMenu\)`\s*width: 44px; height: 44px/);
   assert.match(home, /const openEditor = \(\) => router.push\("\/harumadi"\)/);
-  const links = home.match(/<LibraryMenu\b[\s\S]*?<\/Header>/)![0];
+  const links = home.match(/<MainMenu\b[\s\S]*?<\/Header>/)![0];
   assert.match(links, /\/madi/);
   assert.match(links, /\/harumadi\/pdfs/);
   assert.match(links, /label: "전체 마디 보기"/);
   assert.match(links, /label: "저장한 PDF"/);
-  assert.match(links, /label: "설정"[\s\S]*?router.push\("\/settings"\)/);
-  assert.match(links, /<MoreHorizontal size=\{22\} aria-hidden="true"/);
+  assert.match(links, /onSettings=\{\(\) => router.push\("\/settings"\)/);
+  assert.match(source("src/features/tuti/components/MainMenu.tsx"), /<MoreVertical size=\{22\} aria-hidden="true"/);
   assert.doesNotMatch(home, /LibraryLinks|ArchiveMenu|const IconButton/);
   assert.match(home, /<\/ShelfScroll>\s*<MainNavigation active="harumadi"/);
   assert.match(source("src/features/tuti/components/MainNavigation.tsx"), /border-top: 1px solid var\(--color-border\)/);
