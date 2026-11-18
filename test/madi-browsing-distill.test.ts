@@ -27,6 +27,7 @@ function fixture() {
     "@/features/tuti/hooks/useJournalShareActions": { useJournalShareActions: () => ({}) },
     "@/features/tuti/components/JournalEntryTransition": { useJournalEntryTransitionTarget() {} },
     "@/features/tuti/navigation/androidBack": { ANDROID_BACK_EVENT: "android-back" },
+    "@/features/tuti/components/TutiPlaceIcon": { TutiPlaceIcon: "place-icon" },
     "@/store/tuti": { useTutiStore: (select: (state: unknown) => unknown) => select({ activeJournalEntryId: activeId, setActiveJournalEntry(id: string) { activeId = id; } }) },
     "@/shared/tuti/unfiledMadi": { unfiledMadi }, "@/shared/tuti/journalSearch": { filterJournalEntries }, "@/shared/tuti/journalCard": { journalCardPreview },
     "@/lib/feedback": { confirmAction: async () => false, showErrorToast() {} }, "@/shared/tuti/deletionCopy": { madiDeletionMessage() {} },
@@ -92,9 +93,12 @@ test("하단 상시 조작 없이도 휠·스와이프·방향키와 상세 열�
   (card.onClick as (event: unknown) => void)({ currentTarget: {} });
   assert.equal(f.opened(), "entry-1");
   const source = readFileSync("src/features/tuti/screens/journal/JournalScreen.tsx", "utf8");
-  assert.match(source, /MAX_VISIBLE_MEMORY_CARDS = 3/);
-  assert.doesNotMatch(source, /StackNavigation|FilterBar|TextCardPlace/);
-  assert.match(source, /:focus-within/); assert.match(source, /index === selectedEntryIndex && !entry.image/);
+  assert.match(source, /MAX_VISIBLE_MEMORY_CARDS = 7/);
+  assert.match(source, /MEMORY_CARD_GAP_MIN = 40/); assert.match(source, /MEMORY_CARD_GAP_MAX = 60/);
+  assert.doesNotMatch(source, /StackNavigation|FilterBar|PhotoCaption/);
+  assert.match(source, /:focus-within/); assert.match(source, /!entry.image && <TextCardContent>/);
+  assert.match(source, /preview.place && <TextCardPlace>/);
+  assert.match(source, /\$tone === 1 \? "var\(--color-brand-100\)" : "var\(--color-secondary-100\)"/);
   f.dispose();
 });
 test("검색 결과가 없을 때 한 번의 전체 보기로 검색과 필터를 함께 해제한다", () => {
