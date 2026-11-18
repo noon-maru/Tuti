@@ -81,7 +81,7 @@ export function SettingsScreen({
             <strong>{accountLabel ?? "기기에 저장된 Tuti"}</strong>
             <p>
               {accountConnected
-                ? "계정과 마디를 한곳에서 관리할 수 있어요."
+                ? "연결된 계정"
                 : "로그인하면 다른 기기에서도 마디를 이어볼 수 있어요."}
             </p>
           </div>
@@ -90,19 +90,15 @@ export function SettingsScreen({
         <SettingsSection aria-labelledby="settings-account-heading">
           <SectionLabel id="settings-account-heading">내 정보</SectionLabel>
           <SettingsList>
-            <SettingsRow type="button" onClick={() => onNavigate("pets")}><RowIcon $tone="brand"><UserRound aria-hidden="true" /></RowIcon><RowCopy><strong>함께하는 반려동물</strong><span>선택 프로필을 등록하고 관리해요.</span></RowCopy><ChevronRight aria-hidden="true" /></SettingsRow>
+            <SettingsRow type="button" onClick={() => onNavigate("pets")}><RowIcon><UserRound aria-hidden="true" /></RowIcon><RowCopy><strong>함께하는 반려동물</strong></RowCopy><ChevronRight aria-hidden="true" /></SettingsRow>
             <SettingsRow
               type="button"
               onClick={() => onNavigate("account")}
             >
-              <RowIcon $tone="brand"><UserRound aria-hidden="true" /></RowIcon>
+              <RowIcon><UserRound aria-hidden="true" /></RowIcon>
               <RowCopy>
                 <strong>{accountConnected ? "계정 관리" : "계정 및 데이터"}</strong>
-                <span>
-                  {accountConnected
-                    ? "이름과 로그인 수단, 저장된 데이터를 관리해요."
-                    : "계정을 연결하거나 기기의 데이터를 관리해요."}
-                </span>
+                {!accountConnected && <span>계정을 연결하거나 기기의 데이터를 관리해요.</span>}
               </RowCopy>
               <ChevronRight aria-hidden="true" />
             </SettingsRow>
@@ -116,7 +112,7 @@ export function SettingsScreen({
               type="button"
               onClick={() => onNavigate("location")}
             >
-              <RowIcon $tone="secondary"><MapPin aria-hidden="true" /></RowIcon>
+              <RowIcon><MapPin aria-hidden="true" /></RowIcon>
               <RowCopy>
                 <strong>위치 설정</strong>
                 <span>현재 위치 사용과 동의 내역을 확인해요.</span>
@@ -128,7 +124,7 @@ export function SettingsScreen({
                 type="button"
                 onClick={() => onNavigate("notifications")}
               >
-                <RowIcon $tone="bridge"><BellRing aria-hidden="true" /></RowIcon>
+                <RowIcon><BellRing aria-hidden="true" /></RowIcon>
                 <RowCopy>
                   <strong>알림 설정</strong>
                   <span>함께 채우기 소식과 마디 기록 알림을 정해요.</span>
@@ -192,12 +188,11 @@ export function SettingsScreen({
               type="button"
               onClick={() => onNavigate("inquiry")}
             >
-              <RowIcon $tone="neutral">
+              <RowIcon>
                 <MessageCircleQuestion aria-hidden="true" />
               </RowIcon>
               <RowCopy>
                 <strong>1:1 문의</strong>
-                <span>문의하고 답변 내역을 확인해요.</span>
               </RowCopy>
               <ChevronRight aria-hidden="true" />
             </SettingsRow>
@@ -205,10 +200,9 @@ export function SettingsScreen({
               type="button"
               onClick={() => onNavigate("legal")}
             >
-              <RowIcon $tone="neutral"><FileLock2 aria-hidden="true" /></RowIcon>
+              <RowIcon><FileLock2 aria-hidden="true" /></RowIcon>
               <RowCopy>
                 <strong>약관 및 개인정보</strong>
-                <span>서비스 약관과 개인정보 처리방침을 확인해요.</span>
               </RowCopy>
               <ChevronRight aria-hidden="true" />
             </SettingsRow>
@@ -299,8 +293,7 @@ const AccountSummary = styled.section`
   gap: var(--space-4);
   min-width: 0;
   padding: var(--space-5);
-  border: 1px solid var(--color-brand-200);
-  border-radius: 20px;
+  border-radius: 16px;
   background: var(--color-brand-100);
 
   > div:last-of-type {
@@ -312,7 +305,7 @@ const AccountSummary = styled.section`
   strong {
     overflow: hidden;
     font-size: var(--font-size-300);
-    font-weight: 700;
+    font-weight: 600;
     text-overflow: ellipsis;
     white-space: nowrap;
   }
@@ -331,7 +324,7 @@ const AccountMark = styled.span`
   display: grid;
   place-items: center;
   border-radius: 16px;
-  background: var(--color-secondary-300);
+  background: var(--color-brand-200);
   color: var(--color-brand-900);
   font-size: var(--font-size-400);
   font-weight: 800;
@@ -345,14 +338,13 @@ const SettingsSection = styled.section`
 
 const SectionLabel = styled.h2`
   padding-inline: var(--space-1);
-  color: var(--color-brand-700);
+  color: var(--color-text-muted);
   font-size: var(--font-size-100);
-  font-weight: 700;
+  font-weight: 500;
 `;
 
 const SettingsList = styled.div`
   overflow: hidden;
-  border-block: 1px solid var(--color-neutral-400);
 
   > button + button {
     border-top: 1px solid var(--color-neutral-300);
@@ -361,7 +353,6 @@ const SettingsList = styled.div`
 
 const ToggleList = styled.div`
   overflow: hidden;
-  border-block: 1px solid var(--color-neutral-400);
 `;
 
 const ToggleRow = styled.div`
@@ -380,7 +371,7 @@ const ToggleRow = styled.div`
 const ToggleLabel = styled.label`
   color: var(--color-text);
   font-size: var(--font-size-200);
-  font-weight: 650;
+  font-weight: 500;
   cursor: pointer;
 `;
 
@@ -444,7 +435,7 @@ const Switch = styled.label`
 const SettingsRow = styled(BaseButton)`
   width: 100%;
   min-width: 0;
-  min-height: 68px;
+  min-height: 60px;
   display: grid;
   grid-template-columns: 38px minmax(0, 1fr) 20px;
   align-items: center;
@@ -472,28 +463,12 @@ const SettingsRow = styled(BaseButton)`
   }
 `;
 
-const RowIcon = styled.span<{
-  $tone: "brand" | "secondary" | "bridge" | "neutral";
-}>`
+const RowIcon = styled.span`
   width: 38px;
   height: 38px;
   display: grid;
   place-items: center;
-  border-radius: 13px;
-  background: ${({ $tone }) =>
-    $tone === "brand"
-      ? "var(--color-brand-200)"
-      : $tone === "secondary"
-        ? "var(--color-secondary-200)"
-        : $tone === "bridge"
-          ? "color-mix(in srgb, var(--color-accent-bridge) 34%, white)"
-          : "var(--color-neutral-300)"};
-  color: ${({ $tone }) =>
-    $tone === "secondary"
-      ? "var(--color-secondary-900)"
-      : $tone === "neutral"
-        ? "var(--color-neutral-1000)"
-        : "var(--color-brand-900)"};
+  color: var(--color-text-muted);
 
   svg {
     width: 19px;
@@ -509,7 +484,7 @@ const RowCopy = styled.span`
 
   strong {
     font-size: var(--font-size-200);
-    font-weight: 650;
+    font-weight: 500;
   }
 
   span {
