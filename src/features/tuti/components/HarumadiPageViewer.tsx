@@ -113,7 +113,7 @@ export function HarumadiPageViewer({ book, entries, onClose, closing = false, ow
       }}>
       <Page ref={sheet} $captionSpace={captionSpace} $front={Boolean(retained && current < retained.index)} aria-label={current === 0 ? "하루마디 표지" : `${current}쪽`}>
         <Paper>
-        <HarumadiPageSheet page={pages[current]} coverStyle={book.coverStyle} number={current} />
+        <HarumadiPageSheet page={pages[current]} coverStyle={book.coverStyle} paperColor={book.paperColor} number={current} />
         <Edge type="button" $side="left" aria-label="왼쪽 영역을 눌러 이전 쪽" disabled={closing || current === 0 || Boolean(retained)} onClick={() => edge(-1)} />
         <Edge type="button" $side="right" aria-label={lastPage ? "오른쪽 영역을 눌러 덮기" : "오른쪽 영역을 눌러 다음 쪽"} disabled={closing || Boolean(retained)} onClick={() => edge(1)} />
         </Paper>
@@ -121,7 +121,7 @@ export function HarumadiPageViewer({ book, entries, onClose, closing = false, ow
       </Page>
       {retained && <Page ref={old} $captionSpace={captionSpace} $front={retained.index < current} aria-hidden="true" inert data-retained-page>
         <Paper>
-        <HarumadiPageSheet page={retained.page} coverStyle={book.coverStyle} number={retained.index} />
+        <HarumadiPageSheet page={retained.page} coverStyle={book.coverStyle} paperColor={book.paperColor} number={retained.index} />
         </Paper>
         <HarumadiByline shared={book.shared} authorName={harumadiPageAuthor(book.shared, retained.page)} />
       </Page>}

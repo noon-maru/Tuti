@@ -1,4 +1,5 @@
 "use client";
+import { HarumadiAppearanceFields } from "@/features/tuti/components/HarumadiAppearanceFields";
 import { confirmAction } from "@/lib/feedback";
 
 import styled from "@emotion/styled";
@@ -45,7 +46,6 @@ import {
   parseHarumadiPdfInput,
   HARUMADI_PDF_TITLE_LIMIT,
   HARUMADI_PDF_LETTER_LIMIT,
-  type HarumadiPdfCoverStyle,
   type HarumadiPdfDraft,
 } from "@/shared/api/harumadiPdf";
 import { LoadingIndicator } from "@/features/tuti/components/LoadingIndicator";
@@ -63,22 +63,6 @@ const HARUMADI_PDF_STEPS = [
   { value: "preview", label: "미리보기" },
 ] as const;
 
-const COVER_BACKGROUND_OPTIONS = [
-  { value: "white", label: "흰색", color: "#FFFFFF" },
-  { value: "green", label: "연두색", color: "#EBF5D5" },
-] as const;
-
-const COVER_IMAGE_OPTIONS = [
-  { value: false, label: "이미지 없이" },
-  { value: true, label: "이미지와 함께" },
-] as const;
-
-function makeCoverStyle(
-  background: "white" | "green",
-  usesImage: boolean,
-): HarumadiPdfCoverStyle {
-  return `${background}-${usesImage ? "image" : "plain"}`;
-}
 
 const HARUMADI_PDF_STEP_VIEW_ACTIVITY = {
   selection: "harumadi_selection_viewed",
@@ -207,9 +191,6 @@ function HarumadiPdfEditor({ ownerId }: { ownerId: string }) {
   const coverUsesImage = draft
     ? harumadiPdfCoverUsesImage(draft.coverStyle)
     : false;
-  const coverBackground = draft?.coverStyle.startsWith("green-")
-    ? "green"
-    : "white";
   const coverPalette = getHarumadiPdfCoverPalette(
     draft?.coverStyle ?? "white-plain",
   );
@@ -705,68 +686,10 @@ function HarumadiPdfEditor({ ownerId }: { ownerId: string }) {
                   />
                 </Field>
                 <fieldset>
-                  <legend>표지</legend>
-                  <Hint>배경과 사진 구성을 골라주세요.</Hint>
-                  <CoverControls>
-                    <CoverControl>
-                      <CoverControlLabel>배경 색상</CoverControlLabel>
-                      <CoverChoices>
-                        {COVER_BACKGROUND_OPTIONS.map((option) => {
-                          const active = coverBackground === option.value;
-                          return (
-                            <CoverChoiceButton
-                              key={option.value}
-                              type="button"
-                              $active={active}
-                              aria-pressed={active}
-                              onClick={() =>
-                                update({
-                                  ...draft,
-                                  coverStyle: makeCoverStyle(
-                                    option.value,
-                                    coverUsesImage,
-                                  ),
-                                })
-                              }
-                            >
-                              <ColorSwatch $color={option.color} />
-                              {option.label}
-                            </CoverChoiceButton>
-                          );
-                        })}
-                      </CoverChoices>
-                    </CoverControl>
-                    <CoverControl>
-                      <CoverControlLabel>이미지</CoverControlLabel>
-                      <CoverChoices>
-                        {COVER_IMAGE_OPTIONS.map((option) => {
-                          const active = coverUsesImage === option.value;
-                          return (
-                            <CoverChoiceButton
-                              key={String(option.value)}
-                              type="button"
-                              $active={active}
-                              aria-pressed={active}
-                              onClick={() =>
-                                update({
-                                  ...draft,
-                                  coverStyle: makeCoverStyle(
-                                    coverBackground,
-                                    option.value,
-                                  ),
-                                  coverEntryId: option.value
-                                    ? coverPhoto?.id ?? null
-                                    : null,
-                                })
-                              }
-                            >
-                              {option.label}
-                            </CoverChoiceButton>
-                          );
-                        })}
-                      </CoverChoices>
-                    </CoverControl>
-                  </CoverControls>
+                  <legend>책 꾸미기</legend>
+                  <Hint>표지와 속지의 색을 골라주세요.</Hint>
+                  <HarumadiAppearanceFields value={draft} onChange={appearance => update({ ...draft, ...appearance,
+                    coverEntryId: appearance.coverStyle.endsWith("-image") ? coverPhoto?.id ?? null : null })} />
                   <CoverPreview $background={coverPalette.background}>
                     <CoverOptionHeader $color={coverPalette.foreground}>
                       <span>
@@ -1725,56 +1648,6 @@ const LetterPageNumber = styled.span`
   bottom: 6%;
   font-size: 9px;
   font-variant-numeric: tabular-nums;
-`;
-
-const CoverControls = styled.div`
-  display: grid;
-  gap: var(--space-4);
-  margin-top: var(--space-4);
-`;
-
-const CoverControl = styled.div`
-  display: grid;
-  gap: var(--space-2);
-`;
-
-const CoverControlLabel = styled.span`
-  color: var(--color-text-muted);
-  font-size: var(--font-size-100);
-  font-weight: 500;
-`;
-
-const CoverChoices = styled.div`
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: var(--space-2);
-`;
-
-const CoverChoiceButton = styled(BaseButton)<{ $active: boolean }>`
-  min-height: 44px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: var(--space-2);
-  padding: 0 var(--space-3);
-  border: 1px solid
-    ${({ $active }) =>
-      $active ? "var(--color-brand-500)" : "var(--color-neutral-300)"};
-  border-radius: 12px;
-  background: ${({ $active }) =>
-    $active ? "var(--color-brand-100)" : "var(--color-white)"};
-  color: var(--color-text);
-  font-size: var(--font-size-100);
-  font-weight: ${({ $active }) => ($active ? 700 : 500)};
-`;
-
-const ColorSwatch = styled.span<{ $color: string }>`
-  width: 20px;
-  height: 20px;
-  flex: 0 0 auto;
-  border: 1px solid var(--color-neutral-300);
-  border-radius: 6px;
-  background: ${({ $color }) => $color};
 `;
 
 const CoverPreview = styled.div<{ $background: string }>`

@@ -78,7 +78,7 @@ test("메인 확대는 기존 좌우 여백과 2열 간격을 유지하고 행�
   assert.match(shelf, /height: 108px; padding: 18px 0 12px/);
   assert.match(shelf, /bottom: 60px; width: 44px; height: 44px/);
   assert.match(home, /--harumadi-shelf-title-size: 16px/);
-  assert.match(shelf, /strong \{ padding-right: 36px/);
+  assert.match(shelf, /strong \{[^}]*padding-right: 36px/);
   assert.doesNotMatch(home, /min-height: 44\.8px/);
   assert.match(shelf, /-webkit-line-clamp: 2/);
   assert.match(home, /max-height: 620px/);

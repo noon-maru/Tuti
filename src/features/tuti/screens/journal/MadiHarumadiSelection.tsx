@@ -13,6 +13,7 @@ import { addMadiToHarumadi } from "@/lib/addMadiToHarumadi";
 import { HarumadiTitleHint } from "@/features/tuti/components/HarumadiTitleHint";
 import { groupHarumadiChoices } from "@/shared/harumadi/recentChoices";
 import type { Harumadi } from "@/shared/api/harumadi";
+import { getHarumadiPdfCoverPalette } from "@/shared/api/harumadiPdf";
 import { useHarumadiSearch } from "@/features/tuti/hooks/useHarumadiSearch";
 import { useHarumadiLibrary } from "@/features/tuti/hooks/useHarumadiLibrary";
 import { MadiSearchField } from "@/features/tuti/components/MadiSearchField";
@@ -68,7 +69,7 @@ export function MadiHarumadiSelection({ ownerId, entryId, initialBookId, onDone,
   };
   const renderChoice = (book: Harumadi) => <Choice key={book.id} $selected={selected === book.id}>
     <input type="radio" name="madi-harumadi" value={book.id} checked={selected === book.id} disabled={busy} onChange={() => { setSelected(book.id); setError(""); }} />
-    <Spine aria-hidden="true" $green={book.coverStyle.startsWith("green")}><BookOpen size={18} strokeWidth={1.3} /></Spine>
+    <Spine aria-hidden="true" style={{ background: getHarumadiPdfCoverPalette(book.coverStyle).background }}><BookOpen size={18} strokeWidth={1.3} /></Spine>
     <span><strong>{book.title}</strong><small>마디 {book.entryIds.length}개{book.shared ? ` · ${harumadiSharingNotice(book)}` : ""}</small><HarumadiTitleHint book={book} />{book.role === "contributor" && <small>{book.ownerName}님의 하루마디</small>}</span>
   </Choice>;
 
@@ -118,7 +119,7 @@ const Intro = styled.div`margin-bottom: 24px; h1 { margin: 0 0 12px; font-size: 
 const Choices = styled.div`display: grid; gap: 10px;`;
 const ChoiceGroup = styled.section`display: grid; gap: 10px; min-width: 0; & + & { margin-top: 14px; } h2 { margin: 0; font-size: 14px; font-weight: 500; color: var(--color-text-muted); line-height: 1.6; }`;
 const Choice = styled.label<{ $selected: boolean }>`display: flex; align-items: center; gap: 12px; min-height: 84px; padding: 12px; border: 1px solid ${({ $selected }) => $selected ? "var(--color-brand-700)" : "var(--color-border)"}; border-radius: 12px; background: ${({ $selected }) => $selected ? "var(--color-brand-100)" : "var(--color-surface)"}; cursor: pointer; input { flex: none; accent-color: var(--color-brand-800); width: 18px; height: 18px; margin: 0; } &:has(input:disabled) { opacity: .6; cursor: default; } &:has(input:focus-visible) { outline: 2px solid var(--color-brand-700); outline-offset: 3px; } > span:last-child { min-width: 0; display: grid; gap: 5px; } strong { font-size: 15px; font-weight: 500; overflow-wrap: anywhere; line-height: 1.5; } small { color: var(--color-text-muted); font-size: 12px; line-height: 1.5; }`;
-const Spine = styled.span<{ $green: boolean }>`width: 38px; height: 52px; flex: none; display: grid; place-items: center; border: 1px solid var(--color-border); border-left: 3px solid #dce3d6; border-radius: 1px 4px 4px 1px; background: ${({ $green }) => $green ? "#EBF5D5" : "#fff"}; color: var(--color-text-muted);`;
+const Spine = styled.span`width: 38px; height: 52px; flex: none; display: grid; place-items: center; border: 1px solid var(--color-border); border-left: 3px solid #dce3d6; border-radius: 1px 4px 4px 1px; background: #fff; color: var(--color-text-muted);`;
 const Notice = styled.div`padding: 24px 0; display: grid; justify-items: center; gap: 12px; text-align: center; color: var(--color-text-muted); font-size: 14px; line-height: 1.8; p { margin: 0; }`;
 const ErrorMessage = styled.p`font-size: 13px; line-height: 1.7; color: var(--color-danger, #b84242);`;
 const Completion = styled.div`flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 20px; text-align: center; padding: 24px 0; > svg { flex: none; color: var(--color-brand-800); } h1 { margin: 0; font-size: 25px; font-weight: 600; line-height: 1.4; &:focus { outline: none; } } p { margin: 0; color: var(--color-text-muted); font-size: 15px; line-height: 1.8; overflow-wrap: anywhere; }`;

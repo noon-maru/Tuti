@@ -6,7 +6,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { HarumadiSettingsCover } from "@/features/tuti/components/HarumadiSettingsCover";
 import { HarumadiPageSheet } from "@/features/tuti/components/HarumadiSheet";
 import { buildHarumadiCoverPage, buildHarumadiReaderPages } from "@/shared/harumadi/readerPages";
-import { HARUMADI_PDF_COVER_STYLES } from "@/shared/api/harumadiPdf";
+import { HARUMADI_PDF_COVER_STYLES, getHarumadiPdfCoverPalette } from "@/shared/api/harumadiPdf";
 import { harumadiContent } from "./fixtures/harumadiContent";
 
 test("설정과 실제 표지는 같은 날짜·첫 사진 선택 및 빈 책 상태를 공유한다", () => {
@@ -35,7 +35,7 @@ test("설정 표지는 같은 표지 데이터를 쓰고 미리보기에서만 �
       assert.match(html, /오래 간직할 하루/);
       assert.match(html, /2026\.10\.26/);
       assert.match(html, />Tuti<\/span>/);
-      assert.match(html, coverStyle.startsWith("green") ? /#EBF5D5/ : /#FFFFFF/);
+      assert.ok(html.includes(getHarumadiPdfCoverPalette(coverStyle).background));
       assert.doesNotMatch(html, /Tuti \/ 하루마디|첫 사진이 표지가/);
     }
     assert.match(preview, coverStyle.endsWith("-image") ? /data-cover-preview="photo"/ : /data-cover-preview="plain"/);
@@ -49,7 +49,7 @@ test("설정 표지는 같은 표지 데이터를 쓰고 미리보기에서만 �
   const empty = renderToStaticMarkup(createElement(HarumadiSettingsCover, { title: " ", coverStyle: "green-image", entries: [] }));
   assert.match(empty, /하루마디 제목/);
   assert.match(empty, /아직 쓰지 않은, 우리 이야기/);
-  assert.match(empty, /#8CBDEF/);
+  assert.match(empty, /#D6E5BD/);
   assert.doesNotMatch(empty, /<img/);
 });
 

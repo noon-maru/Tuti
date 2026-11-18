@@ -8,7 +8,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter, useSearchParams } from "next/navigation";
 import styled from "@emotion/styled";
-import { Check, MessageCircle, PenLine, Settings2, Users } from "lucide-react";
+import { MessageCircle, PenLine, Settings2, Users } from "lucide-react";
+import { HarumadiAppearanceFields } from "@/features/tuti/components/HarumadiAppearanceFields";
 import { useSession } from "@/features/tuti/hooks/useSession";
 import { AppLoadingScreen } from "@/features/tuti/components/LoadingIndicator";
 import { BackButton, BaseButton, PrimaryButton } from "@/features/tuti/components/buttons";
@@ -232,7 +233,7 @@ function HarumadiEditor({ owner, initial, read, verified, refreshing, onRefresh,
     catch (cause) { setBusy(false); setError(cause instanceof Error ? cause.message : "삭제하지 못했어요."); }
   }
   const pdfInput = useMemo<HarumadiPdfInput | null>(() => harumadi && chosen.length ? {
-    title: harumadi.title, coverStyle: harumadi.coverStyle, backCoverText: harumadi.backCoverText ?? LEGACY_HARUMADI_BACK_COVER_TEXT, letter: "", entryIds: chosen.map(entry => entry.id),
+    title: harumadi.title, coverStyle: harumadi.coverStyle, paperColor: harumadi.paperColor ?? "white", backCoverText: harumadi.backCoverText ?? LEGACY_HARUMADI_BACK_COVER_TEXT, letter: "", entryIds: chosen.map(entry => entry.id),
     ...(harumadi.shared ? { harumadiId: harumadi.id, harumadiRevision: harumadi.revision } : {}),
     coverEntryId: harumadi.coverStyle.endsWith("-image") ? chosen.find(entry => entry.image)?.id ?? null : null,
     freeformNonSensitiveConfirmed: confirmed,
@@ -291,7 +292,7 @@ function HarumadiEditor({ owner, initial, read, verified, refreshing, onRefresh,
       {read?.cached && read.missingImages > 0 && <p className="hint">일부 사진은 연결 후 볼 수 있어요.</p>}
       {mode === "comments" && harumadi ? <HarumadiComments owner={owner} bookId={harumadi.id} onExit={finishClose} /> : mode === "together" && harumadi ? readOnly ? <p>연결 후 최신 내용을 확인하면 함께 채울 수 있어요.</p> : <HarumadiTogetherPanel owner={owner} bookId={harumadi.id} bookTitle={harumadi.title} period={harumadi} entries={chosen} onKeep={() => { if (busy || readOnly) return; setError(""); setConfirmed(false); setPdf(null); setMode("pdf"); }} onExit={finishClose} /> : mode === "settings" ? <SettingsPanel $creating={!harumadi}>
         <SettingsIntro $creating={!harumadi}>
-        <h1>{harumadi ? "이름과 표지" : "어떤 하루를 담을까요?"}</h1>
+        <h1>{harumadi ? "하루마디 꾸미기" : "어떤 하루를 담을까요?"}</h1>
         <p>{harumadi ? <>표지를 고르고,<br />기억하고 싶은 순간을 천천히 채워보세요.</> : "이름과 표지를 고르면 준비 끝이에요."}</p>
         </SettingsIntro>
         <CoverSetup $creating={!harumadi}>
@@ -303,7 +304,7 @@ function HarumadiEditor({ owner, initial, read, verified, refreshing, onRefresh,
         </CoverSetup>
         {!harumadi && <HarumadiTitleIdeas disabled={busy || readOnly} onChoose={title => { setSettings({ ...settings, title }); setConfirmed(false); }} />}
         <HarumadiPeriodFields value={settings} disabled={busy || readOnly} onChange={period => setSettings({ ...settings, ...period })} />
-        <Fieldset><legend>표지</legend><Choices>{(["white-plain", "green-plain", "white-image", "green-image"] as const).map((style, index) => <Choice key={style} type="button" aria-pressed={settings.coverStyle === style} $selected={settings.coverStyle === style} onClick={() => setSettings({ ...settings, coverStyle: style })}><Swatch $green={style.startsWith("green")} $photo={style.endsWith("image")} />{["흰색", "연두색", "흰색 · 사진", "연두색 · 사진"][index]}{settings.coverStyle === style && <Check size={12} />}</Choice>)}</Choices></Fieldset>
+        <HarumadiAppearanceFields value={settings} disabled={busy || readOnly} onChange={appearance => setSettings({ ...settings, ...appearance })} />
         {harumadi && <BackCoverField>
           <Label htmlFor="harumadi-back-cover">뒷표지 문구</Label>
           <BackCoverInput id="harumadi-back-cover" rows={3} maxLength={HARUMADI_BACK_COVER_TEXT_LIMIT}
@@ -378,16 +379,14 @@ const TitleInput = styled.input`${inputControlStyles}`;
 const BackCoverField = styled.div`margin-top: 24px;`;
 const BackCoverInput = styled.textarea`${inputControlStyles} resize: vertical; min-height: 96px;`;
 const BackCoverTools = styled.div`display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 4px 12px; small { font-size: 12px; color: var(--color-text-muted); } button { font-size: 13px; }`;
-const Fieldset = styled.fieldset`border: 0; padding: 0; margin: 24px 0; legend { font-size: 14px; font-weight: 600; margin-bottom: 12px; }`;
-const Choices = styled.div`display: grid; grid-template-columns: 1fr 1fr; gap: 8px;`;
-const Choice = styled(BaseButton)<{ $selected: boolean }>`display: flex; align-items: center; gap: 7px; min-height: 44px; padding: 10px; font-size: 13px; background: white; border-radius: 10px; border: 1px solid ${({ $selected }) => $selected ? "var(--color-brand-700)" : "var(--color-border)"}; color: inherit;`;
-const Swatch = styled.span<{ $green: boolean; $photo: boolean }>`width: 16px; height: 22px; flex: none; border: 1px solid #d1d9c9; border-radius: 1px; background: ${({ $green }) => $green ? "#EBF5D5" : "#fff"}; ${({ $photo }) => $photo && "box-shadow: inset 0 -11px #d9e6ed;"}`;
 const Confirmation = styled.label`display: flex; gap: 9px; align-items: flex-start; margin: 18px 0; font-size: 13px; line-height: 1.7; input { margin-top: 3px; flex: none; }`;
 const SettingsPanel = styled.div<{ $creating: boolean }>`
+  [data-harumadi-appearance] { margin-block: 24px; }
   display: ${({ $creating }) => $creating ? "flex" : "contents"};
   > p { font-size: 14px; line-height: 1.8; color: var(--color-text-muted); white-space: pre-line; }
   ${({ $creating }) => $creating && `
     flex-direction: column; gap: 18px; min-height: 100%; justify-content: space-between;
+    > [data-harumadi-appearance] { margin-block: 0; }
     --create-cover-width: clamp(104px, calc(20cqh - 40px), 132px);
     > fieldset { margin: 0; min-width: 0; }
     > fieldset legend { margin-bottom: 8px; font-size: 14px; }

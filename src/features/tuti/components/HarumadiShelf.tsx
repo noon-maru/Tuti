@@ -3,6 +3,7 @@ import styled from "@emotion/styled";
 import { useEffect, useRef, useState } from "react";
 import { MoreVertical } from "lucide-react";
 import { HarumadiCover } from "./HarumadiCover";
+import { getHarumadiPdfCoverPalette } from "@/shared/api/harumadiPdf";
 import { BaseButton } from "./buttons";
 import { ContextMenu } from "./ContextMenu";
 import { harumadiActions, type HarumadiOpeningMode } from "../navigation/harumadiActions";
@@ -45,19 +46,20 @@ export function HarumadiShelf({ books, ownerId, view, onOpen }: {
 
 /** No photos or content requests: a spine only needs the book's list metadata. */
 export function HarumadiSpine({ book }: { book: Harumadi }) {
-  return <Spine $green={book.coverStyle.startsWith("green")} data-harumadi-spine title={book.title}>
+  const palette = getHarumadiPdfCoverPalette(book.coverStyle);
+  return <Spine style={{ background: palette.background, color: palette.foreground }} data-harumadi-spine title={book.title}>
     <span className="spine-date">{book.shared ? "함께" : new Intl.DateTimeFormat("ko-KR", { year: "numeric", month: "2-digit", timeZone: "Asia/Seoul" }).format(new Date(book.createdAt))}</span>
     <strong>{book.title}</strong><span className="spine-mark">Tuti</span>
   </Spine>;
 }
 const ShelfContent = styled.div`flex: none; width: 100%; margin-block: auto; padding-block: 16px; > div:last-child { margin-bottom: 0; }`;
-const Spine = styled.span<{ $green: boolean }>`
+const Spine = styled.span`
   display: block; position: relative; box-sizing: border-box; width: 100%; max-width: 80px; height: 224px; margin: 0 auto; overflow: hidden;
-  border: 1px solid #dce3d6; border-radius: 4px 5px 2px 2px; background: ${({ $green }) => $green ? "#EBF5D5" : "#FFFFFF"}; color: var(--color-text);
+  border: 1px solid #dce3d6; border-radius: 4px 5px 2px 2px; background: #FFFFFF; color: var(--color-text);
   box-shadow: inset 4px 0 8px #1b222a06, inset -3px 0 5px #1b222a04, 3px 2px 0 #e3e8de, 4px 7px 12px #1b222a0c;
   &::before { content: ""; position: absolute; inset: 0 auto 0 5px; border-left: 1px solid #1b222a08; }
   strong { font-family: var(--font-emotional); position: absolute; top: 43px; bottom: 43px; left: 50%; transform: translateX(-50%); writing-mode: vertical-rl; text-orientation: mixed; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 15px; line-height: 1.5; font-weight: 600; letter-spacing: .04em; }
-  .spine-date, .spine-mark { position: absolute; left: 8px; right: 8px; text-align: center; color: var(--color-text-muted); font-variant-numeric: tabular-nums; }
+  .spine-date, .spine-mark { position: absolute; left: 8px; right: 8px; text-align: center; color: inherit; opacity: .78; font-variant-numeric: tabular-nums; }
   .spine-date { top: 15px; font-size: 9px; white-space: nowrap; }
   .spine-mark { bottom: 17px; font-size: 10px; letter-spacing: .03em; }
 `;

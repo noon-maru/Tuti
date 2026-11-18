@@ -143,7 +143,7 @@ test("읽기 글꼴을 인쇄 수치와 분리하고 좁은 지면에서도 제�
     assert.equal(body.map(p => p.title).join(""), entries[0].title);
   }
   const sheet = readFileSync("src/features/tuti/components/HarumadiSheet.tsx", "utf8");
-  assert.match(sheet, /\$reading data-harumadi-page/);
+  assert.match(sheet, /\$reading style=\{paperStyle\} data-harumadi-page/);
   assert.match(sheet, /--hm-body: \$\{reading.body\}px/);
   assert.match(sheet, /--hm-photo-body: \$\{reading.photoBody\}px/);
   const sample = sheet.slice(sheet.indexOf("export function WelcomeHarumadiSample"), sheet.indexOf("function PhotoHeader"));

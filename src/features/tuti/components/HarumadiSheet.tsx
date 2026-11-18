@@ -9,10 +9,12 @@ import type { HarumadiPdfCoverStyle } from "@/shared/api/harumadiPdf";
 import { HARUMADI_READING_TYPE as reading } from "@/shared/harumadi/readingTypography";
 import { HARUMADI_READING_LAYOUT as readingLayout } from "@/shared/harumadi/readingTypography";
 import { readerMetaLabel } from "@/shared/harumadi/readerText";
+import { getHarumadiPaperPalette, type HarumadiPaperColor } from "@/shared/harumadi/colors";
 
 /** 인쇄 예시의 지면 기하는 공유하되 실제 읽기의 글자·배치는 화면용 규칙을 쓴다. */
-export function HarumadiPageSheet({ page, coverStyle, number, compactCover = false, preview = false }: { page: HarumadiReaderPage; coverStyle: HarumadiPdfCoverStyle; number: number; compactCover?: boolean; preview?: boolean }) {
+export function HarumadiPageSheet({ page, coverStyle, paperColor = "white", number, compactCover = false, preview = false }: { page: HarumadiReaderPage; coverStyle: HarumadiPdfCoverStyle; paperColor?: HarumadiPaperColor; number: number; compactCover?: boolean; preview?: boolean }) {
   const palette = getHarumadiPdfCoverPalette(coverStyle);
+  const paperStyle = { "--hm-paper-background": getHarumadiPaperPalette(paperColor).background } as React.CSSProperties;
   const photo = page.image ? <Image src={page.image} alt="마디에 남긴 사진" fill unoptimized sizes="(max-width: 600px) 85vw, 400px" /> : null;
   const photoStyle = page.photoSize ? { width: pt(page.photoSize.width), height: pt(page.photoSize.height) } : undefined;
   if (page.kind === "cover" || page.kind === "back") return <Sheet $reading $compactCover={compactCover} data-harumadi-page={page.kind}
@@ -21,25 +23,25 @@ export function HarumadiPageSheet({ page, coverStyle, number, compactCover = fal
       {page.kind === "cover" ? <><CoverHeader data-cover-header><span data-cover-date style={{ whiteSpace: "pre-line" }}>{page.date}</span><span data-cover-title title={page.title}>{page.title}</span></CoverHeader><CoverBody data-cover-body>{coverStyle.endsWith("-image") && <CoverPhoto data-cover-photo style={{ background: photo ? undefined : palette.placeholder }}>{photo}</CoverPhoto>}</CoverBody><CoverMark data-cover-mark>Tuti</CoverMark></> : <BackMessage>{page.content}</BackMessage>}
     </CoverPaper>
   </Sheet>;
-  if (page.kind === "empty") return <Sheet $reading data-harumadi-page="empty"><TextPaper $cover={false}><TextFrame><TextTitle>첫 마디를 채워보세요</TextTitle><TextBody>사진 한 장, 짧은 이야기부터.</TextBody></TextFrame></TextPaper></Sheet>;
-  if (page.kind === "photo-only") return <Sheet $reading data-harumadi-page="photo-only"><PhotoOnlyPaper $cover={false}>
+  if (page.kind === "empty") return <Sheet $reading style={paperStyle} data-harumadi-page="empty"><TextPaper $cover={false}><TextFrame><TextTitle>첫 마디를 채워보세요</TextTitle><TextBody>사진 한 장, 짧은 이야기부터.</TextBody></TextFrame></TextPaper></Sheet>;
+  if (page.kind === "photo-only") return <Sheet $reading style={paperStyle} data-harumadi-page="photo-only"><PhotoOnlyPaper $cover={false}>
     <PhotoHeader date={page.date.replaceAll("-", ".")} place={page.place} height={page.headerHeight} /><PhotoOnlyBody><PhotoOnly style={photoStyle} $preview={preview}>{photo}</PhotoOnly></PhotoOnlyBody><Folio number={number} />
   </PhotoOnlyPaper></Sheet>;
-  if (page.kind === "photo") return <Sheet $reading data-harumadi-page="photo"><PhotoPaper $cover={false}>
+  if (page.kind === "photo") return <Sheet $reading style={paperStyle} data-harumadi-page="photo"><PhotoPaper $cover={false}>
     <PhotoHeader date={page.date.replaceAll("-", ".")} place={page.place} height={page.headerHeight} /><Photo style={photoStyle} $preview={preview}>{photo}</Photo>
     <Story style={{ marginTop: `${page.storyGap ?? readingLayout.photo.shortGap}px` }}>{page.title && <Title>{page.title}</Title>}<Body>{page.content}</Body></Story><Folio number={number} />
   </PhotoPaper></Sheet>;
-  if (page.kind === "continuation") return <Sheet $reading data-harumadi-page="continuation"><LongPaper $cover={false}>
+  if (page.kind === "continuation") return <Sheet $reading style={paperStyle} data-harumadi-page="continuation"><LongPaper $cover={false}>
     <ContinuedHeader>
       {page.continuation?.image && <ContinuedPhoto><Image src={page.continuation.image} alt="" fill unoptimized sizes="52px" /></ContinuedPhoto>}
       <ContinuedCopy><ContinuedMeta>{[page.date.replaceAll("-", "."), page.place, "이어서"].filter(Boolean).join(" · ")}</ContinuedMeta>
         <ContinuedTitle>{page.continuation?.title || "남긴 하루"}</ContinuedTitle></ContinuedCopy>
     </ContinuedHeader><LongBody>{page.content}</LongBody><Folio number={number} />
   </LongPaper></Sheet>;
-  if (page.long) return <Sheet $reading data-harumadi-page={page.kind}><LongPaper $cover={false}>
+  if (page.long) return <Sheet $reading style={paperStyle} data-harumadi-page={page.kind}><LongPaper $cover={false}>
     <LongHeader><TextMeta>{readerMetaLabel(page.date, page.place)}</TextMeta>{page.title && <TextTitle>{page.title}</TextTitle>}</LongHeader><LongBody>{page.content}</LongBody><Folio number={number} />
   </LongPaper></Sheet>;
-  return <Sheet $reading data-harumadi-page="text"><TextPaper $cover={false}><TextFrame>
+  return <Sheet $reading style={paperStyle} data-harumadi-page="text"><TextPaper $cover={false}><TextFrame>
     <TextMeta>{readerMetaLabel(page.date, page.place)}</TextMeta>{page.title && <TextTitle>{page.title}</TextTitle>}<TextBody>{page.content}</TextBody>
   </TextFrame><Folio number={number} /></TextPaper></Sheet>;
 }
@@ -134,7 +136,7 @@ const Paper = styled.span<{ $cover: boolean }>`
   position: relative; display: block; box-sizing: border-box; width: 100%;
   aspect-ratio: ${layout.page.width} / ${layout.page.height};
   padding: ${pt(layout.page.padding)}; padding-bottom: ${pt(layout.page.paddingBottom)};
-  background: ${({ $cover }) => $cover ? coverPalette.background : "#fff"};
+  background: ${({ $cover }) => $cover ? coverPalette.background : "var(--hm-paper-background, #fff)"};
   color: ${({ $cover }) => $cover ? coverPalette.foreground : "#303030"};
   font-family: var(--font-sans); text-align: left;
   font-size: ${pt(layout.page.fontSize)}; font-weight: 400; line-height: ${layout.page.lineHeight};
@@ -190,7 +192,7 @@ const CoverMark = styled.span`display: block; flex: none; text-align: right; fon
 const TextPaper = styled(Paper)`
   display: flex; flex-direction: column; justify-content: center;
   padding-top: ${pt(layout.shortText.paddingVertical)}; padding-bottom: ${pt(layout.shortText.paddingVertical)};
-  background: ${layout.shortText.background};
+  background: var(--hm-paper-background, ${layout.shortText.background});
 `;
 const TextFrame = styled.span`
   display: block; padding-left: ${pt(layout.shortText.frameLeft)}; padding-right: ${pt(layout.shortText.frameRight)};

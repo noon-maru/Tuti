@@ -42,7 +42,7 @@ export function HarumadiSpreadSheets({ book, pages, ready = true, still = false,
 }) {
   return <Spread data-harumadi-spread-preview data-spread-ready={ready} data-spread-still={still} aria-hidden="true">
     {[0, 1].map(index => <Leaf key={index} $side={index === 0 ? "left" : "right"} data-spread-leaf={index === 0 ? "left" : "right"} data-book-opening-origin={index === 1 ? true : undefined}>
-      {pages[index] ? <Miniature><HarumadiPageSheet page={pages[index]} coverStyle={book.coverStyle} number={index + 1} preview /></Miniature>
+      {pages[index] ? <Miniature><HarumadiPageSheet page={pages[index]} coverStyle={book.coverStyle} paperColor={book.paperColor} number={index + 1} preview /></Miniature>
         : <Unwritten><span>{index === 0 ? failed ? "열어서 확인하기" : "마디를 펼치는 중" : ""}</span></Unwritten>}
     </Leaf>)}
     {!still && ownerId && <TurningCover data-spread-turning-cover><HarumadiCover ownerId={ownerId} kind="harumadi" harumadiPdf={{ ...book,
