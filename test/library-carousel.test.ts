@@ -264,57 +264,60 @@ test("터치 자식의 암시적 캡처가 무대로 이동해도 스와이프�
   assert.deepEqual(directions, [1]);
   const reset = () => { gesture.current = { id: 1, x: 200, y: 100, dx: 0, startedAt: 0, width: 320, dragging: false, bookId: "book" }; };
   reset();
-  follow({ ...event, clientX: 200, clientY: 70 });
+  follow({ ...event, clientX: 200, clientY: 130 });
   lost({ ...event, target: {} });
-  finish({ ...event, clientX: 200, clientY: 20, timeStamp: 300 });
-  assert.deepEqual(writes, ["book"]);
-  reset();
-  follow({ ...event, clientX: 200, clientY: 70 });
-  finish({ ...event, clientX: 200, clientY: 20 }, true);
-  reset();
-  follow({ ...event, clientX: 200, clientY: 70 });
-  finish({ ...event, clientX: 200, clientY: 95, timeStamp: 600 });
-  reset();
-  follow({ ...event, clientX: 200, clientY: 70 });
-  active.id = "changed";
-  finish({ ...event, clientX: 200, clientY: 20 });
-  active.id = "book";
-  assert.deepEqual(writes, ["book"], "취소나 선택 변경은 작성 화면을 열지 않는다");
-  reset();
-  follow(event); // 좌우 축을 먼저 선택한 뒤 크게 위로 움직여도 작성하지 않는다.
-  finish({ ...event, clientY: -20, timeStamp: 300 });
+  finish({ ...event, clientX: 200, clientY: 180, timeStamp: 300 });
   assert.deepEqual(writes, ["book"]);
   reset();
   follow({ ...event, clientX: 200, clientY: 130 });
-  finish({ ...event, clientX: 200, clientY: 180, timeStamp: 300 });
-  assert.deepEqual(writes, ["book"], "아래로 내리기는 작성 동작이 아니다");
+  finish({ ...event, clientX: 200, clientY: 180 }, true);
+  reset();
+  follow({ ...event, clientX: 200, clientY: 130 });
+  finish({ ...event, clientX: 200, clientY: 105, timeStamp: 600 });
+  reset();
+  follow({ ...event, clientX: 200, clientY: 130 });
+  active.id = "changed";
+  finish({ ...event, clientX: 200, clientY: 180 });
+  active.id = "book";
+  assert.deepEqual(writes, ["book"], "취소나 선택 변경은 작성 화면을 열지 않는다");
+  reset();
+  follow(event); // 좌우 축을 먼저 선택한 뒤 크게 내려도 작성하지 않는다.
+  finish({ ...event, clientY: 220, timeStamp: 300 });
+  assert.deepEqual(writes, ["book"]);
+  reset();
+  follow({ ...event, clientX: 200, clientY: 70 });
+  finish({ ...event, clientX: 200, clientY: 20, timeStamp: 300 });
+  assert.deepEqual(writes, ["book"], "위로 올리기는 작성 동작이 아니다");
   assert.equal(gesture.current, null);
 });
 
-test("위로 쓰기는 충분한 거리·빠른 의도에만 반응하고 반대 방향과 미세 이동은 무시한다", () => {
+test("아래로 쓰기는 충분한 거리·빠른 의도에만 반응하고 반대 방향과 미세 이동은 무시한다", () => {
   assert.equal(carouselGestureAxis(3, -4, true), null);
   assert.equal(carouselGestureAxis(30, -10, true), "horizontal");
-  assert.equal(carouselGestureAxis(5, -30, true), "up");
-  assert.equal(carouselGestureAxis(5, 30, true), "scroll");
-  assert.equal(carouselGestureAxis(5, -30, false), "scroll");
-  assert.equal(carouselShouldWrite(-10, 320, 5), false);
-  assert.equal(carouselShouldWrite(-30, 320, 400), false);
-  assert.equal(carouselShouldWrite(-30, 320, 40), true);
-  assert.equal(carouselShouldWrite(-70, 320, 600), true);
-  assert.equal(carouselShouldWrite(70, 320, 40), false);
-  assert.equal(carouselWriteProgress(-40, 320), carouselWriteProgress(-20, 160));
-  assert.equal(carouselWriteProgress(40, 320), 0);
-  assert.equal(carouselWriteProgress(-200, 320), 1);
+  assert.equal(carouselGestureAxis(5, 30, true), "down");
+  assert.equal(carouselGestureAxis(5, -30, true), "scroll");
+  assert.equal(carouselGestureAxis(5, 30, false), "scroll");
+  assert.equal(carouselShouldWrite(10, 320, 5), false);
+  assert.equal(carouselShouldWrite(30, 320, 400), false);
+  assert.equal(carouselShouldWrite(30, 320, 40), true);
+  assert.equal(carouselShouldWrite(70, 320, 600), true);
+  assert.equal(carouselShouldWrite(-70, 320, 40), false);
+  assert.equal(carouselWriteProgress(40, 320), carouselWriteProgress(20, 160));
+  assert.equal(carouselWriteProgress(-40, 320), 0);
+  assert.equal(carouselWriteProgress(200, 320), 1);
+  assert.equal(carouselGestureAxis(25, 25, true), null, "애매한 대각선에서는 아직 의도를 확정하지 않는다");
 });
 
-test("위로 쓰기 안내는 버튼으로도 실행할 수 있고 현재 책의 기존 작성 경로를 사용한다", () => {
+test("아래로 쓰기 안내는 버튼으로도 실행할 수 있고 현재 책의 기존 작성 경로를 사용한다", () => {
   const client = new QueryClient();
   try {
     const html = renderToStaticMarkup(createElement(QueryClientProvider, { client }, createElement(HarumadiCarousel, {
       books: [harumadiContent().harumadi], ownerId: "owner", onOpen() {}, onCreateMadi() {},
     })));
     assert.match(html, /이 하루마디에 남기기/);
-    assert.match(html, /aria-description="위로 쓸어도 이 하루마디에 남길 수 있어요\."/);
+    assert.match(html, /aria-description="아래로 내려도 이 하루마디에 남길 수 있어요\."/);
+    assert.match(html, /lucide-chevron-down/);
+    assert.doesNotMatch(html, /lucide-chevron-up/);
     assert.match(html, /touch-action:pinch-zoom/);
     assert.match(html, /aria-label="[^"]+, 이 하루마디에 남기기"/);
     const home = readFileSync("src/features/tuti/flows/LibraryHomeFlow.tsx", "utf8");

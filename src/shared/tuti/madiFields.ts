@@ -8,5 +8,5 @@ export const MADI_COMPOSE_COPY = {
   globalAction: "새 마디 남기기",
   bookAction: "이 하루마디에 남기기",
   chooseAfterSave: "저장한 뒤 담을 하루마디를 고를 수 있어요.",
-  swipeBookHint: "위로 쓸어도 이 하루마디에 남길 수 있어요.",
+  swipeBookHint: "아래로 내려도 이 하루마디에 남길 수 있어요.",
 } as const;

@@ -3,7 +3,7 @@ import { MADI_COMPOSE_COPY } from "@/shared/tuti/madiFields";
 
 import styled from "@emotion/styled";
 import { memo, useEffect, useRef, useState, type CSSProperties, type PointerEvent } from "react";
-import { ChevronLeft, ChevronRight, ChevronUp, MoreVertical } from "lucide-react";
+import { ChevronLeft, ChevronRight, ChevronDown, MoreVertical } from "lucide-react";
 import type { Harumadi } from "@/shared/api/harumadi";
 import { carouselDragProgress, carouselDraggedPose, carouselGestureAxis, carouselIndex, carouselPreviewSize, carouselShouldWrite, carouselSwipeDirection, carouselTapDirection, carouselVisibleTapBounds, carouselWriteProgress } from "@/shared/harumadi/libraryCarousel";
 import { harumadiActions, type HarumadiOpeningMode } from "../navigation/harumadiActions";
@@ -16,7 +16,7 @@ import { harumadiAccessibleTitle } from "@/shared/harumadi/titleHints";
 import { foldCarouselBook } from "@/lib/carouselBookFold";
 import { harumadiSharingLabel } from "@/shared/harumadi/sharingAudience";
 
-type Gesture = { id: number; x: number; y: number; dx: number; startedAt: number; width: number; dragging: boolean; bookId: string; axis?: "horizontal" | "up" };
+type Gesture = { id: number; x: number; y: number; dx: number; startedAt: number; width: number; dragging: boolean; bookId: string; axis?: "horizontal" | "down" };
 export function HarumadiCarousel({ books, ownerId, onOpen, onCreateMadi, hasNextPage = false, loading = false, onLoadMore }: {
   books: Harumadi[]; ownerId: string;
   onOpen: (book: Harumadi, control: HTMLElement, mode?: HarumadiOpeningMode) => void;
@@ -118,7 +118,7 @@ export function HarumadiCarousel({ books, ownerId, onOpen, onCreateMadi, hasNext
       current.dragging = true; event.currentTarget.setPointerCapture(event.pointerId); setDragging(true);
     }
     current.dx = dx;
-    if (current.axis === "up") setWriteProgress(carouselWriteProgress(dy, current.width));
+    if (current.axis === "down") setWriteProgress(carouselWriteProgress(dy, current.width));
     else setDrag(carouselDragProgress(dx, current.width, index, books.length));
   };
   const finish = (event: PointerEvent<HTMLDivElement>, cancelled = false) => {
@@ -128,7 +128,7 @@ export function HarumadiCarousel({ books, ownerId, onOpen, onCreateMadi, hasNext
     if (!current.dragging) return;
     blockedClickUntil.current = event.timeStamp + 300;
     if (cancelled || pending || loading || active?.id !== current.bookId) return;
-    if (current.axis === "up") {
+    if (current.axis === "down") {
       if (carouselShouldWrite(event.clientY - current.y, current.width, event.timeStamp - current.startedAt)) onCreateMadi?.(current.bookId);
       return;
     }
@@ -152,7 +152,7 @@ export function HarumadiCarousel({ books, ownerId, onOpen, onCreateMadi, hasNext
         const bookIndex = books.indexOf(book), selected = book.id === active.id, spread = selected || book.id === outgoingId;
         const pose = carouselDraggedPose(bookIndex - index, drag, index, books.length);
         return <Slide key={book.id} data-harumadi-card data-carousel-active={selected} aria-hidden={!selected} $dragging={dragging}
-          style={{ width: spreadWidth, zIndex: pose.zIndex, opacity: pose.opacity, pointerEvents: "none", transform: `translate(-50%, -50%) translateX(${pose.x * width}px) translateY(${-writeProgress * 48 * (selected ? 1 : .2)}px) scale(${pose.scale}) rotateY(${pose.rotation}deg)` }}>
+          style={{ width: spreadWidth, zIndex: pose.zIndex, opacity: pose.opacity, pointerEvents: "none", transform: `translate(-50%, -50%) translateX(${pose.x * width}px) translateY(${writeProgress * 48 * (selected ? 1 : .2)}px) scale(${pose.scale}) rotateY(${pose.rotation}deg)` }}>
           <CoverButton $spread={spread} style={{ "--spread-page-scale": (spreadWidth / 2 - 2) / 320, pointerEvents: pose.opacity > .1 ? "auto" : "none" } as CSSProperties} data-book-cover type="button" disabled={busy} tabIndex={selected ? 0 : -1} aria-label={`${harumadiAccessibleTitle(book)}, 마디 ${book.entryIds.length}개 ${selected ? "미리보기 열기" : "선택"}`}
             onClick={event => {
               if (turning.current || requesting.current || loading) return;
@@ -169,7 +169,7 @@ export function HarumadiCarousel({ books, ownerId, onOpen, onCreateMadi, hasNext
     </Stage>
     <Details>
     {onCreateMadi && <WriteHint type="button" disabled={busy} aria-label={`${active.title}, ${MADI_COMPOSE_COPY.bookAction}`}
-      aria-description={MADI_COMPOSE_COPY.swipeBookHint} $active={writeProgress > 0} onClick={() => onCreateMadi(active.id)}><ChevronUp size={16} aria-hidden="true" />{MADI_COMPOSE_COPY.bookAction}</WriteHint>}
+      aria-description={MADI_COMPOSE_COPY.swipeBookHint} $active={writeProgress > 0} onClick={() => onCreateMadi(active.id)}><ChevronDown size={16} aria-hidden="true" />{MADI_COMPOSE_COPY.bookAction}</WriteHint>}
     <Caption><div aria-live="polite" aria-atomic="true"><strong>{active.title}</strong><p>{active.entryIds.length ? `마디 ${active.entryIds.length}개` : "첫 마디를 기다려요"}{active.shared ? ` · ${harumadiSharingLabel(active)}` : ""}</p>
       <HarumadiTitleHint book={active} />{active.role === "contributor" && <small>{active.ownerName}님의 하루마디</small>}</div>
       <BookMenu label={`${harumadiAccessibleTitle(active)} 메뉴`} triggerContent={<MoreVertical size={22} />} items={harumadiActions(active).map(action => ({ label: action.label, singleLine: true, onSelect: () => openSelected(action.mode) }))} />
