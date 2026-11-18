@@ -16,7 +16,7 @@ function scene() {
   const spread = Object.assign(node("translateX(-10%)"), {
     dataset: { spreadReady: "true" }, querySelector: (selector: string) => selector.includes("leaf") ? left : cover,
   });
-  return { calls, spread: spread as unknown as HTMLElement };
+  return { calls, spread: spread as unknown as HTMLElement, cover };
 }
 const flush = () => new Promise<void>(resolve => setImmediate(resolve));
 function styles(t: TestContext) {
@@ -29,16 +29,14 @@ test("현재 펼침 각도부터 왼쪽 지면과 표지를 접고 모든 동작
   const { calls, spread } = scene();
   let done = false;
   const folding = foldCarouselBook(spread, new AbortController().signal).then(value => { done = true; return value; });
-  assert.equal(calls.length, 3); assert.equal(done, false);
-  assert.equal(calls[0].frames[0].transform, "translateX(-10%)");
-  assert.equal(calls[0].frames[1].transform, "translateX(-25%)");
-  assert.equal(calls[1].frames[0].transform, "rotateY(45deg)");
-  assert.equal(calls[1].frames[1].transform, "rotateY(173deg)");
-  assert.equal(calls[2].frames[0].opacity, "0.4");
-  assert.equal(calls[2].frames.at(-1)?.transform, "rotateY(0deg)");
+  assert.equal(calls.length, 2); assert.equal(done, false);
+  assert.equal(calls[0].frames[0].transform, "rotateY(45deg)");
+  assert.equal(calls[0].frames[1].transform, "rotateY(173deg)");
+  assert.equal(calls[1].frames[0].opacity, "0.4");
+  assert.equal(calls[1].frames.at(-1)?.transform, "rotateY(0deg)");
   for (const call of calls) { assert.equal(call.options.duration, 420); assert.equal(call.options.fill, "forwards"); }
-  calls[0].resolve(); calls[1].resolve(); await flush(); assert.equal(done, false);
-  calls[2].resolve(); assert.equal(await folding, true);
+  calls[0].resolve(); await flush(); assert.equal(done, false);
+  calls[1].resolve(); assert.equal(await folding, true);
 });
 
 test("언마운트·계정 전환 시 접기를 취소하고 선택 이동을 완료하지 않는다", async () => {
@@ -52,14 +50,14 @@ test("언마운트·계정 전환 시 접기를 취소하고 선택 이동을 �
 });
 
 test("동작 줄이기·준비 중·미지원 환경에서는 이동을 기다리게 하지 않는다", async () => {
-  const { calls, spread } = scene();
+  const { calls, spread, cover } = scene();
   assert.equal(await foldCarouselBook(spread, new AbortController().signal, true), true);
   spread.dataset.spreadReady = "false";
   assert.equal(await foldCarouselBook(spread, new AbortController().signal), true);
   assert.equal(calls.length, 0);
   assert.equal(await foldCarouselBook(null, new AbortController().signal), true);
   spread.dataset.spreadReady = "true";
-  spread.animate = () => { throw new Error("unsupported"); };
+  cover.animate = () => { throw new Error("unsupported"); };
   assert.equal(await foldCarouselBook(spread, new AbortController().signal), true);
 });
 

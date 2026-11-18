@@ -54,6 +54,19 @@ test("책장 미리보기는 책등을 고정한 채 표지와 왼쪽 지면만 
   assert.match(source, /prefers-reduced-motion: reduce/);
 });
 
+test("닫힌 표지와 펼친 오른쪽 지면은 같은 중심에 남고 두 쪽 전체를 중앙으로 옮기지 않는다", () => {
+  const source = readFileSync("src/features/tuti/components/HarumadiCarousel.tsx", "utf8");
+  const button = source.match(/const CoverButton = styled\(BaseButton\)[^`]*`([\s\S]*?)`;/)![1];
+  assert.match(button, /transform:.*\$spread.*translateX\(-25%\)/);
+  for (const width of [182, 378, 472.5, 640]) {
+    const closedCoverCenter = width / 2;
+    const rightPageCenter = width * .75 - width * .25;
+    assert.equal(rightPageCenter, closedCoverCenter);
+  }
+  const fold = readFileSync("src/lib/carouselBookFold.ts", "utf8");
+  assert.doesNotMatch(fold, /spread\.animate\(/);
+});
+
 test("공동작성 책의 이전 응답은 현재 마운트에서 권한 재검증 전 노출하지 않는다", () => {
   const content = harumadiContent(), owner = "shared-preview-owner";
   content.cacheable = false; content.harumadi.shared = true;

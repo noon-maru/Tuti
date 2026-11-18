@@ -20,7 +20,6 @@ export function foldCarouselBook(spread: HTMLElement | null, signal: AbortSignal
     try {
       const options: KeyframeAnimationOptions = { duration: 420, easing: "cubic-bezier(.33,0,.2,1)", fill: "forwards" };
       // computed transform을 시작점으로 삼아 아직 펼쳐지는 중인 책도 뛰지 않게 한다.
-      animations.push(spread.animate([{ transform: getComputedStyle(spread).transform }, { transform: "translateX(-25%)" }], options));
       animations.push(leaf.animate([{ transform: getComputedStyle(leaf).transform }, { transform: "rotateY(173deg)" }], options));
       animations.push(cover.animate([
         { transform: getComputedStyle(cover).transform, opacity: getComputedStyle(cover).opacity },

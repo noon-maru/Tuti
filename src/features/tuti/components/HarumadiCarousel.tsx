@@ -201,7 +201,7 @@ const Slide = styled.div<{ $dragging: boolean }>`position: absolute; top: 50%; l
   transition: ${({ $dragging }) => $dragging ? "none" : "transform 560ms cubic-bezier(.22,.75,.22,1), opacity 440ms ease"};
   @media (prefers-reduced-motion: reduce) { transition: none; }
 `;
-const CoverButton = styled(BaseButton)<{ $spread: boolean }>`display: block; padding: 0; width: ${({ $spread }) => $spread ? "100%" : "50%"}; margin: 0 auto; background: transparent; color: inherit; cursor: inherit; -webkit-user-drag: none;
+const CoverButton = styled(BaseButton)<{ $spread: boolean }>`display: block; padding: 0; width: ${({ $spread }) => $spread ? "100%" : "50%"}; margin: 0 auto; transform: ${({ $spread }) => $spread ? "translateX(-25%)" : "none"}; background: transparent; color: inherit; cursor: inherit; -webkit-user-drag: none;
   &:focus-visible { outline: 2px solid var(--color-brand-700); outline-offset: 5px; border-radius: 4px; }
 `;
 const WriteHint = styled(BaseButton)<{ $active: boolean }>`display: flex; align-items: center; justify-content: center; gap: 6px; min-height: 44px; margin: 0 auto; padding: 6px 14px; color: ${({ $active }) => $active ? "var(--color-brand-1000)" : "var(--color-text-muted)"}; background: transparent; font-size: var(--ui-caption-size); border-radius: 12px;
