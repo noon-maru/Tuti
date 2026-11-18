@@ -49,7 +49,7 @@ test("저장과 기기 전달 실패를 구분하고 마지막 쪽에서만 실�
   assert.match(flow, /keepsakeAction=\{!readOnly \?/);
   assert.match(flow, /surface="harumadi_reader"/);
   const viewer = readFileSync("src/features/tuti/components/HarumadiPageViewer.tsx", "utf8");
-  assert.match(viewer, /lastPage && entries.length > 0 && !closing && !retained && keepsakeAction/);
+  assert.match(viewer, /lastPage && entries.length > 0 && !closing && !retained && \(pdfAction \|\| keepsakeAction\)/);
   const purchase = readFileSync("src/features/tuti/components/HarumadiPurchaseButton.tsx", "utf8");
   assert.match(purchase, /아직 주문하거나 결제할 수는 없어요/);
   assert.match(purchase, /디지털 예시.*실제 제작 사양과 가격·배송은 확정되면/);

@@ -15,7 +15,7 @@ import type { TutiJournalEntry } from "@/shared/api/journal";
 import { readerGroupGeometry, type ReaderTextMeasure } from "@/shared/harumadi/readerText";
 import { harumadiReadingPositions, readingIndex, readingPosition, type ReadingPosition } from "@/lib/harumadiReadingPosition";
 
-export function HarumadiPageViewer({ book, entries, onClose, closing = false, ownerId, onEditEntry, keepsakeAction, focusEntryId }: { book: Harumadi; entries: TutiJournalEntry[]; onClose: () => void; closing?: boolean; ownerId?: string; onEditEntry?: (entryId: string) => void; keepsakeAction?: ReactNode; focusEntryId?: string | null }) {
+export function HarumadiPageViewer({ book, entries, onClose, closing = false, ownerId, onEditEntry, pdfAction, keepsakeAction, focusEntryId }: { book: Harumadi; entries: TutiJournalEntry[]; onClose: () => void; closing?: boolean; ownerId?: string; onEditEntry?: (entryId: string) => void; pdfAction?: ReactNode; keepsakeAction?: ReactNode; focusEntryId?: string | null }) {
   const stage = useRef<HTMLDivElement>(null);
   const reader = useRef<HTMLDivElement>(null), navigation = useRef<HTMLElement>(null);
   const [measureText, setMeasureText] = useState<ReaderTextMeasure>();
@@ -57,7 +57,7 @@ export function HarumadiPageViewer({ book, entries, onClose, closing = false, ow
   }, []);
   const pages = useMemo(() => buildHarumadiReaderPages(book, entries, pageWidth, measureText), [book, entries, pageWidth, measureText]);
   // 책장에서 표지를 이미 열었으므로 첫 지면부터 보여준다. 이전 쪽으로 표지를 볼 수 있다.
-  const [index, setIndex] = useState(1);
+  const [index, setIndex] = useState<number | "end">(1);
   const requestedPosition = focusEntryId && entries.some(entry => entry.id === focusEntryId) ? { entryId: focusEntryId, part: 0 } : null;
   const hasRequestedPosition = Boolean(requestedPosition);
   const [position, setPosition] = useState<ReadingPosition | null>(requestedPosition);
@@ -70,7 +70,7 @@ export function HarumadiPageViewer({ book, entries, onClose, closing = false, ow
     });
     return () => { active = false; };
   }, [ownerId, book.id, hasRequestedPosition]);
-  const current = position ? readingIndex(pages, position) : Math.min(index, pages.length - 1);
+  const current = index === "end" ? pages.length - 1 : position ? readingIndex(pages, position) : Math.min(index, pages.length - 1);
   const lastPage = current === pages.length - 1;
   const editableId = onEditEntry ? editableReaderEntry(book, entries, pages[current].entryId, ownerId) : null;
   const [retained, setRetained] = useState<{ page: HarumadiReaderPage; index: number } | null>(null);
@@ -87,7 +87,8 @@ export function HarumadiPageViewer({ book, entries, onClose, closing = false, ow
     if (!window.matchMedia("(prefers-reduced-motion: reduce)").matches && typeof sheet.current?.animate === "function") {
       locked.current = true; setRetained({ page: pages[current], index: current });
     }
-    setIndex(next);
+    // 마지막 쪽의 행동 영역으로 지면 폭·분할이 달라져도 마지막 쪽에 머문다.
+    setIndex(next === pages.length - 1 ? "end" : next);
   };
   useLayoutEffect(() => {
     if (!retained || !sheet.current || !old.current) return;
@@ -138,7 +139,7 @@ export function HarumadiPageViewer({ book, entries, onClose, closing = false, ow
           onEditEntry?.(editableId);
         } }]} />}
       </ReaderActions>
-      {lastPage && entries.length > 0 && !closing && !retained && keepsakeAction && <KeepsakeAction>{keepsakeAction}</KeepsakeAction>}
+      {lastPage && entries.length > 0 && !closing && !retained && (pdfAction || keepsakeAction) && <EndActions>{pdfAction}{keepsakeAction}</EndActions>}
     </Navigation>
   </Reader>;
 }
@@ -151,4 +152,4 @@ const Navigation = styled.nav`display: grid; grid-template-columns: 1fr auto 1fr
 const Turn = styled(BaseButton)`min-height: 44px; padding: 8px; background: transparent; font-size: 14px; color: var(--color-text-muted); &:focus-visible { outline: 2px solid var(--color-brand-700); }`;
 const ReaderActions = styled.div`grid-column: 1 / -1; min-height: 44px; display: flex; align-items: center; justify-content: center; gap: 16px; > span { width: auto; } > span > button { min-height: 44px; padding: 8px; background: transparent; color: var(--color-text-muted); font-size: 12px; } > button { white-space: nowrap; }`;
 const Restart = styled(Turn)`font-size: 12px;`;
-const KeepsakeAction = styled.div`grid-column: 1 / -1; padding-top: 8px;`;
+const EndActions = styled.div`grid-column: 1 / -1; padding-top: 8px; display: grid; gap: 8px; > button { width: 100%; }`;

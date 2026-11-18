@@ -8,7 +8,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter, useSearchParams } from "next/navigation";
 import styled from "@emotion/styled";
-import { MessageCircle, PenLine, Settings2, Users } from "lucide-react";
+import { Download, MessageCircle, PenLine, Settings2, Users } from "lucide-react";
 import { HarumadiAppearanceFields } from "@/features/tuti/components/HarumadiAppearanceFields";
 import { useSession } from "@/features/tuti/hooks/useSession";
 import { AppLoadingScreen } from "@/features/tuti/components/LoadingIndicator";
@@ -273,6 +273,11 @@ function HarumadiEditor({ owner, initial, read, verified, refreshing, onRefresh,
   // 사용자 저장 결과와 네트워크 조회 완료를 연결하는 외부 동기화다.
   useAttachNewEntry(attachNewEntry);
 
+  const openPdf = () => {
+    if (busy || readOnly || !harumadi || !chosen.length) return;
+    setError(""); setConfirmed(false); setPdf(null); setMode("pdf");
+  };
+
   return <Frame ref={frame} $openingSpread={opening && openingOrigin?.appearance === "spread"} data-harumadi-editor aria-busy={busy || closing}>
     <BookContents ref={contents} inert={closing || opening}>
     <Header $reading={mode === "pages"} $standard={mode === "together" || mode === "pdf"} $pdf={mode === "pdf"} $creating={!harumadi && mode === "settings"}><BackButton onClick={back} disabled={busy} aria-label={mode === "pages" || !harumadi || (onClose && initialMode && initialMode !== "pages" && mode === initialMode) ? "내 책장으로 돌아가기" : "하루마디로 돌아가기"} />
@@ -283,15 +288,15 @@ function HarumadiEditor({ owner, initial, read, verified, refreshing, onRefresh,
           items={[{ label: "다음에 보낼 하루 찾아보기", onSelect: () => router.push(`/explore?${new URLSearchParams({ harumadiId: harumadi.id, ownerId: owner })}`) }, ...readerManagementActions(harumadi.role, chosen.length).map(({ action, label }) => ({ label, onSelect: () => {
             if (busy || readOnly) return;
             if (action === "selection") { selectRecords(); return; }
+            if (action === "pdf") { openPdf(); return; }
             setError(""); setConfirmed(false);
             if (action === "order") setOrderedIds(harumadi.entryIds);
-            if (action === "pdf") setPdf(null);
             setMode(action);
           } }))]} />}
       </HeaderTools>}</Header>
     <Body ref={scroller} data-scroll-region={mode === "pages" ? undefined : ""} $reading={mode === "pages"} $pdf={mode === "pdf"} $creating={!harumadi && mode === "settings"}>
       {read?.cached && read.missingImages > 0 && <p className="hint">일부 사진은 연결 후 볼 수 있어요.</p>}
-      {mode === "comments" && harumadi ? <HarumadiComments owner={owner} bookId={harumadi.id} onExit={finishClose} /> : mode === "together" && harumadi ? readOnly ? <p>연결 후 최신 내용을 확인하면 함께 채울 수 있어요.</p> : <HarumadiTogetherPanel owner={owner} bookId={harumadi.id} bookTitle={harumadi.title} period={harumadi} entries={chosen} onKeep={() => { if (busy || readOnly) return; setError(""); setConfirmed(false); setPdf(null); setMode("pdf"); }} onExit={finishClose} /> : mode === "settings" ? <SettingsPanel $creating={!harumadi}>
+      {mode === "comments" && harumadi ? <HarumadiComments owner={owner} bookId={harumadi.id} onExit={finishClose} /> : mode === "together" && harumadi ? readOnly ? <p>연결 후 최신 내용을 확인하면 함께 채울 수 있어요.</p> : <HarumadiTogetherPanel owner={owner} bookId={harumadi.id} bookTitle={harumadi.title} period={harumadi} entries={chosen} onKeep={openPdf} onExit={finishClose} /> : mode === "settings" ? <SettingsPanel $creating={!harumadi}>
         <SettingsIntro $creating={!harumadi}>
         <h1>{harumadi ? "하루마디 꾸미기" : "어떤 하루를 담을까요?"}</h1>
         <p>{harumadi ? <>표지를 고르고,<br />기억하고 싶은 순간을 천천히 채워보세요.</> : "이름과 표지를 고르면 준비 끝이에요."}</p>
@@ -326,6 +331,7 @@ function HarumadiEditor({ owner, initial, read, verified, refreshing, onRefresh,
         {pdfInput && !readOnly && sensitivePolicy && (!sensitivePolicy.enabled || confirmed) && <HarumadiPdfPreview key={`${harumadi!.revision}:${confirmed}`} ownerId={owner} input={pdfInput} onReady={handlePdf} />}
       </> : harumadi && <>
         <HarumadiPageViewer book={harumadi} entries={chosen} onClose={closeToLibrary} closing={closing} ownerId={owner} focusEntryId={focusEntryId}
+          pdfAction={!readOnly ? <PdfSaveButton type="button" disabled={busy} onClick={openPdf}><Download size={17} aria-hidden="true" />PDF로 저장하기</PdfSaveButton> : undefined}
           keepsakeAction={!readOnly ? <HarumadiPurchaseButton key={harumadi.id} surface="harumadi_reader" bookTitle={harumadi.title}
             preview={<HarumadiSettingsCover title={harumadi.title} coverStyle={harumadi.coverStyle} entries={chosen} />} /> : undefined}
           onEditEntry={readOnly ? undefined : entryId => {
@@ -369,6 +375,7 @@ const Header = styled.header<{ $creating?: boolean; $reading?: boolean; $standar
 `;
 const Quiet = styled(BaseButton)`display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: var(--ui-control-height); padding: 6px 0; background: transparent; color: var(--color-text-muted); font-size: var(--ui-body-size); &:disabled { opacity: .5; } &:focus-visible { outline: 2px solid var(--color-brand-700); outline-offset: 3px; }`;
 const PdfHeading = styled.h1`${screenTitleStyles}`;
+const PdfSaveButton = styled(PrimaryButton)`display: flex; align-items: center; justify-content: center; gap: 8px; min-height: 48px; font-size: var(--ui-body-size);`;
 const PdfNote = styled.p`${captionStyles} margin: 0 0 12px;`;
 const Body = styled.div<{ $reading: boolean; $creating?: boolean; $pdf?: boolean }>`flex: 1; min-height: 0; overflow-y: auto; padding: ${({ $reading, $creating }) => $reading ? "12px calc(var(--reader-outside-inset) + var(--app-safe-area-right, 0px)) 12px calc(var(--reader-outside-inset) + var(--app-safe-area-left, 0px))" : $creating ? "22px var(--screen-padding-right) 20px var(--screen-padding-left)" : "22px var(--screen-padding-right) 28px var(--screen-padding-left)"}; ${({ $reading }) => $reading && "display: flex; flex-direction: column;"} overscroll-behavior: contain; &:has([data-order-editor]) { overflow-anchor: none; } h1 { ${screenTitleStyles} margin: 8px 0 12px; } > p { ${bodyCopyStyles} color: var(--color-text-muted); white-space: pre-line; } .hint { ${captionStyles} }
   ${({ $pdf }) => $pdf && `padding-top: 12px; > p { font-size: var(--ui-caption-size); line-height: 1.6; }`}
