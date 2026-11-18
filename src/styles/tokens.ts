@@ -1,6 +1,6 @@
 export const palette = {
   surface: {
-    library: "#FCFAF6",
+    library: "#FCFBFA",
   },
   neutral: {
     100: "#FFFFFF",

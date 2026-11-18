@@ -12,6 +12,8 @@ test("책장만 웜 화이트를 쓰고 공용 내비게이션의 기본 바탕�
   assert.match(navigation, /background: var\(--main-navigation-background, var\(--color-surface\)\)/);
   assert.doesNotMatch(home, /--color-surface:/);
   const rgb = palette.surface.library.slice(1).match(/../g)!.map(value => parseInt(value, 16));
+  assert.equal(palette.surface.library, "#FCFBFA");
+  assert.ok(rgb[0] - rgb[2] <= 2, "넓은 바탕에서 노란 기가 두드러지지 않도록 채도를 낮게 유지한다");
   assert.ok(rgb[0] > rgb[1] && rgb[1] > rgb[2] && rgb[2] >= 245);
 });
 
