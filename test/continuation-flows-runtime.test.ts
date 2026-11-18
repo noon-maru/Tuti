@@ -51,6 +51,26 @@ test("작은 여행에서 선택한 책의 마디는 저장과 연결을 한 번
   assert.equal(paths.at(-1), "/place/tourapi-1");
   (sharedComposer.props.onCollection as () => void)();
   assert.equal(paths.at(-1), "/place/tourapi-1");
+  params = new URLSearchParams({ from: "library", harumadiId: "book", cancelTo: "library" });
+  const shelf = create(), shelfParent = shelf.render();
+  const shelfComposer = shelf.render(shelfParent.props, shelfParent.type as never);
+  const beforeWrites = writes.length;
+  (shelfComposer.props.onBack as () => void)();
+  assert.equal(paths.at(-1), "/", "책장에서 내린 뒤 저장 없이 취소하면 책장으로 돌아간다");
+  assert.equal(writes.length, beforeWrites, "취소는 마디를 저장하지 않는다");
+  const shelfSaved = await (shelfComposer.props.onSave as (draft: object) => Promise<object>)({ content: "책장으로부터 남긴 하루" });
+  (shelfComposer.props.onSaved as (entry: object) => void)(shelfSaved);
+  (shelfComposer.props.onCollection as () => void)();
+  assert.equal(paths.at(-1), "/harumadi?harumadiId=book&focusEntryId=saved", "저장했다면 방금 쓴 책의 지면으로 이동한다");
+  for (const cancelTo of [undefined, "/outside"]) {
+    params = new URLSearchParams({ from: "library", harumadiId: "book" });
+    if (cancelTo) params.set("cancelTo", cancelTo);
+    const reader = create(), readerParent = reader.render();
+    (reader.render(readerParent.props, readerParent.type as never).props.onBack as () => void)();
+    assert.equal(paths.at(-1), "/harumadi?harumadiId=book", "펼친 책 안에서 시작했거나 취소 힌트가 잘못되면 기존 책 복귀를 유지한다");
+  }
+  assert.equal(safeLoginReturn("/madi/new?from=library&harumadiId=book&cancelTo=library"), "/madi/new?from=library&harumadiId=book&cancelTo=library");
+  assert.equal(safeLoginReturn("/madi/new?cancelTo=https%3A%2F%2Foutside.invalid"), "/madi/new", "취소 힌트는 외부 경로를 허용하지 않는다");
 });
 test("실제 로그인 핸들러는 이메일·소셜·취소 후 원래 작업으로 돌아간다", async () => {
   const paths: string[] = []; let params = new URLSearchParams(); let linked = false, invite = false;

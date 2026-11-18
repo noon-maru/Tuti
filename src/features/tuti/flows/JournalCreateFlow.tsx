@@ -74,6 +74,8 @@ function JournalComposer({ ownerId, harumadiId }: { ownerId?: string; harumadiId
   const recommendationId = searchParams.get("journeyId");
   const sharedPlaceReturn = publicPlaceReturnPath(source, initialPlaceId);
   const returnToSource = () => {
+    // 책 지정은 저장 목적지다. 책장에서 시작한 미저장 작성의 취소 목적지와 구분한다.
+    if (source === "library" && searchParams.get("cancelTo") === "library" && !savedEntryId.current) { router.replace("/"); return; }
     if (harumadiId) { router.replace(harumadiPath(harumadiId)); return; }
     if (sharedPlaceReturn) { router.replace(sharedPlaceReturn); return; }
     if (fromLibrary) { router.replace("/"); return; }

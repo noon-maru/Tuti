@@ -116,7 +116,7 @@ function LibraryHome({ ownerId, adminAccess = false }: { ownerId: string; adminA
             <TextAction onClick={openExample}>하루마디 예시 펼쳐보기<ChevronRight size={14} /></TextAction>
           </EmptyShelf> : <>
             {view === "carousel" && !search.searching ? <HarumadiCarousel books={harumadiPdfs} ownerId={ownerId} onOpen={openBook}
-              onCreateMadi={bookId => router.push(`/madi/new?from=library&harumadiId=${encodeURIComponent(bookId)}`)} /> : <HarumadiShelf books={harumadiPdfs} ownerId={ownerId} view={!search.searching && view === "spines" ? "spines" : "covers"} onOpen={openBook} />}
+              onCreateMadi={bookId => router.push(`/madi/new?from=library&harumadiId=${encodeURIComponent(bookId)}&cancelTo=library`)} /> : <HarumadiShelf books={harumadiPdfs} ownerId={ownerId} view={!search.searching && view === "spines" ? "spines" : "covers"} onOpen={openBook} />}
           </>}
           {query.isError && <LibraryLoadNotice nextPage={false} busy={query.isFetching} onRetry={() => void query.refetch()} />}
         </>}
