@@ -1,12 +1,14 @@
 export type HarumadiBookRect = { x: number; y: number; width: number; height: number; appearance?: "spread" };
 type Bounds = { left: number; top: number; width: number; height: number };
 
-/** 두 쪽을 한 쪽 폭으로 늘리지 않고 원래 중심에서 화면 안에 들어갈 만큼만 확대한다. */
+/** 화면에 맞춰 축소하지 않고, 보고 있던 오른쪽 지면의 중심에서 확대한다. 넘친 부분은 전환 레이어에서 자른다. */
 export function harumadiSpreadZoomTarget(origin: HarumadiBookRect, width: number, height: number): HarumadiBookRect {
   const ratio = 296 / 210;
-  const nextWidth = Math.max(1, Math.min(origin.width * 1.16, width - 32, (height - 32) * ratio));
+  const nextWidth = Math.max(1, origin.width * 1.35, Math.max(1, width - 48) * 2);
   const nextHeight = nextWidth / ratio;
-  return { x: (width - nextWidth) / 2, y: Math.max(16, Math.min(height - nextHeight - 16, origin.y + origin.height / 2 - nextHeight / 2 - 8)),
+  const centerY = origin.y + origin.height / 2;
+  return { x: origin.x + origin.width * .75 - nextWidth * .75,
+    y: Math.max(0, Math.min(height, centerY)) - nextHeight / 2,
     width: nextWidth, height: nextHeight };
 }
 
