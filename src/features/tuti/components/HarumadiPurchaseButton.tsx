@@ -1,7 +1,7 @@
 "use client";
 
 import styled from "@emotion/styled";
-import { useEffect, useId, useRef, useState, type ReactNode } from "react";
+import { useEffect, useId, useRef, useState, type ComponentType, type ReactNode } from "react";
 import { BaseButton, PrimaryButton, TextButton } from "@/features/tuti/components/buttons";
 import { recordProductInteraction } from "@/lib/productInteraction";
 import type { ProductInteractionSurface } from "@/shared/api/productInteraction";
@@ -10,7 +10,7 @@ import { captionStyles } from "@/shared/ui/typography";
 import { trackLifecycle } from "@/lib/lifecycle";
 import { useSession } from "../hooks/useSession";
 
-export function HarumadiPurchaseButton({ surface, bookTitle, preview }: { surface: ProductInteractionSurface; bookTitle?: string; preview?: ReactNode }) {
+export function HarumadiPurchaseButton({ surface, bookTitle, preview, triggerComponent: Trigger }: { surface: ProductInteractionSurface; bookTitle?: string; preview?: ReactNode; triggerComponent?: ComponentType<{ onOpen: () => void; onVisible: () => void }> }) {
   const id = useId();
   const owner = useSession()?.userId;
   const observed = useRef("");
@@ -41,19 +41,20 @@ export function HarumadiPurchaseButton({ surface, bookTitle, preview }: { surfac
       .catch(() => { if (latestEvent.current === eventId) setTrackingFailed(true); });
   };
 
+  const openPurchase = () => {
+    observe();
+    if (surface !== "welcome") trackLifecycle("purchase_clicked", { source: "book" });
+    setOpen(true);
+    setTrackingFailed(false);
+    const eventId = crypto.randomUUID();
+    latestEvent.current = eventId;
+    track(eventId);
+  };
   return <>
-    <PurchaseAction>
-      <PurchaseButton ref={trigger} type="button" onClick={() => {
-        observe();
-        if (surface !== "welcome") trackLifecycle("purchase_clicked", { source: "book" });
-        setOpen(true);
-        setTrackingFailed(false);
-        const eventId = crypto.randomUUID();
-        latestEvent.current = eventId;
-        track(eventId);
-      }}>{surface === "harumadi_reader" ? "실물로 소장하기" : "실물 하루마디 구매하기"}</PurchaseButton>
+    {Trigger ? <Trigger onOpen={openPurchase} onVisible={observe} /> : <PurchaseAction>
+      <PurchaseButton ref={trigger} type="button" onClick={openPurchase}>{surface === "harumadi_reader" ? "실물로 소장하기" : "실물 하루마디 구매하기"}</PurchaseButton>
       <small>실물 제작은 준비 중이에요.</small>
-    </PurchaseAction>
+    </PurchaseAction>}
     {open && <AppDialogFrame role="dialog" titleId={`${id}-title`} descriptionId={`${id}-description`} initialFocus={close} onCancel={() => setOpen(false)}>
           <h2 id={`${id}-title`}>실물 하루마디를 준비하고 있어요</h2>
           {preview && <BookPreview><div>{preview}</div><figcaption>{bookTitle}</figcaption></BookPreview>}

@@ -62,6 +62,7 @@ export function ContextMenu({
   triggerTone = "default",
   textInput,
   disabled = false,
+  onOpen,
 }: {
   className?: string;
   items: ContextMenuItem[];
@@ -71,6 +72,7 @@ export function ContextMenu({
   triggerTone?: "brand" | "neutral" | "secondary" | "default";
   textInput?: ContextMenuTextInput;
   disabled?: boolean;
+  onOpen?: () => void;
 }) {
   const [open, setOpen] = useState(false);
   const [position, setPosition] = useState({
@@ -175,6 +177,7 @@ export function ContextMenu({
     }
 
     setOpen(nextOpen);
+    if (nextOpen) onOpen?.();
   };
 
   return (

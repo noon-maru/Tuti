@@ -90,6 +90,7 @@ function HarumadiEditor({ owner, initial, read, verified, refreshing, onRefresh,
   const [harumadi, setHarumadi] = useState(initial);
   const [settings, setSettings] = useState<HarumadiSettings>(initial ?? { title: "우리의 작은 하루", coverStyle: "white-plain" });
   const [mode, setMode] = useState<HarumadiOpeningMode | "selection" | "pdf" | "comments" | "order">(initial ? initialHarumadiMode(initial, initialMode) : "settings");
+  const [readerEnding, setReaderEnding] = useState(false);
   const opening = Boolean(openingOrigin && !openingDone && mode === "pages");
   useLifecycleView("book_opened", "book", harumadi?.id, Boolean(harumadi && mode === "pages"));
   useNotificationPresence(harumadi?.id ?? null, false, Boolean(harumadi && verified));
@@ -284,7 +285,9 @@ function HarumadiEditor({ owner, initial, read, verified, refreshing, onRefresh,
       {mode === "pdf" && <PdfHeading>PDF로 저장하기</PdfHeading>}
       {harumadi && mode === "pages" && <HeaderTools>
         {harumadi.shared && <Quiet type="button" disabled={busy || readOnly} onClick={() => setMode("comments")}><MessageCircle size={17} aria-hidden="true" />댓글·답글</Quiet>}
-        {readOnly ? <Quiet type="button" disabled={refreshing || busy} onClick={onRefresh}>최신 내용 확인</Quiet> : <ReaderMenu label="하루마디 관리" disabled={busy || readOnly} triggerContent={<><Settings2 size={17} aria-hidden="true" />관리</>}
+        {readOnly ? <Quiet type="button" disabled={refreshing || busy} onClick={onRefresh}>최신 내용 확인</Quiet> : <HarumadiPurchaseButton key={harumadi.id} surface="harumadi_reader" bookTitle={harumadi.title}
+          preview={<HarumadiSettingsCover title={harumadi.title} coverStyle={harumadi.coverStyle} entries={chosen} />}
+          triggerComponent={({ onOpen: openPurchase, onVisible: observePurchase }) => <ReaderMenu label="하루마디 관리" disabled={busy || readOnly} onOpen={chosen.length ? observePurchase : undefined} triggerContent={<><Settings2 size={17} aria-hidden="true" />관리</>}
           items={[{ label: "다음에 보낼 하루 찾아보기", onSelect: () => router.push(`/explore?${new URLSearchParams({ harumadiId: harumadi.id, ownerId: owner })}`) }, ...readerManagementActions(harumadi.role, chosen.length).map(({ action, label }) => ({ label, onSelect: () => {
             if (busy || readOnly) return;
             if (action === "selection") { selectRecords(); return; }
@@ -292,7 +295,7 @@ function HarumadiEditor({ owner, initial, read, verified, refreshing, onRefresh,
             setError(""); setConfirmed(false);
             if (action === "order") setOrderedIds(harumadi.entryIds);
             setMode(action);
-          } }))]} />}
+          } })), ...(chosen.length ? [{ label: "실물로 소장하기", onSelect: openPurchase }] : [])]} />} />}
       </HeaderTools>}</Header>
     <Body ref={scroller} data-scroll-region={mode === "pages" ? undefined : ""} $reading={mode === "pages"} $pdf={mode === "pdf"} $creating={!harumadi && mode === "settings"}>
       {read?.cached && read.missingImages > 0 && <p className="hint">일부 사진은 연결 후 볼 수 있어요.</p>}
@@ -330,10 +333,7 @@ function HarumadiEditor({ owner, initial, read, verified, refreshing, onRefresh,
         {sensitivePolicy?.enabled && <Confirmation><input type="checkbox" checked={confirmed} onChange={event => setConfirmed(event.target.checked)} />이름과 뒷표지 문구에 민감정보가 없음을 확인해요.</Confirmation>}
         {pdfInput && !readOnly && sensitivePolicy && (!sensitivePolicy.enabled || confirmed) && <HarumadiPdfPreview key={`${harumadi!.revision}:${confirmed}`} ownerId={owner} input={pdfInput} onReady={handlePdf} />}
       </> : harumadi && <>
-        <HarumadiPageViewer book={harumadi} entries={chosen} onClose={closeToLibrary} closing={closing} ownerId={owner} focusEntryId={focusEntryId}
-          pdfAction={!readOnly ? <PdfSaveButton type="button" disabled={busy} onClick={openPdf}><Download size={17} aria-hidden="true" />PDF로 저장하기</PdfSaveButton> : undefined}
-          keepsakeAction={!readOnly ? <HarumadiPurchaseButton key={harumadi.id} surface="harumadi_reader" bookTitle={harumadi.title}
-            preview={<HarumadiSettingsCover title={harumadi.title} coverStyle={harumadi.coverStyle} entries={chosen} />} /> : undefined}
+        <HarumadiPageViewer book={harumadi} entries={chosen} onClose={closeToLibrary} closing={closing} ownerId={owner} focusEntryId={focusEntryId} onEndChange={setReaderEnding}
           onEditEntry={readOnly ? undefined : entryId => {
             if (getSessionSnapshot()?.userId !== owner) return;
             rememberMadiEditOrigin(owner, entryId, "harumadi", harumadi.id);
@@ -350,8 +350,10 @@ function HarumadiEditor({ owner, initial, read, verified, refreshing, onRefresh,
       }}>다시 불러오기</Quiet></ErrorMessage>}
     </Body>
     {mode === "pages" && harumadi && <ReaderTools aria-label="하루마디 채우기">
+      {readerEnding && !readOnly ? <PdfSaveButton type="button" disabled={busy || closing || opening} onClick={openPdf}><Download size={17} aria-hidden="true" />PDF로 저장하기</PdfSaveButton> : <>
       <WriteButton type="button" disabled={busy || readOnly} onClick={() => router.push(`/madi/new?from=library&harumadiId=${encodeURIComponent(harumadi.id)}`)}><PenLine size={17} aria-hidden="true" />{isFirstMadi ? "첫 마디 남기기" : "마디 남기기"}</WriteButton>
       {harumadi.togetherEnabled && <TogetherEntry type="button" disabled={busy || readOnly} onClick={() => setMode("together")}><Users size={17} aria-hidden="true" />함께 채우기</TogetherEntry>}
+      </>}
     </ReaderTools>}
     {mode !== "pages" && mode !== "together" && mode !== "comments" && <Footer $creating={!harumadi && mode === "settings"}><PrimaryButton type="button" disabled={busy || readOnly || (mode === "settings" && (!settings.title.trim() || !backCoverTextValid || !periodValid || !sensitivePolicy || (titleNeedsConfirmation && !confirmed))) || (mode === "selection" && !entries.data) || (mode === "order" && orderedIds.join(",") === harumadi?.entryIds.join(",")) || (mode === "pdf" && (!pdf?.approvalToken || Boolean(sensitivePolicy?.enabled && !confirmed)))} onClick={() => void (mode === "settings" ? saveSettings() : mode === "selection" ? saveEntries() : mode === "order" ? saveOrder() : downloadPdf())}>{busy ? mode === "pdf" ? pdfStage === "storing" ? "Tuti에 보관하고 있어요." : "파일을 준비하고 있어요." : "저장하고 있어요." : mode === "settings" ? harumadi ? "설정 저장하기" : "빈 하루마디 만들기" : mode === "selection" ? `마디 ${selected.length}개 담기` : mode === "order" ? "이 순서로 저장하기" : "PDF 파일 저장하기"}</PrimaryButton></Footer>}
     </BookContents>

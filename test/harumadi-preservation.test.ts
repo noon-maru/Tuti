@@ -42,14 +42,15 @@ test("네이티브 공유 취소는 보관 실패가 아니며 임시 파일은 
   }
 });
 
-test("저장과 기기 전달 실패를 구분하고 마지막 쪽에서만 실물 준비 안내로 연결한다", () => {
+test("저장과 기기 전달 실패를 구분하고 소장 안내는 관리 메뉴로 연결한다", () => {
   const flow = readFileSync("src/features/tuti/flows/HarumadiFlow.tsx", "utf8");
   assert.ok(flow.indexOf('queryKey: ["library-exports", owner]') < flow.indexOf("const result = await exportHarumadiPdf"));
   assert.match(flow, /PDF는 Tuti에 보관됐어요.*기기로 내보내지 못했으니/);
-  assert.match(flow, /keepsakeAction=\{!readOnly \?/);
+  assert.match(flow, /readOnly \? <Quiet[\s\S]*: <HarumadiPurchaseButton/);
   assert.match(flow, /surface="harumadi_reader"/);
   const viewer = readFileSync("src/features/tuti/components/HarumadiPageViewer.tsx", "utf8");
-  assert.match(viewer, /lastPage && entries.length > 0 && !closing && !retained && \(pdfAction \|\| keepsakeAction\)/);
+  assert.match(viewer, /const ended = lastPage && entries.length > 0 && !retained/);
+  assert.doesNotMatch(viewer, /keepsakeAction|pdfAction|EndActions/);
   const purchase = readFileSync("src/features/tuti/components/HarumadiPurchaseButton.tsx", "utf8");
   assert.match(purchase, /아직 주문하거나 결제할 수는 없어요/);
   assert.match(purchase, /디지털 예시.*실제 제작 사양과 가격·배송은 확정되면/);
