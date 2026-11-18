@@ -6,6 +6,7 @@ import styled from "@emotion/styled";
 import { clientFlowHarness } from "./fixtures/clientFlowHarness";
 import { filterHarumadis } from "@/features/tuti/hooks/useHarumadiSearch";
 import { harumadiContent } from "./fixtures/harumadiContent";
+import { palette } from "@/styles/tokens";
 
 function nodes(tree: ReactNode): ReactElement<Record<string, unknown>>[] {
   return Children.toArray(tree).flatMap(node => isValidElement<Record<string, unknown>>(node)
@@ -19,6 +20,7 @@ test("책장 검색은 기본 접힘, 열기·입력·닫기·Escape·IME 및 �
   const paths: string[] = [];
   const components = ["HarumadiShelf", "HarumadiCarousel", "LibraryViewSwitch", "HarumadiBookReader", "MainNavigation", "LibraryLoadNotice", "MadiSearchField"];
   const deps: Record<string, unknown> = {
+    "@/styles/tokens": { palette },
     "@emotion/styled": styled,
     "lucide-react": Object.fromEntries(["BookOpen", "ChevronRight", "MoreHorizontal", "Plus", "PenLine", "ArrowUpRight", "Download", "Search", "X"].map(name => [name, name])),
     "next/navigation": { useRouter: () => ({ push(path: string) { paths.push(path); } }) },

@@ -1,6 +1,7 @@
 "use client";
 
 import styled from "@emotion/styled";
+import { palette } from "@/styles/tokens";
 import { BookOpen, ChevronRight, Plus, PenLine, ArrowUpRight, Download, Search, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -121,7 +122,9 @@ function LibraryHome({ ownerId, adminAccess = false }: { ownerId: string; adminA
     {opening && <HarumadiBookReader opening={opening} onClose={closeBook} registerCloseGuard={registerCloseGuard} />}
   </Frame>;
 }
-const Frame = styled(ScreenFrame)`position: relative; height: 100%; min-height: 0; padding: 0; background: var(--color-surface); color: var(--color-text); isolation: isolate;
+const Frame = styled(ScreenFrame)`position: relative; height: 100%; min-height: 0; padding: 0; background: var(--library-background); color: var(--color-text); isolation: isolate;
+  --library-background: ${palette.surface.library};
+  --main-navigation-background: var(--library-background);
   --screen-padding-top: calc(var(--app-header-top-space, 24px) + var(--app-safe-area-top, 0px));
   --harumadi-shelf-title-size: 16px; --harumadi-shelf-brand-size: 10px; --harumadi-shelf-date-size: 11px;
   --harumadi-shelf-title-lines: 3; --harumadi-shelf-title-leading: 1.5;

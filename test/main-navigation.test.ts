@@ -47,7 +47,7 @@ test("홈과 둘러보기는 같은 하단 바를 사용하고 기존 상단 이
 test("바 크기와 고정 메뉴 이름은 부모 화면이 아닌 공통 컴포넌트에서 관리한다", () => {
   const navigation = read("components/MainNavigation.tsx");
   const home = read("flows/LibraryHomeFlow.tsx"), explore = read("flows/ExploreFlow.tsx");
-  for (const source of [home, explore]) assert.doesNotMatch(source, /--main-navigation-|<MainNavigation[^>]*firstMadi/);
+  for (const source of [home, explore]) assert.doesNotMatch(source, /--main-navigation-(?:label-size|create-size|item-height|create-height|icon-size)|<MainNavigation[^>]*firstMadi/);
   for (const declaration of ["label-size: 12px", "create-size: 14px", "item-height: 56px", "create-height: 52px", "icon-size: 24px"]) assert.ok(navigation.includes(`--main-navigation-${declaration}`));
   assert.match(navigation, /useHarumadiLibrary\(ownerId\)/);
   assert.match(home, /useHarumadiLibrary\(ownerId\)/);
