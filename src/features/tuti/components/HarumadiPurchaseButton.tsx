@@ -3,7 +3,7 @@
 import styled from "@emotion/styled";
 import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 import { BookOpen } from "lucide-react";
-import { BaseButton, PrimaryButton, TextButton } from "@/features/tuti/components/buttons";
+import { BaseButton, PrimaryButton, TextButton, readerActionButtonStyles } from "@/features/tuti/components/buttons";
 import { recordProductInteraction } from "@/lib/productInteraction";
 import type { ProductInteractionSurface } from "@/shared/api/productInteraction";
 import { AppDialogFrame } from "@/shared/ui/AppDialogFrame";
@@ -84,7 +84,8 @@ const PurchaseButton = styled(BaseButton)<{ $compact?: boolean }>`
   font-size: var(--ui-caption-size);
   text-decoration: underline;
   text-underline-offset: 4px;
-  ${({ $compact }) => $compact && `display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: var(--ui-action-height); min-width: 0; padding: 10px 12px; border-radius: 999px; background: var(--color-secondary-200); color: var(--color-secondary-1000); font-size: var(--ui-body-size); font-weight: 600; text-decoration: none; line-height: 1.6; white-space: normal; svg { flex: none; }`}
+  ${({ $compact }) => $compact && readerActionButtonStyles}
+  ${({ $compact }) => $compact && `background: var(--color-secondary-200); color: var(--color-secondary-1000); text-decoration: none;`}
   &:disabled { opacity: .5; }
 `;
 const Notice = styled.div`

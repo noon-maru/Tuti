@@ -12,7 +12,7 @@ import { Download, MessageCircle, PenLine, Settings2, Users } from "lucide-react
 import { HarumadiAppearanceFields } from "@/features/tuti/components/HarumadiAppearanceFields";
 import { useSession } from "@/features/tuti/hooks/useSession";
 import { AppLoadingScreen } from "@/features/tuti/components/LoadingIndicator";
-import { BackButton, BaseButton, PrimaryButton } from "@/features/tuti/components/buttons";
+import { BackButton, BaseButton, PrimaryButton, readerActionButtonStyles } from "@/features/tuti/components/buttons";
 import { ContextMenu } from "@/features/tuti/components/ContextMenu";
 import { ScreenFrame } from "@/features/tuti/components/ScreenFrame";
 import { HarumadiPdfPreview } from "@/features/tuti/components/HarumadiPdfPreview";
@@ -370,7 +370,7 @@ const Frame = styled(ScreenFrame)<{ $openingSpread?: boolean }>`position: relati
 const BookContents = styled.div`height: 100%; min-height: 0; display: flex; flex-direction: column; background: var(--color-surface);`;
 const HeaderTools = styled.div`display: flex; align-items: center; gap: 12px; min-width: 0; > span { flex: none; width: auto; }`;
 const ReaderMenu = styled(ContextMenu)`> button { display: inline-flex; align-items: center; gap: 6px; min-height: var(--ui-control-height); padding: 8px 0 8px 8px; font-size: var(--ui-body-size); color: var(--color-text-muted); &:disabled { opacity: .5; } }`;
-const TogetherEntry = styled(BaseButton)`display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: var(--ui-action-height); min-width: 0; padding: 10px 12px; border-radius: 999px; background: var(--color-secondary-200); color: var(--color-secondary-1000); font-size: var(--ui-body-size); font-weight: 600; &:disabled { opacity: .5; } &:focus-visible { outline: 2px solid var(--color-brand-700); outline-offset: -2px; }`;
+const TogetherEntry = styled(BaseButton)`${readerActionButtonStyles} background: var(--color-secondary-200); color: var(--color-secondary-1000); &:disabled { opacity: .5; } &:focus-visible { outline: 2px solid var(--color-brand-700); outline-offset: -2px; }`;
 const Header = styled.header<{ $creating?: boolean; $reading?: boolean; $standard?: boolean; $pdf?: boolean }>`flex: none; display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: calc(12px + var(--app-safe-area-top, 0px)) var(--screen-padding-right) 0 var(--screen-padding-left); min-height: 50px;
   ${({ $reading }) => $reading && `padding-top: calc(40px + var(--app-safe-area-top, 0px)); @container app-viewport (max-height: 620px) { padding-top: calc(24px + var(--app-safe-area-top, 0px)); }`}
   ${({ $standard }) => $standard && `padding-top: var(--screen-padding-top);`}
@@ -379,7 +379,7 @@ const Header = styled.header<{ $creating?: boolean; $reading?: boolean; $standar
 `;
 const Quiet = styled(BaseButton)`display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: var(--ui-control-height); padding: 6px 0; background: transparent; color: var(--color-text-muted); font-size: var(--ui-body-size); &:disabled { opacity: .5; } &:focus-visible { outline: 2px solid var(--color-brand-700); outline-offset: 3px; }`;
 const PdfHeading = styled.h1`${screenTitleStyles}`;
-const PdfSaveButton = styled(PrimaryButton)`display: flex; align-items: center; justify-content: center; gap: 8px; min-height: 48px; font-size: var(--ui-body-size);`;
+const PdfSaveButton = styled(PrimaryButton)`${readerActionButtonStyles}`;
 const PdfNote = styled.p`${captionStyles} margin: 0 0 12px;`;
 const Body = styled.div<{ $reading: boolean; $creating?: boolean; $pdf?: boolean }>`flex: 1; min-height: 0; overflow-y: auto; padding: ${({ $reading, $creating }) => $reading ? "12px calc(var(--reader-outside-inset) + var(--app-safe-area-right, 0px)) 12px calc(var(--reader-outside-inset) + var(--app-safe-area-left, 0px))" : $creating ? "22px var(--screen-padding-right) 20px var(--screen-padding-left)" : "22px var(--screen-padding-right) 28px var(--screen-padding-left)"}; ${({ $reading }) => $reading && "display: flex; flex-direction: column;"} overscroll-behavior: contain; &:has([data-order-editor]) { overflow-anchor: none; } h1 { ${screenTitleStyles} margin: 8px 0 12px; } > p { ${bodyCopyStyles} color: var(--color-text-muted); white-space: pre-line; } .hint { ${captionStyles} }
   ${({ $pdf }) => $pdf && `padding-top: 12px; > p { font-size: var(--ui-caption-size); line-height: 1.6; }`}
@@ -447,5 +447,5 @@ const Footer = styled.footer<{ $creating?: boolean }>`flex: none; padding: 12px 
   ${({ $creating }) => $creating && `@container app-viewport (max-height: 719px) { padding: 8px var(--screen-padding-right) calc(12px + var(--app-safe-area-bottom, 0px)) var(--screen-padding-left); }`}
 `;
 const ReaderTools = styled.nav`display: flex; flex: none; flex-wrap: wrap; gap: 10px; padding: 12px calc(16px + var(--app-safe-area-right, 0px)) calc(16px + var(--app-safe-area-bottom, 0px)) calc(16px + var(--app-safe-area-left, 0px)); > button { flex: 1 1 auto; min-width: 0; } svg { flex: none; }`;
-const WriteButton = styled(PrimaryButton)`display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding-inline: 12px;`;
+const WriteButton = styled(PrimaryButton)`${readerActionButtonStyles}`;
 const ErrorMessage = styled.div`padding: 12px; font-size: 14px; line-height: 1.7; color: #b42318; background: white; border-radius: 8px; margin-top: 12px; > button { display: block; }`;

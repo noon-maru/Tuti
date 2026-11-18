@@ -16,6 +16,7 @@ export {
   TextButton,
   baseControlStyles,
   buttonFrameStyles,
+  readerActionButtonStyles,
   compactSecondaryButtonStyles,
   quietIconButtonStyles,
 } from "@/shared/ui/buttons";

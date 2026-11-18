@@ -73,6 +73,15 @@ export const buttonFrameStyles = css`
   }
 `;
 
+/** 하루마디 하단의 작성·공동작성·PDF·실물 소장은 같은 치수로 교체한다. */
+export const readerActionButtonStyles = css`
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  min-height: var(--ui-action-height); min-width: 0; padding: 10px 12px;
+  border-radius: 999px; font-size: var(--ui-body-size); font-weight: 600;
+  line-height: 1.6; white-space: normal;
+  > svg { flex: none; }
+`;
+
 /** 읽는 화면의 보조 행동. 주요 작성 버튼보다 한 단계 낮은 강조를 쓴다. */
 export const compactSecondaryButtonStyles = css`
   display: inline-flex; align-items: center; justify-content: center; flex: none; gap: 6px;
