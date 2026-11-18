@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { readFileSync } from "node:fs";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -40,6 +41,17 @@ test("선택한 한 권만 펼치고 기존 지면을 재사용한다", () => {
   assert.match(html, /900ms cubic-bezier/);
   assert.match(html, /prefers-reduced-motion:\s*reduce/);
   client.clear();
+});
+
+test("책장 미리보기는 책등을 고정한 채 표지와 왼쪽 지면만 펼친다", () => {
+  const source = readFileSync("src/features/tuti/components/HarumadiSpreadPreview.tsx", "utf8");
+  const spread = source.match(/const Spread = styled\.span`([\s\S]*?)`;/)![1];
+  assert.doesNotMatch(spread, /translate|animation: \$/);
+  assert.doesNotMatch(source, /centerSpread/);
+  assert.match(source, /const unfoldLeft = keyframes`from \{ transform: rotateY\(173deg\)/);
+  assert.match(source, /const turnCover = keyframes/);
+  assert.match(source, /transform-origin: left center/);
+  assert.match(source, /prefers-reduced-motion: reduce/);
 });
 
 test("공동작성 책의 이전 응답은 현재 마운트에서 권한 재검증 전 노출하지 않는다", () => {

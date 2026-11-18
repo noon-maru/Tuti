@@ -50,12 +50,9 @@ export function HarumadiSpreadSheets({ book, pages, ready = true, still = false,
   </Spread>;
 }
 
-const centerSpread = keyframes`from { transform: translateX(-25%); } to { transform: translateX(0); }`;
 const unfoldLeft = keyframes`from { transform: rotateY(173deg); } to { transform: rotateY(7deg); }`;
 const turnCover = keyframes`0% { transform: rotateY(0deg); opacity: 1; } 99% { opacity: 1; } 100% { transform: rotateY(-173deg); opacity: 0; }`;
 const Spread = styled.span`position: relative; display: flex; width: 100%; aspect-ratio: 296 / 210; perspective: 900px; filter: drop-shadow(0 12px 12px #1b222a16);
-  transform: translateX(-25%);
-  &[data-spread-ready="true"] { animation: ${centerSpread} 900ms cubic-bezier(.33,0,.2,1) both; }
   &[data-spread-still="true"] { transform: none; animation: none; }
   @media (prefers-reduced-motion: reduce) { transform: none; animation: none !important; }
   &::after { content: ""; position: absolute; inset: 0 auto 0 50%; width: 1px; background: #cbd1c6; pointer-events: none; }
