@@ -73,5 +73,11 @@ export function carouselPose(distance: number) {
 export function carouselDraggedPose(offset: number, drag: number, index: number, count: number) {
   const selectionProgress = clamp(drag, Math.max(-1, -index), Math.min(1, Math.max(0, count - index - 1)));
   const pose = carouselPose(offset - selectionProgress);
-  return { ...pose, x: pose.x - (drag - selectionProgress) * .24 };
+  const progress = Math.abs(selectionProgress);
+  const blend = progress * progress * (3 - 2 * progress);
+  // 깊이 순서를 중간에 뒤집는 대신, 현재 책을 앞에서 서서히 걷어 옆 책을 드러낸다.
+  const departing = offset === 0 && progress > 0;
+  return { ...pose, x: pose.x - (drag - selectionProgress) * .24,
+    opacity: departing ? pose.opacity * (1 - blend) : pose.opacity,
+    zIndex: departing && progress < 1 ? 101 : pose.zIndex };
 }

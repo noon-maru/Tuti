@@ -198,7 +198,7 @@ const Stage = styled.div<{ $dragging: boolean; $canWrite: boolean }>`position: r
   &:focus-visible { outline: 2px solid var(--color-brand-700); outline-offset: -3px; border-radius: 12px; }
 `;
 const Slide = styled.div<{ $dragging: boolean }>`position: absolute; top: 50%; left: 50%; will-change: transform; backface-visibility: hidden;
-  transition: ${({ $dragging }) => $dragging ? "none" : "transform 560ms cubic-bezier(.22,.75,.22,1), opacity 440ms ease"};
+  transition: ${({ $dragging }) => $dragging ? "none" : "transform 560ms cubic-bezier(.22,.75,.22,1), opacity 560ms cubic-bezier(.22,.75,.22,1), z-index 560ms linear"};
   @media (prefers-reduced-motion: reduce) { transition: none; }
 `;
 const CoverButton = styled(BaseButton)<{ $spread: boolean }>`display: block; padding: 0; width: ${({ $spread }) => $spread ? "100%" : "50%"}; margin: 0 auto; transform: ${({ $spread }) => $spread ? "translateX(-25%)" : "none"}; background: transparent; color: inherit; cursor: inherit; -webkit-user-drag: none;

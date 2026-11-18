@@ -166,6 +166,28 @@ test("아무리 당겨도 다다음 책이 앞서지 않고 초과 당김은 책
   assert.match(source, /carouselDraggedPose\(bookIndex - index, drag, index, books.length\)/);
 });
 
+test("드래그 중 현재 책은 앞에서 서서히 사라지고 옆 책이 선명해진다", () => {
+  for (const direction of [-1, 1]) {
+    let outgoing = 1, incoming = carouselPose(1).opacity;
+    for (const progress of [.01, .2, .49, .5, .51, .8, .99, 1]) {
+      const current = carouselDraggedPose(0, direction * progress, 3, 7);
+      const next = carouselDraggedPose(direction, direction * progress, 3, 7);
+      assert.ok(current.opacity < outgoing);
+      assert.ok(next.opacity > incoming);
+      if (progress < 1) assert.ok(current.zIndex > next.zIndex, "반쯤 끌어도 앞뒤가 갑자기 뒤집히지 않는다");
+      else assert.equal(current.opacity, 0, "앞뒤 순서를 바꿀 때는 현재 책이 완전히 옅어진다");
+      outgoing = current.opacity; incoming = next.opacity;
+    }
+  }
+  for (const offset of [-1, 0, 1]) {
+    assert.deepEqual(carouselDraggedPose(offset, 0, 3, 7), carouselPose(offset), "놓은 뒤의 정적 배치는 유지한다");
+  }
+  assert.equal(carouselDraggedPose(0, -.5, 0, 7).opacity, 1, "양끝의 탄성 당김에서는 책이 사라지지 않는다");
+  const source = readFileSync("src/features/tuti/components/HarumadiCarousel.tsx", "utf8");
+  assert.match(source, /opacity 560ms cubic-bezier/);
+  assert.match(source, /z-index 560ms linear/);
+});
+
 test("많은 책도 주변 표지만 렌더하고 현재 책 열기·공동작성 메뉴·단일 책 경계를 지킨다", () => {
   const base = harumadiContent().harumadi;
   const render = (count: number, hasNextPage = false) => renderToStaticMarkup(createElement(QueryClientProvider, { client: new QueryClient() },
