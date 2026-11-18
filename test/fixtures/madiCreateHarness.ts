@@ -3,7 +3,6 @@ import vm from "node:vm";
 import ts from "typescript";
 import * as React from "react";
 import styled from "@emotion/styled";
-import * as emotion from "@emotion/react";
 import * as jsx from "react/jsx-runtime";
 import * as fields from "../../src/shared/api/firstJournal";
 import * as copy from "../../src/shared/tuti/madiFields";
@@ -33,7 +32,6 @@ export function madiCreateHarness(props: ComponentProps<typeof MadiCreateScreen>
       return [states[index], (next: unknown) => { states[index] = typeof next === "function" ? next(states[index]) : next; }];
     }, useRef: (initial: unknown) => refs[refCursor++] ?? (refs[refCursor - 1] = { current: initial }), useEffect() {}, useCallback: (fn: unknown) => fn },
     "react/jsx-runtime": jsx, "@emotion/styled": { __esModule: true, default: styled },
-    "@emotion/react": emotion,
     "next/image": { __esModule: true, default: tag },
     "lucide-react": { Camera: tag, ImagePlus: tag, Check: tag, ArrowRight: tag, PenLine: tag },
     "@/shared/ui/typography": Object.fromEntries(["screenTitleStyles", "sectionHeadingStyles", "bodyCopyStyles", "captionStyles", "inputControlStyles", "nativeDateInputStyles"].map(key => [key, ""])),

@@ -17,10 +17,12 @@ import { foldCarouselBook } from "@/lib/carouselBookFold";
 import { harumadiSharingLabel } from "@/shared/harumadi/sharingAudience";
 
 type Gesture = { id: number; x: number; y: number; dx: number; startedAt: number; width: number; dragging: boolean; bookId: string; axis?: "horizontal" | "down" };
-export function HarumadiCarousel({ books, ownerId, onOpen, onCreateMadi, hasNextPage = false, loading = false, onLoadMore }: {
+export function HarumadiCarousel({ books, ownerId, onOpen, onCreateMadi, onWriteDrag, onWriteCancel, hasNextPage = false, loading = false, onLoadMore }: {
   books: Harumadi[]; ownerId: string;
   onOpen: (book: Harumadi, control: HTMLElement, mode?: HarumadiOpeningMode) => void;
   onCreateMadi?: (bookId: string) => void;
+  onWriteDrag?: (book: Harumadi, distance: number) => void;
+  onWriteCancel?: () => void;
   hasNextPage?: boolean; loading?: boolean; onLoadMore?: () => Promise<string | null>;
 }) {
   const stage = useRef<HTMLDivElement>(null);
@@ -58,12 +60,13 @@ export function HarumadiCarousel({ books, ownerId, onOpen, onCreateMadi, hasNext
     const cancel = () => {
       const current = gesture.current; gesture.current = null;
       setDrag(0); setDragging(false); setWriteProgress(0);
+      onWriteCancel?.();
       const node = stage.current;
       if (current && node?.hasPointerCapture(current.id)) node.releasePointerCapture(current.id);
     };
     window.addEventListener("blur", cancel);
     return () => window.removeEventListener("blur", cancel);
-  }, []);
+  }, [onWriteCancel]);
   const transitionTo = async (next: { id: string; index: number }) => {
     if (turning.current || lifetime.current?.signal.aborted || next.id === active?.id) return;
     const controller = new AbortController();
@@ -118,7 +121,10 @@ export function HarumadiCarousel({ books, ownerId, onOpen, onCreateMadi, hasNext
       current.dragging = true; event.currentTarget.setPointerCapture(event.pointerId); setDragging(true);
     }
     current.dx = dx;
-    if (current.axis === "down") setWriteProgress(carouselWriteProgress(dy, current.width));
+    if (current.axis === "down") {
+      setWriteProgress(carouselWriteProgress(dy, current.width));
+      if (active?.id === current.bookId) onWriteDrag?.(active, Math.max(0, dy));
+    }
     else setDrag(carouselDragProgress(dx, current.width, index, books.length));
   };
   const finish = (event: PointerEvent<HTMLDivElement>, cancelled = false) => {
@@ -127,9 +133,13 @@ export function HarumadiCarousel({ books, ownerId, onOpen, onCreateMadi, hasNext
     if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
     if (!current.dragging) return;
     blockedClickUntil.current = event.timeStamp + 300;
-    if (cancelled || pending || loading || active?.id !== current.bookId) return;
+    if (cancelled || pending || loading || active?.id !== current.bookId) {
+      if (current.axis === "down") onWriteCancel?.();
+      return;
+    }
     if (current.axis === "down") {
       if (carouselShouldWrite(event.clientY - current.y, current.width, event.timeStamp - current.startedAt)) onCreateMadi?.(current.bookId);
+      else onWriteCancel?.();
       return;
     }
     const direction = carouselSwipeDirection(event.clientX - current.x, current.width, event.timeStamp - current.startedAt);

@@ -40,6 +40,8 @@ test("책장 검색은 기본 접힘, 열기·입력·닫기·Escape·IME 및 �
     "../components/ScreenFrame": { ScreenFrame: "section" }, "../components/MainMenu": { MainMenu: "div" },
     "@/shared/ui/typography": { bodyCopyStyles: "" },
     "../components/PendingMadiNotice": { PendingMadiNotice: "PendingMadiNotice" },
+    "../hooks/useMadiComposePull": { useMadiComposePull: () => ({ preview: null, layerRef: { current: null }, drag() {}, cancel() {}, open() {} }) },
+    "../components/MadiComposePullPreview": { MadiComposePullPreview: "MadiComposePullPreview" },
   };
   for (const name of components) deps[`@/features/tuti/components/${name}`] = { [name]: name };
   const flow = clientFlowHarness("src/features/tuti/flows/LibraryHomeFlow.tsx", "LibraryHomeFlow", deps);

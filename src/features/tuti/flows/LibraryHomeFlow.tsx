@@ -31,6 +31,8 @@ import { ScreenFrame } from "../components/ScreenFrame";
 import { MainMenu } from "../components/MainMenu";
 import { bodyCopyStyles } from "@/shared/ui/typography";
 import { PendingMadiNotice } from "../components/PendingMadiNotice";
+import { useMadiComposePull } from "../hooks/useMadiComposePull";
+import { MadiComposePullPreview } from "../components/MadiComposePullPreview";
 
 export function LibraryHomeFlow() {
   const session = useSession();
@@ -48,6 +50,8 @@ function LibraryHome({ ownerId, adminAccess = false }: { ownerId: string; adminA
   const shelfScroll = useRef<HTMLDivElement>(null);
   useEffect(() => { shelfScroll.current?.scrollTo({ top: 0 }); }, [view]);
   const frame = useRef<HTMLElement>(null);
+  const commitMadi = useCallback((bookId: string) => router.push(`/madi/new?from=library&harumadiId=${encodeURIComponent(bookId)}&cancelTo=library`), [router]);
+  const composePull = useMadiComposePull({ containerRef: frame, onCommit: commitMadi });
   const { opening, openBook: showBook, closeBook, registerCloseGuard } = useHarumadiHistory(ownerId);
   useLifecycleView("home_viewed", "home", undefined, !opening);
   const openBook = (book: Harumadi, control: HTMLElement, mode: HarumadiOpeningMode = "pages") => {
@@ -81,7 +85,7 @@ function LibraryHome({ ownerId, adminAccess = false }: { ownerId: string; adminA
   }, [ownerId]);
   const openEditor = () => router.push("/harumadi");
   const openExample = () => { setWelcomeHarumadiOrigin(null); router.push(welcomeHarumadiPath(1, "library")); };
-  return <Frame ref={frame} aria-label="내 책장"><HomeSurface $hidePreview={opening?.mode === "pages" && opening.origin.appearance === "spread"} inert={Boolean(opening)} aria-hidden={opening ? true : undefined}>
+  return <Frame ref={frame} aria-label="내 책장"><HomeSurface $hidePreview={opening?.mode === "pages" && opening.origin.appearance === "spread"} inert={Boolean(opening) || Boolean(composePull.preview?.settling)} aria-hidden={opening || composePull.preview?.settling ? true : undefined}>
     <Header><HeaderActions inert={searchOpen} aria-hidden={searchOpen}>
       <MadiShortcut type="button" onClick={() => router.push("/madi")}>나의 마디<ArrowUpRight size={16} aria-hidden="true" /></MadiShortcut>
       <CreateHarumadi type="button" onClick={openEditor}><Plus size={17} aria-hidden="true" />새 하루마디</CreateHarumadi>
@@ -116,13 +120,15 @@ function LibraryHome({ ownerId, adminAccess = false }: { ownerId: string; adminA
             <TextAction onClick={openExample}>하루마디 예시 펼쳐보기<ChevronRight size={14} /></TextAction>
           </EmptyShelf> : <>
             {view === "carousel" && !search.searching ? <HarumadiCarousel books={harumadiPdfs} ownerId={ownerId} onOpen={openBook}
-              onCreateMadi={bookId => router.push(`/madi/new?from=library&harumadiId=${encodeURIComponent(bookId)}&cancelTo=library`)} /> : <HarumadiShelf books={harumadiPdfs} ownerId={ownerId} view={!search.searching && view === "spines" ? "spines" : "covers"} onOpen={openBook} />}
+              loading={Boolean(composePull.preview?.settling)} onWriteDrag={composePull.drag} onWriteCancel={composePull.cancel}
+              onCreateMadi={bookId => { const book = harumadiPdfs.find(item => item.id === bookId); if (book) composePull.open(book); }} /> : <HarumadiShelf books={harumadiPdfs} ownerId={ownerId} view={!search.searching && view === "spines" ? "spines" : "covers"} onOpen={openBook} />}
           </>}
           {query.isError && <LibraryLoadNotice nextPage={false} busy={query.isFetching} onRetry={() => void query.refetch()} />}
         </>}
     </ShelfScroll>
     <MainNavigation active="harumadi" />
     </HomeSurface>
+    {composePull.preview && <MadiComposePullPreview preview={composePull.preview} layerRef={composePull.layerRef} />}
     {opening && <HarumadiBookReader opening={opening} onClose={closeBook} registerCloseGuard={registerCloseGuard} />}
   </Frame>;
 }

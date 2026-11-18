@@ -7,13 +7,20 @@ import * as jsx from "react/jsx-runtime";
 /** Exercise real flow handlers with browser/service boundaries substituted, not reimplemented. */
 export function clientFlowHarness(file: string, name: string, deps: Record<string, unknown>, globals: Record<string, unknown> = {}) {
   const states: unknown[] = [], refs: Array<{ current: unknown }> = [];
+  const callbacks: Array<{ deps?: unknown[]; value: unknown }> = [];
   const effects: Array<{ deps?: unknown[]; cleanup?: () => void; run?: () => void | (() => void) }> = [];
-  let stateIndex = 0, refIndex = 0, effectIndex = 0;
+  let stateIndex = 0, refIndex = 0, effectIndex = 0, callbackIndex = 0;
   const hooks = { ...React,
     useState(initial: unknown) { const index = stateIndex++; if (!(index in states)) states[index] = typeof initial === "function" ? initial() : initial;
       return [states[index], (next: unknown) => { states[index] = typeof next === "function" ? next(states[index]) : next; }]; },
     useRef(initial: unknown) { const index = refIndex++; return refs[index] ?? (refs[index] = { current: initial }); },
-    useCallback: (callback: unknown) => callback,
+    useCallback(callback: unknown, dependencies?: unknown[]) {
+      const index = callbackIndex++, old = callbacks[index];
+      if (!old || !dependencies || dependencies.length !== old.deps?.length || dependencies.some((value, i) => !Object.is(value, old.deps?.[i]))) {
+        callbacks[index] = { deps: dependencies, value: callback };
+      }
+      return callbacks[index].value;
+    },
     useMemo: (factory: () => unknown) => factory(),
     useId: () => `fixture-${refIndex++}`,
     useLayoutEffect(run: () => void | (() => void), dependencies?: unknown[]) { hooks.useEffect(run, dependencies); },
@@ -35,7 +42,7 @@ export function clientFlowHarness(file: string, name: string, deps: Record<strin
   } });
   return {
     render(props = {}, child?: (props: unknown) => React.ReactElement<Record<string, unknown>>) {
-      stateIndex = 0; refIndex = 0; effectIndex = 0; return (child ?? exports[name])(props);
+      stateIndex = 0; refIndex = 0; effectIndex = 0; callbackIndex = 0; return (child ?? exports[name])(props);
     },
     effects() { for (const effect of effects) { const run = effect.run; effect.run = undefined; if (run) effect.cleanup = run() || undefined; } },
     dispose() { for (const effect of effects) effect.cleanup?.(); },

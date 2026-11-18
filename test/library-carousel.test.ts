@@ -243,9 +243,11 @@ test("터치 자식의 암시적 캡처가 무대로 이동해도 스와이프�
   const target = { setPointerCapture() { captured = true; }, hasPointerCapture() { return captured; }, releasePointerCapture() { captured = false; } };
   const finishBody = source.match(/const finish = .*?=> \{([\s\S]*?)\n  \};/)![1];
   const writes: string[] = [], active = { id: "book" };
-  const finish = new Function("gesture", "setDrag", "setDragging", "blockedClickUntil", "active", "carouselSwipeDirection", "move", "setWriteProgress", "pending", "loading", "carouselShouldWrite", "onCreateMadi", `return (event, cancelled = false) => {${finishBody}}`)(gesture, () => {}, () => {}, blockedClickUntil, active, carouselSwipeDirection, (direction: number) => directions.push(direction), () => {}, false, false, carouselShouldWrite, (id: string) => writes.push(id));
+  let cancels = 0;
+  const pulls: number[] = [];
+  const finish = new Function("gesture", "setDrag", "setDragging", "blockedClickUntil", "active", "carouselSwipeDirection", "move", "setWriteProgress", "pending", "loading", "carouselShouldWrite", "onCreateMadi", "onWriteCancel", `return (event, cancelled = false) => {${finishBody}}`)(gesture, () => {}, () => {}, blockedClickUntil, active, carouselSwipeDirection, (direction: number) => directions.push(direction), () => {}, false, false, carouselShouldWrite, (id: string) => writes.push(id), () => { cancels++; });
   const followBody = source.match(/const follow = .*?=> \{([\s\S]*?)\n  \};/)![1];
-  const follow = new Function("gesture", "setDragging", "setDrag", "carouselDragProgress", "index", "books", "carouselGestureAxis", "onCreateMadi", "blockedClickUntil", "setWriteProgress", "carouselWriteProgress", `return event => {${followBody}}`)(gesture, () => {}, () => {}, carouselDragProgress, 0, [{}, {}], carouselGestureAxis, () => {}, blockedClickUntil, () => {}, carouselWriteProgress);
+  const follow = new Function("gesture", "setDragging", "setDrag", "carouselDragProgress", "index", "books", "carouselGestureAxis", "onCreateMadi", "blockedClickUntil", "setWriteProgress", "carouselWriteProgress", "active", "onWriteDrag", `return event => {${followBody}}`)(gesture, () => {}, () => {}, carouselDragProgress, 0, [{}, {}], carouselGestureAxis, () => {}, blockedClickUntil, () => {}, carouselWriteProgress, active, (_book: unknown, distance: number) => pulls.push(distance));
   const lostBody = source.match(/onLostPointerCapture=\{event => \{(.*?)\}\}/)![1];
   const lost = new Function("finish", `return event => {${lostBody}}`)(finish);
   const event = { pointerId: 1, clientX: 150, clientY: 100, timeStamp: 100, currentTarget: target };
@@ -265,6 +267,8 @@ test("터치 자식의 암시적 캡처가 무대로 이동해도 스와이프�
   const reset = () => { gesture.current = { id: 1, x: 200, y: 100, dx: 0, startedAt: 0, width: 320, dragging: false, bookId: "book" }; };
   reset();
   follow({ ...event, clientX: 200, clientY: 130 });
+  assert.deepEqual(pulls, [30], "손을 놓기 전부터 이동 거리를 작성 화면에 전달한다");
+  assert.deepEqual(writes, []);
   lost({ ...event, target: {} });
   finish({ ...event, clientX: 200, clientY: 180, timeStamp: 300 });
   assert.deepEqual(writes, ["book"]);
@@ -280,6 +284,7 @@ test("터치 자식의 암시적 캡처가 무대로 이동해도 스와이프�
   finish({ ...event, clientX: 200, clientY: 180 });
   active.id = "book";
   assert.deepEqual(writes, ["book"], "취소나 선택 변경은 작성 화면을 열지 않는다");
+  assert.equal(cancels, 3, "캡처 취소·짧은 이동·선택 변경은 미리보기를 되돌린다");
   reset();
   follow(event); // 좌우 축을 먼저 선택한 뒤 크게 내려도 작성하지 않는다.
   finish({ ...event, clientY: 220, timeStamp: 300 });
@@ -321,7 +326,9 @@ test("아래로 쓰기 안내는 버튼으로도 실행할 수 있고 현재 책
     assert.match(html, /touch-action:pinch-zoom/);
     assert.match(html, /aria-label="[^"]+, 이 하루마디에 남기기"/);
     const home = readFileSync("src/features/tuti/flows/LibraryHomeFlow.tsx", "utf8");
-    assert.match(home, /onCreateMadi=\{bookId => router.push\(`\/madi\/new\?from=library&harumadiId=\$\{encodeURIComponent\(bookId\)\}/);
+    assert.match(home, /router.push\(`\/madi\/new\?from=library&harumadiId=\$\{encodeURIComponent\(bookId\)\}&cancelTo=library/);
+    assert.match(home, /onWriteDrag=\{composePull.drag\} onWriteCancel=\{composePull.cancel\}/);
+    assert.match(home, /composePull.open\(book\)/);
     const source = readFileSync("src/features/tuti/flows/JournalCreateFlow.tsx", "utf8");
     assert.match(source, /harumadiId/);
   } finally { client.clear(); }
