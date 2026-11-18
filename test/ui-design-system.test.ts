@@ -75,7 +75,7 @@ test("책장도 ScreenFrame 여백을 쓰며 좁은 화면에서 보기 이름�
   assert.match(home, /const Frame = styled\(ScreenFrame\)/);
   assert.match(home, /padding: var\(--screen-padding-top\) var\(--screen-padding-right\)/);
   assert.match(home, /container-type: size/);
-  assert.match(home, /const MadiShortcut =[^`]*`[^`]*white-space: nowrap/);
+  assert.match(home, /const MadiShortcut =[^`]*`\$\{compactSecondaryButtonStyles\}/);
   assert.match(home, /min-height: 44px/);
 });
 
@@ -125,10 +125,12 @@ test("홈은 마디·생성·검색·책장 메뉴를 한 줄로 묶고 보기 �
 test("홈 생성과 나의 마디는 직접 보이고 PDF와 설정은 상단 공용 메뉴로 통합한다", () => {
   const home = source("src/features/tuti/flows/LibraryHomeFlow.tsx");
   const create = home.match(/const CreateHarumadi = styled\(TextAction\)`([^`]+)`/)![1];
-  assert.match(create, /font-size: \.875rem/);
-  assert.match(create, /min-height: 44px/);
-  assert.match(create, /line-height: 1\.5/);
-  assert.match(create, /font-weight: 500/);
+  assert.match(create, /compactSecondaryButtonStyles/);
+  const shared = source("src/shared/ui/buttons.tsx").match(/const compactSecondaryButtonStyles = css`([^`]+)`/)![1];
+  assert.match(shared, /font-size: \.875rem/);
+  assert.match(shared, /min-height: 44px/);
+  assert.match(shared, /line-height: 1\.5/);
+  assert.match(shared, /font-weight: 500/);
   assert.match(home, /const TextAction = [\s\S]*?:focus-visible/);
   assert.match(source("src/features/tuti/components/MainMenu.tsx"), /const Menu = styled\(ContextMenu\)`\s*width: 44px; height: 44px/);
   assert.match(home, /const openEditor = \(\) => router.push\("\/harumadi"\)/);

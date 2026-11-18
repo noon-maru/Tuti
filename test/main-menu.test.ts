@@ -46,7 +46,7 @@ test("두 메인 메뉴는 동일한 세로 점 아이콘·44px 조작 영역·�
     assert.match(html, /width:44px;height:44px/);
   }
   const component = readFileSync("src/features/tuti/components/MainMenu.tsx", "utf8");
-  assert.match(component, /:focus-visible/);
+  assert.match(component, /quietIconButtonStyles/);
   assert.match(component, /aria-hidden="true"/);
 });
 

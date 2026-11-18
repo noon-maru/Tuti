@@ -35,7 +35,7 @@ test("홈과 둘러보기는 같은 하단 바를 사용하고 기존 상단 이
   assert.match(explore, /<MainNavigation active="explore"/);
   assert.doesNotMatch(home, /<Footer>|<ExploreButton/);
   assert.doesNotMatch(explore, /내 책장으로|<Navigation/);
-  assert.match(home, /전체 마디 보기/);
+  assert.match(home, /<MadiShortcut.*>나의 마디/);
   assert.match(read("components/MainNavigation.tsx"), />나들이/);
   assert.doesNotMatch(read("components/MainNavigation.tsx"), />둘러보기/);
   for (const flow of ["JournalCreateFlow", "JournalDetailFlow", "JournalEditFlow", "HarumadiFlow", "AccountFlow"]) {

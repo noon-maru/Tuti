@@ -16,7 +16,7 @@ import { HarumadiBookReader } from "@/features/tuti/components/HarumadiBookReade
 import { useHarumadiHistory } from "@/features/tuti/hooks/useHarumadiHistory";
 import { MainNavigation } from "@/features/tuti/components/MainNavigation";
 import { LibraryLoadNotice } from "@/features/tuti/components/LibraryLoadNotice";
-import { BaseButton, PrimaryButton } from "@/features/tuti/components/buttons";
+import { BaseButton, PrimaryButton, compactSecondaryButtonStyles, quietIconButtonStyles } from "@/features/tuti/components/buttons";
 import { useHarumadiLibrary } from "@/features/tuti/hooks/useHarumadiLibrary";
 import { useHarumadiSearch } from "@/features/tuti/hooks/useHarumadiSearch";
 import { MadiSearchField } from "@/features/tuti/components/MadiSearchField";
@@ -155,11 +155,9 @@ const SearchRow = styled.div<{ $open: boolean }>`
   @media (prefers-reduced-motion: reduce) { transition: opacity 100ms ease; > div { transform: none; transition: none; } }
 `;
 const TextAction = styled(BaseButton)`${bodyCopyStyles} display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 48px; padding: 8px 0; background: transparent; color: var(--color-text-muted); &:focus-visible { outline: 2px solid var(--color-brand-700); outline-offset: 3px; border-radius: 4px; }`;
-const MadiShortcut = styled(TextAction)`flex: none; min-height: 44px; font-size: 14px; font-weight: 500; color: var(--color-text); white-space: nowrap; @container app-viewport (max-width: 340px) { font-size: 12px; gap: 4px; > svg { display: none; } }`;
-const CreateHarumadi = styled(TextAction)`flex: none; margin-left: auto; min-height: 44px; padding-inline: 12px; border-radius: 999px; background: var(--color-brand-100); color: var(--color-brand-1000); font-size: .875rem; font-weight: 500; line-height: 1.5; white-space: nowrap; @container app-viewport (max-width: 380px) { padding-inline: 8px; font-size: 12px; gap: 4px; } @container app-viewport (max-width: 320px) { > svg { display: none; } }`;
-const SearchToggle = styled(BaseButton)`flex: none; width: 44px; height: 44px; padding: 0; display: grid; place-items: center; border-radius: 50%; background: transparent; color: var(--color-text-muted); transition: background-color 180ms ease, color 180ms ease;
-  &:hover { background: var(--color-brand-100); } &:focus-visible { outline: 2px solid var(--color-brand-700); outline-offset: -2px; }
-`;
+const MadiShortcut = styled(TextAction)`${compactSecondaryButtonStyles} @container app-viewport (max-width: 340px) { > svg { display: none; } }`;
+const CreateHarumadi = styled(TextAction)`${compactSecondaryButtonStyles} margin-left: auto; @container app-viewport (max-width: 320px) { > svg { display: none; } }`;
+const SearchToggle = styled(BaseButton)`${quietIconButtonStyles}`;
 const SearchClose = styled(SearchToggle)``;
 const DraftButton = styled(BaseButton)`flex: none; display: flex; align-items: center; gap: 10px; margin: 8px 24px; padding: 12px 14px; background: var(--color-secondary-200); border-radius: 12px; color: var(--color-text); font-size: 16px; text-align: left; > span { flex: 1; }`;
 const ShelfScroll = styled.div`display: flex; flex-direction: column; flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 12px 20px; scrollbar-width: thin; > * { flex-shrink: 0; } &[data-library-layout="carousel"] { container-type: size; padding-top: 4px; padding-bottom: 8px; } @container app-viewport (max-height: 620px) { &:has([data-empty-shelf]) { padding-top: 16px; padding-bottom: 8px; } }`;

@@ -73,6 +73,35 @@ export const buttonFrameStyles = css`
   }
 `;
 
+/** 읽는 화면의 보조 행동. 주요 작성 버튼보다 한 단계 낮은 강조를 쓴다. */
+export const compactSecondaryButtonStyles = css`
+  display: inline-flex; align-items: center; justify-content: center; flex: none; gap: 6px;
+  min-height: 44px; padding: 8px 12px; border-radius: 999px;
+  background: var(--color-brand-100); color: var(--color-brand-1000);
+  font-size: .875rem; font-weight: 500; line-height: 1.5; white-space: nowrap;
+  > svg { width: 16px; height: 16px; stroke-width: 1.8; }
+  transition: background-color 160ms ease, color 160ms ease, opacity 160ms ease;
+  &:hover:not(:disabled) { background: var(--color-brand-200); }
+  &:active:not(:disabled) { background: var(--color-brand-300); }
+  &:focus-visible { outline: 2px solid var(--color-focus-ring); outline-offset: -2px; }
+  &:disabled { opacity: .35; }
+  @container app-viewport (max-width: 380px) { padding-inline: 8px; font-size: 12px; gap: 4px; }
+  @container app-viewport (max-width: 320px) { padding-inline: 4px; }
+`;
+
+/** 검색·더보기·이전/다음에 공통 적용하는 조용한 아이콘 조작부. */
+export const quietIconButtonStyles = css`
+  flex: none; width: 44px; height: 44px; min-height: 44px; padding: 0;
+  display: grid; place-items: center; border-radius: 50%;
+  background: transparent; color: var(--color-text-muted);
+  transition: background-color 160ms ease, color 160ms ease, opacity 160ms ease;
+  > svg { width: 20px; height: 20px; stroke-width: 1.8; }
+  &:hover:not(:disabled) { background: var(--color-brand-100); color: var(--color-brand-1000); }
+  &:active:not(:disabled) { background: var(--color-brand-200); color: var(--color-brand-1000); }
+  &:focus-visible { outline: 2px solid var(--color-focus-ring); outline-offset: -2px; }
+  &:disabled { opacity: .35; }
+`;
+
 const sizeStyles = ({ $size = "medium" }: ButtonStyleProps) => {
   if ($size === "compact") {
     return css`
