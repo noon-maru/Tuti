@@ -1,4 +1,6 @@
-/** 표시 배율이 있는 PC 목업에서도 손가락 이동과 같은 거리만큼 화면을 내린다. */
+import { MADI_COMPOSE_REVEAL, madiComposeRevealStyle } from "@/shared/tuti/madiComposeReveal";
+
+/** PC 목업의 표시 배율을 보정해 동일한 드래그 진행률을 사용한다. */
 export function madiComposePullOffset(distance: number, displayedHeight: number, layoutHeight: number) {
   const height = Math.max(1, layoutHeight);
   const scale = displayedHeight > 0 ? height / displayedHeight : 1;
@@ -13,8 +15,9 @@ export function settleMadiComposePull(node: HTMLElement | null, opening: boolean
   const cancel = () => { active = false; animation?.cancel(); };
   if (!node || reducedMotion || typeof node.animate !== "function") { finish(); return cancel; }
   try {
-    animation = node.animate([{ transform: getComputedStyle(node).transform }, { transform: opening ? "translateY(0)" : "translateY(-100%)" }],
-      { duration: opening ? 320 : 220, easing: "cubic-bezier(.22,.75,.22,1)", fill: "forwards" });
+    const current = getComputedStyle(node);
+    animation = node.animate([{ transform: current.transform, opacity: current.opacity }, madiComposeRevealStyle(opening ? 1 : 0)],
+      { duration: opening ? MADI_COMPOSE_REVEAL.commitMs : MADI_COMPOSE_REVEAL.cancelMs, easing: "ease", fill: "forwards" });
     void animation.finished.then(finish).catch(finish);
   } catch { finish(); }
   return cancel;

@@ -7,17 +7,26 @@ import { MadiComposePullPreview } from "@/features/tuti/components/MadiComposePu
 import type { useMadiComposePull } from "@/features/tuti/hooks/useMadiComposePull";
 import { clientFlowHarness } from "./fixtures/clientFlowHarness";
 import { harumadiContent } from "./fixtures/harumadiContent";
+import { madiComposeRevealProgress, madiComposeRevealStyle } from "@/shared/tuti/madiComposeReveal";
+import { MadiComposeRevealLayer } from "@/features/tuti/components/MadiComposeRevealLayer";
+import { readFileSync } from "node:fs";
 
-test("작성 화면은 당긴 거리만큼 따라오며 PC 목업 배율도 보정한다", () => {
+test("드래그 진행률은 PC 목업 배율을 보정하고 나들이와 같은 페이드·34px 이동을 사용한다", () => {
   assert.equal(madiComposePullOffset(80, 800, 800), 80);
   assert.equal(madiComposePullOffset(80, 400, 800), 160);
   assert.equal(madiComposePullOffset(-20, 800, 800), 0);
   assert.equal(madiComposePullOffset(1200, 800, 800), 800);
+  assert.equal(madiComposeRevealProgress(70), .5);
+  assert.equal(madiComposeRevealProgress(-10), 0);
+  assert.equal(madiComposeRevealProgress(300), 1);
+  assert.deepEqual(madiComposeRevealStyle(0), { opacity: 0, transform: "translateY(-34px)" });
+  assert.deepEqual(madiComposeRevealStyle(.5), { opacity: .5, transform: "translateY(-17px)" });
+  assert.deepEqual(madiComposeRevealStyle(1), { opacity: 1, transform: "translateY(0px)" });
 });
 
 test("현재 드래그 위치에서 확정·취소로 이어가며 취소된 애니메이션은 이동하지 않는다", async () => {
   const previous = Object.getOwnPropertyDescriptor(globalThis, "getComputedStyle");
-  Object.defineProperty(globalThis, "getComputedStyle", { configurable: true, value: () => ({ transform: "matrix(1, 0, 0, 1, 0, -700)" }) });
+  Object.defineProperty(globalThis, "getComputedStyle", { configurable: true, value: () => ({ transform: "matrix(1, 0, 0, 1, 0, -17)", opacity: "0.5" }) });
   let complete = 0, cancelled = 0;
   const animations: Array<{ frames: Keyframe[]; options: KeyframeAnimationOptions; resolve: () => void }> = [];
   const node = { animate(frames: Keyframe[], options: KeyframeAnimationOptions) {
@@ -28,14 +37,17 @@ test("현재 드래그 위치에서 확정·취소로 이어가며 취소된 애
   } } as unknown as HTMLElement;
   try {
     const cancel = settleMadiComposePull(node, true, () => { complete++; });
-    assert.equal(animations[0].frames[0].transform, "matrix(1, 0, 0, 1, 0, -700)");
-    assert.equal(animations[0].frames[1].transform, "translateY(0)");
-    assert.equal(animations[0].options.duration, 320);
+    assert.equal(animations[0].frames[0].transform, "matrix(1, 0, 0, 1, 0, -17)");
+    assert.equal(animations[0].frames[0].opacity, "0.5");
+    assert.equal(animations[0].frames[1].transform, "translateY(0px)");
+    assert.equal(animations[0].frames[1].opacity, 1);
+    assert.equal(animations[0].options.duration, 120);
     cancel(); await Promise.resolve();
     assert.equal(cancelled, 1); assert.equal(complete, 0);
     settleMadiComposePull(node, false, () => { complete++; });
-    assert.equal(animations[1].frames[1].transform, "translateY(-100%)");
-    assert.equal(animations[1].options.duration, 220);
+    assert.equal(animations[1].frames[1].transform, "translateY(-34px)");
+    assert.equal(animations[1].frames[1].opacity, 0);
+    assert.equal(animations[1].options.duration, 240);
     animations[1].resolve(); await Promise.resolve();
     assert.equal(complete, 1);
     settleMadiComposePull(node, true, () => { complete++; }, true);
@@ -118,12 +130,24 @@ test("버튼 진입도 DOM 연결을 기다리고 도중 이탈·취소는 늦�
 test("드래그 중에는 실제 작성 UI를 읽기 전용으로 보여주며 별도 진입 효과는 없다", () => {
   const book = { ...harumadiContent().harumadi, title: "우리의 작은 하루" };
   const html = renderToStaticMarkup(createElement(MadiComposePullPreview, {
-    preview: { book, offset: 80, settling: false }, layerRef: { current: null },
+    preview: { book, offset: 70, settling: false }, layerRef: { current: null },
   }));
   assert.match(html, /inert=""/);
   assert.match(html, /aria-hidden="true"/);
-  assert.match(html, /translateY\(calc\(-100% \+ 80px\)\)/);
+  assert.match(html, /opacity:0\.5/);
+  assert.match(html, /translateY\(-17px\)/);
   assert.match(html, /pointer-events:none/);
   assert.match(html, /우리의 작은 하루/);
   assert.doesNotMatch(html, /420ms|enterFromTop/);
+  assert.doesNotMatch(html, /translateY\(-100%/);
+});
+
+test("책장·나들이는 같은 드러내기 레이어를 쓰고 동작 줄이기는 페이드만 유지한다", () => {
+  const explore = readFileSync("src/features/tuti/screens/recommendations/RecommendationsScreen.tsx", "utf8");
+  assert.match(explore, /MadiComposeRevealLayer as TransitionLayer/);
+  assert.match(explore, /madiComposeRevealProgress\(Math.abs\(dragOffset.y\)\)/);
+  assert.doesNotMatch(explore, /const TransitionLayer = styled/);
+  const html = renderToStaticMarkup(createElement(MadiComposeRevealLayer, { $progress: .5 }));
+  assert.match(html, /prefers-reduced-motion:\s*reduce/);
+  assert.match(html, /prefers-reduced-motion:[^}]+transform:none;[^}]*transition:opacity 100ms ease/);
 });

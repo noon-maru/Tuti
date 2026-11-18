@@ -19,6 +19,8 @@ import {
 } from "@/features/tuti/screens/departure/FullscreenDeparturePlanScreen";
 import { DetailScreen } from "@/features/tuti/screens/detail/DetailScreen";
 import { MadiCreateScreen } from "@/features/tuti/screens/journal/MadiCreateScreen";
+import { MadiComposeRevealLayer as TransitionLayer } from "@/features/tuti/components/MadiComposeRevealLayer";
+import { MADI_COMPOSE_REVEAL, madiComposeRevealProgress } from "@/shared/tuti/madiComposeReveal";
 import { usePlaceDetail } from "@/features/tuti/hooks/usePlaceDetail";
 import {
   getRecommendationStatus,
@@ -187,7 +189,7 @@ export function RecommendationsScreen({
   const wheelUnlockTimer = useRef<number | null>(null);
   const wheelLocked = useRef(false);
   const verticalProgress =
-    dragAxis === "vertical" ? Math.min(Math.abs(dragOffset.y) / 140, 1) : 0;
+    dragAxis === "vertical" ? madiComposeRevealProgress(Math.abs(dragOffset.y)) : 0;
   const activeCardFlipped = Boolean(
     activePlace && flippedPlaceId === activePlace.id,
   );
@@ -366,7 +368,7 @@ export function RecommendationsScreen({
       } else {
         onCreateMadi();
       }
-    }, 120);
+    }, MADI_COMPOSE_REVEAL.commitMs);
   };
 
   const animateWheelTransition = (
@@ -880,7 +882,7 @@ export function RecommendationsScreen({
         activePlace &&
         verticalProgress > 0 &&
         transitionTarget === "journal" && (
-          <TransitionLayer $progress={verticalProgress} $from={-34} aria-hidden="true" inert>
+          <TransitionLayer $progress={verticalProgress} aria-hidden="true" inert>
             <MadiCreateScreen preview onBack={() => undefined} onCollection={() => undefined} />
           </TransitionLayer>
         )}
@@ -1210,17 +1212,6 @@ const AccountMenu = styled.div`
 
 const SearchMenu = styled.div<{ $inactive: boolean }>`position: absolute; top: calc(var(--screen-padding-top) - var(--space-3)); left: calc(var(--screen-padding-left) - var(--space-3)); z-index: ${({ $inactive }) => $inactive ? 10 : 40}; pointer-events: ${({ $inactive }) => $inactive ? "none" : "auto"};`;
 const SearchDetailLayer = styled.div`position: absolute; inset: 0; z-index: 45;`;
-
-const TransitionLayer = styled.div<{ $progress: number; $from: number }>`
-  position: absolute;
-  inset: 0;
-  z-index: 20;
-  pointer-events: none;
-  opacity: ${({ $progress }) => $progress};
-  transform: translateY(${({ $progress, $from }) => $from * (1 - $progress)}px);
-  transition: ${({ $progress }) =>
-    $progress > 0 ? "none" : "opacity 220ms ease, transform 240ms ease"};
-`;
 
 const helpContentIn = keyframes`
   from {
