@@ -424,7 +424,7 @@ const AccessibleNavigation = styled.nav`position: absolute; width: 1px; height: 
   &:focus-within { z-index: 40; left: var(--screen-padding-left); right: var(--screen-padding-right); bottom: var(--screen-padding-bottom); width: auto; height: auto; clip-path: none; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 8px 12px; background: var(--color-surface); border-radius: 12px; box-shadow: 0 6px 20px #1b222a14;
     > button { min-height: 44px; padding: 8px; font: inherit; color: var(--color-text); background: transparent; border: 0; border-radius: 8px; } }
 `;
-const ViewMenu = styled(ContextMenu)`> button { min-width: 0; min-height: 44px; padding: 0 2px; display: flex; align-items: center; justify-content: center; gap: 5px; color: var(--color-text); background: transparent; font: inherit; white-space: nowrap; }`;
+const ViewMenu = styled(ContextMenu)`> button { min-width: 0; min-height: 44px; padding: 0 2px; display: flex; align-items: center; justify-content: flex-start; gap: 5px; color: var(--color-text); background: transparent; font: inherit; white-space: nowrap; }`;
 const HeaderTools = styled.div`display: flex; align-items: center; gap: 0;`;
 const IconButton = styled(BaseButton)`flex: none; display: grid; place-items: center; width: 44px; height: 44px; padding: 0; color: var(--color-text-muted); background: transparent; border-radius: 50%; &:focus-visible { outline: 2px solid var(--color-brand-700); outline-offset: -2px; }`;
 const SearchReveal = styled.div<{ $open: boolean }>`flex: none; display: grid; grid-template-rows: ${({ $open }) => $open ? "1fr" : "0fr"}; opacity: ${({ $open }) => $open ? 1 : 0}; visibility: ${({ $open }) => $open ? "visible" : "hidden"}; margin-bottom: ${({ $open }) => $open ? "var(--space-5)" : "0"}; transition: grid-template-rows 240ms cubic-bezier(.22,1,.36,1), opacity 180ms ease, visibility 240ms;
@@ -484,18 +484,19 @@ const ListHeader = styled.header`
   grid-template-columns: 44px minmax(0, 1fr) auto;
   align-items: center;
   justify-content: space-between;
-  gap: 8px;
+  gap: 0;
   margin-bottom: 16px;
 
   h1 {
     margin: 0;
-    text-align: center;
     ${screenTitleStyles}
+    min-width: 0;
+    text-align: left;
+    font-size: 18px;
   }
 
   @container app-viewport (max-width: 360px) {
-    gap: 8px;
-    h1 { font-size: 20px; }
+    h1 { font-size: 17px; }
   }
 `;
 

@@ -11,6 +11,18 @@ import { journalCardPreview } from "../src/shared/tuti/journalCard";
 import { unfiledMadi } from "../src/shared/tuti/unfiledMadi";
 import * as tokens from "../src/styles/tokens";
 
+test("헤더는 뒤로가기·제목을 왼쪽에 묶고 검색·추가의 조작 크기를 유지한다", () => {
+  const source = readFileSync("src/features/tuti/screens/journal/JournalScreen.tsx", "utf8");
+  const header = source.slice(source.indexOf("const ListHeader ="), source.indexOf("const AddButton ="));
+  assert.match(header, /grid-template-columns: 44px minmax\(0, 1fr\) auto/);
+  assert.match(header, /gap: 0/);
+  assert.match(header, /text-align: left;\s*font-size: 18px/);
+  assert.match(header, /max-width: 360px[\s\S]*font-size: 17px/);
+  const menu = source.slice(source.indexOf("const ViewMenu ="), source.indexOf("const SearchReveal ="));
+  assert.match(menu, /justify-content: flex-start/);
+  assert.match(menu, /width: 44px; height: 44px/);
+});
+
 function fixture() {
   const content = harumadiContent();
   const entries = Array.from({ length: 8 }, (_, i) => ({ ...content.entries[0], id: `entry-${i}`, title: i === 1 ? "찾고싶은 순간" : `마디 ${i}`, image: i === 1 ? "/photo.webp" : null }));
