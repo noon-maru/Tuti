@@ -16,6 +16,7 @@ import { useSession } from "@/features/tuti/hooks/useSession";
 import { rememberMadiEditOrigin } from "@/lib/madiEditReturn";
 import { resolveMadiDetailReturn } from "@/lib/madiDetailReturn";
 import { useCallback } from "react";
+import { useLifecycleView } from "@/features/tuti/hooks/useLifecycleView";
 
 export function JournalDetailFlow() {
   const router = useRouter();
@@ -35,6 +36,7 @@ export function JournalDetailFlow() {
     (state) => state.setActiveJournalEntry,
   );
   const entry = entries.find((candidate) => candidate.id === entryId);
+  useLifecycleView("madi_opened", "book", entry?.id, Boolean(entry && !isPending));
   const returnToJournal = useCallback(() => {
     const destination = resolveMadiDetailReturn(ownerId, entryId);
     if (destination.back) router.back(); else router.replace(destination.path);

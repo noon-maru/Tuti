@@ -34,6 +34,9 @@ export async function POST(request: Request) {
         if (!input.entityId) throw new Error("BOOK_REQUIRED");
         await requireHarumadiAccess(tx, user.id, input.entityId);
       }
+      if (input.name === "madi_opened") {
+        if (!input.entityId || !await tx.journalEntry.findFirst({ where: { id: input.entityId, ownerId: user.id, sensitiveWithdrawnAt: null }, select: { id: true } })) throw new Error("MADI_REQUIRED");
+      }
       if (input.name === "pdf_exported" && input.entityId && !await tx.harumadiPdf.findFirst({ where: { id: input.entityId, ownerId: user.id }, select: { id: true } })) throw new Error("PDF_REQUIRED");
       const key = input.name === "daily_active" ? `day:${user.id}:${koreanDay(occurredAt)}` : `client:${user.id}:${input.id}`;
       await recordLifecycle(tx, user.id, { name: input.name, key, entityId: input.entityId,

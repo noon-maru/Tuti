@@ -10,6 +10,12 @@ export function lifelogActivitySql(period: ReturnType<typeof analyticsPeriod>) {
     eligible AS (SELECT id,created_at FROM users WHERE role='user' AND analytics_excluded_at IS NULL),
     e AS (SELECT ev.* FROM lifecycle_events ev JOIN eligible u ON u.id=ev.user_id,p WHERE ev.occurred_at<p.until AND ev.retention_until>p.until),
     coverage AS (SELECT min(occurred_at) AS since FROM lifecycle_events,p WHERE occurred_at<p.until AND retention_until>p.until),
+    later_reads AS (SELECT DISTINCT r.user_id FROM e r,p WHERE r.name IN ('book_opened','madi_opened') AND r.occurred_at>=p.since
+      AND EXISTS (SELECT 1 FROM e saved JOIN journal_entries j ON j.id=saved.entity_id
+        WHERE saved.name='madi_created' AND j.sensitive_withdrawn_at IS NULL
+        AND (saved.occurred_at+interval '9 hours')::date < (r.occurred_at+interval '9 hours')::date
+        AND ((r.name='madi_opened' AND j.id=r.entity_id AND j.owner_id=r.user_id)
+          OR (r.name='book_opened' AND EXISTS(SELECT 1 FROM harumadi_entry_links l WHERE l.harumadi_id=r.book_id AND l.entry_id=j.id))))),
     current_books AS (SELECT b.id FROM harumadis b JOIN eligible u ON u.id=b.owner_id),
     collab AS (SELECT l.harumadi_id FROM harumadi_entry_links l JOIN current_books b ON b.id=l.harumadi_id
       JOIN journal_entries j ON j.id=l.entry_id JOIN eligible u ON u.id=j.owner_id WHERE j.sensitive_withdrawn_at IS NULL GROUP BY l.harumadi_id HAVING count(DISTINCT j.owner_id)>=2),
@@ -54,6 +60,7 @@ export function lifelogActivitySql(period: ReturnType<typeof analyticsPeriod>) {
       FROM path_entries x GROUP BY x.source)
     SELECT json_build_object(
       'retainedSince',(SELECT since AT TIME ZONE 'UTC' FROM coverage),
+      'laterReaderUsers',(SELECT count(1) FROM later_reads),
       'writerUsers',(SELECT count(DISTINCT user_id) FROM e,p WHERE name='madi_created' AND occurred_at>=p.since),
       'newMadis',(SELECT count(1) FROM e,p WHERE name='madi_created' AND occurred_at>=p.since),
       'repeatWriters30d',(SELECT count(1) FROM repeat_writers),

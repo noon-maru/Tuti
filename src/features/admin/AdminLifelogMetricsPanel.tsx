@@ -31,6 +31,7 @@ export function AdminLifelogMetricsPanel({ data, days, onDaysChange }: { data: L
           {metric("첫 저장까지", observed && a?.activation.medianMinutes != null ? `${number(a.activation.medianMinutes)}분` : "집계 중", "7일 내 전환한 신규 관측 계정 · 중앙값")}
           {metric(`마디 작성 사용자 · ${days}일`, value(a?.writerUsers), "새 원본 마디를 저장한 고유 계정")}
           {metric("반복 기록 사용자 · 30일", value(a?.repeatWriters30d), "서로 다른 2일 이상 저장 · 한국 시간")}
+          {metric(`다른 날짜 재열람 · ${days}일`, a?.laterReaderUsers == null ? "미계측" : value(a.laterReaderUsers), "저장일 이후 한국 날짜 · 기존 본인 마디·참여 책")}
           {metric(`하루마디 열람 사용자 · ${days}일`, value(a?.readerUsers), "기간 내 고유 계정")}
           {metric("반복 열람 사용자 · 30일", value(a?.repeatReaders30d), "서로 다른 2일 이상 열람")}
           {metric("실제 공동작성 하루마디", `${number(s.collaborativeBooks)}권`, "현재 서로 다른 작성자 2명 이상의 원본이 담긴 책")}
