@@ -1118,7 +1118,7 @@ function RecommendationFunnelPanel({
 
       <FunnelSummary>
         <FunnelSummaryCard>
-          <span>추천 실행</span>
+          <span>기간 내 새 추천 실행</span>
           <strong>{funnel.recommendationRuns.toLocaleString("ko-KR")}</strong>
           <small>회</small>
         </FunnelSummaryCard>
@@ -1128,9 +1128,9 @@ function RecommendationFunnelPanel({
           <small>전체 추천 중</small>
         </FunnelSummaryCard>
         <FunnelSummaryCard>
-          <span>추천 버전</span>
+          <span>새 추천의 버전</span>
           <strong>{funnel.algorithms.length}</strong>
-          <small>개 운영됨</small>
+          <small>개 · 기간 내 생성 기준</small>
         </FunnelSummaryCard>
       </FunnelSummary>
 
@@ -1153,6 +1153,7 @@ function RecommendationFunnelPanel({
                 <td data-label="집계 기준">기간 내 행동 · 추천 생성일 무관</td>
               </tr>
             ))}
+            {!funnel.periodActions && <tr><td colSpan={3}>기간 내 행동 집계를 확인하지 못했어요. 서버 버전을 확인해주세요.</td></tr>}
           </tbody>
         </Table>
       </TableCard>
