@@ -3,9 +3,10 @@ import { imageAspectRatio } from "@/shared/harumadi/imageGeometry";
 import { confirmAction, showErrorToast } from "@/lib/feedback";
 
 import styled from "@emotion/styled";
-import { useEffect, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 
-import { ANDROID_BACK_EVENT } from "@/features/tuti/navigation/androidBack";
+import { AppDialogFrame } from "@/shared/ui/AppDialogFrame";
+import { inputControlStyles } from "@/shared/ui/typography";
 import { JournalLocationLabel } from "@/features/tuti/components/JournalLocationLabel";
 import { fetchWithSession } from "@/lib/auth/session";
 import type { PublicJournalEntry } from "@/shared/api/journal";
@@ -14,6 +15,8 @@ import {
   BaseButton,
   BaseButtonLink,
   Button,
+  PrimaryButton,
+  TextButton,
 } from "@/features/tuti/components/buttons";
 
 export function PublicJournalScreen({
@@ -39,30 +42,12 @@ export function PublicJournalScreen({
   >("idle");
   const [reportError, setReportError] = useState<string | null>(null);
   const [blocking, setBlocking] = useState(false);
-
-  useEffect(() => {
-    if (!reportOpen) return;
-
-    const previousOverflow = document.body.style.overflow;
-    const closeReport = () => setReportOpen(false);
-    const closeOnEscape = (event: KeyboardEvent) => {
-      if (event.key === "Escape") closeReport();
-    };
-    const closeOnAndroidBack = (event: Event) => {
-      event.preventDefault();
-      closeReport();
-    };
-
-    document.body.style.overflow = "hidden";
-    window.addEventListener("keydown", closeOnEscape);
-    window.addEventListener(ANDROID_BACK_EVENT, closeOnAndroidBack);
-
-    return () => {
-      document.body.style.overflow = previousOverflow;
-      window.removeEventListener("keydown", closeOnEscape);
-      window.removeEventListener(ANDROID_BACK_EVENT, closeOnAndroidBack);
-    };
-  }, [reportOpen]);
+  const reportId = useId();
+  const reasonRef = useRef<HTMLSelectElement>(null);
+  const reportDone = useRef<HTMLButtonElement>(null);
+  const submittingReport = useRef(false);
+  const closeReport = () => { if (!submittingReport.current) setReportOpen(false); };
+  useEffect(() => { if (reportOpen && reportStatus === "submitted") reportDone.current?.focus(); }, [reportOpen, reportStatus]);
 
   if (!entry) {
     return (
@@ -78,6 +63,8 @@ export function PublicJournalScreen({
   }
 
   const submitReport = async () => {
+    if (submittingReport.current) return;
+    submittingReport.current = true;
     setReportStatus("submitting");
     setReportError(null);
 
@@ -111,7 +98,7 @@ export function PublicJournalScreen({
           ? error.message
           : "신고를 접수하지 못했습니다.",
       );
-    }
+    } finally { submittingReport.current = false; }
   };
 
   return (
@@ -178,31 +165,26 @@ export function PublicJournalScreen({
         </Footer>
       </Shell>
       {reportOpen && (
-        <ReportBackdrop
-          role="presentation"
-          onClick={() => setReportOpen(false)}
-        >
-          <ReportDialog
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="report-title"
-            onClick={(event) => event.stopPropagation()}
-          >
+        <AppDialogFrame role="dialog" titleId={`${reportId}-title`} busy={reportStatus === "submitting"}
+          initialFocus={reportStatus === "submitted" ? reportDone : reasonRef} onCancel={closeReport}>
             {reportStatus === "submitted" ? (
               <>
-                <h2 id="report-title">신고를 접수했어요.</h2>
+                <h2 id={`${reportId}-title`}>신고를 접수했어요.</h2>
                 <p>관리자가 내용을 확인한 뒤 필요한 조치를 진행할게요.</p>
                 <DialogButton
+                  ref={reportDone}
                   type="button"
-                  onClick={() => setReportOpen(false)}
+                  onClick={closeReport}
                 >
                   확인
                 </DialogButton>
               </>
             ) : (
               <>
-                <h2 id="report-title">이 마디를 신고할까요?</h2>
+                <h2 id={`${reportId}-title`}>이 마디를 신고할까요?</h2>
                 <ReportSelect
+                  ref={reasonRef}
+                  disabled={reportStatus === "submitting"}
                   aria-label="신고 사유"
                   value={reportReason}
                   onChange={(event) => setReportReason(event.target.value)}
@@ -214,6 +196,7 @@ export function PublicJournalScreen({
                   <option value="other">기타</option>
                 </ReportSelect>
                 <ReportTextArea
+                  disabled={reportStatus === "submitting"}
                   aria-label="신고 상세 내용"
                   value={reportDetail}
                   maxLength={1000}
@@ -224,7 +207,8 @@ export function PublicJournalScreen({
                 <DialogActions>
                   <CancelButton
                     type="button"
-                    onClick={() => setReportOpen(false)}
+                    disabled={reportStatus === "submitting"}
+                    onClick={closeReport}
                   >
                     취소
                   </CancelButton>
@@ -238,8 +222,7 @@ export function PublicJournalScreen({
                 </DialogActions>
               </>
             )}
-          </ReportDialog>
-        </ReportBackdrop>
+        </AppDialogFrame>
       )}
     </Page>
   );
@@ -422,66 +405,18 @@ const HomeLink = styled(BaseButtonLink)`
   font-weight: 600;
 `;
 
-const ReportBackdrop = styled.div`
-  position: fixed;
-  inset: 0;
-  z-index: 20;
-  display: grid;
-  place-items: center;
-  padding: 20px;
-  background: color-mix(
-    in srgb,
-    ${palette.neutral[1300]} 40%,
-    transparent
-  );
-`;
-
-const ReportDialog = styled.section`
-  width: min(100%, 440px);
-  max-height: calc(100dvh - 40px);
-  display: grid;
-  gap: 16px;
-  padding: 28px;
-  overflow-y: auto;
-  border-radius: 28px;
-  background: ${palette.neutral[100]};
-  box-shadow: 0 24px 72px
-    color-mix(in srgb, ${palette.neutral[1300]} 22%, transparent);
-
-  h2 {
-    font-size: 22px;
-  }
-
-  p {
-    color: ${palette.neutral[900]};
-    line-height: 1.5;
-  }
-`;
-
 const ReportSelect = styled.select`
-  min-height: 44px;
-  padding: 0 14px;
-  border: 1px solid ${palette.neutral[500]};
-  border-radius: 12px;
-  background: ${palette.neutral[100]};
-  color: ${palette.neutral[1300]};
-  font: inherit;
+  ${inputControlStyles}
 `;
 
 const ReportTextArea = styled.textarea`
+  ${inputControlStyles}
   min-height: 120px;
   resize: vertical;
-  padding: 14px;
-  border: 1px solid ${palette.neutral[500]};
-  border-radius: 12px;
-  outline: 0;
-  color: ${palette.neutral[1300]};
-  font: inherit;
-  line-height: 1.5;
 `;
 
 const ReportError = styled.p`
-  color: ${palette.status.error} !important;
+  color: var(--color-error) !important;
   font-size: 13px;
 `;
 
@@ -491,21 +426,10 @@ const DialogActions = styled.div`
   gap: 8px;
 `;
 
-const CancelButton = styled(BaseButton)`
+const CancelButton = styled(TextButton)`
   min-height: 44px;
-  border: 1px solid ${palette.neutral[500]};
-  border-radius: 12px;
-  background: ${palette.neutral[100]};
-  color: ${palette.neutral[900]};
 `;
 
-const DialogButton = styled(BaseButton)`
+const DialogButton = styled(PrimaryButton)`
   min-height: 44px;
-  border-radius: 12px;
-  background: ${palette.brand[700]};
-  color: ${palette.neutral[100]};
-  font-weight: 700;
-  &:disabled {
-    opacity: 0.55;
-  }
 `;

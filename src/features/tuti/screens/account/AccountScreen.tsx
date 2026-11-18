@@ -882,9 +882,8 @@ const OAuthCompletionContent = styled.div`
   text-align: center;
 
   h2 {
+    ${screenTitleStyles}
     margin-top: var(--space-6);
-    font-size: var(--font-size-500);
-    font-weight: 600;
   }
 
   p {
@@ -1446,15 +1445,6 @@ const EmailLinkForm = styled(EmailForm)`
 
 const LinkEmailButton = styled(PrimaryButton)`
   width: 100%;
-  height: var(--space-11);
-  border-radius: 10px;
-  font-size: var(--font-size-100);
-  font-weight: 600;
-
-  &:disabled {
-    background: var(--color-neutral-300);
-    color: var(--color-text-muted);
-  }
 `;
 
 const DeletionButton = styled(BaseButton)`
