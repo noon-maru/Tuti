@@ -552,7 +552,7 @@ function formatDistance(distanceMeters: number) {
 
 const Frame = styled(ScreenFrame)`
   z-index: 1;
-  gap: var(--space-7);
+  gap: 20px;
   background: var(--color-surface);
 `;
 
@@ -606,7 +606,7 @@ const ImagePicker = styled.label<{ $image?: string }>`
   display: grid;
   place-items: center;
   overflow: hidden;
-  border-radius: 16px;
+  border-radius: var(--space-5);
   background-color: var(--color-brand-100);
   background-image: ${({ $image }) => ($image ? `url(${$image})` : "none")};
   background-position: center;
@@ -675,7 +675,7 @@ const EditorCopy = styled.div`
   min-height: 0;
   display: flex;
   flex-direction: column;
-  gap: 24px;
+  gap: 20px;
 `;
 const EditorField = styled.label`display: grid; grid-template-columns: minmax(0, 1fr); min-width: 0; gap: 10px;`;
 const PlaceField = styled.div`display: grid; grid-template-columns: minmax(0, 1fr); min-width: 0; gap: 10px;`;

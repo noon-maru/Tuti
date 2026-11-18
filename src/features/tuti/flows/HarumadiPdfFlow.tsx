@@ -1278,8 +1278,7 @@ const FilterSelectionNotice = styled.div`
   gap: var(--space-3);
   margin: calc(var(--space-2) * -1) 0 var(--space-4);
   padding: var(--space-3) var(--space-4);
-  border-left: 3px solid var(--color-accent-bridge);
-  border-radius: 4px 14px 14px 4px;
+  border-radius: 12px;
   background: var(--color-brand-100);
 
   strong {

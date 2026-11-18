@@ -1,7 +1,8 @@
 "use client";
 
 import styled from "@emotion/styled";
-import { css } from "@emotion/react";
+import { Check } from "lucide-react";
+import { bodyCopyStyles, inputControlStyles, screenTitleStyles } from "@/shared/ui/typography";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import {
@@ -127,6 +128,7 @@ export function InquiryScreen({
         <ViewTab
           type="button"
           $active={view === "write"}
+          aria-pressed={view === "write"}
           onClick={() => setView("write")}
         >
           문의하기
@@ -134,6 +136,7 @@ export function InquiryScreen({
         <ViewTab
           type="button"
           $active={view === "history"}
+          aria-pressed={view === "history"}
           onClick={() => setView("history")}
         >
           내 문의
@@ -155,7 +158,7 @@ export function InquiryScreen({
         />
       ) : submittedId ? (
         <Complete>
-          <Mark aria-hidden="true">✓</Mark>
+          <Mark aria-hidden="true"><Check size={28} /></Mark>
           <h2>문의를 접수했어요.</h2>
           <p>
             남겨주신 내용을 확인한 뒤 답변이 필요하면 이메일로 안내드릴게요.
@@ -361,7 +364,7 @@ function formatInquiryDate(value: string) {
 
 const Frame = styled(ScreenFrame)`
   z-index: 1;
-  gap: var(--space-6);
+  gap: 20px;
   background: var(--color-surface);
 `;
 
@@ -372,8 +375,7 @@ const Header = styled.header`
   align-items: center;
 
   h1 {
-    font-size: var(--font-size-500);
-    font-weight: 700;
+    ${screenTitleStyles}
     text-align: center;
   }
 `;
@@ -392,7 +394,7 @@ const ViewTabs = styled.div`
 `;
 
 const ViewTab = styled(BaseButton)<{ $active: boolean }>`
-  min-height: var(--space-10);
+  min-height: 44px;
   border-radius: var(--space-2);
   background: ${({ $active }) =>
     $active ? "var(--color-white)" : "transparent"};
@@ -400,10 +402,6 @@ const ViewTab = styled(BaseButton)<{ $active: boolean }>`
     $active ? "var(--color-text)" : "var(--color-text-muted)"};
   font-size: var(--font-size-100);
   font-weight: ${({ $active }) => ($active ? 700 : 500)};
-  box-shadow: ${({ $active }) =>
-    $active
-      ? "0 4px 12px rgb(var(--color-black-rgb) / 0.06)"
-      : "none"};
 `;
 
 const Intro = styled.div`
@@ -412,11 +410,12 @@ const Intro = styled.div`
   padding-top: var(--space-3);
 
   h2 {
-    font-size: var(--font-size-600);
-    line-height: var(--line-height-heading);
+    ${screenTitleStyles}
+    font-size: var(--ui-body-size);
   }
 
   p {
+    ${bodyCopyStyles}
     color: var(--color-text-muted);
     font-size: var(--font-size-200);
   }
@@ -445,40 +444,18 @@ const Field = styled.label`
   }
 `;
 
-const fieldStyle = css`
-  width: 100%;
-  border: 1px solid var(--color-border);
-  border-radius: var(--space-3);
-  outline: 0;
-  background: var(--color-white);
-  color: var(--color-text);
-  font-family: var(--font-sans);
-  font-size: var(--font-size-200);
-
-  &:focus {
-    border-color: var(--color-brand-600);
-    box-shadow: 0 0 0 3px var(--color-brand-200);
-  }
-`;
-
 const Input = styled.input`
-  ${fieldStyle}
-  min-height: var(--space-11);
-  padding: 0 var(--space-4);
+  ${inputControlStyles}
 `;
 
 const Select = styled.select`
-  ${fieldStyle}
-  min-height: var(--space-11);
-  padding: 0 var(--space-4);
+  ${inputControlStyles}
 `;
 
 const TextArea = styled.textarea`
-  ${fieldStyle}
+  ${inputControlStyles}
   min-height: 144px;
   resize: vertical;
-  padding: var(--space-4);
-  line-height: var(--line-height-body);
 `;
 
 const Counter = styled.small`

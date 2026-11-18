@@ -43,3 +43,35 @@ test("초대는 실제 초대한 사람과 책을 먼저 보여주고 참여 전
   assert.match(source, /Boolean\(session.account && !preview.data\)/);
   assert.match(source, /changeTogether<\{ harumadiId: string \}>/);
 });
+
+test("설정 하위 화면은 공통 제목·여백·버튼을 사용하고 알림 시간과 철회 기능을 유지한다", () => {
+  const notification = readFileSync("src/features/tuti/screens/notifications/NotificationSettingsScreen.tsx", "utf8");
+  const location = readFileSync("src/features/tuti/screens/location/LocationSettingsScreen.tsx", "utf8");
+  for (const source of [notification, location]) {
+    assert.match(source, /\$\{screenTitleStyles\}/);
+    assert.match(source, /var\(--screen-padding-right\)/);
+    assert.match(source, /var\(--screen-padding-bottom\)/);
+  }
+  const card = notification.match(/const Card = styled.section`([^`]+)`/)![1];
+  assert.doesNotMatch(card, /border-radius|border:|background:/);
+  assert.match(notification, /settings.reminderTime/);
+  assert.match(notification, /type="time"/);
+  assert.match(notification, /오늘 마디를 남겼다면 알려드리지 않아요/);
+  const enable = location.match(/const EnableButton = styled\(PrimaryButton\)`([^`]+)`/)![1];
+  assert.doesNotMatch(enable, /background|color:/);
+  for (const control of ["위치 사용 잠시 멈추기", "위치정보 이용 동의 철회", "LocationHistorySection", "getLocationTerms"]) assert.ok(location.includes(control));
+});
+
+test("문의와 마디 수정은 공통 입력과 제목을 쓰고 기존 제출·수정 보호를 유지한다", () => {
+  const inquiry = readFileSync("src/features/tuti/screens/inquiry/InquiryScreen.tsx", "utf8");
+  const editor = readFileSync("src/features/tuti/screens/journal/JournalEditorScreen.tsx", "utf8");
+  for (const source of [inquiry, editor]) {
+    assert.match(source, /\$\{inputControlStyles\}/);
+    assert.match(source, /\$\{screenTitleStyles\}/);
+  }
+  assert.doesNotMatch(inquiry, /box-shadow: 0 0 0 3px/);
+  assert.match(inquiry, /aria-pressed=\{view === "write"\}/);
+  assert.match(inquiry, /aria-pressed=\{view === "history"\}/);
+  assert.match(inquiry, /disabled=\{!canSubmit \|\| submitting\}/);
+  assert.match(editor, /const EditorCopy = styled.div`[\s\S]*?gap: 20px/);
+});

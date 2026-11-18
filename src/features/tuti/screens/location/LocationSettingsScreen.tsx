@@ -21,6 +21,7 @@ import type {
 } from "@/shared/tuti/types";
 import { getLocationTerms } from "@/shared/location/terms";
 import { useLegalPolicyRelease } from "@/features/legal/useLegalPolicyRelease";
+import { captionStyles, screenTitleStyles } from "@/shared/ui/typography";
 
 export function LocationSettingsScreen({
   consent,
@@ -268,10 +269,10 @@ const Header = styled.header`
   display: grid;
   grid-template-columns: var(--space-12) 1fr var(--space-12);
   align-items: center;
-  padding-inline: var(--space-5);
+  padding-inline: var(--screen-padding-left) var(--screen-padding-right);
 
   h1 {
-    font-size: var(--font-size-500);
+    ${screenTitleStyles}
     text-align: center;
   }
 `;
@@ -286,8 +287,7 @@ const ScrollContent = styled.div`
   display: grid;
   align-content: start;
   gap: var(--space-5);
-  padding: var(--space-6) var(--space-5)
-    calc(var(--space-8) + var(--app-safe-area-bottom, 0px));
+  padding: 24px var(--screen-padding-right) var(--screen-padding-bottom) var(--screen-padding-left);
   overflow-y: auto;
   overflow-x: hidden;
   overscroll-behavior: contain;
@@ -299,11 +299,8 @@ const StatusCard = styled.section<{ $active: boolean }>`
   display: flex;
   align-items: center;
   gap: var(--space-4);
-  padding: var(--space-5);
-  border: 1px solid
-    ${({ $active }) =>
-      $active ? "var(--color-secondary-400)" : "var(--color-neutral-300)"};
-  border-radius: 20px;
+  padding: 16px;
+  border-radius: 12px;
   background: ${({ $active }) =>
     $active ? "var(--color-secondary-100)" : "var(--color-neutral-200)"};
 
@@ -317,20 +314,18 @@ const StatusCard = styled.section<{ $active: boolean }>`
   }
 
   p {
-    color: var(--color-text-muted);
-    font-size: var(--font-size-100);
+    ${captionStyles}
+    margin: 0;
   }
 `;
 
 const StatusIcon = styled.div`
-  width: var(--space-12);
-  height: var(--space-12);
+  width: 28px;
+  height: 28px;
   flex: none;
   display: grid;
   place-items: center;
-  border-radius: 16px;
-  background: var(--color-secondary-200);
-  color: var(--color-secondary-900);
+  color: var(--color-text);
 
   svg {
     width: 24px;
@@ -345,11 +340,6 @@ const Actions = styled.div`
 
 const EnableButton = styled(PrimaryButton)`
   width: 100%;
-  background: var(--color-brand-700);
-
-  &:not(:disabled):hover {
-    background: var(--color-brand-800);
-  }
 `;
 
 const ChangeRegionButton = styled(BaseButton)`

@@ -4,7 +4,7 @@ import { Clock3, MessageCircle, PencilLine } from "lucide-react";
 import { BackButton } from "@/features/tuti/components/buttons";
 import { Button } from "@/shared/ui/buttons";
 import { ScreenFrame } from "@/features/tuti/components/ScreenFrame";
-import { nativeDateInputStyles, screenTitleStyles } from "@/shared/ui/typography";
+import { captionStyles, nativeDateInputStyles, screenTitleStyles } from "@/shared/ui/typography";
 import type { NotificationSettings } from "@/shared/notifications/preferences";
 import type { PushNotificationStatus } from "../../notifications/pushNotifications";
 import type { WebPushAvailability } from "../../notifications/webPushNotifications";
@@ -42,15 +42,15 @@ export function NotificationSettingsScreen({ settings, supported, browser = null
 function Toggle({ label, checked, disabled, onChange }: { label: string; checked: boolean; disabled: boolean; onChange: (value: boolean) => void }) {
   return <Switch><input type="checkbox" role="switch" aria-label={label} checked={checked} disabled={disabled} onChange={event => onChange(event.target.checked)} /><span /></Switch>;
 }
-const Frame = styled(ScreenFrame)`padding-inline: 0; background: var(--color-surface);`;
-const Header = styled.header`display: grid; grid-template-columns: 48px 1fr 48px; align-items: center; padding-inline: 20px; h1 { ${screenTitleStyles} text-align: center; }`;
-const Content = styled.div`overflow-y: auto; min-height: 0; padding: 30px 20px calc(28px + var(--app-safe-area-bottom, 0px)); display: grid; align-content: start; gap: 16px;`;
-const Card = styled.section`padding: 22px 18px; border: 1px solid var(--color-neutral-300); border-radius: 20px; display: grid; gap: 20px;`;
-const Row = styled.div`display: flex; align-items: center; gap: 12px; @media(max-width: 350px) { gap: 8px; }`;
-const Icon = styled.span`color: var(--color-text-muted); flex: none; @media(max-width: 350px) { display: none; }`;
-const Copy = styled.div`flex: 1; min-width: 0; h2 { font-size: 15px; line-height: 1.5; font-weight: 600; } p { font-size: 12px; color: var(--color-text-muted); line-height: 1.65; margin-top: 5px; }`;
-const Time = styled.div`display: flex; align-items: center; gap: 10px; border-radius: 12px; background: var(--color-secondary-100); padding: 12px; label { flex: 1; min-width: 0; font-size: 13px; } input { ${nativeDateInputStyles} font: inherit; font-size: 16px; max-width: 120px; border: 0; background: transparent; color: inherit; min-height: 44px; &:focus-visible { outline: 2px solid var(--color-focus-ring); outline-offset: 2px; border-radius: 4px; } }`;
-const Hint = styled.p`font-size: 12px; line-height: 1.8; color: var(--color-text-muted); margin: 0;`;
+const Frame = styled(ScreenFrame)`padding-inline: 0; padding-bottom: 0; background: var(--color-surface);`;
+const Header = styled.header`flex: none; display: grid; grid-template-columns: 44px 1fr 44px; align-items: center; padding-inline: var(--screen-padding-left) var(--screen-padding-right); h1 { ${screenTitleStyles} text-align: center; }`;
+const Content = styled.div`flex: 1; overflow-y: auto; overscroll-behavior: contain; min-height: 0; padding: 24px var(--screen-padding-right) var(--screen-padding-bottom) var(--screen-padding-left); display: grid; align-content: start; gap: 16px;`;
+const Card = styled.section`padding-block: 12px 20px; display: grid; gap: 16px; & + & { border-top: 1px solid var(--color-border); padding-top: 24px; }`;
+const Row = styled.div`display: flex; align-items: center; gap: 12px; @container app-viewport (max-width: 350px) { gap: 8px; }`;
+const Icon = styled.span`color: var(--color-text-muted); flex: none; @container app-viewport (max-width: 350px) { display: none; }`;
+const Copy = styled.div`flex: 1; min-width: 0; h2 { margin: 0; font-size: var(--ui-body-size); line-height: 1.5; font-weight: 600; } p { ${captionStyles} margin: 5px 0 0; }`;
+const Time = styled.div`display: flex; align-items: center; gap: 10px; label { flex: 1; min-width: 0; font-size: var(--ui-caption-size); } input { ${nativeDateInputStyles} font: inherit; font-size: 16px; max-width: 120px; border: 1px solid var(--color-border); border-radius: 12px; padding-inline: 10px; background: var(--color-surface); color: inherit; min-height: 44px; &:focus-visible { outline: 2px solid var(--color-focus-ring); outline-offset: -2px; } }`;
+const Hint = styled.p`${captionStyles} margin: 0;`;
 const Notice = styled.p`font-size: 13px; line-height: 1.7; padding: 14px 16px; border-radius: 12px; background: var(--color-neutral-200); margin: 0;`;
 const Switch = styled.label`position: relative; flex: none; width: 46px; height: 44px;
   input { position: absolute; inset: 0; opacity: 0; width: 100%; height: 100%; }
