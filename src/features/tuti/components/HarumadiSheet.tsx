@@ -23,7 +23,7 @@ export function HarumadiPageSheet({ page, coverStyle, paperColor = "white", numb
       {page.kind === "cover" ? <><CoverHeader data-cover-header><span data-cover-date style={{ whiteSpace: "pre-line" }}>{page.date}</span><span data-cover-title title={page.title}>{page.title}</span></CoverHeader><CoverBody data-cover-body>{coverStyle.endsWith("-image") && <CoverPhoto data-cover-photo style={{ background: photo ? undefined : palette.placeholder }}>{photo}</CoverPhoto>}</CoverBody><CoverMark data-cover-mark>Tuti</CoverMark></> : <BackMessage>{page.content}</BackMessage>}
     </CoverPaper>
   </Sheet>;
-  if (page.kind === "empty") return <Sheet $reading style={paperStyle} data-harumadi-page="empty"><TextPaper $cover={false}><TextFrame><TextTitle>첫 마디를 채워보세요</TextTitle><TextBody>사진 한 장, 짧은 이야기부터.</TextBody></TextFrame></TextPaper></Sheet>;
+  if (page.kind === "empty") return <Sheet $reading style={paperStyle} data-harumadi-page="empty"><TextPaper $cover={false}><TextFrame><TextTitle data-reader-text-title>첫 마디를 채워보세요</TextTitle><TextBody data-reader-text-body>사진 한 장, 짧은 이야기부터.</TextBody></TextFrame></TextPaper></Sheet>;
   if (page.kind === "photo-only") return <Sheet $reading style={paperStyle} data-harumadi-page="photo-only"><PhotoOnlyPaper $cover={false}>
     <PhotoHeader date={page.date.replaceAll("-", ".")} place={page.place} height={page.headerHeight} /><PhotoOnlyBody><PhotoOnly style={photoStyle} $preview={preview}>{photo}</PhotoOnly></PhotoOnlyBody><Folio number={number} />
   </PhotoOnlyPaper></Sheet>;
@@ -39,10 +39,10 @@ export function HarumadiPageSheet({ page, coverStyle, paperColor = "white", numb
     </ContinuedHeader><LongBody>{page.content}</LongBody><Folio number={number} />
   </LongPaper></Sheet>;
   if (page.long) return <Sheet $reading style={paperStyle} data-harumadi-page={page.kind}><LongPaper $cover={false}>
-    <LongHeader><TextMeta>{readerMetaLabel(page.date, page.place)}</TextMeta>{page.title && <TextTitle>{page.title}</TextTitle>}</LongHeader><LongBody>{page.content}</LongBody><Folio number={number} />
+    <LongHeader><TextMeta>{readerMetaLabel(page.date, page.place)}</TextMeta>{page.title && <TextTitle data-reader-text-title>{page.title}</TextTitle>}</LongHeader><LongBody data-reader-text-body>{page.content}</LongBody><Folio number={number} />
   </LongPaper></Sheet>;
   return <Sheet $reading style={paperStyle} data-harumadi-page="text"><TextPaper $cover={false}><TextFrame>
-    <TextMeta>{readerMetaLabel(page.date, page.place)}</TextMeta>{page.title && <TextTitle>{page.title}</TextTitle>}<TextBody>{page.content}</TextBody>
+    <TextMeta>{readerMetaLabel(page.date, page.place)}</TextMeta>{page.title && <TextTitle data-reader-text-title>{page.title}</TextTitle>}<TextBody data-reader-text-body>{page.content}</TextBody>
   </TextFrame><Folio number={number} /></TextPaper></Sheet>;
 }
 

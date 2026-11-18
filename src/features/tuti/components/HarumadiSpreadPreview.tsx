@@ -12,6 +12,7 @@ import { buildHarumadiReaderPages, type HarumadiReaderPage } from "@/shared/haru
 import { HarumadiPageSheet } from "./HarumadiSheet";
 import { HarumadiCover } from "./HarumadiCover";
 import { useCachedHarumadi } from "../hooks/useCachedHarumadi";
+import { HARUMADI_PDF_LAYOUT } from "@/shared/harumadi/pdfLayout";
 
 /** 첫 두 마디를 4:3 사진 미리보기 규칙으로 조판한다. 원본 사진은 변경하지 않는다. */
 export function buildHarumadiSpread(book: Harumadi, entries: TutiJournalEntry[]): (HarumadiReaderPage | null)[] {
@@ -72,5 +73,13 @@ const TurningCover = styled.span`position: absolute; top: 0; left: 50%; width: 5
   @media (prefers-reduced-motion: reduce) { display: none; animation: none !important; }
 `;
 // 읽기 화면과 같은 320px 지면을 축소해 여백과 줄바꿈의 비율을 보존한다.
-const Miniature = styled.span`position: absolute; top: 0; left: 0; display: block; width: 320px; transform: scale(var(--spread-page-scale)); transform-origin: top left; pointer-events: none;`;
+const Miniature = styled.span`position: absolute; top: 0; left: 0; display: block; width: 320px; transform: scale(var(--spread-page-scale)); transform-origin: top left; pointer-events: none;
+  > [data-harumadi-page="text"], > [data-harumadi-page="empty"] {
+    --hm-body: 18px; --hm-title: 20px; --hm-meta: 12px; --hm-meta-lines: 1; --hm-line: 1.75;
+    > span { height: ${320 * HARUMADI_PDF_LAYOUT.page.height / HARUMADI_PDF_LAYOUT.page.width}px; overflow: hidden; color: #202826; }
+    [data-reader-text-title], [data-reader-text-body] { display: -webkit-box; -webkit-box-orient: vertical; overflow: hidden; }
+    [data-reader-text-title] { -webkit-line-clamp: 3; }
+    [data-reader-text-body] { -webkit-line-clamp: 6; }
+  }
+`;
 const Unwritten = styled.span`display: grid; place-items: center; height: 100%; padding: 12px; color: var(--color-text-muted); font-size: 10px; line-height: 1.7;`;
