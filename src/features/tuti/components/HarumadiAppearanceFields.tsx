@@ -3,8 +3,10 @@
 import styled from "@emotion/styled";
 import { Check, ImageIcon, Type } from "lucide-react";
 import { BaseButton } from "./buttons";
-import { HARUMADI_COVER_COLORS, HARUMADI_PAPER_COLORS, getHarumadiCoverColor, type HarumadiPaperColor } from "@/shared/harumadi/colors";
+import { HARUMADI_COVER_COLORS, HARUMADI_PAPER_COLORS, getHarumadiCoverColor, getHarumadiPaperPalette, type HarumadiPaperColor } from "@/shared/harumadi/colors";
 import type { HarumadiPdfCoverStyle } from "@/shared/api/harumadiPdf";
+import { HarumadiPageSheet } from "./HarumadiSheet";
+import { captionStyles } from "@/shared/ui/typography";
 
 type Appearance = { coverStyle: HarumadiPdfCoverStyle; paperColor?: HarumadiPaperColor };
 /** 책 설정과 PDF 만들기가 같은 색 이름·선택 상태·조작 크기를 사용한다. */
@@ -12,6 +14,7 @@ export function HarumadiAppearanceFields({ value, onChange, disabled = false }: 
   value: Appearance; onChange: (value: Appearance) => void; disabled?: boolean;
 }) {
   const color = getHarumadiCoverColor(value.coverStyle), photo = value.coverStyle.endsWith("-image");
+  const paper = getHarumadiPaperPalette(value.paperColor);
   return <AppearanceFields data-harumadi-appearance>
     <Group disabled={disabled}><legend>표지 구성</legend><Layouts>
       {[{ image: false, label: "사진 없이", Icon: Type }, { image: true, label: "사진과 함께", Icon: ImageIcon }].map(({ image, label, Icon }) =>
@@ -26,13 +29,21 @@ export function HarumadiAppearanceFields({ value, onChange, disabled = false }: 
         <span>{option.label}</span>
       </ColorChoice>)}
     </Colors></Group>
-    <Group disabled={disabled}><legend>속지 색상</legend><Colors>
+    <Group disabled={disabled}><legend>속지 색상</legend><PaperSelection>
+      <PaperPreview role="img" aria-label={`${paper.label} 속지 미리보기`}>
+        <div aria-hidden="true"><HarumadiPageSheet
+          page={{ kind: "empty", title: "", content: "", image: null, date: "", place: "" }}
+          coverStyle={value.coverStyle} paperColor={paper.id} number={1} preview
+        /></div>
+      </PaperPreview>
+      <PaperOptions><Colors>
       {HARUMADI_PAPER_COLORS.map(option => <ColorChoice key={option.id} type="button" aria-label={`속지 ${option.label}`} aria-pressed={(value.paperColor ?? "white") === option.id}
         onClick={() => onChange({ ...value, paperColor: option.id })}>
         <Swatch style={{ background: option.background }}>{(value.paperColor ?? "white") === option.id && <Check size={17} aria-hidden="true" />}</Swatch>
         <span>{option.label}</span>
       </ColorChoice>)}
-    </Colors></Group>
+      </Colors><PaperLabel aria-live="polite">{paper.label} 속지</PaperLabel></PaperOptions>
+    </PaperSelection></Group>
   </AppearanceFields>;
 }
 const AppearanceFields = styled.div`display: grid; gap: 20px; container: harumadi-colors / inline-size;`;
@@ -46,3 +57,9 @@ const ColorChoice = styled(BaseButton)`display: flex; flex-direction: column; al
   &:focus-visible { outline: 2px solid var(--color-brand-700); outline-offset: 2px; }
   &:hover:not(:disabled) { background: var(--color-brand-100); }`;
 const Swatch = styled.span`display: grid; place-items: center; flex: none; width: 32px; height: 32px; border: 1px solid #7d898e; border-radius: 50%; color: #303030;`;
+const PaperSelection = styled.div`display: grid; grid-template-columns: 92px minmax(0, 1fr); align-items: center; gap: 12px; @container harumadi-colors (max-width: 249px) { grid-template-columns: minmax(0, 1fr); justify-items: center; }`;
+const PaperPreview = styled.div`width: 92px; overflow: hidden; border: 1px solid var(--color-border); border-radius: 2px;
+  [data-harumadi-page] { --hm-title: 10px; --hm-body: 9px; --hm-line: 1.6; }
+`;
+const PaperOptions = styled.div`width: 100%; min-width: 0; display: grid; gap: 8px; > div { grid-template-columns: repeat(3, minmax(44px, 1fr)); }`;
+const PaperLabel = styled.p`${captionStyles} margin: 0; text-align: center;`;

@@ -90,6 +90,25 @@ test("색상·사진 유무·속지를 차례로 고를 때 다른 선택을 잃
   assert.deepEqual(value, { coverStyle: "blue-plain", paperColor: "lavender" });
 });
 
+test("속지 선택 옆 미리보기는 실제 지면 컴포넌트로 여섯 색을 즉시 반영한다", () => {
+  for (const paper of HARUMADI_PAPER_COLORS) {
+    const html = renderToStaticMarkup(createElement(HarumadiAppearanceFields, {
+      value: { coverStyle: "pink-image", paperColor: paper.id }, onChange() {},
+    }));
+    assert.ok(html.includes(`aria-label="${paper.label} 속지 미리보기"`));
+    assert.ok(html.includes(`--hm-paper-background:${paper.background}`));
+    assert.match(html, /data-harumadi-page="empty"/);
+    assert.match(html, /첫 마디를 채워보세요/);
+    assert.match(html, /aria-live="polite"/);
+    assert.equal((html.match(/<button /g) ?? []).length, 14, "미리보기는 추가 조작이나 저장 요청을 만들지 않는다");
+  }
+  const defaultPaper = renderToStaticMarkup(createElement(HarumadiAppearanceFields, {
+    value: { coverStyle: "green-plain" }, onChange() {},
+  }));
+  assert.match(defaultPaper, /aria-label="흰색 속지 미리보기"/);
+  assert.match(defaultPaper, /--hm-paper-background:#FFFFFF/);
+});
+
 test("실제 PDF의 앞뒤 표지와 사진·글·이어지는 본문·첫 장 글은 각각 선택한 색을 쓴다", async () => {
   const { renderHarumadiPdf } = await import("@/server/pdf/harumadiPdf");
   const sharp = (await import("sharp")).default;
