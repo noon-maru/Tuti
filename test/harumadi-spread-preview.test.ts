@@ -4,7 +4,7 @@ import { readFileSync } from "node:fs";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { buildHarumadiSpread, HarumadiSpreadPreview } from "@/features/tuti/components/HarumadiSpreadPreview";
+import { buildHarumadiSpread, HarumadiSpreadPreview, HarumadiSpreadSheets } from "@/features/tuti/components/HarumadiSpreadPreview";
 import { HarumadiCarousel } from "@/features/tuti/components/HarumadiCarousel";
 import { harumadiReadCache } from "@/lib/harumadiReadCache";
 import { harumadiContent } from "./fixtures/harumadiContent";
@@ -15,12 +15,29 @@ test("펼친 미리보기는 지정 순서의 실제 첫 두 지면만 보여준
   const third = { ...entry, id: "third", title: "미리보기 밖" };
   const pages = buildHarumadiSpread({ ...book, entryIds: [second.id, entry.id, third.id] }, [entry, third, second]);
   assert.equal(pages.length, 2);
-  assert.equal(pages[0].title, "두 번째"); assert.equal(pages[0].image, second.image);
-  assert.equal(pages[1].title, entry.title);
+  assert.equal(pages[0]!.title, "두 번째"); assert.equal(pages[0]!.image, second.image);
+  assert.equal(pages[1]!.title, entry.title);
   const empty = buildHarumadiSpread({ ...book, entryIds: [] }, []);
-  assert.deepEqual(empty.map(page => page.kind), ["empty", "back"]);
+  assert.deepEqual(empty.map(page => page?.kind ?? null), [null, "empty"]);
   const long = buildHarumadiSpread(book, [{ ...entry, content: "오래 기억할 하루. ".repeat(600) }]);
-  assert.equal(long[1].kind, "continuation");
+  assert.equal(long[0], null);
+  assert.equal(long[1]!.kind, "text");
+});
+
+test("마디 0·1개의 미리보기는 왼쪽을 비우고 오른쪽에 첫 안내나 첫 마디를 표시한다", () => {
+  const { harumadi: book, entries: [entry] } = harumadiContent();
+  for (const count of [0, 1]) {
+    const current = { ...book, entryIds: count ? [entry.id] : [], backCoverText: "미리보기에 나오면 안 되는 뒤표지" };
+    const pages = buildHarumadiSpread(current, count ? [entry] : []);
+    assert.equal(pages[0], null);
+    assert.equal(pages[1]!.kind, count ? "text" : "empty");
+    const html = renderToStaticMarkup(createElement(HarumadiSpreadSheets, { book: current, pages, still: true }));
+    const left = html.indexOf('data-spread-leaf="left"');
+    const right = html.indexOf('data-spread-leaf="right"');
+    assert.doesNotMatch(html.slice(left, right), /data-harumadi-page|마디를 펼치는 중/);
+    assert.match(html.slice(right), count ? /산책/ : /첫 마디를 채워보세요/);
+    assert.doesNotMatch(html, /미리보기에 나오면 안 되는 뒤표지/);
+  }
 });
 
 test("선택한 한 권만 펼치고 기존 지면을 재사용한다", () => {

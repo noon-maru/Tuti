@@ -14,9 +14,10 @@ import { HarumadiCover } from "./HarumadiCover";
 import { useCachedHarumadi } from "../hooks/useCachedHarumadi";
 
 /** 첫 두 마디를 4:3 사진 미리보기 규칙으로 조판한다. 원본 사진은 변경하지 않는다. */
-export function buildHarumadiSpread(book: Harumadi, entries: TutiJournalEntry[]) {
+export function buildHarumadiSpread(book: Harumadi, entries: TutiJournalEntry[]): (HarumadiReaderPage | null)[] {
   const ids = book.entryIds.slice(0, 2);
-  return buildHarumadiReaderPages({ ...book, entryIds: ids }, entries.filter(entry => ids.includes(entry.id)).map(entry => ({ ...entry, imageWidth: 4, imageHeight: 3 })), 320).slice(1, 3);
+  const pages = buildHarumadiReaderPages({ ...book, entryIds: ids }, entries.filter(entry => ids.includes(entry.id)).map(entry => ({ ...entry, imageWidth: 4, imageHeight: 3 })), 320).slice(1, 3);
+  return ids.length <= 1 ? [null, pages[0]] : pages;
 }
 
 // 선택한 책만 조회한다. 드래그 프레임에서는 지면·사진을 다시 렌더하지 않는다.
@@ -38,12 +39,12 @@ export const HarumadiSpreadPreview = memo(function HarumadiSpreadPreview({ book,
 
 /** 책장과 확대 전환이 동일한 두 지면을 사용한다. 전환에서는 조회·펼침을 반복하지 않는다. */
 export function HarumadiSpreadSheets({ book, pages, ready = true, still = false, ownerId, failed = false }: {
-  book: Harumadi; pages: HarumadiReaderPage[]; ready?: boolean; still?: boolean; ownerId?: string; failed?: boolean;
+  book: Harumadi; pages: (HarumadiReaderPage | null)[]; ready?: boolean; still?: boolean; ownerId?: string; failed?: boolean;
 }) {
   return <Spread data-harumadi-spread-preview data-spread-ready={ready} data-spread-still={still} aria-hidden="true">
     {[0, 1].map(index => <Leaf key={index} $side={index === 0 ? "left" : "right"} data-spread-leaf={index === 0 ? "left" : "right"} data-book-opening-origin={index === 1 ? true : undefined}>
-      {pages[index] ? <Miniature><HarumadiPageSheet page={pages[index]} coverStyle={book.coverStyle} paperColor={book.paperColor} number={index + 1} preview /></Miniature>
-        : <Unwritten><span>{index === 0 ? failed ? "열어서 확인하기" : "마디를 펼치는 중" : ""}</span></Unwritten>}
+      {pages[index] ? <Miniature><HarumadiPageSheet page={pages[index]} coverStyle={book.coverStyle} paperColor={book.paperColor} number={book.entryIds.length <= 1 ? 1 : index + 1} preview /></Miniature>
+        : <Unwritten><span>{index === 1 && !pages.length ? failed ? "열어서 확인하기" : "마디를 펼치는 중" : ""}</span></Unwritten>}
     </Leaf>)}
     {!still && ownerId && <TurningCover data-spread-turning-cover><HarumadiCover ownerId={ownerId} kind="harumadi" harumadiPdf={{ ...book,
       entryCount: book.entryIds.length, pageCount: 0, hasCover: book.coverStyle.endsWith("-image") && book.entryIds.length > 0 }} /></TurningCover>}

@@ -32,9 +32,10 @@ test("책장 펼친 미리보기와 목록 카드는 실제 세로 사진도 4:3
   const fixture = harumadiContent();
   const entry = { ...fixture.entries[0], image: "/synthetic.jpg", imageWidth: 675, imageHeight: 1200 };
   const pages = buildHarumadiSpread(fixture.harumadi, [entry]);
-  assert.ok(Math.abs(pages[0].photoSize!.width / pages[0].photoSize!.height - 4 / 3) < 1e-8);
+  assert.equal(pages[0], null);
+  assert.ok(Math.abs(pages[1]!.photoSize!.width / pages[1]!.photoSize!.height - 4 / 3) < 1e-8);
   assert.match(readFileSync("src/features/tuti/screens/journal/JournalScreen.tsx", "utf8"), /aspect-ratio: 4 \/ 3/);
   assert.match(readFileSync("src/features/tuti/screens/journal/MadiCreateScreen.tsx", "utf8"), /aspect-ratio: 4 \/ 3/);
   const spread = readFileSync("src/features/tuti/components/HarumadiSpreadPreview.tsx", "utf8");
-  assert.match(spread, /number=\{index \+ 1\} preview/);
+  assert.match(spread, /number=\{book.entryIds.length <= 1 \? 1 : index \+ 1\} preview/);
 });
