@@ -1,7 +1,8 @@
 "use client";
 
 import styled from "@emotion/styled";
-import { useEffect, useId, useRef, useState, type ComponentType, type ReactNode } from "react";
+import { useEffect, useId, useRef, useState, type ReactNode } from "react";
+import { BookOpen } from "lucide-react";
 import { BaseButton, PrimaryButton, TextButton } from "@/features/tuti/components/buttons";
 import { recordProductInteraction } from "@/lib/productInteraction";
 import type { ProductInteractionSurface } from "@/shared/api/productInteraction";
@@ -10,7 +11,7 @@ import { captionStyles } from "@/shared/ui/typography";
 import { trackLifecycle } from "@/lib/lifecycle";
 import { useSession } from "../hooks/useSession";
 
-export function HarumadiPurchaseButton({ surface, bookTitle, preview, triggerComponent: Trigger }: { surface: ProductInteractionSurface; bookTitle?: string; preview?: ReactNode; triggerComponent?: ComponentType<{ onOpen: () => void; onVisible: () => void }> }) {
+export function HarumadiPurchaseButton({ surface, bookTitle, preview, compact = false, disabled = false }: { surface: ProductInteractionSurface; bookTitle?: string; preview?: ReactNode; compact?: boolean; disabled?: boolean }) {
   const id = useId();
   const owner = useSession()?.userId;
   const observed = useRef("");
@@ -42,6 +43,7 @@ export function HarumadiPurchaseButton({ surface, bookTitle, preview, triggerCom
   };
 
   const openPurchase = () => {
+    if (disabled) return;
     observe();
     if (surface !== "welcome") trackLifecycle("purchase_clicked", { source: "book" });
     setOpen(true);
@@ -51,8 +53,8 @@ export function HarumadiPurchaseButton({ surface, bookTitle, preview, triggerCom
     track(eventId);
   };
   return <>
-    {Trigger ? <Trigger onOpen={openPurchase} onVisible={observe} /> : <PurchaseAction>
-      <PurchaseButton ref={trigger} type="button" onClick={openPurchase}>{surface === "harumadi_reader" ? "실물로 소장하기" : "실물 하루마디 구매하기"}</PurchaseButton>
+    {compact ? <PurchaseButton ref={trigger} type="button" $compact disabled={disabled} onClick={openPurchase}><BookOpen size={17} aria-hidden="true" />실물로 소장하기</PurchaseButton> : <PurchaseAction>
+      <PurchaseButton ref={trigger} type="button" disabled={disabled} onClick={openPurchase}>{surface === "harumadi_reader" ? "실물로 소장하기" : "실물 하루마디 구매하기"}</PurchaseButton>
       <small>실물 제작은 준비 중이에요.</small>
     </PurchaseAction>}
     {open && <AppDialogFrame role="dialog" titleId={`${id}-title`} descriptionId={`${id}-description`} initialFocus={close} onCancel={() => setOpen(false)}>
@@ -74,7 +76,7 @@ const PurchaseAction = styled.div`
   gap: 4px;
   small { ${captionStyles} }
 `;
-const PurchaseButton = styled(BaseButton)`
+const PurchaseButton = styled(BaseButton)<{ $compact?: boolean }>`
   min-height: 44px;
   padding: 10px 16px;
   background: transparent;
@@ -82,6 +84,8 @@ const PurchaseButton = styled(BaseButton)`
   font-size: var(--ui-caption-size);
   text-decoration: underline;
   text-underline-offset: 4px;
+  ${({ $compact }) => $compact && `display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: var(--ui-action-height); min-width: 0; padding: 10px 12px; border-radius: 999px; background: var(--color-secondary-200); color: var(--color-secondary-1000); font-size: var(--ui-body-size); font-weight: 600; text-decoration: none; line-height: 1.6; white-space: normal; svg { flex: none; }`}
+  &:disabled { opacity: .5; }
 `;
 const Notice = styled.div`
   ${captionStyles}

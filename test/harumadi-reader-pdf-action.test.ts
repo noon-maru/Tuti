@@ -44,8 +44,10 @@ test("마지막 쪽·관리 메뉴·함께 채우기는 같은 PDF 준비 경로
   assert.match(source, /setError\(""\); setConfirmed\(false\); setPdf\(null\); setMode\("pdf"\)/);
   assert.match(source, /if \(action === "pdf"\) \{ openPdf\(\); return; \}/);
   assert.match(source, /onKeep=\{openPdf\}/);
-  assert.match(source, /readerEnding && !readOnly \? <PdfSaveButton type="button" disabled=\{busy \|\| closing \|\| opening\} onClick=\{openPdf\}/);
+  assert.match(source, /readerEnding && !readOnly \? <>\s*<PdfSaveButton type="button" disabled=\{busy \|\| closing \|\| opening\} onClick=\{openPdf\}/);
   assert.match(source, /onEndChange=\{setReaderEnding\}/);
-  assert.match(source, /label: "실물로 소장하기", onSelect: openPurchase/);
+  const tools = source.slice(source.indexOf('<ReaderTools aria-label="하루마디 채우기">'), source.indexOf("</ReaderTools>"));
+  assert.match(tools, /<HarumadiPurchaseButton[^>]*compact disabled=\{busy \|\| closing \|\| opening\}/);
+  assert.doesNotMatch(source, /triggerComponent=|label: "실물로 소장하기"/);
   assert.doesNotMatch(source, /pdfAction=|keepsakeAction=/);
 });

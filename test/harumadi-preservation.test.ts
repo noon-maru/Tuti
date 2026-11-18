@@ -42,11 +42,12 @@ test("네이티브 공유 취소는 보관 실패가 아니며 임시 파일은 
   }
 });
 
-test("저장과 기기 전달 실패를 구분하고 소장 안내는 관리 메뉴로 연결한다", () => {
+test("저장과 기기 전달 실패를 구분하고 소장 안내는 마지막 쪽 하단으로 연결한다", () => {
   const flow = readFileSync("src/features/tuti/flows/HarumadiFlow.tsx", "utf8");
   assert.ok(flow.indexOf('queryKey: ["library-exports", owner]') < flow.indexOf("const result = await exportHarumadiPdf"));
   assert.match(flow, /PDF는 Tuti에 보관됐어요.*기기로 내보내지 못했으니/);
-  assert.match(flow, /readOnly \? <Quiet[\s\S]*: <HarumadiPurchaseButton/);
+  assert.match(flow, /readerEnding && !readOnly \? <>/);
+  assert.match(flow, /<HarumadiPurchaseButton[^>]*compact disabled=/);
   assert.match(flow, /surface="harumadi_reader"/);
   const viewer = readFileSync("src/features/tuti/components/HarumadiPageViewer.tsx", "utf8");
   assert.match(viewer, /const ended = lastPage && entries.length > 0 && !retained/);
