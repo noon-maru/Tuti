@@ -1,3 +1,5 @@
+import { animateHarumadiPaperFlex } from "./harumadiPaperFlex";
+
 /** An already visible front cover needs no second cover or rotation. */
 export function animateHarumadiFade(contents: HTMLElement | null, onComplete: () => void, reducedMotion = false) {
   let active = true, completed = false;
@@ -16,8 +18,9 @@ export function animateHarumadiFade(contents: HTMLElement | null, onComplete: ()
 export function animateHarumadiClose(cover: HTMLElement, contents: HTMLElement | null, onComplete: () => void, reducedMotion = false) {
   let active = true, completed = false;
   const animations: Animation[] = [];
-  const finish = () => { if (active && !completed) { completed = true; onComplete(); } };
-  const cancel = () => { active = false; animations.forEach(animation => animation.cancel()); };
+  let restorePaper = () => {};
+  const finish = () => { if (active && !completed) { completed = true; restorePaper(); onComplete(); } };
+  const cancel = () => { active = false; animations.forEach(animation => animation.cancel()); restorePaper(); };
   if (reducedMotion || typeof cover.animate !== "function") { finish(); return cancel; }
   try {
     const closing = cover.animate([
@@ -26,6 +29,7 @@ export function animateHarumadiClose(cover: HTMLElement, contents: HTMLElement |
       { transform: "perspective(1100px) rotateY(0deg)", opacity: 1, offset: 1 },
     ], { duration: 560, easing: "cubic-bezier(.22,.68,.2,1)", fill: "both" });
     animations.push(closing);
+    restorePaper = animateHarumadiPaperFlex(cover, "close", 560);
     if (typeof contents?.animate === "function") animations.push(contents.animate([
       { opacity: 1 }, { opacity: 0 },
     ], { duration: 240, delay: 120, fill: "forwards" }));

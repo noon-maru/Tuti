@@ -1,3 +1,5 @@
+import { animateHarumadiPaperFlex } from "./harumadiPaperFlex";
+
 /** 펼침 중이어도 현재 보이는 각도에서 접고, 끝날 때까지 기존 지면 DOM을 유지한다. */
 export function foldCarouselBook(spread: HTMLElement | null, signal: AbortSignal, reducedMotion = false): Promise<boolean> {
   if (signal.aborted) return Promise.resolve(false);
@@ -7,12 +9,14 @@ export function foldCarouselBook(spread: HTMLElement | null, signal: AbortSignal
   if (!leaf || !cover) return Promise.resolve(true);
   return new Promise(resolve => {
     const animations: Animation[] = [];
+    const restorePaper: (() => void)[] = [];
     let completed = false;
     const finish = (applied: boolean) => {
       if (completed) return;
       completed = true;
       signal.removeEventListener("abort", abort);
       if (!applied) animations.forEach(animation => animation.cancel());
+      restorePaper.forEach(restore => restore());
       resolve(applied);
     };
     const abort = () => finish(false);
@@ -26,6 +30,7 @@ export function foldCarouselBook(spread: HTMLElement | null, signal: AbortSignal
         { opacity: 1, offset: .2 },
         { transform: "rotateY(0deg)", opacity: 1 },
       ], options));
+      restorePaper.push(animateHarumadiPaperFlex(leaf, "close", 420), animateHarumadiPaperFlex(cover, "close", 420));
       void Promise.all(animations.map(animation => animation.finished)).then(() => finish(true), () => finish(false));
     } catch {
       animations.forEach(animation => { void animation.finished.catch(() => {}); animation.cancel(); });

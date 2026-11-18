@@ -10,6 +10,7 @@ import { animateHarumadiOpen, animateHarumadiSpreadOpen, scheduleHarumadiOpen } 
 import { buildHarumadiSpread, HarumadiSpreadSheets } from "./HarumadiSpreadPreview";
 import type { Harumadi } from "@/shared/api/harumadi";
 import type { TutiJournalEntry } from "@/shared/api/journal";
+import { HarumadiPaperSurface } from "./HarumadiPaperSurface";
 
 /** Runs only after the reader's authorized content is available; no extra cover request. */
 export function HarumadiOpenTransition({ book, entries, origin, containerRef, contentsRef, onComplete }: {
@@ -37,7 +38,7 @@ export function HarumadiOpenTransition({ book, entries, origin, containerRef, co
   }), [origin, containerRef, contentsRef, onComplete]);
   return <Layer aria-hidden="true"><MovingBook ref={moving}><TurningCover ref={cover} $spread={origin.appearance === "spread"}>
     {origin.appearance === "spread" ? <HarumadiSpreadSheets book={book} pages={buildHarumadiSpread(book, entries)} still /> :
-    <HarumadiPageSheet page={buildHarumadiCoverPage(book, entries)} coverStyle={book.coverStyle} number={0} />
+    <HarumadiPaperSurface><HarumadiPageSheet page={buildHarumadiCoverPage(book, entries)} coverStyle={book.coverStyle} number={0} /></HarumadiPaperSurface>
     }
   </TurningCover></MovingBook></Layer>;
 }

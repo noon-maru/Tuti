@@ -1,4 +1,5 @@
 import type { HarumadiBookRect } from "@/shared/harumadi/transitionGeometry";
+import { animateHarumadiPaperFlex } from "./harumadiPaperFlex";
 
 /** 자식 layout effect보다 늦게 연결되는 부모 DOM ref까지 기다린다. */
 export function scheduleHarumadiOpen(host: Pick<Window, "requestAnimationFrame" | "cancelAnimationFrame">, start: () => (() => void) | undefined) {
@@ -34,8 +35,9 @@ export function animateHarumadiOpen(book: HTMLElement, cover: HTMLElement, conte
   origin: HarumadiBookRect, target: HarumadiBookRect, onComplete: () => void, reducedMotion = false) {
   let active = true, completed = false;
   const animations: Animation[] = [];
-  const finish = () => { if (active && !completed) { completed = true; onComplete(); } };
-  const cancel = () => { active = false; animations.forEach(animation => animation.cancel()); };
+  let restorePaper = () => {};
+  const finish = () => { if (active && !completed) { completed = true; restorePaper(); onComplete(); } };
+  const cancel = () => { active = false; animations.forEach(animation => animation.cancel()); restorePaper(); };
   if (reducedMotion || typeof cover.animate !== "function" || typeof book.animate !== "function") { finish(); return cancel; }
   try {
     animations.push(book.animate([
@@ -50,6 +52,7 @@ export function animateHarumadiOpen(book: HTMLElement, cover: HTMLElement, conte
       { transform: "perspective(1100px) rotateY(-105deg)", opacity: 0, offset: 1 },
     ], { duration: 680, delay: 160, easing: "cubic-bezier(.3,0,.2,1)", fill: "both" });
     animations.push(turning);
+    restorePaper = animateHarumadiPaperFlex(cover, "open", 680, 160);
     void turning.finished.then(finish).catch(finish);
   } catch { finish(); }
   return cancel;

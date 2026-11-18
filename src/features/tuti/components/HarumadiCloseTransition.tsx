@@ -9,6 +9,7 @@ import { animateHarumadiClose, animateHarumadiFade } from "@/lib/harumadiClose";
 import { harumadiLocalRect } from "@/shared/harumadi/transitionGeometry";
 import type { Harumadi } from "@/shared/api/harumadi";
 import type { TutiJournalEntry } from "@/shared/api/journal";
+import { HarumadiPaperSurface } from "./HarumadiPaperSurface";
 
 export function HarumadiCloseTransition({ book, entries, containerRef, contentsRef, fadeOnly = false, onComplete }: {
   book: Harumadi; entries: TutiJournalEntry[]; containerRef: RefObject<HTMLElement | null>; contentsRef: RefObject<HTMLElement | null>; fadeOnly?: boolean; onComplete: () => void;
@@ -32,7 +33,7 @@ export function HarumadiCloseTransition({ book, entries, containerRef, contentsR
     return animateHarumadiClose(node, contentsRef.current, onComplete, reduced);
   }, [containerRef, contentsRef, fadeOnly, onComplete]);
   return fadeOnly ? null : <Layer aria-hidden="true"><Cover ref={cover}>
-    <HarumadiPageSheet page={buildHarumadiCoverPage(book, entries)} coverStyle={book.coverStyle} number={0} />
+    <HarumadiPaperSurface><HarumadiPageSheet page={buildHarumadiCoverPage(book, entries)} coverStyle={book.coverStyle} number={0} /></HarumadiPaperSurface>
   </Cover></Layer>;
 }
 

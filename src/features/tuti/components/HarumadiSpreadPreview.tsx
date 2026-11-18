@@ -13,6 +13,7 @@ import { HarumadiPageSheet } from "./HarumadiSheet";
 import { HarumadiCover } from "./HarumadiCover";
 import { useCachedHarumadi } from "../hooks/useCachedHarumadi";
 import { HARUMADI_PDF_LAYOUT } from "@/shared/harumadi/pdfLayout";
+import { HarumadiPaperSurface } from "./HarumadiPaperSurface";
 
 /** 첫 두 마디를 4:3 사진 미리보기 규칙으로 조판한다. 원본 사진은 변경하지 않는다. */
 export function buildHarumadiSpread(book: Harumadi, entries: TutiJournalEntry[]): (HarumadiReaderPage | null)[] {
@@ -44,11 +45,13 @@ export function HarumadiSpreadSheets({ book, pages, ready = true, still = false,
 }) {
   return <Spread data-harumadi-spread-preview data-spread-ready={ready} data-spread-still={still} aria-hidden="true">
     {[0, 1].map(index => <Leaf key={index} $side={index === 0 ? "left" : "right"} data-spread-leaf={index === 0 ? "left" : "right"} data-book-opening-origin={index === 1 ? true : undefined}>
-      {pages[index] ? <Miniature><HarumadiPageSheet page={pages[index]} coverStyle={book.coverStyle} paperColor={book.paperColor} number={book.entryIds.length <= 1 ? 1 : index + 1} preview /></Miniature>
-        : <Unwritten><span>{index === 1 && !pages.length ? failed ? "열어서 확인하기" : "마디를 펼치는 중" : ""}</span></Unwritten>}
+      <HarumadiPaperSurface opening={!still && ready && index === 0} hinge={index === 0 ? "right" : "left"}>
+        {pages[index] ? <Miniature><HarumadiPageSheet page={pages[index]} coverStyle={book.coverStyle} paperColor={book.paperColor} number={book.entryIds.length <= 1 ? 1 : index + 1} preview /></Miniature>
+          : <Unwritten><span>{index === 1 && !pages.length ? failed ? "열어서 확인하기" : "마디를 펼치는 중" : ""}</span></Unwritten>}
+      </HarumadiPaperSurface>
     </Leaf>)}
-    {!still && ownerId && <TurningCover data-spread-turning-cover><HarumadiCover ownerId={ownerId} kind="harumadi" harumadiPdf={{ ...book,
-      entryCount: book.entryIds.length, pageCount: 0, hasCover: book.coverStyle.endsWith("-image") && book.entryIds.length > 0 }} /></TurningCover>}
+    {!still && ownerId && <TurningCover data-spread-turning-cover><HarumadiPaperSurface opening={ready}><HarumadiCover ownerId={ownerId} kind="harumadi" harumadiPdf={{ ...book,
+      entryCount: book.entryIds.length, pageCount: 0, hasCover: book.coverStyle.endsWith("-image") && book.entryIds.length > 0 }} /></HarumadiPaperSurface></TurningCover>}
   </Spread>;
 }
 
