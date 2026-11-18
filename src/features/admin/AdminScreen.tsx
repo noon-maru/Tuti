@@ -161,8 +161,12 @@ function AdminSectionIcon({
 
 export function AdminScreen({
   initialTab = "overview",
+  initialQuery = "",
+  initialAllPlaces = false,
 }: {
   initialTab?: AdminTab;
+  initialQuery?: string;
+  initialAllPlaces?: boolean;
 }) {
   const [tab, setTab] = useState<AdminTab>(initialTab);
   const [overview, setOverview] = useState<AdminOverview | null>(null);
@@ -194,11 +198,11 @@ export function AdminScreen({
   const [inquiries, setInquiries] = useState<AdminInquiryItem[]>([]);
   const [users, setUsers] = useState<AdminUserItem[]>([]);
   const [settings, setSettings] = useState<AdminSettingItem[]>([]);
-  const [query, setQuery] = useState("");
-  const [appliedQuery, setAppliedQuery] = useState("");
+  const [query, setQuery] = useState(initialQuery);
+  const [appliedQuery, setAppliedQuery] = useState(initialQuery);
   const [filter, setFilter] = useState("");
   const [placeFilters, setPlaceFilters] = useState<PlaceFilterState>(
-    defaultPlaceFilters,
+    { ...defaultPlaceFilters, ...(initialAllPlaces ? { candidate: "all" } : {}) },
   );
   const [placePage, setPlacePage] = useState(1);
   const [loading, setLoading] = useState(true);
@@ -305,6 +309,8 @@ export function AdminScreen({
 
       if (historyMode === "push") {
         const url = new URL(window.location.href);
+        url.searchParams.delete("q");
+        url.searchParams.delete("candidate");
 
         if (nextTab === "overview") {
           url.searchParams.delete("section");
@@ -1098,11 +1104,11 @@ function RecommendationFunnelPanel({
   return (
     <FunnelContent>
       <FunnelHeader>
-        <span>추천 실행에 연결된 행동</span>
+        <span>기간 내 나들이 행동</span>
         <PeriodSelect
           value={days}
           onChange={(event) => onDaysChange(Number(event.target.value))}
-          aria-label="작은 여행 성과 조회 기간"
+          aria-label="나들이 연결 조회 기간"
         >
           <option value={7}>최근 7일</option>
           <option value={30}>최근 30일</option>
@@ -1134,26 +1140,28 @@ function RecommendationFunnelPanel({
             <tr>
               <th scope="col">행동</th>
               <th scope="col">여정 수</th>
-              <th scope="col">추천 실행 대비 도달률</th>
+              <th scope="col">집계 기준</th>
             </tr>
           </thead>
           <tbody>
-            {funnel.stages.map((stage) => (
+            {(funnel.periodActions ?? []).map((stage) => (
               <tr key={stage.action}>
                 <td data-label="행동"><strong>{stage.label}</strong></td>
                 <td data-label="여정 수">
                   {stage.journeys.toLocaleString("ko-KR")}
                 </td>
-                <td data-label="추천 실행 대비 도달률">{stage.rateFromRuns == null ? "집계 불가" : formatRate(stage.rateFromRuns)}</td>
+                <td data-label="집계 기준">기간 내 행동 · 추천 생성일 무관</td>
               </tr>
             ))}
           </tbody>
         </Table>
       </TableCard>
 
+      <details><summary>기간 내 새 추천의 행동 도달</summary><Table><thead><tr><th>행동</th><th>여정 수</th><th>기간 내 새 추천 대비</th></tr></thead><tbody>{funnel.stages.map(stage => <tr key={stage.action}><th>{stage.label}</th><td>{stage.journeys}</td><td>{stage.rateFromRuns == null ? "집계 불가" : formatRate(stage.rateFromRuns)}</td></tr>)}</tbody></Table><p>각 행동은 독립 관측이며 순차 전환·방문 인증이 아닙니다. 기간 밖 후속 행동은 포함하지 않습니다.</p></details>
+
       <FunnelBottomGrid>
         <FunnelPanelCard>
-          <h3>길찾기를 연 장소</h3>
+          <h3>길찾기·기록 연결 장소</h3>
           {funnel.topPlaces.length === 0 ? (
             <FunnelEmpty>아직 길찾기 기록이 없습니다.</FunnelEmpty>
           ) : (
@@ -1163,7 +1171,7 @@ function RecommendationFunnelPanel({
                   <span>{index + 1}</span>
                   <strong>{place.placeName}</strong>
                   <small>
-                    길찾기 {place.navigationStarted} · 마디 작성 {place.journalCreated}
+                    길찾기 {place.navigationStarted} · 저장 연결 관측 {place.journalCreated}
                   </small>
                 </li>
               ))}

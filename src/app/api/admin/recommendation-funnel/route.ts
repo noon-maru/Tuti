@@ -1,6 +1,7 @@
 import { authenticateAdmin } from "@/server/admin/auth";
 import { prisma } from "@/server/db/prisma";
 import { analyticsPeriod, analyticsUserWhere } from "@/server/admin/analyticsScope";
+import { summarizeOutingActions } from "@/shared/analytics/recommendationActions";
 import {
   createPreflightResponse,
   isRequestOriginAllowed,
@@ -19,8 +20,8 @@ const STAGES = [
   ["departure_peek_opened", "출발 준비 확인"],
   ["departure_plan_expanded", "출발 정보 펼침"],
   ["navigation_started", "길찾기 시작"],
-  ["return_confirmed", "다녀옴 확인"],
-  ["journal_created", "마디 작성"],
+  ["return_confirmed", "방문 자기보고"],
+  ["journal_created", "마디 저장 연결 관측"],
 ] as const;
 
 export async function GET(request: Request) {
@@ -97,7 +98,7 @@ export async function GET(request: Request) {
     }
   >();
 
-  for (const action of scopedActions) {
+  for (const action of actions) {
     if (
       !action.placeId ||
       (action.action !== "navigation_started" &&
@@ -121,6 +122,7 @@ export async function GET(request: Request) {
   }
 
   const response: AdminRecommendationFunnelResponse = {
+    periodActions: summarizeOutingActions(actions),
     periodDays,
     generatedAt: new Date().toISOString(),
     recommendationRuns: runCount,
@@ -148,7 +150,7 @@ export async function GET(request: Request) {
     })),
   };
 
-  return withCors(request, Response.json(response));
+  return withCors(request, Response.json(response, { headers: { "Cache-Control": "private, no-store" } }));
 }
 
 export function OPTIONS(request: Request) {

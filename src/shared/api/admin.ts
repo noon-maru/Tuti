@@ -213,6 +213,7 @@ export type AdminProcessingCase = {
   purpose: import("@/shared/legal/adminJournalAccess").AdminJournalAccessPurpose;
   createdAt: string;
 };
+export type AdminRecordStructure = { madis: number; imageReferences: number; ownedBooks: number; participatingBooks: number; bookLinks: number; pdfs: number };
 
 export type AdminUserActivityStage =
   | "created"
@@ -222,7 +223,7 @@ export type AdminUserActivityStage =
   | "converted";
 
 export type AdminUserActivityItem = {
-  lifelog?: { writes: number; writeDays: number; bookOpens: number; contributions: number; pdfs: number };
+  lifelog?: { writes: number; writeDays: number; bookOpens: number; madiOpens?: number; contributions: number; pdfs: number };
   userId: string;
   displayName: string | null;
   accountType: "anonymous" | "authenticated" | "admin";
@@ -486,6 +487,7 @@ export type AdminRecommendationAlgorithm = {
 };
 
 export type AdminRecommendationFunnelResponse = {
+  periodActions?: Array<{ action: string; label: string; journeys: number }>;
   periodDays: number;
   generatedAt: string;
   recommendationRuns: number;

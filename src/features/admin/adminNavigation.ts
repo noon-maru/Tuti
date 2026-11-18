@@ -12,7 +12,7 @@ export const navigationGroups = [
   { label: "운영 홈", ids: ["overview"], links: [] },
   { label: "제품 성과", ids: ["business", "funnel"], links: [] },
   { label: "사용자 지원", ids: ["users", "activity", "inquiries", "reports"], links: [{ href: "/admin/journal-rights", label: "권리 요청" }] },
-  { label: "나들이 품질", ids: ["places"], links: [{ href: "/admin/recommendation-simulator", label: "추천 시뮬레이터" }] },
+  { label: "나들이 품질", ids: ["places"], links: [{ href: "/admin/outing-quality", label: "품질·지역별 후보" }, { href: "/admin/recommendation-simulator", label: "추천 시뮬레이터" }] },
   { label: "시스템·데이터", ids: ["security", "notifications", "logs", "location"], links: [{ href: "/admin/tourism-data", label: "원천 데이터·수집" }] },
   { label: "운영 설정", ids: ["admins", "settings"], links: [] },
 ].map(group => ({ label: group.label, items: group.ids.map(id => tabs.find(tab => tab.id === id)!), links: group.links }));

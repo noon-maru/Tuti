@@ -16,16 +16,17 @@ export const metadata: Metadata = {
 export default async function AdminPage({
   searchParams,
 }: {
-  searchParams: Promise<{ section?: string | string[] }>;
+  searchParams: Promise<{ section?: string | string[]; q?: string | string[]; candidate?: string | string[] }>;
 }) {
-  const section = (await searchParams).section;
+  const params = await searchParams;
+  const section = params.section;
   const initialTab = normalizeAdminTab(
     Array.isArray(section) ? section[0] : section,
   );
 
   return (
     <Providers>
-      <AdminScreen initialTab={initialTab} />
+      <AdminScreen initialTab={initialTab} initialQuery={typeof params.q === "string" ? params.q.trim().slice(0, 120) : ""} initialAllPlaces={params.candidate === "all"} />
     </Providers>
   );
 }
