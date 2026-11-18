@@ -1,13 +1,13 @@
 "use client";
 import { screenTitleStyles } from "@/shared/ui/typography";
 import { MadiLoadNotice } from "@/features/tuti/components/MadiLoadNotice";
-import { ChevronLeft, ChevronRight, Layers, List } from "lucide-react";
+import { ChevronDown, Plus, Search, X } from "lucide-react";
 import { confirmAction, showErrorToast } from "@/lib/feedback";
 import { madiDeletionMessage } from "@/shared/tuti/deletionCopy";
 
 import { css } from "@emotion/react";
 import styled from "@emotion/styled";
-import { useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import { MadiSearchField } from "@/features/tuti/components/MadiSearchField";
 import { MadiSearchResults } from "@/features/tuti/components/MadiSearchResults";
 import { useSession } from "@/features/tuti/hooks/useSession";
@@ -17,7 +17,7 @@ import { unfiledMadi } from "@/shared/tuti/unfiledMadi";
 import { filterJournalEntries } from "@/shared/tuti/journalSearch";
 import { ContextMenu } from "@/features/tuti/components/ContextMenu";
 import { LoadingIndicator } from "@/features/tuti/components/LoadingIndicator";
-import { TutiPlaceIcon } from "@/features/tuti/components/TutiPlaceIcon";
+import { ANDROID_BACK_EVENT } from "@/features/tuti/navigation/androidBack";
 import { JournalShareDialog } from "@/features/tuti/components/JournalShareDialog";
 import { useJournalEntryTransitionTarget } from "@/features/tuti/components/JournalEntryTransition";
 import { BackButton, BaseButton, TextButton } from "@/features/tuti/components/buttons";
@@ -29,12 +29,13 @@ import { journalCardPreview } from "@/shared/tuti/journalCard";
 import {
   fluidByViewportHeight,
   journalImageMaxWidth,
+  palette,
 } from "@/styles/tokens";
 
-const MAX_VISIBLE_MEMORY_CARDS = 7;
+const MAX_VISIBLE_MEMORY_CARDS = 3;
 const MEMORY_CARD_RADIUS = Math.floor(MAX_VISIBLE_MEMORY_CARDS / 2);
-const MEMORY_CARD_GAP_MIN = 40;
-const MEMORY_CARD_GAP_MAX = 60;
+const MEMORY_CARD_GAP_MIN = 14;
+const MEMORY_CARD_GAP_MAX = 22;
 
 export function JournalScreen({
   onBack,
@@ -61,6 +62,21 @@ export function JournalScreen({
 }) {
   const [stackDragY, setStackDragY] = useState(0);
   const [search, setSearch] = useState("");
+  const [searchOpen, setSearchOpen] = useState(false);
+  const searchId = useId();
+  const searchInput = useRef<HTMLInputElement>(null);
+  const searchToggle = useRef<HTMLButtonElement>(null);
+  const closeSearch = useCallback(() => {
+    setSearch(""); setSearchOpen(false);
+    window.requestAnimationFrame(() => searchToggle.current?.focus({ preventScroll: true }));
+  }, []);
+  useEffect(() => {
+    if (!searchOpen) return;
+    const frame = window.requestAnimationFrame(() => searchInput.current?.focus({ preventScroll: true }));
+    const back = (event: Event) => { if (!event.defaultPrevented) { event.preventDefault(); closeSearch(); } };
+    window.addEventListener(ANDROID_BACK_EVENT, back);
+    return () => { window.cancelAnimationFrame(frame); window.removeEventListener(ANDROID_BACK_EVENT, back); };
+  }, [searchOpen, closeSearch]);
   const [collectEntryId, setCollectEntryId] = useState<string | null>(null);
   const ownerId = useSession()?.userId;
   const library = useHarumadiLibrary(ownerId);
@@ -141,6 +157,9 @@ export function JournalScreen({
       (selectedEntryIndex + direction + entries.length) % entries.length;
 
     setActiveJournalEntry(entries[nextIndex].id);
+    if (typeof document !== "undefined" && stackRef.current?.contains(document.activeElement)) {
+      window.requestAnimationFrame(() => stackRef.current?.querySelector<HTMLButtonElement>('[aria-pressed="true"]')?.focus({ preventScroll: true }));
+    }
   };
 
   const scrollStack = (event: React.WheelEvent<HTMLDivElement>) => {
@@ -210,27 +229,35 @@ export function JournalScreen({
     <Frame>
       <ListHeader>
         <BackButton type="button" aria-label="이전 화면으로" onClick={onBack} />
-        <h1>나의 마디</h1>
+        <h1>{allEntries.length > 0 ? <ViewMenu label="마디 필터와 보기 방식" triggerContent={<>나의 마디<ChevronDown size={14} aria-hidden="true" /></>} items={[
+          { label: "전체 마디", group: "보여줄 마디", kind: "radio", selected: !onlyUnfiled, disabled: !onChangeFilter, onSelect: () => { cancelStackDrag(); onChangeFilter?.(false); } },
+          { label: "아직 담지 않은 마디", group: "보여줄 마디", kind: "radio", selected: onlyUnfiled, disabled: !onChangeFilter || (!onlyUnfiled && unfiled === null), onSelect: () => { cancelStackDrag(); onChangeFilter?.(true); } },
+          { label: "카드로 보기", group: "보기 방식", kind: "radio", selected: view === "cards", disabled: !onChangeView, onSelect: () => { cancelStackDrag(); onChangeView?.("cards"); } },
+          { label: "목록으로 보기", group: "보기 방식", kind: "radio", selected: view === "list", disabled: !onChangeView, onSelect: () => { cancelStackDrag(); onChangeView?.("list"); } },
+        ]} /> : "나의 마디"}</h1>
+        <HeaderTools>
+        {allEntries.length > 0 && <IconButton ref={searchToggle} type="button" aria-label={searchOpen ? "마디 검색 닫기" : "마디 검색 열기"} aria-expanded={searchOpen} aria-controls={searchId}
+          onClick={() => { if (searchOpen) closeSearch(); else setSearchOpen(true); }}>
+          {searchOpen ? <X size={20} aria-hidden="true" /> : <Search size={20} aria-hidden="true" />}
+        </IconButton>}
         <AddButton
           type="button"
           aria-label="마디 남기기"
           onClick={onCreateEntry}
         >
-          +
+          <Plus size={22} aria-hidden="true" />
         </AddButton>
+        </HeaderTools>
       </ListHeader>
 
-      {allEntries.length > 0 && <MadiSearchField value={search} onChange={setSearch} />}
-      {allEntries.length > 0 && <FilterBar aria-label="마디 필터">
-        <TextButton aria-pressed={!onlyUnfiled} onClick={() => onChangeFilter?.(false)}>전체</TextButton>
-        <TextButton aria-pressed={onlyUnfiled} disabled={!onlyUnfiled && unfiled === null} onClick={() => onChangeFilter?.(true)}>아직 담지 않은 마디</TextButton>
-        <ViewButton type="button" title={view === "cards" ? "목록으로 보기" : "카드로 보기"} aria-label={view === "cards" ? "목록으로 보기" : "카드로 보기"} onClick={() => { cancelStackDrag(); onChangeView?.(view === "cards" ? "list" : "cards"); }}>
-          {view === "cards" ? <List size={20} aria-hidden="true" /> : <Layers size={20} aria-hidden="true" />}
-        </ViewButton>
-      </FilterBar>}
+      {allEntries.length > 0 && <SearchReveal id={searchId} $open={searchOpen} aria-hidden={!searchOpen} inert={!searchOpen}
+        onKeyDown={event => { if (event.key === "Escape" && !event.nativeEvent.isComposing) { event.preventDefault(); event.stopPropagation(); closeSearch(); } }}>
+        <div><MadiSearchField inputRef={searchInput} value={search} onChange={setSearch} /></div>
+      </SearchReveal>}
+      {onlyUnfiled && <ActiveFilter type="button" aria-label="아직 담지 않은 마디 필터 해제" onClick={() => onChangeFilter?.(false)}>아직 담지 않은 마디<X size={13} aria-hidden="true" /></ActiveFilter>}
       {isError && allEntries.length > 0 && <MadiLoadNotice compact busy={isFetching} onRetry={() => void refetch()} />}
 
-      {allEntries.length > 0 && onlyUnfiled && unfiled === null ? <EmptyState>{library.isError ? <><p>담긴 하루마디를 확인하지 못했어요.</p><TextButton onClick={() => void library.refetch()}>다시 확인하기</TextButton></> : <LoadingIndicator label="담긴 하루마디를 확인하고 있어요." />}</EmptyState> : entries.length > 0 && (search.trim() || onlyUnfiled || view === "list") ? <MadiSearchResults entries={entries} selectedId={selectedEntryId} selectedRef={selectedCardRef} label={search.trim() ? "마디 검색 결과" : "마디 목록"}
+      {allEntries.length > 0 && onlyUnfiled && unfiled === null ? <EmptyState>{library.isError ? <><p>담긴 하루마디를 확인하지 못했어요.</p><TextButton onClick={() => void library.refetch()}>다시 확인하기</TextButton></> : <LoadingIndicator label="담긴 하루마디를 확인하고 있어요." />}</EmptyState> : entries.length > 0 && (search.trim() || view === "list") ? <MadiSearchResults entries={entries} selectedId={selectedEntryId} selectedRef={selectedCardRef} label={search.trim() ? "마디 검색 결과" : "마디 목록"}
         onCollect={setCollectEntryId} onOpen={(entry, target) => { setActiveJournalEntry(entry.id); onOpenEntry?.(entry.id, entry.image, target); }} /> : entries.length > 0 ? (
         <MemoryStack
           ref={stackRef}
@@ -238,11 +265,10 @@ export function JournalScreen({
           tabIndex={0}
           aria-label="남겨둔 마디"
           onKeyDown={event => {
-            if (event.altKey || event.ctrlKey || event.metaKey || !event.currentTarget.contains(event.target as Node)) return;
+            if (event.defaultPrevented || event.altKey || event.ctrlKey || event.metaKey || !event.currentTarget.contains(event.target as Node)) return;
             if (event.key !== "ArrowUp" && event.key !== "ArrowDown" && event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
             event.preventDefault();
             moveStack(event.key === "ArrowUp" || event.key === "ArrowLeft" ? -1 : 1);
-            window.requestAnimationFrame(() => stackRef.current?.querySelector<HTMLButtonElement>('[aria-pressed="true"]')?.focus({ preventScroll: true }));
           }}
           onWheel={scrollStack}
           onPointerDown={startStackDrag}
@@ -263,6 +289,7 @@ export function JournalScreen({
             return (
               <MemoryCardLayer
                 key={entry.id}
+                aria-hidden={index !== selectedEntryIndex}
                 $relativePosition={relativePosition}
                 $dragY={stackDragY}
                 $active={index === selectedEntryIndex}
@@ -301,16 +328,19 @@ export function JournalScreen({
                     }
                   }}
                 >
-                  {index === selectedEntryIndex && (
-                    <CardHeader $textOnly={!entry.image}>
+                  {index === selectedEntryIndex && !entry.image && (
+                    <CardHeader>
                       <strong>{formatJournalDate(entry.visitedAt)}</strong>
                     </CardHeader>
                   )}
-                  {!entry.image && <TextCardContent>
+                  {index === selectedEntryIndex && !entry.image && <TextCardContent>
                     {preview.heading && <TextCardTitle>{preview.heading}</TextCardTitle>}
                     {preview.excerpt && <TextCardExcerpt $lead={!preview.heading}>{preview.excerpt}</TextCardExcerpt>}
-                    {preview.place && <TextCardPlace><TutiPlaceIcon $size="small" aria-hidden="true" /><span>{preview.place}</span></TextCardPlace>}
                   </TextCardContent>}
+                  {index === selectedEntryIndex && entry.image && <PhotoCaption>
+                    {entry.title.trim() && <strong>{entry.title}</strong>}
+                    <span>{formatJournalDate(entry.visitedAt)}</span>
+                  </PhotoCaption>}
                 </MemoryCard>
 
                 {index === selectedEntryIndex && (
@@ -359,8 +389,7 @@ export function JournalScreen({
       ) : allEntries.length > 0 ? (
         <EmptyState>
           <p role="status">{onlyUnfiled && !search.trim() ? "모든 마디를 하루마디에 담았어요." : "검색한 마디가 없어요."}</p>
-          {onlyUnfiled && <TextButton onClick={() => onChangeFilter?.(false)}>모든 마디 보기</TextButton>}
-          <TextButton type="button" onClick={() => setSearch("")}>전체 마디 보기</TextButton>
+          <TextButton type="button" onClick={() => { closeSearch(); onChangeFilter?.(false); }}>전체 마디 보기</TextButton>
         </EmptyState>
       ) : isPending ? (
         <EmptyState>
@@ -374,11 +403,11 @@ export function JournalScreen({
           {onCreateEntry && <TextButton type="button" onClick={onCreateEntry}>첫 마디 남기기</TextButton>}
         </EmptyState>
       )}
-      {entries.length > 0 && !search.trim() && !onlyUnfiled && view === "cards" && <StackNavigation aria-label="마디 이동">
-        <TextButton type="button" disabled={entries.length < 2} onClick={() => moveStack(-1)}><ChevronLeft size={18} />이전 마디</TextButton>
+      {entries.length > 0 && !search.trim() && view === "cards" && <AccessibleNavigation aria-label="마디 이동">
+        <button type="button" disabled={entries.length < 2} onClick={() => moveStack(-1)}>이전 마디</button>
         <span role="status" aria-live="polite" aria-atomic="true">{selectedEntryIndex + 1} / {entries.length}</span>
-        <TextButton type="button" disabled={entries.length < 2} onClick={() => moveStack(1)}>다음 마디<ChevronRight size={18} /></TextButton>
-      </StackNavigation>}
+        <button type="button" disabled={entries.length < 2} onClick={() => moveStack(1)}>다음 마디</button>
+      </AccessibleNavigation>}
       {shareEntry && (
         <JournalShareDialog
           entry={shareEntry}
@@ -395,12 +424,18 @@ export function JournalScreen({
   );
 }
 
-const StackNavigation = styled.nav`display: flex; flex: none; justify-content: space-between; align-items: center; gap: 8px;
-  > button { display: inline-flex; align-items: center; gap: 4px; min-height: 44px; padding: 8px 4px; }
-  > span { font-size: var(--ui-caption-size); color: var(--color-text-muted); font-variant-numeric: tabular-nums; }
+const AccessibleNavigation = styled.nav`position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap;
+  &:focus-within { z-index: 40; left: var(--screen-padding-left); right: var(--screen-padding-right); bottom: var(--screen-padding-bottom); width: auto; height: auto; clip-path: none; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 8px 12px; background: var(--color-surface); border-radius: 12px; box-shadow: 0 6px 20px #1b222a14;
+    > button { min-height: 44px; padding: 8px; font: inherit; color: var(--color-text); background: transparent; border: 0; border-radius: 8px; } }
 `;
-const FilterBar = styled.div`flex: none; display: flex; flex-wrap: wrap; gap: 4px 8px; > button { min-height: 44px; padding: 8px 12px; border-radius: 999px; font-size: 13px; &[aria-pressed="true"] { color: var(--color-brand-1000); background: var(--color-brand-100); } }`;
-const ViewButton = styled(BaseButton)`margin-left: auto; flex: none; min-width: 44px; min-height: 44px; display: grid; place-items: center; background: transparent; color: var(--color-text-muted); &:hover { background: var(--color-brand-100); }`;
+const ViewMenu = styled(ContextMenu)`> button { min-width: 0; min-height: 44px; padding: 0 2px; display: flex; align-items: center; justify-content: center; gap: 5px; color: var(--color-text); background: transparent; font: inherit; white-space: nowrap; }`;
+const HeaderTools = styled.div`display: flex; align-items: center; gap: 0;`;
+const IconButton = styled(BaseButton)`flex: none; display: grid; place-items: center; width: 44px; height: 44px; padding: 0; color: var(--color-text-muted); background: transparent; border-radius: 50%; &:focus-visible { outline: 2px solid var(--color-brand-700); outline-offset: -2px; }`;
+const SearchReveal = styled.div<{ $open: boolean }>`flex: none; display: grid; grid-template-rows: ${({ $open }) => $open ? "1fr" : "0fr"}; opacity: ${({ $open }) => $open ? 1 : 0}; visibility: ${({ $open }) => $open ? "visible" : "hidden"}; margin-bottom: ${({ $open }) => $open ? "var(--space-5)" : "0"}; transition: grid-template-rows 240ms cubic-bezier(.22,1,.36,1), opacity 180ms ease, visibility 240ms;
+  > div { min-height: 0; overflow: hidden; padding: ${({ $open }) => $open ? "2px" : "0 2px"}; }
+  @media (prefers-reduced-motion: reduce) { transition: none; }
+`;
+const ActiveFilter = styled(BaseButton)`display: inline-flex; flex: none; align-items: center; align-self: flex-start; gap: 6px; min-height: 44px; padding: 6px 10px; margin-top: -8px; background: var(--color-brand-100); color: var(--color-brand-1000); border-radius: 999px; font-size: 12px;`;
 
 function formatJournalDate(value: string) {
   const date = new Date(value);
@@ -442,7 +477,7 @@ function getMemoryCardOffset(relativePosition: number) {
 
 const Frame = styled(ScreenFrame)`
   z-index: 1;
-  gap: var(--space-5);
+  gap: 0;
   background: var(--color-surface);
   overflow: hidden;
 `;
@@ -450,10 +485,11 @@ const Frame = styled(ScreenFrame)`
 const ListHeader = styled.header`
   min-height: var(--space-9);
   display: grid;
-  grid-template-columns: 44px minmax(0, 1fr) 44px;
+  grid-template-columns: 44px minmax(0, 1fr) auto;
   align-items: center;
   justify-content: space-between;
-  gap: var(--space-4);
+  gap: 8px;
+  margin-bottom: 16px;
 
   h1 {
     margin: 0;
@@ -540,6 +576,7 @@ const MemoryCardLayer = styled.div<{
     opacity 240ms ease;
   touch-action: none;
   will-change: transform;
+  @media (prefers-reduced-motion: reduce) { transition: none; }
 
   @container app-viewport (min-width: 600px) and (min-height: 700px) {
     width: min(78%, 480px);
@@ -561,7 +598,7 @@ const MemoryCard = styled(BaseButton)<{
   border-radius: 28px;
   background-color: ${({ $image, $tone }) =>
     !$image
-      ? $tone === 1 ? "var(--color-brand-100)" : "var(--color-secondary-100)"
+      ? palette.surface.library
       : $tone === 0
       ? "var(--color-secondary-500)"
       : $tone === 1
@@ -569,7 +606,7 @@ const MemoryCard = styled(BaseButton)<{
         : "var(--color-secondary-200)"};
   background-image: ${({ $image }) =>
     $image
-      ? `linear-gradient(180deg, rgb(var(--color-black-rgb) / 0.42), transparent 38%), url(${$image})`
+      ? `linear-gradient(180deg, rgb(var(--color-black-rgb) / 0.6), transparent 38%), url(${$image})`
       : "none"};
   background-position: center;
   background-size: cover;
@@ -578,14 +615,15 @@ const MemoryCard = styled(BaseButton)<{
   text-align: left;
   box-shadow: ${({ $active, $image }) =>
     !$image
-      ? $active ? "0 12px 30px rgb(28 66 104 / 0.12)" : "0 6px 16px rgb(28 66 104 / 0.08)"
+      ? $active ? "0 10px 28px rgb(27 34 42 / 0.09)" : "0 4px 12px rgb(27 34 42 / 0.05)"
       : $active
-      ? "0 18px 42px rgb(var(--color-black-rgb) / 0.24)"
-      : "0 8px 20px rgb(var(--color-black-rgb) / 0.16)"};
+      ? "0 12px 32px rgb(var(--color-black-rgb) / 0.14)"
+      : "0 4px 12px rgb(var(--color-black-rgb) / 0.08)"};
   transition: box-shadow 240ms ease;
+  @media (prefers-reduced-motion: reduce) { transition: none; }
 `;
 
-const CardHeader = styled.header<{ $textOnly: boolean }>`
+const CardHeader = styled.header`
   position: absolute;
   top: var(--space-5);
   right: var(--space-5);
@@ -594,15 +632,15 @@ const CardHeader = styled.header<{ $textOnly: boolean }>`
   align-items: center;
 
   strong {
-    font-size: ${({ $textOnly }) => $textOnly ? "12px" : "var(--font-size-300)"};
-    font-weight: ${({ $textOnly }) => $textOnly ? 500 : 600};
-    ${({ $textOnly }) => $textOnly && "color: var(--color-brand-800); letter-spacing: 0.06em;"}
+    font-size: 12px;
+    font-weight: 400;
+    color: var(--color-text-muted);
   }
 `;
 
 const TextCardContent = styled.span`
   position: absolute; top: 64px; left: var(--space-5); right: var(--space-5); bottom: var(--space-5);
-  display: flex; flex-direction: column; gap: 12px; min-width: 0; overflow: hidden;
+  display: flex; flex-direction: column; justify-content: center; gap: 12px; min-width: 0; overflow: hidden;
   text-align: left; word-break: keep-all; overflow-wrap: anywhere;
   @container app-viewport (max-width: 340px) { gap: 8px; }
 `;
@@ -621,10 +659,9 @@ const TextCardExcerpt = styled.span<{ $lead: boolean }>`
     @container app-viewport (max-width: 340px) { font-size: 16px; -webkit-line-clamp: 4; }
   `}
 `;
-const TextCardPlace = styled.span`
-  flex: none; margin-top: auto; display: flex; align-items: center; gap: 6px; min-width: 0;
-  font-size: 11px; font-weight: 500; line-height: 1.5; color: var(--color-text-muted);
-  > span:last-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+const PhotoCaption = styled.span`position: absolute; left: 0; right: 0; bottom: 0; display: grid; gap: 4px; padding: 32px var(--space-5) var(--space-5); background: linear-gradient(transparent, rgb(0 0 0 / .7) 25%); color: white;
+  strong { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 18px; font-weight: 500; line-height: 1.5; }
+  > span { font-size: 12px; line-height: 1.5; }
 `;
 
 const CardMenuPosition = styled.div`

@@ -28,7 +28,7 @@ test("첫 마디는 사진·이야기로 설명하고 시작 동작과 빈 하�
 });
 
 test("목록·작성·공유의 이름을 맞추고 이어 쓰기는 첫 마디와 구분한다", () => {
-  assert.match(read("screens/journal/JournalScreen.tsx"), /<h1>나의 마디<\/h1>/);
+  assert.match(read("screens/journal/JournalScreen.tsx"), /<h1>[\s\S]*나의 마디[\s\S]*<\/h1>/);
   assert.match(read("screens/journal/JournalEditorScreen.tsx"), /오늘의 마디/);
   assert.match(read("components/JournalShareDialog.tsx"), /title="마디 공유하기"/);
   assert.doesNotMatch(read("screens/journal/JournalDetailScreen.tsx"), /마디가에요|마디을|마디은|마디과/);
