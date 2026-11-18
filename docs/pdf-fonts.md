@@ -1,13 +1,23 @@
-# PDF용 Pretendard
+# 사용자 화면과 PDF 서체
 
-PDF 생성에 사용할 정적 Pretendard WOFF 파일을 `public/fonts/pretendard`에
-포함한다. 웹 화면은 기존 WOFF2를 그대로 사용한다. 추가 npm 폰트 패키지나
-운영체제 폰트 설치는 필요하지 않다.
+사용자 화면과 새 PDF의 본문은 LINE Seed KR, 하루마디 제목은
+나눔스퀘어라운드를 사용한다. 첫 화면 대표 문구·빈 책장 제목에도 둥근 서체를
+포인트로 쓰되 입력·버튼·날짜·장소·기능 제목은 기본 서체를 유지한다.
+운영 센터와 해당 화면의 토스트·확인 창은 기존 Pretendard를 사용한다.
+Tuti 워드마크와 PDF 쪽번호의 Helvetica는 변경하지 않는다.
 
-- 원본: [Pretendard v1.3.9](https://github.com/orioncactus/pretendard/tree/v1.3.9/packages/pretendard/dist/web/static/woff)
-- 굵기: Light 300, Regular 400, Medium 500, Bold 700
-- 라이선스: [SIL Open Font License 1.1](../public/fonts/pretendard/LICENSE)
+- 기본: [LINE Seed KR 공식 배포](https://seed.line.me/index_kr.html), Regular 400·Bold 700.
+  화면용 WOFF2와 PDF용 WOFF를 포함한다. [라이선스](../public/fonts/line-seed/LICENSE).
+- 포인트: [나눔스퀘어라운드 공식 배포](https://hangeul.naver.com/font), Regular 400·Bold 700 TTF.
+  [라이선스](../public/fonts/nanum-square-round/LICENSE).
+- 운영 센터: [Pretendard v1.3.9](https://github.com/orioncactus/pretendard/tree/v1.3.9/packages/pretendard/dist/web/static/woff),
+  300·400·500·600·700. [라이선스](../public/fonts/pretendard/LICENSE).
 - 등록 함수: [src/server/pdf/fonts.ts](../src/server/pdf/fonts.ts)
+
+모두 정적 원본과 OFL 1.1 전문을 저장소에 함께 포함한다. CDN·운영체제 폰트 설치·
+추가 npm 폰트 패키지에 의존하지 않는다. 실제 제공되지 않는 500·600 굵기는
+브라우저/PDF 렌더러의 근접 굵기 선택을 따르며 가상 굵기를 생성하지 않는다.
+포인트·운영용 서체는 전역 선로드하지 않는다. 이미 저장된 PDF는 재작성하지 않는다.
 
 서버에서 PDF를 생성하기 전에 `registerPdfFonts()`를 호출하고 텍스트 스타일에
 `fontFamily: PDF_FONT_FAMILY`를 지정한다. 등록 함수만 호출해도 모든 텍스트의

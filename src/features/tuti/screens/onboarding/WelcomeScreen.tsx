@@ -113,6 +113,7 @@ const GuideButton = styled(TextButton)`min-height: 40px; padding-inline: 0; font
 const StepCount = styled.span`font-size: var(--font-size-100); color: var(--color-text-muted);`;
 const Copy = styled.div`
   h1 {
+    font-family: var(--font-emotional);
     margin: 0 0 var(--space-3);
     font-size: clamp(24px, 4.2cqh, 30px);
     font-weight: 600;

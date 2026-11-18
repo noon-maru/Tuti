@@ -310,7 +310,7 @@ const HeaderTitle = styled.span<{ $book?: boolean }>`${screenTitleStyles} min-wi
 const StepCount = styled.div`font-size: 12px; color: var(--color-text-muted); display: flex; justify-content: center;`;
 const Content = styled.div`flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 2px 2px 24px; display: flex; flex-direction: column; gap: 26px; > * { flex-shrink: 0; }`;
 const Intro = styled.div<{ $compact?: boolean }>`
-  h1 { ${sectionHeadingStyles} margin-bottom: var(--space-3); &:focus { outline: none; } }
+  h1 { ${sectionHeadingStyles} font-family: var(--font-emotional); margin-bottom: var(--space-3); &:focus { outline: none; } }
   p { ${bodyCopyStyles} color: var(--color-text-muted); word-break: keep-all; }
   ${({ $compact }) => $compact && `h1 { font-size: 20px; line-height: 1.5; margin-bottom: 8px; }`}
 `;

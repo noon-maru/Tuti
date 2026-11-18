@@ -15,7 +15,7 @@ import {
   StandardFonts,
   rgb,
 } from "pdf-lib";
-import { PDF_FONT_FAMILY, registerPdfFonts } from "./fonts";
+import { PDF_FONT_FAMILY, PDF_TITLE_FONT_FAMILY, registerPdfFonts } from "./fonts";
 import { LEGACY_HARUMADI_BACK_COVER_TEXT } from "@/shared/harumadi/backCover";
 import { HARUMADI_PDF_LAYOUT } from "../../shared/harumadi/pdfLayout";
 import {
@@ -88,6 +88,7 @@ const styles = StyleSheet.create({
   },
   coverDate: { width: layout.cover.dateWidth, fontSize: layout.cover.fontSize, lineHeight: layout.cover.lineHeight },
   coverTitle: {
+    fontFamily: PDF_TITLE_FONT_FAMILY,
     width: layout.cover.titleWidth,
     fontSize: layout.cover.fontSize,
     lineHeight: layout.cover.lineHeight,

@@ -49,7 +49,7 @@ const Cover = styled.span<{ $green: boolean; $photo: boolean }>`
   background: ${({ $green }) => $green ? "#EBF5D5" : "#FFFFFF"}; color: var(--color-text);
   border: 1px solid rgb(27 34 42 / 0.08); border-radius: 2px 5px 5px 2px;
   box-shadow: 2px 4px 0 #e3e8de, 4px 10px 16px rgb(27 34 42 / 0.12), inset 5px 0 8px rgb(27 34 42 / 0.025);
-  strong { font-size: var(--harumadi-shelf-title-size, clamp(16px, 4.8cqw, 20px)); line-height: var(--harumadi-shelf-title-leading, 1.6); font-weight: 600; overflow-wrap: anywhere; white-space: pre-wrap;
+  strong { font-family: var(--font-emotional); font-size: var(--harumadi-shelf-title-size, clamp(16px, 4.8cqw, 20px)); line-height: var(--harumadi-shelf-title-leading, 1.6); font-weight: 700; overflow-wrap: anywhere; white-space: pre-wrap;
     display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: var(--harumadi-shelf-title-lines, 4); overflow: hidden; }
   .cover-brand { position: absolute; top: 16px; left: 20px; font-size: var(--harumadi-shelf-brand-size, 9px); color: var(--color-text-muted); letter-spacing: 0.03em; }
   .cover-date { position: absolute; bottom: 16px; left: 20px; font-size: var(--harumadi-shelf-date-size, 10px); font-variant-numeric: tabular-nums; color: var(--color-text-muted); }

@@ -56,7 +56,7 @@ const Spine = styled.span<{ $green: boolean }>`
   border: 1px solid #dce3d6; border-radius: 4px 5px 2px 2px; background: ${({ $green }) => $green ? "#EBF5D5" : "#FFFFFF"}; color: var(--color-text);
   box-shadow: inset 4px 0 8px #1b222a06, inset -3px 0 5px #1b222a04, 3px 2px 0 #e3e8de, 4px 7px 12px #1b222a0c;
   &::before { content: ""; position: absolute; inset: 0 auto 0 5px; border-left: 1px solid #1b222a08; }
-  strong { position: absolute; top: 43px; bottom: 43px; left: 50%; transform: translateX(-50%); writing-mode: vertical-rl; text-orientation: mixed; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 15px; line-height: 1.5; font-weight: 600; letter-spacing: .04em; }
+  strong { font-family: var(--font-emotional); position: absolute; top: 43px; bottom: 43px; left: 50%; transform: translateX(-50%); writing-mode: vertical-rl; text-orientation: mixed; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 15px; line-height: 1.5; font-weight: 600; letter-spacing: .04em; }
   .spine-date, .spine-mark { position: absolute; left: 8px; right: 8px; text-align: center; color: var(--color-text-muted); font-variant-numeric: tabular-nums; }
   .spine-date { top: 15px; font-size: 9px; white-space: nowrap; }
   .spine-mark { bottom: 17px; font-size: 10px; letter-spacing: .03em; }
@@ -78,7 +78,7 @@ const HarumadiButton = styled(BaseButton)`display: grid; gap: 10px; width: 100%;
   @media (prefers-reduced-motion: reduce) { > span:first-of-type { transition: none; } &:hover > span:first-of-type { transform: none; } }
 `;
 const ShelfEdge = styled.div`height: 6px; border-radius: 1px 1px 3px 3px; background: linear-gradient(#ffffff, #e5e9e3); border-top: 1px solid white; box-shadow: 0 6px 10px rgb(27 34 42 / 0.06);`;
-const HarumadiLabel = styled.span<{ $spines: boolean; $hintRows: number }>`min-width: 0; height: 108px; padding: 18px 0 12px 1px; display: grid; align-content: start; gap: 8px; strong { padding-right: 36px; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; overflow-wrap: anywhere; font-size: 16px; line-height: 1.4; font-weight: 500; } small { color: var(--color-text-muted); font-size: 13px; line-height: 1.5; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+const HarumadiLabel = styled.span<{ $spines: boolean; $hintRows: number }>`min-width: 0; height: 108px; padding: 18px 0 12px 1px; display: grid; align-content: start; gap: 8px; strong { font-family: var(--font-emotional); padding-right: 36px; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; overflow-wrap: anywhere; font-size: 16px; line-height: 1.4; font-weight: 500; } small { color: var(--color-text-muted); font-size: 13px; line-height: 1.5; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   ${({ $spines }) => $spines && "height: 92px; padding: 12px 0 44px; gap: 3px; text-align: center; strong { display: none; } small { font-size: 11px; }"}
   ${({ $spines, $hintRows }) => $hintRows > 0 && `height: ${($spines ? 92 : 108) + harumadiHintExtraHeight($spines, $hintRows)}px;`}
   ${({ $spines }) => $spines && "[data-harumadi-title-hint] { white-space: normal; font-size: 10px; line-height: 1.4; > span { display: block; } }"}

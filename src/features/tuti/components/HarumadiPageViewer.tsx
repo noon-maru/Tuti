@@ -43,7 +43,7 @@ export function HarumadiPageViewer({ book, entries, onClose, closing = false, ow
     const update = () => {
       if (!active) return;
       const style = getComputedStyle(node);
-      const family = style.getPropertyValue("--font-pretendard").trim() || style.fontFamily;
+      const family = style.fontFamily;
       const cache = new Map<string, number>();
       setMeasureText(() => (text: string, size: number, weight = 400) => {
         const font = `${weight} ${size}px ${family}`, key = `${font}:${text}`;

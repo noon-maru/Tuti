@@ -2,7 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { palette } from "@/styles/tokens";
 import EmotionRegistry from "./EmotionRegistry";
 import GlobalStyles from "./GlobalStyles";
-import { pretendard } from "./fonts";
+import { lineSeed, nanumSquareRound, pretendard } from "./fonts";
 import { AndroidBackButtonHandler } from "@/features/tuti/components/AndroidBackButtonHandler";
 import { Suspense } from "react";
 import { FeedbackHost } from "@/shared/ui/FeedbackHost";
@@ -53,7 +53,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="ko" className={pretendard.variable}>
+    <html lang="ko" className={`${lineSeed.variable} ${nanumSquareRound.variable} ${pretendard.variable}`}>
       <body>
         <EmotionRegistry>
           <GlobalStyles />

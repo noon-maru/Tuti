@@ -85,8 +85,9 @@ const globalStyles = css`
 
     /* Typography: base 14px, 2px minor scale */
     --font-sans:
-      var(--font-pretendard), Pretendard, -apple-system, BlinkMacSystemFont,
+      var(--font-line-seed), var(--font-pretendard), -apple-system, BlinkMacSystemFont,
       "Apple SD Gothic Neo", "Noto Sans KR", "Segoe UI", sans-serif;
+    --font-emotional: var(--font-nanum-square-round), var(--font-sans);
     --font-size-fluid-offset: 0rem;
     --font-size-fluid-offset: clamp(
       0rem,
@@ -156,6 +157,12 @@ const globalStyles = css`
     background: var(--color-app-background);
     -webkit-text-size-adjust: 100%;
     text-size-adjust: 100%;
+  }
+
+  /* 운영 센터의 포털(토스트·확인 창)도 기존 관리용 서체를 따른다. */
+  body:has([data-admin-design-system]) {
+    --font-sans: var(--font-pretendard), Pretendard, sans-serif;
+    --font-emotional: var(--font-sans);
   }
 
   html,

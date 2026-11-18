@@ -31,7 +31,7 @@ test("pt 변환은 화면 너비에 비례하며 근삿값을 사용하지 않�
   assert.doesNotMatch(sample, /top: 36%|59\.59cqw|15\.73cqw|17\.16cqw|object-fit: contain/);
   assert.match(sample, /textAnchor="end" fontFamily="Helvetica, Arial, sans-serif"/);
   assert.match(sample, /2026-06-28 · 퇴근길/);
-  assert.match(sample, /font-family: var\(--font-pretendard\)/);
+  assert.match(sample, /font-family: var\(--font-sans\)/);
   assert.match(readFileSync("src/app/fonts.ts", "utf8"), /Pretendard-SemiBold\.woff2",\s*weight: "600"/);
 });
 

@@ -30,4 +30,24 @@ export const pretendard = localFont({
   ],
   variable: "--font-pretendard",
   display: "swap",
+  preload: false,
+});
+
+export const lineSeed = localFont({
+  src: [
+    { path: "../../public/fonts/line-seed/LINESeedKR-Rg.woff2", weight: "400", style: "normal" },
+    { path: "../../public/fonts/line-seed/LINESeedKR-Bd.woff2", weight: "700", style: "normal" },
+  ],
+  variable: "--font-line-seed",
+  display: "swap",
+});
+
+export const nanumSquareRound = localFont({
+  src: [
+    { path: "../../public/fonts/nanum-square-round/NanumSquareRoundR.ttf", weight: "400", style: "normal" },
+    { path: "../../public/fonts/nanum-square-round/NanumSquareRoundB.ttf", weight: "700", style: "normal" },
+  ],
+  variable: "--font-nanum-square-round",
+  display: "swap",
+  preload: false,
 });

@@ -7,7 +7,7 @@ export default function AdminLayout({
   children: React.ReactNode;
 }) {
   return (
-    <AdminDesignSystem>
+    <AdminDesignSystem data-admin-design-system>
       <AdminScrollbarMode />
       {children}
     </AdminDesignSystem>

@@ -10,7 +10,7 @@ import type { AdminUserActivityResponse } from "../src/shared/api/admin";
 
 test("모든 관리자 하위 라우트는 같은 전용 테마를 쓰고 경고·오류 색은 보존한다", () => {
   const layout = readFileSync("src/app/admin/layout.tsx", "utf8");
-  assert.match(layout, /<AdminDesignSystem>[\s\S]*\{children\}[\s\S]*<\/AdminDesignSystem>/);
+  assert.match(layout, /<AdminDesignSystem data-admin-design-system>[\s\S]*\{children\}[\s\S]*<\/AdminDesignSystem>/);
   assert.equal(adminTheme["--color-text"], "#1b2d32");
   assert.equal(adminTheme["--admin-card-radius"], "14px");
   assert.equal("--color-error" in adminTheme, false);

@@ -136,7 +136,7 @@ const Paper = styled.span<{ $cover: boolean }>`
   padding: ${pt(layout.page.padding)}; padding-bottom: ${pt(layout.page.paddingBottom)};
   background: ${({ $cover }) => $cover ? coverPalette.background : "#fff"};
   color: ${({ $cover }) => $cover ? coverPalette.foreground : "#303030"};
-  font-family: var(--font-pretendard), sans-serif; text-align: left;
+  font-family: var(--font-sans); text-align: left;
   font-size: ${pt(layout.page.fontSize)}; font-weight: 400; line-height: ${layout.page.lineHeight};
 `;
 const PhotoPaper = styled(Paper)`
@@ -174,6 +174,7 @@ const CoverPaper = styled(Paper)`
   padding-top: ${pt(layout.cover.paddingTop)}; padding-bottom: ${pt(layout.cover.paddingBottom)};
 `;
 const CoverHeader = styled.span`
+  > span:last-of-type { font-family: var(--font-emotional); }
   display: flex; flex: none; justify-content: space-between; align-items: flex-start;
   flex-direction: var(--hm-cover-direction, row); gap: var(--hm-copy-gap, 0px);
   font-size: var(--hm-meta, ${pt(layout.cover.fontSize)}); line-height: ${layout.cover.lineHeight};
