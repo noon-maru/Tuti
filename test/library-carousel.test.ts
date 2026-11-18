@@ -65,6 +65,15 @@ test("선택한 책의 양끝은 옆 책 이동, 가운데·키보드는 열기�
   assert.match(source, /if \(direction\) void move\(direction\); else onOpen/);
 });
 
+test("옮겨진 미리보기의 투명한 바깥 영역은 옆 책 클릭을 가로채지 않는다", () => {
+  const source = readFileSync("src/features/tuti/components/HarumadiCarousel.tsx", "utf8");
+  const slide = source.match(/<Slide key=\{book.id\}([\s\S]*?)<CoverButton/)![1];
+  assert.match(slide, /pointerEvents: "none"/);
+  const button = source.match(/<CoverButton[^\n]+/)![0];
+  assert.match(button, /pointerEvents: pose.opacity > \.1 \? "auto" : "none"/);
+  assert.match(source, /if \(!selected\) \{ choose\(bookIndex\); return; \}/);
+});
+
 test("한 권씩 선택도 계정별로 저장하고 기존 표지·책등 값은 그대로 읽는다", async () => {
   const values = new Map<string, string>(), storage = { getItem: async (key: string) => values.get(key) ?? null, setItem: async (key: string, value: string) => { values.set(key, value); } };
   const preferences = createLibraryViewPreferences(storage);

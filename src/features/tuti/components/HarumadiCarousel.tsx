@@ -152,8 +152,8 @@ export function HarumadiCarousel({ books, ownerId, onOpen, onCreateMadi, hasNext
         const bookIndex = books.indexOf(book), selected = book.id === active.id, spread = selected || book.id === outgoingId;
         const pose = carouselPose(bookIndex - index - drag);
         return <Slide key={book.id} data-harumadi-card data-carousel-active={selected} aria-hidden={!selected} $dragging={dragging}
-          style={{ width: spreadWidth, zIndex: pose.zIndex, opacity: pose.opacity, pointerEvents: pose.opacity > .1 ? "auto" : "none", transform: `translate(-50%, -50%) translateX(${pose.x * width}px) translateY(${-writeProgress * 48 * (selected ? 1 : .2)}px) scale(${pose.scale}) rotateY(${pose.rotation}deg)` }}>
-          <CoverButton $spread={spread} style={{ "--spread-page-scale": (spreadWidth / 2 - 2) / 320 } as CSSProperties} data-book-cover type="button" disabled={busy} tabIndex={selected ? 0 : -1} aria-label={`${harumadiAccessibleTitle(book)}, 마디 ${book.entryIds.length}개 ${selected ? "미리보기 열기" : "선택"}`}
+          style={{ width: spreadWidth, zIndex: pose.zIndex, opacity: pose.opacity, pointerEvents: "none", transform: `translate(-50%, -50%) translateX(${pose.x * width}px) translateY(${-writeProgress * 48 * (selected ? 1 : .2)}px) scale(${pose.scale}) rotateY(${pose.rotation}deg)` }}>
+          <CoverButton $spread={spread} style={{ "--spread-page-scale": (spreadWidth / 2 - 2) / 320, pointerEvents: pose.opacity > .1 ? "auto" : "none" } as CSSProperties} data-book-cover type="button" disabled={busy} tabIndex={selected ? 0 : -1} aria-label={`${harumadiAccessibleTitle(book)}, 마디 ${book.entryIds.length}개 ${selected ? "미리보기 열기" : "선택"}`}
             onClick={event => {
               if (turning.current || requesting.current || loading) return;
               if (!selected) { choose(bookIndex); return; }
