@@ -194,8 +194,13 @@ const Carousel = styled.div`display: flex; flex-direction: column; flex: 1 0 aut
 const Details = styled.div`display: flow-root; flex: none;`;
 // 책 영역만 단일 터치를 예약하고 핀치 확대와 바깥 영역의 세로 스크롤은 보존한다.
 const Stage = styled.div<{ $dragging: boolean; $canWrite: boolean }>`position: relative; flex: 1 0 140px; min-height: 140px; overflow: hidden; perspective: 850px; touch-action: ${({ $canWrite }) => $canWrite ? "pinch-zoom" : "pan-y"}; user-select: none; cursor: ${({ $dragging }) => $dragging ? "grabbing" : "grab"}; isolation: isolate;
+  --carousel-edge-fade: clamp(12px, 4%, 20px);
+  &::before { content: ""; position: absolute; inset: 0; z-index: 200; pointer-events: none;
+    background: linear-gradient(to right, var(--library-background, var(--color-surface)), transparent var(--carousel-edge-fade), transparent calc(100% - var(--carousel-edge-fade)), var(--library-background, var(--color-surface)));
+  }
   &::after { content: ""; position: absolute; width: 60%; height: 12px; border-radius: 50%; background: #1b222a0a; filter: blur(10px); top: calc(50% + var(--carousel-book-half-height) - 6px); left: 20%; z-index: -1; }
   &:focus-visible { outline: 2px solid var(--color-brand-700); outline-offset: -3px; border-radius: 12px; }
+  &:focus-visible::before { background: none; }
 `;
 const Slide = styled.div<{ $dragging: boolean }>`position: absolute; top: 50%; left: 50%; will-change: transform; backface-visibility: hidden;
   transition: ${({ $dragging }) => $dragging ? "none" : "transform 560ms cubic-bezier(.22,.75,.22,1), opacity 560ms cubic-bezier(.22,.75,.22,1), z-index 560ms linear"};

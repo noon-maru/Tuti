@@ -74,6 +74,19 @@ test("옮겨진 미리보기의 투명한 바깥 영역은 옆 책 클릭을 가
   assert.match(source, /if \(!selected\) \{ choose\(bookIndex\); return; \}/);
 });
 
+test("좌우 잘림만 배경색으로 페이드하고 책 클릭과 키보드 포커스는 가리지 않는다", () => {
+  const source = readFileSync("src/features/tuti/components/HarumadiCarousel.tsx", "utf8");
+  const stage = source.match(/const Stage = styled.div[^`]*`([\s\S]*?)`;/)![1];
+  const fade = stage.match(/&::before \{([\s\S]*?)\n  \}/)![1];
+  assert.match(stage, /--carousel-edge-fade: clamp\(12px, 4%, 20px\)/);
+  assert.match(fade, /position: absolute; inset: 0; z-index: 200; pointer-events: none/);
+  assert.match(fade, /linear-gradient\(to right, var\(--library-background, var\(--color-surface\)\)/);
+  assert.match(fade, /transparent var\(--carousel-edge-fade\), transparent calc\(100% - var\(--carousel-edge-fade\)\)/);
+  assert.doesNotMatch(fade, /blur|opacity/);
+  assert.match(stage, /&:focus-visible::before \{ background: none; \}/);
+  assert.match(source, /<\/Stage>\s*<Details>/, "설명과 쪽 이동은 페이드 영역 바깥에 남는다");
+});
+
 test("한 권씩 선택도 계정별로 저장하고 기존 표지·책등 값은 그대로 읽는다", async () => {
   const values = new Map<string, string>(), storage = { getItem: async (key: string) => values.get(key) ?? null, setItem: async (key: string, value: string) => { values.set(key, value); } };
   const preferences = createLibraryViewPreferences(storage);
