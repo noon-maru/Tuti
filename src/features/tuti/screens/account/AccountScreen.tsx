@@ -2,6 +2,8 @@
 import { confirmAction } from "@/lib/feedback";
 
 import styled from "@emotion/styled";
+import { Check, UserRound } from "lucide-react";
+import { inputControlStyles, screenTitleStyles } from "@/shared/ui/typography";
 import { useState, type FormEvent } from "react";
 import {
   BackButton,
@@ -287,7 +289,7 @@ export function AccountScreen({
 
       {deletionReference ? (
         <DeletionComplete role="status">
-          <DeletionCompleteMark aria-hidden="true">✓</DeletionCompleteMark>
+          <DeletionCompleteMark aria-hidden="true"><Check size={28} /></DeletionCompleteMark>
           <h2>계정과 데이터를 삭제했어요.</h2>
           <p>
             기존 로그인 정보와 마디는 복구할 수 없어요. Tuti를 다시 시작하면
@@ -528,7 +530,7 @@ export function AccountScreen({
       ) : oauthCompletion?.pending &&
         oauthCompletion.currentJournalCount === undefined ? (
         <OAuthCompletionContent role="status">
-          <OAuthCompletionMark aria-hidden="true">T</OAuthCompletionMark>
+          <OAuthCompletionMark aria-hidden="true"><UserRound size={28} /></OAuthCompletionMark>
           <h2>계정을 연결하고 있어요.</h2>
           <p>잠시만 기다려주세요.</p>
         </OAuthCompletionContent>
@@ -726,7 +728,6 @@ export function AccountScreen({
             {error && <ErrorMessage role="alert">{error}</ErrorMessage>}
             <SubmitButton
               type="submit"
-              $hasInput={hasEmailInput}
               disabled={!authEnabled || pending}
             >
               {pending
@@ -860,8 +861,7 @@ const Header = styled.header`
   flex: none;
 
   h1 {
-    font-size: var(--font-size-400);
-    font-weight: 600;
+    ${screenTitleStyles}
     text-align: center;
   }
 `;
@@ -900,8 +900,8 @@ const OAuthCompletionMark = styled.div`
   display: grid;
   place-items: center;
   border-radius: 22px;
-  background: var(--color-brand-500);
-  color: var(--color-white);
+  background: var(--color-brand-100);
+  color: var(--color-brand-1000);
   font-size: var(--font-size-600);
   font-weight: 700;
 `;
@@ -920,8 +920,7 @@ const JournalResolutionCopy = styled.div`
   gap: var(--space-3);
 
   h2 {
-    font-size: var(--font-size-600);
-    font-weight: 600;
+    ${screenTitleStyles}
   }
 
   p {
@@ -943,8 +942,6 @@ const JournalResolutionActions = styled.div`
 
 const MergeButton = styled(PrimaryButton)`
   width: 100%;
-  background: var(--color-secondary-700);
-  color: var(--color-neutral-1300);
 `;
 
 const AccountOnlyButton = styled(BaseButton)`
@@ -975,6 +972,7 @@ const JournalResolutionWarning = styled.p`
 `;
 
 const ReturnToCodeButton = styled(BaseButton)`
+  min-height: 44px;
   align-self: center;
   margin-top: var(--space-6);
   padding: var(--space-2) var(--space-4);
@@ -1006,8 +1004,7 @@ const IntroCopy = styled.div`
   gap: var(--space-3);
 
   h2 {
-    font-size: var(--font-size-600);
-    font-weight: 600;
+    ${screenTitleStyles}
   }
 
   p {
@@ -1134,25 +1131,7 @@ const Field = styled.label`
   }
 
   input {
-    width: 100%;
-    min-width: 0;
-    height: var(--space-14);
-    padding: 0 var(--space-4);
-    border: 1px solid var(--color-border);
-    border-radius: 16px;
-    outline: 0;
-    background: var(--color-neutral-100);
-    font-size: var(--font-size-200);
-    transition: border-color 180ms ease, box-shadow 180ms ease;
-
-    &::placeholder {
-      color: var(--color-neutral-700);
-    }
-
-    &:focus {
-      border-color: var(--color-brand-600);
-      box-shadow: 0 0 0 3px var(--color-brand-100);
-    }
+    ${inputControlStyles}
 
     &:disabled {
       background: var(--color-neutral-200);
@@ -1179,6 +1158,8 @@ const EmailHint = styled.div`
 
 const EmailChangeButton = styled(BaseButton)`
   flex: none;
+  min-width: 44px;
+  min-height: 44px;
   padding: 0;
   background: transparent;
   color: var(--color-brand-800);
@@ -1191,36 +1172,9 @@ const ErrorMessage = styled.p`
   overflow-wrap: anywhere;
 `;
 
-const SubmitButton = styled(PrimaryButton)<{
-  $hasInput: boolean;
-}>`
+const SubmitButton = styled(PrimaryButton)`
   width: 100%;
   margin-top: var(--space-1);
-  background: ${({ $hasInput }) =>
-    $hasInput
-      ? "var(--color-secondary-700)"
-      : "var(--color-secondary-200)"};
-  color: ${({ $hasInput }) =>
-    $hasInput ? "var(--color-neutral-1300)" : "var(--color-neutral-900)"};
-
-  &:hover:not(:disabled) {
-    background: ${({ $hasInput }) =>
-      $hasInput
-        ? "var(--color-secondary-800)"
-        : "var(--color-secondary-300)"};
-  }
-
-  &:disabled {
-    background: ${({ $hasInput }) =>
-      $hasInput
-        ? "var(--color-secondary-700)"
-        : "var(--color-secondary-200)"};
-    color: ${({ $hasInput }) =>
-      $hasInput
-        ? "var(--color-neutral-1300)"
-        : "var(--color-neutral-900)"};
-    opacity: ${({ $hasInput }) => ($hasInput ? 0.65 : 1)};
-  }
 `;
 
 const DisabledNotice = styled.p`
@@ -1252,14 +1206,8 @@ const AccountOverview = styled.section`
   align-items: center;
   gap: var(--space-4);
   padding: var(--space-5);
-  border: 1px solid var(--color-brand-200);
-  border-radius: 20px;
-  background:
-    linear-gradient(
-      135deg,
-      var(--color-brand-100),
-      var(--color-surface) 72%
-    );
+  border-radius: 16px;
+  background: var(--color-brand-100);
 `;
 
 const AccountMark = styled.div`
@@ -1268,8 +1216,8 @@ const AccountMark = styled.div`
   display: grid;
   place-items: center;
   border-radius: 18px;
-  background: var(--color-brand-500);
-  color: var(--color-white);
+  background: var(--color-brand-200);
+  color: var(--color-brand-1000);
   font-size: var(--font-size-700);
   font-weight: 700;
 `;
@@ -1325,22 +1273,7 @@ const NameInputRow = styled.div`
   gap: var(--space-2);
 
   input {
-    width: 100%;
-    max-width: 100%;
-    min-width: 0;
-    height: var(--space-12);
-    padding: 0 var(--space-4);
-    border: 1px solid var(--color-border);
-    border-radius: 12px;
-    outline: 0;
-    background: var(--color-neutral-100);
-    color: var(--color-text);
-    font-size: var(--font-size-200);
-
-    &:focus {
-      border-color: var(--color-brand-600);
-      box-shadow: 0 0 0 3px var(--color-brand-100);
-    }
+    ${inputControlStyles}
   }
 
   @container app-viewport (max-width: 360px) {
@@ -1352,14 +1285,10 @@ const NameInputRow = styled.div`
   }
 `;
 
-const NameSaveButton = styled(BaseButton)`
+const NameSaveButton = styled(PrimaryButton)`
   width: 68px;
   min-width: 0;
-  height: var(--space-12);
   padding: 0 var(--space-4);
-  border-radius: 12px;
-  background: var(--color-secondary-700);
-  color: var(--color-neutral-1300);
   font-size: var(--font-size-100);
   font-weight: 600;
 
@@ -1380,10 +1309,6 @@ const LoginMethodSection = styled.section`
   display: grid;
   gap: var(--space-3);
   margin-top: var(--space-7);
-  padding: var(--space-5);
-  border: 1px solid var(--color-border);
-  border-radius: 18px;
-  background: var(--color-neutral-100);
   text-align: left;
 `;
 
@@ -1467,6 +1392,8 @@ const IdentityProvider = styled.strong`
 
 const UnlinkButton = styled(BaseButton)`
   flex: none;
+  min-height: 44px;
+  min-width: 44px;
   padding: var(--space-2) var(--space-3);
   border: 1px solid var(--color-border);
   border-radius: 9px;
@@ -1517,12 +1444,10 @@ const EmailLinkForm = styled(EmailForm)`
   margin-top: var(--space-2);
 `;
 
-const LinkEmailButton = styled(BaseButton)`
+const LinkEmailButton = styled(PrimaryButton)`
   width: 100%;
   height: var(--space-11);
   border-radius: 10px;
-  background: var(--color-secondary-700);
-  color: var(--color-neutral-1300);
   font-size: var(--font-size-100);
   font-weight: 600;
 
@@ -1533,6 +1458,7 @@ const LinkEmailButton = styled(BaseButton)`
 `;
 
 const DeletionButton = styled(BaseButton)`
+  min-height: 44px;
   margin-top: var(--space-3);
   padding: var(--space-2) var(--space-3);
   border: 0;
@@ -1590,7 +1516,7 @@ const DeletionComplete = styled.div`
   text-align: center;
 
   h2 {
-    font-size: var(--font-size-500);
+    ${screenTitleStyles}
   }
 
   p {
@@ -1606,8 +1532,8 @@ const DeletionCompleteMark = styled.div`
   display: grid;
   place-items: center;
   border-radius: 24px;
-  background: var(--color-brand-500);
-  color: var(--color-white);
+  background: var(--color-secondary-200);
+  color: var(--color-secondary-1000);
   font-size: var(--font-size-600);
   font-weight: 700;
 `;
