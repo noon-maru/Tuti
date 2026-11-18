@@ -12,6 +12,11 @@ const row = (id: string) => ({ id, name: "동네 공원", image: "", source: "to
   } } });
 } };
 const { readOutingQuality } = await import("../src/server/admin/outingQuality");
+const { GET } = await import("../src/app/api/admin/outing-quality/route");
+test("품질 API는 다른 출처와 미인증 사용자의 접근을 차단한다", async () => {
+  assert.equal((await GET(new Request("https://tuti.today/api/admin/outing-quality", { headers: { Origin: "https://other.test" } }))).status, 403);
+  assert.equal((await GET(new Request("https://tuti.today/api/admin/outing-quality", { headers: { Origin: "https://tuti.today" } }))).status, 401);
+});
 test("나들이 품질은 등록·기본 후보·표준 목적지를 분리하고 전체 건수와 제한된 예시를 반환한다", async () => {
   const data = await readOutingQuality(now);
   assert.equal(readonly, true); assert.equal(data.registered, 14); assert.equal(data.ready, 13); assert.equal(data.destinations, 12);

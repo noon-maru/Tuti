@@ -30,7 +30,7 @@ export function engagementMetricsSql(period: ReturnType<typeof analyticsPeriod>)
       WHERE s.has_start AND s.last_at<p.until-interval '30 minutes'),
     measured AS (SELECT * FROM closed WHERE seconds>0),
     visits AS (SELECT DISTINCT user_id,(occurred_at+interval '9 hours')::date AS day FROM e
-      WHERE name IN('session_started','session_active','daily_active','home_viewed','explore_viewed','book_opened','compose_started','invite_viewed')),
+      WHERE name IN('session_started','session_active','daily_active','home_viewed','explore_viewed','book_opened','madi_opened','compose_started','invite_viewed')),
     first_days AS (SELECT user_id,min(day) AS day FROM visits GROUP BY user_id),
     cohort_users AS (SELECT f.* FROM first_days f,p WHERE f.day>=(p.since+interval '9 hours')::date AND f.day<=p.today),
     retention_users AS (SELECT c.user_id,c.day,v.d,c.day+v.d<p.today AS mature,

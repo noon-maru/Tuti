@@ -17,12 +17,14 @@ try {
     CREATE TYPE "PlaceReviewStatus" AS ENUM ('pending','approved','rejected');
     CREATE TYPE "PlaceCandidateOverride" AS ENUM ('auto','include','exclude');
     CREATE TYPE "PlaceCandidateStatus" AS ENUM ('selected','enrich','pending','low_burden_mismatch','invalid');
+    CREATE TYPE "PlaceVisibilityOverride" AS ENUM ('auto','show','hide');
     CREATE TABLE users(id text PRIMARY KEY);
-    CREATE TABLE places(id text PRIMARY KEY,source text,is_active boolean,review_status "PlaceReviewStatus",candidate_override "PlaceCandidateOverride",candidate_status "PlaceCandidateStatus");
+    CREATE TABLE places(id text PRIMARY KEY,source text,is_active boolean,review_status "PlaceReviewStatus",candidate_override "PlaceCandidateOverride",candidate_status "PlaceCandidateStatus",visibility_override "PlaceVisibilityOverride" NOT NULL DEFAULT 'auto');
+    CREATE TABLE dog_place_catalog(place_id text PRIMARY KEY REFERENCES places(id),status text);
     CREATE TABLE recommendation_actions(journey_id text,user_id text,place_id text,action text,created_at timestamp);
     CREATE TABLE journal_entries(owner_id text,place_id text,sensitive_withdrawn_at timestamp,created_at timestamp);
     INSERT INTO users VALUES('a'),('b');
-    INSERT INTO places SELECT id,'tourapi',true,'approved','auto','selected' FROM unnest(ARRAY['p1','p2','p3','p4']) AS id;
+    INSERT INTO places(id,source,is_active,review_status,candidate_override,candidate_status) SELECT id,'tourapi',true,'approved','auto','selected' FROM unnest(ARRAY['p1','p2','p3','p4']) AS id;
     INSERT INTO recommendation_actions VALUES('same-run','a','p1','place_selected','2026-11-12'),('same-run','a','p1','place_selected','2026-11-12'),('other-run','b','p2','place_selected','2026-11-12');
     INSERT INTO journal_entries VALUES('a','p3',NULL,'2026-11-12'),('b','p2',NULL,'2026-11-12');`);
   await pool.query(readFileSync("prisma/migrations/20261113010000_place_familiarity/migration.sql", "utf8"));

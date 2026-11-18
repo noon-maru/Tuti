@@ -9,13 +9,14 @@ import { MainNavigation } from "../src/features/tuti/components/MainNavigation";
 import { MadiCreateScreen } from "../src/features/tuti/screens/journal/MadiCreateScreen";
 import { MADI_COMPOSE_COPY } from "../src/shared/tuti/madiFields";
 
-test("전역 작성과 선택 책 작성을 공통 문구로 구분하고 기존 대상·제스처를 유지한다", () => {
+test("전역 작성과 선택 책 작성을 공통 문구로 구분하고 기존 대상·제스처를 유지한다", t => {
   const client = new QueryClient();
+  t.after(() => client.clear());
   const router: AppRouterInstance = { back() {}, forward() {}, refresh() {}, push() {}, replace() {}, async prefetch() {} };
   for (const active of ["harumadi", "explore"] as const) {
     const html = renderToStaticMarkup(createElement(AppRouterContext.Provider, { value: router },
       createElement(QueryClientProvider, { client }, createElement(MainNavigation, { active }))));
-    assert.match(html, new RegExp(MADI_COMPOSE_COPY.globalAction));
+    assert.match(html, />마디 남기기<\/button>/);
     assert.match(html, new RegExp(`aria-description="${MADI_COMPOSE_COPY.chooseAfterSave}"`));
   }
   client.clear();

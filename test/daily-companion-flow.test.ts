@@ -23,7 +23,7 @@ test("재질문도 여러 카테고리를 선택하고 해제한 뒤 저장하�
     "@/lib/intakePreferences": { withDefaultIntakeAnswers },
     "@/shared/tuti/types": { toActiveIntakeAnswers },
   }, { window: { setTimeout: (complete: () => void) => { complete(); return 1; } } });
-  const props = { previousAnswers: { petCompanion: "dog", placeCategories: ["shopping", "cafe"], movement: "near", transport: "transit" } as IntakeAnswers, dismissible: true, onSubmit: (answers: IntakeAnswers, outing?: DogOuting) => { submitted = answers; submittedOuting = outing; } };
+  const props = { previousAnswers: { petCompanion: "dog", placeCategories: ["shopping", "cafe"], movement: "short", transport: "transit" } as IntakeAnswers, dismissible: true, onSubmit: (answers: IntakeAnswers, outing?: DogOuting) => { submitted = answers; submittedOuting = outing; } };
   const render = () => nodes(flow.render(props));
   const click = (label: string) => {
     const node = render().find(item => item.props.children === label || nodes(item).some(child => child.type === "span" && child.props.children === label));
