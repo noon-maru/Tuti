@@ -218,14 +218,14 @@ export function MadiCreateScreen({ onBack, onSave, onCollection, onSaved, onStar
       <HeaderTitle $book={inHarumadi}>{inHarumadi ? destination?.title ? `${destination.title}에 남길 마디` : "하루마디에 남길 마디" : madiLabel}</HeaderTitle>
       <StepCount>{saved ? <Check size={18} aria-label="저장 완료" /> : stage === "preview" ? "미리보기" : `${stage === "photo" ? 1 : 2} / 2`}</StepCount>
     </Header>
-    <Content ref={scroll} data-scroll-region>
+    <Content ref={scroll} data-scroll-region $choosing={!saved && stage === "photo" && !image}>
       {!saved && inHarumadi && <Destination role="status">
         {destinationScopeChanged ? <><span>공유 범위가 바뀌었어요. 초안은 보관돼요. 하루마디에서 다시 열어주세요.</span><TextButton onClick={() => void localDraft.leave(onBack)}>하루마디로 돌아가기</TextButton></>
           : destinationError ? <><span>담을 곳을 확인하지 못했어요. 작성은 계속할 수 있어요.</span><TextButton onClick={onRetryDestination}>다시 확인하기</TextButton></>
             : !destinationVerified ? <span>작성하는 동안 담을 곳을 확인할게요.</span>
               : <span>{harumadiSharingNotice(destination ?? {})}</span>}
       </Destination>}
-      <Intro $compact={Boolean(image && stage === "write" && !saved)}>
+      <Intro $compact={stage === "write" && !saved}>
         <h1 ref={heading} tabIndex={-1} id="madi-create-heading">{saved ? <>{madiLabel}를<br />남겼어요.</> : stage === "photo" ? <>어떤 순간을<br />오래 간직하고 싶나요?</> : stage === "write" ? image ? "이 순간을 남겨볼까요?" : <>그날의 이야기를<br />조금만 들려주세요.</> : <>{madiLabel}를<br />살펴볼까요?</>}</h1>
         <p>{saved ? saved.savedHarumadi ? `‘${saved.savedHarumadi.title}’에 담았어요.` : "남긴 마디는 전체 마디 보기에서 볼 수 있어요." : stage === "photo" ? photoIntro : stage === "write" ? "길게 쓰지 않아도 괜찮아요. 사진만 남겨도 좋아요." : "사진과 이야기를 확인해주세요."}</p>
       </Intro>
@@ -308,17 +308,20 @@ const HeaderTitle = styled.span<{ $book?: boolean }>`${screenTitleStyles} min-wi
   ${({ $book }) => $book && `font-size: 16px; font-weight: 600; line-height: 1.5;`}
 `;
 const StepCount = styled.div`font-size: 12px; color: var(--color-text-muted); display: flex; justify-content: center;`;
-const Content = styled.div`flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 2px 2px 24px; display: flex; flex-direction: column; gap: 26px; > * { flex-shrink: 0; }`;
+const Content = styled.div<{ $choosing: boolean }>`flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 2px 2px 24px; display: flex; flex-direction: column; gap: 20px; > * { flex-shrink: 0; }
+  ${({ $choosing }) => $choosing && `padding-top: clamp(24px, 7cqh, 64px);`}
+  @container app-viewport (max-height: 620px) { padding-top: 2px; gap: 16px; }
+`;
 const Intro = styled.div<{ $compact?: boolean }>`
   h1 { ${sectionHeadingStyles} font-family: var(--font-emotional); margin-bottom: var(--space-3); &:focus { outline: none; } }
-  p { ${bodyCopyStyles} color: var(--color-text-muted); word-break: keep-all; }
+  p { ${bodyCopyStyles} margin: 0; color: var(--color-text-muted); word-break: keep-all; }
   ${({ $compact }) => $compact && `h1 { font-size: 20px; line-height: 1.5; margin-bottom: 8px; }`}
 `;
-const PhotoChoices = styled.div`display: grid; gap: 12px; margin-top: 8px;`;
-const WriteStart = styled(Button)`min-height: 56px; margin-top: 8px; border: 1px solid var(--color-border); background: var(--color-brand-100); color: var(--color-brand-1000); &:hover:not(:disabled) { background: var(--color-brand-200); }`;
+const PhotoChoices = styled.div`display: grid; gap: 12px; > button { min-height: 52px; }`;
+const WriteStart = styled(Button)`min-height: 52px; margin-top: 8px; border: 1px solid var(--color-border); background: var(--color-brand-100); color: var(--color-brand-1000); &:hover:not(:disabled) { background: var(--color-brand-200); }`;
 const PhotoActions = styled.div`display: flex; flex-wrap: wrap; gap: 4px 16px; margin-top: -12px;`;
 const OptionalAction = styled(TextButton)`min-height: 44px; display: flex; align-items: center; justify-content: flex-start; gap: 8px; width: fit-content; padding: 8px 0; color: var(--color-brand-1000); small { ${captionStyles} }`;
-const StoryFields = styled.div`display: grid; gap: 24px; min-width: 0; &[hidden] { display: none; }`;
+const StoryFields = styled.div`display: grid; gap: 20px; min-width: 0; &[hidden] { display: none; }`;
 const DateField = styled.label<{ $compact: boolean }>`
   ${({ $compact }) => $compact && `&& { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 12px; } && input { width: min(190px, 100%); min-height: 44px; padding: 8px 12px; }`}
 `;
@@ -327,8 +330,8 @@ const HiddenInput = styled.input`display: none;`;
 const PrivacyHint = styled.p`${captionStyles} margin: 0; min-width: 0; word-break: keep-all; overflow-wrap: anywhere;`;
 const Destination = styled.div`display: grid; gap: 4px; padding-bottom: 16px; border-bottom: 1px solid var(--color-border); strong { font-size: var(--ui-body-size); font-weight: 600; overflow-wrap: anywhere; } span { ${captionStyles} }`;
 const Fields = styled.fieldset<{ $photo?: boolean }>`
-  margin: 0; padding: 0; border: 0; display: grid; grid-template-columns: minmax(0, 1fr); min-width: 0; min-inline-size: 0; gap: 24px;
-  label { display: grid; grid-template-columns: minmax(0, 1fr); min-width: 0; gap: 10px; font-size: var(--ui-body-size); font-weight: 500; }
+  margin: 0; padding: 0; border: 0; display: grid; grid-template-columns: minmax(0, 1fr); min-width: 0; min-inline-size: 0; gap: 20px;
+  label { display: grid; grid-template-columns: minmax(0, 1fr); min-width: 0; gap: 8px; font-size: var(--ui-body-size); font-weight: 500; }
   small { ${captionStyles} display: inline; }
   input, textarea { ${inputControlStyles} }
   input[type="date"] { ${nativeDateInputStyles} }

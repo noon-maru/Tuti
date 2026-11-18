@@ -19,7 +19,8 @@ test("뒤로가기는 공용 셰브론을 쓰고 목적지와 저장 중 보호�
   assert.match(html, /aria-hidden="true"/);
   const flow = source("src/features/tuti/flows/HarumadiFlow.tsx");
   const archive = source("src/features/tuti/flows/HarumadiPdfArchiveFlow.tsx");
-  for (const file of [flow, archive]) {
+  const archiveScreen = source("src/features/tuti/screens/library/HarumadiPdfArchiveScreen.tsx");
+  for (const file of [flow, archiveScreen]) {
     assert.doesNotMatch(file, /\bArrowLeft\b/);
     assert.match(file, /<BackButton/);
     assert.match(file, /내 책장으로 돌아가기/);
@@ -27,7 +28,8 @@ test("뒤로가기는 공용 셰브론을 쓰고 목적지와 저장 중 보호�
   assert.match(flow, /<BackButton onClick=\{back\} disabled=\{busy\}/);
   assert.match(flow, /하루마디로 돌아가기/);
   assert.match(flow, /if \(busy \|\| closingRef.current\) return/);
-  assert.match(archive, /onClick=\{\(\) => router.replace\("\/"\)\}/);
+  assert.match(archive, /onBack=\{\(\) => router.replace\("\/"\)\}/);
+  assert.match(archiveScreen, /<BackButton aria-label="내 책장으로 돌아가기" onClick=\{onBack\}/);
 });
 function luminance(hex: string) {
   const rgb = [1, 3, 5].map(offset => parseInt(hex.slice(offset, offset + 2), 16) / 255)
