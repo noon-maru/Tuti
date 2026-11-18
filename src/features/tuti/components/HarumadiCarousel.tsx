@@ -13,7 +13,7 @@ import { ContextMenu } from "./ContextMenu";
 import { BaseButton, quietIconButtonStyles } from "./buttons";
 import { HarumadiTitleHint } from "./HarumadiTitleHint";
 import { harumadiAccessibleTitle } from "@/shared/harumadi/titleHints";
-import { foldCarouselBook } from "@/lib/carouselBookFold";
+import { waitForCarouselSlide } from "@/lib/carouselSlide";
 import { harumadiSharingLabel } from "@/shared/harumadi/sharingAudience";
 
 type Gesture = { id: number; x: number; y: number; dx: number; startedAt: number; width: number; dragging: boolean; bookId: string; axis?: "horizontal" | "down" };
@@ -30,7 +30,7 @@ export function HarumadiCarousel({ books, ownerId, onOpen, onCreateMadi, onWrite
   const [selection, setSelection] = useState(() => ({ id: books[0]?.id ?? null, index: 0 }));
   const [size, setSize] = useState({ width: 320, height: 300 }), [drag, setDrag] = useState(0), [dragging, setDragging] = useState(false), [pending, setPending] = useState(false);
   const [writeProgress, setWriteProgress] = useState(0);
-  const [folding, setFolding] = useState(false);
+  const [sliding, setSliding] = useState(false);
   const [outgoingId, setOutgoingId] = useState<string | null>(null);
   const turning = useRef<AbortController | null>(null);
   const lifetime = useRef<AbortController | null>(null);
@@ -71,18 +71,16 @@ export function HarumadiCarousel({ books, ownerId, onOpen, onCreateMadi, onWrite
     if (turning.current || lifetime.current?.signal.aborted || next.id === active?.id) return;
     const controller = new AbortController();
     turning.current = controller;
-    setFolding(true);
+    setSliding(true);
     setOutgoingId(active?.id ?? null);
     try {
-      const spread = stage.current?.querySelector<HTMLElement>('[data-carousel-active="true"] [data-harumadi-spread-preview]') ?? null;
       const reduced = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false;
-      // 기존 지면을 유지한 채 선택·좌우 이동과 접기를 같은 프레임에 시작한다.
-      const closing = foldCarouselBook(spread, controller.signal, reduced);
+      // 펼친 지면을 유지하고 좌우 이동·페이드만 진행한다.
       setSelection(next);
-      await closing;
+      await waitForCarouselSlide(controller.signal, reduced);
     } finally {
       if (turning.current === controller) turning.current = null;
-      if (!lifetime.current?.signal.aborted) { setFolding(false); setOutgoingId(null); }
+      if (!lifetime.current?.signal.aborted) { setSliding(false); setOutgoingId(null); }
     }
   };
   const choose = (next: number) => {
@@ -146,7 +144,7 @@ export function HarumadiCarousel({ books, ownerId, onOpen, onCreateMadi, onWrite
     if (direction) void move(direction);
   };
   if (!active) return null;
-  const busy = pending || loading || folding;
+  const busy = pending || loading || sliding;
   return <Carousel data-library-view="carousel">
     <Stage ref={stage} role="region" aria-roledescription="캐러셀" aria-label="하루마디 한 권씩 보기" tabIndex={0} data-swipe-back-ignore="true"
       style={{ "--carousel-book-half-height": `${bookHeight / 2}px` } as CSSProperties} $dragging={dragging} $canWrite={Boolean(onCreateMadi)} onPointerDown={begin} onPointerMove={follow} onPointerUp={event => finish(event)}

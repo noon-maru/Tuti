@@ -80,8 +80,7 @@ test("닫힌 표지와 펼친 오른쪽 지면은 같은 중심에 남고 두 �
     const rightPageCenter = width * .75 - width * .25;
     assert.equal(rightPageCenter, closedCoverCenter);
   }
-  const fold = readFileSync("src/lib/carouselBookFold.ts", "utf8");
-  assert.doesNotMatch(fold, /spread\.animate\(/);
+  assert.doesNotMatch(source, /foldCarouselBook/);
 });
 
 test("공동작성 책의 이전 응답은 현재 마운트에서 권한 재검증 전 노출하지 않는다", () => {
