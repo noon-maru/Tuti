@@ -1,6 +1,7 @@
 "use client";
 
 import styled from "@emotion/styled";
+import { useState } from "react";
 import { FileText, ChevronRight } from "lucide-react";
 import type { StoredHarumadiPdf } from "@/shared/api/harumadiPdf";
 import { ScreenFrame } from "../../components/ScreenFrame";
@@ -13,6 +14,7 @@ export function HarumadiPdfArchiveScreen({ ownerId, files, pending, error, busy,
   ownerId: string; files: StoredHarumadiPdf[]; pending: boolean; error: boolean; busy: boolean; hasNextPage: boolean;
   onBack: () => void; onOpen: (id: string) => void; onRetry: () => void; onLoadMore: () => void;
 }) {
+  const [helpOpen, setHelpOpen] = useState(false);
   return <Frame aria-labelledby="pdf-archive-title">
     <Header><BackButton aria-label="내 책장으로 돌아가기" onClick={onBack} /><Title id="pdf-archive-title">저장한 PDF</Title></Header>
     <Body>
@@ -32,7 +34,10 @@ export function HarumadiPdfArchiveScreen({ ownerId, files, pending, error, busy,
           {hasNextPage && !error && <More type="button" disabled={busy} onClick={onLoadMore}>{busy ? "불러오는 중…" : "PDF 더 보기"}</More>}
         </>}
     </Body>
-    <Help><summary>저장한 PDF에 대해</summary><p>저장한 시점의 하루마디예요. 책장의 하루마디를 수정해도 이 파일은 바뀌지 않아요.</p></Help>
+    <Help>
+      <HelpToggle type="button" aria-expanded={helpOpen} aria-controls="pdf-archive-help" onClick={() => setHelpOpen(open => !open)}>저장한 PDF에 대해</HelpToggle>
+      <HelpCopy id="pdf-archive-help" $visible={helpOpen} aria-hidden={!helpOpen}>저장한 시점의 하루마디예요. 책장의 하루마디를 수정해도 이 파일은 바뀌지 않아요.</HelpCopy>
+    </Help>
   </Frame>;
 }
 
@@ -51,4 +56,7 @@ const FileTitle = styled.strong`${bodyCopyStyles} font-weight: 500; display: -we
 const Meta = styled.span`${captionStyles}`;
 const More = styled(TextButton)`align-self: center; flex: none; margin: 0 0 12px;`;
 const Retry = styled.div`${captionStyles} display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 0 8px; flex: none;`;
-const Help = styled.details`${captionStyles} flex: none; > summary { min-height: 44px; display: flex; align-items: center; justify-content: center; cursor: pointer; list-style: none; text-decoration: underline; text-underline-offset: 4px; &::-webkit-details-marker { display: none; } &:focus-visible { outline: 2px solid var(--color-brand-700); border-radius: 4px; } } > p { margin: 0; padding: 4px 8px 0; text-align: center; }`;
+const Help = styled.div`${captionStyles} flex: none;`;
+const HelpToggle = styled(BaseButton)`width: 100%; min-height: 44px; display: flex; align-items: center; justify-content: center; background: transparent; color: inherit; font: inherit; text-decoration: underline; text-underline-offset: 4px; &:focus-visible { outline: 2px solid var(--color-brand-700); border-radius: 4px; }`;
+// 닫힌 상태에서도 문구의 실제 높이를 확보해 본문과 목록이 밀리지 않게 한다.
+const HelpCopy = styled.p<{ $visible: boolean }>`margin: 0; padding: 4px 8px 0; text-align: center; visibility: ${({ $visible }) => $visible ? "visible" : "hidden"};`;

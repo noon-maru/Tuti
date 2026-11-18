@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { createElement, type ComponentProps } from "react";
+import { Children, isValidElement, createElement, type ComponentProps, type ReactNode, type ReactElement } from "react";
+import styled from "@emotion/styled";
 import { renderToStaticMarkup } from "react-dom/server";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { HarumadiPdfArchiveScreen } from "@/features/tuti/screens/library/HarumadiPdfArchiveScreen";
@@ -20,9 +21,40 @@ test("빈 PDF 보관함은 중앙 안내·책장 행동을 제공하고 보관 �
   assert.match(html, /간직하고 싶은 하루를/);
   assert.match(html, /책장으로 가기/);
   assert.match(html, /justify-content:center/);
-  assert.match(html, /<details[^>]*><summary[^>]*>저장한 PDF에 대해/);
-  assert.doesNotMatch(html, /<details[^>]*\bopen/);
+  assert.match(html, /aria-expanded="false" aria-controls="pdf-archive-help"/);
+  assert.match(html, /id="pdf-archive-help" aria-hidden="true"/);
+  assert.match(html, /visibility:hidden/);
   assert.doesNotMatch(html, /#F8FAFC|font-size:10px/);
+});
+
+test("보관 설명은 같은 자리에서 열고 닫으며 본문 높이를 바꾸는 조건부 요소를 만들지 않는다", () => {
+  const page = clientFlowHarness("src/features/tuti/screens/library/HarumadiPdfArchiveScreen.tsx", "HarumadiPdfArchiveScreen", {
+    "@emotion/styled": styled,
+    "lucide-react": { FileText: "icon", ChevronRight: "icon" },
+    "../../components/ScreenFrame": { ScreenFrame: "section" },
+    "../../components/buttons": { BackButton: "button", BaseButton: "button", Button: "button", TextButton: "button" },
+    "../../components/HarumadiCover": { HarumadiCover: "cover" },
+    "../../components/LoadingIndicator": { LoadingIndicator: "loading" },
+    "@/shared/ui/typography": { screenTitleStyles: "", bodyCopyStyles: "", captionStyles: "" },
+  });
+  const nodes = (root: ReactNode): ReactElement<Record<string, unknown>>[] => Children.toArray(root).flatMap(node => isValidElement<Record<string, unknown>>(node) ? [node, ...nodes(node.props.children as ReactNode)] : []);
+  const render = () => nodes(page.render(defaults));
+  const initial = render(), toggle = initial.find(node => node.props["aria-controls"] === "pdf-archive-help")!;
+  const help = (tree: typeof initial) => tree.find(node => node.props.id === "pdf-archive-help")!;
+  const body = (tree: typeof initial) => Children.toArray(tree[0].props.children as ReactNode)[1] as ReactElement;
+  assert.equal(toggle.props["aria-expanded"], false);
+  assert.equal(help(initial).props.$visible, false);
+  (toggle.props.onClick as () => void)();
+  const opened = render();
+  assert.equal(opened.find(node => node.props["aria-controls"] === "pdf-archive-help")!.props["aria-expanded"], true);
+  assert.equal(help(opened).props.$visible, true);
+  assert.equal(help(opened).props["aria-hidden"], false);
+  assert.equal(help(opened).type, help(initial).type);
+  assert.equal(opened.length, initial.length, "안내 문구는 숨겼을 때도 공간을 유지한다");
+  assert.equal(renderToStaticMarkup(body(opened)), renderToStaticMarkup(body(initial)), "안내를 열어도 본문 구성과 스타일은 그대로다");
+  (toggle.props.onClick as () => void)();
+  assert.equal(help(render()).props.$visible, false);
+  page.dispose();
 });
 
 test("저장 목록은 실제 표지·제목·날짜·쪽수로 표시하며 기존 파일은 조회 오류에도 유지한다", () => {
