@@ -56,7 +56,8 @@ test("이미 확대되어 잘린 미리보기도 축소하지 않고 오른쪽 �
   for (const [width, height] of [[360, 700], [280, 480], [430, 900], [360, 260]]) {
     const previewWidth = width * 1.35;
     const preview = { x: width / 2 - previewWidth * .75, y: 40, width: previewWidth, height: previewWidth * 210 / 296 };
-    const next = harumadiSpreadZoomTarget(preview, width, height);
+    const next = harumadiSpreadZoomTarget(preview, height);
+    assert.ok(Math.abs(next.width / preview.width - 1.25) < .001);
     assert.ok(Math.abs(next.width / next.height - 296 / 210) < .001);
     assert.ok(next.width > preview.width);
     assert.ok(next.height > preview.height);
