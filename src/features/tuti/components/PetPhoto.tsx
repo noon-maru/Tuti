@@ -3,14 +3,12 @@ import { useQuery } from "@tanstack/react-query";
 import Image from "next/image";
 import styled from "@emotion/styled";
 import { Camera, Cat, Dog } from "lucide-react";
-import { notificationRequest } from "@/lib/notificationSettings";
 import type { PetProfile } from "@/shared/pets/profile";
+import { petPhotoQuery } from "../hooks/petPhotoQuery";
 
-export const petPhotoKey = (owner: string, pet: PetProfile) => ["pet-photo", owner, pet.id, pet.revision ?? 0] as const;
 export function PetPhoto({ owner, pet, preview }: { owner: string; pet: PetProfile; preview?: string | null }) {
-  const query = useQuery({ queryKey: petPhotoKey(owner, pet),
-    queryFn: ({ signal }) => notificationRequest<{ photo: string | null }>(`pets/${encodeURIComponent(pet.id)}/photo`, { signal }, owner),
-    enabled: Boolean(pet.hasPhoto && preview === undefined), staleTime: 5 * 60_000, retry: false });
+  const options = petPhotoQuery(owner, pet);
+  const query = useQuery({ ...options, enabled: options.enabled && preview === undefined });
   const photo = preview !== undefined ? preview : query.data?.photo;
   const Icon = pet.species === "cat" ? Cat : Dog;
   return <Portrait data-pet-photo>

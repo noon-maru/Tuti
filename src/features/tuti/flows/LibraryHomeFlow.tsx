@@ -33,6 +33,7 @@ import { bodyCopyStyles } from "@/shared/ui/typography";
 import { PendingMadiNotice } from "../components/PendingMadiNotice";
 import { useMadiComposePull } from "../hooks/useMadiComposePull";
 import { MadiComposePullPreview } from "../components/MadiComposePullPreview";
+import { LibraryPetPortraits } from "../components/LibraryPetPortraits";
 
 export function LibraryHomeFlow() {
   const session = useSession();
@@ -94,9 +95,9 @@ function LibraryHome({ ownerId, adminAccess = false }: { ownerId: string; adminA
         onClick={() => { if (searchOpen) closeSearch(); else setSearchOpen(true); }}>
         <Search size={21} aria-hidden="true" />
       </SearchToggle>
-      <MainMenu label="책장 메뉴" adminAccess={adminAccess}
+      <MainMenu label="책장 메뉴" adminAccess={adminAccess} triggerContent={<LibraryPetPortraits ownerId={ownerId} />}
         items={[...libraryViewItems(view, chooseView), { group: "보관함", label: "저장한 PDF", onSelect: () => router.push("/harumadi/pdfs") }]}
-        helpItems={[{ label: "하루마디 예시 펼쳐보기", onSelect: openExample }]}
+        helpItems={[{ label: "함께하는 반려동물", onSelect: () => router.push("/pets") }, { label: "하루마디 예시 펼쳐보기", onSelect: openExample }]}
         onDownload={() => router.push("/download")} onSettings={() => router.push("/settings")} onAdmin={() => router.push("/admin")} />
     </HeaderActions>
     <SearchRow $open={searchOpen} id="library-name-search" inert={!searchOpen} aria-hidden={!searchOpen} onKeyDown={event => {
