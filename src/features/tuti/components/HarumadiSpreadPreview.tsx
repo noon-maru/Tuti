@@ -45,12 +45,12 @@ export function HarumadiSpreadSheets({ book, pages, ready = true, still = false,
 }) {
   return <Spread data-harumadi-spread-preview data-spread-ready={ready} data-spread-still={still} aria-hidden="true">
     {[0, 1].map(index => <Leaf key={index} $side={index === 0 ? "left" : "right"} data-spread-leaf={index === 0 ? "left" : "right"} data-book-opening-origin={index === 1 ? true : undefined}>
-      <HarumadiPaperSurface opening={!still && ready && index === 0} hinge={index === 0 ? "right" : "left"}>
+      <HarumadiPaperSurface>
         {pages[index] ? <Miniature><HarumadiPageSheet page={pages[index]} coverStyle={book.coverStyle} paperColor={book.paperColor} number={book.entryIds.length <= 1 ? 1 : index + 1} preview /></Miniature>
           : <Unwritten><span>{index === 1 && !pages.length ? failed ? "열어서 확인하기" : "마디를 펼치는 중" : ""}</span></Unwritten>}
       </HarumadiPaperSurface>
     </Leaf>)}
-    {!still && ownerId && <TurningCover data-spread-turning-cover><HarumadiPaperSurface opening={ready}><HarumadiCover ownerId={ownerId} kind="harumadi" harumadiPdf={{ ...book,
+    {!still && ownerId && <TurningCover data-spread-turning-cover><HarumadiPaperSurface><HarumadiCover ownerId={ownerId} kind="harumadi" harumadiPdf={{ ...book,
       entryCount: book.entryIds.length, pageCount: 0, hasCover: book.coverStyle.endsWith("-image") && book.entryIds.length > 0 }} /></HarumadiPaperSurface></TurningCover>}
   </Spread>;
 }
