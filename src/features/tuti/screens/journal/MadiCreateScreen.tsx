@@ -28,7 +28,7 @@ import { PetProfiles } from "@/features/tuti/components/PetProfiles";
 
 type Stage = "photo" | "write" | "preview";
 
-export function MadiCreateScreen({ onBack, onSave, onCollection, onSaved, onStartAnother, onContinueInHarumadi, continueInHarumadi = false, harumadiSelection, draftOwnerId, inHarumadi = false, destination, draftDestination, destinationVerified = Boolean(destination), destinationScopeChanged = false, destinationError = false, onRetryDestination, firstMadi = false, initialPlace, collectionLabel = "작성 마치기", preview = false }: {
+export function MadiCreateScreen({ onBack, onSave, onCollection, onSaved, onEditSaved, onStartAnother, onContinueInHarumadi, continueInHarumadi = false, harumadiSelection, draftOwnerId, inHarumadi = false, destination, draftDestination, destinationVerified = Boolean(destination), destinationScopeChanged = false, destinationError = false, onRetryDestination, firstMadi = false, initialPlace, collectionLabel = "작성 마치기", preview = false }: {
   destination?: Pick<Harumadi, "id" | "title" | "shared" | "sharingAudience">;
   draftDestination?: Pick<Harumadi, "id" | "title" | "shared" | "sharingAudience">;
   destinationVerified?: boolean;
@@ -45,6 +45,7 @@ export function MadiCreateScreen({ onBack, onSave, onCollection, onSaved, onStar
   onSave?: (input: JournalEntryInput) => Promise<TutiJournalEntry>;
   onCollection: () => void;
   onSaved?: (entry: TutiJournalEntry) => void;
+  onEditSaved?: (entry: TutiJournalEntry) => void;
   onStartAnother?: () => void;
   onContinueInHarumadi?: (bookId: string) => void;
   continueInHarumadi?: boolean;
@@ -115,11 +116,17 @@ export function MadiCreateScreen({ onBack, onSave, onCollection, onSaved, onStar
     selection.current += 1;
     preparingPhotoRef.current = false;
     setPreparingPhoto(false);
-    if (saved) { onCollection(); return; }
+    if (saved) {
+      // A completed first madi already exists on the server. Edit that ID;
+      // never reopen a new composition and create the same memory twice.
+      if (savedAsFirstMadi && !inHarumadi && onEditSaved) onEditSaved(saved);
+      else onCollection();
+      return;
+    }
     if (stage === "preview") setStage("write");
     else if (stage === "write") setStage("photo");
     else void localDraft.leave(onBack);
-  }, [cancelCrop, cropSource, onBack, onCollection, saved, stage, localDraft]);
+  }, [cancelCrop, cropSource, onBack, onCollection, onEditSaved, saved, savedAsFirstMadi, inHarumadi, stage, localDraft]);
   useEffect(() => {
     if (preview || needsBookSelection) return;
     const onAndroidBack = (event: Event) => {
@@ -214,7 +221,7 @@ export function MadiCreateScreen({ onBack, onSave, onCollection, onSaved, onStar
 
   return <Frame aria-labelledby="madi-create-heading">
     <Header>
-      <BackButton aria-label={saved ? inHarumadi ? "하루마디로" : collectionLabel : "이전으로"} onClick={back} disabled={saving} />
+      <BackButton aria-label={saved ? savedAsFirstMadi && !inHarumadi && onEditSaved ? "남긴 첫 마디 수정" : inHarumadi ? "하루마디로" : collectionLabel : "이전으로"} onClick={back} disabled={saving} />
       <HeaderTitle $book={inHarumadi}>{inHarumadi ? destination?.title ? `${destination.title}에 남길 마디` : "하루마디에 남길 마디" : madiLabel}</HeaderTitle>
       <StepCount>{saved ? <Check size={18} aria-label="저장 완료" /> : stage === "preview" ? "미리보기" : `${stage === "photo" ? 1 : 2} / 2`}</StepCount>
     </Header>

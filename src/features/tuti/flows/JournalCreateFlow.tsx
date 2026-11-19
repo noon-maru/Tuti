@@ -102,6 +102,7 @@ function JournalComposer({ ownerId, harumadiId }: { ownerId?: string; harumadiId
     initialPlace={initialPlaceId && initialPlaceName ? { id: initialPlaceId, name: initialPlaceName } : undefined}
     collectionLabel={harumadiId ? "하루마디로 돌아가기" : sharedPlaceReturn ? "공유된 장소로 돌아가기" : fromExplore ? "나들이로 돌아가기" : fromLibrary ? "내 책장으로 돌아가기" : "작성 마치기"}
     onBack={returnToSource}
+    onEditSaved={entry => router.replace(`/madi/edit?entryId=${encodeURIComponent(entry.id)}&source=detail`)}
     onSave={async draft => {
       if (harumadiId && !destinationVerified) throw new Error("담을 하루마디를 다시 확인해주세요. 작성 중인 내용은 그대로 남아 있어요.");
       const input = { ...draft, ...(harumadiId ? { harumadiId, expectedHarumadiShared: Boolean(book.data?.shared) } : {}) };
