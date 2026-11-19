@@ -214,7 +214,11 @@ export const Button = styled(BaseButton)<ButtonStyleProps>`
   ${widthStyles}
 `;
 
-export const ButtonLink = styled(BaseButtonLink)<ButtonStyleProps>`
+// `as={Link}` targets a component, so Emotion's default DOM filter no longer
+// removes styling props. Keep router props while consuming `as` and `$…` here.
+export const ButtonLink = styled(BaseButtonLink, {
+  shouldForwardProp: prop => prop !== "as" && !prop.startsWith("$"),
+})<ButtonStyleProps>`
   ${buttonFrameStyles}
   ${sizeStyles}
   ${toneStyles}
