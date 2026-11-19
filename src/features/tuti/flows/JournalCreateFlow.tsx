@@ -18,14 +18,34 @@ import { cachedMadiDestination, madiDestinationScopeChanged } from "@/lib/madiCo
 import { MadiHarumadiSelection } from "@/features/tuti/screens/journal/MadiHarumadiSelection";
 import { JournalDetailStatusScreen } from "@/features/tuti/screens/journal/JournalDetailScreen";
 import { publicPlaceReturnPath, savedMadiSelectionPath } from "@/lib/savedMadiSelection";
+import { AppLoadingScreen } from "@/features/tuti/components/LoadingIndicator";
+import { welcomeMadiCancelPath } from "@/shared/tuti/welcomeGuide";
 
 export function JournalCreateFlow() {
+  const router = useRouter();
   const ownerId = useSession()?.userId;
   const params = useSearchParams();
   const harumadiId = params.get("harumadiId");
   const savedId = params.get("savedEntryId");
+  const query = useTutiJournalEntries(!savedId);
   if (savedId) return <SavedMadiSelection key={`${ownerId}:${savedId}`} ownerId={ownerId} entryId={savedId} />;
-  return <JournalComposer key={`${ownerId ?? "pending"}:${harumadiId ?? "new"}:${params.get("placeId") ?? "general"}`} ownerId={ownerId} harumadiId={harumadiId} />;
+  // Unknown is not an existing madi: mount the editor only once its title is known.
+  // Retain it after a background refetch failure instead of discarding entered text.
+  const returnBeforeWriting = () => {
+    const source = params.get("from");
+    const welcomeReturn = welcomeMadiCancelPath(params.get("cancelTo"));
+    if (welcomeReturn || source === "welcome") { router.replace(welcomeReturn ?? "/entry"); return; }
+    if (source === "library" && params.get("cancelTo") === "library") { router.replace("/"); return; }
+    if (harumadiId) { router.replace(harumadiPath(harumadiId)); return; }
+    const placeReturn = publicPlaceReturnPath(source, params.get("placeId"));
+    if (placeReturn) { router.replace(placeReturn); return; }
+    if (source === "library" || source === "explore") { router.replace(source === "explore" ? "/explore" : "/"); return; }
+    if (window.history.length > 1) router.back();
+    else router.replace("/madi");
+  };
+  if (!ownerId || (!query.isSuccess && !query.dataUpdatedAt && !query.isError)) return <AppLoadingScreen label="작성 화면을 준비하고 있어요." />;
+  if (query.isError && !query.dataUpdatedAt) return <JournalDetailStatusScreen message="마디를 확인하지 못했어요. 다시 시도해주세요." onBack={returnBeforeWriting} onRetry={() => void query.refetch()} />;
+  return <JournalComposer key={`${ownerId}:${harumadiId ?? "new"}:${params.get("placeId") ?? "general"}`} ownerId={ownerId} harumadiId={harumadiId} initialFirstMadi={query.entries.length === 0} />;
 }
 
 function SavedMadiSelection({ ownerId, entryId }: { ownerId?: string; entryId: string }) {
@@ -45,7 +65,7 @@ function SavedMadiSelection({ ownerId, entryId }: { ownerId?: string; entryId: s
   }} />;
 }
 
-function JournalComposer({ ownerId, harumadiId }: { ownerId?: string; harumadiId: string | null }) {
+function JournalComposer({ ownerId, harumadiId, initialFirstMadi }: { ownerId?: string; harumadiId: string | null; initialFirstMadi: boolean }) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const client = useQueryClient();
@@ -63,7 +83,8 @@ function JournalComposer({ ownerId, harumadiId }: { ownerId?: string; harumadiId
   const savedEntryId = useRef<string | null>(null);
   const request = useRef<{ hash: string; id: string } | null>(null);
   const resetComposition = () => { request.current = null; savedEntryId.current = null; };
-  const { addEntry, updateEntry, entries, isSuccess } = useTutiJournalEntries();
+  const { addEntry, updateEntry } = useTutiJournalEntries();
+  const [firstMadi] = useState(initialFirstMadi);
   const setActiveJournalEntry = useTutiStore(state => state.setActiveJournalEntry);
   const source = searchParams.get("from");
   const fromLibrary = source === "welcome" || source === "library";
@@ -74,6 +95,11 @@ function JournalComposer({ ownerId, harumadiId }: { ownerId?: string; harumadiId
   const recommendationId = searchParams.get("journeyId");
   const sharedPlaceReturn = publicPlaceReturnPath(source, initialPlaceId);
   const returnToSource = () => {
+    if (!savedEntryId.current) {
+      const welcomeReturn = welcomeMadiCancelPath(searchParams.get("cancelTo"));
+      if (welcomeReturn) { router.replace(welcomeReturn); return; }
+      if (source === "welcome") { router.replace("/entry"); return; }
+    }
     // 책 지정은 저장 목적지다. 책장에서 시작한 미저장 작성의 취소 목적지와 구분한다.
     if (source === "library" && searchParams.get("cancelTo") === "library" && !savedEntryId.current) { router.replace("/"); return; }
     if (harumadiId) { router.replace(harumadiPath(harumadiId)); return; }
@@ -85,7 +111,7 @@ function JournalComposer({ ownerId, harumadiId }: { ownerId?: string; harumadiId
   };
 
   return <MadiCreateScreen draftOwnerId={ownerId}
-    firstMadi={isSuccess && entries.length === 0}
+    firstMadi={firstMadi}
     inHarumadi={Boolean(harumadiId)}
     continueInHarumadi={Boolean(harumadiId && searchParams.get("continue") === "1")}
     onStartAnother={resetComposition}

@@ -14,3 +14,16 @@ export function parseWelcomeGuideStep(mode: string | null, step: string | null):
 export function welcomeGuidePath(step: WelcomeGuideStep) {
   return `/entry?mode=guide&step=${step}`;
 }
+
+/** Only static welcome surfaces can be used as an explicit composition cancel target. */
+export function welcomeMadiCancelPath(value: string | null): string | null {
+  if (value === "/entry") return value;
+  if (value && /^\/entry\?mode=guide&step=[012]$/.test(value)) return value;
+  if (value && /^\/harumadi\/example\?page=[0-4](?:&from=(?:welcome|library))?$/.test(value)) return value;
+  return null;
+}
+
+export function welcomeMadiCreatePath(previous: string, source = "welcome") {
+  const path = `/madi/new?from=${source === "library" ? "library" : "welcome"}`;
+  return `${path}&cancelTo=${encodeURIComponent(welcomeMadiCancelPath(previous) ?? "/entry")}`;
+}

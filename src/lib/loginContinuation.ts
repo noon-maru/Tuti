@@ -1,5 +1,6 @@
 import { preferencesStorage } from "./storage/preferencesStorage";
 import type { StateStorage } from "zustand/middleware";
+import { welcomeMadiCancelPath } from "@/shared/tuti/welcomeGuide";
 
 const KEY = "tuti-login-continuation-v1";
 const TTL = 30 * 60_000;
@@ -30,7 +31,7 @@ export function safeLoginReturn(value: string | null | undefined): string | null
     }
     const valid = key === "placeName" ? /^[a-zA-Z0-9_-]{1,128}$/.test(url.searchParams.get("placeId") ?? "") && item.length <= 100 && !/[\u0000-\u001f\u007f]/u.test(item)
       : key.endsWith("Id") ? /^[a-zA-Z0-9_-]{1,128}$/.test(item)
-        : key === "cancelTo" ? item === "library"
+        : key === "cancelTo" ? item === "library" || welcomeMadiCancelPath(item) !== null
         : key === "step" ? /^\d{1,2}$/.test(item)
         : key === "filter" ? item === "unfiled"
           : key === "view" ? ["cards", "list"].includes(item)

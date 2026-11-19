@@ -37,7 +37,7 @@ test("재진입 확인 전에는 소개를 그리지 않고 도달 후에는 가
   assert.match(entry, /entryCompleted \|\| \(Boolean\(entryRecord\)/);
   assert.match(entry, /if \(!hasHydrated \|\| !completionReady \|\| returnTarget \|\| continueToExplore \|\| shouldRedirectToMain \|\| legacyExample\) return null/);
   assert.match(entry, /router.replace\("\/explore"\)/);
-  assert.match(entry, /router.replace\("\/madi\/new\?from=welcome"\)/);
+  assert.match(entry, /router.replace\(welcomeMadiCreatePath/);
   assert.doesNotMatch(entry, /router.push\(welcomeGuidePath/);
   assert.doesNotMatch(home, /showWelcome|readLibraryWelcomeSeen|router.replace\("\/entry"\)/);
   assert.match(home, /markLibraryEntryCompleted\(ownerId\)/);
@@ -45,5 +45,5 @@ test("재진입 확인 전에는 소개를 그리지 않고 도달 후에는 가
   const create = readFileSync("src/features/tuti/flows/JournalCreateFlow.tsx", "utf8");
   assert.match(create, /if \(fromLibrary\) \{ router.replace\("\/"\); return; \}/);
   assert.match(create, /onBack=\{returnToSource\}/);
-  assert.doesNotMatch(create, /"\/entry"/);
+  assert.match(create, /if \(source === "welcome"\) \{ router.replace\("\/entry"\); return; \}/);
 });

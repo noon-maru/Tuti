@@ -3,7 +3,7 @@
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { WelcomeScreen } from "../screens/onboarding/WelcomeScreen";
 import { HarumadiExampleFlow } from "./HarumadiExampleFlow";
-import { parseWelcomeGuideStep, welcomeGuidePath, type WelcomeGuideStep } from "@/shared/tuti/welcomeGuide";
+import { parseWelcomeGuideStep, welcomeGuidePath, welcomeMadiCreatePath, type WelcomeGuideStep } from "@/shared/tuti/welcomeGuide";
 import { welcomeHarumadiPath } from "@/shared/tuti/welcomeHarumadi";
 import { setWelcomeHarumadiOrigin } from "@/lib/welcomeHarumadiNavigation";
 import { consentEntryPath } from "@/lib/loginContinuation";
@@ -14,7 +14,7 @@ export function PublicWelcomeFlow() {
   const guideStep = parseWelcomeGuideStep(params.get("mode"), params.get("step"));
   if (pathname === "/harumadi/example") return <HarumadiExampleFlow beforeConsent />;
   return <WelcomeScreen guideStep={guideStep}
-    onRecord={() => router.push(consentEntryPath("/madi/new?from=welcome"))}
+    onRecord={() => router.push(consentEntryPath(welcomeMadiCreatePath(guideStep === null ? "/entry" : welcomeGuidePath(guideStep))))}
     onExplore={() => router.push(consentEntryPath("/explore"))}
     onBookOpen={origin => { setWelcomeHarumadiOrigin(origin); router.push(welcomeHarumadiPath(1)); }}
     onGuideOpen={() => router.push(welcomeGuidePath(0))}

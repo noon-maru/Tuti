@@ -23,7 +23,9 @@ test("지정한 하루마디의 실제 제목과 공유 범위를 작성 시작�
 
 test("첫 마디 안내는 진입 위치가 아니라 실제 마디가 없는 경우에만 사용한다", () => {
   const flow = readFileSync("src/features/tuti/flows/JournalCreateFlow.tsx", "utf8");
-  assert.match(flow, /firstMadi=\{isSuccess && entries.length === 0\}/);
+  assert.match(flow, /initialFirstMadi=\{query.entries.length === 0\}/);
+  assert.match(flow, /const \[firstMadi\] = useState\(initialFirstMadi\)/);
+  assert.match(flow, /firstMadi=\{firstMadi\}/);
   assert.doesNotMatch(flow, /if \(fromWelcome\)|<JournalEditorScreen|startTransition/);
   assert.equal(flow.match(/<MadiCreateScreen/g)?.length, 1);
   for (const firstMadi of [false, true]) {

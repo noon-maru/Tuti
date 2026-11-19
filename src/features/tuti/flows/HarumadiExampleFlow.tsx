@@ -7,6 +7,7 @@ import { parseWelcomeHarumadiPage, welcomeHarumadiPath } from "@/shared/tuti/wel
 import { getWelcomeHarumadiOrigin, takeWelcomeHarumadiOrigin } from "@/lib/welcomeHarumadiNavigation";
 import { recordProductInteraction } from "@/lib/productInteraction";
 import { consentEntryPath } from "@/lib/loginContinuation";
+import { welcomeMadiCreatePath } from "@/shared/tuti/welcomeGuide";
 
 export function HarumadiExampleFlow({ beforeConsent = false }: { beforeConsent?: boolean } = {}) {
   const router = useRouter();
@@ -18,9 +19,10 @@ export function HarumadiExampleFlow({ beforeConsent = false }: { beforeConsent?:
   return <WelcomeHarumadiPreview page={page} origin={origin}
     onPageChange={next => router.replace(welcomeHarumadiPath(next, source))}
     onRecord={() => {
-      if (beforeConsent) { router.push(consentEntryPath(`/madi/new?from=${source}`)); return; }
+      const destination = welcomeMadiCreatePath(welcomeHarumadiPath(page, source), source);
+      if (beforeConsent) { router.push(consentEntryPath(destination)); return; }
       void recordProductInteraction("welcome_record_started", "welcome").catch(() => {});
-      router.replace(`/madi/new?from=${source}`);
+      router.replace(destination);
     }}
     onClose={() => {
       if (window.history.length > 1) router.back();

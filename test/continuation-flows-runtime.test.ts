@@ -5,6 +5,7 @@ import { createLoginContinuation, loginSuccessPath, safeLoginReturn } from "@/li
 import { DEFAULT_NOTIFICATION_SETTINGS } from "@/shared/notifications/preferences";
 import { publicPlaceReturnPath, savedMadiSelectionPath } from "@/lib/savedMadiSelection";
 import { PublicMadiUnavailable, readPublicMadi } from "@/lib/publicMadiRead";
+import { welcomeMadiCancelPath } from "@/shared/tuti/welcomeGuide";
 
 const flush = () => new Promise(resolve => setImmediate(resolve));
 test("작은 여행에서 선택한 책의 마디는 저장과 연결을 한 번만 요청하고 방금 쓴 쪽으로 복귀한다", async () => {
@@ -27,6 +28,8 @@ test("작은 여행에서 선택한 책의 마디는 저장과 연결을 한 번
     "../hooks/useLifecycleView": { useLifecycleView: (_event: string, origin: string) => origins.push(origin) },
     "@/lib/lifecycle": { trackLifecycle() {} }, "../hooks/useNotificationPresence": { useNotificationPresence() {} }, "@/lib/notificationSettings": {},
     "@/lib/savedMadiSelection": { publicPlaceReturnPath, savedMadiSelectionPath },
+    "@/features/tuti/components/LoadingIndicator": { AppLoadingScreen: "loading" },
+    "@/shared/tuti/welcomeGuide": { welcomeMadiCancelPath },
   };
   const create = () => clientFlowHarness("src/features/tuti/flows/JournalCreateFlow.tsx", "JournalCreateFlow", deps, { TextEncoder, window: { history: { length: 12 } } });
   const flow = create(), parent = flow.render(), composer = flow.render(parent.props, parent.type as never);
@@ -129,6 +132,8 @@ test("실제 작성 흐름은 저장 후 URL에서 선택을 복원하고 다른
     "@/lib/harumadis": {}, "@/lib/tutiApi": {}, "../hooks/useLifecycleView": { useLifecycleView() {} },
     "@/lib/lifecycle": {}, "../hooks/useNotificationPresence": { useNotificationPresence() {} }, "@/lib/notificationSettings": {},
     "@/lib/savedMadiSelection": { publicPlaceReturnPath, savedMadiSelectionPath },
+    "@/features/tuti/components/LoadingIndicator": { AppLoadingScreen: "loading" },
+    "@/shared/tuti/welcomeGuide": { welcomeMadiCancelPath },
   };
   const create = () => clientFlowHarness("src/features/tuti/flows/JournalCreateFlow.tsx", "JournalCreateFlow", deps);
   const first = create(), parent = first.render();

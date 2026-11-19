@@ -33,7 +33,7 @@ test("소개에서 선택한 작성·나들이는 URL로 동의를 거쳐 같은
   });
   const intro = page.render();
   (intro.props.onRecord as () => void)(); (intro.props.onExplore as () => void)();
-  for (const [index, target] of ["/madi/new?from=welcome", "/explore"].entries()) {
+  for (const [index, target] of [guide.welcomeMadiCreatePath("/entry"), "/explore"].entries()) {
     const url = new URL(paths[index], "https://tuti.invalid");
     assert.equal(url.pathname, "/entry");
     assert.equal(safeLoginReturn(url.searchParams.get("returnTo")), target);
@@ -53,10 +53,11 @@ test("동의 전 예시의 작성은 동의 화면으로 보내고 활동 계측
     "@/lib/welcomeHarumadiNavigation": { getWelcomeHarumadiOrigin: () => null, takeWelcomeHarumadiOrigin() {} },
     "@/lib/productInteraction": { recordProductInteraction: async () => { events.push("activity"); } },
     "@/lib/loginContinuation": { consentEntryPath },
+    "@/shared/tuti/welcomeGuide": guide,
   }, { window: { history: { length: 1 } } });
   const screen = page.render({ beforeConsent: true });
   (screen.props.onRecord as () => void)(); (screen.props.onClose as () => void)();
-  assert.equal(paths[0], consentEntryPath("/madi/new?from=welcome"));
+  assert.equal(paths[0], consentEntryPath(guide.welcomeMadiCreatePath(example.welcomeHarumadiPath(2))));
   assert.equal(paths[1], "/entry"); assert.deepEqual(events, []);
   page.dispose();
 });

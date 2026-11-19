@@ -8,7 +8,7 @@ import { WelcomeScreen } from "@/features/tuti/screens/onboarding/WelcomeScreen"
 import { recordProductInteraction } from "@/lib/productInteraction";
 import { recordProductActivity } from "@/lib/productActivity";
 import { useTutiStore } from "@/store/tuti";
-import { parseWelcomeGuideStep, welcomeGuidePath, type WelcomeGuideStep } from "@/shared/tuti/welcomeGuide";
+import { parseWelcomeGuideStep, welcomeGuidePath, welcomeMadiCreatePath, type WelcomeGuideStep } from "@/shared/tuti/welcomeGuide";
 import { parseWelcomeHarumadiPage, welcomeHarumadiPath } from "@/shared/tuti/welcomeHarumadi";
 import { setWelcomeHarumadiOrigin } from "@/lib/welcomeHarumadiNavigation";
 import { readLibraryEntryCompleted } from "@/lib/libraryPreferences";
@@ -43,7 +43,7 @@ export function EntryFlow() {
   const entryStage = useTutiStore((state) => state.entryStage);
   const startRecord = () => {
     void recordProductInteraction("welcome_record_started", "welcome").catch(() => {});
-    router.replace("/madi/new?from=welcome");
+    router.replace(welcomeMadiCreatePath(guideStep === null ? "/entry" : welcomeGuidePath(guideStep)));
   };
 
   const shouldRedirectToMain =

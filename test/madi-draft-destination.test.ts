@@ -48,7 +48,7 @@ test("책 확인 전·권한 조회 실패에도 작성 화면을 유지하고 �
   }
   const flow = readFileSync("src/features/tuti/flows/JournalCreateFlow.tsx", "utf8");
   assert.match(flow, /book.isSuccess && book.isFetchedAfterMount/);
-  assert.match(flow, /key=\{`\$\{ownerId \?\? "pending"\}:\$\{harumadiId \?\? "new"\}:\$\{params.get\("placeId"\)/);
+  assert.match(flow, /key=\{`\$\{ownerId\}:\$\{harumadiId \?\? "new"\}:\$\{params.get\("placeId"\)/);
   assert.match(flow, /refetchOnWindowFocus: false, refetchOnReconnect: false/);
   const screen = readFileSync("src/features/tuti/screens/journal/MadiCreateScreen.tsx", "utf8");
   assert.match(screen, /newMadiDraftContext\(inHarumadi \? draftDestination \?\? destination : null, initialPlace\?\.id\)/);
