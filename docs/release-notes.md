@@ -12,7 +12,9 @@ Android의 `출시 노트`와 iOS의 `이 버전에서 업그레이드된 사항
 - 반려동물 프로필·사진과 선택한 마디 연결, 반려견 동반 나들이와 조건 안내, 한 권씩 책장·표지/내지색·저장 후 재열람을 포함한다. 건강 관리·자동 개체 인식·실물 주문을 제공한다고 홍보하지 않는다.
 - 기능 소스 `f475ef8a`의 [전체 CI](https://github.com/noon-maru/Tuti/actions/runs/44469046565)와 [운영 배포](https://github.com/noon-maru/Tuti/actions/runs/44469058280)가 통과했다. 2026-11-19 공개 readiness에서 `f475ef8a1c72` 및 DB·객체 저장소 정상을 확인했다.
 - 스토어용 8장은 현재 실제 컴포넌트와 가상의 기록·프로필·장소로 새로 캡처했다. 5번은 기본 ‘한 권씩’ 보기다. 모바일 Chromium 캡처이며 네이티브 실기기 검증을 대신하지 않는다.
-- 빌드와 Google Play 내부 테스트·App Store Connect 업로드는 Actions에서 진행한다. 실행 결과·스토어 처리 상태는 완료 후 기록한다. 심사 제출·승인·정식 공개·최신/최소 지원 버전 변경은 업로드와 구분한다.
+- 앱 전용 빌드에서 서버 파일을 제외해도 추천 응답 타입을 해석할 수 있도록 점수·진단 타입을 공용 API 모듈로 분리했다. 서버 제외 투영의 전체 타입 검사, 관련 회귀 10건과 변경 파일 ESLint를 통과했다.
+- 2026-11-19 앱 소스 `0a521e75`의 [전체 CI](https://github.com/noon-maru/Tuti/actions/runs/44488825373) 통과 후 `2.0.0 (22)`를 [Google Play 내부 테스트](https://github.com/noon-maru/Tuti/actions/runs/44488921222)와 [App Store Connect](https://github.com/noon-maru/Tuti/actions/runs/44488919159)에 업로드했다. Android AAB·APK 서명/R8 검증과 iOS 아카이브 버전·서명 검증을 통과했다.
+- 스토어 후속 처리·TestFlight/실기기 검증·심사 제출·승인·정식 공개·최신/최소 지원 버전 변경은 아직 완료하지 않았다. 스크린샷·소개·출시 노트의 스토어 콘솔 입력도 별도이며, 로컬 준비 문안이 자동 적용된 것으로 기록하지 않는다.
 
 ### 공통 출시 노트
 
