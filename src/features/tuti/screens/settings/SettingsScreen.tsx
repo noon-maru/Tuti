@@ -33,6 +33,7 @@ export function SettingsScreen({
   pets = [],
   accountConnected,
   accountLabel,
+  accountEmail,
   notificationsAvailable,
   cardDisplayPreferences,
   onBack,
@@ -44,6 +45,7 @@ export function SettingsScreen({
   pets?: readonly PetProfile[];
   accountConnected: boolean;
   accountLabel?: string;
+  accountEmail?: string;
   notificationsAvailable: boolean;
   cardDisplayPreferences: CardDisplayPreferences;
   onBack: () => void;
@@ -57,6 +59,8 @@ export function SettingsScreen({
   const [logoutPending, setLogoutPending] = useState(false);
   const [logoutError, setLogoutError] = useState<string | null>(null);
   const hasCompanions = Boolean(ownerId && pets.length);
+  const email = accountEmail?.trim();
+  const showEmail = accountConnected && Boolean(email) && accountLabel?.trim().toLowerCase() !== email?.toLowerCase();
   const companionNames = pets.slice(0, 2).map(pet => pet.name).join(" · ") + (pets.length > 2 ? ` 외 ${pets.length - 2}마리` : "");
 
   const logout = async () => {
@@ -88,6 +92,7 @@ export function SettingsScreen({
           {hasCompanions && ownerId ? <CompanionMark aria-hidden="true"><PetMenuPortraits key={ownerId} ownerId={ownerId} profiles={pets} fallback={<PawPrint size={26} aria-hidden="true" />} /></CompanionMark> : <AccountMark aria-hidden="true">T</AccountMark>}
           <div>
             <strong>{accountLabel ?? "기기에 저장된 Tuti"}</strong>
+            {showEmail && <AccountEmail>({email})</AccountEmail>}
             {hasCompanions && <CompanionLink type="button" onClick={() => onNavigate("pets")} aria-label={`${companionNames} 더 살펴보기 · 프로필 관리`}>
               <span>{companionNames} 더 살펴보기</span><ChevronRight size={15} aria-hidden="true" />
             </CompanionLink>}
@@ -340,6 +345,11 @@ const AccountMark = styled.span`
   color: var(--color-brand-900);
   font-size: var(--font-size-400);
   font-weight: 800;
+`;
+
+const AccountEmail = styled.small`
+  min-width: 0; color: var(--color-text-muted); font-size: var(--font-size-100);
+  font-weight: 400; line-height: 1.6; overflow-wrap: anywhere;
 `;
 
 const CompanionMark = styled.span`

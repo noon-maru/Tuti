@@ -95,7 +95,7 @@ test("설정은 현재 계정의 프로필만 연결하고 조회 대기·계정
     "@/lib/loginContinuation": { loginPath: () => "/login" },
     "../hooks/usePetProfiles": { usePetProfiles: (owner: string) => { queried.push(owner); return { data: ready && owner === "owner" ? { pets: [pet] } : undefined }; } },
   });
-  const pending = flow.render(); assert.equal(pending.type, "settings"); assert.equal(pending.props.accountLabel, "정연한"); assert.equal(pending.props.pets, undefined);
+  const pending = flow.render(); assert.equal(pending.type, "settings"); assert.equal(pending.props.accountLabel, "정연한"); assert.equal(pending.props.accountEmail, "sample@example.test"); assert.equal(pending.props.pets, undefined);
   ready = true; const loaded = flow.render(); assert.deepEqual(loaded.props.pets, [pet]);
   assert.equal(queried.at(-1), "owner");
   (loaded.props.onNavigate as (value: string) => void)("pets"); assert.deepEqual(routes, ["/pets"]);
@@ -103,4 +103,18 @@ test("설정은 현재 계정의 프로필만 연결하고 조회 대기·계정
   const switched = flow.render(); assert.equal(switched.props.ownerId, "other"); assert.equal(switched.props.accountLabel, "other@example.test"); assert.equal(switched.props.pets, undefined);
   session = null; const guest = flow.render(); assert.equal(queried.at(-1), ""); assert.equal(guest.props.ownerId, undefined); assert.equal(guest.props.pets, undefined);
   flow.dispose();
+});
+
+test("계정 이메일은 이름 아래 작은 괄호로 표시하고 이메일 대체 이름과 중복하지 않는다", () => {
+  const page = settingsHarness();
+  const html = renderToStaticMarkup(page.render({ ...defaults, accountLabel: "정연한", accountEmail: "sample@example.test" }));
+  assert.match(html, /<strong>정연한<\/strong>/);
+  assert.match(html, /<small[^>]*>\(sample@example.test\)<\/small>/);
+  assert.ok(html.indexOf("<strong>정연한") < html.indexOf("(sample@example.test)"));
+  const fallback = renderToStaticMarkup(page.render({ ...defaults, accountLabel: "sample@example.test", accountEmail: "sample@example.test" }));
+  assert.equal((fallback.match(/sample@example\.test/g) ?? []).length, 1);
+  assert.doesNotMatch(fallback, /\(sample@example.test\)/);
+  const guest = renderToStaticMarkup(page.render({ ...defaults, accountConnected: false, accountEmail: "sample@example.test" }));
+  assert.doesNotMatch(guest, /sample@example.test/);
+  page.dispose();
 });

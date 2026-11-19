@@ -47,6 +47,7 @@ export function SettingsFlow() {
       pets={session?.userId ? pets.data?.pets : undefined}
       accountConnected={Boolean(account)}
       accountLabel={account?.displayName?.trim() || account?.email}
+      accountEmail={account?.email}
       notificationsAvailable={notificationsAvailable}
       cardDisplayPreferences={cardDisplayPreferences}
       onBack={() => router.replace("/")}
