@@ -76,7 +76,7 @@ test("예시는 독립 경로에서 쪽 이동은 replace, 닫기는 실제 히�
   assert.match(readFileSync("src/app/(tuti)/harumadi/example/page.tsx", "utf8"), /<HarumadiExampleFlow/);
   assert.match(flow, /onPageChange=\{next => router.replace\(welcomeHarumadiPath/);
   assert.match(flow, /window.history.length > 1\) router.back\(\)/);
-  assert.match(flow, /else router.replace\("\/"\)/);
+  assert.match(flow, /else router.replace\(beforeConsent \? "\/entry" : "\/"\)/);
   assert.doesNotMatch(flow, /router.replace\("\/entry"\)/);
   assert.doesNotMatch(entry, /<WelcomeHarumadiPreview/);
   assert.match(home, /welcomeHarumadiPath\(1, "library"\)/);

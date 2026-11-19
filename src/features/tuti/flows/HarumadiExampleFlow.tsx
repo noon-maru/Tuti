@@ -6,8 +6,9 @@ import { WelcomeHarumadiPreview } from "@/features/tuti/screens/onboarding/Welco
 import { parseWelcomeHarumadiPage, welcomeHarumadiPath } from "@/shared/tuti/welcomeHarumadi";
 import { getWelcomeHarumadiOrigin, takeWelcomeHarumadiOrigin } from "@/lib/welcomeHarumadiNavigation";
 import { recordProductInteraction } from "@/lib/productInteraction";
+import { consentEntryPath } from "@/lib/loginContinuation";
 
-export function HarumadiExampleFlow() {
+export function HarumadiExampleFlow({ beforeConsent = false }: { beforeConsent?: boolean } = {}) {
   const router = useRouter();
   const params = useSearchParams();
   const [origin] = useState(getWelcomeHarumadiOrigin);
@@ -17,11 +18,12 @@ export function HarumadiExampleFlow() {
   return <WelcomeHarumadiPreview page={page} origin={origin}
     onPageChange={next => router.replace(welcomeHarumadiPath(next, source))}
     onRecord={() => {
+      if (beforeConsent) { router.push(consentEntryPath(`/madi/new?from=${source}`)); return; }
       void recordProductInteraction("welcome_record_started", "welcome").catch(() => {});
       router.replace(`/madi/new?from=${source}`);
     }}
     onClose={() => {
       if (window.history.length > 1) router.back();
-      else router.replace("/");
+      else router.replace(beforeConsent ? "/entry" : "/");
     }} />;
 }

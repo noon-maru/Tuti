@@ -3,7 +3,7 @@
 import styled from "@emotion/styled";
 import { ChevronRight } from "lucide-react";
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { TutiWordmark } from "@/features/tuti/components/TutiWordmark";
 import { InitialTermsLoadError, initialTermsEntryRedirect, isInitialTermsRightsPath, startInitialServiceTerms, type InitialTermsState } from "@/lib/initialServiceTerms";
@@ -11,7 +11,7 @@ import { submitInitialConsents } from "@/lib/initialConsent";
 import { animateRequiredConsents } from "@/lib/requiredConsentAnimation";
 import { getSessionSnapshot, subscribeToSession } from "@/lib/auth/session";
 import { serviceTermsAcceptanceCache } from "@/lib/serviceTermsAcceptanceCache";
-import { Button, baseControlStyles } from "@/shared/ui/buttons";
+import { BackButton, Button, baseControlStyles } from "@/shared/ui/buttons";
 import { SERVICE_TERMS_REQUIRED_EVENT, ServiceTermsSessionExpiredError } from "@/lib/serviceTerms";
 import type { ServiceTermsOffer } from "@/shared/legal/serviceTerms";
 import { getLocationTerms, getLocationTermsVersion } from "@/shared/location/terms";
@@ -21,6 +21,8 @@ import { optInInitialNotifications } from "@/lib/notificationSettings";
 import { requestWebPushPermission } from "@/features/tuti/notifications/webPushNotifications";
 import { notificationSettingsAvailable } from "@/shared/notifications/rollout";
 import { consentEntryPath } from "@/lib/loginContinuation";
+import { isPublicWelcomePath } from "@/shared/tuti/publicWelcome";
+import { PublicWelcomeFlow } from "@/features/tuti/flows/PublicWelcomeFlow";
 
 // 오버레이가 아니라 진입 화면이다. 통과 전에는 children과 그 안의 effect를 마운트하지 않는다.
 export function InitialServiceTermsGate({ children, rightsChildren, renderContent = content => content }: {
@@ -29,10 +31,13 @@ export function InitialServiceTermsGate({ children, rightsChildren, renderConten
 }) {
   const pathname = usePathname();
   const router = useRouter();
+  const params = useSearchParams();
   const [state, setState] = useState<InitialTermsState | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [retry, setRetry] = useState(0);
   const [localCheckComplete, setLocalCheckComplete] = useState(false);
+  const [localHasSession, setLocalHasSession] = useState<boolean | null>(null);
+  const [consentBusy, setConsentBusy] = useState(false);
   const [documentOpen, setDocumentOpen] = useState<"service" | "location" | null>(null);
   const [reconsent, setReconsent] = useState(false);
   const admitted = useRef(false);
@@ -40,7 +45,8 @@ export function InitialServiceTermsGate({ children, rightsChildren, renderConten
   const forceChecking = useRef(false);
   const screenRef = useRef<HTMLElement>(null);
   const submittingConsent = useRef(false);
-  const entryRedirect = initialTermsEntryRedirect(pathname, state);
+  const publicWelcome = isPublicWelcomePath(pathname, params) && !reconsent;
+  const entryRedirect = publicWelcome ? null : initialTermsEntryRedirect(pathname, state);
   const reconsentDialog = reconsent && pathname !== "/entry";
 
   useEffect(() => {
@@ -59,8 +65,8 @@ export function InitialServiceTermsGate({ children, rightsChildren, renderConten
       activeUserId.current = cached.userId ?? null;
       setState(cached);
       setError(null);
-    }, !forceChecking.current, () => {
-      if (active) setLocalCheckComplete(true);
+    }, !forceChecking.current, hasStoredSession => {
+      if (active) { setLocalCheckComplete(true); setLocalHasSession(hasStoredSession); }
     }).then(next => {
       if (active) {
         activeUserId.current = next.userId ?? null;
@@ -101,7 +107,7 @@ export function InitialServiceTermsGate({ children, rightsChildren, renderConten
       activeUserId.current = userId;
       admitted.current = false;
       forceChecking.current = false;
-      setState(null); setError(null); setReconsent(false); setDocumentOpen(null);
+      setState(null); setError(null); setReconsent(false); setDocumentOpen(null); setLocalHasSession(null); setLocalCheckComplete(false);
       setRetry(value => value + 1);
     });
     const visible = () => {
@@ -141,6 +147,10 @@ export function InitialServiceTermsGate({ children, rightsChildren, renderConten
   // 새 기기에서도 기존 계정을 복구하거나 문의할 수 있다. 이 경로에서는 분석/추천을 시작하지 않는다.
   if (pathname === "/login" || pathname === "/inquiry" || (state?.hasStoredSession && isInitialTermsRightsPath(pathname))) return renderContent(rightsChildren);
 
+  // Static welcome is safe even while the public terms request is pending or unavailable.
+  // Existing stored sessions still wait for their receipt/cache to avoid a welcome flash.
+  if (publicWelcome && (state || (localCheckComplete && localHasSession === false))) return renderContent(<PublicWelcomeFlow />);
+
   // SSR·저장소 조회 동안 로고를 미리 그리면 캐시 진입에서도 새로고침마다 깜빡인다.
   if (entryRedirect || (!state && !error)) return renderContent(<LoadingBrand role="status" aria-label="튜티 시작 중">{localCheckComplete && !entryRedirect && <TutiWordmark priority />}</LoadingBrand>);
 
@@ -171,11 +181,13 @@ export function InitialServiceTermsGate({ children, rightsChildren, renderConten
       <MainPanel hidden={Boolean(documentOpen)}>
         <Content data-scroll-region>
           <Heading>
+            {!reconsent && pathname === "/entry" && (params.has("returnTo") || params.get("next") === "explore") && <BackButton type="button" aria-label="서비스 소개로 돌아가기" disabled={consentBusy}
+              onClick={() => { if (!submittingConsent.current) router.replace("/entry"); }} />}
             <h1 id={documentOpen ? undefined : "initial-terms-title"}><TutiWordmark priority /><span>{reconsent ? "이용약관 다시 동의" : "이용약관 동의"}</span></h1>
           </Heading>
           {offer ? <ConsentForm key={`${offer.version}:${offer.documentHash}`} offer={offer}
             onRead={setDocumentOpen} onAccepted={next => { admitted.current = next.allowed; setReconsent(false); setState(next); }} onRefresh={reload}
-            onSubmittingChange={value => { submittingConsent.current = value; }} /> : <Unavailable role="status" aria-live="polite">
+            onSubmittingChange={value => { submittingConsent.current = value; setConsentBusy(value); }} /> : <Unavailable role="status" aria-live="polite">
             <p>{error ?? (state ? "서비스 이용약관을 준비하고 있어요." : "이용약관을 확인하고 있어요.")}</p>
             {(error || state) && <>
               <small>동의할 약관이 확인되면 시작할 수 있어요.<br />아직 계정을 만들거나 활동을 기록하지 않아요.</small>
@@ -305,7 +317,7 @@ const ReconsentBackdrop = styled.div`
   @media (max-height: 600px) { padding: 8px; > section { border-radius: 16px; } }
 `;
 const Heading = styled.header`
-  flex-shrink: 0; margin-bottom: 30px;
+  flex-shrink: 0; margin-bottom: 30px; display: flex; align-items: center; gap: 8px;
   h1 { display: flex; align-items: center; gap: 10px; margin: 0; font-size: 18px; font-weight: 500; line-height: 1.5; letter-spacing: -0.025em; }
   img { display: block; width: 52px; height: auto; flex: none; }
   @media (max-height: 600px) { margin-bottom: 22px; }
