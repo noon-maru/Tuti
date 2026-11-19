@@ -26,9 +26,9 @@ test("5권·12마디·사진 8개와 빈 책·긴 글·선택 제목을 구성�
 });
 function fixture() {
   let state = { books: 0, entries: 0, links: 0, receipt: false };
-  let cleaned = false, uploaded = 0;
+  let cleaned = false, uploaded = 0, reads = 0;
   const db = {
-    user: { async findMany(query: unknown) { const text = JSON.stringify(query); assert.ok(text.includes("admin@tuti.today") && text.includes('"role":"admin"')); return [{ id: "admin-id" }]; } },
+    user: { async findMany(query: unknown) { reads++; const text = JSON.stringify(query); assert.ok(text.includes("admin@tuti.today") && text.includes('"role":"admin"')); return [{ id: "admin-id" }]; } },
     systemLog: { async findUnique() { return state.receipt ? { targetId: "admin-id" } : null; }, async create() { state.receipt = true; } },
     harumadi: { async count() { return state.books; }, async create() { state.books++; } },
     journalEntry: { async count() { return state.entries; }, async create({ data }: { data: Record<string, unknown> }) { assert.equal(data.ownerId, "admin-id"); assert.equal(data.publicationStatus, "private"); state.entries++; } },
@@ -41,7 +41,7 @@ function fixture() {
     async put() { uploaded++; }, async verify() {}, async clean() { cleaned = true; } };
   return { db: db as unknown as NonNullable<Parameters<typeof seedDevelopment>[1]>, files,
     failDatabase() { db.journalEntry.create = async () => { throw new Error("DB_FAILED"); }; },
-    state: () => state, cleaned: () => cleaned, uploaded: () => uploaded };
+    state: () => state, cleaned: () => cleaned, uploaded: () => uploaded, reads: () => reads };
 }
 function development(t: test.TestContext) {
   const keys = ["NODE_ENV", "TUTI_INSPECTION_ENV"];
@@ -56,11 +56,11 @@ function development(t: test.TestContext) {
 }
 test("운영 환경에서는 개발 표시가 있어도 DB·파일 접근 전에 차단한다", async t => {
   development(t);
-  const key = "NODE_ENV";
+  const key: string = "NODE_ENV";
   process.env[key] = "production";
   const f = fixture();
-  f.db.user.findMany = async () => { throw new Error("DATABASE_MUST_NOT_BE_READ"); };
   await assert.rejects(seedDevelopment(true, f.db, f.files), /DEVELOPMENT_ONLY/);
+  assert.equal(f.reads(), 0);
   assert.equal(f.uploaded(), 0);
   assert.deepEqual(f.state(), { books: 0, entries: 0, links: 0, receipt: false });
 });
