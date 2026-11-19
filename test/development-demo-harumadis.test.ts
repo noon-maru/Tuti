@@ -44,10 +44,26 @@ function fixture() {
     state: () => state, cleaned: () => cleaned, uploaded: () => uploaded };
 }
 function development(t: test.TestContext) {
-  const before = process.env.TUTI_INSPECTION_ENV;
-  process.env.TUTI_INSPECTION_ENV = "development";
-  t.after(() => { if (before === undefined) delete process.env.TUTI_INSPECTION_ENV; else process.env.TUTI_INSPECTION_ENV = before; });
+  const keys = ["NODE_ENV", "TUTI_INSPECTION_ENV"];
+  const before = keys.map(key => [key, process.env[key]] as const);
+  for (const key of keys) process.env[key] = "development";
+  t.after(() => {
+    for (const [key, value] of before) {
+      if (value === undefined) delete process.env[key];
+      else process.env[key] = value;
+    }
+  });
 }
+test("운영 환경에서는 개발 표시가 있어도 DB·파일 접근 전에 차단한다", async t => {
+  development(t);
+  const key = "NODE_ENV";
+  process.env[key] = "production";
+  const f = fixture();
+  f.db.user.findMany = async () => { throw new Error("DATABASE_MUST_NOT_BE_READ"); };
+  await assert.rejects(seedDevelopment(true, f.db, f.files), /DEVELOPMENT_ONLY/);
+  assert.equal(f.uploaded(), 0);
+  assert.deepEqual(f.state(), { books: 0, entries: 0, links: 0, receipt: false });
+});
 test("조회는 쓰지 않고 적용은 비공개로 한 번만 추가한다", async t => {
   development(t); const f = fixture();
   assert.equal((await seedDevelopment(false, f.db, f.files)).mode, "dry-run");
