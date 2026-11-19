@@ -18,7 +18,7 @@ export async function harumadiRequest(request: Request, action: (ownerId: string
     return respond({ error: failureMessage }, 503);
   }
 }
-export async function readHarumadiBody(request: Request) {
+export async function readHarumadiBody(request: Request, maxBytes = 16_384) {
   const reader = request.body?.getReader();
   if (!reader) throw new HarumadiError("하루마디 설정을 확인해주세요.");
   const chunks: Uint8Array[] = []; let size = 0;
@@ -26,7 +26,7 @@ export async function readHarumadiBody(request: Request) {
     while (true) {
       const part = await reader.read(); if (part.done) break;
       size += part.value.byteLength;
-      if (size > 16_384) { await reader.cancel(); throw new HarumadiError("하루마디 입력이 너무 길어요.", 413); }
+      if (size > maxBytes) { await reader.cancel(); throw new HarumadiError("입력한 내용이 너무 커요. 사진이나 글의 크기를 줄여주세요.", 413); }
       chunks.push(part.value);
     }
   } finally { reader.releaseLock(); }

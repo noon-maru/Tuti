@@ -930,6 +930,7 @@ model User {
 
 model PetProfile {
   revision Int @default(0)
+  photo String?
   id String @id
   ownerId String @map("owner_id")
   name String

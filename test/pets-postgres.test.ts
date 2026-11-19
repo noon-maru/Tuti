@@ -7,6 +7,7 @@ import { join } from "node:path";
 import pg from "pg";
 import { PrismaClient } from "../src/generated/prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
+import sharp from "sharp";
 
 test("격리 PostgreSQL에서 프로필·마디 연결 원자성·삭제·병합·동반 조건을 검증한다", { timeout: 30000 }, async t => {
   const bin = (name: string) => process.env.POSTGRES_BIN_DIR ? join(process.env.POSTGRES_BIN_DIR, name) : name;
@@ -34,11 +35,18 @@ test("격리 PostgreSQL에서 프로필·마디 연결 원자성·삭제·병합
   started = true;
   await db.connect();
   await db.query("CREATE TABLE users(id text PRIMARY KEY); CREATE TABLE journal_entries(id text PRIMARY KEY,owner_id text REFERENCES users(id) ON DELETE CASCADE); CREATE TABLE places(id text PRIMARY KEY); INSERT INTO users VALUES('owner'),('other'),('target'); INSERT INTO journal_entries VALUES('original','owner'); INSERT INTO places VALUES('place');");
-  for (const path of ["20261116010000_optional_pet_profiles", "20261116020000_dog_place_access", "20261116030000_tourism_pet_sources", "20261117010000_dog_place_catalog"]) await db.query(readFileSync(`prisma/migrations/${path}/migration.sql`, "utf8"));
+  for (const path of ["20261116010000_optional_pet_profiles", "20261116020000_dog_place_access", "20261116030000_tourism_pet_sources", "20261117010000_dog_place_catalog", "20261119010000_add_pet_profile_photo"]) await db.query(readFileSync(`prisma/migrations/${path}/migration.sql`, "utf8"));
   await db.query("ALTER TABLE places ADD COLUMN source text, ADD COLUMN source_id text; UPDATE places SET source='tourapi',source_id='1' WHERE id='place'");
   globalDb.prisma = orm; process.env.PRIVACY_REPLAY_LEDGER_ENABLED = "false";
-  const { createPet, updatePet, deletePet, linkMadiPets } = await import("../src/server/pets/service");
-  const pet = await createPet("owner", { name: "모모", species: "dog", weightKg: 8 });
+  const { createPet, updatePet, deletePet, linkMadiPets, readPetPhoto, readPets } = await import("../src/server/pets/service");
+  const photo = `data:image/png;base64,${(await sharp({ create: { width: 16, height: 24, channels: 3, background: "#f5eadd" } }).png().toBuffer()).toString("base64")}`;
+  const pet = await createPet("owner", { name: "모모", species: "dog", weightKg: 8, photo });
+  assert.equal(pet.hasPhoto, true);
+  assert.equal("photo" in pet, false, "일반 프로필 응답에 이미지 본문을 싣지 않음");
+  assert.equal("photo" in (await readPets("owner"))[0], false);
+  const savedPhoto = (await readPetPhoto("owner", pet.id)).photo;
+  assert.match(savedPhoto!, /^data:image\/webp;base64,/);
+  await assert.rejects(readPetPhoto("other", pet.id), /찾지 못했어요/);
   const other = await createPet("other", { name: "다른 보호자", species: "cat" });
   await assert.rejects(orm.$transaction(async tx => {
     await tx.$executeRaw`INSERT INTO journal_entries VALUES ('rollback', 'owner')`;
@@ -48,12 +56,20 @@ test("격리 PostgreSQL에서 프로필·마디 연결 원자성·삭제·병합
   await orm.$transaction(tx => linkMadiPets(tx, "owner", "original", [pet.id]));
   assert.equal(await orm.madiPetLink.count(), 1);
   await updatePet("owner", pet.id, { name: "모모 수정", species: "dog", revision: 0 });
-  await assert.rejects(updatePet("owner", pet.id, { name: "오래된 편집", species: "dog", revision: 0 }), /바뀌었어요/);
+  assert.equal((await readPetPhoto("owner", pet.id)).photo, savedPhoto, "사진 필드가 없으면 기존 사진 보존");
+  await assert.rejects(updatePet("owner", pet.id, { name: "오래된 편집", species: "dog", revision: 0, photo: null }), /바뀌었어요/);
+  assert.equal((await readPetPhoto("owner", pet.id)).photo, savedPhoto, "충돌 때 사진과 프로필을 함께 롤백");
+  await updatePet("owner", pet.id, { name: "모모 수정", species: "dog", revision: 1, photo: null });
+  assert.equal((await readPetPhoto("owner", pet.id)).photo, null);
+  await updatePet("owner", pet.id, { name: "모모 수정", species: "dog", revision: 2, photo });
   await assert.rejects(deletePet("other", pet.id), /찾지 못했어요/);
   await db.query("BEGIN; UPDATE journal_entries SET owner_id='target' WHERE owner_id='owner'; UPDATE pet_profiles SET owner_id='target' WHERE owner_id='owner'; DELETE FROM users WHERE id='owner'; COMMIT");
   assert.equal(await orm.madiPetLink.count(), 1, "이전한 프로필·원본 연결 보존");
+  assert.ok((await readPetPhoto("target", pet.id)).photo, "병합 후 사진도 새 계정 소유로 이전");
+  await assert.rejects(readPetPhoto("owner", pet.id), /찾지 못했어요/);
   await deletePet("target", pet.id);
   assert.equal(await orm.madiPetLink.count(), 0);
+  await assert.rejects(readPetPhoto("target", pet.id), /찾지 못했어요/);
   assert.equal((await db.query("SELECT count(1)::int n FROM journal_entries WHERE id='original'")).rows[0].n, 1);
   await orm.dogPlaceAccess.create({ data: { placeId: "place", allowed: true, areas: "야외", rules: "실내 제외", maxWeightKg: 10, leashRequired: true, carrierRequired: false, sourceUrl: "https://fixture.example/notice", checkedAt: new Date(Date.now() - 1000), validUntil: new Date(Date.now() + 3600000) } });
   const { dogOutingPlaces } = await import("../src/server/pets/dogAccess");

@@ -1,4 +1,4 @@
-export type PetProfile = { id: string; name: string; species: "dog" | "cat"; weightKg: number | null; revision?: number };
+export type PetProfile = { id: string; name: string; species: "dog" | "cat"; weightKg: number | null; revision?: number; hasPhoto?: boolean };
 export function parsePetProfile(value: unknown): Omit<PetProfile, "id"> | null {
   if (!value || typeof value !== "object") return null;
   const v = value as Record<string, unknown>;
