@@ -11,6 +11,7 @@ import { findMadiControl } from "./fixtures/madiCreateHarness";
 import { harumadiContent } from "./fixtures/harumadiContent";
 import { harumadiSharingNotice } from "../src/shared/harumadi/sharingAudience";
 import { getHarumadiPdfCoverPalette } from "../src/shared/api/harumadiPdf";
+import { captionStyles, screenTitleStyles } from "@/shared/ui/typography";
 
 function fixture(add: (...args: unknown[]) => Promise<unknown>, recentError = false, searchTerm = "") {
   const book = { ...harumadiContent().harumadi, shared: true };
@@ -22,18 +23,19 @@ function fixture(add: (...args: unknown[]) => Promise<unknown>, recentError = fa
       const i = index++; if (!(i in states)) states[i] = initial;
       return [states[i], (value: unknown) => { states[i] = value; }];
     }, useRef: (initial: unknown) => refs[refIndex++] ?? (refs[refIndex - 1] = { current: initial }), useEffect() {} },
-    "react/jsx-runtime": jsx, "@emotion/styled": { __esModule: true, default: styled }, "lucide-react": { BookOpen: "svg", Check: "svg" },
+    "react/jsx-runtime": jsx, "@emotion/styled": { __esModule: true, default: styled }, "lucide-react": { BookOpen: "svg", Check: "svg", Search: "svg", X: "svg" },
     "next/link": { __esModule: true, default: "a" },
     "@tanstack/react-query": { useQueryClient: () => ({ invalidateQueries() {}, removeQueries() {} }),
       useQuery: () => ({ data: recentError ? undefined : { harumadis: [book] }, isPending: false, isError: recentError, refetch() {} }) },
     "@/features/tuti/components/ScreenFrame": { ScreenFrame: "div" },
-    "@/features/tuti/components/buttons": { BackButton: "button", PrimaryButton: styled.button({}), TextButton: "button" },
+    "@/features/tuti/components/buttons": { BackButton: "button", BaseButton: "button", PrimaryButton: styled.button({}), TextButton: "button", quietIconButtonStyles: "" },
+    "@/shared/ui/typography": { captionStyles, screenTitleStyles },
     "@/features/tuti/navigation/androidBack": { ANDROID_BACK_EVENT: "back" },
     "@/lib/harumadis": { fetchHarumadis() {}, fetchRecentHarumadis() {}, harumadiPath: (id: string) => `/harumadi?harumadiId=${encodeURIComponent(id)}` },
     "@/lib/addMadiToHarumadi": { addMadiToHarumadi: add },
     "@/features/tuti/components/HarumadiTitleHint": { HarumadiTitleHint: "span" },
     "@/shared/harumadi/recentChoices": { groupHarumadiChoices },
-    "@/features/tuti/hooks/useHarumadiLibrary": { useHarumadiLibrary: () => ({ data: { pages: [{ harumadis: [book] }] }, isPending: false, isError: false, refetch() {} }) },
+    "@/features/tuti/hooks/useHarumadiLibrary": { useHarumadiLibrary: () => ({ data: { pages: [{ harumadis: [book] }] }, isSuccess: true, isPending: false, isError: false, refetch() {} }) },
     "@/features/tuti/hooks/useHarumadiSearch": { useHarumadiSearch: (books: unknown[]) => ({ search: searchTerm, books: searchTerm ? [] : books, searching: Boolean(searchTerm), setSearch() {} }) },
     "@/features/tuti/components/MadiSearchField": { MadiSearchField: "input" },
     "@/shared/harumadi/sharingAudience": { harumadiSharingNotice },
