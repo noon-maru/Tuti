@@ -88,8 +88,8 @@ export function SettingsScreen({
           {hasCompanions && ownerId ? <CompanionMark aria-hidden="true"><PetMenuPortraits key={ownerId} ownerId={ownerId} profiles={pets} fallback={<PawPrint size={26} aria-hidden="true" />} /></CompanionMark> : <AccountMark aria-hidden="true">T</AccountMark>}
           <div>
             <strong>{accountLabel ?? "기기에 저장된 Tuti"}</strong>
-            {hasCompanions && <CompanionLink type="button" onClick={() => onNavigate("pets")} aria-label={`${companionNames} 정보 · 프로필 관리`}>
-              <span>{companionNames} 정보</span><ChevronRight size={15} aria-hidden="true" />
+            {hasCompanions && <CompanionLink type="button" onClick={() => onNavigate("pets")} aria-label={`${companionNames} 더보기 · 프로필 관리`}>
+              <span>{companionNames} 더보기</span><ChevronRight size={15} aria-hidden="true" />
             </CompanionLink>}
             {(!hasCompanions || !accountConnected) && <p>
               {accountConnected
