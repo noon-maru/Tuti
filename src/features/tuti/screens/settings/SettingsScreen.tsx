@@ -10,12 +10,15 @@ import {
   MapPin,
   MessageCircleQuestion,
   UserRound,
+  PawPrint,
 } from "lucide-react";
 import { useState } from "react";
 import { BackButton, BaseButton } from "@/features/tuti/components/buttons";
 import { ScreenFrame } from "@/features/tuti/components/ScreenFrame";
 import { TutiWordmark } from "@/features/tuti/components/TutiWordmark";
 import type { CardDisplayPreferences } from "@/store/tuti";
+import type { PetProfile } from "@/shared/pets/profile";
+import { PetMenuPortraits } from "@/features/tuti/components/PetMenuPortraits";
 
 type SettingsDestination =
   | "pets"
@@ -26,6 +29,8 @@ type SettingsDestination =
   | "legal";
 
 export function SettingsScreen({
+  ownerId,
+  pets = [],
   accountConnected,
   accountLabel,
   notificationsAvailable,
@@ -35,6 +40,8 @@ export function SettingsScreen({
   onCardDisplayPreferenceChange,
   onLogout,
 }: {
+  ownerId?: string;
+  pets?: readonly PetProfile[];
   accountConnected: boolean;
   accountLabel?: string;
   notificationsAvailable: boolean;
@@ -49,6 +56,8 @@ export function SettingsScreen({
 }) {
   const [logoutPending, setLogoutPending] = useState(false);
   const [logoutError, setLogoutError] = useState<string | null>(null);
+  const hasCompanions = Boolean(ownerId && pets.length);
+  const companionNames = pets.slice(0, 2).map(pet => pet.name).join(" · ") + (pets.length > 2 ? ` 외 ${pets.length - 2}마리` : "");
 
   const logout = async () => {
     if (logoutPending) return;
@@ -75,15 +84,18 @@ export function SettingsScreen({
       </Header>
 
       <ScrollContent data-scroll-region>
-        <AccountSummary>
-          <AccountMark aria-hidden="true">T</AccountMark>
+        <AccountSummary aria-label="내 계정과 반려동물">
+          {hasCompanions && ownerId ? <CompanionMark aria-hidden="true"><PetMenuPortraits key={ownerId} ownerId={ownerId} profiles={pets} fallback={<PawPrint size={26} aria-hidden="true" />} /></CompanionMark> : <AccountMark aria-hidden="true">T</AccountMark>}
           <div>
             <strong>{accountLabel ?? "기기에 저장된 Tuti"}</strong>
-            <p>
+            {hasCompanions && <CompanionLink type="button" onClick={() => onNavigate("pets")} aria-label={`함께하는 ${companionNames} 프로필 관리`}>
+              <span>함께하는 {companionNames}</span><ChevronRight size={15} aria-hidden="true" />
+            </CompanionLink>}
+            {(!hasCompanions || !accountConnected) && <p>
               {accountConnected
                 ? "연결된 계정"
                 : "로그인하면 다른 기기에서도 마디를 이어볼 수 있어요."}
-            </p>
+            </p>}
           </div>
         </AccountSummary>
 
@@ -328,6 +340,23 @@ const AccountMark = styled.span`
   color: var(--color-brand-900);
   font-size: var(--font-size-400);
   font-weight: 800;
+`;
+
+const CompanionMark = styled.span`
+  width: var(--space-12); height: var(--space-12); flex: none;
+  display: grid; place-items: center; color: var(--color-brand-900);
+  --pet-menu-background: var(--color-brand-100);
+`;
+
+const CompanionLink = styled(BaseButton)`
+  display: flex; align-items: center; justify-content: flex-start; gap: 4px;
+  min-width: 0; min-height: 44px; padding: 0; background: transparent;
+  color: var(--color-brand-900); font-size: var(--font-size-100); text-align: left;
+  span { min-width: 0; overflow-wrap: anywhere; line-height: 1.6;
+    display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; }
+  > svg { flex: none; }
+  &:hover { color: var(--color-brand-1000); text-decoration: underline; text-underline-offset: 3px; }
+  &:focus-visible { outline: 2px solid var(--color-focus-ring); outline-offset: 2px; border-radius: 4px; }
 `;
 
 const SettingsSection = styled.section`

@@ -10,6 +10,7 @@ import { useTutiStore } from "@/store/tuti";
 import { usePushEnvironment } from "../hooks/usePushEnvironment";
 import { notificationSettingsAvailable } from "@/shared/notifications/rollout";
 import { loginPath } from "@/lib/loginContinuation";
+import { usePetProfiles } from "../hooks/usePetProfiles";
 
 const settingsRoutes = {
   pets: "/pets",
@@ -26,6 +27,7 @@ export function SettingsFlow() {
   const session = useSession();
   const notificationsAvailable = notificationSettingsAvailable(usePushEnvironment());
   const account = session?.account;
+  const pets = usePetProfiles(session?.userId ?? "");
   const cardDisplayPreferences = useTutiStore(
     (state) => state.cardDisplayPreferences,
   );
@@ -41,8 +43,10 @@ export function SettingsFlow() {
 
   return (
     <SettingsScreen
+      ownerId={session?.userId}
+      pets={session?.userId ? pets.data?.pets : undefined}
       accountConnected={Boolean(account)}
-      accountLabel={account?.displayName ?? account?.email}
+      accountLabel={account?.displayName?.trim() || account?.email}
       notificationsAvailable={notificationsAvailable}
       cardDisplayPreferences={cardDisplayPreferences}
       onBack={() => router.replace("/")}

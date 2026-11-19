@@ -6,14 +6,16 @@ import styled from "@emotion/styled";
 import { MoreVertical } from "lucide-react";
 import { usePetProfiles } from "../hooks/usePetProfiles";
 import { petPhotoQuery } from "../hooks/petPhotoQuery";
+import type { ReactNode } from "react";
+import type { PetProfile } from "@/shared/pets/profile";
 
 /** Decorative menu content only: no nested buttons and no effect on book filtering. */
-export function PetMenuPortraits({ ownerId }: { ownerId: string }) {
-  const profiles = usePetProfiles(ownerId);
-  const pets = profiles.data?.pets.filter(pet => pet.hasPhoto).slice(0, 3) ?? [];
+export function PetMenuPortraits({ ownerId, fallback, profiles: suppliedProfiles }: { ownerId: string; fallback?: ReactNode; profiles?: readonly PetProfile[] }) {
+  const profiles = usePetProfiles(ownerId, suppliedProfiles === undefined);
+  const pets = (suppliedProfiles ?? profiles.data?.pets ?? []).filter(pet => pet.hasPhoto).slice(0, 3);
   const photos = useQueries({ queries: pets.map(pet => petPhotoQuery(ownerId, pet)) });
   const ready = photos.flatMap((query, index) => query.data?.photo ? [{ id: pets[index].id, photo: query.data.photo }] : []);
-  if (!ready.length) return <MoreVertical size={22} aria-hidden="true" />;
+  if (!ready.length) return fallback ?? <MoreVertical size={22} aria-hidden="true" />;
   return <Portraits data-pet-portraits={ready.length} aria-hidden="true">
     {ready.map(pet => <span key={pet.id}><Image src={pet.photo} alt="" fill sizes="32px" unoptimized /></span>)}
   </Portraits>;

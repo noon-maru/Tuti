@@ -14,9 +14,10 @@ test("사진이 있는 아이만 최대 셋 조회하고 대기·실패·미등�
   let pets: PetProfile[] = [];
   let photos: Array<{ data?: { photo: string | null }; isError?: boolean }> = [];
   let queries: ReturnType<typeof petPhotoQuery>[] = [];
+  let metadataEnabled = true;
   const flow = clientFlowHarness("src/features/tuti/components/PetMenuPortraits.tsx", "PetMenuPortraits", {
     "@emotion/styled": styled, "next/image": "image", "lucide-react": { MoreVertical: "more" },
-    "../hooks/usePetProfiles": { usePetProfiles: () => ({ data: { pets } }) },
+    "../hooks/usePetProfiles": { usePetProfiles: (_owner: string, enabled = true) => { metadataEnabled = enabled; return { data: { pets } }; } },
     "../hooks/petPhotoQuery": { petPhotoQuery },
     "@tanstack/react-query": { useQueries: (options: { queries: typeof queries }) => { queries = options.queries; return photos; } },
   });
@@ -24,6 +25,7 @@ test("사진이 있는 아이만 최대 셋 조회하고 대기·실패·미등�
   assert.equal(render().type, "more"); assert.equal(queries.length, 0);
   pets = Array.from({ length: 5 }, (_, i) => ({ id: `pet-${i}`, name: `아이 ${i}`, species: "dog", weightKg: null, hasPhoto: i !== 0, revision: i }));
   photos = [{}, {}, {}]; assert.equal(render().type, "more");
+  assert.equal(flow.render({ ownerId: "owner", fallback: "반려동물 표시" }), "반려동물 표시");
   assert.deepEqual(queries.map(query => [...query.queryKey]), [["pet-photo", "owner", "pet-1", 1], ["pet-photo", "owner", "pet-2", 2], ["pet-photo", "owner", "pet-3", 3]]);
   photos = [{ data: { photo: "data:image/webp;base64,YQ==" } }, { isError: true }, {}];
   const single = render(); assert.equal(single.props["data-pet-portraits"], 1);
@@ -33,6 +35,10 @@ test("사진이 있는 아이만 최대 셋 조회하고 대기·실패·미등�
   assert.equal(Children.toArray(group.props.children as ReactNode).length, 3);
   assert.ok(queries.every(query => query.queryKey[1] === "other-owner"));
   assert.ok(Children.toArray(group.props.children as ReactNode).every(child => isValidElement(child) && child.type === "span"));
+  photos = [];
+  flow.render({ ownerId: "owner", profiles: [] });
+  assert.equal(metadataEnabled, false, "설정에서 이미 받은 프로필은 다시 조회하지 않는다");
+  assert.equal(queries.length, 0);
   flow.dispose();
 });
 
