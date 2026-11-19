@@ -36,6 +36,8 @@ import { AppLoadingScreen } from "@/features/tuti/components/LoadingIndicator";
 import { ANDROID_BACK_EVENT } from "@/features/tuti/navigation/androidBack";
 import { FIRST_JOURNAL_TITLE_LIMIT, FIRST_JOURNAL_CONTENT_LIMIT, getMadiFieldErrors, type MadiFieldErrors } from "@/shared/api/firstJournal";
 import { MadiFieldFeedback } from "@/features/tuti/components/MadiFieldFeedback";
+import { PetProfiles } from "@/features/tuti/components/PetProfiles";
+import { madiEditDraftSource } from "@/lib/madiDraft";
 
 type PhotoPlaceHint = {
   status: "loading" | "success" | "notice";
@@ -55,7 +57,11 @@ export function JournalEditorScreen({
   onBack,
   onSubmit,
   draftOwnerId,
+  onRetryPetLinks,
+  petLinksLoading = false,
 }: {
+  onRetryPetLinks?: () => void;
+  petLinksLoading?: boolean;
   draftOwnerId?: string;
   entry?: TutiJournalEntry;
   initialPlace?: { id: string; name: string };
@@ -97,6 +103,9 @@ export function JournalEditorScreen({
   // 편집 시작 버전을 고정해 백그라운드 갱신이 충돌 검사를 무력화하지 않게 한다.
   const [editVersion] = useState(entry?.version);
   const [body, setBody] = useState(entry?.content ?? "");
+  const [petSelection, setPetIds] = useState<string[] | undefined>(undefined);
+  const petIds = petSelection ?? entry?.pets?.map(pet => pet.id) ?? (entry ? undefined : []);
+  const [petsOpen, setPetsOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [sensitivePolicy, setSensitivePolicy] = useState<SensitiveJournalPolicyResponse | null>(null);
@@ -122,13 +131,14 @@ export function JournalEditorScreen({
   const fieldErrors = getMadiFieldErrors({ title, content: body, image: imageUrl, date: visitDate, place: placeName }, toDateInputValue(new Date()), true);
   const canSubmit = Object.keys(fieldErrors).length === 0;
   const originalImage = imageUrl === (entry?.image ?? null);
-  const draftSource = entry ? JSON.stringify([entry.title, entry.content, entry.visitedAt, entry.placeId, entry.placeName, Boolean(entry.image)]) : "new";
+  const draftSource = entry ? madiEditDraftSource(entry) : "new";
   const localDraft = useMadiDraft({ ownerId: draftOwnerId, scope: entry?.id ?? "new", source: draftSource,
     privateOnly: sensitiveContent !== false || Boolean(entry && entry.sensitiveContent !== false),
-    value: { title, content: body, date: visitDate, place: placeName, placeId, image: originalImage ? null : imageUrl, originalImage },
+    value: { title, content: body, date: visitDate, place: placeName, placeId, image: originalImage ? null : imageUrl, originalImage, petIds },
     restore: draft => {
       setTitle(draft.title); setBody(draft.content); setVisitDate(draft.date); setPlaceName(draft.place); setPlaceId(draft.placeId);
       setImageUrl(draft.originalImage ? entry?.image ?? null : draft.image);
+      setPetIds(draft.petIds ?? entry?.pets?.map(pet => pet.id));
       hasEditedVisitDateRef.current = true; hasEditedPlaceRef.current = true;
     } });
   const leaveEditor = () => { if (!isSubmitting) void localDraft.leave(onBack); };
@@ -293,6 +303,7 @@ export function JournalEditorScreen({
     setSubmitError(null);
     setSensitiveContent(entry?.sensitiveContent ?? false);
     setSensitiveAgreed(false);
+    setPetIds([]);
     setTouched({});
   };
 
@@ -315,6 +326,7 @@ export function JournalEditorScreen({
         {
           title: title.trim(),
           ...(editVersion ? { expectedVersion: editVersion } : {}),
+          ...(petIds !== undefined ? { petIds } : {}),
           content: body.trim(),
           image: imageUrl,
           placeId,
@@ -426,6 +438,13 @@ export function JournalEditorScreen({
           />
           <MadiFieldFeedback id="edit-place-feedback" message={fieldErrors.place} touched={touched.place} />
         </PlaceField>
+        <PetSection onToggle={event => setPetsOpen(event.currentTarget.open)}>
+          <summary>함께한 반려동물 · 선택</summary>
+          {petsOpen && (petIds !== undefined ? <PetProfiles selected={petIds} onChange={setPetIds} disabled={isSubmitting} /> : <div role="status">
+            <p>반려동물 연결을 확인한 뒤 수정할 수 있어요. 기존 연결은 그대로 유지돼요.</p>
+            {onRetryPetLinks && <TextButton type="button" disabled={isSubmitting || petLinksLoading} onClick={onRetryPetLinks}>{petLinksLoading ? "연결 확인 중…" : "연결 다시 확인"}</TextButton>}
+          </div>)}
+        </PetSection>
           <JournalAdditionalSettings available={privateStorageAvailable} initiallyOpen={entry?.sensitiveContent === true} includesSensitive={sensitiveContent === true}>
           <SensitiveSection>
             <legend>사진이나 글에 본인의 민감정보가 있나요?</legend>
@@ -491,6 +510,14 @@ export function JournalEditorScreen({
     </Frame>
   );
 }
+
+const PetSection = styled.details`
+  margin-block: 20px; min-width: 0;
+  summary { display: list-item; min-height: 44px; padding-block: 10px; cursor: pointer; font-size: 14px; }
+  summary:focus-visible { outline: 2px solid var(--color-focus-ring); outline-offset: 2px; border-radius: 4px; }
+  > div { margin-top: 8px; }
+  p { color: var(--color-text-muted); font-size: 14px; line-height: 1.7; }
+`;
 
 const PhotoActions = styled.div`display: flex; flex-wrap: wrap; gap: 4px 16px;`;
 

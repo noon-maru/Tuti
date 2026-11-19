@@ -10,6 +10,7 @@ import {
 import { useTutiStore } from "@/store/tuti";
 import { useSession } from "@/features/tuti/hooks/useSession";
 import { resolveMadiEditReturn } from "@/lib/madiEditReturn";
+import { useEffect } from "react";
 
 export function JournalEditFlow() {
   const router = useRouter();
@@ -19,11 +20,15 @@ export function JournalEditFlow() {
   const entryId = searchParams.get("entryId");
   const source = searchParams.get("source");
   const bookId = searchParams.get("harumadiId");
-  const { entries, isPending, isError, refetch, updateEntry } = useTutiJournalEntries();
+  const { entries, isPending, isError, isFetching, refetch, updateEntry } = useTutiJournalEntries();
   const setActiveJournalEntry = useTutiStore(
     (state) => state.setActiveJournalEntry,
   );
   const entry = entries.find((candidate) => candidate.id === entryId);
+  // Write responses may omit owner-only pet metadata. Resolve it from the
+  // authorized list instead of interpreting an unknown connection as empty.
+  const missingPetLinks = Boolean(entry && entry.pets === undefined);
+  useEffect(() => { if (missingPetLinks) void refetch(); }, [missingPetLinks, entryId, ownerId, entry?.version, refetch]);
   const returnToJournal = () => {
     if (!entryId) { router.replace("/madi"); return; }
     const destination = resolveMadiEditReturn(ownerId, entryId, source, bookId);
@@ -58,6 +63,8 @@ export function JournalEditFlow() {
     <JournalEditorScreen
       key={`${ownerId}:${entry.id}`} draftOwnerId={ownerId}
       entry={entry}
+      petLinksLoading={isFetching}
+      onRetryPetLinks={() => void refetch()}
       onBack={returnToJournal}
       onSubmit={async (draft, sourceElement) => {
         const updatedEntry = await updateEntry(entry.id, draft);
