@@ -1,7 +1,7 @@
 import { cropOutputSize } from "@/shared/harumadi/imageGeometry";
 
 /** Keep the entire photo, but never persist the selected file or its EXIF metadata. */
-export async function prepareMadiPhoto(file: File): Promise<string> {
+export async function prepareMadiPhoto(file: File, options: { maxEdge?: number; quality?: number } = {}): Promise<string> {
   const source = URL.createObjectURL(file);
   const image = new Image();
   let timer: ReturnType<typeof setTimeout> | undefined;
@@ -13,7 +13,9 @@ export async function prepareMadiPhoto(file: File): Promise<string> {
       image.src = source;
     });
     if (!image.naturalWidth || !image.naturalHeight) throw new Error("photo_size_invalid");
-    const { width, height } = cropOutputSize(image.naturalWidth, image.naturalHeight);
+    const size = cropOutputSize(image.naturalWidth, image.naturalHeight);
+    const scale = options.maxEdge ? Math.min(1, options.maxEdge / Math.max(size.width, size.height)) : 1;
+    const width = Math.max(1, Math.round(size.width * scale)), height = Math.max(1, Math.round(size.height * scale));
     const canvas = document.createElement("canvas");
     canvas.width = width; canvas.height = height;
     const context = canvas.getContext("2d");
@@ -21,7 +23,7 @@ export async function prepareMadiPhoto(file: File): Promise<string> {
     context.fillStyle = "#FFFFFF";
     context.fillRect(0, 0, width, height);
     context.drawImage(image, 0, 0, width, height);
-    const result = canvas.toDataURL("image/jpeg", 0.9);
+    const result = canvas.toDataURL("image/jpeg", options.quality ?? 0.9);
     if (!result.startsWith("data:image/jpeg;base64,")) throw new Error("photo_encode_failed");
     return result;
   } finally {

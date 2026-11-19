@@ -20,7 +20,7 @@ test("선택한 개 모두의 몸무게가 있어야 불러오며 반려묘·없
   assert.deepEqual(selectedDogWeights([...dogs, { ...dogs[1], id: "other", weightKg: 12 }], ["dog-a", "other"]), [8, 12]);
 });
 
-function editorFixture(options: { selection?: boolean; registrationOnly?: boolean; onRegistered?: () => void; onBusyChange?: (busy: boolean) => void; request?: (path: string, init?: RequestInit, owner?: string) => Promise<unknown>; confirm?: () => Promise<boolean> } = {}) {
+function editorFixture(options: { selection?: boolean; registrationOnly?: boolean; onRegistered?: () => void; onBusyChange?: (busy: boolean) => void; request?: (path: string, init?: RequestInit, owner?: string) => Promise<unknown>; confirm?: () => Promise<boolean>; preparePhoto?: (file: File) => Promise<string> } = {}) {
   let pets = options.registrationOnly ? [] : dogs.map(pet => ({ ...pet }));
   const calls: Array<{ path: string; init?: RequestInit; owner?: string }> = [];
   const changes: string[][] = [];
@@ -30,6 +30,7 @@ function editorFixture(options: { selection?: boolean; registrationOnly?: boolea
     "@emotion/styled": styled,
     "@tanstack/react-query": { useQueryClient: () => ({
       invalidateQueries: async () => { throw new Error("background read failed"); },
+      removeQueries: () => {},
       setQueryData: (_: unknown, update: (previous: { pets: PetProfile[] }) => { pets: PetProfile[] }) => { pets = update({ pets }).pets; },
     }) },
     "../hooks/useSession": { useSession: () => ({ userId: "owner" }) },
@@ -41,7 +42,9 @@ function editorFixture(options: { selection?: boolean; registrationOnly?: boolea
       return { pet: { id: "new", ...JSON.parse(String(init?.body)), revision: 0 } };
     } },
     "@/shared/pets/profile": { parsePetProfile }, "@/lib/feedback": { confirmAction: options.confirm ?? (async () => true) },
-    "./buttons": { PrimaryButton: "button", TextButton: "button" }, "@/shared/ui/typography": { inputControlStyles: "" },
+    "lucide-react": { Camera: "icon", Plus: "icon" },
+    "./PetPhoto": { PetPhoto: "pet-photo" }, "../lib/prepareMadiPhoto": { prepareMadiPhoto: options.preparePhoto ?? (async () => "data:image/jpeg;base64,cGhvdG8=") },
+    "./buttons": { Button: "button", PrimaryButton: "button", TextButton: "button" }, "@/shared/ui/typography": { inputControlStyles: "" },
   });
   const render = (disabled = false) => {
     const shell = flow.render({ ...(options.selection ? { selected: [], onChange: (ids: string[]) => changes.push(ids) } : {}), registrationOnly: options.registrationOnly, onRegistered: options.onRegistered, onBusyChange: options.onBusyChange, disabled });
@@ -49,7 +52,7 @@ function editorFixture(options: { selection?: boolean; registrationOnly?: boolea
   };
   const change = (predicate: (node: ReactElement<Record<string, unknown>>) => boolean, value: string) => (render().find(predicate)!.props.onChange as (event: unknown) => void)({ target: { value } });
   const submit = () => (render().find(node => node.type === "form")!.props.onSubmit as (event: unknown) => void)({ preventDefault() {} });
-  const click = (label: string) => (render().find(node => node.props.children === label)!.props.onClick as () => unknown)();
+  const click = (label: string) => (render().find(node => Children.toArray(node.props.children as ReactNode).filter(child => typeof child === "string").join("") === label)!.props.onClick as () => unknown)();
   return { render, change, submit, click, calls, changes, query, queryEnabled, effects: flow.effects, setPets: (next: PetProfile[]) => { pets = next; } };
 }
 const tick = () => new Promise(resolve => setImmediate(resolve));
@@ -109,6 +112,7 @@ test("마디 연결란에서 바로 등록하되 자동 연결하지 않고 중�
 
 test("잘못된 몸무게와 비활성 상태에서는 API를 호출하지 않는다", () => {
   const f = editorFixture();
+  f.click("반려동물 추가");
   f.change(node => node.props.maxLength === 60, "구름");
   f.change(node => node.props.type === "number", "0"); f.submit();
   assert.equal(f.calls.length, 0); assert.ok(f.render().some(node => node.props.role === "alert"));
@@ -118,6 +122,34 @@ test("잘못된 몸무게와 비활성 상태에서는 API를 호출하지 않�
   assert.equal(f.calls.length, 0);
 });
 
+test("등록된 프로필이 중심이며 추가는 별도 버튼에서 열고 여러 아이를 전환한다", async () => {
+  const f = editorFixture();
+  assert.equal(f.render().some(node => node.type === "form"), false);
+  assert.ok(f.render().some(node => node.props["aria-label"] === "구름 프로필"));
+  f.click("보리");
+  assert.ok(f.render().some(node => node.props["aria-label"] === "보리 프로필"));
+  f.click("반려동물 추가");
+  assert.ok(f.render().some(node => node.type === "form"));
+  f.change(node => node.props.maxLength === 60, "새 친구"); f.submit(); await tick();
+  assert.equal(f.render().some(node => node.type === "form"), false);
+  assert.ok(f.render().some(node => node.props["aria-label"] === "새 친구 프로필"));
+});
+
+test("사진 준비 중 저장을 잠그고 실패한 저장도 입력·사진을 보존한다", async () => {
+  let finish!: (photo: string) => void;
+  const f = editorFixture({ preparePhoto: () => new Promise(resolve => { finish = resolve; }), request: async () => { throw new Error("save failed"); } });
+  (f.render().find(node => node.props.children === "수정")!.props.onClick as () => void)();
+  const select = f.render().find(node => node.props.type === "file")!;
+  (select.props.onChange as (event: unknown) => void)({ target: { files: [{ size: 2000 }], value: "photo" } });
+  f.submit(); assert.equal(f.calls.length, 0);
+  finish("data:image/jpeg;base64,cGhvdG8="); await tick();
+  f.submit(); await tick();
+  assert.equal(JSON.parse(String(f.calls[0].init?.body)).photo, "data:image/jpeg;base64,cGhvdG8=");
+  assert.equal(f.render().find(node => node.type === "pet-photo")!.props.preview, "data:image/jpeg;base64,cGhvdG8=");
+  f.click("사진 삭제"); f.submit(); await tick();
+  assert.equal(JSON.parse(String(f.calls.at(-1)?.init?.body)).photo, null);
+});
+
 test("수정 중 프로필을 삭제하면 수정 상태를 해제하고 원본 마디 삭제 API는 부르지 않는다", async () => {
   const f = editorFixture();
   const edit = f.render().find(node => node.props.children === "수정")!;
@@ -125,13 +157,14 @@ test("수정 중 프로필을 삭제하면 수정 상태를 해제하고 원본 
   assert.ok(f.render().some(node => node.props.children === "변경사항 저장"));
   f.click("삭제"); await tick();
   assert.equal(f.calls.length, 1); assert.equal(f.calls[0].path, "pets/dog-a"); assert.equal(f.calls[0].init?.method, "DELETE");
-  assert.ok(f.render().some(node => node.props.children === "프로필 등록"));
-  assert.equal(f.render().find(node => node.props.maxLength === 60)!.props.value, "");
+  assert.equal(f.render().some(node => node.type === "form"), false);
+  assert.ok(f.render().some(node => node.props.children === "보리"));
 });
 
 test("삭제 확인 중에는 다른 저장도 잠그고 취소하면 데이터를 유지한다", async () => {
   let confirm!: (value: boolean) => void;
   const f = editorFixture({ confirm: () => new Promise(resolve => { confirm = resolve; }) });
+  (f.render().find(node => node.props.children === "수정")!.props.onClick as () => void)();
   f.change(node => node.props.maxLength === 60, "새 프로필");
   const deleting = f.click("삭제"); f.submit();
   assert.equal(f.calls.length, 0);
@@ -151,7 +184,7 @@ test("수정은 revision을 보내며 실패해도 입력과 수정 대상을 �
   assert.ok(f.render().some(node => node.props.role === "alert"));
   assert.ok(f.render().some(node => node.props.children === "최신 내용으로 다시 채우기"));
   f.click("수정 취소");
-  assert.equal(f.render().find(node => node.props.maxLength === 60)!.props.value, "");
+  assert.equal(f.render().some(node => node.type === "form"), false);
 });
 
 test("충돌 복구는 직접 누를 때만 최신 내용을 채우고 삭제된 프로필이면 입력을 보존한다", async () => {
