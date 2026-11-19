@@ -1,352 +1,171 @@
 "use client";
 
 import styled from "@emotion/styled";
-import { Apple, ArrowUpRight, Play } from "lucide-react";
+import { Apple, ArrowUpRight, ChevronDown, Play } from "lucide-react";
 import Image from "next/image";
-import { breakpoints } from "@/styles/tokens";
-import {
-  BackLink,
-  baseControlStyles,
-} from "@/features/tuti/components/buttons";
+import { breakpoints, palette } from "@/styles/tokens";
+import { BackLink, baseControlStyles } from "@/features/tuti/components/buttons";
+import { WelcomeHarumadiSample } from "@/features/tuti/components/HarumadiSheet";
 
-const IOS_URL = "https://apps.apple.com/kr/app/tuti/id6474651880";
-const ANDROID_URL =
-  "https://play.google.com/store/apps/details?id=com.noonmaru.tuti";
+const stores = [
+  { name: "App Store", platform: "iPhone · iPad", url: "https://apps.apple.com/kr/app/tuti/id6474651880", qr: "/download/tuti-ios-qr.svg", Icon: Apple },
+  { name: "Google Play", platform: "Android", url: "https://play.google.com/store/apps/details?id=com.noonmaru.tuti", qr: "/download/tuti-android-qr.svg", Icon: Play },
+] as const;
 
 export function DownloadPage() {
-  return (
-    <Page>
-      <Header>
-        <BackLink href="/" aria-label="Tuti 메인으로 돌아가기" />
-        <Wordmark
-          src="/brand/tuti-wordmark.svg"
-          alt="Tuti"
-          width={115}
-          height={46}
-          priority
-        />
-        <HeaderSpacer aria-hidden="true" />
-      </Header>
-
-      <Main>
+  return <Page>
+    <Header>
+      <BackLink href="/" aria-label="Tuti 메인으로 돌아가기" />
+      <Wordmark src="/brand/tuti-wordmark.svg" alt="Tuti" width={115} height={46} priority />
+    </Header>
+    <Main>
+      <Hero>
         <Intro>
-          <h1>
-            함께 살아가는 날들을
-            <br />
-            한 권의 추억으로.
-          </h1>
-          <p>
-            Tuti를 설치하면 알림을 받고,
-            <br />
-            남겨둔 마디와 하루마디를 더 편하게 꺼내볼 수 있어요.
-          </p>
+          <h1>일상을 추억으로,<br />추억을 한 권으로.</h1>
+          <p>반려동물과 함께한 순간도, 나만의 하루도.<br />사진 한 장이나 짧은 글로 마디를 남겨보세요.</p>
         </Intro>
-
-        <StoreRail aria-label="Tuti 앱 스토어 다운로드">
-          <StoreCard $tone="brand">
-            <PlatformHeading>
-              <PlatformIcon $tone="brand"><Apple aria-hidden="true" /></PlatformIcon>
-              <div>
-                <span>iPhone · iPad</span>
-                <strong>App Store</strong>
-              </div>
-            </PlatformHeading>
-            <QrFrame>
-              <Image
-                src="/download/tuti-ios-qr.svg"
-                alt="Tuti App Store 다운로드 QR 코드"
-                width={264}
-                height={264}
-              />
-            </QrFrame>
-            <StoreLink href={IOS_URL} target="_blank" rel="noreferrer">
-              App Store에서 받기
-              <ArrowUpRight aria-hidden="true" />
-            </StoreLink>
-          </StoreCard>
-
-          <RailMark aria-hidden="true">
-            <i />
-            <i />
-            <i />
-          </RailMark>
-
-          <StoreCard $tone="secondary">
-            <PlatformHeading>
-              <PlatformIcon $tone="secondary"><Play aria-hidden="true" /></PlatformIcon>
-              <div>
-                <span>Android</span>
-                <strong>Google Play</strong>
-              </div>
-            </PlatformHeading>
-            <QrFrame>
-              <Image
-                src="/download/tuti-android-qr.svg"
-                alt="Tuti Google Play 다운로드 QR 코드"
-                width={264}
-                height={264}
-              />
-            </QrFrame>
-            <StoreLink href={ANDROID_URL} target="_blank" rel="noreferrer">
-              Google Play에서 받기
-              <ArrowUpRight aria-hidden="true" />
-            </StoreLink>
-          </StoreCard>
-        </StoreRail>
-
-        <Footnote>
-          휴대폰 카메라로 QR 코드를 비추거나 스토어 버튼을 눌러주세요.
-        </Footnote>
-      </Main>
-    </Page>
-  );
+        <Install aria-label="Tuti 앱 다운로드">
+          <StoreLinks>
+            {stores.map(({ name, platform, url, Icon }) => <Store key={name}>
+              <span>{platform}</span>
+              <StoreLink href={url} target="_blank" rel="noopener noreferrer" aria-label={`${name}에서 Tuti 받기 (새 창)`}>
+                <Icon size={20} aria-hidden="true" />{name}에서 받기<ArrowUpRight size={16} aria-hidden="true" />
+              </StoreLink>
+            </Store>)}
+          </StoreLinks>
+          <QrDisclosure>
+            <summary>QR 코드로 다운로드<ChevronDown size={16} aria-hidden="true" /></summary>
+            <QrList>
+              {stores.map(({ name, qr }) => <QrItem key={name}>
+                <Image src={qr} alt={`Tuti ${name} 다운로드 QR 코드`} width={264} height={264} />
+                <figcaption>{name}</figcaption>
+              </QrItem>)}
+            </QrList>
+            <QrHelp>휴대폰 카메라로 QR 코드를 비춰주세요.</QrHelp>
+          </QrDisclosure>
+        </Install>
+        <Memory aria-label="하루마디 지면 예시">
+          <Sample><WelcomeHarumadiSample page="page" priority /></Sample>
+          <figcaption>마디가 모이면, 한 권의 하루마디.</figcaption>
+        </Memory>
+      </Hero>
+      <Footnote>
+        <p>가까운 사람과 함께 채우고, PDF로 간직할 수 있어요.</p>
+        <WebLink href="/">먼저 웹에서 시작하기<ArrowUpRight size={16} aria-hidden="true" /></WebLink>
+      </Footnote>
+    </Main>
+  </Page>;
 }
 
 const Page = styled.div`
-  width: 100%;
-  height: 100vh;
-  height: 100dvh;
-  min-height: 0;
-  overflow-y: auto;
-  overflow-x: hidden;
-  overscroll-behavior-y: contain;
-  touch-action: pan-y;
-  -webkit-overflow-scrolling: touch;
-  background: var(--color-neutral-200);
-  color: var(--color-text);
-
-  @media (max-width: ${breakpoints.mobile}px) {
-    background: var(--color-surface);
-  }
+  width: 100%; height: 100vh; height: 100dvh; min-height: 0;
+  overflow-y: auto; overflow-x: hidden; overscroll-behavior-y: contain;
+  touch-action: pan-y; -webkit-overflow-scrolling: touch;
+  background: ${palette.surface.library}; color: var(--color-text);
 `;
 
 const Header = styled.header`
-  width: min(100% - 40px, 1120px);
-  min-height: 84px;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
-  align-items: center;
-  margin-inline: auto;
-  border-bottom: 1px solid var(--color-neutral-400);
-
-  @media (max-width: ${breakpoints.tablet}px) {
-    width: min(100% - 32px, 1120px);
-    min-height: 72px;
-  }
+  position: relative; width: min(100% - 48px, 1040px); min-height: 84px;
+  display: flex; align-items: center; margin-inline: auto;
+  padding-top: env(safe-area-inset-top, 0px);
+  @media (max-width: ${breakpoints.mobile}px) { width: calc(100% - 32px); min-height: 72px; }
 `;
 
 const Wordmark = styled(Image)`
-  width: 68px;
-  height: auto;
-
-  @media (max-width: ${breakpoints.mobile}px) {
-    width: 60px;
-  }
+  position: absolute; left: 50%; transform: translateX(-50%); width: 64px; height: auto;
 `;
 
-const HeaderSpacer = styled.span``;
-
 const Main = styled.main`
-  width: min(100% - 40px, 1120px);
-  display: grid;
-  justify-items: center;
-  margin-inline: auto;
-  padding: clamp(52px, 7vw, 88px) 0 clamp(56px, 8vw, 104px);
+  width: min(100% - 48px, 1040px); margin-inline: auto;
+  padding: clamp(40px, 7vw, 88px) 0 max(40px, env(safe-area-inset-bottom, 0px));
+  @media (max-width: ${breakpoints.mobile}px) { width: calc(100% - 40px); padding-top: 32px; }
+`;
 
+const Hero = styled.div`
+  display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
+  grid-template-areas: "intro memory" "install memory"; align-items: center;
+  column-gap: clamp(32px, 6vw, 80px); row-gap: 32px;
   @media (max-width: ${breakpoints.tablet}px) {
-    width: min(100% - 32px, 520px);
-    padding-top: var(--space-10);
+    grid-template-columns: minmax(0, 1fr); grid-template-areas: "intro" "install" "memory";
+    max-width: 520px; margin-inline: auto; row-gap: 28px;
   }
 `;
 
 const Intro = styled.section`
-  display: grid;
-  justify-items: center;
-  text-align: center;
-
-  h1 {
-    margin-top: var(--space-3);
-    font-size: clamp(2rem, 5vw, 3.5rem);
-    font-weight: 700;
-    line-height: 1.15;
-    letter-spacing: -0.035em;
-    text-wrap: balance;
-  }
-
-  p {
-    margin-top: var(--space-5);
-    color: var(--color-text-muted);
-    font-size: clamp(0.95rem, 1.7vw, 1.125rem);
-    line-height: 1.7;
-  }
-
-  @media (max-width: ${breakpoints.mobile}px) {
-    h1 {
-      font-size: clamp(1.8rem, 9vw, 2.35rem);
-    }
-  }
+  grid-area: intro; align-self: end;
+  h1 { margin: 0; font-family: var(--font-emotional), var(--font-sans), sans-serif;
+    font-size: clamp(28px, 4.2vw, 48px); font-weight: 700; line-height: 1.35;
+    letter-spacing: -0.025em; text-wrap: balance; overflow-wrap: anywhere; }
+  p { margin: 24px 0 0; color: var(--color-text-muted); font-size: 16px; line-height: 1.8; text-wrap: pretty; }
+  @media (max-width: ${breakpoints.tablet}px) { text-align: center; }
 `;
 
-const StoreRail = styled.section`
-  position: relative;
-  width: min(100%, 780px);
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 48px minmax(0, 1fr);
-  align-items: center;
-  margin-top: clamp(44px, 7vw, 76px);
+const Install = styled.section`grid-area: install; align-self: start; min-width: 0;`;
 
-  @media (max-width: ${breakpoints.tablet}px) {
-    grid-template-columns: minmax(0, 1fr);
-    gap: 0;
-  }
+const StoreLinks = styled.div`
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 210px), 1fr)); gap: 16px;
+  @media (max-width: ${breakpoints.mobile}px) { grid-template-columns: minmax(0, 1fr); gap: 12px; }
 `;
 
-const StoreCard = styled.article<{ $tone: "brand" | "secondary" }>`
-  position: relative;
-  z-index: 1;
+const Store = styled.div`
   min-width: 0;
-  display: grid;
-  gap: var(--space-5);
-  padding: clamp(20px, 3vw, 28px);
-  border: 1px solid
-    ${({ $tone }) =>
-      $tone === "brand"
-        ? "var(--color-brand-300)"
-        : "var(--color-secondary-400)"};
-  border-radius: 24px;
-  background: var(--color-surface);
-  box-shadow: 0 18px 56px rgb(var(--color-black-rgb) / 0.08);
-
-  @media (max-width: ${breakpoints.tablet}px) {
-    width: min(100%, 360px);
-    justify-self: center;
-  }
-
-  @media (max-width: ${breakpoints.mobile}px) {
-    border-radius: 20px;
-    box-shadow: none;
-  }
-`;
-
-const PlatformHeading = styled.div`
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
-
-  > div:last-of-type {
-    display: grid;
-    gap: 1px;
-  }
-
-  span {
-    color: var(--color-text-muted);
-    font-size: var(--font-size-100);
-  }
-
-  strong {
-    font-size: var(--font-size-300);
-    font-weight: 700;
-  }
-`;
-
-const PlatformIcon = styled.div<{ $tone: "brand" | "secondary" }>`
-  width: 42px;
-  height: 42px;
-  display: grid;
-  place-items: center;
-  border-radius: 14px;
-  background: ${({ $tone }) =>
-    $tone === "brand"
-      ? "var(--color-brand-200)"
-      : "var(--color-secondary-200)"};
-  color: ${({ $tone }) =>
-    $tone === "brand"
-      ? "var(--color-brand-900)"
-      : "var(--color-secondary-900)"};
-
-  svg {
-    width: 21px;
-    height: 21px;
-    stroke-width: 1.9;
-  }
-`;
-
-const QrFrame = styled.div`
-  aspect-ratio: 1;
-  width: 100%;
-  padding: var(--space-3);
-  border: 1px solid var(--color-neutral-400);
-  border-radius: 18px;
-  background: white;
-
-  img {
-    width: 100%;
-    height: 100%;
-  }
+  > span { display: block; margin-bottom: 8px; font-size: 12px; color: var(--color-text-muted); }
 `;
 
 const StoreLink = styled.a`
   ${baseControlStyles}
-  min-height: 48px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: var(--space-2);
-  border-radius: 999px;
-  background: var(--color-neutral-1200);
-  color: white;
-  font-size: var(--font-size-100);
-  font-weight: 700;
-  transition: transform 180ms ease, background 180ms ease;
-
-  svg {
-    width: 17px;
-    height: 17px;
-  }
-
-  &:hover {
-    background: var(--color-brand-900);
-    transform: translateY(-2px);
-  }
-
-  &:active {
-    transform: translateY(0);
-  }
-
-  @media (prefers-reduced-motion: reduce) {
-    transition: none;
-  }
+  width: 100%; min-height: 52px; padding: 12px;
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  border-radius: 999px; background: var(--color-brand-300); color: var(--color-brand-1000);
+  font-size: 14px; font-weight: 700; line-height: 1.5; text-align: center; text-decoration: none;
+  svg { flex-shrink: 0; }
+  &:hover { background: var(--color-brand-400); }
+  &:active { background: var(--color-brand-200); }
 `;
 
-const RailMark = styled.div`
-  display: grid;
-  justify-items: stretch;
-  gap: 5px;
-
-  i {
-    height: 4px;
-    background: var(--color-brand-400);
-  }
-
-  i:nth-of-type(2) {
-    background: var(--color-accent-bridge);
-  }
-
-  i:nth-of-type(3) {
-    background: var(--color-secondary-500);
-  }
-
-  @media (max-width: ${breakpoints.tablet}px) {
-    width: 48px;
-    margin-inline: auto;
-    padding-block: var(--space-3);
-    transform: rotate(90deg);
-  }
+const QrDisclosure = styled.details`
+  margin-top: 12px;
+  summary { display: flex; align-items: center; justify-content: center; gap: 8px;
+    min-height: 44px; padding: 10px; cursor: pointer; list-style: none;
+    color: var(--color-text-muted); font-size: 14px; }
+  summary::-webkit-details-marker { display: none; }
+  summary:focus-visible { outline: 2px solid var(--color-brand-800); outline-offset: 2px; border-radius: 8px; }
+  &[open] summary svg { transform: rotate(180deg); }
 `;
 
-const Footnote = styled.p`
-  margin-top: var(--space-7);
-  color: var(--color-text-muted);
-  font-size: var(--font-size-100);
-  text-align: center;
+const QrList = styled.div`
+  display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px;
+  max-width: 360px; margin: 16px auto 0;
+`;
+
+const QrItem = styled.figure`
+  margin: 0; min-width: 0; text-align: center;
+  img { display: block; box-sizing: border-box; width: 100%; height: auto; aspect-ratio: 1; padding: 8px; background: white; }
+  figcaption { margin-top: 8px; font-size: 13px; }
+`;
+
+const QrHelp = styled.p`margin: 16px 0 0; color: var(--color-text-muted); font-size: 13px; line-height: 1.7; text-align: center;`;
+
+const Memory = styled.figure`
+  grid-area: memory; margin: 0; min-width: 0; display: grid; justify-items: center; gap: 24px;
+  figcaption { color: var(--color-text-muted); font-size: 14px; line-height: 1.7; text-align: center; }
+  @media (max-width: ${breakpoints.tablet}px) { margin-top: 20px; }
+`;
+
+const Sample = styled.div`
+  width: min(100%, 320px); box-shadow: 0 20px 40px rgb(var(--color-black-rgb) / 0.08);
+  @media (max-width: ${breakpoints.mobile}px) { width: min(100%, 260px); }
+`;
+
+const Footnote = styled.footer`
+  margin-top: clamp(48px, 8vw, 88px); text-align: center;
+  p { margin: 0; color: var(--color-text-muted); font-size: 14px; line-height: 1.8; text-wrap: pretty; }
+`;
+
+const WebLink = styled.a`
+  ${baseControlStyles}
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  min-height: 44px; padding: 10px 4px; margin-top: 12px;
+  color: var(--color-brand-900); font-size: 14px; text-decoration: underline; text-underline-offset: 4px;
+  &:hover { color: var(--color-brand-1000); }
 `;
