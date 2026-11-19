@@ -129,5 +129,7 @@ test("초기 HTML과 로컬 저장소 확인 중에는 두 진입 게이트 모�
     assert.match(source, /const \[localCheckComplete, setLocalCheckComplete\] = useState\(false\)/);
     assert.match(source, /localCheckComplete && (?:!entryRedirect && )?<TutiWordmark priority \/>/);
   }
-  assert.match(terms, /if \(active\) setLocalCheckComplete\(true\)/);
+  // The storage check now also records whether a session exists. Both state
+  // writes must stay inside the mounted-request guard, not match old syntax.
+  assert.match(terms, /if \(active\) \{\s*setLocalCheckComplete\(true\);\s*setLocalHasSession\(hasStoredSession\);\s*\}/);
 });

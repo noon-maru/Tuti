@@ -10,7 +10,8 @@ test("책장 표지와 설정은 중첩 버튼 없이 같은 책 읽기 화면�
   assert.match(shelf, /items=\{harumadiActions\(book\)/);
   assert.match(shelf, /onOpen\(book, trigger, action.mode\)/);
   assert.match(home, /<HarumadiShelf[^>]*onOpen=\{openBook\}/);
-  assert.match(home, /<HomeSurface[^>]*inert=\{Boolean\(opening\)\}/);
+  assert.match(home, /<HomeSurface[^>]*inert=\{Boolean\(opening\) \|\| Boolean\(composePull.preview\?\.settling\)\}/);
+  assert.match(home, /aria-hidden=\{opening \|\| composePull.preview\?\.settling \? true : undefined\}/);
   assert.match(home, /<HarumadiBookReader opening=\{opening\}/);
   assert.doesNotMatch(home, /router.push\(harumadiPath/);
 });

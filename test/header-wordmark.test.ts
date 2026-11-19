@@ -7,7 +7,10 @@ test("책장·첫 화면·질문 상단은 워드마크를 반복하지 않는�
   const sources = paths.map(path => readFileSync(`src/features/tuti/${path}`, "utf8"));
   for (const source of sources) assert.doesNotMatch(source, /TutiWordmark|HeaderWordmark|<Wordmark/);
   assert.match(sources[0], /label="책장 메뉴"/);
-  assert.match(sources[0], /justify-content: space-between/);
+  // The current one-line header uses an auto margin rather than distributing
+  // every control with space-between. Preserve the shortcut and action group.
+  assert.match(sources[0], /const HeaderActions = styled\.div`display: flex; align-items: center; gap: 8px; width: 100%/);
+  assert.match(sources[0], /const CreateHarumadi = styled\(TextAction\)`\$\{compactSecondaryButtonStyles\} margin-left: auto/);
   assert.match(sources[0], /aria-label="내 책장"/);
   assert.doesNotMatch(sources[0], /<h1|ShelfCount/);
   assert.match(sources[1], /이용 방법 이전 화면/);
