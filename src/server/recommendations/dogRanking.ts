@@ -1,10 +1,11 @@
 import type { TutiPlace } from "@/lib/recommendations";
 import type { DogOuting } from "@/shared/pets/dogAccess";
+import type { DogScore } from "@/shared/api/dogRecommendation";
+export type { DogScore } from "@/shared/api/dogRecommendation";
 import type { PlaceNoveltySignal } from "./novelty";
 import { noveltyBoost } from "./novelty";
 import { matchesDogPurpose } from "./dogDestination";
 
-export type DogScore = { access: number; facility: number; purpose: number; distance: number; time: number; weather: number; novelty: number; total: number };
 /** Positive evidence bonuses only. Legacy fatigue/energy/low-burden scores never enter this function. */
 export function scoreDogPlace(place: TutiPlace, outing?: DogOuting, novelty?: Omit<PlaceNoveltySignal, "placeId">): DogScore {
   const access = place.dogAccess?.kind !== "tourapi" && place.dogAccess ? 6 : 0;

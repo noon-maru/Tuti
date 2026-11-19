@@ -526,11 +526,11 @@ export type AdminRecommendationSimulationCandidate = {
   selected: boolean;
   initialRank: number | null;
   finalRank: number;
-  breakdown: AdminRecommendationScoreBreakdown | import("@/server/recommendations/dogRanking").DogScore;
+  breakdown: AdminRecommendationScoreBreakdown | import("@/shared/api/dogRecommendation").DogScore;
 };
 
 export type AdminRecommendationSimulationResponse = {
-  dogAudit?: import("@/server/recommendations/dogEngine").DogRecommendationAudit;
+  dogAudit?: import("@/shared/api/dogRecommendation").DogRecommendationAudit;
   algorithmVersion: string;
   generatedAt: string;
   elapsedMs: number;

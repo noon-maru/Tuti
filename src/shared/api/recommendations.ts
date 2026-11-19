@@ -36,7 +36,7 @@ export type RecommendationRequest = {
 };
 
 export type RecommendationResponse = {
-  audit?: import("@/server/recommendations/dogEngine").DogRecommendationAudit;
+  audit?: import("@/shared/api/dogRecommendation").DogRecommendationAudit;
   recommendationId: string;
   algorithmVersion: string;
   places: TutiPlace[];

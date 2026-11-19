@@ -2,6 +2,8 @@ import type { TutiPlace } from "@/lib/recommendations";
 import { prisma } from "@/server/db/prisma";
 import { dogOutingPlaces } from "@/server/pets/dogAccess";
 import type { DogOuting } from "@/shared/pets/dogAccess";
+import type { DogRecommendationAudit } from "@/shared/api/dogRecommendation";
+export type { DogRecommendationAudit } from "@/shared/api/dogRecommendation";
 import type { IntakeAnswers, PreferredRegion, UserLocation } from "@/shared/tuti/types";
 import type { PersonalizationAudit } from "@/server/personalization/ranking";
 import { getPreferredRegionWhere } from "./regionFallback";
@@ -20,7 +22,6 @@ export const DOG_ENGINE_VERSION = "dog-outing-v2";
 export class DogCatalogNotReadyError extends Error {
   constructor() { super("반려견 동반 추천 데이터를 준비하고 있어요. 잠시 후 다시 시도해주세요."); }
 }
-export type DogRecommendationAudit = { algorithmVersion: string; catalogReady: number; areaCandidates: number; distanceEligible: number; destinationEligible: number; companionEligible: number; timeEligible: number; purposeEligible: number; budgetEligible: number; returned: number; conditionsProvided: boolean };
 export const dogDistancePolicy = { near: 5000, short: 20000, half: 60000, far: 200000 } as const;
 export function dogDistanceMeters(a: UserLocation, b: UserLocation) {
   const radians = (value: number) => value * Math.PI / 180;
