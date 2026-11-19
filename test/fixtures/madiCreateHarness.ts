@@ -7,7 +7,7 @@ import * as jsx from "react/jsx-runtime";
 import * as fields from "../../src/shared/api/firstJournal";
 import * as copy from "../../src/shared/tuti/madiFields";
 import * as dates from "../../src/lib/date/koreanDate";
-import { newMadiDraftContext } from "../../src/lib/madiDraft";
+import { madiEditDraftSource, newMadiDraftContext } from "../../src/lib/madiDraft";
 import { harumadiSharingNotice } from "../../src/shared/harumadi/sharingAudience";
 import type { ComponentProps } from "react";
 import type { MadiCreateScreen } from "../../src/features/tuti/screens/journal/MadiCreateScreen";
@@ -50,7 +50,7 @@ export function madiCreateHarness(props: ComponentProps<typeof MadiCreateScreen>
     "@/features/tuti/components/JournalPlacePicker": { JournalPlacePicker: tag },
     "@/features/tuti/components/MadiFieldFeedback": { MadiFieldFeedback: tag },
     "@/features/tuti/components/PetProfiles": { PetProfiles: tag },
-    "@/lib/madiDraft": { newMadiDraftContext },
+    "@/lib/madiDraft": { newMadiDraftContext, madiEditDraftSource },
     "@/shared/harumadi/sharingAudience": { harumadiSharingNotice },
     ...overrides,
   };

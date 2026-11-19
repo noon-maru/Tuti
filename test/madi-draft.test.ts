@@ -1,10 +1,18 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
-import { createMadiDraftStorage, type MadiDraft } from "@/lib/madiDraft";
+import { createMadiDraftStorage, madiEditDraftSource, type MadiDraft } from "@/lib/madiDraft";
+import { harumadiContent } from "./fixtures/harumadiContent";
 
 const value: MadiDraft = { title: "걷던 하루", content: "함께라서 좋았어", date: "2026-10-28", place: "동네", placeId: null,
   image: "data:image/jpeg;base64,YQ==", originalImage: false, stage: "write" };
+test("첫 마디 재편집과 일반 수정은 같은 초안 식별자를 쓰되 버전·반려동물 변경을 구분한다", () => {
+  const entry = harumadiContent().entries[0];
+  const pet = { id: "pet-a", name: "몽실이", species: "dog" as const, weightKg: 3 };
+  assert.equal(madiEditDraftSource(entry, [pet.id]), madiEditDraftSource({ ...entry, pets: [pet] }));
+  assert.notEqual(madiEditDraftSource(entry, [pet.id]), madiEditDraftSource(entry, []));
+  assert.notEqual(madiEditDraftSource(entry), madiEditDraftSource({ ...entry, version: "2026-11-19T00:00:00.000Z" }));
+});
 function fixture() {
   const values = new Map<string, string>();
   let clock = 1000;

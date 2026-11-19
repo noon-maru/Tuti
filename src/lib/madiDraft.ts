@@ -1,5 +1,10 @@
 import { preferencesStorage } from "./storage/preferencesStorage";
 import type { StateStorage } from "zustand/middleware";
+import type { TutiJournalEntry } from "@/shared/api/journal";
+
+export function madiEditDraftSource(entry: TutiJournalEntry, petIds = entry.pets?.map(pet => pet.id) ?? []) {
+  return JSON.stringify([entry.title, entry.content, entry.visitedAt, entry.placeId, entry.placeName, Boolean(entry.image), entry.version ?? null, [...petIds].sort()]);
+}
 
 export type MadiDraft = {
   petIds?: string[];
