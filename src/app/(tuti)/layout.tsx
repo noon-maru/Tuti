@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import { TutiAppShell } from "@/features/tuti/components/TutiAppShell";
 
 export const metadata: Metadata = {
@@ -6,5 +7,5 @@ export const metadata: Metadata = {
 };
 
 export default function TutiLayout({ children }: { children: React.ReactNode }) {
-  return <TutiAppShell>{children}</TutiAppShell>;
+  return <Suspense fallback={null}><TutiAppShell>{children}</TutiAppShell></Suspense>;
 }
