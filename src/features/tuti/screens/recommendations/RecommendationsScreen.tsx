@@ -75,6 +75,8 @@ const TOUCH_TAP_SLOP = 16;
 const LIMITED_RESULTS_TOAST_DURATION_MS = 10_000;
 
 export function RecommendationsScreen({
+  ownerId,
+  onPets,
   places,
   answers,
   loading,
@@ -120,6 +122,8 @@ export function RecommendationsScreen({
   initialHelp,
   onInitialHelpShown,
 }: {
+  ownerId?: string;
+  onPets?: () => void;
   places: TutiPlace[];
   answers: IntakeAnswers;
   loading: boolean;
@@ -717,6 +721,8 @@ export function RecommendationsScreen({
         <AccountMenu>
           <MainMenu
             label="메인 메뉴"
+            ownerId={ownerId}
+            onPets={onPets}
             adminAccess={accountConnected && adminAccess}
             onDownload={onDownload}
             onSettings={onSettings}

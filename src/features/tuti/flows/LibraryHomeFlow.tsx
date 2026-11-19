@@ -33,7 +33,6 @@ import { bodyCopyStyles } from "@/shared/ui/typography";
 import { PendingMadiNotice } from "../components/PendingMadiNotice";
 import { useMadiComposePull } from "../hooks/useMadiComposePull";
 import { MadiComposePullPreview } from "../components/MadiComposePullPreview";
-import { LibraryPetPortraits } from "../components/LibraryPetPortraits";
 
 export function LibraryHomeFlow() {
   const session = useSession();
@@ -95,9 +94,9 @@ function LibraryHome({ ownerId, adminAccess = false }: { ownerId: string; adminA
         onClick={() => { if (searchOpen) closeSearch(); else setSearchOpen(true); }}>
         <Search size={21} aria-hidden="true" />
       </SearchToggle>
-      <MainMenu label="책장 메뉴" adminAccess={adminAccess} triggerContent={<LibraryPetPortraits ownerId={ownerId} />}
+      <MainMenu label="책장 메뉴" adminAccess={adminAccess} ownerId={ownerId} onPets={() => router.push("/pets")}
         items={[...libraryViewItems(view, chooseView), { group: "보관함", label: "저장한 PDF", onSelect: () => router.push("/harumadi/pdfs") }]}
-        helpItems={[{ label: "함께하는 반려동물", onSelect: () => router.push("/pets") }, { label: "하루마디 예시 펼쳐보기", onSelect: openExample }]}
+        helpItems={[{ label: "하루마디 예시 펼쳐보기", onSelect: openExample }]}
         onDownload={() => router.push("/download")} onSettings={() => router.push("/settings")} onAdmin={() => router.push("/admin")} />
     </HeaderActions>
     <SearchRow $open={searchOpen} id="library-name-search" inert={!searchOpen} aria-hidden={!searchOpen} onKeyDown={event => {
@@ -135,6 +134,7 @@ function LibraryHome({ ownerId, adminAccess = false }: { ownerId: string; adminA
 }
 const Frame = styled(ScreenFrame)`position: relative; height: 100%; min-height: 0; padding: 0; background: var(--library-background); color: var(--color-text); isolation: isolate;
   --library-background: ${palette.surface.library};
+  --pet-menu-background: var(--library-background);
   --main-navigation-background: var(--library-background);
   --screen-padding-top: calc(var(--app-header-top-space, 24px) + var(--app-safe-area-top, 0px));
   --harumadi-shelf-title-size: 16px; --harumadi-shelf-brand-size: 10px; --harumadi-shelf-date-size: 11px;

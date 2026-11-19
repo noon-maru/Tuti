@@ -490,6 +490,8 @@ export function RecommendationsFlow({ interactive, dogOuting, onDogOutingChange 
   return (
     <>
       <RecommendationsScreen
+        ownerId={session?.userId}
+        onPets={() => router.push("/pets")}
         onRefreshFromCurrentLocation={() => void recommendFromCurrentLocation()}
         refreshingRecommendations={refreshingRecommendations}
         places={places}
