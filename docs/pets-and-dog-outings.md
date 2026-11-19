@@ -240,6 +240,23 @@ pnpm exec tsx scripts/import-dog-place-access.ts /absolute/path/to/reviewed-dog-
 
 ## 적용 순서와 복원 경계
 
+운영 최초 전환에는 `scripts/ops/prepare-dog-catalog`를 사용한다. 먼저 Actions에서 해당 main SHA의
+앱·ops 이미지를 만들고 호스트에 `tuti:ops-{12자리SHA}` 태그로 받아둔다. 운영 배포 보호 장치가
+카탈로그 미준비로 거절하면 기존 앱은 유지하며 이 준비 단계부터 완료한다.
+
+```sh
+sudo sh scripts/ops/prepare-dog-catalog --check FULL_IMAGE_SHA
+sudo sh scripts/ops/prepare-dog-catalog --apply FULL_IMAGE_SHA
+```
+
+`--check`는 고정 공개 파일 해시·이미지·main SHA와 마이그레이션·카탈로그 상태를 확인한다.
+스키마가 미적용이면 실패하며 적용하지 않는다. `--apply`는 전체 백업 성공 후 유지보수 잠금 안에서
+추가형 마이그레이션, 국문 동반 원문 9,634건·기본정보·검토된 두 상세 보강 파일만 반영하고
+준비 검사·4지역 추천 회귀를 실행한다. 원본 파일의 0600 권한은 유지하며 컨테이너에는 임시 읽기 전용
+사본만 제공한다. 기존 수동 제외·편집값·더 최신의 원문은 기존 입력 도구의 보호 조건을 따른다.
+개발 DB 복제·외부 API 수집·사용자 데이터 복사·앱 교체·워커 갱신은 하지 않는다.
+개발 DB의 모든 소개·요약·운영자 검토 상태를 복제하는 도구도 아니다. 준비 성공 뒤 정규 배포를 재개한다.
+
 1. Actions에서 새 앱·서버·ops 빌드와 테스트를 수행한다. 로컬 릴리스 빌드는 하지 않는다.
 2. 새 ops 이미지로 `20261116010000_optional_pet_profiles`, `20261116020000_dog_place_access`, `20261116030000_tourism_pet_sources`, `20261117010000_dog_place_catalog` 추가형 마이그레이션을 적용한다. 구 앱은 아직 유지한다.
    국문 원문을 입력하고 아래 기본 정보 등록까지 완료한 뒤 `scripts/check-dog-recommendation-readiness.ts --require-data`와 `scripts/verify-dog-recommendations.ts`를 실행한다. 준비가 확인되기 전 새 추천 앱으로 교체하지 않는다.

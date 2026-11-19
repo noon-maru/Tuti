@@ -1,0 +1,75 @@
+#!/bin/sh
+# Prepare only public recommendation data. Never copy the development database.
+set -eu
+mode="${1:-}"
+revision="${2:-}"
+if [ "$(id -u)" != 0 ]; then echo "NAS 관리자 권한이 필요합니다." >&2; exit 1; fi
+case "$mode:$#" in --check:2 | --apply:2) ;; *) echo "사용법: prepare-dog-catalog --check|--apply 40자리_이미지_SHA" >&2; exit 1 ;; esac
+case "$revision" in '' | *[!0-9a-f]*) exit 1 ;; esac
+[ "${#revision}" = 40 ] || exit 1
+project_dir="$(CDPATH= cd -- "$(dirname -- "$0")/../.." && pwd -P)"
+cd "$project_dir"
+git_project() { git -c safe.directory="$project_dir" -C "$project_dir" "$@"; }
+[ "$(git_project branch --show-current)" = main ] && [ "$(git_project rev-parse HEAD)" = "$revision" ] && [ -z "$(git_project status --porcelain)" ] || { echo "커밋된 운영 main과 이미지 SHA가 일치해야 합니다." >&2; exit 1; }
+image="tuti:ops-$(printf '%s' "$revision" | cut -c1-12)"
+docker image inspect "$image" >/dev/null
+if [ -f .ops-state/restore-privacy/pending.env ] || [ -f .ops-state/privacy-activation/pending ]; then echo "복원·원장 전환 확인 전에는 준비하지 않습니다." >&2; exit 1; fi
+
+kor=.tourism-data/pet-tourism/2026-11-16T08-03-49-396Z-127f1d79/kor.jsonl
+basics=.tourism-data/dog-basics/2026-11-17T01-22-15-553Z-02daf77b.jsonl
+detail_a=.tourism-data/dog-details/2026-11-17T02-08-59-151Z.json
+detail_b=.tourism-data/dog-details/2026-11-17T02-14-14-250Z.json
+kor_hash=d77fc32b83506b030798b4fa42e138c723ec23dbb53da7fb231cd5fd19f9d71f
+basics_hash=c1bd221cadbae97f2f0ce188ce8956dd584be1c1bc20cf810f1c1cacbf016a7a
+detail_a_hash=8c1d5204313fcd8e9bf64ca23ccf54b5d72ee93a8b8fa31015afdfcbd7394311
+detail_b_hash=3d274de8ceea5cc5b606f512fbfe1ba0569ea754c6bd0ef250c1c0f6203d8044
+verify_file() {
+  [ -f "$1" ] && [ ! -L "$1" ] && [ "$(sha256sum "$1" | cut -d ' ' -f 1)" = "$2" ] || { echo "승인된 공개 자료의 파일·해시를 확인하지 못했습니다." >&2; exit 1; }
+}
+verify_file "$kor" "$kor_hash"
+verify_file "$basics" "$basics_hash"
+verify_file "$detail_a" "$detail_a_hash"
+verify_file "$detail_b" "$detail_b_hash"
+staging="$(mktemp -d /tmp/tuti-dog-catalog.XXXXXX)"
+cleanup() { rm -f "$staging/kor.jsonl" "$staging/basics.jsonl" "$staging/detail-a.json" "$staging/detail-b.json"; rmdir "$staging"; }
+trap cleanup EXIT
+trap 'exit 1' HUP INT TERM
+# Public artifacts are 0600 in the checkout. Give the container read-only copies,
+# not root execution or broader permissions on the original collection files.
+cp "$kor" "$staging/kor.jsonl"
+cp "$basics" "$staging/basics.jsonl"
+cp "$detail_a" "$staging/detail-a.json"
+cp "$detail_b" "$staging/detail-b.json"
+chmod 0755 "$staging"
+chmod 0444 "$staging/kor.jsonl" "$staging/basics.jsonl" "$staging/detail-a.json" "$staging/detail-b.json"
+verify_file "$staging/kor.jsonl" "$kor_hash"
+verify_file "$staging/basics.jsonl" "$basics_hash"
+verify_file "$staging/detail-a.json" "$detail_a_hash"
+verify_file "$staging/detail-b.json" "$detail_b_hash"
+ops() { TUTI_OPS_IMAGE="$image" docker compose --env-file .env.production -f docker-compose.prod.yml run --rm --no-deps -T --user 1000:1000 --volume "$staging:/public-catalog:ro" ops "$@"; }
+ops node_modules/.bin/tsx scripts/import-pet-tourism.ts /public-catalog/kor.jsonl --source kor --expected-sha256 "$kor_hash"
+if [ "$mode" = --check ]; then
+  ops node_modules/.bin/prisma migrate status
+  ops node_modules/.bin/tsx scripts/check-dog-recommendation-readiness.ts --require-data
+  echo '{"mode":"checked","databaseChanged":false,"appReplaced":false}'
+  exit 0
+fi
+
+echo "카탈로그 준비 전 전체 백업을 실행합니다. 백업 실패 시 DB를 변경하지 않습니다."
+sh scripts/ops/tuti-prod-backup
+exec 9>"$project_dir/.ops-state/maintenance.lock"
+/usr/bin/flock --exclusive 9
+[ "$(git_project rev-parse HEAD)" = "$revision" ] && [ -z "$(git_project status --porcelain)" ] || exit 1
+if [ -f .ops-state/restore-privacy/pending.env ] || [ -f .ops-state/privacy-activation/pending ]; then exit 1; fi
+echo "추가형 마이그레이션과 승인된 공개 원문·기본정보를 반영합니다."
+ops node_modules/.bin/prisma migrate deploy
+ops node_modules/.bin/tsx scripts/import-pet-tourism.ts /public-catalog/kor.jsonl --source kor --apply --expected-sha256 "$kor_hash"
+ops node_modules/.bin/tsx scripts/register-dog-place-catalog.ts /public-catalog/basics.jsonl --expected-sha256 "$basics_hash"
+ops node_modules/.bin/tsx scripts/register-dog-place-catalog.ts /public-catalog/basics.jsonl --apply --expected-sha256 "$basics_hash"
+ops node_modules/.bin/tsx scripts/supplement-dog-place-details.ts /public-catalog/detail-a.json --register-basics --expected-sha256 "$detail_a_hash"
+ops node_modules/.bin/tsx scripts/supplement-dog-place-details.ts /public-catalog/detail-a.json --register-basics --apply --expected-sha256 "$detail_a_hash"
+ops node_modules/.bin/tsx scripts/supplement-dog-place-details.ts /public-catalog/detail-b.json --register-basics --expected-sha256 "$detail_b_hash"
+ops node_modules/.bin/tsx scripts/supplement-dog-place-details.ts /public-catalog/detail-b.json --register-basics --apply --expected-sha256 "$detail_b_hash"
+ops node_modules/.bin/tsx scripts/check-dog-recommendation-readiness.ts --require-data
+ops node_modules/.bin/tsx scripts/verify-dog-recommendations.ts
+echo '{"mode":"prepared","publicDataOnly":true,"accountDataCopied":false,"appReplaced":false,"externalApiRequests":0}'
