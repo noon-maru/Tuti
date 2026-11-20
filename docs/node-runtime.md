@@ -7,7 +7,7 @@
 - CVE-2026-111497(Node2Shell) 패치는 26.12.1에 포함됐다. 내장 Brotli 버전 문자열은 패치 후에도 1.2.0일 수 있으므로 문자열만 보고 미패치로 판단하지 않는다.
 - Docker의 base·runner·Android Node 복사 원본을 같은 버전으로 고정했다. Android 최종 Ubuntu 이미지에는 Node 26에 필요한 `libatomic1`도 설치한다.
 - package engines와 pnpm `engineStrict`로 다른 메이저·보안 기준 미달 버전의 설치를 막는다. `pnpm runtime:check`는 Node 26.12.1 이상 26.x 정식 버전만 허용한다.
-- 웹·Android·iOS·법적 절차/복원 시험 CI는 `.node-version`을 읽고 설치 전 버전을 검사한다. 웹 Docker 빌드는 `pull: true`, 로컬 운영 이미지 빌드도 `--pull`로 실행한다.
+- 웹·Android·iOS·법적 절차/복원 시험 CI는 `.node-version`을 읽고 설치 전 버전을 검사한다. Actions의 웹 Docker 빌드는 `pull: true`를 사용한다. 로컬 운영 이미지 빌드는 현재 절차에서 사용하지 않는다.
 - builder·runner와 운영 배포 도구는 실제 실행 버전을 검사한다. 배포 도구 검사는 네트워크·운영 비밀정보 없이 후보 앱·작업 이미지에서 실행한다.
 
 ## NAS 로컬 도구

@@ -8,6 +8,7 @@
 | --- | --- |
 | [이전 사업모델 검토 요약](./business-model-exploration.md) | 폐기한 전제와 현재 BM으로 바뀐 이유 |
 | [10월 추천 성능 관측](./recommendation-performance-2026-10.md) | 구 v22/v23의 측정 조건·값; 현행 정책·SLO와 분리 |
+| [10월 백업 검증 이력](./backup-verification-2026-10.md) | 객체 누락·시험 환경 병목·전체/핵심 복원 성공의 확인 범위 |
 | [앱 전환 이력](./app-transition.md) | Capacitor 전환과 1.4.0·1.4.1의 일회성 세션 정리 구분 |
 | [약관 전환 검토 일지](./legal-transition-2026-10.md) | 확정 전 법률·운영 검토와 승인 판단의 당시 기록 |
 | [2026 공모전 제출 준비](./contest-2026-submission-readiness.md) | 제출 당시 데이터 집계·출처와 표현 |

@@ -17,6 +17,7 @@
 | 선택 반려동물·동반 추천 | [프로필·입력·권한·복원 경계](./pets-and-dog-outings.md) · [추천 정책](./dog-outing-v2-policy.md) · [환경별 검증](./dog-outing-verification.md) |
 | 제품 방향·확장 경계 | [2.0 브랜드 기준](./brand-definition.md) · [제품 방향](./product-direction.md) |
 | 화면 흐름·마디·하루마디·PDF | [마디 작성](./madi.md) · [하루마디 구현](./harumadi.md) |
+| 함께 채우기·공유 범위·참여 종료 | [함께 채우기](./harumadi-together.md) |
 | 웹·앱·서버 경계·인증 | [Capacitor API 구조](./capacitor-api-architecture.md) |
 | 시행 원문·선택 동의·개인정보 | [법적 문서 안내](./legal/README.md) |
 | 현재 버전의 출시 문구 | [출시 노트](./release-notes.md) |
@@ -30,7 +31,7 @@
 | 런타임·보안 업데이트 | [Node 실행 기준](./node-runtime.md) |
 | 네이티브 빌드·스토어 업로드 | [Android](./android-build.md) · [iOS](./ios-build.md) |
 | 스토어 제출 점검 | [iOS 심사 체크리스트](./ios-app-review.md) · [위치정보 공개](./store-location-disclosures.md) |
-| 관리자·권한·로그 | [관리자 콘솔](./admin-console.md) · [라이프로그 지표](./admin-lifelog-metrics.md) · [처리 요청 자동 채번](./admin-processing-cases.md) |
+| 관리자·권한·로그 | [관리자 콘솔·처리 요청](./admin-console.md) · [라이프로그 지표](./admin-lifelog-metrics.md) |
 | 비공개 시연 자료 추가 | [시연용 하루마디 5권](./demo-harumadis.md) |
 | 상주 ops worker·예약 실행 | [운영 작업 컨테이너](./ops-workers.md) |
 | 객체 스토리지 | [오브젝트 스토리지](./object-storage.md) |
@@ -63,7 +64,6 @@
 
 - [실물 하루마디 검증 계획](./harumadi-bm-validation-plan.md): **미구현 상품**의 샘플·수요·이행 검증과 보호 조건. 과거 모집·가격·상세 모델은 현행 실행 사양에서 제외했다.
 - [향후 검토 사양](./future-product-specs.md): 미제공 후보. 실행 약속이나 출시 일정이 아니다.
-- [함께 채우기](./harumadi-together.md): 여러 명의 하루마디 공동작성·소유권·종료 절차. 현재 제공 기능이며 환경별 활성화 설정은 별도로 확인한다.
 - [과거 기록 안내](./archive/README.md): 이전 BM을 통합한 요약, 앱 전환, 공모전·QA·약관 검토 이력.
 - 법적 문서의 초안·확정본·운영 절차 구분은 [법적 문서 안내](./legal/README.md)를 따른다.
 
