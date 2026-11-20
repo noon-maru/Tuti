@@ -14,7 +14,7 @@
 | 2.0.0 브랜드·타깃·말투·시각 방향 | [브랜드 정의서 v1.0](./brand-definition.md) |
 | 2.0 제공 범위·서버/앱 배포 상태 | [제공 범위·배포 기록](./tuti-2-implementation.md) |
 | 2.0 핵심 타깃·설계·검증 원칙 | [설계 원칙 v1.1](./target-and-design-principles.md) |
-| 선택 반려동물·동반 추천 | [구현·입력·권한·적용 순서](./pets-and-dog-outings.md) |
+| 선택 반려동물·동반 추천 | [프로필·입력·권한·복원 경계](./pets-and-dog-outings.md) · [추천 정책](./dog-outing-v2-policy.md) · [환경별 검증](./dog-outing-verification.md) |
 | 제품 방향·확장 경계 | [2.0 브랜드 기준](./brand-definition.md) · [제품 방향](./product-direction.md) |
 | 화면 흐름·마디·하루마디·PDF | [마디 작성](./madi.md) · [하루마디 구현](./harumadi.md) |
 | 웹·앱·서버 경계·인증 | [Capacitor API 구조](./capacitor-api-architecture.md) |
