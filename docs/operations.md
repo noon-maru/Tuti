@@ -143,6 +143,18 @@ sudo -n /usr/local/sbin/tuti-journal-moderation-purge
 
 ## 운영 워커와 Compose 구성
 
+### 승인된 이전 이미지 정리
+
+`scripts/ops/tuti-image-cleanup`은 2026-11-23 승인한 Tuti 이미지 79개의 고정 목록만 확인하는
+일회성 도구다. 기본은 조회이며 실제 정리는 NAS 관리자가 `sudo sh scripts/ops/tuti-image-cleanup --apply`로 실행한다.
+목록·도구가 커밋된 상태여야 하며 유지보수 잠금과 복원/원장 전환 대기를 확인한다.
+실행·중지 컨테이너 참조, 현재·이전 배포 및 짝 ops, 복원 시험용·개발 이미지는 보존한다.
+고정 ID와 태그를 재검증하고 다른 서비스 별칭이 있으면 건너뛴다. 조회 실패 시 중단하며
+`prune`·강제 삭제·컨테이너/볼륨 삭제·원격 레지스트리 삭제는 하지 않는다.
+이 목록을 이후의 자동 보관 정책이나 새 이미지 삭제 승인으로 재사용하지 않는다.
+
+### 공통 Compose와 작업 컨테이너
+
 `tuti-ops-maintenance`(개인정보·권리 대응·알림), `tuti-ops-recovery`(원장 백업·복구 보조),
 `tuti-ops-retention`(보관기간 정리·백업 검증)은 삭제 대상이 아닌 상시 예약 작업 컨테이너다.
 정의는 `docker-compose.prod.yml` 한 곳에 두며, `ops-workers` 프로필에서만 활성화한다.

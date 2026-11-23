@@ -1,0 +1,322 @@
+{
+  "approvedAt": "2026-11-23",
+  "scope": "local-docker-images-only",
+  "images": [
+    {
+      "idPrefix": "45192b5cf9e7",
+      "reference": "tuti:prod-c7bac885fec2"
+    },
+    {
+      "idPrefix": "3edcf616a940",
+      "reference": "tuti:ops-c7bac885fec2"
+    },
+    {
+      "idPrefix": "39a8c3b94b09",
+      "reference": "tuti:prod-063efc0631dc"
+    },
+    {
+      "idPrefix": "ea905b463c39",
+      "reference": "tuti:ops-063efc0631dc"
+    },
+    {
+      "idPrefix": "7d3c537cb628",
+      "reference": "tuti:prod-c93f80540b4b"
+    },
+    {
+      "idPrefix": "fb2a968caf51",
+      "reference": "tuti:ops-c93f80540b4b"
+    },
+    {
+      "idPrefix": "5349b939d97f",
+      "reference": "ghcr.io/noon-maru/tuti-web:71678c7d98d5b14f049f149708b2556757df4c59"
+    },
+    {
+      "idPrefix": "20743d97f850",
+      "reference": "ghcr.io/noon-maru/tuti-ops:71678c7d98d5b14f049f149708b2556757df4c59"
+    },
+    {
+      "idPrefix": "fb9044bf16db",
+      "reference": "ghcr.io/noon-maru/tuti-web:840a08d57abe4e5f1139016fe2aa38f91e2a8933"
+    },
+    {
+      "idPrefix": "d15605f04a66",
+      "reference": "ghcr.io/noon-maru/tuti-ops:840a08d57abe4e5f1139016fe2aa38f91e2a8933"
+    },
+    {
+      "idPrefix": "e823710a09cd",
+      "reference": "ghcr.io/noon-maru/tuti-web:eb1703a94311a6d04011287c000e165c6258dead"
+    },
+    {
+      "idPrefix": "574cc3d340c9",
+      "reference": "ghcr.io/noon-maru/tuti-ops:eb1703a94311a6d04011287c000e165c6258dead"
+    },
+    {
+      "idPrefix": "554f7ba0102b",
+      "reference": "ghcr.io/noon-maru/tuti-web:32fade817bd338fe18842fa3b9b95961229b5d09"
+    },
+    {
+      "idPrefix": "eb7d479bb23e",
+      "reference": "ghcr.io/noon-maru/tuti-ops:32fade817bd338fe18842fa3b9b95961229b5d09"
+    },
+    {
+      "idPrefix": "91098be721b8",
+      "reference": "ghcr.io/noon-maru/tuti-web:526b3bdc6eda396fc8e797e9355b961bff005886"
+    },
+    {
+      "idPrefix": "49337acb583e",
+      "reference": "ghcr.io/noon-maru/tuti-ops:526b3bdc6eda396fc8e797e9355b961bff005886"
+    },
+    {
+      "idPrefix": "820dbadf7505",
+      "reference": "ghcr.io/noon-maru/tuti-web:bd2dd05b30c5d0b04f72a7d4e2469200c731929f"
+    },
+    {
+      "idPrefix": "bcbaa4ec251c",
+      "reference": "ghcr.io/noon-maru/tuti-ops:bd2dd05b30c5d0b04f72a7d4e2469200c731929f"
+    },
+    {
+      "idPrefix": "4b642041793f",
+      "reference": "ghcr.io/noon-maru/tuti-web:7f99f5382cb445f6c0c09ad6fae03815a45085a8"
+    },
+    {
+      "idPrefix": "2438e4c8456e",
+      "reference": "ghcr.io/noon-maru/tuti-ops:7f99f5382cb445f6c0c09ad6fae03815a45085a8"
+    },
+    {
+      "idPrefix": "f06fe33a6ded",
+      "reference": "ghcr.io/noon-maru/tuti-web:8a0358e53e7c6b009cebcfba90121bb8a285f5fd"
+    },
+    {
+      "idPrefix": "37a0bf8dbe05",
+      "reference": "ghcr.io/noon-maru/tuti-ops:8a0358e53e7c6b009cebcfba90121bb8a285f5fd"
+    },
+    {
+      "idPrefix": "fe862b188e7c",
+      "reference": "ghcr.io/noon-maru/tuti-web:fb6cd061c9a4eb07dc4b80214d419ad377e9f778"
+    },
+    {
+      "idPrefix": "931d9cd0bab4",
+      "reference": "ghcr.io/noon-maru/tuti-ops:fb6cd061c9a4eb07dc4b80214d419ad377e9f778"
+    },
+    {
+      "idPrefix": "64525fd0d2fa",
+      "reference": "ghcr.io/noon-maru/tuti-web:422e1e6cc02b4dfbba17a3240bc155d6371de639"
+    },
+    {
+      "idPrefix": "b8216a20d650",
+      "reference": "ghcr.io/noon-maru/tuti-ops:422e1e6cc02b4dfbba17a3240bc155d6371de639"
+    },
+    {
+      "idPrefix": "500bf3ce2e5b",
+      "reference": "ghcr.io/noon-maru/tuti-web:d1a896db65ac1f0599327225925b644face327ca"
+    },
+    {
+      "idPrefix": "ef96360f5c8c",
+      "reference": "ghcr.io/noon-maru/tuti-ops:d1a896db65ac1f0599327225925b644face327ca"
+    },
+    {
+      "idPrefix": "3c8bc1cdcfb9",
+      "reference": "ghcr.io/noon-maru/tuti-web:956f3f46402f51a8e91e1d6ae55e2f6bd41a0097"
+    },
+    {
+      "idPrefix": "3a7cab9336c4",
+      "reference": "ghcr.io/noon-maru/tuti-ops:956f3f46402f51a8e91e1d6ae55e2f6bd41a0097"
+    },
+    {
+      "idPrefix": "fd68ae777d93",
+      "reference": "ghcr.io/noon-maru/tuti-web:46328e0d07b01a8e00b5a074915659781a3e86c5"
+    },
+    {
+      "idPrefix": "082faa5895ad",
+      "reference": "ghcr.io/noon-maru/tuti-ops:46328e0d07b01a8e00b5a074915659781a3e86c5"
+    },
+    {
+      "idPrefix": "f78479f71022",
+      "reference": "ghcr.io/noon-maru/tuti-web:a957bc3c838bf0b115bdfc4a0cd0c9c33a8fc30e"
+    },
+    {
+      "idPrefix": "a26bbcc88520",
+      "reference": "ghcr.io/noon-maru/tuti-ops:a957bc3c838bf0b115bdfc4a0cd0c9c33a8fc30e"
+    },
+    {
+      "idPrefix": "17333f2d28ed",
+      "reference": "ghcr.io/noon-maru/tuti-web:645df4537616024f939d8c47c39a677f905c48d4"
+    },
+    {
+      "idPrefix": "7177a1701429",
+      "reference": "ghcr.io/noon-maru/tuti-ops:645df4537616024f939d8c47c39a677f905c48d4"
+    },
+    {
+      "idPrefix": "ed75776557d5",
+      "reference": "ghcr.io/noon-maru/tuti-web:5a8e98d46ae57c6c02e5f2d5ce082383b5605205"
+    },
+    {
+      "idPrefix": "59429cf06fa2",
+      "reference": "ghcr.io/noon-maru/tuti-ops:5a8e98d46ae57c6c02e5f2d5ce082383b5605205"
+    },
+    {
+      "idPrefix": "93163a4f0743",
+      "reference": "ghcr.io/noon-maru/tuti-web:beca86f0e01412a12fc0aa55d4fb3be9557cf562"
+    },
+    {
+      "idPrefix": "7507061f18aa",
+      "reference": "ghcr.io/noon-maru/tuti-ops:beca86f0e01412a12fc0aa55d4fb3be9557cf562"
+    },
+    {
+      "idPrefix": "915ec6d12f6d",
+      "reference": "ghcr.io/noon-maru/tuti-web:b9ffff0b10f5e49f1e46e4e75d275c920fb97f7a"
+    },
+    {
+      "idPrefix": "9281cd806e5c",
+      "reference": "ghcr.io/noon-maru/tuti-ops:b9ffff0b10f5e49f1e46e4e75d275c920fb97f7a"
+    },
+    {
+      "idPrefix": "b83ed7aa8506",
+      "reference": "ghcr.io/noon-maru/tuti-web:8c3643c2267c9302e37ec408607ef51adb124729"
+    },
+    {
+      "idPrefix": "9456193e18c4",
+      "reference": "ghcr.io/noon-maru/tuti-ops:8c3643c2267c9302e37ec408607ef51adb124729"
+    },
+    {
+      "idPrefix": "48049ced4f21",
+      "reference": "ghcr.io/noon-maru/tuti-web:4633095ad24e6453f816d7df5a4cd7defcd874f3"
+    },
+    {
+      "idPrefix": "6ccdd4fcddaf",
+      "reference": "ghcr.io/noon-maru/tuti-ops:4633095ad24e6453f816d7df5a4cd7defcd874f3"
+    },
+    {
+      "idPrefix": "e87bca5e6b49",
+      "reference": "ghcr.io/noon-maru/tuti-web:243e998a385d358bf02456b7498ba8bfcab49798"
+    },
+    {
+      "idPrefix": "04a734db50de",
+      "reference": "ghcr.io/noon-maru/tuti-ops:243e998a385d358bf02456b7498ba8bfcab49798"
+    },
+    {
+      "idPrefix": "7f22ef2da594",
+      "reference": "ghcr.io/noon-maru/tuti-web:b12b89f452c5c0cfdb122ec63e2bd34a149c7610"
+    },
+    {
+      "idPrefix": "90da182d7d7f",
+      "reference": "ghcr.io/noon-maru/tuti-ops:b12b89f452c5c0cfdb122ec63e2bd34a149c7610"
+    },
+    {
+      "idPrefix": "3b30b602ef3c",
+      "reference": "ghcr.io/noon-maru/tuti-web:be29cf4ba0666fa20aab35d22c92a3356804108d"
+    },
+    {
+      "idPrefix": "2ae3abbef665",
+      "reference": "ghcr.io/noon-maru/tuti-ops:be29cf4ba0666fa20aab35d22c92a3356804108d"
+    },
+    {
+      "idPrefix": "eb52c3f8a14e",
+      "reference": "ghcr.io/noon-maru/tuti-web:df10d12852ae42bb94e9b7efe6333f837952cf37"
+    },
+    {
+      "idPrefix": "c23341f12287",
+      "reference": "ghcr.io/noon-maru/tuti-ops:df10d12852ae42bb94e9b7efe6333f837952cf37"
+    },
+    {
+      "idPrefix": "4ea901c44084",
+      "reference": "ghcr.io/noon-maru/tuti-web:9e356043c19a63b570c2ba179eef3bd7560b1313"
+    },
+    {
+      "idPrefix": "cd705e05d549",
+      "reference": "ghcr.io/noon-maru/tuti-ops:9e356043c19a63b570c2ba179eef3bd7560b1313"
+    },
+    {
+      "idPrefix": "4c22869f0e12",
+      "reference": "ghcr.io/noon-maru/tuti-web:a441c771eb87343775a62405a260be6ad9f23c1e"
+    },
+    {
+      "idPrefix": "ac891bae8f82",
+      "reference": "ghcr.io/noon-maru/tuti-ops:a441c771eb87343775a62405a260be6ad9f23c1e"
+    },
+    {
+      "idPrefix": "a2a22fe8ef4d",
+      "reference": "ghcr.io/noon-maru/tuti-web:f8069be61face038e9c29a33508a8b40565b9645"
+    },
+    {
+      "idPrefix": "122316759de5",
+      "reference": "ghcr.io/noon-maru/tuti-ops:f8069be61face038e9c29a33508a8b40565b9645"
+    },
+    {
+      "idPrefix": "4a21ca386b73",
+      "reference": "ghcr.io/noon-maru/tuti-web:62c16dc23ea51d221c9d407ec72c10c2a5f95679"
+    },
+    {
+      "idPrefix": "19af8e6f534a",
+      "reference": "ghcr.io/noon-maru/tuti-ops:62c16dc23ea51d221c9d407ec72c10c2a5f95679"
+    },
+    {
+      "idPrefix": "086ca33d9b6d",
+      "reference": "ghcr.io/noon-maru/tuti-web:66d6491f9933a56edbd5c689adf6bb9cced8cc43"
+    },
+    {
+      "idPrefix": "eaba941238f1",
+      "reference": "ghcr.io/noon-maru/tuti-ops:66d6491f9933a56edbd5c689adf6bb9cced8cc43"
+    },
+    {
+      "idPrefix": "acfb585972b5",
+      "reference": "ghcr.io/noon-maru/tuti-web:89c0d765f399102d1ac32d867d9bedb6b379ba3b"
+    },
+    {
+      "idPrefix": "c07819f2f36c",
+      "reference": "ghcr.io/noon-maru/tuti-ops:89c0d765f399102d1ac32d867d9bedb6b379ba3b"
+    },
+    {
+      "idPrefix": "71484669780c",
+      "reference": "ghcr.io/noon-maru/tuti-web:e4aaa54efb0cb2de960ad41cee677263df46a7cc"
+    },
+    {
+      "idPrefix": "e0d8961acab3",
+      "reference": "ghcr.io/noon-maru/tuti-ops:e4aaa54efb0cb2de960ad41cee677263df46a7cc"
+    },
+    {
+      "idPrefix": "dad90c49d043",
+      "reference": "ghcr.io/noon-maru/tuti-web:9876139c07f96b28bb98f7e148899bbc8179467e"
+    },
+    {
+      "idPrefix": "85afc6d89add",
+      "reference": "ghcr.io/noon-maru/tuti-ops:9876139c07f96b28bb98f7e148899bbc8179467e"
+    },
+    {
+      "idPrefix": "035aa276c577",
+      "reference": "ghcr.io/noon-maru/tuti-web:b7617bb8309ca3a8a0dfdc48d9833f764b60d9da"
+    },
+    {
+      "idPrefix": "dba8f4ae79dc",
+      "reference": "ghcr.io/noon-maru/tuti-ops:b7617bb8309ca3a8a0dfdc48d9833f764b60d9da"
+    },
+    {
+      "idPrefix": "12787683fa07",
+      "reference": "ghcr.io/noon-maru/tuti-web:cb326ecea4222c1af615421e23e5053b24738af4"
+    },
+    {
+      "idPrefix": "3c8b01b0e4ad",
+      "reference": "ghcr.io/noon-maru/tuti-ops:cb326ecea4222c1af615421e23e5053b24738af4"
+    },
+    {
+      "idPrefix": "b6089d8f21d3",
+      "reference": "ghcr.io/noon-maru/tuti-web:f31f2d1752fab98f7fedf13b7ca7fafcdcdbd6ec"
+    },
+    {
+      "idPrefix": "99c456d74ba7",
+      "reference": "ghcr.io/noon-maru/tuti-ops:f31f2d1752fab98f7fedf13b7ca7fafcdcdbd6ec"
+    },
+    {
+      "idPrefix": "722fc2241685",
+      "reference": "ghcr.io/noon-maru/tuti-web:69041e486e067d3b1fefc877971bab005cf2919c"
+    },
+    {
+      "idPrefix": "583cfdf53fc0",
+      "reference": "ghcr.io/noon-maru/tuti-ops:69041e486e067d3b1fefc877971bab005cf2919c"
+    },
+    {
+      "idPrefix": "f6a3ded99be0",
+      "reference": "tuti:android-builder"
+    }
+  ]
+}

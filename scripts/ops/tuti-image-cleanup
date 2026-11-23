@@ -1,0 +1,93 @@
+#!/bin/sh
+# One-time approved local image cleanup. No prune, force, containers or volumes.
+set -eu
+case "$#:${1:-}" in 0:) mode=check ;; 1:--apply) mode=apply ;; *) echo '사용법: tuti-image-cleanup [--apply]' >&2; exit 1 ;; esac
+[ "$(id -u)" = 0 ] || { echo 'NAS 관리자 권한이 필요합니다.' >&2; exit 1; }
+project_dir="$(CDPATH= cd -- "$(dirname -- "$0")/../.." && pwd -P)"
+cd "$project_dir"
+plan=scripts/ops/image-cleanup-20261123.json
+for source in scripts/ops/tuti-image-cleanup "$plan"; do
+  git -c safe.directory="$project_dir" ls-files --error-unmatch "$source" >/dev/null
+  git -c safe.directory="$project_dir" diff --quiet HEAD -- "$source"
+done
+jq -e '.scope == "local-docker-images-only" and (.images | length == 79) and
+  ([.images[].idPrefix] | unique | length == 79) and
+  all(.images[]; (.idPrefix | test("^[a-f0-9]{12}$")) and
+  (.reference | test("^(tuti:(android-builder|(prod|ops)-[a-f0-9]{12})|ghcr.io/noon-maru/tuti-(web|ops):[a-f0-9]{40})$")))' "$plan" >/dev/null
+[ -d .ops-state ] && [ ! -L .ops-state ] || exit 1
+exec 9> .ops-state/maintenance.lock
+/usr/bin/flock --exclusive --nonblock 9 || { echo '다른 유지보수 작업 중입니다. 종료 후 다시 실행해주세요.' >&2; exit 1; }
+if [ -f .ops-state/restore-privacy/pending.env ] || [ -f .ops-state/privacy-activation/pending ]; then
+  echo '복원·원장 전환 확인 대기 중에는 이미지를 정리하지 않습니다.' >&2; exit 1
+fi
+state=.ops-state/deploy/releases.env
+[ -f "$state" ] && [ ! -L "$state" ] || { echo '배포·롤백 기록을 확인하지 못했습니다.' >&2; exit 1; }
+staging="$(mktemp -d /tmp/tuti-image-cleanup.XXXXXX)"
+cleanup() { rm -r -- "$staging"; }
+trap cleanup EXIT
+trap 'exit 1' HUP INT TERM
+
+protected_images() {
+  # Read selected image fields only; never source/print deployment env contents.
+  awk -F= '/^(current_image|current_ops_image|previous_image)=/ {print $2}' "$state" > "$staging/release-refs" || return 1
+  [ "$(awk 'NF {n++} END {print n+0}' "$staging/release-refs")" = 3 ] || return 1
+  : > "$staging/protected" || return 1
+  while IFS= read -r ref; do
+    printf '%s\n' "$ref" | grep -Eq '^tuti:(prod|ops)-[0-9a-f]{12}$' || return 1
+    docker image inspect --format '{{.Id}}' "$ref" >> "$staging/protected" || return 1
+    case "$ref" in tuti:prod-*)
+      paired="tuti:ops-${ref#tuti:prod-}"
+      if docker image inspect --format '{{.Id}}' "$paired" > "$staging/paired" 2>/dev/null; then cat "$staging/paired" >> "$staging/protected"; fi ;;
+    esac
+  done < "$staging/release-refs"
+  for ref in tuti:prod tuti:ops tuti:dev postgis/postgis:17-3.5 dxflrs/garage:v2.3.0; do
+    docker image inspect --format '{{.Id}}' "$ref" >> "$staging/protected" || return 1
+  done
+  docker ps -aq > "$staging/containers" || return 1
+  while IFS= read -r container; do
+    [ -n "$container" ] || continue
+    docker container inspect --format '{{.Image}}' "$container" >> "$staging/protected" || return 1
+  done < "$staging/containers"
+}
+
+inspect_candidate() {
+  # Select metadata in Docker's formatter; image Config.Env is never returned.
+  docker image inspect --format '{"id":{{json .Id}},"tags":{{json .RepoTags}}}' "$1" > "$staging/image" 2>/dev/null
+}
+approved=0; removed=0; missing=0; protected=0; failed=0
+jq -r '.images[].idPrefix' "$plan" > "$staging/candidates"
+# Check protection before any image deletion, then refresh for every candidate.
+protected_images || { echo '보존 대상 이미지·컨테이너 조회에 실패했습니다. 삭제하지 않습니다.' >&2; exit 1; }
+while IFS= read -r prefix; do
+  if ! inspect_candidate "$prefix"; then
+    # An unavailable daemon must not be mistaken for an already removed image.
+    docker info --format '{{.ServerVersion}}' >/dev/null
+    missing=$((missing + 1)); continue
+  fi
+  image_id="$(jq -er '.id | select(test("^sha256:[a-f0-9]{64}$"))' "$staging/image")"
+  case "$image_id" in "sha256:$prefix"*) ;; *) echo '이미지 ID가 승인 목록과 다릅니다.' >&2; exit 1 ;; esac
+  protected_images || { echo '보존 대상 재조회 실패로 중단합니다.' >&2; exit 1; }
+  if grep -Fxq "$image_id" "$staging/protected"; then protected=$((protected + 1)); continue; fi
+  if ! jq -e '(.tags | length > 0) and all(.tags[];
+    test("^(tuti:(android-builder|(prod|ops)-[a-f0-9]{12})|ghcr.io/noon-maru/tuti-(web|ops):[a-f0-9]{40})$"))' "$staging/image" >/dev/null; then
+    protected=$((protected + 1)); continue
+  fi
+  approved=$((approved + 1))
+  [ "$mode" = apply ] || continue
+  jq -r '.tags[]' "$staging/image" > "$staging/tags"
+  while IFS= read -r tag; do
+    current_id="$(docker image inspect --format '{{.Id}}' "$tag")"
+    [ "$current_id" = "$image_id" ] || { echo '태그 대상 변경으로 중단합니다.' >&2; exit 1; }
+    # Docker refuses deletion if a container began referencing the image.
+    # Remove every approved alias; never force removal or touch the registry.
+    if ! docker image rm "$tag"; then failed=$((failed + 1)); break; fi
+  done < "$staging/tags"
+  if inspect_candidate "$prefix"; then
+    echo "승인 이미지가 남아 있습니다: $prefix" >&2
+  else
+    docker info --format '{{.ServerVersion}}' >/dev/null
+    removed=$((removed + 1))
+  fi
+done < "$staging/candidates"
+printf '{"mode":"%s","planned":79,"eligible":%s,"removed":%s,"alreadyMissing":%s,"protected":%s,"failedTagRemovals":%s,"volumesChanged":false,"containersChanged":false}\n' "$mode" "$approved" "$removed" "$missing" "$protected" "$failed"
+[ "$failed" = 0 ]
