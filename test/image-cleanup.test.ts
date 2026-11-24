@@ -9,6 +9,15 @@ const plan = JSON.parse(await readFile("scripts/ops/image-cleanup-20261123.json"
 };
 const candidate = plan.images[0];
 const imageId = `sha256:${candidate.idPrefix}${"0".repeat(52)}`;
+
+test("운영 작업 이미지는 이미지 정리 셸 시험에 필요한 jq를 포함한다", async () => {
+  const dockerfile = await readFile("Dockerfile", "utf8");
+  const builder = dockerfile.split("FROM base AS builder\n")[1]?.split("\nFROM ")[0];
+  assert.ok(builder);
+  assert.match(builder, /apt-get install[^\n]*\bjq\b/);
+  assert.match(builder, /jq --version/);
+});
+
 const mock = `import {readFileSync,writeFileSync,appendFileSync} from 'node:fs';
 import {fileURLToPath} from 'node:url';
 const root=fileURLToPath(new URL('.',import.meta.url));

@@ -36,6 +36,12 @@ RUN pnpm install --frozen-lockfile --store-dir /pnpm/store
 
 FROM base AS builder
 
+# 운영 배포 전 셸 도구 회귀 시험에서도 NAS와 같은 JSON 처리기를 사용한다.
+RUN apt-get update -y \
+  && apt-get install -y --no-install-recommends jq \
+  && jq --version \
+  && rm -rf /var/lib/apt/lists/*
+
 ARG DATABASE_URL=postgresql://tuti_user:tuti_password@localhost:5432/tuti?schema=public
 ARG NEXT_PUBLIC_API_BASE_URL
 ARG NEXT_PUBLIC_ACCOUNT_AUTH_ENABLED=true
