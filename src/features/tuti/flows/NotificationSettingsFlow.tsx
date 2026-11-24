@@ -23,7 +23,7 @@ export function NotificationSettingsFlow() {
   const browser = pushEnvironment === "native" || pushEnvironment === "checking" ? null : pushEnvironment;
   const mutationKey = notificationSettingsKey(owner);
   const saving = useIsMutating({ mutationKey }) > 0;
-  const inFlight = useRef(false);
+  const inFlight = useRef<string | null>(null);
   const [notice, setNotice] = useState<{ owner: string; text: string } | null>(null);
   const query = useQuery({ ...notificationSettingsQuery(owner), enabled: Boolean(owner && available && !saving) });
   const permission = useQuery({ queryKey: ["push-permission", owner], queryFn: getPushNotificationStatus,
@@ -58,15 +58,15 @@ export function NotificationSettingsFlow() {
   }, [router]);
 
   const change = async (patch: Partial<NotificationSettings>) => {
-    if (!owner || !query.data || inFlight.current || client.isMutating({ mutationKey }) || getSessionSnapshot()?.userId !== owner) return;
-    inFlight.current = true;
+    if (!owner || !query.data || inFlight.current === owner || client.isMutating({ mutationKey }) || getSessionSnapshot()?.userId !== owner) return;
+    inFlight.current = owner;
     setNotice(null);
     const next = { ...query.data, ...patch, timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone || query.data.timeZone };
     try {
       await mutation.mutateAsync({ owner, next, enableDevice: patch.newsEnabled === true || patch.reminderEnabled === true,
         wasEnabled: query.data.newsEnabled || query.data.reminderEnabled });
     } catch { /* onError rolls back the optimistic display. */ }
-    finally { inFlight.current = false; }
+    finally { if (inFlight.current === owner) inFlight.current = null; }
   };
   if (!WEB_PUSH_USER_ENABLED && pushEnvironment !== "native") return null;
   const message = notice?.owner === owner ? notice.text : permission.isError
