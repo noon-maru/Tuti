@@ -11,6 +11,7 @@ Android의 `출시 노트`와 iOS의 `이 버전에서 업그레이드된 사항
 - 알림 설정 낙관 반영·실패 복원, 선택 알림 등록과 첫 시작 전환 분리, 로그인·함께 채우기·PDF 열람의 대기 축소를 포함한다.
 - 필수 약관의 서버 저장 확인과 함께 채우기 접근 확인은 유지한다. 새 권한을 추가하지 않는다.
 - 알림 설정 PUT 허용과 약관 저장 응답 개선은 [운영 배포](https://github.com/noon-maru/Tuti/actions/runs/45349585142)에 이미 포함됐다.
+- 2026-11-24 앱 소스 `7793b25`의 [전체 CI](https://github.com/noon-maru/Tuti/actions/runs/45352658099), [Google Play 내부 테스트 업로드](https://github.com/noon-maru/Tuti/actions/runs/45352658751), [App Store Connect 업로드](https://github.com/noon-maru/Tuti/actions/runs/45352663151)가 성공했다. Apple의 업로드 후 처리, 콘솔 문안 입력, 심사 제출과 정식 공개는 별도다.
 
 ### 공통 출시 노트
 
