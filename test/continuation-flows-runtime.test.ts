@@ -170,6 +170,7 @@ test("알림 조회 재시도는 실제 flow에서 설정만 다시 읽고 권�
     "@/features/tuti/screens/notifications/NotificationSettingsScreen": { NotificationSettingsScreen: "settings" },
     "@/lib/notificationSettings": { notificationSettingsQuery: () => ({ queryKey: ["notification-settings", "owner"] }), saveNotificationSettings: async () => { saves++; } },
     "@/lib/optimisticNotificationSettings": { notificationSettingsKey: (owner: string) => ["notification-settings", owner], notificationSettingsMutation: () => ({}) },
+    "@/lib/feedback": { showErrorToast() {} },
     "@tanstack/react-query": { useQueryClient: () => ({ isMutating: () => 0 }), useIsMutating: () => 0,
       useQuery: ({ queryKey }: { queryKey: string[] }) => queryKey[0] === "notification-settings" ? settingsQuery : permissionQuery,
       useMutation: () => ({}) },

@@ -11,6 +11,7 @@ import { enableServerPushNotifications, disableServerPushNotifications, getPushN
 import { usePushEnvironment } from "../hooks/usePushEnvironment";
 import { useSession } from "../hooks/useSession";
 import { getSessionSnapshot } from "@/lib/auth/session";
+import { showErrorToast } from "@/lib/feedback";
 import { WEB_PUSH_USER_ENABLED } from "@/shared/notifications/rollout";
 import { Capacitor } from "@capacitor/core";
 
@@ -42,8 +43,8 @@ export function NotificationSettingsFlow() {
     },
     onError(error, input, context) {
       operations.onError(error, input, context);
-      if (getSessionSnapshot()?.userId === input.owner) setNotice({ owner: input.owner,
-        text: error instanceof Error && !(error instanceof TypeError) ? error.message : "알림 설정을 저장하지 못해 이전 설정으로 돌렸어요. 연결을 확인하고 다시 시도해주세요." });
+      if (getSessionSnapshot()?.userId === input.owner) showErrorToast(
+        error instanceof Error && !(error instanceof TypeError) ? error.message : "알림 설정을 저장하지 못해 이전 설정으로 돌렸어요. 연결을 확인하고 다시 시도해주세요.");
     },
     onSettled(_data, _error, input) {
       if (getSessionSnapshot()?.userId === input.owner) {
