@@ -40,7 +40,12 @@ export async function POST(request: Request) {
     const user = await authenticateUser(request);
     if (!user) return respond(request, { error: "현재 계정에서 다시 로그인해주세요." }, 401);
     const receipt = await acceptServiceTerms(user.id, await request.json());
-    return respond(request, { receipt: { ...receipt, acceptedAt: receipt.acceptedAt.toISOString() } });
+    const status = await getServiceTermsStatus(user.id, new Date(), { currentOnly: true });
+    return respond(request, {
+      receipt: { ...receipt, acceptedAt: receipt.acceptedAt.toISOString() },
+      entry: { version: status.current?.version, documentHash: status.current?.documentHash,
+        accepted: status.current?.accepted === true, required: status.required },
+    });
   } catch (error) {
     return respond(request, { error: error instanceof ServiceTermsError ? error.message : "동의를 저장하지 못했어요. 다시 시도해주세요." }, error instanceof ServiceTermsError ? error.status : error instanceof SyntaxError ? 400 : 503);
   }

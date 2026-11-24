@@ -3,7 +3,7 @@ import { clientFetch } from "@/lib/api/clientFetch";
 import { ensureSession, getSessionSnapshot, readStoredSession } from "@/lib/auth/session";
 import { submitServiceTerms } from "@/lib/serviceTerms";
 import { preferencesStorage } from "@/lib/storage/preferencesStorage";
-import { parseServiceTermsDocument, type ServiceTermsOffer } from "@/shared/legal/serviceTerms";
+import { acceptedEntryReceipt, parseServiceTermsDocument, type ServiceTermsOffer } from "@/shared/legal/serviceTerms";
 import { syncLegalPolicyRelease } from "@/shared/legal/policyRelease";
 import { validateFinalizedTerms, validateFinalizedTermsReference } from "@/shared/legal/validateFinalizedTerms";
 import { serviceTermsAcceptanceCache } from "./serviceTermsAcceptanceCache";
@@ -98,13 +98,20 @@ export async function acceptInitialServiceTerms(offer: ServiceTermsOffer, confir
   await preferencesStorage.setItem(INITIAL_TERMS_PENDING_KEY, "true");
   // 계정 생성은 체크 및 명시적 버튼 클릭 이후다. 실패 시 앱 본문/분석을 시작하지 않는다.
   const session = await ensureSession();
-  await submitServiceTerms(offer, confirmations);
-  const state = await loadInitialServiceTerms();
+  const response = await submitServiceTerms(offer, confirmations);
+  const receipt = acceptedEntryReceipt(response, offer);
+  // 저장 응답이 현재 시행 약관의 영수증까지 확인했다면 같은 내용을 다시 GET하지 않는다.
+  // 전환 중인 이전 서버에 entry 정보가 없을 때만 기존 확인 경로를 사용한다.
+  const state: InitialTermsState = receipt
+    ? { hasStoredSession: true, userId: session.userId, offer: null, allowed: true, acceptedTerms: receipt }
+    : await loadInitialServiceTerms();
   if (getSessionSnapshot()?.userId !== session.userId || !state.allowed ||
       state.acceptedTerms?.documentHash !== offer.documentHash || state.acceptedTerms.version !== offer.version) {
     throw new Error("동의 상태를 다시 확인해주세요. 약관이 변경되었다면 새 내용을 확인해주세요.");
   }
+  if (receipt) await serviceTermsAcceptanceCache.write({ userId: session.userId, ...receipt });
   await preferencesStorage.removeItem(INITIAL_TERMS_PENDING_KEY);
+  if (getSessionSnapshot()?.userId !== session.userId) throw new Error("계정이 변경되었어요. 현재 계정에서 다시 확인해주세요.");
   return state;
 }
 

@@ -29,6 +29,21 @@ export const EMPTY_SERVICE_TERMS_STATUS: ServiceTermsStatus = {
   current: null, upcoming: null, required: false, enforcementEnabled: false,
 };
 
+/** POST 저장 응답에 포함된 서버 확인만 사용한다. 로컬 체크 상태는 영수증이 아니다. */
+export function acceptedEntryReceipt(value: unknown, offer: Pick<ServiceTermsOffer, "version" | "documentHash">) {
+  if (!value || typeof value !== "object" || !("entry" in value)) return null;
+  const body = value as { entry?: unknown; receipt?: unknown };
+  const entry = body.entry as Record<string, unknown> | null;
+  const receipt = body.receipt as Record<string, unknown> | null;
+  if (!entry || !receipt || entry.accepted !== true || entry.required !== false ||
+      entry.version !== offer.version || entry.documentHash !== offer.documentHash ||
+      receipt.termsVersion !== offer.version || receipt.documentHash !== offer.documentHash ||
+      typeof receipt.acceptedAt !== "string" || !Number.isFinite(Date.parse(receipt.acceptedAt))) {
+    throw new Error("동의 상태를 다시 확인해주세요. 약관이 변경되었다면 새 내용을 확인해주세요.");
+  }
+  return { version: offer.version, documentHash: offer.documentHash };
+}
+
 export function parseServiceTermsDocument(value: unknown): ServiceTermsDocument {
   if (!value || typeof value !== "object") throw new Error("Invalid terms document");
   const data = value as Record<string, unknown>;

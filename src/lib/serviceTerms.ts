@@ -33,4 +33,5 @@ export async function submitServiceTerms(offer: ServiceTermsOffer, confirmations
     const body = await response.json().catch(() => null);
     throw new Error(body?.error || "동의를 저장하지 못했어요. 다시 시도해주세요.");
   }
+  return response.json().catch(() => null) as Promise<unknown>;
 }

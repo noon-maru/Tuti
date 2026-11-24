@@ -30,6 +30,7 @@ test("최초 약관 진입은 시행 원문과 실제 동의만 허용하며 구
   let enforcementEnabled: unknown = undefined;
   let compactReceipt = true;
   let corruptCompact = false;
+  let includeEntryReceipt = false;
   t.mock.method(preferencesStorage, "getItem", async (key: string) => storage.get(key) ?? null);
   t.mock.method(preferencesStorage, "setItem", async (key: string, value: string) => { storage.set(key, value); });
   t.mock.method(preferencesStorage, "removeItem", async (key: string) => { storage.delete(key); });
@@ -48,7 +49,8 @@ test("최초 약관 진입은 시행 원문과 실제 동의만 허용하며 구
       assert.equal(body.importantTermsConfirmed, true);
       assert.equal(body.documentHash, offer.documentHash);
       if (!discardReceipt) accepted = true;
-      return Response.json({ receipt: { termsVersion: offer.version } });
+      return Response.json({ receipt: { termsVersion: offer.version, documentHash: offer.documentHash, acceptedAt: new Date().toISOString() },
+        ...(includeEntryReceipt ? { entry: { version: offer.version, documentHash: offer.documentHash, accepted, required: !accepted } } : {}) });
     }
     if (lookupWait) await lookupWait;
     if (failLookup) return Response.json({}, { status: 503 });
@@ -142,6 +144,14 @@ test("최초 약관 진입은 시행 원문과 실제 동의만 허용하며 구
     compactReceipt = false;
     assert.equal((await loadInitialServiceTerms()).offer?.accepted, true);
     compactReceipt = true;
+  });
+  await t.test("저장 응답이 현재 동의를 확인하면 후속 GET 장애를 기다리지 않고 시작한다", async () => {
+    includeEntryReceipt = true; failLookup = true;
+    const before = requests.length;
+    const state = await acceptInitialServiceTerms(offer, { ageConfirmed: true, importantTermsConfirmed: true });
+    assert.equal(state.allowed, true);
+    assert.deepEqual(requests.slice(before).map(request => request.method), ["POST"]);
+    failLookup = false; includeEntryReceipt = false;
   });
   await t.test("저장된 동의는 네트워크 대기 전에 전달하고 통신 실패만으로 지우지 않는다", { timeout: 3000 }, async () => {
     let release!: () => void;
