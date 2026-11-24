@@ -192,9 +192,20 @@ NAS에서는 빌드하지 않는다.
 선택하면 `self-hosted`, `linux`, `x64`, `tuti-production` 라벨을 모두 가진 NAS
 runner가 정확히 같은 `main` 커밋으로 운영 체크아웃을 fast-forward한 뒤
 `tuti-prod-deploy-remote`를 호출한다. 이 명령은 임시 Docker 인증 폴더에서 GHCR
-이미지를 내려받고 기존 `tuti-prod-deploy`에 넘긴다. 따라서 이미지 내부 테스트,
-전체 백업, DB 마이그레이션, 교통 거점 동기화, 앱 교체, readiness 확인과 실패 시
+이미지를 내려받고 기존 `tuti-prod-deploy`에 넘긴다. 전체 회귀 테스트는 Actions의
+`verified-ops` 이미지 빌드 단계에서 운영 연결정보 없이 외부 네트워크를 차단하고
+실행한다. 통과한 이미지에만 `com.tuti.verification=full-suite-v1`과 전체 커밋 SHA가
+기록된다. NAS에서는 앱·작업 이미지의 커밋이 체크아웃 SHA와 일치하고 작업 이미지에
+검증 표시가 있는지 확인하며, 표시 누락·커밋 불일치·조회 실패 시 백업·DB 변경 전에
+중단한다. 따라서 NAS에서 전체 회귀 테스트를 반복하지 않는다. Node 런타임 검사,
+추천 파생 데이터 사전 검사, 전체 백업, DB 마이그레이션, 교통 거점 동기화, 앱 교체,
+readiness 확인과 실패 시
 이전 앱 이미지 복귀 절차는 기존 보호된 배포 단계를 그대로 재사용한다.
+
+이 최적화는 NAS의 설치된 `tuti-prod-deploy` 갱신 후 적용된다. 기존
+`sudo sh scripts/ops/install-harumadi-deploy-guards`로 배포·롤백 도구를 백업 후
+갱신할 수 있으며, 설치 자체는 앱·DB를 변경하지 않는다. 검증 표시가 없는 과거
+이미지는 새 원격 배포 경로로 전환하지 않는다. 롤백의 기존 스키마 보호는 유지한다.
 
 최초 한 번 다음 준비가 필요하다.
 

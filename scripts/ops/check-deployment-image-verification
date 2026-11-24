@@ -1,0 +1,23 @@
+#!/bin/sh
+set -eu
+
+revision="${1:-}"
+app_image="${2:-}"
+ops_image="${3:-}"
+case "$revision" in
+  ""|*[!0-9a-f]*) echo "이미지 검증 커밋이 올바르지 않습니다." >&2; exit 1 ;;
+esac
+if [ "$#" -ne 3 ] || [ "${#revision}" -ne 40 ] || [ -z "$app_image" ] || [ -z "$ops_image" ]; then
+  echo "이미지 검증에는 전체 커밋 SHA와 앱·작업 이미지가 필요합니다." >&2
+  exit 1
+fi
+
+# 네트워크·운영 env·인증정보를 읽지 않고 로컬 이미지 메타데이터만 검사한다.
+app_revision="$(docker image inspect "$app_image" --format '{{index .Config.Labels "org.opencontainers.image.revision"}}')"
+ops_revision="$(docker image inspect "$ops_image" --format '{{index .Config.Labels "org.opencontainers.image.revision"}}')"
+verification="$(docker image inspect "$ops_image" --format '{{index .Config.Labels "com.tuti.verification"}}')"
+if [ "$app_revision" != "$revision" ] || [ "$ops_revision" != "$revision" ] || [ "$verification" != "full-suite-v1" ]; then
+  echo "Actions 전체 검증 완료 표시 또는 앱·작업 이미지 커밋이 일치하지 않습니다. 배포하지 않습니다." >&2
+  exit 1
+fi
+echo '{"imageVerification":"full-suite-v1","revisionsMatched":true,"nasFullSuiteRepeated":false}'

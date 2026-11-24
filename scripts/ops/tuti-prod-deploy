@@ -82,9 +82,16 @@ echo "운영 앱·작업 이미지 Node.js 26 런타임 검사"
 docker run --rm --network none --read-only --entrypoint node "$app_image" /app/scripts/check-node-runtime.mjs
 docker run --rm --network none --read-only --entrypoint node "$ops_image" /app/scripts/check-node-runtime.mjs
 
-echo "배포 이미지 테스트"
-docker compose --env-file .env.production -f docker-compose.prod.yml \
-  run --rm --no-deps ops pnpm test
+if [ -n "$remote_app_image" ]; then
+  echo "Actions 전체 테스트 통과 이미지와 현재 커밋 일치 확인"
+  sh scripts/ops/check-deployment-image-verification \
+    "$(git -C "$project_dir" rev-parse HEAD)" "$app_image" "$ops_image"
+else
+  # 검증 표시가 없는 이전 수동 경로에서 테스트를 조용히 생략하지 않는다.
+  echo "배포 이미지 테스트"
+  docker compose --env-file .env.production -f docker-compose.prod.yml \
+    run --rm --no-deps ops pnpm test
+fi
 
 echo "추천 파생 데이터 읽기 전용 사전 검사"
 if [ -f "$project_dir/.ops-state/restore-privacy/pending.env" ] || [ -f "$project_dir/.ops-state/privacy-activation/pending" ]; then

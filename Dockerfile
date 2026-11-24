@@ -67,6 +67,17 @@ COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 RUN node scripts/check-node-runtime.mjs && pnpm build:web
 
+FROM builder AS verified-ops
+
+ARG TUTI_BUILD_REVISION
+# 테스트 실패 시 이 단계와 검증 라벨을 가진 이미지는 생성되지 않는다.
+# 운영 연결정보 없이, 외부 네트워크가 차단된 Actions 빌드 환경에서 실행한다.
+RUN --network=none test "${#TUTI_BUILD_REVISION}" -eq 40 \
+  && ! printf '%s' "$TUTI_BUILD_REVISION" | grep -q '[^0-9a-f]' \
+  && pnpm test
+LABEL com.tuti.verification="full-suite-v1"
+LABEL org.opencontainers.image.revision=$TUTI_BUILD_REVISION
+
 FROM node:26.12.1-bookworm-slim AS runner
 
 LABEL com.tuti.harumadi-layout="automatic"
