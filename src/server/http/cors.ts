@@ -50,7 +50,7 @@ export function createPreflightResponse(request: Request) {
     headers: {
       "Access-Control-Allow-Headers":
         "Authorization, Content-Type, X-Tuti-Journal-Harumadi-Approval, X-Tuti-Client-Protocol, X-Tuti-Client-Platform, X-Tuti-Client-Version, X-Tuti-Source, X-Tuti-Platform, X-Tuti-Version, X-Tuti-Session, X-Tuti-Flow",
-      "Access-Control-Allow-Methods": "GET, POST, PATCH, DELETE, OPTIONS",
+      "Access-Control-Allow-Methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
       "Access-Control-Max-Age": "86400",
     },
   });
