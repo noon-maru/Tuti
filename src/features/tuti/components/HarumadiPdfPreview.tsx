@@ -29,14 +29,15 @@ type HarumadiPdfPreviewProps = {
     } | null,
   ) => void;
 } & (
-  | { input: HarumadiPdfInput; harumadiPdfId?: never }
-  | { input?: never; harumadiPdfId: string }
+  | { input: HarumadiPdfInput; harumadiPdfId?: never; savedBytes?: never }
+  | { input?: never; harumadiPdfId: string; savedBytes?: Uint8Array }
 );
 
 export function HarumadiPdfPreview({
   input,
   harumadiPdfId,
   ownerId,
+  savedBytes,
   onReady,
   captureCover = true,
 }: HarumadiPdfPreviewProps) {
@@ -55,7 +56,8 @@ export function HarumadiPdfPreview({
       ReturnType<typeof import("pdfjs-dist").getDocument> | undefined;
     onReady?.(null);
     void (async () => {
-      const response = await fetchWithSession(
+      const localBytes = attempt === 0 ? savedBytes : undefined;
+      const response = localBytes ? null : await fetchWithSession(
         harumadiPdfId
           ? `harumadi-pdfs/${encodeURIComponent(harumadiPdfId)}/file`
           : "harumadi-pdfs/preview",
@@ -69,22 +71,22 @@ export function HarumadiPdfPreview({
               cache: "no-store",
             },
       );
-      if (!response.ok) {
+      if (response && !response.ok) {
         const data = await response.json().catch(() => null);
         throw new Error(data?.error ?? "미리보기를 불러오지 못했어요.");
       }
-      const buffer = await response.arrayBuffer();
+      const bytes = localBytes ?? (response ? new Uint8Array(await response.arrayBuffer()) : null);
+      if (!bytes) return;
       if (!active || getSessionSnapshot()?.userId !== ownerId) return;
       const approvalToken = harumadiPdfId
         ? undefined
-        : response.headers.get("X-Tuti-Journal-Harumadi-Approval") || undefined;
+        : response?.headers.get("X-Tuti-Journal-Harumadi-Approval") || undefined;
       if (!harumadiPdfId && !approvalToken) {
         throw new Error("미리보기 승인 정보를 받지 못했어요. 다시 시도해주세요.");
       }
       const pdfjs = await import("pdfjs-dist/legacy/build/pdf.mjs");
       if (!active) return;
       pdfjs.GlobalWorkerOptions.workerSrc = `/pdfjs/${pdfjs.version}/pdf.worker.min.mjs`;
-      const bytes = new Uint8Array(buffer);
       loadingTask = pdfjs.getDocument({
         data: bytes.slice(),
         standardFontDataUrl: `/pdfjs/${pdfjs.version}/standard_fonts/`,
@@ -109,7 +111,7 @@ export function HarumadiPdfPreview({
       abort.abort();
       void loadingTask?.destroy();
     };
-  }, [input, harumadiPdfId, ownerId, attempt, onReady, captureCover]);
+  }, [input, harumadiPdfId, ownerId, attempt, onReady, captureCover, savedBytes]);
 
   useEffect(() => {
     if (!pdfDocument) return;

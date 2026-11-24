@@ -147,6 +147,8 @@ function HarumadiPdfEditor({ ownerId }: { ownerId: string }) {
   } | null>(null);
   const [completing, setCompleting] = useState(false);
   const [openedHarumadi, setOpenedHarumadi] = useState<StoredHarumadiPdf | null>(null);
+  const [savedPreview, setSavedPreview] = useState<{ id: string; bytes: Uint8Array; coverQueued: boolean } | null>(null);
+  const completingRef = useRef(false);
   const latestSave = useRef(0);
   const heading = useRef<HTMLHeadingElement>(null);
   const scroller = useRef<HTMLDivElement>(null);
@@ -308,7 +310,8 @@ function HarumadiPdfEditor({ ownerId }: { ownerId: string }) {
   };
 
   async function completeHarumadi() {
-    if (!input || !previewPdf?.approvalToken || completing) return;
+    if (!input || !previewPdf?.approvalToken || completingRef.current || getSessionSnapshot()?.userId !== ownerId) return;
+    completingRef.current = true;
     setCompleting(true);
     setMessage("");
     try {
@@ -316,22 +319,25 @@ function HarumadiPdfEditor({ ownerId }: { ownerId: string }) {
         previewPdf.bytes,
         previewPdf.approvalToken,
       );
-      if (previewPdf.coverThumbnail && getSessionSnapshot()?.userId === ownerId) {
-        try { await saveLibraryCover(ownerId, harumadiPdf.id, previewPdf.coverThumbnail); harumadiPdf.hasCover = true; } catch {}
-      }
+      if (getSessionSnapshot()?.userId !== ownerId) return;
+      const thumbnail = previewPdf.coverThumbnail;
       void queryClient.invalidateQueries({ queryKey: ["library-harumadiPdfs", ownerId] });
       queryClient.setQueryData<StoredHarumadiPdf[]>(
         ["harumadi-pdfs", ownerId],
         (current = []) => [harumadiPdf, ...current.filter(({ id }) => id !== harumadiPdf.id)],
       );
       latestSave.current += 1;
-      try {
-        await removeHarumadiPdfDraft(ownerId);
-      } catch {
-        // 완성본은 이미 서버에 안전하게 보관되었으므로 로컬 초안 정리만 생략한다.
-      }
+      // 초안 저장소가 같은 계정의 쓰기·삭제 순서를 보장한다.
+      void removeHarumadiPdfDraft(ownerId).catch(() => {});
       setDraft(emptyHarumadiPdfDraft());
+      setSavedPreview({ id: harumadiPdf.id, bytes: previewPdf.bytes, coverQueued: Boolean(thumbnail) });
       setOpenedHarumadi(harumadiPdf);
+      if (thumbnail) void saveLibraryCover(ownerId, harumadiPdf.id, thumbnail).then(() => {
+        if (getSessionSnapshot()?.userId !== ownerId) return;
+        queryClient.setQueryData<StoredHarumadiPdf[]>(["harumadi-pdfs", ownerId], current =>
+          current?.map(item => item.id === harumadiPdf.id ? { ...item, hasCover: true } : item));
+        void queryClient.invalidateQueries({ queryKey: ["library-harumadiPdfs", ownerId] });
+      }).catch(() => {}); // 표지가 없어도 PDF는 열 수 있다. 다음 열람 때 다시 생성한다.
       recordHarumadiActivity("harumadi_completed");
     } catch (error) {
       setMessage(
@@ -340,6 +346,7 @@ function HarumadiPdfEditor({ ownerId }: { ownerId: string }) {
           : "하루마디를 완성하지 못했어요. 잠시 후 다시 시도해주세요.",
       );
     } finally {
+      completingRef.current = false;
       setCompleting(false);
     }
   }
@@ -374,8 +381,10 @@ function HarumadiPdfEditor({ ownerId }: { ownerId: string }) {
   if (openedHarumadi) {
     return (
       <StoredHarumadiPdfViewer
+        key={openedHarumadi.id}
         ownerId={ownerId}
         harumadiPdf={openedHarumadi}
+        savedPreview={savedPreview?.id === openedHarumadi.id ? savedPreview : undefined}
         onBack={() => router.replace("/")}
         onDeleted={() => {
           void queryClient.invalidateQueries({ queryKey: ["library-harumadiPdfs", ownerId] });
@@ -384,6 +393,7 @@ function HarumadiPdfEditor({ ownerId }: { ownerId: string }) {
             (current = []) => current.filter(({ id }) => id !== openedHarumadi.id),
           );
           setOpenedHarumadi(null);
+          setSavedPreview(null);
         }}
       />
     );
@@ -874,11 +884,13 @@ function HarumadiPdfEditor({ ownerId }: { ownerId: string }) {
 export function StoredHarumadiPdfViewer({
   ownerId,
   harumadiPdf,
+  savedPreview,
   onBack,
   onDeleted,
 }: {
   ownerId: string;
   harumadiPdf: StoredHarumadiPdf;
+  savedPreview?: { bytes: Uint8Array; coverQueued: boolean };
   onBack: () => void;
   onDeleted: () => void;
 }) {
@@ -887,7 +899,7 @@ export function StoredHarumadiPdfViewer({
     pageCount: number;
     approvalToken?: string;
     coverThumbnail?: Uint8Array;
-  } | null>(null);
+  } | null>(() => savedPreview ? { bytes: savedPreview.bytes, pageCount: harumadiPdf.pageCount } : null);
   const [busy, setBusy] = useState<"download" | "delete" | null>(null);
   const downloading = useRef(false);
   const [message, setMessage] = useState("");
@@ -898,17 +910,17 @@ export function StoredHarumadiPdfViewer({
       approvalToken?: string;
       coverThumbnail?: Uint8Array;
     } | null) => {
-      setPdf(result);
-      if (!harumadiPdf.hasCover && result?.coverThumbnail && getSessionSnapshot()?.userId === ownerId) {
+      if (result || !savedPreview) setPdf(result);
+      if (!harumadiPdf.hasCover && !savedPreview?.coverQueued && result?.coverThumbnail && getSessionSnapshot()?.userId === ownerId) {
         void saveLibraryCover(ownerId, harumadiPdf.id, result.coverThumbnail).catch(() => {});
       }
     },
-    [harumadiPdf.hasCover, harumadiPdf.id, ownerId],
+    [harumadiPdf.hasCover, harumadiPdf.id, ownerId, savedPreview],
   );
 
   async function download() {
     if (downloading.current) return;
-    if (!pdf || busy) return;
+    if (!pdf || busy || getSessionSnapshot()?.userId !== ownerId) return;
     downloading.current = true;
     setBusy("download");
     setMessage("");
@@ -964,8 +976,9 @@ export function StoredHarumadiPdfViewer({
         <HarumadiPdfPreview
           harumadiPdfId={harumadiPdf.id}
           ownerId={ownerId}
+          savedBytes={savedPreview?.bytes}
           onReady={handleReady}
-          captureCover={!harumadiPdf.hasCover}
+          captureCover={!harumadiPdf.hasCover && !savedPreview?.coverQueued}
         />
         {message && <Notice role="status">{message}</Notice>}
         <StoredManagement>

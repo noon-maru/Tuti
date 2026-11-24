@@ -63,11 +63,15 @@ export function AccountFlow() {
   });
 
   const finishAccountChange = useCallback(async (linked = false) => {
-    await queryClient.invalidateQueries({ queryKey: ["journal-entries"] });
+    const owner = getSessionSnapshot()?.userId;
+    if (owner) void queryClient.invalidateQueries({ queryKey: ["journal-entries", owner] });
     const destination = await resolveReturn();
+    const invite = destination ? null : await pendingHarumadiInvite(true).catch(() => null);
+    if (getSessionSnapshot()?.userId !== owner) return;
     await loginContinuation.clear().catch(() => {});
+    if (getSessionSnapshot()?.userId !== owner) return;
 
-    if (linked && !destination && !await pendingHarumadiInvite(true).catch(() => null)) {
+    if (linked && !destination && !invite) {
       setAccountNotice("로그인 수단과 기존 데이터를 현재 계정에 연결했어요.");
       router.replace("/login");
       return;
@@ -81,7 +85,7 @@ export function AccountFlow() {
     }
 
     skipInitialHelp();
-    router.replace(destination ? loginSuccessPath(destination, getSessionSnapshot()?.userId) : await pendingHarumadiInvite(true).catch(() => null) ? "/harumadi/invite" : "/");
+    router.replace(destination ? loginSuccessPath(destination, owner) : invite ? "/harumadi/invite" : "/");
   }, [
     entryRecord,
     finishEntry,
