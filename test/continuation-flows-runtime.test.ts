@@ -157,17 +157,27 @@ test("실제 작성 흐름은 저장 후 URL에서 선택을 복원하고 다른
 });
 
 test("알림 조회 재시도는 실제 flow에서 설정만 다시 읽고 권한·저장 요청을 하지 않는다", async () => {
-  let reads = 0, saves = 0, permissions = 0;
+  let reads = 1, saves = 0, permissions = 0;
   const router = { replace() {}, back() {} };
   const events = new EventTarget();
+  const settingsQuery = {
+    data: undefined as typeof DEFAULT_NOTIFICATION_SETTINGS | undefined, isError: true, isPending: false,
+    async refetch() { reads++; settingsQuery.data = DEFAULT_NOTIFICATION_SETTINGS; settingsQuery.isError = false; },
+  };
+  const permissionQuery = { data: { supported: true, permission: "prompt" }, isPending: false, isError: false, async refetch() {} };
   const flow = clientFlowHarness("src/features/tuti/flows/NotificationSettingsFlow.tsx", "NotificationSettingsFlow", {
     "next/navigation": { useRouter: () => router },
     "@/features/tuti/screens/notifications/NotificationSettingsScreen": { NotificationSettingsScreen: "settings" },
-    "@/lib/notificationSettings": { readNotificationSettings: async () => { if (++reads === 1) throw new Error("offline"); return DEFAULT_NOTIFICATION_SETTINGS; }, saveNotificationSettings: async () => { saves++; } },
+    "@/lib/notificationSettings": { notificationSettingsQuery: () => ({ queryKey: ["notification-settings", "owner"] }), saveNotificationSettings: async () => { saves++; } },
+    "@/lib/optimisticNotificationSettings": { notificationSettingsKey: (owner: string) => ["notification-settings", owner], notificationSettingsMutation: () => ({}) },
+    "@tanstack/react-query": { useQueryClient: () => ({ isMutating: () => 0 }), useIsMutating: () => 0,
+      useQuery: ({ queryKey }: { queryKey: string[] }) => queryKey[0] === "notification-settings" ? settingsQuery : permissionQuery,
+      useMutation: () => ({}) },
     "@/shared/notifications/preferences": { DEFAULT_NOTIFICATION_SETTINGS },
     "../notifications/localNotifications": {},
     "../notifications/pushNotifications": { getPushNotificationStatus: async () => ({ supported: true }), enableServerPushNotifications: async () => { permissions++; } },
     "../hooks/usePushEnvironment": { usePushEnvironment: () => "native" },
+    "../hooks/useSession": { useSession: () => ({ userId: "owner" }) },
     "@/lib/auth/session": { getSessionSnapshot: () => ({ userId: "owner" }), subscribeToSession: () => () => {} },
     "@/shared/notifications/rollout": { WEB_PUSH_USER_ENABLED: false }, "@capacitor/core": { Capacitor: { isNativePlatform: () => true } },
   }, { document: events });

@@ -39,7 +39,10 @@ test("알림 설정은 권한 요청 전후 계정을 고정하고 다른 계정
     await assert.rejects(notificationRequest("harumadis/book/notifications", { method: "PUT" }, original.userId), /계정/);
   });
   const flow = readFileSync("src/features/tuti/flows/NotificationSettingsFlow.tsx", "utf8");
-  assert.match(flow, /saveNotificationSettings\(next, owner\)/);
-  assert.match(flow, /registeredHere && !savedHere/);
-  assert.match(flow, /refreshPending\.current/);
+  assert.match(flow, /notificationSettingsMutation\(client/);
+  assert.match(flow, /currentOwner: \(\) => getSessionSnapshot\(\)\?\.userId/);
+  assert.match(flow, /client.isMutating\(\{ mutationKey \}\)/);
+  const mutation = readFileSync("src/lib/optimisticNotificationSettings.ts", "utf8");
+  assert.match(mutation, /registeredHere && !savedHere/);
+  assert.match(mutation, /services.save\(input.next, input.owner\)/);
 });

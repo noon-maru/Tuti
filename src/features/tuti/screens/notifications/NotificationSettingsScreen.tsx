@@ -8,10 +8,11 @@ import { captionStyles, nativeDateInputStyles, screenTitleStyles } from "@/share
 import type { NotificationSettings } from "@/shared/notifications/preferences";
 import type { PushNotificationStatus } from "../../notifications/pushNotifications";
 import type { WebPushAvailability } from "../../notifications/webPushNotifications";
-export function NotificationSettingsScreen({ settings, supported, browser = null, status, busy, message, onBack, onChange, onRetry }: {
+export function NotificationSettingsScreen({ settings, supported, browser = null, status, busy, saving = false, message, onBack, onChange, onRetry }: {
   browser?: WebPushAvailability | null;
   settings: NotificationSettings; supported: boolean; status: PushNotificationStatus | null;
   busy: boolean; message: string | null; onBack: () => void; onChange: (patch: Partial<NotificationSettings>) => Promise<void>;
+  saving?: boolean;
   onRetry?: () => void;
 }) {
   return <Frame>
@@ -34,7 +35,7 @@ export function NotificationSettingsScreen({ settings, supported, browser = null
       {status?.permission === "denied" && <Notice role="alert">{browser ? "브라우저에서 알림이 차단되어 있어요. 사이트 설정에서 Tuti 알림을 허용해주세요." : "기기에서 알림이 꺼져 있어요. 기기 설정에서 Tuti 알림을 허용해주세요."}</Notice>}
       {supported && (settings.newsEnabled || settings.reminderEnabled) && status && !status.registered &&
         <Button type="button" $tone="neutral" disabled={busy} onClick={() => void onChange({ newsEnabled: settings.newsEnabled, reminderEnabled: settings.reminderEnabled })}>{browser ? "이 브라우저에서도 알림 받기" : "이 기기에서도 알림 받기"}</Button>}
-      {message && !onRetry && <Notice role="status">{message}</Notice>}
+      <SaveStatus role="status" aria-live="polite">{saving ? "알림 설정을 저장하고 있어요." : message && !onRetry ? message : ""}</SaveStatus>
       <Hint>함께 채우는 하루마디별로도 알림을 끌 수 있어요.<br />사진과 글은 알림에 표시하지 않아요.</Hint>
     </Content>
   </Frame>;
@@ -52,6 +53,7 @@ const Copy = styled.div`flex: 1; min-width: 0; h2 { margin: 0; font-size: var(--
 const Time = styled.div`display: flex; align-items: center; gap: 10px; label { flex: 1; min-width: 0; font-size: var(--ui-caption-size); } input { ${nativeDateInputStyles} font: inherit; font-size: 16px; max-width: 120px; border: 1px solid var(--color-border); border-radius: 12px; padding-inline: 10px; background: var(--color-surface); color: inherit; min-height: 44px; &:focus-visible { outline: 2px solid var(--color-focus-ring); outline-offset: -2px; } }`;
 const Hint = styled.p`${captionStyles} margin: 0;`;
 const Notice = styled.p`font-size: 13px; line-height: 1.7; padding: 14px 16px; border-radius: 12px; background: var(--color-neutral-200); margin: 0;`;
+const SaveStatus = styled.p`${captionStyles} margin: 0; min-height: 1.7em;`;
 const Switch = styled.label`position: relative; flex: none; width: 46px; height: 44px;
   input { position: absolute; inset: 0; opacity: 0; width: 100%; height: 100%; }
   span { pointer-events: none; position: absolute; inset: 8px 0; border-radius: 20px; background: var(--color-neutral-400); transition: background 180ms; }

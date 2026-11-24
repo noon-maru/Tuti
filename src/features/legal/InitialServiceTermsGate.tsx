@@ -23,6 +23,7 @@ import { notificationSettingsAvailable } from "@/shared/notifications/rollout";
 import { consentEntryPath } from "@/lib/loginContinuation";
 import { isPublicWelcomePath } from "@/shared/tuti/publicWelcome";
 import { PublicWelcomeFlow } from "@/features/tuti/flows/PublicWelcomeFlow";
+import { showErrorToast } from "@/lib/feedback";
 
 // 오버레이가 아니라 진입 화면이다. 통과 전에는 children과 그 안의 effect를 마운트하지 않는다.
 export function InitialServiceTermsGate({ children, rightsChildren, renderContent = content => content }: {
@@ -252,9 +253,11 @@ function ConsentForm({ offer, onRead, onAccepted, onRefresh, onSubmittingChange 
       // 위치 사용 시에는 서버에 저장된 동의 상태를 다시 확인한다.
       if (result.locationError) console.warn("선택 위치 동의를 저장하지 못했습니다. 위치 사용 시 다시 확인합니다.");
       if (notificationConfirmed) {
-        await browserPermission;
-        try { await optInInitialNotifications(); }
-        catch { console.warn("선택 알림 설정을 마치지 못했습니다. 설정에서 다시 켤 수 있습니다."); }
+        const owner = result.state.userId;
+        // 선택 알림의 서버·기기 등록은 필수 동의를 마친 사용자의 화면 전환을 막지 않는다.
+        if (owner) void Promise.resolve(browserPermission).then(() => optInInitialNotifications(owner)).catch(() => {
+          if (getSessionSnapshot()?.userId === owner) showErrorToast("알림을 켜지 못했어요. 설정의 알림에서 다시 시도해주세요.");
+        });
       }
       if (active.current) onAccepted(result.state);
     } catch (failure) {

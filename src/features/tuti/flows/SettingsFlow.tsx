@@ -11,6 +11,7 @@ import { usePushEnvironment } from "../hooks/usePushEnvironment";
 import { notificationSettingsAvailable } from "@/shared/notifications/rollout";
 import { loginPath } from "@/lib/loginContinuation";
 import { usePetProfiles } from "../hooks/usePetProfiles";
+import { notificationSettingsQuery } from "@/lib/notificationSettings";
 
 const settingsRoutes = {
   pets: "/pets",
@@ -40,6 +41,10 @@ export function SettingsFlow() {
       if (name !== "notifications" || notificationsAvailable) router.prefetch(route);
     });
   }, [router, notificationsAvailable]);
+
+  useEffect(() => {
+    if (notificationsAvailable && session?.userId) void queryClient.prefetchQuery(notificationSettingsQuery(session.userId));
+  }, [notificationsAvailable, session?.userId, queryClient]);
 
   return (
     <SettingsScreen

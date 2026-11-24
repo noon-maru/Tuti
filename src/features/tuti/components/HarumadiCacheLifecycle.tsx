@@ -12,7 +12,7 @@ export function HarumadiCacheLifecycle() {
     const unsubscribe = subscribeToSession(() => {
       const next = getSessionSnapshot();
       if (previous && (previous.userId !== next?.userId || previous.accessToken !== next?.accessToken)) {
-        for (const prefix of ["harumadi-content", "journal-entries"]) {
+        for (const prefix of ["harumadi-content", "journal-entries", "notification-settings", "push-permission"]) {
           const key = [prefix, previous.userId];
           void client.cancelQueries({ queryKey: key });
           client.removeQueries({ queryKey: key });

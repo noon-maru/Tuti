@@ -87,6 +87,7 @@ for (const hasStoredSession of [false, true]) test(`저장 세션 ${hasStoredSes
     "@/shared/notifications/rollout": { notificationSettingsAvailable: () => false },
     "@/lib/loginContinuation": { consentEntryPath }, "@/shared/tuti/publicWelcome": { isPublicWelcomePath },
     "@/features/tuti/flows/PublicWelcomeFlow": { PublicWelcomeFlow: "public-welcome" },
+    "@/lib/feedback": { showErrorToast() {} },
   }, { window: windowTarget, document: new EventTarget() });
   const render = () => page.render({ children: "protected-content", rightsChildren: "rights-content" });
   render(); page.effects(); await flush();
