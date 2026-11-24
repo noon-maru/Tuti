@@ -81,26 +81,32 @@ test("설정 항목 이동·스위치·로그아웃 실패 재시도는 스타�
 test("설정은 현재 계정의 프로필만 연결하고 조회 대기·계정 전환에도 계정 화면을 막지 않는다", () => {
   let session: { userId: string; account: { displayName: string; email: string } } | null = { userId: "owner", account: { displayName: "정연한", email: "sample@example.test" } };
   let ready = false;
+  let notificationsAvailable = false;
+  const prefetchedOwners: string[] = [];
   const queried: string[] = [], routes: string[] = [];
   const pet = { id: "momo", name: "몽실이", species: "dog", weightKg: 3 };
   const flow = clientFlowHarness("src/features/tuti/flows/SettingsFlow.tsx", "SettingsFlow", {
-    "@tanstack/react-query": { useQueryClient: () => ({}) },
+    "@tanstack/react-query": { useQueryClient: () => ({ prefetchQuery: async ({ owner }: { owner: string }) => { prefetchedOwners.push(owner); } }) },
     "next/navigation": { useRouter: () => ({ push: (path: string) => routes.push(path), prefetch() {}, replace() {} }) },
     "@/features/tuti/screens/settings/SettingsScreen": { SettingsScreen: "settings" },
     "@/features/tuti/hooks/useSession": { useSession: () => session },
     "@/lib/auth/session": { logoutAccount: async () => {} },
     "@/store/tuti": { useTutiStore: (select: (value: unknown) => unknown) => select({ cardDisplayPreferences: defaults.cardDisplayPreferences, setCardDisplayPreferences() {} }) },
     "../hooks/usePushEnvironment": { usePushEnvironment: () => "web" },
-    "@/shared/notifications/rollout": { notificationSettingsAvailable: () => false },
+    "@/shared/notifications/rollout": { notificationSettingsAvailable: () => notificationsAvailable },
+    "@/lib/notificationSettings": { notificationSettingsQuery: (owner: string) => ({ owner }) },
     "@/lib/loginContinuation": { loginPath: () => "/login" },
     "../hooks/usePetProfiles": { usePetProfiles: (owner: string) => { queried.push(owner); return { data: ready && owner === "owner" ? { pets: [pet] } : undefined }; } },
   });
   const pending = flow.render(); assert.equal(pending.type, "settings"); assert.equal(pending.props.accountLabel, "정연한"); assert.equal(pending.props.accountEmail, "sample@example.test"); assert.equal(pending.props.pets, undefined);
+  flow.effects(); assert.deepEqual(prefetchedOwners, []);
+  notificationsAvailable = true; flow.render(); flow.effects(); assert.deepEqual(prefetchedOwners, ["owner"]);
   ready = true; const loaded = flow.render(); assert.deepEqual(loaded.props.pets, [pet]);
   assert.equal(queried.at(-1), "owner");
   (loaded.props.onNavigate as (value: string) => void)("pets"); assert.deepEqual(routes, ["/pets"]);
   session = { userId: "other", account: { displayName: "", email: "other@example.test" } };
   const switched = flow.render(); assert.equal(switched.props.ownerId, "other"); assert.equal(switched.props.accountLabel, "other@example.test"); assert.equal(switched.props.pets, undefined);
+  flow.effects(); assert.equal(prefetchedOwners.at(-1), "other");
   session = null; const guest = flow.render(); assert.equal(queried.at(-1), ""); assert.equal(guest.props.ownerId, undefined); assert.equal(guest.props.pets, undefined);
   flow.dispose();
 });
