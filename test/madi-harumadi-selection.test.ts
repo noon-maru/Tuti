@@ -15,7 +15,7 @@ test("첫 마디 완료는 바로 펼쳐볼 수 있고 후속 마디는 서버�
   const screen = readFileSync("src/features/tuti/screens/journal/MadiCreateScreen.tsx", "utf8");
   assert.match(screen, /saved && !savedAsFirstMadi && !saved.savedHarumadi && harumadiSelection && !inHarumadi/);
   assert.match(screen, /if \(saved && needsBookSelection && harumadiSelection\) return <MadiHarumadiSelection/);
-  assert.match(screen, /if \(preview \|\| needsBookSelection\) return/);
+  assert.match(screen, /if \(preview \|\| needsBookSelection \|\| suspended\) return/);
   const flow = readFileSync("src/features/tuti/flows/JournalCreateFlow.tsx", "utf8");
   assert.match(flow, /harumadiSelection=\{ownerId && !harumadiId \? \{ ownerId,/);
   assert.match(screen, /onNext=\{nextMadi\}/);

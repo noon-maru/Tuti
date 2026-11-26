@@ -11,7 +11,7 @@ import { BackButton, BaseButton, ButtonLink, PrimaryButton, TextButton } from "@
 import { ANDROID_BACK_EVENT } from "@/features/tuti/navigation/androidBack";
 import { WelcomeHarumadiSample } from "./WelcomeHarumadiSample";
 import { WELCOME_GUIDE, type WelcomeGuideStep } from "@/shared/tuti/welcomeGuide";
-import { WELCOME_HARUMADI_SOLO_EXCERPT, type WelcomeHarumadiOrigin } from "@/shared/tuti/welcomeHarumadi";
+import type { WelcomeHarumadiOrigin } from "@/shared/tuti/welcomeHarumadi";
 import { loginPath } from "@/lib/loginContinuation";
 
 export function WelcomeScreen({ onRecord, onExplore, guideStep, onGuideOpen, onGuideNext, onGuideBack, onBookOpen }: {
@@ -57,7 +57,7 @@ export function WelcomeScreen({ onRecord, onExplore, guideStep, onGuideOpen, onG
       </StoryExample> : guideStep === 0 ? <PhotoExample>
         <Image src="/welcome/dog-walk-example-v2.webp" alt="반려견과 동네를 산책하는 사진 예시" fill sizes="(max-width: 600px) 70vw, 280px" />
       </PhotoExample> : <HarumadiFigure>
-        <HarumadiButton $withExcerpt={!guide} ref={harumadiPdf} type="button" aria-label="하루마디 예시 펼쳐보기: 우리 집 창가의 반려묘" onClick={() => {
+        <HarumadiButton ref={harumadiPdf} type="button" aria-label="하루마디 예시 펼쳐보기: 우리 집 창가의 반려묘" onClick={() => {
           const sheet = harumadiPdf.current?.querySelector('[data-harumadi-pdf-sample]');
           const rect = sheet?.getBoundingClientRect();
           onBookOpen(rect ? { left: rect.left, top: rect.top, width: rect.width, height: rect.height } : null);
@@ -67,7 +67,6 @@ export function WelcomeScreen({ onRecord, onExplore, guideStep, onGuideOpen, onG
           </SamplePulse>
           <OpenHint><BookOpen size={14} aria-hidden="true" />하루마디 예시 펼쳐보기</OpenHint>
         </HarumadiButton>
-        {!guide && <ExampleExcerpt>{`“${WELCOME_HARUMADI_SOLO_EXCERPT}”`}</ExampleExcerpt>}
       </HarumadiFigure>}
     </Visual>
     <Actions>
@@ -148,23 +147,21 @@ const HarumadiFigure = styled.figure`
   min-height: 0; margin: 0;
   container-type: size;
   display: flex; flex-direction: column; align-items: center; justify-content: center;
-  gap: 10px;
-  @container app-viewport (max-height: 500px) and (min-aspect-ratio: 1/1) { gap: 8px; }
 `;
 const invite = keyframes`
   0%, 100% { transform: translateY(0); }
   45% { transform: translateY(-4px); }
 `;
-const HarumadiButton = styled(BaseButton)<{ $withExcerpt: boolean }>`
+const HarumadiButton = styled(BaseButton)`
   position: relative; min-height: 44px; min-width: 0;
-  width: min(calc(100cqw - 40px), max(130px, calc((100cqh - ${({ $withExcerpt }) => $withExcerpt ? 84 : 32}px) * 148 / 210)), 250px);
+  width: min(calc(100cqw - 40px), max(130px, calc((100cqh - 32px) * 148 / 210)), 250px);
   display: flex; flex-direction: column; gap: 8px; padding: 0;
   background: transparent; border-radius: 2px;
   flex-shrink: 0;
   &:hover > span:first-child, &:focus-visible > span:first-child { animation-play-state: paused; }
   &:active > span:first-child { animation: none; transform: scale(0.985); }
   @container app-viewport (max-height: 500px) {
-    width: min(calc(100cqw - 12px), max(0px, calc((100cqh - ${({ $withExcerpt }) => $withExcerpt ? 64 : 28}px) * 148 / 210)), 180px);
+    width: min(calc(100cqw - 12px), max(0px, calc((100cqh - 28px) * 148 / 210)), 180px);
   }
 `;
 const SamplePulse = styled.span`
@@ -179,12 +176,6 @@ const OpenHint = styled.span`
   color: var(--color-text-muted);
   font-size: 11px; font-weight: 400; line-height: 1.5; white-space: nowrap;
   @container app-viewport (max-height: 520px) { font-size: 10px; }
-`;
-const ExampleExcerpt = styled.p`
-  margin: 0; flex: none; text-align: center; white-space: pre-line;
-  font-family: var(--font-emotional); font-size: var(--font-size-200);
-  line-height: 1.45; color: var(--color-text);
-  @container app-viewport (max-height: 500px) { white-space: normal; font-size: var(--font-size-100); }
 `;
 const PhotoExample = styled.div`
   position: relative; width: min(100%, 280px); height: min(100%, 280px);

@@ -4,6 +4,13 @@ import test from "node:test";
 
 const flow = readFileSync("src/features/tuti/flows/HarumadiFlow.tsx", "utf8");
 
+test("기존 하루마디 꾸미기는 준비·오류·편집 상태에 공통 헤더 여백을 쓰고 읽기·생성은 별도로 유지한다", () => {
+  assert.match(flow, /const editingAppearance = initialMode === "settings"/);
+  assert.equal(flow.match(/<Header \$reading=\{!editingAppearance\} \$standard=\{editingAppearance\}/g)?.length, 2);
+  assert.match(flow, /<Header \$reading=\{mode === "pages"\} \$standard=\{mode === "together" \|\| mode === "pdf" \|\| \(mode === "settings" && Boolean\(harumadi\)\)\}[^>]*\$creating=\{!harumadi && mode === "settings"\}/);
+  assert.match(flow, /\$standard && `padding-top: var\(--screen-padding-top\);`/);
+});
+
 test("새 하루마디는 넉넉한 세로 배치를 기본으로 하고 낮은 화면에서만 병렬로 압축한다", () => {
   assert.match(flow, /<SettingsPanel \$creating=\{!harumadi\}>/);
   assert.match(flow, /<CoverSetup \$creating=\{!harumadi\}>/);

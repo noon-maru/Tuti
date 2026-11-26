@@ -9,6 +9,7 @@ import * as copy from "../../src/shared/tuti/madiFields";
 import * as dates from "../../src/lib/date/koreanDate";
 import { madiEditDraftSource, newMadiDraftContext } from "../../src/lib/madiDraft";
 import { harumadiSharingNotice } from "../../src/shared/harumadi/sharingAudience";
+import * as firstMadiPlacementMotion from "../../src/features/tuti/lib/firstMadiPlacementMotion";
 import type { ComponentProps } from "react";
 import type { MadiCreateScreen } from "../../src/features/tuti/screens/journal/MadiCreateScreen";
 
@@ -21,16 +22,31 @@ export function findMadiControl(root: unknown, predicate: (props: Record<string,
 }
 
 /** Drive the real screen handlers, substituting only hooks, browser APIs and child surfaces. */
-export function madiCreateHarness(props: ComponentProps<typeof MadiCreateScreen>, stage = "write", overrides: Record<string, unknown> = {}) {
+export function madiCreateHarness(props: ComponentProps<typeof MadiCreateScreen>, stage = "write", overrides: Record<string, unknown> = {}, reducedMotion = false) {
   const states: unknown[] = [], refs: Array<{ current: unknown }> = [];
-  let cursor = 0, refCursor = 0, finished = 0;
+  type LayoutEffect = { dependencies: unknown[]; setup: () => (() => void) | undefined; cleanup?: () => void; pending: boolean };
+  const layouts: LayoutEffect[] = [];
+  const timers = new Map<number, { at: number; run: () => void }>();
+  let cursor = 0, refCursor = 0, layoutCursor = 0, finished = 0, now = 0, timerId = 0;
+  const window = {
+    matchMedia() { return { matches: reducedMotion }; },
+    setTimeout(run: () => void, delay: number) { timers.set(++timerId, { at: now + delay, run }); return timerId; },
+    clearTimeout(id: number) { timers.delete(id); },
+  };
   const tag = "div";
   const deps: Record<string, unknown> = {
     react: { ...React, useState: (initial: unknown) => {
       const index = cursor++;
       if (!(index in states)) states[index] = index === 0 ? stage : typeof initial === "function" ? initial() : initial;
       return [states[index], (next: unknown) => { states[index] = typeof next === "function" ? next(states[index]) : next; }];
-    }, useRef: (initial: unknown) => refs[refCursor++] ?? (refs[refCursor - 1] = { current: initial }), useEffect() {}, useCallback: (fn: unknown) => fn },
+    }, useRef: (initial: unknown) => refs[refCursor++] ?? (refs[refCursor - 1] = { current: initial }), useEffect() {},
+    useLayoutEffect(setup: LayoutEffect["setup"], dependencies: unknown[]) {
+      const index = layoutCursor++;
+      const old = layouts[index];
+      if (!old || dependencies.some((dependency, i) => !Object.is(dependency, old.dependencies[i]))) {
+        layouts[index] = { setup, dependencies, pending: true, cleanup: old?.cleanup };
+      }
+    }, useCallback: (fn: unknown) => fn },
     "react/jsx-runtime": jsx, "@emotion/styled": { __esModule: true, default: styled },
     "next/image": { __esModule: true, default: tag },
     "lucide-react": { Camera: tag, ImagePlus: tag, Check: tag, ArrowRight: tag, PenLine: tag },
@@ -52,17 +68,39 @@ export function madiCreateHarness(props: ComponentProps<typeof MadiCreateScreen>
     "@/features/tuti/components/PetProfiles": { PetProfiles: tag },
     "@/lib/madiDraft": { newMadiDraftContext, madiEditDraftSource },
     "@/shared/harumadi/sharingAudience": { harumadiSharingNotice },
+    "@/features/tuti/lib/firstMadiPlacementMotion": firstMadiPlacementMotion,
+    "@/features/tuti/hooks/usePetProfiles": { usePetProfiles: () => ({ data: { pets: [{ id: "pet-a", name: "몽실이" }] } }) },
     ...overrides,
   };
   const exports: { MadiCreateScreen?: (props: unknown) => unknown } = {};
   vm.runInNewContext(ts.transpileModule(readFileSync("src/features/tuti/screens/journal/MadiCreateScreen.tsx", "utf8"), {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.ReactJSX, esModuleInterop: true },
-  }).outputText, { exports, require: (id: string) => { if (!(id in deps)) throw Error(`Unexpected dependency ${id}`); return deps[id]; }, Date, URL });
-  const render = () => { cursor = 0; refCursor = 0; return exports.MadiCreateScreen!(props); };
+  }).outputText, { exports, require: (id: string) => { if (!(id in deps)) throw Error(`Unexpected dependency ${id}`); return deps[id]; }, Date, URL, window });
+  const render = () => {
+    cursor = 0; refCursor = 0; layoutCursor = 0;
+    const screen = exports.MadiCreateScreen!(props);
+    for (const layout of layouts) {
+      if (!layout.pending) continue;
+      layout.cleanup?.();
+      layout.cleanup = layout.setup();
+      layout.pending = false;
+    }
+    return screen;
+  };
   const text = (node: unknown): string => typeof node === "string" ? node : Array.isArray(node) ? node.map(text).join("") :
     node && typeof node === "object" ? text((node as Element).props?.children) : "";
   const control = (label: string) => findMadiControl(render(), p => p["aria-label"] === label || Boolean(p.onClick && text(p.children).trim() === label))!;
   return { render, control, finished: () => finished,
+    advanceTime(ms = firstMadiPlacementMotion.FIRST_MADI_HANDOFF_MS) {
+      render();
+      now += ms;
+      for (const [id, timer] of timers) {
+        if (timer.at > now) continue;
+        timers.delete(id);
+        timer.run();
+        render();
+      }
+    },
     change: (label: string, value: string) => (control(label).onChange as (e: unknown) => void)({ target: { value } }),
     click: (label: string) => { const node = control(label); if (!node || node.disabled) throw Error(`Missing/enabled control: ${label}`); (node.onClick as () => void)(); },
   };

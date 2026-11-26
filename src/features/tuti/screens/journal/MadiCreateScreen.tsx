@@ -6,7 +6,7 @@ import { MADI_COMPOSE_COPY, MADI_FIELD_COPY } from "@/shared/tuti/madiFields";
 import styled from "@emotion/styled";
 import Image from "next/image";
 import { Camera, ImagePlus, Check, ArrowRight, PenLine } from "lucide-react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { ScreenFrame } from "@/features/tuti/components/ScreenFrame";
 import { BackButton, Button, PrimaryButton, TextButton } from "@/features/tuti/components/buttons";
 import { ImageCropDialog } from "@/features/tuti/components/ImageCropDialog";
@@ -25,10 +25,12 @@ import { MadiFieldFeedback } from "@/features/tuti/components/MadiFieldFeedback"
 import { madiEditDraftSource, newMadiDraftContext } from "@/lib/madiDraft";
 import { harumadiSharingNotice } from "@/shared/harumadi/sharingAudience";
 import { PetProfiles } from "@/features/tuti/components/PetProfiles";
+import { FIRST_MADI_HANDOFF_MS, FIRST_MADI_PLACEMENT_MS, FIRST_MADI_REDUCED_HANDOFF_MS, animateFirstMadiAssembly, animateFirstMadiGuidance, animateFirstMadiPlacement, firstMadiOrigins, firstMadiPageOrigin, type FirstMadiOrigins, type FirstMadiPageOrigin } from "@/features/tuti/lib/firstMadiPlacementMotion";
+import { usePetProfiles } from "@/features/tuti/hooks/usePetProfiles";
 
 type Stage = "photo" | "write" | "preview";
 
-export function MadiCreateScreen({ onBack, onSave, onCollection, onSaved, onOpenSaved, onSelectHarumadi, onStartAnother, onContinueInHarumadi, continueInHarumadi = false, harumadiSelection, draftOwnerId, inHarumadi = false, destination, draftDestination, destinationVerified = Boolean(destination), destinationScopeChanged = false, destinationError = false, onRetryDestination, firstMadi = false, initialPlace, collectionLabel = "작성 마치기", preview = false }: {
+export function MadiCreateScreen({ onBack, onSave, onCollection, onSaved, onOpenSaved, onRenameFirstHarumadi, renamedHarumadi, suspended = false, onSelectHarumadi, onStartAnother, onContinueInHarumadi, continueInHarumadi = false, harumadiSelection, draftOwnerId, inHarumadi = false, destination, draftDestination, destinationVerified = Boolean(destination), destinationScopeChanged = false, destinationError = false, onRetryDestination, firstMadi = false, initialPlace, collectionLabel = "작성 마치기", preview = false }: {
   destination?: Pick<Harumadi, "id" | "title" | "shared" | "sharingAudience">;
   draftDestination?: Pick<Harumadi, "id" | "title" | "shared" | "sharingAudience">;
   destinationVerified?: boolean;
@@ -46,6 +48,9 @@ export function MadiCreateScreen({ onBack, onSave, onCollection, onSaved, onOpen
   onCollection: () => void;
   onSaved?: (entry: TutiJournalEntry, savedAsFirst: boolean) => void;
   onOpenSaved?: (entry: TutiJournalEntry) => void;
+  onRenameFirstHarumadi?: (book: Pick<Harumadi, "id" | "title">) => void;
+  renamedHarumadi?: Pick<Harumadi, "id" | "title">;
+  suspended?: boolean;
   onSelectHarumadi?: (entry: TutiJournalEntry) => void;
   onStartAnother?: () => void;
   onContinueInHarumadi?: (bookId: string) => void;
@@ -55,6 +60,9 @@ export function MadiCreateScreen({ onBack, onSave, onCollection, onSaved, onOpen
   const [stage, setStage] = useState<Stage>("photo");
   const [continued, setContinued] = useState(false);
   const [savedAsFirstMadi, setSavedAsFirstMadi] = useState(false);
+  const [placementOrigins, setPlacementOrigins] = useState<FirstMadiOrigins | null>(null);
+  const [bookStep, setBookStep] = useState<{ origin: FirstMadiPageOrigin | null; settled: boolean } | null>(null);
+  const [placedPets, setPlacedPets] = useState("");
   const [image, setImage] = useState<string | null>(null);
   const [preparingPhoto, setPreparingPhoto] = useState(false);
   const [cropSource, setCropSource] = useState<string | null>(null);
@@ -71,8 +79,16 @@ export function MadiCreateScreen({ onBack, onSave, onCollection, onSaved, onOpen
   const [editingSaved, setEditingSaved] = useState<TutiJournalEntry | null>(null);
   const [editingPhoto, setEditingPhoto] = useState<string | null>(null);
   const [editingPetIds, setEditingPetIds] = useState<string[]>([]);
+  const petProfiles = usePetProfiles(draftOwnerId ?? "", !preview && !inHarumadi && !saved && (firstMadi || savedAsFirstMadi) && petIds.length > 0);
+  const selectedPetNames = (petProfiles.data?.pets ?? []).filter(pet => petIds.includes(pet.id)).map(pet => pet.name).join(", ");
   const needsBookSelection = Boolean(saved && !savedAsFirstMadi && !saved.savedHarumadi && harumadiSelection && !inHarumadi);
   const showFirstSavedAction = Boolean(savedAsFirstMadi && !inHarumadi && onOpenSaved);
+  const firstBook = savedAsFirstMadi && !inHarumadi ? saved?.savedHarumadi : undefined;
+  const firstPlacement = firstBook && renamedHarumadi?.id === firstBook.id ? renamedHarumadi : firstBook;
+  const assemblingFirstMadi = Boolean(firstPlacement && placementOrigins && !bookStep);
+  const placingFirstMadi = Boolean(bookStep && !bookStep.settled);
+  const showingPlacementGuidance = assemblingFirstMadi || placingFirstMadi;
+  const placementGuidance = useRef<HTMLParagraphElement>(null);
   const madiLabel = (saved || editingSaved ? savedAsFirstMadi : firstMadi && !continued) ? "첫 마디" : "새로운 마디";
   const photoIntro = !inHarumadi && (!firstMadi || continued) ? MADI_COMPOSE_COPY.chooseAfterSave : "사진 한 장, 짧은 이야기면 충분해요.";
   const [saving, setSaving] = useState(false);
@@ -87,6 +103,7 @@ export function MadiCreateScreen({ onBack, onSave, onCollection, onSaved, onOpen
   const cameraInput = useRef<HTMLInputElement>(null);
   const heading = useRef<HTMLHeadingElement>(null);
   const scroll = useRef<HTMLDivElement>(null);
+  const placementScene = useRef<HTMLDivElement>(null);
   const today = getKoreanDateKey();
   const draft = prepareFirstJournalDraft({ image, title, content, date, place }, today);
   const fieldErrors = getMadiFieldErrors({ image, title, content, date, place }, today);
@@ -107,6 +124,56 @@ export function MadiCreateScreen({ onBack, onSave, onCollection, onSaved, onOpen
 
   useEffect(() => () => { if (cropSource) URL.revokeObjectURL(cropSource); }, [cropSource]);
   useEffect(() => () => { selection.current += 1; }, []);
+  useLayoutEffect(() => {
+    const viewport = scroll.current, scene = placementScene.current;
+    if (!scene || !viewport || !placementOrigins || bookStep) return;
+    viewport.scrollTop = 0;
+    const reduced = window.matchMedia("(prefers-reduced-motion: reduce)");
+    if (reduced.matches) return;
+    const cancelMotion = animateFirstMadiAssembly(scene, viewport, placementOrigins);
+    const cancelGuidance = assemblingFirstMadi ? animateFirstMadiGuidance(placementGuidance.current) : undefined;
+    const cancel = () => { cancelMotion?.(); cancelGuidance?.(); };
+    reduced.addEventListener?.("change", cancel);
+    window.addEventListener("resize", cancel);
+    return () => {
+      reduced.removeEventListener?.("change", cancel);
+      window.removeEventListener("resize", cancel);
+      cancel();
+    };
+  }, [placementOrigins, bookStep, assemblingFirstMadi]);
+  useLayoutEffect(() => {
+    if (!bookStep || bookStep.settled) return;
+    const scene = placementScene.current, viewport = scroll.current;
+    const reduced = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const settle = () => setBookStep(current => current === bookStep ? { ...bookStep, settled: true } : current);
+    if (reduced.matches) { settle(); return; }
+    const motion = scene && viewport ? animateFirstMadiPlacement(scene, viewport, bookStep.origin, placementGuidance.current) : undefined;
+    if (motion) motion.placement.onfinish = settle;
+    const fallback = window.setTimeout(settle, FIRST_MADI_PLACEMENT_MS + (motion ? 160 : 0));
+    const width = viewport?.clientWidth;
+    const onResize = () => { if (viewport?.clientWidth !== width) settle(); };
+    if (motion) {
+      reduced.addEventListener?.("change", settle);
+      window.addEventListener("resize", onResize);
+    }
+    return () => {
+      window.clearTimeout(fallback);
+      if (!motion) return;
+      reduced.removeEventListener?.("change", settle);
+      window.removeEventListener("resize", onResize);
+      motion.placement.onfinish = null;
+      motion.cancel();
+    };
+  }, [bookStep]);
+  useLayoutEffect(() => {
+    if (!assemblingFirstMadi) return;
+    const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const timer = window.setTimeout(() => {
+      setBookStep({ origin: firstMadiPageOrigin(placementScene.current, scroll.current), settled: reduced });
+      setPlacementOrigins(null);
+    }, reduced ? FIRST_MADI_REDUCED_HANDOFF_MS : FIRST_MADI_HANDOFF_MS);
+    return () => window.clearTimeout(timer);
+  }, [assemblingFirstMadi, placementOrigins]);
   useEffect(() => {
     if (preview) return;
     scroll.current?.scrollTo({ top: 0 });
@@ -124,9 +191,11 @@ export function MadiCreateScreen({ onBack, onSave, onCollection, onSaved, onOpen
     preparingPhotoRef.current = false;
     setPreparingPhoto(false);
     if (saved) {
+      if (bookStep) { setBookStep(null); return; }
       // Restore the actual previous stage with its inputs, but retain the saved
       // identity so another save updates this madi rather than creating one.
       if (savedAsFirstMadi && !inHarumadi) {
+        setPlacementOrigins(null);
         setEditingPhoto(image); setEditingPetIds([...petIds]);
         setEditingSaved(saved); setSaved(null); setError("");
       }
@@ -136,16 +205,16 @@ export function MadiCreateScreen({ onBack, onSave, onCollection, onSaved, onOpen
     if (stage === "preview") setStage("write");
     else if (stage === "write") setStage("photo");
     else void localDraft.leave(onBack);
-  }, [cancelCrop, cropSource, onBack, onCollection, saved, savedAsFirstMadi, inHarumadi, image, petIds, stage, localDraft]);
+  }, [cancelCrop, cropSource, onBack, onCollection, saved, savedAsFirstMadi, inHarumadi, image, petIds, stage, localDraft, bookStep]);
   useEffect(() => {
-    if (preview || needsBookSelection) return;
+    if (preview || needsBookSelection || suspended) return;
     const onAndroidBack = (event: Event) => {
       event.preventDefault();
       back();
     };
     window.addEventListener(ANDROID_BACK_EVENT, onAndroidBack);
     return () => window.removeEventListener(ANDROID_BACK_EVENT, onAndroidBack);
-  }, [back, preview, needsBookSelection]);
+  }, [back, preview, needsBookSelection, suspended]);
 
   const choosePhoto = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -190,6 +259,7 @@ export function MadiCreateScreen({ onBack, onSave, onCollection, onSaved, onOpen
     savingRef.current = true;
     selection.current += 1;
     if (!editingSaved) setSavedAsFirstMadi(firstMadi && !continued);
+    const origins = !inHarumadi && (editingSaved ? savedAsFirstMadi : firstMadi && !continued) ? firstMadiOrigins(scroll.current) : null;
     setSaving(true); setError("");
     try {
       // 간편 작성은 일반 마디만 취급하며 별도 민감정보 동의를 추정하지 않는다.
@@ -201,6 +271,9 @@ export function MadiCreateScreen({ onBack, onSave, onCollection, onSaved, onOpen
         sensitiveContent: false }, editingSaved ?? undefined);
       const entry = editingSaved ? { ...result, savedHarumadi: editingSaved.savedHarumadi } : result;
       await localDraft.finish();
+      setBookStep(null);
+      setPlacementOrigins(entry.savedHarumadi ? origins : null);
+      setPlacedPets(origins && entry.savedHarumadi ? entry.pets?.map(pet => pet.name).join(", ") ?? selectedPetNames : "");
       setSaved(entry);
       if (!editingSaved) onSaved?.(entry, firstMadi && !continued);
       setEditingSaved(null);
@@ -213,6 +286,7 @@ export function MadiCreateScreen({ onBack, onSave, onCollection, onSaved, onOpen
   };
 
   const startAnother = () => {
+    setBookStep(null); setPlacementOrigins(null);
     setEditingSaved(null); setEditingPhoto(null); setEditingPetIds([]);
     setPetIds([]); setPetsOpen(false);
     onStartAnother?.();
@@ -236,11 +310,11 @@ export function MadiCreateScreen({ onBack, onSave, onCollection, onSaved, onOpen
 
   return <Frame aria-labelledby="madi-create-heading">
     <Header>
-      <BackButton aria-label={saved ? savedAsFirstMadi && !inHarumadi ? "이전으로" : inHarumadi ? "하루마디로" : collectionLabel : "이전으로"} onClick={back} disabled={saving} />
+      <BackButton aria-label={bookStep ? "첫 마디로 돌아가기" : saved ? savedAsFirstMadi && !inHarumadi ? "이전으로" : inHarumadi ? "하루마디로" : collectionLabel : "이전으로"} onClick={back} disabled={saving} />
       <HeaderTitle $book={inHarumadi}>{inHarumadi ? destination?.title ? `${destination.title}에 남길 마디` : "하루마디에 남길 마디" : madiLabel}</HeaderTitle>
       <StepCount>{saved ? <Check size={18} aria-label="저장 완료" /> : stage === "preview" ? "미리보기" : `${stage === "photo" ? 1 : 2} / 2`}</StepCount>
     </Header>
-    <Content ref={scroll} data-scroll-region $choosing={!saved && stage === "photo" && !image}>
+    <Content ref={scroll} data-scroll-region data-first-madi-scene={firstPlacement ? "" : undefined} $choosing={!saved && stage === "photo" && !image}>
       {!saved && inHarumadi && <Destination role="status">
         {destinationScopeChanged ? <><span>공유 범위가 바뀌었어요. 초안은 보관돼요. 하루마디에서 다시 열어주세요.</span><TextButton onClick={() => void localDraft.leave(onBack)}>하루마디로 돌아가기</TextButton></>
           : destinationError ? <><span>담을 곳을 확인하지 못했어요. 작성은 계속할 수 있어요.</span><TextButton onClick={onRetryDestination}>다시 확인하기</TextButton></>
@@ -248,8 +322,8 @@ export function MadiCreateScreen({ onBack, onSave, onCollection, onSaved, onOpen
               : <span>{harumadiSharingNotice(destination ?? {})}</span>}
       </Destination>}
       <Intro $compact={stage === "write" && !saved}>
-        <h1 ref={heading} tabIndex={-1} id="madi-create-heading">{saved ? <>{madiLabel}를<br />남겼어요.</> : stage === "photo" ? <>어떤 순간을<br />오래 간직하고 싶나요?</> : stage === "write" ? image ? "이 순간을 남겨볼까요?" : <>그날의 이야기를<br />조금만 들려주세요.</> : <>{madiLabel}를<br />살펴볼까요?</>}</h1>
-        <p>{saved ? saved.savedHarumadi ? `‘${saved.savedHarumadi.title}’에 담았어요.` : "남긴 마디는 전체 마디 보기에서 볼 수 있어요." : stage === "photo" ? photoIntro : stage === "write" ? "길게 쓰지 않아도 괜찮아요. 사진만 남겨도 좋아요." : "사진과 이야기를 확인해주세요."}</p>
+        <h1 ref={heading} tabIndex={-1} id="madi-create-heading" aria-live={firstPlacement ? "polite" : undefined}>{bookStep?.settled ? "첫 마디가 담겼어요." : firstPlacement ? "첫 마디를 남겼어요." : saved ? <>{madiLabel}를<br />남겼어요.</> : stage === "photo" ? <>어떤 순간을<br />오래 간직하고 싶나요?</> : stage === "write" ? image ? "이 순간을 남겨볼까요?" : <>그날의 이야기를<br />조금만 들려주세요.</> : <>{madiLabel}를<br />살펴볼까요?</>}</h1>
+        <p data-first-madi-reveal={bookStep?.settled ? "" : undefined} data-reserved={firstPlacement && !bookStep?.settled ? "" : undefined}>{saved ? saved.savedHarumadi ? `‘${firstPlacement?.title ?? saved.savedHarumadi.title}’에 담았어요.` : "남긴 마디는 전체 마디 보기에서 볼 수 있어요." : stage === "photo" ? photoIntro : stage === "write" ? "길게 쓰지 않아도 괜찮아요. 사진만 남겨도 좋아요." : "사진과 이야기를 확인해주세요."}</p>
       </Intro>
       {!saved && stage === "photo" && <PhotoChoices>
         {image && <SelectedPhoto><Image src={image} alt="선택한 추억 사진" fill unoptimized sizes="350px" /></SelectedPhoto>}
@@ -261,48 +335,64 @@ export function MadiCreateScreen({ onBack, onSave, onCollection, onSaved, onOpen
       <HiddenInput ref={photoInput} type="file" accept="image/*" aria-label="앨범 사진 선택" onChange={choosePhoto} />
       <HiddenInput ref={cameraInput} type="file" accept="image/*" capture="environment" aria-label="카메라 사진 촬영" onChange={choosePhoto} />
       {!saved && stage === "write" && <Fields $photo={Boolean(image)} disabled={saving || restoringDraft || preparingPhoto} aria-label="마디 내용" aria-busy={saving || restoringDraft || preparingPhoto}>
-        {image && <SelectedPhoto><Image src={image} alt="마디에 담을 사진" fill unoptimized sizes="350px" /></SelectedPhoto>}
+        {image && <SelectedPhoto data-madi-source="photo"><Image src={image} alt="마디에 담을 사진" fill unoptimized sizes="350px" /></SelectedPhoto>}
         <PhotoActions><TextButton type="button" onClick={() => photoInput.current?.click()}>{image ? "사진 바꾸기" : "사진 추가하기"}</TextButton>{image && <><TextButton type="button" onClick={() => setCropSource(image)}>사진 맞추기</TextButton><TextButton type="button" onClick={removePhoto}>사진 빼기</TextButton></>}</PhotoActions>
         {image && <OptionalAction type="button" aria-expanded={storyOpen} aria-controls="madi-story-fields" onClick={() => setStoryOpen(value => !value)}><PenLine size={16} aria-hidden="true" />{storyOpen ? "이야기 접기" : title || content ? "이야기 수정하기" : "이야기 덧붙이기"}<small>선택</small></OptionalAction>}
         <StoryFields id="madi-story-fields" hidden={Boolean(image && !storyOpen)}>
-        <label><MadiFieldLabel>제목 <small>선택</small></MadiFieldLabel><input aria-label="마디 제목 (선택)" placeholder={MADI_FIELD_COPY.titlePlaceholder} maxLength={FIRST_JOURNAL_TITLE_LIMIT} value={title} onChange={event => setTitle(event.target.value)}
+        <label><MadiFieldLabel>제목 <small>선택</small></MadiFieldLabel><input data-madi-source="title" aria-label="마디 제목 (선택)" placeholder={MADI_FIELD_COPY.titlePlaceholder} maxLength={FIRST_JOURNAL_TITLE_LIMIT} value={title} onChange={event => setTitle(event.target.value)}
           onBlur={() => touch("title")} aria-invalid={Boolean(touched.title && fieldErrors.title)} aria-describedby={fieldErrors.title ? "madi-title-feedback" : undefined} />
           <MadiFieldFeedback id="madi-title-feedback" message={fieldErrors.title} touched={touched.title} /></label>
-        <label><MadiFieldLabel>기억하고 싶은 이야기 <small>{image ? "선택" : "필수"}</small></MadiFieldLabel><textarea aria-label="기억하고 싶은 이야기" placeholder={MADI_FIELD_COPY.storyPlaceholder} maxLength={FIRST_JOURNAL_CONTENT_LIMIT} value={content} onChange={(event) => setContent(event.target.value)}
+        <label><MadiFieldLabel>기억하고 싶은 이야기 <small>{image ? "선택" : "필수"}</small></MadiFieldLabel><textarea data-madi-source="content" aria-label="기억하고 싶은 이야기" placeholder={MADI_FIELD_COPY.storyPlaceholder} maxLength={FIRST_JOURNAL_CONTENT_LIMIT} value={content} onChange={(event) => setContent(event.target.value)}
           aria-required={!image} onBlur={() => touch("content")} aria-invalid={Boolean(touched.content && fieldErrors.content)} aria-describedby={fieldErrors.content ? "madi-content-feedback" : undefined} />
           <MadiFieldFeedback id="madi-content-feedback" message={fieldErrors.content} touched={touched.content} /></label>
         </StoryFields>
-        <DateField $compact={Boolean(image)}><MadiFieldLabel>날짜</MadiFieldLabel><input aria-label="마디 날짜" type="date" max={today} value={date} onChange={(event) => { dateEdited.current = true; setDate(event.target.value); }}
+        <DateField $compact={Boolean(image)}><MadiFieldLabel>날짜</MadiFieldLabel><input data-madi-source="date" aria-label="마디 날짜" type="date" max={today} value={date} onChange={(event) => { dateEdited.current = true; setDate(event.target.value); }}
           aria-required="true" onBlur={() => touch("date")} aria-invalid={Boolean(touched.date && fieldErrors.date)} aria-describedby={fieldErrors.date ? "madi-date-feedback" : undefined} />
           <MadiFieldFeedback id="madi-date-feedback" message={fieldErrors.date} touched={touched.date} /></DateField>
-        <div>{placeOpen || place ? <><MadiFieldLabel>장소 <small>선택</small></MadiFieldLabel><JournalPlacePicker value={place} placeId={placeId}
+        <div data-madi-source="place">{placeOpen || place ? <><MadiFieldLabel>장소 <small>선택</small></MadiFieldLabel><JournalPlacePicker value={place} placeId={placeId}
           onBlur={() => touch("place")} invalid={Boolean(touched.place && fieldErrors.place)} describedBy={fieldErrors.place ? "madi-place-feedback" : undefined}
           onTextChange={value => { setPlace(value); setPlaceId(null); }}
           onChange={value => { setPlace(value.name); setPlaceId(value.id); }} />
           <MadiFieldFeedback id="madi-place-feedback" message={fieldErrors.place} touched={touched.place} /></> : <OptionalAction type="button" onClick={() => setPlaceOpen(true)}>장소 추가<small>선택</small></OptionalAction>}</div>
         <PrivacyHint>민감정보나 주민등록번호 등은 남기지 말아주세요.</PrivacyHint>
-        <details onToggle={event => setPetsOpen(event.currentTarget.open)}><summary>함께한 반려동물 · 선택</summary>{petsOpen && <PetProfiles selected={petIds} onChange={setPetIds} disabled={saving} />}</details>
+        <details onToggle={event => setPetsOpen(event.currentTarget.open)}><summary data-madi-source="pets">함께한 반려동물 · 선택</summary>{petsOpen && <PetProfiles selected={petIds} onChange={setPetIds} disabled={saving} />}</details>
       </Fields>}
-      {(saved || stage === "preview") && <MemoryPage
+      {saved && firstPlacement ? <FirstMadiPlacement $book={Boolean(bookStep)} ref={placementScene} data-first-madi-placement data-placement-motion={bookStep ? "book" : placementOrigins ? "assemble" : undefined}>
+        {bookStep && <BookBinding data-placement-binding aria-hidden="true">
+          <BookLeaf data-placement-book>
+            <InsideCover><span>하루마디</span><strong>{firstPlacement.title}</strong></InsideCover>
+            <OutsideCover><strong>{firstPlacement.title}</strong><span>하루마디</span></OutsideCover>
+          </BookLeaf>
+          <RightLeaf><span>1</span></RightLeaf>
+        </BookBinding>}
+        <PlacedMemory $book={Boolean(bookStep)} data-placement-page><MemoryPage firstSaved compact={Boolean(bookStep)} title={saved.title} image={saved.image ? image ?? saved.image : null} content={saved.content}
+          date={getKoreanDateKey(new Date(saved.visitedAt))} place={saved.placeName === "남긴 공간" ? "" : saved.placeName}
+          pets={placedPets} /></PlacedMemory>
+      </FirstMadiPlacement> : (saved || stage === "preview") && <MemoryPage
         title={saved ? saved.title : title.trim()}
         image={saved ? saved.image : image}
         content={saved ? saved.content : content.trim()}
         date={saved ? getKoreanDateKey(new Date(saved.visitedAt)) : date}
         place={saved ? (saved.placeName === "남긴 공간" ? "" : saved.placeName) : place.trim()}
       />}
+      {bookStep?.settled && firstPlacement && onRenameFirstHarumadi && <BookNamePrompt data-placement-rename data-first-madi-reveal>
+        <p>하루마디의 이름을 바꿔볼까요?</p>
+        <TextButton type="button" onClick={() => onRenameFirstHarumadi(firstPlacement)}>이름 바꾸기</TextButton>
+      </BookNamePrompt>}
       {error && <ErrorMessage role="alert">{error}</ErrorMessage>}
       {preparingPhoto && <PrivacyHint role="status">사진을 준비하고 있어요.</PrivacyHint>}
       {!saved && localDraft.notice && <PrivacyHint role="status">{localDraft.notice}</PrivacyHint>}
     </Content>
-    <Footer>
+    <Footer data-reserve-collection={showFirstSavedAction && showingPlacementGuidance ? "" : undefined}>
       {saved ? <>
-        {showFirstSavedAction ? <PrimaryButton type="button" onClick={() => onOpenSaved?.(saved)}>{saved.savedHarumadi ? "방금 남긴 쪽 보기" : "방금 남긴 마디 보기"} <ArrowRight size={16} aria-hidden="true" /></PrimaryButton>
-          : <PrimaryButton type="button" onClick={onCollection}>{inHarumadi ? "하루마디로 돌아가기" : collectionLabel} <ArrowRight size={16} aria-hidden="true" /></PrimaryButton>}
+        {showingPlacementGuidance ? <PlacementGuidance ref={placementGuidance} data-placement-guidance>기록을 한데 모아 볼 수 있도록 도와드릴게요.</PlacementGuidance>
+          : showFirstSavedAction ? <PrimaryButton data-first-madi-reveal={bookStep?.settled ? "" : undefined} type="button" onClick={() => onOpenSaved?.(saved)}>{saved.savedHarumadi ? "방금 남긴 쪽 보기" : "방금 남긴 마디 보기"} <ArrowRight size={16} aria-hidden="true" /></PrimaryButton>
+          : <PrimaryButton data-first-madi-reveal={bookStep?.settled ? "" : undefined} type="button" onClick={onCollection}>{inHarumadi ? "하루마디로 돌아가기" : collectionLabel} <ArrowRight size={16} aria-hidden="true" /></PrimaryButton>}
         {showFirstSavedAction && !saved.savedHarumadi && onSelectHarumadi && <TextButton type="button" onClick={() => onSelectHarumadi(saved)}>하루마디에 담기</TextButton>}
         {inHarumadi ? <TextButton type="button" onClick={startAnother}>이 하루마디에 다음 마디 남기기</TextButton>
-          : saved.savedHarumadi && onContinueInHarumadi ? <TextButton type="button" onClick={() => onContinueInHarumadi(saved.savedHarumadi!.id)}>같은 하루마디에 다음 마디 남기기</TextButton>
-            : !showFirstSavedAction && <TextButton type="button" onClick={startAnother}>다음 마디 남기기</TextButton>}
-        {showFirstSavedAction && <TextButton type="button" onClick={onCollection}>{collectionLabel}</TextButton>}
+          : saved.savedHarumadi && onContinueInHarumadi && (!firstPlacement || bookStep?.settled) ? <TextButton data-first-madi-reveal={bookStep?.settled ? "" : undefined} type="button" onClick={() => onContinueInHarumadi(saved.savedHarumadi!.id)}>같은 하루마디에 다음 마디 남기기</TextButton>
+            : !showFirstSavedAction && !showingPlacementGuidance && <TextButton type="button" onClick={startAnother}>다음 마디 남기기</TextButton>}
+        {showFirstSavedAction && !showingPlacementGuidance && <TextButton data-first-madi-reveal={bookStep?.settled ? "" : undefined} type="button" onClick={onCollection}>{collectionLabel}</TextButton>}
       </> : stage === "photo" ? image && <PrimaryButton type="button" disabled={restoringDraft} onClick={() => setStage("write")}>이 사진으로 계속하기</PrimaryButton>
         : stage === "write" ? <>
           {inHarumadi && destinationVerified && destination && <PrivacyHint>{destination.title} · {harumadiSharingNotice(destination)}</PrivacyHint>}
@@ -315,17 +405,25 @@ export function MadiCreateScreen({ onBack, onSave, onCollection, onSaved, onOpen
   </Frame>;
 }
 
-function MemoryPage({ title, image, content, date, place }: { title: string; image: string | null; content: string; date: string; place: string }) {
-  return <Page aria-label="하루마디에 담을 마디 미리보기">
-    <PageMeta><span>{date.replaceAll("-", ".")}</span>{place && <span>{place}</span>}</PageMeta>
-    {image && <PageImage><Image src={image} alt="마디에 담은 사진" fill unoptimized sizes="350px" /></PageImage>}
-    {title && <PageTitle>{title}</PageTitle>}
-    {content && <PageText>{content}</PageText>}
-    <PageNumber aria-hidden="true">1</PageNumber>
+function MemoryPage({ title, image, content, date, place, pets, compact = false, firstSaved = false }: { title: string; image: string | null; content: string; date: string; place: string; pets?: string; compact?: boolean; firstSaved?: boolean }) {
+  return <Page aria-label={compact ? "하루마디에 담긴 첫 마디" : firstSaved ? "방금 남긴 첫 마디" : "하루마디에 담을 마디 미리보기"}>
+    {firstSaved && <PlacementLabel data-placement-label aria-hidden="true">첫 마디</PlacementLabel>}
+    <PageMeta data-page-meta><span data-memory-part="date">{date.replaceAll("-", ".")}</span>{place && <span data-memory-part="place">{place}</span>}</PageMeta>
+    {image && <PageImage data-page-image data-memory-part="photo"><Image src={image} alt="마디에 담은 사진" fill unoptimized sizes={compact ? "160px" : "350px"} /></PageImage>}
+    {title && <PageTitle data-memory-part="title">{title}</PageTitle>}
+    {content && <PageText data-memory-part="content">{content}</PageText>}
+    {pets && <PlacementPets data-memory-part="pets">함께한 반려동물 · {pets}</PlacementPets>}
+    <PageNumber data-page-folio aria-hidden="true">1</PageNumber>
   </Page>;
 }
 
-const Frame = styled(ScreenFrame)`background: var(--color-surface); gap: var(--space-5);`;
+const Frame = styled(ScreenFrame)`
+  background: var(--color-surface); gap: var(--space-5);
+  @keyframes first-madi-completion { from { opacity: 0; } to { opacity: 1; } }
+  @media (prefers-reduced-motion: no-preference) {
+    [data-first-madi-reveal] { animation: first-madi-completion 240ms ease-out; }
+  }
+`;
 const PageTitle = styled.h2`margin: 0; font-size: 15px; font-weight: 600; line-height: 1.6; overflow-wrap: anywhere;`;
 const Header = styled.header`flex: none; display: grid; grid-template-columns: 44px minmax(0, 1fr) 44px; align-items: center; text-align: center; gap: 8px;
 `;
@@ -334,12 +432,14 @@ const HeaderTitle = styled.span<{ $book?: boolean }>`${screenTitleStyles} min-wi
 `;
 const StepCount = styled.div`font-size: 12px; color: var(--color-text-muted); display: flex; justify-content: center;`;
 const Content = styled.div<{ $choosing: boolean }>`flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 2px 2px 24px; display: flex; flex-direction: column; gap: 20px; > * { flex-shrink: 0; }
+  &[data-first-madi-scene] { overflow-anchor: none; }
   ${({ $choosing }) => $choosing && `padding-top: clamp(24px, 7cqh, 64px);`}
   @container app-viewport (max-height: 620px) { padding-top: 2px; gap: 16px; }
 `;
 const Intro = styled.div<{ $compact?: boolean }>`
   h1 { ${sectionHeadingStyles} font-family: var(--font-emotional); margin-bottom: var(--space-3); &:focus { outline: none; } }
   p { ${bodyCopyStyles} margin: 0; color: var(--color-text-muted); word-break: keep-all; }
+  [data-reserved] { visibility: hidden; }
   ${({ $compact }) => $compact && `h1 { font-size: 20px; line-height: 1.5; margin-bottom: 8px; }`}
 `;
 const PhotoChoices = styled.div`display: grid; gap: 12px; > button { min-height: 52px; }`;
@@ -368,5 +468,83 @@ const PageMeta = styled.div`display: flex; justify-content: space-between; gap: 
 const PageImage = styled.div`position: relative; width: 100%; aspect-ratio: 4 / 3; flex: none; img { object-fit: contain; }`;
 const PageText = styled.p`white-space: pre-wrap; font-size: 12px; line-height: 1.95; overflow-wrap: anywhere; word-break: keep-all;`;
 const PageNumber = styled.span`margin-top: auto; padding-top: 20px; align-self: flex-end; font-size: 10px; color: var(--color-text-muted);`;
-const Footer = styled.footer`flex: none; display: grid; gap: 6px; > button { white-space: normal; min-height: 48px; line-height: 1.6; }`;
+const PlacementLabel = styled.span`font-size: 11px; font-weight: 600; color: var(--color-brand-1000);`;
+const PlacementPets = styled.span`
+  color: var(--color-text-muted); font-size: 10px; line-height: 1.35;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+`;
+const BookBinding = styled.div`
+  position: absolute; inset: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr));
+  pointer-events: none; perspective: 720px;
+`;
+const BookLeaf = styled.div`
+  grid-column: 1; grid-row: 1; position: relative; z-index: 1; min-width: 0;
+  transform-origin: right center; transform-style: preserve-3d;
+`;
+const CoverFace = styled.div`
+  position: absolute; inset: 0; display: grid; align-content: center; gap: 7px; padding: 14px;
+  border: 1px solid var(--color-border); backface-visibility: hidden;
+  span { font-size: 11px; }
+  strong { font-family: var(--font-emotional); font-size: 14px; line-height: 1.4; overflow-wrap: anywhere; word-break: keep-all;
+    display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+`;
+const InsideCover = styled(CoverFace)`
+  border-right: 0; border-radius: 4px 0 0 4px;
+  background: linear-gradient(to right, var(--color-surface) 90%, var(--color-neutral-200));
+  span { color: var(--color-text-muted); }
+`;
+const OutsideCover = styled(CoverFace)`
+  transform: rotateY(180deg); border-radius: 0 4px 4px 0;
+  background: var(--color-secondary-300); color: var(--color-secondary-1000);
+  strong { font-size: 17px; }
+`;
+const RightLeaf = styled.div`
+  grid-row: 1; grid-column: 2; position: relative;
+  border: 1px solid var(--color-border); border-radius: 0 4px 4px 0;
+  background: linear-gradient(to right, var(--color-neutral-200), var(--color-surface) 13%);
+  span { position: absolute; right: 10px; bottom: 10px; font-size: 9px; color: var(--color-text-muted); }
+`;
+const PlacedMemory = styled.div<{ $book: boolean }>`
+  grid-column: ${({ $book }) => $book ? 2 : 1};
+  position: relative; z-index: 1; min-width: 0; aspect-ratio: 148 / 210;
+  container-type: inline-size; transform-origin: left top;
+  > article { height: 100%; min-height: 0; padding: 7cqw; gap: 4.5cqw; border-radius: 0 4px 4px 0; }
+  [data-memory-part] { transform-origin: left top; }
+  [data-page-meta] { gap: 3cqw; font-size: 3.25cqw; line-height: 1.45; [data-memory-part="place"] { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; } }
+  h2, p { display: -webkit-box; -webkit-box-orient: vertical; overflow: hidden; margin: 0; }
+  h2 { font-size: 4.75cqw; line-height: 1.45; -webkit-line-clamp: 2; }
+  p { font-size: 4cqw; line-height: 1.65; -webkit-line-clamp: 4; }
+  h2 + p { margin-top: -1cqw; }
+  [data-memory-part="pets"], [data-placement-label] { font-size: 3.5cqw; line-height: 1.5; }
+  [data-page-image] { max-height: 38%; img { object-fit: cover; } }
+  [data-page-image] ~ p { -webkit-line-clamp: 2; }
+  [data-page-folio] { padding-top: 0; font-size: 3.25cqw; }
+`;
+const FirstMadiPlacement = styled.div<{ $book: boolean }>`
+  position: relative; width: min(100%, ${({ $book }) => $book ? 320 : 350}px); margin: 8px auto;
+  display: grid; grid-template-columns: ${({ $book }) => $book ? "repeat(2, minmax(0, 1fr))" : "minmax(0, 1fr)"};
+`;
+const BookNamePrompt = styled.div`
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 0 10px;
+  p { ${bodyCopyStyles} margin: 0; }
+`;
+const PlacementGuidance = styled.p`
+  ${sectionHeadingStyles}
+  position: relative; box-sizing: border-box; inline-size: min(100%, 264px); margin: 0 auto;
+  padding: 12px 22px; border: 1px solid var(--color-secondary-300);
+  border-radius: 4px 0 4px 4px;
+  background: var(--color-secondary-100); color: var(--color-secondary-1000);
+  font-family: var(--font-emotional); font-size: 16px; font-weight: 600; line-height: 1.55;
+  text-align: left; text-wrap: balance; word-break: keep-all;
+  &::after {
+    content: ""; position: absolute; inset-block-start: -1px; inset-inline-end: -1px;
+    inline-size: 12px; block-size: 12px; pointer-events: none;
+    background: linear-gradient(to bottom left, var(--color-surface) 46%, var(--color-secondary-300) 49% 55%, var(--color-secondary-200) 58%);
+  }
+`;
+const Footer = styled.footer`
+  flex: none; display: grid; gap: 6px;
+  > button { white-space: normal; min-height: 48px; line-height: 1.6; }
+  &[data-reserve-collection]::after { content: ""; min-height: 48px; }
+`;
 const ErrorMessage = styled.p`font-size: 13px; color: var(--color-danger, #b84242); line-height: 1.7;`;

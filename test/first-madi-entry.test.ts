@@ -5,17 +5,38 @@ import { welcomeMadiCancelPath, welcomeMadiCreatePath, welcomeGuidePath } from "
 import { welcomeHarumadiPath } from "@/shared/tuti/welcomeHarumadi";
 import { publicPlaceReturnPath, savedMadiSelectionPath } from "@/lib/savedMadiSelection";
 import { consentEntryPath, safeLoginReturn } from "@/lib/loginContinuation";
+import { createHarumadiHistory } from "@/lib/harumadiHistory";
+import type { ComponentProps } from "react";
+import type { HarumadiBookReader, HarumadiSettingsOpening } from "@/features/tuti/components/HarumadiBookReader";
 
 function fixture(path = "/madi/new?from=welcome") {
   const params = new URL(path, "https://tuti.invalid").searchParams;
   const paths: string[] = [];
   let retries = 0;
   const query = { entries: [] as { id: string }[], isSuccess: false, isError: false, dataUpdatedAt: 0, refetch: () => { retries++; } };
+  const stack = [{}]; let index = 0;
+  const window = {
+    location: { href: path },
+    history: {
+      get state() { return stack[index]; },
+      pushState(state: object) { stack.splice(++index, Infinity, state); },
+      replaceState(state: object) { stack[index] = state; },
+      back() { index--; onPop?.(); },
+      get length() { return stack.length; },
+    },
+    addEventListener(_: "popstate", listener: () => void) { onPop = listener; },
+    removeEventListener() { onPop = undefined; },
+  };
+  let onPop: (() => void) | undefined;
+  let opening: HarumadiSettingsOpening | null = null;
+  const history = createHarumadiHistory<HarumadiSettingsOpening>(window, "owner", value => { opening = value; });
   const flow = clientFlowHarness("src/features/tuti/flows/JournalCreateFlow.tsx", "JournalCreateFlow", {
     "next/navigation": { useSearchParams: () => params, useRouter: () => ({ replace: (value: string) => paths.push(value), back: () => paths.push("history") }) },
     "@/features/tuti/hooks/useSession": { useSession: () => ({ userId: "owner" }) },
     "@/features/tuti/hooks/useTutiJournalEntries": { useTutiJournalEntries: () => query },
     "@/features/tuti/screens/journal/MadiCreateScreen": { MadiCreateScreen: "composer" },
+    "@/features/tuti/components/HarumadiBookReader": { HarumadiBookReader: "settings" },
+    "@/features/tuti/hooks/useHarumadiHistory": { useHarumadiHistory: () => ({ opening, openBook: history.open, closeBook: history.close, registerCloseGuard: history.setCloseGuard }) },
     "@/features/tuti/screens/journal/MadiHarumadiSelection": { MadiHarumadiSelection: "selection" },
     "@/features/tuti/screens/journal/JournalDetailScreen": { JournalDetailStatusScreen: "status" },
     "@/features/tuti/components/LoadingIndicator": { AppLoadingScreen: "loading" },
@@ -27,9 +48,10 @@ function fixture(path = "/madi/new?from=welcome") {
     "@/lib/harumadis": { harumadiPath: (id: string) => `/harumadi?harumadiId=${encodeURIComponent(id)}` }, "@/lib/tutiApi": {}, "../hooks/useLifecycleView": { useLifecycleView() {} },
     "@/lib/lifecycle": {}, "../hooks/useNotificationPresence": { useNotificationPresence() {} }, "@/lib/notificationSettings": {},
     "@/lib/savedMadiSelection": { publicPlaceReturnPath, savedMadiSelectionPath },
-  }, { window: { history: { length: 5 } } });
-  const composer = () => { const parent = flow.render(); return flow.render(parent.props, parent.type as never); };
-  return { flow, query, paths, composer, get retries() { return retries; } };
+  }, { window });
+  const scene = () => { const parent = flow.render(); return flow.render(parent.props, parent.type as never); };
+  const composer = () => (scene().props.children as [{ props: { children: ReturnType<typeof scene> } }])[0].props.children;
+  return { flow, query, paths, scene, composer, window, get retries() { return retries; } };
 }
 
 test("첫 마디 여부를 확인하기 전 잘못된 제목의 편집기를 열지 않고 확인 후 제목을 유지한다", () => {
@@ -65,6 +87,32 @@ test("첫 저장은 완료 화면을 유지하고 책에 담긴 쪽 또는 저�
   assert.equal(f.paths.at(-1), savedMadiSelectionPath(unfiled.id, "welcome", null), "다음 마디는 기존 담기 경로를 사용한다");
   assert.equal(f.paths.length, 4);
   f.flow.dispose();
+});
+
+test("첫 마디 이름 설정은 히스토리 한 단계만 열고 저장·뒤로가기 모두 원래 완료 화면을 유지한다", () => {
+  const f = fixture(); f.query.isSuccess = true;
+  const screen = f.composer();
+  const book = { id: "book&new", title: "첫 하루마디" };
+  (screen.props.onSaved as (entry: object, first: boolean) => void)({ id: "saved", savedHarumadi: book }, true);
+  const open = screen.props.onRenameFirstHarumadi as (book: object) => void;
+  const settings = () => (f.scene().props.children as [unknown, { props: ComponentProps<typeof HarumadiBookReader> } | null])[1];
+  open(book);
+  assert.equal(f.composer().props.suspended, true);
+  assert.equal(f.window.history.length, 2);
+  assert.equal(f.window.location.href, "/madi/new?from=welcome");
+  f.window.history.back();
+  assert.equal(settings(), null);
+  assert.equal(f.composer().props.suspended, false);
+  open(book);
+  const layer = settings();
+  if (!layer) assert.fail("이름 설정이 열려야 한다");
+  const renamed = { ...book, title: "함께한 하루" };
+  assert.ok(layer.props.settingsReturn);
+  layer.props.settingsReturn.onSaved(renamed);
+  layer.props.onClose();
+  assert.equal(f.composer().props.suspended, false);
+  assert.deepEqual(JSON.parse(JSON.stringify(f.composer().props.renamedHarumadi)), renamed);
+  assert.deepEqual(f.paths, [], "작성 또는 책 페이지로 다시 이동하지 않는다");
 });
 
 test("첫 단계 취소는 실제 소개·가이드·예시로 복귀하고 저장 완료의 책장 복귀와 구분한다", () => {

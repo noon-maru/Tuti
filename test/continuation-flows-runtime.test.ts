@@ -8,11 +8,18 @@ import { PublicMadiUnavailable, readPublicMadi } from "@/lib/publicMadiRead";
 import { welcomeMadiCancelPath } from "@/shared/tuti/welcomeGuide";
 
 const flush = () => new Promise(resolve => setImmediate(resolve));
+const renameLayerDeps = {
+  "@/features/tuti/components/HarumadiBookReader": { HarumadiBookReader: "settings" },
+  "@/features/tuti/hooks/useHarumadiHistory": { useHarumadiHistory: () => ({ opening: null }) },
+};
+const composerScreen = (scene: ReturnType<ReturnType<typeof clientFlowHarness>["render"]>) =>
+  (scene.props.children as [{ props: { children: typeof scene } }])[0].props.children;
 test("작은 여행에서 선택한 책의 마디는 저장과 연결을 한 번만 요청하고 방금 쓴 쪽으로 복귀한다", async () => {
   let params = new URLSearchParams({ from: "explore", harumadiId: "book", placeId: "park", placeName: "공원", journeyId: "journey" });
   const paths: string[] = [], writes: Record<string, unknown>[] = [], origins: string[] = [], actions: Record<string, unknown>[] = [];
   const book = { id: "book", title: "함께한 하루", shared: false };
   const deps = {
+    ...renameLayerDeps,
     "next/navigation": { useSearchParams: () => params, useRouter: () => ({ replace: (path: string) => paths.push(path), back: () => paths.push("unexpected-history") }) },
     "@/features/tuti/hooks/useSession": { useSession: () => ({ userId: "owner" }) },
     "@/features/tuti/hooks/useTutiJournalEntries": { useTutiJournalEntries: () => ({ entries: [], isSuccess: true, addEntry: async (input: Record<string, unknown>) => { writes.push(input); return { id: "saved", placeId: "park", savedHarumadi: book }; } }) },
@@ -32,7 +39,7 @@ test("작은 여행에서 선택한 책의 마디는 저장과 연결을 한 번
     "@/shared/tuti/welcomeGuide": { welcomeMadiCancelPath },
   };
   const create = () => clientFlowHarness("src/features/tuti/flows/JournalCreateFlow.tsx", "JournalCreateFlow", deps, { TextEncoder, window: { history: { length: 12 } } });
-  const flow = create(), parent = flow.render(), composer = flow.render(parent.props, parent.type as never);
+  const flow = create(), parent = flow.render(), composer = composerScreen(flow.render(parent.props, parent.type as never));
   assert.deepEqual(JSON.parse(JSON.stringify(composer.props.initialPlace)), { id: "park", name: "공원" });
   assert.equal(composer.props.collectionLabel, "하루마디로 돌아가기");
   const saved = await (composer.props.onSave as (draft: object) => Promise<object>)({ content: "함께 걸었다", placeId: "park" });
@@ -44,11 +51,11 @@ test("작은 여행에서 선택한 책의 마디는 저장과 연결을 한 번
   assert.equal(paths.at(-1), "/harumadi?harumadiId=book&focusEntryId=saved");
   params = new URLSearchParams({ from: "explore" });
   const standalone = create(), next = standalone.render();
-  (standalone.render(next.props, next.type as never).props.onBack as () => void)();
+  (composerScreen(standalone.render(next.props, next.type as never)).props.onBack as () => void)();
   assert.equal(paths.at(-1), "/explore", "중간 로그인 화면으로 history.back하지 않는다");
   params = new URLSearchParams({ from: "place", placeId: "tourapi-1", placeName: "공유된 공원" });
   const shared = create(), sharedParent = shared.render();
-  const sharedComposer = shared.render(sharedParent.props, sharedParent.type as never);
+  const sharedComposer = composerScreen(shared.render(sharedParent.props, sharedParent.type as never));
   assert.equal(sharedComposer.props.collectionLabel, "공유된 장소로 돌아가기");
   (sharedComposer.props.onBack as () => void)();
   assert.equal(paths.at(-1), "/place/tourapi-1");
@@ -56,7 +63,7 @@ test("작은 여행에서 선택한 책의 마디는 저장과 연결을 한 번
   assert.equal(paths.at(-1), "/place/tourapi-1");
   params = new URLSearchParams({ from: "library", harumadiId: "book", cancelTo: "library" });
   const shelf = create(), shelfParent = shelf.render();
-  const shelfComposer = shelf.render(shelfParent.props, shelfParent.type as never);
+  const shelfComposer = composerScreen(shelf.render(shelfParent.props, shelfParent.type as never));
   const beforeWrites = writes.length;
   (shelfComposer.props.onBack as () => void)();
   assert.equal(paths.at(-1), "/", "책장에서 내린 뒤 저장 없이 취소하면 책장으로 돌아간다");
@@ -69,7 +76,7 @@ test("작은 여행에서 선택한 책의 마디는 저장과 연결을 한 번
     params = new URLSearchParams({ from: "library", harumadiId: "book" });
     if (cancelTo) params.set("cancelTo", cancelTo);
     const reader = create(), readerParent = reader.render();
-    const readerComposer = reader.render(readerParent.props, readerParent.type as never);
+    const readerComposer = composerScreen(reader.render(readerParent.props, readerParent.type as never));
     (readerComposer.props.onBack as () => void)();
     assert.equal(paths.at(-1), "/harumadi?harumadiId=book", "펼친 책 안에서 시작했거나 취소 힌트가 잘못되면 기존 책 복귀를 유지한다");
   }
@@ -119,6 +126,7 @@ test("실제 작성 흐름은 저장 후 URL에서 선택을 복원하고 다른
   const paths: string[] = [];
   const query = { entries: [{ id: "saved" }], isPending: false, isError: false, isSuccess: true, refetch() {}, addEntry() { creates++; } };
   const deps = {
+    ...renameLayerDeps,
     "next/navigation": { useSearchParams: () => params, useRouter: () => ({ replace: (path: string) => paths.push(path) }) },
     "@/features/tuti/hooks/useSession": { useSession: () => ({ userId: owner }) },
     "@/features/tuti/hooks/useTutiJournalEntries": { useTutiJournalEntries: () => query },
@@ -137,7 +145,7 @@ test("실제 작성 흐름은 저장 후 URL에서 선택을 복원하고 다른
   };
   const create = () => clientFlowHarness("src/features/tuti/flows/JournalCreateFlow.tsx", "JournalCreateFlow", deps);
   const first = create(), parent = first.render();
-  const composer = first.render(parent.props, parent.type as never);
+  const composer = composerScreen(first.render(parent.props, parent.type as never));
   (composer.props.onSaved as (entry: unknown) => void)({ id: "saved" });
   assert.equal(paths.at(-1), "/madi/new?savedEntryId=saved");
   params = new URLSearchParams({ savedEntryId: "saved", from: "explore" });

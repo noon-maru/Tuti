@@ -60,6 +60,12 @@ test("마지막 쪽의 덮기·내 책장은 동일한 닫기 동작과 홈 복�
   assert.match(flow, /onComplete=\{finishClose\}/);
 });
 
+test("첫 마디의 이름 설정은 미저장 확인 후 책 닫기 연출 없이 돌아간다", () => {
+  const flow = readFileSync("src/features/tuti/flows/HarumadiFlow.tsx", "utf8");
+  assert.match(flow, /allowLeave\(\)\.then\(allowed => \{\s*if \(!allowed\) return;[\s\S]*?else closeToLibrary\(\)/);
+  assert.match(flow, /if \(!harumadi \|\| \(mode === "settings" && settingsReturn\)\) \{ finishClose\(\); return; \}\s*setCloseFromCover[\s\S]*?setClosing\(true\)/);
+});
+
 test("앞표지에서는 현재 지면을 180ms 페이드아웃하고 회전·추가 표지를 만들지 않는다", async () => {
   const contents = node(); let completed = 0;
   const cancel = animateHarumadiFade(contents.element, () => { completed++; });

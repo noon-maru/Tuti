@@ -20,6 +20,8 @@ import { JournalDetailStatusScreen } from "@/features/tuti/screens/journal/Journ
 import { publicPlaceReturnPath, savedMadiSelectionPath } from "@/lib/savedMadiSelection";
 import { AppLoadingScreen } from "@/features/tuti/components/LoadingIndicator";
 import { welcomeMadiCancelPath } from "@/shared/tuti/welcomeGuide";
+import { HarumadiBookReader, type HarumadiSettingsOpening } from "@/features/tuti/components/HarumadiBookReader";
+import { useHarumadiHistory } from "@/features/tuti/hooks/useHarumadiHistory";
 
 export function JournalCreateFlow() {
   const router = useRouter();
@@ -65,7 +67,7 @@ function SavedMadiSelection({ ownerId, entryId }: { ownerId?: string; entryId: s
   }} />;
 }
 
-function JournalComposer({ ownerId, harumadiId, initialFirstMadi }: { ownerId?: string; harumadiId: string | null; initialFirstMadi: boolean }) {
+function JournalComposer({ ownerId, harumadiId, initialFirstMadi }: { ownerId: string; harumadiId: string | null; initialFirstMadi: boolean }) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const client = useQueryClient();
@@ -85,6 +87,8 @@ function JournalComposer({ ownerId, harumadiId, initialFirstMadi }: { ownerId?: 
   const resetComposition = () => { request.current = null; savedEntryId.current = null; };
   const { addEntry, updateEntry } = useTutiJournalEntries();
   const [firstMadi] = useState(initialFirstMadi);
+  const { opening: renameOpening, openBook: openRename, closeBook: closeRename, registerCloseGuard } = useHarumadiHistory<HarumadiSettingsOpening>(ownerId);
+  const [renamedHarumadi, setRenamedHarumadi] = useState<HarumadiSettingsOpening["book"]>();
   const setActiveJournalEntry = useTutiStore(state => state.setActiveJournalEntry);
   const source = searchParams.get("from");
   const fromLibrary = source === "welcome" || source === "library";
@@ -110,7 +114,7 @@ function JournalComposer({ ownerId, harumadiId, initialFirstMadi }: { ownerId?: 
     else router.replace(fromExplore ? "/explore" : "/madi");
   };
 
-  return <MadiCreateScreen draftOwnerId={ownerId}
+  const composer = <MadiCreateScreen draftOwnerId={ownerId}
     firstMadi={firstMadi}
     inHarumadi={Boolean(harumadiId)}
     continueInHarumadi={Boolean(harumadiId && searchParams.get("continue") === "1")}
@@ -162,6 +166,9 @@ function JournalComposer({ ownerId, harumadiId, initialFirstMadi }: { ownerId?: 
       router.replace(bookId ? `${harumadiPath(bookId)}&focusEntryId=${focusId}` : `/madi/detail?entryId=${focusId}`);
     }}
     onSelectHarumadi={entry => router.replace(savedMadiSelectionPath(entry.id, source, initialPlaceId))}
+    onRenameFirstHarumadi={book => openRename({ book, mode: "settings" })}
+    renamedHarumadi={renamedHarumadi}
+    suspended={Boolean(renameOpening)}
     // 하루마디 안에서 시작했다면 담을 곳은 이미 정해져 있다.
     // 저장 API가 연결까지 원자적으로 완료했으므로 읽기 위치만 전달한다.
     harumadiSelection={ownerId && !harumadiId ? { ownerId,
@@ -172,4 +179,9 @@ function JournalComposer({ ownerId, harumadiId, initialFirstMadi }: { ownerId?: 
       else returnToSource();
     }}
   />;
+  // Keep the completed first-madi screen mounted under the settings layer.
+  return <><div hidden={Boolean(renameOpening)}>{composer}</div>
+    {renameOpening && <HarumadiBookReader opening={renameOpening} onClose={closeRename} registerCloseGuard={registerCloseGuard}
+      settingsReturn={{ backLabel: "첫 마디 완료 화면으로 돌아가기", onSaved: ({ id, title }) => setRenamedHarumadi({ id, title }) }} />}
+  </>;
 }

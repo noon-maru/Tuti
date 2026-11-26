@@ -43,5 +43,8 @@ test("일반 책 안 작성은 즉시 복귀하고 자동 생성된 첫 책도 �
   const first = madiCreateHarness({ firstMadi: true, onBack() {}, onCollection() {}, onContinueInHarumadi: id => { next = id; },
     onSave: async () => ({ ...entry, savedHarumadi: { id: "actual-book", title: "첫 책" } }) });
   first.change("기억하고 싶은 이야기", "첫 내용"); first.click("첫 마디 남기기"); await flush();
-  assert.equal(next, ""); first.click("같은 하루마디에 다음 마디 남기기"); assert.equal(next, "actual-book");
+  assert.equal(next, ""); first.advanceTime(); assert.equal(next, "");
+  assert.equal(first.control("같은 하루마디에 다음 마디 남기기"), undefined);
+  first.advanceTime();
+  first.click("같은 하루마디에 다음 마디 남기기"); assert.equal(next, "actual-book");
 });
