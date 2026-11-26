@@ -141,6 +141,24 @@ sudo -n /usr/local/sbin/tuti-journal-moderation-purge
 운영 명령 스크립트를 변경한 뒤에는 위 설치 명령으로 root 소유 명령도 갱신해야
 새로운 배포 사전 검사가 실제 운영 명령에 적용된다.
 
+## 개발 화면 캡처 (`browser-qa`)
+
+NAS의 `source/browser-qa`에 있는 공용 Chromium 도구를 사용한다. Tuti Compose와 별개로
+실행하며 운영 앱·DB, 예약 작업, sudoers는 변경하지 않는다. 이미지가 없거나 캡처 코드가 바뀐 경우에만
+아래 첫 두 줄로 준비한다. 이 빌드는 앱·서버 릴리스 빌드가 아니다.
+
+```sh
+cd /volume1/homes/Tutiadmin/source/browser-qa
+sudo docker build -t browser-qa:local .
+sudo sh shot.sh --network host --wait-for '[data-welcome-screen]' http://localhost:5080/entry
+```
+
+Tuti 개발 서버 주소는 `127.0.0.1` 대신 `localhost`를 사용한다. 현재 Next.js 개발 서버는
+`127.0.0.1`에서 개발용 WebSocket 연결을 차단한다. `/entry`의 HTTP 200만으로는 렌더링 성공을 판단하지 않는다.
+`status: captured`가 출력되면 `captures/shot.*`의 `390x844.png`, `1440x900.png`에서
+환영 화면을 확인한다. 화면이 준비되지 않으면 PNG 없이 실패 단계와 진단 건수만 출력한다.
+컨테이너는 실행이 끝나면 자동 제거되며, 신뢰하는 개발 URL에만 사용한다.
+
 ## 운영 워커와 Compose 구성
 
 ### 승인된 이전 이미지 정리
