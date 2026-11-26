@@ -11,9 +11,9 @@ import { preferencesStorage } from "@/lib/storage/preferencesStorage";
 import { harumadiReadCache } from "@/lib/harumadiReadCache";
 import { harumadiContent } from "./fixtures/harumadiContent";
 
-test("첫 마디 여부가 아니라 서버의 실제 하루마디 연결 결과로 저장 후 선택 화면을 연다", () => {
+test("첫 마디 완료는 바로 펼쳐볼 수 있고 후속 마디는 서버의 연결 결과로 담기 화면을 연다", () => {
   const screen = readFileSync("src/features/tuti/screens/journal/MadiCreateScreen.tsx", "utf8");
-  assert.match(screen, /saved && !saved.savedHarumadi && harumadiSelection && !inHarumadi/);
+  assert.match(screen, /saved && !savedAsFirstMadi && !saved.savedHarumadi && harumadiSelection && !inHarumadi/);
   assert.match(screen, /if \(saved && needsBookSelection && harumadiSelection\) return <MadiHarumadiSelection/);
   assert.match(screen, /if \(preview \|\| needsBookSelection\) return/);
   const flow = readFileSync("src/features/tuti/flows/JournalCreateFlow.tsx", "utf8");
@@ -32,7 +32,7 @@ test("하루마디 안에서 작성하면 선택 화면 없이 원래 하루마�
   assert.match(flow, /&focusEntryId=\$\{encodeURIComponent\(savedEntryId.current\)\}/);
   const screen = readFileSync("src/features/tuti/screens/journal/MadiCreateScreen.tsx", "utf8");
   // 저장 ID를 먼저 전달해야 자동 복귀 요청에 새 마디 ID가 포함된다.
-  assert.match(screen, /setSaved\(entry\);\s*if \(!editingSaved\) onSaved\?\.\(entry\);[\s\S]*?if \(inHarumadi && !continueInHarumadi\) onCollection\(\);/);
+  assert.match(screen, /setSaved\(entry\);\s*if \(!editingSaved\) onSaved\?\.\(entry, firstMadi && !continued\);[\s\S]*?if \(inHarumadi && !continueInHarumadi\) onCollection\(\);/);
   // 라우팅이 끝나기 전에도 별도의 완료/담기 화면은 노출하지 않는다.
   assert.match(screen, /if \(saved && inHarumadi && !continueInHarumadi\) return <AppLoadingScreen label="하루마디에 담고 있어요\."/);
   assert.ok(screen.indexOf("if (saved && inHarumadi && !continueInHarumadi)") < screen.indexOf("return <Frame"));

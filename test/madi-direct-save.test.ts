@@ -33,10 +33,10 @@ test("선택적 미리보기에서 고쳐도 입력을 유지하고 저장 실�
 
 test("첫 마디 완료의 뒤로가기는 입력한 이전 단계로 돌아가고 재저장은 같은 ID·버전으로 수정한다", async () => {
   const entry = { ...harumadiContent().entries[0], version: "2026-11-19T00:00:00.000Z", savedHarumadi: { id: "first-book", title: "첫 하루마디" } };
-  let created = 0, updated = 0, collected = 0, savedEvents = 0;
+  let created = 0, updated = 0, collected = 0, savedEvents = 0, opened: TutiJournalEntry | undefined;
   const edits: Array<{ input: JournalEntryInput; id: string }> = [];
   const props = { firstMadi: true, onBack() {}, onCollection: () => { collected++; }, collectionLabel: "내 책장으로 돌아가기",
-    onSaved: () => { savedEvents++; },
+    onSaved: () => { savedEvents++; }, onOpenSaved: (saved: TutiJournalEntry) => { opened = saved; },
     onContinueInHarumadi() {},
     onSave: async (input: JournalEntryInput, existing?: TutiJournalEntry) => {
       if (!existing) { created++; return entry; }
@@ -56,10 +56,25 @@ test("첫 마디 완료의 뒤로가기는 입력한 이전 단계로 돌아가�
   assert.equal(edits[0].input.petIds?.length, 0);
   assert.equal(updated, 1); assert.equal(savedEvents, 1, "수정은 생성 후속 동작을 재실행하지 않는다");
   assert.ok(screen.control("같은 하루마디에 다음 마디 남기기"));
+  screen.click("방금 남긴 쪽 보기");
+  assert.equal(opened?.savedHarumadi?.id, "first-book", "다듬은 후에도 처음 담긴 책을 연다");
   screen.click("내 책장으로 돌아가기"); assert.equal(collected, 1); assert.equal(created, 1);
   const flow = readFileSync("src/features/tuti/flows/JournalCreateFlow.tsx", "utf8");
   assert.doesNotMatch(flow, /onEditSaved|\/madi\/edit/);
   assert.match(flow, /if \(existing\) return updateEntry\(existing.id, draft\)/);
+});
+
+test("아직 책에 담기지 않은 첫 마디는 바로 읽거나 담을 책을 선택할 수 있다", async () => {
+  const entry = harumadiContent().entries[0];
+  const actions: string[] = [];
+  const screen = madiCreateHarness({ firstMadi: true, onBack() {}, onCollection() {},
+    harumadiSelection: { ownerId: "owner", onDone() {} }, onSave: async () => entry,
+    onOpenSaved: madi => actions.push(`open:${madi.id}`), onSelectHarumadi: madi => actions.push(`choose:${madi.id}`),
+  });
+  screen.change("기억하고 싶은 이야기", "집에서 보낸 첫 하루");
+  screen.click("첫 마디 남기기"); await flush();
+  screen.click("방금 남긴 마디 보기"); screen.click("하루마디에 담기");
+  assert.deepEqual(actions, [`open:${entry.id}`, `choose:${entry.id}`]);
 });
 
 test("일반 마디와 책 안 연속 작성의 완료 뒤로가기는 기존 복귀 동작을 유지한다", async () => {

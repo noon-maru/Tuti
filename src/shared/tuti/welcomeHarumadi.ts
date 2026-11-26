@@ -1,5 +1,7 @@
 export const WELCOME_HARUMADI_PAGE_COUNT = 5;
 export const WELCOME_HARUMADI_LAST_PAGE = 4;
+export const WELCOME_HARUMADI_FEATURED_PAGE = 2;
+export const WELCOME_HARUMADI_SOLO_EXCERPT = "아무 일 없던 날에도\n나에게 남겨둘 순간이 있었다.";
 export type WelcomeHarumadiPage = 0 | 1 | 2 | 3 | 4;
 export type WelcomeHarumadiOrigin = { left: number; top: number; width: number; height: number };
 

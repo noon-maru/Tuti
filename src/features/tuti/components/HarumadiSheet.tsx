@@ -10,6 +10,7 @@ import { HARUMADI_READING_TYPE as reading } from "@/shared/harumadi/readingTypog
 import { HARUMADI_READING_LAYOUT as readingLayout } from "@/shared/harumadi/readingTypography";
 import { readerMetaLabel } from "@/shared/harumadi/readerText";
 import { getHarumadiPaperPalette, type HarumadiPaperColor } from "@/shared/harumadi/colors";
+import { WELCOME_HARUMADI_SOLO_EXCERPT } from "@/shared/tuti/welcomeHarumadi";
 
 /** 인쇄 예시의 지면 기하는 공유하되 실제 읽기의 글자·배치는 화면용 규칙을 쓴다. */
 export function HarumadiPageSheet({ page, coverStyle, paperColor = "white", number, compactCover = false, preview = false }: { page: HarumadiReaderPage; coverStyle: HarumadiPdfCoverStyle; paperColor?: HarumadiPaperColor; number: number; compactCover?: boolean; preview?: boolean }) {
@@ -67,7 +68,7 @@ export function WelcomeHarumadiSample({ page, priority = false }: { page: "cover
       <TextFrame>
         <TextMeta>2026-06-28 · 퇴근길</TextMeta>
         <TextTitle>오늘은 나를 위한 한 바퀴</TextTitle>
-        <TextBody>{"바로 집에 가기 아쉬워\n혼자 동네를 조금 걸었다.\n\n아무 일 없던 날에도\n나에게 남겨둘 순간이 있었다."}</TextBody>
+        <TextBody>{`바로 집에 가기 아쉬워\n혼자 동네를 조금 걸었다.\n\n${WELCOME_HARUMADI_SOLO_EXCERPT}`}</TextBody>
       </TextFrame>
       <Folio number={3} />
     </TextPaper>

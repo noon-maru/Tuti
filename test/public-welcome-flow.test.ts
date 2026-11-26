@@ -39,6 +39,9 @@ test("소개에서 선택한 작성·나들이는 URL로 동의를 거쳐 같은
     assert.equal(safeLoginReturn(url.searchParams.get("returnTo")), target);
     assert.equal(isPublicWelcomePath(url.pathname, url.searchParams), false);
   }
+  (intro.props.onBookOpen as (origin: null) => void)(null);
+  assert.equal(paths[2], "/harumadi/example?page=2", "첫 화면에서 보여준 반려묘 사진 지면을 그대로 펼친다");
+  assert.equal(example.welcomeHarumadiNeighbor(example.WELCOME_HARUMADI_FEATURED_PAGE, 1), 3, "다음 쪽은 보호자 자신의 하루 예시다");
   const source = readFileSync("src/features/tuti/flows/PublicWelcomeFlow.tsx", "utf8");
   assert.doesNotMatch(source, /import .*Providers|recordProduct|ensureSession|useQuery|useSession/);
   page.dispose();

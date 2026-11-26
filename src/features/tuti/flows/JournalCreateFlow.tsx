@@ -149,13 +149,19 @@ function JournalComposer({ ownerId, harumadiId, initialFirstMadi }: { ownerId?: 
       }
       return entry;
     }}
-    onSaved={entry => {
+    onSaved={(entry, savedAsFirst) => {
       const notificationId = searchParams.get("notificationId");
       if (source === "notification" && notificationId) void notificationRequest("notifications/events", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ notificationId, action: "written" }) }).catch(() => {});
       savedEntryId.current = entry.id;
       setActiveJournalEntry(entry.id);
-      if (!harumadiId && !entry.savedHarumadi) router.replace(savedMadiSelectionPath(entry.id, source, initialPlaceId));
+      if (!savedAsFirst && !harumadiId && !entry.savedHarumadi) router.replace(savedMadiSelectionPath(entry.id, source, initialPlaceId));
     }}
+    onOpenSaved={entry => {
+      const bookId = entry.savedHarumadi?.id ?? harumadiId;
+      const focusId = encodeURIComponent(entry.id);
+      router.replace(bookId ? `${harumadiPath(bookId)}&focusEntryId=${focusId}` : `/madi/detail?entryId=${focusId}`);
+    }}
+    onSelectHarumadi={entry => router.replace(savedMadiSelectionPath(entry.id, source, initialPlaceId))}
     // 하루마디 안에서 시작했다면 담을 곳은 이미 정해져 있다.
     // 저장 API가 연결까지 원자적으로 완료했으므로 읽기 위치만 전달한다.
     harumadiSelection={ownerId && !harumadiId ? { ownerId,

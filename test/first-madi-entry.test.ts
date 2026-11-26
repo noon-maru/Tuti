@@ -24,7 +24,7 @@ function fixture(path = "/madi/new?from=welcome") {
     "@/lib/madiComposeDestination": { cachedMadiDestination() {}, madiDestinationScopeChanged: () => false },
     "@/features/tuti/auth/loginNudge": { requestLoginNudge() {} },
     "@/store/tuti": { useTutiStore: (select: (value: unknown) => unknown) => select({ setActiveJournalEntry() {} }) },
-    "@/lib/harumadis": {}, "@/lib/tutiApi": {}, "../hooks/useLifecycleView": { useLifecycleView() {} },
+    "@/lib/harumadis": { harumadiPath: (id: string) => `/harumadi?harumadiId=${encodeURIComponent(id)}` }, "@/lib/tutiApi": {}, "../hooks/useLifecycleView": { useLifecycleView() {} },
     "@/lib/lifecycle": {}, "../hooks/useNotificationPresence": { useNotificationPresence() {} }, "@/lib/notificationSettings": {},
     "@/lib/savedMadiSelection": { publicPlaceReturnPath, savedMadiSelectionPath },
   }, { window: { history: { length: 5 } } });
@@ -47,6 +47,24 @@ test("첫 마디 여부를 확인하기 전 잘못된 제목의 편집기를 열
   f.flow.dispose();
   const existing = fixture(); existing.query.isSuccess = true; existing.query.entries.push({ id: "old" });
   assert.equal(existing.composer().props.firstMadi, false); existing.flow.dispose();
+});
+
+test("첫 저장은 완료 화면을 유지하고 책에 담긴 쪽 또는 저장한 마디를 직접 연다", () => {
+  const f = fixture(); f.query.isSuccess = true;
+  const screen = f.composer();
+  const entry = { id: "saved&entry", savedHarumadi: { id: "book&new" } };
+  const unfiled = { id: "saved&entry" };
+  const saved = screen.props.onSaved as (entry: object, first: boolean) => void;
+  const open = screen.props.onOpenSaved as (entry: object) => void;
+  saved(entry, true); saved(unfiled, true); assert.deepEqual(f.paths, []);
+  open(entry); assert.equal(f.paths.at(-1), "/harumadi?harumadiId=book%26new&focusEntryId=saved%26entry");
+  open(unfiled); assert.equal(f.paths.at(-1), "/madi/detail?entryId=saved%26entry");
+  (screen.props.onSelectHarumadi as (entry: object) => void)(unfiled);
+  assert.equal(f.paths.at(-1), savedMadiSelectionPath(unfiled.id, "welcome", null));
+  saved(unfiled, false);
+  assert.equal(f.paths.at(-1), savedMadiSelectionPath(unfiled.id, "welcome", null), "다음 마디는 기존 담기 경로를 사용한다");
+  assert.equal(f.paths.length, 4);
+  f.flow.dispose();
 });
 
 test("첫 단계 취소는 실제 소개·가이드·예시로 복귀하고 저장 완료의 책장 복귀와 구분한다", () => {

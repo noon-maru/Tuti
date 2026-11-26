@@ -9,7 +9,7 @@ import { recordProductInteraction } from "@/lib/productInteraction";
 import { recordProductActivity } from "@/lib/productActivity";
 import { useTutiStore } from "@/store/tuti";
 import { parseWelcomeGuideStep, welcomeGuidePath, welcomeMadiCreatePath, type WelcomeGuideStep } from "@/shared/tuti/welcomeGuide";
-import { parseWelcomeHarumadiPage, welcomeHarumadiPath } from "@/shared/tuti/welcomeHarumadi";
+import { WELCOME_HARUMADI_FEATURED_PAGE, parseWelcomeHarumadiPage, welcomeHarumadiPath } from "@/shared/tuti/welcomeHarumadi";
 import { setWelcomeHarumadiOrigin } from "@/lib/welcomeHarumadiNavigation";
 import { readLibraryEntryCompleted } from "@/lib/libraryPreferences";
 import { useSession } from "@/features/tuti/hooks/useSession";
@@ -93,7 +93,7 @@ export function EntryFlow() {
       guideStep={guideStep}
       onBookOpen={(origin) => {
         setWelcomeHarumadiOrigin(origin);
-        router.push(welcomeHarumadiPath(1));
+        router.push(welcomeHarumadiPath(WELCOME_HARUMADI_FEATURED_PAGE));
       }}
       onGuideOpen={() => router.replace(welcomeGuidePath(0))}
       onGuideNext={() => {
