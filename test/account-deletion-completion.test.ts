@@ -6,7 +6,7 @@ import { deleteAccount, ensureSession, getSessionSnapshot } from "@/lib/auth/ses
 
 test("일반 이용과 권리 행사 모드의 화면 키를 고정해 삭제 완료 상태와 세션 훅을 유지한다", () => {
   const shell = readFileSync("src/features/tuti/components/TutiAppShell.tsx", "utf8");
-  const providers = [...shell.matchAll(/<LocationAccessProvider([^>]*)><PetOnboardingGate>\{children\}<\/PetOnboardingGate><\/LocationAccessProvider>/g)];
+  const providers = [...shell.matchAll(/<LocationAccessProvider([^>]*)>\{children\}<\/LocationAccessProvider>/g)];
   assert.equal(providers.length, 2);
   for (const provider of providers) assert.match(provider[1], /key="tuti-content"/);
   assert.doesNotMatch(providers.map(provider => provider[1]).join(""), /userId|accessToken/);

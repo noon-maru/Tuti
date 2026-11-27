@@ -8,6 +8,8 @@ import { consentEntryPath, safeLoginReturn } from "@/lib/loginContinuation";
 import { createHarumadiHistory } from "@/lib/harumadiHistory";
 import type { ComponentProps } from "react";
 import type { HarumadiBookReader, HarumadiSettingsOpening } from "@/features/tuti/components/HarumadiBookReader";
+import { readFileSync } from "node:fs";
+import { findMadiControl, madiCreateHarness } from "./fixtures/madiCreateHarness";
 
 function fixture(path = "/madi/new?from=welcome") {
   const params = new URL(path, "https://tuti.invalid").searchParams;
@@ -70,6 +72,40 @@ test("첫 마디 여부를 확인하기 전 잘못된 제목의 편집기를 열
   f.flow.dispose();
   const existing = fixture(); existing.query.isSuccess = true; existing.query.entries.push({ id: "old" });
   assert.equal(existing.composer().props.firstMadi, false); existing.flow.dispose();
+});
+
+test("첫 마디 진입을 프로필 등록으로 가로막지 않고 작성 중 선택한 프로필을 초안과 함께 저장한다", async () => {
+  const shell = readFileSync("src/features/tuti/components/TutiAppShell.tsx", "utf8");
+  assert.doesNotMatch(shell, /PetOnboarding/);
+  const saves: { content: string; petIds?: string[] }[] = [];
+  const screen = madiCreateHarness({ firstMadi: true, onBack() {}, onCollection() {}, onSave: async input => {
+    saves.push(input);
+    throw new Error("test save");
+  } });
+  screen.change("기억하고 싶은 이야기", "같이 걷고 돌아온 오후.");
+  const getPicker = () => findMadiControl(screen.render(), props => "attachOnRegister" in props);
+  const summary = () => findMadiControl(screen.render(), props => props.className === "pet-selection")?.children;
+  const tree = screen.render();
+  const content = findMadiControl(tree, props => props["aria-label"] === "마디 내용");
+  const details = findMadiControl(tree, props => typeof props.onToggle === "function" && Array.isArray(props.children) && props.children[0]?.props?.["data-madi-source"] === "pets")!;
+  assert.equal((content?.children as { props: unknown }[])[0].props, details, "사진과 이야기보다 앞에서 선택할 수 있다");
+  assert.equal(summary(), "선택");
+  assert.equal(getPicker(), undefined);
+  (details.onToggle as (event: unknown) => void)({ currentTarget: { open: true } });
+  const picker = getPicker()!;
+  assert.equal((picker.selected as string[]).length, 0);
+  (picker.onBusyChange as (busy: boolean) => void)(true);
+  assert.equal(screen.control("첫 마디 남기기").disabled, true);
+  (picker.onChange as (ids: string[]) => void)(["new-pet"]);
+  assert.equal(summary(), "1마리 선택", "이름을 알기 전에는 선택 수를 보여준다");
+  (picker.onChange as (ids: string[]) => void)(["pet-a"]);
+  assert.equal(summary(), "몽실이");
+  (picker.onBusyChange as (busy: boolean) => void)(false);
+  screen.click("첫 마디 남기기");
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(saves.length, 1);
+  assert.equal(saves[0].content, "같이 걷고 돌아온 오후.");
+  assert.deepEqual(saves[0].petIds, ["pet-a"]);
 });
 
 test("첫 저장은 완료 화면을 유지하고 책에 담긴 쪽 또는 저장한 마디를 직접 연다", () => {

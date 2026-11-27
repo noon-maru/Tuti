@@ -27,6 +27,11 @@ test("프로필 사진은 계정·프로필·revision별로 인증 조회하고 
   await options.queryFn({ signal });
   const request = requests[0] as [string, { signal: AbortSignal }, string];
   assert.equal(request[0], "pets/momo/photo"); assert.equal(request[1].signal, signal); assert.equal(request[2], "owner-a");
+  const tag = flow.render({ owner: "owner-a", pet, decorative: true });
+  const image = Children.toArray(tag.props.children as ReactNode).find(node => isValidElement<{ src: string; alt: string }>(node) && node.type === "image");
+  assert.ok(isValidElement<{ src: string; alt: string }>(image));
+  assert.equal(image.props.src, "data:image/webp;base64,YQ==");
+  assert.equal(image.props.alt, "", "이름이 바로 옆에 있는 작은 사진은 읽어주지 않는다");
   flow.render({ owner: "owner-b", pet: { ...pet, revision: 3 } });
   assert.equal(JSON.stringify(options.queryKey), JSON.stringify(["pet-photo", "owner-b", "momo", 3]));
   flow.render({ owner: "owner-b", pet, preview: "data:image/jpeg;base64,YQ==" });

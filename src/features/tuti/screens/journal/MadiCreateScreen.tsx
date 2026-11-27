@@ -5,7 +5,7 @@ import { MADI_COMPOSE_COPY, MADI_FIELD_COPY } from "@/shared/tuti/madiFields";
 
 import styled from "@emotion/styled";
 import Image from "next/image";
-import { Camera, ImagePlus, Check, ArrowRight, PenLine } from "lucide-react";
+import { Camera, ImagePlus, Check, ArrowRight, PenLine, PawPrint, ChevronDown } from "lucide-react";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { ScreenFrame } from "@/features/tuti/components/ScreenFrame";
 import { BackButton, Button, PrimaryButton, TextButton } from "@/features/tuti/components/buttons";
@@ -25,6 +25,8 @@ import { MadiFieldFeedback } from "@/features/tuti/components/MadiFieldFeedback"
 import { madiEditDraftSource, newMadiDraftContext } from "@/lib/madiDraft";
 import { harumadiSharingNotice } from "@/shared/harumadi/sharingAudience";
 import { PetProfiles } from "@/features/tuti/components/PetProfiles";
+import { MadiPetTags } from "@/features/tuti/components/MadiPetTags";
+import type { PetProfile } from "@/shared/pets/profile";
 import { FIRST_MADI_HANDOFF_MS, FIRST_MADI_PLACEMENT_MS, FIRST_MADI_REDUCED_HANDOFF_MS, animateFirstMadiAssembly, animateFirstMadiGuidance, animateFirstMadiPlacement, firstMadiOrigins, firstMadiPageOrigin, type FirstMadiOrigins, type FirstMadiPageOrigin } from "@/features/tuti/lib/firstMadiPlacementMotion";
 import { usePetProfiles } from "@/features/tuti/hooks/usePetProfiles";
 import { cancelFirstMadiHandoff, startFirstMadiHandoff, type FirstMadiHandoffKind } from "@/features/tuti/lib/firstMadiHandoff";
@@ -63,7 +65,7 @@ export function MadiCreateScreen({ onBack, onSave, onCollection, onSaved, onOpen
   const [savedAsFirstMadi, setSavedAsFirstMadi] = useState(false);
   const [placementOrigins, setPlacementOrigins] = useState<FirstMadiOrigins | null>(null);
   const [bookStep, setBookStep] = useState<{ origin: FirstMadiPageOrigin | null; settled: boolean } | null>(null);
-  const [placedPets, setPlacedPets] = useState("");
+  const [placedPets, setPlacedPets] = useState<PetProfile[]>([]);
   const [image, setImage] = useState<string | null>(null);
   const [preparingPhoto, setPreparingPhoto] = useState(false);
   const [cropSource, setCropSource] = useState<string | null>(null);
@@ -73,15 +75,20 @@ export function MadiCreateScreen({ onBack, onSave, onCollection, onSaved, onOpen
   const [place, setPlace] = useState(initialPlace?.name ?? "");
   const [placeId, setPlaceId] = useState<string | null>(initialPlace?.id ?? null);
   const [petIds, setPetIds] = useState<string[]>([]);
-  const [petsOpen, setPetsOpen] = useState(false);
+  const [petsOpened, setPetsOpened] = useState(false);
+  const [petProfileBusy, setPetProfileBusy] = useState(false);
+  const petProfileBusyRef = useRef(false);
+  const onPetProfileBusyChange = useCallback((busy: boolean) => { petProfileBusyRef.current = busy; setPetProfileBusy(busy); }, []);
   const [storyOpen, setStoryOpen] = useState(false);
   const [placeOpen, setPlaceOpen] = useState(false);
   const [saved, setSaved] = useState<TutiJournalEntry | null>(null);
   const [editingSaved, setEditingSaved] = useState<TutiJournalEntry | null>(null);
   const [editingPhoto, setEditingPhoto] = useState<string | null>(null);
   const [editingPetIds, setEditingPetIds] = useState<string[]>([]);
-  const petProfiles = usePetProfiles(draftOwnerId ?? "", !preview && !inHarumadi && !saved && (firstMadi || savedAsFirstMadi) && petIds.length > 0);
-  const selectedPetNames = (petProfiles.data?.pets ?? []).filter(pet => petIds.includes(pet.id)).map(pet => pet.name).join(", ");
+  const petProfiles = usePetProfiles(draftOwnerId ?? "", !preview && !saved && petIds.length > 0);
+  const selectedPets = (petProfiles.data?.pets ?? []).filter(pet => petIds.includes(pet.id));
+  const selectedPetNames = selectedPets.map(pet => pet.name).join(", ");
+  const petSummary = petIds.length === 0 ? "선택" : selectedPets.length === petIds.length ? selectedPetNames : `${petIds.length}마리 선택`;
   const needsBookSelection = Boolean(saved && !savedAsFirstMadi && !saved.savedHarumadi && harumadiSelection && !inHarumadi);
   const showFirstSavedAction = Boolean(savedAsFirstMadi && !inHarumadi && onOpenSaved);
   const firstBook = savedAsFirstMadi && !inHarumadi ? saved?.savedHarumadi : undefined;
@@ -188,7 +195,7 @@ export function MadiCreateScreen({ onBack, onSave, onCollection, onSaved, onOpen
   const back = useCallback(() => {
     if (cancelFirstMadiHandoff(placementScene.current)) return;
     if (cropSource) { cancelCrop(); return; }
-    if (savingRef.current) return;
+    if (savingRef.current || petProfileBusyRef.current) return;
     selection.current += 1;
     preparingPhotoRef.current = false;
     setPreparingPhoto(false);
@@ -256,7 +263,7 @@ export function MadiCreateScreen({ onBack, onSave, onCollection, onSaved, onOpen
   };
 
   const save = async () => {
-    if (preparingPhotoRef.current) return;
+    if (preparingPhotoRef.current || petProfileBusyRef.current) return;
     if (!draft || savingRef.current || preview || !onSave || saveBlocked) return;
     savingRef.current = true;
     selection.current += 1;
@@ -275,7 +282,7 @@ export function MadiCreateScreen({ onBack, onSave, onCollection, onSaved, onOpen
       await localDraft.finish();
       setBookStep(null);
       setPlacementOrigins(entry.savedHarumadi ? origins : null);
-      setPlacedPets(origins && entry.savedHarumadi ? entry.pets?.map(pet => pet.name).join(", ") ?? selectedPetNames : "");
+      setPlacedPets(entry.pets ?? selectedPets);
       setSaved(entry);
       if (!editingSaved) onSaved?.(entry, firstMadi && !continued);
       setEditingSaved(null);
@@ -290,7 +297,7 @@ export function MadiCreateScreen({ onBack, onSave, onCollection, onSaved, onOpen
   const startAnother = () => {
     setBookStep(null); setPlacementOrigins(null);
     setEditingSaved(null); setEditingPhoto(null); setEditingPetIds([]);
-    setPetIds([]); setPetsOpen(false);
+    setPetIds([]); setPetsOpened(false);
     onStartAnother?.();
     setContinued(true);
     selection.current += 1;
@@ -322,7 +329,7 @@ export function MadiCreateScreen({ onBack, onSave, onCollection, onSaved, onOpen
 
   return <Frame aria-labelledby="madi-create-heading" data-first-madi-write-target={!preview && inHarumadi && !saved ? (draftDestination ?? destination)?.id : undefined}>
     <Header>
-      <BackButton aria-label={bookStep ? "첫 마디로 돌아가기" : saved ? savedAsFirstMadi && !inHarumadi ? "이전으로" : inHarumadi ? "하루마디로" : collectionLabel : "이전으로"} onClick={back} disabled={saving} />
+      <BackButton aria-label={bookStep ? "첫 마디로 돌아가기" : saved ? savedAsFirstMadi && !inHarumadi ? "이전으로" : inHarumadi ? "하루마디로" : collectionLabel : "이전으로"} onClick={back} disabled={saving || petProfileBusy} />
       <HeaderTitle $book={inHarumadi}>{inHarumadi ? destination?.title ? `${destination.title}에 남길 마디` : "하루마디에 남길 마디" : madiLabel}</HeaderTitle>
       <StepCount>{saved ? <Check size={18} aria-label="저장 완료" /> : stage === "preview" ? "미리보기" : `${stage === "photo" ? 1 : 2} / 2`}</StepCount>
     </Header>
@@ -347,6 +354,15 @@ export function MadiCreateScreen({ onBack, onSave, onCollection, onSaved, onOpen
       <HiddenInput ref={photoInput} type="file" accept="image/*" aria-label="앨범 사진 선택" onChange={choosePhoto} />
       <HiddenInput ref={cameraInput} type="file" accept="image/*" capture="environment" aria-label="카메라 사진 촬영" onChange={choosePhoto} />
       {!saved && stage === "write" && <Fields $photo={Boolean(image)} disabled={saving || restoringDraft || preparingPhoto} aria-label="마디 내용" aria-busy={saving || restoringDraft || preparingPhoto}>
+        <PetDisclosure onToggle={event => { if (event.currentTarget.open) setPetsOpened(true); }}>
+          <PetSummary data-madi-source="pets">
+            <PawPrint size={16} aria-hidden="true" />
+            <span>함께한 반려동물</span>
+            <span className="pet-selection">{petSummary}</span>
+            <ChevronDown className="pet-chevron" size={16} aria-hidden="true" />
+          </PetSummary>
+          {petsOpened && <div className="pet-options"><PetProfiles selected={petIds} onChange={setPetIds} disabled={saving} attachOnRegister onBusyChange={onPetProfileBusyChange} /></div>}
+        </PetDisclosure>
         {image && <SelectedPhoto data-madi-source="photo"><Image src={image} alt="마디에 담을 사진" fill unoptimized sizes="350px" /></SelectedPhoto>}
         <PhotoActions><TextButton type="button" onClick={() => photoInput.current?.click()}>{image ? "사진 바꾸기" : "사진 추가하기"}</TextButton>{image && <><TextButton type="button" onClick={() => setCropSource(image)}>사진 맞추기</TextButton><TextButton type="button" onClick={removePhoto}>사진 빼기</TextButton></>}</PhotoActions>
         {image && <OptionalAction type="button" aria-expanded={storyOpen} aria-controls="madi-story-fields" onClick={() => setStoryOpen(value => !value)}><PenLine size={16} aria-hidden="true" />{storyOpen ? "이야기 접기" : title || content ? "이야기 수정하기" : "이야기 덧붙이기"}<small>선택</small></OptionalAction>}
@@ -367,7 +383,6 @@ export function MadiCreateScreen({ onBack, onSave, onCollection, onSaved, onOpen
           onChange={value => { setPlace(value.name); setPlaceId(value.id); }} />
           <MadiFieldFeedback id="madi-place-feedback" message={fieldErrors.place} touched={touched.place} /></> : <OptionalAction type="button" onClick={() => setPlaceOpen(true)}>장소 추가<small>선택</small></OptionalAction>}</div>
         <PrivacyHint>민감정보나 주민등록번호 등은 남기지 말아주세요.</PrivacyHint>
-        <details onToggle={event => setPetsOpen(event.currentTarget.open)}><summary data-madi-source="pets">함께한 반려동물 · 선택</summary>{petsOpen && <PetProfiles selected={petIds} onChange={setPetIds} disabled={saving} />}</details>
       </Fields>}
       {saved && firstPlacement ? <FirstMadiPlacement $book={Boolean(bookStep)} ref={placementScene} data-first-madi-placement data-placement-motion={bookStep ? "book" : placementOrigins ? "assemble" : undefined}>
         {bookStep && <BookBinding data-placement-binding aria-hidden="true">
@@ -379,13 +394,15 @@ export function MadiCreateScreen({ onBack, onSave, onCollection, onSaved, onOpen
         </BookBinding>}
         <PlacedMemory $book={Boolean(bookStep)} data-placement-page><MemoryPage firstSaved compact={Boolean(bookStep)} title={saved.title} image={saved.image ? image ?? saved.image : null} content={saved.content}
           date={getKoreanDateKey(new Date(saved.visitedAt))} place={saved.placeName === "남긴 공간" ? "" : saved.placeName}
-          pets={placedPets} /></PlacedMemory>
+          ownerId={draftOwnerId} pets={placedPets} /></PlacedMemory>
       </FirstMadiPlacement> : (saved || stage === "preview") && <MemoryPage
         title={saved ? saved.title : title.trim()}
         image={saved ? saved.image : image}
         content={saved ? saved.content : content.trim()}
         date={saved ? getKoreanDateKey(new Date(saved.visitedAt)) : date}
         place={saved ? (saved.placeName === "남긴 공간" ? "" : saved.placeName) : place.trim()}
+        ownerId={draftOwnerId}
+        pets={saved ? placedPets : selectedPets}
       />}
       {bookStep?.settled && firstPlacement && onRenameFirstHarumadi && <BookNamePrompt data-placement-rename data-first-madi-reveal>
         <p>하루마디의 이름을 바꿔볼까요?</p>
@@ -408,8 +425,8 @@ export function MadiCreateScreen({ onBack, onSave, onCollection, onSaved, onOpen
       </> : stage === "photo" ? image && <PrimaryButton type="button" disabled={restoringDraft} onClick={() => setStage("write")}>이 사진으로 계속하기</PrimaryButton>
         : stage === "write" ? <>
           {inHarumadi && destinationVerified && destination && <PrivacyHint>{destination.title} · {harumadiSharingNotice(destination)}</PrivacyHint>}
-          <PrimaryButton type="button" disabled={!draft || saving || saveBlocked} onClick={() => void save()}>{saving ? "마디를 저장하고 있어요…" : editingSaved ? "변경사항 저장" : image && !title.trim() && !content.trim() ? "사진으로 마디 남기기" : `${madiLabel} 남기기`}</PrimaryButton>
-          <TextButton type="button" disabled={!draft || saving || restoringDraft} onClick={() => { setError(""); setStage("preview"); }}>미리보기</TextButton>
+          <PrimaryButton type="button" disabled={!draft || saving || saveBlocked || petProfileBusy} onClick={() => void save()}>{saving ? "마디를 저장하고 있어요…" : editingSaved ? "변경사항 저장" : image && !title.trim() && !content.trim() ? "사진으로 마디 남기기" : `${madiLabel} 남기기`}</PrimaryButton>
+          <TextButton type="button" disabled={!draft || saving || restoringDraft || petProfileBusy} onClick={() => { if (!petProfileBusyRef.current) { setError(""); setStage("preview"); } }}>미리보기</TextButton>
         </>
           : <>{inHarumadi && destinationVerified && destination && <PrivacyHint>{destination.title} · {harumadiSharingNotice(destination)}</PrivacyHint>}<PrimaryButton type="button" disabled={!draft || saving || saveBlocked} onClick={() => void save()}>{saving ? "마디를 저장하고 있어요…" : editingSaved ? "이대로 수정 저장" : "이대로 마디 남기기"}</PrimaryButton><TextButton type="button" disabled={saving} onClick={() => setStage("write")}>조금 더 고치기</TextButton></>}
     </Footer>
@@ -417,14 +434,14 @@ export function MadiCreateScreen({ onBack, onSave, onCollection, onSaved, onOpen
   </Frame>;
 }
 
-function MemoryPage({ title, image, content, date, place, pets, compact = false, firstSaved = false }: { title: string; image: string | null; content: string; date: string; place: string; pets?: string; compact?: boolean; firstSaved?: boolean }) {
+function MemoryPage({ title, image, content, date, place, ownerId, pets, compact = false, firstSaved = false }: { title: string; image: string | null; content: string; date: string; place: string; ownerId?: string; pets?: readonly PetProfile[]; compact?: boolean; firstSaved?: boolean }) {
   return <Page aria-label={compact ? "하루마디에 담긴 첫 마디" : firstSaved ? "방금 남긴 첫 마디" : "하루마디에 담을 마디 미리보기"}>
     {firstSaved && <PlacementLabel data-placement-label aria-hidden="true">첫 마디</PlacementLabel>}
     <PageMeta data-page-meta><span data-memory-part="date">{date.replaceAll("-", ".")}</span>{place && <span data-memory-part="place">{place}</span>}</PageMeta>
     {image && <PageImage data-page-image data-memory-part="photo"><Image src={image} alt="마디에 담은 사진" fill unoptimized sizes={compact ? "160px" : "350px"} /></PageImage>}
     {title && <PageTitle data-memory-part="title">{title}</PageTitle>}
     {content && <PageText data-memory-part="content">{content}</PageText>}
-    {pets && <PlacementPets data-memory-part="pets">함께한 반려동물 · {pets}</PlacementPets>}
+    {ownerId && pets?.length ? <div data-memory-part="pets"><MadiPetTags owner={ownerId} pets={pets} compact={firstSaved} /></div> : null}
     <PageNumber data-page-folio aria-hidden="true">1</PageNumber>
   </Page>;
 }
@@ -475,16 +492,26 @@ const Fields = styled.fieldset<{ $photo?: boolean }>`
   textarea { min-height: 130px; resize: vertical; }
   ${({ $photo }) => $photo && `gap: 12px;`}
 `;
+const PetSummary = styled.summary`
+  display: grid; grid-template-columns: auto auto minmax(0, 1fr) auto; align-items: center; gap: 8px;
+  min-height: 44px; padding: 8px 12px; border-radius: 12px; list-style: none; cursor: pointer;
+  background: var(--color-secondary-100); color: var(--color-secondary-1000);
+  font-size: var(--ui-body-size); font-weight: 600;
+  &::-webkit-details-marker { display: none; }
+  &:focus-visible { outline: 2px solid var(--color-brand-700); outline-offset: -2px; }
+  .pet-selection { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: end; font-size: 13px; font-weight: 400; }
+`;
+const PetDisclosure = styled.details`
+  min-width: 0;
+  &[open] .pet-chevron { transform: rotate(180deg); }
+  .pet-options { padding: 12px 4px 0; }
+`;
 const Page = styled.article`position: relative; min-height: 420px; width: 100%; display: flex; flex-direction: column; gap: 32px; padding: 28px 24px; border: 1px solid #e6edf4; border-radius: 3px; background: #fff;`;
 const PageMeta = styled.div`display: flex; justify-content: space-between; gap: 20px; font-size: 10px; line-height: 1.7; > span { min-width: 0; overflow-wrap: anywhere; }`;
 const PageImage = styled.div`position: relative; width: 100%; aspect-ratio: 4 / 3; flex: none; img { object-fit: contain; }`;
 const PageText = styled.p`white-space: pre-wrap; font-size: 12px; line-height: 1.95; overflow-wrap: anywhere; word-break: keep-all;`;
 const PageNumber = styled.span`margin-top: auto; padding-top: 20px; align-self: flex-end; font-size: 10px; color: var(--color-text-muted);`;
 const PlacementLabel = styled.span`font-size: 11px; font-weight: 600; color: var(--color-brand-1000);`;
-const PlacementPets = styled.span`
-  color: var(--color-text-muted); font-size: 10px; line-height: 1.35;
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-`;
 const BookBinding = styled.div`
   position: absolute; inset: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr));
   pointer-events: none; perspective: 720px;

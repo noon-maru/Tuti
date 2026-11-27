@@ -494,7 +494,8 @@ async function fetchWithToken(
       await import("../harumadiReadingPosition").then(module => module.harumadiReadingPositions.clearOwner(owner)).catch(() => {});
     }
     if (owner && path === "account" && method === "DELETE") await import("../lifecycle").then(module => module.clearLifecycleClient(owner)).catch(() => {});
-    if (owner && path === "account" && method === "DELETE") await import("../petOnboarding").then(module => module.clearPetOnboardingCompleted(owner)).catch(() => {});
+    // 이전 버전에서 남긴 반려동물 온보딩 표시도 계정 삭제 시 정리한다.
+    if (owner && path === "account" && method === "DELETE") await preferencesStorage.removeItem(`tuti-pet-onboarding:${owner}`).catch(() => {});
     const deletedMadi = method === "DELETE" ? /^journal-entries\/([^/]+)(?:\/sensitive-consent)?$/.exec(path)?.[1] : null;
     if (owner && deletedMadi) await madiDraftStorage.remove(owner, decodeURIComponent(deletedMadi)).catch(() => {});
     // 응답을 잃었어도 서버가 삭제·철회를 수행했을 수 있으므로 해당 계정 캐시를 비운다.

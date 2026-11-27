@@ -11,7 +11,6 @@ import { NativeAppUpdateNotice } from "@/features/tuti/components/NativeAppUpdat
 import { InitialServiceTermsGate } from "@/features/legal/InitialServiceTermsGate";
 import { HarumadiInviteContinuation } from "./HarumadiInviteContinuation";
 import { LifecycleObserver } from "./LifecycleObserver";
-import { PetOnboardingGate } from "./PetOnboardingGate";
 
 export function TutiAppShell({ children }: { children: React.ReactNode }) {
   return (
@@ -21,7 +20,7 @@ export function TutiAppShell({ children }: { children: React.ReactNode }) {
         <Providers activityEnabled={false} rightsOnly>
           <NativeOAuthCallbackHandler />
           {/* 세션 삭제로 권리 행사 모드로 바뀌어도 완료 화면의 로컬 상태를 보존한다. */}
-          <LocationAccessProvider key="tuti-content"><PetOnboardingGate>{children}</PetOnboardingGate></LocationAccessProvider>
+          <LocationAccessProvider key="tuti-content">{children}</LocationAccessProvider>
         </Providers>
       }>
         <Providers>
@@ -31,7 +30,7 @@ export function TutiAppShell({ children }: { children: React.ReactNode }) {
           <LocalNotificationHandler />
           <PushNotificationHandler />
           <GentleLoginNudge />
-          <LocationAccessProvider key="tuti-content"><PetOnboardingGate>{children}</PetOnboardingGate></LocationAccessProvider>
+          <LocationAccessProvider key="tuti-content">{children}</LocationAccessProvider>
         </Providers>
       </InitialServiceTermsGate>
     </AppFrame>

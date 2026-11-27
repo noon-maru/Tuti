@@ -17,9 +17,11 @@ import type { TutiJournalEntry } from "@/shared/api/journal";
 import { journalImageMaxWidth, palette } from "@/styles/tokens";
 import { screenTitleStyles, bodyCopyStyles } from "@/shared/ui/typography";
 import { MadiLoadNotice } from "@/features/tuti/components/MadiLoadNotice";
+import { MadiPetTags } from "@/features/tuti/components/MadiPetTags";
 
 export function JournalDetailScreen({
   entry,
+  ownerId,
   publicationEnabled,
   onBack,
   onDelete,
@@ -31,6 +33,7 @@ export function JournalDetailScreen({
   onWithdrawSensitive,
 }: {
   entry: TutiJournalEntry;
+  ownerId?: string;
   publicationEnabled: boolean;
   onBack: () => void;
   onCopyPublicLink: () => void | Promise<void>;
@@ -127,7 +130,7 @@ export function JournalDetailScreen({
             ? "동의 철회로 마디와 하루마디를 정리하고 있어요."
             : "민감정보 처리에 별도로 동의한 나만의 마디예요. 웹 링크로는 공개할 수 없어요."}</ModerationNotice>}
           {entry.placeName.trim() && entry.placeName.trim() !== "남긴 공간" && <DetailLocation placeName={entry.placeName} />}
-          {Boolean(entry.pets?.length) && <PetNames aria-label="함께한 반려동물">{entry.pets!.map(pet => <span key={pet.id}>{pet.name}</span>)}</PetNames>}
+          {ownerId && entry.pets?.length ? <MadiPetTags owner={ownerId} pets={entry.pets} /> : null}
 
           <Copy>
             {entry.title.trim() && <h2>{entry.title}</h2>}
@@ -149,7 +152,6 @@ export function JournalDetailScreen({
     </Frame>
   );
 }
-const PetNames = styled.div`display: flex; flex-wrap: wrap; gap: 8px; padding-block: 8px; > span { font-size: 13px; line-height: 1.6; color: var(--color-brand-1000); background: var(--color-brand-100); border-radius: 8px; padding: 4px 10px; }`;
 
 export function JournalDetailStatusScreen({
   message,

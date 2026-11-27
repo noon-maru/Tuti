@@ -96,6 +96,7 @@ export function JournalDetailFlow() {
   return (
     <JournalDetailScreen
       entry={entry}
+      ownerId={ownerId}
       publicationEnabled={shareActions.publicationEnabled}
       onBack={returnToJournal}
       onCopyPublicLink={shareActions.copyPublicLink}
