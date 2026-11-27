@@ -19,7 +19,7 @@ test("책장 검색은 기본 접힘, 열기·입력·닫기·Escape·IME 및 �
   const books = [{ ...harumadiContent().harumadi, title: "우리의 하루" }];
   const page = { harumadis: books, recordCount: 0 };
   let pending = false;
-  let firstMadiPreview: { book: typeof books[number]; entry: ReturnType<typeof harumadiContent>["entries"][number] } | undefined;
+  const shelfState: { preview?: { book: typeof books[number]; entry: ReturnType<typeof harumadiContent>["entries"][number] } } = {};
   const paths: string[] = [];
   let selectedView = "carousel";
   const components = ["HarumadiShelf", "HarumadiCarousel", "HarumadiBookReader", "MainNavigation", "LibraryLoadNotice", "MadiSearchField"];
@@ -37,7 +37,7 @@ test("책장 검색은 기본 접힘, 열기·입력·닫기·Escape·IME 및 �
     "@/features/tuti/lib/firstMadiHandoff": { firstMadiShelfArrival: () => null },
     "@/features/tuti/components/buttons": { BaseButton: "button", PrimaryButton: "button" },
     "@/features/tuti/hooks/useHarumadiLibrary": { useHarumadiLibrary: () => ({ data: pending ? undefined : { pages: [page] }, isPending: pending,
-      shelf: { books: firstMadiPreview ? [firstMadiPreview.book, ...books] : books, preview: firstMadiPreview }, isFirstMadi: false }) },
+      shelf: { books: shelfState.preview ? [shelfState.preview.book, ...books] : books, preview: shelfState.preview }, isFirstMadi: false }) },
     "@/features/tuti/hooks/useHarumadiSearch": { useHarumadiSearch: (visible: typeof books) => ({ search: term, setSearch: (next: string) => { term = next; }, books: filterHarumadis(visible, term), searching: Boolean(term.trim()) }) },
     "@/lib/libraryPreferences": {}, "@/lib/harumadiPdfDraft": {}, "@/shared/tuti/welcomeHarumadi": {}, "@/lib/welcomeHarumadiNavigation": {},
     "../hooks/useLifecycleView": { useLifecycleView() {} },
@@ -110,10 +110,10 @@ test("책장 검색은 기본 접힘, 열기·입력·닫기·Escape·IME 및 �
   pending = true;
   assert.ok(render().some(node => node.type === "indicator"));
   const { harumadi, entries: [entry] } = harumadiContent();
-  firstMadiPreview = { book: harumadi, entry };
+  shelfState.preview = { book: harumadi, entry };
   const arrival = render().find(node => node.type === "HarumadiCarousel");
   assert.equal(arrival?.props.initialBookId, harumadi.id);
-  assert.equal(arrival?.props.firstMadiPreview, firstMadiPreview);
+  assert.equal(arrival?.props.firstMadiPreview, shelfState.preview);
   assert.equal(render().some(node => node.type === "indicator"), false, "첫 책과 지면을 받았으면 목록 로딩을 표시하지 않는다");
 });
 

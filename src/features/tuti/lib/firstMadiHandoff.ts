@@ -89,7 +89,7 @@ export function startFirstMadiHandoff({ scene, kind, ownerId, bookId, entryId, n
   source.style.visibility = "hidden";
   if (screen) screen.inert = true;
   const motions: Animation[] = [];
-  let ended = false, frame = 0, timer = 0, deadline = 0, navigated = false, observer: MutationObserver | undefined, unsubscribe: (() => void) | undefined;
+  let ended = false, frame = 0, timer = 0, deadline = 0, navigated = false, observer: MutationObserver | undefined;
   const stopWatching = () => { observer?.disconnect(); window.cancelAnimationFrame(frame); window.clearTimeout(timer); };
   const cleanup = () => {
     if (ended) return;
@@ -105,7 +105,7 @@ export function startFirstMadiHandoff({ scene, kind, ownerId, bookId, entryId, n
     window.removeEventListener("pagehide", cleanup);
     window.removeEventListener("resize", finishWithoutAnimation);
     reduced.removeEventListener?.("change", finishWithoutAnimation);
-    unsubscribe?.();
+    unsubscribe();
   };
   const go = () => {
     if (ended || navigated) return;
@@ -167,7 +167,7 @@ export function startFirstMadiHandoff({ scene, kind, ownerId, bookId, entryId, n
   window.addEventListener("pagehide", cleanup);
   window.addEventListener("resize", finishWithoutAnimation);
   reduced.addEventListener?.("change", finishWithoutAnimation);
-  unsubscribe = subscribeToSession(() => { if (getSessionSnapshot()?.userId !== ownerId) cleanup(); });
+  const unsubscribe = subscribeToSession(() => { if (getSessionSnapshot()?.userId !== ownerId) cleanup(); });
   if (kind !== "continue") { waitForArrival(); return; }
 
   const blank = document.createElement("div");
