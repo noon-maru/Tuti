@@ -150,15 +150,16 @@ test("일반 마디와 책 안 연속 작성의 완료 뒤로가기는 기존 �
 
 test("완료 전 미리보기·사진·반려동물 선택을 복원하고 수정 실패에도 입력과 ID를 유지한다", async () => {
   const entry = { ...harumadiContent().entries[0], image: "/api/journal-entry-images/entry-a?signature=test", version: "2026-11-19T00:00:00.000Z", savedHarumadi: { id: "first-book", title: "첫 책" } };
+  const pet = { id: "pet-a", name: "몽실이", species: "dog", weightKg: null, hasPhoto: true, revision: 2 };
   let creates = 0, fails = true;
   const updates: JournalEntryInput[] = [];
-  const screen = madiCreateHarness({ firstMadi: true, onBack() {}, onCollection() {},
+  const screen = madiCreateHarness({ firstMadi: true, draftOwnerId: "owner", onBack() {}, onCollection() {},
     onSave: async (input, existing) => {
       if (!existing) { creates++; return entry; }
       assert.equal(existing.id, entry.id); updates.push(input);
       if (fails) throw Error("연결을 확인해주세요.");
       return entry;
-    } }, "photo");
+    } }, "photo", { "@/features/tuti/hooks/usePetProfiles": { usePetProfiles: () => ({ data: { pets: [pet] } }) } });
   await (screen.control("앨범 사진 선택").onChange as (event: unknown) => Promise<void>)({ target: { files: [{}], value: "photo" } });
   (findMadiControl(screen.render(), p => typeof p.onToggle === "function")!.onToggle as (event: unknown) => void)({ currentTarget: { open: true } });
   (findMadiControl(screen.render(), p => Array.isArray(p.selected))!.onChange as (ids: string[]) => void)(["pet-a"]);
@@ -176,7 +177,10 @@ test("완료 전 미리보기·사진·반려동물 선택을 복원하고 수�
   fails = false; screen.click("변경사항 저장"); await flush();
   assert.equal(updates.length, 2); assert.equal(creates, 1);
   const composedPage = findMadiControl(screen.render(), props => props.firstSaved === true);
-  assert.equal(composedPage?.pets, "몽실이", "저장 응답에 이름이 없으면 선택한 내 프로필의 이름을 사용한다");
+  const placementPets = composedPage?.pets as typeof pet[];
+  assert.equal(placementPets?.length, 1);
+  assert.deepEqual(placementPets[0], pet, "저장 응답에 반려동물 정보가 없으면 선택한 프로필의 이름과 사진 정보를 사용한다");
+  assert.equal(composedPage?.ownerId, "owner");
   assert.equal(composedPage?.content, entry.content);
   assert.equal(composedPage?.place, entry.placeName);
   assert.equal(composedPage?.image, "data:image/jpeg;base64,synthetic", "이미 표시된 사진으로 연출을 시작해 재다운로드를 기다리지 않는다");

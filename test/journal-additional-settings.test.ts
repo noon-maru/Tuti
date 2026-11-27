@@ -47,8 +47,9 @@ test("첫 작성은 고정 안내만 표시하고 정책 조회 없이 일반 �
   assert.match(first, /onSave\(\{ \.\.\.draft,/);
   assert.match(first, /sensitiveContent: false/);
   assert.doesNotMatch(first, /JournalAdditionalSettings|fetchSensitiveJournalPolicy|sensitiveReady|sensitiveConsentVersion|SensitiveSection|policyAttempt|policyFailed/);
-  assert.match(first, /disabled=\{!draft \|\| saving \|\| restoringDraft\}/);
-  assert.match(first, /disabled=\{!draft \|\| saving \|\| saveBlocked\}/);
+  assert.match(first, /disabled=\{!draft \|\| saving \|\| restoringDraft \|\| petProfileBusy\}[^\n]*>미리보기</);
+  assert.match(first, /disabled=\{!draft \|\| saving \|\| saveBlocked \|\| petProfileBusy\} onClick=\{\(\) => void save\(\)\}/);
+  assert.match(first, /disabled=\{!draft \|\| saving \|\| saveBlocked\}[^\n]*이대로 마디 남기기/);
   assert.match(first, /const saveBlocked = restoringDraft \|\| preparingPhoto \|\| Boolean\(inHarumadi && \(!destination \|\| !destinationVerified \|\| destinationScopeChanged\)\)/);
 });
 
