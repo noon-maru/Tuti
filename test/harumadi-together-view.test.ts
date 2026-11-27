@@ -21,7 +21,7 @@ const render = (data: HarumadiTogether, overrides: Partial<Parameters<typeof Har
 test("함께 채우기 셰브론은 공통 상단·좌우 여백과 작은 화면 안전 영역을 따른다", () => {
   const flow = readFileSync("src/features/tuti/flows/HarumadiFlow.tsx", "utf8");
   const frame = readFileSync("src/features/tuti/components/ScreenFrame.tsx", "utf8");
-  assert.match(flow, /\$standard=\{mode === "together" \|\| mode === "pdf"\}/);
+  assert.match(flow, /\$standard=\{mode === "together" \|\| mode === "pdf" \|\| \(mode === "settings" && Boolean\(harumadi\)\)\}/);
   assert.match(flow, /\$standard && `padding-top: var\(--screen-padding-top\);`/);
   assert.match(flow, /var\(--screen-padding-right\) 0 var\(--screen-padding-left\)/);
   assert.match(frame, /--screen-padding-top: calc\(var\(--app-header-top-space, var\(--space-11\)\) \+ var\(--app-safe-area-top, 0px\)\)/);

@@ -1,20 +1,20 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { createElement } from "react";
-import { renderToStaticMarkup } from "react-dom/server";
+import { renderWithQueryClient } from "./fixtures/renderWithQueryClient";
 import test from "node:test";
 import { MadiCreateScreen } from "@/features/tuti/screens/journal/MadiCreateScreen";
 import { madiCreateHarness } from "./fixtures/madiCreateHarness";
 
 test("지정한 하루마디의 실제 제목과 공유 범위를 작성 시작부터 표시한다", () => {
   for (const shared of [false, true]) {
-    const html = renderToStaticMarkup(createElement(MadiCreateScreen, {
+    const html = renderWithQueryClient(createElement(MadiCreateScreen, {
       inHarumadi: true, destination: { id: "book", title: "함께 걷는 하루", shared }, onBack() {}, onCollection() {},
     }));
     assert.match(html, /함께 걷는 하루/);
     assert.match(html, shared ? /함께 채우는 사람들에게 보여요/ : /나만 보는 하루마디에 담아요/);
   }
-  const html = renderToStaticMarkup(createElement(MadiCreateScreen, {
+  const html = renderWithQueryClient(createElement(MadiCreateScreen, {
     inHarumadi: true, destinationError: true, onRetryDestination() {}, onBack() {}, onCollection() {},
   }));
   assert.match(html, /담을 곳을 확인하지 못했어요/);
@@ -29,7 +29,7 @@ test("첫 마디 안내는 진입 위치가 아니라 실제 마디가 없는 �
   assert.doesNotMatch(flow, /if \(fromWelcome\)|<JournalEditorScreen|startTransition/);
   assert.equal(flow.match(/<MadiCreateScreen/g)?.length, 1);
   for (const firstMadi of [false, true]) {
-    const html = renderToStaticMarkup(createElement(MadiCreateScreen, {
+    const html = renderWithQueryClient(createElement(MadiCreateScreen, {
       firstMadi, onBack() {}, onCollection() {},
     }));
     assert.match(html, firstMadi ? />첫 마디<\/span>/ : />새로운 마디<\/span>/);
@@ -69,7 +69,7 @@ test("화면 제목과 입력은 공통 규칙을 사용하고 마디 지면 미
   assert.match(screen, /destination\.title\}에 남길 마디` : "하루마디에 남길 마디" : madiLabel/);
   assert.doesNotMatch(screen, /data-madi-title-field/);
   assert.match(screen, /const PageTitle = styled.h2`[^`]*font-size: 15px; font-weight: 600; line-height: 1\.6/);
-  assert.match(screen, /\{title && <PageTitle>\{title\}<\/PageTitle>\}/);
+  assert.match(screen, /\{title && <PageTitle\b[^>]*>\{title\}<\/PageTitle>\}/);
   assert.match(screen, /aria-label="마디 제목 \(선택\)"[^>]*maxLength=\{FIRST_JOURNAL_TITLE_LIMIT\}/);
 });
 

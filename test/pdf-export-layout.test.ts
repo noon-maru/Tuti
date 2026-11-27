@@ -4,7 +4,7 @@ import { readFileSync } from "node:fs";
 
 test("PDF 저장은 한 줄 헤더·짧은 안내로 정리하고 다른 모드의 헤더는 유지한다", () => {
   const source = readFileSync("src/features/tuti/flows/HarumadiFlow.tsx", "utf8");
-  const header = source.slice(source.indexOf("<Header $reading="), source.indexOf("</Header>", source.indexOf("<Header $reading=")));
+  const header = source.match(/<Header\b[^\n]*\$pdf=\{mode === "pdf"\}[\s\S]*?<\/Header>/)?.[0] ?? "";
   assert.match(header, /mode === "pdf" && <PdfHeading>PDF로 저장하기/);
   assert.match(header, /<BackButton onClick=\{back\} disabled=\{busy\}/);
   assert.match(source, /<PdfNote>Tuti에 보관한 PDF는 하루마디를 수정해도 바뀌지 않아요/);

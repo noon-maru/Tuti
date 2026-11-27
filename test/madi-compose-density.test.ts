@@ -21,7 +21,7 @@ test("짧은 화면은 첫 단계 여백을 되돌리고 입력·저장 영역�
   assert.match(source, /@container app-viewport \(max-height: 620px\) \{ padding-top: 2px; gap: 16px;/);
   assert.match(source, /overflow-y: auto/);
   assert.match(source, /textarea \{ min-height: 130px; resize: vertical;/);
-  assert.match(source, /const Footer = styled.footer`flex: none/);
+  assert.match(source, /const Footer = styled.footer`\s*flex: none/);
   assert.match(source, /const PhotoChoices[^`]*`[^`]*> button \{ min-height: 52px;/);
   assert.match(source, /const SelectedPhoto[^`]*`[^`]*aspect-ratio: 4 \/ 3/);
 });

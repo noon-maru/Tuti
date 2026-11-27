@@ -10,6 +10,7 @@ import { harumadiContent } from "./fixtures/harumadiContent";
 import { madiComposeRevealProgress, madiComposeRevealStyle } from "@/shared/tuti/madiComposeReveal";
 import { MadiComposeRevealLayer } from "@/features/tuti/components/MadiComposeRevealLayer";
 import { readFileSync } from "node:fs";
+import { renderWithQueryClient } from "./fixtures/renderWithQueryClient";
 
 test("드래그 진행률은 PC 목업 배율을 보정하고 나들이와 같은 페이드·34px 이동을 사용한다", () => {
   assert.equal(madiComposePullOffset(80, 800, 800), 80);
@@ -129,7 +130,7 @@ test("버튼 진입도 DOM 연결을 기다리고 도중 이탈·취소는 늦�
 
 test("드래그 중에는 실제 작성 UI를 읽기 전용으로 보여주며 별도 진입 효과는 없다", () => {
   const book = { ...harumadiContent().harumadi, title: "우리의 작은 하루" };
-  const html = renderToStaticMarkup(createElement(MadiComposePullPreview, {
+  const html = renderWithQueryClient(createElement(MadiComposePullPreview, {
     preview: { book, offset: 70, settling: false }, layerRef: { current: null },
   }));
   assert.match(html, /inert=""/);

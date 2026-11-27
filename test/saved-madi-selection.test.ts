@@ -32,5 +32,5 @@ test("선택 단계는 현재 계정의 저장된 원본만 사용하고 생성 
   assert.match(resume, /query.refetch\(\)/);
   assert.doesNotMatch(resume, /addEntry|onSave|createJournal/);
   assert.doesNotMatch(resume, /history.length|router.back/);
-  assert.match(flow, /if \(!harumadiId && !entry.savedHarumadi\) router.replace\(savedMadiSelectionPath/);
+  assert.match(flow, /if \(!savedAsFirst && !harumadiId && !entry\.savedHarumadi\) router\.replace\(savedMadiSelectionPath/);
 });

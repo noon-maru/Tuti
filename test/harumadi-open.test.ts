@@ -88,6 +88,8 @@ test("읽기 권한을 확인한 본문으로 펼치며 표지 전용 조회나 
   assert.doesNotMatch(reader, /HarumadiCover|fetchLibraryCover/);
   assert.match(reader, /openingOrigin=\{opening.mode === "pages" \? opening.origin : undefined\}/);
   const flow = readFileSync("src/features/tuti/flows/HarumadiFlow.tsx", "utf8");
-  assert.match(flow, /if \(id && !readable\)/);
+  assert.match(flow, /const immediatePage = !query\.data && !query\.isError && !query\.isFetchedAfterMount && initialMode === "pages" && !onClose\s*\? readFirstMadiPage\(client, owner, id, focusEntryId\)/);
+  assert.match(flow, /if \(id && !readable && !immediatePage\) return/);
+  assert.match(flow, /verified=\{verified && !immediatePage\}/);
   assert.match(flow, /!openingDone && mode === "pages" && !closing && harumadi && <HarumadiOpenTransition book=\{harumadi\} entries=\{chosen\}/);
 });

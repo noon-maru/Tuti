@@ -8,6 +8,7 @@ import { AppRouterContext, type AppRouterInstance } from "next/dist/shared/lib/a
 import { MainNavigation } from "../src/features/tuti/components/MainNavigation";
 import { MadiCreateScreen } from "../src/features/tuti/screens/journal/MadiCreateScreen";
 import { MADI_COMPOSE_COPY } from "../src/shared/tuti/madiFields";
+import { renderWithQueryClient } from "./fixtures/renderWithQueryClient";
 
 test("전역 작성과 선택 책 작성을 공통 문구로 구분하고 기존 대상·제스처를 유지한다", t => {
   const client = new QueryClient();
@@ -31,12 +32,12 @@ test("전역 작성과 선택 책 작성을 공통 문구로 구분하고 기존
 
 test("일반 작성에만 저장 후 담기를 안내하고 첫 마디·지정 책 안내는 보존한다", () => {
   const base = { onBack() {}, onCollection() {} };
-  const general = renderToStaticMarkup(createElement(MadiCreateScreen, base));
+  const general = renderWithQueryClient(createElement(MadiCreateScreen, base));
   assert.match(general, new RegExp(MADI_COMPOSE_COPY.chooseAfterSave));
-  const first = renderToStaticMarkup(createElement(MadiCreateScreen, { ...base, firstMadi: true }));
+  const first = renderWithQueryClient(createElement(MadiCreateScreen, { ...base, firstMadi: true }));
   assert.match(first, /사진 한 장, 짧은 이야기면 충분해요/);
   assert.doesNotMatch(first, new RegExp(MADI_COMPOSE_COPY.chooseAfterSave));
-  const shared = renderToStaticMarkup(createElement(MadiCreateScreen, { ...base, inHarumadi: true, destination: { id: "book", title: "함께 쓰는 책", shared: true } }));
+  const shared = renderWithQueryClient(createElement(MadiCreateScreen, { ...base, inHarumadi: true, destination: { id: "book", title: "함께 쓰는 책", shared: true } }));
   assert.match(shared, /함께 쓰는 책/); assert.match(shared, /함께 채우는 사람들에게 보여요/);
   assert.doesNotMatch(shared, new RegExp(MADI_COMPOSE_COPY.chooseAfterSave));
 });
@@ -44,13 +45,13 @@ test("일반 작성에만 저장 후 담기를 안내하고 첫 마디·지정 �
 test("지정 책 작성 제목은 실제 책 이름을 보여주고 긴 이름도 생략하지 않는다", () => {
   const base = { onBack() {}, onCollection() {}, inHarumadi: true };
   for (const title of ["우리의 작은 하루", "긴이름".repeat(20), "혼자 남기는 하루 🌿"]) {
-    const html = renderToStaticMarkup(createElement(MadiCreateScreen, { ...base, destination: { id: "book", title, shared: false } }));
+    const html = renderWithQueryClient(createElement(MadiCreateScreen, { ...base, destination: { id: "book", title, shared: false } }));
     assert.ok(html.includes(`${title}에 남길 마디`));
     assert.match(html, /font-size:16px/); assert.match(html, /overflow-wrap:anywhere/);
     assert.doesNotMatch(html, /<strong>우리의 작은 하루<\/strong>/);
     assert.match(html, /나만 보는 하루마디에 담아요/);
   }
-  const unknown = renderToStaticMarkup(createElement(MadiCreateScreen, base));
+  const unknown = renderWithQueryClient(createElement(MadiCreateScreen, base));
   assert.match(unknown, /작성하는 동안 담을 곳을 확인할게요/);
   assert.doesNotMatch(unknown, /undefined에/);
 });

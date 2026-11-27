@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { readFileSync } from "node:fs";
 import { createElement } from "react";
-import { renderToStaticMarkup } from "react-dom/server";
+import { renderWithQueryClient } from "./fixtures/renderWithQueryClient";
 import { createMadiDraftStorage, newMadiDraftContext, type MadiDraft } from "../src/lib/madiDraft";
 import { MadiCreateScreen } from "../src/features/tuti/screens/journal/MadiCreateScreen";
 
@@ -41,7 +41,7 @@ test("공통 new 슬롯의 기존 재현과 달리 책·공유 범위별 초안�
 
 test("책 확인 전·권한 조회 실패에도 작성 화면을 유지하고 저장만 제한한다", () => {
   for (const destinationError of [false, true]) {
-    const html = renderToStaticMarkup(createElement(MadiCreateScreen, { inHarumadi: true, destinationVerified: false, destinationError, onBack() {}, onCollection() {}, onRetryDestination() {} }));
+    const html = renderWithQueryClient(createElement(MadiCreateScreen, { inHarumadi: true, destinationVerified: false, destinationError, onBack() {}, onCollection() {}, onRetryDestination() {} }));
     assert.match(html, /앨범에서 사진 고르기/);
     assert.doesNotMatch(html, /작성 중이던 마디를 확인하고 있어요/);
     if (destinationError) assert.match(html, /다시 확인하기/);
