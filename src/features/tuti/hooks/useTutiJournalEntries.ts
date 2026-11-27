@@ -9,6 +9,8 @@ import {
 import { useCallback } from "react";
 import { useSession } from "./useSession";
 import { isSessionCurrent } from "@/lib/auth/session";
+import { refreshFirstMadiShelfEntry, rememberFirstMadiShelf } from "@/lib/firstMadiShelfPreview";
+import { fetchAllHarumadis } from "@/lib/harumadis";
 import type { TutiSession } from "@/shared/api/session";
 import {
   createJournalEntry,
@@ -47,9 +49,14 @@ export function useTutiJournalEntries(enabled = true) {
 
   const createMutation = useMutation({
     mutationFn: ({ input, session }: { input: JournalEntryInput; session: TutiSession }) => createJournalEntry(input, requireOwner(session)),
-    onSuccess: (entry, { session }) => {
+    onSuccess: (entry, { input, session }) => {
       requireOwner(session);
+      rememberFirstMadiShelf(queryClient, session.userId, entry);
       void refreshJournalDependents(queryClient, session.userId);
+      if (!input.harumadiId && entry.savedHarumadi) void queryClient.prefetchQuery({
+        queryKey: ["library-harumadis", session.userId, "all"],
+        queryFn: ({ signal }) => fetchAllHarumadis(session.userId, signal), retry: false,
+      });
       queryClient.setQueryData<TutiJournalEntry[]>(
         journalEntriesQueryKey(session.userId),
         (currentEntries = []) => [entry, ...currentEntries],
@@ -68,6 +75,7 @@ export function useTutiJournalEntries(enabled = true) {
     }) => updateJournalEntry(entryId, input, requireOwner(session)),
     onSuccess: (entry, { session }) => {
       requireOwner(session);
+      refreshFirstMadiShelfEntry(queryClient, session.userId, entry.id, entry);
       void refreshJournalDependents(queryClient, session.userId);
       queryClient.setQueryData<TutiJournalEntry[]>(
         journalEntriesQueryKey(session.userId),
@@ -80,8 +88,9 @@ export function useTutiJournalEntries(enabled = true) {
   });
   const deleteMutation = useMutation({
     mutationFn: ({ entryId, session }: { entryId: string; session: TutiSession }) => deleteJournalEntry(entryId, requireOwner(session)),
-    onError: async (_error, { session }) => {
+    onError: async (_error, { entryId, session }) => {
       if (!isSessionCurrent(session)) return;
+      refreshFirstMadiShelfEntry(queryClient, session.userId, entryId);
       // 철회가 접수됐지만 파일 정리가 남은 경우 예전 본문·사진을 계속 표시하지 않는다.
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: journalEntriesQueryKey(session.userId) }),
@@ -90,6 +99,7 @@ export function useTutiJournalEntries(enabled = true) {
     },
     onSuccess: (entryId, { session }) => {
       requireOwner(session);
+      refreshFirstMadiShelfEntry(queryClient, session.userId, entryId);
       void refreshJournalDependents(queryClient, session.userId);
       queryClient.setQueryData<TutiJournalEntry[]>(
         journalEntriesQueryKey(session.userId),

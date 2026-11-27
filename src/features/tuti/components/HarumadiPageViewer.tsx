@@ -115,7 +115,7 @@ export function HarumadiPageViewer({ book, entries, onClose, closing = false, ow
         if (Math.abs(dx) > 45 && Math.abs(dx) > Math.abs(dy) * 1.4) { skipClick.current = true; turn(current + (dx < 0 ? 1 : -1)); }
       }}>
       <Page ref={sheet} $captionSpace={captionSpace} $front={Boolean(retained && current < retained.index)} aria-label={current === 0 ? "하루마디 표지" : `${current}쪽`}>
-        <Paper>
+        <Paper data-first-madi-read-target={focusEntryId && pages[current].entryId === focusEntryId ? focusEntryId : undefined}>
         <HarumadiPageSheet page={pages[current]} coverStyle={book.coverStyle} paperColor={book.paperColor} number={current} />
         <Edge type="button" $side="left" aria-label="왼쪽 영역을 눌러 이전 쪽" disabled={closing || current === 0 || Boolean(retained)} onClick={() => edge(-1)} />
         <Edge type="button" $side="right" aria-label={lastPage ? "오른쪽 영역을 눌러 덮기" : "오른쪽 영역을 눌러 다음 쪽"} disabled={closing || Boolean(retained)} onClick={() => edge(1)} />

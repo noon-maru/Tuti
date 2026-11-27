@@ -12,6 +12,7 @@ import type { HarumadiBookReader, HarumadiSettingsOpening } from "@/features/tut
 function fixture(path = "/madi/new?from=welcome") {
   const params = new URL(path, "https://tuti.invalid").searchParams;
   const paths: string[] = [];
+  const prefetches: string[] = [];
   let retries = 0;
   const query = { entries: [] as { id: string }[], isSuccess: false, isError: false, dataUpdatedAt: 0, refetch: () => { retries++; } };
   const stack = [{}]; let index = 0;
@@ -31,7 +32,7 @@ function fixture(path = "/madi/new?from=welcome") {
   let opening: HarumadiSettingsOpening | null = null;
   const history = createHarumadiHistory<HarumadiSettingsOpening>(window, "owner", value => { opening = value; });
   const flow = clientFlowHarness("src/features/tuti/flows/JournalCreateFlow.tsx", "JournalCreateFlow", {
-    "next/navigation": { useSearchParams: () => params, useRouter: () => ({ replace: (value: string) => paths.push(value), back: () => paths.push("history") }) },
+    "next/navigation": { useSearchParams: () => params, useRouter: () => ({ replace: (value: string) => paths.push(value), prefetch: (value: string) => prefetches.push(value), back: () => paths.push("history") }) },
     "@/features/tuti/hooks/useSession": { useSession: () => ({ userId: "owner" }) },
     "@/features/tuti/hooks/useTutiJournalEntries": { useTutiJournalEntries: () => query },
     "@/features/tuti/screens/journal/MadiCreateScreen": { MadiCreateScreen: "composer" },
@@ -51,7 +52,7 @@ function fixture(path = "/madi/new?from=welcome") {
   }, { window });
   const scene = () => { const parent = flow.render(); return flow.render(parent.props, parent.type as never); };
   const composer = () => (scene().props.children as [{ props: { children: ReturnType<typeof scene> } }])[0].props.children;
-  return { flow, query, paths, scene, composer, window, get retries() { return retries; } };
+  return { flow, query, paths, prefetches, scene, composer, window, get retries() { return retries; } };
 }
 
 test("첫 마디 여부를 확인하기 전 잘못된 제목의 편집기를 열지 않고 확인 후 제목을 유지한다", () => {
@@ -79,6 +80,7 @@ test("첫 저장은 완료 화면을 유지하고 책에 담긴 쪽 또는 저�
   const saved = screen.props.onSaved as (entry: object, first: boolean) => void;
   const open = screen.props.onOpenSaved as (entry: object) => void;
   saved(entry, true); saved(unfiled, true); assert.deepEqual(f.paths, []);
+  assert.deepEqual(f.prefetches, ["/harumadi?harumadiId=book%26new&focusEntryId=saved%26entry"]);
   open(entry); assert.equal(f.paths.at(-1), "/harumadi?harumadiId=book%26new&focusEntryId=saved%26entry");
   open(unfiled); assert.equal(f.paths.at(-1), "/madi/detail?entryId=saved%26entry");
   (screen.props.onSelectHarumadi as (entry: object) => void)(unfiled);

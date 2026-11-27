@@ -103,6 +103,7 @@ export async function createJournalEntry(
         }
       }
       let savedHarumadi: { id: string; title: string } | null = null;
+      let firstMadiBook: TutiJournalEntry["firstMadiBook"];
       if (input.harumadiId) {
         await lockHarumadi(tx, input.harumadiId);
         const book = await requireHarumadiAccess(tx, ownerId, input.harumadiId);
@@ -134,9 +135,12 @@ export async function createJournalEntry(
         const link = await tx.harumadiEntryLink.create({ data: { harumadiId: input.harumadiId, entryId: created.id } });
         await recordContribution(tx, ownerId, input.harumadiId, created.id, link.id, context);
         await tx.harumadi.update({ where: { id: input.harumadiId }, data: { revision: { increment: 1 } } });
-      } else savedHarumadi = await createDefaultHarumadiForFirstMadi(tx, ownerId, created, context) ?? null;
+      } else {
+        firstMadiBook = await createDefaultHarumadiForFirstMadi(tx, ownerId, created, context);
+        if (firstMadiBook) savedHarumadi = { id: firstMadiBook.id, title: firstMadiBook.title };
+      }
       await recordLifecycle(tx, ownerId, { name: "madi_created", key: `madi:${created.id}`, entityId: created.id, bookId: savedHarumadi?.id, requestKey, requestHash }, context);
-      return { ...created, savedHarumadi };
+      return { ...created, savedHarumadi, firstMadiBook };
     });
 
     if (entry.id !== entryId) {
@@ -153,7 +157,7 @@ export async function createJournalEntry(
       targetId: entry.id,
     });
 
-    return { ...serializeJournalEntry(entry), savedHarumadi: entry.savedHarumadi };
+    return { ...serializeJournalEntry(entry), savedHarumadi: entry.savedHarumadi, ...("firstMadiBook" in entry && entry.firstMadiBook ? { firstMadiBook: entry.firstMadiBook } : {}) };
   } catch (error) {
     await cleanupUploadedImage(preparedImage.uploadedKey);
     throw error;

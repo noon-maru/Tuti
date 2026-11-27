@@ -32,6 +32,7 @@ import { MainMenu } from "../components/MainMenu";
 import { bodyCopyStyles } from "@/shared/ui/typography";
 import { PendingMadiNotice } from "../components/PendingMadiNotice";
 import { useMadiComposePull } from "../hooks/useMadiComposePull";
+import { firstMadiShelfArrival } from "@/features/tuti/lib/firstMadiHandoff";
 import { MadiComposePullPreview } from "../components/MadiComposePullPreview";
 
 export function LibraryHomeFlow() {
@@ -41,6 +42,7 @@ export function LibraryHomeFlow() {
 function LibraryHome({ ownerId, adminAccess = false }: { ownerId: string; adminAccess?: boolean }) {
   const router = useRouter();
   const [hasDraft, setHasDraft] = useState(false);
+  const [arrivingBookId] = useState(() => firstMadiShelfArrival(ownerId));
   const [searchOpen, setSearchOpen] = useState(false);
   const searchButton = useRef<HTMLButtonElement>(null);
   const focusSearchInput = useCallback((input: HTMLInputElement | null) => {
@@ -64,10 +66,11 @@ function LibraryHome({ ownerId, adminAccess = false }: { ownerId: string; adminA
   };
   const library = useHarumadiLibrary(ownerId);
   const query = library;
-  const search = useHarumadiSearch(query.data?.pages.flatMap(page => page.harumadis) ?? []);
+  const { books, preview: firstMadiPreview } = library.shelf;
+  const search = useHarumadiSearch(books);
   const harumadiPdfs = search.books;
   const isFirstMadi = library.isFirstMadi;
-  const recordCount = query.data?.pages[0]?.recordCount ?? 0;
+  const recordCount = Math.max(query.data?.pages[0]?.recordCount ?? 0, firstMadiPreview ? 1 : 0);
   const closeSearch = () => {
     search.setSearch("");
     setSearchOpen(false);
@@ -106,7 +109,7 @@ function LibraryHome({ ownerId, adminAccess = false }: { ownerId: string; adminA
     {hasDraft && <DraftButton type="button" onClick={() => router.push("/harumadi/pdf/create")}><Download size={17} /><span>이전 PDF 작업 이어가기</span><ArrowUpRight size={16} /></DraftButton>}
     <PendingMadiNotice ownerId={ownerId} />
     <ShelfScroll ref={shelfScroll} data-scroll-region data-library-layout={search.searching ? "covers" : view} aria-label="내 하루마디">
-      {query.isPending ? <Status role="status"><LoadingIndicator /><p>책장에 하루마디를 놓고 있어요.</p></Status>
+      {query.isPending && !firstMadiPreview ? <Status role="status"><LoadingIndicator /><p>책장에 하루마디를 놓고 있어요.</p></Status>
         : query.isError && !query.data ? <Status role="alert"><BookOpen size={28} /><h2>책장을 불러오지 못했어요.</h2><p>하루마디가 없어진 건 아니에요.<br />연결을 확인하고 다시 불러와주세요.</p><TextAction onClick={() => void query.refetch()}>다시 불러오기<ChevronRight size={14} /></TextAction></Status>
         : <>
           {harumadiPdfs.length === 0 && search.searching ? <Status role="status"><p>이름이 일치하는 하루마디가 없어요.</p><TextAction onClick={() => search.setSearch("")}>전체 하루마디 보기</TextAction></Status> : harumadiPdfs.length === 0 ? <EmptyShelf data-empty-shelf>
@@ -119,7 +122,7 @@ function LibraryHome({ ownerId, adminAccess = false }: { ownerId: string; adminA
             </> : !isFirstMadi && <PrimaryButton type="button" onClick={openEditor}>새 하루마디 만들기<ArrowUpRight size={16} /></PrimaryButton>}
             <TextAction onClick={openExample}>하루마디 예시 펼쳐보기<ChevronRight size={14} /></TextAction>
           </EmptyShelf> : <>
-            {view === "carousel" && !search.searching ? <HarumadiCarousel books={harumadiPdfs} ownerId={ownerId} onOpen={openBook}
+            {view === "carousel" && !search.searching ? <HarumadiCarousel books={harumadiPdfs} ownerId={ownerId} initialBookId={arrivingBookId ?? firstMadiPreview?.book.id} firstMadiPreview={firstMadiPreview} onOpen={openBook}
               loading={Boolean(composePull.preview?.settling)} onWriteDrag={composePull.drag} onWriteCancel={composePull.cancel}
               onCreateMadi={bookId => { const book = harumadiPdfs.find(item => item.id === bookId); if (book) composePull.open(book); }} /> : <HarumadiShelf books={harumadiPdfs} ownerId={ownerId} view={!search.searching && view === "spines" ? "spines" : "covers"} onOpen={openBook} />}
           </>}

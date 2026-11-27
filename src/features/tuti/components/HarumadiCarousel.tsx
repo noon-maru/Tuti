@@ -15,10 +15,13 @@ import { HarumadiTitleHint } from "./HarumadiTitleHint";
 import { harumadiAccessibleTitle } from "@/shared/harumadi/titleHints";
 import { waitForCarouselSlide } from "@/lib/carouselSlide";
 import { harumadiSharingLabel } from "@/shared/harumadi/sharingAudience";
+import type { FirstMadiShelfPreview } from "@/lib/firstMadiShelfPreview";
 
 type Gesture = { id: number; x: number; y: number; dx: number; startedAt: number; width: number; dragging: boolean; bookId: string; axis?: "horizontal" | "down" };
-export function HarumadiCarousel({ books, ownerId, onOpen, onCreateMadi, onWriteDrag, onWriteCancel, hasNextPage = false, loading = false, onLoadMore }: {
+export function HarumadiCarousel({ books, ownerId, initialBookId, firstMadiPreview, onOpen, onCreateMadi, onWriteDrag, onWriteCancel, hasNextPage = false, loading = false, onLoadMore }: {
   books: Harumadi[]; ownerId: string;
+  initialBookId?: string | null;
+  firstMadiPreview?: FirstMadiShelfPreview;
   onOpen: (book: Harumadi, control: HTMLElement, mode?: HarumadiOpeningMode) => void;
   onCreateMadi?: (bookId: string) => void;
   onWriteDrag?: (book: Harumadi, distance: number) => void;
@@ -27,7 +30,10 @@ export function HarumadiCarousel({ books, ownerId, onOpen, onCreateMadi, onWrite
 }) {
   const stage = useRef<HTMLDivElement>(null);
   const gesture = useRef<Gesture | null>(null), blockedClickUntil = useRef(0), requesting = useRef(false);
-  const [selection, setSelection] = useState(() => ({ id: books[0]?.id ?? null, index: 0 }));
+  const [selection, setSelection] = useState(() => {
+    const index = initialBookId ? Math.max(0, books.findIndex(book => book.id === initialBookId)) : 0;
+    return { id: books[index]?.id ?? null, index };
+  });
   const [size, setSize] = useState({ width: 320, height: 300 }), [drag, setDrag] = useState(0), [dragging, setDragging] = useState(false), [pending, setPending] = useState(false);
   const [writeProgress, setWriteProgress] = useState(0);
   const [sliding, setSliding] = useState(false);
@@ -159,7 +165,7 @@ export function HarumadiCarousel({ books, ownerId, onOpen, onCreateMadi, onWrite
       {books.filter((book, bookIndex) => Math.abs(bookIndex - index) <= 3 || book.id === outgoingId).map(book => {
         const bookIndex = books.indexOf(book), selected = book.id === active.id, spread = selected || book.id === outgoingId;
         const pose = carouselDraggedPose(bookIndex - index, drag, index, books.length);
-        return <Slide key={book.id} data-harumadi-card data-carousel-active={selected} aria-hidden={!selected} $dragging={dragging}
+        return <Slide key={book.id} data-harumadi-card data-first-madi-shelf-book={book.id} data-carousel-active={selected} aria-hidden={!selected} $dragging={dragging}
           style={{ width: spreadWidth, zIndex: pose.zIndex, opacity: pose.opacity, pointerEvents: "none", transform: `translate(-50%, -50%) translateX(${pose.x * width}px) translateY(${writeProgress * 48 * (selected ? 1 : .2)}px) scale(${pose.scale}) rotateY(${pose.rotation}deg)` }}>
           <CoverButton $spread={spread} style={{ "--spread-page-scale": (spreadWidth / 2 - 2) / 320, pointerEvents: pose.opacity > .1 ? "auto" : "none" } as CSSProperties} data-book-cover type="button" disabled={busy} tabIndex={selected ? 0 : -1} aria-label={`${harumadiAccessibleTitle(book)}, 마디 ${book.entryIds.length}개 ${selected ? "미리보기 열기" : "선택"}`}
             onClick={event => {
@@ -170,7 +176,8 @@ export function HarumadiCarousel({ books, ownerId, onOpen, onCreateMadi, onWrite
               const direction = carouselTapDirection(event.clientX, visible, event.detail === 0);
               if (direction) void move(direction); else onOpen(book, event.currentTarget);
             }}>
-            {spread ? <HarumadiSpreadPreview book={book} ownerId={ownerId} /> : <CarouselCover book={book} ownerId={ownerId} />}
+            {spread ? <HarumadiSpreadPreview book={book} ownerId={ownerId} still={book.id === initialBookId}
+              savedEntry={firstMadiPreview?.book.id === book.id ? firstMadiPreview.entry : undefined} /> : <CarouselCover book={book} ownerId={ownerId} />}
           </CoverButton>
         </Slide>;
       })}

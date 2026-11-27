@@ -34,7 +34,7 @@ export function HarumadiShelf({ books, ownerId, view, onOpen }: {
       const rowBooks = books.slice(row * columns, (row + 1) * columns);
       const hintRows = rowBooks.some(book => book.duplicateTitle) ? (rowBooks.some(book => book.duplicateTitle && book.role === "contributor") ? 2 : 1) : 0;
       return <ShelfRow key={rowBooks[0].id} $spines={spines} $hintRows={hintRows}>
-      <HarumadiGrid $spines={spines} $columns={columns}>{rowBooks.map(book => <HarumadiCard key={book.id} data-harumadi-card>
+      <HarumadiGrid $spines={spines} $columns={columns}>{rowBooks.map(book => <HarumadiCard key={book.id} data-harumadi-card data-first-madi-shelf-book={book.id}>
         <HarumadiButton data-book-cover type="button" aria-label={`${harumadiAccessibleTitle(book)}, 마디 ${book.entryIds.length}개 열기`} onClick={event => onOpen(book, event.currentTarget)}>
           {spines ? <HarumadiSpine book={book} /> : <HarumadiCover harumadiPdf={{ ...book, entryCount: book.entryIds.length, pageCount: 0, hasCover: book.coverStyle.endsWith("-image") && book.entryIds.length > 0 }} ownerId={ownerId} kind="harumadi" />}
           <HarumadiLabel $spines={spines} $hintRows={hintRows}><strong>{book.title}</strong><small title={harumadiSharingLabel(book) ?? undefined}>{book.entryIds.length ? `마디 ${book.entryIds.length}개` : spines ? "빈 하루마디" : "첫 마디를 기다려요"}{book.shared ? ` · ${harumadiSharingLabel(book)}` : ""}</small><HarumadiTitleHint book={book} />{book.role === "contributor" && <small>{book.ownerName}님의 하루마디</small>}</HarumadiLabel>

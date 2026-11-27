@@ -69,6 +69,7 @@ export function madiCreateHarness(props: ComponentProps<typeof MadiCreateScreen>
     "@/lib/madiDraft": { newMadiDraftContext, madiEditDraftSource },
     "@/shared/harumadi/sharingAudience": { harumadiSharingNotice },
     "@/features/tuti/lib/firstMadiPlacementMotion": firstMadiPlacementMotion,
+    "@/features/tuti/lib/firstMadiHandoff": { startFirstMadiHandoff: ({ navigate }: { navigate: () => void }) => navigate(), cancelFirstMadiHandoff: () => false },
     "@/features/tuti/hooks/usePetProfiles": { usePetProfiles: () => ({ data: { pets: [{ id: "pet-a", name: "몽실이" }] } }) },
     ...overrides,
   };

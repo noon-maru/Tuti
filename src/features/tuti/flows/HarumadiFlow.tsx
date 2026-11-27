@@ -1,6 +1,7 @@
 "use client";
 import { sectionHeadingStyles, screenTitleStyles, bodyCopyStyles, captionStyles, inputControlStyles } from "@/shared/ui/typography";
 import { confirmAction, showToast } from "@/lib/feedback";
+import { readFirstMadiPage, updateFirstMadiShelf, type FirstMadiShelfPreview } from "@/lib/firstMadiShelfPreview";
 import { harumadiDeletionMessage } from "@/shared/tuti/deletionCopy";
 import { DUPLICATE_HARUMADI_TITLE_NOTICE, shouldNotifyDuplicateTitle } from "@/shared/harumadi/titleHints";
 
@@ -64,6 +65,8 @@ export function HarumadiFlow({ bookId, initialMode, openingOrigin, onClose, regi
 }
 function HarumadiLoader({ owner, id, initialMode, openingOrigin, onClose, registerCloseGuard, settingsReturn }: { owner: string; id: string | null } & ReaderOptions) {
   const router = useRouter();
+  const client = useQueryClient();
+  const focusEntryId = useSearchParams().get("focusEntryId");
   const query = useQuery({ queryKey: ["harumadi-content", owner, id], queryFn: ({ signal }) => fetchHarumadiContent(owner, id!, signal),
     enabled: Boolean(id), retry: false, staleTime: 0, refetchOnMount: "always", refetchOnWindowFocus: true,
     refetchInterval: query => query.state.data?.content.harumadi.shared ? 30_000 : false });
@@ -71,15 +74,18 @@ function HarumadiLoader({ owner, id, initialMode, openingOrigin, onClose, regist
   const current = Boolean(id && query.data && harumadiReadCache.current(owner, id, query.data.ticket));
   const verified = !id || Boolean((current || query.isFetching) && query.data && !query.data.cached && query.isFetchedAfterMount && !query.isPaused && !query.error);
   const readable = Boolean(query.data && current && !authoritativeReadError(query.error) && (canCacheHarumadi(query.data.content) || verified));
+  const immediatePage = !query.data && !query.isError && !query.isFetchedAfterMount && initialMode === "pages" && !onClose
+    ? readFirstMadiPage(client, owner, id, focusEntryId) : undefined;
+  const read = readable ? query.data : undefined;
   const editingAppearance = initialMode === "settings";
-  if (id && !readable && (query.isPending || query.isFetching)) return <Frame>{onClose && <Header $reading={!editingAppearance} $standard={editingAppearance}><BackButton aria-label={settingsReturn?.backLabel ?? "내 책장으로 돌아가기"} onClick={onClose} /></Header>}<AppLoadingScreen label="하루마디를 열고 있어요." /></Frame>;
-  if (id && !readable) return <Frame><Header $reading={!editingAppearance} $standard={editingAppearance}><BackButton aria-label={settingsReturn?.backLabel ?? "내 책장으로 돌아가기"} onClick={onClose ?? (() => router.replace("/"))} /></Header><Body $reading={false} role="alert"><h1>하루마디를 열지 못했어요.</h1><p>{query.error?.message ?? "연결을 확인하고 다시 열어주세요."}</p><PrimaryButton onClick={() => void query.refetch()}>다시 불러오기</PrimaryButton></Body></Frame>;
-  return <HarumadiEditor key={id ?? "new"} owner={owner} initial={query.data?.content.harumadi} read={query.data}
-    verified={verified} refreshing={query.isFetching} onRefresh={() => { if (id) void query.refetch(); }} initialMode={initialMode} openingOrigin={openingOrigin} onClose={onClose} registerCloseGuard={registerCloseGuard} settingsReturn={settingsReturn} />;
+  if (id && !readable && !immediatePage && (query.isPending || query.isFetching)) return <Frame>{onClose && <Header $reading={!editingAppearance} $standard={editingAppearance}><BackButton aria-label={settingsReturn?.backLabel ?? "내 책장으로 돌아가기"} onClick={onClose} /></Header>}<AppLoadingScreen label="하루마디를 열고 있어요." /></Frame>;
+  if (id && !readable && !immediatePage) return <Frame><Header $reading={!editingAppearance} $standard={editingAppearance}><BackButton aria-label={settingsReturn?.backLabel ?? "내 책장으로 돌아가기"} onClick={onClose ?? (() => router.replace("/"))} /></Header><Body $reading={false} role="alert"><h1>하루마디를 열지 못했어요.</h1><p>{query.error?.message ?? "연결을 확인하고 다시 열어주세요."}</p><PrimaryButton onClick={() => void query.refetch()}>다시 불러오기</PrimaryButton></Body></Frame>;
+  return <HarumadiEditor key={id ?? "new"} owner={owner} initial={read?.content.harumadi ?? immediatePage?.book} read={read}
+    immediatePage={immediatePage} verified={verified && !immediatePage} refreshing={query.isFetching} onRefresh={() => { if (id) void query.refetch(); }} initialMode={initialMode} openingOrigin={openingOrigin} onClose={onClose} registerCloseGuard={registerCloseGuard} settingsReturn={settingsReturn} />;
 }
 
-function HarumadiEditor({ owner, initial, read, verified, refreshing, onRefresh, initialMode, openingOrigin, onClose, registerCloseGuard, settingsReturn }: {
-  owner: string; initial?: Harumadi; read?: HarumadiRead; verified: boolean; refreshing: boolean; onRefresh: () => void;
+function HarumadiEditor({ owner, initial, read, immediatePage, verified, refreshing, onRefresh, initialMode, openingOrigin, onClose, registerCloseGuard, settingsReturn }: {
+  owner: string; initial?: Harumadi; read?: HarumadiRead; immediatePage?: FirstMadiShelfPreview; verified: boolean; refreshing: boolean; onRefresh: () => void;
 } & ReaderOptions) {
   const router = useRouter(); const client = useQueryClient();
   const frame = useRef<HTMLElement>(null), contents = useRef<HTMLDivElement>(null);
@@ -113,9 +119,9 @@ function HarumadiEditor({ owner, initial, read, verified, refreshing, onRefresh,
     const timer = window.setTimeout(() => {
       cacheNotices.current.add(state);
       showToast(refreshing ? "저장된 내용을 먼저 보여드리고 있어요." : "저장된 하루마디를 보고 있어요. 연결 후 최신 내용을 확인해주세요.", { durationMs: 1800 });
-    }, 400);
+    }, immediatePage && refreshing ? 1200 : 400);
     return () => window.clearTimeout(timer);
-  }, [readOnly, refreshing, opening, closing]);
+  }, [readOnly, refreshing, opening, closing, immediatePage]);
   const addEntryId = useSearchParams().get("addEntryId");
   const focusEntryId = useSearchParams().get("focusEntryId");
   const handlePdf = useCallback((value: typeof pdf) => setPdf(value), []);
@@ -126,8 +132,9 @@ function HarumadiEditor({ owner, initial, read, verified, refreshing, onRefresh,
     if (getSessionSnapshot()?.userId !== owner) throw new Error("계정이 바뀌었어요.");
     return values;
   }, enabled: Boolean(harumadi) && (mode === "selection" || Boolean(addEntryId)), refetchOnWindowFocus: false });
-  const isFirstMadi = read ? read.content.totalRecordCount === 0 : entries.isSuccess && entries.data.length === 0;
-  const chosen = useMemo(() => orderByEntryIds((read?.content.entries ?? []).filter(entry => harumadi?.entryIds.includes(entry.id)), harumadi?.entryIds ?? []), [read, harumadi]);
+  const isFirstMadi = immediatePage ? false : read ? read.content.totalRecordCount === 0 : entries.isSuccess && entries.data.length === 0;
+  const chosen = useMemo(() => orderByEntryIds((read?.content.entries ?? (immediatePage ? [immediatePage.entry] : []))
+    .filter(entry => harumadi?.entryIds.includes(entry.id)), harumadi?.entryIds ?? []), [read, immediatePage, harumadi]);
   const dirty = harumadiEditsDirty(harumadi, mode, settings, selected, orderedIds, chosen.filter(entry => entry.authorId === owner).map(entry => entry.id));
   const leavePending = useRef(false);
   const allowLeave = useCallback(async () => {
@@ -176,6 +183,7 @@ function HarumadiEditor({ owner, initial, read, verified, refreshing, onRefresh,
     try {
       const input = { ...settings, freeformNonSensitiveConfirmed: confirmed };
       const saved = harumadi ? await updateHarumadi(owner, harumadi.id, { ...input, revision: harumadi.revision, entryIds: harumadi.entryIds }) : await createHarumadi(owner, input);
+      updateFirstMadiShelf(client, owner, saved);
       if (shouldNotifyDuplicateTitle(harumadi, saved)) showToast(DUPLICATE_HARUMADI_TITLE_NOTICE);
       refreshLibrary();
       if (!harumadi) { router.replace(`${harumadiPath(saved.id)}${addEntryId ? `&addEntryId=${encodeURIComponent(addEntryId)}` : ""}`); return; }

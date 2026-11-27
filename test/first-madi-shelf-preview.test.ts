@@ -1,0 +1,50 @@
+import assert from "node:assert/strict";
+import test from "node:test";
+import { readFileSync } from "node:fs";
+import { QueryClient } from "@tanstack/react-query";
+import { displayFirstMadiShelf, readFirstMadiPage, readFirstMadiShelf, refreshFirstMadiShelfEntry, rememberFirstMadiShelf, updateFirstMadiShelf } from "@/lib/firstMadiShelfPreview";
+import { harumadiContent } from "./fixtures/harumadiContent";
+
+test("저장 응답의 책과 지면을 즉시 보여주되 기존 목록과 분리하고 서버 결과가 우선한다", () => {
+  const client = new QueryClient();
+  const { entries: [entry], harumadi } = harumadiContent();
+  const book = { ...harumadi, shared: false, role: "owner" as const, entryIds: [entry.id] };
+  rememberFirstMadiShelf(client, "owner", { ...entry, sensitiveContent: false, firstMadiBook: book, savedHarumadi: { id: book.id, title: book.title } });
+  assert.equal(readFirstMadiShelf(client, "other"), undefined);
+  assert.equal(client.getQueryData(["library-harumadis", "owner", "all"]), undefined, "미리보기를 전체 목록 캐시에 쓰지 않는다");
+  const preview = readFirstMadiShelf(client, "owner")!;
+  assert.equal(displayFirstMadiShelf(undefined, 0, false, preview).books[0].id, book.id);
+  assert.equal(preview.entry.id, entry.id);
+  const other = { ...book, id: "shared", shared: true };
+  const stale = [{ harumadis: [other], nextCursor: null }];
+  assert.deepEqual(displayFirstMadiShelf(stale, 0, false, preview).books, [book, other]);
+  const current = [{ harumadis: [other, { ...book, title: "서버 제목" }], nextCursor: null }];
+  assert.equal(displayFirstMadiShelf(current, preview.receivedAt + 1, false, preview).books[1].title, "서버 제목");
+  assert.equal(displayFirstMadiShelf(stale, preview.receivedAt + 1, false, preview).preview, undefined);
+  assert.equal(displayFirstMadiShelf(undefined, 0, true, preview).preview, undefined);
+  assert.equal(displayFirstMadiShelf([{ harumadis: [{ ...book, shared: true }], nextCursor: null }], preview.receivedAt + 1, false, preview).preview, undefined);
+  updateFirstMadiShelf(client, "owner", { ...book, title: "새 이름" });
+  assert.equal(readFirstMadiShelf(client, "owner")?.book.title, "새 이름");
+  refreshFirstMadiShelfEntry(client, "owner", entry.id);
+  assert.equal(readFirstMadiShelf(client, "owner"), undefined);
+  client.clear();
+});
+
+test("저장한 쪽만 권한 확인 전 읽을 수 있고 최신 내용 확인 후 일반 읽기로 이어진다", () => {
+  const client = new QueryClient();
+  const { entries: [entry], harumadi } = harumadiContent();
+  const book = { ...harumadi, shared: false, role: "owner" as const, entryIds: [entry.id] };
+  rememberFirstMadiShelf(client, "owner", { ...entry, sensitiveContent: false, firstMadiBook: book, savedHarumadi: { id: book.id, title: book.title } });
+  assert.equal(readFirstMadiPage(client, "owner", book.id, entry.id)?.entry.id, entry.id);
+  assert.equal(readFirstMadiPage(client, "other", book.id, entry.id), undefined);
+  assert.equal(readFirstMadiPage(client, "owner", "other-book", entry.id), undefined);
+  assert.equal(readFirstMadiPage(client, "owner", book.id, "other-entry"), undefined);
+  assert.equal(readFirstMadiPage(client, "owner", book.id, null), undefined);
+  assert.equal(client.getQueryData(["harumadi-content", "owner", book.id]), undefined, "미리보기는 서버 권한을 확인한 콘텐츠 캐시에 들어가지 않는다");
+  client.clear();
+  const reader = readFileSync("src/features/tuti/flows/HarumadiFlow.tsx", "utf8");
+  assert.match(reader, /!query.data && !query.isError && !query.isFetchedAfterMount && initialMode === "pages" && !onClose/);
+  assert.match(reader, /if \(id && !readable && !immediatePage && \(query.isPending \|\| query.isFetching\)\)/);
+  assert.match(reader, /immediatePage=\{immediatePage\} verified=\{verified && !immediatePage\}/);
+  assert.match(reader, /read\?\.content\.entries \?\? \(immediatePage \? \[immediatePage.entry\] : \[\]\)/);
+});

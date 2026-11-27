@@ -4,6 +4,7 @@ import { readFileSync } from "node:fs";
 import { runInNewContext } from "node:vm";
 import ts from "typescript";
 import { QueryClient } from "@tanstack/react-query";
+import * as firstMadiShelfPreview from "@/lib/firstMadiShelfPreview";
 
 test("계정 전환 뒤 마디 저장·수정·삭제·공개 응답이 다음 계정 캐시를 바꾸지 않는다", async () => {
   const a = { userId: "madi-a", accessToken: "a" }, b = { userId: "madi-b", accessToken: "b" };
@@ -19,6 +20,8 @@ test("계정 전환 뒤 마디 저장·수정·삭제·공개 응답이 다음 �
     if (name === "react") return { useCallback: (fn: unknown) => fn };
     if (name === "./useSession") return { useSession: () => current };
     if (name === "@/lib/auth/session") return { isSessionCurrent: (session: typeof a) => session.userId === current.userId && session.accessToken === current.accessToken };
+    if (name === "@/lib/firstMadiShelfPreview") return firstMadiShelfPreview;
+    if (name === "@/lib/harumadis") return { fetchAllHarumadis: () => { throw new Error("unexpected prefetch"); } };
     if (name === "@/lib/tutiApi") return { createJournalEntry: pending, updateJournalEntry: pending, deleteJournalEntry: pending, setJournalEntryPublication: pending };
     if (name === "@tanstack/react-query") return { useQueryClient: () => client,
       useQuery: ({ queryKey }: { queryKey: string[] }) => ({ data: client.getQueryData(queryKey) ?? [] }),

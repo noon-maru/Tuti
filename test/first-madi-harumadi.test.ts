@@ -42,7 +42,8 @@ test("첫 마디와 기본 하루마디를 함께 저장하고 동시 요청·�
         assert.equal(lockedOwner, data.ownerId);
         if (failBook) throw new Error("book write failed");
         assert.equal(entries.get(data.entries.create.entryId)?.ownerId, data.ownerId);
-        books.set(data.id, data); return data;
+        const row = { ...data, createdAt: new Date(), updatedAt: new Date(), paperColor: "white", revision: 1 };
+        books.set(data.id, row); return row;
       },
     },
     lifecycleEvent: {
@@ -81,6 +82,9 @@ test("첫 마디와 기본 하루마디를 함께 저장하고 동시 요청·�
     assert.equal(first.id, second.id);
     assert.deepEqual(first.savedHarumadi, second.savedHarumadi, "재시도에도 실제 연결된 책을 반환한다");
     assert.equal(first.savedHarumadi?.title, "우리의 작은 하루");
+    assert.deepEqual(first.firstMadiBook?.entryIds, [first.id]);
+    assert.equal(first.firstMadiBook?.id, first.savedHarumadi?.id);
+    assert.equal(second.firstMadiBook, undefined);
     const book = [...books.values()].find(b => b.ownerId === "idempotent")!;
     book.entries.create.entryId = "removed-link";
     assert.equal((await createJournalEntry("idempotent", request)).savedHarumadi, null, "연결 해제 후에는 예전 담기 성공을 재표시하지 않는다");
@@ -150,9 +154,15 @@ test("첫 마디에 사진이 있어도 속지 설정 없이 같은 마디만 �
   const writes: Record<string, unknown>[] = [];
   const tx = {
     journalEntry: { count: async () => 1 },
-    harumadi: { findFirst: async () => null, create: async ({ data }: { data: Record<string, unknown> }) => { writes.push(data); } },
+    harumadi: { findFirst: async () => null, create: async ({ data }: { data: Record<string, unknown> }) => {
+      writes.push(data); return { ...data, createdAt: new Date(), updatedAt: new Date(), paperColor: "white", revision: 1 };
+    } },
   } as unknown as Prisma.TransactionClient;
-  await createDefaultHarumadiForFirstMadi(tx, "photo-owner", { id: "photo-entry", image: "journal-images/test.webp" });
+  const preview = await createDefaultHarumadiForFirstMadi(tx, "photo-owner", { id: "photo-entry", image: "journal-images/test.webp" });
+  assert.equal(preview?.id, writes[0].id);
+  assert.deepEqual(preview?.entryIds, ["photo-entry"]);
+  assert.equal(preview?.coverStyle, writes[0].coverStyle);
+  assert.equal(preview?.shared, false);
   assert.equal(writes[0].ownerId, "photo-owner");
   assert.equal("innerStyle" in writes[0], false);
   const link = (writes[0].entries as { create: { id: string; entryId: string } }).create;

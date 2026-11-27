@@ -23,6 +23,8 @@ import { welcomeMadiCancelPath } from "@/shared/tuti/welcomeGuide";
 import { HarumadiBookReader, type HarumadiSettingsOpening } from "@/features/tuti/components/HarumadiBookReader";
 import { useHarumadiHistory } from "@/features/tuti/hooks/useHarumadiHistory";
 
+const savedPagePath = (bookId: string, entryId: string) => `${harumadiPath(bookId)}&focusEntryId=${encodeURIComponent(entryId)}`;
+
 export function JournalCreateFlow() {
   const router = useRouter();
   const ownerId = useSession()?.userId;
@@ -158,12 +160,12 @@ function JournalComposer({ ownerId, harumadiId, initialFirstMadi }: { ownerId: s
       if (source === "notification" && notificationId) void notificationRequest("notifications/events", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ notificationId, action: "written" }) }).catch(() => {});
       savedEntryId.current = entry.id;
       setActiveJournalEntry(entry.id);
+      if (savedAsFirst && entry.savedHarumadi) router.prefetch(savedPagePath(entry.savedHarumadi.id, entry.id));
       if (!savedAsFirst && !harumadiId && !entry.savedHarumadi) router.replace(savedMadiSelectionPath(entry.id, source, initialPlaceId));
     }}
     onOpenSaved={entry => {
       const bookId = entry.savedHarumadi?.id ?? harumadiId;
-      const focusId = encodeURIComponent(entry.id);
-      router.replace(bookId ? `${harumadiPath(bookId)}&focusEntryId=${focusId}` : `/madi/detail?entryId=${focusId}`);
+      router.replace(bookId ? savedPagePath(bookId, entry.id) : `/madi/detail?entryId=${encodeURIComponent(entry.id)}`);
     }}
     onSelectHarumadi={entry => router.replace(savedMadiSelectionPath(entry.id, source, initialPlaceId))}
     onRenameFirstHarumadi={book => openRename({ book, mode: "settings" })}

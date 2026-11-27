@@ -27,6 +27,7 @@ import { harumadiSharingNotice } from "@/shared/harumadi/sharingAudience";
 import { PetProfiles } from "@/features/tuti/components/PetProfiles";
 import { FIRST_MADI_HANDOFF_MS, FIRST_MADI_PLACEMENT_MS, FIRST_MADI_REDUCED_HANDOFF_MS, animateFirstMadiAssembly, animateFirstMadiGuidance, animateFirstMadiPlacement, firstMadiOrigins, firstMadiPageOrigin, type FirstMadiOrigins, type FirstMadiPageOrigin } from "@/features/tuti/lib/firstMadiPlacementMotion";
 import { usePetProfiles } from "@/features/tuti/hooks/usePetProfiles";
+import { cancelFirstMadiHandoff, startFirstMadiHandoff, type FirstMadiHandoffKind } from "@/features/tuti/lib/firstMadiHandoff";
 
 type Stage = "photo" | "write" | "preview";
 
@@ -185,6 +186,7 @@ export function MadiCreateScreen({ onBack, onSave, onCollection, onSaved, onOpen
     setCropSource(null);
   }, []);
   const back = useCallback(() => {
+    if (cancelFirstMadiHandoff(placementScene.current)) return;
     if (cropSource) { cancelCrop(); return; }
     if (savingRef.current) return;
     selection.current += 1;
@@ -303,12 +305,22 @@ export function MadiCreateScreen({ onBack, onSave, onCollection, onSaved, onOpen
     if (bookId && onContinueInHarumadi) onContinueInHarumadi(bookId);
     else startAnother();
   };
+  const leaveCompletedBook = (kind: FirstMadiHandoffKind, navigate: () => void) => {
+    const scene = placementScene.current;
+    if (bookStep?.settled && draftOwnerId && firstPlacement && saved && scene) {
+      startFirstMadiHandoff({ kind, ownerId: draftOwnerId, bookId: firstPlacement.id, entryId: saved.id, scene, navigate });
+    } else navigate();
+  };
+  const finishCollection = () => {
+    if (collectionLabel === "내 책장으로 돌아가기") leaveCompletedBook("shelf", onCollection);
+    else onCollection();
+  };
 
   if (saved && inHarumadi && !continueInHarumadi) return <AppLoadingScreen label="하루마디에 담고 있어요." />;
   if (saved && needsBookSelection && harumadiSelection) return <MadiHarumadiSelection key={saved.id}
     {...harumadiSelection} entryId={saved.id} onNext={nextMadi} />;
 
-  return <Frame aria-labelledby="madi-create-heading">
+  return <Frame aria-labelledby="madi-create-heading" data-first-madi-write-target={!preview && inHarumadi && !saved ? (draftDestination ?? destination)?.id : undefined}>
     <Header>
       <BackButton aria-label={bookStep ? "첫 마디로 돌아가기" : saved ? savedAsFirstMadi && !inHarumadi ? "이전으로" : inHarumadi ? "하루마디로" : collectionLabel : "이전으로"} onClick={back} disabled={saving} />
       <HeaderTitle $book={inHarumadi}>{inHarumadi ? destination?.title ? `${destination.title}에 남길 마디` : "하루마디에 남길 마디" : madiLabel}</HeaderTitle>
@@ -363,7 +375,7 @@ export function MadiCreateScreen({ onBack, onSave, onCollection, onSaved, onOpen
             <InsideCover><span>하루마디</span><strong>{firstPlacement.title}</strong></InsideCover>
             <OutsideCover><strong>{firstPlacement.title}</strong><span>하루마디</span></OutsideCover>
           </BookLeaf>
-          <RightLeaf><span>1</span></RightLeaf>
+          <RightLeaf data-placement-under-page><span>1</span></RightLeaf>
         </BookBinding>}
         <PlacedMemory $book={Boolean(bookStep)} data-placement-page><MemoryPage firstSaved compact={Boolean(bookStep)} title={saved.title} image={saved.image ? image ?? saved.image : null} content={saved.content}
           date={getKoreanDateKey(new Date(saved.visitedAt))} place={saved.placeName === "남긴 공간" ? "" : saved.placeName}
@@ -386,13 +398,13 @@ export function MadiCreateScreen({ onBack, onSave, onCollection, onSaved, onOpen
     <Footer data-reserve-collection={showFirstSavedAction && showingPlacementGuidance ? "" : undefined}>
       {saved ? <>
         {showingPlacementGuidance ? <PlacementGuidance ref={placementGuidance} data-placement-guidance>기록을 한데 모아 볼 수 있도록 도와드릴게요.</PlacementGuidance>
-          : showFirstSavedAction ? <PrimaryButton data-first-madi-reveal={bookStep?.settled ? "" : undefined} type="button" onClick={() => onOpenSaved?.(saved)}>{saved.savedHarumadi ? "방금 남긴 쪽 보기" : "방금 남긴 마디 보기"} <ArrowRight size={16} aria-hidden="true" /></PrimaryButton>
-          : <PrimaryButton data-first-madi-reveal={bookStep?.settled ? "" : undefined} type="button" onClick={onCollection}>{inHarumadi ? "하루마디로 돌아가기" : collectionLabel} <ArrowRight size={16} aria-hidden="true" /></PrimaryButton>}
+          : showFirstSavedAction ? <PrimaryButton data-first-madi-action={bookStep?.settled ? "read" : undefined} data-first-madi-reveal={bookStep?.settled ? "" : undefined} type="button" onClick={() => leaveCompletedBook("read", () => onOpenSaved?.(saved))}>{saved.savedHarumadi ? "방금 남긴 쪽 보기" : "방금 남긴 마디 보기"} <ArrowRight size={16} aria-hidden="true" /></PrimaryButton>
+          : <PrimaryButton data-first-madi-reveal={bookStep?.settled ? "" : undefined} type="button" onClick={finishCollection}>{inHarumadi ? "하루마디로 돌아가기" : collectionLabel} <ArrowRight size={16} aria-hidden="true" /></PrimaryButton>}
         {showFirstSavedAction && !saved.savedHarumadi && onSelectHarumadi && <TextButton type="button" onClick={() => onSelectHarumadi(saved)}>하루마디에 담기</TextButton>}
         {inHarumadi ? <TextButton type="button" onClick={startAnother}>이 하루마디에 다음 마디 남기기</TextButton>
-          : saved.savedHarumadi && onContinueInHarumadi && (!firstPlacement || bookStep?.settled) ? <TextButton data-first-madi-reveal={bookStep?.settled ? "" : undefined} type="button" onClick={() => onContinueInHarumadi(saved.savedHarumadi!.id)}>같은 하루마디에 다음 마디 남기기</TextButton>
+          : saved.savedHarumadi && onContinueInHarumadi && (!firstPlacement || bookStep?.settled) ? <TextButton data-first-madi-action={bookStep?.settled ? "continue" : undefined} data-first-madi-reveal={bookStep?.settled ? "" : undefined} type="button" onClick={() => leaveCompletedBook("continue", () => onContinueInHarumadi(saved.savedHarumadi!.id))}>같은 하루마디에 다음 마디 남기기</TextButton>
             : !showFirstSavedAction && !showingPlacementGuidance && <TextButton type="button" onClick={startAnother}>다음 마디 남기기</TextButton>}
-        {showFirstSavedAction && !showingPlacementGuidance && <TextButton data-first-madi-reveal={bookStep?.settled ? "" : undefined} type="button" onClick={onCollection}>{collectionLabel}</TextButton>}
+        {showFirstSavedAction && !showingPlacementGuidance && <TextButton data-first-madi-action={bookStep?.settled && collectionLabel === "내 책장으로 돌아가기" ? "shelf" : undefined} data-first-madi-reveal={bookStep?.settled ? "" : undefined} type="button" onClick={finishCollection}>{collectionLabel}</TextButton>}
       </> : stage === "photo" ? image && <PrimaryButton type="button" disabled={restoringDraft} onClick={() => setStage("write")}>이 사진으로 계속하기</PrimaryButton>
         : stage === "write" ? <>
           {inHarumadi && destinationVerified && destination && <PrivacyHint>{destination.title} · {harumadiSharingNotice(destination)}</PrivacyHint>}

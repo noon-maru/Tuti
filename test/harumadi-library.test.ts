@@ -51,7 +51,7 @@ test("책장 로딩과 오류는 남는 콘텐츠 높이를 채워 세로 중앙
   assert.match(status, /flex: 1 0 auto/);
   assert.match(status, /min-height: 230px/);
   assert.match(status, /align-items: center; justify-content: center/);
-  assert.match(home, /query.isPending \? <Status role="status"><LoadingIndicator/);
+  assert.match(home, /query.isPending && !firstMadiPreview \? <Status role="status"><LoadingIndicator/);
   assert.match(home, /query.isError && !query.data \? <Status role="alert"/);
 });
 

@@ -23,7 +23,7 @@ export function buildHarumadiSpread(book: Harumadi, entries: TutiJournalEntry[])
 }
 
 // 선택한 책만 조회한다. 드래그 프레임에서는 지면·사진을 다시 렌더하지 않는다.
-export const HarumadiSpreadPreview = memo(function HarumadiSpreadPreview({ book, ownerId }: { book: Harumadi; ownerId: string }) {
+export const HarumadiSpreadPreview = memo(function HarumadiSpreadPreview({ book, ownerId, still = false, savedEntry }: { book: Harumadi; ownerId: string; still?: boolean; savedEntry?: TutiJournalEntry }) {
   const query = useQuery({ queryKey: ["harumadi-content", ownerId, book.id],
     queryFn: ({ signal }) => fetchHarumadiContent(ownerId, book.id, signal),
     retry: false, staleTime: 0, refetchOnMount: "always", refetchOnWindowFocus: true,
@@ -33,10 +33,12 @@ export const HarumadiSpreadPreview = memo(function HarumadiSpreadPreview({ book,
   const verified = query.isFetchedAfterMount && !query.isPaused && !query.error && read && !read.cached;
   const readable = read && harumadiReadCache.current(ownerId, book.id, read.ticket) && !authoritativeReadError(query.error) &&
     ((!book.shared && canCacheHarumadi(read.content)) || verified);
-  const pages = useMemo(() => readable && read ? buildHarumadiSpread(read.content.harumadi, read.content.entries) : [], [readable, read]);
+  const immediateEntry = savedEntry && !book.shared && !authoritativeReadError(query.error) && book.entryIds.includes(savedEntry.id) ? savedEntry : undefined;
+  const pages = useMemo(() => readable && read ? buildHarumadiSpread(read.content.harumadi, read.content.entries)
+    : immediateEntry ? buildHarumadiSpread(book, [immediateEntry]) : [], [readable, read, book, immediateEntry]);
   // 최초 콘텐츠 준비 시에만 펼친다. 백그라운드 갱신은 같은 DOM을 유지해 재생하지 않는다.
   const ready = pages.length > 0 || query.isError;
-  return <HarumadiSpreadSheets book={book} pages={pages} ready={ready} ownerId={ownerId} failed={query.isError} />;
+  return <HarumadiSpreadSheets book={book} pages={pages} ready={ready} still={still} ownerId={ownerId} failed={query.isError} />;
 });
 
 /** 책장과 확대 전환이 동일한 두 지면을 사용한다. 전환에서는 조회·펼침을 반복하지 않는다. */
